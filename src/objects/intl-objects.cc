@@ -39,10 +39,6 @@
 #include "unicode/uvernum.h"
 #include "unicode/uversion.h"
 
-#if U_ICU_VERSION_MAJOR_NUM >= 59
-#include "unicode/char16ptr.h"
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -87,14 +83,18 @@ icu::Locale Intl::CreateICULocale(Isolate* isolate,
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   char icu_result[ULOC_FULLNAME_CAPACITY];
-  int icu_length = 0;
+  int parsed_length = 0;
 
   // bcp47_locale_str should be a canonicalized language tag, which
   // means this shouldn't fail.
   uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
-                      &icu_length, &status);
+                      &parsed_length, &status);
   CHECK(U_SUCCESS(status));
-  CHECK_LT(0, icu_length);
+
+  // bcp47_locale is already checked for its structural validity
+  // so that it should be parsed completely.
+  int bcp47length = bcp47_locale.length();
+  CHECK_EQ(bcp47length, parsed_length);
 
   icu::Locale icu_locale(icu_result);
   if (icu_locale.isBogus()) {
@@ -381,6 +381,7 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
 
 namespace {
 
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 // Define general regexp macros.
 // Note "(?:" means the regexp group a non-capture group.
 #define REGEX_ALPHA "[a-z]"
@@ -492,6 +493,7 @@ icu::RegexMatcher* GetLanguageVariantRegexMatcher(Isolate* isolate) {
   }
   return language_variant_regexp_matcher;
 }
+#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 
 }  // anonymous namespace
 
@@ -617,6 +619,7 @@ char AsciiToLower(char c) {
   return c | (1 << 5);
 }
 
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 /**
  * Check the structural Validity of the language tag per ECMA 402 6.2.2:
  *   - Well-formed per RFC 5646 2.1
@@ -628,7 +631,7 @@ char AsciiToLower(char c) {
  * primary/extended language, script, region, variant are not checked
  * against the IANA language subtag registry.
  *
- * ICU is too permissible and lets invalid tags, like
+ * ICU 62 or earlier is too permissible and lets invalid tags, like
  * hant-cmn-cn, through.
  *
  * Returns false if the language tag is invalid.
@@ -719,6 +722,7 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
 
   return true;
 }
+#endif  // USE_CHROMIUM_ICU == 0 || U_ICU_VERSION_MAJOR_NUM < 63
 
 bool IsLowerAscii(char c) { return c >= 'a' && c < 'z'; }
 
@@ -770,6 +774,14 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   }
   std::string locale(locale_str->ToCString().get());
 
+  if (locale.length() == 0 ||
+      !String::IsAscii(locale.data(), static_cast<int>(locale.length()))) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        Nothing<std::string>());
+  }
+
   // Optimize for the most common case: a 2-letter language code in the
   // canonical form/lowercase that is not one of the deprecated codes
   // (in, iw, ji, jw). Don't check for ~70 of 3-letter deprecated language
@@ -783,12 +795,15 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   // Because per BCP 47 2.1.1 language tags are case-insensitive, lowercase
   // the input before any more check.
   std::transform(locale.begin(), locale.end(), locale.begin(), AsciiToLower);
+
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   if (!IsStructurallyValidLanguageTag(isolate, locale)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
         Nothing<std::string>());
   }
+#endif
 
   // ICU maps a few grandfathered tags to what looks like a regular language
   // tag even though IANA language tag registry does not have a preferred
@@ -806,11 +821,18 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   // https://unicode-org.atlassian.net/browse/ICU-13417
   UErrorCode error = U_ZERO_ERROR;
   char icu_result[ULOC_FULLNAME_CAPACITY];
+  // uloc_forLanguageTag checks the structrual validity. If the input BCP47
+  // language tag is parsed all the way to the end, it indicates that the input
+  // is structurally valid. Due to a couple of bugs, we can't use it
+  // without Chromium patches or ICU 62 or earlier.
+  int parsed_length;
   uloc_forLanguageTag(locale.c_str(), icu_result, ULOC_FULLNAME_CAPACITY,
-                      nullptr, &error);
-  if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
-    // TODO(jshin): This should not happen because the structural validity
-    // is already checked. If that's the case, remove this.
+                      &parsed_length, &error);
+  if (U_FAILURE(error) ||
+#if USE_CHROMIUM_ICU == 1 || U_ICU_VERSION_MAJOR_NUM >= 63
+      static_cast<size_t>(parsed_length) < locale.length() ||
+#endif
+      error == U_STRING_NOT_TERMINATED_WARNING) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),

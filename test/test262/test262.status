@@ -584,7 +584,6 @@
   'intl402/Locale/constructor-options-region-valid': [FAIL],
   'intl402/Locale/constructor-options-script-invalid': [FAIL],
   'intl402/Locale/constructor-options-script-valid': [FAIL],
-  'intl402/Locale/constructor-unicode-ext-invalid': [FAIL],
   'intl402/Locale/getters': [FAIL],
   'intl402/Locale/invalid-tag-throws': [FAIL],
 

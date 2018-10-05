@@ -173,7 +173,6 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
 
   // Get ICU locale format, and canonicalize it.
   char icu_result[ULOC_FULLNAME_CAPACITY];
-  char icu_canonical[ULOC_FULLNAME_CAPACITY];
 
   if (locale->length() == 0) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty),
@@ -184,11 +183,14 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
   CHECK_LT(0, bcp47_locale.length());
   CHECK_NOT_NULL(*bcp47_locale);
 
-  int icu_length = uloc_forLanguageTag(
-      *bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY, nullptr, &status);
+  int parsed_length = 0;
+  int icu_length =
+      uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
+                          &parsed_length, &status);
 
-  if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING ||
-      icu_length == 0) {
+  if (U_FAILURE(status) ||
+      parsed_length < static_cast<int>(bcp47_locale.length()) ||
+      status == U_STRING_NOT_TERMINATED_WARNING || icu_length == 0) {
     THROW_NEW_ERROR(
         isolate,
         NewRangeError(MessageTemplate::kLocaleBadParameters,
@@ -211,18 +213,7 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
   }
   DCHECK(error.FromJust());
 
-  uloc_canonicalize(icu_result, icu_canonical, ULOC_FULLNAME_CAPACITY, &status);
-  if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kLocaleBadParameters,
-                      isolate->factory()->NewStringFromAsciiChecked(kMethod),
-                      locale_holder),
-        JSLocale);
-    return MaybeHandle<JSLocale>();
-  }
-
-  if (!PopulateLocaleWithUnicodeTags(isolate, icu_canonical, locale_holder)) {
+  if (!PopulateLocaleWithUnicodeTags(isolate, icu_result, locale_holder)) {
     THROW_NEW_ERROR(
         isolate,
         NewRangeError(MessageTemplate::kLocaleBadParameters,
@@ -234,13 +225,13 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
 
   // Extract language, script and region parts.
   char icu_language[ULOC_LANG_CAPACITY];
-  uloc_getLanguage(icu_canonical, icu_language, ULOC_LANG_CAPACITY, &status);
+  uloc_getLanguage(icu_result, icu_language, ULOC_LANG_CAPACITY, &status);
 
   char icu_script[ULOC_SCRIPT_CAPACITY];
-  uloc_getScript(icu_canonical, icu_script, ULOC_SCRIPT_CAPACITY, &status);
+  uloc_getScript(icu_result, icu_script, ULOC_SCRIPT_CAPACITY, &status);
 
   char icu_region[ULOC_COUNTRY_CAPACITY];
-  uloc_getCountry(icu_canonical, icu_region, ULOC_COUNTRY_CAPACITY, &status);
+  uloc_getCountry(icu_result, icu_region, ULOC_COUNTRY_CAPACITY, &status);
 
   if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
     THROW_NEW_ERROR(
@@ -271,8 +262,7 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
   }
 
   char icu_base_name[ULOC_FULLNAME_CAPACITY];
-  uloc_getBaseName(icu_canonical, icu_base_name, ULOC_FULLNAME_CAPACITY,
-                   &status);
+  uloc_getBaseName(icu_result, icu_base_name, ULOC_FULLNAME_CAPACITY, &status);
   // We need to convert it back to BCP47.
   char bcp47_result[ULOC_FULLNAME_CAPACITY];
   uloc_toLanguageTag(icu_base_name, bcp47_result, ULOC_FULLNAME_CAPACITY, true,
@@ -290,7 +280,7 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
   locale_holder->set_base_name(*base_name);
 
   // Produce final representation of the locale string, for toString().
-  uloc_toLanguageTag(icu_canonical, bcp47_result, ULOC_FULLNAME_CAPACITY, true,
+  uloc_toLanguageTag(icu_result, bcp47_result, ULOC_FULLNAME_CAPACITY, true,
                      &status);
   if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
     THROW_NEW_ERROR(

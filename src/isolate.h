@@ -1182,6 +1182,7 @@ class Isolate : private HiddenFactory {
   }
 
 #ifdef V8_INTL_SUPPORT
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   icu::RegexMatcher* language_singleton_regexp_matcher() {
     return language_singleton_regexp_matcher_;
   }
@@ -1193,6 +1194,7 @@ class Isolate : private HiddenFactory {
   icu::RegexMatcher* language_variant_regexp_matcher() {
     return language_variant_regexp_matcher_;
   }
+#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 
   const std::string& default_locale() { return default_locale_; }
 
@@ -1201,6 +1203,7 @@ class Isolate : private HiddenFactory {
     default_locale_ = locale;
   }
 
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   void set_language_tag_regexp_matchers(
       icu::RegexMatcher* language_singleton_regexp_matcher,
       icu::RegexMatcher* language_tag_regexp_matcher,
@@ -1212,6 +1215,7 @@ class Isolate : private HiddenFactory {
     language_tag_regexp_matcher_ = language_tag_regexp_matcher;
     language_variant_regexp_matcher_ = language_variant_regexp_matcher;
   }
+#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 #endif  // V8_INTL_SUPPORT
 
   static const int kProtectorValid = 1;
@@ -1730,9 +1734,11 @@ class Isolate : private HiddenFactory {
   double load_start_time_ms_;
 
 #ifdef V8_INTL_SUPPORT
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   icu::RegexMatcher* language_singleton_regexp_matcher_;
   icu::RegexMatcher* language_tag_regexp_matcher_;
   icu::RegexMatcher* language_variant_regexp_matcher_;
+#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   std::string default_locale_;
 #endif  // V8_INTL_SUPPORT
 

@@ -2626,9 +2626,11 @@ Isolate::Isolate()
       host_initialize_import_meta_object_callback_(nullptr),
       load_start_time_ms_(0),
 #ifdef V8_INTL_SUPPORT
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
       language_singleton_regexp_matcher_(nullptr),
       language_tag_regexp_matcher_(nullptr),
       language_variant_regexp_matcher_(nullptr),
+#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
       default_locale_(""),
 #endif  // V8_INTL_SUPPORT
       serializer_enabled_(false),
@@ -2865,6 +2867,7 @@ Isolate::~Isolate() {
   date_cache_ = nullptr;
 
 #ifdef V8_INTL_SUPPORT
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   delete language_singleton_regexp_matcher_;
   language_singleton_regexp_matcher_ = nullptr;
 
@@ -2873,6 +2876,7 @@ Isolate::~Isolate() {
 
   delete language_variant_regexp_matcher_;
   language_variant_regexp_matcher_ = nullptr;
+#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 #endif  // V8_INTL_SUPPORT
 
   delete regexp_stack_;
