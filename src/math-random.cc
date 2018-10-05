@@ -39,17 +39,16 @@ Smi* MathRandom::RefillCache(Isolate* isolate, Context* native_context) {
   // requested, use it to reset our state the first time a script asks for
   // random numbers in this context. This ensures the script sees a consistent
   // sequence.
-  if (state.s0 == 0 || state.s1 == 0) {
+  if (state.s0 == 0 && state.s1 == 0) {
+    uint64_t seed;
     if (FLAG_random_seed != 0) {
-      state.s0 = FLAG_random_seed;
-      state.s1 = FLAG_random_seed;
+      seed = FLAG_random_seed;
     } else {
-      base::RandomNumberGenerator* rng = isolate->random_number_generator();
-      while (state.s0 == 0 || state.s1 == 0) {
-        rng->NextBytes(&state.s0, sizeof(state.s0));
-        rng->NextBytes(&state.s1, sizeof(state.s1));
-      }
+      isolate->random_number_generator()->NextBytes(&seed, sizeof(seed));
     }
+    state.s0 = base::RandomNumberGenerator::MurmurHash3(seed);
+    state.s1 = base::RandomNumberGenerator::MurmurHash3(~seed);
+    CHECK(state.s0 != 0 || state.s1 != 0);
   }
 
   FixedDoubleArray* cache =

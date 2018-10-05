@@ -127,14 +127,14 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
     *state1 = s1;
   }
 
+  static uint64_t MurmurHash3(uint64_t);
+
  private:
   static const int64_t kMultiplier = V8_2PART_UINT64_C(0x5, deece66d);
   static const int64_t kAddend = 0xb;
   static const int64_t kMask = V8_2PART_UINT64_C(0xffff, ffffffff);
 
   int Next(int bits) V8_WARN_UNUSED_RESULT;
-
-  static uint64_t MurmurHash3(uint64_t);
 
   int64_t initial_seed_;
   uint64_t state0_;
