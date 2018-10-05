@@ -17,10 +17,10 @@
 namespace v8 {
 namespace internal {
 
-// * Each intrinsic is consistently exposed in JavaScript via 2 names:
+// * Each intrinsic is exposed in JavaScript via:
 //    * %#name, which is always a runtime call.
-//    * %_#name, which can be inlined or just a runtime call, the compiler in
-//      question decides.
+//    * (optionally) %_#name, which can be inlined or just a runtime call, the
+//      compiler in question decides.
 //
 // * IntrinsicTypes are Runtime::RUNTIME and Runtime::INLINE, respectively.
 //
@@ -31,12 +31,13 @@ namespace internal {
 // * Each compiler has an explicit list of intrisics it supports, falling back
 //   to a simple runtime call if necessary.
 
-
 // Entries have the form F(name, number of arguments, number of values):
 // A variable number of arguments is specified by a -1, additional restrictions
-// are specified by inline comments
+// are specified by inline comments. To declare only the runtime version (no
+// inline), use the F macro below. To declare the runtime version and the inline
+// version simultaneously, use the I macro below.
 
-#define FOR_EACH_INTRINSIC_ARRAY(F)       \
+#define FOR_EACH_INTRINSIC_ARRAY(F, I)    \
   F(ArrayIncludes_Slow, 3, 1)             \
   F(ArrayIndexOf, 3, 1)                   \
   F(ArrayIsArray, 1, 1)                   \
@@ -45,7 +46,7 @@ namespace internal {
   F(GetArrayKeys, 2, 1)                   \
   F(GrowArrayElements, 2, 1)              \
   F(HasComplexElements, 1, 1)             \
-  F(IsArray, 1, 1)                        \
+  I(IsArray, 1, 1)                        \
   F(MoveArrayContents, 2, 1)              \
   F(NewArray, -1 /* >= 3 */, 1)           \
   F(NormalizeElements, 1, 1)              \
@@ -54,33 +55,33 @@ namespace internal {
   F(TransitionElementsKindWithKind, 2, 1) \
   F(TrySliceSimpleNonFastElements, 3, 1)
 
-#define FOR_EACH_INTRINSIC_ATOMICS(F)  \
-  F(AtomicsLoad64, 2, 1)               \
-  F(AtomicsStore64, 3, 1)              \
-  F(AtomicsAdd, 3, 1)                  \
-  F(AtomicsAnd, 3, 1)                  \
-  F(AtomicsCompareExchange, 4, 1)      \
-  F(AtomicsExchange, 3, 1)             \
-  F(AtomicsNumWaitersForTesting, 2, 1) \
-  F(AtomicsOr, 3, 1)                   \
-  F(AtomicsSub, 3, 1)                  \
-  F(AtomicsXor, 3, 1)                  \
+#define FOR_EACH_INTRINSIC_ATOMICS(F, I) \
+  F(AtomicsLoad64, 2, 1)                 \
+  F(AtomicsStore64, 3, 1)                \
+  F(AtomicsAdd, 3, 1)                    \
+  F(AtomicsAnd, 3, 1)                    \
+  F(AtomicsCompareExchange, 4, 1)        \
+  F(AtomicsExchange, 3, 1)               \
+  F(AtomicsNumWaitersForTesting, 2, 1)   \
+  F(AtomicsOr, 3, 1)                     \
+  F(AtomicsSub, 3, 1)                    \
+  F(AtomicsXor, 3, 1)                    \
   F(SetAllowAtomicsWait, 1, 1)
 
-#define FOR_EACH_INTRINSIC_BIGINT(F) \
-  F(BigIntBinaryOp, 3, 1)            \
-  F(BigIntCompareToBigInt, 3, 1)     \
-  F(BigIntCompareToNumber, 3, 1)     \
-  F(BigIntCompareToString, 3, 1)     \
-  F(BigIntEqualToBigInt, 2, 1)       \
-  F(BigIntEqualToNumber, 2, 1)       \
-  F(BigIntEqualToString, 2, 1)       \
-  F(BigIntToBoolean, 1, 1)           \
-  F(BigIntToNumber, 1, 1)            \
-  F(BigIntUnaryOp, 2, 1)             \
+#define FOR_EACH_INTRINSIC_BIGINT(F, I) \
+  F(BigIntBinaryOp, 3, 1)               \
+  F(BigIntCompareToBigInt, 3, 1)        \
+  F(BigIntCompareToNumber, 3, 1)        \
+  F(BigIntCompareToString, 3, 1)        \
+  F(BigIntEqualToBigInt, 2, 1)          \
+  F(BigIntEqualToNumber, 2, 1)          \
+  F(BigIntEqualToString, 2, 1)          \
+  F(BigIntToBoolean, 1, 1)              \
+  F(BigIntToNumber, 1, 1)               \
+  F(BigIntUnaryOp, 2, 1)                \
   F(ToBigInt, 1, 1)
 
-#define FOR_EACH_INTRINSIC_CLASSES(F)       \
+#define FOR_EACH_INTRINSIC_CLASSES(F, I)    \
   F(DefineClass, -1 /* >= 3 */, 1)          \
   F(HomeObjectSymbol, 0, 1)                 \
   F(LoadFromSuper, 3, 1)                    \
@@ -96,16 +97,16 @@ namespace internal {
   F(ThrowSuperNotCalled, 0, 1)              \
   F(ThrowUnsupportedSuperError, 0, 1)
 
-#define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
-  F(MapGrow, 1, 1)                        \
-  F(MapShrink, 1, 1)                      \
-  F(SetGrow, 1, 1)                        \
-  F(SetShrink, 1, 1)                      \
-  F(TheHole, 0, 1)                        \
-  F(WeakCollectionDelete, 3, 1)           \
+#define FOR_EACH_INTRINSIC_COLLECTIONS(F, I) \
+  F(MapGrow, 1, 1)                           \
+  F(MapShrink, 1, 1)                         \
+  F(SetGrow, 1, 1)                           \
+  F(SetShrink, 1, 1)                         \
+  F(TheHole, 0, 1)                           \
+  F(WeakCollectionDelete, 3, 1)              \
   F(WeakCollectionSet, 4, 1)
 
-#define FOR_EACH_INTRINSIC_COMPILER(F)    \
+#define FOR_EACH_INTRINSIC_COMPILER(F, I) \
   F(CompileForOnStackReplacement, 1, 1)   \
   F(CompileLazy, 1, 1)                    \
   F(CompileOptimized_Concurrent, 1, 1)    \
@@ -116,9 +117,9 @@ namespace internal {
   F(NotifyDeoptimized, 0, 1)              \
   F(ResolvePossiblyDirectEval, 6, 1)
 
-#define FOR_EACH_INTRINSIC_DATE(F) F(DateCurrentTime, 0, 1)
+#define FOR_EACH_INTRINSIC_DATE(F, I) F(DateCurrentTime, 0, 1)
 
-#define FOR_EACH_INTRINSIC_DEBUG(F)             \
+#define FOR_EACH_INTRINSIC_DEBUG(F, I)          \
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
   F(DebugBreakAtEntry, 1, 1)                    \
@@ -145,32 +146,32 @@ namespace internal {
   F(SetGeneratorScopeVariableValue, 4, 1)       \
   F(LiveEditPatchScript, 2, 1)
 
-#define FOR_EACH_INTRINSIC_FORIN(F) \
-  F(ForInEnumerate, 1, 1)           \
+#define FOR_EACH_INTRINSIC_FORIN(F, I) \
+  F(ForInEnumerate, 1, 1)              \
   F(ForInHasProperty, 2, 1)
 
 #ifdef V8_TRACE_IGNITION
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F) \
-  F(InterpreterTraceBytecodeEntry, 3, 1)        \
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I) \
+  F(InterpreterTraceBytecodeEntry, 3, 1)           \
   F(InterpreterTraceBytecodeExit, 3, 1)
 #else
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I)
 #endif
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F) \
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I) \
   F(InterpreterTraceUpdateFeedback, 3, 1)
 #else
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F)
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I)
 #endif
 
-#define FOR_EACH_INTRINSIC_INTERPRETER(F)          \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)          \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F) \
+#define FOR_EACH_INTRINSIC_INTERPRETER(F, I)          \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I)          \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I) \
   F(InterpreterDeserializeLazy, 2, 1)
 
-#define FOR_EACH_INTRINSIC_FUNCTION(F)     \
-  F(Call, -1 /* >= 2 */, 1)                \
+#define FOR_EACH_INTRINSIC_FUNCTION(F, I)  \
+  I(Call, -1 /* >= 2 */, 1)                \
   F(FunctionGetScriptSource, 1, 1)         \
   F(FunctionGetScriptId, 1, 1)             \
   F(FunctionGetScriptSourcePosition, 1, 1) \
@@ -179,38 +180,38 @@ namespace internal {
   F(IsFunction, 1, 1)                      \
   F(SetNativeFlag, 1, 1)
 
-#define FOR_EACH_INTRINSIC_GENERATOR(F)       \
+#define FOR_EACH_INTRINSIC_GENERATOR(F, I)    \
   F(AsyncGeneratorHasCatchHandlerForPC, 1, 1) \
-  F(AsyncGeneratorReject, 2, 1)               \
-  F(AsyncGeneratorResolve, 3, 1)              \
-  F(AsyncGeneratorYield, 3, 1)                \
-  F(CreateJSGeneratorObject, 2, 1)            \
-  F(GeneratorClose, 1, 1)                     \
+  I(AsyncGeneratorReject, 2, 1)               \
+  I(AsyncGeneratorResolve, 3, 1)              \
+  I(AsyncGeneratorYield, 3, 1)                \
+  I(CreateJSGeneratorObject, 2, 1)            \
+  I(GeneratorClose, 1, 1)                     \
   F(GeneratorGetFunction, 1, 1)               \
-  F(GeneratorGetResumeMode, 1, 1)
+  I(GeneratorGetResumeMode, 1, 1)
 
 #ifdef V8_INTL_SUPPORT
-#define FOR_EACH_INTRINSIC_INTL(F)           \
-  F(AvailableLocalesOf, 1, 1)                \
-  F(CanonicalizeLanguageTag, 1, 1)           \
-  F(DateCacheVersion, 0, 1)                  \
-  F(FormatList, 2, 1)                        \
-  F(FormatListToParts, 2, 1)                 \
-  F(GetDefaultICULocale, 0, 1)               \
-  F(StringToLowerCaseIntl, 1, 1)             \
+#define FOR_EACH_INTRINSIC_INTL(F, I) \
+  F(AvailableLocalesOf, 1, 1)         \
+  F(CanonicalizeLanguageTag, 1, 1)    \
+  F(DateCacheVersion, 0, 1)           \
+  F(FormatList, 2, 1)                 \
+  F(FormatListToParts, 2, 1)          \
+  F(GetDefaultICULocale, 0, 1)        \
+  F(StringToLowerCaseIntl, 1, 1)      \
   F(StringToUpperCaseIntl, 1, 1)  // End of macro.
 #else
-#define FOR_EACH_INTRINSIC_INTL(F)
+#define FOR_EACH_INTRINSIC_INTL(F, I)
 #endif  // V8_INTL_SUPPORT
 
-#define FOR_EACH_INTRINSIC_INTERNAL(F)             \
+#define FOR_EACH_INTRINSIC_INTERNAL(F, I)          \
   F(AllocateInNewSpace, 1, 1)                      \
   F(AllocateInTargetSpace, 2, 1)                   \
   F(AllocateSeqOneByteString, 1, 1)                \
   F(AllocateSeqTwoByteString, 1, 1)                \
   F(AllowDynamicFunction, 1, 1)                    \
   F(CheckIsBootstrapping, 0, 1)                    \
-  F(CreateAsyncFromSyncIterator, 1, 1)             \
+  I(CreateAsyncFromSyncIterator, 1, 1)             \
   F(CreateListFromArrayLike, 1, 1)                 \
   F(CreateTemplateObject, 1, 1)                    \
   F(DeserializeLazy, 1, 1)                         \
@@ -250,31 +251,31 @@ namespace internal {
   F(Typeof, 1, 1)                                  \
   F(UnwindAndFindExceptionHandler, 0, 1)
 
-#define FOR_EACH_INTRINSIC_LITERALS(F)              \
+#define FOR_EACH_INTRINSIC_LITERALS(F, I)           \
   F(CreateArrayLiteral, 4, 1)                       \
   F(CreateArrayLiteralWithoutAllocationSite, 2, 1)  \
   F(CreateObjectLiteral, 4, 1)                      \
   F(CreateObjectLiteralWithoutAllocationSite, 2, 1) \
   F(CreateRegExpLiteral, 4, 1)
 
-#define FOR_EACH_INTRINSIC_MODULE(F) \
-  F(DynamicImportCall, 2, 1)         \
-  F(GetImportMetaObject, 0, 1)       \
+#define FOR_EACH_INTRINSIC_MODULE(F, I) \
+  F(DynamicImportCall, 2, 1)            \
+  I(GetImportMetaObject, 0, 1)          \
   F(GetModuleNamespace, 1, 1)
 
-#define FOR_EACH_INTRINSIC_NUMBERS(F) \
-  F(GetHoleNaNLower, 0, 1)            \
-  F(GetHoleNaNUpper, 0, 1)            \
-  F(IsSmi, 1, 1)                      \
-  F(IsValidSmi, 1, 1)                 \
-  F(MaxSmi, 0, 1)                     \
-  F(NumberToString, 1, 1)             \
-  F(SmiLexicographicCompare, 2, 1)    \
-  F(StringParseFloat, 1, 1)           \
-  F(StringParseInt, 2, 1)             \
+#define FOR_EACH_INTRINSIC_NUMBERS(F, I) \
+  F(GetHoleNaNLower, 0, 1)               \
+  F(GetHoleNaNUpper, 0, 1)               \
+  I(IsSmi, 1, 1)                         \
+  F(IsValidSmi, 1, 1)                    \
+  F(MaxSmi, 0, 1)                        \
+  F(NumberToString, 1, 1)                \
+  F(SmiLexicographicCompare, 2, 1)       \
+  F(StringParseFloat, 1, 1)              \
+  F(StringParseInt, 2, 1)                \
   F(StringToNumber, 1, 1)
 
-#define FOR_EACH_INTRINSIC_OBJECT(F)                            \
+#define FOR_EACH_INTRINSIC_OBJECT(F, I)                         \
   F(AddDictionaryProperty, 3, 1)                                \
   F(AddElement, 3, 1)                                           \
   F(AddNamedProperty, 4, 1)                                     \
@@ -285,8 +286,8 @@ namespace internal {
   F(CompleteInobjectSlackTrackingForMap, 1, 1)                  \
   F(CopyDataProperties, 2, 1)                                   \
   F(CopyDataPropertiesWithExcludedProperties, -1 /* >= 1 */, 1) \
-  F(CreateDataProperty, 3, 1)                                   \
-  F(CreateIterResultObject, 2, 1)                               \
+  I(CreateDataProperty, 3, 1)                                   \
+  I(CreateIterResultObject, 2, 1)                               \
   F(DefineAccessorPropertyUnchecked, 5, 1)                      \
   F(DefineDataPropertyInLiteral, 6, 1)                          \
   F(DefineGetterPropertyUnchecked, 4, 1)                        \
@@ -299,9 +300,9 @@ namespace internal {
   F(GetProperty, 2, 1)                                          \
   F(HasFastPackedElements, 1, 1)                                \
   F(HasInPrototypeChain, 2, 1)                                  \
-  F(HasProperty, 2, 1)                                          \
+  I(HasProperty, 2, 1)                                          \
   F(InternalSetPrototype, 2, 1)                                 \
-  F(IsJSReceiver, 1, 1)                                         \
+  I(IsJSReceiver, 1, 1)                                         \
   F(NewObject, 2, 1)                                            \
   F(ObjectCreate, 2, 1)                                         \
   F(ObjectEntries, 1, 1)                                        \
@@ -320,52 +321,52 @@ namespace internal {
   F(StoreDataPropertyInLiteral, 3, 1)                           \
   F(ShrinkPropertyDictionary, 1, 1)                             \
   F(ToFastProperties, 1, 1)                                     \
-  F(ToLength, 1, 1)                                             \
+  I(ToLength, 1, 1)                                             \
   F(ToName, 1, 1)                                               \
-  F(ToNumber, 1, 1)                                             \
+  I(ToNumber, 1, 1)                                             \
   F(ToNumeric, 1, 1)                                            \
-  F(ToObject, 1, 1)                                             \
-  F(ToString, 1, 1)                                             \
+  I(ToObject, 1, 1)                                             \
+  I(ToString, 1, 1)                                             \
   F(TryMigrateInstance, 1, 1)
 
-#define FOR_EACH_INTRINSIC_OPERATORS(F) \
-  F(Add, 2, 1)                          \
-  F(Equal, 2, 1)                        \
-  F(GreaterThan, 2, 1)                  \
-  F(GreaterThanOrEqual, 2, 1)           \
-  F(LessThan, 2, 1)                     \
-  F(LessThanOrEqual, 2, 1)              \
-  F(NotEqual, 2, 1)                     \
-  F(StrictEqual, 2, 1)                  \
+#define FOR_EACH_INTRINSIC_OPERATORS(F, I) \
+  F(Add, 2, 1)                             \
+  F(Equal, 2, 1)                           \
+  F(GreaterThan, 2, 1)                     \
+  F(GreaterThanOrEqual, 2, 1)              \
+  F(LessThan, 2, 1)                        \
+  F(LessThanOrEqual, 2, 1)                 \
+  F(NotEqual, 2, 1)                        \
+  F(StrictEqual, 2, 1)                     \
   F(StrictNotEqual, 2, 1)
 
-#define FOR_EACH_INTRINSIC_PROMISE(F)  \
-  F(EnqueueMicrotask, 1, 1)            \
-  F(PromiseHookAfter, 1, 1)            \
-  F(PromiseHookBefore, 1, 1)           \
-  F(PromiseHookInit, 2, 1)             \
-  F(AwaitPromisesInit, 3, 1)           \
-  F(PromiseMarkAsHandled, 1, 1)        \
-  F(PromiseRejectEventFromStack, 2, 1) \
-  F(PromiseResult, 1, 1)               \
-  F(PromiseRevokeReject, 1, 1)         \
-  F(PromiseStatus, 1, 1)               \
-  F(RejectPromise, 3, 1)               \
-  F(ResolvePromise, 2, 1)              \
-  F(PromiseRejectAfterResolved, 2, 1)  \
+#define FOR_EACH_INTRINSIC_PROMISE(F, I) \
+  F(EnqueueMicrotask, 1, 1)              \
+  F(PromiseHookAfter, 1, 1)              \
+  F(PromiseHookBefore, 1, 1)             \
+  F(PromiseHookInit, 2, 1)               \
+  F(AwaitPromisesInit, 3, 1)             \
+  F(PromiseMarkAsHandled, 1, 1)          \
+  F(PromiseRejectEventFromStack, 2, 1)   \
+  F(PromiseResult, 1, 1)                 \
+  F(PromiseRevokeReject, 1, 1)           \
+  F(PromiseStatus, 1, 1)                 \
+  I(RejectPromise, 3, 1)                 \
+  I(ResolvePromise, 2, 1)                \
+  F(PromiseRejectAfterResolved, 2, 1)    \
   F(PromiseResolveAfterResolved, 2, 1)
 
-#define FOR_EACH_INTRINSIC_PROXY(F)   \
-  F(CheckProxyGetSetTrapResult, 2, 1) \
-  F(CheckProxyHasTrap, 2, 1)          \
-  F(GetPropertyWithReceiver, 3, 1)    \
-  F(IsJSProxy, 1, 1)                  \
-  F(JSProxyGetHandler, 1, 1)          \
-  F(JSProxyGetTarget, 1, 1)           \
+#define FOR_EACH_INTRINSIC_PROXY(F, I) \
+  F(CheckProxyGetSetTrapResult, 2, 1)  \
+  F(CheckProxyHasTrap, 2, 1)           \
+  F(GetPropertyWithReceiver, 3, 1)     \
+  F(IsJSProxy, 1, 1)                   \
+  F(JSProxyGetHandler, 1, 1)           \
+  F(JSProxyGetTarget, 1, 1)            \
   F(SetPropertyWithReceiver, 5, 1)
 
-#define FOR_EACH_INTRINSIC_REGEXP(F)                \
-  F(IsRegExp, 1, 1)                                 \
+#define FOR_EACH_INTRINSIC_REGEXP(F, I)             \
+  I(IsRegExp, 1, 1)                                 \
   F(RegExpExec, 4, 1)                               \
   F(RegExpExecMultiple, 4, 1)                       \
   F(RegExpInitializeAndCompile, 3, 1)               \
@@ -375,7 +376,7 @@ namespace internal {
   F(StringReplaceNonGlobalRegExpWithFunction, 3, 1) \
   F(StringSplit, 3, 1)
 
-#define FOR_EACH_INTRINSIC_SCOPES(F)      \
+#define FOR_EACH_INTRINSIC_SCOPES(F, I)   \
   F(DeclareEvalFunction, 2, 1)            \
   F(DeclareEvalVar, 1, 1)                 \
   F(DeclareGlobals, 3, 1)                 \
@@ -401,7 +402,7 @@ namespace internal {
   F(StoreLookupSlot_Strict, 2, 1)         \
   F(ThrowConstAssignError, 0, 1)
 
-#define FOR_EACH_INTRINSIC_STRINGS(F)     \
+#define FOR_EACH_INTRINSIC_STRINGS(F, I)  \
   F(FlattenString, 1, 1)                  \
   F(GetSubstitution, 5, 1)                \
   F(InternalizeString, 1, 1)              \
@@ -425,13 +426,13 @@ namespace internal {
   F(StringToArray, 2, 1)                  \
   F(StringTrim, 2, 1)
 
-#define FOR_EACH_INTRINSIC_SYMBOL(F)       \
+#define FOR_EACH_INTRINSIC_SYMBOL(F, I)    \
   F(CreatePrivateFieldSymbol, 0, 1)        \
   F(CreatePrivateSymbol, -1 /* <= 1 */, 1) \
   F(SymbolDescriptiveString, 1, 1)         \
   F(SymbolIsPrivate, 1, 1)
 
-#define FOR_EACH_INTRINSIC_TEST(F)            \
+#define FOR_EACH_INTRINSIC_TEST(F, I)         \
   F(Abort, 1, 1)                              \
   F(AbortJS, 1, 1)                            \
   F(ClearFunctionFeedback, 1, 1)              \
@@ -443,7 +444,7 @@ namespace internal {
   F(DebugTrace, 0, 1)                         \
   F(DebugTrackRetainingPath, -1, 1)           \
   F(DeoptimizeFunction, 1, 1)                 \
-  F(DeoptimizeNow, 0, 1)                      \
+  I(DeoptimizeNow, 0, 1)                      \
   F(DeserializeWasmModule, 2, 1)              \
   F(DisallowCodegenFromStrings, 1, 1)         \
   F(DisallowWasmCodegen, 1, 1)                \
@@ -513,36 +514,36 @@ namespace internal {
   F(WasmMemoryHasFullGuardRegion, 1, 1)       \
   F(SetWasmThreadsEnabled, 1, 1)
 
-#define FOR_EACH_INTRINSIC_TYPEDARRAY(F) \
-  F(ArrayBufferNeuter, 1, 1)             \
-  F(ArrayBufferViewWasNeutered, 1, 1)    \
-  F(IsTypedArray, 1, 1)                  \
-  F(TypedArrayCopyElements, 3, 1)        \
-  F(TypedArrayGetBuffer, 1, 1)           \
-  F(TypedArrayGetLength, 1, 1)           \
-  F(TypedArraySet, 2, 1)                 \
+#define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I) \
+  F(ArrayBufferNeuter, 1, 1)                \
+  F(ArrayBufferViewWasNeutered, 1, 1)       \
+  I(IsTypedArray, 1, 1)                     \
+  F(TypedArrayCopyElements, 3, 1)           \
+  F(TypedArrayGetBuffer, 1, 1)              \
+  F(TypedArrayGetLength, 1, 1)              \
+  F(TypedArraySet, 2, 1)                    \
   F(TypedArraySortFast, 1, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F) \
-  F(ThrowWasmError, 1, 1)          \
-  F(ThrowWasmStackOverflow, 0, 1)  \
-  F(WasmExceptionGetElement, 2, 1) \
-  F(WasmExceptionSetElement, 3, 1) \
-  F(WasmExceptionGetTag, 1, 1)     \
-  F(WasmGrowMemory, 2, 1)          \
-  F(WasmRunInterpreter, 2, 1)      \
-  F(WasmStackGuard, 0, 1)          \
-  F(WasmThrowCreate, 2, 1)         \
-  F(WasmThrowTypeError, 0, 1)      \
+#define FOR_EACH_INTRINSIC_WASM(F, I) \
+  F(ThrowWasmError, 1, 1)             \
+  F(ThrowWasmStackOverflow, 0, 1)     \
+  F(WasmExceptionGetElement, 2, 1)    \
+  F(WasmExceptionSetElement, 3, 1)    \
+  F(WasmExceptionGetTag, 1, 1)        \
+  F(WasmGrowMemory, 2, 1)             \
+  F(WasmRunInterpreter, 2, 1)         \
+  F(WasmStackGuard, 0, 1)             \
+  F(WasmThrowCreate, 2, 1)            \
+  F(WasmThrowTypeError, 0, 1)         \
   F(WasmCompileLazy, 2, 1)
 
-#define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
-  F(DebugBreakOnBytecode, 1, 2)           \
+#define FOR_EACH_INTRINSIC_RETURN_PAIR_IMPL(F, I) \
+  F(DebugBreakOnBytecode, 1, 2)                   \
   F(LoadLookupSlotForCall, 1, 2)
 
 // Most intrinsics are implemented in the runtime/ directory, but ICs are
 // implemented in ic.cc for now.
-#define FOR_EACH_INTRINSIC_IC(F)             \
+#define FOR_EACH_INTRINSIC_IC(F, I)          \
   F(ElementsTransitionAndStoreIC_Miss, 6, 1) \
   F(KeyedLoadIC_Miss, 4, 1)                  \
   F(KeyedStoreIC_Miss, 5, 1)                 \
@@ -563,43 +564,55 @@ namespace internal {
   F(CloneObjectIC_Miss, 4, 1)                \
   F(CloneObjectIC_Slow, 2, 1)
 
+#define FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, I) \
+  FOR_EACH_INTRINSIC_ARRAY(F, I)                    \
+  FOR_EACH_INTRINSIC_ATOMICS(F, I)                  \
+  FOR_EACH_INTRINSIC_BIGINT(F, I)                   \
+  FOR_EACH_INTRINSIC_CLASSES(F, I)                  \
+  FOR_EACH_INTRINSIC_COLLECTIONS(F, I)              \
+  FOR_EACH_INTRINSIC_COMPILER(F, I)                 \
+  FOR_EACH_INTRINSIC_DATE(F, I)                     \
+  FOR_EACH_INTRINSIC_DEBUG(F, I)                    \
+  FOR_EACH_INTRINSIC_FORIN(F, I)                    \
+  FOR_EACH_INTRINSIC_FUNCTION(F, I)                 \
+  FOR_EACH_INTRINSIC_GENERATOR(F, I)                \
+  FOR_EACH_INTRINSIC_IC(F, I)                       \
+  FOR_EACH_INTRINSIC_INTERNAL(F, I)                 \
+  FOR_EACH_INTRINSIC_INTERPRETER(F, I)              \
+  FOR_EACH_INTRINSIC_INTL(F, I)                     \
+  FOR_EACH_INTRINSIC_LITERALS(F, I)                 \
+  FOR_EACH_INTRINSIC_MODULE(F, I)                   \
+  FOR_EACH_INTRINSIC_NUMBERS(F, I)                  \
+  FOR_EACH_INTRINSIC_OBJECT(F, I)                   \
+  FOR_EACH_INTRINSIC_OPERATORS(F, I)                \
+  FOR_EACH_INTRINSIC_PROMISE(F, I)                  \
+  FOR_EACH_INTRINSIC_PROXY(F, I)                    \
+  FOR_EACH_INTRINSIC_REGEXP(F, I)                   \
+  FOR_EACH_INTRINSIC_SCOPES(F, I)                   \
+  FOR_EACH_INTRINSIC_STRINGS(F, I)                  \
+  FOR_EACH_INTRINSIC_SYMBOL(F, I)                   \
+  FOR_EACH_INTRINSIC_TEST(F, I)                     \
+  FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)               \
+  FOR_EACH_INTRINSIC_WASM(F, I)
+
+// Defines the list of all intrinsics, coming in 2 flavors, either returning an
+// object or a pair.
+#define FOR_EACH_INTRINSIC_IMPL(F, I)       \
+  FOR_EACH_INTRINSIC_RETURN_PAIR_IMPL(F, I) \
+  FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, I)
+
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
-  FOR_EACH_INTRINSIC_ARRAY(F)               \
-  FOR_EACH_INTRINSIC_ATOMICS(F)             \
-  FOR_EACH_INTRINSIC_BIGINT(F)              \
-  FOR_EACH_INTRINSIC_CLASSES(F)             \
-  FOR_EACH_INTRINSIC_COLLECTIONS(F)         \
-  FOR_EACH_INTRINSIC_COMPILER(F)            \
-  FOR_EACH_INTRINSIC_DATE(F)                \
-  FOR_EACH_INTRINSIC_DEBUG(F)               \
-  FOR_EACH_INTRINSIC_FORIN(F)               \
-  FOR_EACH_INTRINSIC_FUNCTION(F)            \
-  FOR_EACH_INTRINSIC_GENERATOR(F)           \
-  FOR_EACH_INTRINSIC_IC(F)                  \
-  FOR_EACH_INTRINSIC_INTERNAL(F)            \
-  FOR_EACH_INTRINSIC_INTERPRETER(F)         \
-  FOR_EACH_INTRINSIC_INTL(F)                \
-  FOR_EACH_INTRINSIC_LITERALS(F)            \
-  FOR_EACH_INTRINSIC_MODULE(F)              \
-  FOR_EACH_INTRINSIC_NUMBERS(F)             \
-  FOR_EACH_INTRINSIC_OBJECT(F)              \
-  FOR_EACH_INTRINSIC_OPERATORS(F)           \
-  FOR_EACH_INTRINSIC_PROMISE(F)             \
-  FOR_EACH_INTRINSIC_PROXY(F)               \
-  FOR_EACH_INTRINSIC_REGEXP(F)              \
-  FOR_EACH_INTRINSIC_SCOPES(F)              \
-  FOR_EACH_INTRINSIC_STRINGS(F)             \
-  FOR_EACH_INTRINSIC_SYMBOL(F)              \
-  FOR_EACH_INTRINSIC_TEST(F)                \
-  FOR_EACH_INTRINSIC_TYPEDARRAY(F)          \
-  FOR_EACH_INTRINSIC_WASM(F)
+  FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, F)
 
-// FOR_EACH_INTRINSIC defines the list of all intrinsics, coming in 2 flavors,
-// either returning an object or a pair.
-#define FOR_EACH_INTRINSIC(F)         \
-  FOR_EACH_INTRINSIC_RETURN_PAIR(F)   \
-  FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
+#define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
+  FOR_EACH_INTRINSIC_RETURN_PAIR_IMPL(F, F)
 
+// The list of all intrinsics, including those that have inline versions, but
+// not the inline versions themselves.
+#define FOR_EACH_INTRINSIC(F) FOR_EACH_INTRINSIC_IMPL(F, F)
+
+// The list of all inline intrinsics only.
+#define FOR_EACH_INLINE_INTRINSIC(I) FOR_EACH_INTRINSIC_IMPL(NOTHING, I)
 
 #define F(name, nargs, ressize)                                 \
   Object* Runtime_##name(int args_length, Object** args_object, \
@@ -615,11 +628,16 @@ class Runtime : public AllStatic {
   enum FunctionId : int32_t {
 #define F(name, nargs, ressize) k##name,
 #define I(name, nargs, ressize) kInline##name,
-    FOR_EACH_INTRINSIC(F) FOR_EACH_INTRINSIC(I)
+    FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(I)
 #undef I
 #undef F
         kNumFunctions,
   };
+
+  static constexpr int kNumInlineFunctions =
+#define COUNT(...) +1
+      FOR_EACH_INLINE_INTRINSIC(COUNT);
+#undef COUNT
 
   enum IntrinsicType { RUNTIME, INLINE };
 

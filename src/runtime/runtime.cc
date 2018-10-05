@@ -45,9 +45,7 @@ FOR_EACH_INTRINSIC_RETURN_PAIR(P)
   ,
 
 static const Runtime::Function kIntrinsicFunctions[] = {
-  FOR_EACH_INTRINSIC(F)
-  FOR_EACH_INTRINSIC(I)
-};
+    FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(I)};
 
 #undef I
 #undef F

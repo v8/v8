@@ -14,6 +14,9 @@
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
 #define EXPAND(x) x
 
+// This macro does nothing. That's all.
+#define NOTHING(...)
+
 // TODO(all) Replace all uses of this macro with C++'s offsetof. To do that, we
 // have to make sure that only standard-layout types and simple field
 // designators are used.

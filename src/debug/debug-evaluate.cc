@@ -241,7 +241,7 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
 namespace {
 
 bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
-// Use macro to include both inlined and non-inlined version of an intrinsic.
+// Use macro to include only the non-inlined version of an intrinsic.
 #define INTRINSIC_WHITELIST(V)                \
   /* Conversions */                           \
   V(NumberToString)                           \
@@ -348,12 +348,16 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(OptimizeOsr)                              \
   V(UnblockConcurrentRecompilation)
 
-#define CASE(Name)       \
-  case Runtime::k##Name: \
-  case Runtime::kInline##Name:
+// Intrinsics with inline versions have to be whitelisted here a second time.
+#define INLINE_INTRINSIC_WHITELIST(V) \
+  V(Call)                             \
+  V(IsJSReceiver)
 
+#define CASE(Name) case Runtime::k##Name:
+#define INLINE_CASE(Name) case Runtime::kInline##Name:
   switch (id) {
     INTRINSIC_WHITELIST(CASE)
+    INLINE_INTRINSIC_WHITELIST(INLINE_CASE)
     return true;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
@@ -364,7 +368,9 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   }
 
 #undef CASE
+#undef INLINE_CASE
 #undef INTRINSIC_WHITELIST
+#undef INLINE_INTRINSIC_WHITELIST
 }
 
 #ifdef DEBUG
@@ -390,9 +396,7 @@ bool BuiltinToIntrinsicHasNoSideEffect(Builtins::Name builtin_id,
   case Builtin:            \
     return (__VA_ARGS__ false);
 
-#define MATCH(Intrinsic)                   \
-  intrinsic_id == Runtime::k##Intrinsic || \
-      intrinsic_id == Runtime::kInline##Intrinsic ||
+#define MATCH(Intrinsic) intrinsic_id == Runtime::k##Intrinsic ||
 
   switch (builtin_id) {
     BUILTIN_INTRINSIC_WHITELIST(CASE, MATCH)
