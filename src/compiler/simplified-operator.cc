@@ -509,8 +509,10 @@ Handle<Map> FastMapParameterOf(const Operator* op) {
 
 std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
   switch (hint) {
-    case NumberOperationHint::kSigned32Inputs:
-      return os << "Signed32Inputs";
+    case NumberOperationHint::kSignedSmall:
+      return os << "SignedSmall";
+    case NumberOperationHint::kSignedSmallInputs:
+      return os << "SignedSmallInputs";
     case NumberOperationHint::kSigned32:
       return os << "Signed32";
     case NumberOperationHint::kNumber:
@@ -1082,8 +1084,10 @@ struct SimplifiedOperatorGlobalCache final {
               IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow,  \
               #Name, 2, 1, 1, 1, 1, 0, kHint) {}                            \
   };                                                                        \
-  Name##Operator<NumberOperationHint::kSigned32Inputs>                      \
-      k##Name##Signed32InputsOperator;                                      \
+  Name##Operator<NumberOperationHint::kSignedSmall>                         \
+      k##Name##SignedSmallOperator;                                         \
+  Name##Operator<NumberOperationHint::kSignedSmallInputs>                   \
+      k##Name##SignedSmallInputsOperator;                                   \
   Name##Operator<NumberOperationHint::kSigned32> k##Name##Signed32Operator; \
   Name##Operator<NumberOperationHint::kNumber> k##Name##NumberOperator;     \
   Name##Operator<NumberOperationHint::kNumberOrOddball>                     \
@@ -1101,6 +1105,8 @@ struct SimplifiedOperatorGlobalCache final {
               1, 1, 1, 1, 1, 0,
               NumberOperationParameters(kHint, VectorSlotPair())) {}
   };
+  SpeculativeToNumberOperator<NumberOperationHint::kSignedSmall>
+      kSpeculativeToNumberSignedSmallOperator;
   SpeculativeToNumberOperator<NumberOperationHint::kSigned32>
       kSpeculativeToNumberSigned32Operator;
   SpeculativeToNumberOperator<NumberOperationHint::kNumber>
@@ -1327,10 +1333,12 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
     NumberOperationHint hint, const VectorSlotPair& feedback) {
   if (!feedback.IsValid()) {
     switch (hint) {
+      case NumberOperationHint::kSignedSmall:
+        return &cache_.kSpeculativeToNumberSignedSmallOperator;
+      case NumberOperationHint::kSignedSmallInputs:
+        break;
       case NumberOperationHint::kSigned32:
         return &cache_.kSpeculativeToNumberSigned32Operator;
-      case NumberOperationHint::kSigned32Inputs:
-        break;
       case NumberOperationHint::kNumber:
         return &cache_.kSpeculativeToNumberNumberOperator;
       case NumberOperationHint::kNumberOrOddball:
@@ -1530,8 +1538,10 @@ const Operator* SimplifiedOperatorBuilder::StringFromSingleCodePoint(
 #define SPECULATIVE_NUMBER_BINOP(Name)                                        \
   const Operator* SimplifiedOperatorBuilder::Name(NumberOperationHint hint) { \
     switch (hint) {                                                           \
-      case NumberOperationHint::kSigned32Inputs:                              \
-        return &cache_.k##Name##Signed32InputsOperator;                       \
+      case NumberOperationHint::kSignedSmall:                                 \
+        return &cache_.k##Name##SignedSmallOperator;                          \
+      case NumberOperationHint::kSignedSmallInputs:                           \
+        return &cache_.k##Name##SignedSmallInputsOperator;                    \
       case NumberOperationHint::kSigned32:                                    \
         return &cache_.k##Name##Signed32Operator;                             \
       case NumberOperationHint::kNumber:                                      \

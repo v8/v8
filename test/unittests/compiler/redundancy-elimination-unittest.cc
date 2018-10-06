@@ -72,8 +72,12 @@ const CheckTaggedInputMode kCheckTaggedInputModes[] = {
     CheckTaggedInputMode::kNumber, CheckTaggedInputMode::kNumberOrOddball};
 
 const NumberOperationHint kNumberOperationHints[] = {
-    NumberOperationHint::kSigned32, NumberOperationHint::kSigned32Inputs,
-    NumberOperationHint::kNumber, NumberOperationHint::kNumberOrOddball};
+    NumberOperationHint::kSignedSmall,
+    NumberOperationHint::kSignedSmallInputs,
+    NumberOperationHint::kSigned32,
+    NumberOperationHint::kNumber,
+    NumberOperationHint::kNumberOrOddball,
+};
 
 }  // namespace
 
