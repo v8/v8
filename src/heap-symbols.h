@@ -5,7 +5,20 @@
 #ifndef V8_HEAP_SYMBOLS_H_
 #define V8_HEAP_SYMBOLS_H_
 
+#ifdef V8_INTL_SUPPORT
+#define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _) \
+  V(_, h11_string, "h11")                             \
+  V(_, h12_string, "h12")                             \
+  V(_, h23_string, "h23")                             \
+  V(_, h24_string, "h24")                             \
+  V(_, lower_string, "lower")                         \
+  V(_, upper_string, "upper")
+#else  // V8_INTL_SUPPORT
+#define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)
+#endif  // V8_INTL_SUPPORT
+
 #define INTERNALIZED_STRING_LIST_GENERATOR(V, _)                      \
+  INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)                       \
   V(_, add_string, "add")                                             \
   V(_, always_string, "always")                                       \
   V(_, anonymous_function_string, "(anonymous function)")             \

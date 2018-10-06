@@ -722,7 +722,7 @@ BUILTIN(LocalePrototypeCaseFirst) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale_holder, "Intl.Locale.prototype.caseFirst");
 
-  return locale_holder->case_first();
+  return *(locale_holder->CaseFirstAsString());
 }
 
 BUILTIN(LocalePrototypeCollation) {
@@ -736,14 +736,23 @@ BUILTIN(LocalePrototypeHourCycle) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale_holder, "Intl.Locale.prototype.hourCycle");
 
-  return locale_holder->hour_cycle();
+  return *(locale_holder->HourCycleAsString());
 }
 
 BUILTIN(LocalePrototypeNumeric) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale_holder, "Intl.Locale.prototype.numeric");
 
-  return locale_holder->numeric();
+  switch (locale_holder->numeric()) {
+    case JSLocale::Numeric::TRUE_VALUE:
+      return *(isolate->factory()->true_value());
+    case JSLocale::Numeric::FALSE_VALUE:
+      return *(isolate->factory()->false_value());
+    case JSLocale::Numeric::NOTSET:
+      return *(isolate->factory()->undefined_value());
+    case JSLocale::Numeric::COUNT:
+      UNREACHABLE();
+  }
 }
 
 BUILTIN(LocalePrototypeNumberingSystem) {

@@ -35,6 +35,26 @@ namespace internal {
 
 namespace {
 
+JSLocale::CaseFirst GetCaseFirst(const char* str) {
+  if (strcmp(str, "upper") == 0) return JSLocale::CaseFirst::UPPER;
+  if (strcmp(str, "lower") == 0) return JSLocale::CaseFirst::LOWER;
+  if (strcmp(str, "false") == 0) return JSLocale::CaseFirst::FALSE_VALUE;
+  UNREACHABLE();
+}
+
+JSLocale::HourCycle GetHourCycle(const char* str) {
+  if (strcmp(str, "h11") == 0) return JSLocale::HourCycle::H11;
+  if (strcmp(str, "h12") == 0) return JSLocale::HourCycle::H12;
+  if (strcmp(str, "h23") == 0) return JSLocale::HourCycle::H23;
+  if (strcmp(str, "h24") == 0) return JSLocale::HourCycle::H24;
+  UNREACHABLE();
+}
+
+JSLocale::Numeric GetNumeric(const char* str) {
+  return strcmp(str, "true") == 0 ? JSLocale::Numeric::TRUE_VALUE
+                                  : JSLocale::Numeric::FALSE_VALUE;
+}
+
 struct OptionData {
   const char* name;
   const char* key;
@@ -138,19 +158,23 @@ bool PopulateLocaleWithUnicodeTags(Isolate* isolate, const char* icu_locale,
     if (bcp47_key) {
       const char* bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
       if (bcp47_value) {
-          Handle<String> bcp47_handle =
-              factory->NewStringFromAsciiChecked(bcp47_value);
           if (strcmp(bcp47_key, "kn") == 0) {
-            locale_holder->set_numeric(*bcp47_handle);
+            locale_holder->set_numeric(GetNumeric(bcp47_value));
           } else if (strcmp(bcp47_key, "ca") == 0) {
+            Handle<String> bcp47_handle =
+                factory->NewStringFromAsciiChecked(bcp47_value);
             locale_holder->set_calendar(*bcp47_handle);
           } else if (strcmp(bcp47_key, "kf") == 0) {
-            locale_holder->set_case_first(*bcp47_handle);
+            locale_holder->set_case_first(GetCaseFirst(bcp47_value));
           } else if (strcmp(bcp47_key, "co") == 0) {
+            Handle<String> bcp47_handle =
+                factory->NewStringFromAsciiChecked(bcp47_value);
             locale_holder->set_collation(*bcp47_handle);
           } else if (strcmp(bcp47_key, "hc") == 0) {
-            locale_holder->set_hour_cycle(*bcp47_handle);
+            locale_holder->set_hour_cycle(GetHourCycle(bcp47_value));
           } else if (strcmp(bcp47_key, "nu") == 0) {
+            Handle<String> bcp47_handle =
+                factory->NewStringFromAsciiChecked(bcp47_value);
             locale_holder->set_numbering_system(*bcp47_handle);
           }
       }
@@ -167,6 +191,7 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
                                            Handle<JSLocale> locale_holder,
                                            Handle<String> locale,
                                            Handle<JSReceiver> options) {
+  locale_holder->set_flags(0);
   static const char* const kMethod = "Intl.Locale";
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   UErrorCode status = U_ZERO_ERROR;
@@ -334,6 +359,47 @@ Handle<String> JSLocale::Maximize(Isolate* isolate, String* locale) {
 
 Handle<String> JSLocale::Minimize(Isolate* isolate, String* locale) {
   return MorphLocale(isolate, locale, uloc_minimizeSubtags);
+}
+
+Handle<String> JSLocale::CaseFirstAsString() const {
+  switch (case_first()) {
+    case CaseFirst::UPPER:
+      return GetReadOnlyRoots().upper_string_handle();
+    case CaseFirst::LOWER:
+      return GetReadOnlyRoots().lower_string_handle();
+    case CaseFirst::FALSE_VALUE:
+      return GetReadOnlyRoots().false_string_handle();
+    case CaseFirst::COUNT:
+      UNREACHABLE();
+  }
+}
+
+Handle<String> JSLocale::HourCycleAsString() const {
+  switch (hour_cycle()) {
+    case HourCycle::H11:
+      return GetReadOnlyRoots().h11_string_handle();
+    case HourCycle::H12:
+      return GetReadOnlyRoots().h12_string_handle();
+    case HourCycle::H23:
+      return GetReadOnlyRoots().h23_string_handle();
+    case HourCycle::H24:
+      return GetReadOnlyRoots().h24_string_handle();
+    case HourCycle::COUNT:
+      UNREACHABLE();
+  }
+}
+
+Handle<String> JSLocale::NumericAsString() const {
+  switch (numeric()) {
+    case Numeric::NOTSET:
+      return GetReadOnlyRoots().undefined_string_handle();
+    case Numeric::TRUE_VALUE:
+      return GetReadOnlyRoots().true_string_handle();
+    case Numeric::FALSE_VALUE:
+      return GetReadOnlyRoots().false_string_handle();
+    case Numeric::COUNT:
+      UNREACHABLE();
+  }
 }
 
 }  // namespace internal

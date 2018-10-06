@@ -1998,10 +1998,10 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
   os << "\n - baseName: " << Brief(base_name());
   os << "\n - locale: " << Brief(locale());
   os << "\n - calendar: " << Brief(calendar());
-  os << "\n - caseFirst: " << Brief(case_first());
+  os << "\n - caseFirst: " << CaseFirstAsString();
   os << "\n - collation: " << Brief(collation());
-  os << "\n - hourCycle: " << Brief(hour_cycle());
-  os << "\n - numeric: " << Brief(numeric());
+  os << "\n - hourCycle: " << HourCycleAsString();
+  os << "\n - numeric: " << NumericAsString();
   os << "\n - numberingSystem: " << Brief(numbering_system());
   os << "\n";
 }

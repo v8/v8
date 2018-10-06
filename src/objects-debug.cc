@@ -1931,11 +1931,9 @@ void JSLocale::JSLocaleVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kBaseNameOffset);
   VerifyObjectField(isolate, kLocaleOffset);
   // Unicode extension fields.
+  VerifyObjectField(isolate, kFlagsOffset);
   VerifyObjectField(isolate, kCalendarOffset);
-  VerifyObjectField(isolate, kCaseFirstOffset);
   VerifyObjectField(isolate, kCollationOffset);
-  VerifyObjectField(isolate, kHourCycleOffset);
-  VerifyObjectField(isolate, kNumericOffset);
   VerifyObjectField(isolate, kNumberingSystemOffset);
 }
 
