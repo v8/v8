@@ -585,7 +585,6 @@
   'intl402/Locale/constructor-options-script-invalid': [FAIL],
   'intl402/Locale/constructor-options-script-valid': [FAIL],
   'intl402/Locale/getters': [FAIL],
-  'intl402/Locale/invalid-tag-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8243
   'intl402/Locale/extensions-private': [FAIL],

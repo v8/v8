@@ -75,7 +75,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
             : Intl::GetStringOption(isolate, options, option_to_bcp47.name,
                                     *(option_to_bcp47.possible_values),
                                     "locale", &value_str);
-    if (maybe_found.IsNothing()) return maybe_found;
+    MAYBE_RETURN(maybe_found, Nothing<bool>());
 
     // TODO(cira): Use fallback value if value is not found to make
     // this spec compliant.
@@ -197,7 +197,6 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
                       isolate->factory()->NewStringFromAsciiChecked(kMethod),
                       locale_holder),
         JSLocale);
-    return MaybeHandle<JSLocale>();
   }
 
   Maybe<bool> error = InsertOptionsIntoLocale(isolate, options, icu_result);
@@ -209,9 +208,7 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
                       isolate->factory()->NewStringFromAsciiChecked(kMethod),
                       locale_holder),
         JSLocale);
-    return MaybeHandle<JSLocale>();
   }
-  DCHECK(error.FromJust());
 
   if (!PopulateLocaleWithUnicodeTags(isolate, icu_result, locale_holder)) {
     THROW_NEW_ERROR(
@@ -220,7 +217,6 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
                       isolate->factory()->NewStringFromAsciiChecked(kMethod),
                       locale_holder),
         JSLocale);
-    return MaybeHandle<JSLocale>();
   }
 
   // Extract language, script and region parts.
@@ -240,7 +236,6 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
                       isolate->factory()->NewStringFromAsciiChecked(kMethod),
                       locale_holder),
         JSLocale);
-    return MaybeHandle<JSLocale>();
   }
 
   Factory* factory = isolate->factory();
@@ -274,7 +269,6 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
                       isolate->factory()->NewStringFromAsciiChecked(kMethod),
                       locale_holder),
         JSLocale);
-    return MaybeHandle<JSLocale>();
   }
   Handle<String> base_name = factory->NewStringFromAsciiChecked(bcp47_result);
   locale_holder->set_base_name(*base_name);
@@ -289,7 +283,6 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
                       isolate->factory()->NewStringFromAsciiChecked(kMethod),
                       locale_holder),
         JSLocale);
-    return MaybeHandle<JSLocale>();
   }
   Handle<String> locale_handle =
       factory->NewStringFromAsciiChecked(bcp47_result);

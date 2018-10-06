@@ -553,37 +553,45 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
                                    Handle<JSFunction> constructor,
                                    Handle<JSReceiver> new_target,
                                    Handle<Object> tag, Handle<Object> options) {
-  Handle<JSObject> result;
+  Handle<JSObject> locale;
+  // 6. Let locale be ? OrdinaryCreateFromConstructor(NewTarget,
+  // %LocalePrototype%, internalSlotsList).
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
+      isolate, locale,
       JSObject::New(constructor, new_target, Handle<AllocationSite>::null()),
       JSLocale);
 
-  // First parameter is a locale, as a string/object. Can't be empty.
+  // 7. If Type(tag) is not String or Object, throw a TypeError exception.
   if (!tag->IsString() && !tag->IsJSReceiver()) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kLocaleNotEmpty),
                     JSLocale);
   }
 
   Handle<String> locale_string;
+  // 8. If Type(tag) is Object and tag has an [[InitializedLocale]] internal
+  // slot, then
   if (tag->IsJSLocale() && Handle<JSLocale>::cast(tag)->locale()->IsString()) {
+    // a. Let tag be tag.[[Locale]].
     locale_string =
         Handle<String>(Handle<JSLocale>::cast(tag)->locale(), isolate);
-  } else {
+  } else {  // 9. Else,
+    // a. Let tag be ? ToString(tag).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, locale_string,
                                Object::ToString(isolate, tag), JSLocale);
   }
 
   Handle<JSReceiver> options_object;
-  if (options->IsNullOrUndefined(isolate)) {
-    // Make empty options bag.
+  // 10. If options is undefined, then
+  if (options->IsUndefined(isolate)) {
+    // a. Let options be ! ObjectCreate(null).
     options_object = isolate->factory()->NewJSObjectWithNullProto();
-  } else {
+  } else {  // 11. Else
+    // a. Let options be ? ToObject(options).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options_object,
                                Object::ToObject(isolate, options), JSLocale);
   }
 
-  return JSLocale::Initialize(isolate, Handle<JSLocale>::cast(result),
+  return JSLocale::Initialize(isolate, Handle<JSLocale>::cast(locale),
                               locale_string, options_object);
 }
 
