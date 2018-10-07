@@ -2162,12 +2162,8 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
                                               Node* callback_value) {
   Node* boolean_result =
       graph()->NewNode(simplified()->ToBoolean(), callback_value);
-
-  Node* check_boolean_result =
-      graph()->NewNode(simplified()->ReferenceEqual(), boolean_result,
-                       jsgraph()->TrueConstant());
   Node* boolean_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                          check_boolean_result, *control);
+                                          boolean_result, *control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), boolean_branch);
   Node* etrue = *effect;
@@ -2467,11 +2463,8 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   {
     Node* boolean_result =
         graph()->NewNode(simplified()->ToBoolean(), callback_value);
-    Node* check_boolean_result =
-        graph()->NewNode(simplified()->ReferenceEqual(), boolean_result,
-                         jsgraph()->TrueConstant());
     Node* boolean_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                            check_boolean_result, control);
+                                            boolean_result, control);
     if_false_callback = graph()->NewNode(common()->IfFalse(), boolean_branch);
     efalse_callback = effect;
 
@@ -2824,11 +2817,8 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   {
     Node* boolean_result =
         graph()->NewNode(simplified()->ToBoolean(), callback_value);
-    Node* check_boolean_result =
-        graph()->NewNode(simplified()->ReferenceEqual(), boolean_result,
-                         jsgraph()->TrueConstant());
     Node* boolean_branch = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), check_boolean_result, control);
+        common()->Branch(BranchHint::kFalse), boolean_result, control);
     if_true_callback = graph()->NewNode(common()->IfTrue(), boolean_branch);
     etrue_callback = effect;
 
