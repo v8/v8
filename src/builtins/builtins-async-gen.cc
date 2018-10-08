@@ -287,8 +287,10 @@ Node* AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,
   VARIABLE(result, MachineRepresentation::kTagged);
   Label if_old(this), if_new(this), done(this);
 
+  STATIC_ASSERT(sizeof(FLAG_harmony_await_optimization) == 1);
+
   TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
-      MachineType::Int32(),
+      MachineType::Uint8(),
       ExternalConstant(
           ExternalReference::address_of_harmony_await_optimization_flag())));
 
