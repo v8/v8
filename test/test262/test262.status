@@ -569,9 +569,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8262
   'intl402/Locale/constructor-parse-twice': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8259
-  'intl402/Locale/subclassing': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=8246
   'intl402/Locale/constructor-tag': [FAIL],
 

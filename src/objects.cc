@@ -12988,6 +12988,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_INTL_COLLATOR_TYPE:
     case JS_INTL_DATE_TIME_FORMAT_TYPE:
     case JS_INTL_LIST_FORMAT_TYPE:
+    case JS_INTL_LOCALE_TYPE:
     case JS_INTL_NUMBER_FORMAT_TYPE:
     case JS_INTL_PLURAL_RULES_TYPE:
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
