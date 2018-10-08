@@ -968,21 +968,19 @@ macro ToIndex(input: Object, context: Context): Number
 }
 
 macro GetLengthProperty(context: Context, o: Object): Number {
-  let length: Object;
   try {
-    try {
-      return (Cast<JSArray>(o) otherwise CheckArgs).length;
-    }
-    label CheckArgs {
-      const a: JSArgumentsObjectWithLength =
-          Cast<JSArgumentsObjectWithLength>(context, o) otherwise Slow;
-      return Cast<Smi>(length = a.length) otherwise ToLength;
-    }
+    return (Cast<JSArray>(o) otherwise CheckArgs).length;
+  }
+  label CheckArgs {
+    const a: JSArgumentsObjectWithLength =
+        Cast<JSArgumentsObjectWithLength>(context, o) otherwise Slow;
+    const length: Object = a.length;
+    return Cast<Smi>(length) otherwise goto ToLength(length);
   }
   label Slow deferred {
-    return ToLength_Inline(context, GetProperty(context, o, kLengthString));
+    goto ToLength(GetProperty(context, o, kLengthString));
   }
-  label ToLength deferred {
+  label ToLength(length: Object) deferred {
     return ToLength_Inline(context, length);
   }
 }

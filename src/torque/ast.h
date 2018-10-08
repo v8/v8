@@ -30,7 +30,9 @@ namespace torque {
   V(ElementAccessExpression)             \
   V(AssignmentExpression)                \
   V(IncrementDecrementExpression)        \
-  V(AssumeTypeImpossibleExpression)
+  V(AssumeTypeImpossibleExpression)      \
+  V(StatementExpression)                 \
+  V(TryLabelExpression)
 
 #define AST_TYPE_EXPRESSION_NODE_KIND_LIST(V) \
   V(BasicTypeExpression)                      \
@@ -52,7 +54,6 @@ namespace torque {
   V(TailCallStatement)                  \
   V(VarDeclarationStatement)            \
   V(GotoStatement)                      \
-  V(TryLabelStatement)
 
 #define AST_DECLARATION_NODE_KIND_LIST(V) \
   V(TypeDeclaration)                      \
@@ -553,15 +554,22 @@ struct LabelBlock : AstNode {
   Statement* body;
 };
 
-struct TryLabelStatement : Statement {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(TryLabelStatement)
-  TryLabelStatement(SourcePosition pos, Statement* try_block,
-                    std::vector<LabelBlock*> label_blocks)
-      : Statement(kKind, pos),
-        try_block(try_block),
-        label_blocks(std::move(label_blocks)) {}
-  Statement* try_block;
-  std::vector<LabelBlock*> label_blocks;
+struct StatementExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(StatementExpression)
+  StatementExpression(SourcePosition pos, Statement* statement)
+      : Expression(kKind, pos), statement(statement) {}
+  Statement* statement;
+};
+
+struct TryLabelExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(TryLabelExpression)
+  TryLabelExpression(SourcePosition pos, Expression* try_expression,
+                     LabelBlock* label_block)
+      : Expression(kKind, pos),
+        try_expression(try_expression),
+        label_block(label_block) {}
+  Expression* try_expression;
+  LabelBlock* label_block;
 };
 
 struct BlockStatement : Statement {

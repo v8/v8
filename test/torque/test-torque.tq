@@ -154,9 +154,9 @@ module test {
       check(GenericMacroTest<Object>(Null) == Null);
       check(GenericMacroTest<Object>(False) == False);
       check(GenericMacroTest<Object>(True) == True);
-      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
-      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
-      check(GenericMacroTestWithLabels<Object>(smi0) otherwise Fail == smi0);
+      check((GenericMacroTestWithLabels<Smi>(0) otherwise Fail) == Undefined);
+      check((GenericMacroTestWithLabels<Smi>(0) otherwise Fail) == Undefined);
+      check((GenericMacroTestWithLabels<Object>(smi0) otherwise Fail) == smi0);
       try {
         GenericMacroTestWithLabels<Object>(False) otherwise Expected;
       }
@@ -540,5 +540,52 @@ module test {
     check(!TestOrAnd1(false, false, false));
     check(!TestOrAnd2(false, false, false));
     check(!TestOrAnd3(false, false, false));
+  }
+
+  macro TestCall(i: Smi): Smi
+      labels A {
+    if (i < 5) return i;
+    goto A;
+  }
+
+  macro TestOtherwiseWithCode1() {
+    let v: Smi = 0;
+    let s: Smi = 1;
+    try {
+      TestCall(10) otherwise goto B(++s);
+    }
+    label B(v1: Smi) {
+      v = v1;
+    }
+    assert(v == 2);
+  }
+
+  macro TestOtherwiseWithCode2() {
+    let s: Smi = 0;
+    for (let i: Smi = 0; i < 10; ++i) {
+      TestCall(i) otherwise break;
+      ++s;
+    }
+    assert(s == 5);
+  }
+
+  macro TestOtherwiseWithCode3() {
+    let s: Smi = 0;
+    for (let i: Smi = 0; i < 10; ++i) {
+      s += TestCall(i) otherwise break;
+    }
+    assert(s == 10);
+  }
+
+  macro TestForwardLabel() {
+    try {
+      goto A;
+    }
+    label A {
+      goto B(5);
+    }
+    label B(b: Smi) {
+      assert(b == 5);
+    }
   }
 }

@@ -177,8 +177,9 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(StringLiteralExpression* expr);
   VisitResult Visit(NumberLiteralExpression* expr);
   VisitResult Visit(AssumeTypeImpossibleExpression* expr);
+  VisitResult Visit(TryLabelExpression* expr);
+  VisitResult Visit(StatementExpression* expr);
 
-  const Type* Visit(TryLabelStatement* stmt);
   const Type* Visit(ReturnStatement* stmt);
   const Type* Visit(GotoStatement* stmt);
   const Type* Visit(IfStatement* stmt);

@@ -402,14 +402,15 @@ void DeclarationVisitor::Visit(ForLoopStatement* stmt) {
   if (stmt->action) Visit(*stmt->action);
 }
 
-void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
-  // Activate a new scope to declare handler labels, they should not be
-  // visible outside the label block.
+void DeclarationVisitor::Visit(TryLabelExpression* stmt) {
+  // Activate a new scope to declare the handler's label parameters, they should
+  // not be visible outside the label block.
   {
     Declarations::NodeScopeActivator scope(declarations(), stmt);
 
-    // Declare labels
-    for (LabelBlock* block : stmt->label_blocks) {
+    // Declare label
+    {
+      LabelBlock* block = stmt->label_block;
       CurrentSourcePosition::Scope scope(block->pos);
       Label* shared_label =
           declarations()->DeclareLabel(block->label, block->body);
@@ -432,18 +433,16 @@ void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
           shared_label->AddVariable(DeclareVariable(p, type, false));
           ++i;
         }
-      }
-      if (global_context_.verbose()) {
-        std::cout << " declaring label " << block->label << "\n";
+        if (global_context_.verbose()) {
+          std::cout << " declaring label " << block->label << "\n";
+        }
       }
     }
 
-    Visit(stmt->try_block);
+    Visit(stmt->try_expression);
   }
 
-  for (LabelBlock* block : stmt->label_blocks) {
-    Visit(block->body);
-  }
+  Visit(stmt->label_block->body);
 }
 
 void DeclarationVisitor::GenerateHeader(std::string& file_name) {
@@ -514,6 +513,10 @@ void DeclarationVisitor::Visit(IdentifierExpression* expr) {
       }
     }
   }
+}
+
+void DeclarationVisitor::Visit(StatementExpression* expr) {
+  Visit(expr->statement);
 }
 
 void DeclarationVisitor::Visit(CallExpression* expr) {

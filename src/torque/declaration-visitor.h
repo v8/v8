@@ -139,7 +139,8 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(AssumeTypeImpossibleExpression* expr) { Visit(expr->expression); }
 
-  void Visit(TryLabelStatement* stmt);
+  void Visit(TryLabelExpression* stmt);
+  void Visit(StatementExpression* stmt);
   void GenerateHeader(std::string& file_name);
 
  private:

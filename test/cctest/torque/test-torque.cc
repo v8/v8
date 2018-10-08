@@ -271,6 +271,21 @@ TEST(TestLogicalOperators) {
   ft.Call();
 }
 
+TEST(TestOtherwiseAndLabels) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    m.TestOtherwiseWithCode1();
+    m.TestOtherwiseWithCode2();
+    m.TestOtherwiseWithCode3();
+    m.TestForwardLabel();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

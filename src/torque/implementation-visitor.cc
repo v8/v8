@@ -80,6 +80,7 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
                   DashifyString(module->name()) + "-gen.h\"";
   }
   source << "\n";
+  source << "#include \"src/objects/arguments.h\"\n";
   source << "#include \"src/builtins/builtins-utils-gen.h\"\n";
   source << "#include \"src/builtins/builtins.h\"\n";
   source << "#include \"src/code-factory.h\"\n";
@@ -1081,19 +1082,19 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   return TypeOracle::GetVoidType();
 }
 
-const Type* ImplementationVisitor::Visit(TryLabelStatement* stmt) {
+VisitResult ImplementationVisitor::Visit(TryLabelExpression* expr) {
   Block* done_block = assembler().NewBlock();
-  const Type* try_result = TypeOracle::GetNeverType();
-  std::vector<Label*> labels;
+  VisitResult try_result;
+  Label* label = nullptr;
 
   // Output labels for the goto handlers and for the merge after the try.
   {
     // Activate a new scope to see handler labels
-    Declarations::NodeScopeActivator scope(declarations(), stmt);
-    for (LabelBlock* block : stmt->label_blocks) {
+    Declarations::NodeScopeActivator scope(declarations(), expr);
+    {
+      LabelBlock* block = expr->label_block;
       CurrentSourcePosition::Scope source_position(block->pos);
-      Label* label = declarations()->LookupLabel(block->label);
-      labels.push_back(label);
+      label = declarations()->LookupLabel(block->label);
 
       Declarations::NodeScopeActivator scope(declarations(), block->body);
       Stack<const Type*> label_input_stack = assembler().CurrentStack();
@@ -1108,40 +1109,46 @@ const Type* ImplementationVisitor::Visit(TryLabelStatement* stmt) {
     // Visit try
     {
       StackScope stack_scope(this);
-      try_result = Visit(stmt->try_block);
+      try_result = Visit(expr->try_expression);
+      if (try_result.type() != TypeOracle::GetNeverType()) {
+        try_result = stack_scope.Yield(try_result);
+        assembler().Goto(done_block);
+      }
     }
-    if (try_result != TypeOracle::GetNeverType()) {
+  }
+
+  if (label->IsUsed()) {
+    // Visit and output the code for the label block. If the label block falls
+    // through, then the try must not return a value. Also, if the try doesn't
+    // fall through, but the label does, then overall the try-label block
+    // returns type void.
+    GenerateLabelBind(label);
+    const Type* label_result;
+    {
+      StackScope stack_scope(this);
+      label_result = Visit(expr->label_block->body);
+    }
+    if (!try_result.type()->IsVoidOrNever() && label_result->IsVoid()) {
+      ReportError(
+          "otherwise clauses cannot fall through in a non-void expression");
+    }
+    if (label_result != TypeOracle::GetNeverType()) {
       assembler().Goto(done_block);
     }
-  }
-
-  // Make sure that each label clause is actually used. It's not just a friendly
-  // thing to do, it will cause problems downstream in the compiler if there are
-  // bound labels that are never jumped to.
-  auto label_iterator = stmt->label_blocks.begin();
-  for (auto label : labels) {
-    CurrentSourcePosition::Scope scope((*label_iterator)->pos);
-    if (!label->IsUsed()) {
-      std::stringstream s;
-      s << "label ";
-      s << (*label_iterator)->label;
-      s << " has a handler block but is never referred to in try block";
-      ReportError(s.str());
+    if (label_result->IsVoid() && try_result.type()->IsNever()) {
+      try_result =
+          VisitResult(TypeOracle::GetVoidType(), try_result.stack_range());
     }
-    label_iterator++;
   }
 
-  // Visit and output the code for each label block, one-by-one.
-  std::vector<Statement*> bodies;
-  for (LabelBlock* block : stmt->label_blocks) bodies.push_back(block->body);
-  if (GenerateLabeledStatementBlocks(bodies, labels, done_block)) {
-    try_result = TypeOracle::GetVoidType();
-  }
-
-  if (!try_result->IsNever()) {
+  if (!try_result.type()->IsNever()) {
     assembler().Bind(done_block);
   }
   return try_result;
+}
+
+VisitResult ImplementationVisitor::Visit(StatementExpression* expr) {
+  return VisitResult{Visit(expr->statement), assembler().TopRange(0)};
 }
 
 const Type* ImplementationVisitor::Visit(BreakStatement* stmt) {

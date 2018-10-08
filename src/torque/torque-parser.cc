@@ -201,14 +201,50 @@ void CheckNotDeferredStatement(Statement* statement) {
   }
 }
 
+Expression* MakeCall(const std::string& callee, bool is_operator,
+                     const std::vector<TypeExpression*>& generic_arguments,
+                     const std::vector<Expression*>& arguments,
+                     const std::vector<Statement*>& otherwise) {
+  std::vector<std::string> labels;
+
+  // All IdentifierExpressions are treated as label names and can be directly
+  // used as labels identifiers. All other statements in a call's otherwise
+  // must create intermediate Labels for the otherwise's statement code.
+  size_t label_id = 0;
+  std::vector<LabelBlock*> temp_labels;
+  for (auto* statement : otherwise) {
+    if (auto* e = ExpressionStatement::DynamicCast(statement)) {
+      if (auto* id = IdentifierExpression::DynamicCast(e->expression)) {
+        if (id->generic_arguments.size() != 0) {
+          ReportError("An otherwise label cannot have generic parameters");
+        }
+        labels.push_back(id->name);
+        continue;
+      }
+    }
+    auto label_name = std::string("_label") + std::to_string(label_id++);
+    labels.push_back(label_name);
+    auto* label_block =
+        MakeNode<LabelBlock>(label_name, ParameterList::Empty(), statement);
+    temp_labels.push_back(label_block);
+  }
+
+  // Create nested try-label expression for all of the temporary Labels that
+  // were created.
+  Expression* result = MakeNode<CallExpression>(
+      callee, false, generic_arguments, arguments, labels);
+  for (auto* label : temp_labels) {
+    result = MakeNode<TryLabelExpression>(result, label);
+  }
+  return result;
+}
+
 base::Optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto callee = child_results->NextAs<std::string>();
   auto generic_args = child_results->NextAs<TypeList>();
   auto args = child_results->NextAs<std::vector<Expression*>>();
-  auto labels = child_results->NextAs<std::vector<std::string>>();
-  Expression* result =
-      MakeNode<CallExpression>(callee, false, generic_args, args, labels);
-  return ParseResult{result};
+  auto otherwise = child_results->NextAs<std::vector<Statement*>>();
+  return ParseResult{MakeCall(callee, false, generic_args, args, otherwise)};
 }
 
 base::Optional<ParseResult> MakeBinaryOperator(
@@ -216,20 +252,17 @@ base::Optional<ParseResult> MakeBinaryOperator(
   auto left = child_results->NextAs<Expression*>();
   auto op = child_results->NextAs<std::string>();
   auto right = child_results->NextAs<Expression*>();
-  Expression* result = MakeNode<CallExpression>(
-      op, true, TypeList{}, std::vector<Expression*>{left, right},
-      std::vector<std::string>{});
-  return ParseResult{result};
+  return ParseResult{MakeCall(op, true, TypeList{},
+                              std::vector<Expression*>{left, right},
+                              std::vector<Statement*>{})};
 }
 
 base::Optional<ParseResult> MakeUnaryOperator(
     ParseResultIterator* child_results) {
   auto op = child_results->NextAs<std::string>();
   auto e = child_results->NextAs<Expression*>();
-  Expression* result = MakeNode<CallExpression>(op, true, TypeList{},
-                                                std::vector<Expression*>{e},
-                                                std::vector<std::string>{});
-  return ParseResult{result};
+  return ParseResult{MakeCall(op, true, TypeList{}, std::vector<Expression*>{e},
+                              std::vector<Statement*>{})};
 }
 
 template <bool has_varargs>
@@ -584,10 +617,11 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
     }
     BlockStatement* case_block;
     if (i < cases.size() - 1) {
-      value = MakeNode<CallExpression>(
-          "Cast", false, std::vector<TypeExpression*>{cases[i].type},
-          std::vector<Expression*>{value},
-          std::vector<std::string>{"_NextCase"});
+      value =
+          MakeCall("Cast", false, std::vector<TypeExpression*>{cases[i].type},
+                   std::vector<Expression*>{value},
+                   std::vector<Statement*>{MakeNode<ExpressionStatement>(
+                       MakeNode<IdentifierExpression>("_NextCase"))});
       case_block = MakeNode<BlockStatement>();
     } else {
       case_block = current_block;
@@ -599,9 +633,11 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
     case_block->statements.push_back(cases[i].block);
     if (i < cases.size() - 1) {
       BlockStatement* next_block = MakeNode<BlockStatement>();
-      current_block->statements.push_back(MakeNode<TryLabelStatement>(
-          case_block, std::vector<LabelBlock*>{MakeNode<LabelBlock>(
-                          "_NextCase", ParameterList::Empty(), next_block)}));
+      current_block->statements.push_back(
+          MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
+              MakeNode<StatementExpression>(case_block),
+              MakeNode<LabelBlock>("_NextCase", ParameterList::Empty(),
+                                   next_block))));
       current_block = next_block;
     }
     accumulated_types =
@@ -692,13 +728,16 @@ base::Optional<ParseResult> MakeBlockStatement(
   return ParseResult{result};
 }
 
-base::Optional<ParseResult> MakeTryLabelStatement(
+base::Optional<ParseResult> MakeTryLabelExpression(
     ParseResultIterator* child_results) {
   auto try_block = child_results->NextAs<Statement*>();
   CheckNotDeferredStatement(try_block);
+  Statement* result = try_block;
   auto label_blocks = child_results->NextAs<std::vector<LabelBlock*>>();
-  Statement* result =
-      MakeNode<TryLabelStatement>(try_block, std::move(label_blocks));
+  for (auto block : label_blocks) {
+    result = MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
+        MakeNode<StatementExpression>(result), block));
+  }
   return ParseResult{result};
 }
 
@@ -1028,10 +1067,10 @@ struct TorqueGrammar : Grammar {
       Sequence({Token("labels"),
                 NonemptyList<LabelAndTypes>(&labelParameter, Token(","))}))};
 
-  // Result: std::vector<std::string>
-  Symbol* optionalOtherwise{TryOrDefault<std::vector<std::string>>(
+  // Result: std::vector<Statement*>
+  Symbol* optionalOtherwise{TryOrDefault<std::vector<Statement*>>(
       Sequence({Token("otherwise"),
-                NonemptyList<std::string>(&identifier, Token(","))}))};
+                NonemptyList<Statement*>(&atomarStatement, Token(","))}))};
 
   // Result: NameAndTypeExpression
   Symbol nameAndType = {
@@ -1212,28 +1251,27 @@ struct TorqueGrammar : Grammar {
             expression},
            MakeVarDeclarationStatement)};
 
-  // Disallow ambiguous dangling else by only allowing an {atomarStatement} as
-  // a then-clause. Result: Statement*
+  // Result: Statement*
   Symbol atomarStatement = {
-      Rule({&block}),
-      Rule({expression, Token(";")}, MakeExpressionStatement),
-      Rule({Token("return"), Optional<Expression*>(expression), Token(";")},
+      Rule({expression}, MakeExpressionStatement),
+      Rule({Token("return"), Optional<Expression*>(expression)},
            MakeReturnStatement),
-      Rule({Token("tail"), &callExpression, Token(";")}, MakeTailCallStatement),
-      Rule({Token("break"), Token(";")}, MakeBreakStatement),
-      Rule({Token("continue"), Token(";")}, MakeContinueStatement),
+      Rule({Token("tail"), &callExpression}, MakeTailCallStatement),
+      Rule({Token("break")}, MakeBreakStatement),
+      Rule({Token("continue")}, MakeContinueStatement),
       Rule({Token("goto"), &identifier,
-            TryOrDefault<std::vector<Expression*>>(&argumentList), Token(";")},
+            TryOrDefault<std::vector<Expression*>>(&argumentList)},
            MakeGotoStatement),
-      Rule({OneOf({"debug", "unreachable"}), Token(";")}, MakeDebugStatement)};
+      Rule({OneOf({"debug", "unreachable"})}, MakeDebugStatement)};
 
   // Result: Statement*
   Symbol statement = {
-      Rule({&atomarStatement}),
+      Rule({&block}),
+      Rule({&atomarStatement, Token(";")}),
       Rule({&varDeclaration, Token(";")}),
       Rule({&varDeclarationWithInitialization, Token(";")}),
       Rule({Token("if"), CheckIf(Token("constexpr")), Token("("), expression,
-            Token(")"), &atomarStatement,
+            Token(")"), &statement,
             Optional<Statement*>(Sequence({Token("else"), &statement}))},
            MakeIfStatement),
       Rule(
@@ -1244,21 +1282,19 @@ struct TorqueGrammar : Grammar {
           },
           MakeTypeswitchStatement),
       Rule({Token("try"), &block, NonemptyList<LabelBlock*>(&labelBlock)},
-           MakeTryLabelStatement),
+           MakeTryLabelExpression),
       Rule({OneOf({"assert", "check"}), Token("("), &expressionWithSource,
             Token(")"), Token(";")},
            MakeAssertStatement),
-      Rule({Token("while"), Token("("), expression, Token(")"),
-            &atomarStatement},
+      Rule({Token("while"), Token("("), expression, Token(")"), &statement},
            MakeWhileStatement),
       Rule({Token("for"), Token("("), &varDeclaration, Token("of"), expression,
-            Optional<RangeExpression>(&rangeSpecifier), Token(")"),
-            &atomarStatement},
+            Optional<RangeExpression>(&rangeSpecifier), Token(")"), &statement},
            MakeForOfLoopStatement),
       Rule({Token("for"), Token("("),
             Optional<Statement*>(&varDeclarationWithInitialization), Token(";"),
             Optional<Expression*>(expression), Token(";"),
-            Optional<Expression*>(expression), Token(")"), &atomarStatement},
+            Optional<Expression*>(expression), Token(")"), &statement},
            MakeForLoopStatement)};
 
   // Result: TypeswitchCase
