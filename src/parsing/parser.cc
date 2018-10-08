@@ -2787,7 +2787,7 @@ Block* Parser::BuildParameterInitializationBlock(
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   DCHECK_EQ(scope(), parameters.scope);
-  Block* init_block = factory()->NewBlock(1, true);
+  Block* init_block = factory()->NewBlock(parameters.num_parameters(), true);
   int index = 0;
   for (auto parameter : parameters.params) {
     DeclarationDescriptor descriptor;
