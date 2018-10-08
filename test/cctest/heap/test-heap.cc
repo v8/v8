@@ -4768,7 +4768,7 @@ TEST(WritableVsImmortalRoots) {
   for (RootIndex root_index = RootIndex::kFirstRoot;
        root_index <= RootIndex::kLastRoot; ++root_index) {
     bool writable = Heap::RootCanBeWrittenAfterInitialization(root_index);
-    bool immortal = Heap::RootIsImmortalImmovable(root_index);
+    bool immortal = RootsTable::IsImmortalImmovable(root_index);
     // A root value can be writable, immortal, or neither, but not both.
     CHECK(!immortal || !writable);
   }

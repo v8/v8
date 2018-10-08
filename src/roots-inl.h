@@ -56,6 +56,20 @@ FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map* map) {
   return FixedTypedArrayBase::cast(roots_table_[root_index]);
 }
 
+bool RootsTable::IsImmortalImmovable(RootIndex root_index) {
+  switch (root_index) {
+#define ROOT(type, name, CamelName) case RootIndex::k##CamelName:
+    READ_ONLY_ROOT_LIST(ROOT)
+#undef ROOT
+#define ROOT(name) case RootIndex::k##name:
+    MUTABLE_IMMORTAL_IMMOVABLE_ROOT_LIST(ROOT)
+#undef ROOT
+    return true;
+    default:
+      return false;
+  }
+}
+
 Object** RootsTable::read_only_roots_end() {
 // Enumerate the read-only roots into an expression of the form:
 // (root_1, root_2, root_3, ..., root_n)

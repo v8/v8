@@ -743,7 +743,7 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
       if (current != start &&
           serializer_->root_index_map()->Lookup(current_contents,
                                                 &root_index) &&
-          Heap::RootIsImmortalImmovable(root_index) &&
+          RootsTable::IsImmortalImmovable(root_index) &&
           *current == current[-1]) {
         DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
         DCHECK(!Heap::InNewSpace(current_contents));

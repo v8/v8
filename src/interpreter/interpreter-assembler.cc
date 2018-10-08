@@ -803,7 +803,7 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
       // MegamorphicSentinel is an immortal immovable object so
       // write-barrier is not needed.
       Comment("transition to megamorphic");
-      DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kmegamorphic_symbol));
+      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
       StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
@@ -1054,7 +1054,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       // MegamorphicSentinel is an immortal immovable object so
       // write-barrier is not needed.
       Comment("transition to megamorphic");
-      DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kmegamorphic_symbol));
+      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
       StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
@@ -1195,7 +1195,7 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
       // MegamorphicSentinel is an immortal immovable object so
       // write-barrier is not needed.
       Comment("transition to megamorphic");
-      DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kmegamorphic_symbol));
+      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
       StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),

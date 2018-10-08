@@ -474,7 +474,7 @@ class DeletePropertyBaseAssembler : public AccessorAssembler {
            dont_delete);
     // Overwrite the entry itself (see NameDictionary::SetEntry).
     TNode<HeapObject> filler = TheHoleConstant();
-    DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kTheHoleValue));
+    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kTheHoleValue));
     StoreFixedArrayElement(properties, key_index, filler, SKIP_WRITE_BARRIER);
     StoreValueByKeyIndex<NameDictionary>(properties, key_index, filler,
                                          SKIP_WRITE_BARRIER);

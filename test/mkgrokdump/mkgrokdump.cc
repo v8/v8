@@ -122,7 +122,7 @@ static int DumpHeapConstants(const char* argv0) {
         STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
         MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
         if (n == nullptr) continue;
-        if (!i::Heap::RootIsImmortalImmovable(i)) continue;
+        if (!i::RootsTable::IsImmortalImmovable(i)) continue;
         i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", sname, p, n);
       }
     }

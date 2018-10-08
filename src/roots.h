@@ -212,6 +212,24 @@ class Symbol;
   /* Marker for self-references during code-generation */                      \
   V(HeapObject, self_reference_marker, SelfReferenceMarker)
 
+// Mutable roots that are known to be immortal immovable, for which we can
+// safely skip write barriers.
+#define MUTABLE_IMMORTAL_IMMOVABLE_ROOT_LIST(V) \
+  V(ArrayBufferNeuteringProtector)              \
+  V(ArrayIteratorProtector)                     \
+  V(EmptyScript)                                \
+  V(IsConcatSpreadableProtector)                \
+  V(JSMessageObjectMap)                         \
+  V(JsConstructEntryCode)                       \
+  V(JsEntryCode)                                \
+  V(ManyClosuresCell)                           \
+  V(NoElementsProtector)                        \
+  V(ArraySpeciesProtector)                      \
+  V(TypedArraySpeciesProtector)                 \
+  V(PromiseSpeciesProtector)                    \
+  V(StringIteratorProtector)                    \
+  V(StringLengthProtector)
+
 #define STRONG_MUTABLE_ROOT_LIST(V)                                          \
   /* Maps */                                                                 \
   V(Map, external_map, ExternalMap)                                          \
@@ -385,6 +403,8 @@ class RootsTable {
   static RootIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
   static RootIndex RootIndexForFixedTypedArray(ElementsKind elements_kind);
   static RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind);
+
+  V8_INLINE static bool IsImmortalImmovable(RootIndex root_index);
 
  private:
   Object** read_only_roots_begin() {

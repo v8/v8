@@ -293,7 +293,7 @@ Handle<FixedArray> Factory::NewFixedArrayWithFiller(RootIndex map_root_index,
                                                     int length, Object* filler,
                                                     PretenureFlag pretenure) {
   HeapObject* result = AllocateRawFixedArray(length, pretenure);
-  DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
+  DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
   Map* map = Map::cast(isolate()->heap()->root(map_root_index));
   result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   Handle<FixedArray> array(FixedArray::cast(result), isolate());
@@ -357,7 +357,7 @@ Handle<WeakFixedArray> Factory::NewWeakFixedArray(int length,
   if (length == 0) return empty_weak_fixed_array();
   HeapObject* result =
       AllocateRawArray(WeakFixedArray::SizeFor(length), pretenure);
-  DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kWeakFixedArrayMap));
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kWeakFixedArrayMap));
   result->set_map_after_allocation(*weak_fixed_array_map(), SKIP_WRITE_BARRIER);
   Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
   array->set_length(length);

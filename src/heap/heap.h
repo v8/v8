@@ -52,127 +52,6 @@ class JSArrayBuffer;
 class ExternalString;
 using v8::MemoryPressureLevel;
 
-// Adapts PRIVATE_SYMBOL_LIST_GERNATOR entry to IMMORTAL_IMMOVABLE_ROOT_LIST
-// entry
-#define PRIVATE_SYMBOL_LIST_TO_IMMORTAL_IMMOVABLE_LIST_ADAPTER(V, name) V(name)
-
-// Heap roots that are known to be immortal immovable, for which we can safely
-// skip write barriers. This list is not complete and has omissions.
-#define IMMORTAL_IMMOVABLE_ROOT_LIST(V)     \
-  V(ArgumentsMarker)                        \
-  V(ArgumentsMarkerMap)                     \
-  V(ArrayBufferNeuteringProtector)          \
-  V(ArrayIteratorProtector)                 \
-  V(AwaitContextMap)                        \
-  V(BigIntMap)                              \
-  V(BlockContextMap)                        \
-  V(ObjectBoilerplateDescriptionMap)        \
-  V(BooleanMap)                             \
-  V(ByteArrayMap)                           \
-  V(BytecodeArrayMap)                       \
-  V(CatchContextMap)                        \
-  V(CellMap)                                \
-  V(CodeMap)                                \
-  V(DebugEvaluateContextMap)                \
-  V(DescriptorArrayMap)                     \
-  V(EphemeronHashTableMap)                  \
-  V(EmptyByteArray)                         \
-  V(EmptyDescriptorArray)                   \
-  V(EmptyFixedArray)                        \
-  V(EmptyFixedFloat32Array)                 \
-  V(EmptyFixedFloat64Array)                 \
-  V(EmptyFixedInt16Array)                   \
-  V(EmptyFixedInt32Array)                   \
-  V(EmptyFixedInt8Array)                    \
-  V(EmptyFixedUint16Array)                  \
-  V(EmptyFixedUint32Array)                  \
-  V(EmptyFixedUint8Array)                   \
-  V(EmptyFixedUint8ClampedArray)            \
-  V(EmptyOrderedHashMap)                    \
-  V(EmptyOrderedHashSet)                    \
-  V(EmptyPropertyCell)                      \
-  V(EmptyScopeInfo)                         \
-  V(EmptyScript)                            \
-  V(EmptySloppyArgumentsElements)           \
-  V(EmptySlowElementDictionary)             \
-  V(EvalContextMap)                         \
-  V(Exception)                              \
-  V(FalseValue)                             \
-  V(FixedArrayMap)                          \
-  V(FixedCOWArrayMap)                       \
-  V(FixedDoubleArrayMap)                    \
-  V(ForeignMap)                             \
-  V(FreeSpaceMap)                           \
-  V(FunctionContextMap)                     \
-  V(GlobalDictionaryMap)                    \
-  V(GlobalPropertyCellMap)                  \
-  V(HashTableMap)                           \
-  V(HeapNumberMap)                          \
-  V(HoleNanValue)                           \
-  V(InfinityValue)                          \
-  V(IsConcatSpreadableProtector)            \
-  V(JSMessageObjectMap)                     \
-  V(JsConstructEntryCode)                   \
-  V(JsEntryCode)                            \
-  V(ManyClosuresCell)                       \
-  V(ManyClosuresCellMap)                    \
-  V(MetaMap)                                \
-  V(MinusInfinityValue)                     \
-  V(MinusZeroValue)                         \
-  V(ModuleContextMap)                       \
-  V(ModuleInfoMap)                          \
-  V(MutableHeapNumberMap)                   \
-  V(NameDictionaryMap)                      \
-  V(NanValue)                               \
-  V(NativeContextMap)                       \
-  V(NoClosuresCellMap)                      \
-  V(NoElementsProtector)                    \
-  V(NullMap)                                \
-  V(NullValue)                              \
-  V(NumberDictionaryMap)                    \
-  V(OneClosureCellMap)                      \
-  V(OnePointerFillerMap)                    \
-  V(OptimizedOut)                           \
-  V(OrderedHashMapMap)                      \
-  V(OrderedHashSetMap)                      \
-  V(PreParsedScopeDataMap)                  \
-  V(PropertyArrayMap)                       \
-  V(ScopeInfoMap)                           \
-  V(ScriptContextMap)                       \
-  V(ScriptContextTableMap)                  \
-  V(SelfReferenceMarker)                    \
-  V(SharedFunctionInfoMap)                  \
-  V(SimpleNumberDictionaryMap)              \
-  V(SloppyArgumentsElementsMap)             \
-  V(SmallOrderedHashMapMap)                 \
-  V(SmallOrderedHashSetMap)                 \
-  V(ArraySpeciesProtector)                  \
-  V(TypedArraySpeciesProtector)             \
-  V(PromiseSpeciesProtector)                \
-  V(StaleRegister)                          \
-  V(StringIteratorProtector)                \
-  V(StringLengthProtector)                  \
-  V(StringTableMap)                         \
-  V(SymbolMap)                              \
-  V(TerminationException)                   \
-  V(TheHoleMap)                             \
-  V(TheHoleValue)                           \
-  V(TransitionArrayMap)                     \
-  V(TrueValue)                              \
-  V(TwoPointerFillerMap)                    \
-  V(UndefinedMap)                           \
-  V(UndefinedValue)                         \
-  V(UninitializedMap)                       \
-  V(UninitializedValue)                     \
-  V(UncompiledDataWithoutPreParsedScopeMap) \
-  V(UncompiledDataWithPreParsedScopeMap)    \
-  V(WeakFixedArrayMap)                      \
-  V(WeakArrayListMap)                       \
-  V(WithContextMap)                         \
-  V(empty_string)                           \
-  PRIVATE_SYMBOL_LIST_GENERATOR(            \
-      PRIVATE_SYMBOL_LIST_TO_IMMORTAL_IMMOVABLE_LIST_ADAPTER, V)
-
 class AllocationObserver;
 class ArrayBufferCollector;
 class ArrayBufferTracker;
@@ -393,8 +272,6 @@ class Heap {
   static int GetFillToAlign(Address address, AllocationAlignment alignment);
 
   void FatalProcessOutOfMemory(const char* location);
-
-  V8_EXPORT_PRIVATE static bool RootIsImmortalImmovable(RootIndex root_index);
 
   // Checks whether the space is valid.
   static bool IsValidAllocationSpace(AllocationSpace space);

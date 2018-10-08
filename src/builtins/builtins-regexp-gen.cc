@@ -82,7 +82,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
 
   DCHECK(!IsDoubleElementsKind(elements_kind));
   const RootIndex map_index = RootIndex::kFixedArrayMap;
-  DCHECK(Heap::RootIsImmortalImmovable(map_index));
+  DCHECK(RootsTable::IsImmortalImmovable(map_index));
   StoreMapNoWriteBarrier(elements, map_index);
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
 

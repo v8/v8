@@ -1223,7 +1223,7 @@ class RepresentationSelector {
         Heap* heap = jsgraph_->isolate()->heap();
         if (heap->IsRootHandle(value_type.AsHeapConstant()->Value(),
                                &root_index)) {
-          if (heap->RootIsImmortalImmovable(root_index)) {
+          if (RootsTable::IsImmortalImmovable(root_index)) {
             // Write barriers are unnecessary for immortal immovable roots.
             return kNoWriteBarrier;
           }

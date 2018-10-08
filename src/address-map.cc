@@ -36,7 +36,7 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
       // Immortal immovable root objects are constant and allocated on the first
       // page of old space. Non-constant roots cannot be immortal immovable. The
       // root index map contains all immortal immmovable root objects.
-      CHECK(!Heap::RootIsImmortalImmovable(root_index));
+      CHECK(!RootsTable::IsImmortalImmovable(root_index));
     }
   }
   isolate->set_root_index_map(map_);

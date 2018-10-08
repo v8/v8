@@ -2768,7 +2768,7 @@ Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
 
 Node* CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
                                               RootIndex root_index) {
-  if (Heap::RootIsImmortalImmovable(root_index)) {
+  if (RootsTable::IsImmortalImmovable(root_index)) {
     return StoreObjectFieldNoWriteBarrier(object, offset, LoadRoot(root_index));
   } else {
     return StoreObjectField(object, offset, LoadRoot(root_index));
@@ -3124,7 +3124,7 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
     return CAST(LoadRoot(RootIndex::kempty_string));
   }
   Node* result = Allocate(SeqOneByteString::SizeFor(length), flags);
-  DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kOneByteStringMap));
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kOneByteStringMap));
   StoreMapNoWriteBarrier(result, RootIndex::kOneByteStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                  Uint32Constant(length),
@@ -3163,7 +3163,7 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   {
     // Just allocate the SeqOneByteString in new space.
     Node* result = AllocateInNewSpace(size, flags);
-    DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kOneByteStringMap));
+    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kOneByteStringMap));
     StoreMapNoWriteBarrier(result, RootIndex::kOneByteStringMap);
     StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                    length, MachineRepresentation::kWord32);
@@ -3200,7 +3200,7 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
     return CAST(LoadRoot(RootIndex::kempty_string));
   }
   Node* result = Allocate(SeqTwoByteString::SizeFor(length), flags);
-  DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kStringMap));
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kStringMap));
   StoreMapNoWriteBarrier(result, RootIndex::kStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                  Uint32Constant(length),
@@ -3233,7 +3233,7 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
   {
     // Just allocate the SeqTwoByteString in new space.
     Node* result = AllocateInNewSpace(size, flags);
-    DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kStringMap));
+    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kStringMap));
     StoreMapNoWriteBarrier(result, RootIndex::kStringMap);
     StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                    length, MachineRepresentation::kWord32);
@@ -3270,7 +3270,7 @@ TNode<String> CodeStubAssembler::AllocateSlicedString(RootIndex map_root_index,
   DCHECK(map_root_index == RootIndex::kSlicedOneByteStringMap ||
          map_root_index == RootIndex::kSlicedStringMap);
   Node* result = Allocate(SlicedString::kSize);
-  DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
+  DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
   StoreMapNoWriteBarrier(result, map_root_index);
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kHashFieldOffset,
                                  Int32Constant(String::kEmptyHashField),
@@ -3304,7 +3304,7 @@ TNode<String> CodeStubAssembler::AllocateConsString(RootIndex map_root_index,
   DCHECK(map_root_index == RootIndex::kConsOneByteStringMap ||
          map_root_index == RootIndex::kConsStringMap);
   Node* result = Allocate(ConsString::kSize, flags);
-  DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
+  DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
   StoreMapNoWriteBarrier(result, map_root_index);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
                                  MachineRepresentation::kWord32);
@@ -3418,7 +3418,7 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
       UncheckedCast<NameDictionary>(AllocateInNewSpace(store_size));
   Comment("Initialize NameDictionary");
   // Initialize FixedArray fields.
-  DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kNameDictionaryMap));
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kNameDictionaryMap));
   StoreMapNoWriteBarrier(result, RootIndex::kNameDictionaryMap);
   StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
                                  SmiFromIntPtr(length));
@@ -3880,7 +3880,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   RootIndex elements_map_index = IsDoubleElementsKind(kind)
                                      ? RootIndex::kFixedDoubleArrayMap
                                      : RootIndex::kFixedArrayMap;
-  DCHECK(Heap::RootIsImmortalImmovable(elements_map_index));
+  DCHECK(RootsTable::IsImmortalImmovable(elements_map_index));
   StoreMapNoWriteBarrier(elements, elements_map_index);
   TNode<Smi> capacity_smi = ParameterToTagged(capacity, capacity_mode);
   CSA_ASSERT(this, SmiGreaterThan(capacity_smi, SmiConstant(0)));
@@ -4094,7 +4094,7 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
     RootIndex map_index = IsDoubleElementsKind(kind)
                               ? RootIndex::kFixedDoubleArrayMap
                               : RootIndex::kFixedArrayMap;
-    DCHECK(Heap::RootIsImmortalImmovable(map_index));
+    DCHECK(RootsTable::IsImmortalImmovable(map_index));
     StoreMapNoWriteBarrier(array, map_index);
   }
   StoreObjectFieldNoWriteBarrier(array, FixedArray::kLengthOffset,
@@ -4419,7 +4419,7 @@ Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,
 
   Node* array = Allocate(total_size, flags);
   RootIndex map_index = RootIndex::kPropertyArrayMap;
-  DCHECK(Heap::RootIsImmortalImmovable(map_index));
+  DCHECK(RootsTable::IsImmortalImmovable(map_index));
   StoreMapNoWriteBarrier(array, map_index);
   InitializePropertyArrayLength(array, capacity_node, mode);
   return array;
