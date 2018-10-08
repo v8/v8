@@ -1124,9 +1124,12 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
+  const v8::GCCallbackFlags callback_flags =
+      gc_reason == GarbageCollectionReason::kLowMemoryNotification
+          ? v8::kGCCallbackFlagForced
+          : v8::kGCCallbackFlagCollectAllAvailableGarbage;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(OLD_SPACE, gc_reason,
-                        v8::kGCCallbackFlagCollectAllAvailableGarbage) &&
+    if (!CollectGarbage(OLD_SPACE, gc_reason, callback_flags) &&
         attempt + 1 >= kMinNumberOfAttempts) {
       break;
     }
