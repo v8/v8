@@ -36,20 +36,27 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
                                                     Scope* scope);
 
  private:
-  enum PatternContext { BINDING, ASSIGNMENT };
+  enum PatternContext : uint8_t { BINDING, ASSIGNMENT };
 
-  PatternRewriter(Scope* scope, Parser* parser, PatternContext context)
+  PatternRewriter(Scope* scope, Parser* parser, PatternContext context,
+                  const DeclarationDescriptor* descriptor = nullptr,
+                  ZonePtrList<const AstRawString>* names = nullptr,
+                  int initializer_position = kNoSourcePosition,
+                  int value_beg_position = kNoSourcePosition,
+                  bool declares_parameter_containing_sloppy_eval = false)
       : scope_(scope),
         parser_(parser),
-        context_(context),
-        initializer_position_(kNoSourcePosition),
-        value_beg_position_(kNoSourcePosition),
         block_(nullptr),
-        descriptor_(nullptr),
-        names_(nullptr),
+        descriptor_(descriptor),
+        names_(names),
         current_value_(nullptr),
-        recursion_level_(0),
-        ok_(nullptr) {}
+        ok_(nullptr),
+        initializer_position_(initializer_position),
+        value_beg_position_(value_beg_position),
+        context_(context),
+        declares_parameter_containing_sloppy_eval_(
+            declares_parameter_containing_sloppy_eval),
+        recursion_level_(0) {}
 
 #define DECLARE_VISIT(type) void Visit##type(v8::internal::type* node);
   // Visiting functions for AST nodes make this an AstVisitor.
@@ -95,7 +102,6 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   bool IsAssignmentContext() const { return context_ == ASSIGNMENT; }
   bool IsSubPattern() const { return recursion_level_ > 1; }
 
-  bool DeclaresParameterContainingSloppyEval() const;
   void RewriteParameterScopes(Expression* expr);
 
   Variable* CreateTempVar(Expression* value = nullptr);
@@ -109,15 +115,16 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 
   Scope* const scope_;
   Parser* const parser_;
-  PatternContext context_;
-  int initializer_position_;
-  int value_beg_position_;
   Block* block_;
   const DeclarationDescriptor* descriptor_;
   ZonePtrList<const AstRawString>* names_;
   Expression* current_value_;
-  int recursion_level_;
   bool* ok_;
+  const int initializer_position_;
+  const int value_beg_position_;
+  PatternContext context_;
+  const bool declares_parameter_containing_sloppy_eval_ : 1;
+  int recursion_level_;
 
   DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
 };
@@ -152,12 +159,14 @@ void PatternRewriter::DeclareAndInitializeVariables(
     ZonePtrList<const AstRawString>* names, bool* ok) {
   DCHECK(block->ignore_completion_value());
 
-  PatternRewriter rewriter(declaration_descriptor->scope, parser, BINDING);
-  rewriter.initializer_position_ = declaration->initializer_position;
-  rewriter.value_beg_position_ = declaration->value_beg_position;
+  Scope* scope = declaration_descriptor->scope;
+  PatternRewriter rewriter(scope, parser, BINDING, declaration_descriptor,
+                           names, declaration->initializer_position,
+                           declaration->value_beg_position,
+                           declaration_descriptor->declaration_kind ==
+                                   DeclarationDescriptor::PARAMETER &&
+                               scope->is_block_scope());
   rewriter.block_ = block;
-  rewriter.descriptor_ = declaration_descriptor;
-  rewriter.names_ = names;
   rewriter.ok_ = ok;
 
   rewriter.RecurseIntoSubpattern(declaration->pattern,
@@ -191,7 +200,7 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
   Scope* outer_function_scope = nullptr;
   bool success;
-  if (DeclaresParameterContainingSloppyEval()) {
+  if (declares_parameter_containing_sloppy_eval_) {
     outer_function_scope = scope()->outer_scope();
     success = outer_function_scope->RemoveUnresolved(pattern);
   } else {
@@ -313,29 +322,12 @@ void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
   return Visit(node->expression());
 }
 
-bool PatternRewriter::DeclaresParameterContainingSloppyEval() const {
-  // Need to check for a binding context to make sure we have a descriptor.
-  if (IsBindingContext() &&
-      // Only relevant for parameters.
-      descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER &&
-      // And only when scope is a block scope;
-      // without eval, it is a function scope.
-      scope()->is_block_scope()) {
-    DCHECK(scope()->is_declaration_scope());
-    DCHECK(scope()->AsDeclarationScope()->calls_sloppy_eval());
-    DCHECK(scope()->outer_scope()->is_function_scope());
-    return true;
-  }
-
-  return false;
-}
-
 // When an extra declaration scope needs to be inserted to account for
 // a sloppy eval in a default parameter or function body, the expressions
 // needs to be in that new inner scope which was added after initial
 // parsing.
 void PatternRewriter::RewriteParameterScopes(Expression* expr) {
-  if (DeclaresParameterContainingSloppyEval()) {
+  if (declares_parameter_containing_sloppy_eval_) {
     ReparentExpressionScope(parser_->stack_limit(), expr, scope());
   }
 }
