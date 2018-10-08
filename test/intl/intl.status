@@ -30,8 +30,6 @@
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
 
-  'date-format/constructor-order': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6891
   'segmenter/segment': [FAIL],
   'segmenter/segment-iterator': [FAIL],

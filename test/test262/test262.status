@@ -636,7 +636,6 @@
   'built-ins/String/prototype/matchAll/regexp-prototype-has-no-matchAll': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8258
-  'intl402/DateTimeFormat/constructor-options-throwing-getters': [FAIL],
   'intl402/Locale/constructor-options-language-valid-undefined': [FAIL],
   'intl402/Locale/constructor-options-throwing-getters': [FAIL],
   'intl402/Locale/constructor-tag-tostring': [FAIL],
