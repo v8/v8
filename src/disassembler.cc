@@ -252,7 +252,8 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     } else {
       out->AddFormatted(" %s", Code::Kind2String(kind));
     }
-  } else if (RelocInfo::IsWasmStubCall(rmode)) {
+  } else if (RelocInfo::IsWasmStubCall(rmode) && !isolate) {
+    // Host is isolate-independent, try wasm native module instead.
     wasm::WasmCode* code = host.as_wasm_code()->native_module()->Lookup(
         relocinfo->wasm_stub_call_address());
     out->AddFormatted("    ;; wasm stub: %s", code->GetRuntimeStubName());
