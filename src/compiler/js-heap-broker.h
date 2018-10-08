@@ -236,29 +236,37 @@ class ContextRef : public HeapObjectRef {
   ObjectRef get(int index) const;
 };
 
-#define BROKER_NATIVE_CONTEXT_FIELDS(V)       \
-  V(JSFunction, array_function)               \
-  V(JSFunction, object_function)              \
-  V(JSFunction, promise_function)             \
-  V(Map, fast_aliased_arguments_map)          \
-  V(Map, initial_array_iterator_map)          \
-  V(Map, initial_string_iterator_map)         \
-  V(Map, iterator_result_map)                 \
-  V(Map, js_array_holey_double_elements_map)  \
-  V(Map, js_array_holey_elements_map)         \
-  V(Map, js_array_holey_smi_elements_map)     \
-  V(Map, js_array_packed_double_elements_map) \
-  V(Map, js_array_packed_elements_map)        \
-  V(Map, js_array_packed_smi_elements_map)    \
-  V(Map, map_key_iterator_map)                \
-  V(Map, map_key_value_iterator_map)          \
-  V(Map, map_value_iterator_map)              \
-  V(Map, set_key_value_iterator_map)          \
-  V(Map, set_value_iterator_map)              \
-  V(Map, sloppy_arguments_map)                \
-  V(Map, slow_object_with_null_prototype_map) \
-  V(Map, strict_arguments_map)                \
+#define BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V) \
+  V(JSFunction, array_function)                    \
+  V(JSFunction, object_function)                   \
+  V(JSFunction, promise_function)                  \
+  V(Map, fast_aliased_arguments_map)               \
+  V(Map, initial_array_iterator_map)               \
+  V(Map, initial_string_iterator_map)              \
+  V(Map, iterator_result_map)                      \
+  V(Map, js_array_holey_double_elements_map)       \
+  V(Map, js_array_holey_elements_map)              \
+  V(Map, js_array_holey_smi_elements_map)          \
+  V(Map, js_array_packed_double_elements_map)      \
+  V(Map, js_array_packed_elements_map)             \
+  V(Map, js_array_packed_smi_elements_map)         \
+  V(Map, sloppy_arguments_map)                     \
+  V(Map, slow_object_with_null_prototype_map)      \
+  V(Map, strict_arguments_map)                     \
   V(ScriptContextTable, script_context_table)
+
+// Those are set by Bootstrapper::ExportFromRuntime, which may not yet have
+// happened when Turbofan is invoked via --always-opt.
+#define BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V) \
+  V(Map, map_key_iterator_map)                   \
+  V(Map, map_key_value_iterator_map)             \
+  V(Map, map_value_iterator_map)                 \
+  V(Map, set_key_value_iterator_map)             \
+  V(Map, set_value_iterator_map)
+
+#define BROKER_NATIVE_CONTEXT_FIELDS(V)      \
+  BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V) \
+  BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V)
 
 class NativeContextRef : public ContextRef {
  public:

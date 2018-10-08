@@ -5,6 +5,7 @@
 #include "src/compiler/js-heap-broker.h"
 
 #include "src/ast/modules.h"
+#include "src/bootstrapper.h"
 #include "src/boxed-float.h"
 #include "src/code-factory.h"
 #include "src/compiler/graph-reducer.h"
@@ -2299,7 +2300,10 @@ void NativeContextData::Serialize(JSHeapBroker* broker) {
   DCHECK_NULL(name##_);                                           \
   name##_ = broker->GetOrCreateData(context->name())->As##type(); \
   if (name##_->IsJSFunction()) name##_->AsJSFunction()->Serialize(broker);
-  BROKER_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
+  BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
+  if (!broker->isolate()->bootstrapper()->IsActive()) {
+    BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
+  }
 #undef SERIALIZE_MEMBER
 
   DCHECK(function_maps_.empty());
