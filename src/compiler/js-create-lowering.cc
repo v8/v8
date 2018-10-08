@@ -1392,7 +1392,8 @@ Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
   a.AllocateArray(argument_count, factory()->fixed_array_map());
   for (int i = 0; i < argument_count; ++i, ++parameters_it) {
     DCHECK_NOT_NULL((*parameters_it).node);
-    a.Store(AccessBuilder::ForFixedArraySlot(i), (*parameters_it).node);
+    a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
+            (*parameters_it).node);
   }
   return a.Finish();
 }
@@ -1422,7 +1423,8 @@ Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
   a.AllocateArray(num_elements, factory()->fixed_array_map());
   for (int i = 0; i < num_elements; ++i, ++parameters_it) {
     DCHECK_NOT_NULL((*parameters_it).node);
-    a.Store(AccessBuilder::ForFixedArraySlot(i), (*parameters_it).node);
+    a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
+            (*parameters_it).node);
   }
   return a.Finish();
 }
@@ -1459,22 +1461,27 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   AllocationBuilder aa(jsgraph(), effect, control);
   aa.AllocateArray(argument_count, factory()->fixed_array_map());
   for (int i = 0; i < mapped_count; ++i, ++parameters_it) {
-    aa.Store(AccessBuilder::ForFixedArraySlot(i), jsgraph()->TheHoleConstant());
+    aa.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
+             jsgraph()->TheHoleConstant());
   }
   for (int i = mapped_count; i < argument_count; ++i, ++parameters_it) {
     DCHECK_NOT_NULL((*parameters_it).node);
-    aa.Store(AccessBuilder::ForFixedArraySlot(i), (*parameters_it).node);
+    aa.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
+             (*parameters_it).node);
   }
   Node* arguments = aa.Finish();
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), arguments, control);
   a.AllocateArray(mapped_count + 2, factory()->sloppy_arguments_elements_map());
-  a.Store(AccessBuilder::ForFixedArraySlot(0), context);
-  a.Store(AccessBuilder::ForFixedArraySlot(1), arguments);
+  a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(0),
+          context);
+  a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(1),
+          arguments);
   for (int i = 0; i < mapped_count; ++i) {
     int idx = Context::MIN_CONTEXT_SLOTS + parameter_count - 1 - i;
-    a.Store(AccessBuilder::ForFixedArraySlot(i + 2), jsgraph()->Constant(idx));
+    a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i + 2),
+            jsgraph()->Constant(idx));
   }
   return a.Finish();
 }
@@ -1512,8 +1519,10 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), arguments, control);
   a.AllocateArray(mapped_count + 2, factory()->sloppy_arguments_elements_map());
-  a.Store(AccessBuilder::ForFixedArraySlot(0), context);
-  a.Store(AccessBuilder::ForFixedArraySlot(1), arguments);
+  a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(0),
+          context);
+  a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(1),
+          arguments);
   for (int i = 0; i < mapped_count; ++i) {
     int idx = Context::MIN_CONTEXT_SLOTS + parameter_count - 1 - i;
     Node* value = graph()->NewNode(
@@ -1521,7 +1530,8 @@ Node* JSCreateLowering::AllocateAliasedArguments(
         graph()->NewNode(simplified()->NumberLessThan(), jsgraph()->Constant(i),
                          arguments_length),
         jsgraph()->Constant(idx), jsgraph()->TheHoleConstant());
-    a.Store(AccessBuilder::ForFixedArraySlot(i + 2), value);
+    a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i + 2),
+            value);
   }
   return a.Finish();
 }
