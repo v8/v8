@@ -2493,6 +2493,85 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   }
 }
 
+TNode<BoolT> StringBuiltinsAssembler::IsStringPrimitiveWithNoCustomIteration(
+    TNode<Object> object, TNode<Context> context) {
+  Label if_false(this, Label::kDeferred), exit(this);
+  TVARIABLE(BoolT, var_result);
+
+  GotoIf(TaggedIsSmi(object), &if_false);
+  GotoIfNot(IsString(CAST(object)), &if_false);
+
+  // Check that the String iterator hasn't been modified in a way that would
+  // affect iteration.
+  Node* protector_cell = LoadRoot(RootIndex::kStringIteratorProtector);
+  DCHECK(isolate()->heap()->string_iterator_protector()->IsPropertyCell());
+  var_result =
+      WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                SmiConstant(Isolate::kProtectorValid));
+  Goto(&exit);
+
+  BIND(&if_false);
+  {
+    var_result = Int32FalseConstant();
+    Goto(&exit);
+  }
+
+  BIND(&exit);
+  return var_result.value();
+}
+
+TNode<JSArray> StringBuiltinsAssembler::StringToList(TNode<Context> context,
+                                                     TNode<String> string) {
+  CSA_ASSERT(this, IsStringPrimitiveWithNoCustomIteration(string, context));
+  const ElementsKind kind = PACKED_ELEMENTS;
+  const TNode<IntPtrT> length = LoadStringLengthAsWord(string);
+
+  Node* const array_map =
+      LoadJSArrayElementsMap(kind, LoadNativeContext(context));
+  Node* const array = AllocateJSArray(kind, array_map, length, SmiTag(length));
+  Node* const elements = LoadElements(array);
+
+  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  TNode<IntPtrT> first_to_element_offset =
+      ElementOffsetFromIndex(IntPtrConstant(0), kind, INTPTR_PARAMETERS, 0);
+  VARIABLE(
+      var_offset, MachineType::PointerRepresentation(),
+      IntPtrAdd(first_to_element_offset, IntPtrConstant(first_element_offset)));
+  TVARIABLE(IntPtrT, var_position, IntPtrConstant(0));
+  Label done(this), next_codepoint(this, {&var_position, &var_offset});
+
+  Goto(&next_codepoint);
+
+  BIND(&next_codepoint);
+  {
+    // Loop condition.
+    GotoIfNot(IntPtrLessThan(var_position.value(), length), &done);
+    const UnicodeEncoding encoding = UnicodeEncoding::UTF16;
+    TNode<Int32T> ch =
+        LoadSurrogatePairAt(string, length, var_position.value(), encoding);
+    TNode<String> value = StringFromSingleCodePoint(ch, encoding);
+
+    Store(elements, var_offset.value(), value);
+
+    // Increment the position.
+    TNode<IntPtrT> ch_length = LoadStringLengthAsWord(value);
+    var_position = IntPtrAdd(var_position.value(), ch_length);
+    // Increment the array offset and continue the loop.
+    var_offset.Bind(
+        IntPtrAdd(var_offset.value(), IntPtrConstant(kPointerSize)));
+    Goto(&next_codepoint);
+  }
+
+  BIND(&done);
+  return UncheckedCast<JSArray>(array);
+}
+
+TF_BUILTIN(StringToList, StringBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<String> string = CAST(Parameter(Descriptor::kSource));
+  Return(StringToList(context, string));
+}
+
 // -----------------------------------------------------------------------------
 // ES6 section B.2.3 Additional Properties of the String.prototype object
 

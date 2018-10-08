@@ -4,7 +4,9 @@
 
 // Flags: --allow-natives-syntax --no-stress-opt
 
-// Tests for primitive strings.
+// Tests for spreading primitive strings.
+
+assertEquals([...''], []);
 
 var str = 'ott';
 assertEquals(['o', 't', 't'], [...str]);
