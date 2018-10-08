@@ -1451,7 +1451,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   size_t const map_count = maps.size();
 
   if (p.flags() & CheckMapsFlag::kTryMigrateInstance) {
-    auto done = __ MakeDeferredLabel();
+    auto done = __ MakeLabel();
     auto migrate = __ MakeDeferredLabel();
 
     // Load the current map of the {value}.
