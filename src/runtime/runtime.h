@@ -661,6 +661,11 @@ class Runtime : public AllStatic {
 
   static const int kNotFound = -1;
 
+  // Checks whether the runtime function with the given {id} depends on the
+  // "current context", i.e. because it does scoped lookups, or whether it's
+  // fine to just pass any context within the same "native context".
+  static bool NeedsExactContext(FunctionId id);
+
   // Checks whether the runtime function with the given {id} never returns
   // to it's caller normally, i.e. whether it'll always raise an exception.
   // More specifically: The C++ implementation returns the Heap::exception

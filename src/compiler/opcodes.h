@@ -179,6 +179,12 @@
   V(JSCreateWithContext)      \
   V(JSCreateBlockContext)
 
+#define JS_CALL_OP_LIST(V) \
+  V(JSCall)                \
+  V(JSCallForwardVarargs)  \
+  V(JSCallWithArrayLike)   \
+  V(JSCallWithSpread)
+
 #define JS_CONSTRUCT_OP_LIST(V) \
   V(JSConstructForwardVarargs)  \
   V(JSConstruct)                \
@@ -186,11 +192,8 @@
   V(JSConstructWithSpread)
 
 #define JS_OTHER_OP_LIST(V)            \
+  JS_CALL_OP_LIST(V)                   \
   JS_CONSTRUCT_OP_LIST(V)              \
-  V(JSCallForwardVarargs)              \
-  V(JSCall)                            \
-  V(JSCallWithArrayLike)               \
-  V(JSCallWithSpread)                  \
   V(JSCallRuntime)                     \
   V(JSForInEnumerate)                  \
   V(JSForInNext)                       \

@@ -96,6 +96,44 @@ void InitializeIntrinsicFunctionNames() {
 
 }  // namespace
 
+bool Runtime::NeedsExactContext(FunctionId id) {
+  switch (id) {
+    case Runtime::kAddPrivateField:
+    case Runtime::kCopyDataProperties:
+    case Runtime::kCreateDataProperty:
+    case Runtime::kCreatePrivateFieldSymbol:
+    case Runtime::kReThrow:
+    case Runtime::kThrow:
+    case Runtime::kThrowApplyNonFunction:
+    case Runtime::kThrowCalledNonCallable:
+    case Runtime::kThrowConstAssignError:
+    case Runtime::kThrowConstructorNonCallableError:
+    case Runtime::kThrowConstructedNonConstructable:
+    case Runtime::kThrowConstructorReturnedNonObject:
+    case Runtime::kThrowInvalidStringLength:
+    case Runtime::kThrowInvalidTypedArrayAlignment:
+    case Runtime::kThrowIteratorError:
+    case Runtime::kThrowIteratorResultNotAnObject:
+    case Runtime::kThrowNotConstructor:
+    case Runtime::kThrowRangeError:
+    case Runtime::kThrowReferenceError:
+    case Runtime::kThrowStackOverflow:
+    case Runtime::kThrowStaticPrototypeError:
+    case Runtime::kThrowSuperAlreadyCalledError:
+    case Runtime::kThrowSuperNotCalled:
+    case Runtime::kThrowSymbolAsyncIteratorInvalid:
+    case Runtime::kThrowSymbolIteratorInvalid:
+    case Runtime::kThrowThrowMethodMissing:
+    case Runtime::kThrowTypeError:
+    case Runtime::kThrowUnsupportedSuperError:
+    case Runtime::kThrowWasmError:
+    case Runtime::kThrowWasmStackOverflow:
+      return false;
+    default:
+      return true;
+  }
+}
+
 bool Runtime::IsNonReturning(FunctionId id) {
   switch (id) {
     case Runtime::kThrowUnsupportedSuperError:

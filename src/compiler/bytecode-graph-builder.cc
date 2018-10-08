@@ -3468,7 +3468,9 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     memcpy(buffer, value_inputs, kPointerSize * value_input_count);
     Node** current_input = buffer + value_input_count;
     if (has_context) {
-      *current_input++ = environment()->Context();
+      *current_input++ = OperatorProperties::NeedsExactContext(op)
+                             ? environment()->Context()
+                             : jsgraph()->HeapConstant(native_context());
     }
     if (has_frame_state) {
       // The frame state will be inserted later. Here we misuse the {Dead} node
