@@ -31,8 +31,9 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
                        size_t size, size_t allocate_page_size);
   ~BoundedPageAllocator() override = default;
 
-  Address begin() const { return region_allocator_.begin(); }
-  size_t size() const { return region_allocator_.size(); }
+  // These functions are not inlined to avoid https://crbug.com/v8/8275.
+  Address begin() const;
+  size_t size() const;
 
   // Returns true if given address is in the range controlled by the bounded
   // page allocator instance.

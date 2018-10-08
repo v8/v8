@@ -19,6 +19,12 @@ BoundedPageAllocator::BoundedPageAllocator(v8::PageAllocator* page_allocator,
   CHECK(IsAligned(allocate_page_size_, commit_page_size_));
 }
 
+BoundedPageAllocator::Address BoundedPageAllocator::begin() const {
+  return region_allocator_.begin();
+}
+
+size_t BoundedPageAllocator::size() const { return region_allocator_.size(); }
+
 void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
                                           size_t alignment,
                                           PageAllocator::Permission access) {
