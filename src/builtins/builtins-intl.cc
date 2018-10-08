@@ -130,44 +130,24 @@ BUILTIN(StringPrototypeNormalizeIntl) {
                    result.length())));
 }
 
-namespace {
-
-MaybeHandle<JSObject> SupportedLocalesOfCommon(Isolate* isolate,
-                                               const char* service_in,
-                                               BuiltinArguments args) {
-  Factory* factory = isolate->factory();
-  Handle<String> service = factory->NewStringFromAsciiChecked(service_in);
+BUILTIN(V8BreakIteratorSupportedLocalesOf) {
+  HandleScope scope(isolate);
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
-  MaybeHandle<JSObject> result =
-      Intl::SupportedLocalesOf(isolate, service, locales, options);
-  Handle<JSObject> elements;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, elements, result, JSObject);
-  return elements;
-}
-
-}  // namespace
-
-BUILTIN(V8BreakIteratorSupportedLocalesOf) {
-  HandleScope scope(isolate);
-  // 1. If NewTarget is defined, throw a TypeError exception.
-  if (!args.new_target()->IsUndefined(isolate)) {  // [[Call]]
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kOrdinaryFunctionCalledAsConstructor,
-                     isolate->factory()->NewStringFromStaticChars(
-                         "Intl.v8BreakIterator")));
-  }
-
   RETURN_RESULT_OR_FAILURE(
-      isolate, SupportedLocalesOfCommon(isolate, "breakiterator", args));
+      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kBreakIterator,
+                                        locales, options));
 }
 
 BUILTIN(NumberFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate, SupportedLocalesOfCommon(isolate, "numberformat", args));
+      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kNumberFormat,
+                                        locales, options));
 }
 
 BUILTIN(NumberFormatPrototypeFormatToParts) {
@@ -204,8 +184,12 @@ BUILTIN(DateTimeFormatPrototypeResolvedOptions) {
 
 BUILTIN(DateTimeFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate, SupportedLocalesOfCommon(isolate, "dateformat", args));
+      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kDateFormat,
+                                        locales, options));
 }
 
 BUILTIN(DateTimeFormatPrototypeFormatToParts) {
@@ -543,8 +527,12 @@ BUILTIN(ListFormatPrototypeResolvedOptions) {
 
 BUILTIN(ListFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate, SupportedLocalesOfCommon(isolate, "listformat", args));
+      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kListFormatter,
+                                        locales, options));
 }
 
 namespace {
@@ -646,8 +634,13 @@ BUILTIN(LocalePrototypeMinimize) {
 
 BUILTIN(RelativeTimeFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate, SupportedLocalesOfCommon(isolate, "relativetimeformat", args));
+      isolate,
+      Intl::SupportedLocalesOf(isolate, ICUService::kRelativeDateTimeFormatter,
+                               locales, options));
 }
 
 BUILTIN(RelativeTimeFormatPrototypeFormat) {
@@ -905,8 +898,12 @@ BUILTIN(PluralRulesPrototypeSelect) {
 
 BUILTIN(PluralRulesSupportedLocalesOf) {
   HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate, SupportedLocalesOfCommon(isolate, "pluralrules", args));
+      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kPluralRules,
+                                        locales, options));
 }
 
 BUILTIN(CollatorConstructor) {
@@ -951,8 +948,12 @@ BUILTIN(CollatorPrototypeResolvedOptions) {
 
 BUILTIN(CollatorSupportedLocalesOf) {
   HandleScope scope(isolate);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           SupportedLocalesOfCommon(isolate, "collator", args));
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kCollator, locales,
+                                        options));
 }
 
 BUILTIN(CollatorPrototypeCompare) {
@@ -1047,8 +1048,12 @@ BUILTIN(SegmenterConstructor) {
 
 BUILTIN(SegmenterSupportedLocalesOf) {
   HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate, SupportedLocalesOfCommon(isolate, "segmenter", args));
+      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kSegmenter,
+                                        locales, options));
 }
 
 BUILTIN(SegmenterPrototypeResolvedOptions) {

@@ -61,13 +61,11 @@ class Intl {
   static bool IsObjectOfType(Isolate* isolate, Handle<Object> object,
                              Intl::Type expected_type);
 
-  static IcuService StringToIcuService(Handle<String> service);
-
   // Gets the ICU locales for a given service. If there is a locale with a
   // script tag then the locales also include a locale without the script; eg,
   // pa_Guru_IN (language=Panjabi, script=Gurmukhi, country-India) would include
   // pa_IN.
-  static std::set<std::string> GetAvailableLocales(const IcuService& service);
+  static std::set<std::string> GetAvailableLocales(ICUService service);
 
   // Get the name of the numbering system from locale.
   // ICU doesn't expose numbering system in any way, so we have to assume that
@@ -78,17 +76,11 @@ class Intl {
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> AvailableLocalesOf(
       Isolate* isolate, Handle<String> service);
 
-  static MaybeHandle<JSObject> SupportedLocalesOf(Isolate* isolate,
-                                                  Handle<String> service,
-                                                  Handle<Object> locales_in,
-                                                  Handle<Object> options_in);
+  static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> SupportedLocalesOf(
+      Isolate* isolate, ICUService service, Handle<Object> locales_in,
+      Handle<Object> options_in);
 
   static std::string DefaultLocale(Isolate* isolate);
-
-  // If locale has a script tag then return true and the locale without the
-  // script else return false and an empty string
-  static bool RemoveLocaleScriptTag(const std::string& icu_locale,
-                                    std::string* locale_less_script);
 
   // The ResolveLocale abstract operation compares a BCP 47 language
   // priority list requestedLocales against the locales in

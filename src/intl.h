@@ -23,13 +23,12 @@ class TimeZone;
 namespace v8 {
 namespace internal {
 
-enum class IcuService {
+enum class ICUService {
   kBreakIterator,
   kCollator,
   kDateFormat,
   kNumberFormat,
   kPluralRules,
-  kResourceBundle,
   kRelativeDateTimeFormatter,
   kListFormatter,
   kSegmenter
