@@ -344,7 +344,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int pos = function_token_pos == kNoSourcePosition ? peek_position()
                                                     : function_token_pos;
   ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
-                    CHECK_OK);
+                    FunctionBodyType::kBlock, true, CHECK_OK);
 
   // Parsing the body may change the language mode in our scope.
   language_mode = function_scope->language_mode();

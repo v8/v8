@@ -1150,8 +1150,6 @@ class ParserBase {
   ExpressionT ParseArrowFunctionLiteral(bool accept_IN,
                                         const FormalParametersT& parameters,
                                         int rewritable_length, bool* ok);
-  void ParseSingleExpressionFunctionBody(StatementListT body, bool is_async,
-                                         bool accept_IN, bool* ok);
   void ParseAsyncFunctionBody(Scope* scope, StatementListT body, bool* ok);
   ExpressionT ParseAsyncFunctionLiteral(bool* ok);
   ExpressionT ParseClassLiteral(IdentifierT name,
@@ -1186,11 +1184,14 @@ class ParserBase {
                                    bool default_export, bool* ok);
   StatementT ParseNativeDeclaration(bool* ok);
 
+  // Whether we're parsing a single-expression arrow function or something else.
+  enum class FunctionBodyType { kExpression, kBlock };
   // Consumes the ending }.
   void ParseFunctionBody(StatementListT result, IdentifierT function_name,
                          int pos, const FormalParametersT& parameters,
                          FunctionKind kind,
-                         FunctionLiteral::FunctionType function_type, bool* ok);
+                         FunctionLiteral::FunctionType function_type,
+                         FunctionBodyType body_type, bool accept_IN, bool* ok);
 
   // Under some circumstances, we allow preparsing to abort if the preparsed
   // function is "long and trivial", and fully parse instead. Our current
@@ -4186,7 +4187,8 @@ template <typename Impl>
 void ParserBase<Impl>::ParseFunctionBody(
     typename ParserBase<Impl>::StatementListT result, IdentifierT function_name,
     int pos, const FormalParametersT& parameters, FunctionKind kind,
-    FunctionLiteral::FunctionType function_type, bool* ok) {
+    FunctionLiteral::FunctionType function_type, FunctionBodyType body_type,
+    bool accept_IN, bool* ok) {
   DeclarationScope* function_scope = scope()->AsDeclarationScope();
   DeclarationScope* inner_scope = function_scope;
   BlockT inner_block = impl()->NullStatement();
@@ -4200,34 +4202,53 @@ void ParserBase<Impl>::ParseFunctionBody(
     body = inner_block->statements();
   }
 
-  // If we are parsing the source as if it is wrapped in a function, the source
-  // ends without a closing brace.
-  Token::Value closing_token =
-      function_type == FunctionLiteral::kWrapped ? Token::EOS : Token::RBRACE;
-
   {
     BlockState block_state(&scope_, inner_scope);
 
     if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
 
-    if (IsAsyncGeneratorFunction(kind)) {
-      impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind, body, ok);
-    } else if (IsGeneratorFunction(kind)) {
-      impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, body, ok);
-    } else if (IsAsyncFunction(kind)) {
-      ParseAsyncFunctionBody(inner_scope, body, CHECK_OK_VOID);
-    } else {
-      ParseStatementList(body, closing_token, CHECK_OK_VOID);
-    }
+    if (body_type == FunctionBodyType::kExpression) {
+      ExpressionClassifier classifier(this);
+      ExpressionT expression =
+          ParseAssignmentExpression(accept_IN, CHECK_OK_VOID);
+      ValidateExpression(CHECK_OK_VOID);
 
-    if (IsDerivedConstructor(kind)) {
-      body->Add(factory()->NewReturnStatement(impl()->ThisExpression(),
-                                              kNoSourcePosition),
-                zone());
+      if (IsAsyncFunction(kind)) {
+        BlockT block = factory()->NewBlock(1, true);
+        impl()->RewriteAsyncFunctionBody(body, block, expression,
+                                         CHECK_OK_VOID);
+      } else {
+        body->Add(BuildReturnStatement(expression, expression->position()),
+                  zone());
+      }
+    } else {
+      DCHECK(accept_IN);
+      DCHECK_EQ(FunctionBodyType::kBlock, body_type);
+      // If we are parsing the source as if it is wrapped in a function, the
+      // source ends without a closing brace.
+      Token::Value closing_token = function_type == FunctionLiteral::kWrapped
+                                       ? Token::EOS
+                                       : Token::RBRACE;
+
+      if (IsAsyncGeneratorFunction(kind)) {
+        impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind, body, ok);
+      } else if (IsGeneratorFunction(kind)) {
+        impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, body, ok);
+      } else if (IsAsyncFunction(kind)) {
+        ParseAsyncFunctionBody(inner_scope, body, CHECK_OK_VOID);
+      } else {
+        ParseStatementList(body, closing_token, CHECK_OK_VOID);
+      }
+
+      if (IsDerivedConstructor(kind)) {
+        body->Add(factory()->NewReturnStatement(impl()->ThisExpression(),
+                                                kNoSourcePosition),
+                  zone());
+      }
+      Expect(closing_token, CHECK_OK_VOID);
     }
   }
 
-  Expect(closing_token, CHECK_OK_VOID);
   scope()->set_end_position(end_position());
 
   if (!parameters.is_simple) {
@@ -4428,7 +4449,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           body = impl()->NewStatementList(8);
           ParseFunctionBody(body, impl()->NullIdentifier(), kNoSourcePosition,
                             formal_parameters, kind,
-                            FunctionLiteral::kAnonymousExpression, ok);
+                            FunctionLiteral::kAnonymousExpression,
+                            FunctionBodyType::kBlock, true, ok);
           CHECK(!*ok);
           return impl()->NullExpression();
         }
@@ -4437,17 +4459,18 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         body = impl()->NewStatementList(8);
         ParseFunctionBody(body, impl()->NullIdentifier(), kNoSourcePosition,
                           formal_parameters, kind,
-                          FunctionLiteral::kAnonymousExpression, CHECK_OK);
+                          FunctionLiteral::kAnonymousExpression,
+                          FunctionBodyType::kBlock, true, CHECK_OK);
         expected_property_count = function_state.expected_property_count();
       }
     } else {
       // Single-expression body
       has_braces = false;
-      const bool is_async = IsAsyncFunction(kind);
       body = impl()->NewStatementList(1);
-      impl()->AddParameterInitializationBlock(formal_parameters, body, is_async,
-                                              CHECK_OK);
-      ParseSingleExpressionFunctionBody(body, is_async, accept_IN, CHECK_OK);
+      ParseFunctionBody(body, impl()->NullIdentifier(), kNoSourcePosition,
+                        formal_parameters, kind,
+                        FunctionLiteral::kAnonymousExpression,
+                        FunctionBodyType::kExpression, accept_IN, CHECK_OK);
       expected_property_count = function_state.expected_property_count();
     }
 
@@ -4582,25 +4605,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   block_scope->set_end_position(end_pos);
   return impl()->RewriteClassLiteral(block_scope, name, &class_info,
                                      class_token_pos, end_pos, ok);
-}
-
-template <typename Impl>
-void ParserBase<Impl>::ParseSingleExpressionFunctionBody(StatementListT body,
-                                                         bool is_async,
-                                                         bool accept_IN,
-                                                         bool* ok) {
-  if (is_async) impl()->PrepareGeneratorVariables();
-
-  ExpressionClassifier classifier(this);
-  ExpressionT expression = ParseAssignmentExpression(accept_IN, CHECK_OK_VOID);
-  ValidateExpression(CHECK_OK_VOID);
-
-  if (is_async) {
-    BlockT block = factory()->NewBlock(1, true);
-    impl()->RewriteAsyncFunctionBody(body, block, expression, CHECK_OK_VOID);
-  } else {
-    body->Add(BuildReturnStatement(expression, expression->position()), zone());
-  }
 }
 
 template <typename Impl>

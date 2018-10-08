@@ -1697,14 +1697,6 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Jump();
   }
 
-  V8_INLINE void AddParameterInitializationBlock(
-      const PreParserFormalParameters& parameters, PreParserStatementList body,
-      bool is_async, bool* ok) {
-    if (!parameters.is_simple) {
-      BuildParameterInitializationBlock(parameters, ok);
-    }
-  }
-
   V8_INLINE void AddFormalParameter(PreParserFormalParameters* parameters,
                                     const PreParserExpression& pattern,
                                     const PreParserExpression& initializer,

@@ -902,18 +902,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
         factory()->NewThrow(exception, pos), pos);
   }
 
-  V8_INLINE void AddParameterInitializationBlock(
-      const ParserFormalParameters& parameters, ZonePtrList<Statement>* body,
-      bool is_async, bool* ok) {
-    if (parameters.is_simple) return;
-    auto* init_block = BuildParameterInitializationBlock(parameters, ok);
-    if (!*ok) return;
-    if (is_async) {
-      init_block = BuildRejectPromiseOnException(init_block);
-    }
-    body->Add(init_block, zone());
-  }
-
   V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
                                     Expression* pattern,
                                     Expression* initializer,

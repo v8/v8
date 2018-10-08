@@ -3052,7 +3052,8 @@ ZonePtrList<Statement>* Parser::ParseFunction(
   *function_length = formals.function_length;
 
   ZonePtrList<Statement>* body = new (zone()) ZonePtrList<Statement>(8, zone());
-  ParseFunctionBody(body, function_name, pos, formals, kind, function_type, ok);
+  ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
+                    FunctionBodyType::kBlock, true, ok);
 
   // Validate parameter names. We can do this only after parsing the function,
   // since the function can declare itself strict.
