@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 23
 parameter count: 1
-bytecode array length: 514
+bytecode array length: 518
 bytecodes: [
                 B(SwitchOnGeneratorState), R(3), U8(0), U8(3),
                 B(Mov), R(closure), R(12),
@@ -183,14 +183,11 @@ bytecodes: [
                 B(Ldar), R(17),
                 B(ReThrow),
                 B(LdaUndefined),
-                B(Star), R(17),
-                B(Mov), R(0), R(16),
-                B(InvokeIntrinsic), U8(Runtime::k_ResolvePromise), R(16), U8(2),
+                B(Star), R(13),
                 B(LdaZero),
                 B(Star), R(12),
-                B(Mov), R(0), R(13),
-                B(Jump), U8(55),
-                B(Jump), U8(39),
+                B(Jump), U8(56),
+                B(Jump), U8(40),
                 B(Star), R(16),
                 B(CreateCatchContext), R(16), U8(12),
                 B(Star), R(15),
@@ -205,7 +202,7 @@ bytecodes: [
                 B(Mov), R(0), R(17),
                 B(InvokeIntrinsic), U8(Runtime::k_RejectPromise), R(17), U8(3),
                 B(PopContext), R(16),
-                B(LdaZero),
+                B(LdaSmi), I8(1),
                 B(Star), R(12),
                 B(Mov), R(0), R(13),
                 B(Jump), U8(16),
@@ -214,7 +211,7 @@ bytecodes: [
                 B(Star), R(12),
                 B(Jump), U8(8),
                 B(Star), R(13),
-                B(LdaSmi), I8(1),
+                B(LdaSmi), I8(2),
                 B(Star), R(12),
                 B(LdaTheHole),
                 B(SetPendingMessage),
@@ -226,8 +223,13 @@ bytecodes: [
                 B(Ldar), R(14),
                 B(SetPendingMessage),
                 B(Ldar), R(12),
-                B(SwitchOnSmiNoFeedback), U8(13), U8(2), I8(0),
-                B(Jump), U8(8),
+                B(SwitchOnSmiNoFeedback), U8(13), U8(3), I8(0),
+                B(Jump), U8(21),
+                B(Mov), R(0), R(15),
+                B(Mov), R(13), R(16),
+                B(InvokeIntrinsic), U8(Runtime::k_ResolvePromise), R(15), U8(2),
+                B(Ldar), R(0),
+  /*   57 S> */ B(Return),
                 B(Ldar), R(13),
   /*   57 S> */ B(Return),
                 B(Ldar), R(13),
@@ -250,11 +252,12 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
   SCOPE_INFO_TYPE,
   Smi [6],
-  Smi [9],
+  Smi [19],
+  Smi [22],
 ]
 handlers: [
-  [26, 467, 475],
-  [29, 428, 430],
+  [26, 458, 466],
+  [29, 418, 420],
   [35, 211, 219],
   [38, 174, 176],
   [279, 328, 330],
@@ -269,7 +272,7 @@ snippet: "
 "
 frame size: 23
 parameter count: 1
-bytecode array length: 543
+bytecode array length: 532
 bytecodes: [
                 B(SwitchOnGeneratorState), R(3), U8(0), U8(3),
                 B(Mov), R(closure), R(12),
@@ -437,16 +440,13 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(12),
                 B(Mov), R(17), R(13),
-                B(Jump), U8(78),
+                B(Jump), U8(67),
                 B(Ldar), R(17),
                 B(ReThrow),
                 B(LdaUndefined),
-                B(Star), R(17),
-                B(Mov), R(0), R(16),
-                B(InvokeIntrinsic), U8(Runtime::k_ResolvePromise), R(16), U8(2),
-                B(LdaSmi), I8(1),
+                B(Star), R(13),
+                B(LdaZero),
                 B(Star), R(12),
-                B(Mov), R(0), R(13),
                 B(Jump), U8(56),
                 B(Jump), U8(40),
                 B(Star), R(16),
@@ -519,8 +519,8 @@ constant pool: [
   Smi [22],
 ]
 handlers: [
-  [26, 483, 491],
-  [29, 443, 445],
+  [26, 472, 480],
+  [29, 432, 434],
   [35, 213, 221],
   [38, 176, 178],
   [282, 331, 333],
@@ -538,7 +538,7 @@ snippet: "
 "
 frame size: 23
 parameter count: 1
-bytecode array length: 532
+bytecode array length: 536
 bytecodes: [
                 B(SwitchOnGeneratorState), R(3), U8(0), U8(3),
                 B(Mov), R(closure), R(12),
@@ -713,14 +713,11 @@ bytecodes: [
                 B(Ldar), R(17),
                 B(ReThrow),
                 B(LdaUndefined),
-                B(Star), R(17),
-                B(Mov), R(0), R(16),
-                B(InvokeIntrinsic), U8(Runtime::k_ResolvePromise), R(16), U8(2),
+                B(Star), R(13),
                 B(LdaZero),
                 B(Star), R(12),
-                B(Mov), R(0), R(13),
-                B(Jump), U8(55),
-                B(Jump), U8(39),
+                B(Jump), U8(56),
+                B(Jump), U8(40),
                 B(Star), R(16),
                 B(CreateCatchContext), R(16), U8(12),
                 B(Star), R(15),
@@ -735,7 +732,7 @@ bytecodes: [
                 B(Mov), R(0), R(17),
                 B(InvokeIntrinsic), U8(Runtime::k_RejectPromise), R(17), U8(3),
                 B(PopContext), R(16),
-                B(LdaZero),
+                B(LdaSmi), I8(1),
                 B(Star), R(12),
                 B(Mov), R(0), R(13),
                 B(Jump), U8(16),
@@ -744,7 +741,7 @@ bytecodes: [
                 B(Star), R(12),
                 B(Jump), U8(8),
                 B(Star), R(13),
-                B(LdaSmi), I8(1),
+                B(LdaSmi), I8(2),
                 B(Star), R(12),
                 B(LdaTheHole),
                 B(SetPendingMessage),
@@ -756,8 +753,13 @@ bytecodes: [
                 B(Ldar), R(14),
                 B(SetPendingMessage),
                 B(Ldar), R(12),
-                B(SwitchOnSmiNoFeedback), U8(13), U8(2), I8(0),
-                B(Jump), U8(8),
+                B(SwitchOnSmiNoFeedback), U8(13), U8(3), I8(0),
+                B(Jump), U8(21),
+                B(Mov), R(0), R(15),
+                B(Mov), R(13), R(16),
+                B(InvokeIntrinsic), U8(Runtime::k_ResolvePromise), R(15), U8(2),
+                B(Ldar), R(0),
+  /*  114 S> */ B(Return),
                 B(Ldar), R(13),
   /*  114 S> */ B(Return),
                 B(Ldar), R(13),
@@ -780,11 +782,12 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
   SCOPE_INFO_TYPE,
   Smi [6],
-  Smi [9],
+  Smi [19],
+  Smi [22],
 ]
 handlers: [
-  [26, 485, 493],
-  [29, 446, 448],
+  [26, 476, 484],
+  [29, 436, 438],
   [35, 229, 237],
   [38, 192, 194],
   [297, 346, 348],
@@ -800,7 +803,7 @@ snippet: "
 "
 frame size: 20
 parameter count: 1
-bytecode array length: 403
+bytecode array length: 392
 bytecodes: [
   /*   16 E> */ B(StackCheck),
                 B(CallJSRuntime), U8(%async_function_promise_create), R(0), U8(0),
@@ -916,16 +919,13 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(10),
                 B(Mov), R(15), R(11),
-                B(Jump), U8(78),
+                B(Jump), U8(67),
                 B(Ldar), R(15),
                 B(ReThrow),
                 B(LdaUndefined),
-                B(Star), R(15),
-                B(Mov), R(0), R(14),
-                B(InvokeIntrinsic), U8(Runtime::k_ResolvePromise), R(14), U8(2),
-                B(LdaSmi), I8(1),
+                B(Star), R(11),
+                B(LdaZero),
                 B(Star), R(10),
-                B(Mov), R(0), R(11),
                 B(Jump), U8(56),
                 B(Jump), U8(40),
                 B(Star), R(14),
@@ -996,8 +996,8 @@ constant pool: [
   Smi [22],
 ]
 handlers: [
-  [10, 343, 351],
-  [13, 303, 305],
+  [10, 332, 340],
+  [13, 292, 294],
   [27, 150, 158],
   [30, 113, 115],
   [219, 229, 231],

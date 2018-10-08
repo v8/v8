@@ -547,7 +547,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Expression* BuildInitialYield(int pos, FunctionKind kind);
   Assignment* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
-  Expression* BuildResolvePromise(Expression* value, int pos);
   Expression* BuildRejectPromise(Expression* value, int pos);
   Variable* PromiseVariable();
   Variable* AsyncGeneratorAwaitVariable();

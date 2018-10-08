@@ -2926,19 +2926,6 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   return result;
 }
 
-Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
-  // %ResolvePromise(.promise, value), .promise
-  ZonePtrList<Expression>* args =
-      new (zone()) ZonePtrList<Expression>(2, zone());
-  args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
-  args->Add(value, zone());
-  Expression* call_runtime =
-      factory()->NewCallRuntime(Runtime::kInlineResolvePromise, args, pos);
-  return factory()->NewBinaryOperation(
-      Token::COMMA, call_runtime,
-      factory()->NewVariableProxy(PromiseVariable()), pos);
-}
-
 Expression* Parser::BuildRejectPromise(Expression* value, int pos) {
   // %promise_internal_reject(.promise, value, false), .promise
   // Disables the additional debug event for the rejection since a debug event
@@ -3574,10 +3561,9 @@ void Parser::RewriteAsyncFunctionBody(ZonePtrList<Statement>* body,
   //   })
   // }
 
-  return_value = BuildResolvePromise(return_value, return_value->position());
-  block->statements()->Add(
-      factory()->NewReturnStatement(return_value, return_value->position()),
-      zone());
+  block->statements()->Add(factory()->NewAsyncReturnStatement(
+                               return_value, return_value->position()),
+                           zone());
   block = BuildRejectPromiseOnException(block);
   body->Add(block, zone());
 }
