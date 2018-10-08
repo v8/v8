@@ -1144,7 +1144,7 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
   // 9.  Let mnsd be ? Get(options, "minimumSignificantDigits").
   Handle<Object> mnsd_obj;
   Handle<String> mnsd_str =
-      isolate->factory()->NewStringFromStaticChars("minimumSignificantDigits");
+      isolate->factory()->minimumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mnsd_obj, JSReceiver::GetProperty(isolate, options, mnsd_str),
       Nothing<bool>());
@@ -1152,7 +1152,7 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
   // 10. Let mxsd be ? Get(options, "maximumSignificantDigits").
   Handle<Object> mxsd_obj;
   Handle<String> mxsd_str =
-      isolate->factory()->NewStringFromStaticChars("maximumSignificantDigits");
+      isolate->factory()->maximumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mxsd_obj, JSReceiver::GetProperty(isolate, options, mxsd_str),
       Nothing<bool>());
