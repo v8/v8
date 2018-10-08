@@ -1394,14 +1394,14 @@ Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
 
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
                                          int offset, MachineType rep) {
-  CSA_ASSERT(this, IsStrongHeapObject(object));
+  CSA_ASSERT(this, IsStrong(object));
   return Load(rep, object, IntPtrConstant(offset - kHeapObjectTag));
 }
 
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
                                          SloppyTNode<IntPtrT> offset,
                                          MachineType rep) {
-  CSA_ASSERT(this, IsStrongHeapObject(object));
+  CSA_ASSERT(this, IsStrong(object));
   return Load(rep, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)));
 }
 
@@ -1858,49 +1858,46 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
   Goto(if_strong);
 }
 
-TNode<BoolT> CodeStubAssembler::IsStrongHeapObject(TNode<MaybeObject> value) {
+TNode<BoolT> CodeStubAssembler::IsStrong(TNode<MaybeObject> value) {
   return WordEqual(WordAnd(BitcastMaybeObjectToWord(value),
                            IntPtrConstant(kHeapObjectTagMask)),
                    IntPtrConstant(kHeapObjectTag));
 }
 
-TNode<HeapObject> CodeStubAssembler::ToStrongHeapObject(
+TNode<HeapObject> CodeStubAssembler::GetHeapObjectIfStrong(
     TNode<MaybeObject> value, Label* if_not_strong) {
-  GotoIfNot(IsStrongHeapObject(value), if_not_strong);
+  GotoIfNot(IsStrong(value), if_not_strong);
   return CAST(value);
 }
 
-TNode<BoolT> CodeStubAssembler::IsWeakOrClearedHeapObject(
-    TNode<MaybeObject> value) {
+TNode<BoolT> CodeStubAssembler::IsWeakOrCleared(TNode<MaybeObject> value) {
   return WordEqual(WordAnd(BitcastMaybeObjectToWord(value),
                            IntPtrConstant(kHeapObjectTagMask)),
                    IntPtrConstant(kWeakHeapObjectTag));
 }
 
-TNode<BoolT> CodeStubAssembler::IsClearedWeakHeapObject(
-    TNode<MaybeObject> value) {
+TNode<BoolT> CodeStubAssembler::IsCleared(TNode<MaybeObject> value) {
   return WordEqual(BitcastMaybeObjectToWord(value),
                    IntPtrConstant(kClearedWeakHeapObject));
 }
 
-TNode<BoolT> CodeStubAssembler::IsNotClearedWeakHeapObject(
-    TNode<MaybeObject> value) {
+TNode<BoolT> CodeStubAssembler::IsNotCleared(TNode<MaybeObject> value) {
   return WordNotEqual(BitcastMaybeObjectToWord(value),
                       IntPtrConstant(kClearedWeakHeapObject));
 }
 
-TNode<HeapObject> CodeStubAssembler::ToWeakHeapObject(
+TNode<HeapObject> CodeStubAssembler::GetHeapObjectAssumeWeak(
     TNode<MaybeObject> value) {
-  CSA_ASSERT(this, IsWeakOrClearedHeapObject(value));
-  CSA_ASSERT(this, IsNotClearedWeakHeapObject(value));
+  CSA_ASSERT(this, IsWeakOrCleared(value));
+  CSA_ASSERT(this, IsNotCleared(value));
   return UncheckedCast<HeapObject>(BitcastWordToTagged(WordAnd(
       BitcastMaybeObjectToWord(value), IntPtrConstant(~kWeakHeapObjectMask))));
 }
 
-TNode<HeapObject> CodeStubAssembler::ToWeakHeapObject(TNode<MaybeObject> value,
-                                                      Label* if_cleared) {
-  GotoIf(IsClearedWeakHeapObject(value), if_cleared);
-  return ToWeakHeapObject(value);
+TNode<HeapObject> CodeStubAssembler::GetHeapObjectAssumeWeak(
+    TNode<MaybeObject> value, Label* if_cleared) {
+  GotoIf(IsCleared(value), if_cleared);
+  return GetHeapObjectAssumeWeak(value);
 }
 
 TNode<BoolT> CodeStubAssembler::IsWeakReferenceTo(TNode<MaybeObject> object,

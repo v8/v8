@@ -960,23 +960,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                            Label* if_cleared, Label* if_weak, Label* if_strong,
                            TVariable<Object>* extracted);
   // See MaybeObject for semantics of these functions.
-  TNode<BoolT> IsStrongHeapObject(TNode<MaybeObject> value);
+  TNode<BoolT> IsStrong(TNode<MaybeObject> value);
   // This variant is for overzealous checking.
-  TNode<BoolT> IsStrongHeapObject(TNode<Object> value) {
-    return IsStrongHeapObject(ReinterpretCast<MaybeObject>(value));
+  TNode<BoolT> IsStrong(TNode<Object> value) {
+    return IsStrong(ReinterpretCast<MaybeObject>(value));
   }
-  TNode<HeapObject> ToStrongHeapObject(TNode<MaybeObject> value,
-                                       Label* if_not_strong);
+  TNode<HeapObject> GetHeapObjectIfStrong(TNode<MaybeObject> value,
+                                          Label* if_not_strong);
 
-  TNode<BoolT> IsWeakOrClearedHeapObject(TNode<MaybeObject> value);
-  TNode<BoolT> IsClearedWeakHeapObject(TNode<MaybeObject> value);
-  TNode<BoolT> IsNotClearedWeakHeapObject(TNode<MaybeObject> value);
+  TNode<BoolT> IsWeakOrCleared(TNode<MaybeObject> value);
+  TNode<BoolT> IsCleared(TNode<MaybeObject> value);
+  TNode<BoolT> IsNotCleared(TNode<MaybeObject> value);
 
   // Removes the weak bit + asserts it was set.
-  TNode<HeapObject> ToWeakHeapObject(TNode<MaybeObject> value);
+  TNode<HeapObject> GetHeapObjectAssumeWeak(TNode<MaybeObject> value);
 
-  TNode<HeapObject> ToWeakHeapObject(TNode<MaybeObject> value,
-                                     Label* if_cleared);
+  TNode<HeapObject> GetHeapObjectAssumeWeak(TNode<MaybeObject> value,
+                                            Label* if_cleared);
 
   TNode<BoolT> IsWeakReferenceTo(TNode<MaybeObject> object,
                                  TNode<Object> value);

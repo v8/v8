@@ -129,7 +129,7 @@ void AccessorAssembler::HandlePolymorphicCase(
     Label next_entry(this);
     TNode<MaybeObject> maybe_cached_map =
         LoadWeakFixedArrayElement(feedback, map_index);
-    CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_cached_map));
+    CSA_ASSERT(this, IsWeakOrCleared(maybe_cached_map));
     GotoIf(IsNotWeakReferenceTo(maybe_cached_map, CAST(receiver_map)),
            &next_entry);
 
@@ -153,7 +153,7 @@ void AccessorAssembler::HandlePolymorphicCase(
         Label next_entry(this);
         TNode<MaybeObject> maybe_cached_map =
             LoadWeakFixedArrayElement(feedback, index);
-        CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_cached_map));
+        CSA_ASSERT(this, IsWeakOrCleared(maybe_cached_map));
         GotoIf(IsNotWeakReferenceTo(maybe_cached_map, CAST(receiver_map)),
                &next_entry);
 
@@ -243,9 +243,9 @@ void AccessorAssembler::HandleLoadAccessor(
       [=] { return LoadHandlerDataField(handler, 3); },
       [=] { return LoadHandlerDataField(handler, 2); });
 
-  CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_context));
-  CSA_CHECK(this, IsNotClearedWeakHeapObject(maybe_context));
-  TNode<Object> context = ToWeakHeapObject(maybe_context);
+  CSA_ASSERT(this, IsWeakOrCleared(maybe_context));
+  CSA_CHECK(this, IsNotCleared(maybe_context));
+  TNode<Object> context = GetHeapObjectAssumeWeak(maybe_context);
 
   GotoIf(IsRuntimeCallStatsEnabled(), &runtime);
   {
@@ -702,8 +702,9 @@ Node* AccessorAssembler::HandleProtoHandler(
       BIND(&if_do_access_check);
       {
         TNode<MaybeObject> data2 = LoadHandlerDataField(handler, 2);
-        CSA_ASSERT(this, IsWeakOrClearedHeapObject(data2));
-        TNode<Object> expected_native_context = ToWeakHeapObject(data2, miss);
+        CSA_ASSERT(this, IsWeakOrCleared(data2));
+        TNode<Object> expected_native_context =
+            GetHeapObjectAssumeWeak(data2, miss);
         EmitAccessCheck(expected_native_context, p->context, p->receiver, &done,
                         miss);
       }
@@ -775,8 +776,8 @@ void AccessorAssembler::HandleLoadICProtoHandler(
     // For regular holders, having passed the receiver map check and the
     // validity cell check implies that |holder| is alive. However, for global
     // object receivers, |maybe_holder| may be cleared.
-    CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_holder));
-    Node* holder = ToWeakHeapObject(maybe_holder, miss);
+    CSA_ASSERT(this, IsWeakOrCleared(maybe_holder));
+    Node* holder = GetHeapObjectAssumeWeak(maybe_holder, miss);
 
     var_holder->Bind(holder);
     Goto(&done);
@@ -914,7 +915,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
   BIND(&if_nonsmi_handler);
   {
-    GotoIf(IsWeakOrClearedHeapObject(handler), &store_transition_or_global);
+    GotoIf(IsWeakOrCleared(handler), &store_transition_or_global);
     TNode<HeapObject> strong_handler = CAST(handler);
     TNode<Map> handler_map = LoadMap(strong_handler);
     Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
@@ -937,8 +938,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   BIND(&store_transition_or_global);
   {
     // Load value or miss if the {handler} weak cell is cleared.
-    CSA_ASSERT(this, IsWeakOrClearedHeapObject(handler));
-    TNode<HeapObject> map_or_property_cell = ToWeakHeapObject(handler, miss);
+    CSA_ASSERT(this, IsWeakOrCleared(handler));
+    TNode<HeapObject> map_or_property_cell =
+        GetHeapObjectAssumeWeak(handler, miss);
 
     Label store_global(this), store_transition(this);
     Branch(IsMap(map_or_property_cell), &store_transition, &store_global);
@@ -1070,7 +1072,8 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
            &all_fine);
     // Cleared weak references count as FieldType::None, which can't hold any
     // value.
-    TNode<Map> field_type_map = CAST(ToWeakHeapObject(field_type, bailout));
+    TNode<Map> field_type_map =
+        CAST(GetHeapObjectAssumeWeak(field_type, bailout));
     // FieldType::Class(...) performs a map check.
     Branch(WordEqual(LoadMap(value), field_type_map), &all_fine, bailout);
   }
@@ -1280,7 +1283,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         TNode<MaybeObject> maybe_transition_map =
             LoadHandlerDataField(handler, 1);
         TNode<Map> transition_map =
-            CAST(ToWeakHeapObject(maybe_transition_map, miss));
+            CAST(GetHeapObjectAssumeWeak(maybe_transition_map, miss));
 
         GotoIf(IsDeprecatedMap(transition_map), miss);
 
@@ -1322,8 +1325,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
            &if_add_normal);
 
     TNode<MaybeObject> maybe_holder = LoadHandlerDataField(handler, 1);
-    CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_holder));
-    TNode<Object> holder = ToWeakHeapObject(maybe_holder, miss);
+    CSA_ASSERT(this, IsWeakOrCleared(maybe_holder));
+    TNode<Object> holder = GetHeapObjectAssumeWeak(maybe_holder, miss);
 
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kGlobalProxy)),
            &if_store_global_proxy);
@@ -1384,11 +1387,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
           [=] { return LoadHandlerDataField(handler, 3); },
           [=] { return LoadHandlerDataField(handler, 2); });
 
-      CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_context));
-      TNode<Object> context =
-          Select<Object>(IsClearedWeakHeapObject(maybe_context),
-                         [=] { return SmiConstant(0); },
-                         [=] { return ToWeakHeapObject(maybe_context); });
+      CSA_ASSERT(this, IsWeakOrCleared(maybe_context));
+      TNode<Object> context = Select<Object>(
+          IsCleared(maybe_context), [=] { return SmiConstant(0); },
+          [=] { return GetHeapObjectAssumeWeak(maybe_context); });
 
       Node* foreign = LoadObjectField(call_handler_info,
                                       CallHandlerInfo::kJsCallbackOffset);
@@ -1585,7 +1587,7 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
     GotoIf(TaggedIsSmi(maybe_field_type), &done);
     // Check that value type matches the field type.
     {
-      Node* field_type = ToWeakHeapObject(maybe_field_type, bailout);
+      Node* field_type = GetHeapObjectAssumeWeak(maybe_field_type, bailout);
       Branch(WordEqual(LoadMap(value), field_type), &done, bailout);
     }
     BIND(&done);
@@ -2405,7 +2407,8 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LoadICParameters* p,
 
     BIND(&try_polymorphic);
     {
-      TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback, &miss);
+      TNode<HeapObject> strong_feedback =
+          GetHeapObjectIfStrong(feedback, &miss);
       GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &stub_call);
       HandlePolymorphicCase(recv_map, CAST(strong_feedback), &if_handler,
                             &var_handler, &miss, 2);
@@ -2453,7 +2456,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   HandleLoadICHandlerCase(p, CAST(var_handler.value()), &miss, &direct_exit);
 
   BIND(&try_polymorphic);
-  TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback, &miss);
+  TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
   {
     // Check polymorphic case.
     Comment("LoadIC_try_polymorphic");
@@ -2589,9 +2592,9 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
   BIND(&if_property_cell);
   {
     // Load value or try handler case if the weak reference is cleared.
-    CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_weak_ref));
+    CSA_ASSERT(this, IsWeakOrCleared(maybe_weak_ref));
     TNode<PropertyCell> property_cell =
-        CAST(ToWeakHeapObject(maybe_weak_ref, try_handler));
+        CAST(GetHeapObjectAssumeWeak(maybe_weak_ref, try_handler));
     TNode<Object> value =
         LoadObjectField(property_cell, PropertyCell::kValueOffset);
     GotoIf(WordEqual(value, TheHoleConstant()), miss);
@@ -2668,7 +2671,7 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   }
 
   BIND(&try_polymorphic);
-  TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback, &miss);
+  TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
   {
     // Check polymorphic case.
     Comment("KeyedLoadIC_try_polymorphic");
@@ -2890,7 +2893,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   }
 
   BIND(&try_polymorphic);
-  TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback, &miss);
+  TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
   {
     // Check polymorphic case.
     Comment("StoreIC_try_polymorphic");
@@ -2934,9 +2937,9 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
   BIND(&if_property_cell);
   {
     Label try_handler(this), miss(this, Label::kDeferred);
-    CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_weak_ref));
+    CSA_ASSERT(this, IsWeakOrCleared(maybe_weak_ref));
     TNode<PropertyCell> property_cell =
-        CAST(ToWeakHeapObject(maybe_weak_ref, &try_handler));
+        CAST(GetHeapObjectAssumeWeak(maybe_weak_ref, &try_handler));
 
     ExitPoint direct_exit(this);
     StoreGlobalIC_PropertyCellCase(property_cell, pp->value, &direct_exit,
@@ -3071,7 +3074,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
     }
 
     BIND(&try_polymorphic);
-    TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback, &miss);
+    TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
     {
       // CheckPolymorphic case.
       Comment("KeyedStoreIC_try_polymorphic");
@@ -3145,7 +3148,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TNode<MaybeObject> maybe_transition_map =
             LoadHandlerDataField(CAST(handler), 1);
         TNode<Map> transition_map =
-            CAST(ToWeakHeapObject(maybe_transition_map, &miss));
+            CAST(GetHeapObjectAssumeWeak(maybe_transition_map, &miss));
         GotoIf(IsDeprecatedMap(transition_map), &miss);
         Node* code = LoadObjectField(handler, StoreHandler::kSmiHandlerOffset);
         CSA_ASSERT(this, IsCode(code));
@@ -3155,7 +3158,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
     }
 
     BIND(&try_polymorphic);
-    TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback, &miss);
+    TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
     {
       Comment("StoreInArrayLiteralIC_try_polymorphic");
       GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)),
@@ -3644,7 +3647,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
   }
 
   BIND(&try_polymorphic);
-  TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback, &miss);
+  TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
   {
     Comment("CloneObjectIC_try_polymorphic");
     GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &try_megamorphic);
