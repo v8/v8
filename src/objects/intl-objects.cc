@@ -1198,96 +1198,108 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
 
 namespace {
 
-// ECMA 402 9.2.2 BestAvailableLocale(availableLocales, locale)
-// https://tc39.github.io/ecma402/#sec-bestavailablelocale
-std::string BestAvailableLocale(std::set<std::string> available_locales,
-                                std::string locale) {
-  const char separator = '-';
-
+// ecma402/#sec-bestavailablelocale
+std::string BestAvailableLocale(const std::set<std::string>& available_locales,
+                                const std::string& locale) {
   // 1. Let candidate be locale.
+  std::string candidate = locale;
+
   // 2. Repeat,
-  do {
+  while (true) {
     // 2.a. If availableLocales contains an element equal to candidate, return
     //      candidate.
-    if (available_locales.find(locale) != available_locales.end()) {
-      return locale;
+    if (available_locales.find(candidate) != available_locales.end()) {
+      return candidate;
     }
+
     // 2.b. Let pos be the character index of the last occurrence of "-"
     //      (U+002D) within candidate. If that character does not occur, return
     //      undefined.
-    size_t pos = locale.rfind(separator);
+    size_t pos = candidate.rfind('-');
     if (pos == std::string::npos) {
-      return "";
+      return std::string();
     }
+
     // 2.c. If pos ≥ 2 and the character "-" occurs at index pos-2 of candidate,
     //      decrease pos by 2.
-    if (pos >= 2 && locale[pos - 2] == separator) {
+    if (pos >= 2 && candidate[pos - 2] == '-') {
       pos -= 2;
     }
+
     // 2.d. Let candidate be the substring of candidate from position 0,
     //      inclusive, to position pos, exclusive.
-    locale = locale.substr(0, pos);
-  } while (true);
+    candidate = candidate.substr(0, pos);
+  }
 }
 
-#define ANY_EXTENSION_REGEXP "-[a-z0-9]{1}-.*"
+// Removes unicode extensions from a given bcp47 language tag.
+// For example, converts 'en-US-u-co-emoji' to 'en-US'.
+std::string RemoveUnicodeExtensions(const std::string& locale) {
+  size_t length = locale.length();
 
-std::unique_ptr<icu::RegexMatcher> GetAnyExtensionRegexpMatcher() {
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::RegexMatcher> matcher(new icu::RegexMatcher(
-      icu::UnicodeString(ANY_EXTENSION_REGEXP, -1, US_INV), 0, status));
-  DCHECK(U_SUCCESS(status));
-  return matcher;
+  // Privateuse or grandfathered locales have no extension sequences.
+  if ((length > 1) && (locale[1] == '-')) {
+    // Check to make sure that this really is a grandfathered or
+    // privateuse extension. ICU can sometimes mess up the
+    // canonicalization.
+    CHECK(locale[0] == 'x' || locale[0] == 'i');
+    return locale;
+  }
+
+  size_t unicode_extension_start = locale.find("-u-");
+
+  // No unicode extensions found.
+  if (unicode_extension_start == std::string::npos) return locale;
+
+  size_t private_extension_start = locale.find("-x-");
+
+  // Unicode extensions found within privateuse subtags don't count.
+  if (private_extension_start != std::string::npos &&
+      private_extension_start < unicode_extension_start) {
+    return locale;
+  }
+
+  const std::string beginning = locale.substr(0, unicode_extension_start);
+  size_t unicode_extension_end = length;
+  DCHECK_GT(length, 2);
+
+  // Find the end of the extension production as per the bcp47 grammar
+  // by looking for '-' followed by 2 chars and then another '-'.
+  for (size_t i = unicode_extension_start + 1; i < length - 2; i++) {
+    if (locale[i] != '-') continue;
+
+    if (locale[i + 2] == '-') {
+      unicode_extension_end = i;
+      break;
+    }
+
+    i += 2;
+  }
+
+  const std::string end = locale.substr(unicode_extension_end);
+  return beginning + end;
 }
 
-#undef ANY_EXTENSION_REGEXP
-
-// ECMA 402 9.2.7 LookupSupportedLocales(availableLocales, requestedLocales)
-// https://tc39.github.io/ecma402/#sec-lookupsupportedlocales
+// ecma402/#sec-lookupsupportedlocales
 std::vector<std::string> LookupSupportedLocales(
     const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales) {
-  std::unique_ptr<icu::RegexMatcher> matcher = GetAnyExtensionRegexpMatcher();
-
   // 1. Let subset be a new empty List.
   std::vector<std::string> subset;
 
   // 2. For each element locale of requestedLocales in List order, do
-  for (const auto& locale : requested_locales) {
-    // 2.a. Let noExtensionsLocale be the String value that is locale with all
-    //      Unicode locale extension sequences removed.
-    icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
-    // TODO(bstell): look at using uloc_forLanguageTag to convert the language
-    // tag to locale id
-    // TODO(bstell): look at using uloc_getBaseName to just get the name without
-    // all the keywords
-    matcher->reset(locale_uni);
-    UErrorCode status = U_ZERO_ERROR;
-    // TODO(bstell): need to determine if this is the correct behavior.
-    // This matches the JS implementation but might not match the spec.
-    // According to
-    // https://tc39.github.io/ecma402/#sec-unicode-locale-extension-sequences:
-    //
-    //     This standard uses the term "Unicode locale extension sequence" for
-    //     any substring of a language tag that is not part of a private use
-    //     subtag sequence, starts with a separator  "-" and the singleton "u",
-    //     and includes the maximum sequence of following non-singleton subtags
-    //     and their preceding "-" separators.
-    //
-    // According to the spec a locale "en-t-aaa-u-bbb-v-ccc-x-u-ddd", should
-    // remove only the "-u-bbb" part, and keep everything else, whereas this
-    // regexp matcher would leave only the "en".
-    icu::UnicodeString no_extensions_locale_uni =
-        matcher->replaceAll("", status);
-    DCHECK(U_SUCCESS(status));
-    std::string no_extensions_locale;
-    no_extensions_locale_uni.toUTF8String(no_extensions_locale);
-    // 2.b. Let availableLocale be BestAvailableLocale(availableLocales,
-    //      noExtensionsLocale).
+  for (const std::string& locale : requested_locales) {
+    // 2. a. Let noExtensionsLocale be the String value that is locale
+    //       with all Unicode locale extension sequences removed.
+    std::string no_extension_locale = RemoveUnicodeExtensions(locale);
+
+    // 2. b. Let availableLocale be
+    //       BestAvailableLocale(availableLocales, noExtensionsLocale).
     std::string available_locale =
-        BestAvailableLocale(available_locales, no_extensions_locale);
-    // 2.c. If availableLocale is not undefined, append locale to the end of
-    //      subset.
+        BestAvailableLocale(available_locales, no_extension_locale);
+
+    // 2. c. If availableLocale is not undefined, append locale to the
+    //       end of subset.
     if (!available_locale.empty()) {
       subset.push_back(locale);
     }
