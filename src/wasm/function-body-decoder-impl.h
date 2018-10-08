@@ -487,7 +487,8 @@ enum ControlKind : uint8_t {
   kControlBlock,
   kControlLoop,
   kControlTry,
-  kControlTryCatch
+  kControlTryCatch,
+  kControlTryCatchAll
 };
 
 enum Reachability : uint8_t {
@@ -534,9 +535,12 @@ struct ControlBase {
   bool is_if_else() const { return kind == kControlIfElse; }
   bool is_block() const { return kind == kControlBlock; }
   bool is_loop() const { return kind == kControlLoop; }
-  bool is_try() const { return is_incomplete_try() || is_try_catch(); }
   bool is_incomplete_try() const { return kind == kControlTry; }
   bool is_try_catch() const { return kind == kControlTryCatch; }
+  bool is_try_catchall() const { return kind == kControlTryCatchAll; }
+  bool is_try() const {
+    return is_incomplete_try() || is_try_catch() || is_try_catchall();
+  }
 
   inline Merge<Value>* br_merge() {
     return is_loop() ? &this->start_merge : &this->end_merge;
@@ -1530,9 +1534,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprCatchAll: {
-            // TODO(kschimpf): Implement.
             CHECK_PROTOTYPE_OPCODE(eh);
-            OPCODE_ERROR(opcode, "not implemented yet");
+            if (!VALIDATE(!control_.empty())) {
+              this->error("catch-all does not match any try");
+              break;
+            }
+            Control* c = &control_.back();
+            if (!VALIDATE(c->is_try())) {
+              this->error("catch-all does not match any try");
+              break;
+            }
+            if (!VALIDATE(!c->is_try_catchall())) {
+              this->error("catch-all already present for try");
+              break;
+            }
+            c->kind = kControlTryCatchAll;
+            // TODO(mstarzinger): Implement control flow for catch-all.
             break;
           }
           case kExprLoop: {
@@ -1587,7 +1604,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             Control* c = &control_.back();
             if (!VALIDATE(!c->is_incomplete_try())) {
-              this->error(this->pc_, "missing catch in try");
+              this->error(this->pc_, "missing catch or catch-all in try");
               break;
             }
             if (c->is_onearmed_if()) {

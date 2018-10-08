@@ -2433,24 +2433,30 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
   WASM_FEATURE_SCOPE(eh);
-
   TestModuleBuilder builder;
   module = builder.module();
-  builder.AddException(sigs.v_v());
-  builder.AddException(sigs.v_v());
+  byte ex1 = builder.AddException(sigs.v_v());
+  byte ex2 = builder.AddException(sigs.v_v());
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);         // Missing catch.
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, WASM_CATCH(ex1));  // Missing end.
+  EXPECT_FAILURE(v_v, WASM_CATCH(ex1), kExprEnd);     // Missing try.
 
-  // TODO(kschimpf): Need to fix catch to use declared exception.
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(0), kExprEnd);
+  // TODO(mstarzinger): Double catch. Fix this to verify.
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_CATCH(ex2), kExprEnd);
+}
 
-  // Missing catch.
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);
-
-  // Missing end.
-  EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0));
-
-  // Double catch.
-  // TODO(kschimpf): Fix this to verify.
-  EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0), WASM_CATCH(1), kExprEnd);
+TEST_F(FunctionBodyDecoderTest, TryCatchAll) {
+  WASM_FEATURE_SCOPE(eh);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte ex1 = builder.AddException(sigs.v_v());
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), kExprCatchAll, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, kExprCatchAll, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_CATCH(ex1), kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll);  // Missing end.
+  EXPECT_FAILURE(v_v, kExprCatchAll, kExprEnd);     // Missing try.
 }
 
 #undef WASM_TRY_OP
