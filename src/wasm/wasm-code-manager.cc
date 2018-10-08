@@ -706,6 +706,9 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
   // start is already committed (or we start at the beginning of a page).
   // The end needs to be committed all through the end of the page.
   if (commit_start < commit_end) {
+    committed_code_space_.fetch_add(commit_end - commit_start);
+    // Committed code cannot grow bigger than maximum code space size.
+    DCHECK_LE(committed_code_space_.load(), kMaxWasmCodeMemory);
 #if V8_OS_WIN
     // On Windows, we cannot commit a region that straddles different
     // reservations of virtual memory. Because we bump-allocate, and because, if
@@ -729,14 +732,12 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
       if (commit_start >= commit_end) break;
     }
 #else
-    size_t commit_size = static_cast<size_t>(commit_end - commit_start);
-    if (!wasm_code_manager_->Commit(commit_start, commit_size)) {
+    if (!wasm_code_manager_->Commit(commit_start, commit_end - commit_start)) {
       V8::FatalProcessOutOfMemory(nullptr,
                                   "NativeModule::AllocateForCode commit");
       UNREACHABLE();
     }
 #endif
-    committed_code_space_.fetch_add(commit_end - commit_start);
   }
   DCHECK(IsAligned(mem.begin(), kCodeAlignment));
   allocated_code_space_.Merge(mem);
@@ -1039,6 +1040,8 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   size_t code_size = native_module->committed_code_space_.load();
   DCHECK(IsAligned(code_size, AllocatePageSize()));
   remaining_uncommitted_code_space_.fetch_add(code_size);
+  // Remaining code space cannot grow bigger than maximum code space size.
+  DCHECK_LE(remaining_uncommitted_code_space_.load(), kMaxWasmCodeMemory);
 }
 
 NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {
