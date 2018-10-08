@@ -1314,10 +1314,10 @@ class ScriptSourceView {
     this.hideButton.style.display = "inline";
     removeAllChildren(this.table);
 
-    let functionName =
-        this.currentState.file.code[this.currentState.currentCodeId].name;
+    let functionId =
+        this.currentState.file.code[this.currentState.currentCodeId].func;
     let sourceView =
-        this.currentState.sourceData.generateSourceView(functionName);
+        this.currentState.sourceData.generateSourceView(functionId);
     for (let i = 0; i < sourceView.source.length; i++) {
       let sampleCount = sourceView.lineSampleCounts[i] || 0;
       let sampleProportion = sourceView.samplesTotal > 0 ?
@@ -1359,21 +1359,23 @@ class ScriptSourceView {
 class SourceData {
   constructor(file) {
     this.scripts = new Map();
-    for (let scriptBlock of file.scripts) {
+    for (let i = 0; i < file.scripts.length; i++) {
+      const scriptBlock = file.scripts[i];
       if (scriptBlock === null) continue; // Array may be sparse.
       let source = scriptBlock.source.split("\n");
-      this.scripts.set(scriptBlock.name, source);
+      this.scripts.set(i, source);
     }
 
     this.functions = new Map();
     for (let codeId = 0; codeId < file.code.length; ++codeId) {
       let codeBlock = file.code[codeId];
       if (codeBlock.source) {
-        let data = this.functions.get(codeBlock.name);
+        let data = this.functions.get(codeBlock.func);
         if (!data) {
-          data = new FunctionSourceData(codeBlock.source.start,
+          data = new FunctionSourceData(codeBlock.source.script,
+                                        codeBlock.source.start,
                                         codeBlock.source.end);
-          this.functions.set(codeBlock.name, data);
+          this.functions.set(codeBlock.func, data);
         }
         data.addSourceBlock(codeId, codeBlock.source);
       }
@@ -1384,24 +1386,20 @@ class SourceData {
       for (let i = 0; i < stack.length; i += 2) {
         let codeId = stack[i];
         if (codeId < 0) continue;
-        let name = file.code[codeId].name;
-        if (this.functions.has(name)) {
+        let functionid = file.code[codeId].func;
+        if (this.functions.has(functionId)) {
           let codeOffset = stack[i + 1];
-          this.functions.get(name).addOffsetSample(codeId, codeOffset);
+          this.functions.get(functionId).addOffsetSample(codeId, codeOffset);
         }
       }
     }
   }
 
-  getScript(name) {
-    let nameAndSource = name.split(" ")
-    console.assert(nameAndSource.length >= 2);
-    let sourceAndLine = nameAndSource[1].split(":");
-    return this.scripts.get(sourceAndLine[0]);
+  getScript(scriptId) {
+    return this.scripts.get(scriptId);
   }
 
-  getLineForScriptOffset(name, scriptOffset) {
-    let script = this.getScript(name);
+  getLineForScriptOffset(script, scriptOffset) {
     let line = 0;
     let charsConsumed = 0;
     for (; line < script.length; ++line) {
@@ -1411,18 +1409,19 @@ class SourceData {
     return line;
   }
 
-  hasSource(name) {
-    return this.functions.has(name);
+  hasSource(functionId) {
+    return this.functions.has(functionId);
   }
 
-  generateSourceView(name) {
-    console.assert(this.hasSource(name));
-    let data = this.functions.get(name);
+  generateSourceView(functionId) {
+    console.assert(this.hasSource(functionId));
+    let data = this.functions.get(functionId);
+    let scriptId = data.scriptId;
+    let script = this.getScript(scriptId);
     let firstLineNumber =
-        this.getLineForScriptOffset(name, data.startScriptOffset);
+        this.getLineForScriptOffset(script, data.startScriptOffset);
     let lastLineNumber =
-        this.getLineForScriptOffset(name, data.endScriptOffset);
-    let script = this.getScript(name);
+        this.getLineForScriptOffset(script, data.endScriptOffset);
     let lines = script.slice(firstLineNumber, lastLineNumber + 1);
     normalizeLeadingWhitespace(lines);
 
@@ -1432,7 +1431,7 @@ class SourceData {
       block.offsets.forEach((sampleCount, codeOffset) => {
         let sourceOffset = block.positionTable.getScriptOffset(codeOffset);
         let lineNumber =
-            this.getLineForScriptOffset(name, sourceOffset) - firstLineNumber;
+            this.getLineForScriptOffset(script, sourceOffset) - firstLineNumber;
         samplesTotal += sampleCount;
         lineSampleCounts[lineNumber] =
             (lineSampleCounts[lineNumber] || 0) + sampleCount;
@@ -1449,7 +1448,8 @@ class SourceData {
 }
 
 class FunctionSourceData {
-  constructor(startScriptOffset, endScriptOffset) {
+  constructor(scriptId, startScriptOffset, endScriptOffset) {
+    this.scriptId = scriptId;
     this.startScriptOffset = startScriptOffset;
     this.endScriptOffset = endScriptOffset;
 
