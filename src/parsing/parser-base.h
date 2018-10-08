@@ -2914,7 +2914,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     // in an arrow parameter list, this is correct.
     // TODO(adamk): Rename "FormalParameterInitializerError" to refer to
     // "YieldExpression", which is its only use.
-    ValidateFormalParameterInitializer(ok);
+    ValidateFormalParameterInitializer(CHECK_OK);
 
     Scanner::Location loc(lhs_beg_pos, end_position());
     DeclarationScope* scope =
@@ -3782,7 +3782,7 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
   ExpressionT pattern = ParseBindingPattern(CHECK_OK_CUSTOM(Void));
   if (!impl()->IsIdentifier(pattern)) {
     parameters->is_simple = false;
-    ValidateFormalParameterInitializer(ok);
+    ValidateFormalParameterInitializer(CHECK_OK_CUSTOM(Void));
   }
 
   ExpressionT initializer = impl()->NullExpression();
@@ -4231,9 +4231,11 @@ void ParserBase<Impl>::ParseFunctionBody(
                                        : Token::RBRACE;
 
       if (IsAsyncGeneratorFunction(kind)) {
-        impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind, body, ok);
+        impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind, body,
+                                                          CHECK_OK_VOID);
       } else if (IsGeneratorFunction(kind)) {
-        impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, body, ok);
+        impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, body,
+                                                     CHECK_OK_VOID);
       } else if (IsAsyncFunction(kind)) {
         ParseAsyncFunctionBody(inner_scope, body, CHECK_OK_VOID);
       } else {
@@ -5892,7 +5894,8 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
   StatementT final_loop = impl()->InitializeForEachStatement(
       loop, each_variable, enumerable, body_block);
 
-  init_block = impl()->CreateForEachStatementTDZ(init_block, *for_info, ok);
+  init_block =
+      impl()->CreateForEachStatementTDZ(init_block, *for_info, CHECK_OK);
 
   if (for_scope != nullptr) {
     for_scope->set_end_position(end_position());
@@ -6179,8 +6182,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     return final_loop;
   }
 
-  BlockT init_block =
-      impl()->CreateForEachStatementTDZ(impl()->NullStatement(), for_info, ok);
+  BlockT init_block = impl()->CreateForEachStatementTDZ(impl()->NullStatement(),
+                                                        for_info, CHECK_OK);
 
   scope()->set_end_position(end_position());
   Scope* for_scope = scope()->FinalizeBlockScope();
