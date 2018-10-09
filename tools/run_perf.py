@@ -125,7 +125,6 @@ GENERIC_RESULTS_RE = re.compile(r"^RESULT ([^:]+): ([^=]+)= ([^ ]+) ([^ ]*)$")
 RESULT_STDDEV_RE = re.compile(r"^\{([^\}]+)\}$")
 RESULT_LIST_RE = re.compile(r"^\[([^\]]+)\]$")
 TOOLS_BASE = os.path.abspath(os.path.dirname(__file__))
-INFRA_FAILURE_RETCODE = 87
 
 
 def GeometricMean(values):
@@ -971,20 +970,20 @@ def Main(args):
 
   if len(args) == 0:  # pragma: no cover
     parser.print_help()
-    return INFRA_FAILURE_RETCODE
+    return 1
 
   if options.arch in ["auto", "native"]:  # pragma: no cover
     options.arch = ARCH_GUESS
 
   if not options.arch in SUPPORTED_ARCHS:  # pragma: no cover
     logging.error("Unknown architecture %s", options.arch)
-    return INFRA_FAILURE_RETCODE
+    return 1
 
   if (options.json_test_results_secondary and
       not options.outdir_secondary):  # pragma: no cover
     logging.error("For writing secondary json test results, a secondary outdir "
                   "patch must be specified.")
-    return INFRA_FAILURE_RETCODE
+    return 1
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -999,10 +998,10 @@ def Main(args):
   else:
     if not os.path.isfile(options.binary_override_path):
       logging.error("binary-override-path must be a file name")
-      return INFRA_FAILURE_RETCODE
+      return 1
     if options.outdir_secondary:
       logging.error("specify either binary-override-path or outdir-secondary")
-      return INFRA_FAILURE_RETCODE
+      return 1
     options.shell_dir = os.path.abspath(
         os.path.dirname(options.binary_override_path))
     default_binary_name = os.path.basename(options.binary_override_path)
@@ -1087,14 +1086,7 @@ def Main(args):
   else:  # pragma: no cover
     print results_secondary
 
-  if results.errors:
-    return 1
-
-  return 0
+  return min(1, len(results.errors))
 
 if __name__ == "__main__":  # pragma: no cover
-  try:
-    sys.exit(Main(sys.argv[1:]))
-  except:
-    # Report infra failure on any uncaptured exceptions.
-    return INFRA_FAILURE_RETCODE
+  sys.exit(Main(sys.argv[1:]))
