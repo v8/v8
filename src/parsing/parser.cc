@@ -760,8 +760,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
           // BindingIdentifier
           ParseFormalParameter(&formals, &ok);
           if (ok) {
-            DeclareFormalParameters(formals.scope, formals.params,
-                                    formals.is_simple);
+            DeclareFormalParameters(&formals);
           }
         }
       }
@@ -2388,8 +2387,7 @@ void Parser::DeclareArrowFunctionFormalParameters(
     return;
   }
 
-  DeclareFormalParameters(parameters->scope, parameters->params,
-                          parameters->is_simple);
+  DeclareFormalParameters(parameters);
   DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
 }
 
@@ -2979,7 +2977,7 @@ ZonePtrList<Statement>* Parser::ParseFunction(
                          kNoSourcePosition, is_rest);
     }
     DCHECK_EQ(arguments_length, formals.num_parameters());
-    DeclareFormalParameters(formals.scope, formals.params, formals.is_simple);
+    DeclareFormalParameters(&formals);
   } else {
     // For a regular function, the function arguments are parsed from source.
     DCHECK_NULL(arguments_for_wrapped_function);

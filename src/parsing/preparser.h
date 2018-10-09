@@ -841,23 +841,8 @@ class PreParserFactory {
 
 
 struct PreParserFormalParameters : FormalParametersBase {
-  struct Parameter : public ZoneObject {
-    using VariableZoneThreadedListType =
-        ZoneThreadedList<VariableProxy, VariableProxy::PreParserNext>;
-
-    Parameter(VariableZoneThreadedListType* variables, bool is_rest)
-        : variables_(variables), is_rest(is_rest) {}
-    Parameter** next() { return &next_parameter; }
-    Parameter* const* next() const { return &next_parameter; }
-
-    VariableZoneThreadedListType* variables_;
-    Parameter* next_parameter = nullptr;
-    bool is_rest : 1;
-  };
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
-
-  base::ThreadedList<Parameter> params;
 };
 
 
@@ -1665,48 +1650,39 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE void AddFormalParameter(PreParserFormalParameters* parameters,
-                                    const PreParserExpression& pattern,
+                                    PreParserExpression& pattern,
                                     const PreParserExpression& initializer,
                                     int initializer_end_position,
                                     bool is_rest) {
-    parameters->params.Add(new (zone()) PreParserFormalParameters::Parameter(
-        pattern.variables_, is_rest));
+    DeclarationScope* scope = parameters->scope;
+    if (pattern.variables_ == nullptr) {
+      scope->DeclareParameterName(ast_value_factory()->empty_string(), is_rest,
+                                  ast_value_factory(), false, true);
+    } else {
+      // We declare the parameter name for all names, but only create a
+      // parameter entry for the first one.
+      auto it = pattern.variables_->begin();
+      if (scope->LookupLocal(it->raw_name()) != nullptr) {
+        classifier()->RecordDuplicateFormalParameterError(
+            Scanner::Location::invalid());
+      }
+      scope->DeclareParameterName(it->raw_name(), is_rest, ast_value_factory(),
+                                  true, true);
+      for (++it; it != pattern.variables_->end(); ++it) {
+        if (scope->LookupLocal(it->raw_name()) != nullptr) {
+          classifier()->RecordDuplicateFormalParameterError(
+              Scanner::Location::invalid());
+        }
+        scope->DeclareParameterName(it->raw_name(), is_rest,
+                                    ast_value_factory(), true, false);
+      }
+    }
     parameters->UpdateArityAndFunctionLength(!initializer.IsNull(), is_rest);
   }
 
   V8_INLINE void DeclareFormalParameters(
-      DeclarationScope* scope,
-      const base::ThreadedList<PreParserFormalParameters::Parameter>&
-          parameters,
-      bool is_simple) {
-    if (!is_simple) scope->SetHasNonSimpleParameters();
-    for (auto parameter : parameters) {
-      DCHECK_IMPLIES(is_simple, parameter->variables_ != nullptr);
-      DCHECK_IMPLIES(is_simple, parameter->variables_->LengthForTest() == 1);
-      if (parameter->variables_ == nullptr) {
-        // No names were declared; declare a dummy one here to up the
-        // parameter count.
-        scope->DeclareParameterName(ast_value_factory()->empty_string(),
-                                    parameter->is_rest, ast_value_factory(),
-                                    false, true);
-      } else {
-        // Make sure each parameter is added only once even if it's a
-        // destructuring parameter which contains multiple names.
-        bool add_parameter = true;
-        for (auto variable : (*parameter->variables_)) {
-          // Find duplicates in simple and complex parameter lists.
-          if (scope->LookupLocal(variable->raw_name())) {
-            classifier()->RecordDuplicateFormalParameterError(
-                Scanner::Location::invalid());
-          }
-          // We declare the parameter name for all names, but only create a
-          // parameter entry for the first one.
-          scope->DeclareParameterName(variable->raw_name(), parameter->is_rest,
-                                      ast_value_factory(), true, add_parameter);
-          add_parameter = false;
-        }
-      }
-    }
+      const PreParserFormalParameters* parameters) {
+    if (!parameters->is_simple) parameters->scope->SetHasNonSimpleParameters();
   }
 
   V8_INLINE void DeclareArrowFunctionFormalParameters(

@@ -920,11 +920,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   V8_INLINE void DeclareFormalParameters(
-      DeclarationScope* scope,
-      const base::ThreadedList<ParserFormalParameters::Parameter>& parameters,
-      bool is_simple) {
+      const ParserFormalParameters* parameters) {
+    bool is_simple = parameters->is_simple;
+    DeclarationScope* scope = parameters->scope;
     if (!is_simple) scope->SetHasNonSimpleParameters();
-    for (auto parameter : parameters) {
+    for (auto parameter : parameters->params) {
       bool is_optional = parameter->initializer != nullptr;
       // If the parameter list is simple, declare the parameters normally with
       // their names. If the parameter list is not simple, declare a temporary
