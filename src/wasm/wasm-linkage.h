@@ -18,7 +18,7 @@ namespace wasm {
 // ===========================================================================
 // == ia32 ===================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {esi, eax, edx, ecx, ebx};
+constexpr Register kGpParamRegisters[] = {esi, eax, edx, ecx};
 constexpr Register kGpReturnRegisters[] = {eax, edx};
 constexpr DoubleRegister kFpParamRegisters[] = {xmm1, xmm2, xmm3,
                                                 xmm4, xmm5, xmm6};
