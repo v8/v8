@@ -42,7 +42,7 @@
       {'name': 'benchmarks', 'variant': 'default'},
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
       {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262_variants', 'variant': 'default', 'shards': 8},
+      {'name': 'test262_variants', 'variant': 'default', 'shards': 6},
     ],
   },
   ##############################################################################
