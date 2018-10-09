@@ -43,10 +43,7 @@ inline Operand GetHalfStackSlot(uint32_t half_index) {
 inline Operand GetInstanceOperand() { return Operand(ebp, -8); }
 
 static constexpr LiftoffRegList kByteRegs =
-    LiftoffRegList::FromBits<Register::ListOf<eax, ecx, edx, ebx>()>();
-static_assert(kByteRegs.GetNumRegsSet() == 4, "should have four byte regs");
-static_assert((kByteRegs & kGpCacheRegList) == kByteRegs,
-              "kByteRegs only contains gp cache registers");
+    LiftoffRegList::FromBits<Register::ListOf<eax, ecx, edx>()>();
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
                  int32_t offset, ValueType type) {
@@ -768,7 +765,7 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Register lhs_hi = ecx;
   Register lhs_lo = dst_lo;
   Register rhs_hi = dst_hi;
-  Register rhs_lo = ebx;
+  Register rhs_lo = esi;
 
   // Spill all these registers if they are still holding other values.
   liftoff::SpillRegisters(this, dst_hi, dst_lo, lhs_hi, rhs_lo);
@@ -784,7 +781,7 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   imul(rhs_hi, lhs_lo);
   // Add them: lhs_hi'' = lhs_hi' + rhs_hi' = lhs_hi * rhs_lo + rhs_hi * lhs_lo.
   add(lhs_hi, rhs_hi);
-  // Third mul: edx:eax (dst_hi:dst_lo) = eax * ebx (lhs_lo * rhs_lo).
+  // Third mul: edx:eax (dst_hi:dst_lo) = eax * esi (lhs_lo * rhs_lo).
   mul(rhs_lo);
   // Add lhs_hi'' to dst_hi.
   add(dst_hi, lhs_hi);

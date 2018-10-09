@@ -263,9 +263,10 @@ class LiftoffCompiler {
   // Returns the number of inputs processed (1 or 2).
   uint32_t ProcessParameter(ValueType type, uint32_t input_idx) {
     const int num_lowered_params = 1 + needs_reg_pair(type);
+    ValueType lowered_type = needs_reg_pair(type) ? kWasmI32 : type;
+    RegClass rc = reg_class_for(lowered_type);
     // Initialize to anything, will be set in the loop and used afterwards.
     LiftoffRegister reg = kGpCacheRegList.GetFirstRegSet();
-    RegClass rc = num_lowered_params == 1 ? reg_class_for(type) : kGpReg;
     LiftoffRegList pinned;
     for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
       compiler::LinkageLocation param_loc =
@@ -286,14 +287,14 @@ class LiftoffCompiler {
           // {LiftoffRegister} can only store cache regs.
           in_reg = __ GetUnusedRegister(rc, pinned);
           if (rc == kGpReg) {
-            __ Move(in_reg.gp(), Register::from_code(reg_code), type);
+            __ Move(in_reg.gp(), Register::from_code(reg_code), lowered_type);
           } else {
-            __ Move(in_reg.fp(), DoubleRegister::from_code(reg_code), type);
+            __ Move(in_reg.fp(), DoubleRegister::from_code(reg_code),
+                    lowered_type);
           }
         }
       } else if (param_loc.IsCallerFrameSlot()) {
         in_reg = __ GetUnusedRegister(rc, pinned);
-        ValueType lowered_type = num_lowered_params == 1 ? type : kWasmI32;
         __ LoadCallerFrameSlot(in_reg, -param_loc.AsCallerFrameSlot(),
                                lowered_type);
       }

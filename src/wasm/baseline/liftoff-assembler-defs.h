@@ -15,7 +15,7 @@ namespace wasm {
 #if V8_TARGET_ARCH_IA32
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
-    Register::ListOf<eax, ecx, edx, ebx, esi, edi>();
+    Register::ListOf<eax, ecx, edx, esi, edi>();
 
 // Omit xmm7, which is the kScratchDoubleReg.
 constexpr RegList kLiftoffAssemblerFpCacheRegs =
