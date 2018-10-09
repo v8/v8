@@ -27,6 +27,12 @@ AllocationSpace GetSpaceFromObject(Object* object) {
 TEST(TestReadOnlyRoots) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
+  STATIC_ASSERT(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
+#ifdef V8_INTL_SUPPORT
+  CHECK_EQ(static_cast<int>(RootIndex::kReadOnlyRootsCount), 501);
+#else
+  CHECK_EQ(static_cast<int>(RootIndex::kReadOnlyRootsCount), 456);
+#endif
   READ_ONLY_ROOT_LIST(CHECK_IN_RO_SPACE)
 }
 
