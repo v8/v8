@@ -19,6 +19,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/globals.h"
 #include "src/identity-map.h"
+#include "src/maybe-handles.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
@@ -30,8 +31,8 @@ namespace internal {
 
 class AstRawString;
 class AstValueFactory;
+class BackgroundCompileTask;
 class CancelableTaskManager;
-class CompilerDispatcherJob;
 class UnoptimizedCompileJob;
 class CompilerDispatcherTracer;
 class DeferredHandles;
@@ -111,43 +112,51 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
                                   bool is_isolate_locked);
 
  private:
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueJob);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueWithoutSFI);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStep);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepWithoutSFI);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepTwice);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueParsed);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepParsed);
+  FRIEND_TEST(CompilerDispatcherTest, IdleTaskNoIdleTime);
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
-  FRIEND_TEST(CompilerDispatcherTest, CompileOnBackgroundThread);
   FRIEND_TEST(CompilerDispatcherTest, FinishNowWithWorkerTask);
   FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingWorkerTask);
   FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
   FRIEND_TEST(CompilerDispatcherTest, FinishNowDuringAbortAll);
   FRIEND_TEST(CompilerDispatcherTest, CompileMultipleOnBackgroundThread);
 
-  typedef std::map<JobId, std::unique_ptr<CompilerDispatcherJob>> JobMap;
-  typedef std::map<JobId, Handle<SharedFunctionInfo>> JobIdToSharedMap;
-  typedef IdentityMap<JobId, FreeStoreAllocationPolicy> SharedToJobIdMap;
   class AbortTask;
   class WorkerTask;
   class IdleTask;
 
+  struct Job {
+    explicit Job(BackgroundCompileTask* task_arg);
+    ~Job();
+
+    bool IsReadyToFinalize(const base::LockGuard<base::Mutex>&) {
+      return has_run && !function.is_null();
+    }
+
+    bool IsReadyToFinalize(base::Mutex* mutex) {
+      base::LockGuard<base::Mutex> lock(mutex);
+      return IsReadyToFinalize(lock);
+    }
+
+    std::unique_ptr<BackgroundCompileTask> task;
+    MaybeHandle<SharedFunctionInfo> function;
+    bool has_run;
+  };
+
+  typedef std::map<JobId, std::unique_ptr<Job>> JobMap;
+  typedef IdentityMap<JobId, FreeStoreAllocationPolicy> SharedToJobIdMap;
+
   bool CanEnqueue();
-  void WaitForJobIfRunningOnBackground(CompilerDispatcherJob* job);
+  void WaitForJobIfRunningOnBackground(Job* job);
   void AbortInactiveJobs();
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
-  void ConsiderJobForBackgroundProcessing(CompilerDispatcherJob* job);
   void ScheduleMoreWorkerTasksIfNeeded();
   void ScheduleIdleTaskFromAnyThread();
   void ScheduleIdleTaskIfNeeded();
   void ScheduleAbortTask();
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
-  // Returns job if not removed otherwise iterator following the removed job.
-  JobMap::const_iterator RemoveIfFinished(JobMap::const_iterator job);
   // Returns iterator to the inserted job.
-  JobMap::const_iterator InsertJob(std::unique_ptr<CompilerDispatcherJob> job);
+  JobMap::const_iterator InsertJob(std::unique_ptr<Job> job);
   // Returns iterator following the removed job.
   JobMap::const_iterator RemoveJob(JobMap::const_iterator job);
 
@@ -162,8 +171,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Copy of FLAG_trace_compiler_dispatcher to allow for access from any thread.
   bool trace_compiler_dispatcher_;
 
-  std::unique_ptr<CompilerDispatcherTracer> tracer_;
-
   std::unique_ptr<CancelableTaskManager> task_manager_;
 
   // Id for next job to be added
@@ -171,9 +178,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   // Mapping from job_id to job.
   JobMap jobs_;
-
-  // Mapping from job_id to SharedFunctionInfo.
-  JobIdToSharedMap job_id_to_shared_;
 
   // Mapping from SharedFunctionInfo to the corresponding unoptimized
   // compilation's JobId;
@@ -193,16 +197,15 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Number of scheduled or running WorkerTask objects.
   int num_worker_tasks_;
 
-  // The set of CompilerDispatcherJobs that can be advanced on any thread.
-  std::unordered_set<CompilerDispatcherJob*> pending_background_jobs_;
+  // The set of jobs that can be run on a background thread.
+  std::unordered_set<Job*> pending_background_jobs_;
 
-  // The set of CompilerDispatcherJobs currently processed on background
-  // threads.
-  std::unordered_set<CompilerDispatcherJob*> running_background_jobs_;
+  // The set of jobs currently being run on background threads.
+  std::unordered_set<Job*> running_background_jobs_;
 
   // If not nullptr, then the main thread waits for the task processing
   // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.
-  CompilerDispatcherJob* main_thread_blocking_on_job_;
+  Job* main_thread_blocking_on_job_;
   base::ConditionVariable main_thread_blocking_signal_;
 
   // Test support.

@@ -13,9 +13,6 @@
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/template-utils.h"
-#include "src/compiler-dispatcher/compiler-dispatcher-job.h"
-#include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
-#include "src/compiler-dispatcher/unoptimized-compile-job.h"
 #include "src/compiler.h"
 #include "src/flags.h"
 #include "src/handles.h"
@@ -355,9 +352,10 @@ TEST_F(CompilerDispatcherTest, IsEnqueued) {
   dispatcher.AbortAll(BlockingBehavior::kBlock);
   ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(platform.IdleTaskPending());
+
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(platform.WorkerTasksPending());
   platform.ClearWorkerTasks();
-  platform.ClearIdleTask();
 }
 
 TEST_F(CompilerDispatcherTest, FinishNow) {
@@ -377,12 +375,12 @@ TEST_F(CompilerDispatcherTest, FinishNow) {
   ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
-  ASSERT_TRUE(platform.IdleTaskPending());
+
   platform.ClearWorkerTasks();
-  platform.ClearIdleTask();
+  ASSERT_FALSE(platform.IdleTaskPending());
 }
 
-TEST_F(CompilerDispatcherTest, IdleTask) {
+TEST_F(CompilerDispatcherTest, CompileAndFinalize) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -393,11 +391,10 @@ TEST_F(CompilerDispatcherTest, IdleTask) {
 
   base::Optional<CompilerDispatcher::JobId> job_id =
       EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
-  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_TRUE(platform.WorkerTasksPending());
 
-  // Since time doesn't progress on the MockPlatform, this is enough idle time
-  // to finish compiling the function.
-  platform.RunIdleTask(1000.0, 0.0);
+  // Run compile steps.
+  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
 
   // Since we haven't yet registered the SFI for the job, it should still be
   // enqueued and waiting.
@@ -405,7 +402,7 @@ TEST_F(CompilerDispatcherTest, IdleTask) {
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
 
-  // Register SFI, which should schedule another idle task to complete the
+  // Register SFI, which should schedule another idle task to finalize the
   // compilation.
   dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
   ASSERT_TRUE(platform.IdleTaskPending());
@@ -413,10 +410,11 @@ TEST_F(CompilerDispatcherTest, IdleTask) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
-  platform.ClearWorkerTasks();
+  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_FALSE(platform.IdleTaskPending());
 }
 
-TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
+TEST_F(CompilerDispatcherTest, IdleTaskNoIdleTime) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -429,25 +427,24 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
       EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
   dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
 
+  // Run compile steps.
+  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
+
+  // Job should be ready to finalize.
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
   ASSERT_TRUE(platform.IdleTaskPending());
 
-  // The job should be scheduled for the main thread.
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            dispatcher.jobs_.begin()->second->status());
-
-  // Only grant a little idle time and have time advance beyond it in one step.
-  platform.RunIdleTask(2.0, 1.0);
+  // Grant no idle time and have time advance beyond it in one step.
+  platform.RunIdleTask(0.0, 1.0);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_TRUE(platform.IdleTaskPending());
 
-  // The job should be still scheduled for the main thread, but ready for
-  // finalization.
+  // Job should be ready to finalize.
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToFinalize,
-            dispatcher.jobs_.begin()->second->status());
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
@@ -455,7 +452,56 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  platform.ClearWorkerTasks();
+  ASSERT_FALSE(platform.WorkerTasksPending());
+}
+
+TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  Handle<SharedFunctionInfo> shared_1 =
+      test::CreateSharedFunctionInfo(i_isolate(), nullptr);
+  ASSERT_FALSE(shared_1->is_compiled());
+  Handle<SharedFunctionInfo> shared_2 =
+      test::CreateSharedFunctionInfo(i_isolate(), nullptr);
+  ASSERT_FALSE(shared_2->is_compiled());
+
+  base::Optional<CompilerDispatcher::JobId> job_id_1 =
+      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_1);
+  base::Optional<CompilerDispatcher::JobId> job_id_2 =
+      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
+
+  dispatcher.RegisterSharedFunctionInfo(*job_id_1, *shared_1);
+  dispatcher.RegisterSharedFunctionInfo(*job_id_2, *shared_2);
+
+  // Run compile steps.
+  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
+
+  // Both jobs should be ready to finalize.
+  ASSERT_EQ(dispatcher.jobs_.size(), 2u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
+  ASSERT_TRUE((++dispatcher.jobs_.begin())->second->has_run);
+  ASSERT_TRUE(platform.IdleTaskPending());
+
+  // Grant a small anount of idle time and have time advance beyond it in one
+  // step.
+  platform.RunIdleTask(2.0, 1.0);
+
+  // Only one of the jobs should be finalized.
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
+  ASSERT_NE(dispatcher.IsEnqueued(shared_1), dispatcher.IsEnqueued(shared_2));
+  ASSERT_NE(shared_1->is_compiled(), shared_2->is_compiled());
+  ASSERT_TRUE(platform.IdleTaskPending());
+
+  // Now grant a lot of idle time and freeze time.
+  platform.RunIdleTask(1000.0, 0.0);
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared_1) ||
+               dispatcher.IsEnqueued(shared_2));
+  ASSERT_TRUE(shared_1->is_compiled() && shared_2->is_compiled());
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
 }
 
 TEST_F(CompilerDispatcherTest, IdleTaskException) {
@@ -478,49 +524,14 @@ TEST_F(CompilerDispatcherTest, IdleTaskException) {
       EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
   dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
 
-  // Since time doesn't progress on the MockPlatform, this is enough idle time
-  // to finish compiling the function.
+  // Run compile steps and finalize.
+  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
   platform.RunIdleTask(1000.0, 0.0);
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(i_isolate()->has_pending_exception());
   platform.ClearWorkerTasks();
-}
-
-TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
-  MockPlatform platform;
-  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
-
-  Handle<SharedFunctionInfo> shared =
-      test::CreateSharedFunctionInfo(i_isolate(), nullptr);
-  ASSERT_FALSE(shared->is_compiled());
-
-  base::Optional<CompilerDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
-  dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
-
-  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
-  ASSERT_FALSE(shared->is_compiled());
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            dispatcher.jobs_.begin()->second->status());
-  ASSERT_TRUE(platform.WorkerTasksPending());
-
-  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
-
-  ASSERT_TRUE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.WorkerTasksPending());
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToFinalize,
-            dispatcher.jobs_.begin()->second->status());
-
-  // Now grant a lot of idle time and freeze time.
-  platform.RunIdleTask(1000.0, 0.0);
-
-  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(shared->is_compiled());
-  ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.WorkerTasksPending());
 }
 
 TEST_F(CompilerDispatcherTest, FinishNowWithWorkerTask) {
@@ -536,14 +547,12 @@ TEST_F(CompilerDispatcherTest, FinishNowWithWorkerTask) {
   dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            dispatcher.jobs_.begin()->second->status());
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            dispatcher.jobs_.begin()->second->status());
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
   ASSERT_TRUE(platform.WorkerTasksPending());
 
   // This does not block, but races with the FinishNow() call below.
@@ -579,15 +588,16 @@ TEST_F(CompilerDispatcherTest, IdleTaskMultipleJobs) {
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_1));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_2));
 
-  // Since time doesn't progress on the MockPlatform, this is enough idle time
-  // to finish compiling the function.
+  // Run compile steps and finalize.
+  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
   platform.RunIdleTask(1000.0, 0.0);
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared_1));
   ASSERT_FALSE(dispatcher.IsEnqueued(shared_2));
   ASSERT_TRUE(shared_1->is_compiled());
   ASSERT_TRUE(shared_2->is_compiled());
-  platform.ClearWorkerTasks();
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
 }
 
 TEST_F(CompilerDispatcherTest, FinishNowException) {
@@ -617,7 +627,7 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
   i_isolate()->clear_pending_exception();
-  platform.ClearIdleTask();
+  ASSERT_FALSE(platform.IdleTaskPending());
   platform.ClearWorkerTasks();
 }
 
@@ -634,8 +644,7 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingWorkerTask) {
   dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            dispatcher.jobs_.begin()->second->status());
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_TRUE(platform.WorkerTasksPending());
@@ -670,11 +679,10 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningWorkerTask) {
   dispatcher.RegisterSharedFunctionInfo(*job_id_1, *shared_1);
 
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            dispatcher.jobs_.begin()->second->status());
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_1));
   ASSERT_FALSE(shared_1->is_compiled());
-  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_FALSE(platform.IdleTaskPending());
   ASSERT_TRUE(platform.WorkerTasksPending());
 
   // Kick off background tasks and freeze them.
@@ -714,21 +722,20 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningWorkerTask) {
     ASSERT_FALSE(dispatcher.abort_);
   }
 
-  ASSERT_TRUE(platform.IdleTaskPending());
-  platform.RunIdleTask(5.0, 1.0);
+  ASSERT_FALSE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.WorkerTasksPending());
   ASSERT_FALSE(platform.ForegroundTasksPending());
 
   // Now it's possible to enqueue new functions again.
   job_id_2 = EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
   ASSERT_TRUE(job_id_2);
-  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_FALSE(platform.IdleTaskPending());
   ASSERT_TRUE(platform.WorkerTasksPending());
   ASSERT_FALSE(platform.ForegroundTasksPending());
 
   dispatcher.AbortAll(BlockingBehavior::kBlock);
   platform.ClearWorkerTasks();
-  platform.ClearIdleTask();
+  ASSERT_FALSE(platform.IdleTaskPending());
 }
 
 TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
@@ -746,9 +753,8 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            dispatcher.jobs_.begin()->second->status());
-  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+  ASSERT_FALSE(platform.IdleTaskPending());
   ASSERT_TRUE(platform.WorkerTasksPending());
 
   // Kick off background tasks and freeze them.
@@ -768,11 +774,6 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
     base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
     ASSERT_TRUE(dispatcher.abort_);
   }
-
-  // Run the idle task, which should have already been canceled and won't do
-  // anything.
-  ASSERT_TRUE(platform.IdleTaskPending());
-  platform.RunIdleTask(5.0, 1.0);
 
   // While the background thread holds on to a job, it is still enqueued.
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
@@ -827,7 +828,7 @@ TEST_F(CompilerDispatcherTest, MemoryPressure) {
   dispatcher.MemoryPressureNotification(v8::MemoryPressureLevel::kCritical,
                                         true);
   ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
-  platform.ClearIdleTask();
+  ASSERT_FALSE(platform.IdleTaskPending());
   platform.ClearWorkerTasks();
 }
 
@@ -887,7 +888,7 @@ TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
   platform.RunForegroundTasks();
   ASSERT_FALSE(platform.ForegroundTasksPending());
 
-  platform.ClearIdleTask();
+  ASSERT_FALSE(platform.IdleTaskPending());
   platform.ClearWorkerTasks();
 }
 
@@ -972,16 +973,14 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   dispatcher.RegisterSharedFunctionInfo(*job_id_2, *shared_2);
 
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            dispatcher.jobs_.begin()->second->status());
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kInitial,
-            (++dispatcher.jobs_.begin())->second->status());
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+  ASSERT_FALSE((++dispatcher.jobs_.begin())->second->has_run);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_1));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_2));
   ASSERT_FALSE(shared_1->is_compiled());
   ASSERT_FALSE(shared_2->is_compiled());
-  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_FALSE(platform.IdleTaskPending());
   ASSERT_TRUE(platform.WorkerTasksPending());
 
   platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
@@ -989,10 +988,8 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.WorkerTasksPending());
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToFinalize,
-            dispatcher.jobs_.begin()->second->status());
-  ASSERT_EQ(UnoptimizedCompileJob::Status::kReadyToFinalize,
-            (++dispatcher.jobs_.begin())->second->status());
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
+  ASSERT_TRUE((++dispatcher.jobs_.begin())->second->has_run);
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);

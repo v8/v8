@@ -945,6 +945,8 @@ BackgroundCompileTask::BackgroundCompileTask(
   }
 }
 
+BackgroundCompileTask::~BackgroundCompileTask() = default;
+
 namespace {
 
 // A scope object that ensures a parse info's runtime call stats, stack limit

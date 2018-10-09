@@ -316,13 +316,14 @@ class OptimizedCompilationJob : public CompilationJob {
   const char* compiler_name_;
 };
 
-class BackgroundCompileTask {
+class V8_EXPORT_PRIVATE BackgroundCompileTask {
  public:
   // Creates a new task that when run will parse and compile the streamed
   // script associated with |data| and can be finalized with
   // Compiler::GetSharedFunctionInfoForStreamedScript.
   // Note: does not take ownership of |data|.
   BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate);
+  ~BackgroundCompileTask();
 
   // Creates a new task that when run will parse and compile the
   // |function_literal| and can be finalized with
