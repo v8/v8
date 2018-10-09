@@ -55,12 +55,6 @@ bool HasOnlyJSArrayMaps(MapHandles const& maps) {
 
 }  // namespace
 
-struct JSNativeContextSpecialization::ScriptContextTableLookupResult {
-  Handle<Context> context;
-  bool immutable;
-  int index;
-};
-
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, JSHeapBroker* js_heap_broker, Flags flags,
     Handle<Context> native_context, CompilationDependencies* dependencies,

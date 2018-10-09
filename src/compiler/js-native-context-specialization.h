@@ -223,11 +223,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   InferHasInPrototypeChainResult InferHasInPrototypeChain(
       Node* receiver, Node* effect, Handle<HeapObject> prototype);
 
-  // Script context lookup logic.
-  struct ScriptContextTableLookupResult;
-  bool LookupInScriptContextTable(Handle<Name> name,
-                                  ScriptContextTableLookupResult* result);
-
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
 
