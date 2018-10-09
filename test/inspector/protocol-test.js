@@ -33,32 +33,30 @@ InspectorTest.startDumpingProtocolMessages = function() {
 }
 
 InspectorTest.logMessage = function(originalMessage) {
-  var message = JSON.parse(JSON.stringify(originalMessage));
-  if (message.id)
-    message.id = "<messageId>";
-
   const nonStableFields = new Set([
     'objectId', 'scriptId', 'exceptionId', 'timestamp', 'executionContextId',
     'callFrameId', 'breakpointId', 'bindRemoteObjectFunctionId',
     'formatterObjectId', 'debuggerId'
   ]);
-  var objects = [ message ];
-  while (objects.length) {
-    var object = objects.shift();
-    if (object && object.name === '[[StableObjectId]]')
-      object.value = '<StablectObjectId>';
-    for (var key in object) {
-      if (nonStableFields.has(key))
-        object[key] = `<${key}>`;
-      else if (typeof object[key] === "string" && object[key].match(/\d+:\d+:\d+:\d+/))
-        object[key] = object[key].substring(0, object[key].lastIndexOf(':')) + ":<scriptId>";
-      else if (typeof object[key] === "object")
-        objects.push(object[key]);
-    }
-  }
+  const message = JSON.parse(JSON.stringify(originalMessage, replacer.bind(null, Symbol(), nonStableFields)));
+  if (message.id)
+    message.id = '<messageId>';
 
   InspectorTest.logObject(message);
   return originalMessage;
+
+  function replacer(stableIdSymbol, nonStableFields, name, val) {
+    if (nonStableFields.has(name))
+      return `<${name}>`;
+    if (name === 'internalProperties') {
+      const stableId = val.find(prop => prop.name === '[[StableObjectId]]');
+      if (stableId)
+        stableId.value[stableIdSymbol] = true;
+    }
+    if (val && val[stableIdSymbol])
+      return '<StablectObjectId>';
+    return val;
+  }
 }
 
 InspectorTest.logObject = function(object, title) {
