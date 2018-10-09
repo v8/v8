@@ -236,26 +236,17 @@ class ConcurrentMarkingVisitor final
 
   int VisitConsString(Map* map, ConsString* object) {
     int size = ConsString::BodyDescriptor::SizeOf(map, object);
-    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
-    if (!ShouldVisit(object)) return 0;
-    VisitPointersInSnapshot(object, snapshot);
-    return size;
+    return VisitWithSnapshot(map, object, size, size);
   }
 
   int VisitSlicedString(Map* map, SlicedString* object) {
     int size = SlicedString::BodyDescriptor::SizeOf(map, object);
-    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
-    if (!ShouldVisit(object)) return 0;
-    VisitPointersInSnapshot(object, snapshot);
-    return size;
+    return VisitWithSnapshot(map, object, size, size);
   }
 
   int VisitThinString(Map* map, ThinString* object) {
     int size = ThinString::BodyDescriptor::SizeOf(map, object);
-    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
-    if (!ShouldVisit(object)) return 0;
-    VisitPointersInSnapshot(object, snapshot);
-    return size;
+    return VisitWithSnapshot(map, object, size, size);
   }
 
   // ===========================================================================
@@ -445,10 +436,7 @@ class ConcurrentMarkingVisitor final
     int used_size = map->UsedInstanceSize();
     DCHECK_LE(used_size, size);
     DCHECK_GE(used_size, T::kHeaderSize);
-    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
-    if (!ShouldVisit(object)) return 0;
-    VisitPointersInSnapshot(object, snapshot);
-    return size;
+    return VisitWithSnapshot(map, object, used_size, size);
   }
 
   template <typename T>
@@ -475,6 +463,14 @@ class ConcurrentMarkingVisitor final
     int size = T::SizeFor(Smi::ToInt(length));
     VisitMapPointer(object, object->map_slot());
     T::BodyDescriptor::IterateBody(map, object, size, this);
+    return size;
+  }
+
+  template <typename T>
+  int VisitWithSnapshot(Map* map, T* object, int used_size, int size) {
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
     return size;
   }
 
