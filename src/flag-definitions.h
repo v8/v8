@@ -1006,13 +1006,6 @@ DEFINE_IMPLICATION(trace_maps, log_code)
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
-DEFINE_BOOL(lazy_inner_functions, true, "enable lazy parsing inner functions")
-DEFINE_BOOL(aggressive_lazy_inner_functions, false,
-            "even lazier inner function parsing")
-DEFINE_IMPLICATION(aggressive_lazy_inner_functions, lazy_inner_functions)
-DEFINE_BOOL(preparser_scope_analysis, true,
-            "perform scope analysis for preparsed inner functions")
-DEFINE_IMPLICATION(preparser_scope_analysis, aggressive_lazy_inner_functions)
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
 DEFINE_BOOL(trace_sim, false, "Trace simulator execution")

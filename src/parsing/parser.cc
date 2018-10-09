@@ -2480,9 +2480,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   const bool is_top_level = AllowsLazyParsingWithoutUnresolvedVariables();
   const bool is_lazy_top_level_function = is_lazy && is_top_level;
   const bool is_lazy_inner_function = is_lazy && !is_top_level;
-  const bool is_expression =
-      function_type == FunctionLiteral::kAnonymousExpression ||
-      function_type == FunctionLiteral::kNamedExpression;
 
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
@@ -2509,9 +2506,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Inner functions will be parsed using a temporary Zone. After parsing, we
   // will migrate unresolved variable into a Scope in the main Zone.
 
-  const bool should_preparse_inner =
-      parse_lazily() && FLAG_lazy_inner_functions && is_lazy_inner_function &&
-      (!is_expression || FLAG_aggressive_lazy_inner_functions);
+  const bool should_preparse_inner = parse_lazily() && is_lazy_inner_function;
 
   // This may be modified later to reflect preparsing decision taken
   bool should_preparse =
@@ -2545,8 +2540,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool did_preparse_successfully =
       should_preparse &&
       SkipFunction(function_name, kind, function_type, scope, &num_parameters,
-                   &produced_preparsed_scope_data, is_lazy_inner_function,
-                   is_lazy_top_level_function, &eager_compile_hint, CHECK_OK);
+                   &produced_preparsed_scope_data, is_lazy_top_level_function,
+                   &eager_compile_hint, CHECK_OK);
   if (!did_preparse_successfully) {
     body = ParseFunction(
         function_name, pos, kind, function_type, scope, &num_parameters,
@@ -2567,16 +2562,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         function_name->byte_length());
   }
   if (V8_UNLIKELY(FLAG_runtime_stats) && did_preparse_successfully) {
-    const RuntimeCallCounterId counters[2][2] = {
-        {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
-         RuntimeCallCounterId::kPreParseNoVariableResolution},
-        {RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
-         RuntimeCallCounterId::kPreParseWithVariableResolution}};
+    const RuntimeCallCounterId counters[2] = {
+        RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
+        RuntimeCallCounterId::kPreParseWithVariableResolution};
     if (runtime_call_stats_) {
-      bool tracked_variables =
-          PreParser::ShouldTrackUnresolvedVariables(is_lazy_top_level_function);
       runtime_call_stats_->CorrectCurrentCounterId(
-          counters[tracked_variables][parsing_on_main_thread_]);
+          counters[parsing_on_main_thread_]);
     }
   }
 
@@ -2614,8 +2605,7 @@ bool Parser::SkipFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
     DeclarationScope* function_scope, int* num_parameters,
-    ProducedPreParsedScopeData** produced_preparsed_scope_data,
-    bool is_inner_function, bool may_abort,
+    ProducedPreParsedScopeData** produced_preparsed_scope_data, bool may_abort,
     FunctionLiteral::EagerCompileHint* hint, bool* ok) {
   FunctionState function_state(&function_state_, &scope_, function_scope);
   function_scope->set_zone(&preparser_zone_);
@@ -2628,7 +2618,6 @@ bool Parser::SkipFunction(
 
   // FIXME(marja): There are 2 ways to skip functions now. Unify them.
   if (consumed_preparsed_scope_data_) {
-    DCHECK(FLAG_preparser_scope_analysis);
     int end_position;
     LanguageMode language_mode;
     int num_inner_functions;
@@ -2660,13 +2649,9 @@ bool Parser::SkipFunction(
   // AST. This gathers the data needed to build a lazy function.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
-  // Aborting inner function preparsing would leave scopes in an inconsistent
-  // state; we don't parse inner functions in the abortable mode anyway.
-  DCHECK(!is_inner_function || !may_abort);
-
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
-      function_name, kind, function_type, function_scope, is_inner_function,
-      may_abort, use_counts_, produced_preparsed_scope_data, this->script_id());
+      function_name, kind, function_type, function_scope, may_abort,
+      use_counts_, produced_preparsed_scope_data, this->script_id());
 
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) {

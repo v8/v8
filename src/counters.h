@@ -935,9 +935,7 @@ class RuntimeCallTimer final {
   V(ParseProgram)                              \
   V(PreParseArrowFunctionLiteral)              \
   V(PreParseBackgroundArrowFunctionLiteral)    \
-  V(PreParseBackgroundNoVariableResolution)    \
   V(PreParseBackgroundWithVariableResolution)  \
-  V(PreParseNoVariableResolution)              \
   V(PreParseWithVariableResolution)            \
   V(PropertyCallback)                          \
   V(PrototypeMap_TransitionToAccessorProperty) \

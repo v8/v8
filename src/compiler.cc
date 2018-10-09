@@ -937,7 +937,6 @@ BackgroundCompileTask::BackgroundCompileTask(
 
   // Get preparsed scope data from the function literal.
   if (function_literal->produced_preparsed_scope_data()) {
-    DCHECK(FLAG_preparser_scope_analysis);
     ZonePreParsedScopeData* serialized_data =
         function_literal->produced_preparsed_scope_data()->Serialize(
             info_->zone());
@@ -1069,15 +1068,12 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
     return true;
   }
 
-  if (FLAG_preparser_scope_analysis) {
-    if (shared_info->HasUncompiledDataWithPreParsedScope()) {
-      parse_info.set_consumed_preparsed_scope_data(
-          ConsumedPreParsedScopeData::For(
-              isolate,
-              handle(shared_info->uncompiled_data_with_pre_parsed_scope()
-                         ->pre_parsed_scope_data(),
-                     isolate)));
-    }
+  if (shared_info->HasUncompiledDataWithPreParsedScope()) {
+    parse_info.set_consumed_preparsed_scope_data(
+        ConsumedPreParsedScopeData::For(
+            isolate, handle(shared_info->uncompiled_data_with_pre_parsed_scope()
+                                ->pre_parsed_scope_data(),
+                            isolate)));
   }
 
   // Parse and update ParseInfo with the results.

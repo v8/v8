@@ -78,11 +78,9 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
 
 PreParserIdentifier PreParser::GetSymbol() const {
   PreParserIdentifier symbol = GetSymbolHelper(scanner());
-  if (track_unresolved_variables_) {
-    const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
-    DCHECK_NOT_NULL(result);
-    symbol.string_ = result;
-  }
+  const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
+  DCHECK_NOT_NULL(result);
+  symbol.string_ = result;
   return symbol;
 }
 
@@ -117,9 +115,8 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
 PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
-    DeclarationScope* function_scope, bool is_inner_function, bool may_abort,
-    int* use_counts, ProducedPreParsedScopeData** produced_preparsed_scope_data,
-    int script_id) {
+    DeclarationScope* function_scope, bool may_abort, int* use_counts,
+    ProducedPreParsedScopeData** produced_preparsed_scope_data, int script_id) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   use_counts_ = use_counts;
   set_script_id(script_id);
@@ -127,15 +124,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   function_scope->set_is_being_lazily_parsed(true);
 #endif
 
-  track_unresolved_variables_ =
-      ShouldTrackUnresolvedVariables(is_inner_function);
-
   // Start collecting data for a new function which might contain skippable
   // functions.
   std::unique_ptr<PreParsedScopeDataBuilder::DataGatheringScope>
       preparsed_scope_data_builder_scope;
-  if (FLAG_preparser_scope_analysis && !IsArrowFunction(kind)) {
-    DCHECK(track_unresolved_variables_);
+  if (!IsArrowFunction(kind)) {
     preparsed_scope_data_builder_scope.reset(
         new PreParsedScopeDataBuilder::DataGatheringScope(function_scope,
                                                           this));
@@ -243,15 +236,13 @@ PreParser::PreParseResult PreParser::PreParseFunction(
         }
       }
 
-      if (track_unresolved_variables_) {
-        // Declare arguments after parsing the function since lexical
-        // 'arguments' masks the arguments object. Declare arguments before
-        // declaring the function var since the arguments object masks 'function
-        // arguments'.
-        function_scope->DeclareArguments(ast_value_factory());
+      // Declare arguments after parsing the function since lexical
+      // 'arguments' masks the arguments object. Declare arguments before
+      // declaring the function var since the arguments object masks 'function
+      // arguments'.
+      function_scope->DeclareArguments(ast_value_factory());
 
-        DeclareFunctionNameVar(function_name, function_type, function_scope);
-      }
+      DeclareFunctionNameVar(function_name, function_type, function_scope);
 
       *produced_preparsed_scope_data = ProducedPreParsedScopeData::For(
           preparsed_scope_data_builder_, main_zone());
@@ -293,14 +284,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   DCHECK_NE(FunctionLiteral::kWrapped, function_type);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  const RuntimeCallCounterId counters[2][2] = {
-      {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
-       RuntimeCallCounterId::kPreParseNoVariableResolution},
-      {RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
-       RuntimeCallCounterId::kPreParseWithVariableResolution}};
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_,
-      counters[track_unresolved_variables_][parsing_on_main_thread_]);
+  const RuntimeCallCounterId counters[2] = {
+      RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
+      RuntimeCallCounterId::kPreParseWithVariableResolution};
+  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
+                                      counters[parsing_on_main_thread_]);
 
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
@@ -314,8 +302,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       preparsed_scope_data_builder_scope;
   if (!function_state_->next_function_is_likely_called() &&
       preparsed_scope_data_builder_ != nullptr) {
-    DCHECK(FLAG_preparser_scope_analysis);
-    DCHECK(track_unresolved_variables_);
     preparsed_scope_data_builder_scope.reset(
         new PreParsedScopeDataBuilder::DataGatheringScope(function_scope,
                                                           this));
@@ -368,9 +354,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
   if (V8_UNLIKELY(FLAG_log_function_events)) {
     double ms = timer.Elapsed().InMillisecondsF();
-    const char* event_name = track_unresolved_variables_
-                                 ? "preparse-resolution"
-                                 : "preparse-no-resolution";
+    const char* event_name = "preparse-resolution";
     // We might not always get a function name here. However, it can be easily
     // reconstructed from the script id and the byte range in the log processor.
     const char* name = "";
@@ -408,8 +392,7 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
     const PreParserFormalParameters& parameters, bool* ok) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
-  if (FLAG_preparser_scope_analysis &&
-      scope()->AsDeclarationScope()->calls_sloppy_eval() &&
+  if (scope()->AsDeclarationScope()->calls_sloppy_eval() &&
       preparsed_scope_data_builder_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was
@@ -432,11 +415,9 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
 PreParserExpression PreParser::ExpressionFromIdentifier(
     const PreParserIdentifier& name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;
-  if (track_unresolved_variables_) {
-    DCHECK_NOT_NULL(name.string_);
-    proxy = scope()->NewUnresolved(factory()->ast_node_factory(), name.string_,
-                                   start_position, NORMAL_VARIABLE);
-  }
+  DCHECK_NOT_NULL(name.string_);
+  proxy = scope()->NewUnresolved(factory()->ast_node_factory(), name.string_,
+                                 start_position, NORMAL_VARIABLE);
   return PreParserExpression::FromIdentifier(name, proxy, zone());
 }
 
@@ -446,19 +427,15 @@ void PreParser::DeclareAndInitializeVariables(
     const DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names, bool* ok) {
   if (declaration->pattern.variables_ != nullptr) {
-    DCHECK(FLAG_lazy_inner_functions);
-    DCHECK(track_unresolved_variables_);
     for (auto variable : *(declaration->pattern.variables_)) {
       declaration_descriptor->scope->RemoveUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
-      if (FLAG_preparser_scope_analysis) {
-        MarkLoopVariableAsAssigned(declaration_descriptor->scope, var,
-                                   declaration_descriptor->declaration_kind);
-        // This is only necessary if there is an initializer, but we don't have
-        // that information here.  Consequently, the preparser sometimes says
-        // maybe-assigned where the parser (correctly) says never-assigned.
-      }
+      MarkLoopVariableAsAssigned(declaration_descriptor->scope, var,
+                                 declaration_descriptor->declaration_kind);
+      // This is only necessary if there is an initializer, but we don't have
+      // that information here.  Consequently, the preparser sometimes says
+      // maybe-assigned where the parser (correctly) says never-assigned.
       if (names) {
         names->Add(variable->raw_name(), zone());
       }

@@ -152,7 +152,6 @@ PreParsedScopeDataBuilder::PreParsedScopeDataBuilder(
       byte_data_(new (zone) ByteData(zone)),
       data_for_inner_functions_(zone),
       bailed_out_(false) {
-  DCHECK(FLAG_preparser_scope_analysis);
   if (parent != nullptr) {
     parent->data_for_inner_functions_.push_back(this);
   }
@@ -167,14 +166,11 @@ PreParsedScopeDataBuilder::DataGatheringScope::DataGatheringScope(
     : function_scope_(function_scope),
       preparser_(preparser),
       builder_(nullptr) {
-  if (FLAG_preparser_scope_analysis) {
-    PreParsedScopeDataBuilder* parent =
-        preparser->preparsed_scope_data_builder();
-    Zone* main_zone = preparser->main_zone();
-    builder_ = new (main_zone) PreParsedScopeDataBuilder(main_zone, parent);
-    preparser->set_preparsed_scope_data_builder(builder_);
-    function_scope->set_preparsed_scope_data_builder(builder_);
-  }
+  PreParsedScopeDataBuilder* parent = preparser->preparsed_scope_data_builder();
+  Zone* main_zone = preparser->main_zone();
+  builder_ = new (main_zone) PreParsedScopeDataBuilder(main_zone, parent);
+  preparser->set_preparsed_scope_data_builder(builder_);
+  function_scope->set_preparsed_scope_data_builder(builder_);
 }
 
 PreParsedScopeDataBuilder::DataGatheringScope::~DataGatheringScope() {

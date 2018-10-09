@@ -34,9 +34,6 @@ enum class Bailout { BAILOUT_IF_OUTER_SLOPPY, NO };
 }  // namespace
 
 TEST(PreParserScopeAnalysis) {
-  i::FLAG_lazy_inner_functions = true;
-  i::FLAG_preparser_scope_analysis = true;
-  i::FLAG_aggressive_lazy_inner_functions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   LocalContext env;
@@ -793,7 +790,6 @@ TEST(PreParserScopeAnalysis) {
 // https://bugs.chromium.org/p/chromium/issues/detail?id=753896. Should not
 // crash.
 TEST(Regress753896) {
-  i::FLAG_preparser_scope_analysis = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);

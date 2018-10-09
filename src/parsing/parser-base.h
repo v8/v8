@@ -4425,7 +4425,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         bool did_preparse_successfully = impl()->SkipFunction(
             nullptr, kind, FunctionLiteral::kAnonymousExpression,
             formal_parameters.scope, &dummy_num_parameters,
-            &produced_preparsed_scope_data, false, false, &hint, CHECK_OK);
+            &produced_preparsed_scope_data, false, &hint, CHECK_OK);
 
         // Validate parameter names. We can do this only after preparsing the
         // function, since the function can declare itself strict.

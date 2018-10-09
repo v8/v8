@@ -624,7 +624,6 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       Variable* var = DeclareVariableName(name, VariableMode::kVar);
       if (var != kDummyPreParserVariable &&
           var != kDummyPreParserLexicalVariable) {
-        DCHECK(FLAG_preparser_scope_analysis);
         var->set_maybe_assigned();
       }
     }
@@ -686,7 +685,6 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   scope->set_should_eager_compile();
 
   if (scope->must_use_preparsed_scope_data_) {
-    DCHECK(FLAG_preparser_scope_analysis);
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
     allow_deref.emplace();
     info->consumed_preparsed_scope_data()->RestoreScopeAllocationData(scope);
@@ -1058,21 +1056,17 @@ Variable* DeclarationScope::DeclareParameterName(
   if (name == ast_value_factory->arguments_string()) {
     has_arguments_parameter_ = true;
   }
-  if (FLAG_preparser_scope_analysis) {
-    Variable* var;
-    if (declare_as_local) {
-      var = Declare(zone(), name, VariableMode::kVar);
-    } else {
-      var = new (zone()) Variable(this, name, VariableMode::kTemporary,
-                                  NORMAL_VARIABLE, kCreatedInitialized);
-    }
-    if (add_parameter) {
-      params_.Add(var, zone());
-    }
-    return var;
+  Variable* var;
+  if (declare_as_local) {
+    var = Declare(zone(), name, VariableMode::kVar);
+  } else {
+    var = new (zone()) Variable(this, name, VariableMode::kTemporary,
+                                NORMAL_VARIABLE, kCreatedInitialized);
   }
-  DeclareVariableName(name, VariableMode::kVar);
-  return nullptr;
+  if (add_parameter) {
+    params_.Add(var, zone());
+  }
+  return var;
 }
 
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
@@ -1223,26 +1217,22 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
   DCHECK(scope_info_.is_null());
 
   // Declare the variable in the declaration scope.
-  if (FLAG_preparser_scope_analysis) {
-    Variable* var = LookupLocal(name);
-    DCHECK_NE(var, kDummyPreParserLexicalVariable);
-    DCHECK_NE(var, kDummyPreParserVariable);
-    if (var == nullptr) {
-      var = DeclareLocal(name, mode);
-    } else if (IsLexicalVariableMode(mode) ||
-               IsLexicalVariableMode(var->mode())) {
-      // Duplicate functions are allowed in the sloppy mode, but if this is not
-      // a function declaration, it's an error. This is an error PreParser
-      // hasn't previously detected. TODO(marja): Investigate whether we can now
-      // start returning this error.
-    } else if (mode == VariableMode::kVar) {
-      var->set_maybe_assigned();
-    }
-    var->set_is_used();
-    return var;
-  } else {
-    return variables_.DeclareName(zone(), name, mode);
+  Variable* var = LookupLocal(name);
+  DCHECK_NE(var, kDummyPreParserLexicalVariable);
+  DCHECK_NE(var, kDummyPreParserVariable);
+  if (var == nullptr) {
+    var = DeclareLocal(name, mode);
+  } else if (IsLexicalVariableMode(mode) ||
+             IsLexicalVariableMode(var->mode())) {
+    // Duplicate functions are allowed in the sloppy mode, but if this is not
+    // a function declaration, it's an error. This is an error PreParser
+    // hasn't previously detected. TODO(marja): Investigate whether we can now
+    // start returning this error.
+  } else if (mode == VariableMode::kVar) {
+    var->set_maybe_assigned();
   }
+  var->set_is_used();
+  return var;
 }
 
 void Scope::DeclareCatchVariableName(const AstRawString* name) {
@@ -1251,11 +1241,7 @@ void Scope::DeclareCatchVariableName(const AstRawString* name) {
   DCHECK(is_catch_scope());
   DCHECK(scope_info_.is_null());
 
-  if (FLAG_preparser_scope_analysis) {
-    Declare(zone(), name, VariableMode::kVar);
-  } else {
-    variables_.DeclareName(zone(), name, VariableMode::kVar);
-  }
+  Declare(zone(), name, VariableMode::kVar);
 }
 
 void Scope::AddUnresolved(VariableProxy* proxy) {
@@ -1521,7 +1507,6 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
 }
 
 void Scope::SavePreParsedScopeData() {
-  DCHECK(FLAG_preparser_scope_analysis);
   if (PreParsedScopeDataBuilder::ScopeIsSkippableFunctionScope(this)) {
     AsDeclarationScope()->SavePreParsedScopeDataForDeclarationScope();
   }
@@ -1533,7 +1518,6 @@ void Scope::SavePreParsedScopeData() {
 
 void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
   if (preparsed_scope_data_builder_ != nullptr) {
-    DCHECK(FLAG_preparser_scope_analysis);
     preparsed_scope_data_builder_->SaveScopeAllocationData(this);
   }
 }
@@ -1543,8 +1527,7 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   base::ThreadedList<VariableProxy> new_unresolved_list;
   if (!IsArrowFunction(function_kind_) &&
       (!outer_scope_->is_script_scope() ||
-       (FLAG_preparser_scope_analysis &&
-        preparsed_scope_data_builder_ != nullptr &&
+       (preparsed_scope_data_builder_ != nullptr &&
         preparsed_scope_data_builder_->ContainsInnerFunctions()))) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
@@ -1565,9 +1548,7 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
       function_ = ast_node_factory->CopyVariable(function_);
     }
 
-    if (FLAG_preparser_scope_analysis) {
-      SavePreParsedScopeData();
-    }
+    SavePreParsedScopeData();
   }
 
 #ifdef DEBUG
@@ -1876,7 +1857,6 @@ Variable* Scope::LookupRecursive(ParseInfo* info, VariableProxy* proxy,
   // TODO(marja): Separate LookupRecursive for preparsed scopes better.
   if (var == kDummyPreParserVariable || var == kDummyPreParserLexicalVariable) {
     DCHECK(GetDeclarationScope()->is_being_lazily_parsed());
-    DCHECK(FLAG_lazy_inner_functions);
     return var;
   }
 
@@ -2255,7 +2235,6 @@ void ModuleScope::AllocateModuleVariables() {
 
 void Scope::AllocateVariablesRecursively() {
   DCHECK(!already_resolved_);
-  DCHECK_IMPLIES(!FLAG_preparser_scope_analysis, num_stack_slots_ == 0);
 
   // Don't allocate variables of preparsed scopes.
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {

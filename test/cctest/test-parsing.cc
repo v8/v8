@@ -3394,12 +3394,8 @@ TEST(InnerAssignment) {
         CHECK_NOT_NULL(var);
         CHECK(var->is_used() || !expected);
         bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
-        if (i::FLAG_lazy_inner_functions) {
-          CHECK(is_maybe_assigned == expected ||
-                (is_maybe_assigned && inners[j].allow_error_in_inner_function));
-        } else {
-          CHECK_EQ(is_maybe_assigned, expected);
-        }
+        CHECK(is_maybe_assigned == expected ||
+              (is_maybe_assigned && inners[j].allow_error_in_inner_function));
       }
     }
   }
@@ -9664,7 +9660,6 @@ TEST(ArgumentsRedeclaration) {
 // Test that lazily parsed inner functions don't result in overly pessimistic
 // context allocations.
 TEST(NoPessimisticContextAllocation) {
-  i::FLAG_lazy_inner_functions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);

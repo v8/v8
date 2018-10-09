@@ -461,8 +461,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                     FunctionLiteral::FunctionType function_type,
                     DeclarationScope* function_scope, int* num_parameters,
                     ProducedPreParsedScopeData** produced_preparsed_scope_data,
-                    bool is_inner_function, bool may_abort,
-                    FunctionLiteral::EagerCompileHint* hint, bool* ok);
+                    bool may_abort, FunctionLiteral::EagerCompileHint* hint,
+                    bool* ok);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);

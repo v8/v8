@@ -76,7 +76,7 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
   //                wrapped script at all.
   DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared->script())->is_wrapped());
 
-  set_allow_lazy_parsing(FLAG_lazy_inner_functions);
+  set_allow_lazy_parsing(true);
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
 
   set_start_position(shared->StartPosition());
