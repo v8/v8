@@ -78,3 +78,23 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   }
   assertEquals(23, instance.exports.catchall_external());  // From WebAssembly.
 })();
+
+// Test that expressions in a catch-all block are considered to be outside of
+// the corresponding try block. Exceptions raised in them will percolate up.
+(function TestCatchAllThrowing() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except1 = builder.addException(kSig_v_v);
+  let except2 = builder.addException(kSig_v_v);
+  builder.addFunction("catchall", kSig_v_v)
+    .addBody([
+      kExprTry, kWasmStmt,
+        kExprThrow, except1,
+      kExprCatchAll,
+        kExprThrow, except2,
+      kExprEnd
+  ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertThrows(() => instance.exports.catchall(), WebAssembly.RuntimeError);
+})();

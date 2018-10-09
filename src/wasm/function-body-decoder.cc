@@ -436,7 +436,7 @@ class WasmGraphBuildingInterface {
                       Control* block, Vector<Value> values) {
     DCHECK(block->is_try_catch());
     TFNode* exception = block->try_info->exception;
-    current_catch_ = block->previous_catch;
+    current_catch_ = block->previous_catch;  // Pop try scope.
     SsaEnv* catch_env = block->try_info->catch_env;
     SetEnv(catch_env);
 
@@ -475,6 +475,7 @@ class WasmGraphBuildingInterface {
 
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
+    current_catch_ = block->previous_catch;  // Pop try scope.
     SsaEnv* catch_env = block->try_info->catch_env;
     SetEnv(catch_env);
   }

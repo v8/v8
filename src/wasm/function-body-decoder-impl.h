@@ -1549,6 +1549,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             FallThruTo(c);
             stack_.resize(c->stack_depth);
             CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
+            c->reachability = control_at(1)->innerReachability();
             break;
           }
           case kExprLoop: {
