@@ -2950,13 +2950,13 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   if (is_destructuring_assignment) {
     ValidateAssignmentPattern(CHECK_OK);
+    impl()->MarkPatternAsAssigned(expression);
   } else {
     expression = CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, end_position(),
         MessageTemplate::kInvalidLhsInAssignment, CHECK_OK);
+    impl()->MarkExpressionAsAssigned(expression);
   }
-
-  impl()->MarkExpressionAsAssigned(expression);
 
   Token::Value op = Next();  // Get assignment operator.
   if (op != Token::ASSIGN) {

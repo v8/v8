@@ -710,6 +710,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
   }
 
+  V8_INLINE static void MarkPatternAsAssigned(Expression* expression) {}
+
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator.
   V8_INLINE static void MarkExpressionAsAssigned(Expression* expression) {

@@ -1373,14 +1373,22 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
       const PreParserExpression& left, const PreParserExpression& right) {}
 
-  V8_INLINE void MarkExpressionAsAssigned(
-      const PreParserExpression& expression) {
+  V8_INLINE void MarkPatternAsAssigned(const PreParserExpression& expression) {
     // TODO(marja): To be able to produce the same errors, the preparser needs
     // to start tracking which expressions are variables and which are assigned.
     if (expression.variables_ != nullptr) {
       for (auto variable : *expression.variables_) {
         variable->set_is_assigned();
       }
+    }
+  }
+
+  V8_INLINE void MarkExpressionAsAssigned(
+      const PreParserExpression& expression) {
+    if (IsIdentifier(expression)) {
+      DCHECK_NOT_NULL(expression.variables_);
+      DCHECK_EQ(1, expression.variables_->LengthForTest());
+      expression.variables_->first()->set_is_assigned();
     }
   }
 
@@ -1416,7 +1424,7 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserStatement InitializeForEachStatement(
       PreParserStatement stmt, const PreParserExpression& each,
       const PreParserExpression& subject, PreParserStatement body) {
-    MarkExpressionAsAssigned(each);
+    MarkPatternAsAssigned(each);
     return stmt;
   }
 
@@ -1425,7 +1433,7 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserExpression& iterable, PreParserStatement body,
       bool finalize, IteratorType type,
       int next_result_pos = kNoSourcePosition) {
-    MarkExpressionAsAssigned(each);
+    MarkPatternAsAssigned(each);
     return stmt;
   }
 
