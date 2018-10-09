@@ -922,7 +922,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE void DeclareFormalParameters(
       DeclarationScope* scope,
       const base::ThreadedList<ParserFormalParameters::Parameter>& parameters,
-      bool is_simple, bool* has_duplicate = nullptr) {
+      bool is_simple) {
     if (!is_simple) scope->SetHasNonSimpleParameters();
     for (auto parameter : parameters) {
       bool is_optional = parameter->initializer != nullptr;
@@ -930,10 +930,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       // their names. If the parameter list is not simple, declare a temporary
       // for each parameter - the corresponding named variable is declared by
       // BuildParamerterInitializationBlock.
+      if (is_simple && scope->LookupLocal(parameter->name)) {
+        classifier()->RecordDuplicateFormalParameterError(
+            Scanner::Location(parameter->position,
+                              parameter->position + parameter->name->length()));
+      }
       scope->DeclareParameter(
           is_simple ? parameter->name : ast_value_factory()->empty_string(),
           is_simple ? VariableMode::kVar : VariableMode::kTemporary,
-          is_optional, parameter->is_rest, has_duplicate, ast_value_factory(),
+          is_optional, parameter->is_rest, ast_value_factory(),
           parameter->position);
     }
   }
@@ -941,7 +946,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeclareArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                             Expression* params,
                                             const Scanner::Location& params_loc,
-                                            Scanner::Location* duplicate_loc,
                                             bool* ok);
 
   Expression* ExpressionListToExpression(ZonePtrList<Expression>* args);

@@ -13,7 +13,6 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/conversions-inl.h"
 #include "src/objects/bigint.h"
-#include "src/parsing/duplicate-finder.h"  // For Scanner::FindSymbol
 #include "src/parsing/scanner-inl.h"
 
 namespace v8 {
@@ -1186,14 +1185,6 @@ const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {
   memcpy(buffer, vector.start(), length);
   buffer[length] = '\0';
   return buffer;
-}
-
-bool Scanner::IsDuplicateSymbol(DuplicateFinder* duplicate_finder,
-                                AstValueFactory* ast_value_factory) const {
-  DCHECK_NOT_NULL(duplicate_finder);
-  DCHECK_NOT_NULL(ast_value_factory);
-  const AstRawString* string = CurrentSymbol(ast_value_factory);
-  return !duplicate_finder->known_symbols_.insert(string).second;
 }
 
 void Scanner::SeekNext(size_t position) {

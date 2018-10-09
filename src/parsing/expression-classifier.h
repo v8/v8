@@ -111,10 +111,8 @@ class ExpressionClassifierBase {
   };
   // clang-format on
 
-  explicit ExpressionClassifierBase(typename Types::Base* base,
-                                    DuplicateFinder* duplicate_finder = nullptr)
+  explicit ExpressionClassifierBase(typename Types::Base* base)
       : base_(base),
-        duplicate_finder_(duplicate_finder),
         invalid_productions_(0),
         is_non_simple_parameter_list_(0) {}
 
@@ -122,10 +120,6 @@ class ExpressionClassifierBase {
 
   V8_INLINE bool is_valid(unsigned productions) const {
     return (invalid_productions_ & productions) == 0;
-  }
-
-  V8_INLINE DuplicateFinder* duplicate_finder() const {
-    return duplicate_finder_;
   }
 
   V8_INLINE bool is_valid_expression() const {
@@ -211,7 +205,6 @@ class ExpressionClassifierBase {
 
  protected:
   typename Types::Base* base_;
-  DuplicateFinder* duplicate_finder_;
   unsigned invalid_productions_ : kUnusedError;
   STATIC_ASSERT(kUnusedError <= 15);
   unsigned is_non_simple_parameter_list_ : 1;
@@ -228,9 +221,8 @@ class ExpressionClassifierErrorTracker
   using typename BaseClassType::ErrorKind;
   using TP = typename BaseClassType::TargetProduction;
 
-  ExpressionClassifierErrorTracker(typename Types::Base* base,
-                                   DuplicateFinder* duplicate_finder)
-      : BaseClassType(base, duplicate_finder),
+  explicit ExpressionClassifierErrorTracker(typename Types::Base* base)
+      : BaseClassType(base),
         reported_errors_(base->impl()->GetReportedErrorList()) {
     reported_errors_begin_ = reported_errors_end_ = reported_errors_->length();
   }
@@ -366,9 +358,8 @@ class ExpressionClassifierEmptyErrorTracker
   using typename BaseClassType::ErrorKind;
   using TP = typename BaseClassType::TargetProduction;
 
-  ExpressionClassifierEmptyErrorTracker(typename Types::Base* base,
-                                        DuplicateFinder* duplicate_finder)
-      : BaseClassType(base, duplicate_finder) {}
+  explicit ExpressionClassifierEmptyErrorTracker(typename Types::Base* base)
+      : BaseClassType(base) {}
 
   V8_INLINE void Discard() {}
 
@@ -411,12 +402,11 @@ class ExpressionClassifier
   using typename BaseClassType::ErrorKind;
   using TP = typename BaseClassType::TargetProduction;
 
-  explicit ExpressionClassifier(typename Types::Base* base,
-                                DuplicateFinder* duplicate_finder = nullptr)
-      : std::conditional<Types::ExpressionClassifierReportErrors,
-                         ExpressionClassifierErrorTracker<Types>,
-                         ExpressionClassifierEmptyErrorTracker<Types>>::
-            type(base, duplicate_finder),
+  explicit ExpressionClassifier(typename Types::Base* base)
+      : std::conditional<
+            Types::ExpressionClassifierReportErrors,
+            ExpressionClassifierErrorTracker<Types>,
+            ExpressionClassifierEmptyErrorTracker<Types>>::type(base),
         previous_(base->classifier_) {
     base->classifier_ = this;
   }

@@ -335,12 +335,6 @@ class Scanner {
            CurrentMatchesContextualEscaped(Token::LET);
   }
 
-  // Check whether the CurrentSymbol() has already been seen.
-  // The DuplicateFinder holds the data, so different instances can be used
-  // for different sets of duplicates to check for.
-  bool IsDuplicateSymbol(DuplicateFinder* duplicate_finder,
-                         AstValueFactory* ast_value_factory) const;
-
   UnicodeCache* unicode_cache() const { return unicode_cache_; }
 
   // Returns the location of the last seen octal literal.

@@ -18,7 +18,6 @@
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/objects/scope-info.h"
-#include "src/parsing/duplicate-finder.h"
 #include "src/parsing/expression-scope-reparenter.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
@@ -51,12 +50,11 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
     if (call_super) {
       // Create a SuperCallReference and handle in BytecodeGenerator.
       auto constructor_args_name = ast_value_factory()->empty_string();
-      bool is_duplicate;
       bool is_rest = true;
       bool is_optional = false;
       Variable* constructor_args = function_scope->DeclareParameter(
           constructor_args_name, VariableMode::kTemporary, is_optional, is_rest,
-          &is_duplicate, ast_value_factory(), pos);
+          ast_value_factory(), pos);
 
       ZonePtrList<Expression>* args =
           new (zone()) ZonePtrList<Expression>(1, zone());
@@ -521,13 +519,10 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       DCHECK(info->is_module());
       // Declare the special module parameter.
       auto name = ast_value_factory()->empty_string();
-      bool is_duplicate = false;
       bool is_rest = false;
       bool is_optional = false;
       auto var = scope->DeclareParameter(name, VariableMode::kVar, is_optional,
-                                         is_rest, &is_duplicate,
-                                         ast_value_factory(), beg_pos);
-      DCHECK(!is_duplicate);
+                                         is_rest, ast_value_factory(), beg_pos);
       var->AllocateTo(VariableLocation::PARAMETER, 0);
 
       PrepareGeneratorVariables();
@@ -2381,8 +2376,7 @@ void Parser::AddArrowFunctionFormalParameters(
 
 void Parser::DeclareArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr,
-    const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-    bool* ok) {
+    const Scanner::Location& params_loc, bool* ok) {
   if (expr->IsEmptyParentheses()) return;
 
   AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
@@ -2394,12 +2388,8 @@ void Parser::DeclareArrowFunctionFormalParameters(
     return;
   }
 
-  bool has_duplicate = false;
   DeclareFormalParameters(parameters->scope, parameters->params,
-                          parameters->is_simple, &has_duplicate);
-  if (has_duplicate) {
-    *duplicate_loc = scanner()->location();
-  }
+                          parameters->is_simple);
   DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
 }
 
@@ -2978,8 +2968,7 @@ ZonePtrList<Statement>* Parser::ParseFunction(
 
   bool is_wrapped = function_type == FunctionLiteral::kWrapped;
 
-  DuplicateFinder duplicate_finder;
-  ExpressionClassifier formals_classifier(this, &duplicate_finder);
+  ExpressionClassifier formals_classifier(this);
 
   int expected_parameters_end_pos = parameters_end_pos_;
   if (expected_parameters_end_pos != kNoSourcePosition) {
@@ -3041,14 +3030,6 @@ ZonePtrList<Statement>* Parser::ParseFunction(
   ZonePtrList<Statement>* body = new (zone()) ZonePtrList<Statement>(8, zone());
   ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
                     FunctionBodyType::kBlock, true, ok);
-
-  // Validate parameter names. We can do this only after parsing the function,
-  // since the function can declare itself strict.
-  const bool allow_duplicate_parameters =
-      is_sloppy(function_scope->language_mode()) && formals.is_simple &&
-      !IsConciseMethod(kind);
-  ValidateFormalParameters(function_scope->language_mode(),
-                           allow_duplicate_parameters, CHECK_OK);
 
   RewriteDestructuringAssignments();
 

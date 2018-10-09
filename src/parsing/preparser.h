@@ -995,7 +995,7 @@ class PreParser : public ParserBase<PreParser> {
                               runtime_call_stats, logger, script_id,
                               parsing_module, parsing_on_main_thread),
         use_counts_(nullptr),
-        track_unresolved_variables_(false),
+        track_unresolved_variables_(true),
         preparsed_scope_data_builder_(nullptr) {}
 
   static bool IsPreParser() { return true; }
@@ -1721,11 +1721,22 @@ class PreParser : public ParserBase<PreParser> {
       for (auto parameter : parameters) {
         DCHECK_IMPLIES(is_simple, parameter->variables_ != nullptr);
         DCHECK_IMPLIES(is_simple, parameter->variables_->LengthForTest() == 1);
-        // Make sure each parameter is added only once even if it's a
-        // destructuring parameter which contains multiple names.
-        bool add_parameter = true;
-        if (parameter->variables_ != nullptr) {
+        if (parameter->variables_ == nullptr) {
+          // No names were declared; declare a dummy one here to up the
+          // parameter count.
+          scope->DeclareParameterName(ast_value_factory()->empty_string(),
+                                      parameter->is_rest, ast_value_factory(),
+                                      false, true);
+        } else {
+          // Make sure each parameter is added only once even if it's a
+          // destructuring parameter which contains multiple names.
+          bool add_parameter = true;
           for (auto variable : (*parameter->variables_)) {
+            // Find duplicates in simple and complex parameter lists.
+            if (scope->LookupLocal(variable->raw_name())) {
+              classifier()->RecordDuplicateFormalParameterError(
+                  Scanner::Location::invalid());
+            }
             // We declare the parameter name for all names, but only create a
             // parameter entry for the first one.
             scope->DeclareParameterName(variable->raw_name(),
@@ -1734,30 +1745,23 @@ class PreParser : public ParserBase<PreParser> {
             add_parameter = false;
           }
         }
-        if (add_parameter) {
-          // No names were declared; declare a dummy one here to up the
-          // parameter count.
-          DCHECK(!is_simple);
-          scope->DeclareParameterName(ast_value_factory()->empty_string(),
-                                      parameter->is_rest, ast_value_factory(),
-                                      false, add_parameter);
-        }
       }
     }
   }
 
   V8_INLINE void DeclareArrowFunctionFormalParameters(
       PreParserFormalParameters* parameters, const PreParserExpression& params,
-      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-      bool* ok) {
-    // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect
-    // parameter lists that are too long.
+      const Scanner::Location& params_loc, bool* ok) {
     if (track_unresolved_variables_) {
       DCHECK(FLAG_lazy_inner_functions);
       if (params.variables_ != nullptr) {
+        Scope* scope = parameters->scope;
         for (auto variable : *params.variables_) {
-          parameters->scope->DeclareVariableName(variable->raw_name(),
-                                                 VariableMode::kVar);
+          if (scope->LookupLocal(variable->raw_name())) {
+            classifier()->RecordDuplicateFormalParameterError(
+                Scanner::Location::invalid());
+          }
+          scope->DeclareVariableName(variable->raw_name(), VariableMode::kVar);
         }
       }
     }

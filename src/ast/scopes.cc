@@ -1020,9 +1020,11 @@ Variable* Scope::Lookup(const AstRawString* name) {
   return nullptr;
 }
 
-Variable* DeclarationScope::DeclareParameter(
-    const AstRawString* name, VariableMode mode, bool is_optional, bool is_rest,
-    bool* is_duplicate, AstValueFactory* ast_value_factory, int position) {
+Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
+                                             VariableMode mode,
+                                             bool is_optional, bool is_rest,
+                                             AstValueFactory* ast_value_factory,
+                                             int position) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
   DCHECK(!has_rest_);
@@ -1035,10 +1037,6 @@ Variable* DeclarationScope::DeclareParameter(
   } else {
     DCHECK_EQ(mode, VariableMode::kVar);
     var = Declare(zone(), name, mode);
-    // TODO(wingo): Avoid O(n^2) check.
-    if (is_duplicate != nullptr) {
-      *is_duplicate = *is_duplicate || IsDeclaredParameter(name);
-    }
   }
   has_rest_ = is_rest;
   var->set_initializer_position(position);

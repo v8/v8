@@ -1709,12 +1709,6 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
       }
     }
 
-    if (classifier()->duplicate_finder() != nullptr &&
-        scanner()->IsDuplicateSymbol(classifier()->duplicate_finder(),
-                                     ast_value_factory())) {
-      classifier()->RecordDuplicateFormalParameterError(scanner()->location());
-    }
-
     return name;
   } else if (next == Token::AWAIT && !parsing_module_ && !is_async_function()) {
     classifier()->RecordAsyncArrowFormalParametersError(
@@ -2602,13 +2596,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
 
       DCHECK(!*is_computed_name);
 
-      if (classifier()->duplicate_finder() != nullptr &&
-          scanner()->IsDuplicateSymbol(classifier()->duplicate_finder(),
-                                       ast_value_factory())) {
-        classifier()->RecordDuplicateFormalParameterError(
-            scanner()->location());
-      }
-
       if (impl()->IsEvalOrArguments(name) && is_strict(language_mode())) {
         classifier()->RecordBindingPatternError(
             scanner()->location(), MessageTemplate::kStrictEvalArguments);
@@ -2869,8 +2856,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   }
 
   FuncNameInferrerState fni_state(&fni_);
-  ExpressionClassifier arrow_formals_classifier(
-      this, classifier()->duplicate_finder());
+  ExpressionClassifier arrow_formals_classifier(this);
 
   Scope::Snapshot scope_snapshot(scope());
   int rewritable_length = static_cast<int>(
@@ -2932,12 +2918,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     }
 
     scope->set_start_position(lhs_beg_pos);
-    Scanner::Location duplicate_loc = Scanner::Location::invalid();
     impl()->DeclareArrowFunctionFormalParameters(&parameters, expression, loc,
-                                                 &duplicate_loc, CHECK_OK);
-    if (duplicate_loc.IsValid()) {
-      classifier()->RecordDuplicateFormalParameterError(duplicate_loc);
-    }
+                                                 CHECK_OK);
     expression = ParseArrowFunctionLiteral(accept_IN, parameters,
                                            rewritable_length, CHECK_OK);
     Accumulate(ExpressionClassifier::AsyncArrowFormalParametersProduction);
@@ -4253,7 +4235,17 @@ void ParserBase<Impl>::ParseFunctionBody(
 
   scope()->set_end_position(end_position());
 
-  if (!parameters.is_simple) {
+  bool allow_duplicate_parameters = false;
+
+  if (parameters.is_simple) {
+    DCHECK_EQ(inner_scope, function_scope);
+    if (is_sloppy(function_scope->language_mode())) {
+      impl()->InsertSloppyBlockFunctionVarBindings(function_scope);
+    }
+    allow_duplicate_parameters = is_sloppy(function_scope->language_mode()) &&
+                                 !IsConciseMethod(kind) &&
+                                 !IsArrowFunction(kind);
+  } else {
     DCHECK_NOT_NULL(inner_scope);
     DCHECK_EQ(function_scope, scope());
     DCHECK_EQ(function_scope, inner_scope->outer_scope());
@@ -4281,12 +4273,10 @@ void ParserBase<Impl>::ParseFunctionBody(
 
     result->Add(init_block, zone());
     result->Add(inner_block, zone());
-  } else {
-    DCHECK_EQ(inner_scope, function_scope);
-    if (is_sloppy(function_scope->language_mode())) {
-      impl()->InsertSloppyBlockFunctionVarBindings(function_scope);
-    }
   }
+
+  ValidateFormalParameters(language_mode(), allow_duplicate_parameters,
+                           CHECK_OK_VOID);
 
   if (!IsArrowFunction(kind)) {
     // Declare arguments after parsing the function since lexical 'arguments'
@@ -4437,6 +4427,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
             formal_parameters.scope, &dummy_num_parameters,
             &produced_preparsed_scope_data, false, false, &hint, CHECK_OK);
 
+        // Validate parameter names. We can do this only after preparsing the
+        // function, since the function can declare itself strict.
+        ValidateFormalParameters(language_mode(), false, CHECK_OK);
+
         DCHECK_NULL(produced_preparsed_scope_data);
 
         if (did_preparse_successfully) {
@@ -4477,14 +4471,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     }
 
     formal_parameters.scope->set_end_position(end_position());
-
-    // Arrow function formal parameters are parsed as StrictFormalParameterList,
-    // which is not the same as "parameters of a strict function"; it only means
-    // that duplicates are not allowed.  Of course, the arrow function may
-    // itself be strict as well.
-    const bool allow_duplicate_parameters = false;
-    ValidateFormalParameters(language_mode(), allow_duplicate_parameters,
-                             CHECK_OK);
 
     // Validate strict mode.
     if (is_strict(language_mode())) {

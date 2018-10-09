@@ -9,7 +9,6 @@
 #include "src/conversions-inl.h"
 #include "src/conversions.h"
 #include "src/globals.h"
-#include "src/parsing/duplicate-finder.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparsed-scope-data.h"
 #include "src/parsing/preparser.h"
@@ -158,13 +157,12 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   bool* ok = &ok_holder;
 
   PreParserFormalParameters formals(function_scope);
-  DuplicateFinder duplicate_finder;
   std::unique_ptr<ExpressionClassifier> formals_classifier;
 
   // Parse non-arrow function parameters. For arrow functions, the parameters
   // have already been parsed.
   if (!IsArrowFunction(kind)) {
-    formals_classifier.reset(new ExpressionClassifier(this, &duplicate_finder));
+    formals_classifier.reset(new ExpressionClassifier(this));
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
     ParseFormalParameterList(
@@ -194,7 +192,17 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     result = ParseStatementListAndLogFunction(&formals, may_abort, ok);
   }
 
-  if (!formals.is_simple) {
+  bool allow_duplicate_parameters = false;
+
+  if (formals.is_simple) {
+    if (is_sloppy(function_scope->language_mode())) {
+      function_scope->HoistSloppyBlockFunctions(nullptr);
+    }
+
+    allow_duplicate_parameters = is_sloppy(function_scope->language_mode()) &&
+                                 !IsConciseMethod(kind) &&
+                                 !IsArrowFunction(kind);
+  } else {
     BuildParameterInitializationBlock(formals, ok);
 
     if (is_sloppy(inner_scope->language_mode())) {
@@ -204,10 +212,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     SetLanguageMode(function_scope, inner_scope->language_mode());
     inner_scope->set_end_position(scanner()->peek_location().end_pos);
     inner_scope->FinalizeBlockScope();
-  } else {
-    if (is_sloppy(function_scope->language_mode())) {
-      function_scope->HoistSloppyBlockFunctions(nullptr);
-    }
   }
 
   use_counts_ = nullptr;
@@ -230,11 +234,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     if (!IsArrowFunction(kind)) {
       // Validate parameter names. We can do this only after parsing the
       // function, since the function can declare itself strict.
-      const bool allow_duplicate_parameters =
-          is_sloppy(function_scope->language_mode()) && formals.is_simple &&
-          !IsConciseMethod(kind);
-      ValidateFormalParameters(function_scope->language_mode(),
-                               allow_duplicate_parameters, ok);
+      ValidateFormalParameters(language_mode(), allow_duplicate_parameters, ok);
       if (!*ok) {
         if (pending_error_handler()->ErrorUnidentifiableByPreParser()) {
           return kPreParseNotIdentifiableError;
@@ -322,8 +322,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
 
   FunctionState function_state(&function_state_, &scope_, function_scope);
-  DuplicateFinder duplicate_finder;
-  ExpressionClassifier formals_classifier(this, &duplicate_finder);
+  ExpressionClassifier formals_classifier(this);
   int func_id = GetNextFunctionLiteralId();
 
   Expect(Token::LPAREN, CHECK_OK);
@@ -357,9 +356,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // function, since the function can declare itself strict.
   CheckFunctionName(language_mode, function_name, function_name_validity,
                     function_name_location, CHECK_OK);
-  const bool allow_duplicate_parameters =
-      is_sloppy(language_mode) && formals.is_simple && !IsConciseMethod(kind);
-  ValidateFormalParameters(language_mode, allow_duplicate_parameters, CHECK_OK);
 
   int end_position = scanner()->location().end_pos;
   if (is_strict(language_mode)) {

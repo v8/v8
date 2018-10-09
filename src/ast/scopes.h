@@ -729,7 +729,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
   Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
-                             bool is_optional, bool is_rest, bool* is_duplicate,
+                             bool is_optional, bool is_rest,
                              AstValueFactory* ast_value_factory, int position);
 
   // Declares that a parameter with the name exists. Creates a Variable and
