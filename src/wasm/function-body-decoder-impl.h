@@ -1500,26 +1500,21 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprCatch: {
-            // TODO(kschimpf): Fix to use type signature of exception.
             CHECK_PROTOTYPE_OPCODE(eh);
             ExceptionIndexImmediate<validate> imm(this, this->pc_);
-            len = 1 + imm.length;
-
             if (!this->Validate(this->pc_, imm)) break;
-
+            len = 1 + imm.length;
             if (!VALIDATE(!control_.empty())) {
               this->error("catch does not match any try");
               break;
             }
-
             Control* c = &control_.back();
             if (!VALIDATE(c->is_try())) {
               this->error("catch does not match any try");
               break;
             }
-
-            if (!VALIDATE(c->is_incomplete_try())) {
-              OPCODE_ERROR(opcode, "multiple catch blocks not implemented");
+            if (!VALIDATE(!c->is_try_catchall())) {
+              this->error("catch after catch-all for try");
               break;
             }
             c->kind = kControlTryCatch;
@@ -1554,7 +1549,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             FallThruTo(c);
             stack_.resize(c->stack_depth);
             CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
-            // TODO(mstarzinger): Implement control flow for catch-all.
             break;
           }
           case kExprLoop: {

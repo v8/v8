@@ -103,14 +103,15 @@ function assertWasmThrows(instance, runtime_id, values, code) {
   assertEquals(42, instance.exports.simple_throw_catch_to_0_1(1));
 })();
 
-// Test that we can distinguish which exception was thrown.
-(function TestCatchComplex() {
+// Test that we can distinguish which exception was thrown by using a cascaded
+// sequence of nested try blocks with a single catch block each.
+(function TestCatchComplex1() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except1 = builder.addException(kSig_v_v);
   let except2 = builder.addException(kSig_v_v);
   let except3 = builder.addException(kSig_v_v);
-  builder.addFunction("catch_different_exceptions", kSig_i_i)
+  builder.addFunction("catch_complex", kSig_i_i)
       .addBody([
         kExprTry, kWasmI32,
           kExprTry, kWasmI32,
@@ -134,13 +135,52 @@ function assertWasmThrows(instance, runtime_id, values, code) {
           kExprEnd,
         kExprCatch, except2,
           kExprI32Const, 4,
-        kExprEnd
+        kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertEquals(3, instance.exports.catch_different_exceptions(0));
-  assertEquals(4, instance.exports.catch_different_exceptions(1));
-  assertWasmThrows(instance, except3, [], () => instance.exports.catch_different_exceptions(2));
+  assertEquals(3, instance.exports.catch_complex(0));
+  assertEquals(4, instance.exports.catch_complex(1));
+  assertWasmThrows(instance, except3, [], () => instance.exports.catch_complex(2));
+})();
+
+// Test that we can distinguish which exception was thrown by using a single
+// try block with multiple associated catch blocks in sequence.
+(function TestCatchComplex2() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except1 = builder.addException(kSig_v_v);
+  let except2 = builder.addException(kSig_v_v);
+  let except3 = builder.addException(kSig_v_v);
+  builder.addFunction("catch_complex", kSig_i_i)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprGetLocal, 0,
+          kExprI32Eqz,
+          kExprIf, kWasmStmt,
+            kExprThrow, except1,
+          kExprElse,
+            kExprGetLocal, 0,
+            kExprI32Const, 1,
+            kExprI32Eq,
+            kExprIf, kWasmStmt,
+              kExprThrow, except2,
+            kExprElse,
+              kExprThrow, except3,
+            kExprEnd,
+          kExprEnd,
+          kExprI32Const, 2,
+        kExprCatch, except1,
+          kExprI32Const, 3,
+        kExprCatch, except2,
+          kExprI32Const, 4,
+        kExprEnd,
+      ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertEquals(3, instance.exports.catch_complex(0));
+  assertEquals(4, instance.exports.catch_complex(1));
+  assertWasmThrows(instance, except3, [], () => instance.exports.catch_complex(2));
 })();
 
 // Test throwing an exception with multiple values.
