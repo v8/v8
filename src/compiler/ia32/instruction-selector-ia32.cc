@@ -237,7 +237,12 @@ void VisitRRISimd(InstructionSelector* selector, Node* node,
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 =
       g.UseImmediate(OpParameter<int32_t>(node->op()));
-  selector->Emit(opcode, g.DefineAsRegister(node), operand0, operand1);
+  // 8x16 uses movsx_b on dest to extract a byte, which only works
+  // if dest is a byte register.
+  InstructionOperand dest = opcode == kIA32I8x16ExtractLane
+                                ? g.DefineAsFixed(node, eax)
+                                : g.DefineAsRegister(node);
+  selector->Emit(opcode, dest, operand0, operand1);
 }
 
 void VisitRRISimd(InstructionSelector* selector, Node* node,
