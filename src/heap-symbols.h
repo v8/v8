@@ -171,6 +171,7 @@
   V(_, LinkError_string, "LinkError")                                 \
   V(_, long_string, "long")                                           \
   V(_, loose_string, "loose")                                         \
+  V(_, makeCell_string, "makeCell")                                   \
   V(_, Map_string, "Map")                                             \
   V(_, MapIterator_string, "Map Iterator")                            \
   V(_, message_string, "message")                                     \
@@ -269,6 +270,8 @@
   V(_, value_string, "value")                                         \
   V(_, valueOf_string, "valueOf")                                     \
   V(_, values_string, "values")                                       \
+  V(_, WeakCell_string, "WeakCell")                                   \
+  V(_, WeakFactory_string, "WeakFactory")                             \
   V(_, WeakMap_string, "WeakMap")                                     \
   V(_, WeakSet_string, "WeakSet")                                     \
   V(_, week_string, "week")                                           \

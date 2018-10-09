@@ -9,6 +9,7 @@
 #include "src/heap/heap.h"
 #include "src/objects-inl.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
@@ -215,6 +216,14 @@ Map* Context::GetInitialJSArrayMap(ElementsKind kind) const {
   Object* const initial_js_array_map = get(Context::ArrayMapIndex(kind));
   DCHECK(!initial_js_array_map->IsUndefined());
   return Map::cast(initial_js_array_map);
+}
+
+void NativeContext::AddDirtyJSWeakFactory(JSWeakFactory* weak_factory,
+                                          Isolate* isolate) {
+  DCHECK(dirty_js_weak_factories()->IsUndefined(isolate) ||
+         dirty_js_weak_factories()->IsJSWeakFactory());
+  weak_factory->set_next(dirty_js_weak_factories());
+  set_dirty_js_weak_factories(weak_factory);
 }
 
 }  // namespace internal

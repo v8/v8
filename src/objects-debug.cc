@@ -40,6 +40,7 @@
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segmenter-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/microtask-inl.h"
@@ -306,6 +307,16 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
       JSAsyncFromSyncIterator::cast(this)->JSAsyncFromSyncIteratorVerify(
           isolate);
+      break;
+    case JS_WEAK_CELL_TYPE:
+      JSWeakCell::cast(this)->JSWeakCellVerify(isolate);
+      break;
+    case JS_WEAK_FACTORY_TYPE:
+      JSWeakFactory::cast(this)->JSWeakFactoryVerify(isolate);
+      break;
+    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
+      JSWeakFactoryCleanupIterator::cast(this)
+          ->JSWeakFactoryCleanupIteratorVerify(isolate);
       break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapVerify(isolate);
@@ -1211,6 +1222,44 @@ void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
   VerifyHeapPointer(isolate, table());
   CHECK(table()->IsOrderedHashMap());
   CHECK(index()->IsSmi());
+}
+
+void JSWeakCell::JSWeakCellVerify(Isolate* isolate) {
+  CHECK(IsJSWeakCell());
+  JSObjectVerify(isolate);
+
+  CHECK(next()->IsJSWeakCell() || next()->IsUndefined(isolate));
+  if (next()->IsJSWeakCell()) {
+    CHECK_EQ(JSWeakCell::cast(next())->prev(), this);
+  }
+  CHECK(prev()->IsJSWeakCell() || prev()->IsUndefined(isolate));
+  if (prev()->IsJSWeakCell()) {
+    CHECK_EQ(JSWeakCell::cast(prev())->next(), this);
+  }
+
+  CHECK(factory()->IsJSWeakFactory());
+}
+
+void JSWeakFactory::JSWeakFactoryVerify(Isolate* isolate) {
+  CHECK(IsJSWeakFactory());
+  JSObjectVerify(isolate);
+  VerifyHeapPointer(isolate, cleanup());
+  CHECK(active_cells()->IsUndefined(isolate) || active_cells()->IsJSWeakCell());
+  if (active_cells()->IsJSWeakCell()) {
+    CHECK(JSWeakCell::cast(active_cells())->prev()->IsUndefined(isolate));
+  }
+  CHECK(cleared_cells()->IsUndefined(isolate) ||
+        cleared_cells()->IsJSWeakCell());
+  if (cleared_cells()->IsJSWeakCell()) {
+    CHECK(JSWeakCell::cast(cleared_cells())->prev()->IsUndefined(isolate));
+  }
+}
+
+void JSWeakFactoryCleanupIterator::JSWeakFactoryCleanupIteratorVerify(
+    Isolate* isolate) {
+  CHECK(IsJSWeakFactoryCleanupIterator());
+  JSObjectVerify(isolate);
+  VerifyHeapPointer(isolate, factory());
 }
 
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {

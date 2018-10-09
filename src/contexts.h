@@ -12,6 +12,7 @@ namespace internal {
 
 class JSGlobalObject;
 class JSGlobalProxy;
+class JSWeakFactory;
 class NativeContext;
 class RegExpMatchInfo;
 
@@ -165,6 +166,7 @@ enum ContextLookupFlags {
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
   V(DEBUG_CONTEXT_ID_INDEX, Object, debug_context_id)                          \
+  V(DIRTY_JS_WEAK_FACTORIES_INDEX, Object, dirty_js_weak_factories)            \
   V(EMPTY_FUNCTION_INDEX, JSFunction, empty_function)                          \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
@@ -229,6 +231,9 @@ enum ContextLookupFlags {
   V(JS_MODULE_NAMESPACE_MAP, Map, js_module_namespace_map)                     \
   V(JS_SET_FUN_INDEX, JSFunction, js_set_fun)                                  \
   V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
+  V(JS_WEAK_CELL_MAP_INDEX, Map, js_weak_cell_map)                             \
+  V(JS_WEAK_FACTORY_CLEANUP_ITERATOR_MAP_INDEX, Map,                           \
+    js_weak_factory_cleanup_iterator_map)                                      \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
@@ -635,6 +640,10 @@ class NativeContext : public Context {
  public:
   static inline NativeContext* cast(Object* context);
   // TODO(neis): Move some stuff from Context here.
+
+  // Add weak_factory into the dirty_weak_js_factories list.
+  inline void AddDirtyJSWeakFactory(JSWeakFactory* weak_factory,
+                                    Isolate* isolate);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(NativeContext);

@@ -10,6 +10,7 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-weak-refs-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -172,6 +173,30 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
   int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
   TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
   collector_->AddTransitionArray(array);
+  return size;
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+int MarkingVisitor<fixed_array_mode, retaining_path_mode,
+                   MarkingState>::VisitJSWeakCell(Map* map,
+                                                  JSWeakCell* weak_cell) {
+  if (weak_cell->target()->IsHeapObject()) {
+    HeapObject* target = HeapObject::cast(weak_cell->target());
+    if (marking_state()->IsBlackOrGrey(target)) {
+      // Record the slot inside the JSWeakCell, since the IterateBody below
+      // won't visit it.
+      Object** slot =
+          HeapObject::RawField(weak_cell, JSWeakCell::kTargetOffset);
+      collector_->RecordSlot(weak_cell, slot, target);
+    } else {
+      // JSWeakCell points to a potentially dead object. We have to process
+      // them when we know the liveness of the whole transitive closure.
+      collector_->AddWeakCell(weak_cell);
+    }
+  }
+  int size = JSWeakCell::BodyDescriptor::SizeOf(map, weak_cell);
+  JSWeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
   return size;
 }
 

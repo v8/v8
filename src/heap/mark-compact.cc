@@ -29,6 +29,7 @@
 #include "src/heap/worklist.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-objects-inl.h"
 #include "src/transitions-inl.h"
 #include "src/utils-inl.h"
 #include "src/v8.h"
@@ -1859,14 +1860,19 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // cleared.
     ClearFullMapTransitions();
   }
-  ClearWeakReferences();
-  MarkDependentCodeForDeoptimization();
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
+    ClearWeakReferences();
+    ClearWeakCollections();
+    ClearJSWeakCells();
+  }
 
-  ClearWeakCollections();
+  MarkDependentCodeForDeoptimization();
 
   DCHECK(weak_objects_.transition_arrays.IsEmpty());
   DCHECK(weak_objects_.weak_references.IsEmpty());
   DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());
+  DCHECK(weak_objects_.js_weak_cells.IsEmpty());
 }
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
@@ -2082,6 +2088,52 @@ void MarkCompactCollector::ClearWeakReferences() {
   }
 }
 
+void MarkCompactCollector::ClearJSWeakCells() {
+  if (!FLAG_harmony_weak_refs) {
+    return;
+  }
+  JSWeakCell* weak_cell;
+  bool schedule_cleanup_task = false;
+  while (weak_objects_.js_weak_cells.Pop(kMainThread, &weak_cell)) {
+    // We do not insert cleared weak cells into the list, so the value
+    // cannot be a Smi here.
+    HeapObject* target = HeapObject::cast(weak_cell->target());
+    JSWeakFactory* weak_factory = weak_cell->factory();
+    if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
+      if (!weak_factory->NeedsCleanup()) {
+        // This is the first dirty JSWeakCell of that JSWeakFactory. Record
+        // the dirty JSWeakFactory in the native context.
+        isolate()->native_context()->AddDirtyJSWeakFactory(weak_factory,
+                                                           isolate());
+        schedule_cleanup_task = true;
+      }
+      // We're modifying the pointers in JSWeakCell and JSWeakFactory during GC;
+      // thus we need to record the slots it writes. The normal write barrier is
+      // not enough, since it's disabled before GC.
+      weak_cell->Nullify(isolate(),
+                         [](HeapObject* object, Object** slot, Object* target) {
+                           if (target->IsHeapObject()) {
+                             RecordSlot(object, slot, HeapObject::cast(target));
+                           }
+                         });
+      DCHECK(weak_factory->NeedsCleanup());
+    } else {
+      // The value of the JSWeakCell is alive.
+      Object** slot =
+          HeapObject::RawField(weak_cell, JSWeakCell::kTargetOffset);
+      RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
+    }
+  }
+  if (schedule_cleanup_task) {
+    // TODO(marja): Make this a microtask.
+    v8::Platform* platform = V8::GetCurrentPlatform();
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate());
+    platform->GetForegroundTaskRunner(v8_isolate)
+        ->PostTask(
+            std::unique_ptr<v8::Task>(new JSWeakFactoryCleanupTask(isolate())));
+  }
+}
+
 void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.transition_arrays.Clear();
   weak_objects_.ephemeron_hash_tables.Clear();
@@ -2090,6 +2142,7 @@ void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.discovered_ephemerons.Clear();
   weak_objects_.weak_references.Clear();
   weak_objects_.weak_objects_in_code.Clear();
+  weak_objects_.js_weak_cells.Clear();
 }
 
 void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,

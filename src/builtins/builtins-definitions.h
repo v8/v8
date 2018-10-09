@@ -1330,7 +1330,12 @@ namespace internal {
                                                                                \
   /* Trace */                                                                  \
   CPP(IsTraceCategoryEnabled)                                                  \
-  CPP(Trace)
+  CPP(Trace)                                                                   \
+                                                                               \
+  /* Weak refs */                                                              \
+  CPP(WeakFactoryCleanupIteratorNext)                                          \
+  CPP(WeakFactoryConstructor)                                                  \
+  CPP(WeakFactoryMakeCell)
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \

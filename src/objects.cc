@@ -81,6 +81,7 @@
 #include "src/objects/js-relative-time-format.h"
 #include "src/objects/js-segmenter.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/microtask-inl.h"
@@ -1438,6 +1439,10 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
     case JS_MAP_VALUE_ITERATOR_TYPE:
       return JSMapIterator::kSize;
+    case JS_WEAK_CELL_TYPE:
+      return JSWeakCell::kSize;
+    case JS_WEAK_FACTORY_TYPE:
+      return JSWeakFactory::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
     case JS_WEAK_SET_TYPE:
@@ -3219,6 +3224,8 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_PROMISE_TYPE:
     case JS_REGEXP_TYPE:
     case JS_REGEXP_STRING_ITERATOR_TYPE:
+    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
+    case JS_WEAK_FACTORY_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_V8_BREAK_ITERATOR_TYPE:
     case JS_INTL_COLLATOR_TYPE:
@@ -3240,6 +3247,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
       return kVisitJSApiObject;
+
+    case JS_WEAK_CELL_TYPE:
+      return kVisitJSWeakCell;
 
     case FILLER_TYPE:
     case FOREIGN_TYPE:
@@ -18815,6 +18825,55 @@ BaseNameDictionary<NameDictionary, NameDictionaryShape>::IterationIndices(
 template void
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
     Handle<NameDictionary> dictionary, KeyAccumulator* keys);
+
+void JSWeakFactoryCleanupTask::Run() {
+  DCHECK(FLAG_harmony_weak_refs);
+  HandleScope handle_scope(isolate_);
+  Handle<Context> native_context =
+      Handle<Context>::cast(Utils::OpenPersistent(native_context_));
+
+  while (native_context->dirty_js_weak_factories()->IsJSWeakFactory()) {
+    Handle<JSWeakFactory> weak_factory =
+        handle(JSWeakFactory::cast(native_context->dirty_js_weak_factories()),
+               isolate_);
+    native_context->set_dirty_js_weak_factories(weak_factory->next());
+    weak_factory->set_next(ReadOnlyRoots(isolate_).undefined_value());
+
+    // TODO(marja): After WeakCell.cleanup() is added, it's possible that it's
+    // called for something already in cleared_cells list. In that case, we
+    // shouldn't call the user's cleanup function.
+
+    // Construct the iterator.
+    Handle<JSWeakFactoryCleanupIterator> iterator;
+    {
+      Handle<Map> cleanup_iterator_map(
+          native_context->js_weak_factory_cleanup_iterator_map(), isolate_);
+      iterator = Handle<JSWeakFactoryCleanupIterator>::cast(
+          isolate_->factory()->NewJSObjectFromMap(
+              cleanup_iterator_map, NOT_TENURED,
+              Handle<AllocationSite>::null()));
+      iterator->set_factory(*weak_factory);
+    }
+    Handle<Object> cleanup(weak_factory->cleanup(), isolate_);
+
+    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate_));
+    v8::Local<v8::Value> result;
+    MaybeHandle<Object> exception;
+    Handle<Object> args[] = {iterator};
+    bool has_pending_exception = !ToLocal<Value>(
+        Execution::TryCall(
+            isolate_, cleanup,
+            handle(ReadOnlyRoots(isolate_).undefined_value(), isolate_), 1,
+            args, Execution::MessageHandling::kReport, &exception,
+            Execution::Target::kCallable),
+        &result);
+    // TODO(marja): (spec): What if there's an exception?
+    USE(has_pending_exception);
+
+    // TODO(marja): (spec): Should the iterator be invalidated after the
+    // function returns?
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

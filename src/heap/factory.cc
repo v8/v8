@@ -1360,6 +1360,8 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context->set_errors_thrown(Smi::kZero);
   context->set_math_random_index(Smi::kZero);
   context->set_serialized_objects(*empty_fixed_array());
+  context->set_dirty_js_weak_factories(
+      ReadOnlyRoots(isolate()).undefined_value());
   return context;
 }
 

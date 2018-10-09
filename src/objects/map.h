@@ -41,6 +41,7 @@ namespace internal {
   V(JSObject)                            \
   V(JSObjectFast)                        \
   V(JSTypedArray)                        \
+  V(JSWeakCell)                          \
   V(JSWeakCollection)                    \
   V(Map)                                 \
   V(NativeContext)                       \

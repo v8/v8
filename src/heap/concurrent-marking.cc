@@ -188,6 +188,29 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclass(map, object);
   }
 
+  int VisitJSWeakCell(Map* map, JSWeakCell* weak_cell) {
+    int size = VisitJSObjectSubclass(map, weak_cell);
+    if (size == 0) {
+      return 0;
+    }
+
+    if (weak_cell->target()->IsHeapObject()) {
+      HeapObject* target = HeapObject::cast(weak_cell->target());
+      if (marking_state_.IsBlackOrGrey(target)) {
+        // Record the slot inside the JSWeakCell, since the
+        // VisitJSObjectSubclass above didn't visit it.
+        Object** slot =
+            HeapObject::RawField(weak_cell, JSWeakCell::kTargetOffset);
+        MarkCompactCollector::RecordSlot(weak_cell, slot, target);
+      } else {
+        // JSWeakCell points to a potentially dead object. We have to process
+        // them when we know the liveness of the whole transitive closure.
+        weak_objects_->js_weak_cells.Push(task_id_, weak_cell);
+      }
+    }
+    return size;
+  }
+
   // Some JS objects can carry back links to embedders that contain information
   // relevant to the garbage collectors.
 
@@ -407,6 +430,11 @@ class ConcurrentMarkingVisitor final
       UNREACHABLE();
     }
 
+    void VisitCustomWeakPointers(HeapObject* host, Object** start,
+                                 Object** end) override {
+      DCHECK(host->IsJSWeakCell());
+    }
+
    private:
     SlotSnapshot* slot_snapshot_;
   };
@@ -624,6 +652,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     weak_objects_->next_ephemerons.FlushToGlobal(task_id);
     weak_objects_->discovered_ephemerons.FlushToGlobal(task_id);
     weak_objects_->weak_references.FlushToGlobal(task_id);
+    weak_objects_->js_weak_cells.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
 

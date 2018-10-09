@@ -6,6 +6,7 @@
 #define V8_API_INL_H_
 
 #include "src/api.h"
+#include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/stack-frame-info.h"
 

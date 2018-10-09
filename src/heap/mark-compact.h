@@ -21,6 +21,7 @@ namespace internal {
 class EvacuationJobTraits;
 class HeapObjectVisitor;
 class ItemParallelJob;
+class JSWeakCell;
 class MigrationObserver;
 class RecordMigratedSlotVisitor;
 class UpdatingItem;
@@ -436,6 +437,8 @@ struct WeakObjects {
   // object. Optimize this by adding a different storage for old space.
   Worklist<std::pair<HeapObject*, HeapObjectReference**>, 64> weak_references;
   Worklist<std::pair<HeapObject*, Code*>, 64> weak_objects_in_code;
+
+  Worklist<JSWeakCell*, 64> js_weak_cells;
 };
 
 struct EphemeronMarking {
@@ -670,6 +673,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                             std::make_pair(object, code));
   }
 
+  void AddWeakCell(JSWeakCell* weak_cell) {
+    weak_objects_.js_weak_cells.Push(kMainThread, weak_cell);
+  }
+
   void AddNewlyDiscovered(HeapObject* object) {
     if (ephemeron_marking_.newly_discovered_overflowed) return;
 
@@ -812,6 +819,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // the dead map via weak cell, then this function also clears the map
   // transition.
   void ClearWeakReferences();
+
+  // Goes through the list of encountered JSWeakCells and clears those with dead
+  // values.
+  void ClearJSWeakCells();
+
   void AbortWeakObjects();
 
   // Starts sweeping of spaces by contributing on the main thread and setting
@@ -918,6 +930,7 @@ class MarkingVisitor final
   V8_INLINE int VisitJSTypedArray(Map* map, JSTypedArray* object);
   V8_INLINE int VisitMap(Map* map, Map* object);
   V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);
+  V8_INLINE int VisitJSWeakCell(Map* map, JSWeakCell* object);
 
   // ObjectVisitor implementation.
   V8_INLINE void VisitPointer(HeapObject* host, Object** p) final;

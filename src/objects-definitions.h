@@ -202,6 +202,9 @@ namespace internal {
   V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                                \
   V(JS_SET_VALUE_ITERATOR_TYPE)                                    \
   V(JS_STRING_ITERATOR_TYPE)                                       \
+  V(JS_WEAK_CELL_TYPE)                                             \
+  V(JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE)                         \
+  V(JS_WEAK_FACTORY_TYPE)                                          \
   V(JS_WEAK_MAP_TYPE)                                              \
   V(JS_WEAK_SET_TYPE)                                              \
   V(JS_TYPED_ARRAY_TYPE)                                           \

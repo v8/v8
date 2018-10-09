@@ -44,6 +44,7 @@
 #include "src/objects/js-relative-time-format.h"
 #include "src/objects/js-segmenter.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/templates.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
@@ -4535,6 +4536,87 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
                                   isolate());
     InstallConstant(isolate(), symbol_fun, "matchAll",
                     factory()->match_all_symbol());
+  }
+}
+
+void Genesis::InitializeGlobal_harmony_weak_refs() {
+  if (!FLAG_harmony_weak_refs) return;
+
+  Factory* factory = isolate()->factory();
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+
+  {
+    // Create %WeakFactoryPrototype%
+    Handle<String> weak_factory_name = factory->WeakFactory_string();
+    Handle<JSObject> weak_factory_prototype =
+        factory->NewJSObject(isolate()->object_function(), TENURED);
+
+    // Create %WeakFactory%
+    Handle<JSFunction> weak_factory_fun =
+        CreateFunction(isolate(), weak_factory_name, JS_WEAK_FACTORY_TYPE,
+                       JSWeakFactory::kSize, 0, weak_factory_prototype,
+                       Builtins::kWeakFactoryConstructor);
+
+    weak_factory_fun->shared()->DontAdaptArguments();
+    weak_factory_fun->shared()->set_length(1);
+
+    // Install the "constructor" property on the prototype.
+    JSObject::AddProperty(isolate(), weak_factory_prototype,
+                          factory->constructor_string(), weak_factory_fun,
+                          DONT_ENUM);
+
+    JSObject::AddProperty(
+        isolate(), weak_factory_prototype, factory->to_string_tag_symbol(),
+        weak_factory_name,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    JSObject::AddProperty(isolate(), global, weak_factory_name,
+                          weak_factory_fun, DONT_ENUM);
+
+    Handle<String> make_cell_name = factory->makeCell_string();
+    SimpleInstallFunction(isolate(), weak_factory_prototype, make_cell_name,
+                          Builtins::kWeakFactoryMakeCell, 2, false);
+  }
+  {
+    // Create %WeakCellPrototype%
+    Handle<Map> weak_cell_map =
+        factory->NewMap(JS_WEAK_CELL_TYPE, JSWeakCell::kSize);
+    native_context()->set_js_weak_cell_map(*weak_cell_map);
+
+    Handle<JSObject> weak_cell_prototype =
+        factory->NewJSObject(isolate()->object_function(), TENURED);
+    Map::SetPrototype(isolate(), weak_cell_map, weak_cell_prototype);
+
+    // TODO(marja): install functions here.
+    JSObject::AddProperty(
+        isolate(), weak_cell_prototype, factory->to_string_tag_symbol(),
+        factory->WeakCell_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  }
+
+  {
+    // Create cleanup iterator for JSWeakFactory.
+    Handle<JSObject> iterator_prototype(
+        native_context()->initial_iterator_prototype(), isolate());
+
+    Handle<JSObject> cleanup_iterator_prototype =
+        factory->NewJSObject(isolate()->object_function(), TENURED);
+    JSObject::ForceSetPrototype(cleanup_iterator_prototype, iterator_prototype);
+
+    JSObject::AddProperty(
+        isolate(), cleanup_iterator_prototype, factory->to_string_tag_symbol(),
+        factory->NewStringFromAsciiChecked("JSWeakFactoryCleanupIterator"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    SimpleInstallFunction(isolate(), cleanup_iterator_prototype, "next",
+                          Builtins::kWeakFactoryCleanupIteratorNext, 0, true);
+    Handle<Map> cleanup_iterator_map =
+        factory->NewMap(JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE,
+                        JSWeakFactoryCleanupIterator::kSize);
+    Map::SetPrototype(isolate(), cleanup_iterator_map,
+                      cleanup_iterator_prototype);
+    native_context()->set_js_weak_factory_cleanup_iterator_map(
+        *cleanup_iterator_map);
   }
 }
 

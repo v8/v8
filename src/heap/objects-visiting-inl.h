@@ -13,6 +13,7 @@
 #include "src/macro-assembler.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-weak-refs-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -59,6 +60,8 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
       return visitor->VisitFreeSpace(map, FreeSpace::cast(object));
     case kVisitWeakArray:
       return visitor->VisitWeakArray(map, object);
+    case kVisitJSWeakCell:
+      return visitor->VisitJSWeakCell(map, JSWeakCell::cast(object));
     case kVisitorIdCount:
       UNREACHABLE();
   }
