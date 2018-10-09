@@ -69,6 +69,8 @@ class ThreadedListBase final : public BaseClass {
   }
 
   void Append(ThreadedListBase&& list) {
+    if (list.is_empty()) return;
+
     *tail_ = list.head_;
     tail_ = list.tail_;
     list.Clear();

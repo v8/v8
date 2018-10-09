@@ -166,6 +166,23 @@ TEST_F(ThreadedListTest, Append) {
   CHECK_EQ(list.end(), initial_extra_list_end);
 }
 
+TEST_F(ThreadedListTest, AppendOutOfScope) {
+  ThreadedListTestNode local_extra_test_node_0;
+  CHECK_EQ(list.LengthForTest(), 5);
+  {
+    ThreadedList<ThreadedListTestNode, ThreadedListTestNode::OtherTraits>
+        scoped_extra_test_list;
+
+    list.Append(std::move(scoped_extra_test_list));
+  }
+  list.Add(&local_extra_test_node_0);
+
+  list.Verify();
+  CHECK_EQ(list.LengthForTest(), 6);
+  CHECK_EQ(list.AtForTest(4), &nodes[4]);
+  CHECK_EQ(list.AtForTest(5), &local_extra_test_node_0);
+}
+
 TEST_F(ThreadedListTest, Prepend) {
   CHECK_EQ(list.LengthForTest(), 5);
   list.Prepend(std::move(extra_test_list));
