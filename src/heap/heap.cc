@@ -982,6 +982,8 @@ void Heap::HandleGCRequest() {
 
 
 void Heap::ScheduleIdleScavengeIfNeeded(int bytes_allocated) {
+  DCHECK(FLAG_idle_time_scavenge);
+  DCHECK_NOT_NULL(scavenge_job_);
   scavenge_job_->ScheduleIdleTaskIfNeeded(this, bytes_allocated);
 }
 
@@ -4387,7 +4389,6 @@ void Heap::SetUp() {
     live_object_stats_ = new ObjectStats(this);
     dead_object_stats_ = new ObjectStats(this);
   }
-  scavenge_job_ = new ScavengeJob();
   local_embedder_heap_tracer_ = new LocalEmbedderHeapTracer(isolate());
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
@@ -4402,9 +4403,12 @@ void Heap::SetUp() {
   }
 #endif  // ENABLE_MINOR_MC
 
-  idle_scavenge_observer_ = new IdleScavengeObserver(
-      *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
-  new_space()->AddAllocationObserver(idle_scavenge_observer_);
+  if (FLAG_idle_time_scavenge) {
+    scavenge_job_ = new ScavengeJob();
+    idle_scavenge_observer_ = new IdleScavengeObserver(
+        *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
+    new_space()->AddAllocationObserver(idle_scavenge_observer_);
+  }
 
   SetGetExternallyAllocatedMemoryInBytesCallback(
       DefaultGetExternallyAllocatedMemoryInBytesCallback);
@@ -4568,9 +4572,13 @@ void Heap::TearDown() {
     }
   }
 
-  new_space()->RemoveAllocationObserver(idle_scavenge_observer_);
-  delete idle_scavenge_observer_;
-  idle_scavenge_observer_ = nullptr;
+  if (FLAG_idle_time_scavenge) {
+    new_space()->RemoveAllocationObserver(idle_scavenge_observer_);
+    delete idle_scavenge_observer_;
+    idle_scavenge_observer_ = nullptr;
+    delete scavenge_job_;
+    scavenge_job_ = nullptr;
+  }
 
   if (FLAG_stress_marking > 0) {
     RemoveAllocationObserversFromAllSpaces(stress_marking_observer_,
@@ -4640,9 +4648,6 @@ void Heap::TearDown() {
 
   delete local_embedder_heap_tracer_;
   local_embedder_heap_tracer_ = nullptr;
-
-  delete scavenge_job_;
-  scavenge_job_ = nullptr;
 
   external_string_table_.TearDown();
 

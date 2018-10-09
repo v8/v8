@@ -825,6 +825,8 @@ DEFINE_BOOL(young_generation_large_objects, false,
             "allocates large objects by default in the young generation large "
             "object space")
 
+DEFINE_BOOL(idle_time_scavenge, true, "Perform scavenges in idle time.")
+
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
             "generate extra code (assertions) for debugging")
@@ -1392,6 +1394,15 @@ DEFINE_IMPLICATION(predictable, single_threaded)
 DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
 DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
+
+DEFINE_BOOL(predictable_gc_schedule, false,
+            "Predictable garbage collection schedule. Fixes heap growing, "
+            "idle, and memory reducing behavior.")
+DEFINE_VALUE_IMPLICATION(predictable_gc_schedule, min_semi_space_size, 4)
+DEFINE_VALUE_IMPLICATION(predictable_gc_schedule, max_semi_space_size, 4)
+DEFINE_VALUE_IMPLICATION(predictable_gc_schedule, heap_growing_percent, 30)
+DEFINE_NEG_IMPLICATION(predictable_gc_schedule, idle_time_scavenge)
+DEFINE_NEG_IMPLICATION(predictable_gc_schedule, memory_reducer)
 
 //
 // Threading related flags.
