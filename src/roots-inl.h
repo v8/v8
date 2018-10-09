@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE constexpr bool operator<(RootIndex lhs, RootIndex rhs) {
+V8_INLINE bool operator<(RootIndex lhs, RootIndex rhs) {
   typedef typename std::underlying_type<RootIndex>::type type;
   return static_cast<type>(lhs) < static_cast<type>(rhs);
 }
@@ -68,6 +68,25 @@ bool RootsTable::IsImmortalImmovable(RootIndex root_index) {
     default:
       return false;
   }
+}
+
+Object** RootsTable::read_only_roots_end() {
+// Enumerate the read-only roots into an expression of the form:
+// (root_1, root_2, root_3, ..., root_n)
+// This evaluates to root_n, but Clang warns that the other values in the list
+// are unused so suppress that warning.
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-value"
+#endif
+#define ROOT(type, name, CamelName) , RootIndex::k##CamelName
+  constexpr RootIndex kLastReadOnlyRoot =
+      (RootIndex::kFirstRoot READ_ONLY_ROOT_LIST(ROOT));
+#undef ROOT
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+  return &roots_[static_cast<size_t>(kLastReadOnlyRoot) + 1];
 }
 
 }  // namespace internal

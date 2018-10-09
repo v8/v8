@@ -60,6 +60,9 @@ class Symbol;
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   /* Entries beyond the first 32                                            */ \
+  /* The roots above this line should be boring from a GC point of view.    */ \
+  /* This means they are never in new space and never on a page that is     */ \
+  /* being compacted.*/                                                        \
   /* Oddballs */                                                               \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   V(Oddball, exception, Exception)                                             \
@@ -365,17 +368,6 @@ enum class RootIndex : uint16_t {
   kFirstStrongRoot = kFirstRoot,
   kLastStrongRoot = kStringTable - 1,
 
-#define ROOT(...) +1
-  kReadOnlyRootsCount = 0 READ_ONLY_ROOT_LIST(ROOT),
-#undef ROOT
-  kFirstReadOnlyRoot = kFirstRoot,
-  kLastReadOnlyRoot = kFirstReadOnlyRoot + kReadOnlyRootsCount - 1,
-
-  kFirstImmortalImmovableRoot = kFirstReadOnlyRoot,
-  // TODO(ishell): reorder the STRONG_MUTABLE_ROOT_LIST and set this constant to
-  // correct value.
-  kLastImmortalImmovableRoot = kLastReadOnlyRoot,
-
   kFirstSmiRoot = kStringTable + 1,
   kLastSmiRoot = kLastRoot
 };
@@ -416,11 +408,9 @@ class RootsTable {
 
  private:
   Object** read_only_roots_begin() {
-    return &roots_[static_cast<size_t>(RootIndex::kFirstReadOnlyRoot)];
+    return &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)];
   }
-  inline Object** read_only_roots_end() {
-    return &roots_[static_cast<size_t>(RootIndex::kLastReadOnlyRoot) + 1];
-  }
+  inline Object** read_only_roots_end();
 
   Object** strong_roots_begin() {
     return &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)];

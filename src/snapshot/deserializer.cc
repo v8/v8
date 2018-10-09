@@ -659,12 +659,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         break;
       }
 
-      // First kNumberOfRootArrayConstants roots are guaranteed to be in
-      // the old space.
-      STATIC_ASSERT(
-          static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) == 0);
-      STATIC_ASSERT(kNumberOfRootArrayConstants <=
-                    static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
+      STATIC_ASSERT(kNumberOfRootArrayConstants == Heap::kOldSpaceRoots);
       STATIC_ASSERT(kNumberOfRootArrayConstants == 32);
       SIXTEEN_CASES(kRootArrayConstantsWithSkip)
       SIXTEEN_CASES(kRootArrayConstantsWithSkip + 16) {
