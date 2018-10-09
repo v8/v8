@@ -68,7 +68,7 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
   // queue. This is necessary because we have to reset the unique_ptr when we
   // remove a DelayedEntry from the priority queue.
   struct DelayedEntryCompare {
-    bool operator()(DelayedEntry& left, DelayedEntry& right) {
+    bool operator()(const DelayedEntry& left, const DelayedEntry& right) const {
       return left.first > right.first;
     }
   };
