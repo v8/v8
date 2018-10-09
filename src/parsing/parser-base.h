@@ -1673,7 +1673,6 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
   auto result = ParseAndClassifyIdentifier(CHECK_OK_CUSTOM(NullIdentifier));
 
   if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers) {
-    ValidateAssignmentPattern(CHECK_OK_CUSTOM(NullIdentifier));
     ValidateBindingPattern(CHECK_OK_CUSTOM(NullIdentifier));
   }
 
