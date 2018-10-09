@@ -2710,8 +2710,20 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
               ->RangesDefinedInDeferredStayInDeferred());
   }
 
+  if (info()->trace_turbo_json_enabled() && !data->MayHaveUnverifiableGraph()) {
+    TurboCfgFile tcf(isolate());
+    tcf << AsC1VRegisterAllocationData("PreAllocation",
+                                       data->register_allocation_data());
+  }
+
   if (FLAG_turbo_preprocess_ranges) {
     Run<SplinterLiveRangesPhase>();
+    if (info()->trace_turbo_json_enabled() &&
+        !data->MayHaveUnverifiableGraph()) {
+      TurboCfgFile tcf(isolate());
+      tcf << AsC1VRegisterAllocationData("PostSplinter",
+                                         data->register_allocation_data());
+    }
   }
 
   Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();

@@ -774,8 +774,11 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
       }
     }
 
-    // The toplevel range is always suffixed with :0. Use that as parent.
-    os_ << " " << vreg << ":0";
+    // The toplevel range might be a splinter. Pre-resolve those here so that
+    // they have a proper parent.
+    const TopLevelLiveRange* parent = range->TopLevel();
+    if (parent->IsSplinter()) parent = parent->splintered_from();
+    os_ << " " << parent->vreg() << ":" << parent->relative_id();
 
     // TODO(herhut) Find something useful to print for the hint field
     os_ << " unknown";
