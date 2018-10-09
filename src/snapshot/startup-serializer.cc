@@ -33,17 +33,9 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     return;
   }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
-
-  RootIndex root_index;
-  // We can only encode roots as such if it has already been serialized.
-  // That applies to root indices below the wave front.
-  if (root_index_map()->Lookup(obj, &root_index)) {
-    if (root_has_been_serialized(root_index)) {
-      PutRoot(root_index, obj, how_to_code, where_to_point, skip);
-      return;
-    }
-  }
-
+  if (IsRootAndHasBeenSerialized(obj) &&
+      SerializeRoot(obj, how_to_code, where_to_point, skip))
+    return;
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
   FlushSkip(skip);

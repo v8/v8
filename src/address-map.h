@@ -57,7 +57,7 @@ class RootIndexMap {
   explicit RootIndexMap(Isolate* isolate);
 
   // Returns true on successful lookup and sets *|out_root_list|.
-  bool Lookup(HeapObject* obj, RootIndex* out_root_list) {
+  bool Lookup(HeapObject* obj, RootIndex* out_root_list) const {
     Maybe<uint32_t> maybe_index = map_->Get(obj);
     if (maybe_index.IsJust()) {
       *out_root_list = static_cast<RootIndex>(maybe_index.FromJust());
