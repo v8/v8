@@ -172,6 +172,7 @@ let kExprElse = 0x05;
 let kExprTry = 0x06;
 let kExprCatch = 0x07;
 let kExprThrow = 0x08;
+let kExprCatchAll = 0x0a;
 let kExprEnd = 0x0b;
 let kExprBr = 0x0c;
 let kExprBrIf = 0x0d;

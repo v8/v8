@@ -1818,10 +1818,16 @@ class LiftoffCompiler {
              Control* block, const Vector<Value>& args) {
     unsupported(decoder, "throw");
   }
+  void Rethrow(FullDecoder* decoder, Control* block) {
+    unsupported(decoder, "rethrow");
+  }
   void CatchException(FullDecoder* decoder,
                       const ExceptionIndexImmediate<validate>& imm,
                       Control* block, Vector<Value> caught_values) {
     unsupported(decoder, "catch");
+  }
+  void CatchAll(FullDecoder* decoder, Control* block) {
+    unsupported(decoder, "catch-all");
   }
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {

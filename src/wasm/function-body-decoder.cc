@@ -407,13 +407,6 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(Simd8x16ShuffleOp, imm.shuffle, input_nodes);
   }
 
-  TFNode* GetExceptionTag(FullDecoder* decoder,
-                          const ExceptionIndexImmediate<validate>& imm) {
-    // TODO(kschimpf): Need to get runtime exception tag values. This
-    // code only handles non-imported/exported exceptions.
-    return BUILD(Int32Constant, imm.index);
-  }
-
   void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>& imm,
              Control* block, const Vector<Value>& value_args) {
     int count = value_args.length();
@@ -424,6 +417,18 @@ class WasmGraphBuildingInterface {
     BUILD(Throw, imm.index, imm.exception, vec2vec(args));
     Unreachable(decoder);
     EndControl(decoder, block);
+  }
+
+  void Rethrow(FullDecoder* decoder, Control* block) {
+    TFNode* exception = block->try_info->exception;
+    // TODO(mstarzinger): The below check is a workaround because we still
+    // determine reachability via the SSA environment. This should be done via
+    // the control stack reachability instead.
+    if (exception != nullptr) {
+      BUILD(Rethrow, exception);
+      Unreachable(decoder);
+      EndControl(decoder, block);
+    }
   }
 
   void CatchException(FullDecoder* decoder,
@@ -454,15 +459,7 @@ class WasmGraphBuildingInterface {
     if_no_catch_env->control = if_no_catch;
     SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
     if_catch_env->control = if_catch;
-
-    SetEnv(if_no_catch_env);
-    if (exception != nullptr) {
-      // TODO(kschimpf): Generalize to allow more catches. Will force
-      // moving no_catch code to END opcode.
-      BUILD(Rethrow, exception);
-      Unreachable(decoder);
-      EndControl(decoder, block);
-    }
+    block->try_info->catch_env = if_no_catch_env;
 
     SetEnv(if_catch_env);
     if (exception != nullptr) {
@@ -474,6 +471,12 @@ class WasmGraphBuildingInterface {
         values[i].node = caught_values[i];
       }
     }
+  }
+
+  void CatchAll(FullDecoder* decoder, Control* block) {
+    DCHECK(block->is_try_catchall() || block->is_try_catch());
+    SsaEnv* catch_env = block->try_info->catch_env;
+    SetEnv(catch_env);
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,

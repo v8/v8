@@ -29,6 +29,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // First we just test that "except_ref" local variables are allowed.
 (function TestLocalExceptRef() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction("push_and_drop_except_ref", kSig_v_v)
       .addBody([
@@ -42,6 +43,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // The following method doesn't attempt to catch an raised exception.
 (function TestThrowSimple() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_v);
   builder.addFunction("throw_if_param_not_zero", kSig_i_i)
@@ -63,6 +65,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test that empty try/catch blocks work.
 (function TestCatchEmptyBlocks() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_v);
   builder.addFunction("catch_empty_try", kSig_v_v)
@@ -78,6 +81,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Now that we know throwing works, we test catching the exceptions we raise.
 (function TestCatchSimple() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_v);
   builder.addFunction("simple_throw_catch_to_0_1", kSig_i_i)
@@ -101,6 +105,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test that we can distinguish which exception was thrown.
 (function TestCatchComplex() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except1 = builder.addException(kSig_v_v);
   let except2 = builder.addException(kSig_v_v);
@@ -140,6 +145,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test throwing an exception with multiple values.
 (function TestThrowMultipleValues() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_ii);
   builder.addFunction("throw_1_2", kSig_v_v)
@@ -155,6 +161,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test throwing/catching the i32 parameter value.
 (function TestThrowCatchParamI() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_i);
   builder.addFunction("throw_catch_param", kSig_i_i)
@@ -176,6 +183,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test the encoding of a thrown exception with an integer exception.
 (function TestThrowParamI() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_i);
   builder.addFunction("throw_param", kSig_v_i)
@@ -191,6 +199,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test throwing/catching the f32 parameter value.
 (function TestThrowCatchParamF() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_f);
   builder.addFunction("throw_catch_param", kSig_f_f)
@@ -211,6 +220,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test the encoding of a thrown exception with a float value.
 (function TestThrowParamF() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_f);
   builder.addFunction("throw_param", kSig_v_f)
@@ -226,6 +236,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test throwing/catching an I64 value
 (function TestThrowCatchParamL() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_l);
   builder.addFunction("throw_catch_param", kSig_i_i)
@@ -258,6 +269,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test the encoding of a thrown exception with an I64 value.
 (function TestThrowParamL() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_l);
   builder.addFunction("throw_param", kSig_v_ii)
@@ -279,6 +291,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test throwing/catching the F64 parameter value
 (function TestThrowCatchParamD() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_d);
   builder.addFunction("throw_catch_param", kSig_d_d)
@@ -299,6 +312,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test the encoding of a thrown exception with an f64 value.
 (function TestThrowParamD() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_d);
   builder.addFunction("throw_param", kSig_v_f)
@@ -315,6 +329,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 
 // Test the encoding of a computed parameter value.
 (function TestThrowParamComputed() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_i);
   builder.addFunction("throw_expr_with_params", kSig_v_ddi)
@@ -341,6 +356,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
 // Now that we know catching works locally, we test catching exceptions that
 // cross function boundaries and/or raised by JavaScript.
 (function TestCatchCrossFunctions() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_i);
 

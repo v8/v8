@@ -660,10 +660,12 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
     const Value& input, Value* result)                                        \
   F(Simd8x16ShuffleOp, const Simd8x16ShuffleImmediate<validate>& imm,         \
     const Value& input0, const Value& input1, Value* result)                  \
-  F(Throw, const ExceptionIndexImmediate<validate>&, Control* block,          \
+  F(Throw, const ExceptionIndexImmediate<validate>& imm, Control* block,      \
     const Vector<Value>& args)                                                \
+  F(Rethrow, Control* block)                                                  \
   F(CatchException, const ExceptionIndexImmediate<validate>& imm,             \
     Control* block, Vector<Value> caught_values)                              \
+  F(CatchAll, Control* block)                                                 \
   F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                          \
     const MemoryAccessImmediate<validate>& imm, Value* result)
 
@@ -1549,6 +1551,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               break;
             }
             c->kind = kControlTryCatchAll;
+            FallThruTo(c);
+            stack_.resize(c->stack_depth);
+            CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
             // TODO(mstarzinger): Implement control flow for catch-all.
             break;
           }
@@ -1614,6 +1619,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               CALL_INTERFACE_IF_PARENT_REACHABLE(Else, c);
               PushMergeValues(c, &c->start_merge);
               c->reachability = control_at(1)->innerReachability();
+            }
+            if (c->is_try_catch()) {
+              // Emulate catch-all + re-throw.
+              FallThruTo(c);
+              CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
+              CALL_INTERFACE_IF_PARENT_REACHABLE(Rethrow, c);
             }
 
             FallThruTo(c);
