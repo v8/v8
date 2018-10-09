@@ -736,8 +736,8 @@ void Heap::CreateInitialObjects() {
     to_string_tag_symbol->set_is_interesting_symbol(true);
   }
 
-  Handle<NameDictionary> empty_property_dictionary =
-      NameDictionary::New(isolate(), 1, TENURED, USE_CUSTOM_MINIMUM_CAPACITY);
+  Handle<NameDictionary> empty_property_dictionary = NameDictionary::New(
+      isolate(), 1, TENURED_READ_ONLY, USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!empty_property_dictionary->HasSufficientCapacityToAdd(1));
   set_empty_property_dictionary(*empty_property_dictionary);
 

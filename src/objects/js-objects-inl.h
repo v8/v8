@@ -764,13 +764,12 @@ NumberDictionary* JSObject::element_dictionary() {
 }
 
 void JSReceiver::initialize_properties() {
-  Heap* heap = GetHeap();
-  ReadOnlyRoots roots(heap);
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(!Heap::InNewSpace(roots.empty_fixed_array()));
-  DCHECK(!Heap::InNewSpace(heap->empty_property_dictionary()));
+  DCHECK(!Heap::InNewSpace(roots.empty_property_dictionary()));
   if (map()->is_dictionary_map()) {
     WRITE_FIELD(this, kPropertiesOrHashOffset,
-                heap->empty_property_dictionary());
+                roots.empty_property_dictionary());
   } else {
     WRITE_FIELD(this, kPropertiesOrHashOffset, roots.empty_fixed_array());
   }
@@ -789,7 +788,7 @@ NameDictionary* JSReceiver::property_dictionary() const {
 
   Object* prop = raw_properties_or_hash();
   if (prop->IsSmi()) {
-    return GetHeap()->empty_property_dictionary();
+    return GetReadOnlyRoots().empty_property_dictionary();
   }
 
   return NameDictionary::cast(prop);

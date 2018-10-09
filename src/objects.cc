@@ -6711,16 +6711,14 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
 
 namespace {
 
-Object* SetHashAndUpdateProperties(Isolate* isolate, HeapObject* properties,
-                                   int hash) {
+Object* SetHashAndUpdateProperties(HeapObject* properties, int hash) {
   DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
   DCHECK(PropertyArray::HashField::is_valid(hash));
 
-  Heap* heap = isolate->heap();
-  ReadOnlyRoots roots(heap);
+  ReadOnlyRoots roots = properties->GetReadOnlyRoots();
   if (properties == roots.empty_fixed_array() ||
       properties == roots.empty_property_array() ||
-      properties == heap->empty_property_dictionary()) {
+      properties == roots.empty_property_dictionary()) {
     return Smi::FromInt(hash);
   }
 
@@ -6740,7 +6738,7 @@ Object* SetHashAndUpdateProperties(Isolate* isolate, HeapObject* properties,
   return properties;
 }
 
-int GetIdentityHashHelper(Isolate* isolate, JSReceiver* object) {
+int GetIdentityHashHelper(JSReceiver* object) {
   DisallowHeapAllocation no_gc;
   Object* properties = object->raw_properties_or_hash();
   if (properties->IsSmi()) {
@@ -6760,11 +6758,9 @@ int GetIdentityHashHelper(Isolate* isolate, JSReceiver* object) {
   }
 
 #ifdef DEBUG
-  FixedArray* empty_fixed_array = ReadOnlyRoots(isolate).empty_fixed_array();
-  FixedArray* empty_property_dictionary =
-      isolate->heap()->empty_property_dictionary();
-  DCHECK(properties == empty_fixed_array ||
-         properties == empty_property_dictionary);
+  ReadOnlyRoots roots = object->GetReadOnlyRoots();
+  DCHECK(properties == roots.empty_fixed_array() ||
+         properties == roots.empty_property_dictionary());
 #endif
 
   return PropertyArray::kNoHashSentinel;
@@ -6778,7 +6774,7 @@ void JSReceiver::SetIdentityHash(int hash) {
 
   HeapObject* existing_properties = HeapObject::cast(raw_properties_or_hash());
   Object* new_properties =
-      SetHashAndUpdateProperties(GetIsolate(), existing_properties, hash);
+      SetHashAndUpdateProperties(existing_properties, hash);
   set_raw_properties_or_hash(new_properties);
 }
 
@@ -6787,25 +6783,24 @@ void JSReceiver::SetProperties(HeapObject* properties) {
                      PropertyArray::cast(properties)->length() == 0,
                  properties == GetReadOnlyRoots().empty_property_array());
   DisallowHeapAllocation no_gc;
-  Isolate* isolate = GetIsolate();
-  int hash = GetIdentityHashHelper(isolate, this);
+  int hash = GetIdentityHashHelper(this);
   Object* new_properties = properties;
 
   // TODO(cbruni): Make GetIdentityHashHelper return a bool so that we
   // don't have to manually compare against kNoHashSentinel.
   if (hash != PropertyArray::kNoHashSentinel) {
-    new_properties = SetHashAndUpdateProperties(isolate, properties, hash);
+    new_properties = SetHashAndUpdateProperties(properties, hash);
   }
 
   set_raw_properties_or_hash(new_properties);
 }
 
-Object* JSReceiver::GetIdentityHash(Isolate* isolate) {
+Object* JSReceiver::GetIdentityHash() {
   DisallowHeapAllocation no_gc;
 
-  int hash = GetIdentityHashHelper(isolate, this);
+  int hash = GetIdentityHashHelper(this);
   if (hash == PropertyArray::kNoHashSentinel) {
-    return ReadOnlyRoots(isolate).undefined_value();
+    return GetReadOnlyRoots().undefined_value();
   }
 
   return Smi::FromInt(hash);
@@ -6824,9 +6819,9 @@ Smi* JSReceiver::CreateIdentityHash(Isolate* isolate, JSReceiver* key) {
 Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
 
-  Object* hash_obj = GetIdentityHash(isolate);
-  if (!hash_obj->IsUndefined(isolate)) {
-    return Smi::cast(hash_obj);
+  int hash = GetIdentityHashHelper(this);
+  if (hash != PropertyArray::kNoHashSentinel) {
+    return Smi::FromInt(hash);
   }
 
   return JSReceiver::CreateIdentityHash(isolate, this);
@@ -17680,9 +17675,12 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
   // SetNextEnumerationIndex.
   int index = dictionary->NextEnumerationIndex();
   details = details.set_index(index);
+  dictionary = AddNoUpdateNextEnumerationIndex(isolate, dictionary, key, value,
+                                               details, entry_out);
+  // Update enumeration index here in order to avoid potential modification of
+  // the canonical empty dictionary which lives in read only space.
   dictionary->SetNextEnumerationIndex(index + 1);
-  return AddNoUpdateNextEnumerationIndex(isolate, dictionary, key, value,
-                                         details, entry_out);
+  return dictionary;
 }
 
 template <typename Derived, typename Shape>

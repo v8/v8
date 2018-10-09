@@ -1943,8 +1943,7 @@ Object* Object::GetHash() {
 
   DCHECK(IsJSReceiver());
   JSReceiver* receiver = JSReceiver::cast(this);
-  Isolate* isolate = receiver->GetIsolate();
-  return receiver->GetIdentityHash(isolate);
+  return receiver->GetIdentityHash();
 }
 
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {

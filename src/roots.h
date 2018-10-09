@@ -197,6 +197,7 @@ class Symbol;
   V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
   V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
+  V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
@@ -256,7 +257,6 @@ class Symbol;
   V(FixedArray, string_split_cache, StringSplitCache)                        \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                  \
   /* Lists and dictionaries */                                               \
-  V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)      \
   V(NameDictionary, public_symbol_table, PublicSymbolTable)                  \
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                        \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)         \

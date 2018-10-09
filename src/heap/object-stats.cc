@@ -750,7 +750,7 @@ bool ObjectStatsCollectorImpl::CanRecordFixedArray(FixedArrayBase* array) {
   return array != roots.empty_fixed_array() &&
          array != roots.empty_sloppy_arguments_elements() &&
          array != roots.empty_slow_element_dictionary() &&
-         array != heap_->empty_property_dictionary();
+         array != roots.empty_property_dictionary();
 }
 
 bool ObjectStatsCollectorImpl::IsCowArray(FixedArrayBase* array) {

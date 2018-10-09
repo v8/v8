@@ -8,7 +8,6 @@
 #include "src/objects/hash-table.h"
 
 #include "src/heap/heap.h"
-#include "src/objects-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/roots-inl.h"
 

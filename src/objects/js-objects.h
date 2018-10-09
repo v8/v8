@@ -224,7 +224,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  Object* GetIdentityHash(Isolate* isolate);
+  Object* GetIdentityHash();
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.

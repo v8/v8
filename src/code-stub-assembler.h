@@ -28,8 +28,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 #define HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V)                              \
   V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector) \
-  V(EmptyPropertyDictionary, empty_property_dictionary,                    \
-    EmptyPropertyDictionary)                                               \
   V(PromiseSpeciesProtector, promise_species_protector,                    \
     PromiseSpeciesProtector)                                               \
   V(TypedArraySpeciesProtector, typed_array_species_protector,             \
@@ -44,6 +42,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(BooleanMap, boolean_map, BooleanMap)                                     \
   V(CodeMap, code_map, CodeMap)                                              \
   V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                     \
+  V(EmptyPropertyDictionary, empty_property_dictionary,                      \
+    EmptyPropertyDictionary)                                                 \
   V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
     EmptySlowElementDictionary)                                              \
   V(empty_string, empty_string, EmptyString)                                 \
