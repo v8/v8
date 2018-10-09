@@ -1079,7 +1079,7 @@ class ParserBase {
   ExpressionT ParseRegExpLiteral(bool* ok);
 
   ExpressionT ParseBindingPattern(bool* ok);
-  ExpressionT ParsePrimaryExpression(bool* is_async, bool* ok);
+  V8_INLINE ExpressionT ParsePrimaryExpression(bool* is_async, bool* ok);
 
   // Use when parsing an expression that is known to not be a pattern or part
   // of a pattern.
@@ -1128,7 +1128,10 @@ class ParserBase {
   V8_INLINE ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
   ExpressionT ParseConditionalContinuation(ExpressionT expression,
                                            bool accept_IN, int pos, bool* ok);
-  ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
+  ExpressionT ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
+                                      bool accept_IN, bool* ok);
+  V8_INLINE ExpressionT ParseBinaryExpression(int prec, bool accept_IN,
+                                              bool* ok);
   ExpressionT ParseUnaryOpExpression(bool* ok);
   ExpressionT ParseAwaitExpression(bool* ok);
   ExpressionT ParsePrefixExpression(bool* ok);
@@ -1139,6 +1142,7 @@ class ParserBase {
                                                           bool* ok);
   V8_INLINE ExpressionT ParseMemberWithNewPrefixesExpression(bool* is_async,
                                                              bool* ok);
+  ExpressionT ParseFunctionExpression(bool* ok);
   V8_INLINE ExpressionT ParseMemberExpression(bool* is_async, bool* ok);
   V8_INLINE ExpressionT ParseMemberExpressionContinuation(
       ExpressionT expression, bool* is_async, bool* ok);
@@ -1295,7 +1299,6 @@ class ParserBase {
                                     bool* ok);
 
   bool IsNextLetKeyword();
-  bool IsTrivialExpression();
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -2869,12 +2872,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   // Parse a simple, faster sub-grammar (primary expression) if it's evident
   // that we have only a trivial expression to parse.
-  ExpressionT expression;
-  if (IsTrivialExpression()) {
-    expression = ParsePrimaryExpression(&is_async, CHECK_OK);
-  } else {
-    expression = ParseConditionalExpression(accept_IN, CHECK_OK);
-  }
+  ExpressionT expression = ParseConditionalExpression(accept_IN, CHECK_OK);
 
   if (is_async && impl()->IsIdentifier(expression) && peek_any_identifier() &&
       PeekAhead() == Token::ARROW) {
@@ -3133,12 +3131,11 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
 
 // Precedence >= 4
 template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
-    int prec, bool accept_IN, bool* ok) {
-  DCHECK_GE(prec, 4);
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
+                                          bool accept_IN, bool* ok) {
   SourceRange right_range;
-  ExpressionT x = ParseUnaryExpression(CHECK_OK);
-  for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
+  do {
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
       ValidateExpression(CHECK_OK);
@@ -3181,6 +3178,21 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
         }
       }
     }
+    --prec1;
+  } while (prec1 >= prec);
+
+  return x;
+}
+
+// Precedence >= 4
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
+    int prec, bool accept_IN, bool* ok) {
+  DCHECK_GE(prec, 4);
+  ExpressionT x = ParseUnaryExpression(CHECK_OK);
+  int prec1 = Precedence(peek(), accept_IN);
+  if (prec1 >= prec) {
+    return ParseBinaryContinuation(x, prec, prec1, accept_IN, CHECK_OK);
   }
   return x;
 }
@@ -3522,6 +3534,47 @@ ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
 }
 
 template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseFunctionExpression(bool* ok) {
+  BindingPatternUnexpectedToken();
+  ArrowFormalParametersUnexpectedToken();
+
+  Consume(Token::FUNCTION);
+  int function_token_position = position();
+
+  FunctionKind function_kind = Check(Token::MUL)
+                                   ? FunctionKind::kGeneratorFunction
+                                   : FunctionKind::kNormalFunction;
+  IdentifierT name = impl()->NullIdentifier();
+  bool is_strict_reserved_name = false;
+  Scanner::Location function_name_location = Scanner::Location::invalid();
+  FunctionLiteral::FunctionType function_type =
+      FunctionLiteral::kAnonymousExpression;
+  if (impl()->ParsingDynamicFunctionDeclaration()) {
+    // We don't want dynamic functions to actually declare their name
+    // "anonymous". We just want that name in the toString().
+    if (stack_overflow()) {
+      *ok = false;
+      return impl()->NullExpression();
+    }
+    Consume(Token::IDENTIFIER);
+    DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
+  } else if (peek_any_identifier()) {
+    bool is_await = false;
+    name = ParseIdentifierOrStrictReservedWord(
+        function_kind, &is_strict_reserved_name, &is_await, CHECK_OK);
+    function_name_location = scanner()->location();
+    function_type = FunctionLiteral::kNamedExpression;
+  }
+  return impl()->ParseFunctionLiteral(
+      name, function_name_location,
+      is_strict_reserved_name ? kFunctionNameIsStrictReserved
+                              : kFunctionNameValidityUnknown,
+      function_kind, function_token_position, function_type, language_mode(),
+      nullptr, CHECK_OK);
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
     bool* is_async, bool* ok) {
   // MemberExpression ::
@@ -3539,42 +3592,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
   // Parse the initial primary or function expression.
   ExpressionT result;
   if (peek() == Token::FUNCTION) {
-    BindingPatternUnexpectedToken();
-    ArrowFormalParametersUnexpectedToken();
-
-    Consume(Token::FUNCTION);
-    int function_token_position = position();
-
-    FunctionKind function_kind = Check(Token::MUL)
-                                     ? FunctionKind::kGeneratorFunction
-                                     : FunctionKind::kNormalFunction;
-    IdentifierT name = impl()->NullIdentifier();
-    bool is_strict_reserved_name = false;
-    Scanner::Location function_name_location = Scanner::Location::invalid();
-    FunctionLiteral::FunctionType function_type =
-        FunctionLiteral::kAnonymousExpression;
-    if (impl()->ParsingDynamicFunctionDeclaration()) {
-      // We don't want dynamic functions to actually declare their name
-      // "anonymous". We just want that name in the toString().
-      if (stack_overflow()) {
-        *ok = false;
-        return impl()->NullExpression();
-      }
-      Consume(Token::IDENTIFIER);
-      DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
-    } else if (peek_any_identifier()) {
-      bool is_await = false;
-      name = ParseIdentifierOrStrictReservedWord(
-          function_kind, &is_strict_reserved_name, &is_await, CHECK_OK);
-      function_name_location = scanner()->location();
-      function_type = FunctionLiteral::kNamedExpression;
-    }
-    result = impl()->ParseFunctionLiteral(
-        name, function_name_location,
-        is_strict_reserved_name ? kFunctionNameIsStrictReserved
-                                : kFunctionNameValidityUnknown,
-        function_kind, function_token_position, function_type, language_mode(),
-        nullptr, CHECK_OK);
+    result = ParseFunctionExpression(CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
     result = ParseSuperExpression(is_new, CHECK_OK);
@@ -4338,21 +4356,6 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
     default:
       return false;
   }
-}
-
-template <typename Impl>
-bool ParserBase<Impl>::IsTrivialExpression() {
-  if (Token::IsTrivialExpressionToken(peek())) {
-    // PeekAhead() may not always be called, so we only call it after checking
-    // peek().
-    Token::Value peek_ahead = PeekAhead();
-    if (peek_ahead == Token::COMMA || peek_ahead == Token::RPAREN ||
-        peek_ahead == Token::SEMICOLON || peek_ahead == Token::RBRACK ||
-        Token::IsAssignmentOp(peek_ahead)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 template <typename Impl>
