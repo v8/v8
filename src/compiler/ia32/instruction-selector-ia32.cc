@@ -629,7 +629,8 @@ void InstructionSelector::VisitInt32PairAdd(Node* node) {
     // We use UseUniqueRegister here to avoid register sharing with the temp
     // register.
     InstructionOperand inputs[] = {
-        g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+        g.UseRegister(node->InputAt(0)),
+        g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(1)),
         g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
 
     InstructionOperand outputs[] = {g.DefineSameAsFirst(node),
@@ -654,7 +655,8 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
     // We use UseUniqueRegister here to avoid register sharing with the temp
     // register.
     InstructionOperand inputs[] = {
-        g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+        g.UseRegister(node->InputAt(0)),
+        g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(1)),
         g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
 
     InstructionOperand outputs[] = {g.DefineSameAsFirst(node),
@@ -678,10 +680,11 @@ void InstructionSelector::VisitInt32PairMul(Node* node) {
   if (projection1) {
     // InputAt(3) explicitly shares ecx with OutputRegister(1) to save one
     // register and one mov instruction.
-    InstructionOperand inputs[] = {g.UseUnique(node->InputAt(0)),
-                                   g.UseUnique(node->InputAt(1)),
-                                   g.UseUniqueRegister(node->InputAt(2)),
-                                   g.UseFixed(node->InputAt(3), ecx)};
+    InstructionOperand inputs[] = {
+        g.UseUnique(node->InputAt(0)),
+        g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(1)),
+        g.UseUniqueRegister(node->InputAt(2)),
+        g.UseFixed(node->InputAt(3), ecx)};
 
     InstructionOperand outputs[] = {
         g.DefineAsFixed(node, eax),

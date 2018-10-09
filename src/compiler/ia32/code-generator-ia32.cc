@@ -1117,7 +1117,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // i.InputRegister(2) ... right low word.
       // i.InputRegister(3) ... right high word.
       bool use_temp = false;
-      if (i.OutputRegister(0).code() == i.InputRegister(1).code() ||
+      if ((instr->InputAt(1)->IsRegister() &&
+           i.OutputRegister(0).code() == i.InputRegister(1).code()) ||
           i.OutputRegister(0).code() == i.InputRegister(3).code()) {
         // We cannot write to the output register directly, because it would
         // overwrite an input for adc. We have to use the temp register.
@@ -1127,8 +1128,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ add(i.OutputRegister(0), i.InputRegister(2));
       }
-      if (i.OutputRegister(1).code() != i.InputRegister(1).code()) {
-        __ Move(i.OutputRegister(1), i.InputRegister(1));
+      InstructionOperand* op = instr->InputAt(1);
+      if (op->IsImmediate() || op->IsConstant()) {
+        __ mov(i.OutputRegister(1), i.ToImmediate(op));
+      } else if (op->IsRegister()) {
+        __ Move(i.OutputRegister(1), i.ToRegister(op));
+      } else {
+        __ mov(i.OutputRegister(1), i.ToOperand(op));
       }
       __ adc(i.OutputRegister(1), Operand(i.InputRegister(3)));
       if (use_temp) {
@@ -1142,7 +1148,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // i.InputRegister(2) ... right low word.
       // i.InputRegister(3) ... right high word.
       bool use_temp = false;
-      if (i.OutputRegister(0).code() == i.InputRegister(1).code() ||
+      if ((instr->InputAt(1)->IsRegister() &&
+           i.OutputRegister(0).code() == i.InputRegister(1).code()) ||
           i.OutputRegister(0).code() == i.InputRegister(3).code()) {
         // We cannot write to the output register directly, because it would
         // overwrite an input for adc. We have to use the temp register.
@@ -1152,8 +1159,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ sub(i.OutputRegister(0), i.InputRegister(2));
       }
-      if (i.OutputRegister(1).code() != i.InputRegister(1).code()) {
-        __ Move(i.OutputRegister(1), i.InputRegister(1));
+      InstructionOperand* op = instr->InputAt(1);
+      if (op->IsImmediate() || op->IsConstant()) {
+        __ mov(i.OutputRegister(1), i.ToImmediate(op));
+      } else if (op->IsRegister()) {
+        __ Move(i.OutputRegister(1), i.ToRegister(op));
+      } else {
+        __ mov(i.OutputRegister(1), i.ToOperand(op));
       }
       __ sbb(i.OutputRegister(1), Operand(i.InputRegister(3)));
       if (use_temp) {
@@ -1163,7 +1175,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32MulPair: {
       __ imul(i.OutputRegister(1), i.InputOperand(0));
-      __ mov(i.TempRegister(0), i.InputOperand(1));
+      InstructionOperand* op = instr->InputAt(1);
+      if (op->IsImmediate() || op->IsConstant()) {
+        __ mov(i.TempRegister(0), i.ToImmediate(op));
+      } else {
+        __ mov(i.TempRegister(0), i.ToOperand(op));
+      }
       __ imul(i.TempRegister(0), i.InputOperand(2));
       __ add(i.OutputRegister(1), i.TempRegister(0));
       __ mov(i.OutputRegister(0), i.InputOperand(0));
