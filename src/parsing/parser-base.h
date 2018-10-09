@@ -2867,9 +2867,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
                   IsValidArrowFormalParametersStart(PeekAhead());
 
   bool parenthesized_formals = peek() == Token::LPAREN;
-  if (!is_async && !parenthesized_formals) {
-    ArrowFormalParametersUnexpectedToken();
-  }
 
   // Parse a simple, faster sub-grammar (primary expression) if it's evident
   // that we have only a trivial expression to parse.
@@ -2892,6 +2889,9 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   if (peek() == Token::ARROW) {
     Scanner::Location arrow_loc = scanner()->peek_location();
+    if (!is_async && !parenthesized_formals) {
+      ArrowFormalParametersUnexpectedToken();
+    }
     ValidateArrowFormalParameters(expression, parenthesized_formals, is_async,
                                   CHECK_OK);
     // This reads strangely, but is correct: it checks whether any
