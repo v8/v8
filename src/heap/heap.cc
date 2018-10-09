@@ -2383,44 +2383,6 @@ void Heap::CreateFixedStubs() {
   Heap::CreateJSRunMicrotasksEntryStub();
 }
 
-bool Heap::RootCanBeWrittenAfterInitialization(RootIndex root_index) {
-  switch (root_index) {
-    case RootIndex::kNumberStringCache:
-    case RootIndex::kCodeStubs:
-    case RootIndex::kScriptList:
-    case RootIndex::kMaterializedObjects:
-    case RootIndex::kDetachedContexts:
-    case RootIndex::kRetainedMaps:
-    case RootIndex::kRetainingPathTargets:
-    case RootIndex::kFeedbackVectorsForProfilingTools:
-    case RootIndex::kNoScriptSharedFunctionInfos:
-    case RootIndex::kSerializedObjects:
-    case RootIndex::kSerializedGlobalProxySizes:
-    case RootIndex::kPublicSymbolTable:
-    case RootIndex::kApiSymbolTable:
-    case RootIndex::kApiPrivateSymbolTable:
-    case RootIndex::kMessageListeners:
-// Smi values
-#define SMI_ENTRY(type, name, Name) case RootIndex::k##Name:
-      SMI_ROOT_LIST(SMI_ENTRY)
-#undef SMI_ENTRY
-    // String table
-    case RootIndex::kStringTable:
-      return true;
-
-    default:
-      return false;
-  }
-}
-
-bool Heap::RootCanBeTreatedAsConstant(RootIndex root_index) {
-  bool can_be = !RootCanBeWrittenAfterInitialization(root_index) &&
-                !InNewSpace(root(root_index));
-  DCHECK_IMPLIES(can_be, IsImmovable(HeapObject::cast(root(root_index))));
-  return can_be;
-}
-
-
 void Heap::FlushNumberStringCache() {
   // Flush the number to string cache.
   int len = number_string_cache()->length();

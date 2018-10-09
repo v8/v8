@@ -212,23 +212,8 @@ class Symbol;
 
 // Mutable roots that are known to be immortal immovable, for which we can
 // safely skip write barriers.
-#define MUTABLE_IMMORTAL_IMMOVABLE_ROOT_LIST(V) \
-  V(ArrayBufferNeuteringProtector)              \
-  V(ArrayIteratorProtector)                     \
-  V(EmptyScript)                                \
-  V(IsConcatSpreadableProtector)                \
-  V(JSMessageObjectMap)                         \
-  V(JsConstructEntryCode)                       \
-  V(JsEntryCode)                                \
-  V(ManyClosuresCell)                           \
-  V(NoElementsProtector)                        \
-  V(ArraySpeciesProtector)                      \
-  V(TypedArraySpeciesProtector)                 \
-  V(PromiseSpeciesProtector)                    \
-  V(StringIteratorProtector)                    \
-  V(StringLengthProtector)
-
-#define STRONG_MUTABLE_ROOT_LIST(V)                                          \
+#define STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)                                \
+  ACCESSOR_INFO_ROOT_LIST(V)                                                 \
   /* Maps */                                                                 \
   V(Map, external_map, ExternalMap)                                          \
   V(Map, message_object_map, JSMessageObjectMap)                             \
@@ -252,37 +237,42 @@ class Symbol;
   V(PropertyCell, promise_then_protector, PromiseThenProtector)              \
   V(PropertyCell, string_iterator_protector, StringIteratorProtector)        \
   /* Caches */                                                               \
-  V(FixedArray, number_string_cache, NumberStringCache)                      \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)   \
   V(FixedArray, string_split_cache, StringSplitCache)                        \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                  \
   /* Lists and dictionaries */                                               \
-  V(NameDictionary, public_symbol_table, PublicSymbolTable)                  \
-  V(NameDictionary, api_symbol_table, ApiSymbolTable)                        \
-  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)         \
-  V(WeakArrayList, script_list, ScriptList)                                  \
-  V(SimpleNumberDictionary, code_stubs, CodeStubs)                           \
-  V(FixedArray, materialized_objects, MaterializedObjects)                   \
   V(MicrotaskQueue, default_microtask_queue, DefaultMicrotaskQueue)          \
-  V(WeakArrayList, detached_contexts, DetachedContexts)                      \
-  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)             \
-  V(WeakArrayList, retained_maps, RetainedMaps)                              \
   /* Indirection lists for isolate-independent builtins */                   \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)            \
-  /* Feedback vectors that we need for code coverage or type profile */      \
-  V(Object, feedback_vectors_for_profiling_tools,                            \
-    FeedbackVectorsForProfilingTools)                                        \
-  V(WeakArrayList, noscript_shared_function_infos,                           \
-    NoScriptSharedFunctionInfos)                                             \
-  V(FixedArray, serialized_objects, SerializedObjects)                       \
-  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)   \
-  V(TemplateList, message_listeners, MessageListeners)                       \
   /* Hash seed */                                                            \
   V(ByteArray, hash_seed, HashSeed)                                          \
   /* JS Entries */                                                           \
   V(Code, js_entry_code, JsEntryCode)                                        \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                     \
   V(Code, js_run_microtasks_entry_code, JsRunMicrotasksEntryCode)
+
+// These root references can be updated by the mutator.
+#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                \
+  /* Caches */                                                             \
+  V(FixedArray, number_string_cache, NumberStringCache)                    \
+  /* Lists and dictionaries */                                             \
+  V(NameDictionary, public_symbol_table, PublicSymbolTable)                \
+  V(NameDictionary, api_symbol_table, ApiSymbolTable)                      \
+  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)       \
+  V(WeakArrayList, script_list, ScriptList)                                \
+  V(SimpleNumberDictionary, code_stubs, CodeStubs)                         \
+  V(FixedArray, materialized_objects, MaterializedObjects)                 \
+  V(WeakArrayList, detached_contexts, DetachedContexts)                    \
+  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)           \
+  V(WeakArrayList, retained_maps, RetainedMaps)                            \
+  /* Feedback vectors that we need for code coverage or type profile */    \
+  V(Object, feedback_vectors_for_profiling_tools,                          \
+    FeedbackVectorsForProfilingTools)                                      \
+  V(WeakArrayList, noscript_shared_function_infos,                         \
+    NoScriptSharedFunctionInfos)                                           \
+  V(FixedArray, serialized_objects, SerializedObjects)                     \
+  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
+  V(TemplateList, message_listeners, MessageListeners)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
@@ -339,8 +329,8 @@ class Symbol;
   DATA_HANDLER_MAPS_LIST(V)
 
 #define MUTABLE_ROOT_LIST(V)                \
-  STRONG_MUTABLE_ROOT_LIST(V)               \
-  ACCESSOR_INFO_ROOT_LIST(V)                \
+  STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)     \
+  STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)       \
   V(StringTable, string_table, StringTable) \
   SMI_ROOT_LIST(V)
 
@@ -367,14 +357,16 @@ enum class RootIndex : uint16_t {
 
 #define ROOT(...) +1
   kReadOnlyRootsCount = 0 READ_ONLY_ROOT_LIST(ROOT),
+  kImmortalImmovableRootsCount =
+      kReadOnlyRootsCount STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(ROOT),
 #undef ROOT
   kFirstReadOnlyRoot = kFirstRoot,
   kLastReadOnlyRoot = kFirstReadOnlyRoot + kReadOnlyRootsCount - 1,
 
+  // All immortal immovable roots including read only ones.
   kFirstImmortalImmovableRoot = kFirstReadOnlyRoot,
-  // TODO(ishell): reorder the STRONG_MUTABLE_ROOT_LIST and set this constant to
-  // correct value.
-  kLastImmortalImmovableRoot = kLastReadOnlyRoot,
+  kLastImmortalImmovableRoot =
+      kFirstImmortalImmovableRoot + kImmortalImmovableRootsCount - 1,
 
   kFirstSmiRoot = kStringTable + 1,
   kLastSmiRoot = kLastRoot
@@ -412,7 +404,18 @@ class RootsTable {
   static RootIndex RootIndexForFixedTypedArray(ElementsKind elements_kind);
   static RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind);
 
-  V8_INLINE static bool IsImmortalImmovable(RootIndex root_index);
+  // Immortal immovable root objects are allocated in OLD space and GC never
+  // moves them and the root table entries are guaranteed to not be modified
+  // after initialization. Note, however, that contents of those root objects
+  // that are allocated in writable space can still be modified after
+  // initialization.
+  // Generated code can treat direct references to these roots as constants.
+  static constexpr bool IsImmortalImmovable(RootIndex root_index) {
+    STATIC_ASSERT(static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) ==
+                  0);
+    return static_cast<unsigned>(root_index) <=
+           static_cast<unsigned>(RootIndex::kLastImmortalImmovableRoot);
+  }
 
  private:
   Object** read_only_roots_begin() {

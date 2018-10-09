@@ -18,8 +18,7 @@ BuiltinsConstantsTableBuilder::BuiltinsConstantsTableBuilder(Isolate* isolate)
   // And that the initial value of the builtins constants table can be treated
   // as a constant, which means that codegen will load it using the root
   // register.
-  DCHECK(isolate_->heap()->RootCanBeTreatedAsConstant(
-      RootIndex::kEmptyFixedArray));
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kEmptyFixedArray));
 }
 
 uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {

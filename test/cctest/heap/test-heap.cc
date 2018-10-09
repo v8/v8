@@ -4764,16 +4764,6 @@ TEST(MapRetaining) {
   CheckMapRetainingFor(7);
 }
 
-TEST(WritableVsImmortalRoots) {
-  for (RootIndex root_index = RootIndex::kFirstRoot;
-       root_index <= RootIndex::kLastRoot; ++root_index) {
-    bool writable = Heap::RootCanBeWrittenAfterInitialization(root_index);
-    bool immortal = RootsTable::IsImmortalImmovable(root_index);
-    // A root value can be writable, immortal, or neither, but not both.
-    CHECK(!immortal || !writable);
-  }
-}
-
 TEST(PreprocessStackTrace) {
   // Do not automatically trigger early GC.
   FLAG_gc_interval = -1;

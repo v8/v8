@@ -965,7 +965,7 @@ Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
 }
 
 TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
-  if (isolate()->heap()->RootCanBeTreatedAsConstant(root_index)) {
+  if (RootsTable::IsImmortalImmovable(root_index)) {
     Handle<Object> root = isolate()->heap()->root_handle(root_index);
     if (root->IsSmi()) {
       return SmiConstant(Smi::cast(*root));
@@ -1040,7 +1040,7 @@ Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
 }
 
 Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
-  DCHECK(Heap::RootCanBeWrittenAfterInitialization(root_index));
+  DCHECK(!RootsTable::IsImmortalImmovable(root_index));
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
   size_t offset = static_cast<size_t>(root_index) * kPointerSize;

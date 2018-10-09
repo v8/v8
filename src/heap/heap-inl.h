@@ -60,15 +60,15 @@ HeapObject* AllocationResult::ToObjectChecked() {
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-#define ROOT_ACCESSOR(type, name, CamelName)                                 \
-  void Heap::set_##name(type* value) {                                       \
-    /* The deserializer makes use of the fact that these common roots are */ \
-    /* never in new space and never on a page that is being compacted.    */ \
-    DCHECK(!deserialization_complete() ||                                    \
-           RootCanBeWrittenAfterInitialization(RootIndex::k##CamelName));    \
-    DCHECK_IMPLIES(RootsTable::IsImmortalImmovable(RootIndex::k##CamelName), \
-                   !InNewSpace(value));                                      \
-    roots_[RootIndex::k##CamelName] = value;                                 \
+#define ROOT_ACCESSOR(type, name, CamelName)                                   \
+  void Heap::set_##name(type* value) {                                         \
+    /* The deserializer makes use of the fact that these common roots are */   \
+    /* never in new space and never on a page that is being compacted.    */   \
+    DCHECK_IMPLIES(deserialization_complete(),                                 \
+                   !RootsTable::IsImmortalImmovable(RootIndex::k##CamelName)); \
+    DCHECK_IMPLIES(RootsTable::IsImmortalImmovable(RootIndex::k##CamelName),   \
+                   IsImmovable(HeapObject::cast(value)));                      \
+    roots_[RootIndex::k##CamelName] = value;                                   \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

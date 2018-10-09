@@ -273,10 +273,6 @@ class Heap {
   // Checks whether the space is valid.
   static bool IsValidAllocationSpace(AllocationSpace space);
 
-  // Generated code can embed direct references to non-writable roots if
-  // they are in new space.
-  static bool RootCanBeWrittenAfterInitialization(RootIndex root_index);
-
   // Zapping is needed for verify heap, and always done in debug builds.
   static inline bool ShouldZapGarbage() {
 #ifdef DEBUG
@@ -725,9 +721,6 @@ class Heap {
   // The stack limit is thread-dependent. To be able to reproduce the same
   // snapshot blob, we need to reset it before serializing.
   void ClearStackLimits();
-
-  // Generated code can treat direct references to this root as constant.
-  bool RootCanBeTreatedAsConstant(RootIndex root_index);
 
   void RegisterStrongRoots(Object** start, Object** end);
   void UnregisterStrongRoots(Object** start);

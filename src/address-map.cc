@@ -22,7 +22,7 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
     // not be referenced through the root list in the snapshot.
     // Since we map the raw address of an root item to its root list index, the
     // raw address must be constant, i.e. the object must be immovable.
-    if (isolate->heap()->RootCanBeTreatedAsConstant(root_index)) {
+    if (RootsTable::IsImmortalImmovable(root_index)) {
       HeapObject* heap_object = HeapObject::cast(root);
       Maybe<uint32_t> maybe_index = map_->Get(heap_object);
       uint32_t index = static_cast<uint32_t>(root_index);
@@ -32,11 +32,6 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
       } else {
         map_->Set(heap_object, index);
       }
-    } else {
-      // Immortal immovable root objects are constant and allocated on the first
-      // page of old space. Non-constant roots cannot be immortal immovable. The
-      // root index map contains all immortal immmovable root objects.
-      CHECK(!RootsTable::IsImmortalImmovable(root_index));
     }
   }
   isolate->set_root_index_map(map_);

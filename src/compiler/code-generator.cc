@@ -461,7 +461,7 @@ bool CodeGenerator::IsMaterializableFromRoot(Handle<HeapObject> object,
   if (incoming_descriptor->flags() & CallDescriptor::kCanUseRoots) {
     Heap* heap = isolate()->heap();
     return heap->IsRootHandle(object, index_return) &&
-           !heap->RootCanBeWrittenAfterInitialization(*index_return);
+           RootsTable::IsImmortalImmovable(*index_return);
   }
   return false;
 }

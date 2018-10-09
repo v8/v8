@@ -34,8 +34,8 @@ TEST(TestReadOnlyRoots) {
 
 namespace {
 bool IsInitiallyMutable(Factory* factory, Address object_address) {
-// Entries in this list are in STRONG_MUTABLE_ROOT_LIST, but may initially point
-// to objects that are in RO_SPACE.
+// Entries in this list are in STRONG_MUTABLE_MOVABLE_ROOT_LIST, but may
+// initially point to objects that are in RO_SPACE.
 #define INITIALLY_READ_ONLY_ROOT_LIST(V)  \
   V(api_private_symbol_table)             \
   V(api_symbol_table)                     \

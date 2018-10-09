@@ -54,7 +54,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate,
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   // TODO(jgruber, v8:6666): Support loads through the root register once it
   // exists.
-  if (isolate()->heap()->RootCanBeTreatedAsConstant(index)) {
+  if (RootsTable::IsImmortalImmovable(index)) {
     Handle<Object> object = isolate()->heap()->root_handle(index);
     if (object->IsSmi()) {
       mov(destination, Immediate(Smi::cast(*object)));
@@ -81,7 +81,7 @@ void MacroAssembler::CompareRoot(Register with, Register scratch,
 }
 
 void MacroAssembler::CompareRoot(Register with, RootIndex index) {
-  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
+  DCHECK(RootsTable::IsImmortalImmovable(index));
   Handle<Object> object = isolate()->heap()->root_handle(index);
   if (object->IsHeapObject()) {
     cmp(with, Handle<HeapObject>::cast(object));
@@ -91,7 +91,7 @@ void MacroAssembler::CompareRoot(Register with, RootIndex index) {
 }
 
 void MacroAssembler::CompareRoot(Operand with, RootIndex index) {
-  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
+  DCHECK(RootsTable::IsImmortalImmovable(index));
   Handle<Object> object = isolate()->heap()->root_handle(index);
   if (object->IsHeapObject()) {
     cmp(with, Handle<HeapObject>::cast(object));
@@ -101,7 +101,7 @@ void MacroAssembler::CompareRoot(Operand with, RootIndex index) {
 }
 
 void MacroAssembler::PushRoot(RootIndex index) {
-  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
+  DCHECK(RootsTable::IsImmortalImmovable(index));
   Handle<Object> object = isolate()->heap()->root_handle(index);
   if (object->IsHeapObject()) {
     Push(Handle<HeapObject>::cast(object));
@@ -113,8 +113,7 @@ void MacroAssembler::PushRoot(RootIndex index) {
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(!is_ebx_addressable_);
-  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
-      RootIndex::kBuiltinsConstantsTable));
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   // TODO(jgruber): LoadRoot should be a register-relative load once we have
   // the kRootRegister.
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);

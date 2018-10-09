@@ -32,7 +32,7 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   Heap* heap = isolate->heap();
   RootIndex root_index;
   if (heap->IsRootHandleLocation(location_, &root_index) &&
-      heap->RootCanBeTreatedAsConstant(root_index)) {
+      RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }
   if (!AllowHandleDereference::IsAllowed()) return false;
