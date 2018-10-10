@@ -32,10 +32,8 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
 
   static const int kWrappedPromiseOffset =
       FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
-  static const int kThrowawayPromiseOffset =
-      kWrappedPromiseOffset + JSPromise::kSizeWithEmbedderFields;
   static const int kResolveClosureOffset =
-      kThrowawayPromiseOffset + JSPromise::kSizeWithEmbedderFields;
+      kWrappedPromiseOffset + JSPromise::kSizeWithEmbedderFields;
   static const int kRejectClosureOffset =
       kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
   static const int kTotalSize =
@@ -81,80 +79,38 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
     PromiseInit(wrapped_value);
   }
 
-  Node* const throwaway = InnerAllocate(base, kThrowawayPromiseOffset);
-  {
-    // Initialize throwawayPromise
-    StoreMapNoWriteBarrier(throwaway, promise_map);
-    InitializeJSObjectFromMap(
-        throwaway, promise_map,
-        IntPtrConstant(JSPromise::kSizeWithEmbedderFields));
-    PromiseInit(throwaway);
-  }
-
+  // Initialize resolve handler
   Node* const on_resolve = InnerAllocate(base, kResolveClosureOffset);
-  {
-    // Initialize resolve handler
-    InitializeNativeClosure(closure_context, native_context, on_resolve,
-                            on_resolve_context_index);
-  }
+  InitializeNativeClosure(closure_context, native_context, on_resolve,
+                          on_resolve_context_index);
 
+  // Initialize reject handler
   Node* const on_reject = InnerAllocate(base, kRejectClosureOffset);
-  {
-    // Initialize reject handler
-    InitializeNativeClosure(closure_context, native_context, on_reject,
-                            on_reject_context_index);
-  }
+  InitializeNativeClosure(closure_context, native_context, on_reject,
+                          on_reject_context_index);
 
-  {
-    // Add PromiseHooks if needed
-    Label next(this);
-    GotoIfNot(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &next);
-    CallRuntime(Runtime::kAwaitPromisesInit, context, wrapped_value,
-                outer_promise, throwaway);
-    Goto(&next);
-    BIND(&next);
-  }
+  VARIABLE(var_throwaway, MachineRepresentation::kTaggedPointer,
+           UndefinedConstant());
+
+  // Deal with PromiseHooks and debug support in the runtime. This
+  // also allocates the throwaway promise, which is only needed in
+  // case of PromiseHooks or debugging.
+  Label if_debugging(this, Label::kDeferred), do_resolve_promise(this);
+  GotoIf(IsDebugActive(), &if_debugging);
+  Branch(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &if_debugging,
+         &do_resolve_promise);
+  BIND(&if_debugging);
+  var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInit, context, value,
+                                 wrapped_value, outer_promise, on_reject,
+                                 is_predicted_as_caught));
+  Goto(&do_resolve_promise);
+  BIND(&do_resolve_promise);
 
   // Perform ! Call(promiseCapability.[[Resolve]], undefined, « promise »).
   CallBuiltin(Builtins::kResolvePromise, context, wrapped_value, value);
 
-  // The Promise will be thrown away and not handled, but it shouldn't trigger
-  // unhandled reject events as its work is done
-  PromiseSetHasHandler(throwaway);
-
-  Label do_perform_promise_then(this);
-  GotoIfNot(IsDebugActive(), &do_perform_promise_then);
-  {
-    Label common(this);
-    GotoIf(TaggedIsSmi(value), &common);
-    GotoIfNot(HasInstanceType(value, JS_PROMISE_TYPE), &common);
-    {
-      // Mark the reject handler callback to be a forwarding edge, rather
-      // than a meaningful catch handler
-      Node* const key =
-          HeapConstant(factory()->promise_forwarding_handler_symbol());
-      SetPropertyStrict(CAST(context), CAST(on_reject), CAST(key),
-                        TrueConstant());
-
-      GotoIf(IsFalse(is_predicted_as_caught), &common);
-      PromiseSetHandledHint(value);
-    }
-
-    Goto(&common);
-    BIND(&common);
-    // Mark the dependency to outer Promise in case the throwaway Promise is
-    // found on the Promise stack
-    CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
-
-    Node* const key = HeapConstant(factory()->promise_handled_by_symbol());
-    SetPropertyStrict(CAST(context), CAST(throwaway), CAST(key),
-                      CAST(outer_promise));
-  }
-
-  Goto(&do_perform_promise_then);
-  BIND(&do_perform_promise_then);
   return CallBuiltin(Builtins::kPerformPromiseThen, context, wrapped_value,
-                     on_resolve, on_reject, throwaway);
+                     on_resolve, on_reject, var_throwaway.value());
 }
 
 Node* AsyncBuiltinsAssembler::AwaitOptimized(
@@ -167,10 +123,8 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
   CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
   CSA_ASSERT(this, IsConstructor(promise_fun));
 
-  static const int kThrowawayPromiseOffset =
-      FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
   static const int kResolveClosureOffset =
-      kThrowawayPromiseOffset + JSPromise::kSizeWithEmbedderFields;
+      FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
   static const int kRejectClosureOffset =
       kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
   static const int kTotalSize =
@@ -199,84 +153,35 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
         closure_context, Context::NATIVE_CONTEXT_INDEX, native_context);
   }
 
-  Node* const promise_map =
-      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  // Assert that the JSPromise map has an instance size is
-  // JSPromise::kSizeWithEmbedderFields.
-  CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(promise_map),
-                             IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
-                                            kPointerSize)));
-  Node* const throwaway = InnerAllocate(base, kThrowawayPromiseOffset);
-  {
-    // Initialize throwawayPromise
-    StoreMapNoWriteBarrier(throwaway, promise_map);
-    InitializeJSObjectFromMap(
-        throwaway, promise_map,
-        IntPtrConstant(JSPromise::kSizeWithEmbedderFields));
-    PromiseInit(throwaway);
-  }
-
+  // Initialize resolve handler
   Node* const on_resolve = InnerAllocate(base, kResolveClosureOffset);
-  {
-    // Initialize resolve handler
-    InitializeNativeClosure(closure_context, native_context, on_resolve,
-                            on_resolve_context_index);
-  }
+  InitializeNativeClosure(closure_context, native_context, on_resolve,
+                          on_resolve_context_index);
 
+  // Initialize reject handler
   Node* const on_reject = InnerAllocate(base, kRejectClosureOffset);
-  {
-    // Initialize reject handler
-    InitializeNativeClosure(closure_context, native_context, on_reject,
-                            on_reject_context_index);
-  }
+  InitializeNativeClosure(closure_context, native_context, on_reject,
+                          on_reject_context_index);
 
-  {
-    // Add PromiseHooks if needed
-    Label next(this);
-    GotoIfNot(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &next);
-    CallRuntime(Runtime::kAwaitPromisesInit, context, promise, outer_promise,
-                throwaway);
-    Goto(&next);
-    BIND(&next);
-  }
+  VARIABLE(var_throwaway, MachineRepresentation::kTaggedPointer,
+           UndefinedConstant());
 
-  // The Promise will be thrown away and not handled, but it shouldn't trigger
-  // unhandled reject events as its work is done
-  PromiseSetHasHandler(throwaway);
-
-  Label do_perform_promise_then(this);
-  GotoIfNot(IsDebugActive(), &do_perform_promise_then);
-  {
-    Label common(this);
-    GotoIf(TaggedIsSmi(value), &common);
-    GotoIfNot(HasInstanceType(value, JS_PROMISE_TYPE), &common);
-    {
-      // Mark the reject handler callback to be a forwarding edge, rather
-      // than a meaningful catch handler
-      Node* const key =
-          HeapConstant(factory()->promise_forwarding_handler_symbol());
-      SetPropertyStrict(CAST(context), CAST(on_reject), CAST(key),
-                        TrueConstant());
-
-      GotoIf(IsFalse(is_predicted_as_caught), &common);
-      PromiseSetHandledHint(value);
-    }
-
-    Goto(&common);
-    BIND(&common);
-    // Mark the dependency to outer Promise in case the throwaway Promise is
-    // found on the Promise stack
-    CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
-
-    Node* const key = HeapConstant(factory()->promise_handled_by_symbol());
-    SetPropertyStrict(CAST(context), CAST(throwaway), CAST(key),
-                      CAST(outer_promise));
-  }
-
+  // Deal with PromiseHooks and debug support in the runtime. This
+  // also allocates the throwaway promise, which is only needed in
+  // case of PromiseHooks or debugging.
+  Label if_debugging(this, Label::kDeferred), do_perform_promise_then(this);
+  GotoIf(IsDebugActive(), &if_debugging);
+  Branch(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &if_debugging,
+         &do_perform_promise_then);
+  BIND(&if_debugging);
+  var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInit, context, value,
+                                 promise, outer_promise, on_reject,
+                                 is_predicted_as_caught));
   Goto(&do_perform_promise_then);
   BIND(&do_perform_promise_then);
+
   return CallBuiltin(Builtins::kPerformPromiseThen, native_context, promise,
-                     on_resolve, on_reject, throwaway);
+                     on_resolve, on_reject, var_throwaway.value());
 }
 
 Node* AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,

@@ -132,20 +132,50 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
 }
 
 RUNTIME_FUNCTION(Runtime_AwaitPromisesInit) {
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, wrapped_value, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, outer_promise, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, throwaway, 2);
-  isolate->RunPromiseHook(PromiseHookType::kInit, wrapped_value, outer_promise);
-  isolate->RunPromiseHook(PromiseHookType::kInit, throwaway, wrapped_value);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, outer_promise, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject_handler, 3);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_predicted_as_caught, 4);
+
+  // Allocate the throwaway promise and fire the appropriate PromiseHooks.
+  Handle<JSPromise> throwaway = isolate->factory()->NewJSPromiseWithoutHook();
+  isolate->RunPromiseHook(PromiseHookType::kInit, promise, outer_promise);
+  isolate->RunPromiseHook(PromiseHookType::kInit, throwaway, promise);
+
   // On inspector side we capture async stack trace and store it by
   // outer_promise->async_task_id when async function is suspended first time.
   // To use captured stack trace later throwaway promise should have the same
   // async_task_id as outer_promise since we generate WillHandle and DidHandle
   // events using throwaway promise.
   throwaway->set_async_task_id(outer_promise->async_task_id());
-  return ReadOnlyRoots(isolate).undefined_value();
+
+  // The Promise will be thrown away and not handled, but it
+  // shouldn't trigger unhandled reject events as its work is done
+  throwaway->set_has_handler(true);
+
+  // Enable proper debug support for promises.
+  if (isolate->debug()->is_active()) {
+    if (value->IsJSPromise()) {
+      Object::SetProperty(
+          isolate, reject_handler,
+          isolate->factory()->promise_forwarding_handler_symbol(),
+          isolate->factory()->true_value(), LanguageMode::kStrict)
+          .Check();
+      Handle<JSPromise>::cast(value)->set_handled_hint(is_predicted_as_caught);
+    }
+
+    // Mark the dependency to {outer_promise} in case the {throwaway}
+    // Promise is found on the Promise stack
+    Object::SetProperty(isolate, throwaway,
+                        isolate->factory()->promise_handled_by_symbol(),
+                        outer_promise, LanguageMode::kStrict)
+        .Check();
+  }
+
+  return *throwaway;
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {

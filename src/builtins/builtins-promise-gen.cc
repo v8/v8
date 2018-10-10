@@ -318,8 +318,11 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
              Word32Or(IsCallable(on_fulfilled), IsUndefined(on_fulfilled)));
   CSA_ASSERT(this, Word32Or(IsCallable(on_rejected), IsUndefined(on_rejected)));
   CSA_ASSERT(this, TaggedIsNotSmi(result_promise_or_capability));
-  CSA_ASSERT(this, Word32Or(IsJSPromise(result_promise_or_capability),
-                            IsPromiseCapability(result_promise_or_capability)));
+  CSA_ASSERT(
+      this,
+      Word32Or(Word32Or(IsJSPromise(result_promise_or_capability),
+                        IsPromiseCapability(result_promise_or_capability)),
+               IsUndefined(result_promise_or_capability)));
 
   Label if_pending(this), if_notpending(this), done(this);
   Node* const status = PromiseStatus(promise);
@@ -390,7 +393,8 @@ TF_BUILTIN(PerformPromiseThen, PromiseBuiltinsAssembler) {
   Node* const result_promise = Parameter(Descriptor::kResultPromise);
 
   CSA_ASSERT(this, TaggedIsNotSmi(result_promise));
-  CSA_ASSERT(this, IsJSPromise(result_promise));
+  CSA_ASSERT(
+      this, Word32Or(IsJSPromise(result_promise), IsUndefined(result_promise)));
 
   PerformPromiseThen(context, promise, on_fulfilled, on_rejected,
                      result_promise);
@@ -1154,11 +1158,14 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
   CSA_ASSERT(this, TaggedIsNotSmi(handler));
   CSA_ASSERT(this, Word32Or(IsUndefined(handler), IsCallable(handler)));
   CSA_ASSERT(this, TaggedIsNotSmi(promise_or_capability));
-  CSA_ASSERT(this, Word32Or(IsJSPromise(promise_or_capability),
-                            IsPromiseCapability(promise_or_capability)));
+  CSA_ASSERT(this,
+             Word32Or(Word32Or(IsJSPromise(promise_or_capability),
+                               IsPromiseCapability(promise_or_capability)),
+                      IsUndefined(promise_or_capability)));
 
   VARIABLE(var_handler_result, MachineRepresentation::kTagged, argument);
-  Label if_handler_callable(this), if_fulfill(this), if_reject(this);
+  Label if_handler_callable(this), if_fulfill(this), if_reject(this),
+      if_internal(this);
   Branch(IsUndefined(handler),
          type == PromiseReaction::kFulfill ? &if_fulfill : &if_reject,
          &if_handler_callable);
@@ -1170,7 +1177,16 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
         context, handler, UndefinedConstant(), argument);
     GotoIfException(result, &if_reject, &var_handler_result);
     var_handler_result.Bind(result);
-    Goto(&if_fulfill);
+    Branch(IsUndefined(promise_or_capability), &if_internal, &if_fulfill);
+  }
+
+  BIND(&if_internal);
+  {
+    // There's no [[Capability]] for this promise reaction job, which
+    // means that this is a specification-internal operation (aka await)
+    // where the result does not matter (see the specification change in
+    // https://github.com/tc39/ecma262/pull/1146 for details).
+    Return(UndefinedConstant());
   }
 
   BIND(&if_fulfill);

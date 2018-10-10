@@ -682,11 +682,14 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
           reaction->promise_or_capability(), isolate);
       if (promise_or_capability->IsJSPromise()) {
         promise = Handle<JSPromise>::cast(promise_or_capability);
-      } else {
+      } else if (promise_or_capability->IsPromiseCapability()) {
         Handle<PromiseCapability> capability =
             Handle<PromiseCapability>::cast(promise_or_capability);
         if (!capability->promise()->IsJSPromise()) return;
         promise = handle(JSPromise::cast(capability->promise()), isolate);
+      } else {
+        // Otherwise the {promise_or_capability} must be undefined here.
+        CHECK(promise_or_capability->IsUndefined(isolate));
       }
     }
   }
@@ -2273,21 +2276,23 @@ bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
       Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(current);
       Handle<HeapObject> promise_or_capability(
           reaction->promise_or_capability(), isolate);
-      Handle<JSPromise> promise = Handle<JSPromise>::cast(
-          promise_or_capability->IsJSPromise()
-              ? promise_or_capability
-              : handle(Handle<PromiseCapability>::cast(promise_or_capability)
-                           ->promise(),
-                       isolate));
-      if (reaction->reject_handler()->IsUndefined(isolate)) {
-        if (InternalPromiseHasUserDefinedRejectHandler(isolate, promise)) {
-          return true;
-        }
-      } else {
-        Handle<JSReceiver> current_handler(
-            JSReceiver::cast(reaction->reject_handler()), isolate);
-        if (PromiseHandlerCheck(isolate, current_handler, promise)) {
-          return true;
+      if (!promise_or_capability->IsUndefined(isolate)) {
+        Handle<JSPromise> promise = Handle<JSPromise>::cast(
+            promise_or_capability->IsJSPromise()
+                ? promise_or_capability
+                : handle(Handle<PromiseCapability>::cast(promise_or_capability)
+                             ->promise(),
+                         isolate));
+        if (reaction->reject_handler()->IsUndefined(isolate)) {
+          if (InternalPromiseHasUserDefinedRejectHandler(isolate, promise)) {
+            return true;
+          }
+        } else {
+          Handle<JSReceiver> current_handler(
+              JSReceiver::cast(reaction->reject_handler()), isolate);
+          if (PromiseHandlerCheck(isolate, current_handler, promise)) {
+            return true;
+          }
         }
       }
       current = handle(reaction->next(), isolate);

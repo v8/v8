@@ -1337,7 +1337,8 @@ void PromiseReactionJobTask::PromiseReactionJobTaskVerify(Isolate* isolate) {
   CHECK(handler()->IsUndefined(isolate) || handler()->IsCallable());
   VerifyHeapPointer(isolate, promise_or_capability());
   CHECK(promise_or_capability()->IsJSPromise() ||
-        promise_or_capability()->IsPromiseCapability());
+        promise_or_capability()->IsPromiseCapability() ||
+        promise_or_capability()->IsUndefined(isolate));
 }
 
 void MicrotaskQueue::MicrotaskQueueVerify(Isolate* isolate) {
@@ -1396,7 +1397,8 @@ void PromiseReaction::PromiseReactionVerify(Isolate* isolate) {
         fulfill_handler()->IsCallable());
   VerifyHeapPointer(isolate, promise_or_capability());
   CHECK(promise_or_capability()->IsJSPromise() ||
-        promise_or_capability()->IsPromiseCapability());
+        promise_or_capability()->IsPromiseCapability() ||
+        promise_or_capability()->IsUndefined(isolate));
 }
 
 void JSPromise::JSPromiseVerify(Isolate* isolate) {
