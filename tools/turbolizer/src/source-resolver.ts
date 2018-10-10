@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {sortUnique, anyToString} from "./util.js"
+import {sortUnique, anyToString} from "../src/util"
 
 function sourcePositionLe(a, b) {
   if (a.inliningId == b.inliningId) {

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {GraphView} from "./graph-view.js"
-import {ScheduleView} from "./schedule-view.js"
-import {SequenceView} from "./sequence-view.js"
-import {SourceResolver} from "./source-resolver.js"
-import {SelectionBroker} from "./selection-broker.js"
-import {View, PhaseView} from "./view.js"
+import {GraphView} from "../src/graph-view"
+import {ScheduleView} from "../src/schedule-view"
+import {SequenceView} from "../src/sequence-view"
+import {SourceResolver} from "../src/source-resolver"
+import {SelectionBroker} from "../src/selection-broker"
+import {View, PhaseView} from "../src/view"
 
 export class GraphMultiView extends View {
   sourceResolver: SourceResolver;
