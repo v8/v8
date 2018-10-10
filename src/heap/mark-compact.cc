@@ -2094,6 +2094,7 @@ void MarkCompactCollector::ClearJSWeakCells() {
   }
   JSWeakCell* weak_cell;
   bool schedule_cleanup_task = false;
+  HandleScope handle_scope(isolate());
   while (weak_objects_.js_weak_cells.Pop(kMainThread, &weak_cell)) {
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
@@ -2103,8 +2104,13 @@ void MarkCompactCollector::ClearJSWeakCells() {
       if (!weak_factory->NeedsCleanup()) {
         // This is the first dirty JSWeakCell of that JSWeakFactory. Record
         // the dirty JSWeakFactory in the native context.
-        isolate()->native_context()->AddDirtyJSWeakFactory(weak_factory,
-                                                           isolate());
+        isolate()->native_context()->AddDirtyJSWeakFactory(
+            weak_factory, isolate(),
+            [](HeapObject* object, Object** slot, Object* target) {
+              if (target->IsHeapObject()) {
+                RecordSlot(object, slot, HeapObject::cast(target));
+              }
+            });
         schedule_cleanup_task = true;
       }
       // We're modifying the pointers in JSWeakCell and JSWeakFactory during GC;

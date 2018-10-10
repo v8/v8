@@ -18829,6 +18829,8 @@ void JSWeakFactoryCleanupTask::Run() {
   HandleScope handle_scope(isolate_);
   Handle<Context> native_context =
       Handle<Context>::cast(Utils::OpenPersistent(native_context_));
+  v8::Local<v8::Context> context_local = Utils::ToLocal(native_context);
+  v8::Context::Scope context_scope(context_local);
 
   while (native_context->dirty_js_weak_factories()->IsJSWeakFactory()) {
     Handle<JSWeakFactory> weak_factory =
