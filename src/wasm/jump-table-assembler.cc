@@ -72,7 +72,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   // Load function index to a register.
   // This generates [movw, movt] on ARMv7 and later, [ldr, constant pool marker,
   // constant] on ARMv6.
-  Move32BitImmediate(kWasmLazyCompileFuncIndexRegister, Operand(func_index));
+  Move32BitImmediate(kWasmCompileLazyFuncIndexRegister, Operand(func_index));
   // EmitJumpSlot emits either [b], [movw, movt, mov] (ARMv7+), or [ldr,
   // constant].
   // In total, this is <=5 instructions on all architectures.

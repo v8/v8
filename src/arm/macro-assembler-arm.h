@@ -38,7 +38,7 @@ constexpr Register kRuntimeCallFunctionRegister = r1;
 constexpr Register kRuntimeCallArgCountRegister = r0;
 constexpr Register kRuntimeCallArgvRegister = r2;
 constexpr Register kWasmInstanceRegister = r3;
-constexpr Register kWasmLazyCompileFuncIndexRegister = r4;
+constexpr Register kWasmCompileLazyFuncIndexRegister = r4;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
