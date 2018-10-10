@@ -200,6 +200,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   Assembler::AllowExplicitEbxAccessScope restoring_spilled_value(masm());
   __ popad();
 
+  __ InitializeRootRegister();
+
   // Return to the continuation point.
   __ ret(0);
 }
