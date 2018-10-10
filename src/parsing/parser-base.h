@@ -74,51 +74,22 @@ struct FormalParametersBase {
 // Stack-allocated scope to collect source ranges from the parser.
 class SourceRangeScope final {
  public:
-  enum PositionKind {
-    POSITION_BEG,
-    POSITION_END,
-    PEEK_POSITION_BEG,
-    PEEK_POSITION_END,
-  };
-
-  SourceRangeScope(Scanner* scanner, SourceRange* range,
-                   PositionKind pre_kind = PEEK_POSITION_BEG,
-                   PositionKind post_kind = POSITION_END)
-      : scanner_(scanner), range_(range), post_kind_(post_kind) {
-    range_->start = GetPosition(pre_kind);
+  SourceRangeScope(const Scanner* scanner, SourceRange* range)
+      : scanner_(scanner), range_(range) {
+    range_->start = scanner->peek_location().beg_pos;
     DCHECK_NE(range_->start, kNoSourcePosition);
+    DCHECK_EQ(range_->end, kNoSourcePosition);
   }
 
-  ~SourceRangeScope() { Finalize(); }
-
-  const SourceRange& Finalize() {
-    if (is_finalized_) return *range_;
-    is_finalized_ = true;
-    range_->end = GetPosition(post_kind_);
+  ~SourceRangeScope() {
+    DCHECK_EQ(kNoSourcePosition, range_->end);
+    range_->end = scanner_->location().end_pos;
     DCHECK_NE(range_->end, kNoSourcePosition);
-    return *range_;
   }
 
  private:
-  int32_t GetPosition(PositionKind kind) {
-    switch (kind) {
-      case POSITION_BEG:
-        return scanner_->location().beg_pos;
-      case POSITION_END:
-        return scanner_->location().end_pos;
-      case PEEK_POSITION_BEG:
-        return scanner_->peek_location().beg_pos;
-      case PEEK_POSITION_END:
-        return scanner_->peek_location().end_pos;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  Scanner* scanner_;
+  const Scanner* scanner_;
   SourceRange* range_;
-  PositionKind post_kind_;
-  bool is_finalized_ = false;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SourceRangeScope);
 };
@@ -3127,7 +3098,6 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
                                           bool accept_IN, bool* ok) {
-  SourceRange right_range;
   do {
     // prec1 >= 4
     while (Token::Precedence(peek()) == prec1) {
@@ -3136,14 +3106,18 @@ ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
       BindingPatternUnexpectedToken();
       ArrowFormalParametersUnexpectedToken();
 
-      SourceRangeScope right_range_scope(scanner(), &right_range);
-      Token::Value op = Next();
-      int pos = position();
+      SourceRange right_range;
+      int pos = peek_position();
+      ExpressionT y;
+      Token::Value op;
+      {
+        SourceRangeScope right_range_scope(scanner(), &right_range);
+        op = Next();
 
-      const bool is_right_associative = op == Token::EXP;
-      const int next_prec = is_right_associative ? prec1 : prec1 + 1;
-      ExpressionT y = ParseBinaryExpression(next_prec, accept_IN, CHECK_OK);
-      right_range_scope.Finalize();
+        const bool is_right_associative = op == Token::EXP;
+        const int next_prec = is_right_associative ? prec1 : prec1 + 1;
+        y = ParseBinaryExpression(next_prec, accept_IN, CHECK_OK);
+      }
       ValidateExpression(CHECK_OK);
 
       // For now we distinguish between comparisons and other binary
@@ -5546,28 +5520,30 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     while (peek() != Token::RBRACE) {
       // An empty label indicates the default case.
       ExpressionT label = impl()->NullExpression();
-      SourceRange clause_range;
-      SourceRangeScope range_scope(scanner(), &clause_range);
-      if (Check(Token::CASE)) {
-        label = ParseExpression(CHECK_OK);
-      } else {
-        Expect(Token::DEFAULT, CHECK_OK);
-        if (default_seen) {
-          ReportMessage(MessageTemplate::kMultipleDefaultsInSwitch);
-          *ok = false;
-          return impl()->NullStatement();
-        }
-        default_seen = true;
-      }
-      Expect(Token::COLON, CHECK_OK);
       StatementListT statements = impl()->NewStatementList(5);
-      while (peek() != Token::CASE && peek() != Token::DEFAULT &&
-             peek() != Token::RBRACE) {
-        StatementT stat = ParseStatementListItem(CHECK_OK);
-        statements->Add(stat, zone());
+      SourceRange clause_range;
+      {
+        SourceRangeScope range_scope(scanner(), &clause_range);
+        if (Check(Token::CASE)) {
+          label = ParseExpression(CHECK_OK);
+        } else {
+          Expect(Token::DEFAULT, CHECK_OK);
+          if (default_seen) {
+            ReportMessage(MessageTemplate::kMultipleDefaultsInSwitch);
+            *ok = false;
+            return impl()->NullStatement();
+          }
+          default_seen = true;
+        }
+        Expect(Token::COLON, CHECK_OK);
+        while (peek() != Token::CASE && peek() != Token::DEFAULT &&
+               peek() != Token::RBRACE) {
+          StatementT stat = ParseStatementListItem(CHECK_OK);
+          statements->Add(stat, zone());
+        }
       }
       auto clause = factory()->NewCaseClause(label, statements);
-      impl()->RecordCaseClauseSourceRange(clause, range_scope.Finalize());
+      impl()->RecordCaseClauseSourceRange(clause, clause_range);
       switch_statement->cases()->Add(clause, zone());
     }
     Expect(Token::RBRACE, CHECK_OK);
@@ -5855,10 +5831,12 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
         &scope_, inner_block_scope != nullptr ? inner_block_scope : scope_);
 
     SourceRange body_range;
-    SourceRangeScope range_scope(scanner(), &body_range);
-
-    StatementT body = ParseStatement(nullptr, nullptr, CHECK_OK);
-    impl()->RecordIterationStatementSourceRange(loop, range_scope.Finalize());
+    StatementT body = impl()->NullStatement();
+    {
+      SourceRangeScope range_scope(scanner(), &body_range);
+      body = ParseStatement(nullptr, nullptr, CHECK_OK);
+    }
+    impl()->RecordIterationStatementSourceRange(loop, body_range);
 
     impl()->DesugarBindingInForEachStatement(for_info, &body_block,
                                              &each_variable, CHECK_OK);
@@ -5921,13 +5899,12 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
   Expect(Token::RPAREN, CHECK_OK);
 
   StatementT body = impl()->NullStatement();
+  SourceRange body_range;
   {
-    SourceRange body_range;
     SourceRangeScope range_scope(scanner(), &body_range);
-
     body = ParseStatement(nullptr, nullptr, CHECK_OK);
-    impl()->RecordIterationStatementSourceRange(loop, range_scope.Finalize());
   }
+  impl()->RecordIterationStatementSourceRange(loop, body_range);
   return impl()->InitializeForEachStatement(loop, expression, enumerable, body);
 }
 
@@ -6130,11 +6107,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     scope()->set_start_position(scanner()->location().beg_pos);
 
     SourceRange body_range;
-    SourceRangeScope range_scope(scanner(), &body_range);
-
-    body = ParseStatement(nullptr, nullptr, CHECK_OK);
-    scope()->set_end_position(end_position());
-    impl()->RecordIterationStatementSourceRange(loop, range_scope.Finalize());
+    {
+      SourceRangeScope range_scope(scanner(), &body_range);
+      body = ParseStatement(nullptr, nullptr, CHECK_OK);
+      scope()->set_end_position(end_position());
+    }
+    impl()->RecordIterationStatementSourceRange(loop, body_range);
 
     if (has_declarations) {
       BlockT body_block = impl()->NullStatement();
