@@ -224,10 +224,10 @@ config("internal_config") {
     "$target_gen_dir",
   ]
 
-  defines = []
+  configs = [ "//build/config/compiler:wexit_time_destructors" ]
 
   if (is_component_build) {
-    defines += [ "BUILDING_V8_SHARED" ]
+    defines = [ "BUILDING_V8_SHARED" ]
   }
 }
 

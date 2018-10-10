@@ -113,22 +113,23 @@ bool ContainsUpperCase(const std::string& s) {
 // keywords, e.g.: 'True', 'Undefined', etc.
 // These do not need to follow the default naming convention for constants.
 bool IsKeywordLikeName(const std::string& s) {
-  static const std::vector<std::string> keyword_like_constants{
-      "True", "False", "Hole", "Null", "Undefined"};
+  static const char* const keyword_like_constants[]{"True", "False", "Hole",
+                                                    "Null", "Undefined"};
 
-  return std::find(keyword_like_constants.begin(), keyword_like_constants.end(),
-                   s) != keyword_like_constants.end();
+  return std::find(std::begin(keyword_like_constants),
+                   std::end(keyword_like_constants),
+                   s) != std::end(keyword_like_constants);
 }
 
 // Untagged/MachineTypes like 'int32', 'intptr' etc. follow a 'all-lowercase'
 // naming convention and are those exempt from the normal type convention.
 bool IsMachineType(const std::string& s) {
-  static const std::vector<std::string> machine_types{
+  static const char* const machine_types[]{
       "void",    "never",   "int32",   "uint32", "int64",  "intptr",
       "uintptr", "float32", "float64", "bool",   "string", "int31"};
 
-  return std::find(machine_types.begin(), machine_types.end(), s) !=
-         machine_types.end();
+  return std::find(std::begin(machine_types), std::end(machine_types), s) !=
+         std::end(machine_types);
 }
 
 }  // namespace

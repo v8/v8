@@ -45,13 +45,16 @@ struct InitializePageAllocator {
     v8::PageAllocator* page_allocator =
         V8::GetCurrentPlatform()->GetPageAllocator();
     if (page_allocator == nullptr) {
-      static v8::base::PageAllocator default_allocator;
-      page_allocator = &default_allocator;
+      // On the heap and leaked so that no destructor needs to run at exit time.
+      static auto* default_allocator = new v8::base::PageAllocator;
+      page_allocator = default_allocator;
     }
 #if defined(LEAK_SANITIZER)
     {
-      static v8::base::LsanPageAllocator lsan_allocator(page_allocator);
-      page_allocator = &lsan_allocator;
+      // On the heap and leaked so that no destructor needs to run at exit time.
+      static auto* lsan_allocator =
+          new v8::base::LsanPageAllocator(page_allocator);
+      page_allocator = lsan_allocator;
     }
 #endif
     *page_allocator_ptr = page_allocator;

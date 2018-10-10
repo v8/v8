@@ -135,9 +135,9 @@ const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
 
 const std::vector<PatternData> CreateData(const char* digit2,
                                           const char* numeric) {
-  static std::vector<const char*> k2DigitNumeric = {"2-digit", "numeric"};
-  return CreateCommonData(PatternData(
-      "hour", {{digit2, "2-digit"}, {numeric, "numeric"}}, k2DigitNumeric));
+  return CreateCommonData(
+      PatternData("hour", {{digit2, "2-digit"}, {numeric, "numeric"}},
+                  {"2-digit", "numeric"}));
 }
 
 const std::vector<PatternData> GetPatternData(HourOption option) {
@@ -754,8 +754,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
 
   // 7. Let hourCycle be ? GetOption(options, "hourCycle", "string", « "h11",
   // "h12", "h23", "h24" », undefined).
-  static std::vector<const char*> hour_cycle_values = {"h11", "h12", "h23",
-                                                       "h24"};
+  const std::vector<const char*> hour_cycle_values{"h11", "h12", "h23", "h24"};
   std::unique_ptr<char[]> hour_cycle = nullptr;
   Maybe<bool> maybe_hour_cycle =
       Intl::GetStringOption(isolate, options, "hourCycle", hour_cycle_values,
@@ -785,7 +784,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   DCHECK(!icu_locale.isBogus());
 
   // 17. Let timeZone be ? Get(options, "timeZone").
-  static std::vector<const char*> empty_values = {};
+  const std::vector<const char*> empty_values;
   std::unique_ptr<char[]> timezone = nullptr;
   Maybe<bool> maybe_timezone =
       Intl::GetStringOption(isolate, options, "timeZone", empty_values,
