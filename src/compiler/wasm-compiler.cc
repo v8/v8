@@ -4951,9 +4951,10 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
   return WasmImportCallKind::kUseCallBuiltin;
 }
 
-MaybeHandle<Code> CompileWasmImportCallWrapper(
-    Isolate* isolate, WasmImportCallKind kind, wasm::FunctionSig* sig,
-    wasm::ModuleOrigin origin, wasm::UseTrapHandler use_trap_handler) {
+MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate* isolate,
+                                               WasmImportCallKind kind,
+                                               wasm::FunctionSig* sig,
+                                               bool source_positions) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
 
@@ -4975,10 +4976,9 @@ MaybeHandle<Code> CompileWasmImportCallWrapper(
   Node* effect = nullptr;
 
   SourcePositionTable* source_position_table =
-      origin == wasm::kAsmJsOrigin ? new (&zone) SourcePositionTable(&graph)
-                                   : nullptr;
+      source_positions ? new (&zone) SourcePositionTable(&graph) : nullptr;
 
-  wasm::ModuleEnv env(nullptr, use_trap_handler,
+  wasm::ModuleEnv env(nullptr, wasm::kNoTrapHandler,
                       wasm::kRuntimeExceptionSupport);
 
   WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig,

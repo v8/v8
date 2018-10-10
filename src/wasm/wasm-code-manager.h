@@ -31,6 +31,7 @@ namespace wasm {
 class NativeModule;
 class WasmCodeManager;
 class WasmMemoryTracker;
+class WasmImportWrapperCache;
 struct WasmModule;
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
@@ -230,14 +231,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
       OwnedVector<const byte> reloc_info,
       OwnedVector<const byte> source_position_table, WasmCode::Tier tier);
 
-  // Add an import wrapper, e.g. for calls to JS functions. This method copies
-  // heap-allocated code because we compile wrappers using a different pipeline.
-  WasmCode* AddImportWrapper(Handle<Code> code, uint32_t index);
-
-  // Add an interpreter entry. For the same reason as AddImportWrapper, we
-  // currently compile these using a different pipeline and we can't get a
-  // CodeDesc here. When adding interpreter wrappers, we do not insert them in
-  // the code_table, however, we let them self-identify as the {index} function.
+  // Add an interpreter entry. We currently compile these using a different
+  // pipeline and we can't get a CodeDesc here. When adding interpreter
+  // wrappers, we do not insert them in the code_table, however, we let them
+  // self-identify as the {index} function.
   WasmCode* AddInterpreterEntry(Handle<Code> code, uint32_t index);
 
   // Adds anonymous code for testing purposes.
@@ -335,6 +332,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* Lookup(Address) const;
 
+  WasmImportWrapperCache* import_wrapper_cache() const {
+    return import_wrapper_cache_.get();
+  }
+
   ~NativeModule();
 
   const WasmFeatures& enabled_features() const { return enabled_features_; }
@@ -343,6 +344,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class WasmCode;
   friend class WasmCodeManager;
   friend class NativeModuleModificationScope;
+  friend class WasmImportWrapperCache;
 
   NativeModule(Isolate* isolate, const WasmFeatures& enabled_features,
                bool can_request_more, VirtualMemory code_space,
@@ -396,6 +398,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Note that its destructor blocks until all tasks are finished/aborted and
   // hence needs to be destructed first when this native module dies.
   std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
+
+  // A cache of the import wrappers, keyed on the kind and signature.
+  std::unique_ptr<WasmImportWrapperCache> import_wrapper_cache_;
 
   // This mutex protects concurrent calls to {AddCode} and friends.
   mutable base::Mutex allocation_mutex_;

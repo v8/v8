@@ -18,6 +18,7 @@
 #include "src/objects-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
+#include "src/wasm/wasm-import-wrapper-cache-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -342,6 +343,8 @@ NativeModule::NativeModule(Isolate* isolate, const WasmFeatures& enabled,
     : enabled_features_(enabled),
       module_(std::move(module)),
       compilation_state_(NewCompilationState(isolate, env)),
+      import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
+          new WasmImportWrapperCache(this))),
       free_code_space_(code_space.region()),
       wasm_code_manager_(code_manager),
       can_request_more_memory_(can_request_more),
@@ -424,15 +427,6 @@ WasmCode* NativeModule::AddOwnedCode(
   return code;
 }
 
-WasmCode* NativeModule::AddImportWrapper(Handle<Code> code, uint32_t index) {
-  // TODO(wasm): Adding instance-specific import wrappers as owned code to
-  // this NativeModule is a memory leak until the whole NativeModule dies.
-  WasmCode* ret = AddAnonymousCode(code, WasmCode::kWasmToJsWrapper);
-  DCHECK_LT(index, module_->num_imported_functions);
-  ret->index_ = index;
-  return ret;
-}
-
 WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code, uint32_t index) {
   WasmCode* ret = AddAnonymousCode(code, WasmCode::kInterpreterEntry);
   ret->index_ = index;
@@ -463,6 +457,7 @@ void NativeModule::SetLazyBuiltin(Handle<Code> code) {
 }
 
 void NativeModule::SetRuntimeStubs(Isolate* isolate) {
+  HandleScope scope(isolate);
   DCHECK_NULL(runtime_stub_table_[0]);  // Only called once.
 #define COPY_BUILTIN(Name)                                                     \
   runtime_stub_table_[WasmCode::k##Name] =                                     \

@@ -2589,6 +2589,7 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-feature-flags.h",
     "src/wasm/wasm-features.cc",
     "src/wasm/wasm-features.h",
+    "src/wasm/wasm-import-wrapper-cache-inl.h",
     "src/wasm/wasm-interpreter.cc",
     "src/wasm/wasm-interpreter.h",
     "src/wasm/wasm-js.cc",

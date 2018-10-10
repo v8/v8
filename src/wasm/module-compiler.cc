@@ -19,6 +19,7 @@
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-import-wrapper-cache-inl.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-memory.h"
@@ -1516,14 +1517,9 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           }
           default: {
             // The imported function is a callable.
-            Handle<Code> wrapper_code = compiler::CompileWasmImportCallWrapper(
-                                            isolate_, kind, expected_sig,
-                                            module_->origin, use_trap_handler())
-                                            .ToHandleChecked();
-            RecordStats(*wrapper_code, isolate_->counters());
-
             WasmCode* wasm_code =
-                native_module->AddImportWrapper(wrapper_code, func_index);
+                native_module->import_wrapper_cache()->GetOrCompile(
+                    isolate_, kind, expected_sig);
             ImportedFunctionEntry entry(instance, func_index);
             entry.SetWasmToJs(isolate_, js_receiver, wasm_code);
             break;

@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/code-tracer.h"
+#include "src/wasm/wasm-import-wrapper-cache-inl.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -43,12 +44,8 @@ TestingModuleBuilder::TestingModuleBuilder(
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
     auto kind = compiler::GetWasmImportCallKind(maybe_import->js_function,
                                                 maybe_import->sig);
-    MaybeHandle<Code> code = compiler::CompileWasmImportCallWrapper(
-        isolate_, kind, maybe_import->sig, test_module_->origin,
-        trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
-                                             : kNoTrapHandler);
-    auto import_wrapper = native_module_->AddImportWrapper(
-        code.ToHandleChecked(), maybe_import_index);
+    auto import_wrapper = native_module_->import_wrapper_cache()->GetOrCompile(
+        isolate_, kind, maybe_import->sig);
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
         .SetWasmToJs(isolate_, maybe_import->js_function, import_wrapper);

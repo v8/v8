@@ -71,7 +71,7 @@ class TurbofanWasmCompilationUnit {
 // Calls to WASM imports are handled in several different ways, depending
 // on the type of the target function/callable and whether the signature
 // matches the argument arity.
-enum class WasmImportCallKind {
+enum class WasmImportCallKind : uint8_t {
   kLinkError,                      // static WASM->WASM type error
   kRuntimeTypeError,               // runtime WASM->JS type error
   kWasmToWasm,                     // fast WASM->WASM call
@@ -88,8 +88,7 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> callable,
 // Compiles an import call wrapper, which allows WASM to call imports.
 MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate*, WasmImportCallKind,
                                                wasm::FunctionSig*,
-                                               wasm::ModuleOrigin,
-                                               wasm::UseTrapHandler);
+                                               bool source_positions);
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.
