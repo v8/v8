@@ -1351,11 +1351,7 @@ void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
   // For Word64 operations, the value input is split into the a high node,
   // and a low node in the int64-lowering phase.
   Node* value_high = node->InputAt(3);
-#if defined(V8_EMBEDDED_BUILTINS)
-  bool block_root_register = !selector->CanUseRootsRegister();
-#else
-  bool block_root_register = true;
-#endif
+  bool block_root_register = !FLAG_embedded_builtins;
 
   // Wasm lives in 32-bit address space, so we do not need to worry about
   // base/index lowering. This will need to be fixed for Wasm64.
@@ -1805,11 +1801,7 @@ void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   Node* value_high = node->InputAt(3);
-#if defined(V8_EMBEDDED_BUILTINS)
-  bool block_root_register = !CanUseRootsRegister();
-#else
-  bool block_root_register = true;
-#endif
+  bool block_root_register = !FLAG_embedded_builtins;
 
   AddressingMode addressing_mode;
   InstructionOperand inputs[] = {
@@ -1855,11 +1847,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   IA32OperandGenerator g(this);
   Node* index = node->InputAt(1);
   AddressingMode addressing_mode;
-#if defined(V8_EMBEDDED_BUILTINS)
-  bool block_root_register = !CanUseRootsRegister();
-#else
-  bool block_root_register = true;
-#endif
+  bool block_root_register = !FLAG_embedded_builtins;
 
   InstructionOperand inputs[] = {
       // High, Low values of old value

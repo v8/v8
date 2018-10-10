@@ -1802,6 +1802,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   typedef SetRootRegisterSupportScope<false> SupportsRootRegisterScope;
   typedef SetRootRegisterSupportScope<true> AllowExplicitEbxAccessScope;
 
+  void set_ebx_addressable(bool is_addressable) {
+    is_ebx_addressable_ = is_addressable;
+  }
+
  protected:
   void emit_sse_operand(XMMRegister reg, Operand adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);

@@ -892,4 +892,44 @@
   'wasm/asm-wasm-f64': [SKIP],
 }], # arch == x64
 
+##############################################################################
+['arch == ia32 and embedded_builtins == True', {
+  # TODO(v8:6666): Fix arguments adaptor trampoline
+  'wasm/compiled-module-serialization': [SKIP],
+  'asm/embenchen/copy': [FAIL],
+  'wasm/embenchen/corrections': [FAIL],
+  'asm/embenchen/primes': [FAIL],
+  'asm/embenchen/corrections': [FAIL],
+  'wasm/embenchen/copy': [FAIL],
+  'asm/embenchen/fannkuch': [FAIL],
+  'asm/embenchen/memops': [FAIL],
+  'asm/embenchen/fasta': [FAIL],
+  'wasm/embenchen/fannkuch': [FAIL],
+  'asm/embenchen/zlib': [FAIL],
+  'wasm/embenchen/fasta': [FAIL],
+  'wasm/embenchen/primes': [FAIL],
+  'wasm/embenchen/box2d': [FAIL],
+  'asm/embenchen/box2d': [FAIL],
+  'wasm/embenchen/memops': [FAIL],
+  'wasm/embenchen/zlib': [FAIL],
+  'asm/embenchen/lua_binarytrees': [FAIL],
+  'wasm/embenchen/lua_binarytrees': [FAIL],
+  'asm/sqlite3/sqlite': [FAIL],
+  'asm/sqlite3/sqlite-safe-heap': [FAIL],
+  'asm/sqlite3/sqlite-pointer-masking': [FAIL],
+  'asm/poppler/poppler': [FAIL],
+  'regress/wasm/regress-808848': [FAIL],
+  'regress/wasm/regress-834624': [FAIL],
+  'regress/wasm/regress-843563': [FAIL],
+  'wasm/anyref': [FAIL],
+  'wasm/exceptions-shared': [FAIL],
+  'wasm/errors': [FAIL],
+  'wasm/ffi-error': [FAIL],
+  'wasm/gc-frame': [FAIL],
+  'wasm/import-function': [FAIL],
+  'wasm/ffi': [FAIL],
+  'wasm/test-wasm-module-builder': [FAIL],
+  'wasm/stackwalk': [FAIL],
+}],  # arch == ia32 and embedded_builtins == True
+
 ]
