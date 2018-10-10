@@ -68,8 +68,9 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   ExternalReference roots_array_start =
       ExternalReference::roots_array_start(isolate());
   mov(destination, Immediate(static_cast<int>(index)));
-  mov(destination,
-      StaticArray(destination, times_pointer_size, roots_array_start));
+  lea(destination,
+      Operand(destination, times_pointer_size, roots_array_start.address(),
+              RelocInfo::EXTERNAL_REFERENCE));
 }
 
 void MacroAssembler::CompareRoot(Register with, Register scratch,
@@ -77,7 +78,8 @@ void MacroAssembler::CompareRoot(Register with, Register scratch,
   ExternalReference roots_array_start =
       ExternalReference::roots_array_start(isolate());
   mov(scratch, Immediate(static_cast<int>(index)));
-  cmp(with, StaticArray(scratch, times_pointer_size, roots_array_start));
+  cmp(with, Operand(scratch, times_pointer_size, roots_array_start.address(),
+                    RelocInfo::EXTERNAL_REFERENCE));
 }
 
 void MacroAssembler::CompareRoot(Register with, RootIndex index) {
@@ -154,12 +156,6 @@ void TurboAssembler::LoadAddress(Register destination,
 Operand TurboAssembler::StaticVariable(const ExternalReference& ext) {
   // TODO(jgruber,v8:6666): Root-relative operand once kRootRegister exists.
   return Operand(ext.address(), RelocInfo::EXTERNAL_REFERENCE);
-}
-
-Operand TurboAssembler::StaticArray(Register index, ScaleFactor scale,
-                                    const ExternalReference& ext) {
-  // TODO(jgruber,v8:6666): Root-relative operand once kRootRegister exists.
-  return Operand(index, scale, ext.address(), RelocInfo::EXTERNAL_REFERENCE);
 }
 
 static constexpr Register saved_regs[] = {eax, ecx, edx};

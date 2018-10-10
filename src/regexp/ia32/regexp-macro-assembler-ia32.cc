@@ -585,7 +585,8 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     ExternalReference word_map =
         ExternalReference::re_word_character_map(isolate());
     __ test_b(current_character(),
-              masm_->StaticArray(current_character(), times_1, word_map));
+              Operand(current_character(), times_1, word_map.address(),
+                      RelocInfo::EXTERNAL_REFERENCE));
     BranchOrBacktrack(zero, on_no_match);
     return true;
   }
@@ -600,7 +601,8 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     ExternalReference word_map =
         ExternalReference::re_word_character_map(isolate());
     __ test_b(current_character(),
-              masm_->StaticArray(current_character(), times_1, word_map));
+              Operand(current_character(), times_1, word_map.address(),
+                      RelocInfo::EXTERNAL_REFERENCE));
     BranchOrBacktrack(not_zero, on_no_match);
     if (mode_ != LATIN1) {
       __ bind(&done);

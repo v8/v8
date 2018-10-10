@@ -274,8 +274,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Wrapper functions to ensure external reference operands produce
   // isolate-independent code if needed.
   Operand StaticVariable(const ExternalReference& ext);
-  Operand StaticArray(Register index, ScaleFactor scale,
-                      const ExternalReference& ext);
 
   // Return and drop arguments from stack, where the number of arguments
   // may be bigger than 2^16 - 1.  Requires a scratch register.
