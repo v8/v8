@@ -230,8 +230,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       OwnedVector<const byte> reloc_info,
       OwnedVector<const byte> source_position_table, WasmCode::Tier tier);
 
-  // Add an import wrapper for wasm-to-JS transitions. This method copies over
-  // JS-allocated code, because we compile wrappers using a different pipeline.
+  // Add an import wrapper, e.g. for calls to JS functions. This method copies
+  // heap-allocated code because we compile wrappers using a different pipeline.
   WasmCode* AddImportWrapper(Handle<Code> code, uint32_t index);
 
   // Add an interpreter entry. For the same reason as AddImportWrapper, we

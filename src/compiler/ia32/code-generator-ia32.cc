@@ -4261,6 +4261,18 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
       if (call_descriptor->IsWasmFunctionCall()) {
         __ push(kWasmInstanceRegister);
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        // WASM import wrappers are passed a tuple in the place of the instance.
+        // Unpack the tuple into the instance and the target callable.
+        // This must be done here in the codegen because it cannot be expressed
+        // properly in the graph.
+        __ mov(kJSFunctionRegister,
+               Operand(kWasmInstanceRegister,
+                       Tuple2::kValue2Offset - kHeapObjectTag));
+        __ mov(kWasmInstanceRegister,
+               Operand(kWasmInstanceRegister,
+                       Tuple2::kValue1Offset - kHeapObjectTag));
+        __ push(kWasmInstanceRegister);
       }
     }
   }

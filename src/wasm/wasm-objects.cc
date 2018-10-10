@@ -89,7 +89,7 @@ class WasmInstanceNativeAllocations {
     uint32_t old_size = instance->indirect_function_table_size();
     void* new_sig_ids = nullptr;
     void* new_targets = nullptr;
-    Handle<FixedArray> new_instances;
+    Handle<FixedArray> new_refs;
     if (indirect_function_table_sig_ids_) {
       // Reallocate the old storage.
       new_sig_ids = realloc(indirect_function_table_sig_ids_,
@@ -97,16 +97,14 @@ class WasmInstanceNativeAllocations {
       new_targets =
           realloc(indirect_function_table_targets_, new_size * sizeof(Address));
 
-      Handle<FixedArray> old(instance->indirect_function_table_instances(),
-                             isolate);
-      new_instances = isolate->factory()->CopyFixedArrayAndGrow(
+      Handle<FixedArray> old(instance->indirect_function_table_refs(), isolate);
+      new_refs = isolate->factory()->CopyFixedArrayAndGrow(
           old, static_cast<int>(new_size - old_size));
     } else {
       // Allocate new storage.
       new_sig_ids = malloc(new_size * sizeof(uint32_t));
       new_targets = malloc(new_size * sizeof(Address));
-      new_instances =
-          isolate->factory()->NewFixedArray(static_cast<int>(new_size));
+      new_refs = isolate->factory()->NewFixedArray(static_cast<int>(new_size));
     }
     // Initialize new entries.
     instance->set_indirect_function_table_size(new_size);
@@ -115,7 +113,7 @@ class WasmInstanceNativeAllocations {
     SET(instance, indirect_function_table_targets,
         reinterpret_cast<Address*>(new_targets));
 
-    instance->set_indirect_function_table_instances(*new_instances);
+    instance->set_indirect_function_table_refs(*new_refs);
     for (uint32_t j = old_size; j < new_size; j++) {
       IndirectFunctionTableEntry(instance, static_cast<int>(j)).clear();
     }
@@ -828,23 +826,22 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   // TODO(titzer): Change this to MaybeHandle<WasmExportedFunction>
   DCHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   auto exported_function = Handle<WasmExportedFunction>::cast(function);
-  Handle<WasmInstanceObject> other_instance(exported_function->instance(),
-                                            isolate);
+  Handle<WasmInstanceObject> target_instance(exported_function->instance(),
+                                             isolate);
   int func_index = exported_function->function_index();
-  auto* wasm_function = &other_instance->module()->functions[func_index];
+  auto* wasm_function = &target_instance->module()->functions[func_index];
   DCHECK_NOT_NULL(wasm_function);
   DCHECK_NOT_NULL(wasm_function->sig);
-  Address call_target = exported_function->GetWasmCallTarget();
   UpdateDispatchTables(isolate, table, table_index, wasm_function->sig,
                        handle(exported_function->instance(), isolate),
-                       call_target);
+                       func_index);
   array->set(table_index, *function);
 }
 
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, Handle<WasmTableObject> table, int table_index,
-    wasm::FunctionSig* sig, Handle<WasmInstanceObject> from_instance,
-    Address call_target) {
+    wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
+    int target_func_index) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
@@ -852,15 +849,15 @@ void WasmTableObject::UpdateDispatchTables(
 
   for (int i = 0; i < dispatch_tables->length();
        i += kDispatchTableNumElements) {
-    Handle<WasmInstanceObject> to_instance(
+    Handle<WasmInstanceObject> instance(
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),
         isolate);
     // Note that {SignatureMap::Find} may return {-1} if the signature is
     // not found; it will simply never match any check.
-    auto sig_id = to_instance->module()->signature_map.Find(*sig);
-    IndirectFunctionTableEntry(to_instance, table_index)
-        .set(sig_id, *from_instance, call_target);
+    auto sig_id = instance->module()->signature_map.Find(*sig);
+    IndirectFunctionTableEntry(instance, table_index)
+        .Set(sig_id, target_instance, target_func_index);
   }
 }
 
@@ -1125,23 +1122,41 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
 void IndirectFunctionTableEntry::clear() {
   instance_->indirect_function_table_sig_ids()[index_] = -1;
   instance_->indirect_function_table_targets()[index_] = 0;
-  instance_->indirect_function_table_instances()->set(
+  instance_->indirect_function_table_refs()->set(
       index_, ReadOnlyRoots(instance_->GetIsolate()).undefined_value());
 }
 
-void IndirectFunctionTableEntry::set(int sig_id, WasmInstanceObject* instance,
-                                     Address call_target) {
-  TRACE_IFT("IFT entry %p[%d] = {sig_id=%d, instance=%p, target=%" PRIuPTR
-            "}\n",
-            *instance_, index_, sig_id, instance, call_target);
+void IndirectFunctionTableEntry::Set(int sig_id,
+                                     Handle<WasmInstanceObject> target_instance,
+                                     int target_func_index) {
+  TRACE_IFT(
+      "IFT entry %p[%d] = {sig_id=%d, target_instance=%p, "
+      "target_func_index=%d}\n",
+      *instance_, index_, sig_id, *target_instance, target_func_index);
+
+  Object* ref = nullptr;
+  Address call_target = 0;
+  if (target_func_index <
+      static_cast<int>(target_instance->module()->num_imported_functions)) {
+    // The function in the target instance was imported. Use its imports table,
+    // which contains a tuple needed by the import wrapper.
+    ImportedFunctionEntry entry(target_instance, target_func_index);
+    ref = entry.object_ref();
+    call_target = entry.target();
+  } else {
+    // The function in the target instance was not imported.
+    ref = *target_instance;
+    call_target = target_instance->GetCallTarget(target_func_index);
+  }
+
+  // Set the signature id, the target, and the receiver ref.
   instance_->indirect_function_table_sig_ids()[index_] = sig_id;
   instance_->indirect_function_table_targets()[index_] = call_target;
-  instance_->indirect_function_table_instances()->set(index_, instance);
+  instance_->indirect_function_table_refs()->set(index_, ref);
 }
 
-WasmInstanceObject* IndirectFunctionTableEntry::instance() {
-  return WasmInstanceObject::cast(
-      instance_->indirect_function_table_instances()->get(index_));
+Object* IndirectFunctionTableEntry::object_ref() {
+  return instance_->indirect_function_table_refs()->get(index_);
 }
 
 int IndirectFunctionTableEntry::sig_id() {
@@ -1152,43 +1167,48 @@ Address IndirectFunctionTableEntry::target() {
   return instance_->indirect_function_table_targets()[index_];
 }
 
-void ImportedFunctionEntry::set_wasm_to_js(
-    JSReceiver* callable, const wasm::WasmCode* wasm_to_js_wrapper) {
+void ImportedFunctionEntry::SetWasmToJs(
+    Isolate* isolate, Handle<JSReceiver> callable,
+    const wasm::WasmCode* wasm_to_js_wrapper) {
   TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n", *instance_,
-            index_, callable, wasm_to_js_wrapper->instructions().start());
+            index_, *callable, wasm_to_js_wrapper->instructions().start());
   DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_to_js_wrapper->kind());
-  instance_->imported_function_instances()->set(index_, *instance_);
-  instance_->imported_function_callables()->set(index_, callable);
+  Handle<Tuple2> tuple =
+      isolate->factory()->NewTuple2(instance_, callable, TENURED);
+  instance_->imported_function_refs()->set(index_, *tuple);
   instance_->imported_function_targets()[index_] =
       wasm_to_js_wrapper->instruction_start();
 }
 
-void ImportedFunctionEntry::set_wasm_to_wasm(WasmInstanceObject* instance,
-                                             Address call_target) {
+void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject* instance,
+                                          Address call_target) {
   TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%" PRIuPTR "}\n",
             *instance_, index_, instance, call_target);
-  instance_->imported_function_instances()->set(index_, instance);
-  instance_->imported_function_callables()->set(
-      index_, instance_->GetReadOnlyRoots().undefined_value());
+  instance_->imported_function_refs()->set(index_, instance);
   instance_->imported_function_targets()[index_] = call_target;
 }
 
 WasmInstanceObject* ImportedFunctionEntry::instance() {
-  return WasmInstanceObject::cast(
-      instance_->imported_function_instances()->get(index_));
+  // The imported reference entry is either a target instance or a tuple
+  // of this instance and the target callable.
+  Object* value = instance_->imported_function_refs()->get(index_);
+  if (value->IsWasmInstanceObject()) {
+    return WasmInstanceObject::cast(value);
+  }
+  Tuple2* tuple = Tuple2::cast(value);
+  return WasmInstanceObject::cast(tuple->value1());
 }
 
 JSReceiver* ImportedFunctionEntry::callable() {
-  return JSReceiver::cast(
-      instance_->imported_function_callables()->get(index_));
+  return JSReceiver::cast(Tuple2::cast(object_ref())->value2());
+}
+
+Object* ImportedFunctionEntry::object_ref() {
+  return instance_->imported_function_refs()->get(index_);
 }
 
 Address ImportedFunctionEntry::target() {
   return instance_->imported_function_targets()[index_];
-}
-
-bool ImportedFunctionEntry::is_js_receiver_entry() {
-  return instance_->imported_function_callables()->get(index_)->IsJSReceiver();
 }
 
 bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
@@ -1259,13 +1279,9 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       num_imported_mutable_globals);
   instance->set_managed_native_allocations(*native_allocations);
 
-  Handle<FixedArray> imported_function_instances =
+  Handle<FixedArray> imported_function_refs =
       isolate->factory()->NewFixedArray(num_imported_functions);
-  instance->set_imported_function_instances(*imported_function_instances);
-
-  Handle<FixedArray> imported_function_callables =
-      isolate->factory()->NewFixedArray(num_imported_functions);
-  instance->set_imported_function_callables(*imported_function_callables);
+  instance->set_imported_function_refs(*imported_function_refs);
 
   Handle<Code> centry_stub = CodeFactory::CEntry(isolate);
   instance->set_centry_stub(*centry_stub);
@@ -1411,6 +1427,10 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
 
 Address WasmExportedFunction::GetWasmCallTarget() {
   return instance()->GetCallTarget(function_index());
+}
+
+wasm::FunctionSig* WasmExportedFunction::sig() {
+  return instance()->module()->functions[function_index()].sig;
 }
 
 #undef TRACE

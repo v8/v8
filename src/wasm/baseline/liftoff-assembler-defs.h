@@ -26,7 +26,7 @@ constexpr Register kNoParamRegister = edi;
 #elif V8_TARGET_ARCH_X64
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
-    Register::ListOf<rax, rcx, rdx, rbx, rsi, rdi>();
+    Register::ListOf<rax, rcx, rdx, rbx, rsi, rdi, r9>();
 
 constexpr RegList kLiftoffAssemblerFpCacheRegs =
     DoubleRegister::ListOf<xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7>();

@@ -88,7 +88,6 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> callable,
 // Compiles an import call wrapper, which allows WASM to call imports.
 MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate*, WasmImportCallKind,
                                                wasm::FunctionSig*,
-                                               uint32_t index,
                                                wasm::ModuleOrigin,
                                                wasm::UseTrapHandler);
 
@@ -105,7 +104,7 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate*, uint32_t func_index,
 
 enum CWasmEntryParameters {
   kCodeEntry,
-  kWasmInstance,
+  kObjectRef,
   kArgumentsBuffer,
   // marker:
   kNumParameters
@@ -130,11 +129,18 @@ struct WasmInstanceCacheNodes {
 // the wasm decoder from the internal details of TurboFan.
 class WasmGraphBuilder {
  public:
-  enum EnforceBoundsCheck : bool {
+  enum EnforceBoundsCheck : bool {  // --
     kNeedsBoundsCheck = true,
     kCanOmitBoundsCheck = false
   };
-  enum UseRetpoline : bool { kRetpoline = true, kNoRetpoline = false };
+  enum UseRetpoline : bool {  // --
+    kRetpoline = true,
+    kNoRetpoline = false
+  };
+  enum ExtraCallableParam : bool {  // --
+    kExtraCallableParam = true,
+    kNoExtraCallableParam = false
+  };
 
   WasmGraphBuilder(wasm::ModuleEnv* env, Zone* zone, MachineGraph* mcgraph,
                    wasm::FunctionSig* sig,
@@ -490,7 +496,9 @@ class WasmGraphBuilder {
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, wasm::FunctionSig* signature,
     WasmGraphBuilder::UseRetpoline use_retpoline =
-        WasmGraphBuilder::kNoRetpoline);
+        WasmGraphBuilder::kNoRetpoline,
+    WasmGraphBuilder::ExtraCallableParam callable_param =
+        WasmGraphBuilder::kNoExtraCallableParam);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, CallDescriptor* call_descriptor);

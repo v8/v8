@@ -2710,9 +2710,10 @@ class ThreadImpl {
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
 
-  ExternalCallResult CallExternalWasmFunction(
-      Isolate* isolate, Handle<WasmInstanceObject> instance,
-      const WasmCode* code, FunctionSig* sig) {
+  ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
+                                              Handle<Object> object_ref,
+                                              const WasmCode* code,
+                                              FunctionSig* sig) {
     if (code->kind() == WasmCode::kWasmToJsWrapper &&
         !IsJSCompatibleSignature(sig)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
@@ -2781,7 +2782,7 @@ class ThreadImpl {
                   "code below needs adaption");
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
     args[compiler::CWasmEntryParameters::kCodeEntry] = code_entry_obj;
-    args[compiler::CWasmEntryParameters::kWasmInstance] = instance;
+    args[compiler::CWasmEntryParameters::kObjectRef] = object_ref;
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
     Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -2844,19 +2845,18 @@ class ThreadImpl {
   }
 
   ExternalCallResult CallImportedFunction(uint32_t function_index) {
+    DCHECK_GT(module()->num_imported_functions, function_index);
     // Use a new HandleScope to avoid leaking / accumulating handles in the
     // outer scope.
     Isolate* isolate = instance_object_->GetIsolate();
     HandleScope handle_scope(isolate);
 
-    DCHECK_GT(module()->num_imported_functions, function_index);
-    Handle<WasmInstanceObject> instance;
     ImportedFunctionEntry entry(instance_object_, function_index);
-    instance = handle(entry.instance(), isolate);
+    Handle<Object> object_ref(entry.object_ref(), isolate);
     WasmCode* code =
         GetTargetCode(isolate->wasm_engine()->code_manager(), entry.target());
-    FunctionSig* sig = codemap()->module()->functions[function_index].sig;
-    return CallExternalWasmFunction(isolate, instance, code, sig);
+    FunctionSig* sig = module()->functions[function_index].sig;
+    return CallExternalWasmFunction(isolate, object_ref, code, sig);
   }
 
   ExternalCallResult CallIndirectFunction(uint32_t table_index,
@@ -2900,28 +2900,20 @@ class ThreadImpl {
       return {ExternalCallResult::SIGNATURE_MISMATCH};
     }
 
-    Handle<WasmInstanceObject> instance = handle(entry.instance(), isolate);
+    HandleScope scope(isolate);
+    FunctionSig* signature = module()->signatures[sig_index];
+    Handle<Object> object_ref = handle(entry.object_ref(), isolate);
     WasmCode* code =
         GetTargetCode(isolate->wasm_engine()->code_manager(), entry.target());
 
-    // Call either an internal or external WASM function.
-    HandleScope scope(isolate);
-    FunctionSig* signature = module()->signatures[sig_index];
-
-    if (code->kind() == WasmCode::kFunction) {
-      if (!instance_object_.is_identical_to(instance)) {
-        // Cross instance call.
-        return CallExternalWasmFunction(isolate, instance, code, signature);
-      }
-      return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
+    if (!object_ref->IsWasmInstanceObject() || /* call to an import */
+        !instance_object_.is_identical_to(object_ref) /* cross-instance */) {
+      return CallExternalWasmFunction(isolate, object_ref, code, signature);
     }
 
-    // Call to external function.
-    if (code->kind() == WasmCode::kInterpreterEntry ||
-        code->kind() == WasmCode::kWasmToJsWrapper) {
-      return CallExternalWasmFunction(isolate, instance, code, signature);
-    }
-    return {ExternalCallResult::INVALID_FUNC};
+    DCHECK(code->kind() == WasmCode::kInterpreterEntry ||
+           code->kind() == WasmCode::kFunction);
+    return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
   }
 
   inline Activation current_activation() {

@@ -14,6 +14,10 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+// TODO(wasm): optimize calling conventions to be both closer to C++ (to
+// reduce adapter costs for fast WASM <-> C++ calls) and to be more efficient
+// in general.
+
 #if V8_TARGET_ARCH_IA32
 // ===========================================================================
 // == ia32 ===================================================================
@@ -28,7 +32,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {xmm1, xmm2};
 // ===========================================================================
 // == x64 ====================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {rsi, rax, rdx, rcx, rbx, rdi};
+constexpr Register kGpParamRegisters[] = {rsi, rax, rdx, rcx, rbx, r9};
 constexpr Register kGpReturnRegisters[] = {rax, rdx};
 constexpr DoubleRegister kFpParamRegisters[] = {xmm1, xmm2, xmm3,
                                                 xmm4, xmm5, xmm6};
@@ -38,7 +42,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {xmm1, xmm2};
 // ===========================================================================
 // == arm ====================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {r3, r0, r1, r2};
+constexpr Register kGpParamRegisters[] = {r3, r0, r2, r6};
 constexpr Register kGpReturnRegisters[] = {r0, r1};
 // ARM d-registers must be in ascending order for correct allocation.
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d1, d2, d3, d4, d5, d6, d7};
@@ -48,7 +52,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d0, d1};
 // ===========================================================================
 // == arm64 ====================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {x7, x0, x1, x2, x3, x4, x5, x6};
+constexpr Register kGpParamRegisters[] = {x7, x0, x2, x3, x4, x5, x6};
 constexpr Register kGpReturnRegisters[] = {x0, x1};
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d1, d2, d3, d4, d5, d6, d7};
 constexpr DoubleRegister kFpReturnRegisters[] = {d0, d1};
@@ -57,7 +61,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d0, d1};
 // ===========================================================================
 // == mips ===================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {a0, a1, a2, a3};
+constexpr Register kGpParamRegisters[] = {a0, a2, a3};
 constexpr Register kGpReturnRegisters[] = {v0, v1};
 constexpr DoubleRegister kFpParamRegisters[] = {f2, f4, f6, f8, f10, f12, f14};
 constexpr DoubleRegister kFpReturnRegisters[] = {f2, f4};
@@ -66,7 +70,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {f2, f4};
 // ===========================================================================
 // == mips64 =================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {a0, a1, a2, a3, a4, a5, a6, a7};
+constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6, a7};
 constexpr Register kGpReturnRegisters[] = {v0, v1};
 constexpr DoubleRegister kFpParamRegisters[] = {f2, f4, f6, f8, f10, f12, f14};
 constexpr DoubleRegister kFpReturnRegisters[] = {f2, f4};
@@ -75,7 +79,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {f2, f4};
 // ===========================================================================
 // == ppc & ppc64 ============================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {r10, r3, r4, r5, r6, r7, r8, r9};
+constexpr Register kGpParamRegisters[] = {r10, r3, r5, r6, r7, r8, r9};
 constexpr Register kGpReturnRegisters[] = {r3, r4};
 constexpr DoubleRegister kFpParamRegisters[] = {d1, d2, d3, d4, d5, d6, d7, d8};
 constexpr DoubleRegister kFpReturnRegisters[] = {d1, d2};
@@ -84,7 +88,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d1, d2};
 // ===========================================================================
 // == s390x ==================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {r6, r2, r3, r4, r5};
+constexpr Register kGpParamRegisters[] = {r6, r2, r4, r5};
 constexpr Register kGpReturnRegisters[] = {r2, r3};
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d2, d4, d6};
 constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2, d4, d6};
@@ -93,7 +97,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2, d4, d6};
 // ===========================================================================
 // == s390 ===================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {r6, r2, r3, r4, r5};
+constexpr Register kGpParamRegisters[] = {r6, r2, r4, r5};
 constexpr Register kGpReturnRegisters[] = {r2, r3};
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d2};
 constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};

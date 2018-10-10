@@ -425,7 +425,7 @@ WasmCode* NativeModule::AddOwnedCode(
 }
 
 WasmCode* NativeModule::AddImportWrapper(Handle<Code> code, uint32_t index) {
-  // TODO(wasm): Adding instance-specific wasm-to-js wrappers as owned code to
+  // TODO(wasm): Adding instance-specific import wrappers as owned code to
   // this NativeModule is a memory leak until the whole NativeModule dies.
   WasmCode* ret = AddAnonymousCode(code, WasmCode::kWasmToJsWrapper);
   DCHECK_LT(index, module_->num_imported_functions);

@@ -1635,15 +1635,15 @@ class LiftoffCompiler {
       __ Load(target, imported_targets.gp(), no_reg,
               imm.index * sizeof(Address), kPointerLoadType, pinned);
 
-      LiftoffRegister imported_instances = tmp;
-      LOAD_INSTANCE_FIELD(imported_instances, ImportedFunctionInstances,
+      LiftoffRegister imported_function_refs = tmp;
+      LOAD_INSTANCE_FIELD(imported_function_refs, ImportedFunctionRefs,
                           kPointerSize);
-      LiftoffRegister target_instance = tmp;
-      __ Load(target_instance, imported_instances.gp(), no_reg,
+      LiftoffRegister imported_function_ref = tmp;
+      __ Load(imported_function_ref, imported_function_refs.gp(), no_reg,
               ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index),
               kPointerLoadType, pinned);
 
-      LiftoffRegister* explicit_instance = &target_instance;
+      LiftoffRegister* explicit_instance = &imported_function_ref;
       Register target_reg = target.gp();
       __ PrepareCall(imm.sig, call_descriptor, &target_reg, explicit_instance);
       source_position_table_builder_.AddPosition(
@@ -1771,7 +1771,7 @@ class LiftoffCompiler {
     __ Load(scratch, table.gp(), index.gp(), 0, kPointerLoadType, pinned);
 
     // Load the instance from {instance->ift_instances[key]}
-    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableInstances, kPointerSize);
+    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableRefs, kPointerSize);
     __ Load(tmp_const, table.gp(), index.gp(),
             ObjectAccess::ElementOffsetInTaggedFixedArray(0), kPointerLoadType,
             pinned);

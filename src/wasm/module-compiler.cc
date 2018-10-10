@@ -1511,22 +1511,21 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
             // The import reference is the instance object itself.
             Address imported_target = imported_function->GetWasmCallTarget();
             ImportedFunctionEntry entry(instance, func_index);
-            entry.set_wasm_to_wasm(*imported_instance, imported_target);
+            entry.SetWasmToWasm(*imported_instance, imported_target);
             break;
           }
           default: {
             // The imported function is a callable.
-            Handle<Code> wrapper_code =
-                compiler::CompileWasmImportCallWrapper(
-                    isolate_, kind, expected_sig, func_index, module_->origin,
-                    use_trap_handler())
-                    .ToHandleChecked();
+            Handle<Code> wrapper_code = compiler::CompileWasmImportCallWrapper(
+                                            isolate_, kind, expected_sig,
+                                            module_->origin, use_trap_handler())
+                                            .ToHandleChecked();
             RecordStats(*wrapper_code, isolate_->counters());
 
             WasmCode* wasm_code =
                 native_module->AddImportWrapper(wrapper_code, func_index);
             ImportedFunctionEntry entry(instance, func_index);
-            entry.set_wasm_to_js(*js_receiver, wasm_code);
+            entry.SetWasmToJs(isolate_, js_receiver, wasm_code);
             break;
           }
         }
@@ -1593,19 +1592,16 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
                                 index, i);
             return -1;
           }
+          auto target_func = Handle<WasmExportedFunction>::cast(val);
+          Handle<WasmInstanceObject> target_instance =
+              handle(target_func->instance(), isolate_);
           // Look up the signature's canonical id. If there is no canonical
           // id, then the signature does not appear at all in this module,
           // so putting {-1} in the table will cause checks to always fail.
-          auto target = Handle<WasmExportedFunction>::cast(val);
-          Handle<WasmInstanceObject> imported_instance =
-              handle(target->instance(), isolate_);
-          Address exported_call_target = target->GetWasmCallTarget();
-          FunctionSig* sig = imported_instance->module()
-                                 ->functions[target->function_index()]
-                                 .sig;
+          FunctionSig* sig = target_func->sig();
           IndirectFunctionTableEntry(instance, i)
-              .set(module_->signature_map.Find(*sig), *imported_instance,
-                   exported_call_target);
+              .Set(module_->signature_map.Find(*sig), target_instance,
+                   target_func->function_index());
         }
         num_imported_tables++;
         break;
@@ -2102,20 +2098,8 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
       // Update the local dispatch table first.
       uint32_t sig_id = module_->signature_ids[function->sig_index];
-      Handle<WasmInstanceObject> target_instance = instance;
-      Address call_target;
-      const bool is_import = func_index < module_->num_imported_functions;
-      if (is_import) {
-        // For imported calls, take target instance and address from the
-        // import table.
-        ImportedFunctionEntry entry(instance, func_index);
-        target_instance = handle(entry.instance(), isolate_);
-        call_target = entry.target();
-      } else {
-        call_target = native_module->GetCallTargetForFunction(func_index);
-      }
       IndirectFunctionTableEntry(instance, table_index)
-          .set(sig_id, *target_instance, call_target);
+          .Set(sig_id, instance, func_index);
 
       if (!table_instance.table_object.is_null()) {
         // Update the table object's other dispatch tables.
@@ -2147,7 +2131,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
         // we have not yet added the dispatch table we are currently building.
         WasmTableObject::UpdateDispatchTables(
             isolate_, table_instance.table_object, table_index, function->sig,
-            target_instance, call_target);
+            instance, func_index);
       }
     }
   }

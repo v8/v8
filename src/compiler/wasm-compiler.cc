@@ -2596,10 +2596,10 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
                                         Node*** rets,
                                         wasm::WasmCodePosition position,
                                         int func_index) {
-  // Load the instance from the imported_instances array at a known offset.
-  Node* imported_instances = LOAD_INSTANCE_FIELD(ImportedFunctionInstances,
-                                                 MachineType::TaggedPointer());
-  Node* instance_node = LOAD_FIXED_ARRAY_SLOT(imported_instances, func_index);
+  // Load the imported function refs array from the instance.
+  Node* imported_function_refs =
+      LOAD_INSTANCE_FIELD(ImportedFunctionRefs, MachineType::TaggedPointer());
+  Node* ref_node = LOAD_FIXED_ARRAY_SLOT(imported_function_refs, func_index);
 
   // Load the target from the imported_targets array at a known offset.
   Node* imported_targets =
@@ -2609,7 +2609,7 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
       mcgraph()->Int32Constant(func_index * kPointerSize), Effect(),
       Control()));
   args[0] = target_node;
-  return BuildWasmCall(sig, args, rets, position, instance_node,
+  return BuildWasmCall(sig, args, rets, position, ref_node,
                        untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline);
 }
 
@@ -2617,18 +2617,18 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
                                         Node*** rets,
                                         wasm::WasmCodePosition position,
                                         Node* func_index) {
-  // Load the instance from the imported_instances array.
-  Node* imported_instances = LOAD_INSTANCE_FIELD(ImportedFunctionInstances,
-                                                 MachineType::TaggedPointer());
+  // Load the imported function refs array from the instance.
+  Node* imported_function_refs =
+      LOAD_INSTANCE_FIELD(ImportedFunctionRefs, MachineType::TaggedPointer());
   // Access fixed array at {header_size - tag + func_index * kPointerSize}.
   Node* imported_instances_data = graph()->NewNode(
-      mcgraph()->machine()->IntAdd(), imported_instances,
+      mcgraph()->machine()->IntAdd(), imported_function_refs,
       mcgraph()->IntPtrConstant(
           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
   Node* func_index_times_pointersize = graph()->NewNode(
       mcgraph()->machine()->IntMul(), Uint32ToUintptr(func_index),
       mcgraph()->Int32Constant(kPointerSize));
-  Node* instance_node = SetEffect(
+  Node* ref_node = SetEffect(
       graph()->NewNode(mcgraph()->machine()->Load(MachineType::TaggedPointer()),
                        imported_instances_data, func_index_times_pointersize,
                        Effect(), Control()));
@@ -2641,7 +2641,7 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
       mcgraph()->machine()->Load(MachineType::Pointer()), imported_targets,
       func_index_times_pointersize, Effect(), Control()));
   args[0] = target_node;
-  return BuildWasmCall(sig, args, rets, position, instance_node,
+  return BuildWasmCall(sig, args, rets, position, ref_node,
                        untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline);
 }
 
@@ -2713,7 +2713,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
 
   Node* ift_targets =
       LOAD_INSTANCE_FIELD(IndirectFunctionTableTargets, MachineType::Pointer());
-  Node* ift_instances = LOAD_INSTANCE_FIELD(IndirectFunctionTableInstances,
+  Node* ift_instances = LOAD_INSTANCE_FIELD(IndirectFunctionTableRefs,
                                             MachineType::TaggedPointer());
 
   scaled_key = graph()->NewNode(machine->Word32Shl(), key,
@@ -4502,13 +4502,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Return(jsval);
   }
 
-  bool BuildWasmImportCallWrapper(WasmImportCallKind kind, int func_index) {
+  bool BuildWasmImportCallWrapper(WasmImportCallKind kind) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the parameter nodes.
-    SetEffect(SetControl(Start(wasm_count + 3)));
+    SetEffect(SetControl(Start(wasm_count + 4)));
 
-    // Create the instance_node from the passed parameter.
     instance_node_.set(Param(wasm::kWasmInstanceParameterIndex));
 
     Node* native_context =
@@ -4526,9 +4525,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       return false;
     }
 
-    Node* callables_node = LOAD_INSTANCE_FIELD(ImportedFunctionCallables,
-                                               MachineType::TaggedPointer());
-    Node* callable_node = LOAD_FIXED_ARRAY_SLOT(callables_node, func_index);
+    // The callable is passed as the last parameter, after WASM arguments.
+    Node* callable_node = Param(wasm_count + 1);
+
     Node* undefined_node =
         LOAD_INSTANCE_FIELD(UndefinedValue, MachineType::TaggedPointer());
 
@@ -4765,16 +4764,17 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Create parameter nodes (offset by 1 for the receiver parameter).
     Node* code_entry = Param(CWasmEntryParameters::kCodeEntry + 1);
-    Node* instance_node = Param(CWasmEntryParameters::kWasmInstance + 1);
+    Node* object_ref_node = Param(CWasmEntryParameters::kObjectRef + 1);
     Node* arg_buffer = Param(CWasmEntryParameters::kArgumentsBuffer + 1);
 
     int wasm_arg_count = static_cast<int>(sig_->parameter_count());
-    int arg_count = wasm_arg_count + 4;  // code, instance_node, control, effect
+    int arg_count =
+        wasm_arg_count + 4;  // code, object_ref_node, control, effect
     Node** args = Buffer(arg_count);
 
     int pos = 0;
     args[pos++] = code_entry;
-    args[pos++] = instance_node;
+    args[pos++] = object_ref_node;
 
     int offset = 0;
     for (wasm::ValueType type : sig_->parameters()) {
@@ -4953,8 +4953,7 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
 
 MaybeHandle<Code> CompileWasmImportCallWrapper(
     Isolate* isolate, WasmImportCallKind kind, wasm::FunctionSig* sig,
-    uint32_t index, wasm::ModuleOrigin origin,
-    wasm::UseTrapHandler use_trap_handler) {
+    wasm::ModuleOrigin origin, wasm::UseTrapHandler use_trap_handler) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
 
@@ -4987,18 +4986,19 @@ MaybeHandle<Code> CompileWasmImportCallWrapper(
                                   StubCallMode::kCallWasmRuntimeStub);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildWasmImportCallWrapper(kind, index);
+  builder.BuildWasmImportCallWrapper(kind);
 
-  EmbeddedVector<char, 32> func_name;
-  func_name.Truncate(SNPrintF(func_name, "wasm-to-js#%d", index));
+  const char* func_name = "wasm-to-js";
 
   // Schedule and compile to machine code.
-  CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
+  CallDescriptor* incoming =
+      GetWasmCallDescriptor(&zone, sig, WasmGraphBuilder::kNoRetpoline,
+                            WasmGraphBuilder::kExtraCallableParam);
   if (machine.Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
   MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
-      isolate, incoming, &graph, Code::WASM_TO_JS_FUNCTION, func_name.start(),
+      isolate, incoming, &graph, Code::WASM_TO_JS_FUNCTION, func_name,
       AssemblerOptions::Default(isolate), source_position_table);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
@@ -5008,13 +5008,13 @@ MaybeHandle<Code> CompileWasmImportCallWrapper(
   if (FLAG_print_opt_code) {
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
     OFStream os(tracing_scope.file());
-    code->Disassemble(func_name.start(), os);
+    code->Disassemble(func_name, os);
   }
 #endif
 
   if (must_record_function_compilation(isolate)) {
-    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
-                              "%.*s", func_name.length(), func_name.start());
+    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code, "%s",
+                              func_name);
   }
 
   return code;
@@ -5347,10 +5347,13 @@ class LinkageLocationAllocator {
 // General code uses the above configuration data.
 CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, wasm::FunctionSig* fsig,
-    WasmGraphBuilder::UseRetpoline use_retpoline) {
-  // The '+ 1' here is to accomodate the instance object as first parameter.
+    WasmGraphBuilder::UseRetpoline use_retpoline,
+    WasmGraphBuilder::ExtraCallableParam extra_callable_param) {
+  // The extra here is to accomodate the instance object as first parameter
+  // and, in the case of an import wrapper, the additional callable.
+  int extra_params = extra_callable_param ? 2 : 1;
   LocationSignature::Builder locations(zone, fsig->return_count(),
-                                       fsig->parameter_count() + 1);
+                                       fsig->parameter_count() + extra_params);
 
   // Add register and/or stack parameter(s).
   LinkageLocationAllocator params(wasm::kGpParamRegisters,
@@ -5365,6 +5368,13 @@ CallDescriptor* GetWasmCallDescriptor(
         wasm::ValueTypes::MachineRepresentationFor(fsig->GetParam(i));
     auto l = params.Next(param);
     locations.AddParam(l);
+  }
+
+  // Import call wrappers have an additional (implicit) parameter, the callable.
+  // For consistency with JS, we use the JSFunction register.
+  if (extra_callable_param) {
+    locations.AddParam(LinkageLocation::ForRegister(
+        kJSFunctionRegister.code(), MachineType::TaggedPointer()));
   }
 
   // Add return location(s).
@@ -5391,7 +5401,9 @@ CallDescriptor* GetWasmCallDescriptor(
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
-  CallDescriptor::Kind kind = CallDescriptor::kCallWasmFunction;
+  CallDescriptor::Kind kind = extra_callable_param
+                                  ? CallDescriptor::kCallWasmImportWrapper
+                                  : CallDescriptor::kCallWasmFunction;
 
   CallDescriptor::Flags flags =
       use_retpoline ? CallDescriptor::kRetpoline : CallDescriptor::kNoFlags;

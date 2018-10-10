@@ -177,12 +177,10 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, table_object, WasmTableObject,
                    kTableObjectOffset)
-ACCESSORS(WasmInstanceObject, imported_function_instances, FixedArray,
-          kImportedFunctionInstancesOffset)
-ACCESSORS(WasmInstanceObject, imported_function_callables, FixedArray,
-          kImportedFunctionCallablesOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_instances,
-                   FixedArray, kIndirectFunctionTableInstancesOffset)
+ACCESSORS(WasmInstanceObject, imported_function_refs, FixedArray,
+          kImportedFunctionRefsOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
+                   kIndirectFunctionTableRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
                    kManagedNativeAllocationsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,

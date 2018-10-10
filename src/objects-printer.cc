@@ -1764,13 +1764,10 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
   if (has_table_object()) {
     os << "\n - table_object: " << Brief(table_object());
   }
-  os << "\n - imported_function_instances: "
-     << Brief(imported_function_instances());
-  os << "\n - imported_function_callables: "
-     << Brief(imported_function_callables());
-  if (has_indirect_function_table_instances()) {
-    os << "\n - indirect_function_table_instances: "
-       << Brief(indirect_function_table_instances());
+  os << "\n - imported_function_refs: " << Brief(imported_function_refs());
+  if (has_indirect_function_table_refs()) {
+    os << "\n - indirect_function_table_refs: "
+       << Brief(indirect_function_table_refs());
   }
   if (has_managed_native_allocations()) {
     os << "\n - managed_native_allocations: "

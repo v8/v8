@@ -39,20 +39,19 @@ TestingModuleBuilder::TestingModuleBuilder(
   instance_object_ = InitInstanceObject();
 
   if (maybe_import) {
-    // Manually compile a wasm to JS wrapper and insert it into the instance.
+    // Manually compile an import wrapper and insert it into the instance.
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
     auto kind = compiler::GetWasmImportCallKind(maybe_import->js_function,
                                                 maybe_import->sig);
     MaybeHandle<Code> code = compiler::CompileWasmImportCallWrapper(
-        isolate_, kind, maybe_import->sig, maybe_import_index,
-        test_module_->origin,
+        isolate_, kind, maybe_import->sig, test_module_->origin,
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);
-    auto wasm_to_js_wrapper = native_module_->AddImportWrapper(
+    auto import_wrapper = native_module_->AddImportWrapper(
         code.ToHandleChecked(), maybe_import_index);
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
-        .set_wasm_to_js(*maybe_import->js_function, wasm_to_js_wrapper);
+        .SetWasmToJs(isolate_, maybe_import->js_function, import_wrapper);
   }
 
   if (tier == ExecutionTier::kInterpreter) {
@@ -170,9 +169,8 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
     for (int j = 0; j < table_size; j++) {
       WasmFunction& function = test_module_->functions[table.values[j]];
       int sig_id = test_module_->signature_map.Find(*function.sig);
-      auto target =
-          native_module_->GetCallTargetForFunction(function.func_index);
-      IndirectFunctionTableEntry(instance, j).set(sig_id, *instance, target);
+      IndirectFunctionTableEntry(instance, j)
+          .Set(sig_id, instance, function.func_index);
     }
   }
 }

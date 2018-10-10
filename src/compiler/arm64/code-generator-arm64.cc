@@ -2494,6 +2494,20 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Str(kWasmInstanceRegister,
                MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
       } break;
+      case CallDescriptor::kCallWasmImportWrapper: {
+        UseScratchRegisterScope temps(tasm());
+        __ ldr(kJSFunctionRegister,
+               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ ldr(kWasmInstanceRegister,
+               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+        __ Claim(shrink_slots + 2);  // Claim extra slots for marker + instance.
+        Register scratch = temps.AcquireX();
+        __ Mov(scratch,
+               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+        __ Str(kWasmInstanceRegister,
+               MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
+      } break;
       case CallDescriptor::kCallAddress:
         __ Claim(shrink_slots);
         break;

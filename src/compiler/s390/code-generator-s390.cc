@@ -3581,6 +3581,8 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(type);
       if (call_descriptor->IsWasmFunctionCall()) {
         __ Push(kWasmInstanceRegister);
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        UNIMPLEMENTED();  // TODO(s390): wasm import wrapper prologue
       }
     }
   }

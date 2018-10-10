@@ -911,6 +911,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                     : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallWasmFunction:
+    case CallDescriptor::kCallWasmImportWrapper:
       buffer->instruction_args.push_back(
           (call_address_immediate &&
            (callee->opcode() == IrOpcode::kRelocatableInt64Constant ||
@@ -2609,6 +2610,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
       opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
     case CallDescriptor::kCallWasmFunction:
+    case CallDescriptor::kCallWasmImportWrapper:
       opcode = kArchCallWasmFunction | MiscField::encode(flags);
       break;
   }
