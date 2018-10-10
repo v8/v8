@@ -182,10 +182,6 @@ class Serializer : public SerializerDeserializer {
   int PutAlignmentPrefix(HeapObject* object);
   void PutNextChunk(int space);
 
-  // Returns true if the object was successfully serialized as a root.
-  bool SerializeRoot(HeapObject* obj, HowToCode how_to_code,
-                     WhereToPoint where_to_point, int skip);
-
   // Returns true if the object was successfully serialized as hot object.
   bool SerializeHotObject(HeapObject* obj, HowToCode how_to_code,
                           WhereToPoint where_to_point, int skip);
@@ -241,7 +237,7 @@ class Serializer : public SerializerDeserializer {
 #endif  // DEBUG
 
   SerializerReferenceMap* reference_map() { return &reference_map_; }
-  const RootIndexMap* root_index_map() const { return &root_index_map_; }
+  RootIndexMap* root_index_map() { return &root_index_map_; }
   AllocatorT* allocator() { return &allocator_; }
 
   SnapshotByteSink sink_;  // Used directly by subclasses.

@@ -59,7 +59,11 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  if (SerializeRoot(obj, how_to_code, where_to_point, skip)) return;
+  RootIndex root_index;
+  if (root_index_map()->Lookup(obj, &root_index)) {
+    PutRoot(root_index, obj, how_to_code, where_to_point, skip);
+    return;
+  }
 
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 

@@ -139,21 +139,6 @@ void Serializer<AllocatorT>::PrintStack() {
 #endif  // DEBUG
 
 template <class AllocatorT>
-bool Serializer<AllocatorT>::SerializeRoot(HeapObject* obj,
-                                           HowToCode how_to_code,
-                                           WhereToPoint where_to_point,
-                                           int skip) {
-  RootIndex root_index;
-  // Derived serializers are responsible for determining if the root has
-  // actually been serialized before calling this.
-  if (root_index_map()->Lookup(obj, &root_index)) {
-    PutRoot(root_index, obj, how_to_code, where_to_point, skip);
-    return true;
-  }
-  return false;
-}
-
-template <class AllocatorT>
 bool Serializer<AllocatorT>::SerializeHotObject(HeapObject* obj,
                                                 HowToCode how_to_code,
                                                 WhereToPoint where_to_point,

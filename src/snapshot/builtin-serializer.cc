@@ -70,7 +70,12 @@ void BuiltinSerializer::SerializeObject(HeapObject* o, HowToCode how_to_code,
   DCHECK(!o->IsSmi());
 
   // Roots can simply be serialized as root references.
-  if (SerializeRoot(o, how_to_code, where_to_point, skip)) return;
+  RootIndex root_index;
+  if (root_index_map()->Lookup(o, &root_index)) {
+    DCHECK(startup_serializer_->root_has_been_serialized(root_index));
+    PutRoot(root_index, o, how_to_code, where_to_point, skip);
+    return;
+  }
 
   // Builtins are serialized using a dedicated bytecode. We only reach this
   // point if encountering a Builtin e.g. while iterating the body of another

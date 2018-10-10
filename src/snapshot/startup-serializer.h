@@ -32,12 +32,6 @@ class StartupSerializer : public Serializer<> {
     return root_has_been_serialized_.test(static_cast<size_t>(root_index));
   }
 
-  bool IsRootAndHasBeenSerialized(HeapObject* obj) const {
-    RootIndex root_index;
-    return root_index_map()->Lookup(obj, &root_index) &&
-           root_has_been_serialized(root_index);
-  }
-
  private:
   class PartialCacheIndexMap {
    public:
