@@ -7253,7 +7253,63 @@ THREADED_TEST(ExtensibleOnUndetectable) {
   ExpectBoolean("undetectable.y == undefined", true);
 }
 
+THREADED_TEST(ConstructCallWithUndetectable) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
+  Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
+  desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(ReturnThis);  // callable
+
+  Local<v8::Object> obj = desc->GetFunction(env.local())
+                              .ToLocalChecked()
+                              ->NewInstance(env.local())
+                              .ToLocalChecked();
+  CHECK(
+      env->Global()->Set(env.local(), v8_str("undetectable"), obj).FromJust());
+
+  // Undetectable object cannot be called as constructor.
+  v8::TryCatch try_catch(env->GetIsolate());
+  CHECK(CompileRun("new undetectable()").IsEmpty());
+  CHECK(try_catch.HasCaught());
+  String::Utf8Value exception_value(env->GetIsolate(), try_catch.Exception());
+  CHECK_EQ(0, strcmp("TypeError: undetectable is not a constructor",
+                     *exception_value));
+}
+
+static int increment_callback_counter = 0;
+
+static void IncrementCounterConstructCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  increment_callback_counter++;
+  CHECK(Local<Object>::Cast(args.NewTarget())
+            ->Set(args.GetIsolate()->GetCurrentContext(), v8_str("counter"),
+                  v8_num(increment_callback_counter))
+            .FromJust());
+  args.GetReturnValue().Set(args.NewTarget());
+}
+
+THREADED_TEST(SetCallAsFunctionHandlerConstructor) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(
+      IncrementCounterConstructCallback);  // callable
+
+  Local<v8::Object> obj = desc->GetFunction(env.local())
+                              .ToLocalChecked()
+                              ->NewInstance(env.local())
+                              .ToLocalChecked();
+  CHECK(env->Global()->Set(env.local(), v8_str("Counter"), obj).FromJust());
+
+  ExpectInt32("(new Counter()).counter", 1);
+  CHECK_EQ(1, increment_callback_counter);
+  ExpectInt32("(new Counter()).counter", 2);
+  CHECK_EQ(2, increment_callback_counter);
+}
 // The point of this test is type checking. We run it only so compilers
 // don't complain about an unused function.
 TEST(PersistentHandles) {
@@ -11790,15 +11846,10 @@ THREADED_TEST(CallAsFunction) {
     CHECK(!try_catch.HasCaught());
     CHECK_EQ(17, value->Int32Value(context.local()).FromJust());
 
-    // Check that the call-as-function handler cannot be called through
-    // new.
+    // Check that the call-as-function handler can be called through new.
     value = CompileRun("new obj(43)");
-    CHECK(value.IsEmpty());
-    CHECK(try_catch.HasCaught());
-    String::Utf8Value exception_value(isolate, try_catch.Exception());
-    CHECK_EQ(0,
-             strcmp("TypeError: obj is not a constructor", *exception_value));
-    try_catch.Reset();
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(-43, value->Int32Value(context.local()).FromJust());
 
     // Check that the call-as-function handler can be called through
     // the API.

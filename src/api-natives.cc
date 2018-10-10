@@ -715,6 +715,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   // Mark instance as callable in the map.
   if (!obj->instance_call_handler()->IsUndefined(isolate)) {
     map->set_is_callable(true);
+    map->set_is_constructor(!obj->undetectable());
   }
 
   if (immutable_proto) map->set_is_immutable_proto(true);
