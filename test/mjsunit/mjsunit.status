@@ -799,6 +799,9 @@
   'es6/classes': [PASS, ['tsan', SKIP]],
   'regress/regress-1122': [PASS, ['tsan', SKIP]],
 
+  # Too slow with gc_stress on arm64.
+  'messages': [PASS, ['gc_stress and arch == arm64', SKIP]],
+
   # Slow on arm64 simulator: https://crbug.com/v8/7783
   'string-replace-gc': [PASS, ['arch == arm64 and simulator_run', SKIP]],
 

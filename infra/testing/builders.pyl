@@ -332,7 +332,7 @@
   },
   'v8_linux_arm64_gc_stress_dbg': {
     'tests': [
-      {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 8},
+      {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 10},
     ],
   },
   'v8_linux_arm64_rel_ng_triggered': {
