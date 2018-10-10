@@ -3281,7 +3281,7 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.isolate_data_.roots_)),
            Internals::kIsolateRootsOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.external_memory_)),
            Internals::kExternalMemoryOffset);
@@ -3290,12 +3290,12 @@ bool Isolate::Init(StartupDeserializer* des) {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, heap_.external_memory_at_last_mark_compact_)),
            Internals::kExternalMemoryAtLastMarkCompactOffset);
-  CHECK_EQ(
-      static_cast<int>(OFFSET_OF(Isolate, heap_.external_reference_table_)),
-      Internals::kIsolateRootsOffset +
-          Heap::kRootsExternalReferenceTableOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.builtins_)),
-           Internals::kIsolateRootsOffset + Heap::kRootsBuiltinsOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(
+               Isolate, heap_.isolate_data_.external_reference_table_)),
+           Internals::kIsolateRootsOffset +
+               IsolateData::kExternalReferenceTableOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.isolate_data_.builtins_)),
+           Internals::kIsolateRootsOffset + IsolateData::kBuiltinsTableOffset);
 
   {
     HandleScope scope(this);

@@ -29,7 +29,7 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
                             kHeapObjectTag)));
     TNode<Code> target = UncheckedCast<Code>(Load(
         MachineType::TaggedPointer(), roots,
-        IntPtrConstant(Heap::roots_to_builtins_offset() + id * kPointerSize)));
+        IntPtrConstant(IsolateData::kBuiltinsTableOffset + id * kPointerSize)));
     return target;
   }
 

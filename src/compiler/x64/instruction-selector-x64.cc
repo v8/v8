@@ -1720,11 +1720,11 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
   if (selector->CanUseRootsRegister()) {
-    Heap* const heap = selector->isolate()->heap();
+    const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
     HeapObjectBinopMatcher m(node);
     if (m.right().HasValue() &&
-        heap->IsRootHandle(m.right().Value(), &root_index)) {
+        roots_table.IsRootHandle(m.right().Value(), &root_index)) {
       if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
       InstructionCode opcode =
           kX64Cmp | AddressingModeField::encode(kMode_Root);
@@ -1733,7 +1733,7 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
           g.TempImmediate(TurboAssemblerBase::RootRegisterOffset(root_index)),
           g.UseRegister(m.left().node()), cont);
     } else if (m.left().HasValue() &&
-               heap->IsRootHandle(m.left().Value(), &root_index)) {
+               roots_table.IsRootHandle(m.left().Value(), &root_index)) {
       InstructionCode opcode =
           kX64Cmp | AddressingModeField::encode(kMode_Root);
       return VisitCompare(

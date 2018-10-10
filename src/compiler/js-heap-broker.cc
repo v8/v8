@@ -1393,7 +1393,7 @@ bool IsShareable(Handle<Object> object, Isolate* isolate) {
   RootIndex root_index;
   return (object->IsHeapObject() &&
           b->IsBuiltinHandle(Handle<HeapObject>::cast(object), &index)) ||
-         isolate->heap()->IsRootHandle(object, &root_index);
+         isolate->roots_table().IsRootHandle(object, &root_index);
 }
 
 void JSHeapBroker::SerializeShareableObjects() {

@@ -605,10 +605,6 @@ const char* Heap::GetSpaceName(int idx) {
   return nullptr;
 }
 
-void Heap::SetRootCodeStubs(SimpleNumberDictionary* value) {
-  roots_[RootIndex::kCodeStubs] = value;
-}
-
 void Heap::RepairFreeListsAfterDeserialization() {
   PagedSpaces spaces(this);
   for (PagedSpace* space = spaces.next(); space != nullptr;
@@ -3645,12 +3641,12 @@ Code* Heap::builtin(int index) {
   DCHECK(Builtins::IsBuiltinId(index));
   // Code::cast cannot be used here since we access builtins
   // during the marking phase of mark sweep. See IC::Clear.
-  return reinterpret_cast<Code*>(builtins_[index]);
+  return reinterpret_cast<Code*>(builtins_table()[index]);
 }
 
 Address Heap::builtin_address(int index) {
   DCHECK(Builtins::IsBuiltinId(index) || index == Builtins::builtin_count);
-  return reinterpret_cast<Address>(&builtins_[index]);
+  return reinterpret_cast<Address>(&builtins_table()[index]);
 }
 
 void Heap::set_builtin(int index, HeapObject* builtin) {
@@ -3658,7 +3654,7 @@ void Heap::set_builtin(int index, HeapObject* builtin) {
   DCHECK(Internals::HasHeapObjectTag(builtin));
   // The given builtin may be completely uninitialized thus we cannot check its
   // type here.
-  builtins_[index] = builtin;
+  builtins_table()[index] = builtin;
 }
 
 void Heap::IterateRoots(RootVisitor* v, VisitMode mode) {
@@ -3671,7 +3667,7 @@ void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
   v->VisitRootPointer(Root::kStringTable, nullptr,
-                      &roots_[RootIndex::kStringTable]);
+                      &roots_table()[RootIndex::kStringTable]);
   v->Synchronize(VisitorSynchronization::kStringTable);
   if (!isMinorGC && mode != VISIT_ALL_IN_SWEEP_NEWSPACE &&
       mode != VISIT_FOR_SERIALIZATION) {
@@ -3686,8 +3682,9 @@ void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
 void Heap::IterateSmiRoots(RootVisitor* v) {
   // Acquire execution access since we are going to read stack limit values.
   ExecutionAccess access(isolate());
-  v->VisitRootPointers(Root::kSmiRootList, nullptr, roots_.smi_roots_begin(),
-                       roots_.smi_roots_end());
+  v->VisitRootPointers(Root::kSmiRootList, nullptr,
+                       roots_table().smi_roots_begin(),
+                       roots_table().smi_roots_end());
   v->Synchronize(VisitorSynchronization::kSmiRootList);
 }
 
@@ -3747,10 +3744,10 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   // Garbage collection can skip over the read-only roots.
   const bool isGC = mode != VISIT_ALL && mode != VISIT_FOR_SERIALIZATION &&
                     mode != VISIT_ONLY_STRONG_FOR_SERIALIZATION;
-  Object** start =
-      isGC ? roots_.read_only_roots_end() : roots_.strong_roots_begin();
+  Object** start = isGC ? roots_table().read_only_roots_end()
+                        : roots_table().strong_roots_begin();
   v->VisitRootPointers(Root::kStrongRootList, nullptr, start,
-                       roots_.strong_roots_end());
+                       roots_table().strong_roots_end());
   v->Synchronize(VisitorSynchronization::kStrongRootList);
 
   isolate_->bootstrapper()->Iterate(v);
@@ -3844,7 +3841,8 @@ void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
 
 void Heap::IterateBuiltins(RootVisitor* v) {
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    v->VisitRootPointer(Root::kBuiltins, Builtins::name(i), &builtins_[i]);
+    v->VisitRootPointer(Root::kBuiltins, Builtins::name(i),
+                        &builtins_table()[i]);
   }
 }
 
@@ -4393,7 +4391,7 @@ void Heap::SetUp() {
 
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
 
-  external_reference_table_.Init(isolate_);
+  isolate_data_.external_reference_table()->Init(isolate_);
 }
 
 void Heap::InitializeHashSeed() {
@@ -4415,15 +4413,15 @@ void Heap::SetStackLimits() {
 
   // Set up the special root array entries containing the stack limits.
   // These are actually addresses, but the tag makes the GC ignore it.
-  roots_[RootIndex::kStackLimit] = reinterpret_cast<Object*>(
+  roots_table()[RootIndex::kStackLimit] = reinterpret_cast<Object*>(
       (isolate_->stack_guard()->jslimit() & ~kSmiTagMask) | kSmiTag);
-  roots_[RootIndex::kRealStackLimit] = reinterpret_cast<Object*>(
+  roots_table()[RootIndex::kRealStackLimit] = reinterpret_cast<Object*>(
       (isolate_->stack_guard()->real_jslimit() & ~kSmiTagMask) | kSmiTag);
 }
 
 void Heap::ClearStackLimits() {
-  roots_[RootIndex::kStackLimit] = Smi::kZero;
-  roots_[RootIndex::kRealStackLimit] = Smi::kZero;
+  roots_table()[RootIndex::kStackLimit] = Smi::kZero;
+  roots_table()[RootIndex::kRealStackLimit] = Smi::kZero;
 }
 
 int Heap::NextAllocationTimeout(int current_timeout) {

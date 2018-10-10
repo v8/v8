@@ -120,8 +120,8 @@ class Reader {
 constexpr size_t kVersionSize = 4 * sizeof(uint32_t);
 
 void WriteVersion(Isolate* isolate, Writer* writer) {
-  writer->Write(SerializedData::ComputeMagicNumber(
-      isolate->heap()->external_reference_table()));
+  writer->Write(
+      SerializedData::ComputeMagicNumber(isolate->external_reference_table()));
   writer->Write(Version::Hash());
   writer->Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer->Write(FlagList::Hash());
@@ -243,7 +243,7 @@ NativeModuleSerializer::NativeModuleSerializer(
             ->instruction_start();
     wasm_stub_targets_lookup_.insert(std::make_pair(addr, i));
   }
-  ExternalReferenceTable* table = isolate_->heap()->external_reference_table();
+  ExternalReferenceTable* table = isolate_->external_reference_table();
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
     reference_table_lookup_.insert(std::make_pair(addr, i));
@@ -501,8 +501,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       }
       case RelocInfo::EXTERNAL_REFERENCE: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
-        Address address =
-            isolate_->heap()->external_reference_table()->address(tag);
+        Address address = isolate_->external_reference_table()->address(tag);
         iter.rinfo()->set_target_external_reference(address, SKIP_ICACHE_FLUSH);
         break;
       }

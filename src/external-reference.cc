@@ -384,7 +384,7 @@ ExternalReference ExternalReference::log_leave_external_function() {
 }
 
 ExternalReference ExternalReference::roots_array_start(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->roots_array_start());
+  return ExternalReference(isolate->roots_array_start());
 }
 
 ExternalReference ExternalReference::allocation_sites_list_address(

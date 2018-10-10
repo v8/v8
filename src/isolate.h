@@ -999,10 +999,23 @@ class Isolate : private HiddenFactory {
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
 
+  const IsolateData* isolate_data() const { return heap_.isolate_data(); }
+  IsolateData* isolate_data() { return heap_.isolate_data(); }
+
+  RootsTable& roots_table() { return isolate_data()->roots(); }
+
+  // Generated code can embed this address to get access to the roots.
+  Object** roots_array_start() { return roots_table().roots_; }
+
   // kRootRegister may be used to address any location that falls into this
   // region. Fields outside this region are not guaranteed to live at a static
   // offset from kRootRegister.
   inline base::AddressRegion root_register_addressable_region();
+
+  ExternalReferenceTable* external_reference_table() {
+    DCHECK(isolate_data()->external_reference_table()->is_initialized());
+    return isolate_data()->external_reference_table();
+  }
 
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }

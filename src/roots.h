@@ -449,6 +449,7 @@ class RootsTable {
 
   Object* roots_[kEntriesCount];
 
+  friend class Isolate;
   friend class Heap;
   friend class Factory;
   friend class ReadOnlyRoots;

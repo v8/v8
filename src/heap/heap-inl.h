@@ -55,8 +55,10 @@ HeapObject* AllocationResult::ToObjectChecked() {
   return HeapObject::cast(object_);
 }
 
-#define ROOT_ACCESSOR(type, name, CamelName) \
-  type* Heap::name() { return type::cast(roots_[RootIndex::k##CamelName]); }
+#define ROOT_ACCESSOR(type, name, CamelName)                   \
+  type* Heap::name() {                                         \
+    return type::cast(roots_table()[RootIndex::k##CamelName]); \
+  }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
@@ -68,10 +70,34 @@ MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
                    !RootsTable::IsImmortalImmovable(RootIndex::k##CamelName)); \
     DCHECK_IMPLIES(RootsTable::IsImmortalImmovable(RootIndex::k##CamelName),   \
                    IsImmovable(HeapObject::cast(value)));                      \
-    roots_[RootIndex::k##CamelName] = value;                                   \
+    roots_table()[RootIndex::k##CamelName] = value;                            \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+
+void Heap::SetRootCodeStubs(SimpleNumberDictionary* value) {
+  roots_table()[RootIndex::kCodeStubs] = value;
+}
+
+void Heap::SetRootMaterializedObjects(FixedArray* objects) {
+  roots_table()[RootIndex::kMaterializedObjects] = objects;
+}
+
+void Heap::SetRootScriptList(Object* value) {
+  roots_table()[RootIndex::kScriptList] = value;
+}
+
+void Heap::SetRootStringTable(StringTable* value) {
+  roots_table()[RootIndex::kStringTable] = value;
+}
+
+void Heap::SetRootNoScriptSharedFunctionInfos(Object* value) {
+  roots_table()[RootIndex::kNoScriptSharedFunctionInfos] = value;
+}
+
+void Heap::SetMessageListeners(TemplateList* value) {
+  roots_table()[RootIndex::kMessageListeners] = value;
+}
 
 PagedSpace* Heap::paged_space(int idx) {
   DCHECK_NE(idx, LO_SPACE);

@@ -2132,6 +2132,7 @@ v8_source_set("v8_base") {
     "src/interpreter/interpreter.h",
     "src/intl.cc",
     "src/intl.h",
+    "src/isolate-data.h",
     "src/isolate-inl.h",
     "src/isolate.cc",
     "src/isolate.h",

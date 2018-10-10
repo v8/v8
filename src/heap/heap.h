@@ -19,13 +19,12 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomic-utils.h"
-#include "src/external-reference-table.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
+#include "src/isolate-data.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/string-table.h"
-#include "src/roots.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -638,82 +637,39 @@ class Heap {
     return array_buffer_collector_;
   }
 
+  const IsolateData* isolate_data() const { return &isolate_data_; }
+  IsolateData* isolate_data() { return &isolate_data_; }
+
   // ===========================================================================
   // Root set access. ==========================================================
   // ===========================================================================
-  friend class ReadOnlyRoots;
 
- public:
-  RootsTable& roots_table() { return roots_; }
+  // Shortcut to the roots table stored in |isolate_data_|.
+  V8_INLINE const RootsTable& roots_table() const {
+    return isolate_data_.roots();
+  }
+  V8_INLINE RootsTable& roots_table() { return isolate_data_.roots(); }
 
 // Heap root getters.
 #define ROOT_ACCESSOR(type, name, CamelName) inline type* name();
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  Object* root(RootIndex index) { return roots_[index]; }
+  // TODO(ishell): move to Isolate
+  Object* root(RootIndex index) { return roots_table()[index]; }
   Handle<Object> root_handle(RootIndex index) {
-    return Handle<Object>(&roots_[index]);
-  }
-
-  bool IsRootHandleLocation(Object** handle_location, RootIndex* index) const {
-    return roots_.IsRootHandleLocation(handle_location, index);
-  }
-
-  template <typename T>
-  bool IsRootHandle(Handle<T> handle, RootIndex* index) const {
-    return roots_.IsRootHandle(handle, index);
-  }
-
-  // Generated code can embed this address to get access to the roots.
-  Object** roots_array_start() { return roots_.roots_; }
-
-  ExternalReferenceTable* external_reference_table() {
-    DCHECK(external_reference_table_.is_initialized());
-    return &external_reference_table_;
-  }
-
-  static constexpr int roots_to_external_reference_table_offset() {
-    return kRootsExternalReferenceTableOffset;
-  }
-
-  static constexpr int roots_to_builtins_offset() {
-    return kRootsBuiltinsOffset;
-  }
-
-  static constexpr int root_register_addressable_end_offset() {
-    return kRootRegisterAddressableEndOffset;
-  }
-
-  Address root_register_addressable_end() {
-    return reinterpret_cast<Address>(roots_array_start()) +
-           kRootRegisterAddressableEndOffset;
+    return Handle<Object>(&roots_table()[index]);
   }
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void SetRootCodeStubs(SimpleNumberDictionary* value);
+  V8_INLINE void SetRootCodeStubs(SimpleNumberDictionary* value);
+  V8_INLINE void SetRootMaterializedObjects(FixedArray* objects);
+  V8_INLINE void SetRootScriptList(Object* value);
+  V8_INLINE void SetRootStringTable(StringTable* value);
+  V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object* value);
+  V8_INLINE void SetMessageListeners(TemplateList* value);
 
-  void SetRootMaterializedObjects(FixedArray* objects) {
-    roots_[RootIndex::kMaterializedObjects] = objects;
-  }
-
-  void SetRootScriptList(Object* value) {
-    roots_[RootIndex::kScriptList] = value;
-  }
-
-  void SetRootStringTable(StringTable* value) {
-    roots_[RootIndex::kStringTable] = value;
-  }
-
-  void SetRootNoScriptSharedFunctionInfos(Object* value) {
-    roots_[RootIndex::kNoScriptSharedFunctionInfos] = value;
-  }
-
-  void SetMessageListeners(TemplateList* value) {
-    roots_[RootIndex::kMessageListeners] = value;
-  }
-
-  // Set the stack limit in the roots_ array.  Some architectures generate
+  // Set the stack limit in the roots table.  Some architectures generate
   // code that looks here, because it is faster than loading from the static
   // jslimit_/real_jslimit_ variable in the StackGuard.
   void SetStackLimits();
@@ -782,6 +738,9 @@ class Heap {
   // ===========================================================================
   // Builtins. =================================================================
   // ===========================================================================
+
+  // Shortcut to the builtins table stored in |isolate_data_|.
+  V8_INLINE Object** builtins_table() { return isolate_data_.builtins(); }
 
   Code* builtin(int index);
   Address builtin_address(int index);
@@ -1797,28 +1756,7 @@ class Heap {
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_ = nullptr;
 
-  RootsTable roots_;
-
-  // This table is accessed from builtin code compiled into the snapshot, and
-  // thus its offset from roots_ must remain static. This is verified in
-  // Isolate::Init() using runtime checks.
-  static constexpr int kRootsExternalReferenceTableOffset =
-      static_cast<int>(RootIndex::kRootListLength) * kPointerSize;
-  ExternalReferenceTable external_reference_table_;
-
-  // As external references above, builtins are accessed through an offset from
-  // the roots register. Its offset from roots_ must remain static. This is
-  // verified in Isolate::Init() using runtime checks.
-  static constexpr int kRootsBuiltinsOffset =
-      kRootsExternalReferenceTableOffset +
-      ExternalReferenceTable::SizeInBytes();
-  Object* builtins_[Builtins::builtin_count];
-
-  // kRootRegister may be used to address any location that starts at the
-  // Isolate and ends at this point. Fields past this point are not guaranteed
-  // to live at a static offset from kRootRegister.
-  static constexpr int kRootRegisterAddressableEndOffset =
-      kRootsBuiltinsOffset + Builtins::builtin_count * kPointerSize;
+  IsolateData isolate_data_;
 
   size_t code_range_size_ = 0;
   size_t max_semi_space_size_ = 8 * (kPointerSize / 4) * MB;
@@ -2094,6 +2032,7 @@ class Heap {
   friend class ObjectStatsCollector;
   friend class Page;
   friend class PagedSpace;
+  friend class ReadOnlyRoots;
   friend class Scavenger;
   friend class ScavengerCollector;
   friend class Space;

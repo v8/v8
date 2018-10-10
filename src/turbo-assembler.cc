@@ -6,7 +6,8 @@
 
 #include "src/builtins/builtins.h"
 #include "src/builtins/constants-table-builder.h"
-#include "src/heap/heap-inl.h"
+#include "src/isolate-data.h"
+#include "src/isolate-inl.h"
 #include "src/lsan.h"
 #include "src/snapshot/serializer-common.h"
 
@@ -33,7 +34,7 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
 
   int builtin_index;
   RootIndex root_index;
-  if (isolate()->heap()->IsRootHandle(object, &root_index)) {
+  if (isolate()->roots_table().IsRootHandle(object, &root_index)) {
     // Roots are loaded relative to the root register.
     LoadRoot(destination, root_index);
   } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin_index)) {
@@ -92,7 +93,7 @@ int32_t TurboAssemblerBase::RootRegisterOffset(RootIndex root_index) {
 // static
 int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceIndex(
     int reference_index) {
-  return Heap::roots_to_external_reference_table_offset() - kRootRegisterBias +
+  return IsolateData::kExternalReferenceTableOffset - kRootRegisterBias +
          ExternalReferenceTable::OffsetOfEntry(reference_index);
 }
 
@@ -100,7 +101,7 @@ int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceIndex(
 intptr_t TurboAssemblerBase::RootRegisterOffsetForExternalReference(
     Isolate* isolate, const ExternalReference& reference) {
   return static_cast<intptr_t>(reference.address()) - kRootRegisterBias -
-         reinterpret_cast<intptr_t>(isolate->heap()->roots_array_start());
+         reinterpret_cast<intptr_t>(isolate->roots_array_start());
 }
 
 // static
@@ -113,7 +114,7 @@ bool TurboAssemblerBase::IsAddressableThroughRootRegister(
 // static
 int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
     int builtin_index) {
-  return Heap::roots_to_builtins_offset() - kRootRegisterBias +
+  return IsolateData::kBuiltinsTableOffset - kRootRegisterBias +
          builtin_index * kPointerSize;
 }
 

@@ -26,7 +26,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // Roots must not be inserted into the constants table as they are already
   // accessibly from the root list.
   RootIndex root_list_index;
-  DCHECK(!isolate_->heap()->IsRootHandle(object, &root_list_index));
+  DCHECK(!isolate_->roots_table().IsRootHandle(object, &root_list_index));
 
   // Not yet finalized.
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
@@ -56,7 +56,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
   // Roots must not be inserted into the constants table as they are already
   // accessibly from the root list.
   RootIndex root_list_index;
-  DCHECK(!isolate_->heap()->IsRootHandle(code_object, &root_list_index));
+  DCHECK(!isolate_->roots_table().IsRootHandle(code_object, &root_list_index));
 
   // Not yet finalized.
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),

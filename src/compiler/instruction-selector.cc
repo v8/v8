@@ -472,7 +472,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
 
       Handle<HeapObject> constant = HeapConstantOf(input->op());
       RootIndex root_index;
-      if (isolate->heap()->IsRootHandle(constant, &root_index) &&
+      if (isolate->roots_table().IsRootHandle(constant, &root_index) &&
           root_index == RootIndex::kOptimizedOut) {
         // For an optimized-out object we return an invalid instruction
         // operand, so that we take the fast path for optimized-out values.

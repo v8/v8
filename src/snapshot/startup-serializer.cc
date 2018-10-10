@@ -122,7 +122,7 @@ void StartupSerializer::SerializeStrongReferences() {
 
 void StartupSerializer::VisitRootPointers(Root root, const char* description,
                                           Object** start, Object** end) {
-  if (start == isolate()->heap()->roots_array_start()) {
+  if (start == isolate()->roots_array_start()) {
     // Serializing the root list needs special handling:
     // - Only root list elements that have been fully serialized can be
     //   referenced using kRootArray bytecodes.

@@ -29,9 +29,8 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   HeapObject* heap_object = HeapObject::cast(object);
   Isolate* isolate;
   if (!Isolate::FromWritableHeapObject(heap_object, &isolate)) return true;
-  Heap* heap = isolate->heap();
   RootIndex root_index;
-  if (heap->IsRootHandleLocation(location_, &root_index) &&
+  if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
       RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }

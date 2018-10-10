@@ -2996,7 +2996,7 @@ Node* WasmGraphBuilder::BuildLoadBuiltinFromInstance(int builtin_index) {
   Node* roots =
       LOAD_INSTANCE_FIELD(RootsArrayAddress, MachineType::TaggedPointer());
   return LOAD_TAGGED_POINTER(
-      roots, Heap::roots_to_builtins_offset() + builtin_index * kPointerSize);
+      roots, IsolateData::kBuiltinsTableOffset + builtin_index * kPointerSize);
 }
 
 // Only call this function for code which is not reused across instantiations,

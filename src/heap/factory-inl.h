@@ -16,10 +16,10 @@
 namespace v8 {
 namespace internal {
 
-#define ROOT_ACCESSOR(type, name, CamelName)                   \
-  Handle<type> Factory::name() {                               \
-    return Handle<type>(bit_cast<type**>(                      \
-        &isolate()->heap()->roots_[RootIndex::k##CamelName])); \
+#define ROOT_ACCESSOR(type, name, CamelName)                                   \
+  Handle<type> Factory::name() {                                               \
+    return Handle<type>(                                                       \
+        bit_cast<type**>(&isolate()->roots_table()[RootIndex::k##CamelName])); \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
