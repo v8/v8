@@ -2482,7 +2482,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 
   // The function index was put in edi by the jump table trampoline.
   // Convert to Smi for the runtime call.
-  __ SmiTag(edi);
+  __ SmiTag(kWasmCompileLazyFuncIndexRegister);
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
@@ -2510,7 +2510,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Push the WASM instance as an explicit argument to WasmCompileLazy.
     __ Push(kWasmInstanceRegister);
     // Push the function index as second argument.
-    __ Push(edi);
+    __ Push(kWasmCompileLazyFuncIndexRegister);
     // Load the correct CEntry builtin from the instance object.
     __ mov(ecx, FieldOperand(kWasmInstanceRegister,
                              WasmInstanceObject::kCEntryStubOffset));

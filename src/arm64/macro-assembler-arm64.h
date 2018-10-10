@@ -65,6 +65,7 @@ constexpr Register kRuntimeCallFunctionRegister = x1;
 constexpr Register kRuntimeCallArgCountRegister = x0;
 constexpr Register kRuntimeCallArgvRegister = x11;
 constexpr Register kWasmInstanceRegister = x7;
+constexpr Register kWasmCompileLazyFuncIndexRegister = x8;
 
 #define LS_MACRO_LIST(V)                                     \
   V(Ldrb, Register&, rt, LDRB_w)                             \

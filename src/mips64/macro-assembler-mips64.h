@@ -37,6 +37,7 @@ constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
 constexpr Register kRuntimeCallArgvRegister = a2;
 constexpr Register kWasmInstanceRegister = a0;
+constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 
 // Forward declarations.
 enum class AbortReason : uint8_t;

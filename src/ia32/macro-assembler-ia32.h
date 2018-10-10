@@ -45,6 +45,7 @@ constexpr Register kRuntimeCallFunctionRegister = edx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
 constexpr Register kRuntimeCallArgvRegister = ecx;
 constexpr Register kWasmInstanceRegister = esi;
+constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
 // TODO(v8:6666): Implement full support.
 constexpr Register kRootRegister = ebx;
