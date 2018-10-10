@@ -151,8 +151,9 @@ class UploadCL(Step):
         ROLL_SUMMARY % (self["last_roll"][:8], self["roll"][:8]))
 
     message.append(ISSUE_MSG)
-
     message.append("TBR=%s" % self._options.reviewer)
+    message.append("Binary-Size: autoroller")
+
     self.GitCommit("\n\n".join(message),  author=self._options.author, cwd=cwd)
     if not self._options.dry_run:
       self.GitUpload(author=self._options.author,
