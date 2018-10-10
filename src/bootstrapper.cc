@@ -1064,25 +1064,25 @@ void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
                         factory()->InternalizeUtf8String("AsyncFunction"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-  Handle<Map> map;
-  map = CreateNonConstructorMap(
-      isolate(), isolate()->strict_function_without_prototype_map(),
-      async_function_prototype, "AsyncFunction");
+  Handle<Map> map =
+      Map::Copy(isolate(), isolate()->strict_function_without_prototype_map(),
+                "AsyncFunction");
+  Map::SetPrototype(isolate(), map, async_function_prototype);
   native_context()->set_async_function_map(*map);
 
-  map = CreateNonConstructorMap(isolate(), isolate()->method_with_name_map(),
-                                async_function_prototype,
-                                "AsyncFunction with name");
+  map = Map::Copy(isolate(), isolate()->method_with_name_map(),
+                  "AsyncFunction with name");
+  Map::SetPrototype(isolate(), map, async_function_prototype);
   native_context()->set_async_function_with_name_map(*map);
 
-  map = CreateNonConstructorMap(
-      isolate(), isolate()->method_with_home_object_map(),
-      async_function_prototype, "AsyncFunction with home object");
+  map = Map::Copy(isolate(), isolate()->method_with_home_object_map(),
+                  "AsyncFunction with home object");
+  Map::SetPrototype(isolate(), map, async_function_prototype);
   native_context()->set_async_function_with_home_object_map(*map);
 
-  map = CreateNonConstructorMap(
-      isolate(), isolate()->method_with_name_and_home_object_map(),
-      async_function_prototype, "AsyncFunction with name and home object");
+  map = Map::Copy(isolate(), isolate()->method_with_name_and_home_object_map(),
+                  "AsyncFunction with name and home object");
+  Map::SetPrototype(isolate(), map, async_function_prototype);
   native_context()->set_async_function_with_name_and_home_object_map(*map);
 }
 
@@ -4280,6 +4280,16 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     JSFunction::SetPrototype(async_function_constructor,
                              async_function_prototype);
 
+    // Async functions don't have a prototype, but they use generator objects
+    // under the hood to model the suspend/resume (in await). Instead of using
+    // the "prototype" / initial_map machinery (like for (async) generators),
+    // there's one global (per native context) map here that is used for the
+    // async function generator objects. These objects never escape to user
+    // JavaScript anyways.
+    Handle<Map> async_function_object_map =
+        factory->NewMap(JS_GENERATOR_OBJECT_TYPE, JSGeneratorObject::kSize);
+    native_context->set_async_function_object_map(*async_function_object_map);
+
     {
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
@@ -4313,13 +4323,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kAsyncFunctionPromiseCreate, 0, false);
       native_context->set_async_function_promise_create(*function);
-    }
-
-    {
-      Handle<JSFunction> function = SimpleCreateFunction(
-          isolate, factory->empty_string(),
-          Builtins::kAsyncFunctionPromiseRelease, 2, false);
-      native_context->set_async_function_promise_release(*function);
     }
   }
 

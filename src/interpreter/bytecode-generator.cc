@@ -1076,7 +1076,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // Create a generator object if necessary and initialize the
   // {.generator_object} variable.
-  if (info()->literal()->CanSuspend()) {
+  if (IsResumableFunction(info()->literal()->kind())) {
     BuildGeneratorObjectVariableInitialization();
   }
 
@@ -1122,7 +1122,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 }
 
 void BytecodeGenerator::AllocateTopLevelRegisters() {
-  if (info()->literal()->CanSuspend()) {
+  if (IsResumableFunction(info()->literal()->kind())) {
     // Either directly use generator_object_var or allocate a new register for
     // the incoming generator object.
     Variable* generator_object_var = closure_scope()->generator_object_var();
@@ -2713,18 +2713,20 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
         .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
   } else {
     DCHECK(IsAsyncFunction(info()->literal()->kind()));
-    RegisterList args = register_allocator()->NewRegisterList(2);
+    RegisterList args = register_allocator()->NewRegisterList(3);
     Register promise = args[0];
     Register return_value = args[1];
-    builder()->StoreAccumulatorInRegister(return_value);
+    Register can_suspend = args[2];
+    builder()
+        ->StoreAccumulatorInRegister(return_value)
+        .LoadBoolean(info()->literal()->CanSuspend())
+        .StoreAccumulatorInRegister(can_suspend);
 
     Variable* var_promise = closure_scope()->promise_var();
     DCHECK_NOT_NULL(var_promise);
     BuildVariableLoad(var_promise, HoleCheckMode::kElided);
-    builder()
-        ->StoreAccumulatorInRegister(promise)
-        .CallRuntime(Runtime::kInlineResolvePromise, args)
-        .LoadAccumulatorWithRegister(promise);
+    builder()->StoreAccumulatorInRegister(promise).CallRuntime(
+        Runtime::kInlineAsyncFunctionResolve, args);
   }
 
   BuildReturn(source_position);
@@ -4889,7 +4891,7 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
   // to pass in the generator object.  In ordinary calls, new.target is always
   // undefined because generator functions are non-constructible, so don't
   // assign anything to the new.target variable.
-  if (info()->literal()->CanSuspend()) return;
+  if (IsResumableFunction(info()->literal()->kind())) return;
 
   if (variable->location() == VariableLocation::LOCAL) {
     // The new.target register was already assigned by entry trampoline.
@@ -4909,10 +4911,15 @@ void BytecodeGenerator::BuildGeneratorObjectVariableInitialization() {
   Variable* generator_object_var = closure_scope()->generator_object_var();
   RegisterAllocationScope register_scope(this);
   RegisterList args = register_allocator()->NewRegisterList(2);
+  Runtime::FunctionId function_id =
+      (IsAsyncFunction(info()->literal()->kind()) &&
+       !IsAsyncGeneratorFunction(info()->literal()->kind()))
+          ? Runtime::kInlineAsyncFunctionEnter
+          : Runtime::kInlineCreateJSGeneratorObject;
   builder()
       ->MoveRegister(Register::function_closure(), args[0])
       .MoveRegister(builder()->Receiver(), args[1])
-      .CallRuntime(Runtime::kInlineCreateJSGeneratorObject, args)
+      .CallRuntime(function_id, args)
       .StoreAccumulatorInRegister(generator_object());
 
   if (generator_object_var->location() == VariableLocation::LOCAL) {
@@ -5108,7 +5115,7 @@ LanguageMode BytecodeGenerator::language_mode() const {
 }
 
 Register BytecodeGenerator::generator_object() const {
-  DCHECK(info()->literal()->CanSuspend());
+  DCHECK(IsResumableFunction(info()->literal()->kind()));
   return incoming_new_target_or_generator_;
 }
 

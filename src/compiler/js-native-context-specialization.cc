@@ -76,6 +76,12 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSAdd:
       return ReduceJSAdd(node);
+    case IrOpcode::kJSAsyncFunctionEnter:
+      return ReduceJSAsyncFunctionEnter(node);
+    case IrOpcode::kJSAsyncFunctionReject:
+      return ReduceJSAsyncFunctionReject(node);
+    case IrOpcode::kJSAsyncFunctionResolve:
+      return ReduceJSAsyncFunctionResolve(node);
     case IrOpcode::kJSGetSuperConstructor:
       return ReduceJSGetSuperConstructor(node);
     case IrOpcode::kJSInstanceOf:
@@ -200,6 +206,134 @@ bool IsStringConstant(JSHeapBroker* broker, Node* node) {
   HeapObjectMatcher matcher(node);
   return matcher.HasValue() && matcher.Ref(broker).IsString();
 }
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
+    Node* node) {
+  DCHECK_EQ(IrOpcode::kJSAsyncFunctionEnter, node->opcode());
+  Node* closure = NodeProperties::GetValueInput(node, 0);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
+
+  // Install a code dependency on the promise hook protector cell.
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+
+  // TODO(turbofan): We should have a static way to get to the
+  // required size of the register file here.
+  HeapObjectMatcher m(closure);
+  if (m.HasValue()) {
+    // TODO(turbofan): Introduce a dedicated operator
+    // JSCreateAsyncFunctionObject for this and lower
+    // during JSCreateLowering instead.
+    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
+    Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+
+    // Allocate a register file.
+    int size = shared->internal_formal_parameter_count() +
+               shared->GetBytecodeArray()->register_count();
+    AllocationBuilder ab(jsgraph(), effect, control);
+    ab.AllocateArray(size, factory()->fixed_array_map());
+    for (int i = 0; i < size; ++i) {
+      ab.Store(AccessBuilder::ForFixedArraySlot(i),
+               jsgraph()->UndefinedConstant());
+    }
+    Node* parameters_and_registers = effect = ab.Finish();
+
+    // Emit code to allocate the JSAsyncFunctionObject instance.
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.Allocate(JSGeneratorObject::kSize);
+    Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
+    Node* undefined = jsgraph()->UndefinedConstant();
+    a.Store(AccessBuilder::ForMap(),
+            native_context().async_function_object_map());
+    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), empty_fixed_array);
+    a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
+    a.Store(AccessBuilder::ForJSGeneratorObjectContext(), context);
+    a.Store(AccessBuilder::ForJSGeneratorObjectFunction(), closure);
+    a.Store(AccessBuilder::ForJSGeneratorObjectReceiver(), receiver);
+    a.Store(AccessBuilder::ForJSGeneratorObjectInputOrDebugPos(), undefined);
+    a.Store(AccessBuilder::ForJSGeneratorObjectResumeMode(),
+            jsgraph()->Constant(JSGeneratorObject::kNext));
+    a.Store(AccessBuilder::ForJSGeneratorObjectContinuation(),
+            jsgraph()->Constant(JSGeneratorObject::kGeneratorExecuting));
+    a.Store(AccessBuilder::ForJSGeneratorObjectParametersAndRegisters(),
+            parameters_and_registers);
+    Node* value = effect = a.Finish();
+
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+
+  return NoChange();
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
+    Node* node) {
+  DCHECK_EQ(IrOpcode::kJSAsyncFunctionReject, node->opcode());
+  Node* promise = NodeProperties::GetValueInput(node, 0);
+  Node* reason = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
+
+  // Install a code dependency on the promise hook protector cell.
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+
+  // Create a nested frame state inside the current method's most-recent
+  // {frame_state} that will ensure that lazy deoptimizations at this
+  // point will still return the {promise} instead of the result of the
+  // JSRejectPromise operation (which yields undefined).
+  Node* parameters[] = {promise};
+  frame_state = CreateStubBuiltinContinuationFrameState(
+      jsgraph(), Builtins::kAsyncFunctionLazyDeoptContinuation, context,
+      parameters, arraysize(parameters), frame_state,
+      ContinuationFrameStateMode::LAZY);
+
+  // Disable the additional debug event for the rejection since a
+  // debug event already happend for the exception that got us here.
+  Node* debug_event = jsgraph()->FalseConstant();
+  effect = graph()->NewNode(javascript()->RejectPromise(), promise, reason,
+                            debug_event, context, frame_state, effect, control);
+  ReplaceWithValue(node, promise, effect, control);
+  return Replace(promise);
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
+    Node* node) {
+  DCHECK_EQ(IrOpcode::kJSAsyncFunctionResolve, node->opcode());
+  Node* promise = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
+
+  // Install a code dependency on the promise hook protector cell.
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+
+  // Create a nested frame state inside the current method's most-recent
+  // {frame_state} that will ensure that lazy deoptimizations at this
+  // point will still return the {promise} instead of the result of the
+  // JSResolvePromise operation (which yields undefined).
+  Node* parameters[] = {promise};
+  frame_state = CreateStubBuiltinContinuationFrameState(
+      jsgraph(), Builtins::kAsyncFunctionLazyDeoptContinuation, context,
+      parameters, arraysize(parameters), frame_state,
+      ContinuationFrameStateMode::LAZY);
+
+  effect = graph()->NewNode(javascript()->ResolvePromise(), promise, value,
+                            context, frame_state, effect, control);
+  ReplaceWithValue(node, promise, effect, control);
+  return Replace(promise);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {

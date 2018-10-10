@@ -98,6 +98,13 @@ void InitializeIntrinsicFunctionNames() {
 
 bool Runtime::NeedsExactContext(FunctionId id) {
   switch (id) {
+    case Runtime::kInlineAsyncFunctionReject:
+    case Runtime::kInlineAsyncFunctionResolve:
+      // For %_AsyncFunctionReject and %_AsyncFunctionResolve we don't
+      // really need the current context, which in particular allows
+      // us to usually eliminate the catch context for the implicit
+      // try-catch in async function.
+      return false;
     case Runtime::kAddPrivateField:
     case Runtime::kCopyDataProperties:
     case Runtime::kCreateDataProperty:

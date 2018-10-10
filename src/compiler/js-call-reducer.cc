@@ -3651,8 +3651,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayIterator(node, IterationKind::kValues);
     case Builtins::kAsyncFunctionPromiseCreate:
       return ReduceAsyncFunctionPromiseCreate(node);
-    case Builtins::kAsyncFunctionPromiseRelease:
-      return ReduceAsyncFunctionPromiseRelease(node);
     case Builtins::kPromiseInternalConstructor:
       return ReducePromiseInternalConstructor(node);
     case Builtins::kPromiseInternalReject:
@@ -5496,20 +5494,6 @@ Reduction JSCallReducer::ReduceAsyncFunctionPromiseCreate(Node* node) {
   node->TrimInputCount(2);
   NodeProperties::ChangeOp(node, javascript()->CreatePromise());
   return Changed(node);
-}
-
-Reduction JSCallReducer::ReduceAsyncFunctionPromiseRelease(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
-
-  dependencies()->DependOnProtector(
-      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
-
-  // The AsyncFunctionPromiseRelease builtin is a no-op as long as neither
-  // the debugger is active nor any promise hook has been installed (ever).
-  Node* value = jsgraph()->UndefinedConstant();
-  ReplaceWithValue(node, value);
-  return Replace(value);
 }
 
 Node* JSCallReducer::CreateArtificialFrameState(

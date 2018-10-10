@@ -2839,10 +2839,7 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   // try {
   //   <inner_block>
   // } catch (.catch) {
-  //   %RejectPromise(.promise, .catch);
-  //   return .promise;
-  // } finally {
-  //   %AsyncFunctionPromiseRelease(.promise);
+  //   return %_AsyncFunctionReject(.promise, .catch, can_suspend);
   // }
   Block* result = factory()->NewBlock(2, true);
 
@@ -2860,59 +2857,32 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   }
   result->statements()->Add(set_promise, zone());
 
-  // catch (.catch) { return %RejectPromise(.promise, .catch), .promise }
+  // catch (.catch) {
+  //   return %_AsyncFunctionReject(.promise, .catch, can_suspend)
+  // }
   Scope* catch_scope = NewHiddenCatchScope();
 
-  Expression* promise_reject = BuildRejectPromise(
-      factory()->NewVariableProxy(catch_scope->catch_variable()),
-      kNoSourcePosition);
+  Expression* reject_promise;
+  {
+    ZonePtrList<Expression>* args =
+        new (zone()) ZonePtrList<Expression>(3, zone());
+    args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
+    args->Add(factory()->NewVariableProxy(catch_scope->catch_variable()),
+              zone());
+    args->Add(factory()->NewBooleanLiteral(function_state_->CanSuspend(),
+                                           kNoSourcePosition),
+              zone());
+    reject_promise = factory()->NewCallRuntime(
+        Runtime::kInlineAsyncFunctionReject, args, kNoSourcePosition);
+  }
   Block* catch_block = IgnoreCompletion(
-      factory()->NewReturnStatement(promise_reject, kNoSourcePosition));
+      factory()->NewReturnStatement(reject_promise, kNoSourcePosition));
 
   TryStatement* try_catch_statement =
       factory()->NewTryCatchStatementForAsyncAwait(
           inner_block, catch_scope, catch_block, kNoSourcePosition);
-
-  // There is no TryCatchFinally node, so wrap it in an outer try/finally
-  Block* outer_try_block = IgnoreCompletion(try_catch_statement);
-
-  // finally { %AsyncFunctionPromiseRelease(.promise, can_suspend) }
-  Block* finally_block;
-  {
-    ZonePtrList<Expression>* args =
-        new (zone()) ZonePtrList<Expression>(1, zone());
-    args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
-    args->Add(factory()->NewBooleanLiteral(function_state_->CanSuspend(),
-                                           kNoSourcePosition),
-              zone());
-    Expression* call_promise_release = factory()->NewCallRuntime(
-        Context::ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, args, kNoSourcePosition);
-    Statement* promise_release = factory()->NewExpressionStatement(
-        call_promise_release, kNoSourcePosition);
-    finally_block = IgnoreCompletion(promise_release);
-  }
-
-  Statement* try_finally_statement = factory()->NewTryFinallyStatement(
-      outer_try_block, finally_block, kNoSourcePosition);
-
-  result->statements()->Add(try_finally_statement, zone());
+  result->statements()->Add(try_catch_statement, zone());
   return result;
-}
-
-Expression* Parser::BuildRejectPromise(Expression* value, int pos) {
-  // %promise_internal_reject(.promise, value, false), .promise
-  // Disables the additional debug event for the rejection since a debug event
-  // already happened for the exception that got us here.
-  ZonePtrList<Expression>* args =
-      new (zone()) ZonePtrList<Expression>(3, zone());
-  args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
-  args->Add(value, zone());
-  args->Add(factory()->NewBooleanLiteral(false, pos), zone());
-  Expression* call_runtime =
-      factory()->NewCallRuntime(Runtime::kInlineRejectPromise, args, pos);
-  return factory()->NewBinaryOperation(
-      Token::COMMA, call_runtime,
-      factory()->NewVariableProxy(PromiseVariable()), pos);
 }
 
 Variable* Parser::PromiseVariable() {

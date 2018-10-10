@@ -181,6 +181,9 @@ namespace internal {
   F(SetNativeFlag, 1, 1)
 
 #define FOR_EACH_INTRINSIC_GENERATOR(F, I)    \
+  I(AsyncFunctionEnter, 2, 1)                 \
+  I(AsyncFunctionReject, 3, 1)                \
+  I(AsyncFunctionResolve, 3, 1)               \
   F(AsyncGeneratorHasCatchHandlerForPC, 1, 1) \
   I(AsyncGeneratorReject, 2, 1)               \
   I(AsyncGeneratorResolve, 3, 1)              \
@@ -351,8 +354,8 @@ namespace internal {
   F(PromiseResult, 1, 1)                 \
   F(PromiseRevokeReject, 1, 1)           \
   F(PromiseStatus, 1, 1)                 \
-  I(RejectPromise, 3, 1)                 \
-  I(ResolvePromise, 2, 1)                \
+  F(RejectPromise, 3, 1)                 \
+  F(ResolvePromise, 2, 1)                \
   F(PromiseRejectAfterResolved, 2, 1)    \
   F(PromiseResolveAfterResolved, 2, 1)
 

@@ -2677,10 +2677,8 @@ Node* CodeStubAssembler::LoadJSFunctionPrototype(Node* function,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(Node* shared) {
-  CSA_ASSERT(this, TaggedIsNotSmi(shared));
-  CSA_ASSERT(this, IsSharedFunctionInfo(shared));
-
+TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
+    SloppyTNode<SharedFunctionInfo> shared) {
   Node* function_data =
       LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
 
@@ -2694,7 +2692,7 @@ Node* CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(Node* shared) {
   Goto(&done);
 
   BIND(&done);
-  return var_result.value();
+  return CAST(var_result.value());
 }
 
 void CodeStubAssembler::StoreObjectByteNoWriteBarrier(TNode<HeapObject> object,

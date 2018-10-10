@@ -206,20 +206,6 @@ Node* IntrinsicsGenerator::HasProperty(
       args, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
 }
 
-Node* IntrinsicsGenerator::RejectPromise(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context,
-      Builtins::CallableFor(isolate(), Builtins::kRejectPromise));
-}
-
-Node* IntrinsicsGenerator::ResolvePromise(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsStubCall(
-      args, context,
-      Builtins::CallableFor(isolate(), Builtins::kResolvePromise));
-}
-
 Node* IntrinsicsGenerator::ToString(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsStubCall(
@@ -350,6 +336,21 @@ Node* IntrinsicsGenerator::GetImportMetaObject(
 
   __ BIND(&end);
   return return_value.value();
+}
+
+Node* IntrinsicsGenerator::AsyncFunctionEnter(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncFunctionEnter);
+}
+
+Node* IntrinsicsGenerator::AsyncFunctionReject(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncFunctionReject);
+}
+
+Node* IntrinsicsGenerator::AsyncFunctionResolve(
+    const InterpreterAssembler::RegListNodePair& args, Node* context) {
+  return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncFunctionResolve);
 }
 
 Node* IntrinsicsGenerator::AsyncGeneratorReject(

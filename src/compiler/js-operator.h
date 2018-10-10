@@ -809,6 +809,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* InstanceOf(const VectorSlotPair& feedback);
   const Operator* OrdinaryHasInstance();
 
+  const Operator* AsyncFunctionEnter();
+  const Operator* AsyncFunctionReject();
+  const Operator* AsyncFunctionResolve();
+
   const Operator* ForInEnumerate();
   const Operator* ForInNext(ForInMode);
   const Operator* ForInPrepare(ForInMode);

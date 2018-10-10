@@ -764,7 +764,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
     isolate->OnAsyncFunctionStateChanged(promise,
                                          debug::kAsyncFunctionFinished);
   }
-  return ReadOnlyRoots(isolate).undefined_value();
+  return *promise;
 }
 
 RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {

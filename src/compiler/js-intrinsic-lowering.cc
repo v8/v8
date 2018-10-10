@@ -38,6 +38,12 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGeneratorClose(node);
     case Runtime::kInlineCreateJSGeneratorObject:
       return ReduceCreateJSGeneratorObject(node);
+    case Runtime::kInlineAsyncFunctionEnter:
+      return ReduceAsyncFunctionEnter(node);
+    case Runtime::kInlineAsyncFunctionReject:
+      return ReduceAsyncFunctionReject(node);
+    case Runtime::kInlineAsyncFunctionResolve:
+      return ReduceAsyncFunctionResolve(node);
     case Runtime::kInlineAsyncGeneratorReject:
       return ReduceAsyncGeneratorReject(node);
     case Runtime::kInlineAsyncGeneratorResolve:
@@ -54,10 +60,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
-    case Runtime::kInlineRejectPromise:
-      return ReduceRejectPromise(node);
-    case Runtime::kInlineResolvePromise:
-      return ReduceResolvePromise(node);
     case Runtime::kInlineToLength:
       return ReduceToLength(node);
     case Runtime::kInlineToObject:
@@ -125,6 +127,23 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
   ReplaceWithValue(node, undefined, node);
   NodeProperties::RemoveType(node);
   return Change(node, op, generator, closed, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncFunctionEnter(Node* node) {
+  NodeProperties::ChangeOp(node, javascript()->AsyncFunctionEnter());
+  return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncFunctionReject(Node* node) {
+  RelaxControls(node);
+  NodeProperties::ChangeOp(node, javascript()->AsyncFunctionReject());
+  return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncFunctionResolve(Node* node) {
+  RelaxControls(node);
+  NodeProperties::ChangeOp(node, javascript()->AsyncFunctionResolve());
+  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {
@@ -204,18 +223,6 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
   return Change(node, simplified()->ObjectIsSmi());
-}
-
-Reduction JSIntrinsicLowering::ReduceRejectPromise(Node* node) {
-  RelaxControls(node);
-  NodeProperties::ChangeOp(node, javascript()->RejectPromise());
-  return Changed(node);
-}
-
-Reduction JSIntrinsicLowering::ReduceResolvePromise(Node* node) {
-  RelaxControls(node);
-  NodeProperties::ChangeOp(node, javascript()->ResolvePromise());
-  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {

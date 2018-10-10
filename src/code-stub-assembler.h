@@ -1165,7 +1165,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load the "prototype" property of a JSFunction.
   Node* LoadJSFunctionPrototype(Node* function, Label* if_bailout);
 
-  Node* LoadSharedFunctionInfoBytecodeArray(Node* shared);
+  TNode<BytecodeArray> LoadSharedFunctionInfoBytecodeArray(
+      SloppyTNode<SharedFunctionInfo> shared);
 
   void StoreObjectByteNoWriteBarrier(TNode<HeapObject> object, int offset,
                                      TNode<Word32T> value);

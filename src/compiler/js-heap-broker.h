@@ -240,6 +240,7 @@ class ContextRef : public HeapObjectRef {
   V(JSFunction, array_function)                    \
   V(JSFunction, object_function)                   \
   V(JSFunction, promise_function)                  \
+  V(Map, async_function_object_map)                \
   V(Map, fast_aliased_arguments_map)               \
   V(Map, initial_array_iterator_map)               \
   V(Map, initial_string_iterator_map)              \

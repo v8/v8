@@ -37,6 +37,7 @@ namespace internal {
   V(TypeConversion)                   \
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
+  V(AsyncFunctionStackParameter)      \
   V(CallFunction)                     \
   V(CallVarargs)                      \
   V(CallForwardVarargs)               \
@@ -692,6 +693,15 @@ class TypeConversionStackParameterDescriptor final
   DEFINE_PARAMETERS(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeConversionStackParameterDescriptor,
+                     CallInterfaceDescriptor)
+};
+
+class AsyncFunctionStackParameterDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kPromise, kResult)
+  DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(), MachineType::AnyTagged())
+  DECLARE_DESCRIPTOR(AsyncFunctionStackParameterDescriptor,
                      CallInterfaceDescriptor)
 };
 

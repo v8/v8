@@ -427,6 +427,10 @@ namespace internal {
   CPP(ArrayBufferPrototypeSlice)                                               \
                                                                                \
   /* AsyncFunction */                                                          \
+  TFS(AsyncFunctionEnter, kClosure, kReceiver)                                 \
+  TFS(AsyncFunctionReject, kPromise, kReason, kCanSuspend)                     \
+  TFS(AsyncFunctionResolve, kPromise, kValue, kCanSuspend)                     \
+  TFC(AsyncFunctionLazyDeoptContinuation, AsyncFunctionStackParameter, 1)      \
   TFJ(AsyncFunctionAwaitCaught, 3, kReceiver, kGenerator, kAwaited,            \
       kOuterPromise)                                                           \
   TFJ(AsyncFunctionAwaitUncaught, 3, kReceiver, kGenerator, kAwaited,          \
@@ -434,7 +438,6 @@ namespace internal {
   TFJ(AsyncFunctionAwaitRejectClosure, 1, kReceiver, kSentError)               \
   TFJ(AsyncFunctionAwaitResolveClosure, 1, kReceiver, kSentValue)              \
   TFJ(AsyncFunctionPromiseCreate, 0, kReceiver)                                \
-  TFJ(AsyncFunctionPromiseRelease, 2, kReceiver, kPromise, kCanSuspend)        \
                                                                                \
   /* BigInt */                                                                 \
   CPP(BigIntConstructor)                                                       \

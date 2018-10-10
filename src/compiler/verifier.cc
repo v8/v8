@@ -872,6 +872,23 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       break;
 
+    case IrOpcode::kJSAsyncFunctionEnter:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckTypeIs(node, Type::OtherObject());
+      break;
+    case IrOpcode::kJSAsyncFunctionReject:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckValueInputIs(node, 2, Type::Boolean());
+      CheckTypeIs(node, Type::OtherObject());
+      break;
+    case IrOpcode::kJSAsyncFunctionResolve:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckValueInputIs(node, 2, Type::Boolean());
+      CheckTypeIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSFulfillPromise:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Any());

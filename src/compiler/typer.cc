@@ -1789,6 +1789,18 @@ Type Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }
 
+Type Typer::Visitor::TypeJSAsyncFunctionEnter(Node* node) {
+  return Type::OtherObject();
+}
+
+Type Typer::Visitor::TypeJSAsyncFunctionReject(Node* node) {
+  return Type::OtherObject();
+}
+
+Type Typer::Visitor::TypeJSAsyncFunctionResolve(Node* node) {
+  return Type::OtherObject();
+}
+
 Type Typer::Visitor::TypeJSFulfillPromise(Node* node) {
   return Type::Undefined();
 }
