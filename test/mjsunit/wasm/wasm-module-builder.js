@@ -171,11 +171,10 @@ class WasmModuleBuilder {
     this.globals = [];
     this.exceptions = [];
     this.functions = [];
-    this.function_table = [];
-    this.function_table_length_min = 0;
-    this.function_table_length_max = 0;
-    this.function_table_inits = [];
-    this.segments = [];
+    this.table_length_min = 0;
+    this.table_length_max = undefined;
+    this.element_segments = [];
+    this.data_segments = [];
     this.explicit = [];
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
@@ -301,24 +300,24 @@ class WasmModuleBuilder {
   }
 
   addDataSegment(addr, data, is_global = false) {
-    this.segments.push({addr: addr, data: data, is_global: is_global});
-    return this.segments.length - 1;
+    this.data_segments.push({addr: addr, data: data, is_global: is_global});
+    return this.data_segments.length - 1;
   }
 
   exportMemoryAs(name) {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
-  addFunctionTableInit(base, is_global, array, is_import = false) {
-    this.function_table_inits.push({base: base, is_global: is_global,
+  addElementSegment(base, is_global, array, is_import = false) {
+    this.element_segments.push({base: base, is_global: is_global,
                                     array: array});
     if (!is_global) {
       var length = base + array.length;
-      if (length > this.function_table_length_min && !is_import) {
-        this.function_table_length_min = length;
+      if (length > this.table_length_min && !is_import) {
+        this.table_length_min = length;
       }
-      if (length > this.function_table_length_max && !is_import) {
-         this.function_table_length_max = length;
+      if (length > this.table_length_max && !is_import) {
+         this.table_length_max = length;
       }
     }
     return this;
@@ -329,12 +328,18 @@ class WasmModuleBuilder {
       if (typeof n != 'number')
         throw new Error('invalid table (entries have to be numbers): ' + array);
     }
-    return this.addFunctionTableInit(this.function_table.length, false, array);
+    return this.addElementSegment(this.table_length_min, false, array);
   }
 
-  setFunctionTableBounds(min, max) {
-    this.function_table_length_min = min;
-    this.function_table_length_max = max;
+  setTableBounds(min, max) {
+    this.table_length_min = min;
+    this.table_length_max = max;
+    return this;
+  }
+
+  setTableLength(length) {
+    this.table_length_min = length;
+    this.table_length_max = length;
     return this;
   }
 
@@ -422,17 +427,17 @@ class WasmModuleBuilder {
       });
     }
 
-    // Add function_table.
-    if (wasm.function_table_length_min > 0) {
+    // Add table section
+    if (wasm.table_length_min > 0) {
       if (debug) print("emitting table @ " + binary.length);
       binary.emit_section(kTableSectionCode, section => {
         section.emit_u8(1);  // one table entry
         section.emit_u8(kWasmAnyFunctionTypeForm);
-        // TODO(gdeepti): Cleanup to use optional max flag,
-        // fix up tests to set correct initial/maximum values
-        section.emit_u32v(1);
-        section.emit_u32v(wasm.function_table_length_min);
-        section.emit_u32v(wasm.function_table_length_max);
+        const max = wasm.table_length_max;
+        const has_max = max !== undefined;
+        section.emit_u8(has_max ? kHasMaximumFlag : 0);
+        section.emit_u32v(wasm.table_length_min);
+        if (has_max) section.emit_u32v(max);
       });
     }
 
@@ -546,11 +551,11 @@ class WasmModuleBuilder {
       });
     }
 
-    // Add table elements.
-    if (wasm.function_table_inits.length > 0) {
-      if (debug) print("emitting table @ " + binary.length);
+    // Add element segments
+    if (wasm.element_segments.length > 0) {
+      if (debug) print("emitting element segments @ " + binary.length);
       binary.emit_section(kElementSectionCode, section => {
-        var inits = wasm.function_table_inits;
+        var inits = wasm.element_segments;
         section.emit_u32v(inits.length);
 
         for (let init of inits) {
@@ -618,11 +623,11 @@ class WasmModuleBuilder {
     }
 
     // Add data segments.
-    if (wasm.segments.length > 0) {
+    if (wasm.data_segments.length > 0) {
       if (debug) print("emitting data segments @ " + binary.length);
       binary.emit_section(kDataSectionCode, section => {
-        section.emit_u32v(wasm.segments.length);
-        for (let seg of wasm.segments) {
+        section.emit_u32v(wasm.data_segments.length);
+        for (let seg of wasm.data_segments) {
           section.emit_u8(0);  // linear memory index 0
           if (seg.is_global) {
             // initializer is a global variable
