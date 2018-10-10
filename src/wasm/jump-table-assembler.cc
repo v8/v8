@@ -122,7 +122,7 @@ void JumpTableAssembler::NopBytes(int bytes) {
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   // Load function index to r7. 6 bytes
-  lgfi(r7, Operand(func_index));
+  lgfi(kWasmCompileLazyFuncIndexRegister, Operand(func_index));
   // Jump to {lazy_compile_target}. 6 bytes or 12 bytes
   mov(r1, Operand(lazy_compile_target));
   b(r1);  // 2 bytes
