@@ -359,6 +359,8 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   if (!m.HasValue()) return NoChange();
   JSFunctionRef function = m.Ref(js_heap_broker()).AsJSFunction();
   MapRef function_map = function.map();
+  // TODO(neis): Remove SerializePrototype call once brokerization is complete.
+  function_map.SerializePrototype();
   ObjectRef function_prototype = function_map.prototype();
 
   // We can constant-fold the super constructor access if the

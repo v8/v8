@@ -2008,6 +2008,12 @@ bool PipelineImpl::CreateGraph() {
   Run<GraphBuilderPhase>();
   RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
 
+  if (FLAG_concurrent_inlining) {
+    data->js_heap_broker()->StartSerializing();
+    Run<SerializeStandardObjectsPhase>();
+    Run<CopyMetadataForConcurrentCompilePhase>();
+  }
+
   // Perform function context specialization and inlining (if enabled).
   Run<InliningPhase>();
   RunPrintAndVerify(InliningPhase::phase_name(), true);
@@ -2031,7 +2037,12 @@ bool PipelineImpl::CreateGraph() {
 
   // Run the type-sensitive lowerings and optimizations on the graph.
   {
-    if (FLAG_concurrent_compiler_frontend) {
+    if (FLAG_concurrent_inlining) {
+      // TODO(neis): Remove CopyMetadataForConcurrentCompilePhase call once
+      // brokerization of JSNativeContextSpecialization is complete.
+      Run<CopyMetadataForConcurrentCompilePhase>();
+      data->js_heap_broker()->StopSerializing();
+    } else if (FLAG_concurrent_typed_lowering) {
       data->js_heap_broker()->StartSerializing();
       Run<SerializeStandardObjectsPhase>();
       Run<CopyMetadataForConcurrentCompilePhase>();
@@ -2058,7 +2069,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   data->BeginPhaseKind("lowering");
 
-  if (FLAG_concurrent_compiler_frontend) {
+  if (FLAG_concurrent_typed_lowering) {
     // Type the graph and keep the Typer running such that new nodes get
     // automatically typed when they are created.
     Run<TyperPhase>(data->CreateTyper());
@@ -2574,7 +2585,7 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
 
 MaybeHandle<Code> PipelineImpl::FinalizeCode() {
   PipelineData* data = this->data_;
-  if (data->js_heap_broker() && FLAG_concurrent_compiler_frontend) {
+  if (data->js_heap_broker() && FLAG_concurrent_typed_lowering) {
     data->js_heap_broker()->Retire();
   }
   Run<FinalizeCodePhase>();

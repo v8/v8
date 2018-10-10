@@ -2333,6 +2333,12 @@ void MapRef::SerializeOwnDescriptors() {
   data()->AsMap()->SerializeOwnDescriptors(broker());
 }
 
+void MapRef::SerializePrototype() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsMap()->SerializePrototype(broker());
+}
+
 void ModuleRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);

@@ -359,6 +359,8 @@ class MapRef : public HeapObjectRef {
   bool is_callable() const;
 
   ObjectRef constructor_or_backpointer() const;
+
+  void SerializePrototype();
   ObjectRef prototype() const;
 
   OddballType oddball_type() const;

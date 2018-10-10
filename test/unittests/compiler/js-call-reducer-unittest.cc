@@ -22,7 +22,7 @@ class JSCallReducerTest : public TypedGraphTest {
  public:
   JSCallReducerTest()
       : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {
-    if (FLAG_concurrent_compiler_frontend) {
+    if (FLAG_concurrent_typed_lowering) {
       js_heap_broker()->SerializeStandardObjects();
     }
   }

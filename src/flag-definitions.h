@@ -402,9 +402,13 @@ DEFINE_INT(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
 DEFINE_BOOL(block_concurrent_recompilation, false,
             "block queued jobs until released")
-DEFINE_BOOL(concurrent_compiler_frontend, false,
-            "run optimizing compiler's frontend phases on a separate thread")
-DEFINE_IMPLICATION(future, concurrent_compiler_frontend)
+DEFINE_BOOL(
+    concurrent_typed_lowering, false,
+    "run optimizing compiler's typed lowering phase on a separate thread")
+DEFINE_IMPLICATION(future, concurrent_typed_lowering)
+DEFINE_BOOL(concurrent_inlining, false,
+            "run optimizing compiler's inlining phase on a separate thread")
+DEFINE_IMPLICATION(concurrent_inlining, concurrent_typed_lowering)
 DEFINE_BOOL(strict_heap_broker, false, "fail on incomplete serialization")
 DEFINE_BOOL(trace_heap_broker, false, "trace the heap broker")
 
