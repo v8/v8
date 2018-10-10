@@ -185,6 +185,16 @@ bool Isolate::IsArrayIteratorLookupChainIntact() {
   return array_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
+bool Isolate::IsMapIteratorLookupChainIntact() {
+  PropertyCell* map_iterator_cell = heap()->map_iterator_protector();
+  return map_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
+bool Isolate::IsSetIteratorLookupChainIntact() {
+  PropertyCell* set_iterator_cell = heap()->set_iterator_protector();
+  return set_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
 bool Isolate::IsStringIteratorLookupChainIntact() {
   PropertyCell* string_iterator_cell = heap()->string_iterator_protector();
   return string_iterator_cell->value() == Smi::FromInt(kProtectorValid);

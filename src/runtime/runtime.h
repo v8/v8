@@ -506,6 +506,8 @@ namespace internal {
   F(ArraySpeciesProtector, 0, 1)              \
   F(TypedArraySpeciesProtector, 0, 1)         \
   F(PromiseSpeciesProtector, 0, 1)            \
+  F(MapIteratorProtector, 0, 1)               \
+  F(SetIteratorProtector, 0, 1)               \
   F(StringIteratorProtector, 0, 1)            \
   F(SystemBreak, 0, 1)                        \
   F(TraceEnter, 0, 1)                         \

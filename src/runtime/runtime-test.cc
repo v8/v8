@@ -935,6 +935,18 @@ RUNTIME_FUNCTION(Runtime_PromiseSpeciesProtector) {
       isolate->IsPromiseSpeciesLookupChainIntact());
 }
 
+RUNTIME_FUNCTION(Runtime_MapIteratorProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(isolate->IsMapIteratorLookupChainIntact());
+}
+
+RUNTIME_FUNCTION(Runtime_SetIteratorProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(isolate->IsSetIteratorLookupChainIntact());
+}
+
 RUNTIME_FUNCTION(Runtime_StringIteratorProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());

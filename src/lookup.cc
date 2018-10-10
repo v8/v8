@@ -330,6 +330,14 @@ void LookupIterator::InternalUpdateProtector() {
       if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
       isolate_->InvalidateArrayIteratorProtector();
     } else if (isolate_->IsInAnyContext(
+                   *holder_, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
+      if (!isolate_->IsMapIteratorLookupChainIntact()) return;
+      isolate_->InvalidateMapIteratorProtector();
+    } else if (isolate_->IsInAnyContext(
+                   *holder_, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX)) {
+      if (!isolate_->IsSetIteratorLookupChainIntact()) return;
+      isolate_->InvalidateSetIteratorProtector();
+    } else if (isolate_->IsInAnyContext(
                    *receiver_,
                    Context::INITIAL_STRING_ITERATOR_PROTOTYPE_INDEX)) {
       // Setting the next property of %StringIteratorPrototype% invalidates the
@@ -364,6 +372,18 @@ void LookupIterator::InternalUpdateProtector() {
     if (holder_->IsJSArray()) {
       if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
       isolate_->InvalidateArrayIteratorProtector();
+    } else if (isolate_->IsInAnyContext(
+                   *holder_, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX)) {
+      if (isolate_->IsMapIteratorLookupChainIntact()) {
+        isolate_->InvalidateMapIteratorProtector();
+      }
+      if (isolate_->IsSetIteratorLookupChainIntact()) {
+        isolate_->InvalidateSetIteratorProtector();
+      }
+    } else if (isolate_->IsInAnyContext(*holder_,
+                                        Context::INITIAL_SET_PROTOTYPE_INDEX)) {
+      if (!isolate_->IsSetIteratorLookupChainIntact()) return;
+      isolate_->InvalidateSetIteratorProtector();
     } else if (isolate_->IsInAnyContext(
                    *receiver_, Context::INITIAL_STRING_PROTOTYPE_INDEX)) {
       // Setting the Symbol.iterator property of String.prototype invalidates

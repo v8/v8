@@ -234,7 +234,9 @@ class Symbol;
     ArrayBufferNeuteringProtector)                                           \
   V(PropertyCell, promise_hook_protector, PromiseHookProtector)              \
   V(Cell, promise_resolve_protector, PromiseResolveProtector)                \
+  V(PropertyCell, map_iterator_protector, MapIteratorProtector)              \
   V(PropertyCell, promise_then_protector, PromiseThenProtector)              \
+  V(PropertyCell, set_iterator_protector, SetIteratorProtector)              \
   V(PropertyCell, string_iterator_protector, StringIteratorProtector)        \
   /* Caches */                                                               \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)   \

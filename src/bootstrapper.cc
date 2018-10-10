@@ -3492,6 +3492,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           values, DONT_ENUM);
 
     native_context()->set_initial_set_prototype_map(prototype->map());
+    native_context()->set_initial_set_prototype(*prototype);
 
     InstallSpeciesGetter(isolate_, js_set_fun);
   }
@@ -4196,6 +4197,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     SimpleInstallFunction(isolate, prototype, "next",
                           Builtins::kSetIteratorPrototypeNext, 0, true,
                           BuiltinFunctionId::kSetIteratorNext);
+    native_context->set_initial_set_iterator_prototype(*prototype);
 
     // Setup SetIterator constructor.
     Handle<JSFunction> set_iterator_function = InstallFunction(
@@ -4231,6 +4233,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     SimpleInstallFunction(isolate, prototype, "next",
                           Builtins::kMapIteratorPrototypeNext, 0, true,
                           BuiltinFunctionId::kMapIteratorNext);
+    native_context->set_initial_map_iterator_prototype(*prototype);
 
     // Setup MapIterator constructor.
     Handle<JSFunction> map_iterator_function = InstallFunction(

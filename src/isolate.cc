@@ -3760,6 +3760,24 @@ void Isolate::InvalidateArrayIteratorProtector() {
   DCHECK(!IsArrayIteratorLookupChainIntact());
 }
 
+void Isolate::InvalidateMapIteratorProtector() {
+  DCHECK(factory()->map_iterator_protector()->value()->IsSmi());
+  DCHECK(IsMapIteratorLookupChainIntact());
+  PropertyCell::SetValueWithInvalidation(
+      this, factory()->map_iterator_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsMapIteratorLookupChainIntact());
+}
+
+void Isolate::InvalidateSetIteratorProtector() {
+  DCHECK(factory()->set_iterator_protector()->value()->IsSmi());
+  DCHECK(IsSetIteratorLookupChainIntact());
+  PropertyCell::SetValueWithInvalidation(
+      this, factory()->set_iterator_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsSetIteratorLookupChainIntact());
+}
+
 void Isolate::InvalidateStringIteratorProtector() {
   DCHECK(factory()->string_iterator_protector()->value()->IsSmi());
   DCHECK(IsStringIteratorLookupChainIntact());

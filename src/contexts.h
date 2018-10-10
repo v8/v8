@@ -192,8 +192,13 @@ enum ContextLookupFlags {
   V(INITIAL_ASYNC_GENERATOR_PROTOTYPE_INDEX, JSObject,                         \
     initial_async_generator_prototype)                                         \
   V(INITIAL_ITERATOR_PROTOTYPE_INDEX, JSObject, initial_iterator_prototype)    \
+  V(INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX, JSObject,                            \
+    initial_map_iterator_prototype)                                            \
   V(INITIAL_MAP_PROTOTYPE_MAP_INDEX, Map, initial_map_prototype_map)           \
   V(INITIAL_OBJECT_PROTOTYPE_INDEX, JSObject, initial_object_prototype)        \
+  V(INITIAL_SET_ITERATOR_PROTOTYPE_INDEX, JSObject,                            \
+    initial_set_iterator_prototype)                                            \
+  V(INITIAL_SET_PROTOTYPE_INDEX, JSObject, initial_set_prototype)              \
   V(INITIAL_SET_PROTOTYPE_MAP_INDEX, Map, initial_set_prototype_map)           \
   V(INITIAL_STRING_ITERATOR_MAP_INDEX, Map, initial_string_iterator_map)       \
   V(INITIAL_STRING_ITERATOR_PROTOTYPE_INDEX, JSObject,                         \
