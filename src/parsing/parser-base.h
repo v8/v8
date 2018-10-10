@@ -869,13 +869,6 @@ class ParserBase {
     }
   }
 
-  // Determine precedence of given token.
-  static int Precedence(Token::Value token, bool accept_IN) {
-    if (token == Token::IN && !accept_IN)
-      return 0;  // 0 precedence will terminate binary expression parsing
-    return Token::Precedence(token);
-  }
-
   typename Types::Factory* factory() { return &ast_node_factory_; }
 
   DeclarationScope* GetReceiverScope() const {
@@ -3137,7 +3130,8 @@ ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
   SourceRange right_range;
   do {
     // prec1 >= 4
-    while (Precedence(peek(), accept_IN) == prec1) {
+    while (Token::Precedence(peek()) == prec1) {
+      if (!accept_IN && peek() == Token::IN) return x;
       ValidateExpression(CHECK_OK);
       BindingPatternUnexpectedToken();
       ArrowFormalParametersUnexpectedToken();
@@ -3190,7 +3184,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
     int prec, bool accept_IN, bool* ok) {
   DCHECK_GE(prec, 4);
   ExpressionT x = ParseUnaryExpression(CHECK_OK);
-  int prec1 = Precedence(peek(), accept_IN);
+  int prec1 = Token::Precedence(peek());
   if (prec1 >= prec) {
     return ParseBinaryContinuation(x, prec, prec1, accept_IN, CHECK_OK);
   }
