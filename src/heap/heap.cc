@@ -4511,10 +4511,7 @@ void Heap::RegisterExternallyReferencedObject(Object** object) {
   }
 }
 
-void Heap::StartTearDown() {
-  SetGCState(TEAR_DOWN);
-  isolate_->global_handles()->TearDown();
-}
+void Heap::StartTearDown() { SetGCState(TEAR_DOWN); }
 
 void Heap::TearDown() {
   DCHECK_EQ(gc_state_, TEAR_DOWN);
@@ -4615,6 +4612,8 @@ void Heap::TearDown() {
 
   delete local_embedder_heap_tracer_;
   local_embedder_heap_tracer_ = nullptr;
+
+  isolate_->global_handles()->TearDown();
 
   external_string_table_.TearDown();
 
