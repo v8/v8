@@ -453,4 +453,10 @@
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps
 
+##############################################################################
+['arch == ia32 and embedded_builtins == True', {
+  # TODO(v8:6666): Fix arguments adaptor trampoline
+  'test-wasm-import-wrapper-cache/CacheMissKind': [FAIL],
+}],  # arch == ia32 and embedded_builtins == True
+
 ]
