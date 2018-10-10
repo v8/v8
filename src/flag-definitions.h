@@ -228,6 +228,8 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                  \
+  V(harmony_namespace_exports,                                             \
+    "harmony namespace exports (export * as foo from 'bar')")              \
   V(harmony_public_fields, "harmony public fields in class literals")      \
   V(harmony_private_fields, "harmony private fields in class literals")    \
   V(harmony_numeric_separator, "harmony numeric separator between digits") \

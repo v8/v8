@@ -269,6 +269,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ParseImportDeclaration(bool* ok);
   Statement* ParseExportDeclaration(bool* ok);
   Statement* ParseExportDefault(bool* ok);
+  void ParseExportStar(bool* ok);
   struct ExportClauseData {
     const AstRawString* export_name;
     const AstRawString* local_name;
@@ -1096,6 +1097,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
         node, new (zone()) TryFinallyStatementSourceRanges(body_range));
   }
 
+  // Generate the next internal variable name for binding an exported namespace
+  // object (used to implement the "export * as" syntax).
+  const AstRawString* NextInternalNamespaceExportName();
+
   // Parser's private field members.
   friend class PreParserZoneScope;  // Uses reusable_preparser().
 
@@ -1111,6 +1116,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   ParserTarget* target_stack_;  // for break, continue statements
 
   ScriptCompiler::CompileOptions compile_options_;
+
+  // For NextInternalNamespaceExportName().
+  int number_of_named_namespace_exports_ = 0;
 
   // Other information which will be stored in Parser and moved to Isolate after
   // parsing.

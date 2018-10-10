@@ -1168,17 +1168,64 @@ Statement* Parser::ParseExportDefault(bool* ok) {
   return result;
 }
 
+const AstRawString* Parser::NextInternalNamespaceExportName() {
+  const char* prefix = ".ns-export";
+  std::string s(prefix);
+  s.append(std::to_string(number_of_named_namespace_exports_++));
+  return ast_value_factory()->GetOneByteString(s.c_str());
+}
+
+void Parser::ParseExportStar(bool* ok) {
+  int pos = position();
+  Consume(Token::MUL);
+
+  if (!FLAG_harmony_namespace_exports || !PeekContextualKeyword(Token::AS)) {
+    // 'export' '*' 'from' ModuleSpecifier ';'
+    Scanner::Location loc = scanner()->location();
+    ExpectContextualKeyword(Token::FROM, CHECK_OK_VOID);
+    Scanner::Location specifier_loc = scanner()->peek_location();
+    const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK_VOID);
+    ExpectSemicolon(CHECK_OK_VOID);
+    module()->AddStarExport(module_specifier, loc, specifier_loc, zone());
+    return;
+  }
+  if (!FLAG_harmony_namespace_exports) return;
+
+  // 'export' '*' 'as' IdentifierName 'from' ModuleSpecifier ';'
+  //
+  // Desugaring:
+  //   export * as x from "...";
+  // ~>
+  //   import * as .x from "..."; export {.x as x};
+
+  ExpectContextualKeyword(Token::AS, CHECK_OK_VOID);
+  const AstRawString* export_name = ParseIdentifierName(CHECK_OK_VOID);
+  Scanner::Location export_name_loc = scanner()->location();
+  const AstRawString* local_name = NextInternalNamespaceExportName();
+  Scanner::Location local_name_loc = Scanner::Location::invalid();
+  DeclareVariable(local_name, VariableMode::kConst, kCreatedInitialized, pos,
+                  CHECK_OK_VOID);
+
+  ExpectContextualKeyword(Token::FROM, CHECK_OK_VOID);
+  Scanner::Location specifier_loc = scanner()->peek_location();
+  const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK_VOID);
+  ExpectSemicolon(CHECK_OK_VOID);
+
+  module()->AddStarImport(local_name, module_specifier, local_name_loc,
+                          specifier_loc, zone());
+  module()->AddExport(local_name, export_name, export_name_loc, zone());
+}
+
 Statement* Parser::ParseExportDeclaration(bool* ok) {
   // ExportDeclaration:
   //    'export' '*' 'from' ModuleSpecifier ';'
+  //    'export' '*' 'as' IdentifierName 'from' ModuleSpecifier ';'
   //    'export' ExportClause ('from' ModuleSpecifier)? ';'
   //    'export' VariableStatement
   //    'export' Declaration
   //    'export' 'default' ... (handled in ParseExportDefault)
 
   Expect(Token::EXPORT, CHECK_OK);
-  int pos = position();
-
   Statement* result = nullptr;
   ZonePtrList<const AstRawString> names(1, zone());
   Scanner::Location loc = scanner()->peek_location();
@@ -1186,16 +1233,9 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     case Token::DEFAULT:
       return ParseExportDefault(ok);
 
-    case Token::MUL: {
-      Consume(Token::MUL);
-      loc = scanner()->location();
-      ExpectContextualKeyword(Token::FROM, CHECK_OK);
-      Scanner::Location specifier_loc = scanner()->peek_location();
-      const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
-      ExpectSemicolon(CHECK_OK);
-      module()->AddStarExport(module_specifier, loc, specifier_loc, zone());
-      return factory()->NewEmptyStatement(pos);
-    }
+    case Token::MUL:
+      ParseExportStar(CHECK_OK);
+      return factory()->NewEmptyStatement(position());
 
     case Token::LBRACE: {
       // There are two cases here:
@@ -1209,6 +1249,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       // pass in a location that gets filled with the first reserved word
       // encountered, and then throw a SyntaxError if we are in the
       // non-FromClause case.
+      int pos = position();
       Scanner::Location reserved_loc = Scanner::Location::invalid();
       ZoneChunkList<ExportClauseData>* export_data =
           ParseExportClause(&reserved_loc, CHECK_OK);

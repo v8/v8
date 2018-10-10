@@ -56,10 +56,10 @@ FEATURE_FLAGS = {
   'Symbol.prototype.description': '--harmony-symbol-description',
   'globalThis': '--harmony-global',
   'well-formed-json-stringify': '--harmony-json-stringify',
+  'export-star-as-namespace-from-module': '--harmony-namespace-exports',
 }
 
 SKIPPED_FEATURES = set(['Object.fromEntries',
-                        'export-star-as-namespace-from-module',
                         'class-fields-private',
                         'class-static-fields-private',
                         'class-methods-private',
