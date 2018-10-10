@@ -1043,7 +1043,7 @@ class ParserBase {
   ExpressionT ParseRegExpLiteral(bool* ok);
 
   ExpressionT ParseBindingPattern(bool* ok);
-  V8_INLINE ExpressionT ParsePrimaryExpression(bool* is_async, bool* ok);
+  ExpressionT ParsePrimaryExpression(bool* is_async, bool* ok);
 
   // Use when parsing an expression that is known to not be a pattern or part
   // of a pattern.
