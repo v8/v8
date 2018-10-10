@@ -1526,8 +1526,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             Vector<Value> values(stack_.data() + c->stack_depth,
                                  sig->parameter_count());
-            CALL_INTERFACE_IF_PARENT_REACHABLE(CatchException, imm, c, values);
             c->reachability = control_at(1)->innerReachability();
+            CALL_INTERFACE_IF_PARENT_REACHABLE(CatchException, imm, c, values);
             break;
           }
           case kExprCatchAll: {
@@ -1548,8 +1548,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             c->kind = kControlTryCatchAll;
             FallThruTo(c);
             stack_.resize(c->stack_depth);
-            CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
             c->reachability = control_at(1)->innerReachability();
+            CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
             break;
           }
           case kExprLoop: {
@@ -1618,8 +1618,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (c->is_try_catch()) {
               // Emulate catch-all + re-throw.
               FallThruTo(c);
+              c->reachability = control_at(1)->innerReachability();
               CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
-              CALL_INTERFACE_IF_PARENT_REACHABLE(Rethrow, c);
+              CALL_INTERFACE_IF_REACHABLE(Rethrow, c);
+              EndControl();
             }
 
             FallThruTo(c);

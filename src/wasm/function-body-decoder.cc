@@ -421,14 +421,9 @@ class WasmGraphBuildingInterface {
 
   void Rethrow(FullDecoder* decoder, Control* block) {
     TFNode* exception = block->try_info->exception;
-    // TODO(mstarzinger): The below check is a workaround because we still
-    // determine reachability via the SSA environment. This should be done via
-    // the control stack reachability instead.
-    if (exception != nullptr) {
-      BUILD(Rethrow, exception);
-      Unreachable(decoder);
-      EndControl(decoder, block);
-    }
+    BUILD(Rethrow, exception);
+    Unreachable(decoder);
+    EndControl(decoder, block);
   }
 
   void CatchException(FullDecoder* decoder,
@@ -442,42 +437,57 @@ class WasmGraphBuildingInterface {
 
     // The catch block is unreachable if no possible throws in the try block
     // exist. We only build a landing pad if some node in the try block can
-    // (possibly) throw. Otherwise the below catch environments remain empty.
+    // (possibly) throw. Otherwise the catch environments remain empty.
     DCHECK_EQ(exception != nullptr, ssa_env_->reached());
+    if (exception == nullptr) {
+      block->reachability = kSpecOnlyReachable;
+      return;
+    }
 
     TFNode* if_catch = nullptr;
     TFNode* if_no_catch = nullptr;
-    if (exception != nullptr) {
-      // Get the exception tag and see if it matches the expected one.
-      TFNode* caught_tag = BUILD(GetExceptionTag, exception);
-      TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
-      TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
-      BUILD(BranchNoHint, compare, &if_catch, &if_no_catch);
-    }
 
+    // Get the exception tag and see if it matches the expected one.
+    TFNode* caught_tag = BUILD(GetExceptionTag, exception);
+    TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
+    TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
+    BUILD(BranchNoHint, compare, &if_catch, &if_no_catch);
+
+    // If the tags don't match we continue with the next tag by setting the
+    // false environment as the new {TryInfo::catch_env} here.
     SsaEnv* if_no_catch_env = Split(decoder, ssa_env_);
     if_no_catch_env->control = if_no_catch;
     SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
     if_catch_env->control = if_catch;
     block->try_info->catch_env = if_no_catch_env;
 
+    // If the tags match we extract the values from the exception object and
+    // push them onto the operand stack using the passed {values} vector.
     SetEnv(if_catch_env);
-    if (exception != nullptr) {
-      // TODO(kschimpf): Can't use BUILD() here, GetExceptionValues() returns
-      // TFNode** rather than TFNode*. Fix to add landing pads.
-      TFNode** caught_values =
-          builder_->GetExceptionValues(exception, imm.exception);
-      for (size_t i = 0, e = values.size(); i < e; ++i) {
-        values[i].node = caught_values[i];
-      }
+    // TODO(mstarzinger): Can't use BUILD() here, GetExceptionValues() returns
+    // TFNode** rather than TFNode*. Fix to add landing pads.
+    TFNode** caught_values =
+        builder_->GetExceptionValues(exception, imm.exception);
+    for (size_t i = 0, e = values.size(); i < e; ++i) {
+      values[i].node = caught_values[i];
     }
   }
 
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
+    TFNode* exception = block->try_info->exception;
     current_catch_ = block->previous_catch;  // Pop try scope.
     SsaEnv* catch_env = block->try_info->catch_env;
     SetEnv(catch_env);
+
+    // The catch block is unreachable if no possible throws in the try block
+    // exist. We only build a landing pad if some node in the try block can
+    // (possibly) throw. Otherwise the catch environments remain empty.
+    DCHECK_EQ(exception != nullptr, ssa_env_->reached());
+    if (exception == nullptr) {
+      block->reachability = kSpecOnlyReachable;
+      return;
+    }
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,

@@ -98,3 +98,24 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertThrows(() => instance.exports.catchall(), WebAssembly.RuntimeError);
 })();
+
+// Test that empty try blocks (with no expression that could potentially throw)
+// are supported properly, even in the presence of unreachable catch blocks.
+(function TestCatchAllEmptyBlock() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except1 = builder.addException(kSig_v_v);
+  let except2 = builder.addException(kSig_v_v);
+  builder.addFunction("catchall", kSig_v_v)
+    .addBody([
+      kExprTry, kWasmStmt,
+      kExprCatch, except1,
+        kExprThrow, except2,
+      kExprCatchAll,
+        kExprThrow, except2,
+      kExprEnd
+  ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertDoesNotThrow(() => instance.exports.catchall());
+})();
