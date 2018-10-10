@@ -8,3 +8,4 @@ deadlock:LockAndUnlockDifferentIsolatesThread::Run
 # Data race in a third party lib
 # https://bugs.chromium.org/p/v8/issues/detail?id=8110
 race:IndianCalendar::fgSystemDefaultCenturyStartYear
+race:IndianCalendar::fgSystemDefaultCenturyStart
