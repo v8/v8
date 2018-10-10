@@ -162,14 +162,6 @@ namespace compiler {
   V(S390_StoreReverse64)                      \
   V(S390_StoreFloat32)                        \
   V(S390_StoreDouble)                         \
-  V(S390_Word64AtomicLoadUint8)               \
-  V(S390_Word64AtomicLoadUint16)              \
-  V(S390_Word64AtomicLoadUint32)              \
-  V(S390_Word64AtomicLoadUint64)              \
-  V(S390_Word64AtomicStoreUint8)              \
-  V(S390_Word64AtomicStoreUint16)             \
-  V(S390_Word64AtomicStoreUint32)             \
-  V(S390_Word64AtomicStoreUint64)             \
   V(S390_Word64AtomicExchangeUint8)           \
   V(S390_Word64AtomicExchangeUint16)          \
   V(S390_Word64AtomicExchangeUint32)          \

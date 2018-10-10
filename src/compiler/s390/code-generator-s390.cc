@@ -1022,6 +1022,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     MemOperand op = i.MemoryOperand(&mode, &index);                      \
     __ lay(addr, op);                                                    \
     __ CmpAndSwap(output, new_val, MemOperand(addr));                    \
+    __ LoadlW(output, output);                                           \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_WORD(load_and_op)                           \
@@ -1062,22 +1063,6 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ bne(&do_cs, Label::kNear);                                         \
   } while (false)
 
-#define ATOMIC64_BIN_OP(bin_inst, offset, shift_amount, start, end)         \
-  do {                                                                      \
-    Label do_cs;                                                            \
-    __ lg(prev, MemOperand(addr, offset));                                  \
-    __ bind(&do_cs);                                                        \
-    __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
-                              Operand(static_cast<intptr_t>(shift_amount)), \
-                              true);                                        \
-    __ bin_inst(new_val, prev, temp);                                       \
-    __ lgr(temp, prev);                                                     \
-    __ RotateInsertSelectBits(temp, new_val, Operand(start), Operand(end),  \
-                              Operand::Zero(), false);                      \
-    __ CmpAndSwap64(prev, temp, MemOperand(addr, offset));                  \
-    __ bne(&do_cs, Label::kNear);                                           \
-  } while (false)
-
 #ifdef V8_TARGET_BIG_ENDIAN
 #define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)  \
   {                                                              \
@@ -1097,15 +1082,6 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
     extract_result();                                            \
   }
-#define ATOMIC_BIN_OP_WORD(bin_inst, index, extract_result)      \
-  {                                                              \
-    constexpr int offset = -(4 * index);                         \
-    constexpr int shift_amount = 32 - (index * 32);              \
-    constexpr int start = 32 - shift_amount;                     \
-    constexpr int end = start + 31;                              \
-    ATOMIC64_BIN_OP(bin_inst, offset, shift_amount, start, end); \
-    extract_result();                                            \
-  }
 #else
 #define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)  \
   {                                                              \
@@ -1123,15 +1099,6 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     constexpr int start = 56 - shift_amount;                     \
     constexpr int end = start + 7;                               \
     ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);   \
-    extract_result();                                            \
-  }
-#define ATOMIC_BIN_OP_WORD(bin_inst, index, extract_result)      \
-  {                                                              \
-    constexpr int offset = -(4 * index);                         \
-    constexpr int shift_amount = index * 32;                     \
-    constexpr int start = 32 - shift_amount;                     \
-    constexpr int end = start + 31;                              \
-    ATOMIC64_BIN_OP(bin_inst, offset, shift_amount, start, end); \
     extract_result();                                            \
   }
 #endif  // V8_TARGET_BIG_ENDIAN
@@ -1190,299 +1157,6 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ bind(&three);                                                      \
     ATOMIC_BIN_OP_BYTE(bin_inst, 3, extract_result);                      \
     __ bind(&done);                                                       \
-  } while (false)
-
-#define ASSEMBLE_ATOMIC64_BINOP_BYTE(bin_inst, extract_result)       \
-  do {                                                               \
-    Register value = i.InputRegister(2);                             \
-    Register result = i.OutputRegister(0);                           \
-    Register addr = i.TempRegister(0);                               \
-    Register prev = r0;                                              \
-    Register new_val = r1;                                           \
-    Register temp = kScratchReg;                                     \
-    AddressingMode mode = kMode_None;                                \
-    MemOperand op = i.MemoryOperand(&mode);                          \
-    Label done, leftmost0, leftmost1, two, three, four, five, seven; \
-    __ lay(addr, op);                                                \
-    __ tmll(addr, Operand(7));                                       \
-    __ b(Condition(1), &seven);                                      \
-    __ b(Condition(2), &leftmost1);                                  \
-    __ b(Condition(4), &leftmost0);                                  \
-    /* ending with 0b000 */                                          \
-    ATOMIC_BIN_OP_BYTE(bin_inst, 0, extract_result);                 \
-    __ b(&done);                                                     \
-    /* ending in 0b001 to 0b011 */                                   \
-    __ bind(&leftmost0);                                             \
-    __ tmll(addr, Operand(3));                                       \
-    __ b(Condition(1), &three);                                      \
-    __ b(Condition(2), &two);                                        \
-    ATOMIC_BIN_OP_BYTE(bin_inst, 1, extract_result);                 \
-    __ b(&done);                                                     \
-    /* ending in 0b010 */                                            \
-    __ bind(&two);                                                   \
-    ATOMIC_BIN_OP_BYTE(bin_inst, 2, extract_result);                 \
-    __ b(&done);                                                     \
-    /* ending in 0b011 */                                            \
-    __ bind(&three);                                                 \
-    ATOMIC_BIN_OP_BYTE(bin_inst, 3, extract_result);                 \
-    __ b(&done);                                                     \
-    /* ending in 0b100 to 0b110 */                                   \
-    __ bind(&leftmost1);                                             \
-    __ tmll(addr, Operand(3));                                       \
-    __ b(Condition(8), &four);                                       \
-    __ b(Condition(4), &five);                                       \
-    ATOMIC_BIN_OP_BYTE(bin_inst, 6, extract_result);                 \
-    __ b(&done);                                                     \
-    /* ending in 0b100 */                                            \
-    __ bind(&four);                                                  \
-    ATOMIC_BIN_OP_BYTE(bin_inst, 4, extract_result);                 \
-    __ b(&done);                                                     \
-    /* ending in 0b101 */                                            \
-    __ bind(&five);                                                  \
-    ATOMIC_BIN_OP_BYTE(bin_inst, 5, extract_result);                 \
-    __ b(&done);                                                     \
-    /* ending in 0b111 */                                            \
-    __ bind(&seven);                                                 \
-    ATOMIC_BIN_OP_BYTE(bin_inst, 7, extract_result);                 \
-    __ bind(&done);                                                  \
-  } while (false)
-
-#define ASSEMBLE_ATOMIC64_BINOP_HALFWORD(bin_inst, extract_result)      \
-  do {                                                                  \
-    Register value = i.InputRegister(2);                                \
-    Register result = i.OutputRegister(0);                              \
-    Register prev = i.TempRegister(0);                                  \
-    Register new_val = r0;                                              \
-    Register addr = r1;                                                 \
-    Register temp = kScratchReg;                                        \
-    AddressingMode mode = kMode_None;                                   \
-    MemOperand op = i.MemoryOperand(&mode);                             \
-    Label done, one, two, three;                                        \
-    __ lay(addr, op);                                                   \
-    __ tmll(addr, Operand(6));                                          \
-    __ b(Condition(1), &three);                                         \
-    __ b(Condition(2), &two);                                           \
-    __ b(Condition(4), &one);                                           \
-    /* ending in 0b00 */                                                \
-    ATOMIC_BIN_OP_HALFWORD(bin_inst, 0, extract_result);                \
-    __ b(&done);                                                        \
-    /* ending in 0b01 */                                                \
-    __ bind(&one);                                                      \
-    ATOMIC_BIN_OP_HALFWORD(bin_inst, 1, extract_result);                \
-    __ b(&done);                                                        \
-    /* ending in 0b10 */                                                \
-    __ bind(&two);                                                      \
-    ATOMIC_BIN_OP_HALFWORD(bin_inst, 2, extract_result);                \
-    __ b(&done);                                                        \
-    /* ending in 0b11 */                                                \
-    __ bind(&three);                                                    \
-    ATOMIC_BIN_OP_HALFWORD(bin_inst, 3, extract_result);                \
-    __ bind(&done);                                                     \
-  } while (false)
-
-#define ASSEMBLE_ATOMIC64_BINOP_WORD(bin_inst, extract_result)      \
-  do {                                                              \
-    Register value = i.InputRegister(2);                            \
-    Register result = i.OutputRegister(0);                          \
-    Register prev = i.TempRegister(0);                              \
-    Register new_val = r0;                                          \
-    Register addr = r1;                                             \
-    Register temp = kScratchReg;                                    \
-    AddressingMode mode = kMode_None;                               \
-    MemOperand op = i.MemoryOperand(&mode);                         \
-    Label done, one;                                                \
-    __ lay(addr, op);                                               \
-    __ tmll(addr, Operand(4));                                      \
-    __ b(Condition(2), &one);                                       \
-    /* ending in 0b000 */                                           \
-    ATOMIC_BIN_OP_WORD(bin_inst, 0, extract_result);                \
-    __ b(&done);                                                    \
-    __ bind(&one);                                                  \
-    /* ending in 0b100 */                                           \
-    ATOMIC_BIN_OP_WORD(bin_inst, 1, extract_result);                \
-    __ bind(&done);                                                 \
-  } while (false)
-
-#define ATOMIC64_COMP_EXCHANGE(start, end, shift_amount, offset)            \
-  {                                                                         \
-    __ lg(temp0, MemOperand(addr, offset));                                 \
-    __ lgr(temp1, temp0);                                                   \
-    __ RotateInsertSelectBits(temp0, old_val, Operand(start),               \
-             Operand(end), Operand(shift_amount), false);                   \
-    __ RotateInsertSelectBits(temp1, new_val, Operand(start),               \
-             Operand(end), Operand(shift_amount), false);                   \
-    __ CmpAndSwap64(temp0, temp1, MemOperand(addr, offset));                \
-    __ RotateInsertSelectBits(output, temp0, Operand(start+shift_amount),   \
-             Operand(end+shift_amount), Operand(64-shift_amount), true);    \
-  }
-
-#ifdef V8_TARGET_BIG_ENDIAN
-#define ATOMIC64_COMP_EXCHANGE_BYTE(i)                                  \
-  {                                                                     \
-    constexpr int idx = (i);                                            \
-    constexpr int start = 8 * idx;                                      \
-    constexpr int end = start + 7;                                      \
-    constexpr int shift_amount = (7 - idx) * 8;                         \
-    ATOMIC64_COMP_EXCHANGE(start, end, shift_amount, -idx);             \
-  }
-#define ATOMIC64_COMP_EXCHANGE_HALFWORD(i)                              \
-  {                                                                     \
-    constexpr int idx = (i);                                            \
-    constexpr int start = 16 * idx;                                     \
-    constexpr int end = start + 15;                                     \
-    constexpr int shift_amount = (3 - idx) * 16;                        \
-    ATOMIC64_COMP_EXCHANGE(start, end, shift_amount, -idx * 2);         \
-  }
-#define ATOMIC64_COMP_EXCHANGE_WORD(i)                                  \
-  {                                                                     \
-    constexpr int idx = (i);                                            \
-    constexpr int start = 32 * idx;                                     \
-    constexpr int end = start + 31;                                     \
-    constexpr int shift_amount = (1 - idx) * 32;                        \
-    ATOMIC64_COMP_EXCHANGE(start, end, shift_amount, -idx * 4);         \
-  }
-#else
-#define ATOMIC64_COMP_EXCHANGE_BYTE(i)                                  \
-  {                                                                     \
-    constexpr int idx = (i);                                            \
-    constexpr int start = 32 + 8 * (3 - idx);                           \
-    constexpr int end = start + 7;                                      \
-    constexpr int shift_amount = idx * 8;                               \
-    ATOMIC64_COMP_EXCHANGE(start, end, shift_amount, -idx);             \
-  }
-#define ATOMIC64_COMP_EXCHANGE_HALFWORD(i)                              \
-  {                                                                     \
-    constexpr int idx = (i);                                            \
-    constexpr int start = 32 + 16 * (1 - idx);                          \
-    constexpr int end = start + 15;                                     \
-    constexpr int shift_amount = idx * 16;                              \
-    ATOMIC64_COMP_EXCHANGE(start, end, shift_amount, -idx * 2);         \
-  }
-#define ATOMIC64_COMP_EXCHANGE_WORD(i)                                  \
-  {                                                                     \
-    constexpr int idx = (i);                                            \
-    constexpr int start = 32 * (1 - idx);                               \
-    constexpr int end = start + 31;                                     \
-    constexpr int shift_amount = idx * 32;                              \
-    ATOMIC64_COMP_EXCHANGE(start, end, shift_amount, -idx * 4);         \
-  }
-#endif
-
-#define ASSEMBLE_ATOMIC64_COMP_EXCHANGE_BYTE(load_and_ext)           \
-  do {                                                               \
-    Register old_val = i.InputRegister(0);                           \
-    Register new_val = i.InputRegister(1);                           \
-    Register output = i.OutputRegister();                            \
-    Register addr = kScratchReg;                                     \
-    Register temp0 = r0;                                             \
-    Register temp1 = r1;                                             \
-    size_t index = 2;                                                \
-    AddressingMode mode = kMode_None;                                \
-    MemOperand op = i.MemoryOperand(&mode, &index);                  \
-    Label done, leftmost0, leftmost1, two, three, four, five, seven; \
-    __ lay(addr, op);                                                \
-    __ tmll(addr, Operand(7));                                       \
-    __ b(Condition(1), &seven);                                      \
-    __ b(Condition(2), &leftmost1);                                  \
-    __ b(Condition(4), &leftmost0);                                  \
-    /* ending with 0b000 */                                          \
-    ATOMIC64_COMP_EXCHANGE_BYTE(0);                                  \
-    __ b(&done);                                                     \
-    /* ending in 0b001 to 0b011 */                                   \
-    __ bind(&leftmost0);                                             \
-    __ tmll(addr, Operand(3));                                       \
-    __ b(Condition(1), &three);                                      \
-    __ b(Condition(2), &two);                                        \
-    ATOMIC64_COMP_EXCHANGE_BYTE(1);                                  \
-    __ b(&done);                                                     \
-    /* ending in 0b010 */                                            \
-    __ bind(&two);                                                   \
-    ATOMIC64_COMP_EXCHANGE_BYTE(2);                                  \
-    __ b(&done);                                                     \
-    /* ending in 0b011 */                                            \
-    __ bind(&three);                                                 \
-    ATOMIC64_COMP_EXCHANGE_BYTE(3);                                  \
-    __ b(&done);                                                     \
-    /* ending in 0b100 to 0b110 */                                   \
-    __ bind(&leftmost1);                                             \
-    __ tmll(addr, Operand(3));                                       \
-    __ b(Condition(8), &four);                                       \
-    __ b(Condition(4), &five);                                       \
-    ATOMIC64_COMP_EXCHANGE_BYTE(6);                                  \
-    __ b(&done);                                                     \
-    /* ending in 0b100 */                                            \
-    __ bind(&four);                                                  \
-    ATOMIC64_COMP_EXCHANGE_BYTE(4);                                  \
-    __ b(&done);                                                     \
-    /* ending in 0b101 */                                            \
-    __ bind(&five);                                                  \
-    ATOMIC64_COMP_EXCHANGE_BYTE(5);                                  \
-    __ b(&done);                                                     \
-    /* ending in 0b111 */                                            \
-    __ bind(&seven);                                                 \
-    ATOMIC64_COMP_EXCHANGE_BYTE(7);                                  \
-    __ bind(&done);                                                  \
-    __ load_and_ext(output, output);                                 \
-  } while (false)
-
-#define ASSEMBLE_ATOMIC64_COMP_EXCHANGE_HALFWORD(load_and_ext)       \
-  do {                                                               \
-    Register old_val = i.InputRegister(0);                           \
-    Register new_val = i.InputRegister(1);                           \
-    Register output = i.OutputRegister();                            \
-    Register addr = kScratchReg;                                     \
-    Register temp0 = r0;                                             \
-    Register temp1 = r1;                                             \
-    size_t index = 2;                                                \
-    AddressingMode mode = kMode_None;                                \
-    MemOperand op = i.MemoryOperand(&mode, &index);                  \
-    Label done, one, two, three;                                     \
-    __ lay(addr, op);                                                \
-    __ tmll(addr, Operand(6));                                       \
-    __ b(Condition(1), &three);                                      \
-    __ b(Condition(2), &two);                                        \
-    __ b(Condition(4), &one);                                        \
-    /* ending in 0b00 */                                             \
-    ATOMIC64_COMP_EXCHANGE_HALFWORD(0);                              \
-    __ b(&done);                                                     \
-    /* ending in 0b01 */                                             \
-    __ bind(&one);                                                   \
-    ATOMIC64_COMP_EXCHANGE_HALFWORD(1);                              \
-    __ b(&done);                                                     \
-    /* ending in 0b10 */                                             \
-    __ bind(&two);                                                   \
-    ATOMIC64_COMP_EXCHANGE_HALFWORD(2);                              \
-    __ b(&done);                                                     \
-    /* ending in 0b11 */                                             \
-    __ bind(&three);                                                 \
-    ATOMIC64_COMP_EXCHANGE_HALFWORD(3);                              \
-    __ bind(&done);                                                  \
-    __ load_and_ext(output, output);                                 \
-  } while (false)
-
-#define ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD(load_and_ext)     \
-  do {                                                         \
-    Register old_val = i.InputRegister(0);                     \
-    Register new_val = i.InputRegister(1);                     \
-    Register output = i.OutputRegister();                      \
-    Register addr = kScratchReg;                               \
-    Register temp0 = r0;                                       \
-    Register temp1 = r1;                                       \
-    size_t index = 2;                                          \
-    AddressingMode mode = kMode_None;                          \
-    MemOperand op = i.MemoryOperand(&mode, &index);            \
-    Label done, one;                                           \
-    __ lay(addr, op);                                          \
-    __ tmll(addr, Operand(4));                                 \
-    __ b(Condition(2), &one);                                  \
-    /* ending in 0b000 */                                      \
-    ATOMIC64_COMP_EXCHANGE_WORD(0);                            \
-    __ b(&done);                                               \
-    __ bind(&one);                                             \
-    /* ending in 0b100 */                                      \
-    ATOMIC64_COMP_EXCHANGE_WORD(1);                            \
-    __ bind(&done);                                            \
-    __ load_and_ext(output, output);                           \
   } while (false)
 
 #define ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64()                 \
@@ -2875,30 +2549,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Lay:
       __ lay(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kWord32AtomicLoadInt8:
-      __ LoadB(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicLoadUint8:
-      __ LoadlB(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicLoadInt16:
-      __ LoadHalfWordP(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicLoadUint16:
-      __ LoadLogicalHalfWordP(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicLoadWord32:
-      __ LoadlW(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kWord32AtomicStoreWord8:
-      __ StoreByte(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
-    case kWord32AtomicStoreWord16:
-      __ StoreHalfWord(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
-    case kWord32AtomicStoreWord32:
-      __ StoreW(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
 //         0x aa bb cc dd
 // index =    3..2..1..0
 #define ATOMIC_EXCHANGE(start, end, shift_amount, offset)                    \
@@ -2952,6 +2602,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     ATOMIC_EXCHANGE(start, end, shift_amount, -idx * 2);         \
   }
 #endif
+    case kS390_Word64AtomicExchangeUint8:
     case kWord32AtomicExchangeInt8:
     case kWord32AtomicExchangeUint8: {
       Register base = i.InputRegister(0);
@@ -2985,12 +2636,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       __ bind(&done);
       if (opcode == kWord32AtomicExchangeInt8) {
-        __ lbr(output, output);
+        __ lgbr(output, output);
       } else {
-        __ llcr(output, output);
+        __ llgcr(output, output);
       }
       break;
     }
+    case kS390_Word64AtomicExchangeUint16:
     case kWord32AtomicExchangeInt16:
     case kWord32AtomicExchangeUint16: {
       Register base = i.InputRegister(0);
@@ -3011,13 +2663,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_EXCHANGE_HALFWORD(1);
 
       __ bind(&done);
-      if (opcode == kWord32AtomicExchangeInt8) {
-        __ lhr(output, output);
+      if (opcode == kWord32AtomicExchangeInt16) {
+        __ lghr(output, output);
       } else {
-        __ llhr(output, output);
+        __ llghr(output, output);
       }
       break;
     }
+    case kS390_Word64AtomicExchangeUint32:
     case kWord32AtomicExchangeWord32: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
@@ -3034,15 +2687,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadB);
       break;
+    case kS390_Word64AtomicCompareExchangeUint8:
     case kWord32AtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadlB);
       break;
     case kWord32AtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadHalfWordP);
       break;
+    case kS390_Word64AtomicCompareExchangeUint16:
     case kWord32AtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadLogicalHalfWordP);
       break;
+    case kS390_Word64AtomicCompareExchangeUint32:
     case kWord32AtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD();
       break;
@@ -3054,6 +2710,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadB(result, result);                                     \
         });                                                             \
     break;                                                              \
+  case kS390_Word64Atomic##op##Uint8:                                   \
   case kWord32Atomic##op##Uint8:                                        \
     ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                            \
           int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
@@ -3069,6 +2726,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadHalfWordP(result, result);                             \
         });                                                             \
     break;                                                              \
+  case kS390_Word64Atomic##op##Uint16:                                  \
   case kWord32Atomic##op##Uint16:                                       \
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                        \
           int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;  \
@@ -3083,76 +2741,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
+    case kS390_Word64AtomicAddUint32:
     case kWord32AtomicAddWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(laa);
       break;
+    case kS390_Word64AtomicSubUint32:
     case kWord32AtomicSubWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(LoadAndSub32);
       break;
+    case kS390_Word64AtomicAndUint32:
     case kWord32AtomicAndWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lan);
       break;
+    case kS390_Word64AtomicOrUint32:
     case kWord32AtomicOrWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lao);
       break;
+    case kS390_Word64AtomicXorUint32:
     case kWord32AtomicXorWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lax);
       break;
-    case kS390_Word64AtomicLoadUint8:
-      __ LoadlB(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kS390_Word64AtomicLoadUint16:
-      __ LoadLogicalHalfWordP(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kS390_Word64AtomicLoadUint32:
-      __ LoadlW(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kS390_Word64AtomicLoadUint64:
-      __ lg(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kS390_Word64AtomicStoreUint8:
-      __ StoreByte(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
-    case kS390_Word64AtomicStoreUint16:
-      __ StoreHalfWord(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
-    case kS390_Word64AtomicStoreUint32:
-      __ StoreW(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
-    case kS390_Word64AtomicStoreUint64:
-      __ stg(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
-      break;
-#define ATOMIC64_BINOP_CASE(op, inst)                                        \
-  case kS390_Word64Atomic##op##Uint8:                                        \
-    ASSEMBLE_ATOMIC64_BINOP_BYTE(inst, [&]() {                               \
-      int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;           \
-      __ RotateInsertSelectBits(result, prev, Operand(56), Operand(63),      \
-                                Operand(static_cast<intptr_t>(rotate_left)), \
-                                true);                                       \
-    });                                                                      \
-    break;                                                                   \
-  case kS390_Word64Atomic##op##Uint16:                                       \
-    ASSEMBLE_ATOMIC64_BINOP_HALFWORD(inst, [&]() {                           \
-      int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;           \
-      __ RotateInsertSelectBits(result, prev, Operand(48), Operand(63),      \
-                                Operand(static_cast<intptr_t>(rotate_left)), \
-                                true);                                       \
-    });                                                                      \
-    break;                                                                   \
-  case kS390_Word64Atomic##op##Uint32:                                       \
-    ASSEMBLE_ATOMIC64_BINOP_WORD(inst, [&]() {                               \
-      int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;           \
-      __ RotateInsertSelectBits(result, prev, Operand(32), Operand(63),      \
-                                Operand(static_cast<intptr_t>(rotate_left)), \
-                                true);                                       \
-    });                                                                      \
-    break;
-      ATOMIC64_BINOP_CASE(Add, AddP)
-      ATOMIC64_BINOP_CASE(Sub, SubP)
-      ATOMIC64_BINOP_CASE(And, AndP)
-      ATOMIC64_BINOP_CASE(Or, OrP)
-      ATOMIC64_BINOP_CASE(Xor, XorP)
-#undef ATOMIC64_BINOP_CASE
     case kS390_Word64AtomicAddUint64:
       ASSEMBLE_ATOMIC_BINOP_WORD64(laag);
       break;
@@ -3168,165 +2776,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Word64AtomicXorUint64:
       ASSEMBLE_ATOMIC_BINOP_WORD64(laxg);
       break;
-#define ATOMIC64_EXCHANGE(start, end, shift_amount, offset)              \
-  {                                                                      \
-    Label do_cs;                                                         \
-    __ lg(output, MemOperand(r1, offset));                               \
-    __ bind(&do_cs);                                                     \
-    __ lgr(r0, output);                                                  \
-    __ RotateInsertSelectBits(r0, value, Operand(start), Operand(end),   \
-             Operand(shift_amount), false);                              \
-    __ csg(output, r0, MemOperand(r1, offset));                          \
-    __ bne(&do_cs, Label::kNear);                                        \
-    __ srlg(output, output, Operand(shift_amount));                      \
-  }
-#ifdef V8_TARGET_BIG_ENDIAN
-#define ATOMIC64_EXCHANGE_BYTE(i)                              \
-  {                                                            \
-    constexpr int idx = (i);                                   \
-    constexpr int start = 8 * idx;                             \
-    constexpr int end = start + 7;                             \
-    constexpr int shift_amount = (7 - idx) * 8;                \
-    ATOMIC64_EXCHANGE(start, end, shift_amount, -idx);         \
-  }
-#define ATOMIC64_EXCHANGE_HALFWORD(i)                          \
-  {                                                            \
-    constexpr int idx = (i);                                   \
-    constexpr int start = 16 * idx;                            \
-    constexpr int end = start + 15;                            \
-    constexpr int shift_amount = (3 - idx) * 16;               \
-    ATOMIC64_EXCHANGE(start, end, shift_amount, -idx * 2);     \
-  }
-#define ATOMIC64_EXCHANGE_WORD(i)                              \
-  {                                                            \
-    constexpr int idx = (i);                                   \
-    constexpr int start = 32 * idx;                            \
-    constexpr int end = start + 31;                            \
-    constexpr int shift_amount = (1 - idx) * 32;               \
-    ATOMIC64_EXCHANGE(start, end, shift_amount, -idx * 4);     \
-  }
-#else
-#define ATOMIC64_EXCHANGE_BYTE(i)                              \
-  {                                                            \
-    constexpr int idx = (i);                                   \
-    constexpr int start = 32 + 8 * (3 - idx);                  \
-    constexpr int end = start + 7;                             \
-    constexpr int shift_amount = idx * 8;                      \
-    ATOMIC64_EXCHANGE(start, end, shift_amount, -idx);         \
-  }
-#define ATOMIC64_EXCHANGE_HALFWORD(i)                          \
-  {                                                            \
-    constexpr int idx = (i);                                   \
-    constexpr int start = 32 + 16 * (1 - idx);                 \
-    constexpr int end = start + 15;                            \
-    constexpr int shift_amount = idx * 16;                     \
-    ATOMIC64_EXCHANGE(start, end, shift_amount, -idx * 2);     \
-  }
-#define ATOMIC64_EXCHANGE_WORD(i)                              \
-  {                                                            \
-    constexpr int idx = (i);                                   \
-    constexpr int start = 32 * (1 - idx);                      \
-    constexpr int end = start + 31;                            \
-    constexpr int shift_amount = idx * 32;                     \
-    ATOMIC64_EXCHANGE(start, end, shift_amount, -idx * 4);     \
-  }
-#endif  // V8_TARGET_BIG_ENDIAN
-    case kS390_Word64AtomicExchangeUint8: {
-      Register base = i.InputRegister(0);
-      Register index = i.InputRegister(1);
-      Register value = i.InputRegister(2);
-      Register output = i.OutputRegister();
-      Label done, leftmost0, leftmost1, two, three, four, five, seven;
-      __ la(r1, MemOperand(base, index));
-      __ tmll(r1, Operand(7));
-      __ b(Condition(1), &seven);
-      __ b(Condition(2), &leftmost1);
-      __ b(Condition(4), &leftmost0);
-      /* ending with 0b000 */
-      ATOMIC64_EXCHANGE_BYTE(0);
-      __ b(&done);
-      /* ending in 0b001 to 0b011 */
-      __ bind(&leftmost0);
-      __ tmll(r1, Operand(3));
-      __ b(Condition(1), &three);
-      __ b(Condition(2), &two);
-      ATOMIC64_EXCHANGE_BYTE(1);
-      __ b(&done);
-      /* ending in 0b010 */
-      __ bind(&two);
-      ATOMIC64_EXCHANGE_BYTE(2);
-      __ b(&done);
-      /* ending in 0b011 */
-      __ bind(&three);
-      ATOMIC64_EXCHANGE_BYTE(3);
-      __ b(&done);
-      /* ending in 0b100 to 0b110 */
-      __ bind(&leftmost1);
-      __ tmll(r1, Operand(3));
-      __ b(Condition(8), &four);
-      __ b(Condition(4), &five);
-      ATOMIC64_EXCHANGE_BYTE(6);
-      __ b(&done);
-      /* ending in 0b100 */
-      __ bind(&four);
-      ATOMIC64_EXCHANGE_BYTE(4);
-      __ b(&done);
-      /* ending in 0b101 */
-      __ bind(&five);
-      ATOMIC64_EXCHANGE_BYTE(5);
-      __ b(&done);
-      /* ending in 0b111 */
-      __ bind(&seven);
-      ATOMIC64_EXCHANGE_BYTE(7);
-      __ bind(&done);
-      break;
-    }
-    case kS390_Word64AtomicExchangeUint16: {
-      Register base = i.InputRegister(0);
-      Register index = i.InputRegister(1);
-      Register value = i.InputRegister(2);
-      Register output = i.OutputRegister();
-      Label done, one, two, three;
-      __ la(r1, MemOperand(base, index));
-      __ tmll(r1, Operand(6));
-      __ b(Condition(1), &three);
-      __ b(Condition(2), &two);
-      __ b(Condition(4), &one);
-      /* ending in 0b00 */
-      ATOMIC64_EXCHANGE_HALFWORD(0);
-      __ b(&done);
-      /* ending in 0b01 */
-      __ bind(&one);
-      ATOMIC64_EXCHANGE_HALFWORD(1);
-      __ b(&done);
-      /* ending in 0b10 */
-      __ bind(&two);
-      ATOMIC64_EXCHANGE_HALFWORD(2);
-      __ b(&done);
-      /* ending in 0b11 */
-      __ bind(&three);
-      ATOMIC64_EXCHANGE_HALFWORD(3);
-      __ bind(&done);
-      break;
-    }
-    case kS390_Word64AtomicExchangeUint32: {
-      Register base = i.InputRegister(0);
-      Register index = i.InputRegister(1);
-      Register value = i.InputRegister(2);
-      Register output = i.OutputRegister();
-      Label done, one;
-      __ la(r1, MemOperand(base, index));
-      __ tmll(r1, Operand(4));
-      __ b(Condition(2), &one);
-      /* ending in 0b0 */
-      ATOMIC64_EXCHANGE_WORD(0);
-      __ b(&done);
-      __ bind(&one);
-      /* ending in 0b1 */
-      ATOMIC64_EXCHANGE_WORD(1);
-      __ bind(&done);
-      break;
-    }
     case kS390_Word64AtomicExchangeUint64: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
@@ -3340,15 +2789,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bne(&do_cs, Label::kNear);
       break;
     }
-    case kS390_Word64AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC64_COMP_EXCHANGE_BYTE(LoadlB);
-      break;
-    case kS390_Word64AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC64_COMP_EXCHANGE_HALFWORD(LoadLogicalHalfWordP);
-      break;
-    case kS390_Word64AtomicCompareExchangeUint32:
-      ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD(LoadlW);
-      break;
     case kS390_Word64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64();
       break;

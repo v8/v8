@@ -281,8 +281,6 @@ bool S390OpcodeOnlySupport12BitDisp(InstructionCode op) {
                                       : OperandMode::kInt20Imm)
 
 ArchOpcode SelectLoadOpcode(Node* node) {
-  NodeMatcher m(node);
-  DCHECK(m.IsLoad() || m.IsPoisonedLoad());
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
@@ -715,16 +713,13 @@ void InstructionSelector::VisitProtectedLoad(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitStore(Node* node) {
-  S390OperandGenerator g(this);
+static void VisitGeneralStore(InstructionSelector* selector, Node* node,
+                MachineRepresentation rep,
+                WriteBarrierKind write_barrier_kind = kNoWriteBarrier) {
+  S390OperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* offset = node->InputAt(1);
   Node* value = node->InputAt(2);
-
-  StoreRepresentation store_rep = StoreRepresentationOf(node->op());
-  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
-  MachineRepresentation rep = store_rep.representation();
-
   if (write_barrier_kind != kNoWriteBarrier) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
@@ -761,7 +756,7 @@ void InstructionSelector::VisitStore(Node* node) {
     InstructionCode code = kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
-    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
+    selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     ArchOpcode opcode = kArchNop;
     NodeMatcher m(value);
@@ -818,9 +813,17 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode | AddressingModeField::encode(addressing_mode);
     InstructionOperand value_operand = g.UseRegister(value);
     inputs[input_count++] = value_operand;
-    Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count,
-         inputs);
+    selector->Emit(code, 0, static_cast<InstructionOperand*>(nullptr),
+                   input_count, inputs);
   }
+}
+
+void InstructionSelector::VisitStore(Node* node) {
+  StoreRepresentation store_rep = StoreRepresentationOf(node->op());
+  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
+  MachineRepresentation rep = store_rep.representation();
+
+  VisitGeneralStore(this, node, rep, write_barrier_kind);
 }
 
 void InstructionSelector::VisitProtectedStore(Node* node) {
@@ -2201,59 +2204,16 @@ int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  S390OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  ArchOpcode opcode = kArchNop;
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kWord8:
-      opcode =
-          load_rep.IsSigned() ? kWord32AtomicLoadInt8 : kWord32AtomicLoadUint8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = load_rep.IsSigned() ? kWord32AtomicLoadInt16
-                                   : kWord32AtomicLoadUint16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kWord32AtomicLoadWord32;
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-  Emit(opcode | AddressingModeField::encode(kMode_MRR),
-       g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+  DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||
+         load_rep.representation() == MachineRepresentation::kWord16 ||
+         load_rep.representation() == MachineRepresentation::kWord32);
+  USE(load_rep);
+  VisitLoad(node);
 }
 
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
-  S390OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-  ArchOpcode opcode = kArchNop;
-  switch (rep) {
-    case MachineRepresentation::kWord8:
-      opcode = kWord32AtomicStoreWord8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = kWord32AtomicStoreWord16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kWord32AtomicStoreWord32;
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(value);
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
-  Emit(opcode | AddressingModeField::encode(kMode_MRR), 0, nullptr, input_count,
-       inputs);
+  VisitGeneralStore(this, node, rep);
 }
 
 void VisitAtomicExchange(InstructionSelector* selector, Node* node,
@@ -2490,63 +2450,13 @@ VISIT_ATOMIC64_BINOP(Xor)
 
 void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  S390OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  ArchOpcode opcode = kArchNop;
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kWord8:
-      opcode = kS390_Word64AtomicLoadUint8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = kS390_Word64AtomicLoadUint16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kS390_Word64AtomicLoadUint32;
-      break;
-    case MachineRepresentation::kWord64:
-      opcode = kS390_Word64AtomicLoadUint64;
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-  Emit(opcode | AddressingModeField::encode(kMode_MRR),
-       g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+  USE(load_rep);
+  VisitLoad(node);
 }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
-  S390OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-  ArchOpcode opcode = kArchNop;
-  switch (rep) {
-    case MachineRepresentation::kWord8:
-      opcode = kS390_Word64AtomicStoreUint8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = kS390_Word64AtomicStoreUint16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kS390_Word64AtomicStoreUint32;
-      break;
-    case MachineRepresentation::kWord64:
-      opcode = kS390_Word64AtomicStoreUint64;
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(value);
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
-  Emit(opcode | AddressingModeField::encode(kMode_MRR), 0, nullptr, input_count,
-       inputs);
+  VisitGeneralStore(this, node, rep);
 }
 
 void InstructionSelector::VisitI32x4Splat(Node* node) { UNIMPLEMENTED(); }

@@ -169,16 +169,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_StackClaim:
       return kHasSideEffect;
 
-    case kS390_Word64AtomicLoadUint8:
-    case kS390_Word64AtomicLoadUint16:
-    case kS390_Word64AtomicLoadUint32:
-    case kS390_Word64AtomicLoadUint64:
-      return kIsLoadOperation;
-
-    case kS390_Word64AtomicStoreUint8:
-    case kS390_Word64AtomicStoreUint16:
-    case kS390_Word64AtomicStoreUint32:
-    case kS390_Word64AtomicStoreUint64:
     case kS390_Word64AtomicExchangeUint8:
     case kS390_Word64AtomicExchangeUint16:
     case kS390_Word64AtomicExchangeUint32:
