@@ -81,6 +81,24 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   friend class EmbedderStackStateScope;
 };
 
+class V8_EXPORT_PRIVATE EmbedderStackStateScope final {
+ public:
+  EmbedderStackStateScope(LocalEmbedderHeapTracer* local_tracer,
+                          EmbedderHeapTracer::EmbedderStackState stack_state)
+      : local_tracer_(local_tracer),
+        old_stack_state_(local_tracer_->embedder_stack_state_) {
+    local_tracer_->embedder_stack_state_ = stack_state;
+  }
+
+  ~EmbedderStackStateScope() {
+    local_tracer_->embedder_stack_state_ = old_stack_state_;
+  }
+
+ private:
+  LocalEmbedderHeapTracer* const local_tracer_;
+  const EmbedderHeapTracer::EmbedderStackState old_stack_state_;
+};
+
 }  // namespace internal
 }  // namespace v8
 

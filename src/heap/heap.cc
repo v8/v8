@@ -1606,6 +1606,11 @@ bool Heap::PerformGarbageCollection(
 
   {
     GCCallbacksScope scope(this);
+    // Temporary override any embedder stack state as callbacks may create their
+    // own state on the stack and recursively trigger GC.
+    EmbedderStackStateScope embedder_scope(
+        local_embedder_heap_tracer(),
+        EmbedderHeapTracer::EmbedderStackState::kUnknown);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
       TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
