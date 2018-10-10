@@ -183,6 +183,7 @@ class BuildConfig(object):
     self.predictable = build_config['v8_enable_verify_predictable']
     self.tsan = build_config['is_tsan']
     self.ubsan_vptr = build_config['is_ubsan_vptr']
+    self.embedded_builtins = build_config['v8_enable_embedded_builtins']
     # Export only for MIPS target
     if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
       self.mips_arch_variant = build_config['mips_arch_variant']
@@ -211,6 +212,8 @@ class BuildConfig(object):
       detected_options.append('tsan')
     if self.ubsan_vptr:
       detected_options.append('ubsan_vptr')
+    if self.embedded_builtins:
+      detected_options.append('embedded_builtins')
 
     return '\n'.join(detected_options)
 
@@ -652,6 +655,7 @@ class BaseTestRunner(object):
       "system": self.target_os,
       "tsan": self.build_config.tsan,
       "ubsan_vptr": self.build_config.ubsan_vptr,
+      "embedded_builtins": self.build_config.embedded_builtins,
     }
 
   def _create_test_config(self, options):

@@ -355,7 +355,7 @@ class SystemTest(unittest.TestCase):
           basedir, dcheck_always_on=True, is_asan=True, is_cfi=True,
           is_msan=True, is_tsan=True, is_ubsan_vptr=True, target_cpu='x86',
           v8_enable_i18n_support=False, v8_target_cpu='x86',
-          v8_use_snapshot=False)
+          v8_use_snapshot=False, v8_enable_embedded_builtins=False)
       result = run_tests(
           basedir,
           '--mode=Release',

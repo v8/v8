@@ -1160,6 +1160,7 @@ action("v8_dump_build_config") {
     "v8_enable_verify_predictable=$v8_enable_verify_predictable",
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
+    "v8_enable_embedded_builtins=$v8_enable_embedded_builtins",
   ]
 
   if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
