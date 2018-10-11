@@ -3036,13 +3036,13 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
                                           bool accept_IN, bool* ok) {
+  if (!accept_IN && peek() == Token::IN) return x;
+  BindingPatternUnexpectedToken();
+  ArrowFormalParametersUnexpectedToken();
   do {
     // prec1 >= 4
     while (Token::Precedence(peek()) == prec1) {
-      if (!accept_IN && peek() == Token::IN) return x;
       ValidateExpression(CHECK_OK);
-      BindingPatternUnexpectedToken();
-      ArrowFormalParametersUnexpectedToken();
 
       SourceRange right_range;
       int pos = peek_position();
@@ -3083,6 +3083,7 @@ ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
           impl()->RecordBinaryOperationSourceRange(x, right_range);
         }
       }
+      if (!accept_IN && peek() == Token::IN) return x;
     }
     --prec1;
   } while (prec1 >= prec);
