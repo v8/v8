@@ -2918,9 +2918,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate_, date_time_format_constructor,
           Context::INTL_DATE_TIME_FORMAT_FUNCTION_INDEX);
 
-      native_context()->set_intl_date_time_format_function(
-          *date_time_format_constructor);
-
       SimpleInstallFunction(
           isolate(), date_time_format_constructor, "supportedLocalesOf",
           Builtins::kDateTimeFormatSupportedLocalesOf, 1, false);
