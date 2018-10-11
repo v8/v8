@@ -338,12 +338,12 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
   Register dst = no_reg;
+  MemOperand dst_op = MemOperand(dst_addr, offset_imm);
   if (offset_reg != no_reg) {
     dst = GetUnusedRegister(kGpReg, pinned).gp();
     emit_ptrsize_add(dst, dst_addr, offset_reg);
+    dst_op = MemOperand(dst, offset_imm);
   }
-  MemOperand dst_op = (offset_reg != no_reg) ? MemOperand(dst, offset_imm)
-                                             : MemOperand(dst_addr, offset_imm);
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_store_mem) {

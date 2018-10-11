@@ -253,6 +253,10 @@ class LiftoffRegList {
     return LiftoffRegList(regs_ & other.regs_);
   }
 
+  constexpr LiftoffRegList operator|(const LiftoffRegList other) const {
+    return LiftoffRegList(regs_ | other.regs_);
+  }
+
   constexpr bool operator==(const LiftoffRegList other) const {
     return regs_ == other.regs_;
   }

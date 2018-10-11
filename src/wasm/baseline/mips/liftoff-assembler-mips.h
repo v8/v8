@@ -401,16 +401,16 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
   Register dst = no_reg;
+  MemOperand dst_op = MemOperand(dst_addr, offset_imm);
   if (offset_reg != no_reg) {
     dst = GetUnusedRegister(kGpReg, pinned).gp();
     emit_ptrsize_add(dst, dst_addr, offset_reg);
+    dst_op = MemOperand(dst, offset_imm);
   }
-  MemOperand dst_op = (offset_reg != no_reg) ? MemOperand(dst, offset_imm)
-                                             : MemOperand(dst_addr, offset_imm);
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_store_mem) {
-    pinned.set(dst_op.rm());
+    pinned |= LiftoffRegList::ForRegs(dst_op.rm(), src);
     LiftoffRegister tmp = GetUnusedRegister(src.reg_class(), pinned);
     // Save original value.
     Move(tmp, src, type.value_type());
@@ -442,15 +442,11 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       TurboAssembler::Usw(src.gp(), dst_op);
       break;
     case StoreType::kI64Store: {
-      MemOperand dst_op =
-          (offset_reg != no_reg)
-              ? MemOperand(dst, offset_imm + liftoff::kLowWordOffset)
-              : MemOperand(dst_addr, offset_imm + liftoff::kLowWordOffset);
-      MemOperand dst_op_upper =
-          (offset_reg != no_reg)
-              ? MemOperand(dst, offset_imm + liftoff::kHighWordOffset)
-              : MemOperand(dst_addr, offset_imm + liftoff::kHighWordOffset);
-      TurboAssembler::Usw(src.low_gp(), dst_op);
+      MemOperand dst_op_lower(dst_op.rm(),
+                              offset_imm + liftoff::kLowWordOffset);
+      MemOperand dst_op_upper(dst_op.rm(),
+                              offset_imm + liftoff::kHighWordOffset);
+      TurboAssembler::Usw(src.low_gp(), dst_op_lower);
       TurboAssembler::Usw(src.high_gp(), dst_op_upper);
       break;
     }

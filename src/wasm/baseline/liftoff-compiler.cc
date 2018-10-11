@@ -1210,7 +1210,7 @@ class LiftoffCompiler {
     LiftoffRegister addr = GetGlobalBaseAndOffset(global, pinned, &offset);
     LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
     StoreType type = StoreType::ForValueType(global->type);
-    __ Store(addr.gp(), no_reg, offset, reg, type, pinned, nullptr, true);
+    __ Store(addr.gp(), no_reg, offset, reg, type, {}, nullptr, true);
   }
 
   void Unreachable(FullDecoder* decoder) {
@@ -1556,7 +1556,9 @@ class LiftoffCompiler {
     LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kPointerSize);
     uint32_t protected_store_pc = 0;
-    __ Store(addr.gp(), index.gp(), offset, value, type, pinned,
+    LiftoffRegList outer_pinned;
+    if (FLAG_trace_wasm_memory) outer_pinned.set(index);
+    __ Store(addr.gp(), index.gp(), offset, value, type, outer_pinned,
              &protected_store_pc, true);
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(),
