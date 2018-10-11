@@ -6487,10 +6487,12 @@ typedef void (*HostInitializeImportMetaObjectCallback)(Local<Context> context,
  * PrepareStackTraceCallback is called when the stack property of an error is
  * first accessed. The return value will be used as the stack value. If this
  * callback is registed, the |Error.prepareStackTrace| API will be disabled.
+ * |sites| is an array of call sites, specified in
+ * https://github.com/v8/v8/wiki/Stack-Trace-API
  */
 typedef MaybeLocal<Value> (*PrepareStackTraceCallback)(Local<Context> context,
                                                        Local<Value> error,
-                                                       Local<StackTrace> trace);
+                                                       Local<Array> sites);
 
 /**
  * PromiseHook with type kInit is called when a new promise is

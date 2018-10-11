@@ -8999,13 +8999,13 @@ THREADED_TEST(ToArrayIndex) {
 
 static v8::MaybeLocal<Value> PrepareStackTrace42(v8::Local<Context> context,
                                                  v8::Local<Value> error,
-                                                 v8::Local<StackTrace> trace) {
+                                                 v8::Local<Array> trace) {
   return v8::Number::New(context->GetIsolate(), 42);
 }
 
-static v8::MaybeLocal<Value> PrepareStackTraceThrow(
-    v8::Local<Context> context, v8::Local<Value> error,
-    v8::Local<StackTrace> trace) {
+static v8::MaybeLocal<Value> PrepareStackTraceThrow(v8::Local<Context> context,
+                                                    v8::Local<Value> error,
+                                                    v8::Local<Array> trace) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::Local<String> message = v8_str("42");
   isolate->ThrowException(v8::Exception::Error(message));

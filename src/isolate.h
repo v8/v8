@@ -1556,7 +1556,8 @@ class Isolate : private HiddenFactory {
 
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
   MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<Context>,
-                                                   Handle<JSObject> Error);
+                                                   Handle<JSObject> Error,
+                                                   Handle<JSArray> sites);
   bool HasPrepareStackTraceCallback() const;
 
   void SetRAILMode(RAILMode rail_mode);

@@ -4024,16 +4024,14 @@ void Isolate::SetHostInitializeImportMetaObjectCallback(
 }
 
 MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
-    Handle<Context> context, Handle<JSObject> error) {
+    Handle<Context> context, Handle<JSObject> error, Handle<JSArray> sites) {
   v8::Local<v8::Context> api_context = Utils::ToLocal(context);
-
-  v8::Local<StackTrace> trace =
-      Utils::StackTraceToLocal(GetDetailedStackTrace(error));
 
   v8::Local<v8::Value> stack;
   ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
       this, stack,
-      prepare_stack_trace_callback_(api_context, Utils::ToLocal(error), trace),
+      prepare_stack_trace_callback_(api_context, Utils::ToLocal(error),
+                                    Utils::ToLocal(sites)),
       MaybeHandle<Object>());
   return Utils::OpenHandle(*stack);
 }

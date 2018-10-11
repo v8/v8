@@ -963,10 +963,15 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
       DCHECK(!error_context.is_null() && error_context->IsNativeContext());
       PrepareStackTraceScope scope(isolate);
 
+      Handle<JSArray> sites;
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, sites, GetStackFrames(isolate, elems),
+                                 Object);
+
       Handle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, result,
-          isolate->RunPrepareStackTraceCallback(error_context, error), Object);
+          isolate->RunPrepareStackTraceCallback(error_context, error, sites),
+          Object);
       return result;
     } else {
       Handle<JSFunction> global_error = isolate->error_function();
