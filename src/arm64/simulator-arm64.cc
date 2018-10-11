@@ -362,7 +362,7 @@ void Simulator::ResetState() {
   set_lr(kEndOfSimAddress);
 
   // Reset debug helpers.
-  breakpoints_.empty();
+  breakpoints_.clear();
   break_on_next_ = false;
 }
 
