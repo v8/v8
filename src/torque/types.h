@@ -412,13 +412,35 @@ struct ParameterTypes {
 
 std::ostream& operator<<(std::ostream& os, const ParameterTypes& parameters);
 
+enum class ParameterMode { kProcessImplicit, kIgnoreImplicit };
+
 struct Signature {
+  Signature(NameVector n, ParameterTypes p, size_t i, const Type* r,
+            LabelDeclarationVector l)
+      : parameter_names(std::move(n)),
+        parameter_types(std::move(p)),
+        implicit_count(i),
+        return_type(r),
+        labels(std::move(l)) {}
+  Signature() : implicit_count(0), return_type(nullptr) {}
   const TypeVector& types() const { return parameter_types.types; }
   NameVector parameter_names;
   ParameterTypes parameter_types;
+  size_t implicit_count;
   const Type* return_type;
   LabelDeclarationVector labels;
-  bool HasSameTypesAs(const Signature& other) const;
+  bool HasSameTypesAs(
+      const Signature& other,
+      ParameterMode mode = ParameterMode::kProcessImplicit) const;
+  const TypeVector& GetTypes() const { return parameter_types.types; }
+  TypeVector GetImplicitTypes() const {
+    return TypeVector(parameter_types.types.begin(),
+                      parameter_types.types.begin() + implicit_count);
+  }
+  TypeVector GetExplicitTypes() const {
+    return TypeVector(parameter_types.types.begin() + implicit_count,
+                      parameter_types.types.end());
+  }
 };
 
 struct Arguments {

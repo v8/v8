@@ -195,7 +195,12 @@ std::string StructType::ToExplicitString() const {
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
   os << "(";
   for (size_t i = 0; i < sig.parameter_types.types.size(); ++i) {
-    if (i > 0) os << ", ";
+    if (i == 0 && sig.implicit_count != 0) os << "implicit ";
+    if (sig.implicit_count > 0 && sig.implicit_count == i) {
+      os << ")(";
+    } else {
+      if (i > 0) os << ", ";
+    }
     if (with_names && !sig.parameter_names.empty()) {
       os << sig.parameter_names[i] << ": ";
     }
@@ -213,8 +218,7 @@ void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
   os << " labels ";
   for (size_t i = 0; i < sig.labels.size(); ++i) {
     if (i > 0) os << ", ";
-    if (with_names) os << sig.labels[i].name;
-
+    os << sig.labels[i].name;
     if (sig.labels[i].types.size() > 0) os << "(" << sig.labels[i].types << ")";
   }
 }
@@ -245,8 +249,15 @@ std::ostream& operator<<(std::ostream& os, const ParameterTypes& p) {
   return os;
 }
 
-bool Signature::HasSameTypesAs(const Signature& other) const {
-  if (!(parameter_types.types == other.parameter_types.types &&
+bool Signature::HasSameTypesAs(const Signature& other,
+                               ParameterMode mode) const {
+  auto compare_types = GetTypes();
+  auto other_compare_types = other.GetTypes();
+  if (mode == ParameterMode::kIgnoreImplicit) {
+    compare_types = GetExplicitTypes();
+    other_compare_types = other.GetExplicitTypes();
+  }
+  if (!(compare_types == other.parameter_types.types &&
         parameter_types.var_args == other.parameter_types.var_args &&
         return_type == other.return_type)) {
     return false;
@@ -271,8 +282,9 @@ bool IsAssignableFrom(const Type* to, const Type* from) {
 
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
                            const std::vector<Label*>& labels) {
-  auto i = sig.parameter_types.types.begin();
-  if (sig.parameter_types.types.size() > types.size()) return false;
+  auto i = sig.parameter_types.types.begin() + sig.implicit_count;
+  if ((sig.parameter_types.types.size() - sig.implicit_count) > types.size())
+    return false;
   // TODO(danno): The test below is actually insufficient. The labels'
   // parameters must be checked too. ideally, the named part of
   // LabelDeclarationVector would be factored out so that the label count and

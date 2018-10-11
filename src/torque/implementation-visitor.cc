@@ -241,8 +241,8 @@ void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
       can_return && return_type != TypeOracle::GetVoidType();
   std::string name = GetGeneratedCallableName(
       decl->name, declarations()->GetCurrentSpecializationTypeNamesVector());
-  const TypeVector& list = signature.types();
-  Macro* macro = declarations()->LookupMacro(name, list);
+  Macro* macro =
+      declarations()->LookupMacro(name, signature.GetExplicitTypes());
 
   CurrentCallableActivator activator(global_context_, macro, decl);
 
@@ -1415,7 +1415,8 @@ Callable* ImplementationVisitor::LookupCall(
   }
 
   size_t caller_size = parameter_types.size();
-  size_t callee_size = result->signature().types().size();
+  size_t callee_size =
+      result->signature().types().size() - result->signature().implicit_count;
   if (caller_size != callee_size &&
       !result->signature().parameter_types.var_args) {
     std::stringstream stream;
@@ -1663,10 +1664,33 @@ VisitResult ImplementationVisitor::GenerateCall(
   std::vector<VisitResult> converted_arguments;
   StackRange argument_range = assembler().TopRange(0);
   std::vector<std::string> constexpr_arguments;
+
+  for (size_t current = 0; current < callable->signature().implicit_count;
+       ++current) {
+    std::string implicit_name = callable->signature().parameter_names[current];
+    if (!declarations()->TryLookup(implicit_name)) {
+      ReportError("implicit parameter '" + implicit_name +
+                  "' required for call to '" + callable_name +
+                  "' is not defined");
+    }
+    Value* val = declarations()->LookupValue(implicit_name);
+    VisitResult converted = GenerateImplicitConvert(
+        callable->signature().parameter_types.types[current], val->value());
+    converted_arguments.push_back(converted);
+    if (converted.IsOnStack()) {
+      argument_range.Extend(converted.stack_range());
+    } else {
+      constexpr_arguments.push_back(converted.constexpr_value());
+    }
+  }
+
   for (size_t current = 0; current < arguments.parameters.size(); ++current) {
-    const Type* to_type = (current >= callable->signature().types().size())
-                              ? TypeOracle::GetObjectType()
-                              : callable->signature().types()[current];
+    size_t current_after_implicit =
+        current + callable->signature().implicit_count;
+    const Type* to_type =
+        (current_after_implicit >= callable->signature().types().size())
+            ? TypeOracle::GetObjectType()
+            : callable->signature().types()[current_after_implicit];
     VisitResult converted =
         GenerateImplicitConvert(to_type, arguments.parameters[current]);
     converted_arguments.push_back(converted);
@@ -1813,7 +1837,8 @@ void ImplementationVisitor::Visit(SpecializationDeclaration* decl) {
     CallableNode* callable = generic->declaration()->callable;
     Signature generic_signature_with_types =
         MakeSignature(callable->signature.get());
-    if (signature_with_types.HasSameTypesAs(generic_signature_with_types)) {
+    if (signature_with_types.HasSameTypesAs(generic_signature_with_types,
+                                            ParameterMode::kIgnoreImplicit)) {
       TypeVector specialization_types = GetTypeVector(decl->generic_parameters);
       SpecializeGeneric({{generic, specialization_types},
                          callable,

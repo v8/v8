@@ -220,7 +220,8 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
     DeclareSpecializedTypes(key);
     Signature generic_signature_with_types =
         MakeSignature(generic->declaration()->callable->signature.get());
-    if (signature_with_types.HasSameTypesAs(generic_signature_with_types)) {
+    if (signature_with_types.HasSameTypesAs(generic_signature_with_types,
+                                            ParameterMode::kIgnoreImplicit)) {
       if (matching_callable != nullptr) {
         std::stringstream stream;
         stream << "specialization of " << callable_candidate->name

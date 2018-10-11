@@ -355,10 +355,19 @@ struct AssumeTypeImpossibleExpression : Expression {
 struct ParameterList {
   std::vector<std::string> names;
   std::vector<TypeExpression*> types;
+  size_t implicit_count;
   bool has_varargs;
   std::string arguments_variable;
 
-  static ParameterList Empty() { return ParameterList{{}, {}, false, ""}; }
+  static ParameterList Empty() { return ParameterList{{}, {}, 0, false, ""}; }
+  std::vector<TypeExpression*> GetImplicitTypes() {
+    return std::vector<TypeExpression*>(types.begin(),
+                                        types.begin() + implicit_count);
+  }
+  std::vector<TypeExpression*> GetExplicitTypes() {
+    return std::vector<TypeExpression*>(types.begin() + implicit_count,
+                                        types.end());
+  }
 };
 
 struct BasicTypeExpression : TypeExpression {

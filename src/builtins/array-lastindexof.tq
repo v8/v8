@@ -100,12 +100,12 @@ module array {
     // 7. Repeat, while k >= 0.
     while (k >= 0) {
       // a. Let kPresent be ? HasProperty(O, ! ToString(k)).
-      const kPresent: Boolean = HasProperty(context, object, k);
+      const kPresent: Boolean = HasProperty(object, k);
 
       // b. If kPresent is true, then.
       if (kPresent == True) {
         // i. Let elementK be ? Get(O, ! ToString(k)).
-        const element: Object = GetProperty(context, object, k);
+        const element: Object = GetProperty(object, k);
 
         // ii. Let same be the result of performing Strict Equality Comparison
         //     searchElement === elementK.
@@ -130,7 +130,7 @@ module array {
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
-    const length: Number = GetLengthProperty(context, object);
+    const length: Number = GetLengthProperty(object);
 
     // 3. If len is 0, return -1.
     if (length == SmiConstant(0)) return SmiConstant(-1);

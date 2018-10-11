@@ -219,11 +219,14 @@ extern macro ToInteger_Inline(
 extern macro ToLength_Inline(Context, Object): Number;
 extern macro ToNumber_Inline(Context, Object): Number;
 extern macro ToString_Inline(Context, Object): String;
-extern macro GetProperty(Context, Object, Object): Object;
-extern builtin SetProperty(Context, Object, Object, Object);
-extern builtin DeleteProperty(Context, Object, Object, LanguageMode);
-extern builtin HasProperty(Context, JSReceiver, Object): Boolean;
-extern macro HasProperty_Inline(Context, JSReceiver, Object): Boolean;
+extern macro GetProperty(implicit context: Context)(Object, Object): Object;
+extern builtin SetProperty(implicit context: Context)(Object, Object, Object);
+extern builtin DeleteProperty(implicit context: Context)(
+    Object, Object, LanguageMode);
+extern builtin HasProperty(implicit context: Context)(
+    JSReceiver, Object): Boolean;
+extern macro HasProperty_Inline(implicit context: Context)(
+    JSReceiver, Object): Boolean;
 
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;
@@ -245,7 +248,8 @@ extern builtin ToString(Context, Object): String;
 
 extern runtime NormalizeElements(Context, JSObject);
 extern runtime TransitionElementsKindWithKind(Context, JSObject, Smi);
-extern runtime CreateDataProperty(Context, JSReceiver, Object, Object);
+extern runtime CreateDataProperty(implicit context: Context)(
+    JSReceiver, Object, Object);
 
 extern macro LoadRoot(constexpr RootIndex): Object;
 extern macro StoreRoot(constexpr RootIndex, Object): Object;
@@ -708,7 +712,8 @@ UnsafeCast<Context>(o: Object): Context {
 extern macro RawCastObjectToJSArgumentsObjectWithLength(Object):
     JSArgumentsObjectWithLength;
 
-macro BranchIfJSArgumentsObjectWithLength(context: Context, o: Object): never
+macro BranchIfJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
+    never
     labels True, False {
   const heapObject: HeapObject = Cast<HeapObject>(o) otherwise False;
   const map: Map = heapObject.map;
@@ -720,20 +725,18 @@ macro BranchIfJSArgumentsObjectWithLength(context: Context, o: Object): never
   goto True;
 }
 
-macro UnsafeCast<A: type>(context: Context, o: Object): A;
-UnsafeCast<JSArgumentsObjectWithLength>(
-    context: Context, o: Object): JSArgumentsObjectWithLength {
-  assert(BranchIfJSArgumentsObjectWithLength(context, o));
+macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A;
+UnsafeCast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
+    JSArgumentsObjectWithLength {
+  assert(BranchIfJSArgumentsObjectWithLength(o));
   return RawCastObjectToJSArgumentsObjectWithLength(o);
 }
 
-macro Cast<A: type>(context: Context, o: Object): A
-    labels CastError;
-Cast<JSArgumentsObjectWithLength>(context: Context, o: Object):
+Cast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
     JSArgumentsObjectWithLength
     labels CastError {
-  if (BranchIfJSArgumentsObjectWithLength(context, o)) {
-    return UnsafeCast<JSArgumentsObjectWithLength>(context, o);
+  if (BranchIfJSArgumentsObjectWithLength(o)) {
+    return UnsafeCast<JSArgumentsObjectWithLength>(o);
   } else {
     goto CastError;
   }
@@ -999,18 +1002,20 @@ macro ToIndex(input: Object, context: Context): Number
   return value;
 }
 
-macro GetLengthProperty(context: Context, o: Object): Number {
+macro GetLengthProperty(implicit context: Context)(o: Object): Number {
   try {
-    return (Cast<JSArray>(o) otherwise CheckArgs).length;
-  }
-  label CheckArgs {
-    const a: JSArgumentsObjectWithLength =
-        Cast<JSArgumentsObjectWithLength>(context, o) otherwise Slow;
-    const length: Object = a.length;
-    return Cast<Smi>(length) otherwise goto ToLength(length);
-  }
-  label Slow deferred {
-    goto ToLength(GetProperty(context, o, kLengthString));
+    typeswitch (o) {
+      case (a: JSArray): {
+        return a.length;
+      }
+      case (a: JSArgumentsObjectWithLength): {
+        const length: Object = a.length;
+        return Cast<Smi>(length) otherwise goto ToLength(length);
+      }
+      case (Object): deferred {
+        goto ToLength(GetProperty(o, kLengthString));
+      }
+    }
   }
   label ToLength(length: Object) deferred {
     return ToLength_Inline(context, length);

@@ -137,7 +137,8 @@ Macro* Declarations::TryLookupMacro(const std::string& name,
   if (declarable != nullptr) {
     if (declarable->IsMacroList()) {
       for (auto& m : MacroList::cast(declarable)->list()) {
-        if (m->signature().parameter_types.types == types &&
+        auto signature_types = m->signature().GetExplicitTypes();
+        if (signature_types == types &&
             !m->signature().parameter_types.var_args) {
           return m;
         }

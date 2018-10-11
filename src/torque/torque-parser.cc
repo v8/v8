@@ -268,22 +268,37 @@ base::Optional<ParseResult> MakeUnaryOperator(
 template <bool has_varargs>
 base::Optional<ParseResult> MakeParameterListFromTypes(
     ParseResultIterator* child_results) {
-  auto types = child_results->NextAs<TypeList>();
+  auto implicit_params =
+      child_results->NextAs<std::vector<NameAndTypeExpression>>();
+  auto explicit_types = child_results->NextAs<TypeList>();
   ParameterList result;
-  result.types = std::move(types);
   result.has_varargs = has_varargs;
+  result.implicit_count = implicit_params.size();
+  for (NameAndTypeExpression& implicit_param : implicit_params) {
+    if (!IsLowerCamelCase(implicit_param.name)) {
+      NamingConventionError("Parameter", implicit_param.name, "lowerCamelCase");
+    }
+    result.names.push_back(implicit_param.name);
+    result.types.push_back(implicit_param.type);
+  }
+  for (auto* explicit_type : explicit_types) {
+    result.types.push_back(explicit_type);
+  }
   return ParseResult{std::move(result)};
 }
 template <bool has_varargs>
 base::Optional<ParseResult> MakeParameterListFromNameAndTypeList(
     ParseResultIterator* child_results) {
-  auto params = child_results->NextAs<std::vector<NameAndTypeExpression>>();
+  auto implicit_params =
+      child_results->NextAs<std::vector<NameAndTypeExpression>>();
+  auto explicit_params =
+      child_results->NextAs<std::vector<NameAndTypeExpression>>();
   std::string arguments_variable = "";
   if (child_results->HasNext()) {
     arguments_variable = child_results->NextAs<std::string>();
   }
   ParameterList result;
-  for (NameAndTypeExpression& pair : params) {
+  for (NameAndTypeExpression& pair : implicit_params) {
     if (!IsLowerCamelCase(pair.name)) {
       NamingConventionError("Parameter", pair.name, "lowerCamelCase");
     }
@@ -291,6 +306,15 @@ base::Optional<ParseResult> MakeParameterListFromNameAndTypeList(
     result.names.push_back(std::move(pair.name));
     result.types.push_back(pair.type);
   }
+  for (NameAndTypeExpression& pair : explicit_params) {
+    if (!IsLowerCamelCase(pair.name)) {
+      NamingConventionError("Parameter", pair.name, "lowerCamelCase");
+    }
+
+    result.names.push_back(std::move(pair.name));
+    result.types.push_back(pair.type);
+  }
+  result.implicit_count = implicit_params.size();
   result.has_varargs = has_varargs;
   result.arguments_variable = arguments_variable;
   return ParseResult{std::move(result)};
@@ -652,7 +676,6 @@ base::Optional<ParseResult> MakeTypeswitchCase(
   auto name = child_results->NextAs<base::Optional<std::string>>();
   auto type = child_results->NextAs<TypeExpression*>();
   auto block = child_results->NextAs<Statement*>();
-  CheckNotDeferredStatement(block);
   return ParseResult{TypeswitchCase{child_results->matched_input().pos,
                                     std::move(name), type, block}};
 }
@@ -1044,12 +1067,19 @@ struct TorqueGrammar : Grammar {
   // Result: base::Optional<TypeList>
   Symbol* optionalGenericParameters = Optional<TypeList>(&genericParameters);
 
+  Symbol* optionalImplicitParameterList{
+      TryOrDefault<std::vector<NameAndTypeExpression>>(
+          Sequence({Token("("), Token("implicit"),
+                    List<NameAndTypeExpression>(&nameAndType, Token(",")),
+                    Token(")")}))};
+
   // Result: ParameterList
   Symbol typeListMaybeVarArgs = {
-      Rule({Token("("), List<TypeExpression*>(Sequence({&type, Token(",")})),
-            Token("..."), Token(")")},
+      Rule({optionalImplicitParameterList, Token("("),
+            List<TypeExpression*>(Sequence({&type, Token(",")})), Token("..."),
+            Token(")")},
            MakeParameterListFromTypes<true>),
-      Rule({Token("("), typeList, Token(")")},
+      Rule({optionalImplicitParameterList, Token("("), typeList, Token(")")},
            MakeParameterListFromTypes<false>)};
 
   // Result: LabelAndTypes
@@ -1078,14 +1108,14 @@ struct TorqueGrammar : Grammar {
 
   // Result: ParameterList
   Symbol parameterListNoVararg = {
-      Rule({Token("("), List<NameAndTypeExpression>(&nameAndType, Token(",")),
-            Token(")")},
+      Rule({optionalImplicitParameterList, Token("("),
+            List<NameAndTypeExpression>(&nameAndType, Token(",")), Token(")")},
            MakeParameterListFromNameAndTypeList<false>)};
 
   // Result: ParameterList
   Symbol parameterListAllowVararg = {
       Rule({&parameterListNoVararg}),
-      Rule({Token("("),
+      Rule({optionalImplicitParameterList, Token("("),
             NonemptyList<NameAndTypeExpression>(&nameAndType, Token(",")),
             Token(","), Token("..."), &identifier, Token(")")},
            MakeParameterListFromNameAndTypeList<true>)};

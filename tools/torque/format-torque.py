@@ -16,11 +16,19 @@ def preprocess(input):
   input = re.sub(r'(\)\s*\:\s*\S+\s+)labels\s+',
       r'\1,\n/*_LABELS_HOLD_*/ ', input)
   input = re.sub(r'(\s+)operator\s*(\'[^\']+\')', r'\1/*_OPE \2*/', input)
+
+  # Mangle typeswitches to look like switch statements with the extra type
+  # information and syntax encoded in comments.
   input = re.sub(r'(\s+)typeswitch\s*\(', r'\1/*_TYPE*/switch (', input)
-  input = re.sub(r'(\s+)case\s*\(([^\s]+)\s+\:\s*([^\:]+)\)(\s*)\:',
-      r'\1case \3: /*_TSV\2:*/', input)
-  input = re.sub(r'(\s+)case\s*\(([^\:]+)\)(\s*)\:',
+  input = re.sub(r'(\s+)case\s*\(\s*([^\:]+)\s*\)(\s*)\:\s*deferred',
+      r'\1case \2: /*_TSXDEFERRED_*/', input)
+  input = re.sub(r'(\s+)case\s*\(\s*([^\:]+)\s*\)(\s*)\:',
       r'\1case \2: /*_TSX*/', input)
+  input = re.sub(r'(\s+)case\s*\(\s*([^\s]+)\s*\:\s*([^\:]+)\s*\)(\s*)\:\s*deferred',
+      r'\1case \3: /*_TSVDEFERRED_\2:*/', input)
+  input = re.sub(r'(\s+)case\s*\(\s*([^\s]+)\s*\:\s*([^\:]+)\s*\)(\s*)\:',
+      r'\1case \3: /*_TSV\2:*/', input)
+
   input = re.sub(r'\sgenerates\s+\'([^\']+)\'\s*',
       r' _GeNeRaTeS00_/*\1@*/', input)
   input = re.sub(r'\sconstexpr\s+\'([^\']+)\'\s*',
@@ -37,8 +45,12 @@ def postprocess(output):
   output = re.sub(r',([\n ]*)\/\*_LABELS_HOLD_\*\/', r'\1labels', output)
   output = re.sub(r'\/\*_OPE \'([^\']+)\'\*\/', r"operator '\1'", output)
   output = re.sub(r'\/\*_TYPE\*\/(\s*)switch', r'typeswitch', output)
+  output = re.sub(r'case ([^\:]+)\:\s*\/\*_TSXDEFERRED_\*\/',
+      r'case (\1): deferred', output)
   output = re.sub(r'case ([^\:]+)\:\s*\/\*_TSX\*\/',
       r'case (\1):', output)
+  output = re.sub(r'case ([^\:]+)\:\s*\/\*_TSVDEFERRED_([^\:]+)\:\*\/',
+      r'case (\2: \1): deferred', output)
   output = re.sub(r'case ([^\:]+)\:\s*\/\*_TSV([^\:]+)\:\*\/',
       r'case (\2: \1):', output)
   output = re.sub(r'\n_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',

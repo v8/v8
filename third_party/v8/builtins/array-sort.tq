@@ -127,7 +127,7 @@ module array {
   builtin Load<ElementsAccessor: type>(
       context: Context, sortState: FixedArray, elements: HeapObject,
       index: Smi): Object {
-    return GetProperty(context, elements, index);
+    return GetProperty(elements, index);
   }
 
   Load<FastPackedSmiElements>(
@@ -196,7 +196,7 @@ module array {
   builtin Store<ElementsAccessor: type>(
       context: Context, sortState: FixedArray, elements: HeapObject, index: Smi,
       value: Object): Smi {
-    SetProperty(context, elements, index, value);
+    SetProperty(elements, index, value);
     return kSuccess;
   }
 
@@ -546,13 +546,13 @@ module array {
 
   // Used for OOB asserts in Copy* builtins.
   macro GetReceiverLengthProperty(
-      context: Context, sortState: FixedArray): Smi {
+      implicit context: Context)(sortState: FixedArray): Smi {
     const receiver: JSReceiver = GetReceiver(sortState);
 
     if (IsJSArray(receiver)) return UnsafeCast<JSArray>(receiver).length_fast;
 
     const len: Number =
-        ToLength_Inline(context, GetProperty(context, receiver, kLengthString));
+        ToLength_Inline(context, GetProperty(receiver, kLengthString));
     return UnsafeCast<Smi>(len);
   }
 
@@ -563,7 +563,7 @@ module array {
   labels Bailout {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetReceiverLengthProperty(context, sortState) - length);
+    assert(srcPos <= GetReceiverLengthProperty(sortState) - length);
     assert(dstPos <= tempArray.length - length);
 
     let srcIdx: Smi = srcPos;
@@ -584,7 +584,7 @@ module array {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
     assert(srcPos <= tempArray.length - length);
-    assert(dstPos <= GetReceiverLengthProperty(context, sortState) - length);
+    assert(dstPos <= GetReceiverLengthProperty(sortState) - length);
 
     let store: StoreFn = GetStoreFn(sortState);
 
@@ -610,8 +610,8 @@ module array {
       srcPos: Smi, dstPos: Smi, length: Smi): Smi {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetReceiverLengthProperty(context, sortState) - length);
-    assert(dstPos <= GetReceiverLengthProperty(context, sortState) - length);
+    assert(srcPos <= GetReceiverLengthProperty(sortState) - length);
+    assert(dstPos <= GetReceiverLengthProperty(sortState) - length);
 
     try {
       let load: LoadFn = GetLoadFn(sortState);
@@ -1773,7 +1773,7 @@ module array {
     }
     label Slow {
       // 3. Let len be ? ToLength(? Get(obj, "length")).
-      const len: Number = GetLengthProperty(context, obj);
+      const len: Number = GetLengthProperty(obj);
 
       if (len < 2) return receiver;
       const nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);

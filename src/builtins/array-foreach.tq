@@ -14,12 +14,12 @@ module array {
       // side-effect free and HasProperty/GetProperty do the conversion inline.
 
       // 6b. Let kPresent be ? HasProperty(O, Pk).
-      const kPresent: Boolean = HasProperty_Inline(context, o, k);
+      const kPresent: Boolean = HasProperty_Inline(o, k);
 
       // 6c. If kPresent is true, then
       if (kPresent == True) {
         // 6c. i. Let kValue be ? Get(O, Pk).
-        const kValue: Object = GetProperty(context, o, k);
+        const kValue: Object = GetProperty(o, k);
 
         // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
         Call(context, callbackfn, thisArg, kValue, k, o);
@@ -147,7 +147,7 @@ module array {
       const o: JSReceiver = ToObject_Inline(context, receiver);
 
       // 2. Let len be ? ToLength(? Get(O, "length")).
-      const len: Number = GetLengthProperty(context, o);
+      const len: Number = GetLengthProperty(o);
 
       // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
       if (arguments.length == 0) {
