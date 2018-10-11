@@ -127,9 +127,15 @@ class BaseCommand(object):
   def _abort(self, process, abort_called):
     abort_called[0] = True
     try:
+      print 'Attempting to kill process %d' % process.pid
+      sys.stdout.flush()
       self._kill_process(process)
-    except OSError:
-      pass
+      print 'Attempted to kill process %d' % process.pid
+      sys.stdout.flush()
+    except OSError as e:
+      print 'Error killing process %d' % process.pid
+      print e
+      sys.stdout.flush()
 
   def __str__(self):
     return self.to_string()
@@ -186,9 +192,6 @@ class WindowsCommand(BaseCommand):
     return subprocess.list2cmdline(self._to_args_list())
 
   def _kill_process(self, process):
-    if self.verbose:
-      print 'Attempting to kill process %d' % process.pid
-      sys.stdout.flush()
     tk = subprocess.Popen(
         'taskkill /T /F /PID %d' % process.pid,
         stdout=subprocess.PIPE,
