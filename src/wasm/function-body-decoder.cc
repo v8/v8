@@ -419,6 +419,7 @@ class WasmGraphBuildingInterface {
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
+    DCHECK(block->is_try_catchall() || block->is_try_catch());
     TFNode* exception = block->try_info->exception;
     BUILD(Rethrow, exception);
     Unreachable(decoder);

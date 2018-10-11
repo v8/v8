@@ -1471,9 +1471,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprRethrow: {
-            // TODO(kschimpf): Implement.
             CHECK_PROTOTYPE_OPCODE(eh);
-            OPCODE_ERROR(opcode, "not implemented yet");
+            BreakDepthImmediate<validate> imm(this, this->pc_);
+            if (!this->Validate(this->pc_, imm, control_.size())) break;
+            Control* c = control_at(imm.depth);
+            if (!VALIDATE(c->is_try_catchall() || c->is_try_catch())) {
+              this->error("rethrow not targeting catch or catch-all");
+              break;
+            }
+            CALL_INTERFACE_IF_REACHABLE(Rethrow, c);
+            len = 1 + imm.length;
+            EndControl();
             break;
           }
           case kExprThrow: {
