@@ -718,9 +718,6 @@
   'regress/regress-trap-allocation-memento': [PASS, FAIL],
   'regress/regress-unlink-closures-on-deopt': [PASS, FAIL],
   'shared-function-tier-up-turbo': [PASS, FAIL],
-
-  # https://crbug.com/v8/8286
-  'harmony/weakrefs/basics': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
