@@ -2417,6 +2417,7 @@ char* Isolate::RestoreThread(char* from) {
 }
 
 void Isolate::ReleaseSharedPtrs() {
+  base::LockGuard<base::Mutex> lock(&managed_ptr_destructors_mutex_);
   while (managed_ptr_destructors_head_) {
     ManagedPtrDestructor* l = managed_ptr_destructors_head_;
     ManagedPtrDestructor* n = nullptr;
@@ -2430,6 +2431,7 @@ void Isolate::ReleaseSharedPtrs() {
 }
 
 void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
+  base::LockGuard<base::Mutex> lock(&managed_ptr_destructors_mutex_);
   DCHECK_NULL(destructor->prev_);
   DCHECK_NULL(destructor->next_);
   if (managed_ptr_destructors_head_) {
@@ -2440,6 +2442,7 @@ void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
 }
 
 void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
+  base::LockGuard<base::Mutex> lock(&managed_ptr_destructors_mutex_);
   if (destructor->prev_) {
     destructor->prev_->next_ = destructor->next_;
   } else {

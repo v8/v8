@@ -1908,6 +1908,7 @@ class Isolate : private HiddenFactory {
 
   bool allow_atomics_wait_;
 
+  base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
 
   size_t total_regexp_code_generated_;
