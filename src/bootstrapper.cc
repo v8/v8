@@ -2998,8 +2998,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate_, intl, "Collator", JS_INTL_COLLATOR_TYPE, JSCollator::kSize,
           0, factory->the_hole_value(), Builtins::kCollatorConstructor);
       collator_constructor->shared()->DontAdaptArguments();
-      InstallWithIntrinsicDefaultProto(isolate_, collator_constructor,
-                                       Context::INTL_COLLATOR_FUNCTION_INDEX);
 
       SimpleInstallFunction(isolate(), collator_constructor,
                             "supportedLocalesOf",
@@ -3029,9 +3027,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           JSV8BreakIterator::kSize, 0, factory->the_hole_value(),
           Builtins::kV8BreakIteratorConstructor);
       v8_break_iterator_constructor->shared()->DontAdaptArguments();
-      InstallWithIntrinsicDefaultProto(
-          isolate_, v8_break_iterator_constructor,
-          Context::INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX);
 
       SimpleInstallFunction(
           isolate_, v8_break_iterator_constructor, "supportedLocalesOf",
@@ -3077,9 +3072,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           JSPluralRules::kSize, 0, factory->the_hole_value(),
           Builtins::kPluralRulesConstructor);
       plural_rules_constructor->shared()->DontAdaptArguments();
-      InstallWithIntrinsicDefaultProto(
-          isolate_, plural_rules_constructor,
-          Context::INTL_PLURAL_RULES_FUNCTION_INDEX);
 
       SimpleInstallFunction(isolate(), plural_rules_constructor,
                             "supportedLocalesOf",
