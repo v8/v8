@@ -182,21 +182,19 @@ class ExpressionClassifierBase {
                         ~this->invalid_productions_;
       // The result will continue to be a valid arrow formal parameters if the
       // inner expression is a valid binding pattern.
-      bool copy_BP_to_AFP = false;
-      if (productions & ArrowFormalParametersProduction &&
-          this->is_valid_arrow_formal_parameters()) {
+      if (productions & ArrowFormalParametersProduction) {
         // Also whether we've seen any non-simple parameters
         // if expecting an arrow function parameter.
         this->is_non_simple_parameter_list_ |=
             inner->is_non_simple_parameter_list_;
-        if (!inner->is_valid_binding_pattern()) {
-          copy_BP_to_AFP = true;
-          this->invalid_productions_ |= ArrowFormalParametersProduction;
+        if (is_valid_arrow_formal_parameters() &&
+            !inner->is_valid_binding_pattern()) {
+          errors |= ArrowFormalParametersProduction;
         }
       }
-      if (errors != 0 || copy_BP_to_AFP) {
+      if (errors != 0) {
         static_cast<ErrorTracker*>(this)->AccumulateErrorImpl(
-            inner, productions, errors, copy_BP_to_AFP);
+            inner, productions, errors);
         this->invalid_productions_ |= errors;
       }
     }
@@ -239,7 +237,7 @@ class ExpressionClassifierErrorTracker
 
  protected:
   V8_INLINE const Error& reported_error(ErrorKind kind) const {
-    if (this->invalid_productions_ & (1 << kind)) {
+    if (!this->is_valid(1 << kind)) {
       for (int i = reported_errors_begin_; i < reported_errors_end_; i++) {
         if (reported_errors_->at(i).kind == kind)
           return reported_errors_->at(i);
@@ -259,7 +257,7 @@ class ExpressionClassifierErrorTracker
   // Adds e to the end of the list of reported errors for this classifier.
   // It is expected that this classifier is the last one in the stack.
   V8_INLINE void Add(TP production, const Error& e) {
-    if ((this->invalid_productions_ & production) != 0) return;
+    if (!this->is_valid(production)) return;
     this->invalid_productions_ |= production;
     DCHECK_EQ(reported_errors_end_, reported_errors_->length());
     reported_errors_->Add(e, this->base_->impl()->zone());
@@ -294,8 +292,7 @@ class ExpressionClassifierErrorTracker
   }
 
   void AccumulateErrorImpl(ExpressionClassifier<Types>* const inner,
-                           unsigned productions, unsigned errors,
-                           bool copy_BP_to_AFP) {
+                           unsigned productions, unsigned errors) {
     // Traverse the list of errors reported by the inner classifier
     // to copy what's necessary.
     int binding_pattern_index = inner->reported_errors_end_;
@@ -304,7 +301,8 @@ class ExpressionClassifierErrorTracker
       int k = this->reported_errors_->at(i).kind;
       if (errors & (1 << k)) this->Copy(i);
       // Check if it's a BP error that has to be copied to an AFP error.
-      if (k == ErrorKind::kBindingPatternProduction && copy_BP_to_AFP) {
+      if (k == ErrorKind::kBindingPatternProduction &&
+          (errors & TP::ArrowFormalParametersProduction) != 0) {
         if (this->reported_errors_end_ <= i) {
           // If the BP error itself has not already been copied,
           // copy it now and change it to an AFP error.
@@ -383,8 +381,7 @@ class ExpressionClassifierEmptyErrorTracker
 #endif
   V8_INLINE void RewindErrors(ExpressionClassifier<Types>* const inner) {}
   V8_INLINE void AccumulateErrorImpl(ExpressionClassifier<Types>* const inner,
-                                     unsigned productions, unsigned errors,
-                                     bool copy_BP_to_AFP) {}
+                                     unsigned productions, unsigned errors) {}
 
   friend BaseClassType;
 };
