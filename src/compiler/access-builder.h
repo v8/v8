@@ -107,6 +107,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSGeneratorObject::resume_mode() field.
   static FieldAccess ForJSGeneratorObjectResumeMode();
 
+  // Provides access to JSAsyncFunctionObject::promise() field.
+  static FieldAccess ForJSAsyncFunctionObjectPromise();
+
   // Provides access to JSAsyncGeneratorObject::queue() field.
   static FieldAccess ForJSAsyncGeneratorObjectQueue();
 

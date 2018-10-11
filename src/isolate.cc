@@ -650,29 +650,19 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       // Try to continue from here.
       Handle<JSFunction> function(generator_object->function(), isolate);
       Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-      if (IsAsyncGeneratorFunction(shared->kind())) {
-        Handle<Object> dot_generator_object(
-            generator_object->parameters_and_registers()->get(
-                DeclarationScope::kGeneratorObjectVarIndex +
-                shared->scope_info()->ParameterCount()),
-            isolate);
-        if (!dot_generator_object->IsJSAsyncGeneratorObject()) return;
+      if (generator_object->IsJSAsyncFunctionObject()) {
+        Handle<JSAsyncFunctionObject> async_function_object =
+            Handle<JSAsyncFunctionObject>::cast(generator_object);
+        promise = handle(async_function_object->promise(), isolate);
+      } else {
         Handle<JSAsyncGeneratorObject> async_generator_object =
-            Handle<JSAsyncGeneratorObject>::cast(dot_generator_object);
+            Handle<JSAsyncGeneratorObject>::cast(generator_object);
+        if (async_generator_object->queue()->IsUndefined(isolate)) return;
         Handle<AsyncGeneratorRequest> async_generator_request(
             AsyncGeneratorRequest::cast(async_generator_object->queue()),
             isolate);
         promise = handle(JSPromise::cast(async_generator_request->promise()),
                          isolate);
-      } else {
-        CHECK(IsAsyncFunction(shared->kind()));
-        Handle<Object> dot_promise(
-            generator_object->parameters_and_registers()->get(
-                DeclarationScope::kPromiseVarIndex +
-                shared->scope_info()->ParameterCount()),
-            isolate);
-        if (!dot_promise->IsJSPromise()) return;
-        promise = Handle<JSPromise>::cast(dot_promise);
       }
     } else {
       // We have some generic promise chain here, so try to
@@ -730,9 +720,9 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         for (size_t i = frames.size(); i-- != 0 && !builder.full();) {
           const auto& summary = frames[i];
           if (summary.IsJavaScript()) {
-            //====================================================================
+            //==================================================================
             // Handle a JavaScript frame.
-            //====================================================================
+            //==================================================================
             auto const& java_script = summary.AsJavaScript();
             if (builder.AppendJavaScriptFrame(java_script)) {
               if (IsAsyncFunction(java_script.function()->shared()->kind())) {
@@ -744,18 +734,18 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
               }
             }
           } else if (summary.IsWasmCompiled()) {
-            //====================================================================
+            //==================================================================
             // Handle a WASM compiled frame.
-            //====================================================================
+            //==================================================================
             auto const& wasm_compiled = summary.AsWasmCompiled();
             if (builder.AppendWasmCompiledFrame(wasm_compiled)) {
               last_frame_id = StackFrame::NO_ID;
               last_frame_index = 0;
             }
           } else if (summary.IsWasmInterpreted()) {
-            //====================================================================
+            //==================================================================
             // Handle a WASM interpreted frame.
-            //====================================================================
+            //==================================================================
             auto const& wasm_interpreted = summary.AsWasmInterpreted();
             if (builder.AppendWasmInterpretedFrame(wasm_interpreted)) {
               last_frame_id = StackFrame::NO_ID;
@@ -789,12 +779,18 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
     FrameInspector inspector(StandardFrame::cast(it.frame()), last_frame_index,
                              this);
     FunctionKind const kind = inspector.GetFunction()->shared()->kind();
-    if (IsAsyncGeneratorFunction(kind)) {
+    if (IsAsyncFunction(kind)) {
       Handle<Object> const dot_generator_object =
           inspector.GetExpression(DeclarationScope::kGeneratorObjectVarIndex);
       if (dot_generator_object->IsUndefined(this)) {
         // The .generator_object was not yet initialized (i.e. we see a
         // really early exception in the setup of the async generator).
+      } else if (dot_generator_object->IsJSAsyncFunctionObject()) {
+        // Reach out to the outer promise of the async function.
+        Handle<JSAsyncFunctionObject> async_function_object =
+            Handle<JSAsyncFunctionObject>::cast(dot_generator_object);
+        Handle<JSPromise> promise(async_function_object->promise(), this);
+        CaptureAsyncStackTrace(this, promise, &builder);
       } else {
         // Check if there's a pending async request on the generator object.
         Handle<JSAsyncGeneratorObject> async_generator_object =
@@ -810,21 +806,6 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
           Handle<JSPromise> promise(JSPromise::cast(request->promise()), this);
           CaptureAsyncStackTrace(this, promise, &builder);
         }
-      }
-    } else {
-      DCHECK(IsAsyncFunction(kind));
-      Handle<Object> const dot_promise =
-          inspector.GetExpression(DeclarationScope::kPromiseVarIndex);
-      if (dot_promise->IsJSPromise()) {
-        // We can start collecting an async stack trace from .promise here.
-        CaptureAsyncStackTrace(this, Handle<JSPromise>::cast(dot_promise),
-                               &builder);
-      } else {
-        // If .promise was not yet initialized (i.e. we see a really
-        // early exception in the setup of the function), it holds
-        // the value undefined. Sanity check here to make sure that
-        // we're not peaking into the completely wrong stack slot.
-        CHECK(dot_promise->IsUndefined(this));
       }
     }
   }

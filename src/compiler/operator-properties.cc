@@ -91,6 +91,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSAsyncFunctionReject:
     case IrOpcode::kJSAsyncFunctionResolve:
     case IrOpcode::kJSCreateArrayIterator:
+    case IrOpcode::kJSCreateAsyncFunctionObject:
     case IrOpcode::kJSCreateBoundFunction:
     case IrOpcode::kJSCreateCollectionIterator:
     case IrOpcode::kJSCreateIterResultObject:

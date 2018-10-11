@@ -13,6 +13,9 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class JSPromise;
+
 class JSGeneratorObject : public JSObject {
  public:
   // [function]: The function corresponding to this generator object.
@@ -76,6 +79,24 @@ class JSGeneratorObject : public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
+};
+
+class JSAsyncFunctionObject : public JSGeneratorObject {
+ public:
+  DECL_CAST(JSAsyncFunctionObject)
+
+  // Dispatched behavior.
+  DECL_VERIFIER(JSAsyncFunctionObject)
+
+  // [promise]: The promise of the async function.
+  DECL_ACCESSORS(promise, JSPromise)
+
+  // Layout description.
+  static const int kPromiseOffset = JSGeneratorObject::kSize;
+  static const int kSize = kPromiseOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncFunctionObject);
 };
 
 class JSAsyncGeneratorObject : public JSGeneratorObject {

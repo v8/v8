@@ -548,7 +548,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Expression* BuildInitialYield(int pos, FunctionKind kind);
   Assignment* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
-  Variable* PromiseVariable();
   Variable* AsyncGeneratorAwaitVariable();
 
   // Generic AST generator for throwing errors from compiled code.

@@ -250,6 +250,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(this)->JSGeneratorObjectVerify(isolate);
       break;
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
+      JSAsyncFunctionObject::cast(this)->JSAsyncFunctionObjectVerify(isolate);
+      break;
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
       JSAsyncGeneratorObject::cast(this)->JSAsyncGeneratorObjectVerify(isolate);
       break;
@@ -846,6 +849,13 @@ void JSGeneratorObject::JSGeneratorObjectVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kReceiverOffset);
   VerifyObjectField(isolate, kParametersAndRegistersOffset);
   VerifyObjectField(isolate, kContinuationOffset);
+}
+
+void JSAsyncFunctionObject::JSAsyncFunctionObjectVerify(Isolate* isolate) {
+  // Check inherited fields
+  JSGeneratorObjectVerify(isolate);
+  VerifyObjectField(isolate, kPromiseOffset);
+  promise()->HeapObjectVerify(isolate);
 }
 
 void JSAsyncGeneratorObject::JSAsyncGeneratorObjectVerify(Isolate* isolate) {

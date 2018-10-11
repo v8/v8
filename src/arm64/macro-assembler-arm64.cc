@@ -1632,6 +1632,10 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   CompareInstanceType(temp, temp, JS_GENERATOR_OBJECT_TYPE);
   B(eq, &do_check);
 
+  // Check if JSAsyncFunctionObject
+  Cmp(temp, JS_ASYNC_FUNCTION_OBJECT_TYPE);
+  B(eq, &do_check);
+
   // Check if JSAsyncGeneratorObject
   Cmp(temp, JS_ASYNC_GENERATOR_OBJECT_TYPE);
 

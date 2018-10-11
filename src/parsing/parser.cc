@@ -2876,30 +2876,15 @@ Scope* Parser::NewHiddenCatchScope() {
 }
 
 Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
-  // .promise = %AsyncFunctionPromiseCreate();
   // try {
   //   <inner_block>
   // } catch (.catch) {
-  //   return %_AsyncFunctionReject(.promise, .catch, can_suspend);
+  //   return %_AsyncFunctionReject(.generator_object, .catch, can_suspend);
   // }
-  Block* result = factory()->NewBlock(2, true);
-
-  // .promise = %AsyncFunctionPromiseCreate();
-  Statement* set_promise;
-  {
-    Expression* create_promise = factory()->NewCallRuntime(
-        Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX,
-        new (zone()) ZonePtrList<Expression>(0, zone()), kNoSourcePosition);
-    Assignment* assign_promise = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(PromiseVariable()),
-        create_promise, kNoSourcePosition);
-    set_promise =
-        factory()->NewExpressionStatement(assign_promise, kNoSourcePosition);
-  }
-  result->statements()->Add(set_promise, zone());
+  Block* result = factory()->NewBlock(1, true);
 
   // catch (.catch) {
-  //   return %_AsyncFunctionReject(.promise, .catch, can_suspend)
+  //   return %_AsyncFunctionReject(.generator_object, .catch, can_suspend)
   // }
   Scope* catch_scope = NewHiddenCatchScope();
 
@@ -2907,7 +2892,9 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   {
     ZonePtrList<Expression>* args =
         new (zone()) ZonePtrList<Expression>(3, zone());
-    args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
+    args->Add(factory()->NewVariableProxy(
+                  function_state_->scope()->generator_object_var()),
+              zone());
     args->Add(factory()->NewVariableProxy(catch_scope->catch_variable()),
               zone());
     args->Add(factory()->NewBooleanLiteral(function_state_->CanSuspend(),
@@ -2924,18 +2911,6 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
           inner_block, catch_scope, catch_block, kNoSourcePosition);
   result->statements()->Add(try_catch_statement, zone());
   return result;
-}
-
-Variable* Parser::PromiseVariable() {
-  // Based on the various compilation paths, there are many different code
-  // paths which may be the first to access the Promise temporary. Whichever
-  // comes first should create it and stash it in the FunctionState.
-  Variable* promise = function_state_->scope()->promise_var();
-  if (promise == nullptr) {
-    promise = function_state_->scope()->DeclarePromiseVar(
-        ast_value_factory()->dot_promise_string());
-  }
-  return promise;
 }
 
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
@@ -3529,10 +3504,10 @@ void Parser::RewriteAsyncFunctionBody(ZonePtrList<Statement>* body,
                                       Block* block, Expression* return_value,
                                       bool* ok) {
   // function async_function() {
-  //   .generator_object = %CreateJSGeneratorObject();
+  //   .generator_object = %_AsyncFunctionEnter();
   //   BuildRejectPromiseOnException({
   //     ... block ...
-  //     return %ResolvePromise(.promise, expr), .promise;
+  //     return %_AsyncFunctionResolve(.generator_object, expr);
   //   })
   // }
 

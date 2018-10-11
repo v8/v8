@@ -185,6 +185,7 @@ namespace internal {
   V(JS_ARRAY_ITERATOR_TYPE)                                        \
   V(JS_ARRAY_TYPE)                                                 \
   V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                              \
+  V(JS_ASYNC_FUNCTION_OBJECT_TYPE)                                 \
   V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                                \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                              \
   V(JS_DATE_TYPE)                                                  \

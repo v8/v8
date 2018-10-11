@@ -607,6 +607,10 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
     CmpInstanceType(map, JS_GENERATOR_OBJECT_TYPE);
     j(equal, &do_check, Label::kNear);
 
+    // Check if JSAsyncFunctionObject.
+    CmpInstanceType(map, JS_ASYNC_FUNCTION_OBJECT_TYPE);
+    j(equal, &do_check, Label::kNear);
+
     // Check if JSAsyncGeneratorObject
     CmpInstanceType(map, JS_ASYNC_GENERATOR_OBJECT_TYPE);
 

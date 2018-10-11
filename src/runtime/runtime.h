@@ -181,9 +181,13 @@ namespace internal {
   F(SetNativeFlag, 1, 1)
 
 #define FOR_EACH_INTRINSIC_GENERATOR(F, I)    \
+  I(AsyncFunctionAwaitCaught, 2, 1)           \
+  I(AsyncFunctionAwaitUncaught, 2, 1)         \
   I(AsyncFunctionEnter, 2, 1)                 \
   I(AsyncFunctionReject, 3, 1)                \
   I(AsyncFunctionResolve, 3, 1)               \
+  I(AsyncGeneratorAwaitCaught, 2, 1)          \
+  I(AsyncGeneratorAwaitUncaught, 2, 1)        \
   F(AsyncGeneratorHasCatchHandlerForPC, 1, 1) \
   I(AsyncGeneratorReject, 2, 1)               \
   I(AsyncGeneratorResolve, 3, 1)              \

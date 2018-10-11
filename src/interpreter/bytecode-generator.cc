@@ -2714,19 +2714,12 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
   } else {
     DCHECK(IsAsyncFunction(info()->literal()->kind()));
     RegisterList args = register_allocator()->NewRegisterList(3);
-    Register promise = args[0];
-    Register return_value = args[1];
-    Register can_suspend = args[2];
     builder()
-        ->StoreAccumulatorInRegister(return_value)
+        ->MoveRegister(generator_object(), args[0])  // generator
+        .StoreAccumulatorInRegister(args[1])         // value
         .LoadBoolean(info()->literal()->CanSuspend())
-        .StoreAccumulatorInRegister(can_suspend);
-
-    Variable* var_promise = closure_scope()->promise_var();
-    DCHECK_NOT_NULL(var_promise);
-    BuildVariableLoad(var_promise, HoleCheckMode::kElided);
-    builder()->StoreAccumulatorInRegister(promise).CallRuntime(
-        Runtime::kInlineAsyncFunctionResolve, args);
+        .StoreAccumulatorInRegister(args[2])  // can_suspend
+        .CallRuntime(Runtime::kInlineAsyncFunctionResolve, args);
   }
 
   BuildReturn(source_position);
@@ -3398,35 +3391,21 @@ void BytecodeGenerator::BuildAwait(Expression* await_expr) {
     // Await(operand) and suspend.
     RegisterAllocationScope register_scope(this);
 
-    int await_builtin_context_index;
-    RegisterList args;
+    Runtime::FunctionId await_intrinsic_id;
     if (IsAsyncGeneratorFunction(function_kind())) {
-      await_builtin_context_index =
-          catch_prediction() == HandlerTable::ASYNC_AWAIT
-              ? Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT
-              : Context::ASYNC_GENERATOR_AWAIT_CAUGHT;
-      args = register_allocator()->NewRegisterList(2);
-      builder()
-          ->MoveRegister(generator_object(), args[0])
-          .StoreAccumulatorInRegister(args[1]);
+      await_intrinsic_id = catch_prediction() == HandlerTable::ASYNC_AWAIT
+                               ? Runtime::kInlineAsyncGeneratorAwaitUncaught
+                               : Runtime::kInlineAsyncGeneratorAwaitCaught;
     } else {
-      await_builtin_context_index =
-          catch_prediction() == HandlerTable::ASYNC_AWAIT
-              ? Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX
-              : Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX;
-      args = register_allocator()->NewRegisterList(3);
-      builder()
-          ->MoveRegister(generator_object(), args[0])
-          .StoreAccumulatorInRegister(args[1]);
-
-      // AsyncFunction Await builtins require a 3rd parameter to hold the outer
-      // promise.
-      Variable* var_promise = closure_scope()->promise_var();
-      BuildVariableLoadForAccumulatorValue(var_promise, HoleCheckMode::kElided);
-      builder()->StoreAccumulatorInRegister(args[2]);
+      await_intrinsic_id = catch_prediction() == HandlerTable::ASYNC_AWAIT
+                               ? Runtime::kInlineAsyncFunctionAwaitUncaught
+                               : Runtime::kInlineAsyncFunctionAwaitCaught;
     }
-
-    builder()->CallJSRuntime(await_builtin_context_index, args);
+    RegisterList args = register_allocator()->NewRegisterList(2);
+    builder()
+        ->MoveRegister(generator_object(), args[0])
+        .StoreAccumulatorInRegister(args[1])
+        .CallRuntime(await_intrinsic_id, args);
   }
 
   BuildSuspendPoint(await_expr);

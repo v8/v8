@@ -1404,6 +1404,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSObject::kHeaderSize;
     case JS_GENERATOR_OBJECT_TYPE:
       return JSGeneratorObject::kSize;
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
+      return JSAsyncFunctionObject::kSize;
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
       return JSAsyncGeneratorObject::kSize;
     case JS_GLOBAL_PROXY_TYPE:
@@ -2942,6 +2944,10 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JSGenerator>");
       break;
     }
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE: {
+      accumulator->Add("<JSAsyncFunctionObject>");
+      break;
+    }
     case JS_ASYNC_GENERATOR_OBJECT_TYPE: {
       accumulator->Add("<JS AsyncGenerator>");
       break;
@@ -3203,6 +3209,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_VALUE_TYPE:
@@ -13000,6 +13007,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_INTL_SEGMENTER_TYPE:
     case JS_INTL_V8_BREAK_ITERATOR_TYPE:
 #endif
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MAP_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:

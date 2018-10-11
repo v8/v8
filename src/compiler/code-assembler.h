@@ -27,11 +27,13 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
 class CallInterfaceDescriptor;
 class Callable;
 class Factory;
 class InterpreterData;
 class Isolate;
+class JSAsyncFunctionObject;
 class JSAsyncGeneratorObject;
 class JSCollator;
 class JSCollection;

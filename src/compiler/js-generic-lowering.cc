@@ -404,6 +404,10 @@ void JSGenericLowering::LowerJSCreateArrayIterator(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
+void JSGenericLowering::LowerJSCreateAsyncFunctionObject(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
 void JSGenericLowering::LowerJSCreateCollectionIterator(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }

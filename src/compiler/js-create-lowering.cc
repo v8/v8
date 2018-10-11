@@ -71,6 +71,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArray(node);
     case IrOpcode::kJSCreateArrayIterator:
       return ReduceJSCreateArrayIterator(node);
+    case IrOpcode::kJSCreateAsyncFunctionObject:
+      return ReduceJSCreateAsyncFunctionObject(node);
     case IrOpcode::kJSCreateBoundFunction:
       return ReduceJSCreateBoundFunction(node);
     case IrOpcode::kJSCreateClosure:
@@ -779,6 +781,49 @@ Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
   a.Store(AccessBuilder::ForJSArrayIteratorKind(),
           jsgraph()->Constant(static_cast<int>(p.kind())));
   RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
+Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateAsyncFunctionObject, node->opcode());
+  int const register_count = RegisterCountOf(node->op());
+  Node* closure = NodeProperties::GetValueInput(node, 0);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* promise = NodeProperties::GetValueInput(node, 2);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Create the register file.
+  AllocationBuilder ab(jsgraph(), effect, control);
+  ab.AllocateArray(register_count, factory()->fixed_array_map());
+  for (int i = 0; i < register_count; ++i) {
+    ab.Store(AccessBuilder::ForFixedArraySlot(i),
+             jsgraph()->UndefinedConstant());
+  }
+  Node* parameters_and_registers = effect = ab.Finish();
+
+  // Create the JSAsyncFunctionObject result.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSAsyncFunctionObject::kSize);
+  Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
+  a.Store(AccessBuilder::ForMap(),
+          native_context().async_function_object_map());
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), empty_fixed_array);
+  a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
+  a.Store(AccessBuilder::ForJSGeneratorObjectContext(), context);
+  a.Store(AccessBuilder::ForJSGeneratorObjectFunction(), closure);
+  a.Store(AccessBuilder::ForJSGeneratorObjectReceiver(), receiver);
+  a.Store(AccessBuilder::ForJSGeneratorObjectInputOrDebugPos(),
+          jsgraph()->UndefinedConstant());
+  a.Store(AccessBuilder::ForJSGeneratorObjectResumeMode(),
+          jsgraph()->Constant(JSGeneratorObject::kNext));
+  a.Store(AccessBuilder::ForJSGeneratorObjectContinuation(),
+          jsgraph()->Constant(JSGeneratorObject::kGeneratorExecuting));
+  a.Store(AccessBuilder::ForJSGeneratorObjectParametersAndRegisters(),
+          parameters_and_registers);
+  a.Store(AccessBuilder::ForJSAsyncFunctionObjectPromise(), promise);
   a.FinishAndChange(node);
   return Changed(node);
 }

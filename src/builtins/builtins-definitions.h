@@ -428,13 +428,11 @@ namespace internal {
                                                                                \
   /* AsyncFunction */                                                          \
   TFS(AsyncFunctionEnter, kClosure, kReceiver)                                 \
-  TFS(AsyncFunctionReject, kPromise, kReason, kCanSuspend)                     \
-  TFS(AsyncFunctionResolve, kPromise, kValue, kCanSuspend)                     \
+  TFS(AsyncFunctionReject, kAsyncFunctionObject, kReason, kCanSuspend)         \
+  TFS(AsyncFunctionResolve, kAsyncFunctionObject, kValue, kCanSuspend)         \
   TFC(AsyncFunctionLazyDeoptContinuation, AsyncFunctionStackParameter, 1)      \
-  TFJ(AsyncFunctionAwaitCaught, 3, kReceiver, kGenerator, kAwaited,            \
-      kOuterPromise)                                                           \
-  TFJ(AsyncFunctionAwaitUncaught, 3, kReceiver, kGenerator, kAwaited,          \
-      kOuterPromise)                                                           \
+  TFS(AsyncFunctionAwaitCaught, kAsyncFunctionObject, kValue)                  \
+  TFS(AsyncFunctionAwaitUncaught, kAsyncFunctionObject, kValue)                \
   TFJ(AsyncFunctionAwaitRejectClosure, 1, kReceiver, kSentError)               \
   TFJ(AsyncFunctionAwaitResolveClosure, 1, kReceiver, kSentValue)              \
   TFJ(AsyncFunctionPromiseCreate, 0, kReceiver)                                \
@@ -1282,8 +1280,8 @@ namespace internal {
                                                                                \
   /* Await (proposal-async-iteration/#await), with resume behaviour */         \
   /* specific to Async Generators. Internal / Not exposed to JS code. */       \
-  TFJ(AsyncGeneratorAwaitCaught, 2, kReceiver, kGenerator, kAwaited)           \
-  TFJ(AsyncGeneratorAwaitUncaught, 2, kReceiver, kGenerator, kAwaited)         \
+  TFS(AsyncGeneratorAwaitCaught, kAsyncGeneratorObject, kValue)                \
+  TFS(AsyncGeneratorAwaitUncaught, kAsyncGeneratorObject, kValue)              \
   TFJ(AsyncGeneratorAwaitResolveClosure, 1, kReceiver, kValue)                 \
   TFJ(AsyncGeneratorAwaitRejectClosure, 1, kReceiver, kValue)                  \
   TFJ(AsyncGeneratorYieldResolveClosure, 1, kReceiver, kValue)                 \

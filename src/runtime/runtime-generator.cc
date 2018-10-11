@@ -12,6 +12,18 @@
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitCaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitUncaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
 RUNTIME_FUNCTION(Runtime_AsyncFunctionEnter) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
@@ -71,6 +83,18 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
 
   return generator->function();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitCaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitUncaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorResolve) {

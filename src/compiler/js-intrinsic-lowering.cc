@@ -38,12 +38,20 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGeneratorClose(node);
     case Runtime::kInlineCreateJSGeneratorObject:
       return ReduceCreateJSGeneratorObject(node);
+    case Runtime::kInlineAsyncFunctionAwaitCaught:
+      return ReduceAsyncFunctionAwaitCaught(node);
+    case Runtime::kInlineAsyncFunctionAwaitUncaught:
+      return ReduceAsyncFunctionAwaitUncaught(node);
     case Runtime::kInlineAsyncFunctionEnter:
       return ReduceAsyncFunctionEnter(node);
     case Runtime::kInlineAsyncFunctionReject:
       return ReduceAsyncFunctionReject(node);
     case Runtime::kInlineAsyncFunctionResolve:
       return ReduceAsyncFunctionResolve(node);
+    case Runtime::kInlineAsyncGeneratorAwaitCaught:
+      return ReduceAsyncGeneratorAwaitCaught(node);
+    case Runtime::kInlineAsyncGeneratorAwaitUncaught:
+      return ReduceAsyncGeneratorAwaitUncaught(node);
     case Runtime::kInlineAsyncGeneratorReject:
       return ReduceAsyncGeneratorReject(node);
     case Runtime::kInlineAsyncGeneratorResolve:
@@ -129,6 +137,19 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
   return Change(node, op, generator, closed, effect, control);
 }
 
+Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwaitCaught(Node* node) {
+  return Change(
+      node,
+      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitCaught), 0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwaitUncaught(Node* node) {
+  return Change(
+      node,
+      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitUncaught),
+      0);
+}
+
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionEnter(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->AsyncFunctionEnter());
   return Changed(node);
@@ -144,6 +165,20 @@ Reduction JSIntrinsicLowering::ReduceAsyncFunctionResolve(Node* node) {
   RelaxControls(node);
   NodeProperties::ChangeOp(node, javascript()->AsyncFunctionResolve());
   return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorAwaitCaught(Node* node) {
+  return Change(
+      node,
+      Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorAwaitCaught),
+      0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorAwaitUncaught(Node* node) {
+  return Change(
+      node,
+      Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorAwaitUncaught),
+      0);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {

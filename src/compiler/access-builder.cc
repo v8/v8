@@ -283,6 +283,16 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectResumeMode() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSAsyncFunctionObjectPromise() {
+  FieldAccess access = {
+      kTaggedBase,         JSAsyncFunctionObject::kPromiseOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::OtherObject(), MachineType::TaggedPointer(),
+      kFullWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectQueue() {
   FieldAccess access = {
       kTaggedBase,         JSAsyncGeneratorObject::kQueueOffset,

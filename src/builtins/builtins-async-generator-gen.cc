@@ -237,24 +237,22 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
 
 template <typename Descriptor>
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
-  Node* generator = Parameter(Descriptor::kGenerator);
-  Node* value = Parameter(Descriptor::kAwaited);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<JSAsyncGeneratorObject> async_generator_object =
+      CAST(Parameter(Descriptor::kAsyncGeneratorObject));
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  CSA_SLOW_ASSERT(this, TaggedIsAsyncGenerator(generator));
-
-  Node* const request = LoadFirstAsyncGeneratorRequestFromQueue(generator);
-  CSA_ASSERT(this, IsNotUndefined(request));
-
-  Node* outer_promise =
-      LoadObjectField(request, AsyncGeneratorRequest::kPromiseOffset);
+  TNode<AsyncGeneratorRequest> request =
+      CAST(LoadFirstAsyncGeneratorRequestFromQueue(async_generator_object));
+  TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
+      request, AsyncGeneratorRequest::kPromiseOffset);
 
   const int resolve_index = Context::ASYNC_GENERATOR_AWAIT_RESOLVE_SHARED_FUN;
   const int reject_index = Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN;
 
-  SetGeneratorAwaiting(generator);
-  Await(context, generator, value, outer_promise, resolve_index, reject_index,
-        is_catchable);
+  SetGeneratorAwaiting(async_generator_object);
+  Await(context, async_generator_object, value, outer_promise, resolve_index,
+        reject_index, is_catchable);
   Return(UndefinedConstant());
 }
 

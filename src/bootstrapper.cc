@@ -1626,16 +1626,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // --- A s y n c G e n e r a t o r ---
-    Handle<JSFunction> await_caught =
-        SimpleCreateFunction(isolate_, factory->empty_string(),
-                             Builtins::kAsyncGeneratorAwaitCaught, 1, false);
-    native_context()->set_async_generator_await_caught(*await_caught);
-
-    Handle<JSFunction> await_uncaught =
-        SimpleCreateFunction(isolate_, factory->empty_string(),
-                             Builtins::kAsyncGeneratorAwaitUncaught, 1, false);
-    native_context()->set_async_generator_await_uncaught(*await_uncaught);
-
     Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
         isolate_, Builtins::kAsyncGeneratorAwaitResolveClosure,
         factory->empty_string(), 1);
@@ -4281,23 +4271,9 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     // there's one global (per native context) map here that is used for the
     // async function generator objects. These objects never escape to user
     // JavaScript anyways.
-    Handle<Map> async_function_object_map =
-        factory->NewMap(JS_GENERATOR_OBJECT_TYPE, JSGeneratorObject::kSize);
+    Handle<Map> async_function_object_map = factory->NewMap(
+        JS_ASYNC_FUNCTION_OBJECT_TYPE, JSAsyncFunctionObject::kSize);
     native_context->set_async_function_object_map(*async_function_object_map);
-
-    {
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kAsyncFunctionAwaitCaught, 2, false);
-      native_context->set_async_function_await_caught(*function);
-    }
-
-    {
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kAsyncFunctionAwaitUncaught, 2, false);
-      native_context->set_async_function_await_uncaught(*function);
-    }
 
     {
       Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(

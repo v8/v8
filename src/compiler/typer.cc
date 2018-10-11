@@ -1163,6 +1163,10 @@ Type Typer::Visitor::TypeJSCreateArrayIterator(Node* node) {
   return Type::OtherObject();
 }
 
+Type Typer::Visitor::TypeJSCreateAsyncFunctionObject(Node* node) {
+  return Type::OtherObject();
+}
+
 Type Typer::Visitor::TypeJSCreateCollectionIterator(Node* node) {
   return Type::OtherObject();
 }

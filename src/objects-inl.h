@@ -147,7 +147,7 @@ bool HeapObject::IsJSSloppyArgumentsObject() const {
 
 bool HeapObject::IsJSGeneratorObject() const {
   return map()->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
-         IsJSAsyncGeneratorObject();
+         IsJSAsyncFunctionObject() || IsJSAsyncGeneratorObject();
 }
 
 bool HeapObject::IsDataHandler() const {

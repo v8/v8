@@ -979,6 +979,11 @@ const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {
       register_count);                                  // parameter
 }
 
+int RegisterCountOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateAsyncFunctionObject, op->opcode());
+  return OpParameter<int>(op);
+}
+
 int GeneratorStoreValueCountOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSGeneratorStore, op->opcode());
   return OpParameter<int>(op);
@@ -1134,6 +1139,16 @@ const Operator* JSOperatorBuilder::CreateArrayIterator(IterationKind kind) {
       "JSCreateArrayIterator",                                    // name
       1, 1, 1, 1, 1, 0,                                           // counts
       parameters);                                                // parameter
+}
+
+const Operator* JSOperatorBuilder::CreateAsyncFunctionObject(
+    int register_count) {
+  return new (zone()) Operator1<int>(          // --
+      IrOpcode::kJSCreateAsyncFunctionObject,  // opcode
+      Operator::kEliminatable,                 // flags
+      "JSCreateAsyncFunctionObject",           // name
+      3, 1, 1, 1, 1, 0,                        // counts
+      register_count);                         // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateCollectionIterator(

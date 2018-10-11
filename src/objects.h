@@ -501,6 +501,7 @@ enum InstanceType : uint16_t {
   JS_ARRAY_ITERATOR_TYPE,
   JS_ARRAY_TYPE,
   JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
+  JS_ASYNC_FUNCTION_OBJECT_TYPE,
   JS_ASYNC_GENERATOR_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_DATE_TYPE,
@@ -755,6 +756,7 @@ class ZoneForwardList;
   V(JSArrayBufferView)                         \
   V(JSArrayIterator)                           \
   V(JSAsyncFromSyncIterator)                   \
+  V(JSAsyncFunctionObject)                     \
   V(JSAsyncGeneratorObject)                    \
   V(JSBoundFunction)                           \
   V(JSCollection)                              \
@@ -918,6 +920,7 @@ class ZoneForwardList;
   V(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)                                 \
   V(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)                             \
   V(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)           \
+  V(JSAsyncFunctionObject, JS_ASYNC_FUNCTION_OBJECT_TYPE)                \
   V(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)              \
   V(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)                             \
   V(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)          \

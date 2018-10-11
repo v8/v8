@@ -214,6 +214,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
   Node* closure = NodeProperties::GetValueInput(node, 0);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
@@ -222,59 +223,27 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
   dependencies()->DependOnProtector(
       PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
 
-  // TODO(turbofan): We should have a static way to get to the
-  // required size of the register file here.
-  HeapObjectMatcher m(closure);
-  if (m.HasValue()) {
-    // TODO(turbofan): Introduce a dedicated operator
-    // JSCreateAsyncFunctionObject for this and lower
-    // during JSCreateLowering instead.
-    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
-    Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+  // Create the promise for the async function.
+  Node* promise = effect =
+      graph()->NewNode(javascript()->CreatePromise(), context, effect);
 
-    // Allocate a register file.
-    int size = shared->internal_formal_parameter_count() +
-               shared->GetBytecodeArray()->register_count();
-    AllocationBuilder ab(jsgraph(), effect, control);
-    ab.AllocateArray(size, factory()->fixed_array_map());
-    for (int i = 0; i < size; ++i) {
-      ab.Store(AccessBuilder::ForFixedArraySlot(i),
-               jsgraph()->UndefinedConstant());
-    }
-    Node* parameters_and_registers = effect = ab.Finish();
-
-    // Emit code to allocate the JSAsyncFunctionObject instance.
-    AllocationBuilder a(jsgraph(), effect, control);
-    a.Allocate(JSGeneratorObject::kSize);
-    Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
-    Node* undefined = jsgraph()->UndefinedConstant();
-    a.Store(AccessBuilder::ForMap(),
-            native_context().async_function_object_map());
-    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), empty_fixed_array);
-    a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
-    a.Store(AccessBuilder::ForJSGeneratorObjectContext(), context);
-    a.Store(AccessBuilder::ForJSGeneratorObjectFunction(), closure);
-    a.Store(AccessBuilder::ForJSGeneratorObjectReceiver(), receiver);
-    a.Store(AccessBuilder::ForJSGeneratorObjectInputOrDebugPos(), undefined);
-    a.Store(AccessBuilder::ForJSGeneratorObjectResumeMode(),
-            jsgraph()->Constant(JSGeneratorObject::kNext));
-    a.Store(AccessBuilder::ForJSGeneratorObjectContinuation(),
-            jsgraph()->Constant(JSGeneratorObject::kGeneratorExecuting));
-    a.Store(AccessBuilder::ForJSGeneratorObjectParametersAndRegisters(),
-            parameters_and_registers);
-    Node* value = effect = a.Finish();
-
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
-  }
-
-  return NoChange();
+  // Create the JSAsyncFunctionObject based on the SharedFunctionInfo
+  // extracted from the top-most frame in {frame_state}.
+  Handle<SharedFunctionInfo> shared =
+      FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked();
+  int register_count = shared->internal_formal_parameter_count() +
+                       shared->GetBytecodeArray()->register_count();
+  Node* value = effect =
+      graph()->NewNode(javascript()->CreateAsyncFunctionObject(register_count),
+                       closure, receiver, promise, context, effect, control);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
     Node* node) {
   DCHECK_EQ(IrOpcode::kJSAsyncFunctionReject, node->opcode());
-  Node* promise = NodeProperties::GetValueInput(node, 0);
+  Node* async_function_object = NodeProperties::GetValueInput(node, 0);
   Node* reason = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
@@ -285,6 +254,11 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
   // Install a code dependency on the promise hook protector cell.
   dependencies()->DependOnProtector(
       PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+
+  // Load the promise from the {async_function_object}.
+  Node* promise = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSAsyncFunctionObjectPromise()),
+      async_function_object, effect, control);
 
   // Create a nested frame state inside the current method's most-recent
   // {frame_state} that will ensure that lazy deoptimizations at this
@@ -308,7 +282,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
 Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
     Node* node) {
   DCHECK_EQ(IrOpcode::kJSAsyncFunctionResolve, node->opcode());
-  Node* promise = NodeProperties::GetValueInput(node, 0);
+  Node* async_function_object = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
@@ -319,6 +293,11 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
   // Install a code dependency on the promise hook protector cell.
   dependencies()->DependOnProtector(
       PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+
+  // Load the promise from the {async_function_object}.
+  Node* promise = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSAsyncFunctionObjectPromise()),
+      async_function_object, effect, control);
 
   // Create a nested frame state inside the current method's most-recent
   // {frame_state} that will ensure that lazy deoptimizations at this
