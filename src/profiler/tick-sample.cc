@@ -265,7 +265,8 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
       if (HAS_HEAP_OBJECT_TAG(bytecode_array) && HAS_SMI_TAG(bytecode_offset)) {
         frames[i++] = reinterpret_cast<void*>(
             reinterpret_cast<i::Address>(bytecode_array) +
-            i::Internals::SmiValue(bytecode_offset));
+            i::Internals::SmiValue(
+                reinterpret_cast<i::Address>(bytecode_offset)));
         continue;
       }
     }

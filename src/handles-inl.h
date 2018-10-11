@@ -122,6 +122,22 @@ Object** HandleScope::CreateHandle(Isolate* isolate, Object* value) {
   return result;
 }
 
+Address* HandleScope::CreateHandle(Isolate* isolate, Address value_address) {
+  DCHECK(AllowHandleAllocation::IsAllowed());
+  HandleScopeData* data = isolate->handle_scope_data();
+  Address* result = reinterpret_cast<Address*>(data->next);
+  if (result == reinterpret_cast<Address*>(data->limit)) {
+    result = reinterpret_cast<Address*>(Extend(isolate));
+  }
+  // Update the current next field, set the value in the created handle,
+  // and return the result.
+  DCHECK_LT(reinterpret_cast<Address>(result),
+            reinterpret_cast<Address>(data->limit));
+  data->next = reinterpret_cast<Object**>(reinterpret_cast<Address>(result) +
+                                          sizeof(Address));
+  *result = value_address;
+  return result;
+}
 
 Object** HandleScope::GetHandle(Isolate* isolate, Object* value) {
   DCHECK(AllowHandleAllocation::IsAllowed());

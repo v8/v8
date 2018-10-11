@@ -3652,7 +3652,7 @@ Address Heap::builtin_address(int index) {
 
 void Heap::set_builtin(int index, HeapObject* builtin) {
   DCHECK(Builtins::IsBuiltinId(index));
-  DCHECK(Internals::HasHeapObjectTag(builtin));
+  DCHECK(Internals::HasHeapObjectTag(reinterpret_cast<Address>(builtin)));
   // The given builtin may be completely uninitialized thus we cannot check its
   // type here.
   builtins_table()[index] = builtin;
@@ -4490,11 +4490,12 @@ void Heap::TracePossibleWrapper(JSObject* js_object) {
   }
 }
 
-void Heap::RegisterExternallyReferencedObject(Object** object) {
+void Heap::RegisterExternallyReferencedObject(Address* location) {
   // The embedder is not aware of whether numbers are materialized as heap
   // objects are just passed around as Smis.
-  if (!(*object)->IsHeapObject()) return;
-  HeapObject* heap_object = HeapObject::cast(*object);
+  Object* object = *reinterpret_cast<Object**>(location);
+  if (!object->IsHeapObject()) return;
+  HeapObject* heap_object = HeapObject::cast(object);
   DCHECK(Contains(heap_object));
   if (FLAG_incremental_marking_wrappers && incremental_marking()->IsMarking()) {
     incremental_marking()->WhiteToGreyAndPush(heap_object);

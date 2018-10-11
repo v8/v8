@@ -20,7 +20,8 @@ class Isolate;
 
 namespace internal {
 
-class Object;
+typedef uintptr_t Address;
+static const Address kNullAddress = 0;
 
 /**
  * Configuration of tagging scheme.
@@ -45,11 +46,11 @@ template <size_t tagged_ptr_size>
 struct SmiTagging;
 
 template <int kSmiShiftSize>
-V8_INLINE internal::Object* IntToSmi(int value) {
+V8_INLINE internal::Address IntToSmi(int value) {
   int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-  intptr_t tagged_value =
-      (static_cast<intptr_t>(value) << smi_shift_bits) | kSmiTag;
-  return reinterpret_cast<internal::Object*>(tagged_value);
+  uintptr_t tagged_value =
+      (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
+  return static_cast<internal::Address>(tagged_value);
 }
 
 // Smi constants for systems where tagged pointer is a 32-bit value.
@@ -58,19 +59,19 @@ struct SmiTagging<4> {
   enum { kSmiShiftSize = 0, kSmiValueSize = 31 };
   static int SmiShiftSize() { return kSmiShiftSize; }
   static int SmiValueSize() { return kSmiValueSize; }
-  V8_INLINE static int SmiToInt(const internal::Object* value) {
+  V8_INLINE static int SmiToInt(const internal::Address value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
-    // Throw away top 32 bits and shift down (requires >> to be sign extending).
-    return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
+    // Shift down (requires >> to be sign extending).
+    return static_cast<int>(static_cast<intptr_t>(value)) >> shift_bits;
   }
-  V8_INLINE static internal::Object* IntToSmi(int value) {
+  V8_INLINE static internal::Address IntToSmi(int value) {
     return internal::IntToSmi<kSmiShiftSize>(value);
   }
   V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
     // To be representable as an tagged small integer, the two
     // most-significant bits of 'value' must be either 00 or 11 due to
     // sign-extension. To check this we add 01 to the two
-    // most-significant bits, and check if the most-significant bit is 0
+    // most-significant bits, and check if the most-significant bit is 0.
     //
     // CAUTION: The original code below:
     // bool result = ((value + 0x40000000) & 0x80000000) == 0;
@@ -88,12 +89,12 @@ struct SmiTagging<8> {
   enum { kSmiShiftSize = 31, kSmiValueSize = 32 };
   static int SmiShiftSize() { return kSmiShiftSize; }
   static int SmiValueSize() { return kSmiValueSize; }
-  V8_INLINE static int SmiToInt(const internal::Object* value) {
+  V8_INLINE static int SmiToInt(const internal::Address value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Shift down and throw away top 32 bits.
-    return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
+    return static_cast<int>(static_cast<intptr_t>(value) >> shift_bits);
   }
-  V8_INLINE static internal::Object* IntToSmi(int value) {
+  V8_INLINE static internal::Address IntToSmi(int value) {
     return internal::IntToSmi<kSmiShiftSize>(value);
   }
   V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
@@ -191,16 +192,15 @@ class Internals {
 #endif
   }
 
-  V8_INLINE static bool HasHeapObjectTag(const internal::Object* value) {
-    return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
-            kHeapObjectTag);
+  V8_INLINE static bool HasHeapObjectTag(const internal::Address value) {
+    return (value & kHeapObjectTagMask) == static_cast<Address>(kHeapObjectTag);
   }
 
-  V8_INLINE static int SmiValue(const internal::Object* value) {
+  V8_INLINE static int SmiValue(const internal::Address value) {
     return PlatformSmiTagging::SmiToInt(value);
   }
 
-  V8_INLINE static internal::Object* IntToSmi(int value) {
+  V8_INLINE static internal::Address IntToSmi(int value) {
     return PlatformSmiTagging::IntToSmi(value);
   }
 
@@ -208,15 +208,14 @@ class Internals {
     return PlatformSmiTagging::IsValidSmi(value);
   }
 
-  V8_INLINE static int GetInstanceType(const internal::Object* obj) {
-    typedef internal::Object O;
-    O* map = ReadField<O*>(obj, kHeapObjectMapOffset);
+  V8_INLINE static int GetInstanceType(const internal::Address obj) {
+    typedef internal::Address A;
+    A map = ReadField<A>(obj, kHeapObjectMapOffset);
     return ReadField<uint16_t>(map, kMapInstanceTypeOffset);
   }
 
-  V8_INLINE static int GetOddballKind(const internal::Object* obj) {
-    typedef internal::Object O;
-    return SmiValue(ReadField<O*>(obj, kOddballKindOffset));
+  V8_INLINE static int GetOddballKind(const internal::Address obj) {
+    return SmiValue(ReadField<internal::Address>(obj, kOddballKindOffset));
   }
 
   V8_INLINE static bool IsExternalTwoByteString(int instance_type) {
@@ -224,63 +223,66 @@ class Internals {
     return representation == kExternalTwoByteRepresentationTag;
   }
 
-  V8_INLINE static uint8_t GetNodeFlag(internal::Object** obj, int shift) {
+  V8_INLINE static uint8_t GetNodeFlag(internal::Address* obj, int shift) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
     return *addr & static_cast<uint8_t>(1U << shift);
   }
 
-  V8_INLINE static void UpdateNodeFlag(internal::Object** obj, bool value,
+  V8_INLINE static void UpdateNodeFlag(internal::Address* obj, bool value,
                                        int shift) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
     uint8_t mask = static_cast<uint8_t>(1U << shift);
     *addr = static_cast<uint8_t>((*addr & ~mask) | (value << shift));
   }
 
-  V8_INLINE static uint8_t GetNodeState(internal::Object** obj) {
+  V8_INLINE static uint8_t GetNodeState(internal::Address* obj) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
     return *addr & kNodeStateMask;
   }
 
-  V8_INLINE static void UpdateNodeState(internal::Object** obj, uint8_t value) {
+  V8_INLINE static void UpdateNodeState(internal::Address* obj, uint8_t value) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
     *addr = static_cast<uint8_t>((*addr & ~kNodeStateMask) | value);
   }
 
   V8_INLINE static void SetEmbedderData(v8::Isolate* isolate, uint32_t slot,
                                         void* data) {
-    uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) +
-                    kIsolateEmbedderDataOffset + slot * kApiPointerSize;
+    internal::Address addr = reinterpret_cast<internal::Address>(isolate) +
+                             kIsolateEmbedderDataOffset +
+                             slot * kApiPointerSize;
     *reinterpret_cast<void**>(addr) = data;
   }
 
   V8_INLINE static void* GetEmbedderData(const v8::Isolate* isolate,
                                          uint32_t slot) {
-    const uint8_t* addr = reinterpret_cast<const uint8_t*>(isolate) +
-                          kIsolateEmbedderDataOffset + slot * kApiPointerSize;
+    internal::Address addr = reinterpret_cast<internal::Address>(isolate) +
+                             kIsolateEmbedderDataOffset +
+                             slot * kApiPointerSize;
     return *reinterpret_cast<void* const*>(addr);
   }
 
-  V8_INLINE static internal::Object** GetRoot(v8::Isolate* isolate, int index) {
-    uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) + kIsolateRootsOffset;
-    return reinterpret_cast<internal::Object**>(addr + index * kApiPointerSize);
+  V8_INLINE static internal::Address* GetRoot(v8::Isolate* isolate, int index) {
+    internal::Address addr =
+        reinterpret_cast<internal::Address>(isolate) + kIsolateRootsOffset;
+    return reinterpret_cast<internal::Address*>(addr + index * kApiPointerSize);
   }
 
   template <typename T>
-  V8_INLINE static T ReadField(const internal::Object* ptr, int offset) {
-    const uint8_t* addr =
-        reinterpret_cast<const uint8_t*>(ptr) + offset - kHeapObjectTag;
+  V8_INLINE static T ReadField(const internal::Address heap_object_ptr,
+                               int offset) {
+    internal::Address addr = heap_object_ptr + offset - kHeapObjectTag;
     return *reinterpret_cast<const T*>(addr);
   }
 
   template <typename T>
   V8_INLINE static T ReadEmbedderData(const v8::Context* context, int index) {
-    typedef internal::Object O;
+    typedef internal::Address A;
     typedef internal::Internals I;
-    O* ctx = *reinterpret_cast<O* const*>(context);
+    A ctx = *reinterpret_cast<const A*>(context);
     int embedder_data_offset =
         I::kContextHeaderSize +
         (internal::kApiPointerSize * I::kContextEmbedderDataIndex);
-    O* embedder_data = I::ReadField<O*>(ctx, embedder_data_offset);
+    A embedder_data = I::ReadField<A>(ctx, embedder_data_offset);
     int value_offset =
         I::kFixedArrayHeaderSize + (internal::kApiPointerSize * index);
     return I::ReadField<T>(embedder_data, value_offset);

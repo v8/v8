@@ -61,7 +61,8 @@ inline JSObject* FunctionCallbackArguments::holder() {
   }                                                                      \
   VMState<EXTERNAL> state(ISOLATE);                                      \
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));           \
-  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(begin());
+  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(                   \
+      reinterpret_cast<Address*>(begin()));
 
 #define PREPARE_CALLBACK_INFO_FAIL_SIDE_EFFECT_CHECK(ISOLATE, F, RETURN_VALUE, \
                                                      API_RETURN_TYPE)          \
@@ -70,7 +71,8 @@ inline JSObject* FunctionCallbackArguments::holder() {
   }                                                                            \
   VMState<EXTERNAL> state(ISOLATE);                                            \
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));                 \
-  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(begin());
+  PropertyCallbackInfo<API_RETURN_TYPE> callback_info(                         \
+      reinterpret_cast<Address*>(begin()));
 
 #define CREATE_NAMED_CALLBACK(FUNCTION, TYPE, RETURN_TYPE, API_RETURN_TYPE,   \
                               INFO_FOR_SIDE_EFFECT)                           \
@@ -136,7 +138,9 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo* handler) {
   }
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-  FunctionCallbackInfo<v8::Value> info(begin(), argv_, argc_);
+  FunctionCallbackInfo<v8::Value> info(reinterpret_cast<Address*>(begin()),
+                                       reinterpret_cast<Address*>(argv_),
+                                       argc_);
   f(info);
   return GetReturnValue<Object>(isolate);
 }

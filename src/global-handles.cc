@@ -537,24 +537,31 @@ Handle<Object> GlobalHandles::Create(Object* value) {
   return result->handle();
 }
 
+Handle<Object> GlobalHandles::Create(Address value) {
+  return Create(reinterpret_cast<Object*>(value));
+}
 
-Handle<Object> GlobalHandles::CopyGlobal(Object** location) {
+Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   DCHECK_NOT_NULL(location);
   GlobalHandles* global_handles =
-      Node::FromLocation(location)->GetGlobalHandles();
+      Node::FromLocation(reinterpret_cast<Object**>(location))
+          ->GetGlobalHandles();
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
-    (*location)->ObjectVerify(global_handles->isolate());
+    (*reinterpret_cast<Object**>(location))
+        ->ObjectVerify(global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);
 }
 
-
 void GlobalHandles::Destroy(Object** location) {
   if (location != nullptr) Node::FromLocation(location)->Release();
 }
 
+void GlobalHandles::Destroy(Address* location) {
+  Destroy(reinterpret_cast<Object**>(location));
+}
 
 typedef v8::WeakCallbackInfo<void>::Callback GenericCallback;
 
@@ -565,17 +572,35 @@ void GlobalHandles::MakeWeak(Object** location, void* parameter,
   Node::FromLocation(location)->MakeWeak(parameter, phantom_callback, type);
 }
 
+void GlobalHandles::MakeWeak(Address* location, void* parameter,
+                             GenericCallback phantom_callback,
+                             v8::WeakCallbackType type) {
+  Node::FromLocation(reinterpret_cast<Object**>(location))
+      ->MakeWeak(parameter, phantom_callback, type);
+}
+
 void GlobalHandles::MakeWeak(Object*** location_addr) {
   Node::FromLocation(*location_addr)->MakeWeak(location_addr);
 }
 
-void* GlobalHandles::ClearWeakness(Object** location) {
-  return Node::FromLocation(location)->ClearWeakness();
+void GlobalHandles::MakeWeak(Address** location_addr) {
+  MakeWeak(reinterpret_cast<Object***>(location_addr));
+}
+
+void* GlobalHandles::ClearWeakness(Address* location) {
+  return Node::FromLocation(reinterpret_cast<Object**>(location))
+      ->ClearWeakness();
 }
 
 void GlobalHandles::AnnotateStrongRetainer(Object** location,
                                            const char* label) {
   Node::FromLocation(location)->AnnotateStrongRetainer(label);
+}
+
+void GlobalHandles::AnnotateStrongRetainer(Address* location,
+                                           const char* label) {
+  Node::FromLocation(reinterpret_cast<Object**>(location))
+      ->AnnotateStrongRetainer(label);
 }
 
 bool GlobalHandles::IsNearDeath(Object** location) {

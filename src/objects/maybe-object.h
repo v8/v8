@@ -130,7 +130,7 @@ class HeapObjectReference : public MaybeObject {
 
   static void Update(HeapObjectReference** slot, HeapObject* value) {
     DCHECK(!HAS_SMI_TAG(*slot));
-    DCHECK(Internals::HasHeapObjectTag(value));
+    DCHECK(Internals::HasHeapObjectTag(reinterpret_cast<Address>(value)));
 
 #ifdef DEBUG
     bool weak_before = HasWeakHeapObjectTag(*slot);

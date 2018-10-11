@@ -121,6 +121,11 @@ class Handle final : public HandleBase {
   V8_INLINE T** location() const {
     return reinterpret_cast<T**>(HandleBase::location());
   }
+  // TODO(jkummerow): This is temporary; eventually location() should
+  // return an Address*.
+  V8_INLINE Address* location_as_address_ptr() const {
+    return reinterpret_cast<Address*>(HandleBase::location());
+  }
 
   template <typename S>
   inline static const Handle<T> cast(Handle<S> that);
@@ -185,6 +190,8 @@ class HandleScope {
 
   // Creates a new handle with the given value.
   V8_INLINE static Object** CreateHandle(Isolate* isolate, Object* value);
+  V8_INLINE static Address* CreateHandle(Isolate* isolate,
+                                         Address value_address);
 
   // Deallocates any extensions used by the current scope.
   V8_EXPORT_PRIVATE static void DeleteExtensions(Isolate* isolate);
