@@ -6,6 +6,7 @@
 #define V8_WASM_WASM_OPCODES_H_
 
 #include "src/globals.h"
+#include "src/message-template.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-constants.h"
 
@@ -581,7 +582,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   // this one in the current block are dead. Returns false for |end|.
   static bool IsUnconditionalJump(WasmOpcode opcode);
 
-  static int TrapReasonToMessageId(TrapReason reason);
+  static MessageTemplate TrapReasonToMessageId(TrapReason reason);
   static const char* TrapReasonMessage(TrapReason reason);
 };
 

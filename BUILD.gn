@@ -675,7 +675,7 @@ action("js2c") {
   # NOSORT
   sources = [
     "src/js/macros.py",
-    "src/messages.h",
+    "src/message-template.h",
     "src/js/prologue.js",
     "src/js/array.js",
     "src/js/typedarray.js",
@@ -2170,6 +2170,7 @@ v8_source_set("v8_base") {
     "src/math-random.h",
     "src/maybe-handles-inl.h",
     "src/maybe-handles.h",
+    "src/message-template.h",
     "src/messages.cc",
     "src/messages.h",
     "src/msan.h",

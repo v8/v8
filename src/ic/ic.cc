@@ -294,9 +294,8 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   }
 }
 
-
-MaybeHandle<Object> IC::TypeError(MessageTemplate::Template index,
-                                  Handle<Object> object, Handle<Object> key) {
+MaybeHandle<Object> IC::TypeError(MessageTemplate index, Handle<Object> object,
+                                  Handle<Object> key) {
   HandleScope scope(isolate());
   THROW_NEW_ERROR(isolate(), NewTypeError(index, key, object), Object);
 }

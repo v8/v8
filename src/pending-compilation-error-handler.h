@@ -10,7 +10,7 @@
 #include "src/base/macros.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 
 namespace v8 {
 namespace internal {
@@ -30,18 +30,15 @@ class PendingCompilationErrorHandler {
         error_type_(kSyntaxError) {}
 
   void ReportMessageAt(int start_position, int end_position,
-                       MessageTemplate::Template message,
-                       const char* arg = nullptr,
+                       MessageTemplate message, const char* arg = nullptr,
                        ParseErrorType error_type = kSyntaxError);
 
   void ReportMessageAt(int start_position, int end_position,
-                       MessageTemplate::Template message,
-                       const AstRawString* arg,
+                       MessageTemplate message, const AstRawString* arg,
                        ParseErrorType error_type = kSyntaxError);
 
   void ReportWarningAt(int start_position, int end_position,
-                       MessageTemplate::Template message,
-                       const char* arg = nullptr);
+                       MessageTemplate message, const char* arg = nullptr);
 
   bool stack_overflow() const { return stack_overflow_; }
 
@@ -79,7 +76,7 @@ class PendingCompilationErrorHandler {
           arg_(nullptr),
           char_arg_(nullptr) {}
     MessageDetails(int start_position, int end_position,
-                   MessageTemplate::Template message, const AstRawString* arg,
+                   MessageTemplate message, const AstRawString* arg,
                    const char* char_arg)
         : start_position_(start_position),
           end_position_(end_position),
@@ -89,12 +86,12 @@ class PendingCompilationErrorHandler {
 
     Handle<String> ArgumentString(Isolate* isolate) const;
     MessageLocation GetLocation(Handle<Script> script) const;
-    MessageTemplate::Template message() const { return message_; }
+    MessageTemplate message() const { return message_; }
 
    private:
     int start_position_;
     int end_position_;
-    MessageTemplate::Template message_;
+    MessageTemplate message_;
     const AstRawString* arg_;
     const char* char_arg_;
   };

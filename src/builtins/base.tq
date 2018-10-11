@@ -87,7 +87,7 @@ type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
-type MessageTemplate constexpr 'MessageTemplate::Template';
+type MessageTemplate constexpr 'MessageTemplate';
 
 type ToIntegerTruncationMode constexpr 'ToIntegerTruncationMode';
 

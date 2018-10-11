@@ -1170,7 +1170,7 @@ Object* Isolate::StackOverflow() {
 
   Handle<JSFunction> fun = range_error_function();
   Handle<Object> msg = factory()->NewStringFromAsciiChecked(
-      MessageTemplate::TemplateString(MessageTemplate::kStackOverflow));
+      MessageFormatter::TemplateString(MessageTemplate::kStackOverflow));
   Handle<Object> no_caller;
   Handle<Object> exception;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

@@ -12,7 +12,7 @@
 #include "src/base/optional.h"
 #include "src/bootstrapper.h"
 #include "src/counters.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/scope-info.h"

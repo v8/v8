@@ -10,6 +10,7 @@
 #include "src/base/macros.h"
 #include "src/compiler/code-assembler.h"
 #include "src/globals.h"
+#include "src/message-template.h"
 #include "src/objects.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
@@ -1869,16 +1870,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Throws a TypeError for {method_name} if {value} is not a JSReceiver.
   // Returns the {value}'s map.
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
-                             MessageTemplate::Template msg_template,
+                             MessageTemplate msg_template,
                              const char* method_name = nullptr);
 
-  void ThrowRangeError(Node* context, MessageTemplate::Template message,
+  void ThrowRangeError(Node* context, MessageTemplate message,
                        Node* arg0 = nullptr, Node* arg1 = nullptr,
                        Node* arg2 = nullptr);
-  void ThrowTypeError(Node* context, MessageTemplate::Template message,
+  void ThrowTypeError(Node* context, MessageTemplate message,
                       char const* arg0 = nullptr, char const* arg1 = nullptr);
-  void ThrowTypeError(Node* context, MessageTemplate::Template message,
-                      Node* arg0, Node* arg1 = nullptr, Node* arg2 = nullptr);
+  void ThrowTypeError(Node* context, MessageTemplate message, Node* arg0,
+                      Node* arg1 = nullptr, Node* arg2 = nullptr);
 
   // Type checks.
   // Check whether the map is for an object with special properties, such as a
@@ -2980,8 +2981,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
   template <class... TArgs>
-  Node* MakeTypeError(MessageTemplate::Template message, Node* context,
-                      TArgs... args) {
+  Node* MakeTypeError(MessageTemplate message, Node* context, TArgs... args) {
     STATIC_ASSERT(sizeof...(TArgs) <= 3);
     Node* const make_type_error = LoadContextElement(
         LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);

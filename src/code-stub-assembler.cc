@@ -5655,9 +5655,9 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
   return var_value_map.value();
 }
 
-Node* CodeStubAssembler::ThrowIfNotJSReceiver(
-    Node* context, Node* value, MessageTemplate::Template msg_template,
-    const char* method_name) {
+Node* CodeStubAssembler::ThrowIfNotJSReceiver(Node* context, Node* value,
+                                              MessageTemplate msg_template,
+                                              const char* method_name) {
   Label out(this), throw_exception(this, Label::kDeferred);
   VARIABLE(var_value_map, MachineRepresentation::kTagged);
 
@@ -5677,10 +5677,9 @@ Node* CodeStubAssembler::ThrowIfNotJSReceiver(
   return var_value_map.value();
 }
 
-void CodeStubAssembler::ThrowRangeError(Node* context,
-                                        MessageTemplate::Template message,
+void CodeStubAssembler::ThrowRangeError(Node* context, MessageTemplate message,
                                         Node* arg0, Node* arg1, Node* arg2) {
-  Node* template_index = SmiConstant(message);
+  Node* template_index = SmiConstant(static_cast<int>(message));
   if (arg0 == nullptr) {
     CallRuntime(Runtime::kThrowRangeError, context, template_index);
   } else if (arg1 == nullptr) {
@@ -5694,8 +5693,7 @@ void CodeStubAssembler::ThrowRangeError(Node* context,
   Unreachable();
 }
 
-void CodeStubAssembler::ThrowTypeError(Node* context,
-                                       MessageTemplate::Template message,
+void CodeStubAssembler::ThrowTypeError(Node* context, MessageTemplate message,
                                        char const* arg0, char const* arg1) {
   Node* arg0_node = nullptr;
   if (arg0) arg0_node = StringConstant(arg0);
@@ -5704,10 +5702,9 @@ void CodeStubAssembler::ThrowTypeError(Node* context,
   ThrowTypeError(context, message, arg0_node, arg1_node);
 }
 
-void CodeStubAssembler::ThrowTypeError(Node* context,
-                                       MessageTemplate::Template message,
+void CodeStubAssembler::ThrowTypeError(Node* context, MessageTemplate message,
                                        Node* arg0, Node* arg1, Node* arg2) {
-  Node* template_index = SmiConstant(message);
+  Node* template_index = SmiConstant(static_cast<int>(message));
   if (arg0 == nullptr) {
     CallRuntime(Runtime::kThrowTypeError, context, template_index);
   } else if (arg1 == nullptr) {

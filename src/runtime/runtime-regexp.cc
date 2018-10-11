@@ -7,7 +7,7 @@
 #include "src/arguments-inl.h"
 #include "src/conversions-inl.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/jsregexp.h"

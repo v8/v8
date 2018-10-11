@@ -852,7 +852,8 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   {
     if_false = efalse = graph()->NewNode(
         javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-        jsgraph()->Constant(MessageTemplate::kCalledOnNonObject),
+        jsgraph()->Constant(
+            static_cast<int>(MessageTemplate::kCalledOnNonObject)),
         jsgraph()->HeapConstant(
             factory()->NewStringFromAsciiChecked("Reflect.get")),
         context, frame_state, efalse, if_false);
@@ -929,7 +930,8 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   {
     if_false = efalse = graph()->NewNode(
         javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-        jsgraph()->Constant(MessageTemplate::kCalledOnNonObject),
+        jsgraph()->Constant(
+            static_cast<int>(MessageTemplate::kCalledOnNonObject)),
         jsgraph()->HeapConstant(
             factory()->NewStringFromAsciiChecked("Reflect.has")),
         context, frame_state, efalse, if_false);
@@ -2226,8 +2228,9 @@ void JSCallReducer::WireInCallbackIsCallableCheck(
   *check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
   *check_throw = *check_fail = graph()->NewNode(
       javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-      jsgraph()->Constant(MessageTemplate::kCalledNonCallable), fncallback,
-      context, check_frame_state, effect, *check_fail);
+      jsgraph()->Constant(
+          static_cast<int>(MessageTemplate::kCalledNonCallable)),
+      fncallback, context, check_frame_state, effect, *check_fail);
   *control = graph()->NewNode(common()->IfTrue(), check_branch);
 }
 
@@ -3146,10 +3149,10 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     Node* check_branch =
         graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
     Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
-    Node* check_throw = check_fail =
-        graph()->NewNode(javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-                         jsgraph()->Constant(MessageTemplate::kNotConstructor),
-                         new_target, context, frame_state, effect, check_fail);
+    Node* check_throw = check_fail = graph()->NewNode(
+        javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+        jsgraph()->Constant(static_cast<int>(MessageTemplate::kNotConstructor)),
+        new_target, context, frame_state, effect, check_fail);
     control = graph()->NewNode(common()->IfTrue(), check_branch);
     NodeProperties::ReplaceControlInput(node, control);
 

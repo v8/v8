@@ -14,7 +14,6 @@
 #include "src/frames-inl.h"
 #include "src/frames.h"
 #include "src/global-handles.h"
-#include "src/messages.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
 #include "src/snapshot/natives.h"

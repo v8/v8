@@ -18,7 +18,7 @@
 #include "src/counters.h"
 #include "src/globals.h"
 #include "src/log.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/parsing/expression-classifier.h"
 #include "src/parsing/func-name-inferrer.h"
 #include "src/parsing/scanner.h"
@@ -783,7 +783,7 @@ class ParserBase {
     Scanner::Location octal = scanner()->octal_position();
     if (octal.IsValid() && beg_pos <= octal.beg_pos &&
         octal.end_pos <= end_pos) {
-      MessageTemplate::Template message = scanner()->octal_message();
+      MessageTemplate message = scanner()->octal_message();
       DCHECK_NE(message, MessageTemplate::kNone);
       impl()->ReportMessageAt(octal, message);
       scanner()->clear_octal_position();
@@ -871,21 +871,20 @@ class ParserBase {
   }
 
   // Report syntax errors.
-  void ReportMessage(MessageTemplate::Template message) {
+  void ReportMessage(MessageTemplate message) {
     Scanner::Location source_location = scanner()->location();
     impl()->ReportMessageAt(source_location, message,
                             static_cast<const char*>(nullptr), kSyntaxError);
   }
 
   template <typename T>
-  void ReportMessage(MessageTemplate::Template message, T arg,
+  void ReportMessage(MessageTemplate message, T arg,
                      ParseErrorType error_type = kSyntaxError) {
     Scanner::Location source_location = scanner()->location();
     impl()->ReportMessageAt(source_location, message, arg, error_type);
   }
 
-  void ReportMessageAt(Scanner::Location location,
-                       MessageTemplate::Template message,
+  void ReportMessageAt(Scanner::Location location, MessageTemplate message,
                        ParseErrorType error_type) {
     impl()->ReportMessageAt(location, message,
                             static_cast<const char*>(nullptr), error_type);
@@ -894,12 +893,12 @@ class ParserBase {
   void ReportUnexpectedToken(Token::Value token);
   void ReportUnexpectedTokenAt(
       Scanner::Location location, Token::Value token,
-      MessageTemplate::Template message = MessageTemplate::kUnexpectedToken);
+      MessageTemplate message = MessageTemplate::kUnexpectedToken);
 
   void ReportClassifierError(
       const typename ExpressionClassifier::Error& error) {
     if (classifier()->does_error_reporting()) {
-      impl()->ReportMessageAt(error.location, error.message, error.arg);
+      impl()->ReportMessageAt(error.location, error.message(), error.arg);
     } else {
       impl()->ReportUnidentifiableError();
     }
@@ -988,7 +987,7 @@ class ParserBase {
   }
 
   void BindingPatternUnexpectedToken() {
-    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
+    MessageTemplate message = MessageTemplate::kUnexpectedToken;
     const char* arg = nullptr;
     Scanner::Location location = scanner()->peek_location();
     impl()->GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
@@ -996,7 +995,7 @@ class ParserBase {
   }
 
   void ArrowFormalParametersUnexpectedToken() {
-    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
+    MessageTemplate message = MessageTemplate::kUnexpectedToken;
     const char* arg = nullptr;
     Scanner::Location location = scanner()->peek_location();
     impl()->GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
@@ -1262,12 +1261,14 @@ class ParserBase {
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
   // we allow calls for web compatibility and rewrite them to a runtime throw.
-  ExpressionT CheckAndRewriteReferenceExpression(
-      ExpressionT expression, int beg_pos, int end_pos,
-      MessageTemplate::Template message, bool* ok);
-  ExpressionT CheckAndRewriteReferenceExpression(
-      ExpressionT expression, int beg_pos, int end_pos,
-      MessageTemplate::Template message, ParseErrorType type, bool* ok);
+  ExpressionT CheckAndRewriteReferenceExpression(ExpressionT expression,
+                                                 int beg_pos, int end_pos,
+                                                 MessageTemplate message,
+                                                 bool* ok);
+  ExpressionT CheckAndRewriteReferenceExpression(ExpressionT expression,
+                                                 int beg_pos, int end_pos,
+                                                 MessageTemplate message,
+                                                 ParseErrorType type, bool* ok);
 
   bool IsValidReferenceExpression(ExpressionT expression);
 
@@ -1561,7 +1562,7 @@ void ParserBase<Impl>::ReportUnexpectedToken(Token::Value token) {
 template <typename Impl>
 void ParserBase<Impl>::ReportUnexpectedTokenAt(
     Scanner::Location source_location, Token::Value token,
-    MessageTemplate::Template message) {
+    MessageTemplate message) {
   const char* arg = nullptr;
   impl()->GetUnexpectedTokenMessage(token, &message, &source_location, &arg);
   if (Impl::IsPreParser()) {
@@ -4663,18 +4664,21 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::CheckAndRewriteReferenceExpression(
-    ExpressionT expression, int beg_pos, int end_pos,
-    MessageTemplate::Template message, bool* ok) {
+ParserBase<Impl>::CheckAndRewriteReferenceExpression(ExpressionT expression,
+                                                     int beg_pos, int end_pos,
+                                                     MessageTemplate message,
+                                                     bool* ok) {
   return CheckAndRewriteReferenceExpression(expression, beg_pos, end_pos,
                                             message, kReferenceError, ok);
 }
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::CheckAndRewriteReferenceExpression(
-    ExpressionT expression, int beg_pos, int end_pos,
-    MessageTemplate::Template message, ParseErrorType type, bool* ok) {
+ParserBase<Impl>::CheckAndRewriteReferenceExpression(ExpressionT expression,
+                                                     int beg_pos, int end_pos,
+                                                     MessageTemplate message,
+                                                     ParseErrorType type,
+                                                     bool* ok) {
   if (impl()->IsIdentifier(expression) && is_strict(language_mode()) &&
       impl()->IsEvalOrArguments(impl()->AsIdentifier(expression))) {
     ReportMessageAt(Scanner::Location(beg_pos, end_pos),
@@ -5213,7 +5217,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
       impl()->LookupContinueTarget(label, CHECK_OK);
   if (impl()->IsNull(target)) {
     // Illegal continue statement.
-    MessageTemplate::Template message = MessageTemplate::kIllegalContinue;
+    MessageTemplate message = MessageTemplate::kIllegalContinue;
     typename Types::BreakableStatement breakable_target =
         impl()->LookupBreakTarget(label, CHECK_OK);
     if (impl()->IsNull(label)) {
@@ -5256,7 +5260,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
       impl()->LookupBreakTarget(label, CHECK_OK);
   if (impl()->IsNull(target)) {
     // Illegal break statement.
-    MessageTemplate::Template message = MessageTemplate::kIllegalBreak;
+    MessageTemplate message = MessageTemplate::kIllegalBreak;
     if (!impl()->IsNull(label)) {
       message = MessageTemplate::kUnknownLabel;
     }
@@ -6124,12 +6128,11 @@ void ParserBase<Impl>::ClassLiteralChecker::CheckClassMethodName(
     }
   } else if (IsConstructor()) {
     if (flags != ParseFunctionFlag::kIsNormal || IsAccessor(type)) {
-      MessageTemplate::Template msg =
-          (flags & ParseFunctionFlag::kIsGenerator) != 0
-              ? MessageTemplate::kConstructorIsGenerator
-              : (flags & ParseFunctionFlag::kIsAsync) != 0
-                    ? MessageTemplate::kConstructorIsAsync
-                    : MessageTemplate::kConstructorIsAccessor;
+      MessageTemplate msg = (flags & ParseFunctionFlag::kIsGenerator) != 0
+                                ? MessageTemplate::kConstructorIsGenerator
+                                : (flags & ParseFunctionFlag::kIsAsync) != 0
+                                      ? MessageTemplate::kConstructorIsAsync
+                                      : MessageTemplate::kConstructorIsAccessor;
       this->parser()->ReportMessage(msg);
       *ok = false;
       return;

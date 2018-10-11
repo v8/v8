@@ -7,13 +7,15 @@
 
 #include <type_traits>
 
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/parsing/scanner.h"
 
 namespace v8 {
 namespace internal {
 
 class DuplicateFinder;
+template <typename T>
+class ZoneList;
 
 #define ERROR_CODES(T)                       \
   T(ExpressionProduction, 0)                 \
@@ -85,16 +87,22 @@ class ExpressionClassifierBase {
   struct Error {
     V8_INLINE Error()
         : location(Scanner::Location::invalid()),
-          message(MessageTemplate::kNone),
+          message_(static_cast<int>(MessageTemplate::kNone)),
           kind(kUnusedError),
           arg(nullptr) {}
-    V8_INLINE explicit Error(Scanner::Location loc,
-                             MessageTemplate::Template msg, ErrorKind k,
-                             const char* a = nullptr)
-        : location(loc), message(msg), kind(k), arg(a) {}
+    V8_INLINE explicit Error(Scanner::Location loc, MessageTemplate msg,
+                             ErrorKind k, const char* a = nullptr)
+        : location(loc), message_(static_cast<int>(msg)), kind(k), arg(a) {}
 
     Scanner::Location location;
-    MessageTemplate::Template message : 28;
+    // GCC doesn't like storing the enum class directly in 28 bits, so we
+    // have to wrap it in a getter.
+    MessageTemplate message() const {
+      STATIC_ASSERT(static_cast<int>(MessageTemplate::kLastMessage) <
+                    (1 << 28));
+      return static_cast<MessageTemplate>(message_);
+    }
+    int message_ : 28;
     unsigned kind : 4;
     const char* arg;
   };
@@ -459,14 +467,14 @@ class ExpressionClassifier
   V8_INLINE bool does_error_reporting() { return ReportErrors; }
 
   void RecordExpressionError(const Scanner::Location& loc,
-                             MessageTemplate::Template message,
+                             MessageTemplate message,
                              const char* arg = nullptr) {
     this->Add(TP::ExpressionProduction,
               Error(loc, message, ErrorKind::kExpressionProduction, arg));
   }
 
   void RecordFormalParameterInitializerError(const Scanner::Location& loc,
-                                             MessageTemplate::Template message,
+                                             MessageTemplate message,
                                              const char* arg = nullptr) {
     this->Add(TP::FormalParameterInitializerProduction,
               Error(loc, message,
@@ -474,29 +482,28 @@ class ExpressionClassifier
   }
 
   void RecordBindingPatternError(const Scanner::Location& loc,
-                                 MessageTemplate::Template message,
+                                 MessageTemplate message,
                                  const char* arg = nullptr) {
     this->Add(TP::BindingPatternProduction,
               Error(loc, message, ErrorKind::kBindingPatternProduction, arg));
   }
 
   void RecordAssignmentPatternError(const Scanner::Location& loc,
-                                    MessageTemplate::Template message,
+                                    MessageTemplate message,
                                     const char* arg = nullptr) {
     this->Add(
         TP::AssignmentPatternProduction,
         Error(loc, message, ErrorKind::kAssignmentPatternProduction, arg));
   }
 
-  void RecordPatternError(const Scanner::Location& loc,
-                          MessageTemplate::Template message,
+  void RecordPatternError(const Scanner::Location& loc, MessageTemplate message,
                           const char* arg = nullptr) {
     RecordBindingPatternError(loc, message, arg);
     RecordAssignmentPatternError(loc, message, arg);
   }
 
   void RecordArrowFormalParametersError(const Scanner::Location& loc,
-                                        MessageTemplate::Template message,
+                                        MessageTemplate message,
                                         const char* arg = nullptr) {
     this->Add(
         TP::ArrowFormalParametersProduction,
@@ -504,7 +511,7 @@ class ExpressionClassifier
   }
 
   void RecordAsyncArrowFormalParametersError(const Scanner::Location& loc,
-                                             MessageTemplate::Template message,
+                                             MessageTemplate message,
                                              const char* arg = nullptr) {
     this->Add(TP::AsyncArrowFormalParametersProduction,
               Error(loc, message,
@@ -521,7 +528,7 @@ class ExpressionClassifier
   // is not the same as StrictFormalParameterList, which simply forbids
   // duplicate bindings.
   void RecordStrictModeFormalParameterError(const Scanner::Location& loc,
-                                            MessageTemplate::Template message,
+                                            MessageTemplate message,
                                             const char* arg = nullptr) {
     this->Add(TP::StrictModeFormalParametersProduction,
               Error(loc, message,
@@ -529,7 +536,7 @@ class ExpressionClassifier
   }
 
   void RecordLetPatternError(const Scanner::Location& loc,
-                             MessageTemplate::Template message,
+                             MessageTemplate message,
                              const char* arg = nullptr) {
     this->Add(TP::LetPatternProduction,
               Error(loc, message, ErrorKind::kLetPatternProduction, arg));

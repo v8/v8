@@ -306,8 +306,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  Block* finally_block,
                                  const SourceRange& finally_range,
                                  const CatchInfo& catch_info, int pos);
-  void GetUnexpectedTokenMessage(Token::Value token,
-                                 MessageTemplate::Template* message,
+  void GetUnexpectedTokenMessage(Token::Value token, MessageTemplate* message,
                                  Scanner::Location* location, const char** arg);
   void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
                                             ZonePtrList<Statement>* body,
@@ -555,8 +554,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(Runtime::FunctionId function_id,
-                            MessageTemplate::Template message,
-                            const AstRawString* arg, int pos);
+                            MessageTemplate message, const AstRawString* arg,
+                            int pos);
 
   void FinalizeIteratorUse(Variable* completion, Expression* condition,
                            Variable* iter, Block* iterator_use, Block* result,
@@ -756,8 +755,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                    int pos);
 
   // Generate AST node that throws a ReferenceError with the given type.
-  V8_INLINE Expression* NewThrowReferenceError(
-      MessageTemplate::Template message, int pos) {
+  V8_INLINE Expression* NewThrowReferenceError(MessageTemplate message,
+                                               int pos) {
     return NewThrowError(Runtime::kNewReferenceError, message,
                          ast_value_factory()->empty_string(), pos);
   }
@@ -765,22 +764,21 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Generate AST node that throws a SyntaxError with the given
   // type. The first argument may be null (in the handle sense) in
   // which case no arguments are passed to the constructor.
-  V8_INLINE Expression* NewThrowSyntaxError(MessageTemplate::Template message,
+  V8_INLINE Expression* NewThrowSyntaxError(MessageTemplate message,
                                             const AstRawString* arg, int pos) {
     return NewThrowError(Runtime::kNewSyntaxError, message, arg, pos);
   }
 
   // Generate AST node that throws a TypeError with the given
   // type. Both arguments must be non-null (in the handle sense).
-  V8_INLINE Expression* NewThrowTypeError(MessageTemplate::Template message,
+  V8_INLINE Expression* NewThrowTypeError(MessageTemplate message,
                                           const AstRawString* arg, int pos) {
     return NewThrowError(Runtime::kNewTypeError, message, arg, pos);
   }
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate::Template message,
-                       const char* arg = nullptr,
+                       MessageTemplate message, const char* arg = nullptr,
                        ParseErrorType error_type = kSyntaxError) {
     if (stack_overflow()) {
       // Suppress the error message (syntax error or such) in the presence of a
@@ -799,8 +797,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE void ReportUnidentifiableError() { UNREACHABLE(); }
 
   void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate::Template message,
-                       const AstRawString* arg,
+                       MessageTemplate message, const AstRawString* arg,
                        ParseErrorType error_type = kSyntaxError) {
     if (stack_overflow()) {
       // Suppress the error message (syntax error or such) in the presence of a

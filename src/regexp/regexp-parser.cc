@@ -83,7 +83,7 @@ void RegExpParser::Advance() {
         FATAL("Aborting on stack overflow");
       }
       ReportError(CStrVector(
-          MessageTemplate::TemplateString(MessageTemplate::kStackOverflow)));
+          MessageFormatter::TemplateString(MessageTemplate::kStackOverflow)));
     } else if (zone()->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {

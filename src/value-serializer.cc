@@ -965,8 +965,7 @@ Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
   return Just(properties_written);
 }
 
-void ValueSerializer::ThrowDataCloneError(
-    MessageTemplate::Template template_index) {
+void ValueSerializer::ThrowDataCloneError(MessageTemplate template_index) {
   return ThrowDataCloneError(template_index,
                              isolate_->factory()->empty_string());
 }
@@ -979,10 +978,10 @@ Maybe<bool> ValueSerializer::ThrowIfOutOfMemory() {
   return Just(true);
 }
 
-void ValueSerializer::ThrowDataCloneError(
-    MessageTemplate::Template template_index, Handle<Object> arg0) {
+void ValueSerializer::ThrowDataCloneError(MessageTemplate index,
+                                          Handle<Object> arg0) {
   Handle<String> message =
-      MessageTemplate::FormatMessage(isolate_, template_index, arg0);
+      MessageFormatter::FormatMessage(isolate_, index, arg0);
   if (delegate_) {
     delegate_->ThrowDataCloneError(Utils::ToLocal(message));
   } else {

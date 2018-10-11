@@ -695,7 +695,7 @@ MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
 
 // static
 MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
-                                    MessageTemplate::Template error_index) {
+                                    MessageTemplate error_index) {
   if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
   return ConvertToIndex(isolate, input, error_index);
 }
@@ -793,7 +793,6 @@ Isolate* NeverReadOnlySpaceObject::GetIsolate() const {
 Map* HeapObject::map() const {
   return map_word().ToMap();
 }
-
 
 void HeapObject::set_map(Map* value) {
   if (value != nullptr) {

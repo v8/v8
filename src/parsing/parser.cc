@@ -16,7 +16,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/conversions-inl.h"
 #include "src/log.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/scope-info.h"
 #include "src/parsing/expression-scope-reparenter.h"
 #include "src/parsing/parse-info.h"
@@ -79,7 +79,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 }
 
 void Parser::GetUnexpectedTokenMessage(Token::Value token,
-                                       MessageTemplate::Template* message,
+                                       MessageTemplate* message,
                                        Scanner::Location* location,
                                        const char** arg) {
   switch (token) {
@@ -288,11 +288,11 @@ Expression* Parser::BuildUnaryExpression(Expression* expression,
 }
 
 Expression* Parser::NewThrowError(Runtime::FunctionId id,
-                                  MessageTemplate::Template message,
+                                  MessageTemplate message,
                                   const AstRawString* arg, int pos) {
   ZonePtrList<Expression>* args =
       new (zone()) ZonePtrList<Expression>(2, zone());
-  args->Add(factory()->NewSmiLiteral(message, pos), zone());
+  args->Add(factory()->NewSmiLiteral(static_cast<int>(message), pos), zone());
   args->Add(factory()->NewStringLiteral(arg, pos), zone());
   CallRuntime* call_constructor = factory()->NewCallRuntime(id, args, pos);
   return factory()->NewThrow(call_constructor, pos);
@@ -2795,7 +2795,7 @@ Statement* Parser::BuildAssertIsCoercible(Variable* var,
   //     throw /* type error kNonCoercible) */;
   auto source_position = pattern->position();
   const AstRawString* property = ast_value_factory()->empty_string();
-  MessageTemplate::Template msg = MessageTemplate::kNonCoercible;
+  MessageTemplate msg = MessageTemplate::kNonCoercible;
   for (ObjectLiteralProperty* literal_property : *pattern->properties()) {
     Expression* key = literal_property->key();
     if (key->IsPropertyName()) {

@@ -17,7 +17,6 @@
 #include "src/heap/factory.h"
 #include "src/intl.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
 #include "src/objects/intl-objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"

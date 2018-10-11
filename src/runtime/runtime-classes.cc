@@ -12,7 +12,7 @@
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/runtime/runtime.h"
@@ -637,9 +637,9 @@ MaybeHandle<JSReceiver> GetSuperHolder(
   PrototypeIterator iter(isolate, home_object);
   Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
   if (!proto->IsJSReceiver()) {
-    MessageTemplate::Template message =
-        mode == SuperMode::kLoad ? MessageTemplate::kNonObjectPropertyLoad
-                                 : MessageTemplate::kNonObjectPropertyStore;
+    MessageTemplate message = mode == SuperMode::kLoad
+                                  ? MessageTemplate::kNonObjectPropertyLoad
+                                  : MessageTemplate::kNonObjectPropertyStore;
     Handle<Name> name;
     if (!maybe_name.ToHandle(&name)) {
       name = isolate->factory()->Uint32ToString(index);

@@ -1146,7 +1146,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE void GetUnexpectedTokenMessage(Token::Value token,
-                                           MessageTemplate::Template* message,
+                                           MessageTemplate* message,
                                            Scanner::Location* location,
                                            const char** arg) {}
   V8_INLINE void ParseAndRewriteGeneratorFunctionBody(
@@ -1501,27 +1501,24 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void InsertShadowingVarBindingInitializers(
       PreParserStatement block) {}
 
-  V8_INLINE PreParserExpression
-  NewThrowReferenceError(MessageTemplate::Template message, int pos) {
+  V8_INLINE PreParserExpression NewThrowReferenceError(MessageTemplate message,
+                                                       int pos) {
     return PreParserExpression::Default();
   }
 
-  V8_INLINE PreParserExpression
-  NewThrowSyntaxError(MessageTemplate::Template message,
-                      const PreParserIdentifier& arg, int pos) {
+  V8_INLINE PreParserExpression NewThrowSyntaxError(
+      MessageTemplate message, const PreParserIdentifier& arg, int pos) {
     return PreParserExpression::Default();
   }
 
-  V8_INLINE PreParserExpression
-  NewThrowTypeError(MessageTemplate::Template message,
-                    const PreParserIdentifier& arg, int pos) {
+  V8_INLINE PreParserExpression NewThrowTypeError(
+      MessageTemplate message, const PreParserIdentifier& arg, int pos) {
     return PreParserExpression::Default();
   }
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate::Template message,
-                       const char* arg = nullptr,
+                       MessageTemplate message, const char* arg = nullptr,
                        ParseErrorType error_type = kSyntaxError) {
     pending_error_handler()->ReportMessageAt(source_location.beg_pos,
                                              source_location.end_pos, message,
@@ -1533,7 +1530,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,
-                                 MessageTemplate::Template message,
+                                 MessageTemplate message,
                                  const PreParserIdentifier& arg,
                                  ParseErrorType error_type = kSyntaxError) {
     UNREACHABLE();

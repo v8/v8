@@ -795,7 +795,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpPrototypeExecBody(
 }
 
 Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
-    Node* context, Node* maybe_receiver, MessageTemplate::Template msg_template,
+    Node* context, Node* maybe_receiver, MessageTemplate msg_template,
     char const* method_name) {
   Label out(this), throw_exception(this, Label::kDeferred);
   VARIABLE(var_value_map, MachineRepresentation::kTagged);

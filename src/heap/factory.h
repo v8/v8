@@ -800,15 +800,15 @@ class V8_EXPORT_PRIVATE Factory {
   inline Handle<Object> NewURIError();
 
   Handle<Object> NewError(Handle<JSFunction> constructor,
-                          MessageTemplate::Template template_index,
+                          MessageTemplate template_index,
                           Handle<Object> arg0 = Handle<Object>(),
                           Handle<Object> arg1 = Handle<Object>(),
                           Handle<Object> arg2 = Handle<Object>());
 
-#define DECLARE_ERROR(NAME)                                          \
-  Handle<Object> New##NAME(MessageTemplate::Template template_index, \
-                           Handle<Object> arg0 = Handle<Object>(),   \
-                           Handle<Object> arg1 = Handle<Object>(),   \
+#define DECLARE_ERROR(NAME)                                        \
+  Handle<Object> New##NAME(MessageTemplate template_index,         \
+                           Handle<Object> arg0 = Handle<Object>(), \
+                           Handle<Object> arg1 = Handle<Object>(), \
                            Handle<Object> arg2 = Handle<Object>());
   DECLARE_ERROR(Error)
   DECLARE_ERROR(EvalError)
@@ -867,12 +867,9 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<Map> CreateClassFunctionMap(Handle<JSFunction> empty_function);
 
   // Allocates a new JSMessageObject object.
-  Handle<JSMessageObject> NewJSMessageObject(MessageTemplate::Template message,
-                                             Handle<Object> argument,
-                                             int start_position,
-                                             int end_position,
-                                             Handle<Script> script,
-                                             Handle<Object> stack_frames);
+  Handle<JSMessageObject> NewJSMessageObject(
+      MessageTemplate message, Handle<Object> argument, int start_position,
+      int end_position, Handle<Script> script, Handle<Object> stack_frames);
 
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
 

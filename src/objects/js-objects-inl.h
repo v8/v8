@@ -633,7 +633,13 @@ ACCESSORS(JSDate, hour, Object, kHourOffset)
 ACCESSORS(JSDate, min, Object, kMinOffset)
 ACCESSORS(JSDate, sec, Object, kSecOffset)
 
-SMI_ACCESSORS(JSMessageObject, type, kTypeOffset)
+MessageTemplate JSMessageObject::type() const {
+  Object* value = READ_FIELD(this, kTypeOffset);
+  return MessageTemplateFromInt(Smi::ToInt(value));
+}
+void JSMessageObject::set_type(MessageTemplate value) {
+  WRITE_FIELD(this, kTypeOffset, Smi::FromInt(static_cast<int>(value)));
+}
 ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
 ACCESSORS(JSMessageObject, script, Script, kScriptOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)

@@ -11,7 +11,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/module-inl.h"
 #include "src/runtime/runtime-utils.h"
 

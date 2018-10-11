@@ -11,7 +11,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -3440,8 +3440,7 @@ class TypedElementsAccessor
 
       if (V8_UNLIKELY(destination->WasNeutered())) {
         const char* op = "set";
-        const MessageTemplate::Template message =
-            MessageTemplate::kDetachedOperation;
+        const MessageTemplate message = MessageTemplate::kDetachedOperation;
         Handle<String> operation =
             isolate->factory()->NewStringFromAsciiChecked(op);
         THROW_NEW_ERROR_RETURN_FAILURE(isolate,

@@ -12,7 +12,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 
@@ -109,8 +109,8 @@ class IC {
   void TraceIC(const char* type, Handle<Object> name, State old_state,
                State new_state);
 
-  MaybeHandle<Object> TypeError(MessageTemplate::Template,
-                                Handle<Object> object, Handle<Object> key);
+  MaybeHandle<Object> TypeError(MessageTemplate, Handle<Object> object,
+                                Handle<Object> key);
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);

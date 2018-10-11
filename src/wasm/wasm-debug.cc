@@ -209,10 +209,10 @@ class InterpreterHandle {
           finished = true;
           break;
         case WasmInterpreter::State::TRAPPED: {
-          int message_id =
+          MessageTemplate message_id =
               WasmOpcodes::TrapReasonToMessageId(thread->GetTrapReason());
-          Handle<Object> exception = isolate_->factory()->NewWasmRuntimeError(
-              static_cast<MessageTemplate::Template>(message_id));
+          Handle<Object> exception =
+              isolate_->factory()->NewWasmRuntimeError(message_id);
           isolate_->Throw(*exception);
           // Handle this exception. Return without trying to read back the
           // return value.

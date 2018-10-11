@@ -49,7 +49,7 @@
 #include "src/lookup-inl.h"
 #include "src/macro-assembler.h"
 #include "src/map-updater.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
@@ -505,9 +505,9 @@ MaybeHandle<Object> Object::ConvertToLength(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::ConvertToIndex(
-    Isolate* isolate, Handle<Object> input,
-    MessageTemplate::Template error_index) {
+MaybeHandle<Object> Object::ConvertToIndex(Isolate* isolate,
+                                           Handle<Object> input,
+                                           MessageTemplate error_index) {
   if (input->IsUndefined(isolate)) return handle(Smi::kZero, isolate);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input), Object);
   if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
@@ -8567,7 +8567,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
   if (object->map()->has_named_interceptor() ||
       object->map()->has_indexed_interceptor()) {
-    MessageTemplate::Template message = MessageTemplate::kNone;
+    MessageTemplate message = MessageTemplate::kNone;
     switch (attrs) {
       case NONE:
         message = MessageTemplate::kCannotPreventExt;

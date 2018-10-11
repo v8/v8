@@ -160,14 +160,13 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
                                                  Handle<Object> receiver,
                                                  const char* method_name) {
   if (V8_UNLIKELY(!receiver->IsJSTypedArray())) {
-    const MessageTemplate::Template message = MessageTemplate::kNotTypedArray;
+    const MessageTemplate message = MessageTemplate::kNotTypedArray;
     THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
   }
 
   Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
   if (V8_UNLIKELY(array->WasNeutered())) {
-    const MessageTemplate::Template message =
-        MessageTemplate::kDetachedOperation;
+    const MessageTemplate message = MessageTemplate::kDetachedOperation;
     Handle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);

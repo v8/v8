@@ -13,7 +13,7 @@
 #include "src/base/macros.h"
 #include "src/identity-map.h"
 #include "src/maybe-handles.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/vector.h"
 #include "src/zone/zone.h"
 
@@ -151,8 +151,8 @@ class ValueSerializer {
    * Asks the delegate to handle an error that occurred during data cloning, by
    * throwing an exception appropriate for the host.
    */
-  void ThrowDataCloneError(MessageTemplate::Template template_index);
-  V8_NOINLINE void ThrowDataCloneError(MessageTemplate::Template template_index,
+  void ThrowDataCloneError(MessageTemplate template_index);
+  V8_NOINLINE void ThrowDataCloneError(MessageTemplate template_index,
                                        Handle<Object> arg0);
 
   Maybe<bool> ThrowIfOutOfMemory();

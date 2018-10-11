@@ -20,7 +20,7 @@
 #include "src/elements-kind.h"
 #include "src/field-index.h"
 #include "src/flags.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-definitions.h"
 #include "src/property-details.h"
 #include "src/roots.h"
@@ -1231,8 +1231,7 @@ class Object {
 
   // ES6 section 7.1.17 ToIndex
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToIndex(
-      Isolate* isolate, Handle<Object> input,
-      MessageTemplate::Template error_index);
+      Isolate* isolate, Handle<Object> input, MessageTemplate error_index);
 
   // ES6 section 7.3.9 GetMethod
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetMethod(
@@ -1457,12 +1456,10 @@ class Object {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToLength(
       Isolate* isolate, Handle<Object> input);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToIndex(
-      Isolate* isolate, Handle<Object> input,
-      MessageTemplate::Template error_index);
+      Isolate* isolate, Handle<Object> input, MessageTemplate error_index);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
 };
-
 
 // In objects.h to be usable without objects-inl.h inclusion.
 bool Object::IsSmi() const { return HAS_SMI_TAG(this); }

@@ -110,14 +110,15 @@ TF_BUILTIN(WasmGrowMemory, WasmBuiltinsAssembler) {
   ReturnRaw(Int32Constant(-1));
 }
 
-#define DECLARE_ENUM(name)                                                    \
-  TF_BUILTIN(ThrowWasm##name, WasmBuiltinsAssembler) {                        \
-    TNode<Object> instance = LoadInstanceFromFrame();                         \
-    TNode<Code> centry = LoadCEntryFromInstance(instance);                    \
-    TNode<Object> context = LoadContextFromInstance(instance);                \
-    int message_id = wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name); \
-    TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry, context,      \
-                              SmiConstant(message_id));                       \
+#define DECLARE_ENUM(name)                                                \
+  TF_BUILTIN(ThrowWasm##name, WasmBuiltinsAssembler) {                    \
+    TNode<Object> instance = LoadInstanceFromFrame();                     \
+    TNode<Code> centry = LoadCEntryFromInstance(instance);                \
+    TNode<Object> context = LoadContextFromInstance(instance);            \
+    MessageTemplate message_id =                                          \
+        wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name);          \
+    TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry, context,  \
+                              SmiConstant(static_cast<int>(message_id))); \
   }
 FOREACH_WASM_TRAPREASON(DECLARE_ENUM)
 #undef DECLARE_ENUM

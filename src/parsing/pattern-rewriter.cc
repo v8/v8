@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ast/ast.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/parsing/expression-scope-reparenter.h"
 #include "src/parsing/parser.h"

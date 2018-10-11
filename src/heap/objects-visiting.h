@@ -28,6 +28,7 @@ class JSWeakCell;
 class JSWeakCollection;
 class UncompiledDataWithoutPreParsedScope;
 class UncompiledDataWithPreParsedScope;
+class WasmInstanceObject;
 
 #define TYPED_VISITOR_ID_LIST(V)         \
   V(AllocationSite)                      \

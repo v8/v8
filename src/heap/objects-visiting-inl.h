@@ -14,6 +14,7 @@
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
