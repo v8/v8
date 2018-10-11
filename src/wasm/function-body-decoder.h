@@ -28,8 +28,6 @@ namespace wasm {
 struct WasmModule;  // forward declaration of module interface.
 struct WasmFeatures;
 
-typedef compiler::WasmGraphBuilder TFBuilder;
-
 // A wrapper around the signature and bytes of a function.
 struct FunctionBody {
   FunctionSig* sig;   // function signature
@@ -50,8 +48,8 @@ V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           const WasmFeatures& enabled, const WasmModule* module,
-                          TFBuilder* builder, WasmFeatures* detected,
-                          FunctionBody& body,
+                          compiler::WasmGraphBuilder* builder,
+                          WasmFeatures* detected, FunctionBody& body,
                           compiler::NodeOriginTable* node_origins);
 enum PrintLocals { kPrintLocals, kOmitLocals };
 V8_EXPORT_PRIVATE

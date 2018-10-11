@@ -82,7 +82,8 @@ class WasmGraphBuildingInterface {
     int32_t previous_catch;  // previous Control (on the stack) with a catch.
   };
 
-  explicit WasmGraphBuildingInterface(TFBuilder* builder) : builder_(builder) {}
+  explicit WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder)
+      : builder_(builder) {}
 
   void StartFunction(FullDecoder* decoder) {
     SsaEnv* ssa_env =
@@ -499,7 +500,7 @@ class WasmGraphBuildingInterface {
 
  private:
   SsaEnv* ssa_env_;
-  TFBuilder* builder_;
+  compiler::WasmGraphBuilder* builder_;
   uint32_t current_catch_ = kNullCatch;
 
   TryInfo* current_try_info(FullDecoder* decoder) {
@@ -853,7 +854,8 @@ DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           const WasmFeatures& enabled,
-                          const wasm::WasmModule* module, TFBuilder* builder,
+                          const wasm::WasmModule* module,
+                          compiler::WasmGraphBuilder* builder,
                           WasmFeatures* detected, FunctionBody& body,
                           compiler::NodeOriginTable* node_origins) {
   Zone zone(allocator, ZONE_NAME);
