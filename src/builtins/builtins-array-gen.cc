@@ -955,7 +955,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
   {
     TNode<JSArray> array_receiver = CAST(receiver);
     CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
-    Node* length =
+    TNode<IntPtrT> length =
         LoadAndUntagObjectField(array_receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
@@ -964,15 +964,15 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
     EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
 
     // 3) Check that the elements backing store isn't copy-on-write.
-    Node* elements = LoadElements(array_receiver);
+    TNode<FixedArrayBase> elements = LoadElements(array_receiver);
     GotoIf(WordEqual(LoadMap(elements), LoadRoot(RootIndex::kFixedCOWArrayMap)),
            &runtime);
 
-    Node* new_length = IntPtrSub(length, IntPtrConstant(1));
+    TNode<IntPtrT> new_length = IntPtrSub(length, IntPtrConstant(1));
 
     // 4) Check that we're not supposed to shrink the backing store, as
     //    implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
-    Node* capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
+    TNode<IntPtrT> capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
     GotoIf(IntPtrLessThan(
                IntPtrAdd(IntPtrAdd(new_length, new_length),
                          IntPtrConstant(JSObject::kMinAddedElementsCapacity)),
@@ -987,26 +987,10 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
                                 Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
            &fast_elements);
 
-    Node* value = LoadFixedDoubleArrayElement(
-        elements, new_length, MachineType::Float64(), 0, INTPTR_PARAMETERS,
-        &return_undefined);
+    Node* value = LoadFixedDoubleArrayElement(CAST(elements), new_length,
+                                              &return_undefined);
 
-    int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
-    Node* offset = ElementOffsetFromIndex(new_length, HOLEY_DOUBLE_ELEMENTS,
-                                          INTPTR_PARAMETERS, header_size);
-    if (Is64()) {
-      Node* double_hole = Int64Constant(kHoleNanInt64);
-      StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
-                          double_hole);
-    } else {
-      STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
-      Node* double_hole = Int32Constant(kHoleNanLower32);
-      StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
-                          double_hole);
-      StoreNoWriteBarrier(MachineRepresentation::kWord32, elements,
-                          IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
-                          double_hole);
-    }
+    StoreFixedDoubleArrayHole(CAST(elements), new_length);
     args.PopAndReturn(AllocateHeapNumberWithValue(value));
 
     BIND(&fast_elements);
@@ -1532,18 +1516,18 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
     //    read-only length.
     EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
 
-    Node* length =
+    TNode<IntPtrT> length =
         LoadAndUntagObjectField(array_receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements_tagged(this),
         fast_elements_smi(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 3) Check that the elements backing store isn't copy-on-write.
-    Node* elements = LoadElements(array_receiver);
+    TNode<FixedArrayBase> elements = LoadElements(array_receiver);
     GotoIf(WordEqual(LoadMap(elements), LoadRoot(RootIndex::kFixedCOWArrayMap)),
            &runtime);
 
-    Node* new_length = IntPtrSub(length, IntPtrConstant(1));
+    TNode<IntPtrT> new_length = IntPtrSub(length, IntPtrConstant(1));
 
     // 4) Check that we're not supposed to right-trim the backing store, as
     //    implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
@@ -1563,6 +1547,8 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
     StoreObjectFieldNoWriteBarrier(array_receiver, JSArray::kLengthOffset,
                                    SmiTag(new_length));
 
+    TNode<IntPtrT> element_zero = IntPtrConstant(0);
+    TNode<IntPtrT> element_one = IntPtrConstant(1);
     TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
     GotoIf(
         Int32LessThanOrEqual(elements_kind, Int32Constant(HOLEY_SMI_ELEMENTS)),
@@ -1580,37 +1566,13 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
 
       Label move_elements(this);
       result.Bind(AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
-          elements, IntPtrConstant(0), MachineType::Float64(), 0,
-          INTPTR_PARAMETERS, &move_elements)));
+          CAST(elements), element_zero, &move_elements)));
       Goto(&move_elements);
       BIND(&move_elements);
 
-      int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
-      Node* memmove =
-          ExternalConstant(ExternalReference::libc_memmove_function());
-      Node* start = IntPtrAdd(
-          BitcastTaggedToWord(elements),
-          ElementOffsetFromIndex(IntPtrConstant(0), HOLEY_DOUBLE_ELEMENTS,
-                                 INTPTR_PARAMETERS, header_size));
-      CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
-                     MachineType::Pointer(), MachineType::UintPtr(), memmove,
-                     start, IntPtrAdd(start, IntPtrConstant(kDoubleSize)),
-                     IntPtrMul(new_length, IntPtrConstant(kDoubleSize)));
-      Node* offset = ElementOffsetFromIndex(new_length, HOLEY_DOUBLE_ELEMENTS,
-                                            INTPTR_PARAMETERS, header_size);
-      if (Is64()) {
-        Node* double_hole = Int64Constant(kHoleNanInt64);
-        StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
-                            double_hole);
-      } else {
-        STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
-        Node* double_hole = Int32Constant(kHoleNanLower32);
-        StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
-                            double_hole);
-        StoreNoWriteBarrier(MachineRepresentation::kWord32, elements,
-                            IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
-                            double_hole);
-      }
+      MoveElements(HOLEY_DOUBLE_ELEMENTS, elements, element_zero, element_one,
+                   new_length);
+      StoreFixedDoubleArrayHole(CAST(elements), new_length);
       args.PopAndReturn(result.value());
     }
 
@@ -1618,15 +1580,8 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
     {
       TNode<FixedArray> elements_fixed_array = CAST(elements);
       Node* value = LoadFixedArrayElement(elements_fixed_array, 0);
-      BuildFastLoop(
-          IntPtrConstant(0), new_length,
-          [&](Node* index) {
-            StoreFixedArrayElement(
-                elements_fixed_array, index,
-                LoadFixedArrayElement(elements_fixed_array,
-                                      IntPtrAdd(index, IntPtrConstant(1))));
-          },
-          1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      MoveElements(HOLEY_ELEMENTS, elements, element_zero, element_one,
+                   new_length);
       StoreFixedArrayElement(elements_fixed_array, new_length,
                              TheHoleConstant());
       GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
@@ -1637,16 +1592,8 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
     {
       TNode<FixedArray> elements_fixed_array = CAST(elements);
       Node* value = LoadFixedArrayElement(elements_fixed_array, 0);
-      BuildFastLoop(
-          IntPtrConstant(0), new_length,
-          [&](Node* index) {
-            StoreFixedArrayElement(
-                elements_fixed_array, index,
-                LoadFixedArrayElement(elements_fixed_array,
-                                      IntPtrAdd(index, IntPtrConstant(1))),
-                SKIP_WRITE_BARRIER);
-          },
-          1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      MoveElements(HOLEY_SMI_ELEMENTS, elements, element_zero, element_one,
+                   new_length);
       StoreFixedArrayElement(elements_fixed_array, new_length,
                              TheHoleConstant());
       GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
