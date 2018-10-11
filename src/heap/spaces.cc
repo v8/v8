@@ -539,6 +539,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->allocated_bytes_ = chunk->area_size();
   chunk->wasted_memory_ = 0;
   chunk->young_generation_bitmap_ = nullptr;
+  chunk->marking_bitmap_ = nullptr;
   chunk->local_tracker_ = nullptr;
 
   chunk->external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] =
@@ -550,14 +551,15 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
     chunk->categories_[i] = nullptr;
   }
 
+  chunk->AllocateMarkingBitmap();
   if (owner->identity() == RO_SPACE) {
     heap->incremental_marking()
         ->non_atomic_marking_state()
         ->bitmap(chunk)
         ->MarkAllBits();
   } else {
-    heap->incremental_marking()->non_atomic_marking_state()->ClearLiveness(
-        chunk);
+    heap->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(chunk,
+                                                                          0);
   }
 
   DCHECK_EQ(kFlagsOffset, OFFSET_OF(MemoryChunk, flags_));
@@ -1189,6 +1191,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   ReleaseInvalidatedSlots();
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
+  if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
 
   if (IsPagedSpace()) {
     Page* page = static_cast<Page*>(this);
@@ -1328,6 +1331,17 @@ void MemoryChunk::ReleaseYoungGenerationBitmap() {
   DCHECK_NOT_NULL(young_generation_bitmap_);
   free(young_generation_bitmap_);
   young_generation_bitmap_ = nullptr;
+}
+
+void MemoryChunk::AllocateMarkingBitmap() {
+  DCHECK_NULL(marking_bitmap_);
+  marking_bitmap_ = static_cast<Bitmap*>(calloc(1, Bitmap::kSize));
+}
+
+void MemoryChunk::ReleaseMarkingBitmap() {
+  DCHECK_NOT_NULL(marking_bitmap_);
+  free(marking_bitmap_);
+  marking_bitmap_ = nullptr;
 }
 
 // -----------------------------------------------------------------------------

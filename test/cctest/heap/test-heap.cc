@@ -6128,7 +6128,7 @@ size_t MemoryAllocatorSizeFromHeapCapacity(size_t capacity) {
   double factor = Page::kPageSize * 1.0 / Page::kAllocatableMemory;
   // Some tables (e.g. deoptimization table) are allocated directly with the
   // memory allocator. Allow some slack to account for them.
-  size_t slack = 1 * MB;
+  size_t slack = 5 * MB;
   return static_cast<size_t>(capacity * factor) + slack;
 }
 

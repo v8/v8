@@ -346,18 +346,17 @@ class MemoryChunk {
 
   static const intptr_t kSizeOffset = 0;
   static const intptr_t kFlagsOffset = kSizeOffset + kSizetSize;
-  static const intptr_t kAreaStartOffset = kFlagsOffset + kIntptrSize;
-  static const intptr_t kAreaEndOffset = kAreaStartOffset + kPointerSize;
-  static const intptr_t kReservationOffset = kAreaEndOffset + kPointerSize;
-  static const intptr_t kOwnerOffset = kReservationOffset + 2 * kPointerSize;
+  static const intptr_t kMarkBitmapOffset = kFlagsOffset + kPointerSize;
+  static const intptr_t kReservationOffset = kMarkBitmapOffset + kPointerSize;
 
   static const size_t kMinHeaderSize =
       kSizeOffset         // NOLINT
       + kSizetSize        // size_t size
       + kUIntptrSize      // uintptr_t flags_
+      + kPointerSize      // Bitmap* marking_bitmap_
+      + 3 * kPointerSize  // VirtualMemory reservation_
       + kPointerSize      // Address area_start_
       + kPointerSize      // Address area_end_
-      + 3 * kPointerSize  // VirtualMemory reservation_
       + kPointerSize      // Address owner_
       + kPointerSize      // Heap* heap_
       + kIntptrSize       // intptr_t progress_bar_
@@ -383,21 +382,11 @@ class MemoryChunk {
       + kIntptrSize   // std::atomic<intptr_t> young_generation_live_byte_count_
       + kPointerSize;  // Bitmap* young_generation_bitmap_
 
-  // We add some more space to the computed header size to amount for missing
-  // alignment requirements in our computation.
-  // Try to get kHeaderSize properly aligned on 32-bit and 64-bit machines.
   static const size_t kHeaderSize = kMinHeaderSize;
 
-  static const int kBodyOffset =
-      CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
-
-  // The start offset of the object area in a page. Aligned to both maps and
-  // code alignment to be suitable for both.  Also aligned to 32 words because
-  // the marking bitmap is arranged in 32 bit chunks.
-  static const int kObjectStartAlignment = 32 * kPointerSize;
+  // TODO(hpayer): Fix kObjectStartOffset and kAllocatableMemory for code pages.
   static const int kObjectStartOffset =
-      kBodyOffset - 1 +
-      (kObjectStartAlignment - (kBodyOffset - 1) % kObjectStartAlignment);
+      kHeaderSize + (kPointerSize - kHeaderSize % kPointerSize);
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
@@ -523,6 +512,9 @@ class MemoryChunk {
 
   void AllocateYoungGenerationBitmap();
   void ReleaseYoungGenerationBitmap();
+
+  void AllocateMarkingBitmap();
+  void ReleaseMarkingBitmap();
 
   Address area_start() { return area_start_; }
   Address area_end() { return area_end_; }
@@ -663,12 +655,14 @@ class MemoryChunk {
   size_t size_;
   uintptr_t flags_;
 
-  // Start and end of allocatable memory on this chunk.
-  Address area_start_;
-  Address area_end_;
+  Bitmap* marking_bitmap_;
 
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
+
+  // Start and end of allocatable memory on this chunk.
+  Address area_start_;
+  Address area_end_;
 
   // The space owning this memory chunk.
   std::atomic<Space*> owner_;

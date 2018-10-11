@@ -249,6 +249,8 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 
   void GetMarkBit(Node* object, Node** cell, Node** mask) {
     Node* page = WordAnd(object, IntPtrConstant(~kPageAlignmentMask));
+    Node* bitmap = Load(MachineType::Pointer(), page,
+                        IntPtrConstant(MemoryChunk::kMarkBitmapOffset));
 
     {
       // Temp variable to calculate cell offset in bitmap.
@@ -258,8 +260,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
       r0 = WordShr(object, IntPtrConstant(shift));
       r0 = WordAnd(r0, IntPtrConstant((kPageAlignmentMask >> shift) &
                                       ~(Bitmap::kBytesPerCell - 1)));
-      *cell = IntPtrAdd(IntPtrAdd(page, r0),
-                        IntPtrConstant(MemoryChunk::kHeaderSize));
+      *cell = IntPtrAdd(bitmap, r0);
     }
     {
       // Temp variable to calculate bit offset in cell.
