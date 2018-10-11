@@ -231,10 +231,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
       Intl::ResolveLocale(isolate, "numberformat", requested_locales, options),
       JSNumberFormat);
 
-  Handle<String> locale_with_extension_str =
-      isolate->factory()->NewStringFromStaticChars("localeWithExtension");
-  Handle<Object> locale_with_extension_obj =
-      JSObject::GetDataProperty(r, locale_with_extension_str);
+  Handle<Object> locale_with_extension_obj = JSObject::GetDataProperty(
+      r, isolate->factory()->localeWithExtension_string());
 
   // The locale_with_extension has to be a string. Either a user
   // provided canonicalized string or the default locale.

@@ -7,6 +7,7 @@
 
 #ifdef V8_INTL_SUPPORT
 #define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)               \
+  V(_, calendar_string, "calendar")                                 \
   V(_, caseFirst_string, "caseFirst")                               \
   V(_, day_string, "day")                                           \
   V(_, dayPeriod_string, "dayPeriod")                               \
@@ -19,13 +20,17 @@
   V(_, h23_string, "h23")                                           \
   V(_, h24_string, "h24")                                           \
   V(_, hour_string, "hour")                                         \
+  V(_, hour12_string, "hour12")                                     \
+  V(_, hourCycle_string, "hourCycle")                               \
   V(_, collation_string, "collation")                               \
   V(_, currency_string, "currency")                                 \
   V(_, currencyDisplay_string, "currencyDisplay")                   \
   V(_, ignorePunctuation_string, "ignorePunctuation")               \
+  V(_, Invalid_Date_string, "Invalid Date")                         \
   V(_, integer_string, "integer")                                   \
   V(_, literal_string, "literal")                                   \
   V(_, locale_string, "locale")                                     \
+  V(_, localeWithExtension_string, "localeWithExtension")           \
   V(_, lower_string, "lower")                                       \
   V(_, maximumFractionDigits_string, "maximumFractionDigits")       \
   V(_, maximumSignificantDigits_string, "maximumSignificantDigits") \
@@ -44,11 +49,13 @@
   V(_, second_string, "second")                                     \
   V(_, sensitivity_string, "sensitivity")                           \
   V(_, style_string, "style")                                       \
+  V(_, timeZone_string, "timeZone")                                 \
   V(_, timeZoneName_string, "timeZoneName")                         \
   V(_, type_string, "type")                                         \
   V(_, upper_string, "upper")                                       \
   V(_, usage_string, "usage")                                       \
   V(_, useGrouping_string, "useGrouping")                           \
+  V(_, UTC_string, "UTC")                                           \
   V(_, unit_string, "unit")                                         \
   V(_, weekday_string, "weekday")                                   \
   V(_, year_string, "year")

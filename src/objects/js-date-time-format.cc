@@ -180,14 +180,14 @@ void SetPropertyFromPattern(Isolate* isolate, const std::string& pattern,
   //  iii. Else if, hc is "h23" or "h24", let v be false.
   //  iv. Else, let v be undefined.
   if (pattern.find('h') != std::string::npos) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->NewStringFromStaticChars("hour12"),
-              factory->true_value(), kDontThrow)
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->hour12_string(),
+                                         factory->true_value(), kDontThrow)
               .FromJust());
   } else if (pattern.find('H') != std::string::npos) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->NewStringFromStaticChars("hour12"),
-              factory->false_value(), kDontThrow)
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->hour12_string(),
+                                         factory->false_value(), kDontThrow)
               .FromJust());
   }
 }
@@ -329,7 +329,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
     calendar_str = "ethioaa";
   }
   CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->NewStringFromStaticChars("calendar"),
+            isolate, options, factory->calendar_string(),
             factory->NewStringFromAsciiChecked(calendar_str.c_str()),
             kDontThrow)
             .FromJust());
@@ -366,21 +366,21 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
     // ecma402#sec-canonicalizetimezonename step 3
     if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/UTC") ||
         canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/GMT")) {
-      timezone_value = factory->NewStringFromStaticChars("UTC");
+      timezone_value = factory->UTC_string();
     } else {
       ASSIGN_RETURN_ON_EXCEPTION(isolate, timezone_value,
                                  Intl::ToString(isolate, canonical_time_zone),
                                  JSObject);
     }
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->NewStringFromStaticChars("timeZone"),
-              timezone_value, kDontThrow)
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->timeZone_string(),
+                                         timezone_value, kDontThrow)
               .FromJust());
   } else {
     // Somehow on Windows we will reach here.
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->NewStringFromStaticChars("timeZone"),
-              factory->undefined_value(), kDontThrow)
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->timeZone_string(),
+                                         factory->undefined_value(), kDontThrow)
               .FromJust());
   }
 
@@ -451,14 +451,14 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   if (!date->IsJSDate()) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
-                                 factory->NewStringFromStaticChars("Date")),
+                                 factory->Date_string()),
                     String);
   }
 
   double const x = Handle<JSDate>::cast(date)->value()->Number();
   // 2. If x is NaN, return "Invalid Date"
   if (std::isnan(x)) {
-    return factory->NewStringFromStaticChars("Invalid Date");
+    return factory->Invalid_Date_string();
   }
 
   // 3. Let options be ? ToDateTimeOptions(options, required, defaults).
@@ -768,10 +768,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   // 9. Set opt.[[hc]] to hourCycle.
   // TODO(ftang): change behavior based on hour_cycle.
 
-  Handle<String> locale_with_extension_str =
-      isolate->factory()->NewStringFromStaticChars("localeWithExtension");
-  Handle<Object> locale_with_extension_obj =
-      JSObject::GetDataProperty(r, locale_with_extension_str);
+  Handle<Object> locale_with_extension_obj = JSObject::GetDataProperty(
+      r, isolate->factory()->localeWithExtension_string());
 
   // The locale_with_extension has to be a string. Either a user
   // provided canonicalized string or the default locale.
