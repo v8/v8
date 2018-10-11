@@ -156,7 +156,7 @@ Object** CanonicalHandleScope::Lookup(Object* object) {
   if (object->IsHeapObject()) {
     RootIndex root_index;
     if (root_index_map_->Lookup(HeapObject::cast(object), &root_index)) {
-      return isolate_->heap()->root_handle(root_index).location();
+      return isolate_->root_handle(root_index).location();
     }
   }
   Object*** entry = identity_map_->Get(object);

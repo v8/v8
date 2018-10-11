@@ -55,7 +55,7 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   // TODO(jgruber, v8:6666): Support loads through the root register once it
   // exists.
   if (RootsTable::IsImmortalImmovable(index)) {
-    Handle<Object> object = isolate()->heap()->root_handle(index);
+    Handle<Object> object = isolate()->root_handle(index);
     if (object->IsSmi()) {
       mov(destination, Immediate(Smi::cast(*object)));
       return;
@@ -84,7 +84,7 @@ void MacroAssembler::CompareRoot(Register with, Register scratch,
 
 void MacroAssembler::CompareRoot(Register with, RootIndex index) {
   DCHECK(RootsTable::IsImmortalImmovable(index));
-  Handle<Object> object = isolate()->heap()->root_handle(index);
+  Handle<Object> object = isolate()->root_handle(index);
   if (object->IsHeapObject()) {
     cmp(with, Handle<HeapObject>::cast(object));
   } else {
@@ -94,7 +94,7 @@ void MacroAssembler::CompareRoot(Register with, RootIndex index) {
 
 void MacroAssembler::CompareRoot(Operand with, RootIndex index) {
   DCHECK(RootsTable::IsImmortalImmovable(index));
-  Handle<Object> object = isolate()->heap()->root_handle(index);
+  Handle<Object> object = isolate()->root_handle(index);
   if (object->IsHeapObject()) {
     cmp(with, Handle<HeapObject>::cast(object));
   } else {
@@ -104,7 +104,7 @@ void MacroAssembler::CompareRoot(Operand with, RootIndex index) {
 
 void MacroAssembler::PushRoot(RootIndex index) {
   DCHECK(RootsTable::IsImmortalImmovable(index));
-  Handle<Object> object = isolate()->heap()->root_handle(index);
+  Handle<Object> object = isolate()->root_handle(index);
   if (object->IsHeapObject()) {
     Push(Handle<HeapObject>::cast(object));
   } else {

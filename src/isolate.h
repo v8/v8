@@ -1012,6 +1012,12 @@ class Isolate : private HiddenFactory {
   // offset from kRootRegister.
   inline base::AddressRegion root_register_addressable_region();
 
+  Object* root(RootIndex index) { return roots_table()[index]; }
+
+  Handle<Object> root_handle(RootIndex index) {
+    return Handle<Object>(&roots_table()[index]);
+  }
+
   ExternalReferenceTable* external_reference_table() {
     DCHECK(isolate_data()->external_reference_table()->is_initialized());
     return isolate_data()->external_reference_table();

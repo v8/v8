@@ -1459,20 +1459,22 @@ int FreeSpace::Size() { return size(); }
 
 
 FreeSpace* FreeSpace::next() {
-  DCHECK(map() == Heap::FromWritableHeapObject(this)->root(
-                      RootIndex::kFreeSpaceMap) ||
-         (!Heap::FromWritableHeapObject(this)->deserialization_complete() &&
-          map() == nullptr));
+#ifdef DEBUG
+  Heap* heap = Heap::FromWritableHeapObject(this);
+  DCHECK_IMPLIES(map() != heap->isolate()->root(RootIndex::kFreeSpaceMap),
+                 !heap->deserialization_complete() && map() == nullptr);
+#endif
   DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
   return reinterpret_cast<FreeSpace*>(Memory<Address>(address() + kNextOffset));
 }
 
 
 void FreeSpace::set_next(FreeSpace* next) {
-  DCHECK(map() == Heap::FromWritableHeapObject(this)->root(
-                      RootIndex::kFreeSpaceMap) ||
-         (!Heap::FromWritableHeapObject(this)->deserialization_complete() &&
-          map() == nullptr));
+#ifdef DEBUG
+  Heap* heap = Heap::FromWritableHeapObject(this);
+  DCHECK_IMPLIES(map() != heap->isolate()->root(RootIndex::kFreeSpaceMap),
+                 !heap->deserialization_complete() && map() == nullptr);
+#endif
   DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
   base::Relaxed_Store(
       reinterpret_cast<base::AtomicWord*>(address() + kNextOffset),

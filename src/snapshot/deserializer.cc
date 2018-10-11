@@ -679,7 +679,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         int id = data & kRootArrayConstantsMask;
         RootIndex root_index = static_cast<RootIndex>(id);
         MaybeObject* object =
-            MaybeObject::FromObject(isolate->heap()->root(root_index));
+            MaybeObject::FromObject(isolate->root(root_index));
         DCHECK(!Heap::InNewSpace(object));
         DCHECK(!allocator()->next_reference_is_weak());
         UnalignedCopy(current++, &object);
@@ -812,7 +812,7 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
     } else if (where == kRootArray) {
       int id = source_.GetInt();
       RootIndex root_index = static_cast<RootIndex>(id);
-      new_object = isolate->heap()->root(root_index);
+      new_object = isolate->root(root_index);
       emit_write_barrier = Heap::InNewSpace(new_object);
       hot_objects_.Add(HeapObject::cast(new_object));
     } else if (where == kPartialSnapshotCache) {

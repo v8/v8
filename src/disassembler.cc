@@ -135,7 +135,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
 
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    isolate_->heap()->root(root_index)->ShortPrint(&accumulator);
+    isolate_->root(root_index)->ShortPrint(&accumulator);
     std::unique_ptr<char[]> obj_name = accumulator.ToCString();
 
     SNPrintF(v8_buffer_, "root (%s)", obj_name.get());

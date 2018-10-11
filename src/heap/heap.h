@@ -655,12 +655,6 @@ class Heap {
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  // TODO(ishell): move to Isolate
-  Object* root(RootIndex index) { return roots_table()[index]; }
-  Handle<Object> root_handle(RootIndex index) {
-    return Handle<Object>(&roots_table()[index]);
-  }
-
   // Sets the stub_cache_ (only used when expanding the dictionary).
   V8_INLINE void SetRootCodeStubs(SimpleNumberDictionary* value);
   V8_INLINE void SetRootMaterializedObjects(FixedArray* objects);

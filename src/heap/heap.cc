@@ -2398,13 +2398,13 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
   if (size == 0) return nullptr;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
-    filler->set_map_after_allocation(
-        reinterpret_cast<Map*>(root(RootIndex::kOnePointerFillerMap)),
-        SKIP_WRITE_BARRIER);
+    filler->set_map_after_allocation(reinterpret_cast<Map*>(isolate()->root(
+                                         RootIndex::kOnePointerFillerMap)),
+                                     SKIP_WRITE_BARRIER);
   } else if (size == 2 * kPointerSize) {
-    filler->set_map_after_allocation(
-        reinterpret_cast<Map*>(root(RootIndex::kTwoPointerFillerMap)),
-        SKIP_WRITE_BARRIER);
+    filler->set_map_after_allocation(reinterpret_cast<Map*>(isolate()->root(
+                                         RootIndex::kTwoPointerFillerMap)),
+                                     SKIP_WRITE_BARRIER);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
       Memory<Address>(addr + kPointerSize) =
           static_cast<Address>(kClearedFreeMemoryValue);
@@ -2412,7 +2412,7 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
   } else {
     DCHECK_GT(size, 2 * kPointerSize);
     filler->set_map_after_allocation(
-        reinterpret_cast<Map*>(root(RootIndex::kFreeSpaceMap)),
+        reinterpret_cast<Map*>(isolate()->root(RootIndex::kFreeSpaceMap)),
         SKIP_WRITE_BARRIER);
     FreeSpace::cast(filler)->relaxed_write_size(size);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {

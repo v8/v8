@@ -23,10 +23,11 @@ V8_INLINE RootIndex operator++(RootIndex& index) {
   return index;
 }
 
-ReadOnlyRoots::ReadOnlyRoots(Heap* heap) : roots_table_(heap->roots_table()) {}
+ReadOnlyRoots::ReadOnlyRoots(Heap* heap)
+    : roots_table_(heap->isolate()->roots_table()) {}
 
 ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate)
-    : roots_table_(isolate->heap()->roots_table()) {}
+    : roots_table_(isolate->roots_table()) {}
 
 #define ROOT_ACCESSOR(type, name, CamelName)                       \
   type* ReadOnlyRoots::name() {                                    \

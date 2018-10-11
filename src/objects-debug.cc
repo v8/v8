@@ -2210,33 +2210,32 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
 // Estimates if there is a path from the object to a context.
 // This function is not precise, and can return false even if
 // there is a path to a context.
-bool CanLeak(Object* obj, Heap* heap) {
+bool CanLeak(Object* obj, Isolate* isolate) {
   if (!obj->IsHeapObject()) return false;
   if (obj->IsCell()) {
-    return CanLeak(Cell::cast(obj)->value(), heap);
+    return CanLeak(Cell::cast(obj)->value(), isolate);
   }
   if (obj->IsPropertyCell()) {
-    return CanLeak(PropertyCell::cast(obj)->value(), heap);
+    return CanLeak(PropertyCell::cast(obj)->value(), isolate);
   }
   if (obj->IsContext()) return true;
   if (obj->IsMap()) {
     Map* map = Map::cast(obj);
     for (RootIndex root_index = RootIndex::kFirstStrongRoot;
          root_index <= RootIndex::kLastStrongRoot; ++root_index) {
-      if (map == heap->root(root_index)) return false;
+      if (map == isolate->root(root_index)) return false;
     }
     return true;
   }
-  return CanLeak(HeapObject::cast(obj)->map(), heap);
+  return CanLeak(HeapObject::cast(obj)->map(), isolate);
 }
 
 void Code::VerifyEmbeddedObjects(Isolate* isolate, VerifyMode mode) {
   if (kind() == OPTIMIZED_FUNCTION) return;
-  Heap* heap = isolate->heap();
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     Object* target = it.rinfo()->target_object();
-    DCHECK(!CanLeak(target, heap));
+    DCHECK(!CanLeak(target, isolate));
   }
 }
 

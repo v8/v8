@@ -3882,7 +3882,7 @@ Handle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
                                   Handle<String> name, bool private_symbol) {
   Handle<String> key = factory()->InternalizeString(name);
   Handle<NameDictionary> dictionary =
-      Handle<NameDictionary>::cast(heap()->root_handle(dictionary_index));
+      Handle<NameDictionary>::cast(root_handle(dictionary_index));
   int entry = dictionary->FindEntry(this, key);
   Handle<Symbol> symbol;
   if (entry == NameDictionary::kNotFound) {

@@ -8,6 +8,12 @@
 namespace v8 {
 namespace internal {
 
+const char* RootsTable::root_names_[RootsTable::kEntriesCount] = {
+#define ROOT_NAME(type, name, CamelName) #name,
+    ROOT_LIST(ROOT_NAME)
+#undef ROOT_NAME
+};
+
 // static
 RootIndex RootsTable::RootIndexForFixedTypedArray(
     ExternalArrayType array_type) {

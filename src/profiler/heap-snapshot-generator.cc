@@ -916,7 +916,7 @@ static const struct {
 } native_context_names[] = {
 #define CONTEXT_FIELD_INDEX_NAME(index, _, name) {Context::index, #name},
     NATIVE_CONTEXT_FIELDS(CONTEXT_FIELD_INDEX_NAME)
-#undef CONTEXT_FIELD_INDEX
+#undef CONTEXT_FIELD_INDEX_NAME
 };
 
 void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
@@ -1673,24 +1673,13 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   SetUserGlobalReference(global);
 }
 
-// This static array is used to prevent excessive code-size in
-// GetStrongGcSubrootName below, which would happen if we called emplace() for
-// every root in a macro.
-static const char* root_names[] = {
-#define ROOT_NAME(type, name, CamelName) #name,
-    READ_ONLY_ROOT_LIST(ROOT_NAME) MUTABLE_ROOT_LIST(ROOT_NAME)
-#undef ROOT_NAME
-};
-STATIC_ASSERT(static_cast<uint16_t>(RootIndex::kRootListLength) ==
-              arraysize(root_names));
-
 const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
   if (strong_gc_subroot_names_.empty()) {
-    for (uint16_t i = 0; i < static_cast<uint16_t>(RootIndex::kRootListLength);
-         i++) {
-      const char* name = root_names[i];
-      RootIndex index = static_cast<RootIndex>(i);
-      strong_gc_subroot_names_.emplace(heap_->root(index), name);
+    Isolate* isolate = heap_->isolate();
+    for (RootIndex root_index = RootIndex::kFirstStrongRoot;
+         root_index <= RootIndex::kLastStrongRoot; ++root_index) {
+      const char* name = RootsTable::name(root_index);
+      strong_gc_subroot_names_.emplace(isolate->root(root_index), name);
     }
     CHECK(!strong_gc_subroot_names_.empty());
   }

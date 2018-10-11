@@ -2973,7 +2973,8 @@ size_t FreeListCategory::SumFreeList() {
   size_t sum = 0;
   FreeSpace* cur = top();
   while (cur != nullptr) {
-    DCHECK(cur->map() == page()->heap()->root(RootIndex::kFreeSpaceMap));
+    DCHECK_EQ(cur->map(),
+              page()->heap()->isolate()->root(RootIndex::kFreeSpaceMap));
     sum += cur->relaxed_read_size();
     cur = cur->next();
   }

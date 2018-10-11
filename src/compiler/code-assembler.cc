@@ -966,7 +966,7 @@ Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
 
 TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (RootsTable::IsImmortalImmovable(root_index)) {
-    Handle<Object> root = isolate()->heap()->root_handle(root_index);
+    Handle<Object> root = isolate()->root_handle(root_index);
     if (root->IsSmi()) {
       return SmiConstant(Smi::cast(*root));
     } else {

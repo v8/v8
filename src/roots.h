@@ -402,6 +402,12 @@ class RootsTable {
     return roots_[index];
   }
 
+  static const char* name(RootIndex root_index) {
+    size_t index = static_cast<size_t>(root_index);
+    DCHECK_LT(index, kEntriesCount);
+    return root_names_[index];
+  }
+
   static RootIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
   static RootIndex RootIndexForFixedTypedArray(ElementsKind elements_kind);
   static RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind);
@@ -448,6 +454,7 @@ class RootsTable {
   }
 
   Object* roots_[kEntriesCount];
+  static const char* root_names_[kEntriesCount];
 
   friend class Isolate;
   friend class Heap;

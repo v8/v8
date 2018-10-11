@@ -123,7 +123,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   // Map::cast cannot be used due to uninitialized map field.
   Map* map = reinterpret_cast<Map*>(result);
   map->set_map_after_allocation(
-      reinterpret_cast<Map*>(root(RootIndex::kMetaMap)), SKIP_WRITE_BARRIER);
+      reinterpret_cast<Map*>(isolate()->root(RootIndex::kMetaMap)),
+      SKIP_WRITE_BARRIER);
   map->set_instance_type(instance_type);
   map->set_instance_size(instance_size);
   // Initialize to only containing tagged fields.
