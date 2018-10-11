@@ -541,7 +541,8 @@ TEST(ScanHTMLEndComments) {
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    CHECK(pending_error_handler.has_pending_error());
+    CHECK(pending_error_handler.has_pending_error() ||
+          pending_error_handler.has_error_unidentifiable_by_preparser());
   }
 }
 
@@ -648,7 +649,8 @@ TEST(StandAlonePreParserNoNatives) {
                            isolate->logger());
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    CHECK(pending_error_handler.has_pending_error());
+    CHECK(pending_error_handler.has_pending_error() ||
+          pending_error_handler.has_error_unidentifiable_by_preparser());
   }
 }
 
@@ -682,7 +684,8 @@ TEST(RegressChromium62639) {
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   // Even in the case of a syntax error, kPreParseSuccess is returned.
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  CHECK(pending_error_handler.has_pending_error());
+  CHECK(pending_error_handler.has_pending_error() ||
+        pending_error_handler.has_error_unidentifiable_by_preparser());
 }
 
 
@@ -1541,7 +1544,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           source->ToCString().get(), message_string->ToCString().get());
     }
 
-    if (test_preparser && !pending_error_handler.has_pending_error()) {
+    if (test_preparser && !pending_error_handler.has_pending_error() &&
+        !pending_error_handler.has_error_unidentifiable_by_preparser()) {
       FATAL(
           "Parser failed on:\n"
           "\t%s\n"
@@ -1553,7 +1557,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     // Check that preparser and parser produce the same error, except for cases
     // where we do not track errors in the preparser.
     if (test_preparser && !ignore_error_msg &&
-        !pending_error_handler.ErrorUnidentifiableByPreParser()) {
+        !pending_error_handler.has_error_unidentifiable_by_preparser()) {
       i::Handle<i::String> preparser_message =
           pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate());
       if (!i::String::Equals(isolate, message_string, preparser_message)) {

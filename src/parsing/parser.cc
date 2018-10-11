@@ -78,6 +78,65 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   return function_literal;
 }
 
+void Parser::GetUnexpectedTokenMessage(Token::Value token,
+                                       MessageTemplate::Template* message,
+                                       Scanner::Location* location,
+                                       const char** arg) {
+  switch (token) {
+    case Token::EOS:
+      *message = MessageTemplate::kUnexpectedEOS;
+      break;
+    case Token::SMI:
+    case Token::NUMBER:
+    case Token::BIGINT:
+      *message = MessageTemplate::kUnexpectedTokenNumber;
+      break;
+    case Token::STRING:
+      *message = MessageTemplate::kUnexpectedTokenString;
+      break;
+    case Token::PRIVATE_NAME:
+    case Token::IDENTIFIER:
+      *message = MessageTemplate::kUnexpectedTokenIdentifier;
+      break;
+    case Token::AWAIT:
+    case Token::ENUM:
+      *message = MessageTemplate::kUnexpectedReserved;
+      break;
+    case Token::LET:
+    case Token::STATIC:
+    case Token::YIELD:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+      *message = is_strict(language_mode())
+                     ? MessageTemplate::kUnexpectedStrictReserved
+                     : MessageTemplate::kUnexpectedTokenIdentifier;
+      break;
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+      *message = MessageTemplate::kUnexpectedTemplateString;
+      break;
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_KEYWORD:
+      *message = MessageTemplate::kInvalidEscapedReservedWord;
+      break;
+    case Token::ILLEGAL:
+      if (scanner()->has_error()) {
+        *message = scanner()->error();
+        *location = scanner()->error_location();
+      } else {
+        *message = MessageTemplate::kInvalidOrUnexpectedToken;
+      }
+      break;
+    case Token::REGEXP_LITERAL:
+      *message = MessageTemplate::kUnexpectedTokenRegExp;
+      break;
+    default:
+      const char* name = Token::String(token);
+      DCHECK_NOT_NULL(name);
+      *arg = name;
+      break;
+  }
+}
+
 // ----------------------------------------------------------------------------
 // The CHECK_OK macro is a convenient macro to enforce error
 // handling for functions that may fail (by returning !*ok).
@@ -2704,13 +2763,13 @@ bool Parser::SkipFunction(
     // Propagate stack overflow.
     set_stack_overflow();
     *ok = false;
-  } else if (pending_error_handler()->ErrorUnidentifiableByPreParser()) {
+  } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
     // If we encounter an error that the preparser can not identify we reset to
     // the state before preparsing. The caller may then fully parse the function
     // to identify the actual error.
     bookmark.Apply();
     function_scope->ResetAfterPreparsing(ast_value_factory(), true);
-    pending_error_handler()->ResetUnidentifiableError();
+    pending_error_handler()->clear_unidentifiable_error();
     return false;
   } else if (pending_error_handler()->has_pending_error()) {
     *ok = false;

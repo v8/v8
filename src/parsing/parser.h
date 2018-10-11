@@ -306,6 +306,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  Block* finally_block,
                                  const SourceRange& finally_range,
                                  const CatchInfo& catch_info, int pos);
+  void GetUnexpectedTokenMessage(Token::Value token,
+                                 MessageTemplate::Template* message,
+                                 Scanner::Location* location, const char** arg);
   void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
                                             ZonePtrList<Statement>* body,
                                             bool* ok);

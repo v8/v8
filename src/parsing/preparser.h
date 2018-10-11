@@ -1145,6 +1145,10 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
+  V8_INLINE void GetUnexpectedTokenMessage(Token::Value token,
+                                           MessageTemplate::Template* message,
+                                           Scanner::Location* location,
+                                           const char** arg) {}
   V8_INLINE void ParseAndRewriteGeneratorFunctionBody(
       int pos, FunctionKind kind, PreParserStatementList body, bool* ok) {
     ParseStatementList(body, Token::RBRACE, ok);
@@ -1525,7 +1529,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE void ReportUnidentifiableError() {
-    pending_error_handler()->SetUnidentifiableError();
+    pending_error_handler()->set_unidentifiable_error();
   }
 
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,

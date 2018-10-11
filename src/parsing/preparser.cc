@@ -160,9 +160,10 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     // separately by Parser::SkipLazyFunctionBody.
     ParseFormalParameterList(
         &formals,
-        CHECK_OK_VALUE(pending_error_handler()->ErrorUnidentifiableByPreParser()
-                           ? kPreParseNotIdentifiableError
-                           : kPreParseSuccess));
+        CHECK_OK_VALUE(
+            pending_error_handler()->has_error_unidentifiable_by_preparser()
+                ? kPreParseNotIdentifiableError
+                : kPreParseSuccess));
     Expect(Token::RPAREN, CHECK_OK_VALUE(kPreParseSuccess));
     int formals_end_position = scanner()->location().end_pos;
 
@@ -210,12 +211,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   use_counts_ = nullptr;
 
   if (result == kLazyParsingAborted) {
-    DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
+    DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
     return kPreParseAbort;
   } else if (stack_overflow()) {
-    DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
     return kPreParseStackOverflow;
-  } else if (pending_error_handler()->ErrorUnidentifiableByPreParser()) {
+  } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
     DCHECK(!*ok);
     return kPreParseNotIdentifiableError;
   } else if (!*ok) {
@@ -229,7 +229,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       // function, since the function can declare itself strict.
       ValidateFormalParameters(language_mode(), allow_duplicate_parameters, ok);
       if (!*ok) {
-        if (pending_error_handler()->ErrorUnidentifiableByPreParser()) {
+        if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
           return kPreParseNotIdentifiableError;
         } else {
           return kPreParseSuccess;
@@ -247,7 +247,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       *produced_preparsed_scope_data = ProducedPreParsedScopeData::For(
           preparsed_scope_data_builder_, main_zone());
     }
-    DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
+    DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
 
     if (is_strict(function_scope->language_mode())) {
       int end_pos = scanner()->location().end_pos;
@@ -255,7 +255,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     }
   }
 
-  DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
+  DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
   return kPreParseSuccess;
 }
 

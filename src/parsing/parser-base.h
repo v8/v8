@@ -891,11 +891,6 @@ class ParserBase {
                             static_cast<const char*>(nullptr), error_type);
   }
 
-  void GetUnexpectedTokenMessage(
-      Token::Value token, MessageTemplate::Template* message,
-      Scanner::Location* location, const char** arg,
-      MessageTemplate::Template default_ = MessageTemplate::kUnexpectedToken);
-
   void ReportUnexpectedToken(Token::Value token);
   void ReportUnexpectedTokenAt(
       Scanner::Location location, Token::Value token,
@@ -994,17 +989,17 @@ class ParserBase {
 
   void BindingPatternUnexpectedToken() {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
-    const char* arg;
+    const char* arg = nullptr;
     Scanner::Location location = scanner()->peek_location();
-    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
+    impl()->GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
     classifier()->RecordBindingPatternError(location, message, arg);
   }
 
   void ArrowFormalParametersUnexpectedToken() {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
-    const char* arg;
+    const char* arg = nullptr;
     Scanner::Location location = scanner()->peek_location();
-    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
+    impl()->GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
     classifier()->RecordArrowFormalParametersError(location, message, arg);
   }
 
@@ -1559,67 +1554,6 @@ ParserBase<Impl>::FunctionState::~FunctionState() {
 }
 
 template <typename Impl>
-void ParserBase<Impl>::GetUnexpectedTokenMessage(
-    Token::Value token, MessageTemplate::Template* message,
-    Scanner::Location* location, const char** arg,
-    MessageTemplate::Template default_) {
-  *arg = nullptr;
-  switch (token) {
-    case Token::EOS:
-      *message = MessageTemplate::kUnexpectedEOS;
-      break;
-    case Token::SMI:
-    case Token::NUMBER:
-    case Token::BIGINT:
-      *message = MessageTemplate::kUnexpectedTokenNumber;
-      break;
-    case Token::STRING:
-      *message = MessageTemplate::kUnexpectedTokenString;
-      break;
-    case Token::PRIVATE_NAME:
-    case Token::IDENTIFIER:
-      *message = MessageTemplate::kUnexpectedTokenIdentifier;
-      break;
-    case Token::AWAIT:
-    case Token::ENUM:
-      *message = MessageTemplate::kUnexpectedReserved;
-      break;
-    case Token::LET:
-    case Token::STATIC:
-    case Token::YIELD:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-      *message = is_strict(language_mode())
-                     ? MessageTemplate::kUnexpectedStrictReserved
-                     : MessageTemplate::kUnexpectedTokenIdentifier;
-      break;
-    case Token::TEMPLATE_SPAN:
-    case Token::TEMPLATE_TAIL:
-      *message = MessageTemplate::kUnexpectedTemplateString;
-      break;
-    case Token::ESCAPED_STRICT_RESERVED_WORD:
-    case Token::ESCAPED_KEYWORD:
-      *message = MessageTemplate::kInvalidEscapedReservedWord;
-      break;
-    case Token::ILLEGAL:
-      if (scanner()->has_error()) {
-        *message = scanner()->error();
-        *location = scanner()->error_location();
-      } else {
-        *message = MessageTemplate::kInvalidOrUnexpectedToken;
-      }
-      break;
-    case Token::REGEXP_LITERAL:
-      *message = MessageTemplate::kUnexpectedTokenRegExp;
-      break;
-    default:
-      const char* name = Token::String(token);
-      DCHECK_NOT_NULL(name);
-      *arg = name;
-      break;
-  }
-}
-
-template <typename Impl>
 void ParserBase<Impl>::ReportUnexpectedToken(Token::Value token) {
   return ReportUnexpectedTokenAt(scanner_->location(), token);
 }
@@ -1628,9 +1562,13 @@ template <typename Impl>
 void ParserBase<Impl>::ReportUnexpectedTokenAt(
     Scanner::Location source_location, Token::Value token,
     MessageTemplate::Template message) {
-  const char* arg;
-  GetUnexpectedTokenMessage(token, &message, &source_location, &arg);
-  impl()->ReportMessageAt(source_location, message, arg);
+  const char* arg = nullptr;
+  impl()->GetUnexpectedTokenMessage(token, &message, &source_location, &arg);
+  if (Impl::IsPreParser()) {
+    impl()->ReportUnidentifiableError();
+  } else {
+    impl()->ReportMessageAt(source_location, message, arg);
+  }
 }
 
 template <typename Impl>
