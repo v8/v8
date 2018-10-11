@@ -110,6 +110,11 @@ class Utf16CharacterStream {
     }
   }
 
+  // Returns true if the stream could access the V8 heap after construction.
+  bool can_be_cloned_for_parallel_access() const {
+    return can_be_cloned() && !can_access_heap();
+  }
+
   // Returns true if the stream can be cloned with Clone.
   // TODO(rmcilroy): Remove this once ChunkedStreams can be cloned.
   virtual bool can_be_cloned() const = 0;

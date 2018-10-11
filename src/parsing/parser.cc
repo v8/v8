@@ -419,6 +419,7 @@ Parser::Parser(ParseInfo* info)
                          info->runtime_call_stats(), info->logger(),
                          info->script().is_null() ? -1 : info->script()->id(),
                          info->is_module(), true),
+      info_(info),
       scanner_(info->unicode_cache(), info->character_stream(),
                info->is_module()),
       preparser_zone_(info->zone()->allocator(), ZONE_NAME),
@@ -2576,6 +2577,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   const bool is_lazy =
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
   const bool is_top_level = AllowsLazyParsingWithoutUnresolvedVariables();
+  const bool is_eager_top_level_function = !is_lazy && is_top_level;
   const bool is_lazy_top_level_function = is_lazy && is_top_level;
   const bool is_lazy_inner_function = is_lazy && !is_top_level;
 
@@ -2606,9 +2608,17 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   const bool should_preparse_inner = parse_lazily() && is_lazy_inner_function;
 
+  // If parallel compile tasks are enabled, and the function is an eager
+  // top level function, then we can pre-parse the function and parse / compile
+  // in a parallel task on a worker thread.
+  bool should_post_parallel_task =
+      parse_lazily() && is_eager_top_level_function &&
+      FLAG_parallel_compile_tasks && info()->parallel_tasks() &&
+      scanner()->stream()->can_be_cloned_for_parallel_access();
+
   // This may be modified later to reflect preparsing decision taken
-  bool should_preparse =
-      (parse_lazily() && is_lazy_top_level_function) || should_preparse_inner;
+  bool should_preparse = (parse_lazily() && is_lazy_top_level_function) ||
+                         should_preparse_inner || should_post_parallel_task;
 
   ZonePtrList<Statement>* body = nullptr;
   int expected_property_count = -1;
@@ -2641,6 +2651,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                    &produced_preparsed_scope_data, is_lazy_top_level_function,
                    &eager_compile_hint, CHECK_OK);
   if (!did_preparse_successfully) {
+    should_post_parallel_task = false;
     body = ParseFunction(
         function_name, pos, kind, function_type, scope, &num_parameters,
         &function_length, &has_duplicate_parameters, &expected_property_count,
@@ -2692,6 +2703,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       pos, true, function_literal_id, produced_preparsed_scope_data);
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_suspend_count(suspend_count);
+
+  if (should_post_parallel_task) {
+    // Start a parallel parse / compile task on the compiler dispatcher.
+    info()->parallel_tasks()->Enqueue(info(), function_name, function_literal);
+  }
 
   if (should_infer_name) {
     fni_.AddFunction(function_literal);

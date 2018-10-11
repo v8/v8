@@ -26,6 +26,7 @@ class AccountingAllocator;
 class AstRawString;
 class AstStringConstants;
 class AstValueFactory;
+class CompilerDispatcher;
 class DeclarationScope;
 class FunctionLiteral;
 class RuntimeCallStats;
@@ -205,6 +206,31 @@ class V8_EXPORT_PRIVATE ParseInfo {
     return &pending_error_handler_;
   }
 
+  class ParallelTasks {
+   public:
+    explicit ParallelTasks(CompilerDispatcher* compiler_dispatcher)
+        : dispatcher_(compiler_dispatcher) {
+      DCHECK(dispatcher_);
+    }
+
+    void Enqueue(ParseInfo* outer_parse_info, const AstRawString* function_name,
+                 FunctionLiteral* literal);
+
+    typedef std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator
+        EnqueuedJobsIterator;
+
+    EnqueuedJobsIterator begin() { return enqueued_jobs_.begin(); }
+    EnqueuedJobsIterator end() { return enqueued_jobs_.end(); }
+
+    CompilerDispatcher* dispatcher() { return dispatcher_; }
+
+   private:
+    CompilerDispatcher* dispatcher_;
+    std::forward_list<std::pair<FunctionLiteral*, uintptr_t>> enqueued_jobs_;
+  };
+
+  ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
+
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
@@ -289,6 +315,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   RuntimeCallStats* runtime_call_stats_;
   Logger* logger_;
   SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
+  std::unique_ptr<ParallelTasks> parallel_tasks_;
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;

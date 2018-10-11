@@ -1100,9 +1100,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // object (used to implement the "export * as" syntax).
   const AstRawString* NextInternalNamespaceExportName();
 
+  ParseInfo* info() const { return info_; }
+
   // Parser's private field members.
   friend class PreParserZoneScope;  // Uses reusable_preparser().
 
+  ParseInfo* info_;
   Scanner scanner_;
   Zone preparser_zone_;
   PreParser* reusable_preparser_;

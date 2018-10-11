@@ -8,6 +8,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/base/template-utils.h"
+#include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
@@ -49,6 +50,9 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
   set_ast_string_constants(isolate->ast_string_constants());
   if (isolate->is_block_code_coverage()) set_block_coverage_enabled();
   if (isolate->is_collecting_type_profile()) set_collect_type_profile();
+  if (isolate->compiler_dispatcher()->IsEnabled()) {
+    parallel_tasks_.reset(new ParallelTasks(isolate->compiler_dispatcher()));
+  }
 }
 
 ParseInfo::ParseInfo(Isolate* isolate)
@@ -222,6 +226,16 @@ void ParseInfo::set_script(Handle<Script> script) {
 
   if (block_coverage_enabled() && script->IsUserJavaScript()) {
     AllocateSourceRangeMap();
+  }
+}
+
+void ParseInfo::ParallelTasks::Enqueue(ParseInfo* outer_parse_info,
+                                       const AstRawString* function_name,
+                                       FunctionLiteral* literal) {
+  base::Optional<CompilerDispatcher::JobId> job_id =
+      dispatcher_->Enqueue(outer_parse_info, function_name, literal);
+  if (job_id) {
+    enqueued_jobs_.emplace_front(std::make_pair(literal, *job_id));
   }
 }
 

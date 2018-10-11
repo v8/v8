@@ -247,9 +247,6 @@ const AstRawString* AstValueFactory::CloneFromOtherFactory(
   const AstRawString* result = GetString(
       raw_string->hash_field(), raw_string->is_one_byte(),
       Vector<const byte>(raw_string->raw_data(), raw_string->byte_length()));
-  // Check we weren't trying to clone a string that was already in this
-  // ast-value-factory.
-  DCHECK_NE(result, raw_string);
   return result;
 }
 

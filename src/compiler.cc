@@ -818,6 +818,23 @@ MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
     script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
   }
 
+  // Register any pending parallel tasks with the associated SFI.
+  if (parse_info->parallel_tasks()) {
+    CompilerDispatcher* dispatcher = parse_info->parallel_tasks()->dispatcher();
+    for (auto& it : *parse_info->parallel_tasks()) {
+      FunctionLiteral* literal = it.first;
+      CompilerDispatcher::JobId job_id = it.second;
+      MaybeHandle<SharedFunctionInfo> maybe_shared_for_task =
+          script->FindSharedFunctionInfo(isolate, literal);
+      Handle<SharedFunctionInfo> shared_for_task;
+      if (maybe_shared_for_task.ToHandle(&shared_for_task)) {
+        // TODO(rmcilroy): Abort job if there is no shared function info for
+        // the literal.
+        dispatcher->RegisterSharedFunctionInfo(job_id, *shared_for_task);
+      }
+    }
+  }
+
   return shared_info;
 }
 
