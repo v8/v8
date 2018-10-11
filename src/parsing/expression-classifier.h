@@ -191,10 +191,6 @@ class ExpressionClassifierBase {
       // The result will continue to be a valid arrow formal parameters if the
       // inner expression is a valid binding pattern.
       if (productions & ArrowFormalParametersProduction) {
-        // Also whether we've seen any non-simple parameters
-        // if expecting an arrow function parameter.
-        this->is_non_simple_parameter_list_ |=
-            inner->is_non_simple_parameter_list_;
         if (is_valid_arrow_formal_parameters() &&
             !inner->is_valid_binding_pattern()) {
           errors |= ArrowFormalParametersProduction;
