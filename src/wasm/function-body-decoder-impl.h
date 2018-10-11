@@ -660,7 +660,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
     const Value& input, Value* result)                                        \
   F(Simd8x16ShuffleOp, const Simd8x16ShuffleImmediate<validate>& imm,         \
     const Value& input0, const Value& input1, Value* result)                  \
-  F(Throw, const ExceptionIndexImmediate<validate>& imm, Control* block,      \
+  F(Throw, const ExceptionIndexImmediate<validate>& imm,                      \
     const Vector<Value>& args)                                                \
   F(Rethrow, Control* block)                                                  \
   F(CatchException, const ExceptionIndexImmediate<validate>& imm,             \
@@ -1482,8 +1482,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             len = 1 + imm.length;
             if (!this->Validate(this->pc_, imm)) break;
             PopArgs(imm.exception->ToFunctionSig());
-            CALL_INTERFACE_IF_REACHABLE(Throw, imm, &control_.back(),
-                                        vec2vec(args_));
+            CALL_INTERFACE_IF_REACHABLE(Throw, imm, vec2vec(args_));
             EndControl();
             break;
           }

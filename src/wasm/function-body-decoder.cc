@@ -408,7 +408,7 @@ class WasmGraphBuildingInterface {
   }
 
   void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>& imm,
-             Control* block, const Vector<Value>& value_args) {
+             const Vector<Value>& value_args) {
     int count = value_args.length();
     ZoneVector<TFNode*> args(count, decoder->zone());
     for (int i = 0; i < count; ++i) {
@@ -416,14 +416,12 @@ class WasmGraphBuildingInterface {
     }
     BUILD(Throw, imm.index, imm.exception, vec2vec(args));
     Unreachable(decoder);
-    EndControl(decoder, block);
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
     TFNode* exception = block->try_info->exception;
     BUILD(Rethrow, exception);
     Unreachable(decoder);
-    EndControl(decoder, block);
   }
 
   void CatchException(FullDecoder* decoder,

@@ -1816,7 +1816,7 @@ class LiftoffCompiler {
     unsupported(decoder, "simd");
   }
   void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>&,
-             Control* block, const Vector<Value>& args) {
+             const Vector<Value>& args) {
     unsupported(decoder, "throw");
   }
   void Rethrow(FullDecoder* decoder, Control* block) {
