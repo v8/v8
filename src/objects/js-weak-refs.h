@@ -30,6 +30,9 @@ class JSWeakFactory : public JSObject {
   // For storing a list of JSWeakFactory objects in NativeContext.
   DECL_ACCESSORS(next, Object)
 
+  // Adds a newly constructed JSWeakCell object into this JSWeakFactory.
+  inline void AddWeakCell(JSWeakCell* weak_cell);
+
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
 

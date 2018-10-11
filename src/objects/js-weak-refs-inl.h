@@ -31,6 +31,15 @@ CAST_ACCESSOR(JSWeakCell)
 ACCESSORS(JSWeakFactoryCleanupIterator, factory, JSWeakFactory, kFactoryOffset)
 CAST_ACCESSOR(JSWeakFactoryCleanupIterator)
 
+void JSWeakFactory::AddWeakCell(JSWeakCell* weak_cell) {
+  weak_cell->set_factory(this);
+  weak_cell->set_next(active_cells());
+  if (active_cells()->IsJSWeakCell()) {
+    JSWeakCell::cast(active_cells())->set_prev(weak_cell);
+  }
+  set_active_cells(weak_cell);
+}
+
 bool JSWeakFactory::NeedsCleanup() const {
   return cleared_cells()->IsJSWeakCell();
 }

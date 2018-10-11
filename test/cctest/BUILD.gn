@@ -197,6 +197,7 @@ v8_source_set("cctest_sources") {
     "test-inspector.cc",
     "test-intl.cc",
     "test-isolate-independent-builtins.cc",
+    "test-js-weak-refs.cc",
     "test-liveedit.cc",
     "test-lockers.cc",
     "test-log.cc",

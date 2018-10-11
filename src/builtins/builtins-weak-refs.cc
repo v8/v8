@@ -53,14 +53,8 @@ BUILTIN(WeakFactoryMakeCell) {
   Handle<JSWeakCell> weak_cell =
       Handle<JSWeakCell>::cast(isolate->factory()->NewJSObjectFromMap(
           weak_cell_map, TENURED, Handle<AllocationSite>::null()));
-  weak_cell->set_factory(*weak_factory);
   weak_cell->set_target(*js_object);
-  weak_cell->set_prev(ReadOnlyRoots(isolate).undefined_value());
-  weak_cell->set_next(weak_factory->active_cells());
-  if (weak_factory->active_cells()->IsJSWeakCell()) {
-    JSWeakCell::cast(weak_factory->active_cells())->set_prev(*weak_cell);
-  }
-  weak_factory->set_active_cells(*weak_cell);
+  weak_factory->AddWeakCell(*weak_cell);
   return *weak_cell;
 }
 
