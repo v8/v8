@@ -246,13 +246,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadRoot(Register destination, RootIndex index) override;
 
-  void MoveForRootRegisterRefactoring(Register dst, Register src) {
-    // TODO(v8:6666): When rewriting ia32 ASM builtins to not clobber the
-    // kRootRegister ebx, most call sites of this wrapper function can probably
-    // be removed.
-    Move(dst, src);
-  }
-
   // Indirect root-relative loads.
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
