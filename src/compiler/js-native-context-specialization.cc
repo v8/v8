@@ -66,7 +66,6 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       global_object_(native_context->global_object(), jsgraph->isolate()),
       global_proxy_(JSGlobalProxy::cast(native_context->global_proxy()),
                     jsgraph->isolate()),
-      native_context_(js_heap_broker, native_context),
       dependencies_(dependencies),
       zone_(zone),
       shared_zone_(shared_zone),

@@ -2012,6 +2012,8 @@ bool PipelineImpl::CreateGraph() {
     data->js_heap_broker()->StartSerializing();
     Run<SerializeStandardObjectsPhase>();
     Run<CopyMetadataForConcurrentCompilePhase>();
+  } else {
+    data->js_heap_broker()->SetNativeContextRef();
   }
 
   // Perform function context specialization and inlining (if enabled).
@@ -2048,7 +2050,6 @@ bool PipelineImpl::CreateGraph() {
       Run<CopyMetadataForConcurrentCompilePhase>();
       data->js_heap_broker()->StopSerializing();
     } else {
-      data->js_heap_broker()->SetNativeContextRef();
       // Type the graph and keep the Typer running such that new nodes get
       // automatically typed when they are created.
       Run<TyperPhase>(data->CreateTyper());

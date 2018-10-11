@@ -238,7 +238,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Flags flags() const { return flags_; }
   Handle<JSGlobalObject> global_object() const { return global_object_; }
   Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
-  const NativeContextRef& native_context() const { return native_context_; }
+  NativeContextRef native_context() const {
+    return js_heap_broker()->native_context();
+  }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
@@ -248,7 +250,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Flags const flags_;
   Handle<JSGlobalObject> global_object_;
   Handle<JSGlobalProxy> global_proxy_;
-  NativeContextRef native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
   Zone* const shared_zone_;
