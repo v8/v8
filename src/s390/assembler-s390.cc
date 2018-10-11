@@ -63,10 +63,11 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 static bool supportsCPUFeature(const char* feature) {
-  static std::set<std::string> features;
-  static std::set<std::string> all_available_features = {
-      "iesan3", "zarch",  "stfle",    "msa", "ldisp", "eimm",
-      "dfp",    "etf3eh", "highgprs", "te",  "vx"};
+  static std::set<std::string>& features = *new std::set<std::string>();
+  static std::set<std::string>& all_available_features =
+      *new std::set<std::string>({"iesan3", "zarch", "stfle", "msa", "ldisp",
+                                  "eimm", "dfp", "etf3eh", "highgprs", "te",
+                                  "vx"});
   if (features.empty()) {
 #if V8_HOST_ARCH_S390
 
