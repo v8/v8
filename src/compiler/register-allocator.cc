@@ -3355,7 +3355,6 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
   RegisterAllocationData::PhiMapValue* phi_map_value =
       data()->GetPhiMapValueFor(range);
   const PhiInstruction* phi = phi_map_value->phi();
-  const InstructionBlock* block = phi_map_value->block();
   // Count the number of spilled operands.
   size_t spilled_count = 0;
   LiveRange* first_op = nullptr;
@@ -3363,15 +3362,9 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
     int op = phi->operands()[i];
     LiveRange* op_range = data()->GetOrCreateLiveRangeFor(op);
     if (!op_range->TopLevel()->HasSpillRange()) continue;
-    const InstructionBlock* pred =
-        code()->InstructionBlockAt(block->predecessors()[i]);
-    LifetimePosition pred_end =
-        LifetimePosition::InstructionFromInstructionIndex(
-            pred->last_instruction_index());
-    while (op_range != nullptr && !op_range->CanCover(pred_end)) {
-      op_range = op_range->next();
-    }
-    if (op_range != nullptr && op_range->spilled()) {
+    if (!op_range->TopLevel()->IsSpilledOnlyInDeferredBlocks()) {
+      // This value was spilled at definition, so it is available in a spillslot
+      // regardless of control flow.
       spilled_count++;
       if (first_op == nullptr) {
         first_op = op_range->TopLevel();
