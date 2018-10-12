@@ -318,7 +318,7 @@ class LiftoffAssembler : public TurboAssembler {
   // register, or {no_reg} if target was spilled to the stack.
   void PrepareCall(FunctionSig*, compiler::CallDescriptor*,
                    Register* target = nullptr,
-                   LiftoffRegister* target_instance = nullptr);
+                   Register* target_instance = nullptr);
   // Process return values of the call.
   void FinishCall(FunctionSig*, compiler::CallDescriptor*);
 
