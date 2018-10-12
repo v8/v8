@@ -23,7 +23,7 @@ class JSCallReducerTest : public TypedGraphTest {
   JSCallReducerTest()
       : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {
     if (FLAG_concurrent_typed_lowering) {
-      js_heap_broker()->SerializeStandardObjects();
+      broker()->SerializeStandardObjects();
     }
   }
   ~JSCallReducerTest() override = default;
@@ -37,7 +37,7 @@ class JSCallReducerTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
 
-    JSCallReducer reducer(&graph_reducer, &jsgraph, js_heap_broker(),
+    JSCallReducer reducer(&graph_reducer, &jsgraph, broker(),
                           JSCallReducer::kNoFlags, native_context(), &deps_);
     return reducer.Reduce(node);
   }

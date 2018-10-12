@@ -173,7 +173,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   Node* const outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   Node* const control = graph()->start();
   FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
-  SharedFunctionInfoRef shared(js_heap_broker(),
+  SharedFunctionInfoRef shared(broker(),
                                state_info.shared_info().ToHandleChecked());
 
   // Use the ArgumentsAccessStub for materializing both mapped and unmapped
@@ -635,7 +635,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   {
     Handle<AllocationSite> site;
     if (p.site().ToHandle(&site)) {
-      site_ref = AllocationSiteRef(js_heap_broker(), site);
+      site_ref = AllocationSiteRef(broker(), site);
     }
   }
   PretenureFlag pretenure = NOT_TENURED;
@@ -896,7 +896,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
   CreateBoundFunctionParameters const& p =
       CreateBoundFunctionParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  MapRef const map(js_heap_broker(), p.map());
+  MapRef const map(broker(), p.map());
   Node* bound_target_function = NodeProperties::GetValueInput(node, 0);
   Node* bound_this = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -934,9 +934,9 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
-  SharedFunctionInfoRef shared(js_heap_broker(), p.shared_info());
-  HeapObjectRef feedback_cell(js_heap_broker(), p.feedback_cell());
-  HeapObjectRef code(js_heap_broker(), p.code());
+  SharedFunctionInfoRef shared(broker(), p.shared_info());
+  HeapObjectRef feedback_cell(broker(), p.feedback_cell());
+  HeapObjectRef code(broker(), p.code());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -945,7 +945,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   // seen more than one instantiation, this simplifies the generated code and
   // also serves as a heuristic of which allocation sites benefit from it.
   if (!feedback_cell.map().equals(
-          MapRef(js_heap_broker(), factory()->many_closures_cell_map()))) {
+          MapRef(broker(), factory()->many_closures_cell_map()))) {
     return NoChange();
   }
 
@@ -1104,7 +1104,7 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  FeedbackVectorRef feedback_vector(js_heap_broker(), p.feedback().vector());
+  FeedbackVectorRef feedback_vector(broker(), p.feedback().vector());
   ObjectRef feedback = feedback_vector.get(p.feedback().slot());
   if (feedback.IsAllocationSite()) {
     AllocationSiteRef site = feedback.AsAllocationSite();
@@ -1127,7 +1127,7 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateEmptyLiteralArray, node->opcode());
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
-  FeedbackVectorRef fv(js_heap_broker(), p.feedback().vector());
+  FeedbackVectorRef fv(broker(), p.feedback().vector());
   ObjectRef feedback = fv.get(p.feedback().slot());
   if (feedback.IsAllocationSite()) {
     AllocationSiteRef site = feedback.AsAllocationSite();
@@ -1184,7 +1184,7 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  FeedbackVectorRef feedback_vector(js_heap_broker(), p.feedback().vector());
+  FeedbackVectorRef feedback_vector(broker(), p.feedback().vector());
   ObjectRef feedback = feedback_vector.get(p.feedback().slot());
   if (feedback.IsJSRegExp()) {
     JSRegExpRef boilerplate = feedback.AsJSRegExp();
@@ -1199,7 +1199,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
   const CreateFunctionContextParameters& parameters =
       CreateFunctionContextParametersOf(node->op());
-  ScopeInfoRef scope_info(js_heap_broker(), parameters.scope_info());
+  ScopeInfoRef scope_info(broker(), parameters.scope_info());
   int slot_count = parameters.slot_count();
   ScopeType scope_type = parameters.scope_type();
 
@@ -1244,7 +1244,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
-  ScopeInfoRef scope_info(js_heap_broker(), ScopeInfoOf(node->op()));
+  ScopeInfoRef scope_info(broker(), ScopeInfoOf(node->op()));
   Node* extension = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1265,7 +1265,7 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateCatchContext, node->opcode());
-  ScopeInfoRef scope_info(js_heap_broker(), ScopeInfoOf(node->op()));
+  ScopeInfoRef scope_info(broker(), ScopeInfoOf(node->op()));
   Node* exception = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1290,7 +1290,7 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
-  ScopeInfoRef scope_info(js_heap_broker(), ScopeInfoOf(node->op()));
+  ScopeInfoRef scope_info(broker(), ScopeInfoOf(node->op()));
   int const context_length = scope_info.ContextLength();
 
   // Use inline allocation for block contexts up to a size limit.
@@ -1348,8 +1348,7 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
   if (!prototype_type.IsHeapConstant()) return NoChange();
 
   HeapObjectRef prototype_const = prototype_type.AsHeapConstant()->Ref();
-  auto maybe_instance_map =
-      GetObjectCreateMap(js_heap_broker(), prototype_const);
+  auto maybe_instance_map = GetObjectCreateMap(broker(), prototype_const);
   if (!maybe_instance_map) return NoChange();
   MapRef instance_map = maybe_instance_map.value();
 
@@ -1826,7 +1825,7 @@ SimplifiedOperatorBuilder* JSCreateLowering::simplified() const {
 }
 
 NativeContextRef JSCreateLowering::native_context() const {
-  return js_heap_broker()->native_context();
+  return broker()->native_context();
 }
 
 }  // namespace compiler

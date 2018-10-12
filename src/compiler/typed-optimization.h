@@ -28,7 +28,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   TypedOptimization(Editor* editor, CompilationDependencies* dependencies,
-                    JSGraph* jsgraph, JSHeapBroker* js_heap_broker);
+                    JSGraph* jsgraph, JSHeapBroker* broker);
   ~TypedOptimization() override;
 
   const char* reducer_name() const override { return "TypedOptimization"; }
@@ -73,11 +73,11 @@ class V8_EXPORT_PRIVATE TypedOptimization final
 
   CompilationDependencies* dependencies() const { return dependencies_; }
   JSGraph* jsgraph() const { return jsgraph_; }
-  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* broker() const { return broker_; }
 
   CompilationDependencies* const dependencies_;
   JSGraph* const jsgraph_;
-  JSHeapBroker* js_heap_broker_;
+  JSHeapBroker* broker_;
   Type const true_type_;
   Type const false_type_;
   TypeCache const& type_cache_;

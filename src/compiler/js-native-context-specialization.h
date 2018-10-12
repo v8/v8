@@ -51,7 +51,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   typedef base::Flags<Flag> Flags;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph,
-                                JSHeapBroker* js_heap_broker, Flags flags,
+                                JSHeapBroker* broker, Flags flags,
                                 Handle<Context> native_context,
                                 CompilationDependencies* dependencies,
                                 Zone* zone, Zone* shared_zone);
@@ -229,7 +229,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
 
-  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;
   Factory* factory() const;
   CommonOperatorBuilder* common() const;
@@ -238,15 +238,13 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Flags flags() const { return flags_; }
   Handle<JSGlobalObject> global_object() const { return global_object_; }
   Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
-  NativeContextRef native_context() const {
-    return js_heap_broker()->native_context();
-  }
+  NativeContextRef native_context() const { return broker()->native_context(); }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
 
   JSGraph* const jsgraph_;
-  JSHeapBroker* const js_heap_broker_;
+  JSHeapBroker* const broker_;
   Flags const flags_;
   Handle<JSGlobalObject> global_object_;
   Handle<JSGlobalProxy> global_proxy_;

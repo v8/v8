@@ -20,15 +20,14 @@ namespace compiler {
 
 TypedOptimization::TypedOptimization(Editor* editor,
                                      CompilationDependencies* dependencies,
-                                     JSGraph* jsgraph,
-                                     JSHeapBroker* js_heap_broker)
+                                     JSGraph* jsgraph, JSHeapBroker* broker)
     : AdvancedReducer(editor),
       dependencies_(dependencies),
       jsgraph_(jsgraph),
-      js_heap_broker_(js_heap_broker),
-      true_type_(Type::HeapConstant(js_heap_broker, factory()->true_value(),
-                                    graph()->zone())),
-      false_type_(Type::HeapConstant(js_heap_broker, factory()->false_value(),
+      broker_(broker),
+      true_type_(
+          Type::HeapConstant(broker, factory()->true_value(), graph()->zone())),
+      false_type_(Type::HeapConstant(broker, factory()->false_value(),
                                      graph()->zone())),
       type_cache_(TypeCache::Get()) {}
 
@@ -93,7 +92,7 @@ Reduction TypedOptimization::Reduce(Node* node) {
 
 namespace {
 
-base::Optional<MapRef> GetStableMapFromObjectType(JSHeapBroker* js_heap_broker,
+base::Optional<MapRef> GetStableMapFromObjectType(JSHeapBroker* broker,
                                                   Type object_type) {
   if (object_type.IsHeapConstant()) {
     HeapObjectRef object = object_type.AsHeapConstant()->Ref();
@@ -149,7 +148,7 @@ Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
   Type const object_type = NodeProperties::GetType(object);
   Node* const effect = NodeProperties::GetEffectInput(node);
   base::Optional<MapRef> object_map =
-      GetStableMapFromObjectType(js_heap_broker(), object_type);
+      GetStableMapFromObjectType(broker(), object_type);
   if (object_map.has_value()) {
     for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
       Node* const map = NodeProperties::GetValueInput(node, i);
@@ -220,7 +219,7 @@ Reduction TypedOptimization::ReduceLoadField(Node* node) {
     //  (2) deoptimization is enabled and we can add a code dependency on the
     //      stability of map (to guard the Constant type information).
     base::Optional<MapRef> object_map =
-        GetStableMapFromObjectType(js_heap_broker(), object_type);
+        GetStableMapFromObjectType(broker(), object_type);
     if (object_map.has_value()) {
       dependencies()->DependOnStableMap(*object_map);
       Node* const value = jsgraph()->Constant(*object_map);
@@ -474,8 +473,8 @@ Reduction TypedOptimization::ReduceStringLength(Node* node) {
     case IrOpcode::kHeapConstant: {
       // Constant-fold the String::length of the {input}.
       HeapObjectMatcher m(input);
-      if (m.Ref(js_heap_broker()).IsString()) {
-        uint32_t const length = m.Ref(js_heap_broker()).AsString().length();
+      if (m.Ref(broker()).IsString()) {
+        uint32_t const length = m.Ref(broker()).AsString().length();
         Node* value = jsgraph()->Constant(length);
         return Replace(value);
       }
@@ -593,28 +592,28 @@ Reduction TypedOptimization::ReduceTypeOf(Node* node) {
   Factory* const f = factory();
   if (type.Is(Type::Boolean())) {
     return Replace(
-        jsgraph()->Constant(ObjectRef(js_heap_broker(), f->boolean_string())));
+        jsgraph()->Constant(ObjectRef(broker(), f->boolean_string())));
   } else if (type.Is(Type::Number())) {
     return Replace(
-        jsgraph()->Constant(ObjectRef(js_heap_broker(), f->number_string())));
+        jsgraph()->Constant(ObjectRef(broker(), f->number_string())));
   } else if (type.Is(Type::String())) {
     return Replace(
-        jsgraph()->Constant(ObjectRef(js_heap_broker(), f->string_string())));
+        jsgraph()->Constant(ObjectRef(broker(), f->string_string())));
   } else if (type.Is(Type::BigInt())) {
     return Replace(
-        jsgraph()->Constant(ObjectRef(js_heap_broker(), f->bigint_string())));
+        jsgraph()->Constant(ObjectRef(broker(), f->bigint_string())));
   } else if (type.Is(Type::Symbol())) {
     return Replace(
-        jsgraph()->Constant(ObjectRef(js_heap_broker(), f->symbol_string())));
+        jsgraph()->Constant(ObjectRef(broker(), f->symbol_string())));
   } else if (type.Is(Type::OtherUndetectableOrUndefined())) {
-    return Replace(jsgraph()->Constant(
-        ObjectRef(js_heap_broker(), f->undefined_string())));
+    return Replace(
+        jsgraph()->Constant(ObjectRef(broker(), f->undefined_string())));
   } else if (type.Is(Type::NonCallableOrNull())) {
     return Replace(
-        jsgraph()->Constant(ObjectRef(js_heap_broker(), f->object_string())));
+        jsgraph()->Constant(ObjectRef(broker(), f->object_string())));
   } else if (type.Is(Type::Function())) {
     return Replace(
-        jsgraph()->Constant(ObjectRef(js_heap_broker(), f->function_string())));
+        jsgraph()->Constant(ObjectRef(broker(), f->function_string())));
   }
   return NoChange();
 }

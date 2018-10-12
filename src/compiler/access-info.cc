@@ -245,10 +245,10 @@ Handle<Cell> PropertyAccessInfo::export_cell() const {
   return Handle<Cell>::cast(constant_);
 }
 
-AccessInfoFactory::AccessInfoFactory(JSHeapBroker* js_heap_broker,
+AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
                                      CompilationDependencies* dependencies,
                                      Handle<Context> native_context, Zone* zone)
-    : js_heap_broker_(js_heap_broker),
+    : broker_(broker),
       dependencies_(dependencies),
       native_context_(native_context),
       isolate_(native_context->GetIsolate()),
@@ -404,12 +404,12 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               // The field type was cleared by the GC, so we don't know anything
               // about the contents now.
             } else if (descriptors_field_type->IsClass()) {
-              MapRef map_ref(js_heap_broker(), map);
+              MapRef map_ref(broker(), map);
               map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
               dependencies()->DependOnFieldType(map_ref, number);
               // Remember the field map, and try to infer a useful type.
               Handle<Map> map(descriptors_field_type->AsClass(), isolate());
-              field_type = Type::For(MapRef(js_heap_broker(), map));
+              field_type = Type::For(MapRef(broker(), map));
               field_map = MaybeHandle<Map>(map);
             }
           }
@@ -709,17 +709,17 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       // Store is not safe if the field type was cleared.
       return false;
     } else if (descriptors_field_type->IsClass()) {
-      MapRef transition_map_ref(js_heap_broker(), transition_map);
+      MapRef transition_map_ref(broker(), transition_map);
       transition_map_ref
           .SerializeOwnDescriptors();  // TODO(neis): Remove later.
       dependencies()->DependOnFieldType(transition_map_ref, number);
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());
-      field_type = Type::For(MapRef(js_heap_broker(), map));
+      field_type = Type::For(MapRef(broker(), map));
       field_map = MaybeHandle<Map>(map);
     }
   }
-  dependencies()->DependOnTransition(MapRef(js_heap_broker(), transition_map));
+  dependencies()->DependOnTransition(MapRef(broker(), transition_map));
   // Transitioning stores are never stores to constant fields.
   *access_info = PropertyAccessInfo::DataField(
       PropertyConstness::kMutable, MapHandles{map}, field_index,

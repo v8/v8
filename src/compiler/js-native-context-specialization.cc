@@ -58,12 +58,12 @@ bool HasOnlyJSArrayMaps(JSHeapBroker* broker, MapHandles const& maps) {
 }  // namespace
 
 JSNativeContextSpecialization::JSNativeContextSpecialization(
-    Editor* editor, JSGraph* jsgraph, JSHeapBroker* js_heap_broker, Flags flags,
+    Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker, Flags flags,
     Handle<Context> native_context, CompilationDependencies* dependencies,
     Zone* zone, Zone* shared_zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
-      js_heap_broker_(js_heap_broker),
+      broker_(broker),
       flags_(flags),
       global_object_(native_context->global_object(), jsgraph->isolate()),
       global_proxy_(JSGlobalProxy::cast(native_context->global_proxy()),
@@ -154,7 +154,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   Reduction reduction;
 
   HeapObjectMatcher matcher(input);
-  if (matcher.HasValue() && matcher.Ref(js_heap_broker()).IsString()) {
+  if (matcher.HasValue() && matcher.Ref(broker()).IsString()) {
     reduction = Changed(input);  // JSToString(x:string) => x
     ReplaceWithValue(node, reduction.replacement());
     return reduction;
@@ -187,8 +187,8 @@ JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
       return new (shared_zone()) NumberToStringConstant(number_matcher.Value());
     } else {
       HeapObjectMatcher matcher(node);
-      if (matcher.HasValue() && matcher.Ref(js_heap_broker()).IsString()) {
-        StringRef s = matcher.Ref(js_heap_broker()).AsString();
+      if (matcher.HasValue() && matcher.Ref(broker()).IsString()) {
+        StringRef s = matcher.Ref(broker()).AsString();
         return new (shared_zone())
             StringLiteral(s.object<String>(), static_cast<size_t>(s.length()));
       } else {
@@ -222,7 +222,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
 
   // Install a code dependency on the promise hook protector cell.
   dependencies()->DependOnProtector(
-      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+      PropertyCellRef(broker(), factory()->promise_hook_protector()));
 
   // Create the promise for the async function.
   Node* promise = effect =
@@ -254,7 +254,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
 
   // Install a code dependency on the promise hook protector cell.
   dependencies()->DependOnProtector(
-      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+      PropertyCellRef(broker(), factory()->promise_hook_protector()));
 
   // Load the promise from the {async_function_object}.
   Node* promise = effect = graph()->NewNode(
@@ -293,7 +293,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
 
   // Install a code dependency on the promise hook protector cell.
   dependencies()->DependOnProtector(
-      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+      PropertyCellRef(broker(), factory()->promise_hook_protector()));
 
   // Load the promise from the {async_function_object}.
   Node* promise = effect = graph()->NewNode(
@@ -326,8 +326,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   Node* const lhs = node->InputAt(0);
   Node* const rhs = node->InputAt(1);
 
-  base::Optional<size_t> lhs_len = GetMaxStringLength(js_heap_broker(), lhs);
-  base::Optional<size_t> rhs_len = GetMaxStringLength(js_heap_broker(), rhs);
+  base::Optional<size_t> lhs_len = GetMaxStringLength(broker(), lhs);
+  base::Optional<size_t> rhs_len = GetMaxStringLength(broker(), rhs);
   if (!lhs_len || !rhs_len) {
     return NoChange();
   }
@@ -335,8 +335,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   // Fold into DelayedStringConstant if at least one of the parameters is a
   // string constant and the addition won't throw due to too long result.
   if (*lhs_len + *rhs_len <= String::kMaxLength &&
-      (IsStringConstant(js_heap_broker(), lhs) ||
-       IsStringConstant(js_heap_broker(), rhs))) {
+      (IsStringConstant(broker(), lhs) || IsStringConstant(broker(), rhs))) {
     const StringConstantBase* left = CreateDelayedStringConstant(lhs);
     const StringConstantBase* right = CreateDelayedStringConstant(rhs);
     const StringConstantBase* cons =
@@ -358,7 +357,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   // Check if the input is a known JSFunction.
   HeapObjectMatcher m(constructor);
   if (!m.HasValue()) return NoChange();
-  JSFunctionRef function = m.Ref(js_heap_broker()).AsJSFunction();
+  JSFunctionRef function = m.Ref(broker()).AsJSFunction();
   MapRef function_map = function.map();
   // TODO(neis): Remove SerializePrototype call once brokerization is complete.
   function_map.SerializePrototype();
@@ -404,7 +403,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
   // Compute property access info for @@hasInstance on {receiver}.
   PropertyAccessInfo access_info;
-  AccessInfoFactory access_info_factory(js_heap_broker(), dependencies(),
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         native_context().object<Context>(),
                                         graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
@@ -413,8 +412,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     return NoChange();
   }
 
-  PropertyAccessBuilder access_builder(jsgraph(), js_heap_broker(),
-                                       dependencies());
+  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
   if (access_info.IsNotFound()) {
     // If there's no @@hasInstance handler, the OrdinaryHasInstance operation
@@ -424,7 +422,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       Handle<JSObject> holder;
       if (access_info.holder().ToHandle(&holder)) {
         dependencies()->DependOnStablePrototypeChains(
-            js_heap_broker(), native_context().object<Context>(),
+            broker(), native_context().object<Context>(),
             access_info.receiver_maps(), holder);
       }
 
@@ -450,7 +448,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
       dependencies()->DependOnStablePrototypeChains(
-          js_heap_broker(), native_context().object<Context>(),
+          broker(), native_context().object<Context>(),
           access_info.receiver_maps(), holder);
     } else {
       holder = receiver;
@@ -519,7 +517,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
     Node* receiver, Node* effect, Handle<HeapObject> prototype) {
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(js_heap_broker(), receiver, effect,
+      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return kMayBeInPrototypeChain;
 
@@ -617,7 +615,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
 
   // Optimize if we currently know the "prototype" property.
   if (m.Value()->IsJSFunction()) {
-    JSFunctionRef function = m.Ref(js_heap_broker()).AsJSFunction();
+    JSFunctionRef function = m.Ref(broker()).AsJSFunction();
     // TODO(neis): This is a temporary hack needed because the copy reducer
     // runs only after this pass.
     function.Serialize();
@@ -654,16 +652,14 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   // Check if the {constructor} is the %Promise% function.
   HeapObjectMatcher m(constructor);
   if (!m.HasValue() ||
-      !m.Ref(js_heap_broker())
-           .equals(js_heap_broker()->native_context().promise_function())) {
+      !m.Ref(broker()).equals(broker()->native_context().promise_function())) {
     return NoChange();
   }
 
   // Check if we know something about the {value}.
   ZoneHandleSet<Map> value_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(js_heap_broker(), value, effect,
-                                        &value_maps);
+      NodeProperties::InferReceiverMaps(broker(), value, effect, &value_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, value_maps.size());
 
@@ -693,14 +689,14 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   // Check if we know something about the {resolution}.
   ZoneHandleSet<Map> resolution_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(js_heap_broker(), resolution, effect,
+      NodeProperties::InferReceiverMaps(broker(), resolution, effect,
                                         &resolution_maps);
   if (result != NodeProperties::kReliableReceiverMaps) return NoChange();
   DCHECK_NE(0, resolution_maps.size());
 
   // Compute property access info for "then" on {resolution}.
   PropertyAccessInfo access_info;
-  AccessInfoFactory access_info_factory(js_heap_broker(), dependencies(),
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         native_context().object<Context>(),
                                         graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
@@ -712,14 +708,13 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   // We can further optimize the case where {resolution}
   // definitely doesn't have a "then" property.
   if (!access_info.IsNotFound()) return NoChange();
-  PropertyAccessBuilder access_builder(jsgraph(), js_heap_broker(),
-                                       dependencies());
+  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
   // Add proper dependencies on the {resolution}s [[Prototype]]s.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        js_heap_broker(), native_context().object<Context>(),
+        broker(), native_context().object<Context>(),
         access_info.receiver_maps(), holder);
   }
 
@@ -827,7 +822,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       if (property_details.cell_type() != PropertyCellType::kMutable ||
           property_details.IsConfigurable()) {
         dependencies()->DependOnGlobalProperty(
-            PropertyCellRef(js_heap_broker(), property_cell));
+            PropertyCellRef(broker(), property_cell));
       }
 
       // Load from constant/undefined global property can be constant-folded.
@@ -849,9 +844,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
             representation = MachineRepresentation::kTaggedPointer;
           } else {
             MapRef property_cell_value_map(
-                js_heap_broker(),
-                handle(HeapObject::cast(*property_cell_value)->map(),
-                       isolate()));
+                broker(), handle(HeapObject::cast(*property_cell_value)->map(),
+                                 isolate()));
             property_cell_value_type = Type::For(property_cell_value_map);
             representation = MachineRepresentation::kTaggedPointer;
 
@@ -882,7 +876,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // Record a code dependency on the cell, and just deoptimize if the new
         // value doesn't match the previous value stored inside the cell.
         dependencies()->DependOnGlobalProperty(
-            PropertyCellRef(js_heap_broker(), property_cell));
+            PropertyCellRef(broker(), property_cell));
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(), value,
                              jsgraph()->Constant(property_cell_value));
@@ -896,7 +890,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // values' type doesn't match the type of the previous value in the
         // cell.
         dependencies()->DependOnGlobalProperty(
-            PropertyCellRef(js_heap_broker(), property_cell));
+            PropertyCellRef(broker(), property_cell));
         Type property_cell_value_type;
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_cell_value->IsHeapObject()) {
@@ -906,7 +900,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
               Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
           DCHECK(property_cell_value_map->is_stable());
           dependencies()->DependOnStableMap(
-              MapRef(js_heap_broker(), property_cell_value_map));
+              MapRef(broker(), property_cell_value_map));
 
           // Check that the {value} is a HeapObject.
           value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
@@ -938,7 +932,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // Record a code dependency on the cell, and just deoptimize if the
         // property ever becomes read-only.
         dependencies()->DependOnGlobalProperty(
-            PropertyCellRef(js_heap_broker(), property_cell));
+            PropertyCellRef(broker(), property_cell));
         effect = graph()->NewNode(
             simplified()->StoreField(ForPropertyCellValue(
                 MachineRepresentation::kTagged, Type::NonInternal(),
@@ -955,7 +949,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
-  NameRef name(js_heap_broker(), LoadGlobalParametersOf(node->op()).name());
+  NameRef name(broker(), LoadGlobalParametersOf(node->op()).name());
   Node* effect = NodeProperties::GetEffectInput(node);
 
   // Try to lookup the name on the script context table first (lexical scoping).
@@ -982,7 +976,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
-  NameRef name(js_heap_broker(), StoreGlobalParametersOf(node->op()).name());
+  NameRef name(broker(), StoreGlobalParametersOf(node->op()).name());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1041,7 +1035,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   }
 
   // Compute property access infos for the receiver maps.
-  AccessInfoFactory access_info_factory(js_heap_broker(), dependencies(),
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         native_context().object<Context>(),
                                         graph()->zone());
   ZoneVector<PropertyAccessInfo> access_infos(zone());
@@ -1069,8 +1063,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     if_exceptions = &if_exception_nodes;
   }
 
-  PropertyAccessBuilder access_builder(jsgraph(), js_heap_broker(),
-                                       dependencies());
+  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
   // Check for the monomorphic cases.
   if (access_infos.size() == 1) {
@@ -1081,7 +1074,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                             &receiver, &effect, control) &&
         !access_builder.TryBuildNumberCheck(access_info.receiver_maps(),
                                             &receiver, &effect, control)) {
-      if (HasNumberMaps(js_heap_broker(), access_info.receiver_maps())) {
+      if (HasNumberMaps(broker(), access_info.receiver_maps())) {
         // We need to also let Smi {receiver}s through in this case, so
         // we construct a diamond, guarded by the Sminess of the {receiver}
         // and if {receiver} is not a Smi just emit a sequence of map checks.
@@ -1126,7 +1119,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Check if {receiver} may be a number.
     bool receiverissmi_possible = false;
     for (PropertyAccessInfo const& access_info : access_infos) {
-      if (HasNumberMaps(js_heap_broker(), access_info.receiver_maps())) {
+      if (HasNumberMaps(broker(), access_info.receiver_maps())) {
         receiverissmi_possible = true;
         break;
       }
@@ -1190,7 +1183,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         }
 
         // The Number case requires special treatment to also deal with Smis.
-        if (HasNumberMaps(js_heap_broker(), receiver_maps)) {
+        if (HasNumberMaps(broker(), receiver_maps)) {
           // Join this check with the "receiver is smi" check above.
           DCHECK_NOT_NULL(receiverissmi_effect);
           DCHECK_NOT_NULL(receiverissmi_control);
@@ -1325,7 +1318,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
     if (m.Value()->IsJSFunction() &&
         p.name().is_identical_to(factory()->prototype_string())) {
       // Optimize "prototype" property of functions.
-      JSFunctionRef function = m.Ref(js_heap_broker()).AsJSFunction();
+      JSFunctionRef function = m.Ref(broker()).AsJSFunction();
       // TODO(neis): This is a temporary hack needed because the copy reducer
       // runs only after this pass.
       function.Serialize();
@@ -1418,7 +1411,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   } else {
     // Retrieve the native context from the given {node}.
     // Compute element access infos for the receiver maps.
-    AccessInfoFactory access_info_factory(js_heap_broker(), dependencies(),
+    AccessInfoFactory access_info_factory(broker(), dependencies(),
                                           native_context().object<Context>(),
                                           graph()->zone());
     ZoneVector<ElementAccessInfo> access_infos(zone());
@@ -1467,14 +1460,12 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
       // Install dependencies on the relevant prototype maps.
       for (Handle<Map> prototype_map : prototype_maps) {
-        dependencies()->DependOnStableMap(
-            MapRef(js_heap_broker(), prototype_map));
+        dependencies()->DependOnStableMap(MapRef(broker(), prototype_map));
       }
     }
 
     // Ensure that {receiver} is a heap object.
-    PropertyAccessBuilder access_builder(jsgraph(), js_heap_broker(),
-                                         dependencies());
+    PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
     receiver = access_builder.BuildCheckHeapObject(receiver, &effect, control);
 
     // Check for the monomorphic case.
@@ -2037,11 +2028,10 @@ JSNativeContextSpecialization::BuildPropertyLoad(
     PropertyAccessInfo const& access_info) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
-  PropertyAccessBuilder access_builder(jsgraph(), js_heap_broker(),
-                                       dependencies());
+  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        js_heap_broker(), native_context().object<Context>(),
+        broker(), native_context().object<Context>(),
         access_info.receiver_maps(), holder);
   }
 
@@ -2097,12 +2087,11 @@ JSNativeContextSpecialization::BuildPropertyStore(
     PropertyAccessInfo const& access_info, AccessMode access_mode) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
-  PropertyAccessBuilder access_builder(jsgraph(), js_heap_broker(),
-                                       dependencies());
+  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
     dependencies()->DependOnStablePrototypeChains(
-        js_heap_broker(), native_context().object<Context>(),
+        broker(), native_context().object<Context>(),
         access_info.receiver_maps(), holder);
   }
 
@@ -2327,7 +2316,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
              isolate());
 
   PropertyAccessInfo access_info;
-  AccessInfoFactory access_info_factory(js_heap_broker(), dependencies(),
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         native_context().object<Context>(),
                                         graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
@@ -2341,8 +2330,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   Node* control = NodeProperties::GetControlInput(node);
 
   // Monomorphic property access.
-  PropertyAccessBuilder access_builder(jsgraph(), js_heap_broker(),
-                                       dependencies());
+  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
   receiver = access_builder.BuildCheckHeapObject(receiver, &effect, control);
   access_builder.BuildCheckMaps(receiver, &effect, control,
                                 access_info.receiver_maps());
@@ -2416,7 +2404,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToObject(Node* node) {
 
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(js_heap_broker(), receiver, effect,
+      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
@@ -2476,7 +2464,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     // Check if we can constant-fold information about the {receiver} (i.e.
     // for asm.js-like code patterns).
     base::Optional<JSTypedArrayRef> typed_array =
-        GetTypedArrayConstant(js_heap_broker(), receiver);
+        GetTypedArrayConstant(broker(), receiver);
     if (typed_array.has_value()) {
       typed_array->Serialize();
       buffer = jsgraph()->Constant(typed_array->buffer());
@@ -2531,7 +2519,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       // Add a code dependency so we are deoptimized in case an ArrayBuffer
       // gets neutered.
       dependencies()->DependOnProtector(PropertyCellRef(
-          js_heap_broker(), factory()->array_buffer_neutering_protector()));
+          broker(), factory()->array_buffer_neutering_protector()));
     } else {
       // Deopt if the {buffer} was neutered.
       // Note: A neutered buffer leads to megamorphic feedback.
@@ -2686,8 +2674,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     }
 
     // Check if the {receiver} is a JSArray.
-    bool receiver_is_jsarray =
-        HasOnlyJSArrayMaps(js_heap_broker(), receiver_maps);
+    bool receiver_is_jsarray = HasOnlyJSArrayMaps(broker(), receiver_maps);
 
     // Load the length of the {receiver}.
     Node* length = effect =
@@ -2944,7 +2931,7 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
   if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS &&
       isolate()->IsNoElementsProtectorIntact()) {
     dependencies()->DependOnProtector(
-        PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
+        PropertyCellRef(broker(), factory()->no_elements_protector()));
 
     // Ensure that the {index} is a valid String length.
     index = *effect = graph()->NewNode(
@@ -3080,14 +3067,13 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
   for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(js_heap_broker(), map);
+    MapRef receiver_map(broker(), map);
     // TODO(neis): Remove SerializePrototype call once brokerization is
     // complete.
     receiver_map.SerializePrototype();
     ObjectRef receiver_prototype = receiver_map.prototype();
     if (!receiver_prototype.IsJSObject() ||
-        !js_heap_broker()->IsArrayOrObjectPrototype(
-            receiver_prototype.AsJSObject())) {
+        !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
       return false;
     }
   }
@@ -3096,7 +3082,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   if (!isolate()->IsNoElementsProtectorIntact()) return false;
 
   dependencies()->DependOnProtector(
-      PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
+      PropertyCellRef(broker(), factory()->no_elements_protector()));
   return true;
 }
 
@@ -3144,8 +3130,7 @@ bool JSNativeContextSpecialization::InferReceiverMaps(
     Node* receiver, Node* effect, MapHandles* receiver_maps) {
   ZoneHandleSet<Map> maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(js_heap_broker(), receiver, effect,
-                                        &maps);
+      NodeProperties::InferReceiverMaps(broker(), receiver, effect, &maps);
   if (result == NodeProperties::kReliableReceiverMaps) {
     for (size_t i = 0; i < maps.size(); ++i) {
       receiver_maps->push_back(maps[i]);

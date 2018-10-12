@@ -31,8 +31,8 @@ enum Signedness { kSigned, kUnsigned };
 class V8_EXPORT_PRIVATE JSTypedLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  JSTypedLowering(Editor* editor, JSGraph* jsgraph,
-                  JSHeapBroker* js_heap_broker, Zone* zone);
+  JSTypedLowering(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
+                  Zone* zone);
   ~JSTypedLowering() final = default;
 
   const char* reducer_name() const override { return "JSTypedLowering"; }
@@ -94,14 +94,14 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* jsgraph_;
-  JSHeapBroker* js_heap_broker_;
+  JSHeapBroker* broker_;
   Type empty_string_type_;
   Type pointer_comparable_type_;
   TypeCache const& type_cache_;

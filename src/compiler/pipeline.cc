@@ -137,7 +137,7 @@ class PipelineData {
     javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
     jsgraph_ = new (graph_zone_)
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
-    js_heap_broker_ = new (info_->zone()) JSHeapBroker(isolate_, info_->zone());
+    broker_ = new (info_->zone()) JSHeapBroker(isolate_, info_->zone());
     dependencies_ =
         new (info_->zone()) CompilationDependencies(isolate_, info_->zone());
   }
@@ -269,7 +269,7 @@ class PipelineData {
     return handle(info()->global_object(), isolate());
   }
 
-  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* broker() const { return broker_; }
 
   Schedule* schedule() const { return schedule_; }
   void set_schedule(Schedule* schedule) {
@@ -315,7 +315,7 @@ class PipelineData {
 
   Typer* CreateTyper() {
     DCHECK_NULL(typer_);
-    typer_ = new Typer(js_heap_broker(), typer_flags_, graph());
+    typer_ = new Typer(broker(), typer_flags_, graph());
     return typer_;
   }
 
@@ -357,7 +357,7 @@ class PipelineData {
     codegen_zone_scope_.Destroy();
     codegen_zone_ = nullptr;
     dependencies_ = nullptr;
-    js_heap_broker_ = nullptr;
+    broker_ = nullptr;
     frame_ = nullptr;
   }
 
@@ -483,7 +483,7 @@ class PipelineData {
   ZoneStats::Scope codegen_zone_scope_;
   Zone* codegen_zone_;
   CompilationDependencies* dependencies_ = nullptr;
-  JSHeapBroker* js_heap_broker_ = nullptr;
+  JSHeapBroker* broker_ = nullptr;
   Frame* frame_ = nullptr;
 
   // All objects in the following group of fields are allocated in
@@ -1063,7 +1063,7 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
     MachineOperatorReducer machine_reducer(data->mcgraph(), asmjs_origin_);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->js_heap_broker(), data->common(),
+                                         data->broker(), data->common(),
                                          data->machine(), scope.zone());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);
@@ -1207,16 +1207,15 @@ struct InliningPhase {
                                               data->common(), temp_zone);
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->js_heap_broker(), data->common(),
+                                         data->broker(), data->common(),
                                          data->machine(), temp_zone);
-    JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
-                               data->js_heap_broker(),
+    JSCallReducer call_reducer(&graph_reducer, data->jsgraph(), data->broker(),
                                data->info()->is_bailout_on_uninitialized()
                                    ? JSCallReducer::kBailoutOnUninitialized
                                    : JSCallReducer::kNoFlags,
                                data->native_context(), data->dependencies());
     JSContextSpecialization context_specialization(
-        &graph_reducer, data->jsgraph(), data->js_heap_broker(),
+        &graph_reducer, data->jsgraph(), data->broker(),
         ChooseSpecializationContext(isolate, data->info()),
         data->info()->is_function_context_specializing()
             ? data->info()->closure()
@@ -1233,15 +1232,14 @@ struct InliningPhase {
     // JSNativeContextSpecialization allocates out-of-heap objects
     // that need to live until code generation.
     JSNativeContextSpecialization native_context_specialization(
-        &graph_reducer, data->jsgraph(), data->js_heap_broker(), flags,
+        &graph_reducer, data->jsgraph(), data->broker(), flags,
         data->native_context(), data->dependencies(), temp_zone, info->zone());
     JSInliningHeuristic inlining(&graph_reducer,
                                  data->info()->is_inlining_enabled()
                                      ? JSInliningHeuristic::kGeneralInlining
                                      : JSInliningHeuristic::kRestrictedInlining,
                                  temp_zone, data->info(), data->jsgraph(),
-                                 data->js_heap_broker(),
-                                 data->source_positions());
+                                 data->broker(), data->source_positions());
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
@@ -1308,7 +1306,7 @@ struct SerializeStandardObjectsPhase {
   static const char* phase_name() { return "serialize standard objects"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    data->js_heap_broker()->SerializeStandardObjects();
+    data->broker()->SerializeStandardObjects();
   }
 };
 
@@ -1318,7 +1316,7 @@ struct CopyMetadataForConcurrentCompilePhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
                                data->jsgraph()->Dead());
-    JSHeapCopyReducer heap_copy_reducer(data->js_heap_broker());
+    JSHeapCopyReducer heap_copy_reducer(data->broker());
     AddReducer(data, &graph_reducer, &heap_copy_reducer);
     graph_reducer.ReduceGraph();
 
@@ -1338,20 +1336,19 @@ struct TypedLoweringPhase {
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     JSCreateLowering create_lowering(&graph_reducer, data->dependencies(),
-                                     data->jsgraph(), data->js_heap_broker(),
+                                     data->jsgraph(), data->broker(),
                                      temp_zone);
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(),
-                                   data->js_heap_broker(), temp_zone);
+                                   data->broker(), temp_zone);
     ConstantFoldingReducer constant_folding_reducer(
-        &graph_reducer, data->jsgraph(), data->js_heap_broker());
+        &graph_reducer, data->jsgraph(), data->broker());
     TypedOptimization typed_optimization(&graph_reducer, data->dependencies(),
-                                         data->jsgraph(),
-                                         data->js_heap_broker());
+                                         data->jsgraph(), data->broker());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph(),
-                                             data->js_heap_broker());
+                                             data->broker());
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->js_heap_broker(), data->common(),
+                                         data->broker(), data->common(),
                                          data->machine(), temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &create_lowering);
@@ -1387,9 +1384,8 @@ struct SimplifiedLoweringPhase {
   static const char* phase_name() { return "simplified lowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    SimplifiedLowering lowering(data->jsgraph(), data->js_heap_broker(),
-                                temp_zone, data->source_positions(),
-                                data->node_origins(),
+    SimplifiedLowering lowering(data->jsgraph(), data->broker(), temp_zone,
+                                data->source_positions(), data->node_origins(),
                                 data->info()->GetPoisoningMitigationLevel());
     lowering.LowerAllNodes();
   }
@@ -1441,12 +1437,12 @@ struct EarlyOptimizationPhase {
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph(),
-                                             data->js_heap_broker());
+                                             data->broker());
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->js_heap_broker(), data->common(),
+                                         data->broker(), data->common(),
                                          data->machine(), temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
@@ -1516,9 +1512,9 @@ struct EffectControlLinearizationPhase {
                                  data->jsgraph()->Dead());
       DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                                 data->common(), temp_zone);
-      CommonOperatorReducer common_reducer(
-          &graph_reducer, data->graph(), data->js_heap_broker(), data->common(),
-          data->machine(), temp_zone);
+      CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                           data->broker(), data->common(),
+                                           data->machine(), temp_zone);
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &common_reducer);
       graph_reducer.ReduceGraph();
@@ -1555,12 +1551,12 @@ struct LoadEliminationPhase {
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->js_heap_broker(), data->common(),
+                                         data->broker(), data->common(),
                                          data->machine(), temp_zone);
     ConstantFoldingReducer constant_folding_reducer(
-        &graph_reducer, data->jsgraph(), data->js_heap_broker());
+        &graph_reducer, data->jsgraph(), data->broker());
     TypeNarrowingReducer type_narrowing_reducer(&graph_reducer, data->jsgraph(),
-                                                data->js_heap_broker());
+                                                data->broker());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
@@ -1607,7 +1603,7 @@ struct LateOptimizationPhase {
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->js_heap_broker(), data->common(),
+                                         data->broker(), data->common(),
                                          data->machine(), temp_zone);
     SelectLowering select_lowering(data->jsgraph()->graph(),
                                    data->jsgraph()->common());
@@ -2011,11 +2007,11 @@ bool PipelineImpl::CreateGraph() {
   RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
 
   if (FLAG_concurrent_inlining) {
-    data->js_heap_broker()->StartSerializing();
+    data->broker()->StartSerializing();
     Run<SerializeStandardObjectsPhase>();
     Run<CopyMetadataForConcurrentCompilePhase>();
   } else {
-    data->js_heap_broker()->SetNativeContextRef();
+    data->broker()->SetNativeContextRef();
   }
 
   // Perform function context specialization and inlining (if enabled).
@@ -2045,12 +2041,12 @@ bool PipelineImpl::CreateGraph() {
       // TODO(neis): Remove CopyMetadataForConcurrentCompilePhase call once
       // brokerization of JSNativeContextSpecialization is complete.
       Run<CopyMetadataForConcurrentCompilePhase>();
-      data->js_heap_broker()->StopSerializing();
+      data->broker()->StopSerializing();
     } else if (FLAG_concurrent_typed_lowering) {
-      data->js_heap_broker()->StartSerializing();
+      data->broker()->StartSerializing();
       Run<SerializeStandardObjectsPhase>();
       Run<CopyMetadataForConcurrentCompilePhase>();
-      data->js_heap_broker()->StopSerializing();
+      data->broker()->StopSerializing();
     } else {
       // Type the graph and keep the Typer running such that new nodes get
       // automatically typed when they are created.
@@ -2588,8 +2584,8 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
 
 MaybeHandle<Code> PipelineImpl::FinalizeCode() {
   PipelineData* data = this->data_;
-  if (data->js_heap_broker() && FLAG_concurrent_typed_lowering) {
-    data->js_heap_broker()->Retire();
+  if (data->broker() && FLAG_concurrent_typed_lowering) {
+    data->broker()->Retire();
   }
   Run<FinalizeCodePhase>();
 
