@@ -25,6 +25,7 @@
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
+#include "src/wasm/wasm-serialization.h"
 
 #define TRACE(...)                                      \
   do {                                                  \
@@ -2212,6 +2213,9 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
   void OnAbort() override;
 
+  bool Deserialize(Vector<const uint8_t> wire_bytes,
+                   Vector<const uint8_t> module_bytes) override;
+
  private:
   // Finishes the AsyncCompileJob with an error.
   void FinishAsyncCompileJobWithError(ResultBase result);
@@ -2245,7 +2249,7 @@ AsyncCompileJob::~AsyncCompileJob() {
 
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
-void AsyncCompileJob::FinishCompile() {
+void AsyncCompileJob::FinishCompile(bool compile_wrappers) {
   DCHECK_NOT_NULL(isolate_->context());
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
@@ -2265,8 +2269,14 @@ void AsyncCompileJob::FinishCompile() {
   compilation_state->PublishDetectedFeatures(
       isolate_, *compilation_state->detected_features());
 
-  // TODO(wasm): compiling wrappers should be made async as well.
-  DoSync<CompileWrappers>();
+  // TODO(bbudge) Allow deserialization without wrapper compilation, so we can
+  // just compile wrappers here.
+  if (compile_wrappers) {
+    DoSync<CompileWrappers>();
+  } else {
+    // TODO(wasm): compiling wrappers should be made async as well.
+    DoSync<AsyncCompileJob::FinishModule>();
+  }
 }
 
 void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
@@ -2504,7 +2514,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       job_->tiering_completed_ = true;
 
       // Degenerate case of an empty module.
-      job_->FinishCompile();
+      job_->FinishCompile(true);
       return;
     }
 
@@ -2524,10 +2534,14 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                 if (job->DecrementAndCheckFinisherCount()) {
                   SaveContext saved_context(job->isolate());
                   job->isolate()->set_context(*job->native_context_);
-                  job->FinishCompile();
+                  job->FinishCompile(true);
                 }
                 return;
               case CompilationEvent::kFinishedTopTierCompilation:
+                // Notify embedder that compilation is finished.
+                if (job->stream_ && job->stream_->module_compiled_callback()) {
+                  job->stream_->module_compiled_callback()(job->module_object_);
+                }
                 // If a foreground task or a finisher is pending, we rely on
                 // FinishModule to remove the job.
                 if (job->pending_foreground_task_ ||
@@ -2788,7 +2802,7 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
       HandleScope scope(job_->isolate_);
       SaveContext saved_context(job_->isolate_);
       job_->isolate_->set_context(*job_->native_context_);
-      job_->FinishCompile();
+      job_->FinishCompile(true);
     }
   }
 }
@@ -2802,6 +2816,33 @@ void AsyncStreamingProcessor::OnError(DecodeResult result) {
 void AsyncStreamingProcessor::OnAbort() {
   TRACE_STREAMING("Abort stream...\n");
   job_->Abort();
+}
+
+bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
+                                          Vector<const uint8_t> wire_bytes) {
+  HandleScope scope(job_->isolate_);
+  MaybeHandle<WasmModuleObject> result =
+      DeserializeNativeModule(job_->isolate_, module_bytes, wire_bytes);
+  if (result.is_null()) return false;
+
+  job_->module_object_ = result.ToHandleChecked();
+  {
+    DeferredHandleScope deferred(job_->isolate_);
+    job_->module_object_ = handle(*job_->module_object_, job_->isolate_);
+    job_->deferred_handles_.push_back(deferred.Detach());
+  }
+  job_->native_module_ = job_->module_object_->native_module();
+  auto owned_wire_bytes = OwnedVector<uint8_t>::Of(wire_bytes);
+  job_->wire_bytes_ = ModuleWireBytes(owned_wire_bytes.as_vector());
+  job_->native_module_->set_wire_bytes(std::move(owned_wire_bytes));
+
+  // Job should now behave as if it's fully compiled.
+  job_->tiering_completed_ = true;
+
+  SaveContext saved_context(job_->isolate_);
+  job_->isolate_->set_context(*job_->native_context_);
+  job_->FinishCompile(false);
+  return true;
 }
 
 void CompilationStateDeleter::operator()(

@@ -37,6 +37,7 @@ class JSArrayBuffer;
 class SeqOneByteString;
 class WasmDebugInfo;
 class WasmInstanceObject;
+class WasmModuleObject;
 
 template <class CppType>
 class Managed;

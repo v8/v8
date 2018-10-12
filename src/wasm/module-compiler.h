@@ -111,7 +111,7 @@ class AsyncCompileJob {
   }
   Counters* counters() const { return async_counters().get(); }
 
-  void FinishCompile();
+  void FinishCompile(bool compile_wrappers);
 
   void AsyncCompileFailed(Handle<Object> error_reason);
 

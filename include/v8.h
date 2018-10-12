@@ -4364,7 +4364,7 @@ class V8_EXPORT WasmStreaming final {
   ~WasmStreaming();
 
   /**
-   * Pass a new chunck of bytes to WebAssembly streaming compilation.
+   * Pass a new chunk of bytes to WebAssembly streaming compilation.
    * The buffer passed into {OnBytesReceived} is owned by the caller.
    */
   void OnBytesReceived(const uint8_t* bytes, size_t size);
@@ -4382,6 +4382,29 @@ class V8_EXPORT WasmStreaming final {
    * {exception} does not have value, the promise does not get rejected.
    */
   void Abort(MaybeLocal<Value> exception);
+
+  /**
+   * Callback for module compiled notifications. |data| is the identifier
+   * passed to {SetModuleCompiledCallback}, |compiled_module| is the result.
+   */
+  typedef void (*ModuleCompiledCallback)(
+      intptr_t data, Local<WasmCompiledModule> compiled_module);
+
+  /**
+   * Sets a callback for when compilation of the Wasm module has been completed
+   * to the highest tier. |data| will be passed as the first callback parameter.
+   */
+  void SetModuleCompiledCallback(ModuleCompiledCallback callback,
+                                 intptr_t data);
+
+  /**
+   * Passes previously compiled module bytes. This must be called before calling
+   * any non-static methods of this class. Returns true if the module bytes can
+   * be used, false otherwise. The buffer passed into {SetCompiledModuleBytes}
+   * is owned by the caller. If {SetCompiledModuleBytes} returns true, the
+   * buffer must remain valid until either {Finish} or {Abort} completes.
+   */
+  bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size);
 
   /**
    * Unpacks a {WasmStreaming} object wrapped in a  {Managed} for the embedder.
