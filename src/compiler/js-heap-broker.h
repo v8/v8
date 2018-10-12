@@ -512,6 +512,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   // Like the previous but wraps argument in handle first (for convenience).
   ObjectData* GetOrCreateData(Object*);
 
+  // Check if {object} is any native context's %ArrayPrototype% or
+  // %ObjectPrototype%.
+  bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
+
   void Trace(const char* format, ...) const;
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
@@ -522,12 +526,16 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   friend class ObjectData;
 
   void SerializeShareableObjects();
+  void CollectArrayAndObjectPrototypes();
 
   Isolate* const isolate_;
   Zone* const broker_zone_;
   Zone* current_zone_;
   base::Optional<NativeContextRef> native_context_;
   RefsMap* refs_;
+  ZoneUnorderedSet<Handle<JSObject>, Handle<JSObject>::hash,
+                   Handle<JSObject>::equal_to>
+      array_and_object_prototypes_;
 
   BrokerMode mode_ = kDisabled;
   unsigned tracing_indentation_ = 0;

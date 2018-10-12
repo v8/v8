@@ -24,11 +24,13 @@ class SourcePositionTable;
 class JSInliner final : public AdvancedReducer {
  public:
   JSInliner(Editor* editor, Zone* local_zone, OptimizedCompilationInfo* info,
-            JSGraph* jsgraph, SourcePositionTable* source_positions)
+            JSGraph* jsgraph, JSHeapBroker* js_heap_broker,
+            SourcePositionTable* source_positions)
       : AdvancedReducer(editor),
         local_zone_(local_zone),
         info_(info),
         jsgraph_(jsgraph),
+        js_heap_broker_(js_heap_broker),
         source_positions_(source_positions) {}
 
   const char* reducer_name() const override { return "JSInliner"; }
@@ -47,12 +49,15 @@ class JSInliner final : public AdvancedReducer {
   SimplifiedOperatorBuilder* simplified() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  // TODO(neis): Make heap broker a component of JSGraph?
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Isolate* isolate() const { return jsgraph_->isolate(); }
   Handle<Context> native_context() const;
 
   Zone* const local_zone_;
   OptimizedCompilationInfo* info_;
   JSGraph* const jsgraph_;
+  JSHeapBroker* const js_heap_broker_;
   SourcePositionTable* const source_positions_;
 
   bool DetermineCallTarget(Node* node,

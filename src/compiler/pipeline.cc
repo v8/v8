@@ -1235,11 +1235,13 @@ struct InliningPhase {
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), data->js_heap_broker(), flags,
         data->native_context(), data->dependencies(), temp_zone, info->zone());
-    JSInliningHeuristic inlining(
-        &graph_reducer, data->info()->is_inlining_enabled()
-                            ? JSInliningHeuristic::kGeneralInlining
-                            : JSInliningHeuristic::kRestrictedInlining,
-        temp_zone, data->info(), data->jsgraph(), data->source_positions());
+    JSInliningHeuristic inlining(&graph_reducer,
+                                 data->info()->is_inlining_enabled()
+                                     ? JSInliningHeuristic::kGeneralInlining
+                                     : JSInliningHeuristic::kRestrictedInlining,
+                                 temp_zone, data->info(), data->jsgraph(),
+                                 data->js_heap_broker(),
+                                 data->source_positions());
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);

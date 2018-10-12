@@ -517,7 +517,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
     Node* receiver, Node* effect, Handle<HeapObject> prototype) {
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(isolate(), receiver, effect,
+      NodeProperties::InferReceiverMaps(js_heap_broker(), receiver, effect,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return kMayBeInPrototypeChain;
 
@@ -660,7 +660,8 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   // Check if we know something about the {value}.
   ZoneHandleSet<Map> value_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(isolate(), value, effect, &value_maps);
+      NodeProperties::InferReceiverMaps(js_heap_broker(), value, effect,
+                                        &value_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, value_maps.size());
 
@@ -690,7 +691,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   // Check if we know something about the {resolution}.
   ZoneHandleSet<Map> resolution_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(isolate(), resolution, effect,
+      NodeProperties::InferReceiverMaps(js_heap_broker(), resolution, effect,
                                         &resolution_maps);
   if (result != NodeProperties::kReliableReceiverMaps) return NoChange();
   DCHECK_NE(0, resolution_maps.size());
@@ -2413,7 +2414,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToObject(Node* node) {
 
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(isolate(), receiver, effect,
+      NodeProperties::InferReceiverMaps(js_heap_broker(), receiver, effect,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
@@ -3072,13 +3073,15 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   // Check if all {receiver_maps} either have one of the initial Array.prototype
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
-  for (Handle<Map> receiver_map : receiver_maps) {
-    DisallowHeapAllocation no_gc;
-    Object* const receiver_prototype = receiver_map->prototype();
-    if (!isolate()->IsInAnyContext(receiver_prototype,
-                                   Context::INITIAL_ARRAY_PROTOTYPE_INDEX) &&
-        !isolate()->IsInAnyContext(receiver_prototype,
-                                   Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
+  for (Handle<Map> map : receiver_maps) {
+    MapRef receiver_map(js_heap_broker(), map);
+    // TODO(neis): Remove SerializePrototype call once brokerization is
+    // complete.
+    receiver_map.SerializePrototype();
+    ObjectRef receiver_prototype = receiver_map.prototype();
+    if (!receiver_prototype.IsJSObject() ||
+        !js_heap_broker()->IsArrayOrObjectPrototype(
+            receiver_prototype.AsJSObject())) {
       return false;
     }
   }
@@ -3135,7 +3138,8 @@ bool JSNativeContextSpecialization::InferReceiverMaps(
     Node* receiver, Node* effect, MapHandles* receiver_maps) {
   ZoneHandleSet<Map> maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(isolate(), receiver, effect, &maps);
+      NodeProperties::InferReceiverMaps(js_heap_broker(), receiver, effect,
+                                        &maps);
   if (result == NodeProperties::kReliableReceiverMaps) {
     for (size_t i = 0; i < maps.size(); ++i) {
       receiver_maps->push_back(maps[i]);

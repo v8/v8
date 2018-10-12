@@ -1338,7 +1338,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone)
       broker_zone_(broker_zone),
       current_zone_(broker_zone),
       refs_(new (zone())
-                RefsMap(kMinimalRefsBucketCount, AddressMatcher(), zone())) {
+                RefsMap(kMinimalRefsBucketCount, AddressMatcher(), zone())),
+      array_and_object_prototypes_(zone()) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
   // compilation enabled, standard objects to be serialized), as the map
@@ -1456,6 +1457,37 @@ void JSHeapBroker::SerializeShareableObjects() {
   current_zone_ = broker_zone_;
 }
 
+void JSHeapBroker::CollectArrayAndObjectPrototypes() {
+  DisallowHeapAllocation no_gc;
+  CHECK_EQ(mode(), kSerializing);
+  CHECK(array_and_object_prototypes_.empty());
+
+  Object* maybe_context = isolate()->heap()->native_contexts_list();
+  while (!maybe_context->IsUndefined(isolate())) {
+    Context* context = Context::cast(maybe_context);
+    Object* array_prot = context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+    Object* object_prot = context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+    array_and_object_prototypes_.emplace(JSObject::cast(array_prot), isolate());
+    array_and_object_prototypes_.emplace(JSObject::cast(object_prot),
+                                         isolate());
+    maybe_context = context->next_context_link();
+  }
+
+  CHECK(!array_and_object_prototypes_.empty());
+}
+
+bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
+  if (mode() == kDisabled) {
+    return isolate()->IsInAnyContext(*object.object(),
+                                     Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
+           isolate()->IsInAnyContext(*object.object(),
+                                     Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+  }
+  CHECK(!array_and_object_prototypes_.empty());
+  return array_and_object_prototypes_.find(object.object<JSObject>()) !=
+         array_and_object_prototypes_.end();
+}
+
 void JSHeapBroker::SerializeStandardObjects() {
   if (mode() == kDisabled) return;
   CHECK_EQ(mode(), kSerializing);
@@ -1463,6 +1495,8 @@ void JSHeapBroker::SerializeStandardObjects() {
   SerializeShareableObjects();
 
   TraceScope tracer(this, "JSHeapBroker::SerializeStandardObjects");
+
+  CollectArrayAndObjectPrototypes();
 
   SetNativeContextRef();
   native_context().Serialize();
