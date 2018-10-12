@@ -417,7 +417,6 @@ class AsyncInstantiateCompileResultResolver
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
@@ -452,7 +451,6 @@ void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
   Local<Context> context = isolate->GetCurrentContext();
@@ -671,8 +669,6 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
-  MicrotasksScope does_not_run_microtasks(isolate,
-                                          MicrotasksScope::kDoNotRunMicrotasks);
 
   HandleScope scope(args.GetIsolate());
   if (i_isolate->wasm_instance_callback()(args)) return;
@@ -703,7 +699,6 @@ void WebAssemblyInstantiateStreaming(
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
 
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
   HandleScope scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   ScheduledErrorThrower thrower(i_isolate,
@@ -782,7 +777,6 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
 
