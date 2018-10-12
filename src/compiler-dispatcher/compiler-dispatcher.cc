@@ -136,16 +136,13 @@ void CompilerDispatcher::RegisterSharedFunctionInfo(
   Job* job = job_it->second.get();
   shared_to_unoptimized_job_id_.Set(function_handle, job_id);
 
-  // Schedule an idle task to finalize job if it is ready.
-  bool is_ready_to_finalize;
   {
     base::LockGuard<base::Mutex> lock(&mutex_);
     job->function = function_handle;
-    is_ready_to_finalize = job->IsReadyToFinalize(lock);
-  }
-  // TODO(rmcilroy): Move idle task posting into locked block above.
-  if (is_ready_to_finalize) {
-    ScheduleIdleTaskIfNeeded();
+    if (job->IsReadyToFinalize(lock)) {
+      // Schedule an idle task to finalize job if it is ready.
+      ScheduleIdleTaskFromAnyThread(lock);
+    }
   }
 }
 
@@ -303,21 +300,15 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
   return job;
 }
 
-void CompilerDispatcher::ScheduleIdleTaskFromAnyThread() {
+void CompilerDispatcher::ScheduleIdleTaskFromAnyThread(
+    const base::LockGuard<base::Mutex>&) {
   if (!taskrunner_->IdleTasksEnabled()) return;
-  {
-    base::LockGuard<base::Mutex> lock(&mutex_);
-    if (idle_task_scheduled_ || abort_) return;
-    idle_task_scheduled_ = true;
-  }
+  if (idle_task_scheduled_ || abort_) return;
+
+  idle_task_scheduled_ = true;
   taskrunner_->PostIdleTask(MakeCancelableIdleLambdaTask(
       task_manager_.get(),
       [this](double deadline_in_seconds) { DoIdleWork(deadline_in_seconds); }));
-}
-
-void CompilerDispatcher::ScheduleIdleTaskIfNeeded() {
-  if (jobs_.empty()) return;
-  ScheduleIdleTaskFromAnyThread();
 }
 
 void CompilerDispatcher::ScheduleAbortTask() {
@@ -367,24 +358,21 @@ void CompilerDispatcher::DoBackgroundWork() {
 
     job->task->Run();
 
-    bool is_ready_to_finalize;
     {
       base::LockGuard<base::Mutex> lock(&mutex_);
       running_background_jobs_.erase(job);
 
       job->has_run = true;
-      is_ready_to_finalize = job->IsReadyToFinalize(lock);
+      if (job->IsReadyToFinalize(lock)) {
+        // Schedule an idle task to finalize the compilation on the main thread
+        // if the job has a shared function info registered.
+        ScheduleIdleTaskFromAnyThread(lock);
+      }
+
       if (main_thread_blocking_on_job_ == job) {
         main_thread_blocking_on_job_ = nullptr;
         main_thread_blocking_signal_.NotifyOne();
       }
-    }
-
-    // Schedule an idle task to finalize the compilation on the main thread if
-    // the job has a shared function info registered.
-    // TODO(rmcilroy) Move this into the locked section above.
-    if (is_ready_to_finalize) {
-      ScheduleIdleTaskFromAnyThread();
     }
   }
 
@@ -450,7 +438,10 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
   }
 
   // We didn't return above so there still might be jobs to finalize.
-  ScheduleIdleTaskIfNeeded();
+  {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    ScheduleIdleTaskFromAnyThread(lock);
+  }
 }
 
 CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::InsertJob(

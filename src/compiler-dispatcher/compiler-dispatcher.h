@@ -150,8 +150,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   void AbortInactiveJobs();
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ScheduleMoreWorkerTasksIfNeeded();
-  void ScheduleIdleTaskFromAnyThread();
-  void ScheduleIdleTaskIfNeeded();
+  void ScheduleIdleTaskFromAnyThread(const base::LockGuard<base::Mutex>&);
   void ScheduleAbortTask();
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
