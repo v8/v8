@@ -41,14 +41,33 @@ MacroAssembler::MacroAssembler(Isolate* isolate,
     code_object_ = Handle<HeapObject>::New(
         *isolate->factory()->NewSelfReferenceMarker(), isolate);
   }
+}
 
-#ifdef V8_EMBEDDED_BUILTINS
-  // Fake it as long as we use indirections through an embedded external
-  // reference. This will let us implement indirections without a real
-  // root register.
-  // TODO(jgruber, v8:6666): Remove once a real root register exists.
-  if (FLAG_embedded_builtins) set_root_array_available(true);
-#endif  // V8_EMBEDDED_BUILTINS
+void TurboAssembler::InitializeRootRegister() {
+  // TODO(v8:6666): Initialize unconditionally once poisoning support has been
+  // removed.
+  if (!FLAG_embedded_builtins) return;
+
+  Assembler::AllowExplicitEbxAccessScope setup(this);
+  ExternalReference roots_array_start =
+      ExternalReference::roots_array_start(isolate());
+  Move(kRootRegister, Immediate(roots_array_start));
+  add(kRootRegister, Immediate(kRootRegisterBias));
+}
+
+void TurboAssembler::VerifyRootRegister() {
+  if (!FLAG_ia32_verify_root_register) return;
+
+  DCHECK(FLAG_embedded_builtins);
+
+  Assembler::AllowExplicitEbxAccessScope read_only_access(this);
+  Label root_register_ok;
+  cmp(Operand(kRootRegister,
+              IsolateData::kMagicNumberOffset - kRootRegisterBias),
+      Immediate(IsolateData::kRootRegisterSentinel));
+  j(equal, &root_register_ok);
+  int3();
+  bind(&root_register_ok);
 }
 
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {

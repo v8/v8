@@ -31,23 +31,27 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-  // Set up frame.
-  __ push(ebp);
-  __ mov(ebp, esp);
+  {  // NOLINT. Scope block confuses linter.
+    NoRootArrayScope uninitialized_root_register(masm);
+    Assembler::AllowExplicitEbxAccessScope spill_register(masm);
 
-  // Push marker in two places.
-  StackFrame::Type marker = type();
-  __ push(Immediate(StackFrame::TypeToMarker(marker)));  // marker
-  ExternalReference context_address =
-      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  __ push(__ StaticVariable(context_address));  // context
-  // Save callee-saved registers (C calling conventions).
-  __ push(edi);
-  __ push(esi);
-  Assembler::AllowExplicitEbxAccessScope spill_register(masm);
-  __ push(ebx);
+    // Set up frame.
+    __ push(ebp);
+    __ mov(ebp, esp);
 
-  __ InitializeRootRegister();
+    // Push marker in two places.
+    StackFrame::Type marker = type();
+    __ push(Immediate(StackFrame::TypeToMarker(marker)));  // marker
+    ExternalReference context_address =
+        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
+    __ push(__ StaticVariable(context_address));  // context
+    // Save callee-saved registers (C calling conventions).
+    __ push(edi);
+    __ push(esi);
+    __ push(ebx);
+
+    __ InitializeRootRegister();
+  }
   Assembler::SupportsRootRegisterScope supports_root_register(masm);
 
   // Save copies of the top frame descriptor on the stack.

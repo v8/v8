@@ -37,6 +37,9 @@ class IsolateData final {
   /* builtins_ */                                                         \
   V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)          \
   V(kBuiltinsTableEndOffset, 0)                                           \
+  /* magic_number_ */                                                     \
+  V(kMagicNumberOffset, kIntptrSize)                                      \
+  V(kMagicNumberEndOffset, 0)                                             \
   /* Total size. */                                                       \
   V(kSize, 0)
 
@@ -61,12 +64,20 @@ class IsolateData final {
 
   Object** builtins() { return &builtins_[0]; }
 
+  // For root register verification.
+  // TODO(v8:6666): Remove once the root register is fully supported on ia32.
+  static constexpr intptr_t kRootRegisterSentinel = 0xcafeca11;
+
  private:
   RootsTable roots_;
 
   ExternalReferenceTable external_reference_table_;
 
   Object* builtins_[Builtins::builtin_count];
+
+  // For root register verification.
+  // TODO(v8:6666): Remove once the root register is fully supported on ia32.
+  const intptr_t magic_number_ = kRootRegisterSentinel;
 
   V8_INLINE static void AssertPredictableLayout();
 

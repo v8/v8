@@ -110,26 +110,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Check that the stack is aligned.
   void CheckStackAlignment();
 
-  void InitializeRootRegister() {
-    Assembler::AllowExplicitEbxAccessScope setup(this);
-    // For now, only check sentinel value for root register.
-    // TODO(jgruber,v8:6666): Implement root register.
-    if (FLAG_ia32_verify_root_register && FLAG_embedded_builtins) {
-      mov(kRootRegister, kRootRegisterSentinel);
-    }
-  }
-
-  void VerifyRootRegister() {
-    if (FLAG_ia32_verify_root_register && FLAG_embedded_builtins) {
-      Assembler::AllowExplicitEbxAccessScope read_only_access(this);
-      Label root_register_ok;
-      cmp(kRootRegister, kRootRegisterSentinel);
-      j(equal, &root_register_ok);
-      int3();
-      bind(&root_register_ok);
-    }
-  }
-
   // Move a constant into a destination using the most efficient encoding.
   void Move(Register dst, const Immediate& src);
   void Move(Register dst, Smi* src) { Move(dst, Immediate(src)); }
@@ -243,6 +223,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Popcnt(Register dst, Operand src);
 
   void Ret();
+
+  // Root register utility functions.
+
+  void InitializeRootRegister();
+  void VerifyRootRegister();
 
   void LoadRoot(Register destination, RootIndex index) override;
 
