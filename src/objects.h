@@ -1353,7 +1353,7 @@ class Object {
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
-  // to implement the Harmony "egal" function.
+  // to implement the Object.is function.
   V8_EXPORT_PRIVATE bool SameValue(Object* other);
 
   // Checks whether this object has the same value as the given one.
