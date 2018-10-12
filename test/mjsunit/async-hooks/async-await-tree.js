@@ -41,8 +41,9 @@
   });
   ah.enable();
 
-  // Simplified version of Node.js util.promisify(setTimeout)
-  function sleep(callback, timeout) {
+  // Simplified version of Node.js util.promisify(setTimeout),
+  // but d8 ignores the timeout of setTimeout.
+  function sleep0() {
     const promise = new Promise(function(resolve, reject) {
       try {
         setTimeout((err, ...values) => {
@@ -51,7 +52,7 @@
           } else {
             resolve(values[0]);
           }
-        }, timeout);
+        }, 0);
       } catch (err) {
         reject(err);
       }
@@ -60,15 +61,15 @@
   }
 
   async function foo() {
-    await sleep(10);
+    await sleep0();
   }
 
-  foo().then(function() {
-    assertEquals(asyncIds.length, 6);
-    assertEquals(triggerIds.length, 6);
-    assertEquals(triggerIds[2], asyncIds[0]);
-    assertEquals(triggerIds[3], asyncIds[2]);
-    assertEquals(triggerIds[4], asyncIds[0]);
-    assertEquals(triggerIds[5], asyncIds[1]);
-  });
+  assertPromiseResult(
+    foo().then(function() {
+      assertEquals(triggerIds[2], asyncIds[0]);
+      assertEquals(triggerIds[3], asyncIds[2]);
+      assertEquals(triggerIds[4], asyncIds[0]);
+      assertEquals(triggerIds[5], asyncIds[4]);
+      assertEquals(triggerIds[7], asyncIds[6]);
+    }));
 })();
