@@ -3794,23 +3794,38 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    bool target_is_isolate_independent_builtin =
+        isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index);
+    if (target_is_isolate_independent_builtin &&
+        options().use_pc_relative_calls_and_jumps) {
+      int32_t code_target_index = AddCodeTarget(code);
+      Label skip;
+      BlockTrampolinePoolScope block_trampoline_pool(this);
+      if (cond != cc_always) {
+        // By using delay slot, we always execute first instruction of
+        // GenPcRelativeJump (which is or_(t8, ra, zero_reg)).
+        Branch(USE_DELAY_SLOT, &skip, NegateCondition(cond), rs, rt);
+      }
+      GenPCRelativeJump(t8, t9, code_target_index,
+                        RelocInfo::RELATIVE_CODE_TARGET, bd);
+      bind(&skip);
+      return;
+    } else if (root_array_available_ && options().isolate_independent_code) {
       IndirectLoadConstant(t9, code);
       Jump(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
       return;
-    } else if (options().inline_offheap_trampolines) {
-      int builtin_index = Builtins::kNoBuiltinId;
-      if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-          Builtins::IsIsolateIndependent(builtin_index)) {
-        // Inline the trampoline.
-        RecordCommentForOffHeapTrampoline(builtin_index);
-        CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-        EmbeddedData d = EmbeddedData::FromBlob();
-        Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-        Jump(t9, 0, cond, rs, rt, bd);
-        return;
-      }
+    } else if (target_is_isolate_independent_builtin &&
+               options().inline_offheap_trampolines) {
+      // Inline the trampoline.
+      RecordCommentForOffHeapTrampoline(builtin_index);
+      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      Jump(t9, 0, cond, rs, rt, bd);
+      return;
     }
   }
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
@@ -3901,23 +3916,36 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
+    int builtin_index = Builtins::kNoBuiltinId;
+    bool target_is_isolate_independent_builtin =
+        isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+        Builtins::IsIsolateIndependent(builtin_index);
+    if (target_is_isolate_independent_builtin &&
+        options().use_pc_relative_calls_and_jumps) {
+      int32_t code_target_index = AddCodeTarget(code);
+      Label skip;
+      BlockTrampolinePoolScope block_trampoline_pool(this);
+      if (cond != cc_always) {
+        Branch(PROTECT, &skip, NegateCondition(cond), rs, rt);
+      }
+      GenPCRelativeJumpAndLink(t8, code_target_index,
+                               RelocInfo::RELATIVE_CODE_TARGET, bd);
+      bind(&skip);
+      return;
+    } else if (root_array_available_ && options().isolate_independent_code) {
       IndirectLoadConstant(t9, code);
       Call(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
       return;
-    } else if (options().inline_offheap_trampolines) {
-      int builtin_index = Builtins::kNoBuiltinId;
-      if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-          Builtins::IsIsolateIndependent(builtin_index)) {
-        // Inline the trampoline.
-        RecordCommentForOffHeapTrampoline(builtin_index);
-        CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-        EmbeddedData d = EmbeddedData::FromBlob();
-        Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-        Call(t9, 0, cond, rs, rt, bd);
-        return;
-      }
+    } else if (target_is_isolate_independent_builtin &&
+               options().inline_offheap_trampolines) {
+      // Inline the trampoline.
+      RecordCommentForOffHeapTrampoline(builtin_index);
+      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      EmbeddedData d = EmbeddedData::FromBlob();
+      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      Call(t9, 0, cond, rs, rt, bd);
+      return;
     }
   }
   DCHECK(RelocInfo::IsCodeTarget(rmode));
@@ -3939,17 +3967,7 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     int32_t imm32;
     imm32 = branch_long_offset(L);
-    or_(t8, ra, zero_reg);
-    nal();                                    // Read PC into ra register.
-    lui(t9, (imm32 & kHiMask) >> kLuiShift);  // Branch delay slot.
-    ori(t9, t9, (imm32 & kImm16Mask));
-    addu(t9, ra, t9);
-    if (bdslot == USE_DELAY_SLOT) {
-      or_(ra, t8, zero_reg);
-    }
-    jr(t9);
-    // Emit a or_ in the branch delay slot if it's protected.
-    if (bdslot == PROTECT) or_(ra, t8, zero_reg);
+    GenPCRelativeJump(t8, t9, imm32, RelocInfo::NONE, bdslot);
   }
 }
 
@@ -3962,13 +3980,7 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     int32_t imm32;
     imm32 = branch_long_offset(L);
-    lui(t8, (imm32 & kHiMask) >> kLuiShift);
-    nal();                              // Read PC into ra register.
-    ori(t8, t8, (imm32 & kImm16Mask));  // Branch delay slot.
-    addu(t8, ra, t8);
-    jalr(t8);
-    // Emit a nop in the branch delay slot if required.
-    if (bdslot == PROTECT) nop();
+    GenPCRelativeJumpAndLink(t8, imm32, RelocInfo::NONE, bdslot);
   }
 }
 

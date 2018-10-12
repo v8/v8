@@ -61,12 +61,6 @@ enum LeaveExitFrameMode {
   NO_EMIT_RETURN = false
 };
 
-// Allow programmer to use Branch Delay Slot of Branches, Jumps, Calls.
-enum BranchDelaySlot {
-  USE_DELAY_SLOT,
-  PROTECT
-};
-
 // Flags used for the li macro-assembler function.
 enum LiFlags {
   // If the constant value can be represented in just 16 bits, then

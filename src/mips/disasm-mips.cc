@@ -1748,7 +1748,11 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
           Format(instr, "bltz    'rs, 'imm16u -> 'imm16p4s2");
           break;
         case BLTZAL:
-          Format(instr, "bltzal  'rs, 'imm16u -> 'imm16p4s2");
+          if (instr->RsValue() == 0) {
+            Format(instr, "nal");
+          } else {
+            Format(instr, "bltzal  'rs, 'imm16u -> 'imm16p4s2");
+          }
           break;
         case BGEZ:
           Format(instr, "bgez    'rs, 'imm16u -> 'imm16p4s2");

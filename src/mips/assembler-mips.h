@@ -380,6 +380,9 @@ constexpr MSAControlRegister no_msacreg = {kInvalidMSAControlRegister};
 constexpr MSAControlRegister MSAIR = {kMSAIRRegister};
 constexpr MSAControlRegister MSACSR = {kMSACSRRegister};
 
+// Allow programmer to use Branch Delay Slot of Branches, Jumps, Calls.
+enum BranchDelaySlot { USE_DELAY_SLOT, PROTECT };
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
 
@@ -612,14 +615,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Difference between address of current opcode and target address offset,
   // when we are generatinga sequence of instructions for long relative PC
-  // branches
+  // branches. It is distance between address of the first instruction in
+  // the jump sequence, and the value that ra gets after calling nal().
   static constexpr int kLongBranchPCOffset = 3 * kInstrSize;
 
-  // Adjust ra register in branch delay slot of bal instruction so to skip
+  // Adjust ra register in branch delay slot of bal instruction in order to skip
   // instructions not needed after optimization of PIC in
   // TurboAssembler::BranchAndLink method.
+  static constexpr int kOptimizedBranchAndLinkLongReturnOffset = 3 * kInstrSize;
 
-  static constexpr int kOptimizedBranchAndLinkLongReturnOffset = 4 * kInstrSize;
+  // Offset of target relative address in calls/jumps for builtins. It is
+  // distance between instruction that is placed just after calling
+  // RecordRelocInfo, and the value that ra gets aftr calling nal().
+  static constexpr int kRelativeJumpForBuiltinsOffset = 1 * kInstrSize;
+  // Relative target address of jumps for builtins when we use lui, ori, dsll,
+  // ori sequence when loading address that cannot fit into 32 bits.
+  static constexpr int kRelativeCallForBuiltinsOffset = 3 * kInstrSize;
 
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
@@ -643,10 +654,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #else
   static constexpr int kCallTargetAddressOffset = 4 * kInstrSize;
 #endif
-
-  // Difference between address of current opcode and value read from pc
-  // register.
-  static constexpr int kPcLoadDelta = 4;
 
   // Max offset for instructions with 16-bit offset field
   static constexpr int kMaxBranchOffset = (1 << (18 - 1)) - 1;
@@ -1733,6 +1740,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
                                        intptr_t pc_delta);
 
+  static void RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
+                                        intptr_t pc_delta);
+
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
@@ -1782,6 +1792,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsJ(Instr instr);
   static bool IsLui(Instr instr);
   static bool IsOri(Instr instr);
+  static bool IsAddu(Instr instr, Register rd, Register rs, Register rt);
 
   static bool IsJal(Instr instr);
   static bool IsJr(Instr instr);
@@ -1848,6 +1859,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return IsMipsArchVariant(kMips32r6);
   }
 
+  // Get the code target object for a pc-relative call or jump.
+  V8_INLINE Handle<Code> relative_code_target_object_handle_at(
+      Address pc_) const;
+
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
  protected:
@@ -1880,6 +1895,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Record reloc info for current pc_.
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
+
+  // Read 32-bit immediate from lui, ori pair that is used to load immediate.
+  static int32_t GetLuiOriImmediate(Instr instr1, Instr instr2);
 
   // Block the emission of the trampoline pool before pc_offset.
   void BlockTrampolinePoolBefore(int pc_offset) {
@@ -1940,6 +1958,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void CheckBuffer();
 
   RegList scratch_register_list_;
+
+  // Generate common instruction sequence.
+  void GenPCRelativeJump(Register tf, Register ts, int32_t imm32,
+                         RelocInfo::Mode rmode, BranchDelaySlot bdslot);
+  void GenPCRelativeJumpAndLink(Register t, int32_t imm32,
+                                RelocInfo::Mode rmode, BranchDelaySlot bdslot);
 
  private:
   // Avoid overflows for displacements etc.
@@ -2128,6 +2152,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void print(const Label* L);
   void bind_to(Label* L, int pos);
   void next(Label* L, bool is_internal);
+
+  // Patching lui/ori pair which is commonly used for loading constants.
+  static void PatchLuiOriImmediate(Address pc, int32_t imm, Instr instr1,
+                                   Address offset_lui, Instr instr2,
+                                   Address offset_ori);
+  void PatchLuiOriImmediate(int pc, int32_t imm, Instr instr1,
+                            Address offset_lui, Instr instr2,
+                            Address offset_ori);
 
   // One trampoline consists of:
   // - space for trampoline slots,

@@ -329,10 +329,10 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_ARM)
-    // On X64, ARM, ARM64 we emit relative builtin-to-builtin jumps for isolate
-    // independent builtins in the snapshot. This fixes up the relative jumps
-    // to the right offsets in the snapshot.
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+    // On X64, ARM, ARM64, MIPS we emit relative builtin-to-builtin
+    // jumps for isolate independent builtins in the snapshot. This fixes up the
+    // relative jumps to the right offsets in the snapshot.
     // See also: Code::IsIsolateIndependent.
     while (!on_heap_it.done()) {
       DCHECK(!off_heap_it.done());
