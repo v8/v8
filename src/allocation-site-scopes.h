@@ -7,6 +7,7 @@
 
 #include "src/handles.h"
 #include "src/objects.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/map.h"
 
 namespace v8 {

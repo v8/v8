@@ -7,6 +7,7 @@
 
 #include "src/roots.h"
 
+#include "src/handles.h"
 #include "src/heap/heap-inl.h"
 
 namespace v8 {
@@ -21,6 +22,12 @@ V8_INLINE RootIndex operator++(RootIndex& index) {
   typedef typename std::underlying_type<RootIndex>::type type;
   index = static_cast<RootIndex>(static_cast<type>(index) + 1);
   return index;
+}
+
+template <typename T>
+bool RootsTable::IsRootHandle(Handle<T> handle, RootIndex* index) const {
+  Object** handle_location = bit_cast<Object**>(handle.address());
+  return IsRootHandleLocation(handle_location, index);
 }
 
 ReadOnlyRoots::ReadOnlyRoots(Heap* heap)

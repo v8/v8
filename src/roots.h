@@ -7,7 +7,6 @@
 
 #include "src/accessors.h"
 #include "src/globals.h"
-#include "src/handles.h"
 #include "src/heap-symbols.h"
 #include "src/objects-definitions.h"
 
@@ -17,6 +16,8 @@ namespace internal {
 // Forward declarations.
 enum ElementsKind : uint8_t;
 class FixedTypedArrayBase;
+template <typename T>
+class Handle;
 class Heap;
 class Isolate;
 class Map;
@@ -393,10 +394,7 @@ class RootsTable {
   }
 
   template <typename T>
-  bool IsRootHandle(Handle<T> handle, RootIndex* index) const {
-    Object** handle_location = bit_cast<Object**>(handle.address());
-    return IsRootHandleLocation(handle_location, index);
-  }
+  bool IsRootHandle(Handle<T> handle, RootIndex* index) const;
 
   Object* const& operator[](RootIndex root_index) const {
     size_t index = static_cast<size_t>(root_index);
