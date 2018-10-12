@@ -29,8 +29,13 @@ namespace internal {
 CAST_ACCESSOR(Map)
 
 ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
-ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
-                  kLayoutDescriptorOffset, FLAG_unbox_double_fields)
+// A freshly allocated layout descriptor can be set on an existing map.
+// We need to use release-store and acquire-load accessor pairs to ensure
+// that the concurrent marking thread observes initializing stores of the
+// layout descriptor.
+SYNCHRONIZED_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
+                               kLayoutDescriptorOffset,
+                               FLAG_unbox_double_fields)
 WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
 
 // |bit_field| fields.
@@ -546,12 +551,17 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 
 LayoutDescriptor* Map::layout_descriptor_gc_safe() const {
   DCHECK(FLAG_unbox_double_fields);
-  Object* layout_desc = RELAXED_READ_FIELD(this, kLayoutDescriptorOffset);
+  // The loaded value can be dereferenced on background thread to load the
+  // bitmap. We need acquire load in order to ensure that the bitmap
+  // initializing stores are also visible to the background thread.
+  Object* layout_desc = ACQUIRE_READ_FIELD(this, kLayoutDescriptorOffset);
   return LayoutDescriptor::cast_gc_safe(layout_desc);
 }
 
 bool Map::HasFastPointerLayout() const {
   DCHECK(FLAG_unbox_double_fields);
+  // The loaded value is used for SMI check only and is not dereferenced,
+  // so relaxed load is safe.
   Object* layout_desc = RELAXED_READ_FIELD(this, kLayoutDescriptorOffset);
   return LayoutDescriptor::IsFastPointerLayout(layout_desc);
 }
