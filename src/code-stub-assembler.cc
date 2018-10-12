@@ -4564,7 +4564,7 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
                                      TNode<IntPtrT> length) {
   Label finished(this);
   Label needs_barrier(this);
-  const bool needs_barrier_check = IsObjectElementsKind(kind);
+  const bool needs_barrier_check = !IsDoubleElementsKind(kind);
 
   DCHECK(IsFastElementsKind(kind));
   CSA_ASSERT(this, IsFixedArrayWithKind(elements, kind));
@@ -4575,8 +4575,8 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
              IntPtrLessThanOrEqual(IntPtrAdd(src_index, length),
                                    LoadAndUntagFixedArrayBaseLength(elements)));
 
-  // The write barrier can be ignored if {elements} is in new space, or if
-  // we have a SMI or double ElementsKind.
+  // The write barrier can be ignored if {dst_elements} is in new space, or if
+  // the elements pointer is FixedDoubleArray.
   if (needs_barrier_check) {
     JumpIfPointersFromHereAreInteresting(elements, &needs_barrier);
   }
@@ -4651,7 +4651,7 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
                                      TNode<IntPtrT> length) {
   Label finished(this);
   Label needs_barrier(this);
-  const bool needs_barrier_check = IsObjectElementsKind(kind);
+  const bool needs_barrier_check = !IsDoubleElementsKind(kind);
 
   DCHECK(IsFastElementsKind(kind));
   CSA_ASSERT(this, IsFixedArrayWithKind(dst_elements, kind));
@@ -4665,7 +4665,7 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
   CSA_ASSERT(this, WordNotEqual(dst_elements, src_elements));
 
   // The write barrier can be ignored if {dst_elements} is in new space, or if
-  // we have a SMI or double ElementsKind.
+  // the elements pointer is FixedDoubleArray.
   if (needs_barrier_check) {
     JumpIfPointersFromHereAreInteresting(dst_elements, &needs_barrier);
   }
