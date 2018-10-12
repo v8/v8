@@ -1009,6 +1009,7 @@ class WasmDecoder : public Decoder {
         MemoryAccessImmediate<validate> imm(decoder, pc, UINT32_MAX);
         return 1 + imm.length;
       }
+      case kExprRethrow:
       case kExprBr:
       case kExprBrIf: {
         BreakDepthImmediate<validate> imm(decoder, pc);

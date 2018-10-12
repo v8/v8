@@ -2818,6 +2818,7 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(2, kExprBr);
   EXPECT_LENGTH(2, kExprBrIf);
   EXPECT_LENGTH(2, kExprThrow);
+  EXPECT_LENGTH(2, kExprRethrow);
   EXPECT_LENGTH(2, kExprCatch);
   EXPECT_LENGTH_N(2, kExprBlock, kLocalI32);
   EXPECT_LENGTH_N(2, kExprLoop, kLocalI32);
