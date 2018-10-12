@@ -633,6 +633,7 @@ class Map : public HeapObject {
   // is found.
   static MaybeHandle<Map> TryUpdate(Isolate* isolate,
                                     Handle<Map> map) V8_WARN_UNUSED_RESULT;
+  static Map* TryUpdateSlow(Isolate* isolate, Map* map) V8_WARN_UNUSED_RESULT;
 
   // Returns a non-deprecated version of the input. This method may deprecate
   // existing maps along the way if encodings conflict. Not for use while
