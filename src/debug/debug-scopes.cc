@@ -98,6 +98,16 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
     return;
   }
 
+  // Class fields initializer functions don't have any scope
+  // information. We short circuit the parsing of the class literal
+  // and return an empty context here.
+  if (IsClassFieldsInitializerFunction(shared_info->kind())) {
+    current_scope_ = closure_scope_ = nullptr;
+    context_ = Handle<Context>();
+    function_ = Handle<JSFunction>();
+    return;
+  }
+
   DCHECK_NE(IGNORE_NESTED_SCOPES, option);
   bool ignore_nested_scopes = false;
   if (shared_info->HasBreakInfo() && frame_inspector_ != nullptr) {
