@@ -13,12 +13,8 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Signature;
-
 namespace wasm {
 
-using FunctionSig = Signature<ValueType>;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 bool IsJSCompatibleSignature(const FunctionSig* sig);
 

@@ -16,8 +16,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-using FunctionSig = Signature<ValueType>;
-
 // Implements a cache for import wrappers.
 class WasmImportWrapperCache {
  public:

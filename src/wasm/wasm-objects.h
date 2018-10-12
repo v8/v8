@@ -29,7 +29,6 @@ struct WasmModule;
 class SignatureMap;
 class WireBytesRef;
 class WasmInterpreter;
-using FunctionSig = Signature<ValueType>;
 struct WasmFeatures;
 }  // namespace wasm
 
