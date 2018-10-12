@@ -11,6 +11,7 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"
@@ -224,6 +225,49 @@ void JSObjectData::SerializeObjectCreateMap(JSHeapBroker* broker) {
             broker->GetOrCreateData(proto_info->ObjectCreateMap())->AsMap();
       }
     }
+  }
+}
+
+class JSTypedArrayData : public JSObjectData {
+ public:
+  JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
+                   Handle<JSTypedArray> object);
+
+  bool is_on_heap() const { return is_on_heap_; }
+  size_t length_value() const { return length_value_; }
+  void* elements_external_pointer() const { return elements_external_pointer_; }
+
+  void Serialize(JSHeapBroker* broker);
+
+  HeapObjectData* buffer() const { return buffer_; }
+
+ private:
+  bool const is_on_heap_;
+  size_t const length_value_;
+  void* const elements_external_pointer_;
+
+  bool serialized_ = false;
+  HeapObjectData* buffer_ = nullptr;
+};
+
+JSTypedArrayData::JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
+                                   Handle<JSTypedArray> object)
+    : JSObjectData(broker, storage, object),
+      is_on_heap_(object->is_on_heap()),
+      length_value_(object->length_value()),
+      elements_external_pointer_(
+          FixedTypedArrayBase::cast(object->elements())->external_pointer()) {}
+
+void JSTypedArrayData::Serialize(JSHeapBroker* broker) {
+  if (serialized_) return;
+  serialized_ = true;
+
+  TraceScope tracer(broker, this, "JSTypedArrayData::Serialize");
+  Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object());
+
+  if (!is_on_heap()) {
+    DCHECK_NULL(buffer_);
+    buffer_ = broker->GetOrCreateData(typed_array->buffer())->AsHeapObject();
   }
 }
 
@@ -1652,6 +1696,13 @@ base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
                              : base::Optional<MapRef>();
 }
 
+#define DEF_TESTER(Type, ...)                              \
+  bool MapRef::Is##Type##Map() const {                     \
+    return InstanceTypeChecker::Is##Type(instance_type()); \
+  }
+INSTANCE_TYPE_CHECKERS(DEF_TESTER)
+#undef DEF_TESTER
+
 base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
@@ -1985,6 +2036,10 @@ BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 
+BIMODAL_ACCESSOR_C(JSTypedArray, bool, is_on_heap)
+BIMODAL_ACCESSOR_C(JSTypedArray, size_t, length_value)
+BIMODAL_ACCESSOR(JSTypedArray, HeapObject, buffer)
+
 BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::ElementsKindBits)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map, Map::IsDictionaryMapBit)
@@ -2015,6 +2070,15 @@ BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 #undef DEF_SFI_ACCESSOR
 
 BIMODAL_ACCESSOR_C(String, int, length)
+
+void* JSTypedArrayRef::elements_external_pointer() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return FixedTypedArrayBase::cast(object<JSTypedArray>()->elements())
+        ->external_pointer();
+  }
+  return data()->AsJSTypedArray()->elements_external_pointer();
+}
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, IsInobjectSlackTrackingInProgress);
@@ -2389,6 +2453,12 @@ void NativeContextRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsNativeContext()->Serialize(broker());
+}
+
+void JSTypedArrayRef::Serialize() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsJSTypedArray()->Serialize(broker());
 }
 
 #undef BIMODAL_ACCESSOR

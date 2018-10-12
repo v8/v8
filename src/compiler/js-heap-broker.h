@@ -35,6 +35,7 @@ enum class OddballType : uint8_t {
   V(JSFunction)                    \
   V(JSGlobalProxy)                 \
   V(JSRegExp)                      \
+  V(JSTypedArray)                  \
   /* Subtypes of Context */        \
   V(NativeContext)                 \
   /* Subtypes of FixedArray */     \
@@ -358,6 +359,10 @@ class MapRef : public HeapObjectRef {
   bool is_undetectable() const;
   bool is_callable() const;
 
+#define DEF_TESTER(Type, ...) bool Is##Type##Map() const;
+  INSTANCE_TYPE_CHECKERS(DEF_TESTER)
+#undef DEF_TESTER
+
   ObjectRef constructor_or_backpointer() const;
 
   void SerializePrototype();
@@ -454,6 +459,19 @@ class StringRef : public NameRef {
   base::Optional<double> ToNumber();
   bool IsSeqString() const;
   bool IsExternalString() const;
+};
+
+class JSTypedArrayRef : public JSObjectRef {
+ public:
+  using JSObjectRef::JSObjectRef;
+
+  bool is_on_heap() const;
+  size_t length_value() const;
+  void* elements_external_pointer() const;
+
+  void Serialize();
+
+  HeapObjectRef buffer() const;
 };
 
 class ModuleRef : public HeapObjectRef {

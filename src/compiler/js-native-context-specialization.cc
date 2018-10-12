@@ -39,16 +39,18 @@ namespace compiler {
 
 namespace {
 
-bool HasNumberMaps(MapHandles const& maps) {
+bool HasNumberMaps(JSHeapBroker* broker, MapHandles const& maps) {
   for (auto map : maps) {
-    if (map->instance_type() == HEAP_NUMBER_TYPE) return true;
+    MapRef map_ref(broker, map);
+    if (map_ref.IsHeapNumberMap()) return true;
   }
   return false;
 }
 
-bool HasOnlyJSArrayMaps(MapHandles const& maps) {
+bool HasOnlyJSArrayMaps(JSHeapBroker* broker, MapHandles const& maps) {
   for (auto map : maps) {
-    if (!map->IsJSArrayMap()) return false;
+    MapRef map_ref(broker, map);
+    if (!map_ref.IsJSArrayMap()) return false;
   }
   return true;
 }
@@ -1079,7 +1081,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                             &receiver, &effect, control) &&
         !access_builder.TryBuildNumberCheck(access_info.receiver_maps(),
                                             &receiver, &effect, control)) {
-      if (HasNumberMaps(access_info.receiver_maps())) {
+      if (HasNumberMaps(js_heap_broker(), access_info.receiver_maps())) {
         // We need to also let Smi {receiver}s through in this case, so
         // we construct a diamond, guarded by the Sminess of the {receiver}
         // and if {receiver} is not a Smi just emit a sequence of map checks.
@@ -1124,7 +1126,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Check if {receiver} may be a number.
     bool receiverissmi_possible = false;
     for (PropertyAccessInfo const& access_info : access_infos) {
-      if (HasNumberMaps(access_info.receiver_maps())) {
+      if (HasNumberMaps(js_heap_broker(), access_info.receiver_maps())) {
         receiverissmi_possible = true;
         break;
       }
@@ -1188,7 +1190,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         }
 
         // The Number case requires special treatment to also deal with Smis.
-        if (HasNumberMaps(receiver_maps)) {
+        if (HasNumberMaps(js_heap_broker(), receiver_maps)) {
           // Join this check with the "receiver is smi" check above.
           DCHECK_NOT_NULL(receiverissmi_effect);
           DCHECK_NOT_NULL(receiverissmi_control);
@@ -2441,12 +2443,14 @@ ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
   UNREACHABLE();
 }
 
-MaybeHandle<JSTypedArray> GetTypedArrayConstant(Node* receiver) {
+base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
+                                                      Node* receiver) {
   HeapObjectMatcher m(receiver);
-  if (!m.HasValue()) return MaybeHandle<JSTypedArray>();
-  if (!m.Value()->IsJSTypedArray()) return MaybeHandle<JSTypedArray>();
-  Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(m.Value());
-  if (typed_array->is_on_heap()) return MaybeHandle<JSTypedArray>();
+  if (!m.HasValue()) return base::nullopt;
+  ObjectRef object = m.Ref(broker);
+  if (!object.IsJSTypedArray()) return base::nullopt;
+  JSTypedArrayRef typed_array = object.AsJSTypedArray();
+  if (typed_array.is_on_heap()) return base::nullopt;
   return typed_array;
 }
 
@@ -2471,9 +2475,11 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     // Check if we can constant-fold information about the {receiver} (i.e.
     // for asm.js-like code patterns).
-    Handle<JSTypedArray> typed_array;
-    if (GetTypedArrayConstant(receiver).ToHandle(&typed_array)) {
-      buffer = jsgraph()->HeapConstant(typed_array->GetBuffer());
+    base::Optional<JSTypedArrayRef> typed_array =
+        GetTypedArrayConstant(js_heap_broker(), receiver);
+    if (typed_array.has_value()) {
+      typed_array->Serialize();
+      buffer = jsgraph()->Constant(typed_array->buffer());
       length =
           jsgraph()->Constant(static_cast<double>(typed_array->length_value()));
 
@@ -2481,9 +2487,8 @@ JSNativeContextSpecialization::BuildElementAccess(
       // {external_pointer} might be invalid if the {buffer} was neutered, so
       // we need to make sure that any access is properly guarded.
       base_pointer = jsgraph()->ZeroConstant();
-      external_pointer = jsgraph()->PointerConstant(
-          FixedTypedArrayBase::cast(typed_array->elements())
-              ->external_pointer());
+      external_pointer =
+          jsgraph()->PointerConstant(typed_array->elements_external_pointer());
     } else {
       // Load the {receiver}s length.
       length = effect = graph()->NewNode(
@@ -2681,7 +2686,8 @@ JSNativeContextSpecialization::BuildElementAccess(
     }
 
     // Check if the {receiver} is a JSArray.
-    bool receiver_is_jsarray = HasOnlyJSArrayMaps(receiver_maps);
+    bool receiver_is_jsarray =
+        HasOnlyJSArrayMaps(js_heap_broker(), receiver_maps);
 
     // Load the length of the {receiver}.
     Node* length = effect =
