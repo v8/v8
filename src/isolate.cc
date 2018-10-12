@@ -784,6 +784,18 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
               JSPromise::cast(async_generator_request->promise()), this);
           CaptureAsyncStackTrace(this, promise, &builder);
         }
+      } else {
+        // The {promise_reaction_job_task} doesn't belong to an await (or
+        // yield inside an async generator), but we might still be able to
+        // find an async frame if we follow along the chain of promises on
+        // the {promise_reaction_job_task}.
+        Handle<HeapObject> promise_or_capability(
+            promise_reaction_job_task->promise_or_capability(), this);
+        if (promise_or_capability->IsJSPromise()) {
+          Handle<JSPromise> promise =
+              Handle<JSPromise>::cast(promise_or_capability);
+          CaptureAsyncStackTrace(this, promise, &builder);
+        }
       }
     }
   }
