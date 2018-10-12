@@ -509,7 +509,7 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
 
 V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
     int size_in_bytes, AllocationAlignment alignment) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   return AllocateRaw(size_in_bytes, alignment);
 }
 

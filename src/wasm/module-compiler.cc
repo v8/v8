@@ -104,7 +104,7 @@ class CompilationState {
   Isolate* isolate() const { return isolate_; }
 
   bool failed() const {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     return failed_;
   }
 
@@ -2860,7 +2860,7 @@ void CompilationState::AddCompilationUnits(
     std::vector<std::unique_ptr<WasmCompilationUnit>>& baseline_units,
     std::vector<std::unique_ptr<WasmCompilationUnit>>& tiering_units) {
   {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
 
     if (compile_mode_ == CompileMode::kTiering) {
       DCHECK_EQ(baseline_units.size(), tiering_units.size());
@@ -2884,7 +2884,7 @@ void CompilationState::AddCompilationUnits(
 
 std::unique_ptr<WasmCompilationUnit>
 CompilationState::GetNextCompilationUnit() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& units =
       baseline_compilation_units_.empty() ? tiering_compilation_units_
@@ -2900,7 +2900,7 @@ CompilationState::GetNextCompilationUnit() {
 }
 
 std::unique_ptr<WasmCompilationUnit> CompilationState::GetNextExecutedUnit() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   std::vector<std::unique_ptr<WasmCompilationUnit>>& units = finish_units();
   if (units.empty()) return {};
   std::unique_ptr<WasmCompilationUnit> ret = std::move(units.back());
@@ -2909,7 +2909,7 @@ std::unique_ptr<WasmCompilationUnit> CompilationState::GetNextExecutedUnit() {
 }
 
 bool CompilationState::HasCompilationUnitToFinish() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   return !finish_units().empty();
 }
 
@@ -2952,7 +2952,7 @@ void CompilationState::OnFinishedUnit() {
 
 void CompilationState::ScheduleUnitForFinishing(
     std::unique_ptr<WasmCompilationUnit> unit, ExecutionTier mode) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   if (compile_mode_ == CompileMode::kTiering &&
       mode == ExecutionTier::kOptimized) {
     tiering_finish_units_.push_back(std::move(unit));
@@ -2968,7 +2968,7 @@ void CompilationState::ScheduleUnitForFinishing(
 }
 
 void CompilationState::OnBackgroundTaskStopped(const WasmFeatures& detected) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   DCHECK_LE(1, num_background_tasks_);
   --num_background_tasks_;
   UnionFeaturesInto(&detected_features_, detected);
@@ -2979,7 +2979,7 @@ void CompilationState::PublishDetectedFeatures(Isolate* isolate,
   // Notifying the isolate of the feature counts must take place under
   // the mutex, because even if we have finished baseline compilation,
   // tiering compilations may still occur in the background.
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   UnionFeaturesInto(&detected_features_, detected);
   UpdateFeatureUseCounts(isolate, detected_features_);
 }
@@ -2987,7 +2987,7 @@ void CompilationState::PublishDetectedFeatures(Isolate* isolate,
 void CompilationState::RestartBackgroundTasks(size_t max) {
   size_t num_restart;
   {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     // No need to restart tasks if compilation already failed.
     if (failed_) return;
 
@@ -3015,7 +3015,7 @@ void CompilationState::RestartBackgroundTasks(size_t max) {
 }
 
 bool CompilationState::SetFinisherIsRunning(bool value) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   if (finisher_is_running_ == value) return false;
   finisher_is_running_ = value;
   return true;
@@ -3028,7 +3028,7 @@ void CompilationState::ScheduleFinisherTask() {
 
 void CompilationState::Abort() {
   {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     failed_ = true;
   }
   background_task_manager_.CancelAndWait();

@@ -113,7 +113,7 @@ void AssemblerBase::FlushICache(void* start, size_t size) {
   if (size == 0) return;
 
 #if defined(USE_SIMULATOR)
-  base::LockGuard<base::Mutex> lock_guard(Simulator::i_cache_mutex());
+  base::MutexGuard lock_guard(Simulator::i_cache_mutex());
   Simulator::FlushICache(Simulator::i_cache(), start, size);
 #else
   CpuFeatures::FlushICache(start, size);

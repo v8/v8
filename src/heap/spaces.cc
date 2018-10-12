@@ -98,7 +98,7 @@ static base::LazyInstance<CodeRangeAddressHint>::type code_range_address_hint =
     LAZY_INSTANCE_INITIALIZER;
 
 Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   auto it = recently_freed_.find(code_range_size);
   if (it == recently_freed_.end() || it->second.empty()) {
     return reinterpret_cast<Address>(GetRandomMmapAddr());
@@ -110,7 +110,7 @@ Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size) {
 
 void CodeRangeAddressHint::NotifyFreedCodeRange(Address code_range_start,
                                                 size_t code_range_size) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   recently_freed_[code_range_size].push_back(code_range_start);
 }
 
@@ -361,7 +361,7 @@ void MemoryAllocator::Unmapper::TearDown() {
 }
 
 int MemoryAllocator::Unmapper::NumberOfChunks() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   size_t result = 0;
   for (int i = 0; i < kNumberOfChunkQueues; i++) {
     result += chunks_[i].size();
@@ -370,7 +370,7 @@ int MemoryAllocator::Unmapper::NumberOfChunks() {
 }
 
 size_t MemoryAllocator::Unmapper::CommittedBufferedMemory() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
 
   size_t sum = 0;
   // kPooled chunks are already uncommited. We only have to account for
@@ -468,7 +468,7 @@ void MemoryChunk::SetReadAndExecutable() {
   DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
   // Decrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
-  base::LockGuard<base::Mutex> guard(page_protection_change_mutex_);
+  base::MutexGuard guard(page_protection_change_mutex_);
   if (write_unprotect_counter_ == 0) {
     // This is a corner case that may happen when we have a
     // CodeSpaceMemoryModificationScope open and this page was newly
@@ -493,7 +493,7 @@ void MemoryChunk::SetReadAndWritable() {
   DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
-  base::LockGuard<base::Mutex> guard(page_protection_change_mutex_);
+  base::MutexGuard guard(page_protection_change_mutex_);
   write_unprotect_counter_++;
   DCHECK_LE(write_unprotect_counter_, kMaxWriteUnprotectCounter);
   if (write_unprotect_counter_ == 1) {
@@ -1425,12 +1425,12 @@ void PagedSpace::RefillFreeList() {
       if (is_local()) {
         DCHECK_NE(this, p->owner());
         PagedSpace* owner = reinterpret_cast<PagedSpace*>(p->owner());
-        base::LockGuard<base::Mutex> guard(owner->mutex());
+        base::MutexGuard guard(owner->mutex());
         owner->RefineAllocatedBytesAfterSweeping(p);
         owner->RemovePage(p);
         added += AddPage(p);
       } else {
-        base::LockGuard<base::Mutex> guard(mutex());
+        base::MutexGuard guard(mutex());
         DCHECK_EQ(this, p->owner());
         RefineAllocatedBytesAfterSweeping(p);
         added += RelinkFreeListCategories(p);
@@ -1442,7 +1442,7 @@ void PagedSpace::RefillFreeList() {
 }
 
 void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
-  base::LockGuard<base::Mutex> guard(mutex());
+  base::MutexGuard guard(mutex());
 
   DCHECK(identity() == other->identity());
   // Unmerged fields:
@@ -1505,7 +1505,7 @@ void PagedSpace::RefineAllocatedBytesAfterSweeping(Page* page) {
 }
 
 Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
-  base::LockGuard<base::Mutex> guard(mutex());
+  base::MutexGuard guard(mutex());
   // Check for pages that still contain free list entries. Bail out for smaller
   // categories.
   const int minimum_category =
@@ -1581,7 +1581,7 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
 bool PagedSpace::Expand() {
   // Always lock against the main space as we can only adjust capacity and
   // pages concurrently for the main paged space.
-  base::LockGuard<base::Mutex> guard(heap()->paged_space(identity())->mutex());
+  base::MutexGuard guard(heap()->paged_space(identity())->mutex());
 
   const int size = AreaSize();
 
@@ -2209,7 +2209,7 @@ bool NewSpace::AddFreshPage() {
 
 
 bool NewSpace::AddFreshPageSynchronized() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   return AddFreshPage();
 }
 
@@ -3373,7 +3373,7 @@ Object* LargeObjectSpace::FindObject(Address a) {
 }
 
 LargePage* LargeObjectSpace::FindPageThreadSafe(Address a) {
-  base::LockGuard<base::Mutex> guard(&chunk_map_mutex_);
+  base::MutexGuard guard(&chunk_map_mutex_);
   return FindPage(a);
 }
 
@@ -3409,7 +3409,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
 void LargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
   // There may be concurrent access on the chunk map. We have to take the lock
   // here.
-  base::LockGuard<base::Mutex> guard(&chunk_map_mutex_);
+  base::MutexGuard guard(&chunk_map_mutex_);
   for (Address current = reinterpret_cast<Address>(page);
        current < reinterpret_cast<Address>(page) + page->size();
        current += MemoryChunk::kPageSize) {

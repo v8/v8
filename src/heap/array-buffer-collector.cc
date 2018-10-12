@@ -28,13 +28,13 @@ void ArrayBufferCollector::QueueOrFreeGarbageAllocations(
   if (heap_->ShouldReduceMemory()) {
     FreeAllocationsHelper(heap_, allocations);
   } else {
-    base::LockGuard<base::Mutex> guard(&allocations_mutex_);
+    base::MutexGuard guard(&allocations_mutex_);
     allocations_.push_back(std::move(allocations));
   }
 }
 
 void ArrayBufferCollector::PerformFreeAllocations() {
-  base::LockGuard<base::Mutex> guard(&allocations_mutex_);
+  base::MutexGuard guard(&allocations_mutex_);
   for (const std::vector<JSArrayBuffer::Allocation>& allocations :
        allocations_) {
     FreeAllocationsHelper(heap_, allocations);

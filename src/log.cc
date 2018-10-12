@@ -687,7 +687,7 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
 }
 
 void JitLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
-  base::LockGuard<base::Mutex> guard(&logger_mutex_);
+  base::MutexGuard guard(&logger_mutex_);
 
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_MOVED;

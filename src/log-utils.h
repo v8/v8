@@ -97,7 +97,7 @@ class Log {
     void AppendRawCharacter(const char character);
 
     Log* log_;
-    base::LockGuard<base::Mutex> lock_guard_;
+    base::MutexGuard lock_guard_;
   };
 
  private:

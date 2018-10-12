@@ -183,7 +183,7 @@ Isolate::PerIsolateThreadData*
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = nullptr;
   {
-    base::LockGuard<base::Mutex> lock_guard(&thread_data_table_mutex_);
+    base::MutexGuard lock_guard(&thread_data_table_mutex_);
     per_thread = thread_data_table_.Lookup(thread_id);
     if (per_thread == nullptr) {
       per_thread = new PerIsolateThreadData(this, thread_id);
@@ -200,7 +200,7 @@ void Isolate::DiscardPerThreadDataForThisThread() {
   if (thread_id_int) {
     ThreadId thread_id = ThreadId(thread_id_int);
     DCHECK(!thread_manager_->mutex_owner_.Equals(thread_id));
-    base::LockGuard<base::Mutex> lock_guard(&thread_data_table_mutex_);
+    base::MutexGuard lock_guard(&thread_data_table_mutex_);
     PerIsolateThreadData* per_thread = thread_data_table_.Lookup(thread_id);
     if (per_thread) {
       DCHECK(!per_thread->thread_state_);
@@ -220,7 +220,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
   PerIsolateThreadData* per_thread = nullptr;
   {
-    base::LockGuard<base::Mutex> lock_guard(&thread_data_table_mutex_);
+    base::MutexGuard lock_guard(&thread_data_table_mutex_);
     per_thread = thread_data_table_.Lookup(thread_id);
   }
   return per_thread;
@@ -2417,7 +2417,7 @@ char* Isolate::RestoreThread(char* from) {
 }
 
 void Isolate::ReleaseSharedPtrs() {
-  base::LockGuard<base::Mutex> lock(&managed_ptr_destructors_mutex_);
+  base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   while (managed_ptr_destructors_head_) {
     ManagedPtrDestructor* l = managed_ptr_destructors_head_;
     ManagedPtrDestructor* n = nullptr;
@@ -2431,7 +2431,7 @@ void Isolate::ReleaseSharedPtrs() {
 }
 
 void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  base::LockGuard<base::Mutex> lock(&managed_ptr_destructors_mutex_);
+  base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   DCHECK_NULL(destructor->prev_);
   DCHECK_NULL(destructor->next_);
   if (managed_ptr_destructors_head_) {
@@ -2442,7 +2442,7 @@ void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
 }
 
 void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  base::LockGuard<base::Mutex> lock(&managed_ptr_destructors_mutex_);
+  base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   if (destructor->prev_) {
     destructor->prev_->next_ = destructor->next_;
   } else {
@@ -2731,7 +2731,7 @@ void Isolate::TearDown() {
   Deinit();
 
   {
-    base::LockGuard<base::Mutex> lock_guard(&thread_data_table_mutex_);
+    base::MutexGuard lock_guard(&thread_data_table_mutex_);
     thread_data_table_.RemoveAllThreads();
   }
 
@@ -4289,14 +4289,14 @@ void Isolate::CheckDetachedContextsAfterGC() {
 }
 
 double Isolate::LoadStartTimeMs() {
-  base::LockGuard<base::Mutex> guard(&rail_mutex_);
+  base::MutexGuard guard(&rail_mutex_);
   return load_start_time_ms_;
 }
 
 void Isolate::SetRAILMode(RAILMode rail_mode) {
   RAILMode old_rail_mode = rail_mode_.Value();
   if (old_rail_mode != PERFORMANCE_LOAD && rail_mode == PERFORMANCE_LOAD) {
-    base::LockGuard<base::Mutex> guard(&rail_mutex_);
+    base::MutexGuard guard(&rail_mutex_);
     load_start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
   }
   rail_mode_.SetValue(rail_mode);

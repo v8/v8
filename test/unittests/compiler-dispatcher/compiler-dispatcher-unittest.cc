@@ -112,7 +112,7 @@ class MockPlatform : public v8::Platform {
         sem_(0),
         tracing_controller_(V8::GetCurrentPlatform()->GetTracingController()) {}
   ~MockPlatform() override {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     EXPECT_TRUE(foreground_tasks_.empty());
     EXPECT_TRUE(worker_tasks_.empty());
     EXPECT_TRUE(idle_task_ == nullptr);
@@ -126,7 +126,7 @@ class MockPlatform : public v8::Platform {
   }
 
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     worker_tasks_.push_back(std::move(task));
   }
 
@@ -136,7 +136,7 @@ class MockPlatform : public v8::Platform {
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     foreground_tasks_.push_back(std::unique_ptr<Task>(task));
   }
 
@@ -147,7 +147,7 @@ class MockPlatform : public v8::Platform {
 
   void CallIdleOnForegroundThread(v8::Isolate* isolate,
                                   IdleTask* task) override {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     ASSERT_TRUE(idle_task_ == nullptr);
     idle_task_ = task;
   }
@@ -171,7 +171,7 @@ class MockPlatform : public v8::Platform {
     time_step_ = time_step;
     IdleTask* task;
     {
-      base::LockGuard<base::Mutex> lock(&mutex_);
+      base::MutexGuard lock(&mutex_);
       task = idle_task_;
       ASSERT_TRUE(idle_task_ != nullptr);
       idle_task_ = nullptr;
@@ -181,24 +181,24 @@ class MockPlatform : public v8::Platform {
   }
 
   bool IdleTaskPending() {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     return idle_task_;
   }
 
   bool WorkerTasksPending() {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     return !worker_tasks_.empty();
   }
 
   bool ForegroundTasksPending() {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     return !foreground_tasks_.empty();
   }
 
   void RunWorkerTasksAndBlock(Platform* platform) {
     std::vector<std::unique_ptr<Task>> tasks;
     {
-      base::LockGuard<base::Mutex> lock(&mutex_);
+      base::MutexGuard lock(&mutex_);
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
@@ -209,7 +209,7 @@ class MockPlatform : public v8::Platform {
   void RunWorkerTasks(Platform* platform) {
     std::vector<std::unique_ptr<Task>> tasks;
     {
-      base::LockGuard<base::Mutex> lock(&mutex_);
+      base::MutexGuard lock(&mutex_);
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
@@ -219,7 +219,7 @@ class MockPlatform : public v8::Platform {
   void RunForegroundTasks() {
     std::vector<std::unique_ptr<Task>> tasks;
     {
-      base::LockGuard<base::Mutex> lock(&mutex_);
+      base::MutexGuard lock(&mutex_);
       tasks.swap(foreground_tasks_);
     }
     for (auto& task : tasks) {
@@ -232,7 +232,7 @@ class MockPlatform : public v8::Platform {
   void ClearWorkerTasks() {
     std::vector<std::unique_ptr<Task>> tasks;
     {
-      base::LockGuard<base::Mutex> lock(&mutex_);
+      base::MutexGuard lock(&mutex_);
       tasks.swap(worker_tasks_);
     }
   }
@@ -240,13 +240,13 @@ class MockPlatform : public v8::Platform {
   void ClearForegroundTasks() {
     std::vector<std::unique_ptr<Task>> tasks;
     {
-      base::LockGuard<base::Mutex> lock(&mutex_);
+      base::MutexGuard lock(&mutex_);
       tasks.swap(foreground_tasks_);
     }
   }
 
   void ClearIdleTask() {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     ASSERT_TRUE(idle_task_ != nullptr);
     delete idle_task_;
     idle_task_ = nullptr;
@@ -283,7 +283,7 @@ class MockPlatform : public v8::Platform {
         : platform_(platform) {}
 
     void PostTask(std::unique_ptr<v8::Task> task) override {
-      base::LockGuard<base::Mutex> lock(&platform_->mutex_);
+      base::MutexGuard lock(&platform_->mutex_);
       platform_->foreground_tasks_.push_back(std::move(task));
     }
 
@@ -294,7 +294,7 @@ class MockPlatform : public v8::Platform {
 
     void PostIdleTask(std::unique_ptr<IdleTask> task) override {
       DCHECK(IdleTasksEnabled());
-      base::LockGuard<base::Mutex> lock(&platform_->mutex_);
+      base::MutexGuard lock(&platform_->mutex_);
       ASSERT_TRUE(platform_->idle_task_ == nullptr);
       platform_->idle_task_ = task.release();
     }

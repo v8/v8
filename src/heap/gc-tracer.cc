@@ -196,7 +196,7 @@ void GCTracer::ResetForTesting() {
   average_mark_compact_duration_ = 0;
   current_mark_compact_mutator_utilization_ = 1.0;
   previous_mark_compact_end_time_ = 0;
-  base::LockGuard<base::Mutex> guard(&background_counter_mutex_);
+  base::MutexGuard guard(&background_counter_mutex_);
   for (int i = 0; i < BackgroundScope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
     background_counter_[i].runtime_call_counter.Reset();
@@ -1060,7 +1060,7 @@ void GCTracer::FetchBackgroundCounters(int first_global_scope,
                                        int last_background_scope) {
   DCHECK_EQ(last_global_scope - first_global_scope,
             last_background_scope - first_background_scope);
-  base::LockGuard<base::Mutex> guard(&background_counter_mutex_);
+  base::MutexGuard guard(&background_counter_mutex_);
   int background_mc_scopes = last_background_scope - first_background_scope + 1;
   for (int i = 0; i < background_mc_scopes; i++) {
     current_.scopes[first_global_scope + i] +=
@@ -1085,7 +1085,7 @@ void GCTracer::FetchBackgroundCounters(int first_global_scope,
 void GCTracer::AddBackgroundScopeSample(
     BackgroundScope::ScopeId scope, double duration,
     RuntimeCallCounter* runtime_call_counter) {
-  base::LockGuard<base::Mutex> guard(&background_counter_mutex_);
+  base::MutexGuard guard(&background_counter_mutex_);
   BackgroundCounter& counter = background_counter_[scope];
   counter.total_duration_ms += duration;
   if (runtime_call_counter) {

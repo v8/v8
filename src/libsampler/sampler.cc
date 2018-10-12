@@ -385,17 +385,17 @@ class SignalHandler {
   }
 
   static void IncreaseSamplerCount() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_);
     if (++client_count_ == 1) Install();
   }
 
   static void DecreaseSamplerCount() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_);
     if (--client_count_ == 0) Restore();
   }
 
   static bool Installed() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_);
     return signal_handler_installed_;
   }
 

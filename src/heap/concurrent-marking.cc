@@ -660,7 +660,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     }
 
     {
-      base::LockGuard<base::Mutex> guard(&pending_lock_);
+      base::MutexGuard guard(&pending_lock_);
       is_pending_[task_id] = false;
       --pending_task_count_;
       pending_condition_.NotifyAll();
@@ -676,7 +676,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
 void ConcurrentMarking::ScheduleTasks() {
   DCHECK(!heap_->IsTearingDown());
   if (!FLAG_concurrent_marking) return;
-  base::LockGuard<base::Mutex> guard(&pending_lock_);
+  base::MutexGuard guard(&pending_lock_);
   DCHECK_EQ(0, pending_task_count_);
   if (task_count_ == 0) {
     static const int num_cores =
@@ -715,7 +715,7 @@ void ConcurrentMarking::ScheduleTasks() {
 void ConcurrentMarking::RescheduleTasksIfNeeded() {
   if (!FLAG_concurrent_marking || heap_->IsTearingDown()) return;
   {
-    base::LockGuard<base::Mutex> guard(&pending_lock_);
+    base::MutexGuard guard(&pending_lock_);
     if (pending_task_count_ > 0) return;
   }
   if (!shared_->IsGlobalPoolEmpty() ||
@@ -727,7 +727,7 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
 
 bool ConcurrentMarking::Stop(StopRequest stop_request) {
   if (!FLAG_concurrent_marking) return false;
-  base::LockGuard<base::Mutex> guard(&pending_lock_);
+  base::MutexGuard guard(&pending_lock_);
 
   if (pending_task_count_ == 0) return false;
 
@@ -758,7 +758,7 @@ bool ConcurrentMarking::Stop(StopRequest stop_request) {
 bool ConcurrentMarking::IsStopped() {
   if (!FLAG_concurrent_marking) return true;
 
-  base::LockGuard<base::Mutex> guard(&pending_lock_);
+  base::MutexGuard guard(&pending_lock_);
   return pending_task_count_ == 0;
 }
 

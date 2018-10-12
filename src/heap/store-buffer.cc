@@ -133,7 +133,7 @@ int StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
 }
 
 void StoreBuffer::FlipStoreBuffers() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   lazy_top_[current_] = top_;
@@ -155,7 +155,7 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
 
   // We are taking the chunk map mutex here because the page lookup of addr
   // below may require us to check if addr is part of a large page.
-  base::LockGuard<base::Mutex> guard(heap_->lo_space()->chunk_map_mutex());
+  base::MutexGuard guard(heap_->lo_space()->chunk_map_mutex());
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
     Address addr = *current;
@@ -184,7 +184,7 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
 }
 
 void StoreBuffer::MoveAllEntriesToRememberedSet() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   lazy_top_[current_] = top_;
@@ -193,7 +193,7 @@ void StoreBuffer::MoveAllEntriesToRememberedSet() {
 }
 
 void StoreBuffer::ConcurrentlyProcessStoreBuffer() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   int other = (current_ + 1) % kStoreBuffers;
   MoveEntriesToRememberedSet(other);
   task_running_ = false;

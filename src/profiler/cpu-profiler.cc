@@ -254,12 +254,12 @@ namespace {
 class CpuProfilersManager {
  public:
   void AddProfiler(Isolate* isolate, CpuProfiler* profiler) {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     profilers_.emplace(isolate, profiler);
   }
 
   void RemoveProfiler(Isolate* isolate, CpuProfiler* profiler) {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     auto range = profilers_.equal_range(isolate);
     for (auto it = range.first; it != range.second; ++it) {
       if (it->second != profiler) continue;
@@ -270,7 +270,7 @@ class CpuProfilersManager {
   }
 
   void CallCollectSample(Isolate* isolate) {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     auto range = profilers_.equal_range(isolate);
     for (auto it = range.first; it != range.second; ++it) {
       it->second->CollectSample();

@@ -723,7 +723,7 @@ size_t OS::CommitPageSize() {
 // static
 void OS::SetRandomMmapSeed(int64_t seed) {
   if (seed) {
-    LockGuard<Mutex> guard(rng_mutex.Pointer());
+    MutexGuard guard(rng_mutex.Pointer());
     platform_random_number_generator.Pointer()->SetSeed(seed);
   }
 }
@@ -744,7 +744,7 @@ void* OS::GetRandomMmapAddr() {
 #endif
   uintptr_t address;
   {
-    LockGuard<Mutex> guard(rng_mutex.Pointer());
+    MutexGuard guard(rng_mutex.Pointer());
     platform_random_number_generator.Pointer()->NextBytes(&address,
                                                           sizeof(address));
   }

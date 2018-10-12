@@ -49,7 +49,7 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
 
   void MoveEvent(Address from, Address to, int) override {
     if (from == to) return;
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     auto it = objects_.find(from);
     if (it == objects_.end()) {
       // If temporary object was collected we can get MoveEvent which moves

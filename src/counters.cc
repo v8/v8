@@ -34,35 +34,35 @@ StatsCounterThreadSafe::StatsCounterThreadSafe(Counters* counters,
 
 void StatsCounterThreadSafe::Set(int Value) {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     SetLoc(ptr_, Value);
   }
 }
 
 void StatsCounterThreadSafe::Increment() {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     IncrementLoc(ptr_);
   }
 }
 
 void StatsCounterThreadSafe::Increment(int value) {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     IncrementLoc(ptr_, value);
   }
 }
 
 void StatsCounterThreadSafe::Decrement() {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     DecrementLoc(ptr_);
   }
 }
 
 void StatsCounterThreadSafe::Decrement(int value) {
   if (ptr_) {
-    base::LockGuard<base::Mutex> Guard(&mutex_);
+    base::MutexGuard Guard(&mutex_);
     DecrementLoc(ptr_, value);
   }
 }
@@ -543,14 +543,14 @@ RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
       base::make_unique<RuntimeCallStats>();
   RuntimeCallStats* result = new_table.get();
 
-  base::LockGuard<base::Mutex> lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   tables_.push_back(std::move(new_table));
   return result;
 }
 
 void WorkerThreadRuntimeCallStats::AddToMainTable(
     RuntimeCallStats* main_call_stats) {
-  base::LockGuard<base::Mutex> lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   for (auto& worker_stats : tables_) {
     DCHECK_NE(main_call_stats, worker_stats.get());
     main_call_stats->Add(worker_stats.get());

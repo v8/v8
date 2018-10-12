@@ -179,7 +179,7 @@ void WasmMemoryTracker::RegisterAllocation(Isolate* isolate,
                                            size_t allocation_length,
                                            void* buffer_start,
                                            size_t buffer_length) {
-  base::LockGuard<base::Mutex> scope_lock(&mutex_);
+  base::MutexGuard scope_lock(&mutex_);
 
   allocated_address_space_ += allocation_length;
   AddAddressSpaceSample(isolate);
@@ -191,7 +191,7 @@ void WasmMemoryTracker::RegisterAllocation(Isolate* isolate,
 
 WasmMemoryTracker::AllocationData WasmMemoryTracker::ReleaseAllocation(
     Isolate* isolate, const void* buffer_start) {
-  base::LockGuard<base::Mutex> scope_lock(&mutex_);
+  base::MutexGuard scope_lock(&mutex_);
 
   auto find_result = allocations_.find(buffer_start);
   CHECK_NE(find_result, allocations_.end());
@@ -216,7 +216,7 @@ WasmMemoryTracker::AllocationData WasmMemoryTracker::ReleaseAllocation(
 
 const WasmMemoryTracker::AllocationData* WasmMemoryTracker::FindAllocationData(
     const void* buffer_start) {
-  base::LockGuard<base::Mutex> scope_lock(&mutex_);
+  base::MutexGuard scope_lock(&mutex_);
   const auto& result = allocations_.find(buffer_start);
   if (result != allocations_.end()) {
     return &result->second;
@@ -225,12 +225,12 @@ const WasmMemoryTracker::AllocationData* WasmMemoryTracker::FindAllocationData(
 }
 
 bool WasmMemoryTracker::IsWasmMemory(const void* buffer_start) {
-  base::LockGuard<base::Mutex> scope_lock(&mutex_);
+  base::MutexGuard scope_lock(&mutex_);
   return allocations_.find(buffer_start) != allocations_.end();
 }
 
 bool WasmMemoryTracker::HasFullGuardRegions(const void* buffer_start) {
-  base::LockGuard<base::Mutex> scope_lock(&mutex_);
+  base::MutexGuard scope_lock(&mutex_);
   const auto allocation = allocations_.find(buffer_start);
 
   if (allocation == allocations_.end()) {

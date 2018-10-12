@@ -1858,7 +1858,7 @@ void Heap::CheckNewSpaceExpansionCriteria() {
 
 void Heap::EvacuateYoungGeneration() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_FAST_PROMOTE);
-  base::LockGuard<base::Mutex> guard(relocation_mutex());
+  base::MutexGuard guard(relocation_mutex());
   ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
   if (!FLAG_concurrent_marking) {
     DCHECK(fast_promotion_mode_);
@@ -1901,7 +1901,7 @@ void Heap::EvacuateYoungGeneration() {
 
 void Heap::Scavenge() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
-  base::LockGuard<base::Mutex> guard(relocation_mutex());
+  base::MutexGuard guard(relocation_mutex());
   ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
   // There are soft limits in the allocation code, designed to trigger a mark
   // sweep collection by failing allocations. There is no sense in trying to
@@ -1954,7 +1954,7 @@ void Heap::ComputeFastPromotionMode() {
 
 void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk) {
   if (unprotected_memory_chunks_registry_enabled_) {
-    base::LockGuard<base::Mutex> guard(&unprotected_memory_chunks_mutex_);
+    base::MutexGuard guard(&unprotected_memory_chunks_mutex_);
     if (unprotected_memory_chunks_.insert(chunk).second) {
       chunk->SetReadAndWritable();
     }
@@ -3222,7 +3222,7 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
 void Heap::EagerlyFreeExternalMemory() {
   for (Page* page : *old_space()) {
     if (!page->SweepingDone()) {
-      base::LockGuard<base::Mutex> guard(page->mutex());
+      base::MutexGuard guard(page->mutex());
       if (!page->SweepingDone()) {
         ArrayBufferTracker::FreeDead(
             page, mark_compact_collector()->non_atomic_marking_state());

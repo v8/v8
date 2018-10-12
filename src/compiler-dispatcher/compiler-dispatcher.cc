@@ -78,7 +78,7 @@ base::Optional<CompilerDispatcher::JobId> CompilerDispatcher::Enqueue(
   // Post a a background worker task to perform the compilation on the worker
   // thread.
   {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     pending_background_jobs_.insert(it->second.get());
   }
   ScheduleMoreWorkerTasksIfNeeded();
@@ -117,7 +117,7 @@ void CompilerDispatcher::RegisterSharedFunctionInfo(
   shared_to_unoptimized_job_id_.Set(function_handle, job_id);
 
   {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     job->function = function_handle;
     if (job->IsReadyToFinalize(lock)) {
       // Schedule an idle task to finalize job if it is ready.
@@ -132,7 +132,7 @@ void CompilerDispatcher::WaitForJobIfRunningOnBackground(Job* job) {
   RuntimeCallTimerScope runtimeTimer(
       isolate_, RuntimeCallCounterId::kCompileWaitForDispatcher);
 
-  base::LockGuard<base::Mutex> lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   if (running_background_jobs_.find(job) == running_background_jobs_.end()) {
     pending_background_jobs_.erase(job);
     return;
@@ -188,7 +188,7 @@ void CompilerDispatcher::AbortAll() {
   jobs_.clear();
   shared_to_unoptimized_job_id_.Clear();
   {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     DCHECK(pending_background_jobs_.empty());
     DCHECK(running_background_jobs_.empty());
   }
@@ -207,7 +207,7 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
 }
 
 void CompilerDispatcher::ScheduleIdleTaskFromAnyThread(
-    const base::LockGuard<base::Mutex>&) {
+    const base::MutexGuard&) {
   if (!taskrunner_->IdleTasksEnabled()) return;
   if (idle_task_scheduled_) return;
 
@@ -221,7 +221,7 @@ void CompilerDispatcher::ScheduleMoreWorkerTasksIfNeeded() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherScheduleMoreWorkerTasksIfNeeded");
   {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     if (pending_background_jobs_.empty()) return;
     if (platform_->NumberOfWorkerThreads() <= num_worker_tasks_) {
       return;
@@ -238,7 +238,7 @@ void CompilerDispatcher::DoBackgroundWork() {
   for (;;) {
     Job* job = nullptr;
     {
-      base::LockGuard<base::Mutex> lock(&mutex_);
+      base::MutexGuard lock(&mutex_);
       if (!pending_background_jobs_.empty()) {
         auto it = pending_background_jobs_.begin();
         job = *it;
@@ -260,7 +260,7 @@ void CompilerDispatcher::DoBackgroundWork() {
     job->task->Run();
 
     {
-      base::LockGuard<base::Mutex> lock(&mutex_);
+      base::MutexGuard lock(&mutex_);
       running_background_jobs_.erase(job);
 
       job->has_run = true;
@@ -278,7 +278,7 @@ void CompilerDispatcher::DoBackgroundWork() {
   }
 
   {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     --num_worker_tasks_;
   }
   // Don't touch |this| anymore after this point, as it might have been
@@ -289,7 +289,7 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherDoIdleWork");
   {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     idle_task_scheduled_ = false;
   }
 
@@ -302,7 +302,7 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
     // Find a job which is pending finalization and has a shared function info
     CompilerDispatcher::JobMap::const_iterator it;
     {
-      base::LockGuard<base::Mutex> lock(&mutex_);
+      base::MutexGuard lock(&mutex_);
       for (it = jobs_.cbegin(); it != jobs_.cend(); ++it) {
         if (it->second->IsReadyToFinalize(lock)) break;
       }
@@ -326,7 +326,7 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
 
   // We didn't return above so there still might be jobs to finalize.
   {
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     ScheduleIdleTaskFromAnyThread(lock);
   }
 }

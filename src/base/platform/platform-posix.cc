@@ -213,7 +213,7 @@ size_t OS::CommitPageSize() {
 // static
 void OS::SetRandomMmapSeed(int64_t seed) {
   if (seed) {
-    LockGuard<Mutex> guard(rng_mutex.Pointer());
+    MutexGuard guard(rng_mutex.Pointer());
     platform_random_number_generator.Pointer()->SetSeed(seed);
   }
 }
@@ -222,7 +222,7 @@ void OS::SetRandomMmapSeed(int64_t seed) {
 void* OS::GetRandomMmapAddr() {
   uintptr_t raw_addr;
   {
-    LockGuard<Mutex> guard(rng_mutex.Pointer());
+    MutexGuard guard(rng_mutex.Pointer());
     platform_random_number_generator.Pointer()->NextBytes(&raw_addr,
                                                           sizeof(raw_addr));
   }
@@ -734,7 +734,7 @@ static void* ThreadEntry(void* arg) {
   // We take the lock here to make sure that pthread_create finished first since
   // we don't know which thread will run first (the original thread or the new
   // one).
-  { LockGuard<Mutex> lock_guard(&thread->data()->thread_creation_mutex_); }
+  { MutexGuard lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
   DCHECK_NE(thread->data()->thread_, kNoThread);
   thread->NotifyStartedAndRun();
@@ -769,7 +769,7 @@ void Thread::Start() {
     DCHECK_EQ(0, result);
   }
   {
-    LockGuard<Mutex> lock_guard(&data_->thread_creation_mutex_);
+    MutexGuard lock_guard(&data_->thread_creation_mutex_);
     result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
   }
   DCHECK_EQ(0, result);

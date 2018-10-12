@@ -45,7 +45,7 @@ base::LazyInstance<base::Mutex>::type g_PerIsolateWasmControlsMutex =
 
 bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
                           bool is_async) {
-  base::LockGuard<base::Mutex> guard(g_PerIsolateWasmControlsMutex.Pointer());
+  base::MutexGuard guard(g_PerIsolateWasmControlsMutex.Pointer());
   DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
   const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
   return (is_async && ctrls.AllowAnySizeForAsync) ||
@@ -58,7 +58,7 @@ bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
 bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
                               v8::Local<v8::Value> module_or_bytes,
                               bool is_async) {
-  base::LockGuard<base::Mutex> guard(g_PerIsolateWasmControlsMutex.Pointer());
+  base::MutexGuard guard(g_PerIsolateWasmControlsMutex.Pointer());
   DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
   const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
   if (is_async && ctrls.AllowAnySizeForAsync) return true;
@@ -481,7 +481,7 @@ RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
   CHECK_EQ(args.length(), 2);
   CONVERT_ARG_HANDLE_CHECKED(Smi, block_size, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(allow_async, 1);
-  base::LockGuard<base::Mutex> guard(g_PerIsolateWasmControlsMutex.Pointer());
+  base::MutexGuard guard(g_PerIsolateWasmControlsMutex.Pointer());
   WasmCompileControls& ctrl = (*g_PerIsolateWasmControls.Pointer())[v8_isolate];
   ctrl.AllowAnySizeForAsync = allow_async;
   ctrl.MaxWasmBufferSize = static_cast<uint32_t>(block_size->value());

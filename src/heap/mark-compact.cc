@@ -2776,7 +2776,7 @@ void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,
 
 void MarkCompactCollector::Evacuate() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
-  base::LockGuard<base::Mutex> guard(heap()->relocation_mutex());
+  base::MutexGuard guard(heap()->relocation_mutex());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_PROLOGUE);
@@ -2941,7 +2941,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "RememberedSetUpdatingItem::Process");
-    base::LockGuard<base::Mutex> guard(chunk_->mutex());
+    base::MutexGuard guard(chunk_->mutex());
     CodePageMemoryModificationScope memory_modification_scope(chunk_);
     UpdateUntypedPointers();
     UpdateTypedPointers();
@@ -3303,7 +3303,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidate(
     HeapObject* failed_object, Page* page) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
 
   aborted_evacuation_candidates_.push_back(std::make_pair(failed_object, page));
 }
@@ -4147,7 +4147,7 @@ class PageMarkingItem : public MarkingItem {
   void Process(YoungGenerationMarkingTask* task) override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "PageMarkingItem::Process");
-    base::LockGuard<base::Mutex> guard(chunk_->mutex());
+    base::MutexGuard guard(chunk_->mutex());
     MarkUntypedPointers(task);
     MarkTypedPointers(task);
   }
@@ -4325,7 +4325,7 @@ void MinorMarkCompactCollector::ProcessMarkingWorklist() {
 
 void MinorMarkCompactCollector::Evacuate() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE);
-  base::LockGuard<base::Mutex> guard(heap()->relocation_mutex());
+  base::MutexGuard guard(heap()->relocation_mutex());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_PROLOGUE);

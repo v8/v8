@@ -132,7 +132,7 @@ class DelayedTasksPlatform : public Platform {
     std::shared_ptr<TaskRunner> runner =
         platform_->GetForegroundTaskRunner(isolate);
 
-    base::LockGuard<base::Mutex> lock_guard(&mutex_);
+    base::MutexGuard lock_guard(&mutex_);
     // Check if we can re-materialize the weak ptr in our map.
     std::weak_ptr<DelayedTaskRunner>& weak_delayed_runner =
         delayed_task_runners_[runner.get()];
@@ -230,7 +230,7 @@ class DelayedTasksPlatform : public Platform {
    public:
     void operator()(DelayedTaskRunner* runner) const {
       TaskRunner* original_runner = runner->task_runner_.get();
-      base::LockGuard<base::Mutex> lock_guard(&runner->platform_->mutex_);
+      base::MutexGuard lock_guard(&runner->platform_->mutex_);
       auto& delayed_task_runners = runner->platform_->delayed_task_runners_;
       DCHECK_EQ(1, delayed_task_runners.count(original_runner));
       delayed_task_runners.erase(original_runner);
@@ -276,7 +276,7 @@ class DelayedTasksPlatform : public Platform {
       delayed_task_runners_;
 
   int32_t GetRandomDelayInMilliseconds() {
-    base::LockGuard<base::Mutex> lock_guard(&mutex_);
+    base::MutexGuard lock_guard(&mutex_);
     double delay_fraction = rng_.NextDouble();
     // Sleep up to 100ms (100000us). Square {delay_fraction} to shift
     // distribution towards shorter sleeps.

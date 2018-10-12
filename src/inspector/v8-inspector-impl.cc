@@ -404,7 +404,7 @@ struct V8InspectorImpl::EvaluateScope::CancelToken {
 
 V8InspectorImpl::EvaluateScope::~EvaluateScope() {
   if (m_cancelToken) {
-    v8::base::LockGuard<v8::base::Mutex> lock(&m_cancelToken->m_mutex);
+    v8::base::MutexGuard lock(&m_cancelToken->m_mutex);
     m_cancelToken->m_canceled = true;
     m_isolate->CancelTerminateExecution();
   }
@@ -418,7 +418,7 @@ class V8InspectorImpl::EvaluateScope::TerminateTask : public v8::Task {
   void Run() override {
     // CancelToken contains m_canceled bool which may be changed from main
     // thread, so lock mutex first.
-    v8::base::LockGuard<v8::base::Mutex> lock(&m_token->m_mutex);
+    v8::base::MutexGuard lock(&m_token->m_mutex);
     if (m_token->m_canceled) return;
     m_isolate->TerminateExecution();
   }

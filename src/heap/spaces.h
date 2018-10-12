@@ -1223,13 +1223,13 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
     template <ChunkQueueType type>
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
-      base::LockGuard<base::Mutex> guard(&mutex_);
+      base::MutexGuard guard(&mutex_);
       chunks_[type].push_back(chunk);
     }
 
     template <ChunkQueueType type>
     MemoryChunk* GetMemoryChunkSafe() {
-      base::LockGuard<base::Mutex> guard(&mutex_);
+      base::MutexGuard guard(&mutex_);
       if (chunks_[type].empty()) return nullptr;
       MemoryChunk* chunk = chunks_[type].back();
       chunks_[type].pop_back();

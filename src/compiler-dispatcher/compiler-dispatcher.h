@@ -116,12 +116,12 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
     explicit Job(BackgroundCompileTask* task_arg);
     ~Job();
 
-    bool IsReadyToFinalize(const base::LockGuard<base::Mutex>&) {
+    bool IsReadyToFinalize(const base::MutexGuard&) {
       return has_run && !function.is_null();
     }
 
     bool IsReadyToFinalize(base::Mutex* mutex) {
-      base::LockGuard<base::Mutex> lock(mutex);
+      base::MutexGuard lock(mutex);
       return IsReadyToFinalize(lock);
     }
 
@@ -136,7 +136,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   void WaitForJobIfRunningOnBackground(Job* job);
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ScheduleMoreWorkerTasksIfNeeded();
-  void ScheduleIdleTaskFromAnyThread(const base::LockGuard<base::Mutex>&);
+  void ScheduleIdleTaskFromAnyThread(const base::MutexGuard&);
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
   // Returns iterator to the inserted job.

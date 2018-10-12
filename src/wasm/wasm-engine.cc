@@ -206,7 +206,7 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
 }
 
 CompilationStatistics* WasmEngine::GetOrCreateTurboStatistics() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   if (compilation_stats_ == nullptr) {
     compilation_stats_.reset(new CompilationStatistics());
   }
@@ -214,7 +214,7 @@ CompilationStatistics* WasmEngine::GetOrCreateTurboStatistics() {
 }
 
 void WasmEngine::DumpAndResetTurboStatistics() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   if (compilation_stats_ != nullptr) {
     StdoutStream os;
     os << AsPrintableStatistics{*compilation_stats_.get(), false} << std::endl;
@@ -223,7 +223,7 @@ void WasmEngine::DumpAndResetTurboStatistics() {
 }
 
 CodeTracer* WasmEngine::GetCodeTracer() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   if (code_tracer_ == nullptr) code_tracer_.reset(new CodeTracer(-1));
   return code_tracer_.get();
 }
@@ -236,14 +236,14 @@ AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
       new AsyncCompileJob(isolate, enabled, std::move(bytes_copy), length,
                           context, std::move(resolver));
   // Pass ownership to the unique_ptr in {jobs_}.
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
   return job;
 }
 
 std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
     AsyncCompileJob* job) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   auto item = jobs_.find(job);
   DCHECK(item != jobs_.end());
   std::unique_ptr<AsyncCompileJob> result = std::move(item->second);
@@ -252,7 +252,7 @@ std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
 }
 
 bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   DCHECK_EQ(1, isolates_.count(isolate));
   for (auto& entry : jobs_) {
     if (entry.first->isolate() == isolate) return true;
@@ -261,7 +261,7 @@ bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
 }
 
 void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   DCHECK_EQ(1, isolates_.count(isolate));
   for (auto it = jobs_.begin(); it != jobs_.end();) {
     if (it->first->isolate() == isolate) {
@@ -273,13 +273,13 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
 }
 
 void WasmEngine::AddIsolate(Isolate* isolate) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.insert(isolate);
 }
 
 void WasmEngine::RemoveIsolate(Isolate* isolate) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   DCHECK_EQ(1, isolates_.count(isolate));
   isolates_.erase(isolate);
 }

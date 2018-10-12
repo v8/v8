@@ -181,7 +181,7 @@ void Sweeper::SweepOrWaitUntilSweepingCompleted(Page* page) {
 }
 
 Page* Sweeper::GetSweptPageSafe(PagedSpace* space) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   SweptList& list = swept_list_[GetSweepSpaceIndex(space->identity())];
   if (!list.empty()) {
     auto last_page = list.back();
@@ -410,7 +410,7 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
   DCHECK(IsValidSweepingSpace(identity));
   int max_freed = 0;
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     // If this page was already swept in the meantime, we can return here.
     if (page->SweepingDone()) return 0;
 
@@ -437,7 +437,7 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
   }
 
   {
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     swept_list_[GetSweepSpaceIndex(identity)].push_back(page);
   }
   return max_freed;
@@ -456,7 +456,7 @@ void Sweeper::ScheduleIncrementalSweepingTask() {
 
 void Sweeper::AddPage(AllocationSpace space, Page* page,
                       Sweeper::AddPageMode mode) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
   DCHECK(!FLAG_concurrent_sweeping || !AreSweeperTasksRunning());
   if (mode == Sweeper::REGULAR) {
@@ -482,7 +482,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
 }
 
 Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
   int space_index = GetSweepSpaceIndex(space);
   Page* page = nullptr;

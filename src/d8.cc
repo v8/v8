@@ -427,7 +427,7 @@ class BackgroundCompileThread : public base::Thread {
 
 ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
                                                    Local<Value> source) {
-  base::LockGuard<base::Mutex> lock_guard(cached_code_mutex_.Pointer());
+  base::MutexGuard lock_guard(cached_code_mutex_.Pointer());
   CHECK(source->IsString());
   v8::String::Utf8Value key(isolate, source);
   DCHECK(*key);
@@ -445,7 +445,7 @@ ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
 
 void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
                              const ScriptCompiler::CachedData* cache_data) {
-  base::LockGuard<base::Mutex> lock_guard(cached_code_mutex_.Pointer());
+  base::MutexGuard lock_guard(cached_code_mutex_.Pointer());
   CHECK(source->IsString());
   if (cache_data == nullptr) return;
   v8::String::Utf8Value key(isolate, source);
@@ -1398,7 +1398,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   {
-    base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
+    base::MutexGuard lock_guard(workers_mutex_.Pointer());
     if (workers_.size() >= kMaxWorkers) {
       Throw(args.GetIsolate(), "Too many workers, I won't let you create more");
       return;
@@ -1931,7 +1931,7 @@ void Shell::Initialize(Isolate* isolate) {
 
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   // This needs to be a critical section since this is not thread-safe
-  base::LockGuard<base::Mutex> lock_guard(context_mutex_.Pointer());
+  base::MutexGuard lock_guard(context_mutex_.Pointer());
   // Initialize the global objects
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   EscapableHandleScope handle_scope(isolate);
@@ -2561,14 +2561,14 @@ ExternalizedContents::~ExternalizedContents() {
 }
 
 void SerializationDataQueue::Enqueue(std::unique_ptr<SerializationData> data) {
-  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  base::MutexGuard lock_guard(&mutex_);
   data_.push_back(std::move(data));
 }
 
 bool SerializationDataQueue::Dequeue(
     std::unique_ptr<SerializationData>* out_data) {
   out_data->reset();
-  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  base::MutexGuard lock_guard(&mutex_);
   if (data_.empty()) return false;
   *out_data = std::move(data_[0]);
   data_.erase(data_.begin());
@@ -2577,13 +2577,13 @@ bool SerializationDataQueue::Dequeue(
 
 
 bool SerializationDataQueue::IsEmpty() {
-  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  base::MutexGuard lock_guard(&mutex_);
   return data_.empty();
 }
 
 
 void SerializationDataQueue::Clear() {
-  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  base::MutexGuard lock_guard(&mutex_);
   data_.clear();
 }
 
@@ -2982,7 +2982,7 @@ void Shell::CollectGarbage(Isolate* isolate) {
 }
 
 void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
-  base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
+  base::MutexGuard guard(isolate_status_lock_.Pointer());
   if (isolate_status_.count(isolate) == 0) {
     isolate_status_.insert(std::make_pair(isolate, value));
   } else {
@@ -3027,7 +3027,7 @@ bool ProcessMessages(
 
 void Shell::CompleteMessageLoop(Isolate* isolate) {
   auto get_waiting_behaviour = [isolate]() {
-    base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
+    base::MutexGuard guard(isolate_status_lock_.Pointer());
     DCHECK_GT(isolate_status_.count(isolate), 0);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::wasm::WasmEngine* wasm_engine = i_isolate->wasm_engine();
@@ -3280,7 +3280,7 @@ std::unique_ptr<SerializationData> Shell::SerializeValue(
     data = serializer.Release();
   }
   // Append externalized contents even when WriteValue fails.
-  base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
+  base::MutexGuard lock_guard(workers_mutex_.Pointer());
   serializer.AppendExternalizedContentsTo(&externalized_contents_);
   return data;
 }
@@ -3300,7 +3300,7 @@ void Shell::CleanupWorkers() {
   // create a new Worker, it would deadlock.
   std::vector<Worker*> workers_copy;
   {
-    base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
+    base::MutexGuard lock_guard(workers_mutex_.Pointer());
     allow_new_workers_ = false;
     workers_copy.swap(workers_);
   }
@@ -3311,7 +3311,7 @@ void Shell::CleanupWorkers() {
   }
 
   // Now that all workers are terminated, we can re-enable Worker creation.
-  base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
+  base::MutexGuard lock_guard(workers_mutex_.Pointer());
   allow_new_workers_ = true;
   externalized_contents_.clear();
 }
