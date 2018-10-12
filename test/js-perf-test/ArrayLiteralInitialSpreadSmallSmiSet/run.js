@@ -109,7 +109,7 @@ function CreateBenchmark(name, f) {
 
 CreateBenchmark('ForOf', ForOf);
 CreateBenchmark('ForOfKeys', ForOfKeys);
-CreateBenchmark('ForOfKeys', ForOfValues);
+CreateBenchmark('ForOfValues', ForOfValues);
 CreateBenchmark('Spread', Spread);
 CreateBenchmark('SpreadKeys', SpreadKeys);
 CreateBenchmark('SpreadValues', SpreadValues);
