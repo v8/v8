@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/code-tracer.h"
+#include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/wasm-import-wrapper-cache-inl.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"

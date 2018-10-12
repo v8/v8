@@ -40,6 +40,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/object-access.h"
