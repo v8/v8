@@ -43,10 +43,6 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   enum TryAbortResult { kTaskRemoved, kTaskRunning, kTaskAborted };
   TryAbortResult TryAbort(Id id);
 
-  // Cancels all remaining registered tasks and waits for tasks that are
-  // already running. This disallows subsequent Register calls.
-  void CancelAndWait();
-
   // Tries to cancel all remaining registered tasks. The return value indicates
   // whether
   //
@@ -57,6 +53,13 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   //
   // 3) All registered tasks were cancelled (kTaskAborted).
   TryAbortResult TryAbortAll();
+
+  // Cancels all remaining registered tasks and waits for tasks that are
+  // already running. This disallows subsequent Register calls.
+  void CancelAndWait();
+
+  // Returns true of the task manager has been cancelled.
+  bool canceled() const { return canceled_; }
 
  private:
   // Only called by {Cancelable} destructor. The task is done with executing,

@@ -8663,8 +8663,6 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
           : i::ThreadId::Current().Equals(isolate->thread_id());
   isolate->heap()->MemoryPressureNotification(level, on_isolate_thread);
   isolate->allocator()->MemoryPressureNotification(level);
-  isolate->compiler_dispatcher()->MemoryPressureNotification(level,
-                                                             on_isolate_thread);
 }
 
 void Isolate::EnableMemorySavingsMode() {

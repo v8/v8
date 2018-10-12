@@ -101,15 +101,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // possible). Returns true if the compile job was successful.
   bool FinishNow(Handle<SharedFunctionInfo> function);
 
-  // Aborts a given job. Blocks if requested.
-  void Abort(Handle<SharedFunctionInfo> function, BlockingBehavior blocking);
-
-  // Aborts all jobs. Blocks if requested.
-  void AbortAll(BlockingBehavior blocking);
-
-  // Memory pressure notifications from the embedder.
-  void MemoryPressureNotification(v8::MemoryPressureLevel level,
-                                  bool is_isolate_locked);
+  // Aborts all jobs, blocking until all jobs are aborted.
+  void AbortAll();
 
  private:
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskNoIdleTime);
@@ -117,12 +110,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   FRIEND_TEST(CompilerDispatcherTest, FinishNowWithWorkerTask);
   FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingWorkerTask);
   FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
-  FRIEND_TEST(CompilerDispatcherTest, FinishNowDuringAbortAll);
   FRIEND_TEST(CompilerDispatcherTest, CompileMultipleOnBackgroundThread);
-
-  class AbortTask;
-  class WorkerTask;
-  class IdleTask;
 
   struct Job {
     explicit Job(BackgroundCompileTask* task_arg);
@@ -145,13 +133,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   typedef std::map<JobId, std::unique_ptr<Job>> JobMap;
   typedef IdentityMap<JobId, FreeStoreAllocationPolicy> SharedToJobIdMap;
 
-  bool CanEnqueue();
   void WaitForJobIfRunningOnBackground(Job* job);
-  void AbortInactiveJobs();
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ScheduleMoreWorkerTasksIfNeeded();
   void ScheduleIdleTaskFromAnyThread(const base::LockGuard<base::Mutex>&);
-  void ScheduleAbortTask();
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
   // Returns iterator to the inserted job.
@@ -182,15 +167,11 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // compilation's JobId;
   SharedToJobIdMap shared_to_unoptimized_job_id_;
 
-  base::AtomicValue<v8::MemoryPressureLevel> memory_pressure_level_;
-
   // The following members can be accessed from any thread. Methods need to hold
   // the mutex |mutex_| while accessing them.
   base::Mutex mutex_;
 
-  // True if the dispatcher is in the process of aborting running tasks.
-  bool abort_;
-
+  // True if an idle task is scheduled to be run.
   bool idle_task_scheduled_;
 
   // Number of scheduled or running WorkerTask objects.

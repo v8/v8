@@ -2807,7 +2807,7 @@ void Isolate::Deinit() {
   delete heap_profiler_;
   heap_profiler_ = nullptr;
 
-  compiler_dispatcher_->AbortAll(BlockingBehavior::kBlock);
+  compiler_dispatcher_->AbortAll();
   delete compiler_dispatcher_;
   compiler_dispatcher_ = nullptr;
 
