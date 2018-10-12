@@ -308,7 +308,6 @@ void DeclarationScope::SetDefaults() {
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
   has_rest_ = false;
-  has_generator_object_ = false;
   sloppy_block_function_map_ = nullptr;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -776,7 +775,6 @@ Variable* DeclarationScope::DeclareGeneratorObjectVar(
   Variable* result = EnsureRareData()->generator_object =
       NewTemporary(name, kNotAssigned);
   result->set_is_used();
-  has_generator_object_ = true;
   return result;
 }
 
@@ -1469,7 +1467,6 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   sloppy_block_function_map_ = nullptr;
   rare_data_ = nullptr;
   has_rest_ = false;
-  has_generator_object_ = false;
 
   DCHECK_NE(zone_, ast_value_factory->zone());
   zone_->ReleaseMemory();
@@ -2145,15 +2142,6 @@ void DeclarationScope::AllocateReceiver() {
   AllocateParameter(receiver(), -1);
 }
 
-void DeclarationScope::AllocateGeneratorObject() {
-  if (!has_generator_object_) return;
-  DCHECK_NOT_NULL(generator_object_var());
-  DCHECK_EQ(this, generator_object_var()->scope());
-  AllocateStackSlot(generator_object_var());
-  DCHECK_EQ(VariableLocation::LOCAL, generator_object_var()->location());
-  DCHECK_EQ(kGeneratorObjectVarIndex, generator_object_var()->index());
-}
-
 void Scope::AllocateNonParameterLocal(Variable* var) {
   DCHECK(var->scope() == this);
   if (var->IsUnallocated() && MustAllocate(var)) {
@@ -2219,14 +2207,6 @@ void Scope::AllocateVariablesRecursively() {
   // Don't allocate variables of preparsed scopes.
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {
     return;
-  }
-
-  // Make sure to allocate the .generator_object (for async functions
-  // and async generators) first, so that it get's the required stack
-  // slot 0 in case it's needed. See
-  // http://bit.ly/v8-zero-cost-async-stack-traces for details.
-  if (is_function_scope()) {
-    AsDeclarationScope()->AllocateGeneratorObject();
   }
 
   // Allocate variables for inner scopes.

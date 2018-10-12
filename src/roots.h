@@ -274,7 +274,9 @@ class Symbol;
     NoScriptSharedFunctionInfos)                                           \
   V(FixedArray, serialized_objects, SerializedObjects)                     \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
-  V(TemplateList, message_listeners, MessageListeners)
+  V(TemplateList, message_listeners, MessageListeners)                     \
+  /* Support for async stack traces */                                     \
+  V(HeapObject, current_microtask, CurrentMicrotask)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \

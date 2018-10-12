@@ -40,6 +40,7 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
   V(api_private_symbol_table)             \
   V(api_symbol_table)                     \
   V(builtins_constants_table)             \
+  V(current_microtask)                    \
   V(detached_contexts)                    \
   V(feedback_vectors_for_profiling_tools) \
   V(materialized_objects)                 \

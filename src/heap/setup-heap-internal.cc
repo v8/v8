@@ -626,6 +626,9 @@ void Heap::CreateInitialObjects() {
   set_hash_seed(*factory->NewByteArray(kInt64Size, TENURED));
   InitializeHashSeed();
 
+  // There's no "current microtask" in the beginning.
+  set_current_microtask(roots.undefined_value());
+
   // Allocate cache for single character one byte strings.
   set_single_character_string_cache(
       *factory->NewFixedArray(String::kMaxOneByteCharCode + 1, TENURED));

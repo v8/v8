@@ -429,10 +429,10 @@ class FrameArrayBuilder {
                                           offset, flags);
   }
 
-  bool AppendJavaScriptFrame(
+  void AppendJavaScriptFrame(
       FrameSummary::JavaScriptFrameSummary const& summary) {
     // Filter out internal frames that we do not want to show.
-    if (!IsVisibleInStackTrace(summary.function())) return false;
+    if (!IsVisibleInStackTrace(summary.function())) return;
 
     Handle<AbstractCode> abstract_code = summary.abstract_code();
     const int offset = summary.code_offset();
@@ -453,12 +453,11 @@ class FrameArrayBuilder {
     elements_ = FrameArray::AppendJSFrame(
         elements_, TheHoleToUndefined(isolate_, summary.receiver()), function,
         abstract_code, offset, flags);
-    return true;
   }
 
-  bool AppendWasmCompiledFrame(
+  void AppendWasmCompiledFrame(
       FrameSummary::WasmCompiledFrameSummary const& summary) {
-    if (summary.code()->kind() != wasm::WasmCode::kFunction) return false;
+    if (summary.code()->kind() != wasm::WasmCode::kFunction) return;
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = 0;
     if (instance->module_object()->is_asm_js()) {
@@ -473,10 +472,9 @@ class FrameArrayBuilder {
     elements_ = FrameArray::AppendWasmFrame(
         elements_, instance, summary.function_index(), summary.code(),
         summary.code_offset(), flags);
-    return true;
   }
 
-  bool AppendWasmInterpretedFrame(
+  void AppendWasmInterpretedFrame(
       FrameSummary::WasmInterpretedFrameSummary const& summary) {
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = FrameArray::kIsWasmInterpretedFrame;
@@ -484,14 +482,13 @@ class FrameArrayBuilder {
     elements_ = FrameArray::AppendWasmFrame(elements_, instance,
                                             summary.function_index(), {},
                                             summary.byte_offset(), flags);
-    return true;
   }
 
-  bool AppendBuiltinExitFrame(BuiltinExitFrame* exit_frame) {
+  void AppendBuiltinExitFrame(BuiltinExitFrame* exit_frame) {
     Handle<JSFunction> function = handle(exit_frame->function(), isolate_);
 
     // Filter out internal frames that we do not want to show.
-    if (!IsVisibleInStackTrace(function)) return false;
+    if (!IsVisibleInStackTrace(function)) return;
 
     Handle<Object> receiver(exit_frame->receiver(), isolate_);
     Handle<Code> code(exit_frame->LookupCode(), isolate_);
@@ -505,8 +502,6 @@ class FrameArrayBuilder {
     elements_ = FrameArray::AppendJSFrame(elements_, receiver, function,
                                           Handle<AbstractCode>::cast(code),
                                           offset, flags);
-
-    return true;
   }
 
   bool full() { return elements_->FrameCount() >= limit_; }
@@ -648,8 +643,6 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       builder->AppendAsyncFrame(generator_object);
 
       // Try to continue from here.
-      Handle<JSFunction> function(generator_object->function(), isolate);
-      Handle<SharedFunctionInfo> shared(function->shared(), isolate);
       if (generator_object->IsJSAsyncFunctionObject()) {
         Handle<JSAsyncFunctionObject> async_function_object =
             Handle<JSAsyncFunctionObject>::cast(generator_object);
@@ -700,8 +693,6 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   // Build the regular stack trace, and remember the last relevant
   // frame ID and inlined index (for the async stack trace handling
   // below, which starts from this last frame).
-  int last_frame_index = 0;
-  StackFrame::Id last_frame_id = StackFrame::NO_ID;
   for (StackFrameIterator it(this); !it.done() && !builder.full();
        it.Advance()) {
     StackFrame* const frame = it.frame();
@@ -720,37 +711,23 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         for (size_t i = frames.size(); i-- != 0 && !builder.full();) {
           const auto& summary = frames[i];
           if (summary.IsJavaScript()) {
-            //==================================================================
+            //=========================================================
             // Handle a JavaScript frame.
-            //==================================================================
+            //=========================================================
             auto const& java_script = summary.AsJavaScript();
-            if (builder.AppendJavaScriptFrame(java_script)) {
-              if (IsAsyncFunction(java_script.function()->shared()->kind())) {
-                last_frame_id = frame->id();
-                last_frame_index = static_cast<int>(i);
-              } else {
-                last_frame_id = StackFrame::NO_ID;
-                last_frame_index = 0;
-              }
-            }
+            builder.AppendJavaScriptFrame(java_script);
           } else if (summary.IsWasmCompiled()) {
-            //==================================================================
+            //=========================================================
             // Handle a WASM compiled frame.
-            //==================================================================
+            //=========================================================
             auto const& wasm_compiled = summary.AsWasmCompiled();
-            if (builder.AppendWasmCompiledFrame(wasm_compiled)) {
-              last_frame_id = StackFrame::NO_ID;
-              last_frame_index = 0;
-            }
+            builder.AppendWasmCompiledFrame(wasm_compiled);
           } else if (summary.IsWasmInterpreted()) {
-            //==================================================================
+            //=========================================================
             // Handle a WASM interpreted frame.
-            //==================================================================
+            //=========================================================
             auto const& wasm_interpreted = summary.AsWasmInterpreted();
-            if (builder.AppendWasmInterpretedFrame(wasm_interpreted)) {
-              last_frame_id = StackFrame::NO_ID;
-              last_frame_index = 0;
-            }
+            builder.AppendWasmInterpretedFrame(wasm_interpreted);
           }
         }
         break;
@@ -759,10 +736,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
       case StackFrame::BUILTIN_EXIT:
         // BuiltinExitFrames are not standard frames, so they do not have
         // Summarize(). However, they may have one JS frame worth showing.
-        if (builder.AppendBuiltinExitFrame(BuiltinExitFrame::cast(frame))) {
-          last_frame_id = StackFrame::NO_ID;
-          last_frame_index = 0;
-        }
+        builder.AppendBuiltinExitFrame(BuiltinExitFrame::cast(frame));
         break;
 
       default:
@@ -770,40 +744,44 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
     }
   }
 
-  // If --async-stack-traces is enabled, and we ended on a regular JavaScript
-  // frame above, we can enrich the stack trace with async frames (if this
-  // last frame corresponds to an async function).
-  if (FLAG_async_stack_traces && last_frame_id != StackFrame::NO_ID) {
-    StackFrameIterator it(this);
-    while (it.frame()->id() != last_frame_id) it.Advance();
-    FrameInspector inspector(StandardFrame::cast(it.frame()), last_frame_index,
-                             this);
-    FunctionKind const kind = inspector.GetFunction()->shared()->kind();
-    if (IsAsyncFunction(kind)) {
-      Handle<Object> const dot_generator_object =
-          inspector.GetExpression(DeclarationScope::kGeneratorObjectVarIndex);
-      if (dot_generator_object->IsUndefined(this)) {
-        // The .generator_object was not yet initialized (i.e. we see a
-        // really early exception in the setup of the async generator).
-      } else if (dot_generator_object->IsJSAsyncFunctionObject()) {
-        // Reach out to the outer promise of the async function.
-        Handle<JSAsyncFunctionObject> async_function_object =
-            Handle<JSAsyncFunctionObject>::cast(dot_generator_object);
-        Handle<JSPromise> promise(async_function_object->promise(), this);
-        CaptureAsyncStackTrace(this, promise, &builder);
-      } else {
-        // Check if there's a pending async request on the generator object.
-        Handle<JSAsyncGeneratorObject> async_generator_object =
-            Handle<JSAsyncGeneratorObject>::cast(dot_generator_object);
-        if (!async_generator_object->queue()->IsUndefined(this)) {
-          // Take the promise from the first async generatot request.
-          Handle<AsyncGeneratorRequest> request(
+  // If --async-stack-traces are enabled and the "current microtask" is a
+  // PromiseReactionJobTask, we try to enrich the stack trace with async
+  // frames.
+  if (FLAG_async_stack_traces) {
+    Handle<Object> current_microtask = factory()->current_microtask();
+    if (current_microtask->IsPromiseReactionJobTask()) {
+      Handle<PromiseReactionJobTask> promise_reaction_job_task =
+          Handle<PromiseReactionJobTask>::cast(current_microtask);
+      // Check if the {reaction} has one of the known async function or
+      // async generator continuations as its fulfill handler.
+      if (IsBuiltinFunction(this, promise_reaction_job_task->handler(),
+                            Builtins::kAsyncFunctionAwaitResolveClosure) ||
+          IsBuiltinFunction(this, promise_reaction_job_task->handler(),
+                            Builtins::kAsyncGeneratorAwaitResolveClosure) ||
+          IsBuiltinFunction(this, promise_reaction_job_task->handler(),
+                            Builtins::kAsyncGeneratorYieldResolveClosure)) {
+        // Now peak into the handlers' AwaitContext to get to
+        // the JSGeneratorObject for the async function.
+        Handle<Context> context(
+            JSFunction::cast(promise_reaction_job_task->handler())->context(),
+            this);
+        Handle<JSGeneratorObject> generator_object(
+            JSGeneratorObject::cast(context->extension()), this);
+        CHECK(generator_object->is_executing());
+
+        if (generator_object->IsJSAsyncFunctionObject()) {
+          Handle<JSAsyncFunctionObject> async_function_object =
+              Handle<JSAsyncFunctionObject>::cast(generator_object);
+          Handle<JSPromise> promise(async_function_object->promise(), this);
+          CaptureAsyncStackTrace(this, promise, &builder);
+        } else {
+          Handle<JSAsyncGeneratorObject> async_generator_object =
+              Handle<JSAsyncGeneratorObject>::cast(generator_object);
+          Handle<AsyncGeneratorRequest> async_generator_request(
               AsyncGeneratorRequest::cast(async_generator_object->queue()),
               this);
-
-          // We can start collecting an async stack trace from the
-          // promise on the {request}.
-          Handle<JSPromise> promise(JSPromise::cast(request->promise()), this);
+          Handle<JSPromise> promise(
+              JSPromise::cast(async_generator_request->promise()), this);
           CaptureAsyncStackTrace(this, promise, &builder);
         }
       }

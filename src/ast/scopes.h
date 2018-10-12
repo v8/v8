@@ -773,11 +773,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return GetRareVariable(RareVariable::kGeneratorObject);
   }
 
-  // For async generators, the .generator_object variable is always
-  // allocated to a fixed stack slot, such that the stack trace
-  // construction logic can access it.
-  static constexpr int kGeneratorObjectVarIndex = 0;
-
   // Parameters. The left-most parameter has index 0.
   // Only valid for function and module scopes.
   Variable* parameter(int index) const {
@@ -905,7 +900,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void AllocateLocals();
   void AllocateParameterLocals();
   void AllocateReceiver();
-  void AllocateGeneratorObject();
 
   void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
@@ -962,8 +956,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool force_eager_compilation_ : 1;
   // This function scope has a rest parameter.
   bool has_rest_ : 1;
-  // This function scope has a .generator_object variable.
-  bool has_generator_object_ : 1;
   // This scope has a parameter called "arguments".
   bool has_arguments_parameter_ : 1;
   // This scope uses "super" property ('super.foo').
