@@ -10505,44 +10505,6 @@ void EmbedderHeapTracer::GarbageCollectionForTesting(
                                  kGCCallbackFlagForced);
 }
 
-bool EmbedderHeapTracer::AdvanceTracing(double deadline_in_ms) {
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  return !this->AdvanceTracing(
-      deadline_in_ms, AdvanceTracingActions(std::isinf(deadline_in_ms)
-                                                ? FORCE_COMPLETION
-                                                : DO_NOT_FORCE_COMPLETION));
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-}
-
-void EmbedderHeapTracer::EnterFinalPause(EmbedderStackState stack_state) {
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  this->EnterFinalPause();
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-}
-
-bool EmbedderHeapTracer::IsTracingDone() {
-// TODO(mlippautz): Implement using "return true" after removing the deprecated
-// call.
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  return NumberOfWrappersToTrace() == 0;
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-}
-
 namespace internal {
 
 void HandleScopeImplementer::FreeThreadResources() {
