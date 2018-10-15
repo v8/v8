@@ -1037,7 +1037,7 @@ class ParserBase {
   ExpressionT ParseRegExpLiteral(bool* ok);
 
   ExpressionT ParseBindingPattern(bool* ok);
-  ExpressionT ParsePrimaryExpression(bool* is_async, bool* ok);
+  ExpressionT ParsePrimaryExpression(bool* ok);
 
   // Use when parsing an expression that is known to not be a pattern or part
   // of a pattern.
@@ -1096,14 +1096,12 @@ class ParserBase {
   V8_INLINE ExpressionT ParseUnaryExpression(bool* ok);
   V8_INLINE ExpressionT ParsePostfixExpression(bool* ok);
   V8_INLINE ExpressionT ParseLeftHandSideExpression(bool* ok);
-  ExpressionT ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
-                                                          bool* ok);
-  V8_INLINE ExpressionT ParseMemberWithNewPrefixesExpression(bool* is_async,
-                                                             bool* ok);
+  ExpressionT ParseMemberWithPresentNewPrefixesExpression(bool* ok);
+  V8_INLINE ExpressionT ParseMemberWithNewPrefixesExpression(bool* ok);
   ExpressionT ParseFunctionExpression(bool* ok);
-  V8_INLINE ExpressionT ParseMemberExpression(bool* is_async, bool* ok);
-  V8_INLINE ExpressionT ParseMemberExpressionContinuation(
-      ExpressionT expression, bool* is_async, bool* ok);
+  V8_INLINE ExpressionT ParseMemberExpression(bool* ok);
+  V8_INLINE ExpressionT
+  ParseMemberExpressionContinuation(ExpressionT expression, bool* ok);
 
   // `rewritable_length`: length of the destructuring_assignments_to_rewrite()
   // queue in the parent function state, prior to parsing of formal parameters.
@@ -1753,7 +1751,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBindingPattern(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
-    bool* is_async, bool* ok) {
+    bool* ok) {
   // PrimaryExpression ::
   //   'this'
   //   'null'
@@ -1806,7 +1804,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
         return ParseAsyncFunctionLiteral(ok);
       }
       // CoverCallExpressionAndAsyncArrowHead
-      *is_async = true;
       V8_FALLTHROUGH;
     case Token::IDENTIFIER:
     case Token::LET:
@@ -3245,9 +3242,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
   // LeftHandSideExpression ::
   //   (NewExpression | MemberExpression) ...
 
-  bool is_async = false;
-  ExpressionT result =
-      ParseMemberWithNewPrefixesExpression(&is_async, CHECK_OK);
+  ExpressionT result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
 
   while (true) {
     switch (peek()) {
@@ -3291,7 +3286,8 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         }
         Scanner::Location spread_pos;
         ExpressionListT args;
-        if (V8_UNLIKELY(is_async && impl()->IsIdentifier(result))) {
+        if (impl()->IsIdentifier(result) &&
+            impl()->IsAsync(impl()->AsIdentifier(result))) {
           ExpressionClassifier async_classifier(this);
           bool is_simple_parameter_list = true;
           args = ParseArguments(&spread_pos, true, &is_simple_parameter_list,
@@ -3372,8 +3368,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
-                                                              bool* ok) {
+ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
   //
@@ -3408,11 +3403,10 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
     *ok = false;
     return impl()->NullExpression();
   } else if (peek() == Token::PERIOD) {
-    *is_async = false;
     result = ParseNewTargetExpression(CHECK_OK);
-    return ParseMemberExpressionContinuation(result, is_async, ok);
+    return ParseMemberExpressionContinuation(result, ok);
   } else {
-    result = ParseMemberWithNewPrefixesExpression(is_async, CHECK_OK);
+    result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
   }
   ValidateExpression(CHECK_OK);
   if (peek() == Token::LPAREN) {
@@ -3426,7 +3420,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
       result = factory()->NewCallNew(result, args, new_pos);
     }
     // The expression can still continue with . or [ after the arguments.
-    return ParseMemberExpressionContinuation(result, is_async, ok);
+    return ParseMemberExpressionContinuation(result, ok);
   }
   // NewExpression without arguments.
   return factory()->NewCallNew(result, impl()->NewExpressionList(0), new_pos);
@@ -3434,11 +3428,9 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
-                                                       bool* ok) {
-  return peek() == Token::NEW
-             ? ParseMemberWithPresentNewPrefixesExpression(is_async, ok)
-             : ParseMemberExpression(is_async, ok);
+ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* ok) {
+  return peek() == Token::NEW ? ParseMemberWithPresentNewPrefixesExpression(ok)
+                              : ParseMemberExpression(ok);
 }
 
 template <typename Impl>
@@ -3484,7 +3476,7 @@ ParserBase<Impl>::ParseFunctionExpression(bool* ok) {
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
-    bool* is_async, bool* ok) {
+    bool* ok) {
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral | ClassLiteral)
   //     ('[' Expression ']' | '.' Identifier | Arguments | TemplateLiteral)*
@@ -3507,10 +3499,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
   } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT) {
     result = ParseImportExpressions(CHECK_OK);
   } else {
-    result = ParsePrimaryExpression(is_async, CHECK_OK);
+    result = ParsePrimaryExpression(CHECK_OK);
   }
 
-  return ParseMemberExpressionContinuation(result, is_async, ok);
+  return ParseMemberExpressionContinuation(result, ok);
 }
 
 template <typename Impl>
@@ -3613,13 +3605,12 @@ ParserBase<Impl>::ParseNewTargetExpression(bool* ok) {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
-                                                    bool* is_async, bool* ok) {
+                                                    bool* ok) {
   // Parses this part of MemberExpression:
   // ('[' Expression ']' | '.' Identifier | TemplateLiteral)*
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
-        *is_async = false;
         ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
@@ -3634,7 +3625,6 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
         break;
       }
       case Token::PERIOD: {
-        *is_async = false;
         ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
@@ -3647,7 +3637,6 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
       }
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
-        *is_async = false;
         ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();

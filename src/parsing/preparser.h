@@ -56,6 +56,7 @@ class PreParserIdentifier {
   }
   bool IsNull() const { return type_ == kNullIdentifier; }
   bool IsEval() const { return type_ == kEvalIdentifier; }
+  bool IsAsync() const { return type_ == kAsyncIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const { return IsEval() || IsArguments(); }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
@@ -1287,6 +1288,10 @@ class PreParser : public ParserBase<PreParser> {
   // Helper functions for recursive descent.
   V8_INLINE bool IsEval(const PreParserIdentifier& identifier) const {
     return identifier.IsEval();
+  }
+
+  V8_INLINE bool IsAsync(const PreParserIdentifier& identifier) const {
+    return identifier.IsAsync();
   }
 
   V8_INLINE bool IsArguments(const PreParserIdentifier& identifier) const {
