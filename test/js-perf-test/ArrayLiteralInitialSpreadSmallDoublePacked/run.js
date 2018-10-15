@@ -5,8 +5,12 @@
 // Comparing different copy schemes against spread initial literals.
 // Benchmarks for small packed double arrays.
 
-const smallHoleyArray = Array(100);
-const smallArray = Array.from(Array(100).keys()).map(x => x + 6.66);;
+var smallArray = Array.from(Array(100).keys());
+
+for (var i = 0; i < 100; i++) {
+  smallArray[i] += 6.66;
+}
+
 
 // ----------------------------------------------------------------------------
 // Benchmark: Spread

@@ -5,8 +5,12 @@
 // Comparing different copy schemes against spread initial literals.
 // Benchmarks for large packed double arrays.
 
-const largeHoleyArray = new Array(1e5);
-const largeArray = Array.from(largeHoleyArray.keys()).map(x => x + 6.66);
+var largeArray = Array.from(Array(1e5).keys());
+// TODO(dhai): we should be able to use Array.prototype.map here, but that
+// implementation is currently creating a HOLEY array.
+for (var i = 0; i < 1e5; i++) {
+  largeArray[i] += 6.66;
+}
 
 // ----------------------------------------------------------------------------
 // Benchmark: Spread
