@@ -4904,67 +4904,12 @@ Handle<Map> Map::ReconfigureElementsKind(Isolate* isolate, Handle<Map> map,
   return mu.ReconfigureElementsKind(new_elements_kind);
 }
 
-namespace {
-
-Map* SearchMigrationTarget(Isolate* isolate, Map* old_map) {
-  DisallowHeapAllocation no_allocation;
-  DisallowDeoptimization no_deoptimization(isolate);
-
-  Map* target = old_map;
-  do {
-    target = TransitionsAccessor(isolate, target, &no_allocation)
-                 .GetMigrationTarget();
-  } while (target != nullptr && target->is_deprecated());
-  if (target == nullptr) return nullptr;
-
-  // TODO(ishell): if this validation ever become a bottleneck consider adding a
-  // bit to the Map telling whether it contains fields whose field types may be
-  // cleared.
-  // TODO(ishell): revisit handling of cleared field types in
-  // TryReplayPropertyTransitions() and consider checking the target map's field
-  // types instead of old_map's types.
-  // Go to slow map updating if the old_map has fast properties with cleared
-  // field types.
-  int old_nof = old_map->NumberOfOwnDescriptors();
-  DescriptorArray* old_descriptors = old_map->instance_descriptors();
-  for (int i = 0; i < old_nof; i++) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    if (old_details.location() == kField && old_details.kind() == kData) {
-      FieldType* old_type = old_descriptors->GetFieldType(i);
-      if (FieldTypeIsCleared(old_details.representation(), old_type)) {
-        return nullptr;
-      }
-    }
-  }
-
-  SLOW_DCHECK(Map::TryUpdateSlow(isolate, old_map) == target);
-  return target;
-}
-}  // namespace
-
-// TODO(ishell): Move TryUpdate() and friends to MapUpdater
 // static
 MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
   DisallowHeapAllocation no_allocation;
   DisallowDeoptimization no_deoptimization(isolate);
 
   if (!old_map->is_deprecated()) return old_map;
-
-  Map* target_map = SearchMigrationTarget(isolate, *old_map);
-  if (target_map != nullptr) {
-    return handle(target_map, isolate);
-  }
-
-  Map* new_map = TryUpdateSlow(isolate, *old_map);
-  if (new_map == nullptr) return MaybeHandle<Map>();
-  TransitionsAccessor(isolate, *old_map, &no_allocation)
-      .SetMigrationTarget(new_map);
-  return handle(new_map, isolate);
-}
-
-Map* Map::TryUpdateSlow(Isolate* isolate, Map* old_map) {
-  DisallowHeapAllocation no_allocation;
-  DisallowDeoptimization no_deoptimization(isolate);
 
   // Check the state of the root map.
   Map* root_map = old_map->FindRootMap(isolate);
@@ -4974,21 +4919,23 @@ Map* Map::TryUpdateSlow(Isolate* isolate, Map* old_map) {
     DCHECK(constructor->initial_map()->is_dictionary_map());
     if (constructor->initial_map()->elements_kind() !=
         old_map->elements_kind()) {
-      return nullptr;
+      return MaybeHandle<Map>();
     }
-    return constructor->initial_map();
+    return handle(constructor->initial_map(), constructor->GetIsolate());
   }
-  if (!old_map->EquivalentToForTransition(root_map)) return nullptr;
+  if (!old_map->EquivalentToForTransition(root_map)) return MaybeHandle<Map>();
 
   ElementsKind from_kind = root_map->elements_kind();
   ElementsKind to_kind = old_map->elements_kind();
   if (from_kind != to_kind) {
     // Try to follow existing elements kind transitions.
     root_map = root_map->LookupElementsTransitionMap(isolate, to_kind);
-    if (root_map == nullptr) return nullptr;
+    if (root_map == nullptr) return MaybeHandle<Map>();
     // From here on, use the map with correct elements kind as root map.
   }
-  return root_map->TryReplayPropertyTransitions(isolate, old_map);
+  Map* new_map = root_map->TryReplayPropertyTransitions(isolate, *old_map);
+  if (new_map == nullptr) return MaybeHandle<Map>();
+  return handle(new_map, isolate);
 }
 
 Map* Map::TryReplayPropertyTransitions(Isolate* isolate, Map* old_map) {
@@ -5070,10 +5017,6 @@ Map* Map::TryReplayPropertyTransitions(Isolate* isolate, Map* old_map) {
 // static
 Handle<Map> Map::Update(Isolate* isolate, Handle<Map> map) {
   if (!map->is_deprecated()) return map;
-  Map* target_map = SearchMigrationTarget(isolate, *map);
-  if (target_map != nullptr) {
-    return handle(target_map, isolate);
-  }
   MapUpdater mu(isolate, map);
   return mu.Update();
 }

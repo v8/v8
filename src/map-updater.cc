@@ -170,7 +170,6 @@ Handle<Map> MapUpdater::Update() {
   if (FindTargetMap() == kEnd) return result_map_;
   ConstructNewMap();
   DCHECK_EQ(kEnd, state_);
-  TransitionsAccessor(isolate_, old_map_).SetMigrationTarget(*result_map_);
   return result_map_;
 }
 
