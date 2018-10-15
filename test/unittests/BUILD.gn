@@ -198,6 +198,7 @@ v8_source_set("unittests_sources") {
     "test-utils.cc",
     "test-utils.h",
     "torque/earley-parser-unittest.cc",
+    "torque/torque-unittest.cc",
     "unicode-unittest.cc",
     "utils-unittest.cc",
     "value-serializer-unittest.cc",

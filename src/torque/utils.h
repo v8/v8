@@ -214,9 +214,9 @@ class Stack {
   // Delete the slots in {range}, moving higher slots to fill the gap.
   void DeleteRange(StackRange range) {
     DCHECK_LE(range.end(), AboveTop());
-    for (BottomOffset i = range.begin();
-         i < std::min(range.end(), AboveTop() - range.Size()); ++i) {
-      elements_[i.offset] = std::move(elements_[i.offset + range.Size()]);
+    if (range.Size() == 0) return;
+    for (BottomOffset i = range.end(); i < AboveTop(); ++i) {
+      elements_[i.offset - range.Size()] = std::move(elements_[i.offset]);
     }
     elements_.resize(elements_.size() - range.Size());
   }
