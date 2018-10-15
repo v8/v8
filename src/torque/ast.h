@@ -53,7 +53,7 @@ namespace torque {
   V(AssertStatement)                    \
   V(TailCallStatement)                  \
   V(VarDeclarationStatement)            \
-  V(GotoStatement)                      \
+  V(GotoStatement)
 
 #define AST_DECLARATION_NODE_KIND_LIST(V) \
   V(TypeDeclaration)                      \
@@ -510,7 +510,7 @@ struct ForLoopStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ForLoopStatement)
   ForLoopStatement(SourcePosition pos, base::Optional<Statement*> declaration,
                    base::Optional<Expression*> test,
-                   base::Optional<Expression*> action, Statement* body)
+                   base::Optional<Statement*> action, Statement* body)
       : Statement(kKind, pos),
         var_declaration(),
         test(std::move(test)),
@@ -521,7 +521,7 @@ struct ForLoopStatement : Statement {
   }
   base::Optional<VarDeclarationStatement*> var_declaration;
   base::Optional<Expression*> test;
-  base::Optional<Expression*> action;
+  base::Optional<Statement*> action;
   Statement* body;
 };
 
@@ -814,6 +814,13 @@ bool AstNodeClassCheck::IsInstanceOf(AstNode* node) {
 }
 
 #undef ENUM_ITEM
+
+inline bool IsDeferred(Statement* stmt) {
+  if (auto* block = BlockStatement::DynamicCast(stmt)) {
+    return block->deferred;
+  }
+  return false;
+}
 
 }  // namespace torque
 }  // namespace internal

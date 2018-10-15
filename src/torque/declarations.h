@@ -60,12 +60,6 @@ class Declarations {
 
   Builtin* LookupBuiltin(const std::string& name);
 
-  Label* TryLookupLabel(const std::string& name) {
-    Declarable* d = TryLookup(name);
-    return d && d->IsLabel() ? Label::cast(d) : nullptr;
-  }
-  Label* LookupLabel(const std::string& name);
-
   GenericList* LookupGeneric(const std::string& name);
   ModuleConstant* LookupModuleConstant(const std::string& name);
 
@@ -79,9 +73,6 @@ class Declarations {
   void DeclareStruct(Module* module, const std::string& name,
                      const std::vector<NameAndType>& fields);
 
-  Label* DeclareLabel(const std::string& name,
-                      base::Optional<Statement*> statement = {});
-
   Macro* DeclareMacro(const std::string& name, const Signature& signature,
                       base::Optional<std::string> op = {});
 
@@ -90,14 +81,6 @@ class Declarations {
 
   RuntimeFunction* DeclareRuntimeFunction(const std::string& name,
                                           const Signature& signature);
-
-  Variable* CreateVariable(const std::string& var, const Type* type,
-                           bool is_const);
-  Variable* DeclareVariable(const std::string& var, const Type* type,
-                            bool is_const);
-
-  Parameter* DeclareParameter(const std::string& name,
-                              std::string external_name, const Type* type);
 
   void DeclareExternConstant(const std::string& name, const Type* type,
                              std::string value);
@@ -111,10 +94,6 @@ class Declarations {
   base::Optional<Generic*> GetCurrentGeneric();
 
   ScopeChain::Snapshot GetScopeChainSnapshot() { return chain_.TaskSnapshot(); }
-
-  std::set<const Variable*> GetLiveVariables() {
-    return chain_.GetLiveVariables();
-  }
 
   bool IsDeclaredInCurrentScope(const std::string& name);
 

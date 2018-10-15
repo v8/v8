@@ -280,27 +280,6 @@ bool IsAssignableFrom(const Type* to, const Type* from) {
   return TypeOracle::IsImplicitlyConvertableFrom(to, from);
 }
 
-bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
-                           const std::vector<Label*>& labels) {
-  auto i = sig.parameter_types.types.begin() + sig.implicit_count;
-  if ((sig.parameter_types.types.size() - sig.implicit_count) > types.size())
-    return false;
-  // TODO(danno): The test below is actually insufficient. The labels'
-  // parameters must be checked too. ideally, the named part of
-  // LabelDeclarationVector would be factored out so that the label count and
-  // parameter types could be passed separately.
-  if (sig.labels.size() != labels.size()) return false;
-  for (auto current : types) {
-    if (i == sig.parameter_types.types.end()) {
-      if (!sig.parameter_types.var_args) return false;
-      if (!IsAssignableFrom(TypeOracle::GetObjectType(), current)) return false;
-    } else {
-      if (!IsAssignableFrom(*i++, current)) return false;
-    }
-  }
-  return true;
-}
-
 bool operator<(const Type& a, const Type& b) {
   return a.MangledName() < b.MangledName();
 }

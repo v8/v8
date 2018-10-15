@@ -27,6 +27,7 @@ VisitResult ImplementationVisitor::Visit(Expression* expr) {
 
 const Type* ImplementationVisitor::Visit(Statement* stmt) {
   CurrentSourcePosition::Scope scope(stmt->pos);
+  StackScope stack_scope(this);
   const Type* result;
   switch (stmt->kind) {
 #define ENUM_ITEM(name)               \
@@ -168,6 +169,8 @@ void ImplementationVisitor::Visit(ConstDeclaration* decl) {
   Signature signature = MakeSignatureFromReturnType(decl->type);
   std::string name = decl->name;
 
+  BindingsManagersScope bindings_managers_scope;
+
   header_out() << "  ";
   GenerateFunctionDeclaration(header_out(), "", name, signature, {});
   header_out() << ";\n";
@@ -258,36 +261,44 @@ void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
     Stack<std::string> lowered_parameters;
     Stack<const Type*> lowered_parameter_types;
 
-    for (const std::string& name : macro->parameter_names()) {
-      Parameter* parameter = Parameter::cast(declarations()->LookupValue(name));
-      const Type* type = parameter->type();
+    BindingsManagersScope bindings_managers_scope;
+
+    BlockBindings<LocalValue> parameter_bindings(&ValueBindingsManager::Get());
+    for (size_t i = 0; i < macro->signature().parameter_names.size(); ++i) {
+      const std::string& name = macro->parameter_names()[i];
+      std::string external_name = GetParameterVariableFromName(name);
+      const Type* type = macro->signature().types()[i];
       if (type->IsConstexpr()) {
-        parameter->set_value(
-            VisitResult(parameter->type(), parameter->external_name()));
+        parameter_bindings.Add(
+            name, LocalValue{true, VisitResult(type, external_name)});
       } else {
-        LowerParameter(type, parameter->external_name(), &lowered_parameters);
+        LowerParameter(type, external_name, &lowered_parameters);
         StackRange range = lowered_parameter_types.PushMany(LowerType(type));
-        parameter->set_value(VisitResult(type, range));
+        parameter_bindings.Add(name,
+                               LocalValue{true, VisitResult(type, range)});
       }
     }
 
     DCHECK_EQ(lowered_parameters.Size(), lowered_parameter_types.Size());
     assembler_ = CfgAssembler(lowered_parameter_types);
 
+    BlockBindings<LocalLabel> label_bindings(&LabelBindingsManager::Get());
     for (const LabelDeclaration& label_info : sig.labels) {
-      Label* label = declarations()->LookupLabel(label_info.name);
       Stack<const Type*> label_input_stack;
-      for (Variable* v : label->GetParameters()) {
-        label_input_stack.PushMany(LowerType(v->type()));
+      for (const Type* type : label_info.types) {
+        label_input_stack.PushMany(LowerType(type));
       }
-      CreateBlockForLabel(label, label_input_stack);
+      Block* block = assembler().NewBlock(std::move(label_input_stack));
+      label_bindings.Add(label_info.name, LocalLabel{block, label_info.types});
     }
 
-    Label* macro_end = declarations()->DeclareLabel("macro_end");
+    Block* macro_end;
+    base::Optional<Binding<LocalLabel>> macro_end_binding;
     if (can_return) {
-      Stack<const Type*> result_stack;
-      CreateBlockForLabel(macro_end,
-                          Stack<const Type*>{LowerType(signature.return_type)});
+      macro_end = assembler().NewBlock(
+          Stack<const Type*>{LowerType(signature.return_type)});
+      macro_end_binding.emplace(&LabelBindingsManager::Get(), "_macro_end",
+                                LocalLabel{macro_end, {signature.return_type}});
     }
 
     const Type* result = Visit(body);
@@ -314,23 +325,22 @@ void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
       }
     }
     if (!result->IsNever()) {
-      GenerateLabelGoto(macro_end);
+      assembler().Goto(macro_end);
     }
 
-    for (const LabelDeclaration& label_info : sig.labels) {
-      Label* label = declarations()->LookupLabel(label_info.name);
-      GenerateLabelBind(label);
+    for (auto* label_binding : label_bindings.bindings()) {
+      assembler().Bind(label_binding->block);
       std::vector<std::string> label_parameter_variables;
-      for (size_t i = 0; i < label->GetParameterCount(); ++i) {
+      for (size_t i = 0; i < label_binding->parameter_types.size(); ++i) {
         label_parameter_variables.push_back(
-            ExternalLabelParameterName(label, i));
+            ExternalLabelParameterName(label_binding->name(), i));
       }
-      assembler().Emit(GotoExternalInstruction{label->external_label_name(),
-                                               label_parameter_variables});
+      assembler().Emit(GotoExternalInstruction{
+          ExternalLabelName(label_binding->name()), label_parameter_variables});
     }
 
     if (macro->HasReturns() || !result->IsNever()) {
-      GenerateLabelBind(macro_end);
+      assembler().Bind(macro_end);
     }
 
     CSAGenerator csa_generator{assembler().Result(), source_out()};
@@ -350,15 +360,21 @@ void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
 }
 
 namespace {
-std::string AddParameter(Value* parameter, size_t i,
+
+std::string AddParameter(size_t i, TorqueBuiltinDeclaration* decl,
+                         const Signature& signature,
                          Stack<std::string>* parameters,
-                         Stack<const Type*>* parameter_types) {
-  std::string name = "parameter" + std::to_string(i);
-  parameters->Push(name);
-  StackRange range = parameter_types->PushMany(LowerType(parameter->type()));
-  parameter->set_value(VisitResult(parameter->type(), range));
-  return name;
+                         Stack<const Type*>* parameter_types,
+                         BlockBindings<LocalValue>* parameter_bindings) {
+  const std::string& name = decl->signature->parameters.names[i];
+  const Type* type = signature.types()[i];
+  std::string external_name = "parameter" + std::to_string(i);
+  parameters->Push(external_name);
+  StackRange range = parameter_types->PushMany(LowerType(type));
+  parameter_bindings->Add(name, LocalValue{true, VisitResult(type, range)});
+  return external_name;
 }
+
 }  // namespace
 
 void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
@@ -373,10 +389,13 @@ void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
   Stack<const Type*> parameter_types;
   Stack<std::string> parameters;
 
+  BindingsManagersScope bindings_managers_scope;
+
+  BlockBindings<LocalValue> parameter_bindings(&ValueBindingsManager::Get());
+
   // Context
-  Value* val =
-      declarations()->LookupValue(decl->signature->parameters.names[0]);
-  std::string parameter0 = AddParameter(val, 0, &parameters, &parameter_types);
+  std::string parameter0 = AddParameter(0, decl, signature, &parameters,
+                                        &parameter_types, &parameter_bindings);
   source_out() << "  TNode<Context> " << parameter0
                << " = UncheckedCast<Context>(Parameter("
                << "Descriptor::kContext));\n";
@@ -385,18 +404,12 @@ void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
   size_t first = 1;
   if (builtin->IsVarArgsJavaScript()) {
     assert(decl->signature->parameters.has_varargs);
-    ExternConstant* arguments =
-        ExternConstant::cast(declarations()->LookupValue(
-            decl->signature->parameters.arguments_variable));
-    std::string arguments_name = arguments->value().constexpr_value();
     source_out()
         << "  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);\n";
     source_out() << "  CodeStubArguments arguments_impl(this, "
                     "ChangeInt32ToIntPtr(argc));\n";
-    Value* receiver =
-        declarations()->LookupValue(decl->signature->parameters.names[1]);
-    std::string parameter1 =
-        AddParameter(receiver, 1, &parameters, &parameter_types);
+    std::string parameter1 = AddParameter(
+        1, decl, signature, &parameters, &parameter_types, &parameter_bindings);
 
     source_out() << "  TNode<Object> " << parameter1
                  << " = arguments_impl.GetReceiver();\n";
@@ -404,18 +417,21 @@ void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
                  << " = &arguments_impl;\n";
     source_out() << "USE(arguments);\n";
     source_out() << "USE(" << parameter1 << ");\n";
+    parameter_bindings.Add(
+        decl->signature->parameters.arguments_variable,
+        LocalValue{true,
+                   VisitResult(TypeOracle::GetArgumentsType(), "arguments")});
     first = 2;
   }
 
   for (size_t i = 0; i < decl->signature->parameters.names.size(); ++i) {
     if (i < first) continue;
     const std::string& parameter_name = decl->signature->parameters.names[i];
-    Value* parameter = declarations()->LookupValue(parameter_name);
-    std::string var = AddParameter(parameter, i, &parameters, &parameter_types);
-    source_out() << "  " << parameter->type()->GetGeneratedTypeName() << " "
-                 << var << " = "
-                 << "UncheckedCast<"
-                 << parameter->type()->GetGeneratedTNodeTypeName()
+    const Type* type = signature.types()[i];
+    std::string var = AddParameter(i, decl, signature, &parameters,
+                                   &parameter_types, &parameter_bindings);
+    source_out() << "  " << type->GetGeneratedTypeName() << " " << var << " = "
+                 << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
                  << ">(Parameter(Descriptor::k"
                  << CamelifyString(parameter_name) << "));\n";
     source_out() << "  USE(" << var << ");\n";
@@ -434,8 +450,30 @@ void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
 }
 
 const Type* ImplementationVisitor::Visit(VarDeclarationStatement* stmt) {
+  BlockBindings<LocalValue> block_bindings(&ValueBindingsManager::Get());
+  return Visit(stmt, &block_bindings);
+}
+
+const Type* ImplementationVisitor::Visit(
+    VarDeclarationStatement* stmt, BlockBindings<LocalValue>* block_bindings) {
+  if (!stmt->const_qualified && !stmt->type) {
+    ReportError(
+        "variable declaration is missing type. Only 'const' bindings can "
+        "infer the type.");
+  }
+  // const qualified variables are required to be initialized properly.
+  if (stmt->const_qualified && !stmt->initializer) {
+    ReportError("local constant \"", stmt->name, "\" is not initialized.");
+  }
+
   base::Optional<const Type*> type;
-  if (stmt->type) type = declarations()->GetType(*stmt->type);
+  if (stmt->type) {
+    type = declarations()->GetType(*stmt->type);
+    if ((*type)->IsConstexpr() && !stmt->const_qualified) {
+      ReportError(
+          "cannot declare variable with constexpr type. Use 'const' instead.");
+    }
+  }
   base::Optional<VisitResult> init_result;
   if (stmt->initializer) {
     StackScope scope(this);
@@ -456,14 +494,8 @@ const Type* ImplementationVisitor::Visit(VarDeclarationStatement* stmt) {
     init_result =
         VisitResult(*type, assembler().TopRange(lowered_types.size()));
   }
-  Variable* var;
-  if (stmt->const_qualified) {
-    var = declarations()->DeclareVariable(stmt->name, init_result->type(),
-                                          stmt->const_qualified);
-  } else {
-    var = Variable::cast(declarations()->LookupValue(stmt->name));
-  }
-  var->set_value(*init_result);
+  block_bindings->Add(stmt->name,
+                      LocalValue{stmt->const_qualified, *init_result});
   return TypeOracle::GetVoidType();
 }
 
@@ -472,29 +504,11 @@ const Type* ImplementationVisitor::Visit(TailCallStatement* stmt) {
 }
 
 VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
-  Label* true_label;
-  Label* false_label;
+  Block* true_block = assembler().NewBlock(assembler().CurrentStack());
+  Block* false_block = assembler().NewBlock(assembler().CurrentStack());
   Block* done_block = assembler().NewBlock();
   Block* true_conversion_block = assembler().NewBlock();
-  {
-    Declarations::NodeScopeActivator scope(declarations(), expr->condition);
-
-    true_label = declarations()->LookupLabel(kTrueLabelName);
-    CreateBlockForLabel(true_label, assembler().CurrentStack());
-    false_label = declarations()->LookupLabel(kFalseLabelName);
-    CreateBlockForLabel(false_label, assembler().CurrentStack());
-    done_block = assembler().NewBlock();
-
-    {
-      StackScope condition_scope(this);
-      VisitResult condition_result = Visit(expr->condition);
-      if (!condition_result.type()->IsNever()) {
-        condition_result = condition_scope.Yield(GenerateImplicitConvert(
-            TypeOracle::GetBoolType(), condition_result));
-        assembler().Branch(true_label->block(), false_label->block());
-      }
-    }
-  }
+  GenerateExpressionBranch(expr->condition, true_block, false_block);
 
   VisitResult left;
   VisitResult right;
@@ -504,14 +518,14 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
     // before evaluating the conditional expression because the common type of
     // the result of both the true and false of the condition needs to be known
     // to convert both branches to a common type.
-    assembler().Bind(true_label->block());
+    assembler().Bind(true_block);
     StackScope left_scope(this);
     left = Visit(expr->if_true);
     assembler().Goto(true_conversion_block);
 
     const Type* common_type;
     {
-      assembler().Bind(false_label->block());
+      assembler().Bind(false_block);
       StackScope right_scope(this);
       right = Visit(expr->if_false);
       common_type = GetCommonType(left.type(), right.type());
@@ -532,16 +546,16 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
 VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
   VisitResult left_result;
   {
-    Declarations::NodeScopeActivator scope(declarations(), expr->left);
-    Label* false_label = declarations()->LookupLabel(kFalseLabelName);
-    CreateBlockForLabel(false_label, assembler().CurrentStack());
+    Block* false_block = assembler().NewBlock(assembler().CurrentStack());
+    Binding<LocalLabel> false_binding{&LabelBindingsManager::Get(),
+                                      kFalseLabelName, LocalLabel{false_block}};
     left_result = Visit(expr->left);
     if (left_result.type()->IsBool()) {
-      Label* true_label = declarations()->LookupLabel(kTrueLabelName);
-      assembler().Branch(true_label->block(), false_label->block());
-      assembler().Bind(false_label->block());
+      Block* true_block = LookupSimpleLabel(kTrueLabelName);
+      assembler().Branch(true_block, false_block);
+      assembler().Bind(false_block);
     } else if (left_result.type()->IsNever()) {
-      assembler().Bind(false_label->block());
+      assembler().Bind(false_block);
     } else if (!left_result.type()->IsConstexprBool()) {
       ReportError(
           "expected type bool, constexpr bool, or never on left-hand side of "
@@ -563,9 +577,9 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
 
   VisitResult right_result = Visit(expr->right);
   if (right_result.type()->IsBool()) {
-    Label* true_label = declarations()->LookupLabel(kTrueLabelName);
-    Label* false_label = declarations()->LookupLabel(kFalseLabelName);
-    assembler().Branch(true_label->block(), false_label->block());
+    Block* true_block = LookupSimpleLabel(kTrueLabelName);
+    Block* false_block = LookupSimpleLabel(kFalseLabelName);
+    assembler().Branch(true_block, false_block);
     return VisitResult::NeverResult();
   } else if (!right_result.type()->IsNever()) {
     ReportError(
@@ -577,16 +591,16 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
 VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
   VisitResult left_result;
   {
-    Declarations::NodeScopeActivator scope(declarations(), expr->left);
-    Label* true_label = declarations()->LookupLabel(kTrueLabelName);
-    CreateBlockForLabel(true_label, assembler().CurrentStack());
+    Block* true_block = assembler().NewBlock(assembler().CurrentStack());
+    Binding<LocalLabel> false_binding{&LabelBindingsManager::Get(),
+                                      kTrueLabelName, LocalLabel{true_block}};
     left_result = Visit(expr->left);
     if (left_result.type()->IsBool()) {
-      Label* false_label = declarations()->LookupLabel(kFalseLabelName);
-      assembler().Branch(true_label->block(), false_label->block());
-      assembler().Bind(true_label->block());
+      Block* false_block = LookupSimpleLabel(kFalseLabelName);
+      assembler().Branch(true_block, false_block);
+      assembler().Bind(true_block);
     } else if (left_result.type()->IsNever()) {
-      assembler().Bind(true_label->block());
+      assembler().Bind(true_block);
     } else if (!left_result.type()->IsConstexprBool()) {
       ReportError(
           "expected type bool, constexpr bool, or never on left-hand side of "
@@ -608,9 +622,9 @@ VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
 
   VisitResult right_result = Visit(expr->right);
   if (right_result.type()->IsBool()) {
-    Label* true_label = declarations()->LookupLabel(kTrueLabelName);
-    Label* false_label = declarations()->LookupLabel(kFalseLabelName);
-    assembler().Branch(true_label->block(), false_label->block());
+    Block* true_block = LookupSimpleLabel(kTrueLabelName);
+    Block* false_block = LookupSimpleLabel(kFalseLabelName);
+    assembler().Branch(true_block, false_block);
     return VisitResult::NeverResult();
   } else if (!right_result.type()->IsNever()) {
     ReportError(
@@ -700,35 +714,15 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
 
 VisitResult ImplementationVisitor::Visit(IdentifierExpression* expr) {
   StackScope scope(this);
-  std::string name = expr->name;
-  if (expr->generic_arguments.size() != 0) {
-    GenericList* generic_list = declarations()->LookupGeneric(expr->name);
-    for (Generic* generic : generic_list->list()) {
-      TypeVector specialization_types = GetTypeVector(expr->generic_arguments);
-      name = GetGeneratedCallableName(name, specialization_types);
-      CallableNode* callable = generic->declaration()->callable;
-      QueueGenericSpecialization({generic, specialization_types}, callable,
-                                 callable->signature.get(),
-                                 generic->declaration()->body);
-    }
-  }
-
-  if (Builtin* builtin = Builtin::DynamicCast(declarations()->Lookup(name))) {
-    return scope.Yield(GetBuiltinCode(builtin));
-  }
-
   return scope.Yield(GenerateFetchFromLocation(GetLocationReference(expr)));
 }
 
 const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
-  Label* label = declarations()->LookupLabel(stmt->label);
-
-  if (stmt->arguments.size() != label->GetParameterCount()) {
-    std::stringstream stream;
-    stream << "goto to label has incorrect number of parameters (expected "
-           << std::to_string(label->GetParameterCount()) << " found "
-           << std::to_string(stmt->arguments.size()) << ")";
-    ReportError(stream.str());
+  LocalLabel* label = LookupLabel(stmt->label);
+  size_t parameter_count = label->parameter_types.size();
+  if (stmt->arguments.size() != parameter_count) {
+    ReportError("goto to label has incorrect number of parameters (expected ",
+                parameter_count, " found ", stmt->arguments.size(), ")");
   }
 
   size_t i = 0;
@@ -736,13 +730,12 @@ const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
   for (Expression* e : stmt->arguments) {
     StackScope scope(this);
     VisitResult result = Visit(e);
-    Variable* var = label->GetParameter(i++);
-    result = GenerateImplicitConvert(var->type(), result);
+    const Type* parameter_type = label->parameter_types[i++];
+    result = GenerateImplicitConvert(parameter_type, result);
     arguments.Extend(scope.Yield(result).stack_range());
   }
 
-  GenerateLabelGoto(label, arguments);
-  label->MarkUsed();
+  assembler().Goto(label->block, arguments.Size());
   return TypeOracle::GetNeverType();
 }
 
@@ -767,11 +760,7 @@ const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
         expression_result.constexpr_value(), true_block, false_block});
 
     assembler().Bind(true_block);
-    const Type* left_result;
-    {
-      StackScope stack_scope(this);
-      left_result = Visit(stmt->if_true);
-    }
+    const Type* left_result = Visit(stmt->if_true);
     if (left_result == TypeOracle::GetVoidType()) {
       assembler().Goto(done_block);
     }
@@ -779,7 +768,6 @@ const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
     assembler().Bind(false_block);
     const Type* right_result = TypeOracle::GetVoidType();
     if (has_else) {
-      StackScope stack_scope(this);
       right_result = Visit(*stmt->if_false);
     }
     if (right_result == TypeOracle::GetVoidType()) {
@@ -799,30 +787,40 @@ const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
     }
     return left_result;
   } else {
-    Label* true_label = nullptr;
-    Label* false_label = nullptr;
-    {
-      Declarations::NodeScopeActivator scope(declarations(), &*stmt->condition);
-      true_label = declarations()->LookupLabel(kTrueLabelName);
-      CreateBlockForLabel(true_label, assembler().CurrentStack());
-      false_label = declarations()->LookupLabel(kFalseLabelName);
-      CreateBlockForLabel(false_label, assembler().CurrentStack());
-    }
+    Block* true_block = assembler().NewBlock(assembler().CurrentStack(),
+                                             IsDeferred(stmt->if_true));
+    Block* false_block =
+        assembler().NewBlock(assembler().CurrentStack(),
+                             stmt->if_false && IsDeferred(*stmt->if_false));
+    GenerateExpressionBranch(stmt->condition, true_block, false_block);
 
     Block* done_block;
     bool live = false;
     if (has_else) {
       done_block = assembler().NewBlock();
     } else {
-      done_block = false_label->block();
+      done_block = false_block;
       live = true;
     }
-    std::vector<Statement*> blocks = {stmt->if_true};
-    std::vector<Label*> labels = {true_label, false_label};
-    if (has_else) blocks.push_back(*stmt->if_false);
-    if (GenerateExpressionBranch(stmt->condition, labels, blocks, done_block)) {
-      live = true;
+
+    assembler().Bind(true_block);
+    {
+      const Type* result = Visit(stmt->if_true);
+      if (result == TypeOracle::GetVoidType()) {
+        live = true;
+        assembler().Goto(done_block);
+      }
     }
+
+    if (has_else) {
+      assembler().Bind(false_block);
+      const Type* result = Visit(*stmt->if_false);
+      if (result == TypeOracle::GetVoidType()) {
+        live = true;
+        assembler().Goto(done_block);
+      }
+    }
+
     if (live) {
       assembler().Bind(done_block);
     }
@@ -831,42 +829,41 @@ const Type* ImplementationVisitor::Visit(IfStatement* stmt) {
 }
 
 const Type* ImplementationVisitor::Visit(WhileStatement* stmt) {
-  Label* body_label = nullptr;
-  Label* exit_label = nullptr;
-  {
-    Declarations::NodeScopeActivator scope(declarations(), stmt->condition);
-    body_label = declarations()->LookupLabel(kTrueLabelName);
-    CreateBlockForLabel(body_label, assembler().CurrentStack());
-    exit_label = declarations()->LookupLabel(kFalseLabelName);
-    CreateBlockForLabel(exit_label, assembler().CurrentStack());
-  }
+  Block* body_block = assembler().NewBlock(assembler().CurrentStack());
+  Block* exit_block = assembler().NewBlock(assembler().CurrentStack());
 
   Block* header_block = assembler().NewBlock();
   assembler().Goto(header_block);
 
   assembler().Bind(header_block);
+  GenerateExpressionBranch(stmt->condition, body_block, exit_block);
 
-  Declarations::NodeScopeActivator scope(declarations(), stmt->body);
-  BreakContinueActivator activator(global_context_, exit_label->block(),
-                                   header_block);
+  assembler().Bind(body_block);
+  {
+    BreakContinueActivator activator{exit_block, header_block};
+    const Type* body_result = Visit(stmt->body);
+    if (body_result != TypeOracle::GetNeverType()) {
+      assembler().Goto(header_block);
+    }
+  }
 
-  GenerateExpressionBranch(stmt->condition, {body_label, exit_label},
-                           {stmt->body}, header_block);
-
-  GenerateLabelBind(exit_label);
+  assembler().Bind(exit_block);
   return TypeOracle::GetVoidType();
 }
 
 const Type* ImplementationVisitor::Visit(BlockStatement* block) {
-  Declarations::NodeScopeActivator scope(declarations(), block);
+  BlockBindings<LocalValue> block_bindings(&ValueBindingsManager::Get());
   const Type* type = TypeOracle::GetVoidType();
   for (Statement* s : block->statements) {
+    CurrentSourcePosition::Scope source_position(s->pos);
     if (type->IsNever()) {
-      std::stringstream stream;
-      stream << "statement after non-returning statement";
-      ReportError(stream.str());
+      ReportError("statement after non-returning statement");
     }
-    type = Visit(s);
+    if (auto* var_declaration = VarDeclarationStatement::DynamicCast(s)) {
+      type = Visit(var_declaration, &block_bindings);
+    } else {
+      type = Visit(s);
+    }
   }
   return type;
 }
@@ -918,33 +915,17 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
     // isn't trivial up-front. Secondly, on failure, the assert text should be
     // the corresponding Torque code, not the -gen.cc code, which would be the
     // case when using CSA_ASSERT_XXX.
-    Label* true_label = nullptr;
-    Label* false_label = nullptr;
-    Declarations::NodeScopeActivator scope(declarations(), stmt->expression);
-    true_label = declarations()->LookupLabel(kTrueLabelName);
-    CreateBlockForLabel(true_label, assembler().CurrentStack());
-    false_label = declarations()->LookupLabel(kFalseLabelName);
-    CreateBlockForLabel(false_label, assembler().CurrentStack());
+    Block* true_block = assembler().NewBlock(assembler().CurrentStack());
+    Block* false_block = assembler().NewBlock(assembler().CurrentStack(), true);
+    GenerateExpressionBranch(stmt->expression, true_block, false_block);
 
-    VisitResult expression_result = Visit(stmt->expression);
-    if (expression_result.type() == TypeOracle::GetBoolType()) {
-      GenerateBranch(expression_result, true_label, false_label);
-    } else {
-      if (expression_result.type() != TypeOracle::GetNeverType()) {
-        std::stringstream s;
-        s << "unexpected return type " << *expression_result.type()
-          << " for branch expression";
-        ReportError(s.str());
-      }
-    }
-
-    GenerateLabelBind(false_label);
+    assembler().Bind(false_block);
     assembler().Emit(PrintConstantStringInstruction{
         "assert '" + FormatAssertSource(stmt->source) + "' failed at " +
         PositionAsString(stmt->pos)});
     assembler().Emit(DebugBreakInstruction{true});
 
-    GenerateLabelBind(true_label);
+    assembler().Bind(true_block);
   }
   return TypeOracle::GetVoidType();
 }
@@ -961,9 +942,8 @@ const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
     s << "cannot return from a function with return type never";
     ReportError(s.str());
   }
-  Label* end = current_callable->IsMacro()
-                   ? declarations()->LookupLabel("macro_end")
-                   : nullptr;
+  LocalLabel* end =
+      current_callable->IsMacro() ? LookupLabel("_macro_end") : nullptr;
   if (current_callable->HasReturnValue()) {
     if (!stmt->value) {
       std::stringstream s;
@@ -1003,7 +983,6 @@ const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
 
 const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   Declarations::NodeScopeActivator scope(declarations(), stmt);
-  StackScope stack_scope(this);
 
   VisitResult expression_result = Visit(stmt->iterable);
   VisitResult begin = stmt->begin
@@ -1027,8 +1006,7 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
 
   assembler().Bind(header_block);
 
-  BreakContinueActivator activator(global_context_, exit_block,
-                                   increment_block);
+  BreakContinueActivator activator(exit_block, increment_block);
 
   {
     StackScope comparison_scope(this);
@@ -1046,8 +1024,6 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
 
   assembler().Bind(body_block);
   {
-    StackScope body_scope(this);
-
     VisitResult element_result;
     {
       StackScope element_scope(this);
@@ -1059,9 +1035,9 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
       }
       element_result = element_scope.Yield(result);
     }
-    Variable* element_var = Variable::cast(
-        declarations()->LookupValue(stmt->var_declaration->name));
-    element_var->set_value(element_result);
+    Binding<LocalValue> element_var_binding{&ValueBindingsManager::Get(),
+                                            stmt->var_declaration->name,
+                                            LocalValue{true, element_result}};
     Visit(stmt->body);
   }
   assembler().Goto(increment_block);
@@ -1083,62 +1059,71 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
 }
 
 VisitResult ImplementationVisitor::Visit(TryLabelExpression* expr) {
+  size_t parameter_count = expr->label_block->parameters.names.size();
+  std::vector<VisitResult> parameters;
+
+  Block* label_block = nullptr;
   Block* done_block = assembler().NewBlock();
   VisitResult try_result;
-  Label* label = nullptr;
 
-  // Output labels for the goto handlers and for the merge after the try.
   {
-    // Activate a new scope to see handler labels
-    Declarations::NodeScopeActivator scope(declarations(), expr);
-    {
-      LabelBlock* block = expr->label_block;
-      CurrentSourcePosition::Scope source_position(block->pos);
-      label = declarations()->LookupLabel(block->label);
-
-      Declarations::NodeScopeActivator scope(declarations(), block->body);
-      Stack<const Type*> label_input_stack = assembler().CurrentStack();
-      for (Variable* v : label->GetParameters()) {
-        StackRange range = label_input_stack.PushMany(LowerType(v->type()));
-        v->set_value(VisitResult(v->type(), range));
-        v->Define();
-      }
-      CreateBlockForLabel(label, label_input_stack);
+    CurrentSourcePosition::Scope source_position(expr->label_block->pos);
+    if (expr->label_block->parameters.has_varargs) {
+      ReportError("cannot use ... for label parameters");
     }
+    Stack<const Type*> label_input_stack = assembler().CurrentStack();
+    TypeVector parameter_types;
+    for (size_t i = 0; i < parameter_count; ++i) {
+      const Type* type =
+          declarations()->GetType(expr->label_block->parameters.types[i]);
+      parameter_types.push_back(type);
+      if (type->IsConstexpr()) {
+        ReportError("no constexpr type allowed for label arguments");
+      }
+      StackRange range = label_input_stack.PushMany(LowerType(type));
+      parameters.push_back(VisitResult(type, range));
+    }
+    label_block = assembler().NewBlock(label_input_stack,
+                                       IsDeferred(expr->label_block->body));
+
+    Binding<LocalLabel> label_binding{&LabelBindingsManager::Get(),
+                                      expr->label_block->label,
+                                      LocalLabel{label_block, parameter_types}};
 
     // Visit try
-    {
-      StackScope stack_scope(this);
-      try_result = Visit(expr->try_expression);
-      if (try_result.type() != TypeOracle::GetNeverType()) {
-        try_result = stack_scope.Yield(try_result);
-        assembler().Goto(done_block);
-      }
+    StackScope stack_scope(this);
+    try_result = Visit(expr->try_expression);
+    if (try_result.type() != TypeOracle::GetNeverType()) {
+      try_result = stack_scope.Yield(try_result);
+      assembler().Goto(done_block);
     }
   }
 
-  if (label->IsUsed()) {
-    // Visit and output the code for the label block. If the label block falls
-    // through, then the try must not return a value. Also, if the try doesn't
-    // fall through, but the label does, then overall the try-label block
-    // returns type void.
-    GenerateLabelBind(label);
-    const Type* label_result;
-    {
-      StackScope stack_scope(this);
-      label_result = Visit(expr->label_block->body);
+  // Visit and output the code for the label block. If the label block falls
+  // through, then the try must not return a value. Also, if the try doesn't
+  // fall through, but the label does, then overall the try-label block
+  // returns type void.
+  assembler().Bind(label_block);
+  const Type* label_result;
+  {
+    BlockBindings<LocalValue> parameter_bindings(&ValueBindingsManager::Get());
+    for (size_t i = 0; i < parameter_count; ++i) {
+      parameter_bindings.Add(expr->label_block->parameters.names[i],
+                             LocalValue{true, parameters[i]});
     }
-    if (!try_result.type()->IsVoidOrNever() && label_result->IsVoid()) {
-      ReportError(
-          "otherwise clauses cannot fall through in a non-void expression");
-    }
-    if (label_result != TypeOracle::GetNeverType()) {
-      assembler().Goto(done_block);
-    }
-    if (label_result->IsVoid() && try_result.type()->IsNever()) {
-      try_result =
-          VisitResult(TypeOracle::GetVoidType(), try_result.stack_range());
-    }
+
+    label_result = Visit(expr->label_block->body);
+  }
+  if (!try_result.type()->IsVoidOrNever() && label_result->IsVoid()) {
+    ReportError(
+        "otherwise clauses cannot fall through in a non-void expression");
+  }
+  if (label_result != TypeOracle::GetNeverType()) {
+    assembler().Goto(done_block);
+  }
+  if (label_result->IsVoid() && try_result.type()->IsNever()) {
+    try_result =
+        VisitResult(TypeOracle::GetVoidType(), try_result.stack_range());
   }
 
   if (!try_result.type()->IsNever()) {
@@ -1152,33 +1137,33 @@ VisitResult ImplementationVisitor::Visit(StatementExpression* expr) {
 }
 
 const Type* ImplementationVisitor::Visit(BreakStatement* stmt) {
-  Block* break_block = global_context_.GetCurrentBreak();
-  if (break_block == nullptr) {
+  base::Optional<Binding<LocalLabel>*> break_label = TryLookupLabel("_break");
+  if (!break_label) {
     ReportError("break used outside of loop");
   }
-  assembler().Goto(break_block);
+  assembler().Goto((*break_label)->block);
   return TypeOracle::GetNeverType();
 }
 
 const Type* ImplementationVisitor::Visit(ContinueStatement* stmt) {
-  Block* continue_block = global_context_.GetCurrentContinue();
-  if (continue_block == nullptr) {
+  base::Optional<Binding<LocalLabel>*> continue_label =
+      TryLookupLabel("_continue");
+  if (!continue_label) {
     ReportError("continue used outside of loop");
   }
-  assembler().Goto(continue_block);
+  assembler().Goto((*continue_label)->block);
   return TypeOracle::GetNeverType();
 }
 
 const Type* ImplementationVisitor::Visit(ForLoopStatement* stmt) {
   Declarations::NodeScopeActivator scope(declarations(), stmt);
-  StackScope stack_scope(this);
 
-  if (stmt->var_declaration) Visit(*stmt->var_declaration);
+  BlockBindings<LocalValue> loop_bindings(&ValueBindingsManager::Get());
 
-  Label* body_label = declarations()->LookupLabel(kTrueLabelName);
-  CreateBlockForLabel(body_label, assembler().CurrentStack());
-  Label* exit_label = declarations()->LookupLabel(kFalseLabelName);
-  CreateBlockForLabel(exit_label, assembler().CurrentStack());
+  if (stmt->var_declaration) Visit(*stmt->var_declaration, &loop_bindings);
+
+  Block* body_block = assembler().NewBlock(assembler().CurrentStack());
+  Block* exit_block = assembler().NewBlock(assembler().CurrentStack());
 
   Block* header_block = assembler().NewBlock();
   assembler().Goto(header_block);
@@ -1197,27 +1182,30 @@ const Type* ImplementationVisitor::Visit(ForLoopStatement* stmt) {
     continue_block = action_block;
   }
 
-  BreakContinueActivator activator(global_context_, exit_label->block(),
-                                   continue_block);
-
-  std::vector<Label*> labels = {body_label, exit_label};
-  bool generate_action = true;
   if (stmt->test) {
-    generate_action = GenerateExpressionBranch(*stmt->test, labels,
-                                               {stmt->body}, continue_block);
+    GenerateExpressionBranch(*stmt->test, body_block, exit_block);
   } else {
-    GenerateLabelGoto(body_label);
-    generate_action =
-        GenerateLabeledStatementBlocks({stmt->body}, labels, continue_block);
+    assembler().Goto(body_block);
   }
 
-  if (generate_action && stmt->action) {
+  assembler().Bind(body_block);
+  {
+    BreakContinueActivator activator(exit_block, continue_block);
+    const Type* body_result = Visit(stmt->body);
+    if (body_result != TypeOracle::GetNeverType()) {
+      assembler().Goto(continue_block);
+    }
+  }
+
+  if (stmt->action) {
     assembler().Bind(action_block);
-    Visit(*stmt->action);
-    assembler().Goto(header_block);
+    const Type* action_result = Visit(*stmt->action);
+    if (action_result != TypeOracle::GetNeverType()) {
+      assembler().Goto(header_block);
+    }
   }
 
-  GenerateLabelBind(exit_label);
+  assembler().Bind(exit_block);
   return TypeOracle::GetVoidType();
 }
 
@@ -1283,29 +1271,27 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
     if (!first) {
       o << ", ";
     }
-    const Parameter* parameter =
-        Parameter::cast(declarations()->LookupValue(name));
     const Type* parameter_type = *type_iterator;
     const std::string& generated_type_name =
         parameter_type->GetGeneratedTypeName();
-    o << generated_type_name << " " << parameter->external_name();
+    o << generated_type_name << " " << ExternalParameterName(name);
     type_iterator++;
     first = false;
   }
 
   for (const LabelDeclaration& label_info : signature.labels) {
-    Label* label = declarations()->LookupLabel(label_info.name);
     if (!first) {
       o << ", ";
     }
-    o << "Label* " << label->external_label_name();
+    o << "Label* " << ExternalLabelName(label_info.name);
     size_t i = 0;
-    for (Variable* var : label->GetParameters()) {
+    for (const Type* type : label_info.types) {
       std::string generated_type_name("TVariable<");
-      generated_type_name += var->type()->GetGeneratedTNodeTypeName();
+      generated_type_name += type->GetGeneratedTNodeTypeName();
       generated_type_name += ">*";
       o << ", ";
-      o << generated_type_name << " " << ExternalLabelParameterName(label, i);
+      o << generated_type_name << " "
+        << ExternalLabelParameterName(label_info.name, i);
       ++i;
     }
   }
@@ -1332,8 +1318,9 @@ void FailMacroLookup(const std::string& reason, const std::string& name,
          << arguments.parameters.GetTypeVector() << ")";
   if (arguments.labels.size() != 0) {
     stream << " labels ";
-    for (auto l : arguments.labels) {
-      PrintLabel(stream, *l, false);
+    for (size_t i = 0; i < arguments.labels.size(); ++i) {
+      stream << arguments.labels[i]->name() << "("
+             << arguments.labels[i]->parameter_types << ")";
     }
   }
   stream << "\ncandidates are:";
@@ -1342,6 +1329,33 @@ void FailMacroLookup(const std::string& reason, const std::string& name,
 }
 
 }  // namespace
+
+base::Optional<Binding<LocalValue>*> ImplementationVisitor::TryLookupLocalValue(
+    const std::string& name) {
+  return ValueBindingsManager::Get().TryLookup(name);
+}
+
+base::Optional<Binding<LocalLabel>*> ImplementationVisitor::TryLookupLabel(
+    const std::string& name) {
+  return LabelBindingsManager::Get().TryLookup(name);
+}
+
+Binding<LocalLabel>* ImplementationVisitor::LookupLabel(
+    const std::string& name) {
+  base::Optional<Binding<LocalLabel>*> label = TryLookupLabel(name);
+  if (!label) ReportError("cannot find label ", name);
+  return *label;
+}
+
+Block* ImplementationVisitor::LookupSimpleLabel(const std::string& name) {
+  LocalLabel* label = LookupLabel(name);
+  if (!label->parameter_types.empty()) {
+    ReportError("label ", name,
+                "was expected to have no parameters, but has parameters (",
+                label->parameter_types, ")");
+  }
+  return label->block;
+}
 
 Callable* ImplementationVisitor::LookupCall(
     const std::string& name, const Arguments& arguments,
@@ -1365,17 +1379,17 @@ Callable* ImplementationVisitor::LookupCall(
       bool try_bool_context =
           arguments.labels.size() == 0 &&
           m->signature().return_type == TypeOracle::GetNeverType();
-      Label* true_label = nullptr;
-      Label* false_label = nullptr;
+      base::Optional<Binding<LocalLabel>*> true_label;
+      base::Optional<Binding<LocalLabel>*> false_label;
       if (try_bool_context) {
-        true_label = declarations()->TryLookupLabel(kTrueLabelName);
-        false_label = declarations()->TryLookupLabel(kFalseLabelName);
+        true_label = TryLookupLabel(kTrueLabelName);
+        false_label = TryLookupLabel(kFalseLabelName);
       }
       if (IsCompatibleSignature(m->signature(), parameter_types,
                                 arguments.labels) ||
           (true_label && false_label &&
            IsCompatibleSignature(m->signature(), parameter_types,
-                                 {true_label, false_label}))) {
+                                 {*true_label, *false_label}))) {
         candidates.push_back(m);
       } else {
         macros_with_same_name.push_back(m);
@@ -1529,6 +1543,37 @@ LocationReference ImplementationVisitor::GetLocationReference(
 
 LocationReference ImplementationVisitor::GetLocationReference(
     IdentifierExpression* expr) {
+  if (base::Optional<Binding<LocalValue>*> value =
+          TryLookupLocalValue(expr->name)) {
+    if (expr->generic_arguments.size() != 0) {
+      ReportError("cannot have generic parameters on local name ", expr->name);
+    }
+    if ((*value)->is_const) {
+      return LocationReference::Temporary((*value)->value,
+                                          "constant value " + expr->name);
+    }
+    return LocationReference::VariableAccess((*value)->value);
+  }
+
+  std::string name = expr->name;
+  if (expr->generic_arguments.size() != 0) {
+    GenericList* generic_list = declarations()->LookupGeneric(expr->name);
+    for (Generic* generic : generic_list->list()) {
+      TypeVector specialization_types = GetTypeVector(expr->generic_arguments);
+      name = GetGeneratedCallableName(name, specialization_types);
+      CallableNode* callable = generic->declaration()->callable;
+      QueueGenericSpecialization({generic, specialization_types}, callable,
+                                 callable->signature.get(),
+                                 generic->declaration()->body);
+    }
+  }
+  if (Builtin* builtin = Builtin::DynamicCast(declarations()->Lookup(name))) {
+    return LocationReference::Temporary(GetBuiltinCode(builtin),
+                                        "builtin " + expr->name);
+  }
+  if (expr->generic_arguments.size() != 0) {
+    ReportError("cannot have generic parameters on constant", expr->name);
+  }
   Value* value = declarations()->LookupValue(expr->name);
   if (auto* constant = ModuleConstant::DynamicCast(value)) {
     if (constant->type()->IsConstexpr()) {
@@ -1543,12 +1588,9 @@ LocationReference ImplementationVisitor::GetLocationReference(
         VisitResult(constant->type(), stack_range),
         "module constant " + expr->name);
   }
-  if (value->IsConst()) {
-    return LocationReference::Temporary(value->value(),
-                                        "constant value " + expr->name);
-  }
-  DCHECK(value->IsVariable());
-  return LocationReference::VariableAccess(value->value());
+  ExternConstant* constant = ExternConstant::cast(value);
+  return LocationReference::Temporary(constant->value(),
+                                      "extern value " + expr->name);
 }
 
 VisitResult ImplementationVisitor::GenerateFetchFromLocation(
@@ -1653,9 +1695,9 @@ VisitResult ImplementationVisitor::GenerateCall(
   // return but have a True and False label
   if (arguments.labels.size() == 0 &&
       callable->signature().labels.size() == 2) {
-    Label* true_label = declarations()->LookupLabel(kTrueLabelName);
+    Binding<LocalLabel>* true_label = LookupLabel(kTrueLabelName);
     arguments.labels.push_back(true_label);
-    Label* false_label = declarations()->LookupLabel(kFalseLabelName);
+    Binding<LocalLabel>* false_label = LookupLabel(kFalseLabelName);
     arguments.labels.push_back(false_label);
   }
 
@@ -1668,14 +1710,15 @@ VisitResult ImplementationVisitor::GenerateCall(
   for (size_t current = 0; current < callable->signature().implicit_count;
        ++current) {
     std::string implicit_name = callable->signature().parameter_names[current];
-    if (!declarations()->TryLookup(implicit_name)) {
+    base::Optional<Binding<LocalValue>*> val =
+        TryLookupLocalValue(implicit_name);
+    if (!val) {
       ReportError("implicit parameter '" + implicit_name +
                   "' required for call to '" + callable_name +
                   "' is not defined");
     }
-    Value* val = declarations()->LookupValue(implicit_name);
     VisitResult converted = GenerateImplicitConvert(
-        callable->signature().parameter_types.types[current], val->value());
+        callable->signature().parameter_types.types[current], (*val)->value);
     converted_arguments.push_back(converted);
     if (converted.IsOnStack()) {
       argument_range.Extend(converted.stack_range());
@@ -1766,35 +1809,31 @@ VisitResult ImplementationVisitor::GenerateCall(
           macro, constexpr_arguments, return_continuation, label_blocks});
 
       for (size_t i = 0; i < label_count; ++i) {
-        Label* label = arguments.labels[i];
+        Binding<LocalLabel>* label = arguments.labels[i];
         size_t callee_label_parameters =
             callable->signature().labels[i].types.size();
-        if (label->GetParameterCount() != callee_label_parameters) {
+        if (label->parameter_types.size() != callee_label_parameters) {
           std::stringstream s;
           s << "label " << label->name()
             << " doesn't have the right number of parameters (found "
-            << std::to_string(label->GetParameterCount()) << " expected "
+            << std::to_string(label->parameter_types.size()) << " expected "
             << std::to_string(callee_label_parameters) << ")";
           ReportError(s.str());
         }
         assembler().Bind(label_blocks[i]);
         assembler().Goto(
-            label->block(),
+            label->block,
             LowerParameterTypes(callable->signature().labels[i].types).size());
 
         size_t j = 0;
         for (auto t : callable->signature().labels[i].types) {
-          Variable* variable = label->GetParameter(j);
-          if (!(variable->type() == t)) {
-            std::stringstream s;
-            s << "mismatch of label parameters (expected " << *t << " got "
-              << *label->GetParameter(j)->type() << " for parameter "
-              << std::to_string(i + 1) << ")";
-            ReportError(s.str());
+          const Type* parameter_type = label->parameter_types[j];
+          if (parameter_type != t) {
+            ReportError("mismatch of label parameters (expected ", *t, " got ",
+                        parameter_type, " for parameter ", i + 1, ")");
           }
           j++;
         }
-        label->MarkUsed();
       }
 
       if (return_continuation) {
@@ -1868,8 +1907,7 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
     arguments.parameters.push_back(Visit(arg));
   arguments.labels = LabelsFromIdentifiers(expr->labels);
   VisitResult result;
-  if (!has_template_arguments &&
-      declarations()->Lookup(expr->callee.name)->IsValue()) {
+  if (!has_template_arguments && TryLookupLocalValue(expr->callee.name)) {
     return scope.Yield(
         GeneratePointerCall(&expr->callee, arguments, is_tailcall));
   } else {
@@ -1878,54 +1916,34 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
   }
 }
 
-bool ImplementationVisitor::GenerateLabeledStatementBlocks(
-    const std::vector<Statement*>& blocks,
-    const std::vector<Label*>& statement_labels, Block* merge_block) {
-  bool live = false;
-  auto label_iterator = statement_labels.begin();
-  for (Statement* block : blocks) {
-    GenerateLabelBind(*label_iterator++);
-    const Type* stmt_result;
-    {
-      StackScope stack_scope(this);
-      stmt_result = Visit(block);
-    }
-    if (stmt_result != TypeOracle::GetNeverType()) {
-      assembler().Goto(merge_block);
-      live = true;
-    }
-  }
-  return live;
-}
-
 void ImplementationVisitor::GenerateBranch(const VisitResult& condition,
-                                           Label* true_label,
-                                           Label* false_label) {
+                                           Block* true_block,
+                                           Block* false_block) {
   DCHECK_EQ(condition,
             VisitResult(TypeOracle::GetBoolType(), assembler().TopRange(1)));
-  assembler().Branch(true_label->block(), false_label->block());
+  assembler().Branch(true_block, false_block);
 }
 
-bool ImplementationVisitor::GenerateExpressionBranch(
-    Expression* expression, const std::vector<Label*>& statement_labels,
-    const std::vector<Statement*>& statement_blocks, Block* merge_block) {
-  // Activate a new scope to define True/False catch labels
-  Declarations::NodeScopeActivator scope(declarations(), expression);
-
+void ImplementationVisitor::GenerateExpressionBranch(Expression* expression,
+                                                     Block* true_block,
+                                                     Block* false_block) {
+  // Conditional expressions can either explicitly return a bit
+  // type, or they can be backed by macros that don't return but
+  // take a true and false label. By declaring the labels before
+  // visiting the conditional expression, those label-based
+  // macro conditionals will be able to find them through normal
+  // label lookups.
+  Binding<LocalLabel> true_binding{&LabelBindingsManager::Get(), kTrueLabelName,
+                                   LocalLabel{true_block}};
+  Binding<LocalLabel> false_binding{&LabelBindingsManager::Get(),
+                                    kFalseLabelName, LocalLabel{false_block}};
+  StackScope stack_scope(this);
   VisitResult expression_result = Visit(expression);
-  if (expression_result.type() == TypeOracle::GetBoolType()) {
-    GenerateBranch(expression_result, statement_labels[0], statement_labels[1]);
-  } else {
-    if (expression_result.type() != TypeOracle::GetNeverType()) {
-      std::stringstream s;
-      s << "unexpected return type " << *expression_result.type()
-        << " for branch expression";
-      ReportError(s.str());
-    }
+  if (!expression_result.type()->IsNever()) {
+    expression_result = stack_scope.Yield(
+        GenerateImplicitConvert(TypeOracle::GetBoolType(), expression_result));
+    GenerateBranch(expression_result, true_block, false_block);
   }
-
-  return GenerateLabeledStatementBlocks(statement_blocks, statement_labels,
-                                        merge_block);
 }
 
 VisitResult ImplementationVisitor::GenerateImplicitConvert(
@@ -1955,26 +1973,17 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
   }
 }
 
-void ImplementationVisitor::CreateBlockForLabel(Label* label,
-                                                Stack<const Type*> stack) {
-  label->set_block(assembler().NewBlock(std::move(stack), label->IsDeferred()));
-}
-
-void ImplementationVisitor::GenerateLabelBind(Label* label) {
-  assembler().Bind(label->block());
-}
-
 StackRange ImplementationVisitor::GenerateLabelGoto(
-    Label* label, base::Optional<StackRange> arguments) {
-  return assembler().Goto(label->block(), arguments ? arguments->Size() : 0);
+    LocalLabel* label, base::Optional<StackRange> arguments) {
+  return assembler().Goto(label->block, arguments ? arguments->Size() : 0);
 }
 
-std::vector<Label*> ImplementationVisitor::LabelsFromIdentifiers(
+std::vector<Binding<LocalLabel>*> ImplementationVisitor::LabelsFromIdentifiers(
     const std::vector<std::string>& names) {
-  std::vector<Label*> result;
+  std::vector<Binding<LocalLabel>*> result;
   result.reserve(names.size());
   for (const auto& name : names) {
-    result.push_back(declarations()->LookupLabel(name));
+    result.push_back(LookupLabel(name));
   }
   return result;
 }
@@ -1997,9 +2006,43 @@ StackRange ImplementationVisitor::LowerParameter(
   }
 }
 
-std::string ImplementationVisitor::ExternalLabelParameterName(Label* label,
-                                                              size_t i) {
-  return label->external_label_name() + "_parameter_" + std::to_string(i);
+std::string ImplementationVisitor::ExternalLabelName(
+    const std::string& label_name) {
+  return "label_" + label_name;
+}
+
+std::string ImplementationVisitor::ExternalLabelParameterName(
+    const std::string& label_name, size_t i) {
+  return "label_" + label_name + "_parameter_" + std::to_string(i);
+}
+
+std::string ImplementationVisitor::ExternalParameterName(
+    const std::string& name) {
+  return std::string("p_") + name;
+}
+
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::ValueBindingsManager);
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::LabelBindingsManager);
+
+bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
+                           const std::vector<Binding<LocalLabel>*>& labels) {
+  auto i = sig.parameter_types.types.begin() + sig.implicit_count;
+  if ((sig.parameter_types.types.size() - sig.implicit_count) > types.size())
+    return false;
+  // TODO(danno): The test below is actually insufficient. The labels'
+  // parameters must be checked too. ideally, the named part of
+  // LabelDeclarationVector would be factored out so that the label count and
+  // parameter types could be passed separately.
+  if (sig.labels.size() != labels.size()) return false;
+  for (auto current : types) {
+    if (i == sig.parameter_types.types.end()) {
+      if (!sig.parameter_types.var_args) return false;
+      if (!IsAssignableFrom(TypeOracle::GetObjectType(), current)) return false;
+    } else {
+      if (!IsAssignableFrom(*i++, current)) return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace torque

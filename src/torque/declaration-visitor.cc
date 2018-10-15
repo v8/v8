@@ -154,12 +154,6 @@ void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
                                const Signature& signature, Statement* body) {
   Builtin* builtin = BuiltinDeclarationCommon(decl, false, signature);
   CurrentCallableActivator activator(global_context_, builtin, decl);
-  DeclareSignature(signature);
-  if (signature.parameter_types.var_args) {
-    declarations()->DeclareExternConstant(
-        decl->signature->parameters.arguments_variable,
-        TypeOracle::GetArgumentsType(), "arguments");
-  }
   torque_builtins_.push_back(builtin);
   Visit(body);
 }
@@ -172,8 +166,6 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
       declarations()->DeclareMacro(generated_name, signature, decl->op);
 
   CurrentCallableActivator activator(global_context_, macro, decl);
-
-  DeclareSignature(signature);
 
   if (body != nullptr) {
     Visit(body);
@@ -259,51 +251,10 @@ void DeclarationVisitor::Visit(ReturnStatement* stmt) {
   }
 }
 
-Variable* DeclarationVisitor::DeclareVariable(const std::string& name,
-                                              const Type* type, bool is_const) {
-  Variable* result = declarations()->DeclareVariable(name, type, is_const);
-  return result;
-}
-
-Parameter* DeclarationVisitor::DeclareParameter(const std::string& name,
-                                                const Type* type) {
-  return declarations()->DeclareParameter(
-      name, GetParameterVariableFromName(name), type);
-}
-
 void DeclarationVisitor::Visit(VarDeclarationStatement* stmt) {
   std::string variable_name = stmt->name;
-  if (!stmt->const_qualified) {
-    if (!stmt->type) {
-      ReportError(
-          "variable declaration is missing type. Only 'const' bindings can "
-          "infer the type.");
-    }
-    const Type* type = declarations()->GetType(*stmt->type);
-    if (type->IsConstexpr()) {
-      ReportError(
-          "cannot declare variable with constexpr type. Use 'const' instead.");
-    }
-    DeclareVariable(variable_name, type, stmt->const_qualified);
-    if (global_context_.verbose()) {
-      std::cout << "declared variable " << variable_name << " with type "
-                << *type << "\n";
-    }
-  }
-
-  // const qualified variables are required to be initialized properly.
-  if (stmt->const_qualified && !stmt->initializer) {
-    std::stringstream stream;
-    stream << "local constant \"" << variable_name << "\" is not initialized.";
-    ReportError(stream.str());
-  }
-
   if (stmt->initializer) {
     Visit(*stmt->initializer);
-    if (global_context_.verbose()) {
-      std::cout << "variable has initialization expression at "
-                << CurrentPositionAsString() << "\n";
-    }
   }
 }
 
@@ -329,53 +280,29 @@ void DeclarationVisitor::Visit(StructDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(LogicalOrExpression* expr) {
-  {
-    Declarations::NodeScopeActivator scope(declarations(), expr->left);
-    declarations()->DeclareLabel(kFalseLabelName);
     Visit(expr->left);
-  }
   Visit(expr->right);
 }
 
 void DeclarationVisitor::Visit(LogicalAndExpression* expr) {
-  {
-    Declarations::NodeScopeActivator scope(declarations(), expr->left);
-    declarations()->DeclareLabel(kTrueLabelName);
     Visit(expr->left);
-  }
   Visit(expr->right);
 }
 
-void DeclarationVisitor::DeclareExpressionForBranch(
-    Expression* node, base::Optional<Statement*> true_statement,
-    base::Optional<Statement*> false_statement) {
-  Declarations::NodeScopeActivator scope(declarations(), node);
-  // Conditional expressions can either explicitly return a bit
-  // type, or they can be backed by macros that don't return but
-  // take a true and false label. By declaring the labels before
-  // visiting the conditional expression, those label-based
-  // macro conditionals will be able to find them through normal
-  // label lookups.
-  declarations()->DeclareLabel(kTrueLabelName, true_statement);
-  declarations()->DeclareLabel(kFalseLabelName, false_statement);
-  Visit(node);
-}
-
 void DeclarationVisitor::Visit(ConditionalExpression* expr) {
-  DeclareExpressionForBranch(expr->condition);
+  Visit(expr->condition);
   Visit(expr->if_true);
   Visit(expr->if_false);
 }
 
 void DeclarationVisitor::Visit(IfStatement* stmt) {
-  DeclareExpressionForBranch(stmt->condition, stmt->if_true, stmt->if_false);
+  Visit(stmt->condition);
   Visit(stmt->if_true);
   if (stmt->if_false) Visit(*stmt->if_false);
 }
 
 void DeclarationVisitor::Visit(WhileStatement* stmt) {
-  Declarations::NodeScopeActivator scope(declarations(), stmt);
-  DeclareExpressionForBranch(stmt->condition);
+  Visit(stmt->condition);
   Visit(stmt->body);
 }
 
@@ -390,59 +317,14 @@ void DeclarationVisitor::Visit(ForOfLoopStatement* stmt) {
 }
 
 void DeclarationVisitor::Visit(ForLoopStatement* stmt) {
-  Declarations::NodeScopeActivator scope(declarations(), stmt);
   if (stmt->var_declaration) Visit(*stmt->var_declaration);
-
-  // Same as DeclareExpressionForBranch, but without the extra scope.
-  // If no test expression is present we can not use it for the scope.
-  declarations()->DeclareLabel(kTrueLabelName);
-  declarations()->DeclareLabel(kFalseLabelName);
   if (stmt->test) Visit(*stmt->test);
-
   Visit(stmt->body);
   if (stmt->action) Visit(*stmt->action);
 }
 
 void DeclarationVisitor::Visit(TryLabelExpression* stmt) {
-  // Activate a new scope to declare the handler's label parameters, they should
-  // not be visible outside the label block.
-  {
-    Declarations::NodeScopeActivator scope(declarations(), stmt);
-
-    // Declare label
-    {
-      LabelBlock* block = stmt->label_block;
-      CurrentSourcePosition::Scope scope(block->pos);
-      Label* shared_label =
-          declarations()->DeclareLabel(block->label, block->body);
-      {
-        Declarations::NodeScopeActivator scope(declarations(), block->body);
-        if (block->parameters.has_varargs) {
-          std::stringstream stream;
-          stream << "cannot use ... for label parameters";
-          ReportError(stream.str());
-        }
-
-        size_t i = 0;
-        for (const auto& p : block->parameters.names) {
-          const Type* type =
-              declarations()->GetType(block->parameters.types[i]);
-          if (type->IsConstexpr()) {
-            ReportError("no constexpr type allowed for label arguments");
-          }
-
-          shared_label->AddVariable(DeclareVariable(p, type, false));
-          ++i;
-        }
-        if (global_context_.verbose()) {
-          std::cout << " declaring label " << block->label << "\n";
-        }
-      }
-    }
-
-    Visit(stmt->try_expression);
-  }
-
+  Visit(stmt->try_expression);
   Visit(stmt->label_block->body);
 }
 
@@ -537,31 +419,6 @@ void DeclarationVisitor::Visit(TypeDeclaration* decl) {
       constexpr_extends = CONSTEXPR_TYPE_PREFIX + *decl->extends;
     declarations()->DeclareAbstractType(
         constexpr_name, *decl->constexpr_generates, type, constexpr_extends);
-  }
-}
-
-void DeclarationVisitor::DeclareSignature(const Signature& signature) {
-  auto type_iterator = signature.parameter_types.types.begin();
-  for (const auto& name : signature.parameter_names) {
-    const Type* t(*type_iterator++);
-    if (name.size() != 0) {
-      DeclareParameter(name, t);
-    }
-  }
-  for (auto& label : signature.labels) {
-    auto label_params = label.types;
-    Label* new_label = declarations()->DeclareLabel(label.name);
-    new_label->set_external_label_name("label_" + label.name);
-    size_t i = 0;
-    for (auto var_type : label_params) {
-      if (var_type->IsConstexpr()) {
-        ReportError("no constexpr type allowed for label arguments");
-      }
-
-      std::string var_name = label.name + std::to_string(i++);
-      new_label->AddVariable(
-          declarations()->CreateVariable(var_name, var_type, false));
-    }
   }
 }
 

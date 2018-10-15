@@ -103,7 +103,7 @@ class DeclarationVisitor : public FileVisitor {
 #if defined(DEBUG)
     do_check = true;
 #endif
-    if (do_check) DeclareExpressionForBranch(stmt->expression);
+    if (do_check) Visit(stmt->expression);
   }
 
   void Visit(VarDeclarationStatement* stmt);
@@ -114,10 +114,6 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(LogicalOrExpression* expr);
   void Visit(LogicalAndExpression* expr);
-  void DeclareExpressionForBranch(
-      Expression* node, base::Optional<Statement*> true_statement = {},
-      base::Optional<Statement*> false_statement = {});
-
   void Visit(ConditionalExpression* expr);
   void Visit(IfStatement* stmt);
   void Visit(WhileStatement* stmt);
@@ -144,11 +140,6 @@ class DeclarationVisitor : public FileVisitor {
   void GenerateHeader(std::string& file_name);
 
  private:
-  Variable* DeclareVariable(const std::string& name, const Type* type,
-                            bool is_const);
-  Parameter* DeclareParameter(const std::string& name, const Type* type);
-
-  void DeclareSignature(const Signature& signature);
   void DeclareSpecializedTypes(const SpecializationKey& key);
 
   void Specialize(const SpecializationKey& key, CallableNode* callable,

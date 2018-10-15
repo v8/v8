@@ -32,7 +32,6 @@ static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
-class Label;
 class Value;
 class Module;
 
@@ -443,17 +442,10 @@ struct Signature {
   }
 };
 
-struct Arguments {
-  VisitResultVector parameters;
-  std::vector<Label*> labels;
-};
-
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names);
 std::ostream& operator<<(std::ostream& os, const Signature& sig);
 
 bool IsAssignableFrom(const Type* to, const Type* from);
-bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
-                           const std::vector<Label*>& labels);
 
 TypeVector LowerType(const Type* type);
 size_t LoweredSlotCount(const Type* type);

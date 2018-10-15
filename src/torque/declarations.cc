@@ -121,16 +121,6 @@ Value* Declarations::LookupValue(const std::string& name) {
   return Value::cast(d);
 }
 
-Label* Declarations::LookupLabel(const std::string& name) {
-  Declarable* d = Lookup(name);
-  if (!d->IsLabel()) {
-    std::stringstream s;
-    s << "declaration \"" << name << "\" is not a Label";
-    ReportError(s.str());
-  }
-  return Label::cast(d);
-}
-
 Macro* Declarations::TryLookupMacro(const std::string& name,
                                     const TypeVector& types) {
   Declarable* declarable = TryLookup(name);
@@ -234,19 +224,6 @@ void Declarations::DeclareStruct(Module* module, const std::string& name,
   DeclareType(name, new_type);
 }
 
-Label* Declarations::DeclareLabel(const std::string& name,
-                                  base::Optional<Statement*> statement) {
-  CheckAlreadyDeclared(name, "label");
-  bool deferred = false;
-  if (statement) {
-    BlockStatement* block = BlockStatement::DynamicCast(*statement);
-    deferred = block && block->deferred;
-  }
-  Label* result = new Label(name, deferred);
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
 MacroList* Declarations::GetMacroListForName(const std::string& name,
                                              const Signature& signature) {
   auto previous = chain_.Lookup(name);
@@ -301,29 +278,6 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
   CheckAlreadyDeclared(name, "runtime function");
   RuntimeFunction* result =
       new RuntimeFunction(name, signature, GetCurrentGeneric());
-  Declare(name, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Variable* Declarations::CreateVariable(const std::string& var, const Type* type,
-                                       bool is_const) {
-  return RegisterDeclarable(
-      std::unique_ptr<Variable>(new Variable(var, type, is_const)));
-}
-
-Variable* Declarations::DeclareVariable(const std::string& var,
-                                        const Type* type, bool is_const) {
-  CheckAlreadyDeclared(var, "variable");
-  Variable* result = new Variable(var, type, is_const);
-  Declare(var, std::unique_ptr<Declarable>(result));
-  return result;
-}
-
-Parameter* Declarations::DeclareParameter(const std::string& name,
-                                          std::string external_name,
-                                          const Type* type) {
-  CheckAlreadyDeclared(name, "parameter");
-  Parameter* result = new Parameter(name, std::move(external_name), type);
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }

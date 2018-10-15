@@ -18,7 +18,6 @@ class GlobalContext;
 class Scope;
 class TypeOracle;
 class Builtin;
-class Label;
 
 class Module {
  public:
@@ -69,10 +68,6 @@ class GlobalContext {
   friend class BreakContinueActivator;
 
   Callable* GetCurrentCallable() const { return current_callable_; }
-  Block* GetCurrentBreak() const { return break_continue_stack_.back().first; }
-  Block* GetCurrentContinue() const {
-    return break_continue_stack_.back().second;
-  }
 
   Declarations* declarations() { return &declarations_; }
   Ast* ast() { return &ast_; }
@@ -82,7 +77,6 @@ class GlobalContext {
   int next_label_number_;
   Declarations declarations_;
   Callable* current_callable_;
-  std::vector<std::pair<Block*, Block*>> break_continue_stack_;
   std::map<std::string, std::unique_ptr<Module>> modules_;
   Module* default_module_;
   Ast ast_;
@@ -104,19 +98,6 @@ class CurrentCallableActivator {
   GlobalContext& context_;
   Callable* remembered_callable_;
   Declarations::NodeScopeActivator scope_activator_;
-};
-
-class BreakContinueActivator {
- public:
-  BreakContinueActivator(GlobalContext& context, Block* break_block,
-                         Block* continue_block)
-      : context_(context) {
-    context_.break_continue_stack_.push_back({break_block, continue_block});
-  }
-  ~BreakContinueActivator() { context_.break_continue_stack_.pop_back(); }
-
- private:
-  GlobalContext& context_;
 };
 
 }  // namespace torque

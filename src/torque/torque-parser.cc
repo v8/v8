@@ -192,6 +192,7 @@ void LintGenericParameters(const GenericParameters& parameters) {
 }
 
 void CheckNotDeferredStatement(Statement* statement) {
+  CurrentSourcePosition::Scope source_position(statement->pos);
   if (BlockStatement* block = BlockStatement::DynamicCast(statement)) {
     if (block->deferred) {
       LintError(
@@ -585,6 +586,11 @@ base::Optional<ParseResult> MakeIfStatement(
     ReportError("if-else statements require curly braces");
   }
 
+  if (is_constexpr) {
+    CheckNotDeferredStatement(if_true);
+    if (if_false) CheckNotDeferredStatement(*if_false);
+  }
+
   Statement* result =
       MakeNode<IfStatement>(is_constexpr, condition, if_true, if_false);
   return ParseResult{result};
@@ -747,6 +753,9 @@ base::Optional<ParseResult> MakeBlockStatement(
     ParseResultIterator* child_results) {
   auto deferred = child_results->NextAs<bool>();
   auto statements = child_results->NextAs<std::vector<Statement*>>();
+  for (Statement* statement : statements) {
+    CheckNotDeferredStatement(statement);
+  }
   Statement* result = MakeNode<BlockStatement>(deferred, std::move(statements));
   return ParseResult{result};
 }
@@ -782,9 +791,12 @@ base::Optional<ParseResult> MakeForLoopStatement(
   auto var_decl = child_results->NextAs<base::Optional<Statement*>>();
   auto test = child_results->NextAs<base::Optional<Expression*>>();
   auto action = child_results->NextAs<base::Optional<Expression*>>();
+  base::Optional<Statement*> action_stmt;
+  if (action) action_stmt = MakeNode<ExpressionStatement>(*action);
   auto body = child_results->NextAs<Statement*>();
   CheckNotDeferredStatement(body);
-  Statement* result = MakeNode<ForLoopStatement>(var_decl, test, action, body);
+  Statement* result =
+      MakeNode<ForLoopStatement>(var_decl, test, action_stmt, body);
   return ParseResult{result};
 }
 

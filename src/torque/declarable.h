@@ -27,8 +27,6 @@ class Declarable {
  public:
   virtual ~Declarable() = default;
   enum Kind {
-    kVariable,
-    kParameter,
     kMacro,
     kMacroList,
     kBuiltin,
@@ -36,7 +34,6 @@ class Declarable {
     kGeneric,
     kGenericList,
     kTypeAlias,
-    kLabel,
     kExternConstant,
     kModuleConstant
   };
@@ -46,17 +43,11 @@ class Declarable {
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
   bool IsGeneric() const { return kind() == kGeneric; }
   bool IsTypeAlias() const { return kind() == kTypeAlias; }
-  bool IsParameter() const { return kind() == kParameter; }
-  bool IsLabel() const { return kind() == kLabel; }
-  bool IsVariable() const { return kind() == kVariable; }
   bool IsMacroList() const { return kind() == kMacroList; }
   bool IsGenericList() const { return kind() == kGenericList; }
   bool IsExternConstant() const { return kind() == kExternConstant; }
   bool IsModuleConstant() const { return kind() == kModuleConstant; }
-  bool IsValue() const {
-    return IsVariable() || IsExternConstant() || IsParameter() ||
-           IsModuleConstant();
-  }
+  bool IsValue() const { return IsExternConstant() || IsModuleConstant(); }
   virtual const char* type_name() const { return "<<unknown>>"; }
 
  protected:
@@ -110,22 +101,6 @@ class Value : public Declarable {
   base::Optional<VisitResult> value_;
 };
 
-class Parameter : public Value {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(Parameter, parameter);
-
-  const std::string& external_name() const { return external_name_; }
-
- private:
-  friend class Declarations;
-  Parameter(const std::string& name, std::string external_name,
-            const Type* type)
-      : Value(Declarable::kParameter, type, name),
-        external_name_(external_name) {}
-
-  std::string external_name_;
-};
-
 class ModuleConstant : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(ModuleConstant, constant);
@@ -139,75 +114,6 @@ class ModuleConstant : public Value {
         constant_name_(std::move(constant_name)) {}
 
   std::string constant_name_;
-};
-
-class Variable : public Value {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(Variable, variable);
-  bool IsConst() const override { return const_; }
-  void Define() {
-    if (defined_ && IsConst()) {
-      ReportError("Cannot re-define a const-bound variable.");
-    }
-    defined_ = true;
-  }
-  bool IsDefined() const { return defined_; }
-
- private:
-  friend class Declarations;
-  Variable(std::string name, const Type* type, bool is_const)
-      : Value(Declarable::kVariable, type, name),
-        defined_(false),
-        const_(is_const) {
-    DCHECK_IMPLIES(type->IsConstexpr(), IsConst());
-  }
-
-  std::string value_;
-  bool defined_;
-  bool const_;
-};
-
-class Label : public Declarable {
- public:
-  void AddVariable(Variable* var) { parameters_.push_back(var); }
-  Block* block() const { return *block_; }
-  void set_block(Block* block) {
-    DCHECK(!block_);
-    block_ = block;
-  }
-  const std::string& external_label_name() const {
-    return *external_label_name_;
-  }
-  const std::string& name() const { return name_; }
-  void set_external_label_name(std::string external_label_name) {
-    DCHECK(!block_);
-    DCHECK(!external_label_name_);
-    external_label_name_ = std::move(external_label_name);
-  }
-  Variable* GetParameter(size_t i) const { return parameters_[i]; }
-  size_t GetParameterCount() const { return parameters_.size(); }
-  const std::vector<Variable*>& GetParameters() const { return parameters_; }
-
-  DECLARE_DECLARABLE_BOILERPLATE(Label, label);
-  void MarkUsed() { used_ = true; }
-  bool IsUsed() const { return used_; }
-  bool IsDeferred() const { return deferred_; }
-
- private:
-  friend class Declarations;
-  explicit Label(std::string name, bool deferred = false)
-      : Declarable(Declarable::kLabel),
-        name_(std::move(name)),
-        used_(false),
-        deferred_(deferred) {}
-
-  std::string name_;
-  base::Optional<Block*> block_;
-  base::Optional<std::string> external_label_name_;
-  std::vector<Variable*> parameters_;
-  static size_t next_id_;
-  bool used_;
-  bool deferred_;
 };
 
 class ExternConstant : public Value {
@@ -380,12 +286,8 @@ class TypeAlias : public Declarable {
   const Type* type_;
 };
 
-void PrintLabel(std::ostream& os, const Label& l, bool with_names);
-
 std::ostream& operator<<(std::ostream& os, const Callable& m);
-std::ostream& operator<<(std::ostream& os, const Variable& v);
 std::ostream& operator<<(std::ostream& os, const Builtin& b);
-std::ostream& operator<<(std::ostream& os, const Label& l);
 std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b);
 std::ostream& operator<<(std::ostream& os, const Generic& g);
 
