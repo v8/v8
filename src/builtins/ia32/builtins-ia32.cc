@@ -336,7 +336,7 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
       ExternalReference::address_of_real_stack_limit(masm->isolate());
   // Compute the space that is left as a negative number in scratch. If
   // we already overflowed, this will be a positive number.
-  __ mov(scratch, __ StaticVariable(real_stack_limit));
+  __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
   __ sub(scratch, esp);
   // Add the size of the arguments.
   static_assert(kPointerSize == 4,
@@ -363,7 +363,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
-    __ mov(esi, __ StaticVariable(context_address));
+    __ mov(esi, __ ExternalReferenceAsOperand(context_address, scratch1));
 
     // Load the previous frame pointer (edx) to access C arguments
     __ mov(scratch1, Operand(ebp, 0));
@@ -470,13 +470,13 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Label stepping_prepared;
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
-  __ cmpb(__ StaticVariable(debug_hook), Immediate(0));
+  __ cmpb(__ ExternalReferenceAsOperand(debug_hook, ecx), Immediate(0));
   __ j(not_equal, &prepare_step_in_if_stepping);
 
   // Flood function if we need to continue stepping in the suspended generator.
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
-  __ cmp(edx, __ StaticVariable(debug_suspended_generator));
+  __ cmp(edx, __ ExternalReferenceAsOperand(debug_suspended_generator, ecx));
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
@@ -2607,8 +2607,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Call C function.
   __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
   __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
-  __ mov(Operand(esp, 2 * kPointerSize),
-         Immediate(ExternalReference::isolate_address(masm->isolate())));
+  __ mov(ecx, Immediate(ExternalReference::isolate_address(masm->isolate())));
+  __ mov(Operand(esp, 2 * kPointerSize), ecx);
   __ call(kRuntimeCallFunctionRegister);
 
   // Result is in eax or edx:eax - do not destroy these registers!
@@ -2626,7 +2626,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     Label okay;
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
-    __ cmp(edx, __ StaticVariable(pending_exception_address));
+    __ cmp(edx, __ ExternalReferenceAsOperand(pending_exception_address, ecx));
     // Cannot use check here as it attempts to generate call into runtime.
     __ j(equal, &okay, Label::kNear);
     __ int3();
@@ -2666,9 +2666,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // Retrieve the handler context, SP and FP.
-  __ mov(esi, __ StaticVariable(pending_handler_context_address));
-  __ mov(esp, __ StaticVariable(pending_handler_sp_address));
-  __ mov(ebp, __ StaticVariable(pending_handler_fp_address));
+  __ mov(esp, __ ExternalReferenceAsOperand(pending_handler_sp_address, esi));
+  __ mov(ebp, __ ExternalReferenceAsOperand(pending_handler_fp_address, esi));
+  __ mov(esi,
+         __ ExternalReferenceAsOperand(pending_handler_context_address, esi));
 
   // If the handler is a JS frame, restore the context to the frame. Note that
   // the context will be set to (esi == 0) for non-JS frames.
@@ -2690,7 +2691,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 #endif
 
   // Compute the handler entry address and jump to it.
-  __ mov(edi, __ StaticVariable(pending_handler_entrypoint_address));
+  __ mov(edi, __ ExternalReferenceAsOperand(pending_handler_entrypoint_address,
+                                            edi));
   __ jmp(edi);
 }
 

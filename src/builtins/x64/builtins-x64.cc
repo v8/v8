@@ -369,7 +369,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
-    __ movp(rsi, masm->ExternalOperand(context_address));
+    __ movp(rsi, masm->ExternalReferenceAsOperand(context_address));
 
     // Push the function and the receiver onto the stack.
     __ Push(rdx);
@@ -406,7 +406,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
-    __ movp(rsi, masm->ExternalOperand(context_address));
+    __ movp(rsi, masm->ExternalReferenceAsOperand(context_address));
 
     // Push the function and receiver onto the stack.
     __ Push(rdi);
@@ -516,7 +516,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Label stepping_prepared;
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
-  Operand debug_hook_operand = masm->ExternalOperand(debug_hook);
+  Operand debug_hook_operand = masm->ExternalReferenceAsOperand(debug_hook);
   __ cmpb(debug_hook_operand, Immediate(0));
   __ j(not_equal, &prepare_step_in_if_stepping);
 
@@ -524,7 +524,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
   Operand debug_suspended_generator_operand =
-      masm->ExternalOperand(debug_suspended_generator);
+      masm->ExternalReferenceAsOperand(debug_suspended_generator);
   __ cmpp(rdx, debug_suspended_generator_operand);
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
@@ -2467,7 +2467,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
     Operand pending_exception_operand =
-        masm->ExternalOperand(pending_exception_address);
+        masm->ExternalReferenceAsOperand(pending_exception_address);
     __ cmpp(r14, pending_exception_operand);
     __ j(equal, &okay, Label::kNear);
     __ int3();
@@ -2504,9 +2504,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ CallCFunction(find_handler, 3);
   }
   // Retrieve the handler context, SP and FP.
-  __ movp(rsi, masm->ExternalOperand(pending_handler_context_address));
-  __ movp(rsp, masm->ExternalOperand(pending_handler_sp_address));
-  __ movp(rbp, masm->ExternalOperand(pending_handler_fp_address));
+  __ movp(rsi,
+          masm->ExternalReferenceAsOperand(pending_handler_context_address));
+  __ movp(rsp, masm->ExternalReferenceAsOperand(pending_handler_sp_address));
+  __ movp(rbp, masm->ExternalReferenceAsOperand(pending_handler_fp_address));
 
   // If the handler is a JS frame, restore the context to the frame. Note that
   // the context will be set to (rsi == 0) for non-JS frames.
@@ -2523,7 +2524,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ ResetSpeculationPoisonRegister();
 
   // Compute the handler entry address and jump to it.
-  __ movp(rdi, masm->ExternalOperand(pending_handler_entrypoint_address));
+  __ movp(rdi,
+          masm->ExternalReferenceAsOperand(pending_handler_entrypoint_address));
   __ jmp(rdi);
 }
 

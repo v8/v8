@@ -80,21 +80,11 @@ MacroAssembler::MacroAssembler(Isolate* isolate,
   }
 }
 
-static const int64_t kInvalidRootRegisterDelta = -1;
-
-int64_t TurboAssembler::RootRegisterDelta(ExternalReference other) {
-  if (predictable_code_size() &&
-      (other.address() < reinterpret_cast<Address>(isolate()) ||
-       other.address() >= reinterpret_cast<Address>(isolate() + 1))) {
-    return kInvalidRootRegisterDelta;
-  }
-  return RootRegisterOffsetForExternalReference(isolate(), other);
-}
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && options().enable_root_array_delta_access) {
-    int64_t delta = RootRegisterDelta(source);
-    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
+    intptr_t delta = RootRegisterOffsetForExternalReference(isolate(), source);
+    if (is_int32(delta)) {
       movp(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
       return;
     }
@@ -118,8 +108,9 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
 
 void MacroAssembler::Store(ExternalReference destination, Register source) {
   if (root_array_available_ && options().enable_root_array_delta_access) {
-    int64_t delta = RootRegisterDelta(destination);
-    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
+    intptr_t delta =
+        RootRegisterOffsetForExternalReference(isolate(), destination);
+    if (is_int32(delta)) {
       movp(Operand(kRootRegister, static_cast<int32_t>(delta)), source);
       return;
     }
@@ -159,8 +150,8 @@ void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
 void TurboAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
   if (root_array_available_ && options().enable_root_array_delta_access) {
-    int64_t delta = RootRegisterDelta(source);
-    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
+    intptr_t delta = RootRegisterOffsetForExternalReference(isolate(), source);
+    if (is_int32(delta)) {
       leap(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
       return;
     }
@@ -175,15 +166,39 @@ void TurboAssembler::LoadAddress(Register destination,
   Move(destination, source);
 }
 
-Operand TurboAssembler::ExternalOperand(ExternalReference target,
-                                        Register scratch) {
+Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
+                                                   Register scratch) {
   if (root_array_available_ && options().enable_root_array_delta_access) {
-    int64_t delta = RootRegisterDelta(target);
-    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
+    int64_t delta =
+        RootRegisterOffsetForExternalReference(isolate(), reference);
+    if (is_int32(delta)) {
       return Operand(kRootRegister, static_cast<int32_t>(delta));
     }
   }
-  Move(scratch, target);
+  if (root_array_available_ && options().isolate_independent_code) {
+    if (IsAddressableThroughRootRegister(isolate(), reference)) {
+      // Some external references can be efficiently loaded as an offset from
+      // kRootRegister.
+      intptr_t offset =
+          RootRegisterOffsetForExternalReference(isolate(), reference);
+      CHECK(is_int32(offset));
+      return Operand(kRootRegister, static_cast<int32_t>(offset));
+    } else {
+      // Otherwise, do a memory load from the external reference table.
+
+      // Encode as an index into the external reference table stored on the
+      // isolate.
+      ExternalReferenceEncoder encoder(isolate());
+      ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
+      CHECK(!v.is_from_api());
+
+      movp(scratch,
+           Operand(kRootRegister,
+                   RootRegisterOffsetForExternalReferenceIndex(v.index())));
+      return Operand(scratch, 0);
+    }
+  }
+  Move(scratch, reference);
   return Operand(scratch, 0);
 }
 
@@ -1278,23 +1293,23 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
 // ----------------------------------------------------------------------------
 
 void MacroAssembler::Absps(XMMRegister dst) {
-  Andps(dst,
-        ExternalOperand(ExternalReference::address_of_float_abs_constant()));
+  Andps(dst, ExternalReferenceAsOperand(
+                 ExternalReference::address_of_float_abs_constant()));
 }
 
 void MacroAssembler::Negps(XMMRegister dst) {
-  Xorps(dst,
-        ExternalOperand(ExternalReference::address_of_float_neg_constant()));
+  Xorps(dst, ExternalReferenceAsOperand(
+                 ExternalReference::address_of_float_neg_constant()));
 }
 
 void MacroAssembler::Abspd(XMMRegister dst) {
-  Andps(dst,
-        ExternalOperand(ExternalReference::address_of_double_abs_constant()));
+  Andps(dst, ExternalReferenceAsOperand(
+                 ExternalReference::address_of_double_abs_constant()));
 }
 
 void MacroAssembler::Negpd(XMMRegister dst) {
-  Xorps(dst,
-        ExternalOperand(ExternalReference::address_of_double_neg_constant()));
+  Xorps(dst, ExternalReferenceAsOperand(
+                 ExternalReference::address_of_double_neg_constant()));
 }
 
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
@@ -1873,10 +1888,10 @@ void MacroAssembler::PushStackHandler() {
   // Link the current handler as the next handler.
   ExternalReference handler_address =
       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  Push(ExternalOperand(handler_address));
+  Push(ExternalReferenceAsOperand(handler_address));
 
   // Set this new handler as the current one.
-  movp(ExternalOperand(handler_address), rsp);
+  movp(ExternalReferenceAsOperand(handler_address), rsp);
 }
 
 
@@ -1884,7 +1899,7 @@ void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   ExternalReference handler_address =
       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  Pop(ExternalOperand(handler_address));
+  Pop(ExternalReferenceAsOperand(handler_address));
   addp(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
 
@@ -2042,7 +2057,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand =
-        ExternalOperand(ExternalReference::Create(counter));
+        ExternalReferenceAsOperand(ExternalReference::Create(counter));
     if (value == 1) {
       incl(counter_operand);
     } else {
@@ -2056,7 +2071,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand =
-        ExternalOperand(ExternalReference::Create(counter));
+        ExternalReferenceAsOperand(ExternalReference::Create(counter));
     if (value == 1) {
       decl(counter_operand);
     } else {
@@ -2271,7 +2286,8 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   Label skip_hook;
   ExternalReference debug_hook_active =
       ExternalReference::debug_hook_on_function_call_address(isolate());
-  Operand debug_hook_active_operand = ExternalOperand(debug_hook_active);
+  Operand debug_hook_active_operand =
+      ExternalReferenceAsOperand(debug_hook_active);
   cmpb(debug_hook_active_operand, Immediate(0));
   j(equal, &skip_hook);
 
@@ -2488,7 +2504,7 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address =
       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  Operand context_operand = ExternalOperand(context_address);
+  Operand context_operand = ExternalReferenceAsOperand(context_address);
   movp(rsi, context_operand);
 #ifdef DEBUG
   movp(context_operand, Immediate(Context::kInvalidContext));
@@ -2497,7 +2513,7 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
   // Clear the top frame.
   ExternalReference c_entry_fp_address =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  Operand c_entry_fp_operand = ExternalOperand(c_entry_fp_address);
+  Operand c_entry_fp_operand = ExternalReferenceAsOperand(c_entry_fp_address);
   movp(c_entry_fp_operand, Immediate(0));
 }
 

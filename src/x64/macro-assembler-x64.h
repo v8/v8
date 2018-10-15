@@ -377,8 +377,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // isn't changed.
   // If the operand is used more than once, use a scratch register
   // that is guaranteed not to be clobbered.
-  Operand ExternalOperand(ExternalReference reference,
-                          Register scratch = kScratchRegister);
+  Operand ExternalReferenceAsOperand(ExternalReference reference,
+                                     Register scratch = kScratchRegister);
 
   void Call(Register reg) { call(reg); }
   void Call(Operand op);
@@ -515,8 +515,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   int smi_count = 0;
   int heap_object_count = 0;
 
-  int64_t RootRegisterDelta(ExternalReference other);
-
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.
   Register GetSmiConstant(Smi* value);
@@ -540,7 +538,7 @@ class MacroAssembler : public TurboAssembler {
   // Special case code for load and store to take advantage of
   // load_rax/store_rax if possible/necessary.
   // For other operations, just use:
-  //   Operand operand = ExternalOperand(extref);
+  //   Operand operand = ExternalReferenceAsOperand(extref);
   //   operation(operand, ..);
   void Load(Register destination, ExternalReference source);
   void Store(ExternalReference destination, Register source);

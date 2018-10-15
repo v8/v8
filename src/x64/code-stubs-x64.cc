@@ -78,7 +78,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   ExternalReference c_entry_fp =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
   {
-    Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
+    Operand c_entry_fp_operand = masm->ExternalReferenceAsOperand(c_entry_fp);
     __ Push(c_entry_fp_operand);
   }
 
@@ -134,7 +134,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ bind(&not_outermost_js_2);
 
   // Restore the top frame descriptor from the stack.
-  { Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
+  {
+    Operand c_entry_fp_operand = masm->ExternalReferenceAsOperand(c_entry_fp);
     __ Pop(c_entry_fp_operand);
   }
 
