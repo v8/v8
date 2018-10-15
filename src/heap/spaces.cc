@@ -481,7 +481,7 @@ void MemoryChunk::SetReadAndExecutable() {
     Address protect_start =
         address() + MemoryAllocator::CodePageAreaStartOffset();
     size_t page_size = MemoryAllocator::GetCommitPageSize();
-    DCHECK(IsAddressAligned(protect_start, page_size));
+    DCHECK(IsAligned(protect_start, page_size));
     size_t protect_size = RoundUp(area_size(), page_size);
     CHECK(reservation_.SetPermissions(protect_start, protect_size,
                                       PageAllocator::kReadExecute));
@@ -500,7 +500,7 @@ void MemoryChunk::SetReadAndWritable() {
     Address unprotect_start =
         address() + MemoryAllocator::CodePageAreaStartOffset();
     size_t page_size = MemoryAllocator::GetCommitPageSize();
-    DCHECK(IsAddressAligned(unprotect_start, page_size));
+    DCHECK(IsAligned(unprotect_start, page_size));
     size_t unprotect_size = RoundUp(area_size(), page_size);
     CHECK(reservation_.SetPermissions(unprotect_start, unprotect_size,
                                       PageAllocator::kReadWrite));
@@ -571,7 +571,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
           heap->code_space_memory_modification_scope_depth();
     } else {
       size_t page_size = MemoryAllocator::GetCommitPageSize();
-      DCHECK(IsAddressAligned(area_start, page_size));
+      DCHECK(IsAligned(area_start, page_size));
       size_t area_size = RoundUp(area_end - area_start, page_size);
       CHECK(reservation.SetPermissions(area_start, area_size,
                                        PageAllocator::kReadWriteExecute));
@@ -1134,7 +1134,7 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
                                              size_t reserved_size) {
   const size_t page_size = GetCommitPageSize();
   // All addresses and sizes must be aligned to the commit page size.
-  DCHECK(IsAddressAligned(start, page_size));
+  DCHECK(IsAligned(start, page_size));
   DCHECK_EQ(0, commit_size % page_size);
   DCHECK_EQ(0, reserved_size % page_size);
   const size_t guard_size = CodePageGuardSize();

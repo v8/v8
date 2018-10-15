@@ -71,7 +71,7 @@ void* Zone::New(size_t size) {
                             kASanRedzoneBytes);
 
   // Check that the result has the proper alignment and return it.
-  DCHECK(IsAddressAligned(result, kAlignmentInBytes, 0));
+  DCHECK(IsAligned(result, kAlignmentInBytes));
   allocation_size_ += size;
   return reinterpret_cast<void*>(result);
 }

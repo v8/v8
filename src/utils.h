@@ -167,14 +167,6 @@ inline bool IsAligned(T value, U alignment) {
   return (value & (alignment - 1)) == 0;
 }
 
-// Returns true if {addr + offset} is aligned.
-inline bool IsAddressAligned(Address addr,
-                             intptr_t alignment,
-                             int offset = 0) {
-  return IsAligned(addr + offset, alignment);
-}
-
-
 // Returns the maximum of the two parameters.
 template <typename T>
 constexpr T Max(T a, T b) {

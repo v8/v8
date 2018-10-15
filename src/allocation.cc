@@ -244,7 +244,7 @@ bool VirtualMemory::SetPermissions(Address address, size_t size,
 
 size_t VirtualMemory::Release(Address free_start) {
   DCHECK(IsReserved());
-  DCHECK(IsAddressAligned(free_start, page_allocator_->CommitPageSize()));
+  DCHECK(IsAligned(free_start, page_allocator_->CommitPageSize()));
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.
 

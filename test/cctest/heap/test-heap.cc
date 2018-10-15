@@ -1692,7 +1692,7 @@ TEST(TestAlignedAllocation) {
     // aligned address.
     start = AlignNewSpace(kDoubleAligned, 0);
     obj = NewSpaceAllocateAligned(kPointerSize, kDoubleAligned);
-    CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
+    CHECK(IsAligned(obj->address(), kDoubleAlignment));
     // There is no filler.
     CHECK_EQ(kPointerSize, *top_addr - start);
 
@@ -1700,7 +1700,7 @@ TEST(TestAlignedAllocation) {
     // unaligned address.
     start = AlignNewSpace(kDoubleAligned, kPointerSize);
     obj = NewSpaceAllocateAligned(kPointerSize, kDoubleAligned);
-    CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
+    CHECK(IsAligned(obj->address(), kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler && filler->IsFiller() &&
@@ -1710,11 +1710,11 @@ TEST(TestAlignedAllocation) {
     // Similarly for kDoubleUnaligned.
     start = AlignNewSpace(kDoubleUnaligned, 0);
     obj = NewSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
-    CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
+    CHECK(IsAligned(obj->address() + kPointerSize, kDoubleAlignment));
     CHECK_EQ(kPointerSize, *top_addr - start);
     start = AlignNewSpace(kDoubleUnaligned, kPointerSize);
     obj = NewSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
-    CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
+    CHECK(IsAligned(obj->address() + kPointerSize, kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler && filler->IsFiller() &&
@@ -1774,11 +1774,11 @@ TEST(TestAlignedOverAllocation) {
     start = AlignOldSpace(kDoubleAligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
     // The object is aligned.
-    CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
+    CHECK(IsAligned(obj->address(), kDoubleAlignment));
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleAligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
-    CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
+    CHECK(IsAligned(obj->address(), kDoubleAlignment));
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler);
     CHECK(filler->IsFiller());
@@ -1790,11 +1790,11 @@ TEST(TestAlignedOverAllocation) {
     start = AlignOldSpace(kDoubleUnaligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
     // The object is aligned.
-    CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
+    CHECK(IsAligned(obj->address() + kPointerSize, kDoubleAlignment));
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleUnaligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
-    CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
+    CHECK(IsAligned(obj->address() + kPointerSize, kDoubleAlignment));
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler && filler->IsFiller() &&
           filler->Size() == kPointerSize);
