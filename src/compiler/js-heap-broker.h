@@ -242,7 +242,6 @@ class ContextRef : public HeapObjectRef {
   V(JSFunction, array_function)                    \
   V(JSFunction, object_function)                   \
   V(JSFunction, promise_function)                  \
-  V(Map, async_function_object_map)                \
   V(Map, fast_aliased_arguments_map)               \
   V(Map, initial_array_iterator_map)               \
   V(Map, initial_string_iterator_map)              \
@@ -261,6 +260,7 @@ class ContextRef : public HeapObjectRef {
 // Those are set by Bootstrapper::ExportFromRuntime, which may not yet have
 // happened when Turbofan is invoked via --always-opt.
 #define BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V) \
+  V(Map, async_function_object_map)              \
   V(Map, map_key_iterator_map)                   \
   V(Map, map_key_value_iterator_map)             \
   V(Map, map_value_iterator_map)                 \

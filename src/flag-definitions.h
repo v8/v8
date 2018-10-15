@@ -403,7 +403,7 @@ DEFINE_INT(concurrent_recompilation_delay, 0,
 DEFINE_BOOL(block_concurrent_recompilation, false,
             "block queued jobs until released")
 DEFINE_BOOL(
-    concurrent_typed_lowering, false,
+    concurrent_typed_lowering, true,
     "run optimizing compiler's typed lowering phase on a separate thread")
 DEFINE_IMPLICATION(future, concurrent_typed_lowering)
 DEFINE_BOOL(concurrent_inlining, false,
