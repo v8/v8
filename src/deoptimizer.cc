@@ -809,6 +809,20 @@ void Deoptimizer::DoComputeOutputFrames() {
     }
   }
 
+#if defined(V8_TARGET_ARCH_IA32)
+  constexpr bool kShouldInitializeRootRegister = FLAG_embedded_builtins;
+#else
+  constexpr bool kShouldInitializeRootRegister = true;
+#endif
+  if (kShouldInitializeRootRegister) {
+    Address root_pointer =
+        reinterpret_cast<Address>(isolate()->roots_array_start()) +
+        kRootRegisterBias;
+    FrameDescription* topmost = output_[count - 1];
+    topmost->GetRegisterValues()->SetRegister(kRootRegister.code(),
+                                              root_pointer);
+  }
+
   // Print some helpful diagnostic information.
   if (trace_scope_ != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
