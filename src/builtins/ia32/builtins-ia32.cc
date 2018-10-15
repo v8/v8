@@ -484,7 +484,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ CompareRoot(esp, ecx, RootIndex::kRealStackLimit);
+  __ CompareRealStackLimit(esp);
   __ j(below, &stack_overflow);
 
   // Pop return address.
@@ -875,9 +875,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     Label ok;
     __ mov(eax, esp);
     __ sub(eax, frame_size);
-    ExternalReference stack_limit =
-        ExternalReference::address_of_real_stack_limit(masm->isolate());
-    __ cmp(eax, __ StaticVariable(stack_limit));
+    __ CompareRealStackLimit(eax);
     __ j(above_equal, &ok);
     __ CallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&ok);
@@ -2071,7 +2069,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
-      __ CompareRoot(esp, ecx, RootIndex::kRealStackLimit);
+      __ CompareRealStackLimit(esp);
       __ j(above_equal, &done, Label::kNear);
       // Restore the stack pointer.
       __ lea(esp, Operand(esp, edx, times_pointer_size, 0));

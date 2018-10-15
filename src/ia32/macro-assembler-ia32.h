@@ -263,6 +263,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     pop(kRootRegister);
   }
 
+  void CompareStackLimit(Register with);
+  void CompareRealStackLimit(Register with);
+  void CompareRoot(Register with, RootIndex index);
+  void CompareRoot(Register with, Register scratch, RootIndex index);
+
   // Wrapper functions to ensure external reference operands produce
   // isolate-independent code if needed.
   Operand StaticVariable(const ExternalReference& ext);
@@ -492,11 +497,6 @@ class MacroAssembler : public TurboAssembler {
   }
   void Set(Operand dst, int32_t x) { mov(dst, Immediate(x)); }
 
-  // Operations on roots in the root-array.
-  void CompareRoot(Register with, Register scratch, RootIndex index);
-  // These methods can only be used with constant roots (i.e. non-writable
-  // and not in new space).
-  void CompareRoot(Register with, RootIndex index);
   void PushRoot(RootIndex index);
 
   // Compare the object in a register to a value and jump if they are equal.

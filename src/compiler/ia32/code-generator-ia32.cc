@@ -3660,10 +3660,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32StackCheck: {
-      ExternalReference const stack_limit =
-          ExternalReference::address_of_stack_limit(__ isolate());
       __ VerifyRootRegister();
-      __ cmp(esp, tasm()->StaticVariable(stack_limit));
+      __ CompareStackLimit(esp);
       break;
     }
     case kIA32Word32AtomicPairLoad: {

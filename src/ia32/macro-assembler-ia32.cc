@@ -106,7 +106,7 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
               RelocInfo::EXTERNAL_REFERENCE));
 }
 
-void MacroAssembler::CompareRoot(Register with, Register scratch,
+void TurboAssembler::CompareRoot(Register with, Register scratch,
                                  RootIndex index) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
@@ -121,7 +121,7 @@ void MacroAssembler::CompareRoot(Register with, Register scratch,
                     RelocInfo::EXTERNAL_REFERENCE));
 }
 
-void MacroAssembler::CompareRoot(Register with, RootIndex index) {
+void TurboAssembler::CompareRoot(Register with, RootIndex index) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     Assembler::AllowExplicitEbxAccessScope read_only_access(this);
@@ -136,6 +136,31 @@ void MacroAssembler::CompareRoot(Register with, RootIndex index) {
   } else {
     cmp(with, Immediate(Smi::cast(*object)));
   }
+}
+
+void TurboAssembler::CompareStackLimit(Register with) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (root_array_available()) {
+    CompareRoot(with, RootIndex::kStackLimit);
+    return;
+  }
+#endif
+  DCHECK(!options().isolate_independent_code);
+  ExternalReference ref = ExternalReference::address_of_stack_limit(isolate());
+  cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
+}
+
+void TurboAssembler::CompareRealStackLimit(Register with) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (root_array_available()) {
+    CompareRoot(with, RootIndex::kRealStackLimit);
+    return;
+  }
+#endif
+  DCHECK(!options().isolate_independent_code);
+  ExternalReference ref =
+      ExternalReference::address_of_real_stack_limit(isolate());
+  cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
 }
 
 void MacroAssembler::PushRoot(RootIndex index) {
