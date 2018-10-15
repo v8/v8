@@ -180,7 +180,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ j(not_zero, &not_create_implicit_receiver);
 
     // If not derived class constructor: Allocate the new receiver object.
-    __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1);
+    __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
+                        eax);
     __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject),
             RelocInfo::CODE_TARGET);
     __ jmp(&post_instantiation_deopt_entry, Label::kNear);
@@ -2323,7 +2324,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   const Register kExpectedNumberOfArgumentsRegister = ecx;
 
   Label invoke, dont_adapt_arguments, stack_overflow;
-  __ IncrementCounter(masm->isolate()->counters()->arguments_adaptors(), 1);
+  // edi is used as a scratch register. It should be restored from the frame
+  // when needed.
+  __ IncrementCounter(masm->isolate()->counters()->arguments_adaptors(), 1,
+                      edi);
 
   Label enough, too_few;
   __ cmp(kExpectedNumberOfArgumentsRegister,

@@ -443,7 +443,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
   // Count number of write barriers in generated code.
   isolate()->counters()->write_barriers_static()->Increment();
-  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
+  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1, value);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
@@ -1639,10 +1639,12 @@ void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
   and_(in_out, Immediate(~kWeakHeapObjectMask));
 }
 
-void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
+void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
+                                      Register scratch) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Operand operand = StaticVariable(ExternalReference::Create(counter));
+    Operand operand =
+        ExternalReferenceAsOperand(ExternalReference::Create(counter), scratch);
     if (value == 1) {
       inc(operand);
     } else {
@@ -1651,11 +1653,12 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   }
 }
 
-
-void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
+void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
+                                      Register scratch) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    Operand operand = StaticVariable(ExternalReference::Create(counter));
+    Operand operand =
+        ExternalReferenceAsOperand(ExternalReference::Create(counter), scratch);
     if (value == 1) {
       dec(operand);
     } else {
