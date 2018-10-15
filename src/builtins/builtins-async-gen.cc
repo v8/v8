@@ -100,7 +100,7 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
   Branch(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &if_debugging,
          &do_resolve_promise);
   BIND(&if_debugging);
-  var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInit, context, value,
+  var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInitOld, context, value,
                                  wrapped_value, outer_promise, on_reject,
                                  is_predicted_as_caught));
   Goto(&do_resolve_promise);
@@ -113,15 +113,13 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
                      on_resolve, on_reject, var_throwaway.value());
 }
 
-Node* AsyncBuiltinsAssembler::AwaitOptimized(
-    Node* context, Node* generator, Node* value, Node* outer_promise,
-    Node* on_resolve_context_index, Node* on_reject_context_index,
-    Node* is_predicted_as_caught) {
+Node* AsyncBuiltinsAssembler::AwaitOptimized(Node* context, Node* generator,
+                                             Node* promise, Node* outer_promise,
+                                             Node* on_resolve_context_index,
+                                             Node* on_reject_context_index,
+                                             Node* is_predicted_as_caught) {
   Node* const native_context = LoadNativeContext(context);
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
-  CSA_ASSERT(this, IsConstructor(promise_fun));
+  CSA_ASSERT(this, IsJSPromise(promise));
 
   static const int kResolveClosureOffset =
       FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
@@ -131,8 +129,8 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
       kRejectClosureOffset + JSFunction::kSizeWithoutPrototype;
 
   // 2. Let promise be ? PromiseResolve(« promise »).
-  Node* const promise =
-      CallBuiltin(Builtins::kPromiseResolve, context, promise_fun, value);
+  // Node* const promise =
+  // CallBuiltin(Builtins::kPromiseResolve, context, promise_fun, value);
 
   Node* const base = AllocateInNewSpace(kTotalSize);
   Node* const closure_context = base;
@@ -174,7 +172,7 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
   Branch(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &if_debugging,
          &do_perform_promise_then);
   BIND(&if_debugging);
-  var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInit, context, value,
+  var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInit, context, promise,
                                  promise, outer_promise, on_reject,
                                  is_predicted_as_caught));
   Goto(&do_perform_promise_then);
@@ -190,16 +188,47 @@ Node* AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,
                                     Node* on_reject_context_index,
                                     Node* is_predicted_as_caught) {
   VARIABLE(result, MachineRepresentation::kTagged);
-  Label if_old(this), if_new(this), done(this);
+  Label if_old(this), if_new(this), done(this),
+      if_slow_constructor(this, Label::kDeferred);
 
   STATIC_ASSERT(sizeof(FLAG_harmony_await_optimization) == 1);
-
   TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
       MachineType::Uint8(),
       ExternalConstant(
           ExternalReference::address_of_harmony_await_optimization_flag())));
+  GotoIf(Word32Equal(flag_value, Int32Constant(0)), &if_old);
 
-  Branch(Word32Equal(flag_value, Int32Constant(0)), &if_old, &if_new);
+  // We're running with --harmony-await-optimization enabled, which means
+  // we do the `PromiseResolve(%Promise%,value)` avoiding to unnecessarily
+  // create wrapper promises. Now if {value} is already a promise with the
+  // intrinsics %Promise% constructor as its "constructor", we don't need
+  // to allocate the wrapper promise and can just use the `AwaitOptimized`
+  // logic.
+  GotoIf(TaggedIsSmi(value), &if_old);
+  Node* const value_map = LoadMap(value);
+  GotoIfNot(IsJSPromiseMap(value_map), &if_old);
+  // We can skip the "constructor" lookup on {value} if it's [[Prototype]]
+  // is the (initial) Promise.prototype and the @@species protector is
+  // intact, as that guards the lookup path for "constructor" on
+  // JSPromise instances which have the (initial) Promise.prototype.
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise_prototype =
+      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
+  GotoIfNot(WordEqual(LoadMapPrototype(value_map), promise_prototype),
+            &if_slow_constructor);
+  Branch(IsPromiseSpeciesProtectorCellInvalid(), &if_slow_constructor, &if_new);
+
+  // At this point, {value} doesn't have the initial promise prototype or
+  // the promise @@species protector was invalidated, but {value} could still
+  // have the %Promise% as its "constructor", so we need to check that as well.
+  BIND(&if_slow_constructor);
+  {
+    Node* const value_constructor =
+        GetProperty(context, value, isolate()->factory()->constructor_string());
+    Node* const promise_function =
+        LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+    Branch(WordEqual(value_constructor, promise_function), &if_new, &if_old);
+  }
 
   BIND(&if_old);
   result.Bind(AwaitOld(context, generator, value, outer_promise,

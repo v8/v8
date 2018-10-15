@@ -131,18 +131,18 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_AwaitPromisesInit) {
-  DCHECK_EQ(5, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, outer_promise, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject_handler, 3);
-  CONVERT_BOOLEAN_ARG_CHECKED(is_predicted_as_caught, 4);
+namespace {
 
-  // Allocate the throwaway promise and fire the appropriate PromiseHooks.
+Handle<JSPromise> AwaitPromisesInitCommon(Isolate* isolate,
+                                          Handle<Object> value,
+                                          Handle<JSPromise> promise,
+                                          Handle<JSPromise> outer_promise,
+                                          Handle<JSFunction> reject_handler,
+                                          bool is_predicted_as_caught) {
+  // Allocate the throwaway promise and fire the appropriate init
+  // hook for the throwaway promise (passing the {promise} as its
+  // parent).
   Handle<JSPromise> throwaway = isolate->factory()->NewJSPromiseWithoutHook();
-  isolate->RunPromiseHook(PromiseHookType::kInit, promise, outer_promise);
   isolate->RunPromiseHook(PromiseHookType::kInit, throwaway, promise);
 
   // On inspector side we capture async stack trace and store it by
@@ -175,7 +175,37 @@ RUNTIME_FUNCTION(Runtime_AwaitPromisesInit) {
         .Check();
   }
 
-  return *throwaway;
+  return throwaway;
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_AwaitPromisesInit) {
+  DCHECK_EQ(5, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, outer_promise, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject_handler, 3);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_predicted_as_caught, 4);
+  return *AwaitPromisesInitCommon(isolate, value, promise, outer_promise,
+                                  reject_handler, is_predicted_as_caught);
+}
+
+RUNTIME_FUNCTION(Runtime_AwaitPromisesInitOld) {
+  DCHECK_EQ(5, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, outer_promise, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject_handler, 3);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_predicted_as_caught, 4);
+
+  // Fire the init hook for the wrapper promise (that we created for the
+  // {value} previously).
+  isolate->RunPromiseHook(PromiseHookType::kInit, promise, outer_promise);
+  return *AwaitPromisesInitCommon(isolate, value, promise, outer_promise,
+                                  reject_handler, is_predicted_as_caught);
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-async-hooks
+// Flags: --expose-async-hooks --harmony-await-optimization
 
 // Check for async/await asyncIds relation
 (function() {
@@ -66,10 +66,9 @@
 
   assertPromiseResult(
     foo().then(function() {
-      assertEquals(triggerIds[2], asyncIds[0]);
-      assertEquals(triggerIds[3], asyncIds[2]);
-      assertEquals(triggerIds[4], asyncIds[0]);
-      assertEquals(triggerIds[5], asyncIds[4]);
-      assertEquals(triggerIds[7], asyncIds[6]);
+      assertEquals(triggerIds[2], asyncIds[1]);
+      assertEquals(triggerIds[3], asyncIds[0]);
+      assertEquals(triggerIds[4], asyncIds[3]);
+      assertEquals(triggerIds[6], asyncIds[5]);
     }));
 })();
