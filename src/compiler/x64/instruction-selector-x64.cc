@@ -1817,7 +1817,37 @@ void VisitCompareZero(InstructionSelector* selector, Node* user, Node* node,
         break;
     }
   }
-  VisitCompare(selector, opcode, g.Use(node), g.TempImmediate(0), cont);
+  int effect_level = selector->GetEffectLevel(node);
+  if (cont->IsBranch()) {
+    effect_level = selector->GetEffectLevel(
+        cont->true_block()->PredecessorAt(0)->control_input());
+  }
+  if (node->opcode() == IrOpcode::kLoad) {
+    switch (LoadRepresentationOf(node->op()).representation()) {
+      case MachineRepresentation::kWord8:
+        if (opcode == kX64Cmp32) {
+          opcode = kX64Cmp8;
+        } else if (opcode == kX64Test32) {
+          opcode = kX64Test8;
+        }
+        break;
+      case MachineRepresentation::kWord16:
+        if (opcode == kX64Cmp32) {
+          opcode = kX64Cmp16;
+        } else if (opcode == kX64Test32) {
+          opcode = kX64Test16;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  if (g.CanBeMemoryOperand(opcode, user, node, effect_level)) {
+    VisitCompareWithMemoryOperand(selector, opcode, node, g.TempImmediate(0),
+                                  cont);
+  } else {
+    VisitCompare(selector, opcode, g.Use(node), g.TempImmediate(0), cont);
+  }
 }
 
 
