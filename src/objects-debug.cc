@@ -2231,8 +2231,8 @@ bool CanLeak(Object* obj, Isolate* isolate) {
   if (obj->IsContext()) return true;
   if (obj->IsMap()) {
     Map* map = Map::cast(obj);
-    for (RootIndex root_index = RootIndex::kFirstStrongRoot;
-         root_index <= RootIndex::kLastStrongRoot; ++root_index) {
+    for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
+         root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
       if (map == isolate->root(root_index)) return false;
     }
     return true;

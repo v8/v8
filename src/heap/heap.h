@@ -744,7 +744,14 @@ class Heap {
   // Iterators. ================================================================
   // ===========================================================================
 
+  // None of these methods iterate over the read-only roots. To do this use
+  // ReadOnlyRoots::Iterate. Read-only root iteration is not necessary for
+  // garbage collection and is usually only performed as part of
+  // (de)serialization or heap verification.
+
+  // Iterates over the strong roots and the weak roots.
   void IterateRoots(RootVisitor* v, VisitMode mode);
+  // Iterates over the strong roots.
   void IterateStrongRoots(RootVisitor* v, VisitMode mode);
   // Iterates over entries in the smi roots list.  Only interesting to the
   // serializer/deserializer, since GC does not care about smis.

@@ -17,6 +17,7 @@ class Object;
 #define ROOT_ID_LIST(V)                                \
   V(kStringTable, "(Internalized strings)")            \
   V(kExternalStringsTable, "(External strings)")       \
+  V(kReadOnlyRootList, "(Read-only roots)")            \
   V(kStrongRootList, "(Strong roots)")                 \
   V(kSmiRootList, "(Smi roots)")                       \
   V(kBootstrapper, "(Bootstrapper)")                   \

@@ -1427,7 +1427,8 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   // first. Otherwise a particular JSFunction object could set
   // its custom name to a generic builtin.
   RootsReferencesExtractor extractor(this);
-  heap_->IterateRoots(&extractor, VISIT_ONLY_STRONG_FOR_SERIALIZATION);
+  ReadOnlyRoots(heap_).Iterate(&extractor);
+  heap_->IterateRoots(&extractor, VISIT_ONLY_STRONG);
   extractor.SetVisitingWeakRoots();
   heap_->IterateWeakGlobalHandles(&extractor);
 
@@ -1676,8 +1677,8 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
 const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
   if (strong_gc_subroot_names_.empty()) {
     Isolate* isolate = heap_->isolate();
-    for (RootIndex root_index = RootIndex::kFirstStrongRoot;
-         root_index <= RootIndex::kLastStrongRoot; ++root_index) {
+    for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
+         root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
       const char* name = RootsTable::name(root_index);
       strong_gc_subroot_names_.emplace(isolate->root(root_index), name);
     }

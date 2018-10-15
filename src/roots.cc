@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/roots.h"
+
 #include "src/elements-kind.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -54,6 +56,13 @@ RootIndex RootsTable::RootIndexForEmptyFixedTypedArray(
     default:
       UNREACHABLE();
   }
+}
+
+void ReadOnlyRoots::Iterate(RootVisitor* visitor) {
+  visitor->VisitRootPointers(Root::kReadOnlyRootList, nullptr,
+                             roots_table_.read_only_roots_begin(),
+                             roots_table_.read_only_roots_end());
+  visitor->Synchronize(VisitorSynchronization::kReadOnlyRootList);
 }
 
 }  // namespace internal

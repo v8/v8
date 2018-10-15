@@ -117,6 +117,7 @@ void StartupSerializer::SerializeStrongReferences() {
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->SetStackLimits();
   // First visit immortal immovables to make sure they end up in the first page.
+  ReadOnlyRoots(isolate).Iterate(this);
   isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
 }
 

@@ -2568,6 +2568,7 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
     // Make sure the stack or other roots (e.g., Handles) don't contain pointers
     // to the original FixedArray (which is now the filler object).
     LeftTrimmerVerifierRootVisitor root_visitor(object);
+    ReadOnlyRoots(this).Iterate(&root_visitor);
     IterateRoots(&root_visitor, VISIT_ALL);
   }
 #endif  // ENABLE_SLOW_DCHECKS
@@ -3741,12 +3742,8 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
-  // Garbage collection can skip over the read-only roots.
-  const bool isGC = mode != VISIT_ALL && mode != VISIT_FOR_SERIALIZATION &&
-                    mode != VISIT_ONLY_STRONG_FOR_SERIALIZATION;
-  Object** start = isGC ? roots_table().read_only_roots_end()
-                        : roots_table().strong_roots_begin();
-  v->VisitRootPointers(Root::kStrongRootList, nullptr, start,
+  v->VisitRootPointers(Root::kStrongRootList, nullptr,
+                       roots_table().strong_roots_begin(),
                        roots_table().strong_roots_end());
   v->Synchronize(VisitorSynchronization::kStrongRootList);
 
@@ -3786,7 +3783,6 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
       // global handles need to be added manually.
       break;
     case VISIT_ONLY_STRONG:
-    case VISIT_ONLY_STRONG_FOR_SERIALIZATION:
       isolate_->global_handles()->IterateStrongRoots(v);
       break;
     case VISIT_ALL_IN_SCAVENGE:
@@ -3798,7 +3794,6 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
     case VISIT_ALL_IN_MINOR_MC_UPDATE:
       // Global handles are processed manually by the minor MC.
       break;
-    case VISIT_ALL_BUT_READ_ONLY:
     case VISIT_ALL_IN_SWEEP_NEWSPACE:
     case VISIT_ALL:
       isolate_->global_handles()->IterateAllRoots(v);
@@ -5025,7 +5020,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   void MarkReachableObjects() {
     MarkingVisitor visitor(this);
-    heap_->IterateRoots(&visitor, VISIT_ALL_BUT_READ_ONLY);
+    heap_->IterateRoots(&visitor, VISIT_ALL);
     visitor.TransitiveClosure();
   }
 
