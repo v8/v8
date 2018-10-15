@@ -29,6 +29,13 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
     Handle<Object> locales, Handle<Object> options_obj) {
   Factory* factory = isolate->factory();
 
+  // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  Maybe<std::vector<std::string>> maybe_requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales);
+  MAYBE_RETURN(maybe_requested_locales, MaybeHandle<JSV8BreakIterator>());
+  std::vector<std::string> requested_locales =
+      maybe_requested_locales.FromJust();
+
   Handle<JSReceiver> options;
   if (options_obj->IsUndefined(isolate)) {
     options = factory->NewJSObjectWithNullProto();
@@ -40,15 +47,23 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
   }
 
   // Extract locale string
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "breakiterator", locales, options),
-      JSV8BreakIterator);
-  Handle<Object> locale_obj =
-      JSObject::GetDataProperty(r, factory->locale_string());
-  CHECK(locale_obj->IsString());
-  Handle<String> locale = Handle<String>::cast(locale_obj);
+  const std::vector<const char*> values = {"lookup", "best fit"};
+  std::unique_ptr<char[]> matcher_str = nullptr;
+  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
+  Maybe<bool> found_matcher =
+      Intl::GetStringOption(isolate, options, "localeMatcher", values,
+                            "Intl.JSV8BreakIterator", &matcher_str);
+  MAYBE_RETURN(found_matcher, MaybeHandle<JSV8BreakIterator>());
+  if (found_matcher.FromJust()) {
+    DCHECK_NOT_NULL(matcher_str.get());
+    if (strcmp(matcher_str.get(), "lookup") == 0) {
+      matcher = Intl::MatcherOption::kLookup;
+    }
+  }
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(ICUService::kBreakIterator);
+  Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
+                                               requested_locales, matcher, {});
 
   // Extract type from options
   std::unique_ptr<char[]> type_str = nullptr;
@@ -63,8 +78,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
     type_enum = getType(type_str.get());
   }
 
-  // Construct icu_locale using the locale string
-  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
+  icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
   // Construct break_iterator using icu_locale and type
@@ -103,8 +117,10 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
   Handle<Managed<icu::UnicodeString>> managed_unicode_string =
       Managed<icu::UnicodeString>::FromRawPtr(isolate, 0, nullptr);
 
-  // Setting fields
-  break_iterator_holder->set_locale(*locale);
+  Handle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  break_iterator_holder->set_locale(*locale_str);
+
   break_iterator_holder->set_type(type_enum);
   break_iterator_holder->set_break_iterator(*managed_break_iterator);
   break_iterator_holder->set_unicode_string(*managed_unicode_string);

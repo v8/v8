@@ -40,44 +40,55 @@ JSSegmenter::Granularity JSSegmenter::GetGranularity(const char* str) {
 
 MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
     Isolate* isolate, Handle<JSSegmenter> segmenter_holder,
-    Handle<Object> input_locales, Handle<Object> input_options) {
-  Factory* factory = isolate->factory();
+    Handle<Object> locales, Handle<Object> input_options) {
   segmenter_holder->set_flags(0);
+
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-  Handle<JSObject> requested_locales;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, requested_locales,
-      Intl::CanonicalizeLocaleListJS(isolate, input_locales), JSSegmenter);
+  Maybe<std::vector<std::string>> maybe_requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales);
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSSegmenter>());
+  std::vector<std::string> requested_locales =
+      maybe_requested_locales.FromJust();
 
   // 11. If options is undefined, then
   Handle<JSReceiver> options;
   if (input_options->IsUndefined(isolate)) {
-    // a. Let options be ObjectCreate(null).
+    // 11. a. Let options be ObjectCreate(null).
     options = isolate->factory()->NewJSObjectWithNullProto();
     // 12. Else
   } else {
-    // a. Let options be ? ToObject(options).
+    // 23. a. Let options be ? ToObject(options).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                                Object::ToObject(isolate, input_options),
                                JSSegmenter);
   }
 
+  // 4. Let opt be a new Record.
+  // 5. Let matcher be ? GetOption(options, "localeMatcher", "string",
+  // « "lookup", "best fit" », "best fit").
+  // 6. Set opt.[[localeMatcher]] to matcher.
+  const std::vector<const char*> values = {"lookup", "best fit"};
+  std::unique_ptr<char[]> matcher_str = nullptr;
+  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
+  Maybe<bool> found_matcher =
+      Intl::GetStringOption(isolate, options, "localeMatcher", values,
+                            "Intl.Segmenter", &matcher_str);
+  MAYBE_RETURN(found_matcher, MaybeHandle<JSSegmenter>());
+  if (found_matcher.FromJust()) {
+    DCHECK_NOT_NULL(matcher_str.get());
+    if (strcmp(matcher_str.get(), "lookup") == 0) {
+      matcher = Intl::MatcherOption::kLookup;
+    }
+  }
+
   // 8. Set opt.[[lb]] to lineBreakStyle.
 
-  // Because currently we access localeMatcher inside ResolveLocale, we have to
-  // move ResolveLocale before get lineBreakStyle
   // 9. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "segmenter", requested_locales, options),
-      JSSegmenter);
-  Handle<Object> locale_obj =
-      JSObject::GetDataProperty(r, factory->locale_string());
-  Handle<String> locale;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, locale, Object::ToString(isolate, locale_obj), JSSegmenter);
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(ICUService::kSegmenter);
+  Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
+                                               requested_locales, matcher, {});
 
   // 7. Let lineBreakStyle be ? GetOption(options, "lineBreakStyle", "string", «
   // "strict", "normal", "loose" », "normal").
@@ -95,7 +106,9 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
   }
 
   // 10. Set segmenter.[[Locale]] to the value of r.[[Locale]].
-  segmenter_holder->set_locale(*locale);
+  Handle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  segmenter_holder->set_locale(*locale_str);
 
   // 13. Let granularity be ? GetOption(options, "granularity", "string", «
   // "grapheme", "word", "sentence", "line" », "grapheme").
@@ -124,7 +137,7 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
     segmenter_holder->set_line_break_style(LineBreakStyle::NOTSET);
   }
 
-  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
+  icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
   UErrorCode status = U_ZERO_ERROR;

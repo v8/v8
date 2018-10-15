@@ -121,24 +121,33 @@ JSListFormat::Type get_type(const char* str) {
 
 MaybeHandle<JSListFormat> JSListFormat::Initialize(
     Isolate* isolate, Handle<JSListFormat> list_format_holder,
-    Handle<Object> input_locales, Handle<Object> input_options) {
-  Factory* factory = isolate->factory();
+    Handle<Object> locales, Handle<Object> input_options) {
   list_format_holder->set_flags(0);
 
   Handle<JSReceiver> options;
-  // 2. If options is undefined, then
+  // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  Maybe<std::vector<std::string>> maybe_requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales);
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSListFormat>());
+  std::vector<std::string> requested_locales =
+      maybe_requested_locales.FromJust();
+
+  // 4. If options is undefined, then
   if (input_options->IsUndefined(isolate)) {
-    // a. Let options be ObjectCreate(null).
+    // 4. a. Let options be ObjectCreate(null).
     options = isolate->factory()->NewJSObjectWithNullProto();
-    // 3. Else
+    // 5. Else
   } else {
-    // a. Let options be ? ToObject(options).
+    // 5. a. Let options be ? ToObject(options).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                                Object::ToObject(isolate, input_options),
                                JSListFormat);
   }
 
-  // 5. Let t be GetOption(options, "type", "string", «"conjunction",
+  // Note: No need to create a record. It's not observable.
+  // 6. Let opt be a new Record.
+
+  // 7. Let t be GetOption(options, "type", "string", «"conjunction",
   //    "disjunction", "unit"», "conjunction").
   std::unique_ptr<char[]> type_str = nullptr;
   std::vector<const char*> type_values = {"conjunction", "disjunction", "unit"};
@@ -150,10 +159,11 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
     DCHECK_NOT_NULL(type_str.get());
     type_enum = get_type(type_str.get());
   }
-  // 6. Set listFormat.[[Type]] to t.
+
+  // 8. Set listFormat.[[Type]] to t.
   list_format_holder->set_type(type_enum);
 
-  // 7. Let s be ? GetOption(options, "style", "string",
+  // 9. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   std::unique_ptr<char[]> style_str = nullptr;
   std::vector<const char*> style_values = {"long", "short", "narrow"};
@@ -165,28 +175,39 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
     DCHECK_NOT_NULL(style_str.get());
     style_enum = get_style(style_str.get());
   }
-  // 15. Set listFormat.[[Style]] to s.
+  // 10. Set listFormat.[[Style]] to s.
   list_format_holder->set_style(style_enum);
 
-  // 10. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
+  // TODO(ftang): There's no spec text for this yet.
+  // Tracking issue: https://github.com/tc39/proposal-intl-list-format/issues/24
+  const std::vector<const char*> values = {"lookup", "best fit"};
+  std::unique_ptr<char[]> matcher_str = nullptr;
+  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
+  Maybe<bool> found_matcher =
+      Intl::GetStringOption(isolate, options, "localeMatcher", values,
+                            "Intl.ListFormat", &matcher_str);
+  MAYBE_RETURN(found_matcher, MaybeHandle<JSListFormat>());
+  if (found_matcher.FromJust()) {
+    DCHECK_NOT_NULL(matcher_str.get());
+    if (strcmp(matcher_str.get(), "lookup") == 0) {
+      matcher = Intl::MatcherOption::kLookup;
+    }
+  }
+
+  // 11. Let localeData be %ListFormat%.[[LocaleData]].
+  // 12. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "listformat", input_locales, options),
-      JSListFormat);
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(ICUService::kListFormatter);
+  Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
+                                               requested_locales, matcher, {});
 
-  Handle<Object> locale_obj =
-      JSObject::GetDataProperty(r, factory->locale_string());
-  Handle<String> locale;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, locale, Object::ToString(isolate, locale_obj), JSListFormat);
+  // 21. Set listFormat.[[Locale]] to r.[[Locale]].
+  Handle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  list_format_holder->set_locale(*locale_str);
 
-  // 18. Set listFormat.[[Locale]] to the value of r.[[Locale]].
-  list_format_holder->set_locale(*locale);
-
-  std::unique_ptr<char[]> locale_name = locale->ToCString();
-  icu::Locale icu_locale(locale_name.get());
+  icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
   icu::ListFormatter* formatter = icu::ListFormatter::createInstance(
       icu_locale, GetIcuStyleString(style_enum, type_enum), status);

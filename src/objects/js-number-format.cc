@@ -188,11 +188,13 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   // set the flags to 0 ASAP.
   number_format->set_flags(0);
   Factory* factory = isolate->factory();
+
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-  Handle<JSObject> requested_locales;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locales,
-                             Intl::CanonicalizeLocaleListJS(isolate, locales),
-                             JSNumberFormat);
+  Maybe<std::vector<std::string>> maybe_requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales);
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSNumberFormat>());
+  std::vector<std::string> requested_locales =
+      maybe_requested_locales.FromJust();
 
   // 2. If options is undefined, then
   if (options_obj->IsUndefined(isolate)) {
@@ -211,43 +213,43 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   Handle<JSReceiver> options = Handle<JSReceiver>::cast(options_obj);
 
   // 4. Let opt be a new Record.
-  //
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
-  //
   // 6. Set opt.[[localeMatcher]] to matcher.
-  //
+  const std::vector<const char*> values = {"lookup", "best fit"};
+  std::unique_ptr<char[]> matcher_str = nullptr;
+  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
+  Maybe<bool> found_matcher =
+      Intl::GetStringOption(isolate, options, "localeMatcher", values,
+                            "Intl.NumberFormat", &matcher_str);
+  MAYBE_RETURN(found_matcher, MaybeHandle<JSNumberFormat>());
+  if (found_matcher.FromJust()) {
+    DCHECK_NOT_NULL(matcher_str.get());
+    if (strcmp(matcher_str.get(), "lookup") == 0) {
+      matcher = Intl::MatcherOption::kLookup;
+    }
+  }
+
   // 7. Let localeData be %NumberFormat%.[[LocaleData]].
-  //
   // 8. Let r be ResolveLocale(%NumberFormat%.[[AvailableLocales]],
   // requestedLocales, opt,  %NumberFormat%.[[RelevantExtensionKeys]],
   // localeData).
-  //
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(ICUService::kNumberFormat);
+  std::set<std::string> relevant_extension_keys{"nu"};
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, available_locales, requested_locales,
+                          matcher, relevant_extension_keys);
+
   // 9. Set numberFormat.[[Locale]] to r.[[locale]].
+  Handle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  number_format->set_locale(*locale_str);
 
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "numberformat", requested_locales, options),
-      JSNumberFormat);
-
-  Handle<Object> locale_with_extension_obj = JSObject::GetDataProperty(
-      r, isolate->factory()->localeWithExtension_string());
-
-  // The locale_with_extension has to be a string. Either a user
-  // provided canonicalized string or the default locale.
-  CHECK(locale_with_extension_obj->IsString());
-  Handle<String> locale_with_extension =
-      Handle<String>::cast(locale_with_extension_obj);
-
-  icu::Locale icu_locale =
-      Intl::CreateICULocale(isolate, locale_with_extension);
-  number_format->set_locale(*locale_with_extension);
+  icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
-  std::set<std::string> relevant_extension_keys{"nu"};
-  std::map<std::string, std::string> extensions =
-      Intl::LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
+  std::map<std::string, std::string> extensions = r.extensions;
 
   // The list that is the value of the "nu" field of any locale field of
   // [[LocaleData]] must not include the values "native",  "traditio", or

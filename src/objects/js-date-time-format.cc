@@ -720,7 +720,14 @@ enum FormatMatcherOption { kBestFit, kBasic };
 // ecma402/#sec-initializedatetimeformat
 MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-    Handle<Object> requested_locales, Handle<Object> input_options) {
+    Handle<Object> locales, Handle<Object> input_options) {
+  // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  Maybe<std::vector<std::string>> maybe_requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales);
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSDateTimeFormat>());
+  std::vector<std::string> requested_locales =
+      maybe_requested_locales.FromJust();
+
   // 2. Let options be ? ToDateTimeOptions(options, "any", "date").
   Handle<JSObject> options;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -729,17 +736,22 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
           isolate, input_options, RequiredOption::kAny, DefaultsOption::kDate),
       JSDateTimeFormat);
 
-  // ResolveLocale currently get option of localeMatcher so we have to call
-  // ResolveLocale before "hour12" and "hourCycle".
-  // TODO(ftang): fix this once ResolveLocale is ported to C++
-  // 11. Let r be ResolveLocale( %DateTimeFormat%.[[AvailableLocales]],
-  //     requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]],
-  //     localeData).
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "dateformat", requested_locales, options),
-      JSDateTimeFormat);
+  // 4. Let matcher be ? GetOption(options, "localeMatcher", "string",
+  // « "lookup", "best fit" », "best fit").
+  // 5. Set opt.[[localeMatcher]] to matcher.
+  std::vector<const char*> values = {"lookup", "best fit"};
+  std::unique_ptr<char[]> locale_matcher_str = nullptr;
+  Intl::MatcherOption locale_matcher = Intl::MatcherOption::kBestFit;
+  Maybe<bool> found_locale_matcher =
+      Intl::GetStringOption(isolate, options, "localeMatcher", values,
+                            "Intl.DateTimeFormat", &locale_matcher_str);
+  MAYBE_RETURN(found_locale_matcher, MaybeHandle<JSDateTimeFormat>());
+  if (found_locale_matcher.FromJust()) {
+    DCHECK_NOT_NULL(locale_matcher_str.get());
+    if (strcmp(locale_matcher_str.get(), "lookup") == 0) {
+      locale_matcher = Intl::MatcherOption::kLookup;
+    }
+  }
 
   // 6. Let hour12 be ? GetOption(options, "hour12", "boolean", undefined,
   // undefined).
@@ -768,17 +780,18 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   // 9. Set opt.[[hc]] to hourCycle.
   // TODO(ftang): change behavior based on hour_cycle.
 
-  Handle<Object> locale_with_extension_obj = JSObject::GetDataProperty(
-      r, isolate->factory()->localeWithExtension_string());
+  // 10. Let localeData be %DateTimeFormat%.[[LocaleData]].
+  // 11. Let r be ResolveLocale( %DateTimeFormat%.[[AvailableLocales]],
+  //     requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]],
+  //     localeData).
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(ICUService::kDateFormat);
+  Intl::ResolvedLocale r = Intl::ResolveLocale(
+      isolate, available_locales, requested_locales, locale_matcher, {"nu"});
 
-  // The locale_with_extension has to be a string. Either a user
-  // provided canonicalized string or the default locale.
-  CHECK(locale_with_extension_obj->IsString());
-  Handle<String> locale_with_extension =
-      Handle<String>::cast(locale_with_extension_obj);
-
-  icu::Locale icu_locale =
-      Intl::CreateICULocale(isolate, locale_with_extension);
+  // TODO(ftang): Make sure that "nu" key doesn't have "native",
+  // "traditio" or "finance" values.
+  icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
   // 17. Let timeZone be ? Get(options, "timeZone").

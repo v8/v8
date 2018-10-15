@@ -56,43 +56,65 @@ JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::getNumeric(
 
 MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
     Isolate* isolate, Handle<JSRelativeTimeFormat> relative_time_format_holder,
-    Handle<Object> input_locales, Handle<Object> input_options) {
-  Factory* factory = isolate->factory();
+    Handle<Object> locales, Handle<Object> input_options) {
   relative_time_format_holder->set_flags(0);
-  // 4. If options is undefined, then
+
+  // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  Maybe<std::vector<std::string>> maybe_requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales);
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSRelativeTimeFormat>());
+  std::vector<std::string> requested_locales =
+      maybe_requested_locales.FromJust();
+
+  // 2. If options is undefined, then
   Handle<JSReceiver> options;
   if (input_options->IsUndefined(isolate)) {
-    // a. Let options be ObjectCreate(null).
+    // 2. a. Let options be ObjectCreate(null).
     options = isolate->factory()->NewJSObjectWithNullProto();
-    // 5. Else
+    // 3. Else
   } else {
-    // a. Let options be ? ToObject(options).
+    // 3. a. Let options be ? ToObject(options).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
                                Object::ToObject(isolate, input_options),
                                JSRelativeTimeFormat);
   }
 
-  // 10. Let r be ResolveLocale(%RelativeTimeFormat%.[[AvailableLocales]],
-  //                            requestedLocales, opt,
-  //                            %RelativeTimeFormat%.[[RelevantExtensionKeys]],
-  //                            localeData).
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, r,
-                             Intl::ResolveLocale(isolate, "relativetimeformat",
-                                                 input_locales, options),
-                             JSRelativeTimeFormat);
-  Handle<Object> locale_obj =
-      JSObject::GetDataProperty(r, factory->locale_string());
-  Handle<String> locale;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, locale,
-                             Object::ToString(isolate, locale_obj),
-                             JSRelativeTimeFormat);
+  // 4. Let opt be a new Record.
+  // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
+  // "lookup", "best fit" », "best fit").
+  // 6. Set opt.[[localeMatcher]] to matcher.
+  const std::vector<const char*> values = {"lookup", "best fit"};
+  std::unique_ptr<char[]> matcher_str = nullptr;
+  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
+  Maybe<bool> found_matcher =
+      Intl::GetStringOption(isolate, options, "localeMatcher", values,
+                            "Intl.RelativeTimeFormat", &matcher_str);
+  MAYBE_RETURN(found_matcher, MaybeHandle<JSRelativeTimeFormat>());
+  if (found_matcher.FromJust()) {
+    DCHECK_NOT_NULL(matcher_str.get());
+    if (strcmp(matcher_str.get(), "lookup") == 0) {
+      matcher = Intl::MatcherOption::kLookup;
+    }
+  }
 
-  // 11. Let locale be r.[[Locale]].
-  // 12. Set relativeTimeFormat.[[Locale]] to locale.
-  relative_time_format_holder->set_locale(*locale);
+  // 7. Let localeData be %RelativeTimeFormat%.[[LocaleData]].
+  // 8. Let r be
+  // ResolveLocale(%RelativeTimeFormat%.[[AvailableLocales]],
+  //               requestedLocales, opt,
+  //               %RelativeTimeFormat%.[[RelevantExtensionKeys]], localeData).
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(ICUService::kRelativeDateTimeFormatter);
+  Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
+                                               requested_locales, matcher, {});
 
-  // 14. Let s be ? GetOption(options, "style", "string",
+  // 9. Let locale be r.[[Locale]].
+  // 10. Set relativeTimeFormat.[[Locale]] to locale.
+  // 11. Let dataLocale be r.[[DataLocale]].
+  Handle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  relative_time_format_holder->set_locale(*locale_str);
+
+  // 12. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   std::unique_ptr<char[]> style_str = nullptr;
   std::vector<const char*> style_values = {"long", "short", "narrow"};
@@ -106,10 +128,10 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
     style_enum = getStyle(style_str.get());
   }
 
-  // 15. Set relativeTimeFormat.[[Style]] to s.
+  // 13. Set relativeTimeFormat.[[Style]] to s.
   relative_time_format_holder->set_style(style_enum);
 
-  // 16. Let numeric be ? GetOption(options, "numeric", "string",
+  // 14. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
   std::unique_ptr<char[]> numeric_str = nullptr;
   std::vector<const char*> numeric_values = {"always", "auto"};
@@ -123,14 +145,13 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
     numeric_enum = getNumeric(numeric_str.get());
   }
 
-  // 17. Set relativeTimeFormat.[[Numeric]] to numeric.
+  // 15. Set relativeTimeFormat.[[Numeric]] to numeric.
   relative_time_format_holder->set_numeric(numeric_enum);
 
-  std::unique_ptr<char[]> locale_name = locale->ToCString();
-  icu::Locale icu_locale(locale_name.get());
+  icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
 
-  // 25. Let relativeTimeFormat.[[NumberFormat]] be
+  // 19. Let relativeTimeFormat.[[NumberFormat]] be
   //     ? Construct(%NumberFormat%, « nfLocale, nfOptions »).
   icu::NumberFormat* number_format =
       icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
@@ -159,9 +180,10 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
       Managed<icu::RelativeDateTimeFormatter>::FromRawPtr(isolate, 0,
                                                           icu_formatter);
 
-  // 30. Set relativeTimeFormat.[[InitializedRelativeTimeFormat]] to true.
+  // 21. Set relativeTimeFormat.[[InitializedRelativeTimeFormat]] to true.
   relative_time_format_holder->set_icu_formatter(*managed_formatter);
-  // 31. Return relativeTimeFormat.
+
+  // 22. Return relativeTimeFormat.
   return relative_time_format_holder;
 }
 

@@ -71,8 +71,6 @@ enum ContextLookupFlags {
   V(ARRAY_FOR_EACH_ITERATOR_INDEX, JSFunction, array_for_each_iterator)   \
   V(ARRAY_KEYS_ITERATOR_INDEX, JSFunction, array_keys_iterator)           \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)       \
-  V(CANONICALIZE_LOCALE_LIST_FUNCTION_INDEX, JSFunction,                  \
-    canonicalize_locale_list)                                             \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                     \
   V(ERROR_TO_STRING, JSFunction, error_to_string)                         \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)           \
@@ -91,7 +89,6 @@ enum ContextLookupFlags {
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function) \
   V(CACHED_OR_NEW_SERVICE_LOCALE_FUNCTION_INDEX, JSFunction,              \
     cached_or_new_service)                                                \
-  V(RESOLVE_LOCALE_FUNCTION_INDEX, JSFunction, resolve_locale)            \
   V(SET_ADD_INDEX, JSFunction, set_add)                                   \
   V(SET_DELETE_INDEX, JSFunction, set_delete)                             \
   V(SET_HAS_INDEX, JSFunction, set_has)                                   \

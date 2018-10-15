@@ -222,10 +222,11 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
                                                Handle<Object> locales,
                                                Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-  Handle<JSObject> requested_locales;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locales,
-                             Intl::CanonicalizeLocaleListJS(isolate, locales),
-                             JSCollator);
+  Maybe<std::vector<std::string>> maybe_requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales);
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSCollator>());
+  std::vector<std::string> requested_locales =
+      maybe_requested_locales.FromJust();
 
   // 2. If options is undefined, then
   if (options_obj->IsUndefined(isolate)) {
@@ -258,13 +259,21 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
     }
   }
 
-  // TODO(gsathya): This is currently done as part of the
-  // Intl::ResolveLocale call below. Fix this once resolveLocale is
-  // changed to not do the lookup.
-  //
   // 9. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
   // 10. Set opt.[[localeMatcher]] to matcher.
+  values = {"lookup", "best fit"};
+  std::unique_ptr<char[]> matcher_str = nullptr;
+  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
+  Maybe<bool> found_matcher = Intl::GetStringOption(
+      isolate, options, "localeMatcher", values, "Intl.Collator", &matcher_str);
+  MAYBE_RETURN(found_matcher, MaybeHandle<JSCollator>());
+  if (found_matcher.FromJust()) {
+    DCHECK_NOT_NULL(matcher_str.get());
+    if (strcmp(matcher_str.get(), "lookup") == 0) {
+      matcher = Intl::MatcherOption::kLookup;
+    }
+  }
 
   // 11. Let numeric be ? GetOption(options, "numeric", "boolean",
   // undefined, undefined).
@@ -296,48 +305,20 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
   // 16. Let relevantExtensionKeys be %Collator%.[[RelevantExtensionKeys]].
   std::set<std::string> relevant_extension_keys{"co", "kn", "kf"};
 
-  // We don't pass the relevant_extension_keys to ResolveLocale here
-  // as per the spec.
-  //
-  // In ResolveLocale, the spec makes sure we only pick and use the
-  // relevant extension keys and ignore any other keys. Also, in
-  // ResolveLocale, the spec makes sure that if a given key has both a
-  // value in the options object and an unicode extension value, then
-  // we pick the value provided in the options object.
-  // For example: in the case of `new Intl.Collator('en-u-kn-true', {
-  // numeric: false })` the value `false` is used for the `numeric`
-  // key.
-  //
-  // Instead of performing all this validation in ResolveLocale, we
-  // just perform it inline below. In the future when we port
-  // ResolveLocale to C++, we can make all these validations generic
-  // and move it ResolveLocale.
-  //
   // 17. Let r be ResolveLocale(%Collator%.[[AvailableLocales]],
   // requestedLocales, opt, %Collator%.[[RelevantExtensionKeys]],
   // localeData).
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(ICUService::kCollator);
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, available_locales, requested_locales,
+                          matcher, relevant_extension_keys);
+
   // 18. Set collator.[[Locale]] to r.[[locale]].
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "collator", requested_locales, options),
-      JSCollator);
-
-  Handle<Object> locale_with_extension_obj = JSObject::GetDataProperty(
-      r, isolate->factory()->localeWithExtension_string());
-
-  // The locale_with_extension has to be a string. Either a user
-  // provided canonicalized string or the default locale.
-  CHECK(locale_with_extension_obj->IsString());
-  Handle<String> locale_with_extension =
-      Handle<String>::cast(locale_with_extension_obj);
-
-  icu::Locale icu_locale =
-      Intl::CreateICULocale(isolate, locale_with_extension);
+  icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
-  std::map<std::string, std::string> extensions =
-      Intl::LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
+  std::map<std::string, std::string> extensions = r.extensions;
 
   // 19. Let collation be r.[[co]].
   //
