@@ -1622,19 +1622,16 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserExpression ExpressionFromLiteral(Token::Value token,
                                                       int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression ExpressionFromIdentifier(
-      const PreParserIdentifier& name, int start_position,
-      InferName infer = InferName::kYes);
-
-  V8_INLINE PreParserExpression ExpressionFromString(int pos) {
+    if (token != Token::STRING) return PreParserExpression::Default();
     if (scanner()->IsUseStrict()) {
       return PreParserExpression::UseStrictStringLiteral();
     }
     return PreParserExpression::StringLiteral();
   }
+
+  PreParserExpression ExpressionFromIdentifier(
+      const PreParserIdentifier& name, int start_position,
+      InferName infer = InferName::kYes);
 
   V8_INLINE PreParserExpressionList NewExpressionList(int size) const {
     return PreParserExpressionList();

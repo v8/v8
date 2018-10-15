@@ -1772,53 +1772,31 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
 
   int beg_pos = peek_position();
   Token::Value token = peek();
+
+  if (IsInRange(token, Token::IDENTIFIER,
+                Token::ESCAPED_STRICT_RESERVED_WORD)) {
+    if (token == Token::ASYNC && !scanner()->HasLineTerminatorAfterNext() &&
+        PeekAhead() == Token::FUNCTION) {
+      BindingPatternUnexpectedToken();
+      Consume(Token::ASYNC);
+      return ParseAsyncFunctionLiteral(ok);
+    }
+    // Using eval or arguments in this context is OK even in strict mode.
+    IdentifierT name = ParseAndClassifyIdentifier(CHECK_OK);
+    return impl()->ExpressionFromIdentifier(name, beg_pos);
+  }
+  DCHECK_IMPLIES(Token::IsAnyIdentifier(token), token == Token::ENUM);
+
+  if (Token::IsLiteral(token)) {
+    BindingPatternUnexpectedToken();
+    return impl()->ExpressionFromLiteral(Next(), beg_pos);
+  }
+
   switch (token) {
     case Token::THIS: {
       BindingPatternUnexpectedToken();
       Consume(Token::THIS);
       return impl()->ThisExpression(beg_pos);
-    }
-
-    case Token::NULL_LITERAL:
-    case Token::TRUE_LITERAL:
-    case Token::FALSE_LITERAL:
-    case Token::SMI:
-    case Token::NUMBER:
-    case Token::BIGINT: {
-      // Ensure continuous enum range.
-      DCHECK(Token::IsLiteral(token));
-      BindingPatternUnexpectedToken();
-      return impl()->ExpressionFromLiteral(Next(), beg_pos);
-    }
-    case Token::STRING: {
-      DCHECK(Token::IsLiteral(token));
-      BindingPatternUnexpectedToken();
-      Consume(Token::STRING);
-      return impl()->ExpressionFromString(beg_pos);
-    }
-
-    case Token::ASYNC:
-      if (!scanner()->HasLineTerminatorAfterNext() &&
-          PeekAhead() == Token::FUNCTION) {
-        BindingPatternUnexpectedToken();
-        Consume(Token::ASYNC);
-        return ParseAsyncFunctionLiteral(ok);
-      }
-      // CoverCallExpressionAndAsyncArrowHead
-      V8_FALLTHROUGH;
-    case Token::IDENTIFIER:
-    case Token::LET:
-    case Token::STATIC:
-    case Token::YIELD:
-    case Token::AWAIT:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-    case Token::ESCAPED_STRICT_RESERVED_WORD: {
-      // Ensure continuous enum range.
-      DCHECK(IsInRange(token, Token::IDENTIFIER,
-                       Token::ESCAPED_STRICT_RESERVED_WORD));
-      // Using eval or arguments in this context is OK even in strict mode.
-      IdentifierT name = ParseAndClassifyIdentifier(CHECK_OK);
-      return impl()->ExpressionFromIdentifier(name, beg_pos);
     }
 
     case Token::ASSIGN_DIV:

@@ -876,12 +876,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return NewUnresolved(name, start_position);
   }
 
-  V8_INLINE Expression* ExpressionFromString(int pos) {
-    const AstRawString* symbol = GetSymbol();
-    fni_.PushLiteralName(symbol);
-    return factory()->NewStringLiteral(symbol, pos);
-  }
-
   V8_INLINE ZonePtrList<Expression>* NewExpressionList(int size) const {
     return new (zone()) ZonePtrList<Expression>(size, zone());
   }
