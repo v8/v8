@@ -1260,10 +1260,9 @@ class ParserBase {
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
   // we allow calls for web compatibility and rewrite them to a runtime throw.
-  ExpressionT CheckAndRewriteReferenceExpression(ExpressionT expression,
-                                                 int beg_pos, int end_pos,
-                                                 MessageTemplate message,
-                                                 bool* ok);
+  V8_INLINE ExpressionT CheckAndRewriteReferenceExpression(
+      ExpressionT expression, int beg_pos, int end_pos, MessageTemplate message,
+      bool* ok);
   ExpressionT CheckAndRewriteReferenceExpression(ExpressionT expression,
                                                  int beg_pos, int end_pos,
                                                  MessageTemplate message,
