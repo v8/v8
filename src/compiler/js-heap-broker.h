@@ -240,8 +240,13 @@ class ContextRef : public HeapObjectRef {
 
 #define BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V) \
   V(JSFunction, array_function)                    \
+  V(JSFunction, boolean_function)                  \
+  V(JSFunction, bigint_function)                   \
+  V(JSFunction, number_function)                   \
   V(JSFunction, object_function)                   \
   V(JSFunction, promise_function)                  \
+  V(JSFunction, string_function)                   \
+  V(JSFunction, symbol_function)                   \
   V(Map, fast_aliased_arguments_map)               \
   V(Map, initial_array_iterator_map)               \
   V(Map, initial_string_iterator_map)              \
@@ -282,6 +287,7 @@ class NativeContextRef : public ContextRef {
 
   MapRef GetFunctionMapFromIndex(int index) const;
   MapRef GetInitialJSArrayMap(ElementsKind kind) const;
+  base::Optional<JSFunctionRef> GetConstructorFunction(const MapRef& map) const;
 };
 
 class NameRef : public HeapObjectRef {
@@ -347,6 +353,7 @@ class MapRef : public HeapObjectRef {
   int GetInObjectPropertiesStartInWords() const;
   int NumberOfOwnDescriptors() const;
   int GetInObjectPropertyOffset(int index) const;
+  int constructor_function_index() const;
   ElementsKind elements_kind() const;
   bool is_stable() const;
   bool is_constructor() const;
@@ -357,6 +364,7 @@ class MapRef : public HeapObjectRef {
   bool IsInobjectSlackTrackingInProgress() const;
   bool is_dictionary_map() const;
   bool IsFixedCowArrayMap() const;
+  bool IsPrimitiveMap() const;
   bool is_undetectable() const;
   bool is_callable() const;
 

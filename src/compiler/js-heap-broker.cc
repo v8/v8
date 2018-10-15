@@ -610,6 +610,7 @@ class MapData : public HeapObjectData {
     CHECK(InstanceTypeChecker::IsJSObject(instance_type()));
     return in_object_properties_;
   }
+  int constructor_function_index() const { return constructor_function_index_; }
 
   // Extra information.
 
@@ -649,6 +650,7 @@ class MapData : public HeapObjectData {
   bool const can_transition_;
   int const in_object_properties_start_in_words_;
   int const in_object_properties_;
+  int const constructor_function_index_;
 
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<MapData*> elements_kind_generalizations_;
@@ -726,6 +728,9 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
                                   : 0),
       in_object_properties_(
           object->IsJSObjectMap() ? object->GetInObjectProperties() : 0),
+      constructor_function_index_(object->IsPrimitiveMap()
+                                      ? object->GetConstructorFunctionIndex()
+                                      : Map::kNoConstructorFunctionIndex),
       elements_kind_generalizations_(broker->zone()) {}
 
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
@@ -1893,6 +1898,10 @@ bool MapRef::IsFixedCowArrayMap() const {
   return equals(MapRef(broker(), fixed_cow_array_map));
 }
 
+bool MapRef::IsPrimitiveMap() const {
+  return instance_type() <= LAST_PRIMITIVE_TYPE;
+}
+
 MapRef MapRef::FindFieldOwner(int descriptor_index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
@@ -2086,6 +2095,12 @@ bool MapRef::IsInobjectSlackTrackingInProgress() const {
          Map::kNoSlackTracking;
 }
 
+int MapRef::constructor_function_index() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, GetConstructorFunctionIndex);
+  CHECK(IsPrimitiveMap());
+  return data()->AsMap()->constructor_function_index();
+}
+
 bool MapRef::is_stable() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, is_stable);
   return !Map::IsUnstableBit::decode(data()->AsMap()->bit_field3());
@@ -2151,6 +2166,27 @@ MapRef NativeContextRef::GetInitialJSArrayMap(ElementsKind kind) const {
       return js_array_packed_elements_map();
     case HOLEY_ELEMENTS:
       return js_array_holey_elements_map();
+    default:
+      UNREACHABLE();
+  }
+}
+
+base::Optional<JSFunctionRef> NativeContextRef::GetConstructorFunction(
+    const MapRef& map) const {
+  CHECK(map.IsPrimitiveMap());
+  switch (map.constructor_function_index()) {
+    case Map::kNoConstructorFunctionIndex:
+      return base::nullopt;
+    case Context::BIGINT_FUNCTION_INDEX:
+      return bigint_function();
+    case Context::BOOLEAN_FUNCTION_INDEX:
+      return boolean_function();
+    case Context::NUMBER_FUNCTION_INDEX:
+      return number_function();
+    case Context::STRING_FUNCTION_INDEX:
+      return string_function();
+    case Context::SYMBOL_FUNCTION_INDEX:
+      return symbol_function();
     default:
       UNREACHABLE();
   }

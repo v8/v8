@@ -7072,7 +7072,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   Handle<JSObject> holder;
   if (ai_exec.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        broker(), native_context(), ai_exec.receiver_maps(), holder);
+        broker(), ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
   }
 
   if (need_map_check) {

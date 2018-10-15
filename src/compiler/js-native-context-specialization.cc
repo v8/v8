@@ -422,8 +422,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       Handle<JSObject> holder;
       if (access_info.holder().ToHandle(&holder)) {
         dependencies()->DependOnStablePrototypeChains(
-            broker(), native_context().object<Context>(),
-            access_info.receiver_maps(), holder);
+            broker(), access_info.receiver_maps(),
+            JSObjectRef(broker(), holder));
       }
 
       // Check that {constructor} is actually {receiver}.
@@ -448,8 +448,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
       dependencies()->DependOnStablePrototypeChains(
-          broker(), native_context().object<Context>(),
-          access_info.receiver_maps(), holder);
+          broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
     } else {
       holder = receiver;
     }
@@ -714,8 +713,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        broker(), native_context().object<Context>(),
-        access_info.receiver_maps(), holder);
+        broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
   }
 
   // Simply fulfill the {promise} with the {resolution}.
@@ -2031,8 +2029,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        broker(), native_context().object<Context>(),
-        access_info.receiver_maps(), holder);
+        broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
   }
 
   // Generate the actual property access.
@@ -2091,8 +2088,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
   if (access_info.holder().ToHandle(&holder)) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
     dependencies()->DependOnStablePrototypeChains(
-        broker(), native_context().object<Context>(),
-        access_info.receiver_maps(), holder);
+        broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
   }
 
   DCHECK(!access_info.IsNotFound());
@@ -3140,7 +3136,8 @@ bool JSNativeContextSpecialization::InferReceiverMaps(
     // For untrusted receiver maps, we can still use the information
     // if the maps are stable.
     for (size_t i = 0; i < maps.size(); ++i) {
-      if (!maps[i]->is_stable()) return false;
+      MapRef map(broker(), maps[i]);
+      if (!map.is_stable()) return false;
     }
     for (size_t i = 0; i < maps.size(); ++i) {
       receiver_maps->push_back(maps[i]);

@@ -388,37 +388,34 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 }
 
 namespace {
+// This function expects to never see a JSProxy.
 void DependOnStablePrototypeChain(JSHeapBroker* broker,
-                                  CompilationDependencies* deps,
-                                  Handle<Map> map,
-                                  MaybeHandle<JSReceiver> last_prototype) {
-  for (PrototypeIterator i(broker->isolate(), map); !i.IsAtEnd(); i.Advance()) {
-    Handle<JSReceiver> const current =
-        PrototypeIterator::GetCurrent<JSReceiver>(i);
-    deps->DependOnStableMap(
-        MapRef(broker, handle(current->map(), broker->isolate())));
-    Handle<JSReceiver> last;
-    if (last_prototype.ToHandle(&last) && last.is_identical_to(current)) {
-      break;
-    }
+                                  CompilationDependencies* deps, MapRef map,
+                                  const JSObjectRef& last_prototype) {
+  while (true) {
+    map.SerializePrototype();
+    JSObjectRef proto = map.prototype().AsJSObject();
+    map = proto.map();
+    deps->DependOnStableMap(map);
+    if (proto.equals(last_prototype)) break;
   }
 }
 }  // namespace
 
 void CompilationDependencies::DependOnStablePrototypeChains(
-    JSHeapBroker* broker, Handle<Context> native_context,
-    std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder) {
-  Isolate* isolate = holder->GetIsolate();
+    JSHeapBroker* broker, std::vector<Handle<Map>> const& receiver_maps,
+    const JSObjectRef& holder) {
   // Determine actual holder and perform prototype chain checks.
   for (auto map : receiver_maps) {
-    // Perform the implicit ToObject for primitives here.
-    // Implemented according to ES6 section 7.3.2 GetV (V, P).
-    Handle<JSFunction> constructor;
-    if (Map::GetConstructorFunction(map, native_context)
-            .ToHandle(&constructor)) {
-      map = handle(constructor->initial_map(), isolate);
+    MapRef receiver_map(broker, map);
+    if (receiver_map.IsPrimitiveMap()) {
+      // Perform the implicit ToObject for primitives here.
+      // Implemented according to ES6 section 7.3.2 GetV (V, P).
+      base::Optional<JSFunctionRef> constructor =
+          broker->native_context().GetConstructorFunction(receiver_map);
+      if (constructor.has_value()) receiver_map = constructor->initial_map();
     }
-    DependOnStablePrototypeChain(broker, this, map, holder);
+    DependOnStablePrototypeChain(broker, this, receiver_map, holder);
   }
 }
 
