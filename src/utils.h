@@ -161,12 +161,6 @@ int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
   return Compare<T*>(*(*a), *(*b));
 }
 
-
-template <typename T, typename U>
-inline bool IsAligned(T value, U alignment) {
-  return (value & (alignment - 1)) == 0;
-}
-
 // Returns the maximum of the two parameters.
 template <typename T>
 constexpr T Max(T a, T b) {
