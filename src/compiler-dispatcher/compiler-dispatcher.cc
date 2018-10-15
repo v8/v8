@@ -19,7 +19,7 @@ namespace v8 {
 namespace internal {
 
 CompilerDispatcher::Job::Job(BackgroundCompileTask* task_arg)
-    : task(task_arg), has_run(false) {}
+    : task(task_arg), has_run(false), aborted(false) {}
 
 CompilerDispatcher::Job::~Job() = default;
 
@@ -168,12 +168,31 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   }
 
   DCHECK(job->IsReadyToFinalize(&mutex_));
+  DCHECK(!job->aborted);
   bool success = Compiler::FinalizeBackgroundCompileTask(
       job->task.get(), function, isolate_, Compiler::KEEP_EXCEPTION);
 
   DCHECK_NE(success, isolate_->has_pending_exception());
   RemoveJob(it);
   return success;
+}
+
+void CompilerDispatcher::AbortJob(JobId job_id) {
+  if (trace_compiler_dispatcher_) {
+    PrintF("CompilerDispatcher: aborted job %zu\n", job_id);
+  }
+  JobMap::const_iterator job_it = jobs_.find(job_id);
+  Job* job = job_it->second.get();
+
+  base::LockGuard<base::Mutex> lock(&mutex_);
+  pending_background_jobs_.erase(job);
+  if (running_background_jobs_.find(job) == running_background_jobs_.end()) {
+    RemoveJob(job_it);
+  } else {
+    // Job is currently running on the background thread, wait until it's done
+    // and remove job then.
+    job->aborted = true;
+  }
 }
 
 void CompilerDispatcher::AbortAll() {
@@ -318,9 +337,11 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
     }
 
     Job* job = it->second.get();
-    Compiler::FinalizeBackgroundCompileTask(
-        job->task.get(), job->function.ToHandleChecked(), isolate_,
-        Compiler::CLEAR_EXCEPTION);
+    if (!job->aborted) {
+      Compiler::FinalizeBackgroundCompileTask(
+          job->task.get(), job->function.ToHandleChecked(), isolate_,
+          Compiler::CLEAR_EXCEPTION);
+    }
     RemoveJob(it);
   }
 

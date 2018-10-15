@@ -101,6 +101,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // possible). Returns true if the compile job was successful.
   bool FinishNow(Handle<SharedFunctionInfo> function);
 
+  // Aborts compilation job |job_id|.
+  void AbortJob(JobId job_id);
+
   // Aborts all jobs, blocking until all jobs are aborted.
   void AbortAll();
 
@@ -108,6 +111,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskNoIdleTime);
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
   FRIEND_TEST(CompilerDispatcherTest, FinishNowWithWorkerTask);
+  FRIEND_TEST(CompilerDispatcherTest, AbortJobNotStarted);
+  FRIEND_TEST(CompilerDispatcherTest, AbortJobAlreadyStarted);
   FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingWorkerTask);
   FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
   FRIEND_TEST(CompilerDispatcherTest, CompileMultipleOnBackgroundThread);
@@ -117,7 +122,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
     ~Job();
 
     bool IsReadyToFinalize(const base::MutexGuard&) {
-      return has_run && !function.is_null();
+      return aborted || (has_run && !function.is_null());
     }
 
     bool IsReadyToFinalize(base::Mutex* mutex) {
@@ -128,6 +133,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
     std::unique_ptr<BackgroundCompileTask> task;
     MaybeHandle<SharedFunctionInfo> function;
     bool has_run;
+    bool aborted;
   };
 
   typedef std::map<JobId, std::unique_ptr<Job>> JobMap;

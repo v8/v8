@@ -640,6 +640,101 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
   dispatcher.AbortAll();
 }
 
+TEST_F(CompilerDispatcherTest, AbortJobNotStarted) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  Handle<SharedFunctionInfo> shared =
+      test::CreateSharedFunctionInfo(i_isolate(), nullptr);
+  ASSERT_FALSE(shared->is_compiled());
+
+  base::Optional<CompilerDispatcher::JobId> job_id =
+      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
+
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+
+  ASSERT_TRUE(dispatcher.IsEnqueued(*job_id));
+  ASSERT_FALSE(shared->is_compiled());
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+  ASSERT_TRUE(platform.WorkerTasksPending());
+
+  dispatcher.AbortJob(*job_id);
+
+  // Aborting removes the job from the queue.
+  ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
+  ASSERT_FALSE(shared->is_compiled());
+  ASSERT_FALSE(platform.IdleTaskPending());
+  platform.ClearWorkerTasks();
+  dispatcher.AbortAll();
+}
+
+TEST_F(CompilerDispatcherTest, AbortJobAlreadyStarted) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  Handle<SharedFunctionInfo> shared =
+      test::CreateSharedFunctionInfo(i_isolate(), nullptr);
+  ASSERT_FALSE(shared->is_compiled());
+
+  base::Optional<CompilerDispatcher::JobId> job_id =
+      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
+
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+
+  ASSERT_TRUE(dispatcher.IsEnqueued(*job_id));
+  ASSERT_FALSE(shared->is_compiled());
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+  ASSERT_TRUE(platform.WorkerTasksPending());
+
+  // Have dispatcher block on the background thread when running the job.
+  {
+    base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
+    dispatcher.block_for_testing_.SetValue(true);
+  }
+
+  // Start background thread and wait until it is about to run the job.
+  platform.RunWorkerTasks(V8::GetCurrentPlatform());
+  while (dispatcher.block_for_testing_.Value()) {
+  }
+
+  // Now abort while dispatcher is in the middle of running the job.
+  dispatcher.AbortJob(*job_id);
+
+  // Unblock background thread, and wait for job to complete.
+  {
+    base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
+    dispatcher.main_thread_blocking_on_job_ =
+        dispatcher.jobs_.begin()->second.get();
+    dispatcher.semaphore_for_testing_.Signal();
+    while (dispatcher.main_thread_blocking_on_job_ != nullptr) {
+      dispatcher.main_thread_blocking_signal_.Wait(&dispatcher.mutex_);
+    }
+  }
+
+  // Job should have finished running and then been aborted.
+  ASSERT_TRUE(dispatcher.IsEnqueued(*job_id));
+  ASSERT_FALSE(shared->is_compiled());
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->aborted);
+  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_TRUE(platform.IdleTaskPending());
+
+  // Runt the pending idle task
+  platform.RunIdleTask(1000.0, 0.0);
+
+  // Aborting removes the SFI from the queue.
+  ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
+  ASSERT_FALSE(shared->is_compiled());
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_FALSE(platform.WorkerTasksPending());
+  dispatcher.AbortAll();
+}
+
 TEST_F(CompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
   // Use the real dispatcher so that CompileLazy checks the same one for
   // enqueued functions.

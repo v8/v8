@@ -828,9 +828,9 @@ MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
           script->FindSharedFunctionInfo(isolate, literal);
       Handle<SharedFunctionInfo> shared_for_task;
       if (maybe_shared_for_task.ToHandle(&shared_for_task)) {
-        // TODO(rmcilroy): Abort job if there is no shared function info for
-        // the literal.
         dispatcher->RegisterSharedFunctionInfo(job_id, *shared_for_task);
+      } else {
+        dispatcher->AbortJob(job_id);
       }
     }
   }
