@@ -545,3 +545,26 @@ function checkStack(stack, expected_lines) {
   assertThrows(
       () => instance0.exports.main(0), WebAssembly.RuntimeError, 'unreachable');
 })();
+
+(function testSerializeInterpreted() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_i_i)
+      .addBody([kExprGetLocal, 0, kExprI32Const, 7, kExprI32Add])
+      .exportFunc();
+
+  const wire_bytes = builder.toBuffer();
+  var module = new WebAssembly.Module(wire_bytes);
+  const i1 = new WebAssembly.Instance(module);
+
+  assertEquals(11, i1.exports.main(4));
+
+  const buff = %SerializeWasmModule(module);
+  module = null;
+  gc();
+
+  module = %DeserializeWasmModule(buff, wire_bytes);
+  const i2 = new WebAssembly.Instance(module);
+
+  assertEquals(11, i2.exports.main(4));
+})();

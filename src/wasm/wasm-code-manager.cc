@@ -427,11 +427,13 @@ WasmCode* NativeModule::AddOwnedCode(
   return code;
 }
 
-WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code, uint32_t index) {
+WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code,
+                                            uint32_t func_index) {
   WasmCode* ret = AddAnonymousCode(code, WasmCode::kInterpreterEntry);
-  ret->index_ = index;
+  ret->index_ = func_index;
   base::MutexGuard lock(&allocation_mutex_);
   InstallCode(ret);
+  SetInterpreterRedirection(func_index);
   return ret;
 }
 
@@ -608,10 +610,8 @@ void NativeModule::PublishCode(WasmCode* code) {
   base::MutexGuard lock(&allocation_mutex_);
   // Skip publishing code if there is an active redirection to the interpreter
   // for the given function index, in order to preserve the redirection.
-  if (has_code(code->index()) &&
-      this->code(code->index())->kind() == WasmCode::kInterpreterEntry) {
-    return;
-  }
+  if (has_interpreter_redirection(code->index())) return;
+
   if (!code->protected_instructions_.is_empty()) {
     code->RegisterTrapHandlerData();
   }
@@ -649,8 +649,10 @@ void NativeModule::InstallCode(WasmCode* code) {
   DCHECK_LT(code->index(), num_functions());
   DCHECK_LE(module_->num_imported_functions, code->index());
 
-  // Update code table.
-  code_table_[code->index() - module_->num_imported_functions] = code;
+  // Update code table, except for interpreter entries.
+  if (code->kind() != WasmCode::kInterpreterEntry) {
+    code_table_[code->index() - module_->num_imported_functions] = code;
+  }
 
   // Patch jump table.
   uint32_t slot_idx = code->index() - module_->num_imported_functions;

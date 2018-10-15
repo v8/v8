@@ -378,6 +378,30 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return {code_table_.get(), module_->num_declared_functions};
   }
 
+  // Hold the {mutex_} when calling this method.
+  bool has_interpreter_redirection(uint32_t func_index) {
+    DCHECK_LT(func_index, num_functions());
+    DCHECK_LE(module_->num_imported_functions, func_index);
+    if (!interpreter_redirections_) return false;
+    uint32_t bitset_idx = func_index - module_->num_imported_functions;
+    uint8_t byte = interpreter_redirections_[bitset_idx / kBitsPerByte];
+    return byte & (1 << (bitset_idx % kBitsPerByte));
+  }
+
+  // Hold the {mutex_} when calling this method.
+  void SetInterpreterRedirection(uint32_t func_index) {
+    DCHECK_LT(func_index, num_functions());
+    DCHECK_LE(module_->num_imported_functions, func_index);
+    if (!interpreter_redirections_) {
+      interpreter_redirections_.reset(
+          new uint8_t[RoundUp<kBitsPerByte>(module_->num_declared_functions) /
+                      kBitsPerByte]);
+    }
+    uint32_t bitset_idx = func_index - module_->num_imported_functions;
+    uint8_t& byte = interpreter_redirections_[bitset_idx / kBitsPerByte];
+    byte |= 1 << (bitset_idx % kBitsPerByte);
+  }
+
   // Features enabled for this module. We keep a copy of the features that
   // were enabled at the time of the creation of this native module,
   // to be consistent across asynchronous compilations later.
@@ -413,6 +437,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::vector<std::unique_ptr<WasmCode>> owned_code_;
 
   std::unique_ptr<WasmCode* []> code_table_;
+
+  // Null if no redirections exist, otherwise a bitset over all functions in
+  // this module marking those functions that have been redirected.
+  std::unique_ptr<uint8_t[]> interpreter_redirections_;
 
   DisjointAllocationPool free_code_space_;
   DisjointAllocationPool allocated_code_space_;
