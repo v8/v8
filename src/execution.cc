@@ -111,6 +111,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
     }
     return MaybeHandle<Object>();
   }
+  if (!DumpOnJavascriptExecution::IsAllowed(isolate)) {
+    V8::GetCurrentPlatform()->DumpWithoutCrashing();
+    return isolate->factory()->undefined_value();
+  }
 
   // Placeholder for return value.
   Object* value = nullptr;

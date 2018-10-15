@@ -402,6 +402,12 @@ class Platform {
    */
   virtual TracingController* GetTracingController() = 0;
 
+  /**
+   * Tells the embedder to generate and upload a crashdump during an unexpected
+   * but non-critical scenario.
+   */
+  virtual void DumpWithoutCrashing() {}
+
  protected:
   /**
    * Default implementation of current wall-clock time in milliseconds

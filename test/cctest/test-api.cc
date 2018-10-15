@@ -25296,7 +25296,6 @@ TEST(DisallowJavascriptExecutionScope) {
   CompileRun("2+2");
 }
 
-
 TEST(AllowJavascriptExecutionScope) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -25310,7 +25309,6 @@ TEST(AllowJavascriptExecutionScope) {
   }
 }
 
-
 TEST(ThrowOnJavascriptExecution) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -25322,6 +25320,40 @@ TEST(ThrowOnJavascriptExecution) {
   CHECK(try_catch.HasCaught());
 }
 
+namespace {
+
+class MockPlatform : public TestPlatform {
+ public:
+  MockPlatform() {
+    // Now that it's completely constructed, make this the current platform.
+    i::V8::SetPlatformForTesting(this);
+  }
+  ~MockPlatform() override = default;
+
+  bool dump_without_crashing_called() const {
+    return dump_without_crashing_called_;
+  }
+
+  void DumpWithoutCrashing() override { dump_without_crashing_called_ = true; }
+
+ private:
+  bool dump_without_crashing_called_ = false;
+};
+
+}  // namespace
+
+TEST(DumpOnJavascriptExecution) {
+  MockPlatform platform;
+
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Isolate::DisallowJavascriptExecutionScope throw_js(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::DUMP_ON_FAILURE);
+  CHECK(!platform.dump_without_crashing_called());
+  CompileRun("1+1");
+  CHECK(platform.dump_without_crashing_called());
+}
 
 TEST(Regress354123) {
   LocalContext current;

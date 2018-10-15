@@ -7201,7 +7201,7 @@ class V8_EXPORT Isolate {
    */
   class V8_EXPORT DisallowJavascriptExecutionScope {
    public:
-    enum OnFailure { CRASH_ON_FAILURE, THROW_ON_FAILURE };
+    enum OnFailure { CRASH_ON_FAILURE, THROW_ON_FAILURE, DUMP_ON_FAILURE };
 
     DisallowJavascriptExecutionScope(Isolate* isolate, OnFailure on_failure);
     ~DisallowJavascriptExecutionScope();
@@ -7213,7 +7213,7 @@ class V8_EXPORT Isolate {
         const DisallowJavascriptExecutionScope&) = delete;
 
    private:
-    bool on_failure_;
+    OnFailure on_failure_;
     void* internal_;
   };
 
@@ -7235,6 +7235,7 @@ class V8_EXPORT Isolate {
    private:
     void* internal_throws_;
     void* internal_assert_;
+    void* internal_dump_;
   };
 
   /**

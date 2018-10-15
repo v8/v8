@@ -35,6 +35,7 @@ enum PerThreadAssertType {
 enum PerIsolateAssertType {
   JAVASCRIPT_EXECUTION_ASSERT,
   JAVASCRIPT_EXECUTION_THROWS,
+  JAVASCRIPT_EXECUTION_DUMP,
   DEOPTIMIZATION_ASSERT,
   COMPILATION_ASSERT,
   NO_EXCEPTION_ASSERT
@@ -197,6 +198,14 @@ typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>
 // Scope to introduce an exception to ThrowOnJavascriptExecution.
 typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>
     NoThrowOnJavascriptExecution;
+
+// Scope in which javascript execution causes dumps.
+typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>
+    DumpOnJavascriptExecution;
+
+// Scope in which javascript execution causes dumps.
+typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>
+    NoDumpOnJavascriptExecution;
 
 // Scope to document where we do not expect deoptimization.
 typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, false>

@@ -149,6 +149,8 @@ template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
+template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>;
+template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;
