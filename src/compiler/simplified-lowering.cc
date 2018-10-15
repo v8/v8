@@ -3103,32 +3103,25 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckFloat64Hole: {
         Type const input_type = TypeOf(node->InputAt(0));
-        if (input_type.Is(Type::Number())) {
-          VisitNoop(node, truncation);
-        } else {
-          CheckFloat64HoleMode mode =
-              CheckFloat64HoleParametersOf(node->op()).mode();
-          switch (mode) {
-            case CheckFloat64HoleMode::kAllowReturnHole:
-              if (truncation.IsUnused()) return VisitUnused(node);
-              if (truncation.IsUsedAsFloat64()) {
-                VisitUnop(node, UseInfo::TruncatingFloat64(),
-                          MachineRepresentation::kFloat64);
-                if (lower()) DeferReplacement(node, node->InputAt(0));
-              } else {
-                VisitUnop(
-                    node,
-                    UseInfo(MachineRepresentation::kFloat64, Truncation::Any()),
-                    MachineRepresentation::kFloat64, Type::Number());
-              }
-              break;
-            case CheckFloat64HoleMode::kNeverReturnHole:
-              VisitUnop(
-                  node,
+        CheckFloat64HoleMode mode =
+            CheckFloat64HoleParametersOf(node->op()).mode();
+        if (mode == CheckFloat64HoleMode::kAllowReturnHole) {
+          // If {mode} is allow-return-hole _and_ the {truncation}
+          // identifies NaN and undefined, we can just pass along
+          // the {truncation} and completely wipe the {node}.
+          if (truncation.IsUnused()) return VisitUnused(node);
+          if (truncation.IsUsedAsFloat64()) {
+            VisitUnop(node, UseInfo::TruncatingFloat64(),
+                      MachineRepresentation::kFloat64);
+            if (lower()) DeferReplacement(node, node->InputAt(0));
+            return;
+          }
+        }
+        VisitUnop(node,
                   UseInfo(MachineRepresentation::kFloat64, Truncation::Any()),
                   MachineRepresentation::kFloat64, Type::Number());
-              break;
-          }
+        if (lower() && input_type.Is(Type::Number())) {
+          DeferReplacement(node, node->InputAt(0));
         }
         return;
       }
