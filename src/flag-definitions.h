@@ -736,7 +736,6 @@ DEFINE_BOOL(write_protect_code_memory, V8_WRITE_PROTECT_CODE_MEMORY_BOOL,
 DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
 DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
-DEFINE_IMPLICATION(parallel_marking, concurrent_marking)
 DEFINE_INT(ephemeron_fixpoint_iterations, 10,
            "number of fixpoint iterations it takes to switch to linear "
            "ephemeron algorithm")

@@ -565,7 +565,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
       embedder_objects_(embedder_objects) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
-  CHECK(!FLAG_concurrent_marking);
+  CHECK(!FLAG_concurrent_marking && !FLAG_parallel_marking);
 #endif
 }
 
@@ -674,8 +674,8 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
 }
 
 void ConcurrentMarking::ScheduleTasks() {
+  DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
   DCHECK(!heap_->IsTearingDown());
-  if (!FLAG_concurrent_marking) return;
   base::MutexGuard guard(&pending_lock_);
   DCHECK_EQ(0, pending_task_count_);
   if (task_count_ == 0) {
@@ -713,7 +713,8 @@ void ConcurrentMarking::ScheduleTasks() {
 }
 
 void ConcurrentMarking::RescheduleTasksIfNeeded() {
-  if (!FLAG_concurrent_marking || heap_->IsTearingDown()) return;
+  DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
+  if (heap_->IsTearingDown()) return;
   {
     base::MutexGuard guard(&pending_lock_);
     if (pending_task_count_ > 0) return;
@@ -726,7 +727,7 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
 }
 
 bool ConcurrentMarking::Stop(StopRequest stop_request) {
-  if (!FLAG_concurrent_marking) return false;
+  DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
   base::MutexGuard guard(&pending_lock_);
 
   if (pending_task_count_ == 0) return false;
@@ -800,8 +801,9 @@ size_t ConcurrentMarking::TotalMarkedBytes() {
 
 ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking),
-      resume_on_exit_(concurrent_marking_->Stop(
-          ConcurrentMarking::StopRequest::PREEMPT_TASKS)) {
+      resume_on_exit_(FLAG_concurrent_marking &&
+                      concurrent_marking_->Stop(
+                          ConcurrentMarking::StopRequest::PREEMPT_TASKS)) {
   DCHECK_IMPLIES(resume_on_exit_, FLAG_concurrent_marking);
 }
 

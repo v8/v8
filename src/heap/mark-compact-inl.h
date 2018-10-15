@@ -331,7 +331,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
       // Ensure that the object is either grey or black before pushing it
       // into marking worklist.
       marking_state()->WhiteToGrey(object);
-      if (FLAG_concurrent_marking) {
+      if (FLAG_concurrent_marking || FLAG_parallel_marking) {
         marking_worklist()->PushBailout(object);
       } else {
         marking_worklist()->Push(object);

@@ -4310,7 +4310,7 @@ void Heap::SetUp() {
       new IncrementalMarking(this, mark_compact_collector_->marking_worklist(),
                              mark_compact_collector_->weak_objects());
 
-  if (FLAG_concurrent_marking) {
+  if (FLAG_concurrent_marking || FLAG_parallel_marking) {
     MarkCompactCollector::MarkingWorklist* marking_worklist =
         mark_compact_collector_->marking_worklist();
     concurrent_marking_ = new ConcurrentMarking(
