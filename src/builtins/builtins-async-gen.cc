@@ -250,8 +250,8 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
                                                      Node* native_context,
                                                      Node* function,
                                                      Node* context_index) {
-  Node* const function_map = LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  TNode<Map> function_map = CAST(LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   // Ensure that we don't have to initialize prototype_or_initial_map field of
   // JSFunction.
   CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(function_map),
@@ -266,13 +266,20 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
   StoreObjectFieldRoot(function, JSFunction::kFeedbackCellOffset,
                        RootIndex::kManyClosuresCell);
 
-  Node* shared_info = LoadContextElement(native_context, context_index);
-  CSA_ASSERT(this, IsSharedFunctionInfo(shared_info));
+  TNode<SharedFunctionInfo> shared_info =
+      CAST(LoadContextElement(native_context, context_index));
   StoreObjectFieldNoWriteBarrier(
       function, JSFunction::kSharedFunctionInfoOffset, shared_info);
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kContextOffset, context);
 
-  Node* const code = GetSharedFunctionInfoCode(shared_info);
+  // For the native closures that are initialized here (for `await`)
+  // we know that their SharedFunctionInfo::function_data() slot
+  // contains a builtin index (as Smi), so there's no need to use
+  // CodeStubAssembler::GetSharedFunctionInfoCode() helper here,
+  // which almost doubles the size of `await` builtins (unnecessarily).
+  TNode<Smi> builtin_id = LoadObjectField<Smi>(
+      shared_info, SharedFunctionInfo::kFunctionDataOffset);
+  TNode<Code> code = LoadBuiltin(builtin_id);
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
 }
 
