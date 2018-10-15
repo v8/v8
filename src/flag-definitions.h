@@ -321,17 +321,11 @@ DEFINE_BOOL(feedback_normalization, false,
 DEFINE_BOOL_READONLY(internalize_on_the_fly, true,
                      "internalize string keys for generic keyed ICs on the fly")
 
-// Flags for optimization types.
-DEFINE_BOOL(optimize_for_size, false,
-            "Enables optimizations which favor memory size over execution "
-            "speed")
-
 // Flag for one shot optimiztions.
 DEFINE_BOOL(enable_one_shot_optimization, true,
             "Enable size optimizations for the code that will "
             "only be executed once")
 
-DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
@@ -536,13 +530,6 @@ DEFINE_BOOL(experimental_inline_promise_constructor, true,
 DEFINE_BOOL(untrusted_code_mitigations, V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS,
             "Enable mitigations for executing untrusted code")
 #undef V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS
-
-// Flags to help platform porters
-DEFINE_BOOL(minimal, false,
-            "simplifies execution model to make porting "
-            "easier (e.g. always use Ignition, never optimize)")
-DEFINE_NEG_IMPLICATION(minimal, opt)
-DEFINE_NEG_IMPLICATION(minimal, use_ic)
 
 // Flags for native WebAssembly.
 DEFINE_BOOL(expose_wasm, true, "expose wasm interface to JavaScript")
@@ -1161,6 +1148,24 @@ DEFINE_BOOL(mock_arraybuffer_allocator, false,
 DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
               "Memory limit for mock ArrayBuffer allocator used to simulate "
               "OOM for testing.")
+
+//
+// Flags only available in non-Lite modes.
+//
+#undef FLAG
+#ifdef V8_LITE_MODE
+#define FLAG FLAG_READONLY
+#define V8_LITE_BOOL true
+#else
+#define FLAG FLAG_FULL
+#define V8_LITE_BOOL false
+#endif
+
+// Favor memory over execution speed.
+DEFINE_BOOL(optimize_for_size, V8_LITE_BOOL,
+            "Enables optimizations which favor memory size over execution "
+            "speed")
+DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 
 //
 // GDB JIT integration flags.
