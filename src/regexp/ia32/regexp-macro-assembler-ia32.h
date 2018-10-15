@@ -178,6 +178,9 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
 
   MacroAssembler* masm_;
 
+  // Irregexp code clobbers the root register.
+  NoRootArrayScope root_is_clobbered_;
+
   // Which mode to generate code for (LATIN1 or UC16).
   Mode mode_;
 
