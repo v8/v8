@@ -27,7 +27,6 @@ namespace compiler {
 
 #define kScratchDoubleReg xmm0
 
-
 // Adds IA-32 specific methods for decoding operands.
 class IA32OperandConverter : public InstructionOperandConverter {
  public:
@@ -187,6 +186,17 @@ class IA32OperandConverter : public InstructionOperandConverter {
       UNREACHABLE();
     }
   }
+
+  void MoveInstructionOperandToRegister(Register destination,
+                                        InstructionOperand* op) {
+    if (op->IsImmediate() || op->IsConstant()) {
+      gen_->tasm()->mov(destination, ToImmediate(op));
+    } else if (op->IsRegister()) {
+      gen_->tasm()->Move(destination, ToRegister(op));
+    } else {
+      gen_->tasm()->mov(destination, ToOperand(op));
+    }
+  }
 };
 
 
@@ -326,12 +336,8 @@ void MoveOperandIfAliasedWithPoisonRegister(Instruction* call_instruction,
     return;
   }
 
-  InstructionOperand* op = call_instruction->InputAt(poison_index);
-  if (op->IsImmediate() || op->IsConstant()) {
-    gen->tasm()->mov(kSpeculationPoisonRegister, i.ToImmediate(op));
-  } else {
-    gen->tasm()->mov(kSpeculationPoisonRegister, i.InputOperand(poison_index));
-  }
+  i.MoveInstructionOperandToRegister(kSpeculationPoisonRegister,
+                                     call_instruction->InputAt(poison_index));
 }
 
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
@@ -439,12 +445,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ mov(edx, i.NextMemoryOperand(2));                                \
     __ push(ebx);                                                       \
     frame_access_state()->IncreaseSPDelta(1);                           \
-    InstructionOperand* op = instr->InputAt(0);                         \
-    if (op->IsImmediate() || op->IsConstant()) {                        \
-      __ mov(ebx, i.ToImmediate(op));                                   \
-    } else {                                                            \
-      __ mov(ebx, i.ToOperand(op));                                     \
-    }                                                                   \
+    i.MoveInstructionOperandToRegister(ebx, instr->InputAt(0));         \
     __ push(i.InputRegister(1));                                        \
     __ instr1(ebx, eax);                                                \
     __ instr2(i.InputRegister(1), edx);                                 \
@@ -1128,14 +1129,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ add(i.OutputRegister(0), i.InputRegister(2));
       }
-      InstructionOperand* op = instr->InputAt(1);
-      if (op->IsImmediate() || op->IsConstant()) {
-        __ mov(i.OutputRegister(1), i.ToImmediate(op));
-      } else if (op->IsRegister()) {
-        __ Move(i.OutputRegister(1), i.ToRegister(op));
-      } else {
-        __ mov(i.OutputRegister(1), i.ToOperand(op));
-      }
+      i.MoveInstructionOperandToRegister(i.OutputRegister(1),
+                                         instr->InputAt(1));
       __ adc(i.OutputRegister(1), Operand(i.InputRegister(3)));
       if (use_temp) {
         __ Move(i.OutputRegister(0), i.TempRegister(0));
@@ -1159,14 +1154,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ sub(i.OutputRegister(0), i.InputRegister(2));
       }
-      InstructionOperand* op = instr->InputAt(1);
-      if (op->IsImmediate() || op->IsConstant()) {
-        __ mov(i.OutputRegister(1), i.ToImmediate(op));
-      } else if (op->IsRegister()) {
-        __ Move(i.OutputRegister(1), i.ToRegister(op));
-      } else {
-        __ mov(i.OutputRegister(1), i.ToOperand(op));
-      }
+      i.MoveInstructionOperandToRegister(i.OutputRegister(1),
+                                         instr->InputAt(1));
       __ sbb(i.OutputRegister(1), Operand(i.InputRegister(3)));
       if (use_temp) {
         __ Move(i.OutputRegister(0), i.TempRegister(0));
@@ -1175,12 +1164,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32MulPair: {
       __ imul(i.OutputRegister(1), i.InputOperand(0));
-      InstructionOperand* op = instr->InputAt(1);
-      if (op->IsImmediate() || op->IsConstant()) {
-        __ mov(i.TempRegister(0), i.ToImmediate(op));
-      } else {
-        __ mov(i.TempRegister(0), i.ToOperand(op));
-      }
+      i.MoveInstructionOperandToRegister(i.TempRegister(0), instr->InputAt(1));
       __ imul(i.TempRegister(0), i.InputOperand(2));
       __ add(i.OutputRegister(1), i.TempRegister(0));
       __ mov(i.OutputRegister(0), i.InputOperand(0));
@@ -3700,12 +3684,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(i.TempRegister(1), i.NextMemoryOperand(2));
       __ push(ebx);
       frame_access_state()->IncreaseSPDelta(1);
-      InstructionOperand* op = instr->InputAt(0);
-      if (op->IsImmediate() || op->IsConstant()) {
-        __ mov(ebx, i.ToImmediate(op));
-      } else {
-        __ mov(ebx, i.ToOperand(op));
-      }
+      i.MoveInstructionOperandToRegister(ebx, instr->InputAt(0));
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(2));
       __ pop(ebx);
@@ -3743,12 +3722,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(edx, i.NextMemoryOperand(2));
       __ push(ebx);
       frame_access_state()->IncreaseSPDelta(1);
-      InstructionOperand* op = instr->InputAt(0);
-      if (op->IsImmediate() || op->IsConstant()) {
-        __ mov(ebx, i.ToImmediate(op));
-      } else {
-        __ mov(ebx, i.ToOperand(op));
-      }
+      i.MoveInstructionOperandToRegister(ebx, instr->InputAt(0));
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(2));
       __ pop(ebx);
@@ -3788,12 +3762,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       TurboAssembler::AllowExplicitEbxAccessScope spill_ebx(tasm());
       __ push(ebx);
       frame_access_state()->IncreaseSPDelta(1);
-      InstructionOperand* op = instr->InputAt(2);
-      if (op->IsImmediate() || op->IsConstant()) {
-        __ mov(ebx, i.ToImmediate(op));
-      } else {
-        __ mov(ebx, i.ToOperand(op));
-      }
+      i.MoveInstructionOperandToRegister(ebx, instr->InputAt(2));
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(4));
       __ pop(ebx);
@@ -3853,12 +3822,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Save input registers temporarily on the stack.
       __ push(ebx);
       frame_access_state()->IncreaseSPDelta(1);
-      InstructionOperand* op = instr->InputAt(0);
-      if (op->IsImmediate() || op->IsConstant()) {
-        __ mov(ebx, i.ToImmediate(op));
-      } else {
-        __ mov(ebx, i.ToOperand(op));
-      }
+      i.MoveInstructionOperandToRegister(ebx, instr->InputAt(0));
       __ push(i.InputRegister(1));
       // Negate input in place
       __ neg(ebx);
