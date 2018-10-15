@@ -73,9 +73,10 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
   {
     // Initialize Promise
     StoreMapNoWriteBarrier(wrapped_value, promise_map);
-    InitializeJSObjectFromMap(
-        wrapped_value, promise_map,
-        IntPtrConstant(JSPromise::kSizeWithEmbedderFields));
+    StoreObjectFieldRoot(wrapped_value, JSPromise::kPropertiesOrHashOffset,
+                         RootIndex::kEmptyFixedArray);
+    StoreObjectFieldRoot(wrapped_value, JSPromise::kElementsOffset,
+                         RootIndex::kEmptyFixedArray);
     PromiseInit(wrapped_value);
   }
 
