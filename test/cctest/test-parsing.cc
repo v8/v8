@@ -331,6 +331,26 @@ TEST(IsUnaryOp) {
   }
 }
 
+bool TokenIsPropertyOrCall(Token::Value token) {
+  switch (token) {
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+    case Token::PERIOD:
+    case Token::LPAREN:
+    case Token::LBRACK:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsPropertyOrCall) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsPropertyOrCall(token), Token::IsPropertyOrCall(token));
+  }
+}
+
 bool TokenIsCountOp(Token::Value token) {
   switch (token) {
     case Token::INC:

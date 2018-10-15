@@ -1096,6 +1096,7 @@ class ParserBase {
   V8_INLINE ExpressionT ParseUnaryExpression(bool* ok);
   V8_INLINE ExpressionT ParsePostfixExpression(bool* ok);
   V8_INLINE ExpressionT ParseLeftHandSideExpression(bool* ok);
+  ExpressionT ParseLeftHandSideContinuation(ExpressionT expression, bool* ok);
   ExpressionT ParseMemberWithPresentNewPrefixesExpression(bool* ok);
   V8_INLINE ExpressionT ParseMemberWithNewPrefixesExpression(bool* ok);
   ExpressionT ParseFunctionExpression(bool* ok);
@@ -3243,17 +3244,23 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
   //   (NewExpression | MemberExpression) ...
 
   ExpressionT result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
+  if (!Token::IsPropertyOrCall(peek())) return result;
+  return ParseLeftHandSideContinuation(result, ok);
+}
 
-  while (true) {
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
+  BindingPatternUnexpectedToken();
+
+  do {
+    ValidateExpression(CHECK_OK);
     switch (peek()) {
       case Token::LBRACK: {
-        ValidateExpression(CHECK_OK);
-        BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = ParseExpressionCoverGrammar(true, CHECK_OK);
-        ValidateExpression(CHECK_OK);
         result = factory()->NewProperty(result, index, pos);
         Expect(Token::RBRACK, CHECK_OK);
         break;
@@ -3261,8 +3268,6 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 
       case Token::LPAREN: {
         int pos;
-        ValidateExpression(CHECK_OK);
-        BindingPatternUnexpectedToken();
         if (scanner()->current_token() == Token::IDENTIFIER ||
             scanner()->current_token() == Token::SUPER ||
             scanner()->current_token() == Token::ASYNC) {
@@ -3341,8 +3346,6 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
       }
 
       case Token::PERIOD: {
-        ValidateExpression(CHECK_OK);
-        BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
         Consume(Token::PERIOD);
         int pos = position();
@@ -3353,17 +3356,16 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
-        ValidateExpression(CHECK_OK);
-        BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
         result = ParseTemplateLiteral(result, position(), true, CHECK_OK);
         break;
       }
 
       default:
-        return result;
+        UNREACHABLE();
     }
-  }
+  } while (Token::IsPropertyOrCall(peek()));
+  return result;
 }
 
 template <typename Impl>

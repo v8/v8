@@ -58,16 +58,22 @@ namespace internal {
   /* End of source indicator. */                                   \
   T(EOS, "EOS", 0)                                                 \
                                                                    \
+  /* BEGIN PropertyOrCall */                                       \
+  /* ES6 Template Literals */                                      \
+  T(TEMPLATE_SPAN, nullptr, 0)                                     \
+  T(TEMPLATE_TAIL, nullptr, 0)                                     \
+                                                                   \
   /* Punctuators (ECMA-262, section 7.7, page 15). */              \
+  T(PERIOD, ".", 0)                                                \
   T(LPAREN, "(", 0)                                                \
-  T(RPAREN, ")", 0)                                                \
   T(LBRACK, "[", 0)                                                \
+  /* END PropertyOrCall */                                         \
+  T(RPAREN, ")", 0)                                                \
   T(RBRACK, "]", 0)                                                \
   T(LBRACE, "{", 0)                                                \
   T(RBRACE, "}", 0)                                                \
   T(COLON, ":", 0)                                                 \
   T(SEMICOLON, ";", 0)                                             \
-  T(PERIOD, ".", 0)                                                \
   T(ELLIPSIS, "...", 0)                                            \
   T(CONDITIONAL, "?", 3)                                           \
   T(INC, "++", 0)                                                  \
@@ -180,10 +186,6 @@ namespace internal {
   T(UNINITIALIZED, nullptr, 0)                                     \
   T(REGEXP_LITERAL, nullptr, 0)                                    \
                                                                    \
-  /* ES6 Template Literals */                                      \
-  T(TEMPLATE_SPAN, nullptr, 0)                                     \
-  T(TEMPLATE_TAIL, nullptr, 0)                                     \
-                                                                   \
   /* Contextual keyword tokens */                                  \
   C(GET, "get", 0)                                                 \
   C(SET, "set", 0)                                                 \
@@ -245,6 +247,10 @@ class Token {
 
   static bool IsLiteral(Value token) {
     return IsInRange(token, NULL_LITERAL, STRING);
+  }
+
+  static bool IsPropertyOrCall(Value token) {
+    return IsInRange(token, TEMPLATE_SPAN, LBRACK);
   }
 
   static bool IsAssignmentOp(Value token) {
