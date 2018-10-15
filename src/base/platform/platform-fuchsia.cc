@@ -57,6 +57,11 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
                          strlen(kVirtualMemoryName));
   uintptr_t reservation;
   uint32_t prot = GetProtectionFromMemoryPermission(access);
+  if ((prot & ZX_VM_FLAG_PERM_EXECUTE) != 0) {
+    if (zx_vmo_replace_as_executable(vmo, ZX_HANDLE_INVALID, &vmo) != ZX_OK) {
+      return nullptr;
+    }
+  }
   zx_status_t status = zx_vmar_map(zx_vmar_root_self(), prot, 0, vmo, 0,
                                    request_size, &reservation);
   // Either the vmo is now referenced by the vmar, or we failed and are bailing,
