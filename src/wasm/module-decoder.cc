@@ -549,8 +549,9 @@ class ModuleDecoderImpl : public Decoder {
             break;
           }
           import->index = static_cast<uint32_t>(module_->exceptions.size());
-          module_->exceptions.emplace_back(
-              consume_exception_sig(module_->signature_zone.get()));
+          WasmExceptionSig* exception_sig = nullptr;
+          consume_exception_sig_index(module_.get(), &exception_sig);
+          module_->exceptions.emplace_back(exception_sig);
           break;
         }
         default:
@@ -890,10 +891,11 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t exception_count =
         consume_count("exception count", kV8MaxWasmExceptions);
     for (uint32_t i = 0; ok() && i < exception_count; ++i) {
-      TRACE("DecodeExceptionSignature[%d] module+%d\n", i,
+      TRACE("DecodeException[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
-      module_->exceptions.emplace_back(
-          consume_exception_sig(module_->signature_zone.get()));
+      WasmExceptionSig* exception_sig = nullptr;
+      consume_exception_sig_index(module_.get(), &exception_sig);
+      module_->exceptions.emplace_back(exception_sig);
     }
   }
 
@@ -1147,6 +1149,17 @@ class ModuleDecoderImpl : public Decoder {
       return 0;
     }
     *sig = module->signatures[sig_index];
+    return sig_index;
+  }
+
+  uint32_t consume_exception_sig_index(WasmModule* module, FunctionSig** sig) {
+    const byte* pos = pc_;
+    uint32_t sig_index = consume_sig_index(module, sig);
+    if (*sig && (*sig)->return_count() != 0) {
+      errorf(pos, "exception signature %u has non-void return", sig_index);
+      *sig = nullptr;
+      return 0;
+    }
     return sig_index;
   }
 
@@ -1408,19 +1421,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   FunctionSig* consume_sig(Zone* zone) {
-    constexpr bool has_return_values = true;
-    return consume_sig_internal(zone, has_return_values);
-  }
-
-  WasmExceptionSig* consume_exception_sig(Zone* zone) {
-    constexpr bool has_return_values = true;
-    return consume_sig_internal(zone, !has_return_values);
-  }
-
- private:
-  FunctionSig* consume_sig_internal(Zone* zone, bool has_return_values) {
-    if (has_return_values && !expect_u8("type form", kWasmFunctionTypeCode))
-      return nullptr;
+    if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
     // parse parameter types
     uint32_t param_count =
         consume_count("param count", kV8MaxWasmFunctionParams);
@@ -1432,17 +1433,15 @@ class ModuleDecoderImpl : public Decoder {
     }
     std::vector<ValueType> returns;
     uint32_t return_count = 0;
-    if (has_return_values) {
-      // parse return types
-      const size_t max_return_count = enabled_features_.mv
-                                          ? kV8MaxWasmFunctionMultiReturns
-                                          : kV8MaxWasmFunctionReturns;
-      return_count = consume_count("return count", max_return_count);
-      if (failed()) return nullptr;
-      for (uint32_t i = 0; ok() && i < return_count; ++i) {
-        ValueType ret = consume_value_type();
-        returns.push_back(ret);
-      }
+    // parse return types
+    const size_t max_return_count = enabled_features_.mv
+                                        ? kV8MaxWasmFunctionMultiReturns
+                                        : kV8MaxWasmFunctionReturns;
+    return_count = consume_count("return count", max_return_count);
+    if (failed()) return nullptr;
+    for (uint32_t i = 0; ok() && i < return_count; ++i) {
+      ValueType ret = consume_value_type();
+      returns.push_back(ret);
     }
 
     if (failed()) return nullptr;

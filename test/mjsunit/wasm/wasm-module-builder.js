@@ -228,11 +228,9 @@ class WasmModuleBuilder {
   }
 
   addException(type) {
-    if (type.results.length != 0) {
-      throw new Error('Exception signature must have void result: ' + type);
-    }
+    let type_index = (typeof type) == "number" ? type : this.addType(type);
     let except_index = this.exceptions.length + this.num_imported_exceptions;
-    this.exceptions.push(type);
+    this.exceptions.push(type_index);
     return except_index;
   }
 
@@ -278,13 +276,11 @@ class WasmModuleBuilder {
   }
 
   addImportedException(module = "", name, type) {
-    if (type.results.length != 0) {
-      throw new Error('Exception signature must have void result: ' + type);
-    }
     if (this.exceptions.length != 0) {
       throw new Error('Imported exceptions must be declared before local ones');
     }
-    let o = {module: module, name: name, kind: kExternalException, type: type};
+    let type_index = (typeof type) == "number" ? type : this.addType(type);
+    let o = {module: module, name: name, kind: kExternalException, type: type_index};
     this.imports.push(o);
     return this.num_imported_exceptions++;
   }
@@ -405,10 +401,7 @@ class WasmModuleBuilder {
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else if (imp.kind == kExternalException) {
-            section.emit_u32v(imp.type.params.length);
-            for (let param of imp.type.params) {
-              section.emit_u8(param);
-            }
+            section.emit_u32v(imp.type);
           } else {
             throw new Error("unknown/unsupported import kind " + imp.kind);
           }
@@ -515,10 +508,7 @@ class WasmModuleBuilder {
       binary.emit_section(kExceptionSectionCode, section => {
         section.emit_u32v(wasm.exceptions.length);
         for (let type of wasm.exceptions) {
-          section.emit_u32v(type.params.length);
-          for (let param of type.params) {
-            section.emit_u8(param);
-          }
+          section.emit_u32v(type);
         }
       });
     }
