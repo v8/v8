@@ -57,7 +57,7 @@ class StartupSerializer : public Serializer<> {
     }
 
    private:
-    DisallowHeapAllocation no_allocation_;
+    DISALLOW_HEAP_ALLOCATION(no_allocation_);
     HeapObjectToIndexHashMap map_;
     int next_index_;
 

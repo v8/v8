@@ -112,6 +112,11 @@ typedef PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>
 // Scope to document where we do not expect any allocation and GC.
 typedef PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>
     DisallowHeapAllocation;
+#ifdef DEBUG
+#define DISALLOW_HEAP_ALLOCATION(name) DisallowHeapAllocation name
+#else
+#define DISALLOW_HEAP_ALLOCATION(name)
+#endif
 
 // Scope to introduce an exception to DisallowHeapAllocation.
 typedef PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, true>
