@@ -135,44 +135,44 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_StoreToStackSlot:
       return kHasSideEffect;
 
-    case kPPC_Word64AtomicLoadUint8:
-    case kPPC_Word64AtomicLoadUint16:
-    case kPPC_Word64AtomicLoadUint32:
-    case kPPC_Word64AtomicLoadUint64:
+    case kPPC_AtomicLoadUint8:
+    case kPPC_AtomicLoadUint16:
+    case kPPC_AtomicLoadWord32:
+    case kPPC_AtomicLoadWord64:
       return kIsLoadOperation;
 
-    case kPPC_Word64AtomicStoreUint8:
-    case kPPC_Word64AtomicStoreUint16:
-    case kPPC_Word64AtomicStoreUint32:
-    case kPPC_Word64AtomicStoreUint64:
-    case kPPC_Word64AtomicExchangeUint8:
-    case kPPC_Word64AtomicExchangeUint16:
-    case kPPC_Word64AtomicExchangeUint32:
-    case kPPC_Word64AtomicExchangeUint64:
-    case kPPC_Word64AtomicCompareExchangeUint8:
-    case kPPC_Word64AtomicCompareExchangeUint16:
-    case kPPC_Word64AtomicCompareExchangeUint32:
-    case kPPC_Word64AtomicCompareExchangeUint64:
-    case kPPC_Word64AtomicAddUint8:
-    case kPPC_Word64AtomicAddUint16:
-    case kPPC_Word64AtomicAddUint32:
-    case kPPC_Word64AtomicAddUint64:
-    case kPPC_Word64AtomicSubUint8:
-    case kPPC_Word64AtomicSubUint16:
-    case kPPC_Word64AtomicSubUint32:
-    case kPPC_Word64AtomicSubUint64:
-    case kPPC_Word64AtomicAndUint8:
-    case kPPC_Word64AtomicAndUint16:
-    case kPPC_Word64AtomicAndUint32:
-    case kPPC_Word64AtomicAndUint64:
-    case kPPC_Word64AtomicOrUint8:
-    case kPPC_Word64AtomicOrUint16:
-    case kPPC_Word64AtomicOrUint32:
-    case kPPC_Word64AtomicOrUint64:
-    case kPPC_Word64AtomicXorUint8:
-    case kPPC_Word64AtomicXorUint16:
-    case kPPC_Word64AtomicXorUint32:
-    case kPPC_Word64AtomicXorUint64:
+    case kPPC_AtomicStoreUint8:
+    case kPPC_AtomicStoreUint16:
+    case kPPC_AtomicStoreWord32:
+    case kPPC_AtomicStoreWord64:
+    case kPPC_AtomicExchangeUint8:
+    case kPPC_AtomicExchangeUint16:
+    case kPPC_AtomicExchangeWord32:
+    case kPPC_AtomicExchangeWord64:
+    case kPPC_AtomicCompareExchangeUint8:
+    case kPPC_AtomicCompareExchangeUint16:
+    case kPPC_AtomicCompareExchangeWord32:
+    case kPPC_AtomicCompareExchangeWord64:
+    case kPPC_AtomicAddUint8:
+    case kPPC_AtomicAddUint16:
+    case kPPC_AtomicAddWord32:
+    case kPPC_AtomicAddWord64:
+    case kPPC_AtomicSubUint8:
+    case kPPC_AtomicSubUint16:
+    case kPPC_AtomicSubWord32:
+    case kPPC_AtomicSubWord64:
+    case kPPC_AtomicAndUint8:
+    case kPPC_AtomicAndUint16:
+    case kPPC_AtomicAndWord32:
+    case kPPC_AtomicAndWord64:
+    case kPPC_AtomicOrUint8:
+    case kPPC_AtomicOrUint16:
+    case kPPC_AtomicOrWord32:
+    case kPPC_AtomicOrWord64:
+    case kPPC_AtomicXorUint8:
+    case kPPC_AtomicXorUint16:
+    case kPPC_AtomicXorWord32:
+    case kPPC_AtomicXorWord64:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

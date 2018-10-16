@@ -1940,14 +1940,14 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   switch (load_rep.representation()) {
     case MachineRepresentation::kWord8:
       opcode =
-          load_rep.IsSigned() ? kWord32AtomicLoadInt8 : kWord32AtomicLoadUint8;
+          load_rep.IsSigned() ? kWord32AtomicLoadInt8 : kPPC_AtomicLoadUint8;
       break;
     case MachineRepresentation::kWord16:
-      opcode = load_rep.IsSigned() ? kWord32AtomicLoadInt16
-                                   : kWord32AtomicLoadUint16;
+      opcode =
+          load_rep.IsSigned() ? kWord32AtomicLoadInt16 : kPPC_AtomicLoadUint16;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kWord32AtomicLoadWord32;
+      opcode = kPPC_AtomicLoadWord32;
       break;
     default:
       UNREACHABLE();
@@ -1965,16 +1965,16 @@ void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
   ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kWord8:
-      opcode = kPPC_Word64AtomicLoadUint8;
+      opcode = kPPC_AtomicLoadUint8;
       break;
     case MachineRepresentation::kWord16:
-      opcode = kPPC_Word64AtomicLoadUint16;
+      opcode = kPPC_AtomicLoadUint16;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kPPC_Word64AtomicLoadUint32;
+      opcode = kPPC_AtomicLoadWord32;
       break;
     case MachineRepresentation::kWord64:
-      opcode = kPPC_Word64AtomicLoadUint64;
+      opcode = kPPC_AtomicLoadWord64;
       break;
     default:
       UNREACHABLE();
@@ -1993,13 +1993,13 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   ArchOpcode opcode = kArchNop;
   switch (rep) {
     case MachineRepresentation::kWord8:
-      opcode = kWord32AtomicStoreWord8;
+      opcode = kPPC_AtomicStoreUint8;
       break;
     case MachineRepresentation::kWord16:
-      opcode = kWord32AtomicStoreWord16;
+      opcode = kPPC_AtomicStoreUint16;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kWord32AtomicStoreWord32;
+      opcode = kPPC_AtomicStoreWord32;
       break;
     default:
       UNREACHABLE();
@@ -2024,16 +2024,16 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   ArchOpcode opcode = kArchNop;
   switch (rep) {
     case MachineRepresentation::kWord8:
-      opcode = kPPC_Word64AtomicStoreUint8;
+      opcode = kPPC_AtomicStoreUint8;
       break;
     case MachineRepresentation::kWord16:
-      opcode = kPPC_Word64AtomicStoreUint16;
+      opcode = kPPC_AtomicStoreUint16;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kPPC_Word64AtomicStoreUint32;
+      opcode = kPPC_AtomicStoreWord32;
       break;
     case MachineRepresentation::kWord64:
-      opcode = kPPC_Word64AtomicStoreUint64;
+      opcode = kPPC_AtomicStoreWord64;
       break;
     default:
       UNREACHABLE();
@@ -2074,13 +2074,13 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
   if (type == MachineType::Int8()) {
     opcode = kWord32AtomicExchangeInt8;
   } else if (type == MachineType::Uint8()) {
-    opcode = kWord32AtomicExchangeUint8;
+    opcode = kPPC_AtomicExchangeUint8;
   } else if (type == MachineType::Int16()) {
     opcode = kWord32AtomicExchangeInt16;
   } else if (type == MachineType::Uint16()) {
-    opcode = kWord32AtomicExchangeUint16;
+    opcode = kPPC_AtomicExchangeUint16;
   } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
-    opcode = kWord32AtomicExchangeWord32;
+    opcode = kPPC_AtomicExchangeWord32;
   } else {
     UNREACHABLE();
     return;
@@ -2092,13 +2092,13 @@ void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
   ArchOpcode opcode = kArchNop;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Uint8()) {
-    opcode = kPPC_Word64AtomicExchangeUint8;
+    opcode = kPPC_AtomicExchangeUint8;
   } else if (type == MachineType::Uint16()) {
-    opcode = kPPC_Word64AtomicExchangeUint16;
+    opcode = kPPC_AtomicExchangeUint16;
   } else if (type == MachineType::Uint32()) {
-    opcode = kPPC_Word64AtomicExchangeUint32;
+    opcode = kPPC_AtomicExchangeWord32;
   } else if (type == MachineType::Uint64()) {
-    opcode = kPPC_Word64AtomicExchangeUint64;
+    opcode = kPPC_AtomicExchangeWord64;
   } else {
     UNREACHABLE();
     return;
@@ -2137,13 +2137,13 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   if (type == MachineType::Int8()) {
     opcode = kWord32AtomicCompareExchangeInt8;
   } else if (type == MachineType::Uint8()) {
-    opcode = kWord32AtomicCompareExchangeUint8;
+    opcode = kPPC_AtomicCompareExchangeUint8;
   } else if (type == MachineType::Int16()) {
     opcode = kWord32AtomicCompareExchangeInt16;
   } else if (type == MachineType::Uint16()) {
-    opcode = kWord32AtomicCompareExchangeUint16;
+    opcode = kPPC_AtomicCompareExchangeUint16;
   } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
-    opcode = kWord32AtomicCompareExchangeWord32;
+    opcode = kPPC_AtomicCompareExchangeWord32;
   } else {
     UNREACHABLE();
     return;
@@ -2155,13 +2155,13 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
   MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode = kArchNop;
   if (type == MachineType::Uint8()) {
-    opcode = kPPC_Word64AtomicCompareExchangeUint8;
+    opcode = kPPC_AtomicCompareExchangeUint8;
   } else if (type == MachineType::Uint16()) {
-    opcode = kPPC_Word64AtomicCompareExchangeUint16;
+    opcode = kPPC_AtomicCompareExchangeUint16;
   } else if (type == MachineType::Uint32()) {
-    opcode = kPPC_Word64AtomicCompareExchangeUint32;
+    opcode = kPPC_AtomicCompareExchangeWord32;
   } else if (type == MachineType::Uint64()) {
-    opcode = kPPC_Word64AtomicCompareExchangeUint64;
+    opcode = kPPC_AtomicCompareExchangeWord64;
   } else {
     UNREACHABLE();
     return;
@@ -2215,12 +2215,12 @@ void InstructionSelector::VisitWord32AtomicBinaryOperation(
   VisitAtomicBinaryOperation(this, node, opcode);
 }
 
-#define VISIT_ATOMIC_BINOP(op)                                   \
-  void InstructionSelector::VisitWord32Atomic##op(Node* node) {  \
-    VisitWord32AtomicBinaryOperation(                            \
-        node, kWord32Atomic##op##Int8, kWord32Atomic##op##Uint8, \
-        kWord32Atomic##op##Int16, kWord32Atomic##op##Uint16,     \
-        kWord32Atomic##op##Word32);                              \
+#define VISIT_ATOMIC_BINOP(op)                                  \
+  void InstructionSelector::VisitWord32Atomic##op(Node* node) { \
+    VisitWord32AtomicBinaryOperation(                           \
+        node, kWord32Atomic##op##Int8, kPPC_Atomic##op##Uint8,  \
+        kWord32Atomic##op##Int16, kPPC_Atomic##op##Uint16,      \
+        kPPC_Atomic##op##Word32);                               \
   }
 VISIT_ATOMIC_BINOP(Add)
 VISIT_ATOMIC_BINOP(Sub)
@@ -2234,7 +2234,6 @@ void InstructionSelector::VisitWord64AtomicBinaryOperation(
     ArchOpcode uint64_op) {
   MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode = kArchNop;
-
   if (type == MachineType::Uint8()) {
     opcode = uint8_op;
   } else if (type == MachineType::Uint16()) {
@@ -2250,11 +2249,11 @@ void InstructionSelector::VisitWord64AtomicBinaryOperation(
   VisitAtomicBinaryOperation(this, node, opcode);
 }
 
-#define VISIT_ATOMIC64_BINOP(op)                                           \
-  void InstructionSelector::VisitWord64Atomic##op(Node* node) {            \
-    VisitWord64AtomicBinaryOperation(                                      \
-        node, kPPC_Word64Atomic##op##Uint8, kPPC_Word64Atomic##op##Uint16, \
-        kPPC_Word64Atomic##op##Uint32, kPPC_Word64Atomic##op##Uint64);     \
+#define VISIT_ATOMIC64_BINOP(op)                                \
+  void InstructionSelector::VisitWord64Atomic##op(Node* node) { \
+    VisitWord64AtomicBinaryOperation(                           \
+        node, kPPC_Atomic##op##Uint8, kPPC_Atomic##op##Uint16,  \
+        kPPC_Atomic##op##Word32, kPPC_Atomic##op##Word64);      \
   }
 VISIT_ATOMIC64_BINOP(Add)
 VISIT_ATOMIC64_BINOP(Sub)

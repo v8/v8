@@ -1979,82 +1979,69 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lbz, lbzx);
       __ extsb(i.OutputRegister(), i.OutputRegister());
       break;
-    case kPPC_Word64AtomicLoadUint8:
-    case kWord32AtomicLoadUint8:
+    case kPPC_AtomicLoadUint8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lbz, lbzx);
       break;
     case kWord32AtomicLoadInt16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lha, lhax);
       break;
-    case kPPC_Word64AtomicLoadUint16:
-    case kWord32AtomicLoadUint16:
+    case kPPC_AtomicLoadUint16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lhz, lhzx);
       break;
-    case kPPC_Word64AtomicLoadUint32:
-    case kWord32AtomicLoadWord32:
+    case kPPC_AtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lwz, lwzx);
       break;
-    case kPPC_Word64AtomicLoadUint64:
+    case kPPC_AtomicLoadWord64:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(ld, ldx);
       break;
-
-    case kPPC_Word64AtomicStoreUint8:
-    case kWord32AtomicStoreWord8:
+    case kPPC_AtomicStoreUint8:
       ASSEMBLE_ATOMIC_STORE_INTEGER(stb, stbx);
       break;
-    case kPPC_Word64AtomicStoreUint16:
-    case kWord32AtomicStoreWord16:
+    case kPPC_AtomicStoreUint16:
       ASSEMBLE_ATOMIC_STORE_INTEGER(sth, sthx);
       break;
-    case kPPC_Word64AtomicStoreUint32:
-    case kWord32AtomicStoreWord32:
+    case kPPC_AtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(stw, stwx);
       break;
-    case kPPC_Word64AtomicStoreUint64:
+    case kPPC_AtomicStoreWord64:
       ASSEMBLE_ATOMIC_STORE_INTEGER(std, stdx);
       break;
     case kWord32AtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
       __ extsb(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kPPC_Word64AtomicExchangeUint8:
-    case kWord32AtomicExchangeUint8:
+    case kPPC_AtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
       break;
     case kWord32AtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
       __ extsh(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kPPC_Word64AtomicExchangeUint16:
-    case kWord32AtomicExchangeUint16:
+    case kPPC_AtomicExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
       break;
-    case kPPC_Word64AtomicExchangeUint32:
-    case kWord32AtomicExchangeWord32:
+    case kPPC_AtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lwarx, stwcx);
       break;
-    case kPPC_Word64AtomicExchangeUint64:
+    case kPPC_AtomicExchangeWord64:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldarx, stdcx);
       break;
     case kWord32AtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lbarx, stbcx, extsb);
       break;
-    case kPPC_Word64AtomicCompareExchangeUint8:
-    case kWord32AtomicCompareExchangeUint8:
+    case kPPC_AtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lbarx, stbcx);
       break;
     case kWord32AtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lharx, sthcx, extsh);
       break;
-    case kPPC_Word64AtomicCompareExchangeUint16:
-    case kWord32AtomicCompareExchangeUint16:
+    case kPPC_AtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lharx, sthcx);
       break;
-    case kPPC_Word64AtomicCompareExchangeUint32:
-    case kWord32AtomicCompareExchangeWord32:
+    case kPPC_AtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmpw, lwarx, stwcx);
       break;
-    case kPPC_Word64AtomicCompareExchangeUint64:
+    case kPPC_AtomicCompareExchangeWord64:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, ldarx, stdcx);
       break;
 
@@ -2062,20 +2049,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   case kWord32Atomic##op##Int8:                                \
     ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lbarx, stbcx, extsb); \
     break;                                                     \
-  case kPPC_Word64Atomic##op##Uint8:                           \
-  case kWord32Atomic##op##Uint8:                               \
+  case kPPC_Atomic##op##Uint8:                                 \
     ASSEMBLE_ATOMIC_BINOP(inst, lbarx, stbcx);                 \
     break;                                                     \
   case kWord32Atomic##op##Int16:                               \
     ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lharx, sthcx, extsh); \
     break;                                                     \
-  case kPPC_Word64Atomic##op##Uint16:                          \
-  case kWord32Atomic##op##Uint16:                              \
+  case kPPC_Atomic##op##Uint16:                                \
     ASSEMBLE_ATOMIC_BINOP(inst, lharx, sthcx);                 \
     break;                                                     \
-  case kPPC_Word64Atomic##op##Uint32:                          \
-  case kWord32Atomic##op##Word32:                              \
+  case kPPC_Atomic##op##Word32:                                \
     ASSEMBLE_ATOMIC_BINOP(inst, lwarx, stwcx);                 \
+    break;                                                     \
+  case kPPC_Atomic##op##Word64:                                \
+    ASSEMBLE_ATOMIC_BINOP(inst, ldarx, stdcx);                 \
     break;
       ATOMIC_BINOP_CASE(Add, add)
       ATOMIC_BINOP_CASE(Sub, sub)
@@ -2083,17 +2070,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, orx)
       ATOMIC_BINOP_CASE(Xor, xor_)
 #undef ATOMIC_BINOP_CASE
-
-#define ATOMIC64_BINOP_CASE(op, inst)          \
-  case kPPC_Word64Atomic##op##Uint64:          \
-    ASSEMBLE_ATOMIC_BINOP(inst, ldarx, stdcx); \
-    break;
-      ATOMIC64_BINOP_CASE(Add, add)
-      ATOMIC64_BINOP_CASE(Sub, sub)
-      ATOMIC64_BINOP_CASE(And, and_)
-      ATOMIC64_BINOP_CASE(Or, orx)
-      ATOMIC64_BINOP_CASE(Xor, xor_)
-#undef ATOMIC64_BINOP_CASE
 
     case kPPC_ByteRev32: {
       Register input = i.InputRegister(0);
