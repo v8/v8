@@ -545,7 +545,7 @@ class MacroAssembler : public TurboAssembler {
   // esi.
   void EnterExitFrame(int argc, bool save_doubles, StackFrame::Type frame_type);
 
-  void EnterApiExitFrame(int argc);
+  void EnterApiExitFrame(int argc, Register scratch);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
@@ -741,7 +741,7 @@ class MacroAssembler : public TurboAssembler {
                       bool* definitely_mismatches, InvokeFlag flag,
                       Label::Distance done_distance);
 
-  void EnterExitFramePrologue(StackFrame::Type frame_type);
+  void EnterExitFramePrologue(StackFrame::Type frame_type, Register scratch);
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
 
   void LeaveExitFrameEpilogue();

@@ -850,7 +850,8 @@ void MacroAssembler::LeaveBuiltinFrame(Register context, Register target,
   leave();
 }
 
-void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
+void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
+                                            Register scratch) {
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
 
@@ -878,9 +879,11 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
   ExternalReference c_function_address =
       ExternalReference::Create(IsolateAddressId::kCFunctionAddress, isolate());
-  mov(StaticVariable(c_entry_fp_address), ebp);
-  mov(StaticVariable(context_address), esi);
-  mov(StaticVariable(c_function_address), edx);
+
+  DCHECK(!AreAliased(scratch, ebp, esi, edx));
+  mov(ExternalReferenceAsOperand(c_entry_fp_address, scratch), ebp);
+  mov(ExternalReferenceAsOperand(context_address, scratch), esi);
+  mov(ExternalReferenceAsOperand(c_function_address, scratch), edx);
 }
 
 
@@ -911,7 +914,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
 
 void MacroAssembler::EnterExitFrame(int argc, bool save_doubles,
                                     StackFrame::Type frame_type) {
-  EnterExitFramePrologue(frame_type);
+  EnterExitFramePrologue(frame_type, edi);
 
   // Set up argc and argv in callee-saved registers.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
@@ -922,9 +925,8 @@ void MacroAssembler::EnterExitFrame(int argc, bool save_doubles,
   EnterExitFrameEpilogue(argc, save_doubles);
 }
 
-
-void MacroAssembler::EnterApiExitFrame(int argc) {
-  EnterExitFramePrologue(StackFrame::EXIT);
+void MacroAssembler::EnterApiExitFrame(int argc, Register scratch) {
+  EnterExitFramePrologue(StackFrame::EXIT, scratch);
   EnterExitFrameEpilogue(argc, false);
 }
 
@@ -958,18 +960,21 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
 }
 
 void MacroAssembler::LeaveExitFrameEpilogue() {
-  // Restore current context from top and clear it in debug mode.
-  ExternalReference context_address =
-      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  mov(esi, StaticVariable(context_address));
-#ifdef DEBUG
-  mov(StaticVariable(context_address), Immediate(Context::kInvalidContext));
-#endif
-
   // Clear the top frame.
   ExternalReference c_entry_fp_address =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  mov(StaticVariable(c_entry_fp_address), Immediate(0));
+  mov(ExternalReferenceAsOperand(c_entry_fp_address, esi), Immediate(0));
+
+  // Restore current context from top and clear it in debug mode.
+  ExternalReference context_address =
+      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
+  mov(esi, ExternalReferenceAsOperand(context_address, esi));
+#ifdef DEBUG
+  push(eax);
+  mov(ExternalReferenceAsOperand(context_address, eax),
+      Immediate(Context::kInvalidContext));
+  pop(eax);
+#endif
 }
 
 void MacroAssembler::LeaveApiExitFrame() {
@@ -1238,7 +1243,9 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 
   ExternalReference debug_hook_active =
       ExternalReference::debug_hook_on_function_call_address(isolate());
-  cmpb(StaticVariable(debug_hook_active), Immediate(0));
+  push(eax);
+  cmpb(ExternalReferenceAsOperand(debug_hook_active, eax), Immediate(0));
+  pop(eax);
   j(equal, &skip_hook);
 
   {

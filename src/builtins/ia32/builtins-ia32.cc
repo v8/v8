@@ -2576,7 +2576,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   if (argv_mode == kArgvInRegister) {
     DCHECK(save_doubles == kDontSaveFPRegs);
     DCHECK(!builtin_exit_frame);
-    __ EnterApiExitFrame(arg_stack_space);
+    __ EnterApiExitFrame(arg_stack_space, edi);
 
     // Move argc and argv into the correct registers.
     __ mov(esi, ecx);

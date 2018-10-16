@@ -182,8 +182,9 @@ static Operand ApiParameterOperand(int index) {
 // Arguments must be stored in ApiParameterOperand(0), ApiParameterOperand(1)
 // etc. Saves context (esi). If space was reserved for return value then
 // stores the pointer to the reserved slot into esi.
-static void PrepareCallApiFunction(MacroAssembler* masm, int argc) {
-  __ EnterApiExitFrame(argc);
+static void PrepareCallApiFunction(MacroAssembler* masm, int argc,
+                                   Register scratch) {
+  __ EnterApiExitFrame(argc, scratch);
   if (__ emit_debug_code()) {
     __ mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
   }
@@ -211,16 +212,16 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   DCHECK(edx == function_address);
   // Allocate HandleScope in callee-save registers.
-  __ mov(esi, __ StaticVariable(next_address));
-  __ mov(edi, __ StaticVariable(limit_address));
-  __ add(__ StaticVariable(level_address), Immediate(1));
+  __ add(__ ExternalReferenceAsOperand(level_address, esi), Immediate(1));
+  __ mov(esi, __ ExternalReferenceAsOperand(next_address, esi));
+  __ mov(edi, __ ExternalReferenceAsOperand(limit_address, edi));
 
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, eax);
-    __ mov(Operand(esp, 0),
-           Immediate(ExternalReference::isolate_address(isolate)));
+    __ Move(Operand(esp, 0),
+            Immediate(ExternalReference::isolate_address(isolate)));
     __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -248,8 +249,8 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     FrameScope frame(masm, StackFrame::MANUAL);
     __ PushSafepointRegisters();
     __ PrepareCallCFunction(1, eax);
-    __ mov(Operand(esp, 0),
-           Immediate(ExternalReference::isolate_address(isolate)));
+    __ mov(eax, Immediate(ExternalReference::isolate_address(isolate)));
+    __ mov(Operand(esp, 0), eax);
     __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
     __ PopSafepointRegisters();
   }
@@ -265,10 +266,10 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&prologue);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  __ mov(__ StaticVariable(next_address), esi);
-  __ sub(__ StaticVariable(level_address), Immediate(1));
+  __ mov(__ ExternalReferenceAsOperand(next_address, ecx), esi);
+  __ sub(__ ExternalReferenceAsOperand(level_address, ecx), Immediate(1));
   __ Assert(above_equal, AbortReason::kInvalidHandleScopeLevel);
-  __ cmp(edi, __ StaticVariable(limit_address));
+  __ cmp(edi, __ ExternalReferenceAsOperand(limit_address, ecx));
   __ j(not_equal, &delete_allocated_handles);
 
   // Leave the API exit frame.
@@ -281,7 +282,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // Check if the function scheduled an exception.
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate);
-  __ cmp(__ StaticVariable(scheduled_exception_address),
+  __ cmp(__ ExternalReferenceAsOperand(scheduled_exception_address, ecx),
          Immediate(isolate->factory()->the_hole_value()));
   __ j(not_equal, &promote_scheduled_exception);
 
@@ -337,7 +338,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   ExternalReference delete_extensions =
       ExternalReference::delete_handle_scope_extensions();
   __ bind(&delete_allocated_handles);
-  __ mov(__ StaticVariable(limit_address), edi);
+  __ mov(__ ExternalReferenceAsOperand(limit_address, ecx), edi);
   __ mov(edi, eax);
   __ mov(Operand(esp, 0),
          Immediate(ExternalReference::isolate_address(isolate)));
@@ -412,7 +413,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // it's not controlled by GC.
   const int kApiStackSpace = 3;
 
-  PrepareCallApiFunction(masm, kApiArgc + kApiStackSpace);
+  PrepareCallApiFunction(masm, kApiArgc + kApiStackSpace, edi);
 
   // FunctionCallbackInfo::implicit_args_.
   __ mov(ApiParameterOperand(2), scratch);
@@ -479,10 +480,11 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // active) in non-GCed stack space.
   const int kApiArgc = 3 + 1;
 
-  // Load address of v8::PropertyAccessorInfo::args_ array.
-  __ lea(scratch, Operand(esp, 2 * kPointerSize));
+  PrepareCallApiFunction(masm, kApiArgc, scratch);
 
-  PrepareCallApiFunction(masm, kApiArgc);
+  // Load address of v8::PropertyAccessorInfo::args_ array. The value in ebp
+  // here corresponds to esp + kPointersize before PrepareCallApiFunction.
+  __ lea(scratch, Operand(ebp, kPointerSize + 2 * kPointerSize));
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.
   Operand info_object = ApiParameterOperand(3);
