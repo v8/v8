@@ -39,8 +39,7 @@ class IsolateData final {
   V(kBuiltinsTableEndOffset, 0)                                           \
   /* magic_number_ */                                                     \
   V(kMagicNumberOffset, kIntptrSize)                                      \
-  /* virtual_call_target_register_ */                                     \
-  V(kVirtualCallTargetRegisterOffset, kPointerSize)                       \
+  V(kMagicNumberEndOffset, 0)                                             \
   /* Total size. */                                                       \
   V(kSize, 0)
 
@@ -79,10 +78,6 @@ class IsolateData final {
   // For root register verification.
   // TODO(v8:6666): Remove once the root register is fully supported on ia32.
   const intptr_t magic_number_ = kRootRegisterSentinel;
-
-  // For isolate-independent calls on ia32.
-  // TODO(v8:6666): Remove once pc-relative jumps are supported on ia32.
-  void* virtual_call_target_register_ = nullptr;
 
   V8_INLINE static void AssertPredictableLayout();
 
