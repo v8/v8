@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import platform
 import signal
-import subprocess
 
 from . import base
 from testrunner.local import utils
@@ -31,8 +29,3 @@ class SignalProc(base.TestProcObserver):
     print '>>> SIGTERM received, early abort...'
     self.exit_code = utils.EXIT_CODE_TERMINATED
     self.stop()
-
-    # TODO(machenbach): Remove temporary output after investigating:
-    # https://crbug.com/v8/8292
-    if platform.system() == 'Linux':
-      subprocess.call('ps -aux | grep d8', shell=True)
