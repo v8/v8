@@ -618,15 +618,20 @@ TNode<Smi> CodeStubAssembler::SmiMin(TNode<Smi> a, TNode<Smi> b) {
   return SelectConstant<Smi>(SmiLessThan(a, b), a, b);
 }
 
+TNode<IntPtrT> CodeStubAssembler::TryIntPtrAdd(TNode<IntPtrT> a,
+                                               TNode<IntPtrT> b,
+                                               Label* if_overflow) {
+  TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAddWithOverflow(a, b);
+  TNode<BoolT> overflow = Projection<1>(pair);
+  GotoIf(overflow, if_overflow);
+  return Projection<0>(pair);
+}
+
 TNode<Smi> CodeStubAssembler::TrySmiAdd(TNode<Smi> lhs, TNode<Smi> rhs,
                                         Label* if_overflow) {
   if (SmiValuesAre32Bits()) {
-    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAddWithOverflow(
-        BitcastTaggedToWord(lhs), BitcastTaggedToWord(rhs));
-    TNode<BoolT> overflow = Projection<1>(pair);
-    GotoIf(overflow, if_overflow);
-    TNode<IntPtrT> result = Projection<0>(pair);
-    return BitcastWordToTaggedSigned(result);
+    return BitcastWordToTaggedSigned(TryIntPtrAdd(
+        BitcastTaggedToWord(lhs), BitcastTaggedToWord(rhs), if_overflow));
   } else {
     DCHECK(SmiValuesAre31Bits());
     TNode<PairT<Int32T, BoolT>> pair =
@@ -965,6 +970,12 @@ TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
     TNode<FixedDoubleArray> array, TNode<Smi> index, Label* if_hole) {
   return LoadFixedDoubleArrayElement(array, index, MachineType::Float64(), 0,
                                      SMI_PARAMETERS, if_hole);
+}
+
+TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
+    TNode<FixedDoubleArray> array, TNode<IntPtrT> index, Label* if_hole) {
+  return LoadFixedDoubleArrayElement(array, index, MachineType::Float64(), 0,
+                                     INTPTR_PARAMETERS, if_hole);
 }
 
 void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
@@ -5880,6 +5891,12 @@ TNode<BoolT> CodeStubAssembler::IsOneByteStringInstanceType(
   return Word32Equal(
       Word32And(instance_type, Int32Constant(kStringEncodingMask)),
       Int32Constant(kOneByteStringTag));
+}
+
+TNode<BoolT> CodeStubAssembler::HasOnlyOneByteChars(
+    TNode<Int32T> instance_type) {
+  CSA_ASSERT(this, IsStringInstanceType(instance_type));
+  return IsSetWord32(instance_type, kStringEncodingMask | kOneByteDataHintMask);
 }
 
 TNode<BoolT> CodeStubAssembler::IsSequentialStringInstanceType(
@@ -12847,6 +12864,11 @@ Node* CodeStubAssembler::IsHoleyFastElementsKind(Node* elements_kind) {
 Node* CodeStubAssembler::IsElementsKindGreaterThan(
     Node* target_kind, ElementsKind reference_kind) {
   return Int32GreaterThan(target_kind, Int32Constant(reference_kind));
+}
+
+TNode<BoolT> CodeStubAssembler::IsElementsKindLessThanOrEqual(
+    TNode<Int32T> target_kind, ElementsKind reference_kind) {
+  return Int32LessThanOrEqual(target_kind, Int32Constant(reference_kind));
 }
 
 Node* CodeStubAssembler::IsDebugActive() {

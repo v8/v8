@@ -735,6 +735,12 @@ ExternalReference ExternalReference::search_string_raw() {
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
+ExternalReference
+ExternalReference::jsarray_array_join_concat_to_sequential_string() {
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(JSArray::ArrayJoinConcatToSequentialString)));
+}
+
 ExternalReference ExternalReference::search_string_raw_one_one() {
   return search_string_raw<const uint8_t, const uint8_t>();
 }

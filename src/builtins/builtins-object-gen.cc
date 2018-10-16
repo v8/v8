@@ -814,7 +814,13 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
 }
 
 // ES #sec-object.prototype.tostring
-TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
+TF_BUILTIN(ObjectPrototypeToString, CodeStubAssembler) {
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  Return(CallBuiltin(Builtins::kObjectToString, context, receiver));
+}
+
+TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   Label checkstringtag(this), if_apiobject(this, Label::kDeferred),
       if_arguments(this), if_array(this), if_boolean(this), if_date(this),
       if_error(this), if_function(this), if_number(this, Label::kDeferred),

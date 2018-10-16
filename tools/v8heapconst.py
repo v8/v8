@@ -417,7 +417,7 @@ KNOWN_OBJECTS = {
   ("OLD_SPACE", 0x018c1): "RegExpMultipleCache",
   ("OLD_SPACE", 0x020d1): "DefaultMicrotaskQueue",
   ("OLD_SPACE", 0x020e9): "BuiltinsConstantsTable",
-  ("OLD_SPACE", 0x029f9): "HashSeed",
+  ("OLD_SPACE", 0x02a11): "HashSeed",
 }
 
 # List of known V8 Frame Markers.

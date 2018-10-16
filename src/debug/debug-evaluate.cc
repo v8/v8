@@ -552,10 +552,13 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypeFindIndex:
     case Builtins::kArrayPrototypeFlat:
     case Builtins::kArrayPrototypeFlatMap:
+    case Builtins::kArrayPrototypeJoin:
     case Builtins::kArrayPrototypeKeys:
     case Builtins::kArrayPrototypeLastIndexOf:
     case Builtins::kArrayPrototypeSlice:
     case Builtins::kArrayPrototypeSort:
+    case Builtins::kArrayPrototypeToLocaleString:
+    case Builtins::kArrayPrototypeToString:
     case Builtins::kArrayForEach:
     case Builtins::kArrayEvery:
     case Builtins::kArraySome:

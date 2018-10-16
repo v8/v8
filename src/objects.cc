@@ -11397,6 +11397,111 @@ Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
   return array;
 }
 
+namespace {
+
+template <typename sinkchar>
+void WriteFixedArrayToFlat(FixedArray* fixed_array, int length,
+                           String* separator, sinkchar* sink, int sink_length) {
+  DisallowHeapAllocation no_allocation;
+  CHECK_GT(length, 0);
+  CHECK_LE(length, fixed_array->length());
+#ifdef DEBUG
+  sinkchar* sink_end = sink + sink_length;
+#endif
+
+  const int separator_length = separator->length();
+  const bool use_one_byte_separator_fast_path =
+      separator_length == 1 && sizeof(sinkchar) == 1 &&
+      StringShape(separator).IsSequentialOneByte();
+  uint8_t separator_one_char;
+  if (use_one_byte_separator_fast_path) {
+    CHECK(StringShape(separator).IsSequentialOneByte());
+    CHECK_EQ(separator->length(), 1);
+    separator_one_char = SeqOneByteString::cast(separator)->GetChars()[0];
+  }
+
+  uint32_t num_separators = 0;
+  for (int i = 0; i < length; i++) {
+    Object* element = fixed_array->get(i);
+    const bool element_is_separator_sequence = element->IsSmi();
+
+    // If element is a Smi, it represents the number of separators to write.
+    if (V8_UNLIKELY(element_is_separator_sequence)) {
+      CHECK(element->ToUint32(&num_separators));
+      // Verify that Smis (number of separators) only occur when necessary:
+      //   1) at the beginning
+      //   2) at the end
+      //   3) when the number of separators > 1
+      //     - It is assumed that consecutive Strings will have one separator,
+      //       so there is no need for a Smi.
+      DCHECK(i == 0 || i == length - 1 || num_separators > 1);
+    }
+
+    // Write separator(s) if necessary.
+    if (num_separators > 0 && separator_length > 0) {
+      // TODO(pwong): Consider doubling strategy employed by runtime-strings.cc
+      //              WriteRepeatToFlat().
+      // Fast path for single character, single byte separators.
+      if (use_one_byte_separator_fast_path) {
+        DCHECK_LE(sink + num_separators, sink_end);
+        memset(sink, separator_one_char, num_separators);
+        DCHECK_EQ(separator_length, 1);
+        sink += num_separators;
+      } else {
+        for (uint32_t j = 0; j < num_separators; j++) {
+          DCHECK_LE(sink + separator_length, sink_end);
+          String::WriteToFlat(separator, sink, 0, separator_length);
+          sink += separator_length;
+        }
+      }
+    }
+
+    if (V8_UNLIKELY(element_is_separator_sequence)) {
+      num_separators = 0;
+    } else {
+      DCHECK(element->IsString());
+      String* string = String::cast(element);
+      const int string_length = string->length();
+
+      DCHECK(string_length == 0 || sink < sink_end);
+      String::WriteToFlat(string, sink, 0, string_length);
+      sink += string_length;
+
+      // Next string element, needs at least one separator preceding it.
+      num_separators = 1;
+    }
+  }
+
+  // Verify we have written to the end of the sink.
+  DCHECK_EQ(sink, sink_end);
+}
+
+}  // namespace
+
+// static
+String* JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
+                                                   FixedArray* fixed_array,
+                                                   intptr_t length,
+                                                   String* separator,
+                                                   String* dest) {
+  DisallowHeapAllocation no_allocation;
+  DisallowJavascriptExecution no_js(isolate);
+  DCHECK(fixed_array->IsFixedArray());
+  DCHECK(StringShape(dest).IsSequentialOneByte() ||
+         StringShape(dest).IsSequentialTwoByte());
+
+  if (StringShape(dest).IsSequentialOneByte()) {
+    WriteFixedArrayToFlat(fixed_array, static_cast<int>(length), separator,
+                          SeqOneByteString::cast(dest)->GetChars(),
+                          dest->length());
+  } else {
+    DCHECK(StringShape(dest).IsSequentialTwoByte());
+    WriteFixedArrayToFlat(fixed_array, static_cast<int>(length), separator,
+                          SeqTwoByteString::cast(dest)->GetChars(),
+                          dest->length());
+  }
+  return dest;
+}
 
 // Compares the contents of two strings by reading and comparing
 // int-sized blocks of characters.

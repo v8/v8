@@ -340,6 +340,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -444,6 +445,7 @@ static void WriteRepeatToFlat(String* src, Vector<sinkchar> buffer, int cursor,
   }
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 template <typename Char>
 static void JoinSparseArrayWithSeparator(FixedArray* elements,
                                          int elements_length,
@@ -480,6 +482,7 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
   DCHECK(cursor <= buffer.length());
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
