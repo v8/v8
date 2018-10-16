@@ -616,7 +616,7 @@
   },
   'V8 Linux - full debug': {
     'tests': [
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'variant': 'default'},
     ],
   },
   'V8 Linux - gc stress': {
@@ -637,9 +637,9 @@
   },
   'V8 Linux - noi18n - debug': {
     'tests': [
-      {'name': 'mozilla'},
-      {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'mozilla', 'variant': 'default'},
+      {'name': 'test262', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'default'},
     ],
   },
   'V8 Linux - nosnap': {
@@ -649,9 +649,9 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 2},
-      {'name': 'v8testing', 'shards': 3},
+      {'name': 'mozilla', 'variant': 'default'},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 3},
     ],
   },
   'V8 Linux - nosnap - debug': {
@@ -661,7 +661,7 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 12},
     ],
   },
   'V8 Linux - predictable': {
@@ -932,7 +932,7 @@
       'os': 'Windows-7-SP1',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
     ],
   },
   'V8 Win64': {
