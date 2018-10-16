@@ -155,6 +155,7 @@
   V(_, grapheme_string, "grapheme")                                   \
   V(_, groups_string, "groups")                                       \
   V(_, has_string, "has")                                             \
+  V(_, holdings_string, "holdings")                                   \
   V(_, ignoreCase_string, "ignoreCase")                               \
   V(_, illegal_access_string, "illegal access")                       \
   V(_, illegal_argument_string, "illegal argument")                   \

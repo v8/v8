@@ -59,6 +59,7 @@ class JSWeakCell : public JSObject {
 
   DECL_ACCESSORS(factory, JSWeakFactory)
   DECL_ACCESSORS(target, Object)
+  DECL_ACCESSORS(holdings, Object)
 
   // For storing doubly linked lists of JSWeakCells in JSWeakFactory.
   DECL_ACCESSORS(prev, Object)
@@ -66,7 +67,8 @@ class JSWeakCell : public JSObject {
 
   static const int kFactoryOffset = JSObject::kHeaderSize;
   static const int kTargetOffset = kFactoryOffset + kPointerSize;
-  static const int kPrevOffset = kTargetOffset + kPointerSize;
+  static const int kHoldingsOffset = kTargetOffset + kPointerSize;
+  static const int kPrevOffset = kHoldingsOffset + kPointerSize;
   static const int kNextOffset = kPrevOffset + kPointerSize;
   static const int kSize = kNextOffset + kPointerSize;
 

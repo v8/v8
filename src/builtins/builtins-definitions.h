@@ -1334,6 +1334,7 @@ namespace internal {
   CPP(Trace)                                                                   \
                                                                                \
   /* Weak refs */                                                              \
+  CPP(WeakCellHoldingsGetter)                                                  \
   CPP(WeakFactoryCleanupIteratorNext)                                          \
   CPP(WeakFactoryConstructor)                                                  \
   CPP(WeakFactoryMakeCell)

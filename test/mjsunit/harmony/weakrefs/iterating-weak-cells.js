@@ -13,10 +13,14 @@ let cleanup = function(iter) {
   }
   assertEquals(cells.length, 2);
   if (cells[0] == wc1) {
+    assertEquals(cells[0].holdings, 1);
     assertEquals(cells[1], wc2);
+    assertEquals(cells[1].holdings, 2);
   } else {
     assertEquals(cells[0], wc2);
+    assertEquals(cells[0].holdings, 2);
     assertEquals(cells[1], wc1);
+    assertEquals(cells[1].holdings, 1);
   }
   cleanup_called = true;
 }
@@ -24,8 +28,8 @@ let cleanup = function(iter) {
 let wf = new WeakFactory(cleanup);
 let o1 = {};
 let o2 = {};
-let wc1 = wf.makeCell(o1);
-let wc2 = wf.makeCell(o2);
+let wc1 = wf.makeCell(o1, 1);
+let wc2 = wf.makeCell(o2, 2);
 
 gc();
 assertFalse(cleanup_called);

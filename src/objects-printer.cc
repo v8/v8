@@ -1279,6 +1279,7 @@ void JSWeakCell::JSWeakCellPrint(std::ostream& os) {
   JSObjectPrintHeader(os, this, "JSWeakCell");
   os << "\n - factory: " << Brief(factory());
   os << "\n - target: " << Brief(target());
+  os << "\n - holdings: " << Brief(holdings());
   os << "\n - prev: " << Brief(prev());
   os << "\n - next: " << Brief(next());
   os << "\n";

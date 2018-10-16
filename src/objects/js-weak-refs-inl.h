@@ -24,6 +24,7 @@ CAST_ACCESSOR(JSWeakFactory)
 
 ACCESSORS(JSWeakCell, factory, JSWeakFactory, kFactoryOffset)
 ACCESSORS(JSWeakCell, target, Object, kTargetOffset)
+ACCESSORS(JSWeakCell, holdings, Object, kHoldingsOffset)
 ACCESSORS(JSWeakCell, next, Object, kNextOffset)
 ACCESSORS(JSWeakCell, prev, Object, kPrevOffset)
 CAST_ACCESSOR(JSWeakCell)

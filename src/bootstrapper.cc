@@ -4564,6 +4564,10 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
         isolate(), weak_cell_prototype, factory->to_string_tag_symbol(),
         factory->WeakCell_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    SimpleInstallGetter(isolate(), weak_cell_prototype,
+                        factory->holdings_string(),
+                        Builtins::kWeakCellHoldingsGetter, false);
   }
 
   {

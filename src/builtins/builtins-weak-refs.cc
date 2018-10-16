@@ -42,6 +42,8 @@ BUILTIN(WeakFactoryMakeCell) {
   // SameValue(target, holdings).
   Handle<JSObject> js_object = Handle<JSObject>::cast(object);
 
+  Handle<Object> holdings = args.atOrUndefined(isolate, 2);
+
   // TODO(marja): Realms.
 
   Handle<Map> weak_cell_map(isolate->native_context()->js_weak_cell_map(),
@@ -54,6 +56,7 @@ BUILTIN(WeakFactoryMakeCell) {
       Handle<JSWeakCell>::cast(isolate->factory()->NewJSObjectFromMap(
           weak_cell_map, TENURED, Handle<AllocationSite>::null()));
   weak_cell->set_target(*js_object);
+  weak_cell->set_holdings(*holdings);
   weak_factory->AddWeakCell(*weak_cell);
   return *weak_cell;
 }
@@ -71,6 +74,12 @@ BUILTIN(WeakFactoryCleanupIteratorNext) {
       handle(weak_factory->PopClearedCell(isolate), isolate);
 
   return *isolate->factory()->NewJSIteratorResult(weak_cell_object, false);
+}
+
+BUILTIN(WeakCellHoldingsGetter) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSWeakCell, weak_cell, "get WeakCell.holdings");
+  return weak_cell->holdings();
 }
 
 }  // namespace internal
