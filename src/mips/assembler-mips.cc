@@ -4141,7 +4141,9 @@ void Assembler::GenPCRelativeJump(Register tf, Register ts, int32_t imm32,
   // or when changing imm32 that lui/ori pair loads.
   or_(tf, ra, zero_reg);
   nal();  // Relative place of nal instruction determines kLongBranchPCOffset.
-  RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNone(rmode)) {
+    RecordRelocInfo(rmode);
+  }
   lui(ts, (imm32 & kHiMask) >> kLuiShift);
   ori(ts, ts, (imm32 & kImm16Mask));
   addu(ts, ra, ts);
@@ -4157,7 +4159,9 @@ void Assembler::GenPCRelativeJump(Register tf, Register ts, int32_t imm32,
 void Assembler::GenPCRelativeJumpAndLink(Register t, int32_t imm32,
                                          RelocInfo::Mode rmode,
                                          BranchDelaySlot bdslot) {
-  RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNone(rmode)) {
+    RecordRelocInfo(rmode);
+  }
   // Order of these instructions is relied upon when patching them
   // or when changing imm32 that lui/ori pair loads.
   lui(t, (imm32 & kHiMask) >> kLuiShift);
