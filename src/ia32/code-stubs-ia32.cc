@@ -102,9 +102,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ VerifyRootRegister();
 
   // Check if the current stack frame is marked as the outermost JS frame.
-  Assembler::AllowExplicitEbxAccessScope exiting_js(masm);
-  __ pop(ebx);
-  __ cmp(ebx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ pop(edi);
+  __ cmp(edi, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
   __ mov(__ ExternalReferenceAsOperand(js_entry_sp, edi), Immediate(0));
   __ bind(&not_outermost_js_2);
@@ -112,6 +111,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Restore the top frame descriptor from the stack.
   __ pop(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
+  Assembler::AllowExplicitEbxAccessScope exiting_js(masm);
   // Restore callee-saved registers (C calling conventions).
   __ pop(ebx);
   __ pop(esi);
