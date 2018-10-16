@@ -783,7 +783,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
       logging.info(title % "Stdout" + "\n%s", e.output)
       raise
     except android.TimeoutException as e:
-      if e.output:
+      if e.output is not None:
         logging.info(title % "Stdout" + "\n%s", e.output)
       logging.warning(">>> Test timed out after %ss.", runnable.timeout)
       stdout = ""
