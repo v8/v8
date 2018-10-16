@@ -25,8 +25,7 @@ enum PersistentContainerCallbackType {
   kNotWeak,
   // These correspond to v8::WeakCallbackType
   kWeakWithParameter,
-  kWeakWithInternalFields,
-  kWeak = kWeakWithParameter  // For backwards compatibility.  Deprecate.
+  kWeakWithInternalFields
 };
 
 /**
