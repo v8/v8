@@ -715,6 +715,7 @@
   'regress/regress-3709': [PASS, FAIL],
   'regress/regress-6948': [PASS, FAIL],
   'regress/regress-7510': [PASS, FAIL],
+  'regress/regress-crbug-882233-2': [PASS, FAIL],
   'regress/regress-trap-allocation-memento': [PASS, FAIL],
   'regress/regress-unlink-closures-on-deopt': [PASS, FAIL],
   'shared-function-tier-up-turbo': [PASS, FAIL],
