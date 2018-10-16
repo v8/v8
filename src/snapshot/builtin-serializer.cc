@@ -77,7 +77,8 @@ void BuiltinSerializer::SerializeObject(HeapObject* o, HowToCode how_to_code,
   // builtin.
   if (SerializeBuiltinReference(o, how_to_code, where_to_point, skip)) return;
 
-  // Embedded objects are serialized as part of the partial snapshot cache.
+  // Embedded objects are serialized as part of the read-only object and partial
+  // snapshot caches.
   // Currently we expect to see:
   // * Code: Jump targets.
   // * ByteArrays: Relocation infos.
@@ -87,13 +88,13 @@ void BuiltinSerializer::SerializeObject(HeapObject* o, HowToCode how_to_code,
   // TODO(6624): Jump targets should never trigger content serialization, it
   // should always result in a reference instead. Reloc infos and handler tables
   // should not end up in the partial snapshot cache.
+  if (startup_serializer_->SerializeUsingReadOnlyObjectCache(
+          &sink_, o, how_to_code, where_to_point, skip)) {
+    return;
+  }
 
-  FlushSkip(skip);
-
-  int cache_index = startup_serializer_->PartialSnapshotCacheIndex(o);
-  sink_.Put(kPartialSnapshotCache + how_to_code + where_to_point,
-            "PartialSnapshotCache");
-  sink_.PutInt(cache_index, "partial_snapshot_cache_index");
+  startup_serializer_->SerializeUsingPartialSnapshotCache(
+      &sink_, o, how_to_code, where_to_point, skip);
 }
 
 void BuiltinSerializer::SetBuiltinOffset(int builtin_id, uint32_t offset) {

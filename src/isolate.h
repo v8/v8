@@ -1472,6 +1472,10 @@ class Isolate : private HiddenFactory {
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 
+  std::vector<Object*>* read_only_object_cache() {
+    return &read_only_object_cache_;
+  }
+
   std::vector<Object*>* partial_snapshot_cache() {
     return &partial_snapshot_cache_;
   }
@@ -1880,6 +1884,7 @@ class Isolate : private HiddenFactory {
 
   v8::Isolate::UseCounterCallback use_counter_callback_;
 
+  std::vector<Object*> read_only_object_cache_;
   std::vector<Object*> partial_snapshot_cache_;
 
   // Used during builtins compilation to build the builtins constants table,

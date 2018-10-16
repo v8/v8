@@ -127,6 +127,33 @@ class CodeAddressMap : public CodeEventLogger {
   NameMap address_to_name_map_;
 };
 
+class ObjectCacheIndexMap {
+ public:
+  ObjectCacheIndexMap() : map_(), next_index_(0) {}
+
+  // If |obj| is in the map, immediately return true.  Otherwise add it to the
+  // map and return false. In either case set |*index_out| to the index
+  // associated with the map.
+  bool LookupOrInsert(HeapObject* obj, int* index_out) {
+    Maybe<uint32_t> maybe_index = map_.Get(obj);
+    if (maybe_index.IsJust()) {
+      *index_out = maybe_index.FromJust();
+      return true;
+    }
+    *index_out = next_index_;
+    map_.Set(obj, next_index_++);
+    return false;
+  }
+
+ private:
+  DisallowHeapAllocation no_allocation_;
+
+  HeapObjectToIndexHashMap map_;
+  int next_index_;
+
+  DISALLOW_COPY_AND_ASSIGN(ObjectCacheIndexMap);
+};
+
 template <class AllocatorT = DefaultSerializerAllocator>
 class Serializer : public SerializerDeserializer {
  public:
@@ -202,12 +229,14 @@ class Serializer : public SerializerDeserializer {
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject* obj) const;
 
-  inline void FlushSkip(int skip) {
+  static inline void FlushSkip(SnapshotByteSink* sink, int skip) {
     if (skip != 0) {
-      sink_.Put(kSkip, "SkipFromSerializeObject");
-      sink_.PutInt(skip, "SkipDistanceFromSerializeObject");
+      sink->Put(kSkip, "SkipFromSerializeObject");
+      sink->PutInt(skip, "SkipDistanceFromSerializeObject");
     }
   }
+
+  inline void FlushSkip(int skip) { FlushSkip(&sink_, skip); }
 
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);

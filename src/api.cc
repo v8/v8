@@ -79,7 +79,10 @@
 #include "src/snapshot/builtin-serializer.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
+#include "src/snapshot/partial-serializer.h"
+#include "src/snapshot/read-only-serializer.h"
 #include "src/snapshot/snapshot.h"
+#include "src/snapshot/startup-serializer.h"
 #include "src/startup-data-util.h"
 #include "src/string-hasher.h"
 #include "src/tracing/trace-event.h"
@@ -795,7 +798,10 @@ StartupData SnapshotCreator::CreateBlob(
     }
   }
 
-  i::StartupSerializer startup_serializer(isolate);
+  i::ReadOnlySerializer read_only_serializer(isolate);
+  read_only_serializer.SerializeReadOnlyRoots();
+
+  i::StartupSerializer startup_serializer(isolate, &read_only_serializer);
   startup_serializer.SerializeStrongReferences();
 
   // Serialize each context with a new partial serializer.
@@ -825,10 +831,15 @@ StartupData SnapshotCreator::CreateBlob(
   startup_serializer.SerializeWeakReferencesAndDeferred();
   can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
 
+  read_only_serializer.FinalizeSerialization();
+  can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
+
+  i::SnapshotData read_only_snapshot(&read_only_serializer);
   i::SnapshotData startup_snapshot(&startup_serializer);
   i::BuiltinSnapshotData builtin_snapshot(&builtin_serializer);
   StartupData result = i::Snapshot::CreateSnapshotBlob(
-      &startup_snapshot, &builtin_snapshot, context_snapshots, can_be_rehashed);
+      &startup_snapshot, &builtin_snapshot, &read_only_snapshot,
+      context_snapshots, can_be_rehashed);
 
   // Delete heap-allocated context snapshot instances.
   for (const auto context_snapshot : context_snapshots) {

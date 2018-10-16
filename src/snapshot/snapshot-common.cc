@@ -49,8 +49,10 @@ bool Snapshot::Initialize(Isolate* isolate) {
   SnapshotData startup_snapshot_data(startup_data);
   Vector<const byte> builtin_data = ExtractBuiltinData(blob);
   BuiltinSnapshotData builtin_snapshot_data(builtin_data);
-  StartupDeserializer deserializer(&startup_snapshot_data,
-                                   &builtin_snapshot_data);
+  Vector<const byte> read_only_data = ExtractReadOnlyData(blob);
+  SnapshotData read_only_snapshot_data(read_only_data);
+  StartupDeserializer deserializer(
+      &startup_snapshot_data, &builtin_snapshot_data, &read_only_snapshot_data);
   deserializer.SetRehashability(ExtractRehashability(blob));
   bool success = isolate->Init(&deserializer);
   if (FLAG_profile_deserialization) {
@@ -174,11 +176,15 @@ Code* Snapshot::EnsureBuiltinIsDeserialized(Isolate* isolate,
 }
 
 void ProfileDeserialization(
+    const SnapshotData* read_only_snapshot,
     const SnapshotData* startup_snapshot, const SnapshotData* builtin_snapshot,
     const std::vector<SnapshotData*>& context_snapshots) {
   if (FLAG_profile_deserialization) {
     int startup_total = 0;
     PrintF("Deserialization will reserve:\n");
+    for (const auto& reservation : read_only_snapshot->Reservations()) {
+      startup_total += reservation.chunk_size();
+    }
     for (const auto& reservation : startup_snapshot->Reservations()) {
       startup_total += reservation.chunk_size();
     }
@@ -199,6 +205,7 @@ void ProfileDeserialization(
 v8::StartupData Snapshot::CreateSnapshotBlob(
     const SnapshotData* startup_snapshot,
     const BuiltinSnapshotData* builtin_snapshot,
+    const SnapshotData* read_only_snapshot,
     const std::vector<SnapshotData*>& context_snapshots, bool can_be_rehashed) {
   uint32_t num_contexts = static_cast<uint32_t>(context_snapshots.size());
   uint32_t startup_snapshot_offset = StartupSnapshotOffset(num_contexts);
@@ -208,12 +215,15 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   DCHECK(IsAligned(total_length, kPointerAlignment));
   total_length += static_cast<uint32_t>(builtin_snapshot->RawData().length());
   DCHECK(IsAligned(total_length, kPointerAlignment));
+  total_length += static_cast<uint32_t>(read_only_snapshot->RawData().length());
+  DCHECK(IsAligned(total_length, kPointerAlignment));
   for (const auto context_snapshot : context_snapshots) {
     total_length += static_cast<uint32_t>(context_snapshot->RawData().length());
     DCHECK(IsAligned(total_length, kPointerAlignment));
   }
 
-  ProfileDeserialization(startup_snapshot, builtin_snapshot, context_snapshots);
+  ProfileDeserialization(read_only_snapshot, startup_snapshot, builtin_snapshot,
+                         context_snapshots);
 
   char* data = new char[total_length];
   // Zero out pre-payload data. Part of that is only used for padding.
@@ -249,6 +259,18 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
             payload_length);
   if (FLAG_profile_deserialization) {
     PrintF("%10d bytes for builtins\n", payload_length);
+  }
+  payload_offset += payload_length;
+
+  // Read-only.
+  SetHeaderValue(data, kReadOnlyOffsetOffset, payload_offset);
+  payload_length = read_only_snapshot->RawData().length();
+  CopyBytes(
+      data + payload_offset,
+      reinterpret_cast<const char*>(read_only_snapshot->RawData().start()),
+      payload_length);
+  if (FLAG_profile_deserialization) {
+    PrintF("%10d bytes for read-only\n", payload_length);
   }
   payload_offset += payload_length;
 
@@ -563,33 +585,38 @@ bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
   return GetHeaderValue(data, kRehashabilityOffset) != 0;
 }
 
+namespace {
+Vector<const byte> ExtractData(const v8::StartupData* snapshot,
+                               uint32_t start_offset, uint32_t end_offset) {
+  CHECK_LT(start_offset, end_offset);
+  CHECK_LT(end_offset, snapshot->raw_size);
+  uint32_t length = end_offset - start_offset;
+  const byte* data =
+      reinterpret_cast<const byte*>(snapshot->data + start_offset);
+  return Vector<const byte>(data, length);
+}
+}  // namespace
+
 Vector<const byte> Snapshot::ExtractStartupData(const v8::StartupData* data) {
+  DCHECK(SnapshotIsValid(data));
+
   uint32_t num_contexts = ExtractNumContexts(data);
-  uint32_t startup_offset = StartupSnapshotOffset(num_contexts);
-  CHECK_LT(startup_offset, data->raw_size);
-  uint32_t builtin_offset = GetHeaderValue(data, kBuiltinOffsetOffset);
-  CHECK_LT(builtin_offset, data->raw_size);
-  CHECK_GT(builtin_offset, startup_offset);
-  uint32_t startup_length = builtin_offset - startup_offset;
-  const byte* startup_data =
-      reinterpret_cast<const byte*>(data->data + startup_offset);
-  return Vector<const byte>(startup_data, startup_length);
+  return ExtractData(data, StartupSnapshotOffset(num_contexts),
+                     GetHeaderValue(data, kBuiltinOffsetOffset));
 }
 
 Vector<const byte> Snapshot::ExtractBuiltinData(const v8::StartupData* data) {
   DCHECK(SnapshotIsValid(data));
 
-  uint32_t from_offset = GetHeaderValue(data, kBuiltinOffsetOffset);
-  CHECK_LT(from_offset, data->raw_size);
+  return ExtractData(data, GetHeaderValue(data, kBuiltinOffsetOffset),
+                     GetHeaderValue(data, kReadOnlyOffsetOffset));
+}
 
-  uint32_t to_offset = GetHeaderValue(data, ContextSnapshotOffsetOffset(0));
-  CHECK_LT(to_offset, data->raw_size);
+Vector<const byte> Snapshot::ExtractReadOnlyData(const v8::StartupData* data) {
+  DCHECK(SnapshotIsValid(data));
 
-  CHECK_GT(to_offset, from_offset);
-  uint32_t length = to_offset - from_offset;
-  const byte* builtin_data =
-      reinterpret_cast<const byte*>(data->data + from_offset);
-  return Vector<const byte>(builtin_data, length);
+  return ExtractData(data, GetHeaderValue(data, kReadOnlyOffsetOffset),
+                     GetHeaderValue(data, ContextSnapshotOffsetOffset(0)));
 }
 
 Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data,

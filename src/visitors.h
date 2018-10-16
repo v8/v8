@@ -35,6 +35,7 @@ class Object;
   V(kExtensions, "(Extensions)")                       \
   V(kCodeFlusher, "(Code flusher)")                    \
   V(kPartialSnapshotCache, "(Partial snapshot cache)") \
+  V(kReadOnlyObjectCache, "(Read-only object cache)")  \
   V(kWeakCollections, "(Weak collections)")            \
   V(kWrapperTracing, "(Wrapper tracing)")              \
   V(kUnknown, "(Unknown)")

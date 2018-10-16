@@ -473,6 +473,11 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       SINGLE_CASE(kPartialSnapshotCache, kPlain, kStartOfObject, 0)
       SINGLE_CASE(kPartialSnapshotCache, kFromCode, kStartOfObject, 0)
       SINGLE_CASE(kPartialSnapshotCache, kFromCode, kInnerPointer, 0)
+      // Find an object in the partial snapshots cache and write a pointer to it
+      // to the current object.
+      SINGLE_CASE(kReadOnlyObjectCache, kPlain, kStartOfObject, 0)
+      SINGLE_CASE(kReadOnlyObjectCache, kFromCode, kStartOfObject, 0)
+      SINGLE_CASE(kReadOnlyObjectCache, kFromCode, kInnerPointer, 0)
       // Find an object in the attached references and write a pointer to it to
       // the current object.
       SINGLE_CASE(kAttachedReference, kPlain, kStartOfObject, 0)
@@ -815,6 +820,11 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
       new_object = isolate->root(root_index);
       emit_write_barrier = Heap::InNewSpace(new_object);
       hot_objects_.Add(HeapObject::cast(new_object));
+    } else if (where == kReadOnlyObjectCache) {
+      int cache_index = source_.GetInt();
+      new_object = isolate->read_only_object_cache()->at(cache_index);
+      DCHECK(!Heap::InNewSpace(new_object));
+      emit_write_barrier = false;
     } else if (where == kPartialSnapshotCache) {
       int cache_index = source_.GetInt();
       new_object = isolate->partial_snapshot_cache()->at(cache_index);

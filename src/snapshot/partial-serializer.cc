@@ -63,13 +63,14 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
-  if (ShouldBeInThePartialSnapshotCache(obj)) {
-    FlushSkip(skip);
+  if (startup_serializer_->SerializeUsingReadOnlyObjectCache(
+          &sink_, obj, how_to_code, where_to_point, skip)) {
+    return;
+  }
 
-    int cache_index = startup_serializer_->PartialSnapshotCacheIndex(obj);
-    sink_.Put(kPartialSnapshotCache + how_to_code + where_to_point,
-              "PartialSnapshotCache");
-    sink_.PutInt(cache_index, "partial_snapshot_cache_index");
+  if (ShouldBeInThePartialSnapshotCache(obj)) {
+    startup_serializer_->SerializeUsingPartialSnapshotCache(
+        &sink_, obj, how_to_code, where_to_point, skip);
     return;
   }
 
