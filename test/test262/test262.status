@@ -613,6 +613,15 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7871
   'intl402/ListFormat/prototype/formatToParts/en-us-disjunction': [FAIL],
 
+  # The following is due to spec changes in
+  # https://github.com/tc39/proposal-intl-list-format/pull/27
+  # and will be addressed after pulling new test262 which include the tests fixes in
+  # https://github.com/tc39/test262/pull/1860
+  # see https://bugs.chromium.org/p/v8/issues/detail?id=8302
+  'intl402/ListFormat/constructor/constructor/options-style-valid': [FAIL],
+  'intl402/ListFormat/prototype/format/en-us-narrow': [FAIL],
+  'intl402/ListFormat/prototype/formatToParts/en-us-narrow': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

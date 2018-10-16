@@ -41,31 +41,29 @@ const char* GetIcuStyleString(JSListFormat::Style style,
           return kStandard;
         case JSListFormat::Style::SHORT:
           return kStandardShort;
+        // NARROW is now not allowed if type is not unit
+        // It is impossible to reach because we've already thrown a RangeError
+        // when style is "narrow" and type is not "unit".
         case JSListFormat::Style::NARROW:
-          // Currently, ListFormat::createInstance on "standard-narrow" will
-          // fail so we use "standard-short" here.
-          // See https://unicode.org/cldr/trac/ticket/11254
-          // TODO(ftang): change to return kStandardNarrow; after the above
-          // issue fixed in CLDR/ICU.
-          // CLDR bug: https://unicode.org/cldr/trac/ticket/11254
-          // ICU bug: https://unicode-org.atlassian.net/browse/ICU-20014
-          return kStandardShort;
         case JSListFormat::Style::COUNT:
           UNREACHABLE();
       }
     case JSListFormat::Type::DISJUNCTION:
       switch (style) {
-        // Currently, ListFormat::createInstance on "or-short" and "or-narrow"
+        // Currently, ListFormat::createInstance on "or-short"
         // will fail so we use "or" here.
         // See https://unicode.org/cldr/trac/ticket/11254
-        // TODO(ftang): change to return kOr, kOrShort or kOrNarrow depend on
+        // TODO(ftang): change to return kOr or kOrShort depend on
         // style after the above issue fixed in CLDR/ICU.
         // CLDR bug: https://unicode.org/cldr/trac/ticket/11254
         // ICU bug: https://unicode-org.atlassian.net/browse/ICU-20014
         case JSListFormat::Style::LONG:
         case JSListFormat::Style::SHORT:
-        case JSListFormat::Style::NARROW:
           return kOr;
+        // NARROW is now not allowed if type is not unit
+        // It is impossible to reach because we've already thrown a RangeError
+        // when style is "narrow" and type is not "unit".
+        case JSListFormat::Style::NARROW:
         case JSListFormat::Style::COUNT:
           UNREACHABLE();
       }
@@ -178,8 +176,8 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   // 10. Set listFormat.[[Style]] to s.
   list_format_holder->set_style(style_enum);
 
-  // TODO(ftang): There's no spec text for this yet.
-  // Tracking issue: https://github.com/tc39/proposal-intl-list-format/issues/24
+  // 12. Let matcher be ? GetOption(options, "localeMatcher", "string", «
+  // "lookup", "best fit" », "best fit").
   const std::vector<const char*> values = {"lookup", "best fit"};
   std::unique_ptr<char[]> matcher_str = nullptr;
   Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
@@ -194,15 +192,22 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
     }
   }
 
-  // 11. Let localeData be %ListFormat%.[[LocaleData]].
-  // 12. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
+  // 14. If style is "narrow" and type is not "unit", throw a RangeError
+  // exception.
+  if (style_enum == Style::NARROW && type_enum != Type::UNIT) {
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kIllegalTypeWhileStyleNarrow),
+        JSListFormat);
+  }
+
+  // 15. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
   std::set<std::string> available_locales =
       Intl::GetAvailableLocales(ICUService::kListFormatter);
   Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
                                                requested_locales, matcher, {});
 
-  // 21. Set listFormat.[[Locale]] to r.[[Locale]].
+  // 24. Set listFormat.[[Locale]] to r.[[Locale]].
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
   list_format_holder->set_locale(*locale_str);
