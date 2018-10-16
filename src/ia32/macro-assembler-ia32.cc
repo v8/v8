@@ -1898,15 +1898,20 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
     // TODO(jgruber): Pc-relative builtin-to-builtin calls.
-    if (root_array_available_ && options().isolate_independent_code) {
-      // TODO(jgruber): There's no scratch register on ia32. Any call that
-      // requires loading a code object from the builtins constant table must:
-      // 1) spill two scratch registers, 2) load the target into scratch1, 3)
-      // store the target into a virtual register on the isolate using scratch2,
-      // 4) restore both scratch registers, and finally 5) call through the
-      // virtual register. All affected call sites should vanish once all
-      // builtins are embedded on ia32.
-      UNREACHABLE();
+    if (root_array_available_ && ShouldGenerateIsolateIndependentCode() &&
+        Builtins::IsBuiltin(*code_object)) {
+      // Since we don't have a scratch register available we call through a
+      // so-called virtual register.
+      // TODO(v8:6666): Remove once pc-relative jumps are supported on ia32.
+      Assembler::AllowExplicitEbxAccessScope read_only_access(this);
+      Operand virtual_call_target_register(
+          kRootRegister,
+          IsolateData::kVirtualCallTargetRegisterOffset - kRootRegisterBias);
+      Move(virtual_call_target_register, Immediate(code_object));
+      add(virtual_call_target_register,
+          Immediate(Code::kHeaderSize - kHeapObjectTag));
+      call(virtual_call_target_register);
+      return;
     } else if (options().inline_offheap_trampolines) {
       int builtin_index = Builtins::kNoBuiltinId;
       if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
@@ -1928,15 +1933,20 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
     // TODO(jgruber): Pc-relative builtin-to-builtin calls.
-    if (root_array_available_ && options().isolate_independent_code) {
-      // TODO(jgruber): There's no scratch register on ia32. Any call that
-      // requires loading a code object from the builtins constant table must:
-      // 1) spill two scratch registers, 2) load the target into scratch1, 3)
-      // store the target into a virtual register on the isolate using scratch2,
-      // 4) restore both scratch registers, and finally 5) call through the
-      // virtual register. All affected call sites should vanish once all
-      // builtins are embedded on ia32.
-      UNREACHABLE();
+    if (root_array_available_ && ShouldGenerateIsolateIndependentCode() &&
+        Builtins::IsBuiltin(*code_object)) {
+      // Since we don't have a scratch register available we call through a
+      // so-called virtual register.
+      // TODO(v8:6666): Remove once pc-relative jumps are supported on ia32.
+      Assembler::AllowExplicitEbxAccessScope read_only_access(this);
+      Operand virtual_call_target_register(
+          kRootRegister,
+          IsolateData::kVirtualCallTargetRegisterOffset - kRootRegisterBias);
+      Move(virtual_call_target_register, Immediate(code_object));
+      add(virtual_call_target_register,
+          Immediate(Code::kHeaderSize - kHeapObjectTag));
+      jmp(virtual_call_target_register);
+      return;
     } else if (options().inline_offheap_trampolines) {
       int builtin_index = Builtins::kNoBuiltinId;
       if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
