@@ -25,7 +25,7 @@ static const int kProfilerStackSize = 64 * KB;
 
 class CpuSampler : public sampler::Sampler {
  public:
-  CpuSampler(Isolate* isolate, ProfilerEventsProcessor* processor)
+  CpuSampler(Isolate* isolate, SamplingEventsProcessor* processor)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
         processor_(processor) {}
 
@@ -42,25 +42,30 @@ class CpuSampler : public sampler::Sampler {
   }
 
  private:
-  ProfilerEventsProcessor* processor_;
+  SamplingEventsProcessor* processor_;
 };
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(Isolate* isolate,
-                                                 ProfileGenerator* generator,
-                                                 base::TimeDelta period)
+ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
-      sampler_(new CpuSampler(isolate, this)),
       running_(1),
-      period_(period),
       last_code_event_id_(0),
-      last_processed_code_event_id_(0) {
+      last_processed_code_event_id_(0) {}
+
+SamplingEventsProcessor::SamplingEventsProcessor(Isolate* isolate,
+                                                 ProfileGenerator* generator,
+                                                 base::TimeDelta period)
+    : ProfilerEventsProcessor(generator),
+      sampler_(new CpuSampler(isolate, this)),
+      period_(period) {
   sampler_->IncreaseProfilingDepth();
 }
 
-ProfilerEventsProcessor::~ProfilerEventsProcessor() {
+SamplingEventsProcessor::~SamplingEventsProcessor() {
   sampler_->DecreaseProfilingDepth();
 }
+
+ProfilerEventsProcessor::~ProfilerEventsProcessor() = default;
 
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
   event.generic.order = ++last_code_event_id_;
@@ -96,6 +101,11 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
+void ProfilerEventsProcessor::AddSample(TickSample sample) {
+  TickSampleEventRecord record(last_code_event_id_);
+  record.sample = sample;
+  ticks_from_vm_buffer_.Enqueue(record);
+}
 
 void ProfilerEventsProcessor::StopSynchronously() {
   if (!base::Relaxed_AtomicExchange(&running_, 0)) return;
@@ -124,7 +134,7 @@ bool ProfilerEventsProcessor::ProcessCodeEvent() {
 }
 
 ProfilerEventsProcessor::SampleProcessingResult
-    ProfilerEventsProcessor::ProcessOneSample() {
+SamplingEventsProcessor::ProcessOneSample() {
   TickSampleEventRecord record1;
   if (ticks_from_vm_buffer_.Peek(&record1) &&
       (record1.order == last_processed_code_event_id_)) {
@@ -147,8 +157,7 @@ ProfilerEventsProcessor::SampleProcessingResult
   return OneSampleProcessed;
 }
 
-
-void ProfilerEventsProcessor::Run() {
+void SamplingEventsProcessor::Run() {
   while (!!base::Relaxed_Load(&running_)) {
     base::TimeTicks nextSampleTime =
         base::TimeTicks::HighResolutionNow() + period_;
@@ -180,8 +189,8 @@ void ProfilerEventsProcessor::Run() {
       }
     }
 
-    // Schedule next sample. sampler_ is nullptr in tests.
-    if (sampler_) sampler_->DoSample();
+    // Schedule next sample.
+    sampler_->DoSample();
   }
 
   // Process remaining tick events.
@@ -193,16 +202,11 @@ void ProfilerEventsProcessor::Run() {
   } while (ProcessCodeEvent());
 }
 
-
-void* ProfilerEventsProcessor::operator new(size_t size) {
-  return AlignedAlloc(size, V8_ALIGNOF(ProfilerEventsProcessor));
+void* SamplingEventsProcessor::operator new(size_t size) {
+  return AlignedAlloc(size, V8_ALIGNOF(SamplingEventsProcessor));
 }
 
-
-void ProfilerEventsProcessor::operator delete(void* ptr) {
-  AlignedFree(ptr);
-}
-
+void SamplingEventsProcessor::operator delete(void* ptr) { AlignedFree(ptr); }
 
 int CpuProfiler::GetProfilesCount() {
   // The count of profiles doesn't depend on a security token.
@@ -375,7 +379,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     codemap_needs_initialization = true;
     CreateEntriesForRuntimeCallStats();
   }
-  processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
+  processor_.reset(new SamplingEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
   if (!profiler_listener_) {
     profiler_listener_.reset(new ProfilerListener(isolate_, this));

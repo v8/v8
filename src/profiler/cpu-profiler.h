@@ -133,35 +133,23 @@ class CodeEventsContainer {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public base::Thread {
  public:
-  ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
-                          base::TimeDelta period);
-  ~ProfilerEventsProcessor() override;
+  virtual ~ProfilerEventsProcessor();
 
   // Thread control.
-  void Run() override;
+  virtual void Run() = 0;
   void StopSynchronously();
   V8_INLINE bool running() { return !!base::Relaxed_Load(&running_); }
   void Enqueue(const CodeEventsContainer& event);
 
-  // Puts current stack into tick sample events buffer.
+  // Puts current stack into the tick sample events buffer.
   void AddCurrentStack(Isolate* isolate, bool update_stats = false);
   void AddDeoptStack(Isolate* isolate, Address from, int fp_to_sp_delta);
+  // Puts the given sample into the tick sample events buffer.
+  void AddSample(TickSample sample);
 
-  // Tick sample events are filled directly in the buffer of the circular
-  // queue (because the structure is of fixed width, but usually not all
-  // stack frame entries are filled.) This method returns a pointer to the
-  // next record of the buffer.
-  inline TickSample* StartTickSample();
-  inline void FinishTickSample();
+ protected:
+  explicit ProfilerEventsProcessor(ProfileGenerator* generator);
 
-  // SamplingCircularQueue has stricter alignment requirements than a normal new
-  // can fulfil, so we need to provide our own new/delete here.
-  void* operator new(size_t size);
-  void operator delete(void* ptr);
-
-  sampler::Sampler* sampler() { return sampler_.get(); }
-
- private:
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
 
@@ -170,21 +158,48 @@ class ProfilerEventsProcessor : public base::Thread {
     FoundSampleForNextCodeEvent,
     NoSamplesInQueue
   };
-  SampleProcessingResult ProcessOneSample();
+  virtual SampleProcessingResult ProcessOneSample() = 0;
 
   ProfileGenerator* generator_;
-  std::unique_ptr<sampler::Sampler> sampler_;
   base::Atomic32 running_;
-  const base::TimeDelta period_;  // Samples & code events processing period.
   LockedQueue<CodeEventsContainer> events_buffer_;
+  LockedQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
+  std::atomic<unsigned> last_code_event_id_;
+  unsigned last_processed_code_event_id_;
+};
+
+class SamplingEventsProcessor : public ProfilerEventsProcessor {
+ public:
+  SamplingEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
+                          base::TimeDelta period);
+  ~SamplingEventsProcessor() override;
+
+  // SamplingCircularQueue has stricter alignment requirements than a normal new
+  // can fulfil, so we need to provide our own new/delete here.
+  void* operator new(size_t size);
+  void operator delete(void* ptr);
+
+  void Run() override;
+
+  // Tick sample events are filled directly in the buffer of the circular
+  // queue (because the structure is of fixed width, but usually not all
+  // stack frame entries are filled.) This method returns a pointer to the
+  // next record of the buffer.
+  inline TickSample* StartTickSample();
+  inline void FinishTickSample();
+
+  sampler::Sampler* sampler() { return sampler_.get(); }
+
+ private:
+  SampleProcessingResult ProcessOneSample() override;
+
   static const size_t kTickSampleBufferSize = 1 * MB;
   static const size_t kTickSampleQueueLength =
       kTickSampleBufferSize / sizeof(TickSampleEventRecord);
   SamplingCircularQueue<TickSampleEventRecord,
                         kTickSampleQueueLength> ticks_buffer_;
-  LockedQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
-  std::atomic<unsigned> last_code_event_id_;
-  unsigned last_processed_code_event_id_;
+  std::unique_ptr<sampler::Sampler> sampler_;
+  const base::TimeDelta period_;  // Samples & code events processing period.
 };
 
 class CpuProfiler : public CodeEventObserver {
