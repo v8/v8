@@ -3678,6 +3678,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Word32AtomicPairStore: {
+      Label store;
+      __ bind(&store);
       TurboAssembler::AllowExplicitEbxAccessScope spill_register(tasm());
       __ mov(i.TempRegister(0), i.MemoryOperand(2));
       __ mov(i.TempRegister(1), i.NextMemoryOperand(2));
@@ -3688,6 +3690,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmpxchg8b(i.MemoryOperand(2));
       __ pop(ebx);
       frame_access_state()->IncreaseSPDelta(-1);
+      __ j(not_equal, &store);
       break;
     }
     case kWord32AtomicExchangeInt8: {
@@ -3716,6 +3719,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32Word32AtomicPairExchange: {
       DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr));
+      Label exchange;
+      __ bind(&exchange);
       TurboAssembler::AllowExplicitEbxAccessScope spill_ebx(tasm());
       __ mov(eax, i.MemoryOperand(2));
       __ mov(edx, i.NextMemoryOperand(2));
@@ -3726,6 +3731,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmpxchg8b(i.MemoryOperand(2));
       __ pop(ebx);
       frame_access_state()->IncreaseSPDelta(-1);
+      __ j(not_equal, &exchange);
       break;
     }
     case kWord32AtomicCompareExchangeInt8: {
