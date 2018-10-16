@@ -807,6 +807,9 @@
 
   # https://crbug.com/v8/8164
   'wasm/compare-exchange-stress': [SKIP],
+
+  # Too slow for verify-csa builds.
+  'big-object-literal': [PASS, ['verify_csa == True', SKIP]],
 }],  # variant == stress
 
 ##############################################################################
