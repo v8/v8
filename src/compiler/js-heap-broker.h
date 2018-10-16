@@ -89,8 +89,7 @@ class ObjectRef {
   // TODO(neis): Remove eventually.
   template <typename T>
   Handle<T> object() const {
-    AllowHandleDereference handle_dereference;
-    return Handle<T>::cast(object());
+    return Handle<T>(reinterpret_cast<T**>(object().address()));
   }
 
   bool IsSmi() const;
