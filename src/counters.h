@@ -1357,7 +1357,6 @@ class RuntimeCallTimerScope {
   SC(string_table_capacity, V8.StringTableCapacity)                 \
   SC(number_of_symbols, V8.NumberOfSymbols)                         \
   SC(inlined_copied_elements, V8.InlinedCopiedElements)             \
-  SC(arguments_adaptors, V8.ArgumentsAdaptors)                      \
   SC(compilation_cache_hits, V8.CompilationCacheHits)               \
   SC(compilation_cache_misses, V8.CompilationCacheMisses)           \
   /* Amount of evaled source code. */                               \

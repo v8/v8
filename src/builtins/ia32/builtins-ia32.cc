@@ -2318,16 +2318,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   const Register kExpectedNumberOfArgumentsRegister = ecx;
 
-  Label invoke, dont_adapt_arguments, stack_overflow;
-  // edi is used as a scratch register. It should be restored from the frame
-  // when needed.
-  __ IncrementCounter(masm->isolate()->counters()->arguments_adaptors(), 1,
-                      edi);
-
-  Label enough, too_few;
+  Label invoke, dont_adapt_arguments, stack_overflow, enough, too_few;
   __ cmp(kExpectedNumberOfArgumentsRegister,
          SharedFunctionInfo::kDontAdaptArgumentsSentinel);
   __ j(equal, &dont_adapt_arguments);
