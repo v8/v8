@@ -234,18 +234,18 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_private_fields, "harmony private fields in class literals")    \
   V(harmony_numeric_separator, "harmony numeric separator between digits") \
   V(harmony_string_matchall, "harmony String.prototype.matchAll")          \
-  V(harmony_static_fields, "harmony static fields in class literals")
+  V(harmony_static_fields, "harmony static fields in class literals")      \
+  V(harmony_json_stringify, "Well-formed JSON.stringify")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                        \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
-  V(harmony_import_meta, "harmony import.meta property")                \
-  V(harmony_dynamic_import, "harmony dynamic import")                   \
-  V(harmony_array_prototype_values, "harmony Array.prototype.values")   \
-  V(harmony_array_flat, "harmony Array.prototype.{flat,flatMap}")       \
-  V(harmony_symbol_description, "harmony Symbol.prototype.description") \
-  V(harmony_global, "harmony global")                                   \
-  V(harmony_json_stringify, "well-formed JSON.stringify")
+#define HARMONY_SHIPPING_BASE(V)                                         \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")              \
+  V(harmony_import_meta, "harmony import.meta property")                 \
+  V(harmony_dynamic_import, "harmony dynamic import")                    \
+  V(harmony_array_prototype_values, "harmony Array.prototype.values")    \
+  V(harmony_array_flat, "harmony Array.prototype.{flat,flatMap}")        \
+  V(harmony_symbol_description, "harmony Symbol.prototype.description")  \
+  V(harmony_global, "harmony global")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) \
