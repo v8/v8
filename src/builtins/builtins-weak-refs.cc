@@ -34,15 +34,25 @@ BUILTIN(WeakFactoryConstructor) {
 
 BUILTIN(WeakFactoryMakeCell) {
   HandleScope scope(isolate);
+  const char* method = "WeakFactory.makeCell";
 
-  CHECK_RECEIVER(JSWeakFactory, weak_factory, "WeakFactory.makeCell");
+  CHECK_RECEIVER(JSWeakFactory, weak_factory, method);
 
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-  // TODO(marja): if the type is not an object, throw TypeError. Ditto for
-  // SameValue(target, holdings).
-  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-
+  Handle<Object> target = args.atOrUndefined(isolate, 1);
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kMakeCellTargetMustBeObject,
+                     isolate->factory()->NewStringFromAsciiChecked(method)));
+  }
+  Handle<JSReceiver> target_receiver = Handle<JSReceiver>::cast(target);
   Handle<Object> holdings = args.atOrUndefined(isolate, 2);
+  if (target->SameValue(*holdings)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kMakeCellTargetAndHoldingsMustNotBeSame,
+                     isolate->factory()->NewStringFromAsciiChecked(method)));
+  }
 
   // TODO(marja): Realms.
 
@@ -55,7 +65,7 @@ BUILTIN(WeakFactoryMakeCell) {
   Handle<JSWeakCell> weak_cell =
       Handle<JSWeakCell>::cast(isolate->factory()->NewJSObjectFromMap(
           weak_cell_map, TENURED, Handle<AllocationSite>::null()));
-  weak_cell->set_target(*js_object);
+  weak_cell->set_target(*target_receiver);
   weak_cell->set_holdings(*holdings);
   weak_factory->AddWeakCell(*weak_cell);
   return *weak_cell;

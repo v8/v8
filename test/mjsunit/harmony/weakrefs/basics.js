@@ -68,6 +68,35 @@
   assertSame(wc.holdings, holdings);
 })();
 
+(function TestMakeCellWithNonObject() {
+  let wf = new WeakFactory();
+  let message = "WeakFactory.makeCell: target must be an object";
+  assertThrows(() => wf.makeCell(), TypeError, message);
+  assertThrows(() => wf.makeCell(1), TypeError, message);
+  assertThrows(() => wf.makeCell(false), TypeError, message);
+  assertThrows(() => wf.makeCell("foo"), TypeError, message);
+  assertThrows(() => wf.makeCell(Symbol()), TypeError, message);
+})();
+
+(function TestMakeCellWithProxy() {
+  let handler = {};
+  let obj = {};
+  let proxy = new Proxy(obj, handler);
+  let wf = new WeakFactory();
+  let wc = wf.makeCell(proxy);
+})();
+
+(function TestMakeCellTargetAndHoldingsSameValue() {
+  let wf = new WeakFactory();
+  let obj = {a: 1};
+  // SameValue(target, holdings) not ok
+  assertThrows(() => wf.makeCell(obj, obj), TypeError,
+               "WeakFactory.makeCell: target and holdings must not be same");
+  // target == holdings ok
+  let holdings = {a: 1};
+  let wc = wf.makeCell(obj, holdings);
+})();
+
 (function TestMakeCellWithoutWeakFactory() {
   assertThrows(() => WeakFactory.prototype.makeCell.call({}, {}), TypeError);
   // Does not throw:

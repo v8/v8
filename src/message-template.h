@@ -530,7 +530,12 @@ namespace internal {
   T(TraceEventNameLengthError,                                                 \
     "Trace event name must not be an empty string.")                           \
   T(TraceEventPhaseError, "Trace event phase must be a number.")               \
-  T(TraceEventIDError, "Trace event id must be a number.")
+  T(TraceEventIDError, "Trace event id must be a number.")                     \
+  /* Weak refs */                                                              \
+  T(MakeCellTargetMustBeObject,                                                \
+    "WeakFactory.makeCell: target must be an object")                          \
+  T(MakeCellTargetAndHoldingsMustNotBeSame,                                    \
+    "WeakFactory.makeCell: target and holdings must not be same")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,
