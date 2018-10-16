@@ -1850,7 +1850,7 @@ VisitResult ImplementationVisitor::GenerateCall(
   } else if (auto* runtime_function = RuntimeFunction::DynamicCast(callable)) {
     assembler().Emit(CallRuntimeInstruction{is_tailcall, runtime_function,
                                             argument_range.Size()});
-    if (is_tailcall) {
+    if (is_tailcall || return_type == TypeOracle::GetNeverType()) {
       return VisitResult::NeverResult();
     } else {
       size_t slot_count = LoweredSlotCount(return_type);

@@ -152,7 +152,10 @@ void CallRuntimeInstruction::TypeInstruction(Stack<const Type*>* stack,
                           argc)) {
     ReportError("wrong argument types");
   }
-  stack->PushMany(LowerType(runtime_function->signature().return_type));
+  const Type* return_type = runtime_function->signature().return_type;
+  if (return_type != TypeOracle::GetNeverType()) {
+    stack->PushMany(LowerType(return_type));
+  }
 }
 
 void BranchInstruction::TypeInstruction(Stack<const Type*>* stack,
@@ -197,6 +200,11 @@ void DebugBreakInstruction::TypeInstruction(Stack<const Type*>* stack,
 void UnsafeCastInstruction::TypeInstruction(Stack<const Type*>* stack,
                                             ControlFlowGraph* cfg) const {
   stack->Poke(stack->AboveTop() - 1, destination_type);
+}
+
+bool CallRuntimeInstruction::IsBlockTerminator() const {
+  return is_tailcall || runtime_function->signature().return_type ==
+                            TypeOracle::GetNeverType();
 }
 
 }  // namespace torque

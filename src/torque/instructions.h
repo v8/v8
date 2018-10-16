@@ -245,7 +245,7 @@ struct CallBuiltinPointerInstruction : InstructionBase {
 
 struct CallRuntimeInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  bool IsBlockTerminator() const override { return is_tailcall; }
+  bool IsBlockTerminator() const override;
 
   CallRuntimeInstruction(bool is_tailcall, RuntimeFunction* runtime_function,
                          size_t argc)

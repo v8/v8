@@ -347,8 +347,12 @@ void CSAGenerator::EmitInstruction(
 void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
                                    Stack<std::string>* stack) {
   std::vector<std::string> arguments = stack->PopMany(instruction.argc);
-  std::vector<const Type*> result_types =
-      LowerType(instruction.runtime_function->signature().return_type);
+  const Type* return_type =
+      instruction.runtime_function->signature().return_type;
+  std::vector<const Type*> result_types;
+  if (return_type != TypeOracle::GetNeverType()) {
+    result_types = LowerType(return_type);
+  }
   if (result_types.size() > 1) {
     ReportError("runtime function must have at most one result");
   }
@@ -368,12 +372,15 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
       out_ << "    USE(" << stack->Top() << ");\n";
     } else {
       DCHECK_EQ(0, result_types.size());
-      // TODO(tebbi): Actually, runtime functions have to return a value, so we
-      // should not have to handle this case.
       out_ << "    CallRuntime(Runtime::k"
            << instruction.runtime_function->name() << ", ";
       PrintCommaSeparatedList(out_, arguments);
       out_ << ");\n";
+      if (return_type == TypeOracle::GetNeverType()) {
+        out_ << "    Unreachable();\n";
+      } else {
+        DCHECK(return_type == TypeOracle::GetVoidType());
+      }
     }
   }
 }

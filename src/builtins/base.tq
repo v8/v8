@@ -280,8 +280,7 @@ extern builtin StringLessThan(Context, String, String): Boolean;
 
 extern macro StrictEqual(Object, Object): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
-// TODO(tebbi): This should have a return type of `never`.
-extern runtime ReThrow(Context, Object);
+extern runtime ReThrow(Context, Object): never;
 
 extern operator '<' macro Int32LessThan(int32, int32): bool;
 extern operator '>' macro Int32GreaterThan(int32, int32): bool;
