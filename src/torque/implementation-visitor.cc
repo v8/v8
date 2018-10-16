@@ -1406,14 +1406,16 @@ Callable* ImplementationVisitor::LookupCall(
     }
 
     auto is_better_candidate = [&](Macro* a, Macro* b) {
-      return ParameterDifference(a->signature().parameter_types.types,
+      return ParameterDifference(a->signature().GetExplicitTypes(),
                                  parameter_types)
           .StrictlyBetterThan(ParameterDifference(
-              b->signature().parameter_types.types, parameter_types));
+              b->signature().GetExplicitTypes(), parameter_types));
     };
 
     Macro* best = *std::min_element(candidates.begin(), candidates.end(),
                                     is_better_candidate);
+    // This check is contained in libstdc++'s std::min_element.
+    DCHECK(!is_better_candidate(best, best));
     for (Macro* candidate : candidates) {
       if (candidate != best && !is_better_candidate(best, candidate)) {
         FailMacroLookup("ambiguous macro", name, arguments, candidates);
