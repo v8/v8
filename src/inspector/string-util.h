@@ -70,7 +70,7 @@ class Binary {
   const uint8_t* data() const { UNIMPLEMENTED(); }
   size_t size() const { UNIMPLEMENTED(); }
   String toBase64() const { UNIMPLEMENTED(); }
-  static Binary createFromBase64(const String& base64, bool* success) {
+  static Binary fromBase64(const String& base64, bool* success) {
     UNIMPLEMENTED();
   }
 };
