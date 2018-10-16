@@ -1827,7 +1827,7 @@ bool BytecodeGenerator::ShouldOptimizeAsOneShot() const {
   return info()->literal()->is_toplevel() || is_toplevel_iife;
 }
 
-void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
+void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
   size_t class_boilerplate_entry =
       builder()->AllocateDeferredConstantPoolEntry();
   class_literals_.push_back(std::make_pair(expr, class_boilerplate_entry));
@@ -1940,6 +1940,24 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
   }
 
   if (expr->static_fields_initializer() != nullptr) {
+    // TODO(gsathya): This can be optimized away to be a part of the
+    // class boilerplate in the future. The name argument can be
+    // passed to the DefineClass runtime function and have it set
+    // there.
+    if (name.is_valid()) {
+      Register key = register_allocator()->NewRegister();
+      builder()
+          ->LoadLiteral(ast_string_constants()->name_string())
+          .StoreAccumulatorInRegister(key);
+
+      DataPropertyInLiteralFlags data_property_flags =
+          DataPropertyInLiteralFlag::kNoFlags;
+      FeedbackSlot slot =
+          feedback_spec()->AddStoreDataPropertyInLiteralICSlot();
+      builder()->LoadAccumulatorWithRegister(name).StoreDataPropertyInLiteral(
+          class_constructor, key, data_property_flags, feedback_index(slot));
+    }
+
     RegisterList args = register_allocator()->NewRegisterList(1);
     Register initializer =
         VisitForRegisterValue(expr->static_fields_initializer());
@@ -1961,14 +1979,18 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
 }
 
 void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
+  VisitClassLiteral(expr, Register::invalid_value());
+}
+
+void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr, Register name) {
   CurrentScope current_scope(this, expr->scope());
   DCHECK_NOT_NULL(expr->scope());
   if (expr->scope()->NeedsContext()) {
     BuildNewLocalBlockContext(expr->scope());
     ContextScope scope(this, expr->scope());
-    BuildClassLiteral(expr);
+    BuildClassLiteral(expr, name);
   } else {
-    BuildClassLiteral(expr);
+    BuildClassLiteral(expr, name);
   }
 }
 
@@ -2318,7 +2340,20 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         Register key = register_allocator()->NewRegister();
         BuildLoadPropertyKey(property, key);
         builder()->SetExpressionPosition(property->value());
-        Register value = VisitForRegisterValue(property->value());
+        Register value;
+
+        // Static class fields require the name property to be set on
+        // the class, meaning we can't wait until the
+        // StoreDataPropertyInLiteral call later to set the name.
+        if (property->value()->IsClassLiteral() &&
+            property->value()->AsClassLiteral()->static_fields_initializer() !=
+                nullptr) {
+          value = register_allocator()->NewRegister();
+          VisitClassLiteral(property->value()->AsClassLiteral(), key);
+          builder()->StoreAccumulatorInRegister(value);
+        } else {
+          value = VisitForRegisterValue(property->value());
+        }
         VisitSetHomeObject(value, literal, property);
 
         DataPropertyInLiteralFlags data_property_flags =
