@@ -664,10 +664,10 @@ class MacroAssembler : public TurboAssembler {
   // Exception handling
 
   // Push a new stack handler and link it into stack handler chain.
-  void PushStackHandler();
+  void PushStackHandler(Register scratch);
 
   // Unlink the stack handler on top of the stack from the stack handler chain.
-  void PopStackHandler();
+  void PopStackHandler(Register scratch);
 
   // ---------------------------------------------------------------------------
   // Runtime calls

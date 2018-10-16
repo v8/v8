@@ -979,8 +979,7 @@ void MacroAssembler::LeaveApiExitFrame() {
   LeaveExitFrameEpilogue();
 }
 
-
-void MacroAssembler::PushStackHandler() {
+void MacroAssembler::PushStackHandler(Register scratch) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
@@ -990,18 +989,17 @@ void MacroAssembler::PushStackHandler() {
   // Link the current handler as the next handler.
   ExternalReference handler_address =
       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  push(StaticVariable(handler_address));
+  push(ExternalReferenceAsOperand(handler_address, scratch));
 
   // Set this new handler as the current one.
-  mov(StaticVariable(handler_address), esp);
+  mov(ExternalReferenceAsOperand(handler_address, scratch), esp);
 }
 
-
-void MacroAssembler::PopStackHandler() {
+void MacroAssembler::PopStackHandler(Register scratch) {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   ExternalReference handler_address =
       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  pop(StaticVariable(handler_address));
+  pop(ExternalReferenceAsOperand(handler_address, scratch));
   add(esp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
 

@@ -44,7 +44,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ push(Immediate(StackFrame::TypeToMarker(marker)));  // marker
     ExternalReference context_address =
         ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-    __ push(__ StaticVariable(context_address));  // context
+    __ push(Operand(context_address.address(),
+                    RelocInfo::EXTERNAL_REFERENCE));  // context
     // Save callee-saved registers (C calling conventions).
     __ push(edi);
     __ push(esi);
@@ -57,14 +58,14 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  __ push(__ StaticVariable(c_entry_fp));
+  __ push(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
   // If this is the outermost JS call, set js_entry_sp value.
   ExternalReference js_entry_sp =
       ExternalReference::Create(IsolateAddressId::kJSEntrySPAddress, isolate());
-  __ cmp(__ StaticVariable(js_entry_sp), Immediate(0));
+  __ cmp(__ ExternalReferenceAsOperand(js_entry_sp, edi), Immediate(0));
   __ j(not_equal, &not_outermost_js, Label::kNear);
-  __ mov(__ StaticVariable(js_entry_sp), ebp);
+  __ mov(__ ExternalReferenceAsOperand(js_entry_sp, edi), ebp);
   __ push(Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ jmp(&invoke, Label::kNear);
   __ bind(&not_outermost_js);
@@ -79,13 +80,13 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // field in the JSEnv and return a failure sentinel.
   ExternalReference pending_exception = ExternalReference::Create(
       IsolateAddressId::kPendingExceptionAddress, isolate());
-  __ mov(__ StaticVariable(pending_exception), eax);
+  __ mov(__ ExternalReferenceAsOperand(pending_exception, edi), eax);
   __ mov(eax, Immediate(isolate()->factory()->exception()));
   __ jmp(&exit);
 
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
-  __ PushStackHandler();
+  __ PushStackHandler(edi);
 
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return. Notice that we cannot store a
@@ -94,7 +95,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Call(EntryTrampoline(), RelocInfo::CODE_TARGET);
 
   // Unlink this frame from the handler chain.
-  __ PopStackHandler();
+  __ PopStackHandler(edi);
 
   __ bind(&exit);
 
@@ -105,12 +106,11 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ pop(ebx);
   __ cmp(ebx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
-  __ mov(__ StaticVariable(js_entry_sp), Immediate(0));
+  __ mov(__ ExternalReferenceAsOperand(js_entry_sp, edi), Immediate(0));
   __ bind(&not_outermost_js_2);
 
   // Restore the top frame descriptor from the stack.
-  __ pop(__ StaticVariable(ExternalReference::Create(
-      IsolateAddressId::kCEntryFPAddress, isolate())));
+  __ pop(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
   // Restore callee-saved registers (C calling conventions).
   __ pop(ebx);
