@@ -423,8 +423,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Cvttss2ui(dst, Operand(src), tmp);
   }
   void Cvttss2ui(Register dst, Operand src, XMMRegister tmp);
-  void Cvtui2sd(XMMRegister dst, Register src) { Cvtui2sd(dst, Operand(src)); }
-  void Cvtui2sd(XMMRegister dst, Operand src);
+  void Cvtui2sd(XMMRegister dst, Register src, Register scratch) {
+    Cvtui2sd(dst, Operand(src), scratch);
+  }
+  void Cvtui2sd(XMMRegister dst, Operand src, Register scratch);
   void Cvttsd2ui(Register dst, XMMRegister src, XMMRegister tmp) {
     Cvttsd2ui(dst, Operand(src), tmp);
   }

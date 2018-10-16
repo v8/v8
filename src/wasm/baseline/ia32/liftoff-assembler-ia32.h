@@ -1242,7 +1242,8 @@ inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
       assm->Cvtsi2sd(converted_back, dst);
     } else {  // f64 -> u32
       assm->Cvttsd2ui(dst, src, liftoff::kScratchDoubleReg);
-      assm->Cvtui2sd(converted_back, dst);
+      assm->Cvtui2sd(converted_back, dst,
+                     assm->GetUnusedRegister(kGpReg, pinned).gp());
     }
   } else {                                  // f32
     if (std::is_signed<dst_type>::value) {  // f32 -> i32
@@ -1349,9 +1350,12 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprF64SConvertI32:
       Cvtsi2sd(dst.fp(), src.gp());
       return true;
-    case kExprF64UConvertI32:
-      Cvtui2sd(dst.fp(), src.gp());
+    case kExprF64UConvertI32: {
+      LiftoffRegList pinned = LiftoffRegList::ForRegs(dst, src);
+      Register scratch = GetUnusedRegister(kGpReg, pinned).gp();
+      Cvtui2sd(dst.fp(), src.gp(), scratch);
       return true;
+    }
     case kExprF64ConvertF32:
       cvtss2sd(dst.fp(), src.fp());
       return true;
