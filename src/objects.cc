@@ -5275,6 +5275,15 @@ Maybe<bool> Object::CannotCreateProperty(Isolate* isolate,
 Maybe<bool> Object::WriteToReadOnlyProperty(LookupIterator* it,
                                             Handle<Object> value,
                                             ShouldThrow should_throw) {
+  if (it->IsFound() && !it->HolderIsReceiver()) {
+    // "Override mistake" attempted, record a use count to track this per
+    // v8:8175
+    v8::Isolate::UseCounterFeature feature =
+        should_throw == kThrowOnError
+            ? v8::Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict
+            : v8::Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy;
+    it->isolate()->CountUsage(feature);
+  }
   return WriteToReadOnlyProperty(it->isolate(), it->GetReceiver(),
                                  it->GetName(), value, should_throw);
 }

@@ -7358,6 +7358,8 @@ class V8_EXPORT Isolate {
     kDateToLocaleString = 66,
     kDateToLocaleDateString = 67,
     kDateToLocaleTimeString = 68,
+    kAttemptOverrideReadOnlyOnPrototypeSloppy = 69,
+    kAttemptOverrideReadOnlyOnPrototypeStrict = 70,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, UseCounterCallback.cpp, and enums.xml. V8 changes to
