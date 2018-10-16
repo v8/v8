@@ -68,13 +68,17 @@ namespace module_decoder_unittest {
 #define X3(...) __VA_ARGS__, __VA_ARGS__, __VA_ARGS__
 #define X4(...) __VA_ARGS__, __VA_ARGS__, __VA_ARGS__, __VA_ARGS__
 
-#define ONE_EMPTY_FUNCTION SECTION(Function, 1 + 1 * 1), 1, X1(0)
+#define ONE_EMPTY_FUNCTION(sig_index) \
+  SECTION(Function, 1 + 1 * 1), 1, X1(sig_index)
 
-#define TWO_EMPTY_FUNCTIONS SECTION(Function, 1 + 2 * 1), 2, X2(0)
+#define TWO_EMPTY_FUNCTIONS(sig_index) \
+  SECTION(Function, 1 + 2 * 1), 2, X2(sig_index)
 
-#define THREE_EMPTY_FUNCTIONS SECTION(Function, 1 + 3 * 1), 3, X3(0)
+#define THREE_EMPTY_FUNCTIONS(sig_index) \
+  SECTION(Function, 1 + 3 * 1), 3, X3(sig_index)
 
-#define FOUR_EMPTY_FUNCTIONS SECTION(Function, 1 + 4 * 1), 4, X4(0)
+#define FOUR_EMPTY_FUNCTIONS(sig_index) \
+  SECTION(Function, 1 + 4 * 1), 4, X4(sig_index)
 
 #define ONE_EMPTY_BODY                           \
   SECTION(Code, 1 + 1 * (1 + SIZEOF_EMPTY_BODY)) \
@@ -480,7 +484,7 @@ TEST_F(WasmModuleVerifyTest, OneI32Exception) {
                               SIG_ENTRY_v_x(kLocalI32),  // sig#0 (i32)
                               SECTION_EXCEPTIONS(2),     // section header
                               1,                         // # of exceptions
-                              IMPORT_SIG_INDEX(0)};      // except[0] (sig#0)
+                              SIG_INDEX(0)};             // except[0] (sig#0)
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -502,9 +506,9 @@ TEST_F(WasmModuleVerifyTest, TwoExceptions) {
                               SIG_ENTRY_v_xx(kLocalF32, kLocalI64),
                               SECTION_EXCEPTIONS(3), 2,
                               // except[0] (sig#1)
-                              IMPORT_SIG_INDEX(1),
+                              SIG_INDEX(1),
                               // except[1] (sig#0)
-                              IMPORT_SIG_INDEX(0)};
+                              SIG_INDEX(0)};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -523,7 +527,7 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_index) {
   static const byte data[] = {SIGNATURES_SECTION_VOID_VOID,
                               SECTION_EXCEPTIONS(2), 1,
                               // except[0] (sig#23 [out-of-bounds])
-                              IMPORT_SIG_INDEX(23)};
+                              SIG_INDEX(23)};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   // Should fail decoding exception section.
@@ -535,7 +539,7 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_return) {
   static const byte data[] = {SECTION(Type, 1 + SIZEOF_SIG_ENTRY_x_x), 1,
                               SIG_ENTRY_i_i, SECTION_EXCEPTIONS(2), 1,
                               // except[0] (sig#0 [invalid-return-type])
-                              IMPORT_SIG_INDEX(0)};
+                              SIG_INDEX(0)};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   // Should fail decoding exception section.
@@ -571,15 +575,15 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
 
 TEST_F(WasmModuleVerifyTest, ExceptionImport) {
   static const byte data[] = {SIGNATURES_SECTION_VOID_VOID,
-                              SECTION(Import, 8),    // section header
-                              1,                     // number of imports
-                              NAME_LENGTH(1),        // --
-                              'm',                   // module name
-                              NAME_LENGTH(2),        // --
-                              'e',                   // exception name
-                              'x',                   // --
-                              kExternalException,    // import kind
-                              IMPORT_SIG_INDEX(0)};  // except[0] (sig#0)
+                              SECTION(Import, 8),  // section header
+                              1,                   // number of imports
+                              NAME_LENGTH(1),      // --
+                              'm',                 // module name
+                              NAME_LENGTH(2),      // --
+                              'e',                 // exception name
+                              'x',                 // --
+                              kExternalException,  // import kind
+                              SIG_INDEX(0)};       // except[0] (sig#0)
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -593,11 +597,11 @@ TEST_F(WasmModuleVerifyTest, ExceptionExport) {
   static const byte data[] = {SIGNATURES_SECTION_VOID_VOID,
                               SECTION_EXCEPTIONS(2),
                               1,
-                              IMPORT_SIG_INDEX(0),  // except[0] (sig#0)
-                              SECTION(Export, 4),   // section header
-                              1,                    // number of exports
-                              NO_NAME,              // --
-                              kExternalException,   // --
+                              SIG_INDEX(0),        // except[0] (sig#0)
+                              SECTION(Export, 4),  // section header
+                              1,                   // number of exports
+                              NO_NAME,             // --
+                              kExternalException,  // --
                               EXCEPTION_INDEX(0)};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
@@ -903,7 +907,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // funcs ---------------------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, 4), ENTRY_COUNT(1), kLocalAnyFunc, 0, 1};
 
@@ -969,7 +973,7 @@ TEST_F(WasmModuleVerifyTest, Regression_735887) {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // funcs ---------------------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, 4), ENTRY_COUNT(1), kLocalAnyFunc, 0, 1,
       // elements ------------------------------------------------------------
@@ -988,7 +992,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // funcs ---------------------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, 4), ENTRY_COUNT(1), kLocalAnyFunc, 0, 1,
       // elements ------------------------------------------------------------
@@ -1016,7 +1020,7 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       SIG_ENTRY_v_v,             // void -> void
       SIG_ENTRY_v_x(kLocalI32),  // void -> i32
       // funcs ------------------------------------------------------
-      FOUR_EMPTY_FUNCTIONS,
+      FOUR_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       // table declaration -------------------------------------------
       SECTION(Table, 4), ENTRY_COUNT(1), kLocalAnyFunc, 0, 8,
       // table elements ----------------------------------------------
@@ -1052,7 +1056,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTables) {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // funcs ---------------------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, 7), ENTRY_COUNT(2),  // section header
       kLocalAnyFunc, 0, 5,                // table 0
@@ -1100,7 +1104,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
       0,               // no maximum field
       10,              // initial size
       // funcs ---------------------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, 7), ENTRY_COUNT(2),  // section header
       kLocalAnyFunc, 0, 15,               // table 0
@@ -1139,7 +1143,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // funcs ---------------------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, 7), ENTRY_COUNT(2),  // section header
       kLocalAnyFunc, 0, 5,                // table 0
@@ -1191,7 +1195,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
       0,               // no maximum field
       10,              // initial size
       // funcs ---------------------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, 7), ENTRY_COUNT(2),  // section header
       kLocalAnyFunc, 0, 15,               // table 0
@@ -1230,7 +1234,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefTable) {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // funcs ---------------------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, 7), ENTRY_COUNT(2),  // section header
       kLocalAnyRef, 0, 5,                 // table 0
@@ -1278,7 +1282,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefImportedTable) {
       0,               // no maximum field
       10,              // initial size
       // funcs ---------------------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, 7), ENTRY_COUNT(2),  // section header
       kLocalAnyFunc, 0, 15,               // table 0
@@ -1316,7 +1320,7 @@ TEST_F(WasmModuleVerifyTest, IndirectFunctionInvalidIndex) {
       // sig#0 -------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // functions ---------------------------------------------------
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // indirect table ----------------------------------------------
       SECTION(Table, 4), ENTRY_COUNT(1), 1, 1, 0,
   };
@@ -1758,23 +1762,23 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutability_malformed) {
 
 TEST_F(WasmModuleVerifyTest, ImportTable_nosigs2) {
   static const byte data[] = {
-      SECTION(Import, 6),  1,    // sig table
-      NAME_LENGTH(1),      'm',  // module name
-      NAME_LENGTH(1),      'f',  // function name
-      kExternalFunction,         // import kind
-      IMPORT_SIG_INDEX(0),       // sig index
+      SECTION(Import, 6), 1,    // sig table
+      NAME_LENGTH(1),     'm',  // module name
+      NAME_LENGTH(1),     'f',  // function name
+      kExternalFunction,        // import kind
+      SIG_INDEX(0),             // sig index
   };
   EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_invalid_sig) {
   static const byte data[] = {
-      SECTION(Type, 1),    0,    // --
-      SECTION(Import, 6),  1,    // --
-      NAME_LENGTH(1),      'm',  // module name
-      NAME_LENGTH(1),      'f',  // function name
-      kExternalFunction,         // import kind
-      IMPORT_SIG_INDEX(0),       // sig index
+      SECTION(Type, 1),   0,    // --
+      SECTION(Import, 6), 1,    // --
+      NAME_LENGTH(1),     'm',  // module name
+      NAME_LENGTH(1),     'f',  // function name
+      kExternalFunction,        // import kind
+      SIG_INDEX(0),             // sig index
   };
   EXPECT_FAILURE(data);
 }
@@ -1788,9 +1792,9 @@ TEST_F(WasmModuleVerifyTest, ImportTable_one_sig) {
       NAME_LENGTH(1),
       'm',  // module name
       NAME_LENGTH(1),
-      'f',                  // function name
-      kExternalFunction,    // import kind
-      IMPORT_SIG_INDEX(0),  // sig index
+      'f',                // function name
+      kExternalFunction,  // import kind
+      SIG_INDEX(0),       // sig index
   };
   EXPECT_VERIFIES(data);
 }
@@ -1805,7 +1809,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_invalid_module) {
       NAME_LENGTH(1),                // --
       'f',                           // function name
       kExternalFunction,             // import kind
-      IMPORT_SIG_INDEX(0),           // sig index
+      SIG_INDEX(0),                  // sig index
   };
   EXPECT_FAILURE(data);
 }
@@ -1819,9 +1823,9 @@ TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
       NAME_LENGTH(1),
       'm',  // module name
       NAME_LENGTH(1),
-      'f',                  // function name
-      kExternalFunction,    // import kind
-      IMPORT_SIG_INDEX(0),  // sig index
+      'f',                // function name
+      kExternalFunction,  // import kind
+      SIG_INDEX(0),       // sig index
   };
 
   EXPECT_OFF_END_FAILURE(data, arraysize(data) - 3);
@@ -1830,8 +1834,9 @@ TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
 TEST_F(WasmModuleVerifyTest, ExportTable_empty1) {
   static const byte data[] = {                               // signatures
                               SIGNATURES_SECTION_VOID_VOID,  // --
-                              ONE_EMPTY_FUNCTION, SECTION(Export, 1),  // --
-                              0,                                       // --
+                              ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
+                              SECTION(Export, 1),  // --
+                              0,                   // --
                               ONE_EMPTY_BODY};
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
@@ -1856,7 +1861,7 @@ TEST_F(WasmModuleVerifyTest, ExportTable_NoFunctions2) {
 TEST_F(WasmModuleVerifyTest, ExportTableOne) {
   static const byte data[] = {// signatures
                               SIGNATURES_SECTION_VOID_VOID,
-                              ONE_EMPTY_FUNCTION,
+                              ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
                               SECTION(Export, 4),
                               1,                  // exports
                               NO_NAME,            // --
@@ -1873,7 +1878,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne) {
 TEST_F(WasmModuleVerifyTest, ExportNameWithInvalidStringLength) {
   static const byte data[] = {// signatures
                               SIGNATURES_SECTION_VOID_VOID,
-                              ONE_EMPTY_FUNCTION,
+                              ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
                               SECTION(Export, 12),
                               1,                  // exports
                               NAME_LENGTH(84),    // invalid string length
@@ -1887,7 +1892,7 @@ TEST_F(WasmModuleVerifyTest, ExportNameWithInvalidStringLength) {
 TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
   static const byte data[] = {// signatures
                               SIGNATURES_SECTION_VOID_VOID,
-                              ONE_EMPTY_FUNCTION,
+                              ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
                               SECTION(Export, 14),
                               2,  // exports
                               NAME_LENGTH(4),
@@ -1915,7 +1920,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
 TEST_F(WasmModuleVerifyTest, ExportTableThree) {
   static const byte data[] = {// signatures
                               SIGNATURES_SECTION_VOID_VOID,
-                              THREE_EMPTY_FUNCTIONS,
+                              THREE_EMPTY_FUNCTIONS(SIG_INDEX(0)),
                               SECTION(Export, 13),
                               3,  // exports
                               NAME_LENGTH(1),
@@ -1942,7 +1947,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableThreeOne) {
   for (int i = 0; i < 6; i++) {
     const byte data[] = {// signatures
                          SIGNATURES_SECTION_VOID_VOID,
-                         THREE_EMPTY_FUNCTIONS,
+                         THREE_EMPTY_FUNCTIONS(SIG_INDEX(0)),
                          SECTION(Export, 6),
                          1,  // exports
                          NAME_LENGTH(2),
@@ -1964,7 +1969,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne_off_end) {
   static const byte data[] = {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       SECTION(Export, 1 + 6),
       1,        // exports
       NO_NAME,  // --
@@ -2282,7 +2287,7 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
       'X',
       17,
       18,  // --
-      ONE_EMPTY_FUNCTION,
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       SECTION(Unknown, 8),
       5,
       'o',

@@ -17,7 +17,7 @@
 
 #define WASM_MODULE_HEADER U32_LE(kWasmMagic), U32_LE(kWasmVersion)
 
-#define IMPORT_SIG_INDEX(v) U32V_1(v)
+#define SIG_INDEX(v) U32V_1(v)
 #define FUNC_INDEX(v) U32V_1(v)
 #define TABLE_INDEX(v) U32V_1(v)
 #define EXCEPTION_INDEX(v) U32V_1(v)
