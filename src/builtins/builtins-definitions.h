@@ -678,6 +678,7 @@ namespace internal {
   TFJ(MapPrototypeValues, 0, kReceiver)                                        \
   /* ES #sec-%mapiteratorprototype%.next */                                    \
   TFJ(MapIteratorPrototypeNext, 0, kReceiver)                                  \
+  TFS(MapIteratorToList, kSource)                                              \
                                                                                \
   /* Math */                                                                   \
   /* ES6 #sec-math.abs */                                                      \
@@ -1012,6 +1013,7 @@ namespace internal {
   TFJ(SetPrototypeValues, 0, kReceiver)                                        \
   /* ES #sec-%setiteratorprototype%.next */                                    \
   TFJ(SetIteratorPrototypeNext, 0, kReceiver)                                  \
+  TFS(SetOrSetIteratorToList, kSource)                                         \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \

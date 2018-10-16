@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/growable-fixed-array-gen.h"
 
+#include "src/builtins/builtins-collections-gen.h"
 #include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
@@ -261,18 +262,22 @@ TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
   TailCallBuiltin(Builtins::kIterableToList, context, iterable, iterator_fn);
 }
 
-// This builtin loads the property Symbol.iterator as the iterator, and has a
-// fast path for fast arrays and another one for strings. These fast paths will
-// only be taken if Symbol.iterator and the Iterator prototype are not modified
-// in a way that changes the original iteration behavior.
+// This builtin loads the property Symbol.iterator as the iterator, and has fast
+// paths for fast arrays, for primitive strings, for sets and set iterators, and
+// for map iterators. These fast paths will only be taken if Symbol.iterator and
+// the Iterator prototype are not modified in a way that changes the original
+// iteration behavior.
 // * In case of fast holey arrays, holes will be converted to undefined to
-// reflect iteration semantics. Note that replacement by undefined is only
-// correct when the NoElements protector is valid.
+//   reflect iteration semantics. Note that replacement by undefined is only
+//   correct when the NoElements protector is valid.
+// * In case of map/set iterators, there is an additional requirement that the
+//   iterator is not partially consumed. To be spec-compliant, after spreading
+//   the iterator is set to be exhausted.
 TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
 
-  Label slow_path(this), check_string(this);
+  Label slow_path(this), check_string(this), check_map(this), check_set(this);
 
   GotoIfForceSlowPath(&slow_path);
 
@@ -287,10 +292,30 @@ TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
     StringBuiltinsAssembler string_assembler(state());
     GotoIfNot(string_assembler.IsStringPrimitiveWithNoCustomIteration(iterable,
                                                                       context),
-              &slow_path);
+              &check_map);
 
     // Fast path for strings.
     TailCallBuiltin(Builtins::kStringToList, context, iterable);
+  }
+
+  BIND(&check_map);
+  {
+    Label map_fast_call(this);
+    BranchIfIterableWithOriginalKeyOrValueMapIterator(
+        state(), iterable, context, &map_fast_call, &check_set);
+
+    BIND(&map_fast_call);
+    TailCallBuiltin(Builtins::kMapIteratorToList, context, iterable);
+  }
+
+  BIND(&check_set);
+  {
+    Label set_fast_call(this);
+    BranchIfIterableWithOriginalValueSetIterator(state(), iterable, context,
+                                                 &set_fast_call, &slow_path);
+
+    BIND(&set_fast_call);
+    TailCallBuiltin(Builtins::kSetOrSetIteratorToList, context, iterable);
   }
 
   BIND(&slow_path);
