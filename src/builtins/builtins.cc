@@ -351,14 +351,30 @@ bool Builtins::IsIsolateIndependent(int index) {
   // ia32 is a work-in-progress. This will let us make builtins
   // isolate-independent one-by-one.
   switch (index) {
+    case kAsyncFunctionLazyDeoptContinuation:
     case kContinueToCodeStubBuiltin:
     case kContinueToCodeStubBuiltinWithResult:
     case kContinueToJavaScriptBuiltin:
     case kContinueToJavaScriptBuiltinWithResult:
+    case kDoubleToI:
+    case kMathPowInternal:
+    case kRecordWrite:
+    case kThrowWasmTrapDivByZero:
+    case kThrowWasmTrapDivUnrepresentable:
+    case kThrowWasmTrapFloatUnrepresentable:
+    case kThrowWasmTrapFuncInvalid:
+    case kThrowWasmTrapFuncSigMismatch:
+    case kThrowWasmTrapMemOutOfBounds:
+    case kThrowWasmTrapRemByZero:
+    case kThrowWasmTrapUnalignedAccess:
+    case kThrowWasmTrapUnreachable:
     case kWasmAllocateHeapNumber:
     case kWasmCallJavaScript:
+    case kWasmCompileLazy:
+    case kWasmGrowMemory:
+    case kWasmStackGuard:
+    case kWasmThrow:
     case kWasmToNumber:
-    case kDoubleToI:
       return true;
     default:
       return false;

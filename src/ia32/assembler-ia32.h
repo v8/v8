@@ -246,6 +246,14 @@ class Immediate {
     return value_.immediate;
   }
 
+  bool is_embedded_object() const {
+    return !is_heap_object_request() && rmode() == RelocInfo::EMBEDDED_OBJECT;
+  }
+
+  Handle<HeapObject> embedded_object() const {
+    return Handle<HeapObject>(bit_cast<HeapObject**>(immediate()));
+  }
+
   bool is_external_reference() const {
     return rmode() == RelocInfo::EXTERNAL_REFERENCE;
   }

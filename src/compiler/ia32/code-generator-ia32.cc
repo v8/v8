@@ -597,7 +597,7 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
         LocationOperand source_location(LocationOperand::cast(source));
         __ push(source_location.GetRegister());
       } else if (source.IsImmediate()) {
-        __ push(Immediate(ImmediateOperand::cast(source).inline_value()));
+        __ Push(Immediate(ImmediateOperand::cast(source).inline_value()));
       } else {
         // Pushes of non-scalar data types is not supported.
         UNIMPLEMENTED();
@@ -4474,11 +4474,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Constant src = g.ToConstant(source);
       Operand dst = g.ToOperand(destination);
       if (destination->IsStackSlot()) {
-        if (src.type() == Constant::kHeapObject) {
-          __ mov(dst, src.ToHeapObject());
-        } else {
-          __ Move(dst, g.ToImmediate(source));
-        }
+        __ Move(dst, g.ToImmediate(source));
       } else {
         DCHECK(destination->IsFPStackSlot());
         if (src.type() == Constant::kFloat32) {

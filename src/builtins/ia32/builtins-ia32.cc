@@ -23,8 +23,8 @@ namespace internal {
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
   Assembler::SupportsRootRegisterScope supports_root_register(masm);
-  __ mov(kJavaScriptCallExtraArg1Register,
-         Immediate(ExternalReference::Create(address)));
+  __ Move(kJavaScriptCallExtraArg1Register,
+          Immediate(ExternalReference::Create(address)));
   if (exit_frame_type == BUILTIN_EXIT) {
     __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
             RelocInfo::CODE_TARGET);
