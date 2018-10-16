@@ -111,11 +111,12 @@ namespace module_decoder_unittest {
 
 #define EXPECT_FAILURE(data) EXPECT_FAILURE_LEN(data, sizeof(data))
 
-#define EXPECT_OFF_END_FAILURE(data, min, max)          \
-  do {                                                  \
-    for (size_t length = min; length < max; length++) { \
-      EXPECT_FAILURE_LEN(data, length);                 \
-    }                                                   \
+#define EXPECT_OFF_END_FAILURE(data, min)                           \
+  do {                                                              \
+    STATIC_ASSERT(min < arraysize(data));                           \
+    for (size_t length = min; length < arraysize(data); length++) { \
+      EXPECT_FAILURE_LEN(data, length);                             \
+    }                                                               \
   } while (false)
 
 #define EXPECT_OK(result)     \
@@ -237,7 +238,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     EXPECT_EQ(13, global->init.val.i32_const);
   }
 
-  EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
+  EXPECT_OFF_END_FAILURE(data, 1);
 }
 
 TEST_F(WasmModuleVerifyTest, AnyRefGlobal) {
@@ -458,7 +459,7 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
     EXPECT_EQ(WasmInitExpr::kF64Const, g1->init.kind);
   }
 
-  EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
+  EXPECT_OFF_END_FAILURE(data, 1);
 }
 
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
@@ -643,7 +644,7 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
     EXPECT_EQ(2u, result.val->signatures[2]->parameter_count());
   }
 
-  EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
+  EXPECT_OFF_END_FAILURE(data, 1);
 }
 
 TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
@@ -773,7 +774,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     EXPECT_EQ(3u, segment->source.length());
   }
 
-  EXPECT_OFF_END_FAILURE(data, 14, sizeof(data));
+  EXPECT_OFF_END_FAILURE(data, 14);
 }
 
 TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
@@ -831,7 +832,7 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
     EXPECT_EQ(10u, s1->source.length());
   }
 
-  EXPECT_OFF_END_FAILURE(data, 14, sizeof(data));
+  EXPECT_OFF_END_FAILURE(data, 14);
 }
 
 TEST_F(WasmModuleVerifyTest, DataWithoutMemory) {
@@ -1823,7 +1824,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
       IMPORT_SIG_INDEX(0),  // sig index
   };
 
-  EXPECT_OFF_END_FAILURE(data, 16, sizeof(data));
+  EXPECT_OFF_END_FAILURE(data, arraysize(data) - 3);
 }
 
 TEST_F(WasmModuleVerifyTest, ExportTable_empty1) {
@@ -1971,10 +1972,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne_off_end) {
       FUNC_INDEX(0),  // --
   };
 
-  for (size_t length = 33; length < sizeof(data); length++) {
-    ModuleResult result = DecodeModule(data, data + length);
-    EXPECT_FALSE(result.ok());
-  }
+  EXPECT_OFF_END_FAILURE(data, arraysize(data) - 3);
 }
 
 TEST_F(WasmModuleVerifyTest, FunctionSignatures_empty) {
