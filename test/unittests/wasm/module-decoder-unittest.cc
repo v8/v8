@@ -310,8 +310,7 @@ TEST_F(WasmModuleVerifyTest, Global_invalid_type) {
       WASM_INIT_EXPR_I32V_1(33),  // init
   };
 
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_FALSE(result.ok());
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, Global_invalid_type2) {
@@ -323,8 +322,7 @@ TEST_F(WasmModuleVerifyTest, Global_invalid_type2) {
       WASM_INIT_EXPR_I32V_1(33),  // init
   };
 
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_FALSE(result.ok());
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
@@ -529,8 +527,7 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_index) {
 
   // Should fail decoding exception section.
   WASM_FEATURE_SCOPE(eh);
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_FALSE(result.ok());
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_return) {
@@ -542,8 +539,7 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_return) {
 
   // Should fail decoding exception section.
   WASM_FEATURE_SCOPE(eh);
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_FALSE(result.ok());
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionSectionCorrectPlacement) {
@@ -561,8 +557,7 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterExport) {
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_FALSE(result.ok());
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
@@ -570,8 +565,7 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_FALSE(result.ok());
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionImport) {
