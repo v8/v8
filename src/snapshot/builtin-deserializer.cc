@@ -125,10 +125,10 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
 
   CodeEventListener::LogEventsAndTags code_tag;
   switch (code->kind()) {
-    case AbstractCode::BUILTIN:
+    case Code::BUILTIN:
       code_tag = CodeEventListener::BUILTIN_TAG;
       break;
-    case AbstractCode::BYTECODE_HANDLER:
+    case Code::BYTECODE_HANDLER:
       code_tag = CodeEventListener::BYTECODE_HANDLER_TAG;
       break;
     default:
