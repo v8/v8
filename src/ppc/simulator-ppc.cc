@@ -408,7 +408,8 @@ void PPCDebugger::Debug() {
               current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & 1) == 0) {
-              PrintF("smi %d", PlatformSmiTagging::SmiToInt(obj));
+              PrintF("smi %d", PlatformSmiTagging::SmiToInt(
+                                   reinterpret_cast<Address>(obj)));
             } else {
               obj->ShortPrint();
             }

@@ -424,7 +424,8 @@ void S390Debugger::Debug() {
           Heap* current_heap = sim_->isolate_->heap();
           if (((value & 1) == 0) ||
               current_heap->ContainsSlow(obj->address())) {
-            PrintF("(smi %d)", PlatformSmiTagging::SmiToInt(obj));
+            PrintF("(smi %d)", PlatformSmiTagging::SmiToInt(
+                                   reinterpret_cast<Address>(obj)));
           } else if (current_heap->Contains(obj)) {
             PrintF(" (");
             obj->ShortPrint();
