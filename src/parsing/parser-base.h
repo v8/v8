@@ -1073,12 +1073,12 @@ class ParserBase {
       ObjectLiteralChecker* checker, bool* is_computed_name,
       bool* is_rest_property, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
-                                 bool maybe_arrow,
-                                 bool* is_simple_parameter_list, bool* ok);
+                                 bool maybe_arrow, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
                                  bool* ok) {
-    bool is_simple = true;
-    return ParseArguments(first_spread_pos, false, &is_simple, ok);
+    ExpressionListT result = ParseArguments(first_spread_pos, false, ok);
+    ValidateExpression(CHECK_OK_CUSTOM(NullExpressionList));
+    return result;
   }
 
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
@@ -2653,49 +2653,49 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
-    Scanner::Location* first_spread_arg_loc, bool maybe_arrow,
-    bool* is_simple_parameter_list, bool* ok) {
+    Scanner::Location* first_spread_arg_loc, bool maybe_arrow, bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
-  Scanner::Location spread_arg = Scanner::Location::invalid();
+  *first_spread_arg_loc = Scanner::Location::invalid();
+  Consume(Token::LPAREN);
+  if (Check(Token::RPAREN)) return impl()->NewExpressionList(0);
+
   ExpressionListT result = impl()->NewExpressionList(4);
-  Expect(Token::LPAREN, CHECK_OK_CUSTOM(NullExpressionList));
-  while (peek() != Token::RPAREN) {
+
+  do {
     int start_pos = peek_position();
     bool is_spread = Check(Token::ELLIPSIS);
     int expr_pos = peek_position();
 
     ExpressionT argument =
         ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpressionList));
-    if (!impl()->IsIdentifier(argument)) *is_simple_parameter_list = false;
-
-    if (!maybe_arrow) {
-      ValidateExpression(CHECK_OK_CUSTOM(NullExpressionList));
+    if (maybe_arrow) {
+      if (!impl()->IsIdentifier(argument)) {
+        classifier()->previous()->RecordNonSimpleParameter();
+      }
+      if (is_spread) {
+        classifier()->previous()->RecordNonSimpleParameter();
+        if (argument->IsAssignment()) {
+          classifier()->RecordAsyncArrowFormalParametersError(
+              scanner()->location(), MessageTemplate::kRestDefaultInitializer);
+        }
+        if (peek() == Token::COMMA) {
+          classifier()->RecordAsyncArrowFormalParametersError(
+              scanner()->peek_location(), MessageTemplate::kParamAfterRest);
+        }
+      }
     }
     if (is_spread) {
-      *is_simple_parameter_list = false;
-      if (!spread_arg.IsValid()) {
-        spread_arg.beg_pos = start_pos;
-        spread_arg.end_pos = peek_position();
-      }
-      if (argument->IsAssignment()) {
-        classifier()->RecordAsyncArrowFormalParametersError(
-            scanner()->location(), MessageTemplate::kRestDefaultInitializer);
+      if (!first_spread_arg_loc->IsValid()) {
+        first_spread_arg_loc->beg_pos = start_pos;
+        first_spread_arg_loc->end_pos = peek_position();
       }
       argument = factory()->NewSpread(argument, start_pos, expr_pos);
     }
     result->Add(argument, zone_);
-
-    if (peek() != Token::COMMA) break;
-
-    Next();
-
-    if (argument->IsSpread()) {
-      classifier()->RecordAsyncArrowFormalParametersError(
-          scanner()->location(), MessageTemplate::kParamAfterRest);
-    }
-  }
+    if (!Check(Token::COMMA)) break;
+  } while (peek() != Token::RPAREN);
 
   if (result->length() > Code::kMaxArguments) {
     ReportMessage(MessageTemplate::kTooManyArguments);
@@ -2704,17 +2704,10 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
   }
 
   Scanner::Location location = scanner_->location();
-  if (Token::RPAREN != Next()) {
+  if (!Check(Token::RPAREN)) {
     impl()->ReportMessageAt(location, MessageTemplate::kUnterminatedArgList);
     *ok = false;
     return impl()->NullExpressionList();
-  }
-  *first_spread_arg_loc = spread_arg;
-
-  if (!maybe_arrow || peek() != Token::ARROW) {
-    if (maybe_arrow) {
-      ValidateExpression(CHECK_OK_CUSTOM(NullExpressionList));
-    }
   }
 
   return result;
@@ -3269,9 +3262,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
         if (impl()->IsIdentifier(result) &&
             impl()->IsAsync(impl()->AsIdentifier(result))) {
           ExpressionClassifier async_classifier(this);
-          bool is_simple_parameter_list = true;
-          args = ParseArguments(&spread_pos, true, &is_simple_parameter_list,
-                                CHECK_OK);
+          args = ParseArguments(&spread_pos, true, CHECK_OK);
           if (peek() == Token::ARROW) {
             fni_.RemoveAsyncKeywordFromEnd();
             ValidateBindingPattern(CHECK_OK);
@@ -3284,14 +3275,13 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
             }
             if (args->length()) {
               // async ( Arguments ) => ...
-              if (!is_simple_parameter_list) {
-                async_classifier.previous()->RecordNonSimpleParameter();
-              }
               return impl()->ExpressionListToExpression(args);
+            } else {
+              // async () => ...
+              return factory()->NewEmptyParentheses(pos);
             }
-            // async () => ...
-            return factory()->NewEmptyParentheses(pos);
           } else {
+            ValidateExpression(CHECK_OK);
             AccumulateFormalParameterContainmentErrors();
           }
         } else {
@@ -4699,6 +4689,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic(
   IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   Scanner::Location spread_pos;
   ExpressionClassifier classifier(this);
+  if (peek() != Token::LPAREN) {
+    impl()->ReportUnexpectedToken(peek());
+    *ok = false;
+    return impl()->NullExpression();
+  }
   ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
 
   if (spread_pos.IsValid()) {
