@@ -103,6 +103,31 @@ TEST(AnyIdentifierToken) {
   }
 }
 
+bool TokenIsCallable(Token::Value token) {
+  switch (token) {
+    case Token::SUPER:
+    case Token::IDENTIFIER:
+    case Token::ASYNC:
+    case Token::AWAIT:
+    case Token::YIELD:
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::ENUM:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(CallableToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCallable(token), Token::IsCallable(token));
+  }
+}
+
 bool TokenIsIdentifier(Token::Value token, LanguageMode language_mode,
                        bool is_generator, bool disallow_await) {
   switch (token) {
@@ -383,31 +408,6 @@ TEST(IsShiftOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsShiftOp(token), Token::IsShiftOp(token));
-  }
-}
-
-bool TokenIsTrivialExpressionToken(Token::Value token) {
-  switch (token) {
-    case Token::SMI:
-    case Token::NUMBER:
-    case Token::BIGINT:
-    case Token::NULL_LITERAL:
-    case Token::TRUE_LITERAL:
-    case Token::FALSE_LITERAL:
-    case Token::STRING:
-    case Token::IDENTIFIER:
-    case Token::THIS:
-      return true;
-    default:
-      return false;
-  }
-}
-
-TEST(IsTrivialExpressionToken) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value token = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsTrivialExpressionToken(token),
-             Token::IsTrivialExpressionToken(token));
   }
 }
 

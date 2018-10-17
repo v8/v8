@@ -155,6 +155,8 @@ namespace internal {
   T(BIGINT, nullptr, 0)                                            \
   T(STRING, nullptr, 0)                                            \
                                                                    \
+  /* BEGIN Callable */                                             \
+  K(SUPER, "super", 0)                                             \
   /* BEGIN AnyIdentifier */                                        \
   /* Identifiers (not keywords or future reserved words). */       \
   T(IDENTIFIER, nullptr, 0)                                        \
@@ -168,13 +170,13 @@ namespace internal {
   T(FUTURE_STRICT_RESERVED_WORD, nullptr, 0)                       \
   T(ESCAPED_STRICT_RESERVED_WORD, nullptr, 0)                      \
   K(ENUM, "enum", 0)                                               \
+  /* END Callable */                                               \
   /* END AnyIdentifier */                                          \
   K(CLASS, "class", 0)                                             \
   K(CONST, "const", 0)                                             \
   K(EXPORT, "export", 0)                                           \
   K(EXTENDS, "extends", 0)                                         \
   K(IMPORT, "import", 0)                                           \
-  K(SUPER, "super", 0)                                             \
   T(PRIVATE_NAME, nullptr, 0)                                      \
                                                                    \
   /* Illegal token - not able to scan. */                          \
@@ -237,6 +239,8 @@ class Token {
     return false;
   }
 
+  static bool IsCallable(Value token) { return IsInRange(token, SUPER, ENUM); }
+
   static bool IsAnyIdentifier(Value token) {
     return IsInRange(token, IDENTIFIER, ENUM);
   }
@@ -286,10 +290,6 @@ class Token {
   static bool IsCountOp(Value op) { return IsInRange(op, INC, DEC); }
 
   static bool IsShiftOp(Value op) { return IsInRange(op, SHL, SHR); }
-
-  static bool IsTrivialExpressionToken(Value op) {
-    return IsInRange(op, THIS, IDENTIFIER);
-  }
 
   // Returns a string corresponding to the JS token string
   // (.e., "<" for the token LT) or nullptr if the token doesn't
