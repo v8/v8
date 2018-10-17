@@ -1080,9 +1080,7 @@ class ParserBase {
       bool* is_rest_property, bool* ok);
   ExpressionListT ParseArguments(bool* has_spread, bool maybe_arrow, bool* ok);
   ExpressionListT ParseArguments(bool* has_spread, bool* ok) {
-    ExpressionListT result = ParseArguments(has_spread, false, ok);
-    ValidateExpression(CHECK_OK_CUSTOM(NullExpressionList));
-    return result;
+    return ParseArguments(has_spread, false, ok);
   }
 
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
@@ -2917,7 +2915,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
         V8_FALLTHROUGH;
       default:
         expression = ParseAssignmentExpression(accept_IN, CHECK_OK);
-        ValidateExpression(CHECK_OK);
         break;
     }
   }
@@ -2966,7 +2963,6 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
                                                bool accept_IN, int pos,
                                                bool* ok) {
   SourceRange then_range, else_range;
-  ValidateExpression(CHECK_OK);
   BindingPatternUnexpectedToken();
   ArrowFormalParametersUnexpectedToken();
 
@@ -2981,7 +2977,6 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
     left = ParseAssignmentExpression(true, CHECK_OK);
     AccumulateNonBindingPatternErrors();
   }
-  ValidateExpression(CHECK_OK);
   ExpressionT right;
   {
     SourceRangeScope range_scope(scanner(), &else_range);
@@ -2990,7 +2985,6 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
     right = ParseAssignmentExpression(accept_IN, CHECK_OK);
     AccumulateNonBindingPatternErrors();
   }
-  ValidateExpression(CHECK_OK);
   ExpressionT expr = factory()->NewConditional(expression, left, right, pos);
   impl()->RecordConditionalSourceRange(expr, then_range, else_range);
   return expr;
@@ -3008,8 +3002,6 @@ ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
   do {
     // prec1 >= 4
     while (Token::Precedence(peek()) == prec1) {
-      ValidateExpression(CHECK_OK);
-
       SourceRange right_range;
       int pos = peek_position();
       ExpressionT y;
@@ -3022,7 +3014,6 @@ ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
         const int next_prec = is_right_associative ? prec1 : prec1 + 1;
         y = ParseBinaryExpression(next_prec, accept_IN, CHECK_OK);
       }
-      ValidateExpression(CHECK_OK);
 
       // For now we distinguish between comparisons and other binary
       // operations.  (We could combine the two and get rid of this
@@ -3085,7 +3076,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryOpExpression(
   }
 
   ExpressionT expression = ParseUnaryExpression(CHECK_OK);
-  ValidateExpression(CHECK_OK);
 
   if (op == Token::DELETE) {
     if (impl()->IsIdentifier(expression) && is_strict(language_mode())) {
@@ -3124,7 +3114,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrefixExpression(
       expression, beg_pos, end_position(),
       MessageTemplate::kInvalidLhsInPrefixOp, CHECK_OK);
   impl()->MarkExpressionAsAssigned(expression);
-  ValidateExpression(CHECK_OK);
 
   return factory()->NewCountOperation(op, true /* prefix */, expression,
                                       position());
@@ -3192,7 +3181,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePostfixExpression(
         expression, lhs_beg_pos, end_position(),
         MessageTemplate::kInvalidLhsInPostfixOp, CHECK_OK);
     impl()->MarkExpressionAsAssigned(expression);
-    ValidateExpression(CHECK_OK);
 
     Token::Value next = Next();
     expression =
@@ -3324,7 +3312,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
         break;
     }
   } while (Token::IsPropertyOrCall(peek()));
-  ValidateExpression(CHECK_OK);
   return result;
 }
 
@@ -3370,7 +3357,6 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* ok) {
   } else {
     result = ParseMemberWithNewPrefixesExpression(CHECK_OK);
   }
-  ValidateExpression(CHECK_OK);
   if (peek() == Token::LPAREN) {
     // NewExpression with arguments.
     bool has_spread;
@@ -3610,7 +3596,6 @@ ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression,
       }
     }
   } while (Token::IsProperty(peek()));
-  ValidateExpression(CHECK_OK);
   return expression;
 }
 
@@ -4545,7 +4530,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
 
     int expr_pos = peek_position();
     ExpressionT expression = ParseExpressionCoverGrammar(true, CHECK_OK);
-    ValidateExpression(CHECK_OK);
     impl()->AddTemplateExpression(&ts, expression);
 
     if (peek() != Token::RBRACE) {
