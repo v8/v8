@@ -42,7 +42,6 @@ class CodeEventRecord {
   enum Type {
     NONE = 0,
     CODE_EVENTS_TYPE_LIST(DECLARE_TYPE)
-    NUMBER_OF_TYPES
   };
 #undef DECLARE_TYPE
 
@@ -131,24 +130,27 @@ class CodeEventsContainer {
 
 // This class implements both the profile events processor thread and
 // methods called by event producers: VM and stack sampler threads.
-class ProfilerEventsProcessor : public base::Thread {
+class ProfilerEventsProcessor : public base::Thread, public CodeEventObserver {
  public:
   virtual ~ProfilerEventsProcessor();
 
+  void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
+
   // Thread control.
-  virtual void Run() = 0;
+  void Run() override = 0;
   void StopSynchronously();
   V8_INLINE bool running() { return !!base::Relaxed_Load(&running_); }
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into the tick sample events buffer.
-  void AddCurrentStack(Isolate* isolate, bool update_stats = false);
-  void AddDeoptStack(Isolate* isolate, Address from, int fp_to_sp_delta);
+  void AddCurrentStack(bool update_stats = false);
+  void AddDeoptStack(Address from, int fp_to_sp_delta);
   // Puts the given sample into the tick sample events buffer.
   void AddSample(TickSample sample);
 
  protected:
-  explicit ProfilerEventsProcessor(ProfileGenerator* generator);
+  explicit ProfilerEventsProcessor(Isolate* isolate,
+                                   ProfileGenerator* generator);
 
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -166,6 +168,7 @@ class ProfilerEventsProcessor : public base::Thread {
   LockedQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
   std::atomic<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
+  Isolate* isolate_;
 };
 
 class SamplingEventsProcessor : public ProfilerEventsProcessor {
@@ -202,7 +205,7 @@ class SamplingEventsProcessor : public ProfilerEventsProcessor {
   const base::TimeDelta period_;  // Samples & code events processing period.
 };
 
-class CpuProfiler : public CodeEventObserver {
+class CpuProfiler {
  public:
   explicit CpuProfiler(Isolate* isolate);
 
@@ -210,7 +213,7 @@ class CpuProfiler : public CodeEventObserver {
               ProfileGenerator* test_generator,
               ProfilerEventsProcessor* test_processor);
 
-  ~CpuProfiler() override;
+  ~CpuProfiler();
 
   static void CollectSample(Isolate* isolate);
 
@@ -227,8 +230,6 @@ class CpuProfiler : public CodeEventObserver {
   CpuProfile* GetProfile(int index);
   void DeleteAllProfiles();
   void DeleteProfile(CpuProfile* profile);
-
-  void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
 
   bool is_profiling() const { return is_profiling_; }
 

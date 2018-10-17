@@ -162,10 +162,8 @@ TEST(CodeEvents) {
   ProfileGenerator* generator = new ProfileGenerator(profiles);
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       isolate, generator, v8::base::TimeDelta::FromMicroseconds(100));
-  CpuProfiler profiler(isolate, profiles, generator, processor);
-  profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate, &profiler);
+  ProfilerListener profiler_listener(isolate, processor);
   isolate->logger()->AddCodeEventListener(&profiler_listener);
 
   // Enqueue code creation events.
@@ -227,7 +225,7 @@ TEST(TickEvents) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate, &profiler);
+  ProfilerListener profiler_listener(isolate, processor);
   isolate->logger()->AddCodeEventListener(&profiler_listener);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
@@ -296,7 +294,7 @@ TEST(Issue1398) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate, &profiler);
+  ProfilerListener profiler_listener(isolate, processor);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
@@ -1152,7 +1150,7 @@ static void TickLines(bool optimize) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate, &profiler);
+  ProfilerListener profiler_listener(isolate, processor);
 
   // Enqueue code creation events.
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
@@ -1716,13 +1714,13 @@ TEST(IdleTime) {
   i::ProfilerEventsProcessor* processor =
       reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->processor();
 
-  processor->AddCurrentStack(isolate, true);
+  processor->AddCurrentStack(true);
   isolate->SetIdle(true);
   for (int i = 0; i < 3; i++) {
-    processor->AddCurrentStack(isolate, true);
+    processor->AddCurrentStack(true);
   }
   isolate->SetIdle(false);
-  processor->AddCurrentStack(isolate, true);
+  processor->AddCurrentStack(true);
 
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
   CHECK(profile);
