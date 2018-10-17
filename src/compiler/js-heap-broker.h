@@ -199,7 +199,7 @@ class JSFunctionRef : public JSObjectRef {
   // The following are available only after calling Serialize().
   ObjectRef prototype() const;
   MapRef initial_map() const;
-  JSGlobalProxyRef global_proxy() const;
+  NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
   int InitialMapInstanceSizeWithMinSlack() const;
 };
@@ -247,6 +247,7 @@ class ContextRef : public HeapObjectRef {
   V(JSFunction, promise_function)                  \
   V(JSFunction, string_function)                   \
   V(JSFunction, symbol_function)                   \
+  V(JSGlobalProxy, global_proxy_object)            \
   V(Map, fast_aliased_arguments_map)               \
   V(Map, initial_array_iterator_map)               \
   V(Map, initial_string_iterator_map)              \

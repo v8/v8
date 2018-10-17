@@ -1625,21 +1625,26 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
     if (IsClassConstructor(shared.kind())) return NoChange();
 
-    // Load the context from the {target}.
-    Node* context = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
-        effect, control);
-    NodeProperties::ReplaceContextInput(node, context);
-
-    // Check if we need to convert the {receiver}.
+    // Check if we need to convert the {receiver}, but bailout if it would
+    // require data from a foreign native context.
     if (is_sloppy(shared.language_mode()) && !shared.native() &&
         !receiver_type.Is(Type::Receiver())) {
-      Node* global_proxy = jsgraph()->Constant(function.global_proxy());
+      if (!function.native_context().equals(broker()->native_context())) {
+        return NoChange();
+      }
+      Node* global_proxy =
+          jsgraph()->Constant(function.native_context().global_proxy_object());
       receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(convert_mode),
                            receiver, global_proxy, effect, control);
       NodeProperties::ReplaceValueInput(node, receiver, 1);
     }
+
+    // Load the context from the {target}.
+    Node* context = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
+        effect, control);
+    NodeProperties::ReplaceContextInput(node, context);
 
     // Update the effect dependency for the {node}.
     NodeProperties::ReplaceEffectInput(node, effect);

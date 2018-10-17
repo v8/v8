@@ -284,7 +284,7 @@ class JSFunctionData : public JSObjectData {
 
   void Serialize(JSHeapBroker* broker);
 
-  JSGlobalProxyData* global_proxy() const { return global_proxy_; }
+  NativeContextData* native_context() const { return native_context_; }
   MapData* initial_map() const { return initial_map_; }
   ObjectData* prototype() const { return prototype_; }
   SharedFunctionInfoData* shared() const { return shared_; }
@@ -300,7 +300,7 @@ class JSFunctionData : public JSObjectData {
 
   bool serialized_ = false;
 
-  JSGlobalProxyData* global_proxy_ = nullptr;
+  NativeContextData* native_context_ = nullptr;
   MapData* initial_map_ = nullptr;
   ObjectData* prototype_ = nullptr;
   SharedFunctionInfoData* shared_ = nullptr;
@@ -749,13 +749,13 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
   TraceScope tracer(broker, this, "JSFunctionData::Serialize");
   Handle<JSFunction> function = Handle<JSFunction>::cast(object());
 
-  DCHECK_NULL(global_proxy_);
+  DCHECK_NULL(native_context_);
   DCHECK_NULL(initial_map_);
   DCHECK_NULL(prototype_);
   DCHECK_NULL(shared_);
 
-  global_proxy_ =
-      broker->GetOrCreateData(function->global_proxy())->AsJSGlobalProxy();
+  native_context_ =
+      broker->GetOrCreateData(function->native_context())->AsNativeContext();
   shared_ = broker->GetOrCreateData(function->shared())->AsSharedFunctionInfo();
   initial_map_ = has_initial_map()
                      ? broker->GetOrCreateData(function->initial_map())->AsMap()
@@ -2040,7 +2040,7 @@ BIMODAL_ACCESSOR(JSArray, Object, length)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
 BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
-BIMODAL_ACCESSOR(JSFunction, JSGlobalProxy, global_proxy)
+BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
 BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
