@@ -17,84 +17,12 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ArrayPush;
 var GlobalIntl = global.Intl;
 var GlobalIntlDateTimeFormat = GlobalIntl.DateTimeFormat;
 var GlobalIntlNumberFormat = GlobalIntl.NumberFormat;
 var GlobalIntlCollator = GlobalIntl.Collator;
-var GlobalIntlPluralRules = GlobalIntl.PluralRules;
-var GlobalIntlv8BreakIterator = GlobalIntl.v8BreakIterator;
-var InternalArray = utils.InternalArray;
-
-utils.Import(function(from) {
-  ArrayPush = from.ArrayPush;
-});
 
 // -------------------------------------------------------------------
-
-/**
- * Caches available locales for each service.
- */
-var AVAILABLE_LOCALES = {
-   __proto__ : null,
-  'collator': UNDEFINED,
-  'numberformat': UNDEFINED,
-  'dateformat': UNDEFINED,
-  'breakiterator': UNDEFINED,
-  'pluralrules': UNDEFINED,
-  'relativetimeformat': UNDEFINED,
-  'listformat': UNDEFINED,
-  'segmenter': UNDEFINED,
-};
-
-/* Make JS array[] out of InternalArray */
-function makeArray(input) {
-  var array = [];
-  %MoveArrayContents(input, array);
-  return array;
-}
-
-/**
- * Returns an InternalArray where all locales are canonicalized and duplicates
- * removed.
- * Throws on locales that are not well formed BCP47 tags.
- * ECMA 402 8.2.1 steps 1 (ECMA 402 9.2.1) and 2.
- */
-function canonicalizeLocaleList(locales) {
-  var seen = new InternalArray();
-  if (!IS_UNDEFINED(locales)) {
-    // We allow single string localeID.
-    if (typeof locales === 'string') {
-      %_Call(ArrayPush, seen, %CanonicalizeLanguageTag(locales));
-      return seen;
-    }
-
-    var o = TO_OBJECT(locales);
-    var len = TO_LENGTH(o.length);
-
-    for (var k = 0; k < len; k++) {
-      if (k in o) {
-        var value = o[k];
-
-        var tag = %CanonicalizeLanguageTag(value);
-
-        if (%ArrayIndexOf(seen, tag, 0) === -1) {
-          %_Call(ArrayPush, seen, tag);
-        }
-      }
-    }
-  }
-
-  return seen;
-}
-
-// ECMA 402 section 8.2.1
-DEFINE_METHOD(
-  GlobalIntl,
-  getCanonicalLocales(locales) {
-    return makeArray(canonicalizeLocaleList(locales));
-  }
-);
 
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {

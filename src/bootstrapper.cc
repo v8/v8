@@ -2913,6 +2913,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewJSObject(isolate_->object_function(), TENURED);
     JSObject::AddProperty(isolate_, global, name, intl, DONT_ENUM);
 
+    SimpleInstallFunction(isolate(), intl, "getCanonicalLocales",
+                          Builtins::kIntlGetCanonicalLocales, 1, false);
+
     {
       Handle<JSFunction> date_time_format_constructor = InstallFunction(
           isolate_, intl, "DateTimeFormat", JS_INTL_DATE_TIME_FORMAT_TYPE,

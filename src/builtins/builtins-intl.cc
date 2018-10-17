@@ -485,6 +485,14 @@ BUILTIN(DateTimeFormatInternalFormat) {
                                         isolate, date_format_holder, date));
 }
 
+BUILTIN(IntlGetCanonicalLocales) {
+  HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           Intl::GetCanonicalLocales(isolate, locales));
+}
+
 BUILTIN(ListFormatConstructor) {
   HandleScope scope(isolate);
 
