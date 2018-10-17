@@ -88,16 +88,10 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
 #define FOUR_EMPTY_FUNCTIONS(sig_index) \
   SECTION(Function, ENTRY_COUNT(4), X4(sig_index))
 
-#define ONE_EMPTY_BODY SECTION(Code, ENTRY_COUNT(1), X1(ADD_COUNT(EMPTY_BODY)))
-
-#define TWO_EMPTY_BODIES \
-  SECTION(Code, ENTRY_COUNT(2), X2(ADD_COUNT(EMPTY_BODY)))
-
-#define THREE_EMPTY_BODIES \
-  SECTION(Code, ENTRY_COUNT(3), X3(ADD_COUNT(EMPTY_BODY)))
-
-#define FOUR_EMPTY_BODIES \
-  SECTION(Code, ENTRY_COUNT(4), X4(ADD_COUNT(EMPTY_BODY)))
+#define ONE_EMPTY_BODY SECTION(Code, ENTRY_COUNT(1), X1(EMPTY_BODY))
+#define TWO_EMPTY_BODIES SECTION(Code, ENTRY_COUNT(2), X2(EMPTY_BODY))
+#define THREE_EMPTY_BODIES SECTION(Code, ENTRY_COUNT(3), X3(EMPTY_BODY))
+#define FOUR_EMPTY_BODIES SECTION(Code, ENTRY_COUNT(4), X4(EMPTY_BODY))
 
 #define SIGNATURES_SECTION_VOID_VOID \
   SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v)
@@ -1917,9 +1911,9 @@ TEST_F(WasmModuleVerifyTest, FunctionBodies_empty) {
 
 TEST_F(WasmModuleVerifyTest, FunctionBodies_one_empty) {
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),      // --
-      FUNCTION_SIGNATURES_SECTION(1, 0),         // --
-      SECTION(Code, ENTRY_COUNT(1), EMPTY_BODY)  // --
+      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
+      FUNCTION_SIGNATURES_SECTION(1, 0),     // --
+      ONE_EMPTY_BODY                         // --
   };
   EXPECT_VERIFIES(data);
 }
@@ -1935,9 +1929,9 @@ TEST_F(WasmModuleVerifyTest, FunctionBodies_one_nop) {
 
 TEST_F(WasmModuleVerifyTest, FunctionBodies_count_mismatch1) {
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),      // --
-      FUNCTION_SIGNATURES_SECTION(2, 0, 0),      // --
-      SECTION(Code, ENTRY_COUNT(1), EMPTY_BODY)  // --
+      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
+      FUNCTION_SIGNATURES_SECTION(2, 0, 0),  // --
+      ONE_EMPTY_BODY                         // --
   };
   EXPECT_FAILURE(data);
 }
@@ -1964,7 +1958,7 @@ TEST_F(WasmModuleVerifyTest, Names_one_empty) {
   static const byte data[] = {
       SIGNATURES_SECTION(1, SIG_ENTRY_v_v),                      // --
       FUNCTION_SIGNATURES_SECTION(1, 0),                         // --
-      SECTION(Code, ENTRY_COUNT(1), EMPTY_BODY),                 // --
+      ONE_EMPTY_BODY,                                            // --
       SECTION_NAMES(ENTRY_COUNT(1), FOO_STRING, NO_LOCAL_NAMES)  // --
   };
   EXPECT_VERIFIES(data);
@@ -1974,12 +1968,12 @@ TEST_F(WasmModuleVerifyTest, Names_two_empty) {
   // TODO(wasm): This test does not test anything (corrupt name section does not
   // fail validation).
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),                   // --
-      FUNCTION_SIGNATURES_SECTION(2, 0, 0),                   // --
-      SECTION(Code, ENTRY_COUNT(2), EMPTY_BODY, EMPTY_BODY),  // --
-      SECTION_NAMES(ENTRY_COUNT(2),                           // --
-                    FOO_STRING, NO_LOCAL_NAMES,               // --
-                    FOO_STRING, NO_LOCAL_NAMES),              // --
+      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),       // --
+      FUNCTION_SIGNATURES_SECTION(2, 0, 0),       // --
+      TWO_EMPTY_BODIES,                           // --
+      SECTION_NAMES(ENTRY_COUNT(2),               // --
+                    FOO_STRING, NO_LOCAL_NAMES,   // --
+                    FOO_STRING, NO_LOCAL_NAMES),  // --
   };
   EXPECT_VERIFIES(data);
 }
