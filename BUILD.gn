@@ -18,6 +18,12 @@ if (is_android) {
 import("gni/v8.gni")
 import("snapshot_toolchain.gni")
 
+# Specifies if the target build is a simulator build. Comparing target cpu
+# with v8 target cpu to not affect simulator builds for making cross-compile
+# snapshots.
+is_target_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
+                      (current_cpu != v8_current_cpu && v8_multi_arch_build)
+
 declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
@@ -157,7 +163,12 @@ declare_args() {
   v8_check_microtasks_scopes_consistency = ""
 
   # Enable mitigations for executing untrusted code.
-  v8_untrusted_code_mitigations = true
+  # Disabled by default on ia32 due to conflicting requirements with embedded
+  # builtins. Enabled by default on Android since it doesn't support
+  # site-isolation in Chrome and on simulator builds which test code generation
+  # on these platforms.
+  v8_untrusted_code_mitigations =
+      v8_current_cpu != "x86" && (is_android || is_target_simulator)
 
   # Enable minor mark compact.
   v8_enable_minor_mc = true
@@ -209,11 +220,6 @@ assert(
     v8_current_cpu != "x86" || !v8_enable_embedded_builtins ||
         !v8_untrusted_code_mitigations,
     "Embedded builtins on ia32 and untrusted code mitigations are incompatible")
-
-# Specifies if the target build is a simulator build. Comparing target cpu
-# with v8 target cpu to not affect simulator builds for making cross-compile
-# snapshots.
-is_target_simulator = target_cpu != v8_target_cpu
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
