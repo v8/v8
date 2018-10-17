@@ -246,8 +246,14 @@ Operand TurboAssembler::ExternalReferenceAddressAsOperand(
   DCHECK(ShouldGenerateIsolateIndependentCode());
   Assembler::AllowExplicitEbxAccessScope read_only_access(this);
 
+  // Encode as an index into the external reference table stored on the
+  // isolate.
+  ExternalReferenceEncoder encoder(isolate());
+  ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
+  CHECK(!v.is_from_api());
+
   return Operand(kRootRegister,
-                 RootRegisterOffsetForExternalReference(isolate(), reference));
+                 RootRegisterOffsetForExternalReferenceIndex(v.index()));
 }
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,
@@ -871,7 +877,8 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
   DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   push(Immediate(0));  // Saved entry sp, patched before call.
   DCHECK_EQ(-3 * kPointerSize, ExitFrameConstants::kCodeOffset);
-  push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
+  Move(scratch, CodeObject());
+  push(scratch);  // Accessed from ExitFrame::code_slot.
 
   STATIC_ASSERT(edx == kRuntimeCallFunctionRegister);
   STATIC_ASSERT(esi == kContextRegister);

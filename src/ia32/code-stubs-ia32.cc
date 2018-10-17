@@ -229,14 +229,14 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   Label profiler_disabled;
   Label end_profiler_check;
-  __ mov(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
+  __ Move(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
   __ cmpb(Operand(eax, 0), Immediate(0));
   __ j(zero, &profiler_disabled);
 
   // Additional parameter is the address of the actual getter function.
   __ mov(thunk_last_arg, function_address);
   // Call the api function.
-  __ mov(eax, Immediate(thunk_ref));
+  __ Move(eax, Immediate(thunk_ref));
   __ call(eax);
   __ jmp(&end_profiler_check);
 
@@ -282,8 +282,8 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // Check if the function scheduled an exception.
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate);
-  __ cmp(__ ExternalReferenceAsOperand(scheduled_exception_address, ecx),
-         Immediate(isolate->factory()->the_hole_value()));
+  __ mov(ecx, __ ExternalReferenceAsOperand(scheduled_exception_address, ecx));
+  __ CompareRoot(ecx, RootIndex::kTheHoleValue);
   __ j(not_equal, &promote_scheduled_exception);
 
 #if DEBUG
@@ -301,19 +301,19 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ CmpInstanceType(map, FIRST_JS_RECEIVER_TYPE);
   __ j(above_equal, &ok, Label::kNear);
 
-  __ cmp(map, isolate->factory()->heap_number_map());
+  __ CompareRoot(map, RootIndex::kHeapNumberMap);
   __ j(equal, &ok, Label::kNear);
 
-  __ cmp(return_value, isolate->factory()->undefined_value());
+  __ CompareRoot(return_value, RootIndex::kUndefinedValue);
   __ j(equal, &ok, Label::kNear);
 
-  __ cmp(return_value, isolate->factory()->true_value());
+  __ CompareRoot(return_value, RootIndex::kTrueValue);
   __ j(equal, &ok, Label::kNear);
 
-  __ cmp(return_value, isolate->factory()->false_value());
+  __ CompareRoot(return_value, RootIndex::kFalseValue);
   __ j(equal, &ok, Label::kNear);
 
-  __ cmp(return_value, isolate->factory()->null_value());
+  __ CompareRoot(return_value, RootIndex::kNullValue);
   __ j(equal, &ok, Label::kNear);
 
   __ Abort(AbortReason::kAPICallReturnedInvalidObject);
@@ -340,9 +340,9 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&delete_allocated_handles);
   __ mov(__ ExternalReferenceAsOperand(limit_address, ecx), edi);
   __ mov(edi, eax);
-  __ mov(Operand(esp, 0),
-         Immediate(ExternalReference::isolate_address(isolate)));
-  __ mov(eax, Immediate(delete_extensions));
+  __ Move(eax, Immediate(ExternalReference::isolate_address(isolate)));
+  __ mov(Operand(esp, 0), eax);
+  __ Move(eax, Immediate(delete_extensions));
   __ call(eax);
   __ mov(eax, edi);
   __ jmp(&leave_exit_frame);
@@ -392,7 +392,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // return value default
   __ PushRoot(RootIndex::kUndefinedValue);
   // isolate
-  __ push(Immediate(ExternalReference::isolate_address(isolate())));
+  __ Push(Immediate(ExternalReference::isolate_address(isolate())));
   // holder
   __ push(holder);
 
@@ -466,7 +466,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ PushRoot(RootIndex::kUndefinedValue);  // ReturnValue
   // ReturnValue default value
   __ PushRoot(RootIndex::kUndefinedValue);
-  __ push(Immediate(ExternalReference::isolate_address(isolate())));
+  __ Push(Immediate(ExternalReference::isolate_address(isolate())));
   __ push(holder);
   __ push(Immediate(Smi::kZero));  // should_throw_on_error -> false
   __ push(FieldOperand(callback, AccessorInfo::kNameOffset));

@@ -327,7 +327,6 @@ bool Builtins::IsLazyDeserializer(Code* code) {
 // static
 bool Builtins::IsIsolateIndependent(int index) {
   DCHECK(IsBuiltinId(index));
-#ifndef V8_TARGET_ARCH_IA32
   switch (index) {
     // TODO(jgruber): There's currently two blockers for moving
     // InterpreterEntryTrampoline into the binary:
@@ -346,30 +345,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     default:
       return true;
   }
-#else   // V8_TARGET_ARCH_IA32
-  // TODO(jgruber, v8:6666): Implement support.
-  // ia32 is a work-in-progress. This will let us make builtins
-  // isolate-independent one-by-one.
-  switch (index) {
-    case kCallApiCallback_Argc0:
-    case kCallApiCallback_Argc1:
-    case kCallApiGetter:
-    case kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case kInterpreterEntryTrampoline:
-      return false;
-    default:
-      return true;
-  }
-#endif  // V8_TARGET_ARCH_IA32
   UNREACHABLE();
 }
 
