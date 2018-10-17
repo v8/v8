@@ -206,7 +206,7 @@
   },
   'v8_linux_arm_lite_rel_ng_triggered': {
     'tests': [
-      {'name': 'v8testing', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
     ],
   },
   'v8_linux_arm_rel_ng_triggered': {
