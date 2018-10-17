@@ -14618,8 +14618,9 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
   bool is_process_independent = true;
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
-    // On X64, ARM, ARM64, MIPS we emit relative builtin-to-builtin
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||  \
+    defined(V8_TARGET_ARCH_IA32)
+    // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. They are later
     // rewritten as pc-relative jumps to the off-heap instruction stream and are
     // thus process-independent. See also: FinalizeEmbeddedCodeTargets.

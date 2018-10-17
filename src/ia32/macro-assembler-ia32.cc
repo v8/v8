@@ -1899,7 +1899,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
     // TODO(jgruber): Pc-relative builtin-to-builtin calls.
     if (root_array_available_ && ShouldGenerateIsolateIndependentCode() &&
-        Builtins::IsBuiltin(*code_object)) {
+        !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
       // Since we don't have a scratch register available we call through a
       // so-called virtual register.
       // TODO(v8:6666): Remove once pc-relative jumps are supported on ia32.
@@ -1934,7 +1934,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
     // TODO(jgruber): Pc-relative builtin-to-builtin calls.
     if (root_array_available_ && ShouldGenerateIsolateIndependentCode() &&
-        Builtins::IsBuiltin(*code_object)) {
+        !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
       // Since we don't have a scratch register available we call through a
       // so-called virtual register.
       // TODO(v8:6666): Remove once pc-relative jumps are supported on ia32.
