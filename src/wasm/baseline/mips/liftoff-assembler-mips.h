@@ -403,6 +403,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   Register dst = no_reg;
   MemOperand dst_op = MemOperand(dst_addr, offset_imm);
   if (offset_reg != no_reg) {
+    if (is_store_mem) {
+      pinned.set(src);
+    }
     dst = GetUnusedRegister(kGpReg, pinned).gp();
     emit_ptrsize_add(dst, dst_addr, offset_reg);
     dst_op = MemOperand(dst, offset_imm);
@@ -410,7 +413,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_store_mem) {
-    pinned |= LiftoffRegList::ForRegs(dst_op.rm(), src);
+    pinned = pinned | LiftoffRegList::ForRegs(dst_op.rm(), src);
     LiftoffRegister tmp = GetUnusedRegister(src.reg_class(), pinned);
     // Save original value.
     Move(tmp, src, type.value_type());

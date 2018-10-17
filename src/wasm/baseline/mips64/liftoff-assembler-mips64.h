@@ -340,6 +340,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   Register dst = no_reg;
   MemOperand dst_op = MemOperand(dst_addr, offset_imm);
   if (offset_reg != no_reg) {
+    if (is_store_mem) {
+      pinned.set(src);
+    }
     dst = GetUnusedRegister(kGpReg, pinned).gp();
     emit_ptrsize_add(dst, dst_addr, offset_reg);
     dst_op = MemOperand(dst, offset_imm);
