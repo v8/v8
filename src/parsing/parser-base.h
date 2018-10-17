@@ -23,6 +23,7 @@
 #include "src/parsing/func-name-inferrer.h"
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
+#include "src/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -421,20 +422,19 @@ class ParserBase {
     class FunctionOrEvalRecordingScope {
      public:
       explicit FunctionOrEvalRecordingScope(FunctionState* state)
-          : state_(state) {
-        prev_value_ = state->contains_function_or_eval_;
+          : state_and_prev_value_(state, state->contains_function_or_eval_) {
         state->contains_function_or_eval_ = false;
       }
       ~FunctionOrEvalRecordingScope() {
-        bool found = state_->contains_function_or_eval_;
+        bool found = state_and_prev_value_->contains_function_or_eval_;
         if (!found) {
-          state_->contains_function_or_eval_ = prev_value_;
+          state_and_prev_value_->contains_function_or_eval_ =
+              state_and_prev_value_.GetPayload();
         }
       }
 
      private:
-      FunctionState* state_;
-      bool prev_value_;
+      PointerWithPayload<FunctionState, bool, 1> state_and_prev_value_;
     };
 
    private:

@@ -840,7 +840,9 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
               (info->function_literal_id() - 1) - GetLastFunctionLiteralId());
           for (auto p : formals.params) {
             if (p->pattern != nullptr) reindexer.Reindex(p->pattern);
-            if (p->initializer != nullptr) reindexer.Reindex(p->initializer);
+            if (p->initializer() != nullptr) {
+              reindexer.Reindex(p->initializer());
+            }
           }
           ResetFunctionLiteralId();
           SkipFunctionLiterals(info->function_literal_id() - 1);
@@ -2897,19 +2899,20 @@ Block* Parser::BuildParameterInitializationBlock(
     descriptor.initialization_pos = parameter->pattern->position();
     Expression* initial_value =
         factory()->NewVariableProxy(parameters.scope->parameter(index));
-    if (parameter->initializer != nullptr) {
+    if (parameter->initializer() != nullptr) {
       // IS_UNDEFINED($param) ? initializer : $param
 
       // Ensure initializer is rewritten
-      RewriteParameterInitializer(parameter->initializer);
+      RewriteParameterInitializer(parameter->initializer());
 
       auto condition = factory()->NewCompareOperation(
           Token::EQ_STRICT,
           factory()->NewVariableProxy(parameters.scope->parameter(index)),
           factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
-      initial_value = factory()->NewConditional(
-          condition, parameter->initializer, initial_value, kNoSourcePosition);
-      descriptor.initialization_pos = parameter->initializer->position();
+      initial_value =
+          factory()->NewConditional(condition, parameter->initializer(),
+                                    initial_value, kNoSourcePosition);
+      descriptor.initialization_pos = parameter->initializer()->position();
     }
 
     Scope* param_scope = scope();

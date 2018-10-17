@@ -16,6 +16,7 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
+#include "src/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -87,20 +88,25 @@ struct ParserFormalParameters : FormalParametersBase {
               Expression* initializer, int position,
               int initializer_end_position, bool is_rest)
         : name(name),
+          name_and_is_rest(initializer, is_rest),
           pattern(pattern),
-          initializer(initializer),
           position(position),
-          initializer_end_position(initializer_end_position),
-          is_rest(is_rest) {}
+          initializer_end_position(initializer_end_position) {}
+
     const AstRawString* name;
+
+    PointerWithPayload<Expression, bool, 1> name_and_is_rest;
+
     Expression* pattern;
-    Expression* initializer;
+    Expression* initializer() const { return name_and_is_rest.GetPointer(); }
     int position;
     int initializer_end_position;
-    bool is_rest;
+    inline bool is_rest() const { return name_and_is_rest.GetPayload(); }
+
     Parameter* next_parameter = nullptr;
     bool is_simple() const {
-      return pattern->IsVariableProxy() && initializer == nullptr && !is_rest;
+      return pattern->IsVariableProxy() && initializer() == nullptr &&
+             !is_rest();
     }
 
     Parameter** next() { return &next_parameter; }
@@ -924,7 +930,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     DeclarationScope* scope = parameters->scope;
     if (!is_simple) scope->SetHasNonSimpleParameters();
     for (auto parameter : parameters->params) {
-      bool is_optional = parameter->initializer != nullptr;
+      bool is_optional = parameter->initializer() != nullptr;
       // If the parameter list is simple, declare the parameters normally with
       // their names. If the parameter list is not simple, declare a temporary
       // for each parameter - the corresponding named variable is declared by
@@ -937,7 +943,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       scope->DeclareParameter(
           is_simple ? parameter->name : ast_value_factory()->empty_string(),
           is_simple ? VariableMode::kVar : VariableMode::kTemporary,
-          is_optional, parameter->is_rest, ast_value_factory(),
+          is_optional, parameter->is_rest(), ast_value_factory(),
           parameter->position);
     }
   }

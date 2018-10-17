@@ -38,8 +38,7 @@ class PreParsedScopeDataBuilder::ByteData
       public PreParsedScopeByteDataConstants {
  public:
   explicit ByteData(Zone* zone)
-      : backing_store_(zone), free_quarters_in_last_byte_(0) {}
-
+      : free_quarters_in_last_byte_(0), backing_store_(zone) {}
   void WriteUint32(uint32_t data);
   void WriteUint8(uint8_t data);
   void WriteQuarter(uint8_t data);
@@ -58,8 +57,8 @@ class PreParsedScopeDataBuilder::ByteData
   ZoneChunkList<uint8_t>::iterator end() { return backing_store_.end(); }
 
  private:
-  ZoneChunkList<uint8_t> backing_store_;
   uint8_t free_quarters_in_last_byte_;
+  ZoneChunkList<uint8_t> backing_store_;
 };
 
 template <class Data>

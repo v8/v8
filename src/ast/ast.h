@@ -1261,19 +1261,20 @@ class AggregateLiteral : public MaterializedLiteral {
 // Common supertype for ObjectLiteralProperty and ClassLiteralProperty
 class LiteralProperty : public ZoneObject {
  public:
-  Expression* key() const { return key_; }
+  Expression* key() const { return key_and_is_computed_name_.GetPointer(); }
   Expression* value() const { return value_; }
 
-  bool is_computed_name() const { return is_computed_name_; }
+  bool is_computed_name() const {
+    return key_and_is_computed_name_.GetPayload();
+  }
   bool NeedsSetFunctionName() const;
 
  protected:
   LiteralProperty(Expression* key, Expression* value, bool is_computed_name)
-      : key_(key), value_(value), is_computed_name_(is_computed_name) {}
+      : key_and_is_computed_name_(key, is_computed_name), value_(value) {}
 
-  Expression* key_;
+  PointerWithPayload<Expression, bool, 1> key_and_is_computed_name_;
   Expression* value_;
-  bool is_computed_name_;
 };
 
 // Property is used for passing information

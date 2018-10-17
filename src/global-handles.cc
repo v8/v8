@@ -502,10 +502,10 @@ class GlobalHandles::NodeIterator {
 
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
-      number_of_global_handles_(0),
       first_block_(nullptr),
       first_used_block_(nullptr),
       first_free_(nullptr),
+      number_of_global_handles_(0),
       post_gc_processing_count_(0),
       number_of_phantom_handle_resets_(0) {}
 

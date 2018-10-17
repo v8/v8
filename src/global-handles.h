@@ -208,9 +208,6 @@ class GlobalHandles {
 
   Isolate* isolate_;
 
-  // Field always containing the number of handles to global objects.
-  int number_of_global_handles_;
-
   // List of all allocated node blocks.
   NodeBlock* first_block_;
 
@@ -223,6 +220,9 @@ class GlobalHandles {
   // Contains all nodes holding new space objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
   std::vector<Node*> new_space_nodes_;
+
+  // Field always containing the number of handles to global objects.
+  int number_of_global_handles_;
 
   int post_gc_processing_count_;
 

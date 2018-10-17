@@ -159,10 +159,10 @@ class ValueSerializer {
 
   Isolate* const isolate_;
   v8::ValueSerializer::Delegate* const delegate_;
-  bool treat_array_buffer_views_as_host_objects_ = false;
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
+  bool treat_array_buffer_views_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
 

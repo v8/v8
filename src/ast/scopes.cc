@@ -150,20 +150,19 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
 }
 
 Scope::Snapshot::Snapshot(Scope* scope)
-    : outer_scope_(scope),
+    : outer_scope_and_calls_eval_(scope, scope->scope_calls_eval_),
       top_inner_scope_(scope->inner_scope_),
       top_unresolved_(scope->unresolved_list_.first()),
       top_local_(scope->GetClosureScope()->locals_.end()),
-      top_decl_(scope->GetClosureScope()->decls_.end()),
-      outer_scope_calls_eval_(scope->scope_calls_eval_) {
+      top_decl_(scope->GetClosureScope()->decls_.end()) {
   // Reset in order to record eval calls during this Snapshot's lifetime.
-  outer_scope_->scope_calls_eval_ = false;
+  outer_scope_and_calls_eval_.GetPointer()->scope_calls_eval_ = false;
 }
 
 Scope::Snapshot::~Snapshot() {
   // Restore previous calls_eval bit if needed.
-  if (outer_scope_calls_eval_) {
-    outer_scope_->scope_calls_eval_ = true;
+  if (outer_scope_and_calls_eval_.GetPayload()) {
+    outer_scope_and_calls_eval_->scope_calls_eval_ = true;
   }
 }
 
@@ -864,8 +863,8 @@ Variable* Scope::Declare(Zone* zone, const AstRawString* name,
 }
 
 void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
-  DCHECK_EQ(new_parent, outer_scope_->inner_scope_);
-  DCHECK_EQ(new_parent->outer_scope_, outer_scope_);
+  DCHECK_EQ(new_parent, outer_scope_and_calls_eval_.GetPointer()->inner_scope_);
+  DCHECK_EQ(new_parent->outer_scope_, outer_scope_and_calls_eval_.GetPointer());
   DCHECK_EQ(new_parent, new_parent->GetClosureScope());
   DCHECK_NULL(new_parent->inner_scope_);
   DCHECK(new_parent->unresolved_list_.is_empty());
@@ -891,6 +890,7 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
     new_parent->sibling_ = top_inner_scope_;
   }
 
+  Scope* outer_scope_ = outer_scope_and_calls_eval_.GetPointer();
   if (outer_scope_->unresolved_list_.first() != top_unresolved_) {
     // If the marked VariableProxy (snapshoted) is not the first, we need to
     // find it and move all VariableProxys up to that point into the new_parent,

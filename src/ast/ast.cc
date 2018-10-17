@@ -326,9 +326,9 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
 }
 
 bool LiteralProperty::NeedsSetFunctionName() const {
-  return is_computed_name_ && (value_->IsAnonymousFunctionDefinition() ||
-                               value_->IsConciseMethodDefinition() ||
-                               value_->IsAccessorFunctionDefinition());
+  return is_computed_name() && (value_->IsAnonymousFunctionDefinition() ||
+                                value_->IsConciseMethodDefinition() ||
+                                value_->IsAccessorFunctionDefinition());
 }
 
 ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
