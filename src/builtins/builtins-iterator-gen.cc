@@ -289,12 +289,12 @@ TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
 
   BIND(&check_string);
   {
+    Label string_fast_call(this);
     StringBuiltinsAssembler string_assembler(state());
-    GotoIfNot(string_assembler.IsStringPrimitiveWithNoCustomIteration(iterable,
-                                                                      context),
-              &check_map);
+    string_assembler.BranchIfStringPrimitiveWithNoCustomIteration(
+        iterable, context, &string_fast_call, &check_map);
 
-    // Fast path for strings.
+    BIND(&string_fast_call);
     TailCallBuiltin(Builtins::kStringToList, context, iterable);
   }
 
