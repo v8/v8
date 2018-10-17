@@ -1297,7 +1297,8 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   bool HasContext() const {
     return FrameStateFunctionInfo::IsJSFunctionType(type_) ||
-           type_ == FrameStateType::kBuiltinContinuation;
+           type_ == FrameStateType::kBuiltinContinuation ||
+           type_ == FrameStateType::kConstructStub;
   }
 
   size_t GetSize() const;

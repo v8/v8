@@ -229,7 +229,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                    int parameter_count, BailoutId bailout_id,
                                    FrameStateType frame_state_type,
-                                   Handle<SharedFunctionInfo> shared);
+                                   Handle<SharedFunctionInfo> shared,
+                                   Node* context = nullptr);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

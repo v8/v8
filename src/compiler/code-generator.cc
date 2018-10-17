@@ -1033,7 +1033,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       DCHECK(descriptor->bailout_id().IsValidForConstructStub());
       translation->BeginConstructStubFrame(
           descriptor->bailout_id(), shared_info_id,
-          static_cast<unsigned int>(descriptor->parameters_count()));
+          static_cast<unsigned int>(descriptor->parameters_count() + 1));
       break;
     case FrameStateType::kBuiltinContinuation: {
       BailoutId bailout_id = descriptor->bailout_id();
