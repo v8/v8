@@ -112,7 +112,6 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  Isolate* isolate() const;
   NativeContextRef native_context() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;

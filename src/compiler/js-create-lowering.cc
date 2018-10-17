@@ -673,7 +673,10 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
         pretenure = dependencies()->DependOnPretenureMode(*site_ref);
         dependencies()->DependOnElementsKind(*site_ref);
       } else {
-        can_inline_call = isolate()->IsArrayConstructorIntact();
+        CellRef array_constructor_protector(
+            broker(), factory()->array_constructor_protector());
+        can_inline_call = array_constructor_protector.value().AsSmi() ==
+                          Isolate::kProtectorValid;
       }
 
       if (arity == 0) {
@@ -1356,7 +1359,7 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
   if (instance_map.is_dictionary_map()) {
     DCHECK_EQ(prototype_const.map().oddball_type(), OddballType::kNull);
     // Allocate an empty NameDictionary as backing store for the properties.
-    Handle<Map> map = isolate()->factory()->name_dictionary_map();
+    MapRef map(broker(), factory()->name_dictionary_map());
     int capacity =
         NameDictionary::ComputeCapacity(NameDictionary::kInitialCapacity);
     DCHECK(base::bits::IsPowerOfTwo(capacity));
@@ -1810,11 +1813,11 @@ Node* JSCreateLowering::AllocateLiteralRegExp(Node* effect, Node* control,
   return builder.Finish();
 }
 
-Factory* JSCreateLowering::factory() const { return isolate()->factory(); }
+Factory* JSCreateLowering::factory() const {
+  return jsgraph()->isolate()->factory();
+}
 
 Graph* JSCreateLowering::graph() const { return jsgraph()->graph(); }
-
-Isolate* JSCreateLowering::isolate() const { return jsgraph()->isolate(); }
 
 CommonOperatorBuilder* JSCreateLowering::common() const {
   return jsgraph()->common();

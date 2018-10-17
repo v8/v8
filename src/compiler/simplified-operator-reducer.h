@@ -51,7 +51,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
 
   Factory* factory() const;
   Graph* graph() const;
-  Isolate* isolate() const;
   MachineOperatorBuilder* machine() const;
   SimplifiedOperatorBuilder* simplified() const;
 

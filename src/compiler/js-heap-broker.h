@@ -496,6 +496,8 @@ class ModuleRef : public HeapObjectRef {
 class CellRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+
+  ObjectRef value() const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {

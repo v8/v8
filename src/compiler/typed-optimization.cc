@@ -664,11 +664,11 @@ Reduction TypedOptimization::ReduceToBoolean(Node* node) {
   return NoChange();
 }
 
-Factory* TypedOptimization::factory() const { return isolate()->factory(); }
+Factory* TypedOptimization::factory() const {
+  return jsgraph()->isolate()->factory();
+}
 
 Graph* TypedOptimization::graph() const { return jsgraph()->graph(); }
-
-Isolate* TypedOptimization::isolate() const { return jsgraph()->isolate(); }
 
 SimplifiedOperatorBuilder* TypedOptimization::simplified() const {
   return jsgraph()->simplified();

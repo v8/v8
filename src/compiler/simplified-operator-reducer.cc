@@ -258,14 +258,10 @@ Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {
 }
 
 Factory* SimplifiedOperatorReducer::factory() const {
-  return isolate()->factory();
+  return jsgraph()->isolate()->factory();
 }
 
 Graph* SimplifiedOperatorReducer::graph() const { return jsgraph()->graph(); }
-
-Isolate* SimplifiedOperatorReducer::isolate() const {
-  return jsgraph()->isolate();
-}
 
 MachineOperatorBuilder* SimplifiedOperatorReducer::machine() const {
   return jsgraph()->machine();

@@ -69,7 +69,6 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   SimplifiedOperatorBuilder* simplified() const;
   Factory* factory() const;
   Graph* graph() const;
-  Isolate* isolate() const;
 
   CompilationDependencies* dependencies() const { return dependencies_; }
   JSGraph* jsgraph() const { return jsgraph_; }

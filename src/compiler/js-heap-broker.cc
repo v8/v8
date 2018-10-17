@@ -1104,9 +1104,29 @@ void ModuleData::Serialize(JSHeapBroker* broker) {
 
 class CellData : public HeapObjectData {
  public:
-  CellData(JSHeapBroker* broker, ObjectData** storage, Handle<Cell> object)
-      : HeapObjectData(broker, storage, object) {}
+  CellData(JSHeapBroker* broker, ObjectData** storage, Handle<Cell> object);
+
+  void Serialize(JSHeapBroker* broker);
+  ObjectData* value() { return value_; }
+
+ private:
+  bool serialized_ = false;
+  ObjectData* value_ = nullptr;
 };
+
+CellData::CellData(JSHeapBroker* broker, ObjectData** storage,
+                   Handle<Cell> object)
+    : HeapObjectData(broker, storage, object) {}
+
+void CellData::Serialize(JSHeapBroker* broker) {
+  if (serialized_) return;
+  serialized_ = true;
+
+  TraceScope tracer(broker, this, "CellData::Serialize");
+  auto cell = Handle<Cell>::cast(object());
+  DCHECK_NULL(value_);
+  value_ = broker->GetOrCreateData(cell->value());
+}
 
 class JSGlobalProxyData : public JSObjectData {
  public:
@@ -1602,10 +1622,11 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->with_context_map());
   GetOrCreateData(f->zero_string());
 
-  // Property cells
+  // Protector cells
   GetOrCreateData(f->array_buffer_neutering_protector())
       ->AsPropertyCell()
       ->Serialize(this);
+  GetOrCreateData(f->array_constructor_protector())->AsCell()->Serialize(this);
   GetOrCreateData(f->array_iterator_protector())
       ->AsPropertyCell()
       ->Serialize(this);
@@ -1624,6 +1645,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->promise_then_protector())
       ->AsPropertyCell()
       ->Serialize(this);
+  GetOrCreateData(f->string_length_protector())->AsCell()->Serialize(this);
 
   // CEntry stub
   GetOrCreateData(
@@ -2032,6 +2054,8 @@ BIMODAL_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
 BIMODAL_ACCESSOR_C(AllocationSite, PretenureFlag, GetPretenureMode)
 
 BIMODAL_ACCESSOR_C(BytecodeArray, int, register_count)
+
+BIMODAL_ACCESSOR(Cell, Object, value)
 
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 
