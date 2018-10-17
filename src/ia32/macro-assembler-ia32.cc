@@ -45,13 +45,6 @@ MacroAssembler::MacroAssembler(Isolate* isolate,
   set_root_array_available(FLAG_embedded_builtins);
 }
 
-bool TurboAssembler::ShouldGenerateIsolateIndependentCode() {
-  // TODO(v8:6666): Remove once embedded builtins are fully supported.
-  // All callsites should use options().isolate_independent_code instead.
-  // Until then, this will help transition builtins one-by-one.
-  return isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList();
-}
-
 void TurboAssembler::InitializeRootRegister() {
   // TODO(v8:6666): Initialize unconditionally once poisoning support has been
   // removed.
@@ -187,7 +180,7 @@ Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
   // TODO(jgruber): Add support for enable_root_array_delta_access.
   Assembler::AllowExplicitEbxAccessScope read_only_access(this);
-  if (root_array_available_ && ShouldGenerateIsolateIndependentCode()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     if (IsAddressableThroughRootRegister(isolate(), reference)) {
       // Some external references can be efficiently loaded as an offset from
       // kRootRegister.
@@ -212,7 +205,7 @@ Operand TurboAssembler::ExternalReferenceAddressAsOperand(
     ExternalReference reference) {
   DCHECK(FLAG_embedded_builtins);
   DCHECK(root_array_available());
-  DCHECK(ShouldGenerateIsolateIndependentCode());
+  DCHECK(options().isolate_independent_code);
   Assembler::AllowExplicitEbxAccessScope read_only_access(this);
   return Operand(
       kRootRegister,
@@ -278,7 +271,7 @@ void TurboAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
   // TODO(jgruber): Add support for enable_root_array_delta_access.
   if (FLAG_embedded_builtins) {
-    if (root_array_available_ && ShouldGenerateIsolateIndependentCode()) {
+    if (root_array_available_ && options().isolate_independent_code) {
       IndirectLoadExternalReference(destination, source);
       return;
     }
@@ -1378,7 +1371,7 @@ void TurboAssembler::Ret(int bytes_dropped, Register scratch) {
 
 void TurboAssembler::Push(Immediate value) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && ShouldGenerateIsolateIndependentCode()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     Assembler::AllowExplicitEbxAccessScope read_only_access(this);
     if (value.is_embedded_object()) {
       Push(HeapObjectAsOperand(value.embedded_object()));
@@ -1418,7 +1411,7 @@ void TurboAssembler::Move(Operand dst, const Immediate& src) {
 #ifdef V8_EMBEDDED_BUILTINS
   // Since there's no scratch register available, take a detour through the
   // stack.
-  if (root_array_available_ && ShouldGenerateIsolateIndependentCode()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     if (src.is_embedded_object() || src.is_external_reference() ||
         src.is_heap_object_request()) {
       Assembler::AllowExplicitEbxAccessScope read_only_access(this);
@@ -1436,7 +1429,7 @@ void TurboAssembler::Move(Operand dst, const Immediate& src) {
 }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> src) {
-  if (root_array_available_ && ShouldGenerateIsolateIndependentCode()) {
+  if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadConstant(dst, src);
     return;
   }
@@ -1898,7 +1891,7 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
     // TODO(jgruber): Pc-relative builtin-to-builtin calls.
-    if (root_array_available_ && ShouldGenerateIsolateIndependentCode() &&
+    if (root_array_available_ && options().isolate_independent_code &&
         !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
       // Since we don't have a scratch register available we call through a
       // so-called virtual register.
@@ -1933,7 +1926,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
     // TODO(jgruber): Pc-relative builtin-to-builtin calls.
-    if (root_array_available_ && ShouldGenerateIsolateIndependentCode() &&
+    if (root_array_available_ && options().isolate_independent_code &&
         !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
       // Since we don't have a scratch register available we call through a
       // so-called virtual register.

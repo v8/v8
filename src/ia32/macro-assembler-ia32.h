@@ -226,8 +226,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Root register utility functions.
 
-  bool ShouldGenerateIsolateIndependentCode();
-
   void InitializeRootRegister();
   void VerifyRootRegister();
 
