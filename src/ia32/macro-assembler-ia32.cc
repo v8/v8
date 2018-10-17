@@ -539,12 +539,15 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
+  Label dont_drop;
   ExternalReference restart_fp =
       ExternalReference::debug_restart_fp_address(isolate());
   mov(eax, ExternalReferenceAsOperand(restart_fp, eax));
   test(eax, eax);
-  j(not_zero, BUILTIN_CODE(isolate(), FrameDropperTrampoline),
-    RelocInfo::CODE_TARGET);
+  j(zero, &dont_drop, Label::kNear);
+
+  Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET);
+  bind(&dont_drop);
 }
 
 void TurboAssembler::Cvtsi2ss(XMMRegister dst, Operand src) {
@@ -760,14 +763,15 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   Check(equal, AbortReason::kOperandIsNotAGeneratorObject);
 }
 
-void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
+void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
+                                                     Register scratch) {
   if (emit_debug_code()) {
     Label done_checking;
     AssertNotSmi(object);
-    cmp(object, isolate()->factory()->undefined_value());
+    CompareRoot(object, scratch, RootIndex::kUndefinedValue);
     j(equal, &done_checking);
-    cmp(FieldOperand(object, 0),
-        Immediate(isolate()->factory()->allocation_site_map()));
+    LoadRoot(scratch, RootIndex::kAllocationSiteWithWeakNextMap);
+    cmp(FieldOperand(object, 0), scratch);
     Assert(equal, AbortReason::kExpectedUndefinedOrCell);
     bind(&done_checking);
   }
@@ -1304,7 +1308,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
-    mov(edx, isolate()->factory()->undefined_value());
+    Move(edx, isolate()->factory()->undefined_value());
   }
 
   Label done;
@@ -1380,6 +1384,7 @@ void TurboAssembler::Ret(int bytes_dropped, Register scratch) {
 void TurboAssembler::Push(Immediate value) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available_ && ShouldGenerateIsolateIndependentCode()) {
+    Assembler::AllowExplicitEbxAccessScope read_only_access(this);
     if (value.is_embedded_object()) {
       Push(HeapObjectAsOperand(value.embedded_object()));
       return;

@@ -883,7 +883,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // If ok, push undefined as the initial value for all register file entries.
     Label loop_header;
     Label loop_check;
-    __ mov(eax, Immediate(masm->isolate()->factory()->undefined_value()));
+    __ Move(eax, masm->isolate()->factory()->undefined_value());
     __ jmp(&loop_check);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
@@ -914,9 +914,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // handler at the current bytecode offset.
   Label do_dispatch;
   __ bind(&do_dispatch);
-  __ mov(kInterpreterDispatchTableRegister,
-         Immediate(ExternalReference::interpreter_dispatch_table_address(
-             masm->isolate())));
+  __ Move(kInterpreterDispatchTableRegister,
+          Immediate(ExternalReference::interpreter_dispatch_table_address(
+              masm->isolate())));
   __ movzx_b(ecx, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
   __ mov(
@@ -1140,10 +1140,11 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     __ Pop(kJavaScriptCallNewTargetRegister);
     __ Pop(kJavaScriptCallTargetRegister);
     __ PushReturnAddressFrom(eax);
-    __ movd(eax, xmm0);  // Reload number of arguments.
 
     __ AssertFunction(kJavaScriptCallTargetRegister);
-    __ AssertUndefinedOrAllocationSite(kJavaScriptCallExtraArg1Register);
+    __ AssertUndefinedOrAllocationSite(kJavaScriptCallExtraArg1Register, eax);
+
+    __ movd(eax, xmm0);  // Reload number of arguments.
     __ Jump(BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl),
             RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
@@ -1209,9 +1210,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ push(scratch);
 
   // Initialize the dispatch table register.
-  __ mov(kInterpreterDispatchTableRegister,
-         Immediate(ExternalReference::interpreter_dispatch_table_address(
-             masm->isolate())));
+  __ Move(kInterpreterDispatchTableRegister,
+          Immediate(ExternalReference::interpreter_dispatch_table_address(
+              masm->isolate())));
 
   // Get the bytecode array pointer from the frame.
   __ mov(kInterpreterBytecodeArrayRegister,
@@ -2154,17 +2155,23 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- edi : the target to call (can be any Object).
   // -----------------------------------
 
-  Label non_callable, non_function, non_smi;
+  Label non_callable, non_function, non_smi, non_jsfunction,
+      non_jsboundfunction;
   __ JumpIfSmi(edi, &non_callable);
   __ bind(&non_smi);
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(equal, masm->isolate()->builtins()->CallFunction(mode),
-       RelocInfo::CODE_TARGET);
+  __ j(not_equal, &non_jsfunction);
+  __ Jump(masm->isolate()->builtins()->CallFunction(mode),
+          RelocInfo::CODE_TARGET);
+
+  __ bind(&non_jsfunction);
   __ CmpInstanceType(ecx, JS_BOUND_FUNCTION_TYPE);
-  __ j(equal, BUILTIN_CODE(masm->isolate(), CallBoundFunction),
-       RelocInfo::CODE_TARGET);
+  __ j(not_equal, &non_jsboundfunction);
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallBoundFunction),
+          RelocInfo::CODE_TARGET);
 
   // Check if target is a proxy and call CallProxy external builtin
+  __ bind(&non_jsboundfunction);
   __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
             Immediate(Map::IsCallableBit::kMask));
   __ j(zero, &non_callable);
@@ -2265,27 +2272,31 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // -----------------------------------
 
   // Check if target is a Smi.
-  Label non_constructor, non_proxy;
-  __ JumpIfSmi(edi, &non_constructor, Label::kNear);
+  Label non_constructor, non_proxy, non_jsfunction, non_jsboundfunction;
+  __ JumpIfSmi(edi, &non_constructor);
 
   // Check if target has a [[Construct]] internal method.
   __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));
   __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
             Immediate(Map::IsConstructorBit::kMask));
-  __ j(zero, &non_constructor, Label::kNear);
+  __ j(zero, &non_constructor);
 
   // Dispatch based on instance type.
   __ CmpInstanceType(ecx, JS_FUNCTION_TYPE);
-  __ j(equal, BUILTIN_CODE(masm->isolate(), ConstructFunction),
-       RelocInfo::CODE_TARGET);
+  __ j(not_equal, &non_jsfunction);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructFunction),
+          RelocInfo::CODE_TARGET);
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.
+  __ bind(&non_jsfunction);
   __ CmpInstanceType(ecx, JS_BOUND_FUNCTION_TYPE);
-  __ j(equal, BUILTIN_CODE(masm->isolate(), ConstructBoundFunction),
-       RelocInfo::CODE_TARGET);
+  __ j(not_equal, &non_jsboundfunction);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructBoundFunction),
+          RelocInfo::CODE_TARGET);
 
   // Only dispatch to proxies after checking whether they are constructors.
+  __ bind(&non_jsboundfunction);
   __ CmpInstanceType(ecx, JS_PROXY_TYPE);
   __ j(not_equal, &non_proxy);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
@@ -2383,7 +2394,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Label fill;
     __ bind(&fill);
     __ inc(eax);
-    __ push(Immediate(masm->isolate()->factory()->undefined_value()));
+    __ Push(Immediate(masm->isolate()->factory()->undefined_value()));
     __ cmp(eax, kExpectedNumberOfArgumentsRegister);
     __ j(less, &fill);
 
@@ -2602,7 +2613,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Call C function.
   __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
   __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
-  __ mov(ecx, Immediate(ExternalReference::isolate_address(masm->isolate())));
+  __ Move(ecx, Immediate(ExternalReference::isolate_address(masm->isolate())));
   __ mov(Operand(esp, 2 * kPointerSize), ecx);
   __ call(kRuntimeCallFunctionRegister);
 
@@ -2610,14 +2621,14 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Check result for exception sentinel.
   Label exception_returned;
-  __ cmp(eax, masm->isolate()->factory()->exception());
+  __ CompareRoot(eax, RootIndex::kException);
   __ j(equal, &exception_returned);
 
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
   if (FLAG_debug_code) {
     __ push(edx);
-    __ mov(edx, Immediate(masm->isolate()->factory()->the_hole_value()));
+    __ LoadRoot(edx, RootIndex::kTheHoleValue);
     Label okay;
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
@@ -2655,8 +2666,9 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ PrepareCallCFunction(3, eax);
     __ mov(Operand(esp, 0 * kPointerSize), Immediate(0));  // argc.
     __ mov(Operand(esp, 1 * kPointerSize), Immediate(0));  // argv.
-    __ mov(Operand(esp, 2 * kPointerSize),
-           Immediate(ExternalReference::isolate_address(masm->isolate())));
+    __ Move(esi,
+            Immediate(ExternalReference::isolate_address(masm->isolate())));
+    __ mov(Operand(esp, 2 * kPointerSize), esi);
     __ CallCFunction(find_handler, 3);
   }
 
@@ -2959,8 +2971,7 @@ void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
   __ bind(&not_one_case);
   // Load undefined into the allocation site parameter as required by
   // ArrayNArgumentsConstructor.
-  __ mov(kJavaScriptCallExtraArg1Register,
-         masm->isolate()->factory()->undefined_value());
+  __ LoadRoot(kJavaScriptCallExtraArg1Register, RootIndex::kUndefinedValue);
   Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor);
   __ Jump(code, RelocInfo::CODE_TARGET);
 }

@@ -678,7 +678,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       MoveOperandIfAliasedWithPoisonRegister(instr, this);
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = i.InputCode(0);
-        __ call(code, RelocInfo::CODE_TARGET);
+        __ Call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
@@ -730,7 +730,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = i.InputCode(0);
-        __ jmp(code, RelocInfo::CODE_TARGET);
+        __ Jump(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(

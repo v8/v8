@@ -660,7 +660,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
-  void AssertUndefinedOrAllocationSite(Register object);
+  void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
   // ---------------------------------------------------------------------------
   // Exception handling
