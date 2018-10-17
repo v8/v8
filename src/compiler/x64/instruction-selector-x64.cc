@@ -1731,7 +1731,8 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
           kX64Cmp | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
           selector, opcode,
-          g.TempImmediate(TurboAssemblerBase::RootRegisterOffset(root_index)),
+          g.TempImmediate(
+              TurboAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
           g.UseRegister(m.left().node()), cont);
     } else if (m.left().HasValue() &&
                roots_table.IsRootHandle(m.left().Value(), &root_index)) {
@@ -1739,7 +1740,8 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
           kX64Cmp | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
           selector, opcode,
-          g.TempImmediate(TurboAssemblerBase::RootRegisterOffset(root_index)),
+          g.TempImmediate(
+              TurboAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
           g.UseRegister(m.right().node()), cont);
     }
   }

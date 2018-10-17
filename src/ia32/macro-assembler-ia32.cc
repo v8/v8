@@ -83,7 +83,8 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     Assembler::AllowExplicitEbxAccessScope read_only_access(this);
-    mov(destination, Operand(kRootRegister, RootRegisterOffset(index)));
+    mov(destination,
+        Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
     return;
   }
 #endif  // V8_EMBEDDED_BUILTINS
@@ -125,7 +126,7 @@ void TurboAssembler::CompareRoot(Register with, RootIndex index) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     Assembler::AllowExplicitEbxAccessScope read_only_access(this);
-    cmp(with, Operand(kRootRegister, RootRegisterOffset(index)));
+    cmp(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
     return;
   }
 #endif  // V8_EMBEDDED_BUILTINS
@@ -168,7 +169,7 @@ void MacroAssembler::PushRoot(RootIndex index) {
   if (root_array_available()) {
     DCHECK(RootsTable::IsImmortalImmovable(index));
     Assembler::AllowExplicitEbxAccessScope read_only_access(this);
-    push(Operand(kRootRegister, RootRegisterOffset(index)));
+    push(Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
     return;
   }
 #endif  // V8_EMBEDDED_BUILTINS
@@ -195,21 +196,27 @@ Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
       return Operand(kRootRegister, offset);
     } else {
       // Otherwise, do a memory load from the external reference table.
-
-      // Encode as an index into the external reference table stored on the
-      // isolate.
-      ExternalReferenceEncoder encoder(isolate());
-      ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
-      CHECK(!v.is_from_api());
-
-      mov(scratch,
-          Operand(kRootRegister,
-                  RootRegisterOffsetForExternalReferenceIndex(v.index())));
+      mov(scratch, Operand(kRootRegister,
+                           RootRegisterOffsetForExternalReferenceTableEntry(
+                               isolate(), reference)));
       return Operand(scratch, 0);
     }
   }
   Move(scratch, Immediate(reference));
   return Operand(scratch, 0);
+}
+
+// TODO(v8:6666): If possible, refactor into a platform-independent function in
+// TurboAssembler.
+Operand TurboAssembler::ExternalReferenceAddressAsOperand(
+    ExternalReference reference) {
+  DCHECK(FLAG_embedded_builtins);
+  DCHECK(root_array_available());
+  DCHECK(ShouldGenerateIsolateIndependentCode());
+  Assembler::AllowExplicitEbxAccessScope read_only_access(this);
+  return Operand(
+      kRootRegister,
+      RootRegisterOffsetForExternalReferenceTableEntry(isolate(), reference));
 }
 
 // TODO(v8:6666): If possible, refactor into a platform-independent function in
@@ -222,7 +229,7 @@ Operand TurboAssembler::HeapObjectAsOperand(Handle<HeapObject> object) {
   int builtin_index;
   RootIndex root_index;
   if (isolate()->roots_table().IsRootHandle(object, &root_index)) {
-    return Operand(kRootRegister, RootRegisterOffset(root_index));
+    return Operand(kRootRegister, RootRegisterOffsetForRootIndex(root_index));
   } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin_index)) {
     return Operand(kRootRegister,
                    RootRegisterOffsetForBuiltinIndex(builtin_index));
@@ -235,25 +242,6 @@ Operand TurboAssembler::HeapObjectAsOperand(Handle<HeapObject> object) {
     // cannot be represented as a single Operand.
     UNREACHABLE();
   }
-}
-
-// TODO(v8:6666): If possible, refactor into a platform-independent function in
-// TurboAssembler.
-Operand TurboAssembler::ExternalReferenceAddressAsOperand(
-    ExternalReference reference) {
-  DCHECK(FLAG_embedded_builtins);
-  DCHECK(root_array_available());
-  DCHECK(ShouldGenerateIsolateIndependentCode());
-  Assembler::AllowExplicitEbxAccessScope read_only_access(this);
-
-  // Encode as an index into the external reference table stored on the
-  // isolate.
-  ExternalReferenceEncoder encoder(isolate());
-  ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
-  CHECK(!v.is_from_api());
-
-  return Operand(kRootRegister,
-                 RootRegisterOffsetForExternalReferenceIndex(v.index()));
 }
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,

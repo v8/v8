@@ -72,29 +72,24 @@ void TurboAssemblerBase::IndirectLoadExternalReference(
     LoadRootRegisterOffset(destination, offset);
   } else {
     // Otherwise, do a memory load from the external reference table.
-
-    // Encode as an index into the external reference table stored on the
-    // isolate.
-    ExternalReferenceEncoder encoder(isolate());
-    ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
-    CHECK(!v.is_from_api());
-
-    LoadRootRelative(destination,
-                     RootRegisterOffsetForExternalReferenceIndex(v.index()));
+    LoadRootRelative(
+        destination,
+        RootRegisterOffsetForExternalReferenceTableEntry(isolate(), reference));
   }
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffset(RootIndex root_index) {
+int32_t TurboAssemblerBase::RootRegisterOffsetForRootIndex(
+    RootIndex root_index) {
   return (static_cast<int32_t>(root_index) << kPointerSizeLog2) -
          kRootRegisterBias;
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceIndex(
-    int reference_index) {
-  return IsolateData::kExternalReferenceTableOffset - kRootRegisterBias +
-         ExternalReferenceTable::OffsetOfEntry(reference_index);
+int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
+    int builtin_index) {
+  return IsolateData::kBuiltinsTableOffset - kRootRegisterBias +
+         builtin_index * kPointerSize;
 }
 
 // static
@@ -105,17 +100,23 @@ intptr_t TurboAssemblerBase::RootRegisterOffsetForExternalReference(
 }
 
 // static
+int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceTableEntry(
+    Isolate* isolate, const ExternalReference& reference) {
+  // Encode as an index into the external reference table stored on the
+  // isolate.
+  ExternalReferenceEncoder encoder(isolate);
+  ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
+  CHECK(!v.is_from_api());
+
+  return IsolateData::kExternalReferenceTableOffset - kRootRegisterBias +
+         ExternalReferenceTable::OffsetOfEntry(v.index());
+}
+
+// static
 bool TurboAssemblerBase::IsAddressableThroughRootRegister(
     Isolate* isolate, const ExternalReference& reference) {
   Address address = reference.address();
   return isolate->root_register_addressable_region().contains(address);
-}
-
-// static
-int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
-    int builtin_index) {
-  return IsolateData::kBuiltinsTableOffset - kRootRegisterBias +
-         builtin_index * kPointerSize;
 }
 
 void TurboAssemblerBase::RecordCommentForOffHeapTrampoline(int builtin_index) {

@@ -528,7 +528,8 @@ void MacroAssembler::Store(Register src,
 
 void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond) {
-  ldr(destination, MemOperand(kRootRegister, RootRegisterOffset(index)), cond);
+  ldr(destination,
+      MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)), cond);
 }
 
 
