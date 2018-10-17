@@ -905,12 +905,10 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-  if (result.ok()) {
-    EXPECT_EQ(1u, result.val->signatures.size());
-    EXPECT_EQ(1u, result.val->functions.size());
-    EXPECT_EQ(1u, result.val->tables.size());
-    EXPECT_EQ(1u, result.val->tables[0].initial_size);
-  }
+  EXPECT_EQ(1u, result.val->signatures.size());
+  EXPECT_EQ(1u, result.val->functions.size());
+  EXPECT_EQ(1u, result.val->tables.size());
+  EXPECT_EQ(1u, result.val->tables[0].initial_size);
 }
 
 TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
@@ -928,25 +926,17 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
               TABLE_INDEX(0), WASM_INIT_EXPR_I32V_1(0),
-              8,               // elements count
-              FUNC_INDEX(0),   // --
-              FUNC_INDEX(1),   // --
-              FUNC_INDEX(2),   // --
-              FUNC_INDEX(3),   // --
-              FUNC_INDEX(0),   // --
-              FUNC_INDEX(1),   // --
-              FUNC_INDEX(2),   // --
-              FUNC_INDEX(3)),  // --
+              ADD_COUNT(FUNC_INDEX(0), FUNC_INDEX(1), FUNC_INDEX(2),
+                        FUNC_INDEX(3), FUNC_INDEX(0), FUNC_INDEX(1),
+                        FUNC_INDEX(2), FUNC_INDEX(3))),
       FOUR_EMPTY_BODIES};
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-  if (result.ok()) {
-    EXPECT_EQ(2u, result.val->signatures.size());
-    EXPECT_EQ(4u, result.val->functions.size());
-    EXPECT_EQ(1u, result.val->tables.size());
-    EXPECT_EQ(8u, result.val->tables[0].initial_size);
-  }
+  EXPECT_EQ(2u, result.val->signatures.size());
+  EXPECT_EQ(4u, result.val->functions.size());
+  EXPECT_EQ(1u, result.val->tables.size());
+  EXPECT_EQ(8u, result.val->tables[0].initial_size);
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTables) {
@@ -1773,11 +1763,11 @@ TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
       SECTION(Export,
               ENTRY_COUNT(2),                 // exports
               ADD_COUNT('n', 'a', 'm', 'e'),  // --
-              kExternalFunction,
-              FUNC_INDEX(0),             // --
-              ADD_COUNT('n', 'o', 'm'),  // --
-              kExternalFunction,         // --
-              FUNC_INDEX(0)),            // --
+              kExternalFunction,              // --
+              FUNC_INDEX(0),                  // --
+              ADD_COUNT('n', 'o', 'm'),       // --
+              kExternalFunction,              // --
+              FUNC_INDEX(0)),                 // --
       ONE_EMPTY_BODY};
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
@@ -2072,9 +2062,9 @@ TEST_F(WasmInitExprDecodeTest, InitExpr_illegal) {
 
 TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
   static const byte data[] = {
-      SECTION(Unknown, 1, 'X', 17, 18),
-      SECTION(Unknown, 3, 'f', 'o', 'o', 5, 6, 7, 8, 9),
-      SECTION(Unknown, 5, 'o', 't', 'h', 'e', 'r', 7, 8),
+      SECTION(Unknown, ADD_COUNT('X'), 17, 18),                    // --
+      SECTION(Unknown, ADD_COUNT('f', 'o', 'o'), 5, 6, 7, 8, 9),   // --
+      SECTION(Unknown, ADD_COUNT('o', 't', 'h', 'e', 'r'), 7, 8),  // --
   };
   EXPECT_VERIFIES(data);
 }
@@ -2129,12 +2119,12 @@ TEST_F(WasmModuleCustomSectionTest, ThreeUnknownSections) {
 
 TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
   static const byte data[] = {
-      U32_LE(kWasmMagic),                                   // --
-      U32_LE(kWasmVersion),                                 // --
-      SIGNATURES_SECTION(2, SIG_ENTRY_v_v, SIG_ENTRY_v_v),  // --
-      SECTION(Unknown, 1, 'X', 17, 18),                     // --
-      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
-      SECTION(Unknown, 5, 'o', 't', 'h', 'e', 'r', 7, 8),  // --
+      U32_LE(kWasmMagic),                                          // --
+      U32_LE(kWasmVersion),                                        // --
+      SIGNATURES_SECTION(2, SIG_ENTRY_v_v, SIG_ENTRY_v_v),         // --
+      SECTION(Unknown, ADD_COUNT('X'), 17, 18),                    // --
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),                            // --
+      SECTION(Unknown, ADD_COUNT('o', 't', 'h', 'e', 'r'), 7, 8),  // --
   };
 
   static const CustomSectionOffset expected[] = {
@@ -2171,14 +2161,12 @@ TEST_F(WasmModuleVerifyTest, MultipleSourceMappingURLSections) {
 }
 
 TEST_F(WasmModuleVerifyTest, MultipleNameSections) {
-#define NAME_SECTION 4, 'n', 'a', 'm', 'e'
   static const byte data[] = {
-      SECTION(Unknown, NAME_SECTION, 0, 4, 3, 'a', 'b', 'c'),
-      SECTION(Unknown, NAME_SECTION, 0, 5, 4, 'p', 'q', 'r', 's')};
+      SECTION_NAMES(0, ADD_COUNT(ADD_COUNT('a', 'b', 'c'))),
+      SECTION_NAMES(0, ADD_COUNT(ADD_COUNT('p', 'q', 'r', 's')))};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(3u, result.val->name.length());
-#undef NAME_SECTION
 }
 
 #undef WASM_FEATURE_SCOPE
