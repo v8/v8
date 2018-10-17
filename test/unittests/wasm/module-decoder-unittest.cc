@@ -63,6 +63,11 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
 #define SECTION_NAMES(...) \
   SECTION(Unknown, ADD_COUNT('n', 'a', 'm', 'e'), ##__VA_ARGS__)
 #define EMPTY_NAMES_SECTION SECTION_NAMES()
+#define SECTION_SRC_MAP(...)                                               \
+  SECTION(Unknown,                                                         \
+          ADD_COUNT('s', 'o', 'u', 'r', 'c', 'e', 'M', 'a', 'p', 'p', 'i', \
+                    'n', 'g', 'U', 'R', 'L'),                              \
+          ADD_COUNT(__VA_ARGS__))
 
 #define FAIL_IF_NO_EXPERIMENTAL_EH(data)                                 \
   do {                                                                   \
@@ -2141,47 +2146,29 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
   CheckSections(data, data + sizeof(data), expected, arraysize(expected));
 }
 
-#define SRC_MAP                                                             \
-  16, 's', 'o', 'u', 'r', 'c', 'e', 'M', 'a', 'p', 'p', 'i', 'n', 'g', 'U', \
-      'R', 'L'
 TEST_F(WasmModuleVerifyTest, SourceMappingURLSection) {
-#define SRC 's', 'r', 'c', '/', 'x', 'y', 'z', '.', 'c'
-  static const byte data[] = {SECTION(Unknown, SRC_MAP, 9, SRC)};
+  static const byte data[] = {
+      SECTION_SRC_MAP('s', 'r', 'c', '/', 'x', 'y', 'z', '.', 'c')};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(9u, result.val->source_map_url.size());
-  const char src[] = {SRC};
-  EXPECT_EQ(
-      0,
-      strncmp(reinterpret_cast<const char*>(result.val->source_map_url.data()),
-              src, 9));
-#undef SRC
+  EXPECT_EQ("src/xyz.c", result.val->source_map_url);
 }
 
 TEST_F(WasmModuleVerifyTest, BadSourceMappingURLSection) {
-#define BAD_SRC 's', 'r', 'c', '/', 'x', 0xff, 'z', '.', 'c'
-  static const byte data[] = {SECTION(Unknown, SRC_MAP, 9, BAD_SRC)};
+  static const byte data[] = {
+      SECTION_SRC_MAP('s', 'r', 'c', '/', 'x', 0xff, 'z', '.', 'c')};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(0u, result.val->source_map_url.size());
-#undef BAD_SRC
 }
 
 TEST_F(WasmModuleVerifyTest, MultipleSourceMappingURLSections) {
-#define SRC 'a', 'b', 'c'
-  static const byte data[] = {SECTION(Unknown, SRC_MAP, 3, SRC),
-                              SECTION(Unknown, SRC_MAP, 3, 'p', 'q', 'r')};
+  static const byte data[] = {SECTION_SRC_MAP('a', 'b', 'c'),
+                              SECTION_SRC_MAP('p', 'q', 'r')};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(3u, result.val->source_map_url.size());
-  const char src[] = {SRC};
-  EXPECT_EQ(
-      0,
-      strncmp(reinterpret_cast<const char*>(result.val->source_map_url.data()),
-              src, 3));
-#undef SRC
+  EXPECT_EQ("abc", result.val->source_map_url);
 }
-#undef SRC_MAP
 
 TEST_F(WasmModuleVerifyTest, MultipleNameSections) {
 #define NAME_SECTION 4, 'n', 'a', 'm', 'e'
@@ -2225,6 +2212,7 @@ TEST_F(WasmModuleVerifyTest, MultipleNameSections) {
 #undef EMPTY_FUNCTION_BODIES_SECTION
 #undef SECTION_NAMES
 #undef EMPTY_NAMES_SECTION
+#undef SECTION_SRC_MAP
 #undef FAIL_IF_NO_EXPERIMENTAL_EH
 #undef X1
 #undef X2
