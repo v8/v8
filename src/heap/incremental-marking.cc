@@ -574,7 +574,12 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   void* minor_marking_state = nullptr;
 #endif  // ENABLE_MINOR_MC
 
-  marking_worklist()->Update([this, filler_map, minor_marking_state](
+  marking_worklist()->Update([
+#ifdef DEBUG
+                              // this is referred inside DCHECK.
+                                 this,
+#endif
+                                 filler_map, minor_marking_state](
                                  HeapObject* obj, HeapObject** out) -> bool {
     DCHECK(obj->IsHeapObject());
     // Only pointers to from space have to be updated.
