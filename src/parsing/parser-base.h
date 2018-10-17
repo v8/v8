@@ -4560,18 +4560,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
 
   do {
     next = peek();
-    if (next == Token::EOS) {
-      impl()->ReportMessageAt(Scanner::Location(start, peek_position()),
-                              MessageTemplate::kUnterminatedTemplate);
-      *ok = false;
-      return impl()->NullExpression();
-    } else if (next == Token::ILLEGAL) {
-      impl()->ReportMessageAt(
-          Scanner::Location(position() + 1, peek_position()),
-          MessageTemplate::kUnexpectedToken, "ILLEGAL", kSyntaxError);
-      *ok = false;
-      return impl()->NullExpression();
-    }
 
     int expr_pos = peek_position();
     ExpressionT expression = ParseExpressionCoverGrammar(true, CHECK_OK);
@@ -4590,19 +4578,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
     next = scanner()->ScanTemplateContinuation();
     Next();
     pos = position();
-
-    if (next == Token::EOS) {
-      impl()->ReportMessageAt(Scanner::Location(start, pos),
-                              MessageTemplate::kUnterminatedTemplate);
-      *ok = false;
-      return impl()->NullExpression();
-    } else if (next == Token::ILLEGAL) {
-      impl()->ReportMessageAt(
-          Scanner::Location(position() + 1, peek_position()),
-          MessageTemplate::kUnexpectedToken, "ILLEGAL", kSyntaxError);
-      *ok = false;
-      return impl()->NullExpression();
-    }
 
     bool is_valid = CheckTemplateEscapes(forbid_illegal_escapes, CHECK_OK);
     impl()->AddTemplateSpan(&ts, is_valid, next == Token::TEMPLATE_TAIL);
