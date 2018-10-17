@@ -712,8 +712,8 @@ class ParserBase {
       Next();
       return;
     }
-    if (scanner()->HasLineTerminatorBeforeNext() || tok == Token::RBRACE ||
-        tok == Token::EOS) {
+    if (scanner()->HasLineTerminatorBeforeNext() ||
+        Token::IsAutoSemicolon(tok)) {
       return;
     }
 
@@ -5131,8 +5131,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
   Expect(Token::CONTINUE, CHECK_OK);
   IdentifierT label = impl()->NullIdentifier();
   Token::Value tok = peek();
-  if (!scanner()->HasLineTerminatorBeforeNext() && tok != Token::SEMICOLON &&
-      tok != Token::RBRACE && tok != Token::EOS) {
+  if (!scanner()->HasLineTerminatorBeforeNext() &&
+      !Token::IsAutoSemicolon(tok)) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
     label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   }
@@ -5168,8 +5168,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
   Expect(Token::BREAK, CHECK_OK);
   IdentifierT label = impl()->NullIdentifier();
   Token::Value tok = peek();
-  if (!scanner()->HasLineTerminatorBeforeNext() && tok != Token::SEMICOLON &&
-      tok != Token::RBRACE && tok != Token::EOS) {
+  if (!scanner()->HasLineTerminatorBeforeNext() &&
+      !Token::IsAutoSemicolon(tok)) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
     label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   }
@@ -5222,8 +5222,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
 
   Token::Value tok = peek();
   ExpressionT return_value = impl()->NullExpression();
-  if (scanner()->HasLineTerminatorBeforeNext() || tok == Token::SEMICOLON ||
-      tok == Token::RBRACE || tok == Token::EOS) {
+  if (scanner()->HasLineTerminatorBeforeNext() || Token::IsAutoSemicolon(tok)) {
     if (IsDerivedConstructor(function_state_->kind())) {
       return_value = impl()->ThisExpression(loc.beg_pos);
     }

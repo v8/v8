@@ -79,6 +79,24 @@ TEST(IsContextualKeyword) {
   }
 }
 
+bool TokenIsAutoSemicolon(Token::Value token) {
+  switch (token) {
+    case Token::SEMICOLON:
+    case Token::EOS:
+    case Token::RBRACE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(AutoSemicolonToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAutoSemicolon(token), Token::IsAutoSemicolon(token));
+  }
+}
+
 bool TokenIsAnyIdentifier(Token::Value token) {
   switch (token) {
     case Token::IDENTIFIER:
