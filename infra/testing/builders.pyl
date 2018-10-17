@@ -204,6 +204,11 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
     ],
   },
+  'v8_linux_arm_lite_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing', 'shards': 4},
+    ],
+  },
   'v8_linux_arm_rel_ng_triggered': {
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},

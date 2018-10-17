@@ -146,6 +146,8 @@
       'V8 Android Arm - builder': 'release_android_arm',
       'V8 Linux - arm - sim': 'release_simulate_arm',
       'V8 Linux - arm - sim - debug': 'debug_simulate_arm',
+      'V8 Linux - arm - sim - lite': 'release_simulate_arm_lite',
+      'V8 Linux - arm - sim - lite - debug': 'debug_simulate_arm_lite',
       # Arm64.
       'V8 Android Arm64 - builder': 'release_android_arm64',
       'V8 Android Arm64 - debug builder': 'debug_android_arm64',
@@ -239,6 +241,7 @@
       'v8_mac64_asan_rel': 'release_x64_asan_no_lsan',
       'v8_mips_compile_rel': 'release_mips_no_snap_no_i18n',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
+      'v8_linux_arm_lite_rel_ng': 'release_simulate_arm_lite_trybot',
       'v8_linux_arm_dbg': 'debug_simulate_arm',
       'v8_linux_arm_armv8a_rel': 'release_simulate_arm_trybot',
       'v8_linux_arm_armv8a_dbg': 'debug_simulate_arm',
@@ -330,6 +333,8 @@
       'debug_bot', 'simulate_arm'],
     'debug_simulate_arm_asan_edge': [
       'debug_bot', 'simulate_arm', 'asan', 'edge'],
+    'debug_simulate_arm_lite': [
+      'debug_bot', 'simulate_arm', 'v8_enable_lite_mode'],
     'debug_simulate_arm64': [
       'debug_bot', 'simulate_arm64'],
     'debug_simulate_arm64_asan_edge': [
@@ -341,8 +346,12 @@
     # Release configs for simulators.
     'release_simulate_arm': [
       'release_bot', 'simulate_arm'],
+    'release_simulate_arm_lite': [
+      'release_bot', 'simulate_arm', 'v8_enable_lite_mode'],
     'release_simulate_arm_trybot': [
       'release_trybot', 'simulate_arm'],
+    'release_simulate_arm_lite_trybot': [
+      'release_trybot', 'simulate_arm', 'v8_enable_lite_mode'],
     'release_simulate_arm64': [
       'release_bot', 'simulate_arm64'],
     'release_simulate_arm64_msan': [
@@ -771,6 +780,10 @@
 
     'v8_enable_embedded_builtins': {
       'gn_args': 'v8_enable_embedded_builtins=true',
+    },
+
+    'v8_enable_lite_mode': {
+      'gn_args': 'v8_enable_lite_mode=true',
     },
 
     'v8_enable_slow_dchecks': {
