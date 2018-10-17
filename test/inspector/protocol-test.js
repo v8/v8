@@ -53,6 +53,8 @@ InspectorTest.logMessage = function(originalMessage) {
       if (stableId)
         stableId.value[stableIdSymbol] = true;
     }
+    if (name === 'parentId')
+      return { id: '<id>' };
     if (val && val[stableIdSymbol])
       return '<StablectObjectId>';
     return val;
