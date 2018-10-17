@@ -1072,11 +1072,9 @@ class ParserBase {
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ObjectLiteralChecker* checker, bool* is_computed_name,
       bool* is_rest_property, bool* ok);
-  ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
-                                 bool maybe_arrow, bool* ok);
-  ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
-                                 bool* ok) {
-    ExpressionListT result = ParseArguments(first_spread_pos, false, ok);
+  ExpressionListT ParseArguments(bool* has_spread, bool maybe_arrow, bool* ok);
+  ExpressionListT ParseArguments(bool* has_spread, bool* ok) {
+    ExpressionListT result = ParseArguments(has_spread, false, ok);
     ValidateExpression(CHECK_OK_CUSTOM(NullExpressionList));
     return result;
   }
@@ -2653,11 +2651,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
-    Scanner::Location* first_spread_arg_loc, bool maybe_arrow, bool* ok) {
+    bool* has_spread, bool maybe_arrow, bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
-  *first_spread_arg_loc = Scanner::Location::invalid();
+  *has_spread = false;
   Consume(Token::LPAREN);
   if (Check(Token::RPAREN)) return impl()->NewExpressionList(0);
 
@@ -2687,10 +2685,7 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
       }
     }
     if (is_spread) {
-      if (!first_spread_arg_loc->IsValid()) {
-        first_spread_arg_loc->beg_pos = start_pos;
-        first_spread_arg_loc->end_pos = peek_position();
-      }
+      *has_spread = true;
       argument = factory()->NewSpread(argument, start_pos, expr_pos);
     }
     result->Add(argument, zone_);
@@ -3257,12 +3252,12 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
             result->AsFunctionLiteral()->mark_as_iife();
           }
         }
-        Scanner::Location spread_pos;
+        bool has_spread;
         ExpressionListT args;
         if (impl()->IsIdentifier(result) &&
             impl()->IsAsync(impl()->AsIdentifier(result))) {
           ExpressionClassifier async_classifier(this);
-          args = ParseArguments(&spread_pos, true, CHECK_OK);
+          args = ParseArguments(&has_spread, true, CHECK_OK);
           if (peek() == Token::ARROW) {
             fni_.RemoveAsyncKeywordFromEnd();
             ValidateBindingPattern(CHECK_OK);
@@ -3285,7 +3280,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
             AccumulateFormalParameterContainmentErrors();
           }
         } else {
-          args = ParseArguments(&spread_pos, CHECK_OK);
+          args = ParseArguments(&has_spread, CHECK_OK);
         }
 
         ArrowFormalParametersUnexpectedToken();
@@ -3300,7 +3295,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
         Call::PossiblyEval is_possibly_eval =
             CheckPossibleEvalCall(result, scope());
 
-        if (spread_pos.IsValid()) {
+        if (has_spread) {
           result = impl()->SpreadCall(result, args, pos, is_possibly_eval);
         } else {
           result = factory()->NewCall(result, args, pos, is_possibly_eval);
@@ -3378,10 +3373,10 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* ok) {
   ValidateExpression(CHECK_OK);
   if (peek() == Token::LPAREN) {
     // NewExpression with arguments.
-    Scanner::Location spread_pos;
-    ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
+    bool has_spread;
+    ExpressionListT args = ParseArguments(&has_spread, CHECK_OK);
 
-    if (spread_pos.IsValid()) {
+    if (has_spread) {
       result = impl()->SpreadCallNew(result, args, new_pos);
     } else {
       result = factory()->NewCallNew(result, args, new_pos);
@@ -4684,22 +4679,22 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic(
   //   '%' Identifier Arguments
 
   int pos = peek_position();
-  Expect(Token::MOD, CHECK_OK);
+  Consume(Token::MOD);
   // Allow "eval" or "arguments" for backward compatibility.
   IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
-  Scanner::Location spread_pos;
   ExpressionClassifier classifier(this);
   if (peek() != Token::LPAREN) {
     impl()->ReportUnexpectedToken(peek());
     *ok = false;
     return impl()->NullExpression();
   }
-  ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
+  bool has_spread;
+  ExpressionListT args = ParseArguments(&has_spread, CHECK_OK);
 
-  if (spread_pos.IsValid()) {
+  if (has_spread) {
     *ok = false;
-    ReportMessageAt(spread_pos, MessageTemplate::kIntrinsicWithSpread,
-                    kSyntaxError);
+    ReportMessageAt(Scanner::Location(pos, position()),
+                    MessageTemplate::kIntrinsicWithSpread, kSyntaxError);
     return impl()->NullExpression();
   }
 
