@@ -29,15 +29,12 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_ANYREF WASM_REF_NULL, kExprEnd
 #define WASM_INIT_EXPR_GLOBAL(index) WASM_GET_GLOBAL(index), kExprEnd
 
-#define SIZEOF_EMPTY_FUNCTION ((size_t)5)
 #define EMPTY_BODY 0
-#define SIZEOF_EMPTY_BODY ((size_t)1)
 #define NOP_BODY 2, 0, kExprNop
-#define SIZEOF_NOP_BODY ((size_t)3)
 
 #define SIG_ENTRY_i_i SIG_ENTRY_x_x(kLocalI32, kLocalI32)
 
-#define UNKNOWN_SECTION(size) 0, U32V_1(size + 5), 4, 'l', 'u', 'l', 'z'
+#define UNKNOWN_SECTION(size) 0, U32V_1(size + 5), ADD_COUNT('l', 'u', 'l', 'z')
 
 template <typename... Args>
 std::integral_constant<size_t, sizeof...(Args)> CountArgsHelper(Args...);
@@ -57,14 +54,14 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
 #define FUNCTION_SIGNATURES_SECTION(count, ...) \
   SECTION(Function, U32V_1(count), __VA_ARGS__)
 
-#define FOO_STRING 3, 'f', 'o', 'o'
+#define FOO_STRING ADD_COUNT('f', 'o', 'o')
 #define NO_LOCAL_NAMES 0
 
 #define EMPTY_SIGNATURES_SECTION SECTION(Type, ENTRY_COUNT(0))
 #define EMPTY_FUNCTION_SIGNATURES_SECTION SECTION(Function, ENTRY_COUNT(0))
 #define EMPTY_FUNCTION_BODIES_SECTION SECTION(Code, ENTRY_COUNT(0))
 #define SECTION_NAMES(...) \
-  SECTION(Unknown, 4, 'n', 'a', 'm', 'e', ##__VA_ARGS__)
+  SECTION(Unknown, ADD_COUNT('n', 'a', 'm', 'e'), ##__VA_ARGS__)
 #define EMPTY_NAMES_SECTION SECTION_NAMES()
 
 #define FAIL_IF_NO_EXPERIMENTAL_EH(data)                                 \
@@ -91,17 +88,16 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
 #define FOUR_EMPTY_FUNCTIONS(sig_index) \
   SECTION(Function, ENTRY_COUNT(4), X4(sig_index))
 
-#define ONE_EMPTY_BODY \
-  SECTION(Code, ENTRY_COUNT(1), X1(SIZEOF_EMPTY_BODY, EMPTY_BODY))
+#define ONE_EMPTY_BODY SECTION(Code, ENTRY_COUNT(1), X1(ADD_COUNT(EMPTY_BODY)))
 
 #define TWO_EMPTY_BODIES \
-  SECTION(Code, ENTRY_COUNT(2), X2(SIZEOF_EMPTY_BODY, EMPTY_BODY))
+  SECTION(Code, ENTRY_COUNT(2), X2(ADD_COUNT(EMPTY_BODY)))
 
 #define THREE_EMPTY_BODIES \
-  SECTION(Code, ENTRY_COUNT(3), X3(SIZEOF_EMPTY_BODY, EMPTY_BODY))
+  SECTION(Code, ENTRY_COUNT(3), X3(ADD_COUNT(EMPTY_BODY)))
 
 #define FOUR_EMPTY_BODIES \
-  SECTION(Code, ENTRY_COUNT(4), X4(SIZEOF_EMPTY_BODY, EMPTY_BODY))
+  SECTION(Code, ENTRY_COUNT(4), X4(ADD_COUNT(EMPTY_BODY)))
 
 #define SIGNATURES_SECTION_VOID_VOID \
   SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v)
@@ -283,10 +279,8 @@ TEST_F(WasmModuleVerifyTest, AnyRefGlobalWithGlobalInit) {
   static const byte data[] = {
       SECTION(Import,           // --
               ENTRY_COUNT(1),   // number of imports
-              NAME_LENGTH(1),   // --
-              'm',              // module name
-              NAME_LENGTH(1),   // --
-              'f',              // global name
+              ADD_COUNT('m'),   // module name
+              ADD_COUNT('f'),   // global name
               kExternalGlobal,  // import kind
               kLocalAnyRef,     // type
               0),               // mutability
@@ -347,39 +341,31 @@ TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
   WASM_FEATURE_SCOPE(mut_global);
   {
     static const byte data[] = {
-        SECTION(Global,                      // --
-                ENTRY_COUNT(1),              // --
-                kLocalI32,                   // local type
-                0,                           // immutable
-                WASM_INIT_EXPR_I32V_1(13)),  // init
-        SECTION(Export,                      // --
-                ENTRY_COUNT(1),              // export count
-                4,                           // name length
-                'n',                         // --
-                'a',                         // --
-                'm',                         // --
-                'e',                         // --
-                kExternalGlobal,             // global
-                0),                          // global index
+        SECTION(Global,                         // --
+                ENTRY_COUNT(1),                 // --
+                kLocalI32,                      // local type
+                0,                              // immutable
+                WASM_INIT_EXPR_I32V_1(13)),     // init
+        SECTION(Export,                         // --
+                ENTRY_COUNT(1),                 // export count
+                ADD_COUNT('n', 'a', 'm', 'e'),  // name
+                kExternalGlobal,                // global
+                0),                             // global index
     };
     EXPECT_VERIFIES(data);
   }
   {
     static const byte data[] = {
-        SECTION(Global,                      // --
-                ENTRY_COUNT(1),              // --
-                kLocalI32,                   // local type
-                1,                           // mutable
-                WASM_INIT_EXPR_I32V_1(13)),  // init
-        SECTION(Export,                      // --
-                ENTRY_COUNT(1),              // export count
-                4,                           // name length
-                'n',                         // --
-                'a',                         // --
-                'm',                         // --
-                'e',                         // --
-                kExternalGlobal,             // global
-                0),                          // global index
+        SECTION(Global,                         // --
+                ENTRY_COUNT(1),                 // --
+                kLocalI32,                      // local type
+                1,                              // mutable
+                WASM_INIT_EXPR_I32V_1(13)),     // init
+        SECTION(Export,                         // --
+                ENTRY_COUNT(1),                 // export count
+                ADD_COUNT('n', 'a', 'm', 'e'),  // name
+                kExternalGlobal,                // global
+                0),                             // global index
     };
     EXPECT_VERIFIES(data);
   }
@@ -572,15 +558,12 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
 
 TEST_F(WasmModuleVerifyTest, ExceptionImport) {
   static const byte data[] = {SIGNATURES_SECTION_VOID_VOID,
-                              SECTION(Import,              // section header
-                                      ENTRY_COUNT(1),      // number of imports
-                                      NAME_LENGTH(1),      // --
-                                      'm',                 // module name
-                                      NAME_LENGTH(2),      // --
-                                      'e',                 // exception name
-                                      'x',                 // --
-                                      kExternalException,  // import kind
-                                      SIG_INDEX(0))};      // except[0] (sig#0)
+                              SECTION(Import,               // section header
+                                      ENTRY_COUNT(1),       // number of imports
+                                      ADD_COUNT('m'),       // module name
+                                      ADD_COUNT('e', 'x'),  // exception name
+                                      kExternalException,   // import kind
+                                      SIG_INDEX(0))};       // except[0] (sig#0)
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -650,17 +633,13 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
   const byte data[] = {
       SECTION(Import,           // section header
               ENTRY_COUNT(2),   // number of imports
-              NAME_LENGTH(1),   // --
-              'm',              // module name
-              NAME_LENGTH(1),   // --
-              'f',              // global name
+              ADD_COUNT('m'),   // module name
+              ADD_COUNT('f'),   // global name
               kExternalGlobal,  // import kind
               kLocalI32,        // type
               0,                // mutability
-              NAME_LENGTH(1),   // --
-              'n',              // module name
-              NAME_LENGTH(1),   // --
-              'g',              // global name
+              ADD_COUNT('n'),   // module name
+              ADD_COUNT('g'),   // global name
               kExternalGlobal,  // import kind
               kLocalI32,        // type
               0),               // mutability
@@ -682,10 +661,8 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithMutableImportedGlobal) {
   const byte data[] = {
       SECTION(Import,           // section header
               ENTRY_COUNT(1),   // number of imports
-              NAME_LENGTH(1),   // --
-              'm',              // module name
-              NAME_LENGTH(1),   // --
-              'f',              // global name
+              ADD_COUNT('m'),   // module name
+              ADD_COUNT('f'),   // global name
               kExternalGlobal,  // import kind
               kLocalI32,        // type
               1),               // mutability
@@ -866,10 +843,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionWithImportedTable) {
   static const byte data[] = {
       // imports -------------------------------------------------------------
       SECTION(Import, ENTRY_COUNT(1),
-              NAME_LENGTH(1),  // --
-              'm',             // module name
-              NAME_LENGTH(1),  // --
-              't',             // table name
+              ADD_COUNT('m'),  // module name
+              ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
               kLocalAnyFunc,   // elem_type
               0,               // no maximum field
@@ -1014,18 +989,14 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
       SIGNATURES_SECTION_VOID_VOID,
       // imports -------------------------------------------------------------
       SECTION(Import, ENTRY_COUNT(2),
-              NAME_LENGTH(1),  // --
-              'm',             // module name
-              NAME_LENGTH(1),  // --
-              't',             // table name
+              ADD_COUNT('m'),  // module name
+              ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
               kLocalAnyFunc,   // elem_type
               0,               // no maximum field
               5,               // initial size
-              NAME_LENGTH(1),  // --
-              'm',             // module name
-              NAME_LENGTH(1),  // --
-              's',             // table name
+              ADD_COUNT('m'),  // module name
+              ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
               kLocalAnyFunc,   // elem_type
               0,               // no maximum field
@@ -1105,18 +1076,14 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
       SIGNATURES_SECTION_VOID_VOID,
       // imports -------------------------------------------------------------
       SECTION(Import, ENTRY_COUNT(2),
-              NAME_LENGTH(1),  // --
-              'm',             // module name
-              NAME_LENGTH(1),  // --
-              't',             // table name
+              ADD_COUNT('m'),  // module name
+              ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
               kLocalAnyFunc,   // elem_type
               0,               // no maximum field
               5,               // initial size
-              NAME_LENGTH(1),  // --
-              'm',             // module name
-              NAME_LENGTH(1),  // --
-              's',             // table name
+              ADD_COUNT('m'),  // module name
+              ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
               kLocalAnyFunc,   // elem_type
               0,               // no maximum field
@@ -1192,18 +1159,14 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefImportedTable) {
       SIGNATURES_SECTION_VOID_VOID,
       // imports -------------------------------------------------------------
       SECTION(Import, ENTRY_COUNT(2),
-              NAME_LENGTH(1),  // --
-              'm',             // module name
-              NAME_LENGTH(1),  // --
-              't',             // table name
+              ADD_COUNT('m'),  // module name
+              ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
               kLocalAnyFunc,   // elem_type
               0,               // no maximum field
               5,               // initial size
-              NAME_LENGTH(1),  // --
-              'm',             // module name
-              NAME_LENGTH(1),  // --
-              's',             // table name
+              ADD_COUNT('m'),  // module name
+              ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
               kLocalAnyRef,    // elem_type
               0,               // no maximum field
@@ -1440,8 +1403,9 @@ TEST_F(WasmSignatureDecodeTest, Fail_anyref_without_flag) {
   WASM_FEATURE_SCOPE_VAL(anyref, false);
   byte ref_types[] = {kLocalAnyFunc, kLocalAnyRef};
   for (byte invalid_type : ref_types) {
-    for (size_t i = 0; i < SIZEOF_SIG_ENTRY_x_xx; i++) {
+    for (size_t i = 0;; i++) {
       byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
+      if (i >= arraysize(data)) break;
       data[i] = invalid_type;
       FunctionSig* sig = DecodeSig(data, data + sizeof(data));
       EXPECT_EQ(nullptr, sig);
@@ -1451,8 +1415,9 @@ TEST_F(WasmSignatureDecodeTest, Fail_anyref_without_flag) {
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_type) {
   byte kInvalidType = 76;
-  for (size_t i = 0; i < SIZEOF_SIG_ENTRY_x_xx; i++) {
+  for (size_t i = 0;; i++) {
     byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
+    if (i >= arraysize(data)) break;
     data[i] = kInvalidType;
     FunctionSig* sig = DecodeSig(data, data + sizeof(data));
     EXPECT_EQ(nullptr, sig);
@@ -1516,8 +1481,7 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
     WasmFunction* function = result.val.get();
     EXPECT_EQ(0u, function->sig->parameter_count());
     EXPECT_EQ(0u, function->sig->return_count());
-    EXPECT_EQ(static_cast<uint32_t>(SIZEOF_SIG_ENTRY_v_v),
-              function->code.offset());
+    EXPECT_EQ(COUNT_ARGS(SIG_ENTRY_v_v), function->code.offset());
     EXPECT_EQ(sizeof(data), function->code.end_offset());
     // TODO(titzer): verify encoding of local declarations
   }
@@ -1643,10 +1607,8 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
     static const byte data[] = {
         SECTION(Import,           // section header
                 ENTRY_COUNT(1),   // number of imports
-                NAME_LENGTH(1),   // --
-                'm',              // module name
-                NAME_LENGTH(1),   // --
-                'f',              // global name
+                ADD_COUNT('m'),   // module name
+                ADD_COUNT('f'),   // global name
                 kExternalGlobal,  // import kind
                 kLocalI32,        // type
                 0),               // mutability
@@ -1657,10 +1619,8 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
     static const byte data[] = {
         SECTION(Import,           // section header
                 ENTRY_COUNT(1),   // sig table
-                NAME_LENGTH(1),   // --
-                'm',              // module name
-                NAME_LENGTH(1),   // --
-                'f',              // global name
+                ADD_COUNT('m'),   // module name
+                ADD_COUNT('f'),   // global name
                 kExternalGlobal,  // import kind
                 kLocalI32,        // type
                 1),               // mutability
@@ -1674,10 +1634,8 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutability_malformed) {
   static const byte data[] = {
       SECTION(Import,
               ENTRY_COUNT(1),   // --
-              NAME_LENGTH(1),   // --
-              'm',              // module name
-              NAME_LENGTH(1),   // --
-              'g',              // global name
+              ADD_COUNT('m'),   // module name
+              ADD_COUNT('g'),   // global name
               kExternalGlobal,  // import kind
               kLocalI32,        // type
               2),               // invalid mutability
@@ -1688,8 +1646,8 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutability_malformed) {
 TEST_F(WasmModuleVerifyTest, ImportTable_nosigs2) {
   static const byte data[] = {
       SECTION(Import, ENTRY_COUNT(1),  // sig table
-              NAME_LENGTH(1), 'm',     // module name
-              NAME_LENGTH(1), 'f',     // function name
+              ADD_COUNT('m'),          // module name
+              ADD_COUNT('f'),          // function name
               kExternalFunction,       // import kind
               SIG_INDEX(0)),           // sig index
   };
@@ -1700,8 +1658,8 @@ TEST_F(WasmModuleVerifyTest, ImportTable_invalid_sig) {
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(0)),   // --
       SECTION(Import, ENTRY_COUNT(1),  // --
-              NAME_LENGTH(1), 'm',     // module name
-              NAME_LENGTH(1), 'f',     // function name
+              ADD_COUNT('m'),          // module name
+              ADD_COUNT('f'),          // function name
               kExternalFunction,       // import kind
               SIG_INDEX(0)),           // sig index
   };
@@ -1713,11 +1671,9 @@ TEST_F(WasmModuleVerifyTest, ImportTable_one_sig) {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
       SECTION(Import,
-              ENTRY_COUNT(1),  // --
-              NAME_LENGTH(1),
-              'm',  // module name
-              NAME_LENGTH(1),
-              'f',                // function name
+              ENTRY_COUNT(1),     // --
+              ADD_COUNT('m'),     // module name
+              ADD_COUNT('f'),     // function name
               kExternalFunction,  // import kind
               SIG_INDEX(0)),      // sig index
   };
@@ -1731,8 +1687,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_invalid_module) {
       SECTION(Import,                // --
               ENTRY_COUNT(1),        // --
               NO_NAME,               // module name
-              NAME_LENGTH(1),        // --
-              'f',                   // function name
+              ADD_COUNT('f'),        // function name
               kExternalFunction,     // import kind
               SIG_INDEX(0),          // sig index
               0),                    // auxiliary data
@@ -1744,10 +1699,9 @@ TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
   static const byte data[] = {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
-      SECTION(Import, ENTRY_COUNT(1), NAME_LENGTH(1),
-              'm',  // module name
-              NAME_LENGTH(1),
-              'f',                 // function name
+      SECTION(Import, ENTRY_COUNT(1),
+              ADD_COUNT('m'),      // module name
+              ADD_COUNT('f'),      // function name
               kExternalFunction),  // import kind
       SIG_INDEX(0),                // sig index (outside import section!)
   };
@@ -1803,7 +1757,7 @@ TEST_F(WasmModuleVerifyTest, ExportNameWithInvalidStringLength) {
       SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       SECTION(Export,
               ENTRY_COUNT(1),     // exports
-              NAME_LENGTH(84),    // invalid string length
+              U32V_1(84),         // invalid string length
               'e',                // --
               kExternalFunction,  // --
               FUNC_INDEX(0),      // --
@@ -1818,13 +1772,13 @@ TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
       // signatures
       SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       SECTION(Export,
-              ENTRY_COUNT(2),                      // exports
-              NAME_LENGTH(4), 'n', 'a', 'm', 'e',  // --
+              ENTRY_COUNT(2),                 // exports
+              ADD_COUNT('n', 'a', 'm', 'e'),  // --
               kExternalFunction,
-              FUNC_INDEX(0),                  // --
-              NAME_LENGTH(3), 'n', 'o', 'm',  // --
-              kExternalFunction,              // --
-              FUNC_INDEX(0)),                 // --
+              FUNC_INDEX(0),             // --
+              ADD_COUNT('n', 'o', 'm'),  // --
+              kExternalFunction,         // --
+              FUNC_INDEX(0)),            // --
       ONE_EMPTY_BODY};
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
@@ -1840,16 +1794,13 @@ TEST_F(WasmModuleVerifyTest, ExportTableThree) {
       SIGNATURES_SECTION_VOID_VOID, THREE_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Export,
               ENTRY_COUNT(3),  // exports
-              NAME_LENGTH(1),
-              'a',  // --
+              ADD_COUNT('a'),  // --
               kExternalFunction,
-              FUNC_INDEX(0),  // --
-              NAME_LENGTH(1),
-              'b',  // --
+              FUNC_INDEX(0),   // --
+              ADD_COUNT('b'),  // --
               kExternalFunction,
-              FUNC_INDEX(1),  // --
-              NAME_LENGTH(1),
-              'c',  // --
+              FUNC_INDEX(1),   // --
+              ADD_COUNT('c'),  // --
               kExternalFunction,
               FUNC_INDEX(2)),  // --
       THREE_EMPTY_BODIES};
@@ -1866,8 +1817,8 @@ TEST_F(WasmModuleVerifyTest, ExportTableThreeOne) {
         // signatures
         SIGNATURES_SECTION_VOID_VOID, THREE_EMPTY_FUNCTIONS(SIG_INDEX(0)),
         SECTION(Export,
-                ENTRY_COUNT(1),            // exports
-                NAME_LENGTH(2), 'e', 'x',  // --
+                ENTRY_COUNT(1),       // exports
+                ADD_COUNT('e', 'x'),  // --
                 kExternalFunction,
                 FUNC_INDEX(i)),  // --
         THREE_EMPTY_BODIES};
@@ -2263,11 +2214,8 @@ TEST_F(WasmModuleVerifyTest, MultipleNameSections) {
 #undef WASM_INIT_EXPR_F64
 #undef WASM_INIT_EXPR_ANYREF
 #undef WASM_INIT_EXPR_GLOBAL
-#undef SIZEOF_EMPTY_FUNCTION
 #undef EMPTY_BODY
-#undef SIZEOF_EMPTY_BODY
 #undef NOP_BODY
-#undef SIZEOF_NOP_BODY
 #undef SIG_ENTRY_i_i
 #undef UNKNOWN_SECTION
 #undef COUNT_ARGS

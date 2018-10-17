@@ -22,7 +22,6 @@
 #define TABLE_INDEX(v) U32V_1(v)
 #define EXCEPTION_INDEX(v) U32V_1(v)
 #define NO_NAME U32V_1(0)
-#define NAME_LENGTH(v) U32V_1(v)
 #define ENTRY_COUNT(v) U32V_1(v)
 
 #define ZERO_ALIGNMENT 0
