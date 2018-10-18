@@ -799,9 +799,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     BIND(&switch_on_elements_kind);
     TNode<Smi> smi_len = CAST(len());
     // Select by ElementsKind
-    Node* o_map = LoadMap(o());
-    Node* bit_field2 = LoadMapBitField2(o_map);
-    Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
+    Node* kind = LoadElementsKind(o());
     Branch(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS),
            &maybe_double_elements, &fast_elements);
 
@@ -1069,9 +1067,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    Node* map = LoadMap(array_receiver);
-    Node* bit_field2 = LoadMapBitField2(map);
-    Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
+    Node* kind = LoadElementsKind(array_receiver);
     GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
 
@@ -1115,9 +1111,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    Node* map = LoadMap(array_receiver);
-    Node* bit_field2 = LoadMapBitField2(map);
-    Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
+    Node* kind = LoadElementsKind(array_receiver);
     GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
     Goto(&object_push);
@@ -1633,8 +1627,8 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
   TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
 
   CSA_ASSERT(this,
-             Word32Or(Word32BinaryNot(IsHoleyFastElementsKind(
-                          LoadMapElementsKind(LoadMap(array)))),
+             Word32Or(Word32BinaryNot(
+                          IsHoleyFastElementsKind(LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
   ParameterMode mode = OptimalParameterMode();
@@ -1653,8 +1647,8 @@ TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
   TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
 
   CSA_ASSERT(this,
-             Word32Or(Word32BinaryNot(IsHoleyFastElementsKind(
-                          LoadMapElementsKind(LoadMap(array)))),
+             Word32Or(Word32BinaryNot(
+                          IsHoleyFastElementsKind(LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
   ParameterMode mode = OptimalParameterMode();
