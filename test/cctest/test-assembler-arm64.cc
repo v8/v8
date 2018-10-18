@@ -6769,7 +6769,7 @@ static void LdrLiteralRangeHelper(size_t range, LiteralPoolEmitOutcome outcome,
   // can be handled by this test.
   CHECK_LE(code_size, range);
 
-  auto PoolSizeAt = [pool_entries](int pc_offset) {
+  auto PoolSizeAt = [](int pc_offset) {
     // To determine padding, consider the size of the prologue of the pool,
     // and the jump around the pool, which we always need.
     size_t prologue_size = 2 * kInstrSize + kInstrSize;
