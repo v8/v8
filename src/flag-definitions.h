@@ -228,24 +228,24 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                  \
-  V(harmony_public_fields, "harmony public fields in class literals")      \
   V(harmony_private_fields, "harmony private fields in class literals")    \
   V(harmony_numeric_separator, "harmony numeric separator between digits") \
-  V(harmony_string_matchall, "harmony String.prototype.matchAll")          \
-  V(harmony_static_fields, "harmony static fields in class literals")
+  V(harmony_string_matchall, "harmony String.prototype.matchAll")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                        \
-  V(harmony_namespace_exports,                                          \
-    "harmony namespace exports (export * as foo from 'bar')")           \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
-  V(harmony_import_meta, "harmony import.meta property")                \
-  V(harmony_dynamic_import, "harmony dynamic import")                   \
-  V(harmony_array_prototype_values, "harmony Array.prototype.values")   \
-  V(harmony_array_flat, "harmony Array.prototype.{flat,flatMap}")       \
-  V(harmony_symbol_description, "harmony Symbol.prototype.description") \
-  V(harmony_global, "harmony global")                                   \
-  V(harmony_json_stringify, "well-formed JSON.stringify")
+#define HARMONY_SHIPPING_BASE(V)                                               \
+  V(harmony_namespace_exports,                                                 \
+    "harmony namespace exports (export * as foo from 'bar')")                  \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                    \
+  V(harmony_import_meta, "harmony import.meta property")                       \
+  V(harmony_dynamic_import, "harmony dynamic import")                          \
+  V(harmony_array_prototype_values, "harmony Array.prototype.values")          \
+  V(harmony_array_flat, "harmony Array.prototype.{flat,flatMap}")              \
+  V(harmony_symbol_description, "harmony Symbol.prototype.description")        \
+  V(harmony_global, "harmony global")                                          \
+  V(harmony_json_stringify, "well-formed JSON.stringify")                      \
+  V(harmony_public_fields, "harmony public instance fields in class literals") \
+  V(harmony_static_fields, "harmony static fields in class literals")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) \
