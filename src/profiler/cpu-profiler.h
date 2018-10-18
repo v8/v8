@@ -149,8 +149,7 @@ class ProfilerEventsProcessor : public base::Thread, public CodeEventObserver {
   void AddSample(TickSample sample);
 
  protected:
-  explicit ProfilerEventsProcessor(Isolate* isolate,
-                                   ProfileGenerator* generator);
+  ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator);
 
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
