@@ -73,24 +73,23 @@ Node* JSGraph::Constant(const ObjectRef& ref) {
   if (ref.IsHeapNumber()) {
     return Constant(ref.AsHeapNumber().value());
   } else if (oddball_type == OddballType::kUndefined) {
-    DCHECK(
-        ref.object<Object>().equals(isolate()->factory()->undefined_value()));
+    DCHECK(ref.object().equals(isolate()->factory()->undefined_value()));
     return UndefinedConstant();
   } else if (oddball_type == OddballType::kNull) {
-    DCHECK(ref.object<Object>().equals(isolate()->factory()->null_value()));
+    DCHECK(ref.object().equals(isolate()->factory()->null_value()));
     return NullConstant();
   } else if (oddball_type == OddballType::kHole) {
-    DCHECK(ref.object<Object>().equals(isolate()->factory()->the_hole_value()));
+    DCHECK(ref.object().equals(isolate()->factory()->the_hole_value()));
     return TheHoleConstant();
   } else if (oddball_type == OddballType::kBoolean) {
-    if (ref.object<Object>().equals(isolate()->factory()->true_value())) {
+    if (ref.object().equals(isolate()->factory()->true_value())) {
       return TrueConstant();
     } else {
-      DCHECK(ref.object<Object>().equals(isolate()->factory()->false_value()));
+      DCHECK(ref.object().equals(isolate()->factory()->false_value()));
       return FalseConstant();
     }
   } else {
-    return HeapConstant(ref.object<HeapObject>());
+    return HeapConstant(ref.AsHeapObject().object());
   }
 }
 

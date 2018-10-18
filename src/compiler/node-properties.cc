@@ -381,7 +381,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
       if (receiver.map().is_stable()) {
         // The {receiver_map} is only reliable when we install a stability
         // code dependency.
-        *maps_return = ZoneHandleSet<Map>(receiver.map().object<Map>());
+        *maps_return = ZoneHandleSet<Map>(receiver.map().object());
         return kUnreliableReceiverMaps;
       }
     }
@@ -418,7 +418,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
               MapRef initial_map = original_constructor.initial_map();
               if (initial_map.constructor_or_backpointer().equals(
                       mtarget.Ref(broker))) {
-                *maps_return = ZoneHandleSet<Map>(initial_map.object<Map>());
+                *maps_return = ZoneHandleSet<Map>(initial_map.object());
                 return result;
               }
             }
@@ -438,7 +438,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
             Node* const value = GetValueInput(effect, 1);
             HeapObjectMatcher m(value);
             if (m.HasValue()) {
-              *maps_return = ZoneHandleSet<Map>(m.Ref(broker).object<Map>());
+              *maps_return = ZoneHandleSet<Map>(m.Ref(broker).AsMap().object());
               return result;
             }
           }

@@ -483,7 +483,7 @@ HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
     : TypeBase(kHeapConstant), bitset_(bitset), heap_ref_(heap_ref) {}
 
 Handle<HeapObject> HeapConstantType::Value() const {
-  return heap_ref_.object<HeapObject>();
+  return heap_ref_.object();
 }
 
 // -----------------------------------------------------------------------------

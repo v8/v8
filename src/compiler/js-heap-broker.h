@@ -16,6 +16,16 @@
 
 namespace v8 {
 namespace internal {
+
+class BytecodeArray;
+class FixedDoubleArray;
+class InternalizedString;
+class JSGlobalProxy;
+class JSRegExp;
+class JSTypedArray;
+class NativeContext;
+class ScriptContextTable;
+
 namespace compiler {
 
 enum class OddballType : uint8_t {
@@ -71,6 +81,7 @@ enum class OddballType : uint8_t {
 class CompilationDependencies;
 class JSHeapBroker;
 class ObjectData;
+class PerIsolateCompilerCache;
 #define FORWARD_DECL(Name) class Name##Ref;
 HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
@@ -79,18 +90,13 @@ class ObjectRef {
  public:
   ObjectRef(JSHeapBroker* broker, Handle<Object> object);
   ObjectRef(JSHeapBroker* broker, ObjectData* data)
-      : broker_(broker), data_(data) {
+      : data_(data), broker_(broker) {
     CHECK_NOT_NULL(data_);
   }
 
-  bool equals(const ObjectRef& other) const;
-
   Handle<Object> object() const;
-  // TODO(neis): Remove eventually.
-  template <typename T>
-  Handle<T> object() const {
-    return Handle<T>(reinterpret_cast<T**>(object().address()));
-  }
+
+  bool equals(const ObjectRef& other) const;
 
   bool IsSmi() const;
   int AsSmi() const;
@@ -111,10 +117,12 @@ class ObjectRef {
  protected:
   JSHeapBroker* broker() const;
   ObjectData* data() const;
+  ObjectData* data_;  // Should be used only by object() getters.
 
  private:
   JSHeapBroker* broker_;
-  ObjectData* data_;
+
+ protected:
 };
 
 // Temporary class that carries information from a Map. We'd like to remove
@@ -155,6 +163,7 @@ class HeapObjectType {
 class HeapObjectRef : public ObjectRef {
  public:
   using ObjectRef::ObjectRef;
+  Handle<HeapObject> object() const;
 
   MapRef map() const;
 
@@ -165,6 +174,7 @@ class HeapObjectRef : public ObjectRef {
 class PropertyCellRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<PropertyCell> object() const;
 
   PropertyDetails property_details() const;
   ObjectRef value() const;
@@ -173,6 +183,7 @@ class PropertyCellRef : public HeapObjectRef {
 class JSObjectRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<JSObject> object() const;
 
   double RawFastDoublePropertyAt(FieldIndex index) const;
   ObjectRef RawFastPropertyAt(FieldIndex index) const;
@@ -188,6 +199,7 @@ class JSObjectRef : public HeapObjectRef {
 class JSFunctionRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
+  Handle<JSFunction> object() const;
 
   bool has_initial_map() const;
   bool has_prototype() const;
@@ -206,6 +218,7 @@ class JSFunctionRef : public JSObjectRef {
 class JSRegExpRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
+  Handle<JSRegExp> object() const;
 
   ObjectRef raw_properties_or_hash() const;
   ObjectRef data() const;
@@ -217,6 +230,7 @@ class JSRegExpRef : public JSObjectRef {
 class HeapNumberRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<HeapNumber> object() const;
 
   double value() const;
 };
@@ -224,6 +238,7 @@ class HeapNumberRef : public HeapObjectRef {
 class MutableHeapNumberRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<MutableHeapNumber> object() const;
 
   double value() const;
 };
@@ -231,8 +246,9 @@ class MutableHeapNumberRef : public HeapObjectRef {
 class ContextRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
-  void Serialize();
+  Handle<Context> object() const;
 
+  void Serialize();
   ContextRef previous() const;
   ObjectRef get(int index) const;
 };
@@ -279,6 +295,8 @@ class ContextRef : public HeapObjectRef {
 class NativeContextRef : public ContextRef {
  public:
   using ContextRef::ContextRef;
+  Handle<NativeContext> object() const;
+
   void Serialize();
 
 #define DECL_ACCESSOR(type, name) type##Ref name() const;
@@ -293,11 +311,13 @@ class NativeContextRef : public ContextRef {
 class NameRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Name> object() const;
 };
 
 class ScriptContextTableRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<ScriptContextTable> object() const;
 
   struct LookupResult {
     ContextRef context;
@@ -311,11 +331,13 @@ class ScriptContextTableRef : public HeapObjectRef {
 class DescriptorArrayRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<DescriptorArray> object() const;
 };
 
 class FeedbackVectorRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<FeedbackVector> object() const;
 
   ObjectRef get(FeedbackSlot slot) const;
 
@@ -325,6 +347,7 @@ class FeedbackVectorRef : public HeapObjectRef {
 class AllocationSiteRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<AllocationSite> object() const;
 
   bool PointsToLiteral() const;
   PretenureFlag GetPretenureMode() const;
@@ -346,6 +369,7 @@ class AllocationSiteRef : public HeapObjectRef {
 class MapRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Map> object() const;
 
   int instance_size() const;
   InstanceType instance_type() const;
@@ -394,6 +418,7 @@ class MapRef : public HeapObjectRef {
 class FixedArrayBaseRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<FixedArrayBase> object() const;
 
   int length() const;
 };
@@ -401,6 +426,7 @@ class FixedArrayBaseRef : public HeapObjectRef {
 class FixedArrayRef : public FixedArrayBaseRef {
  public:
   using FixedArrayBaseRef::FixedArrayBaseRef;
+  Handle<FixedArray> object() const;
 
   ObjectRef get(int i) const;
 };
@@ -408,6 +434,7 @@ class FixedArrayRef : public FixedArrayBaseRef {
 class FixedDoubleArrayRef : public FixedArrayBaseRef {
  public:
   using FixedArrayBaseRef::FixedArrayBaseRef;
+  Handle<FixedDoubleArray> object() const;
 
   double get_scalar(int i) const;
   bool is_the_hole(int i) const;
@@ -416,6 +443,7 @@ class FixedDoubleArrayRef : public FixedArrayBaseRef {
 class BytecodeArrayRef : public FixedArrayBaseRef {
  public:
   using FixedArrayBaseRef::FixedArrayBaseRef;
+  Handle<BytecodeArray> object() const;
 
   int register_count() const;
 };
@@ -423,6 +451,7 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
 class JSArrayRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
+  Handle<JSArray> object() const;
 
   ObjectRef length() const;
 };
@@ -430,6 +459,7 @@ class JSArrayRef : public JSObjectRef {
 class ScopeInfoRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<ScopeInfo> object() const;
 
   int ContextLength() const;
 };
@@ -451,6 +481,7 @@ class ScopeInfoRef : public HeapObjectRef {
 class SharedFunctionInfoRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<SharedFunctionInfo> object() const;
 
   int builtin_id() const;
   BytecodeArrayRef GetBytecodeArray() const;
@@ -462,6 +493,7 @@ class SharedFunctionInfoRef : public HeapObjectRef {
 class StringRef : public NameRef {
  public:
   using NameRef::NameRef;
+  Handle<String> object() const;
 
   int length() const;
   uint16_t GetFirstChar();
@@ -473,6 +505,7 @@ class StringRef : public NameRef {
 class JSTypedArrayRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
+  Handle<JSTypedArray> object() const;
 
   bool is_on_heap() const;
   size_t length_value() const;
@@ -486,6 +519,7 @@ class JSTypedArrayRef : public JSObjectRef {
 class ModuleRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Module> object() const;
 
   void Serialize();
 
@@ -495,6 +529,7 @@ class ModuleRef : public HeapObjectRef {
 class CellRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Cell> object() const;
 
   ObjectRef value() const;
 };
@@ -502,19 +537,20 @@ class CellRef : public HeapObjectRef {
 class JSGlobalProxyRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
+  Handle<JSGlobalProxy> object() const;
 };
 
 class CodeRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<Code> object() const;
 };
 
 class InternalizedStringRef : public StringRef {
  public:
   using StringRef::StringRef;
+  Handle<InternalizedString> object() const;
 };
-
-class PerIsolateCompilerCache;
 
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
  public:

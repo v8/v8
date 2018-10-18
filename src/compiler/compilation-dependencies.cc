@@ -31,15 +31,15 @@ class InitialMapDependency final : public CompilationDependencies::Dependency {
   }
 
   bool IsValid() const override {
-    Handle<JSFunction> function = function_.object<JSFunction>();
+    Handle<JSFunction> function = function_.object();
     return function->has_initial_map() &&
-           function->initial_map() == *initial_map_.object<Map>();
+           function->initial_map() == *initial_map_.object();
   }
 
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(function_.isolate(), code,
-                                     initial_map_.object<Map>(),
+                                     initial_map_.object(),
                                      DependentCode::kInitialMapChangedGroup);
   }
 
@@ -62,7 +62,7 @@ class PrototypePropertyDependency final
   }
 
   bool IsValid() const override {
-    Handle<JSFunction> function = function_.object<JSFunction>();
+    Handle<JSFunction> function = function_.object();
     return function->has_prototype_slot() && function->has_prototype() &&
            !function->PrototypeRequiresRuntimeLookup() &&
            function->prototype() == *prototype_.object();
@@ -70,7 +70,7 @@ class PrototypePropertyDependency final
 
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
-    Handle<JSFunction> function = function_.object<JSFunction>();
+    Handle<JSFunction> function = function_.object();
     if (!function->has_initial_map()) JSFunction::EnsureHasInitialMap(function);
     Handle<Map> initial_map(function->initial_map(), function_.isolate());
     DependentCode::InstallDependency(function_.isolate(), code, initial_map,
@@ -88,11 +88,11 @@ class StableMapDependency final : public CompilationDependencies::Dependency {
     DCHECK(map_.is_stable());
   }
 
-  bool IsValid() const override { return map_.object<Map>()->is_stable(); }
+  bool IsValid() const override { return map_.object()->is_stable(); }
 
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(map_.isolate(), code, map_.object<Map>(),
+    DependentCode::InstallDependency(map_.isolate(), code, map_.object(),
                                      DependentCode::kPrototypeCheckGroup);
   }
 
@@ -106,11 +106,11 @@ class TransitionDependency final : public CompilationDependencies::Dependency {
     DCHECK(!map_.is_deprecated());
   }
 
-  bool IsValid() const override { return !map_.object<Map>()->is_deprecated(); }
+  bool IsValid() const override { return !map_.object()->is_deprecated(); }
 
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(map_.isolate(), code, map_.object<Map>(),
+    DependentCode::InstallDependency(map_.isolate(), code, map_.object(),
                                      DependentCode::kTransitionGroup);
   }
 
@@ -129,13 +129,13 @@ class PretenureModeDependency final
   }
 
   bool IsValid() const override {
-    return mode_ == site_.object<AllocationSite>()->GetPretenureMode();
+    return mode_ == site_.object()->GetPretenureMode();
   }
 
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
-        site_.isolate(), code, site_.object<AllocationSite>(),
+        site_.isolate(), code, site_.object(),
         DependentCode::kAllocationSiteTenuringChangedGroup);
   }
 
@@ -157,15 +157,14 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
 
   bool IsValid() const override {
     DisallowHeapAllocation no_heap_allocation;
-    Handle<Map> owner = owner_.object<Map>();
-    Handle<FieldType> type = type_.object<FieldType>();
+    Handle<Map> owner = owner_.object();
+    Handle<Object> type = type_.object();
     return *type == owner->instance_descriptors()->GetFieldType(descriptor_);
   }
 
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(owner_.isolate(), code,
-                                     owner_.object<Map>(),
+    DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
                                      DependentCode::kFieldOwnerGroup);
   }
 
@@ -188,15 +187,14 @@ class GlobalPropertyDependency final
   }
 
   bool IsValid() const override {
-    Handle<PropertyCell> cell = cell_.object<PropertyCell>();
+    Handle<PropertyCell> cell = cell_.object();
     return type_ == cell->property_details().cell_type() &&
            read_only_ == cell->property_details().IsReadOnly();
   }
 
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(cell_.isolate(), code,
-                                     cell_.object<PropertyCell>(),
+    DependentCode::InstallDependency(cell_.isolate(), code, cell_.object(),
                                      DependentCode::kPropertyCellChangedGroup);
   }
 
@@ -213,14 +211,13 @@ class ProtectorDependency final : public CompilationDependencies::Dependency {
   }
 
   bool IsValid() const override {
-    Handle<PropertyCell> cell = cell_.object<PropertyCell>();
+    Handle<PropertyCell> cell = cell_.object();
     return cell->value() == Smi::FromInt(Isolate::kProtectorValid);
   }
 
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(cell_.isolate(), code,
-                                     cell_.object<PropertyCell>(),
+    DependentCode::InstallDependency(cell_.isolate(), code, cell_.object(),
                                      DependentCode::kPropertyCellChangedGroup);
   }
 
@@ -242,7 +239,7 @@ class ElementsKindDependency final
   }
 
   bool IsValid() const override {
-    Handle<AllocationSite> site = site_.object<AllocationSite>();
+    Handle<AllocationSite> site = site_.object();
     ElementsKind kind = site->PointsToLiteral()
                             ? site->boilerplate()->GetElementsKind()
                             : site->GetElementsKind();
@@ -252,7 +249,7 @@ class ElementsKindDependency final
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
-        site_.isolate(), code, site_.object<AllocationSite>(),
+        site_.isolate(), code, site_.object(),
         DependentCode::kAllocationSiteTransitionChangedGroup);
   }
 
@@ -271,17 +268,16 @@ class InitialMapInstanceSizePredictionDependency final
   bool IsValid() const override {
     // The dependency is valid if the prediction is the same as the current
     // slack tracking result.
-    if (!function_.object<JSFunction>()->has_initial_map()) return false;
-    int instance_size =
-        function_.object<JSFunction>()->ComputeInstanceSizeWithMinSlack(
-            function_.isolate());
+    if (!function_.object()->has_initial_map()) return false;
+    int instance_size = function_.object()->ComputeInstanceSizeWithMinSlack(
+        function_.isolate());
     return instance_size == instance_size_;
   }
 
   void Install(const MaybeObjectHandle& code) override {
     DCHECK(IsValid());
     // Finish the slack tracking.
-    function_.object<JSFunction>()->CompleteInobjectSlackTrackingIfActive();
+    function_.object()->CompleteInobjectSlackTrackingIfActive();
   }
 
  private:

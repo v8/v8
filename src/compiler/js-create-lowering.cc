@@ -1652,7 +1652,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
     NameRef property_name = boilerplate_map.GetPropertyKey(i);
     FieldIndex index = boilerplate_map.GetFieldIndexFor(i);
     FieldAccess access = {
-        kTaggedBase,        index.offset(), property_name.object<Name>(),
+        kTaggedBase,        index.offset(), property_name.object(),
         MaybeHandle<Map>(), Type::Any(),    MachineType::AnyTagged(),
         kFullWriteBarrier};
     Node* value;
@@ -1739,7 +1739,7 @@ Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
       boilerplate.EnsureElementsTenured();
       boilerplate_elements = boilerplate.elements();
     }
-    return jsgraph()->HeapConstant(boilerplate_elements.object<HeapObject>());
+    return jsgraph()->HeapConstant(boilerplate_elements.object());
   }
 
   // Compute the elements to store first (might have effects).
@@ -1768,7 +1768,7 @@ Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
 
   // Allocate the backing store array and store the elements.
   AllocationBuilder builder(jsgraph(), effect, control);
-  builder.AllocateArray(elements_length, elements_map.object<Map>(), pretenure);
+  builder.AllocateArray(elements_length, elements_map.object(), pretenure);
   ElementAccess const access =
       (elements_map.instance_type() == FIXED_DOUBLE_ARRAY_TYPE)
           ? AccessBuilder::ForFixedDoubleArrayElement()

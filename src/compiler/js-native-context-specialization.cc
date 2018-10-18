@@ -190,7 +190,7 @@ JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
       if (matcher.HasValue() && matcher.Ref(broker()).IsString()) {
         StringRef s = matcher.Ref(broker()).AsString();
         return new (shared_zone())
-            StringLiteral(s.object<String>(), static_cast<size_t>(s.length()));
+            StringLiteral(s.object(), static_cast<size_t>(s.length()));
       } else {
         UNREACHABLE();
       }
@@ -403,9 +403,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
   // Compute property access info for @@hasInstance on {receiver}.
   PropertyAccessInfo access_info;
-  AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                        native_context().object<Context>(),
-                                        graph()->zone());
+  AccessInfoFactory access_info_factory(
+      broker(), dependencies(), native_context().object(), graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
           receiver_map, factory()->has_instance_symbol(), AccessMode::kLoad,
           &access_info)) {
@@ -695,9 +694,8 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
 
   // Compute property access info for "then" on {resolution}.
   PropertyAccessInfo access_info;
-  AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                        native_context().object<Context>(),
-                                        graph()->zone());
+  AccessInfoFactory access_info_factory(
+      broker(), dependencies(), native_context().object(), graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
           MapHandles(resolution_maps.begin(), resolution_maps.end()),
           factory()->then_string(), AccessMode::kLoad, &access_info)) {
@@ -852,7 +850,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
             // mutated without the cell state being updated.
             if (property_cell_value_map.is_stable()) {
               dependencies()->DependOnStableMap(property_cell_value_map);
-              map = property_cell_value_map.object<Map>();
+              map = property_cell_value_map.object();
             }
           }
         }
@@ -968,7 +966,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   }
 
   // Lookup the {name} on the global object instead.
-  return ReduceGlobalAccess(node, nullptr, nullptr, name.object<Name>(),
+  return ReduceGlobalAccess(node, nullptr, nullptr, name.object(),
                             AccessMode::kLoad);
 }
 
@@ -997,7 +995,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   }
 
   // Lookup the {name} on the global object instead.
-  return ReduceGlobalAccess(node, nullptr, value, name.object<Name>(),
+  return ReduceGlobalAccess(node, nullptr, value, name.object(),
                             AccessMode::kStore);
 }
 
@@ -1025,7 +1023,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // Detached global proxies have |null| as their constructor.
       if (maybe_constructor->IsJSFunction() &&
           JSFunction::cast(maybe_constructor)->native_context() ==
-              *native_context().object<Context>()) {
+              *native_context().object()) {
         return ReduceGlobalAccess(node, receiver, value, name, access_mode,
                                   index);
       }
@@ -1033,9 +1031,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   }
 
   // Compute property access infos for the receiver maps.
-  AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                        native_context().object<Context>(),
-                                        graph()->zone());
+  AccessInfoFactory access_info_factory(
+      broker(), dependencies(), native_context().object(), graph()->zone());
   ZoneVector<PropertyAccessInfo> access_infos(zone());
   if (!access_info_factory.ComputePropertyAccessInfos(
           receiver_maps, name, access_mode, &access_infos)) {
@@ -1409,9 +1406,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   } else {
     // Retrieve the native context from the given {node}.
     // Compute element access infos for the receiver maps.
-    AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                          native_context().object<Context>(),
-                                          graph()->zone());
+    AccessInfoFactory access_info_factory(
+        broker(), dependencies(), native_context().object(), graph()->zone());
     ZoneVector<ElementAccessInfo> access_infos(zone());
     if (!access_info_factory.ComputeElementAccessInfos(
             receiver_maps, access_mode, &access_infos)) {
@@ -2312,9 +2308,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
              isolate());
 
   PropertyAccessInfo access_info;
-  AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                        native_context().object<Context>(),
-                                        graph()->zone());
+  AccessInfoFactory access_info_factory(
+      broker(), dependencies(), native_context().object(), graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
           receiver_map, cached_name, AccessMode::kStoreInLiteral,
           &access_info)) {

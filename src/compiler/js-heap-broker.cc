@@ -791,7 +791,7 @@ void MapData::SerializeElementsKindGeneralizations(JSHeapBroker* broker) {
     ElementsKind to_kind = static_cast<ElementsKind>(i);
     if (IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
       Handle<Map> target =
-          Map::AsElementsKind(broker->isolate(), self.object<Map>(), to_kind);
+          Map::AsElementsKind(broker->isolate(), self.object(), to_kind);
       elements_kind_generalizations_.push_back(
           broker->GetOrCreateData(target)->AsMap());
     }
@@ -1388,8 +1388,8 @@ ContextRef ContextRef::previous() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
-    return ContextRef(
-        broker(), handle(object<Context>()->previous(), broker()->isolate()));
+    return ContextRef(broker(),
+                      handle(object()->previous(), broker()->isolate()));
   }
   return ContextRef(broker(), data()->AsContext()->previous());
 }
@@ -1398,7 +1398,7 @@ ContextRef ContextRef::previous() const {
 ObjectRef ContextRef::get(int index) const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
-  Handle<Object> value(object<Context>()->get(index), broker()->isolate());
+  Handle<Object> value(object()->get(index), broker()->isolate());
   return ObjectRef(broker(), value);
 }
 
@@ -1553,7 +1553,7 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
                                      Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
   }
   CHECK(!array_and_object_prototypes_.empty());
-  return array_and_object_prototypes_.find(object.object<JSObject>()) !=
+  return array_and_object_prototypes_.find(object.object()) !=
          array_and_object_prototypes_.end();
 }
 
@@ -1702,7 +1702,7 @@ bool ObjectRef::IsSmi() const { return data()->is_smi(); }
 int ObjectRef::AsSmi() const {
   DCHECK(IsSmi());
   // Handle-dereference is always allowed for Handle<Smi>.
-  return object<Smi>()->value();
+  return Handle<Smi>::cast(object())->value();
 }
 
 base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
@@ -1711,7 +1711,7 @@ base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
     AllowHandleDereference allow_handle_dereference;
     AllowHeapAllocation heap_allocation;
     Handle<Map> instance_map;
-    if (Map::TryGetObjectCreateMap(broker()->isolate(), object<HeapObject>())
+    if (Map::TryGetObjectCreateMap(broker()->isolate(), object())
             .ToHandle(&instance_map)) {
       return MapRef(broker(), instance_map);
     } else {
@@ -1735,8 +1735,8 @@ base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
     AllowHandleAllocation handle_allocation;
     AllowHeapAllocation heap_allocation;
     AllowHandleDereference allow_handle_dereference;
-    return MapRef(broker(), Map::AsElementsKind(broker()->isolate(),
-                                                object<Map>(), kind));
+    return MapRef(broker(),
+                  Map::AsElementsKind(broker()->isolate(), object(), kind));
   }
   if (kind == elements_kind()) return *this;
   const ZoneVector<MapData*>& elements_kind_generalizations =
@@ -1752,8 +1752,7 @@ int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation handle_allocation;
-    return object<JSFunction>()->ComputeInstanceSizeWithMinSlack(
-        broker()->isolate());
+    return object()->ComputeInstanceSizeWithMinSlack(broker()->isolate());
   }
   return data()->AsJSFunction()->initial_map_instance_size_with_min_slack();
 }
@@ -1765,9 +1764,9 @@ ScriptContextTableRef::lookup(const NameRef& name) const {
   AllowHandleDereference handle_dereference;
   if (!name.IsString()) return {};
   ScriptContextTable::LookupResult lookup_result;
-  auto table = object<ScriptContextTable>();
+  auto table = object();
   if (!ScriptContextTable::Lookup(broker()->isolate(), table,
-                                  name.object<String>(), &lookup_result)) {
+                                  name.AsString().object(), &lookup_result)) {
     return {};
   }
   Handle<Context> script_context = ScriptContextTable::GetContext(
@@ -1809,7 +1808,7 @@ ObjectRef FeedbackVectorRef::get(FeedbackSlot slot) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
-    Handle<Object> value(object<FeedbackVector>()->Get(slot)->cast<Object>(),
+    Handle<Object> value(object()->Get(slot)->cast<Object>(),
                          broker()->isolate());
     return ObjectRef(broker(), value);
   }
@@ -1820,7 +1819,7 @@ ObjectRef FeedbackVectorRef::get(FeedbackSlot slot) const {
 double JSObjectRef::RawFastDoublePropertyAt(FieldIndex index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference handle_dereference;
-    return object<JSObject>()->RawFastDoublePropertyAt(index);
+    return object()->RawFastDoublePropertyAt(index);
   }
   JSObjectData* object_data = data()->AsJSObject();
   CHECK(index.is_inobject());
@@ -1831,9 +1830,8 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
-    return ObjectRef(broker(),
-                     handle(object<JSObject>()->RawFastPropertyAt(index),
-                            broker()->isolate()));
+    return ObjectRef(broker(), handle(object()->RawFastPropertyAt(index),
+                                      broker()->isolate()));
   }
   JSObjectData* object_data = data()->AsJSObject();
   CHECK(index.is_inobject());
@@ -1848,7 +1846,7 @@ bool AllocationSiteRef::IsFastLiteral() const {
     AllowHandleAllocation allow_handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return IsInlinableFastLiteral(
-        handle(object<AllocationSite>()->boilerplate(), broker()->isolate()));
+        handle(object()->boilerplate(), broker()->isolate()));
   }
   return data()->AsAllocationSite()->IsFastLiteral();
 }
@@ -1859,8 +1857,7 @@ void JSObjectRef::EnsureElementsTenured() {
     AllowHandleDereference allow_handle_dereference;
     AllowHeapAllocation allow_heap_allocation;
 
-    Handle<FixedArrayBase> object_elements =
-        elements().object<FixedArrayBase>();
+    Handle<FixedArrayBase> object_elements = elements().object();
     if (Heap::InNewSpace(*object_elements)) {
       // If we would like to pretenure a fixed cow array, we must ensure that
       // the array is already in old space, otherwise we'll create too many
@@ -1868,7 +1865,7 @@ void JSObjectRef::EnsureElementsTenured() {
       object_elements =
           broker()->isolate()->factory()->CopyAndTenureFixedCOWArray(
               Handle<FixedArray>::cast(object_elements));
-      object<JSObject>()->set_elements(*object_elements);
+      object()->set_elements(*object_elements);
     }
     return;
   }
@@ -1878,7 +1875,7 @@ void JSObjectRef::EnsureElementsTenured() {
 FieldIndex MapRef::GetFieldIndexFor(int descriptor_index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return FieldIndex::ForDescriptor(*object<Map>(), descriptor_index);
+    return FieldIndex::ForDescriptor(*object(), descriptor_index);
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
   return descriptors->contents().at(descriptor_index).field_index;
@@ -1887,7 +1884,7 @@ FieldIndex MapRef::GetFieldIndexFor(int descriptor_index) const {
 int MapRef::GetInObjectPropertyOffset(int i) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return object<Map>()->GetInObjectPropertyOffset(i);
+    return object()->GetInObjectPropertyOffset(i);
   }
   return (GetInObjectPropertiesStartInWords() + i) * kPointerSize;
 }
@@ -1895,7 +1892,7 @@ int MapRef::GetInObjectPropertyOffset(int i) const {
 PropertyDetails MapRef::GetPropertyDetails(int descriptor_index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return object<Map>()->instance_descriptors()->GetDetails(descriptor_index);
+    return object()->instance_descriptors()->GetDetails(descriptor_index);
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
   return descriptors->contents().at(descriptor_index).details;
@@ -1907,7 +1904,7 @@ NameRef MapRef::GetPropertyKey(int descriptor_index) const {
     AllowHandleDereference allow_handle_dereference;
     return NameRef(
         broker(),
-        handle(object<Map>()->instance_descriptors()->GetKey(descriptor_index),
+        handle(object()->instance_descriptors()->GetKey(descriptor_index),
                broker()->isolate()));
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
@@ -1929,7 +1926,7 @@ MapRef MapRef::FindFieldOwner(int descriptor_index) const {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     Handle<Map> owner(
-        object<Map>()->FindFieldOwner(broker()->isolate(), descriptor_index),
+        object()->FindFieldOwner(broker()->isolate(), descriptor_index),
         broker()->isolate());
     return MapRef(broker(), owner);
   }
@@ -1943,7 +1940,7 @@ ObjectRef MapRef::GetFieldType(int descriptor_index) const {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     Handle<FieldType> field_type(
-        object<Map>()->instance_descriptors()->GetFieldType(descriptor_index),
+        object()->instance_descriptors()->GetFieldType(descriptor_index),
         broker()->isolate());
     return ObjectRef(broker(), field_type);
   }
@@ -1955,8 +1952,8 @@ ObjectRef MapRef::GetFieldType(int descriptor_index) const {
 bool MapRef::IsUnboxedDoubleField(int descriptor_index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return object<Map>()->IsUnboxedDoubleField(
-        FieldIndex::ForDescriptor(*object<Map>(), descriptor_index));
+    return object()->IsUnboxedDoubleField(
+        FieldIndex::ForDescriptor(*object(), descriptor_index));
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
   return descriptors->contents().at(descriptor_index).is_unboxed_double_field;
@@ -1965,7 +1962,7 @@ bool MapRef::IsUnboxedDoubleField(int descriptor_index) const {
 uint16_t StringRef::GetFirstChar() {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return object<String>()->Get(0);
+    return object()->Get(0);
   }
   return data()->AsString()->first_char();
 }
@@ -1977,8 +1974,8 @@ base::Optional<double> StringRef::ToNumber() {
     AllowHeapAllocation allow_heap_allocation;
     int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
     return StringToDouble(broker()->isolate(),
-                          broker()->isolate()->unicode_cache(),
-                          object<String>(), flags);
+                          broker()->isolate()->unicode_cache(), object(),
+                          flags);
   }
   return data()->AsString()->to_number();
 }
@@ -1987,8 +1984,7 @@ ObjectRef FixedArrayRef::get(int i) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
-    return ObjectRef(broker(),
-                     handle(object<FixedArray>()->get(i), broker()->isolate()));
+    return ObjectRef(broker(), handle(object()->get(i), broker()->isolate()));
   }
   return ObjectRef(broker(), data()->AsFixedArray()->Get(i));
 }
@@ -1996,7 +1992,7 @@ ObjectRef FixedArrayRef::get(int i) const {
 bool FixedDoubleArrayRef::is_the_hole(int i) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return object<FixedDoubleArray>()->is_the_hole(i);
+    return object()->is_the_hole(i);
   }
   return data()->AsFixedDoubleArray()->Get(i).is_hole_nan();
 }
@@ -2004,7 +2000,7 @@ bool FixedDoubleArrayRef::is_the_hole(int i) const {
 double FixedDoubleArrayRef::get_scalar(int i) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return object<FixedDoubleArray>()->get_scalar(i);
+    return object()->get_scalar(i);
   }
   CHECK(!data()->AsFixedDoubleArray()->Get(i).is_hole_nan());
   return data()->AsFixedDoubleArray()->Get(i).get_scalar();
@@ -2014,15 +2010,15 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {     \
     AllowHandleAllocation handle_allocation;             \
     AllowHandleDereference allow_handle_dereference;     \
-    return object<holder>()->name();                     \
+    return object()->name();                             \
   }
 
-#define IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name)                 \
-  if (broker()->mode() == JSHeapBroker::kDisabled) {                           \
-    AllowHandleAllocation handle_allocation;                                   \
-    AllowHandleDereference allow_handle_dereference;                           \
-    return result##Ref(broker(),                                               \
-                       handle(object<holder>()->name(), broker()->isolate())); \
+#define IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name)         \
+  if (broker()->mode() == JSHeapBroker::kDisabled) {                   \
+    AllowHandleAllocation handle_allocation;                           \
+    AllowHandleDereference allow_handle_dereference;                   \
+    return result##Ref(broker(),                                       \
+                       handle(object()->name(), broker()->isolate())); \
   }
 
 // Macros for definining a const getter that, depending on the broker mode,
@@ -2107,8 +2103,7 @@ BIMODAL_ACCESSOR_C(String, int, length)
 void* JSTypedArrayRef::elements_external_pointer() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return FixedTypedArrayBase::cast(object<JSTypedArray>()->elements())
-        ->external_pointer();
+    return FixedTypedArrayBase::cast(object()->elements())->external_pointer();
   }
   return data()->AsJSTypedArray()->elements_external_pointer();
 }
@@ -2219,7 +2214,7 @@ base::Optional<JSFunctionRef> NativeContextRef::GetConstructorFunction(
 bool ObjectRef::BooleanValue() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return object<Object>()->BooleanValue(broker()->isolate());
+    return object()->BooleanValue(broker()->isolate());
   }
   return IsSmi() ? (AsSmi() != 0) : data()->AsHeapObject()->boolean_value();
 }
@@ -2263,8 +2258,8 @@ CellRef ModuleRef::GetCell(int cell_index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
-    return CellRef(broker(), handle(object<Module>()->GetCell(cell_index),
-                                    broker()->isolate()));
+    return CellRef(broker(),
+                   handle(object()->GetCell(cell_index), broker()->isolate()));
   }
   return CellRef(broker(), data()->AsModule()->GetCell(cell_index));
 }
@@ -2345,8 +2340,8 @@ base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
-    return JSObjectRef(broker(), handle(object<AllocationSite>()->boilerplate(),
-                                        broker()->isolate()));
+    return JSObjectRef(broker(),
+                       handle(object()->boilerplate(), broker()->isolate()));
   }
   JSObjectData* boilerplate = data()->AsAllocationSite()->boilerplate();
   if (boilerplate) {
@@ -2364,8 +2359,8 @@ FixedArrayBaseRef JSObjectRef::elements() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
-    return FixedArrayBaseRef(
-        broker(), handle(object<JSObject>()->elements(), broker()->isolate()));
+    return FixedArrayBaseRef(broker(),
+                             handle(object()->elements(), broker()->isolate()));
   }
   return FixedArrayBaseRef(broker(), data()->AsJSObject()->elements());
 }
@@ -2417,6 +2412,13 @@ ObjectRef JSRegExpRef::source() const {
 }
 
 Handle<Object> ObjectRef::object() const { return data_->object(); }
+
+#define DEF_OBJECT_GETTER(T)                                            \
+  Handle<T> T##Ref::object() const {                                    \
+    return Handle<T>(reinterpret_cast<T**>(data_->object().address())); \
+  }
+HEAP_BROKER_OBJECT_LIST(DEF_OBJECT_GETTER)
+#undef DEF_OBJECT_GETTER
 
 JSHeapBroker* ObjectRef::broker() const { return broker_; }
 
