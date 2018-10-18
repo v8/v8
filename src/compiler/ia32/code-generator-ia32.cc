@@ -676,10 +676,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   switch (arch_opcode) {
     case kArchCallCodeObject: {
       MoveOperandIfAliasedWithPoisonRegister(instr, this);
-      if (HasImmediateInput(instr, 0)) {
+      InstructionOperand* op = instr->InputAt(0);
+      if (op->IsImmediate()) {
         Handle<Code> code = i.InputCode(0);
         __ Call(code, RelocInfo::CODE_TARGET);
-      } else {
+      } else if (op->IsRegister()) {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
@@ -690,6 +691,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           __ call(reg);
         }
+      } else {
+        CHECK(tasm()->root_array_available());
+        // This is used to allow calls to the arguments adaptor trampoline from
+        // code that only has 5 gp registers available and cannot call through
+        // an immediate. This happens when the arguments adaptor trampoline is
+        // not an embedded builtin.
+        // TODO(v8:6666): Remove once only embedded builtins are supported.
+        __ push(eax);
+        frame_access_state()->IncreaseSPDelta(1);
+        TurboAssembler::AllowExplicitEbxAccessScope read_only_access(tasm());
+        Operand virtual_call_target_register(
+            kRootRegister,
+            IsolateData::kVirtualCallTargetRegisterOffset - kRootRegisterBias);
+        __ mov(eax, i.InputOperand(0));
+        __ add(eax, Immediate(Code::kHeaderSize - kHeapObjectTag));
+        __ mov(virtual_call_target_register, eax);
+        __ pop(eax);
+        frame_access_state()->IncreaseSPDelta(-1);
+        __ call(virtual_call_target_register);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();

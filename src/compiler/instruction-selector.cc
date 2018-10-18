@@ -886,6 +886,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   bool call_code_immediate = (flags & kCallCodeImmediate) != 0;
   bool call_address_immediate = (flags & kCallAddressImmediate) != 0;
   bool call_use_fixed_target_reg = (flags & kCallFixedTargetRegister) != 0;
+  bool call_through_slot = (flags & kAllowCallThroughSlot) != 0;
   switch (buffer->descriptor->kind()) {
     case CallDescriptor::kCallCodeObject:
       // TODO(jgruber, v8:7449): The below is a hack to support tail-calls from
@@ -899,7 +900,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
               : call_use_fixed_target_reg
                     ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
                     : is_tail_call ? g.UseUniqueRegister(callee)
-                                   : g.UseRegister(callee));
+                                   : call_through_slot ? g.UseUniqueSlot(callee)
+                                                       : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallAddress:
       buffer->instruction_args.push_back(
@@ -2577,6 +2579,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   }
 
   CallBuffer buffer(zone(), call_descriptor, frame_state_descriptor);
+  CallDescriptor::Flags flags = call_descriptor->flags();
 
   // Compute InstructionOperands for inputs and outputs.
   // TODO(turbofan): on some architectures it's probably better to use
@@ -2584,12 +2587,21 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Improve constant pool and the heuristics in the register allocator
   // for where to emit constants.
   CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
+  if (flags & CallDescriptor::kAllowCallThroughSlot) {
+    // TODO(v8:6666): Remove kAllowCallThroughSlot and use a pc-relative call
+    // instead once builtins are embedded in every build configuration.
+    DCHECK(FLAG_embedded_builtins);
+    call_buffer_flags |= kAllowCallThroughSlot;
+#ifndef V8_TARGET_ARCH_32_BIT
+    // kAllowCallThroughSlot is only supported on ia32.
+    UNREACHABLE();
+#endif
+  }
   InitializeCallBuffer(node, &buffer, call_buffer_flags, false);
 
   EmitPrepareArguments(&(buffer.pushed_nodes), call_descriptor, node);
 
   // Pass label of exception handler block.
-  CallDescriptor::Flags flags = call_descriptor->flags();
   if (handler) {
     DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
     flags |= CallDescriptor::kHasExceptionHandler;
@@ -2657,6 +2669,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   if (callee->flags() & CallDescriptor::kFixedTargetRegister) {
     flags |= kCallFixedTargetRegister;
   }
+  DCHECK_EQ(callee->flags() & CallDescriptor::kAllowCallThroughSlot, 0);
   InitializeCallBuffer(node, &buffer, flags, true, stack_param_delta);
 
   // Select the appropriate opcode based on the call type.

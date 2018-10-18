@@ -191,7 +191,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kRetpoline = 1u << 6,
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
-    kFixedTargetRegister = 1u << 7
+    kFixedTargetRegister = 1u << 7,
+    kAllowCallThroughSlot = 1u << 8
   };
   typedef base::Flags<Flag> Flags;
 

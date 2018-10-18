@@ -4626,9 +4626,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           args[pos++] = undefined_node;
         }
 
+        CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+#ifdef V8_TARGET_ARCH_IA32
+        // TODO(v8:6666): Remove kAllowCallThroughSlot and use a pc-relative
+        // call instead once builtins are embedded in every build configuration.
+        flags = FLAG_embedded_builtins ? CallDescriptor::kAllowCallThroughSlot
+                                       : CallDescriptor::kNoFlags;
+#endif
         auto call_descriptor = Linkage::GetStubCallDescriptor(
             mcgraph()->zone(), ArgumentsAdaptorDescriptor{}, 1 + wasm_count,
-            CallDescriptor::kNoFlags, Operator::kNoProperties);
+            flags, Operator::kNoProperties);
 
         // Convert wasm numbers to JS values.
         pos = AddArgumentNodes(args, pos, wasm_count, sig_);
