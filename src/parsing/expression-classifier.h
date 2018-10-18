@@ -222,9 +222,7 @@ class ExpressionClassifierErrorTracker
     reported_errors_begin_ = reported_errors_end_ = reported_errors_->length();
   }
 
-  ~ExpressionClassifierErrorTracker() override { Discard(); }
-
-  V8_INLINE void Discard() {
+  ~ExpressionClassifierErrorTracker() override {
     if (reported_errors_end_ == reported_errors_->length()) {
       reported_errors_->Rewind(reported_errors_begin_);
       reported_errors_end_ = reported_errors_begin_;
@@ -364,8 +362,6 @@ class ExpressionClassifierEmptyErrorTracker
 
   explicit ExpressionClassifierEmptyErrorTracker(typename Types::Base* base)
       : BaseClassType(base) {}
-
-  V8_INLINE void Discard() {}
 
  protected:
   V8_INLINE const Error& reported_error(ErrorKind kind) const {

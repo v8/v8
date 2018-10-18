@@ -1461,14 +1461,6 @@ class ParserBase {
                        ExpressionClassifier::LetPatternProduction));
   }
 
-  // Pops and discards the classifier that is on top of the stack
-  // without accumulating.
-  V8_INLINE void DiscardExpressionClassifier() {
-    DCHECK_NOT_NULL(classifier_);
-    classifier_->Discard();
-    classifier_ = classifier_->previous();
-  }
-
   // Accumulate errors that can be arbitrarily deep in an expression.
   // These correspond to the ECMAScript spec's 'Contains' operation
   // on productions. This includes:
@@ -3650,14 +3642,14 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
       *ok = false;
       return;
     }
-    ExpressionClassifier init_classifier(this);
-    initializer = ParseAssignmentExpression(true, CHECK_OK_CUSTOM(Void));
-    ValidateExpression(CHECK_OK_CUSTOM(Void));
-    ValidateFormalParameterInitializer(CHECK_OK_CUSTOM(Void));
-    parameters->is_simple = false;
-    DiscardExpressionClassifier();
+    {
+      ExpressionClassifier init_classifier(this);
+      initializer = ParseAssignmentExpression(true, CHECK_OK_CUSTOM(Void));
+      ValidateExpression(CHECK_OK_CUSTOM(Void));
+      ValidateFormalParameterInitializer(CHECK_OK_CUSTOM(Void));
+      parameters->is_simple = false;
+    }
     classifier()->RecordNonSimpleParameter();
-
     impl()->SetFunctionNameFromIdentifierRef(initializer, pattern);
   }
 
