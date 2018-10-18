@@ -1365,11 +1365,13 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       break;
 
     case Token::ASYNC:
-      // TODO(neis): Why don't we have the same check here as in
-      // ParseStatementListItem?
       Consume(Token::ASYNC);
-      result = ParseAsyncFunctionDeclaration(&names, false, CHECK_OK);
-      break;
+      if (peek() == Token::FUNCTION &&
+          !scanner()->HasLineTerminatorBeforeNext()) {
+        result = ParseAsyncFunctionDeclaration(&names, false, CHECK_OK);
+        break;
+      }
+      V8_FALLTHROUGH;
 
     default:
       *ok = false;

@@ -681,7 +681,13 @@ class ParserBase {
   }
 
   void Consume(Token::Value token) {
-    Token::Value next = Next();
+    Token::Value next = scanner()->Next();
+    if (GetCurrentStackPosition() < stack_limit_) {
+      // Any further calls to Next or peek will return the illegal token.
+      // The current call must return the next token, which might already
+      // have been peek'ed.
+      set_stack_overflow();
+    }
     USE(next);
     USE(token);
     DCHECK_EQ(next, token);
@@ -1667,8 +1673,7 @@ ParserBase<Impl>::ParseIdentifierNameOrPrivateName(bool* ok) {
   int pos = position();
   IdentifierT name;
   ExpressionT key;
-  if (allow_harmony_private_fields() && peek() == Token::PRIVATE_NAME) {
-    Consume(Token::PRIVATE_NAME);
+  if (allow_harmony_private_fields() && Check(Token::PRIVATE_NAME)) {
     name = impl()->GetSymbol();
     auto key_proxy =
         impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
@@ -2883,7 +2888,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
       scanner()->peek_location(), MessageTemplate::kInvalidDestructuringTarget);
   classifier()->RecordFormalParameterInitializerError(
       scanner()->peek_location(), MessageTemplate::kYieldInParameter);
-  Expect(Token::YIELD, CHECK_OK);
+  Consume(Token::YIELD);
   // The following initialization is necessary.
   ExpressionT expression = impl()->NullExpression();
   bool delegating = false;  // yield*
@@ -3496,7 +3501,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseImportExpressions(
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
     bool is_new, bool* ok) {
-  Expect(Token::SUPER, CHECK_OK);
+  Consume(Token::SUPER);
   int pos = position();
 
   DeclarationScope* scope = GetReceiverScope();
@@ -3866,7 +3871,7 @@ template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseHoistableDeclaration(
     ZonePtrList<const AstRawString>* names, bool default_export, bool* ok) {
-  Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
+  Consume(Token::FUNCTION);
   int pos = position();
   ParseFunctionFlags flags = ParseFunctionFlag::kIsNormal;
   if (Check(Token::MUL)) {
@@ -3997,7 +4002,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseNativeDeclaration(
   function_state_->DisableOptimization(BailoutReason::kNativeFunctionLiteral);
 
   int pos = peek_position();
-  Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
+  Consume(Token::FUNCTION);
   // Allow "eval" or "arguments" for backward compatibility.
   IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers,
                                      CHECK_OK_CUSTOM(NullStatement));
@@ -4022,12 +4027,8 @@ ParserBase<Impl>::ParseAsyncFunctionDeclaration(
   //       ( FormalParameters[Await] ) { AsyncFunctionBody }
   DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
   int pos = position();
-  if (scanner()->HasLineTerminatorBeforeNext()) {
-    *ok = false;
-    impl()->ReportUnexpectedToken(scanner()->current_token());
-    return impl()->NullStatement();
-  }
-  Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
+  DCHECK(!scanner()->HasLineTerminatorBeforeNext());
+  Consume(Token::FUNCTION);
   ParseFunctionFlags flags = ParseFunctionFlag::kIsAsync;
   return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
 }
@@ -4225,7 +4226,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
-  if (peek() == Token::ARROW && scanner_->HasLineTerminatorBeforeNext()) {
+  DCHECK_EQ(Token::ARROW, peek());
+  if (scanner_->HasLineTerminatorBeforeNext()) {
     // ASI inserts `;` after arrow parameters if a line terminator is found.
     // `=> ...` is never a valid expression, so report as syntax error.
     // If next token is not `=>`, it's a syntax error anyways.
@@ -4259,7 +4261,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     function_state.AdoptDestructuringAssignmentsFromParentState(
         rewritable_length);
 
-    Expect(Token::ARROW, CHECK_OK);
+    Consume(Token::ARROW);
 
     if (peek() == Token::LBRACE) {
       // Multiple statement body
@@ -4470,7 +4472,7 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
   //       ( FormalParameters[Await] ) { AsyncFunctionBody }
   DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
   int pos = position();
-  Expect(Token::FUNCTION, CHECK_OK);
+  Consume(Token::FUNCTION);
   bool is_strict_reserved = false;
   IdentifierT name = impl()->NullIdentifier();
   FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
@@ -4675,7 +4677,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseDoExpression(
   //     do '{' StatementList '}'
 
   int pos = peek_position();
-  Expect(Token::DO, CHECK_OK);
+  Consume(Token::DO);
   BlockT block = ParseBlock(nullptr, CHECK_OK);
   return impl()->RewriteDoExpression(block, pos, ok);
 }
@@ -5011,7 +5013,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDebuggerStatement(
   //   'debugger' ';'
 
   int pos = peek_position();
-  Expect(Token::DEBUGGER, CHECK_OK);
+  Consume(Token::DEBUGGER);
   ExpectSemicolon(CHECK_OK);
   return factory()->NewDebuggerStatement(pos);
 }
@@ -5096,7 +5098,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
   //   'if' '(' Expression ')' Statement ('else' Statement)?
 
   int pos = peek_position();
-  Expect(Token::IF, CHECK_OK);
+  Consume(Token::IF);
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT condition = ParseExpression(CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
@@ -5128,7 +5130,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
   //   'continue' Identifier? ';'
 
   int pos = peek_position();
-  Expect(Token::CONTINUE, CHECK_OK);
+  Consume(Token::CONTINUE);
   IdentifierT label = impl()->NullIdentifier();
   Token::Value tok = peek();
   if (!scanner()->HasLineTerminatorBeforeNext() &&
@@ -5165,7 +5167,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
   //   'break' Identifier? ';'
 
   int pos = peek_position();
-  Expect(Token::BREAK, CHECK_OK);
+  Consume(Token::BREAK);
   IdentifierT label = impl()->NullIdentifier();
   Token::Value tok = peek();
   if (!scanner()->HasLineTerminatorBeforeNext() &&
@@ -5206,7 +5208,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   // Consume the return token. It is necessary to do that before
   // reporting any errors on it, because of the way errors are
   // reported (underlining).
-  Expect(Token::RETURN, CHECK_OK);
+  Consume(Token::RETURN);
   Scanner::Location loc = scanner()->location();
 
   switch (GetDeclarationScope()->scope_type()) {
@@ -5244,7 +5246,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
 
-  Expect(Token::WITH, CHECK_OK);
+  Consume(Token::WITH);
   int pos = position();
 
   if (is_strict(language_mode())) {
@@ -5282,7 +5284,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   SourceRange body_range;
   StatementT body = impl()->NullStatement();
 
-  Expect(Token::DO, CHECK_OK);
+  Consume(Token::DO);
   {
     SourceRangeScope range_scope(scanner(), &body_range);
     body = ParseStatement(nullptr, nullptr, CHECK_OK);
@@ -5318,7 +5320,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
   SourceRange body_range;
   StatementT body = impl()->NullStatement();
 
-  Expect(Token::WHILE, CHECK_OK);
+  Consume(Token::WHILE);
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT cond = ParseExpression(CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
@@ -5339,7 +5341,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseThrowStatement(
   // ThrowStatement ::
   //   'throw' Expression ';'
 
-  Expect(Token::THROW, CHECK_OK);
+  Consume(Token::THROW);
   int pos = position();
   if (scanner()->HasLineTerminatorBeforeNext()) {
     ReportMessage(MessageTemplate::kNewlineAfterThrow);
@@ -5366,7 +5368,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
 
   int switch_pos = peek_position();
 
-  Expect(Token::SWITCH, CHECK_OK);
+  Consume(Token::SWITCH);
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT tag = ParseExpression(CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
@@ -5438,7 +5440,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
   // Finally ::
   //   'finally' Block
 
-  Expect(Token::TRY, CHECK_OK);
+  Consume(Token::TRY);
   int pos = position();
 
   BlockT try_block = ParseBlock(nullptr, CHECK_OK);
@@ -5537,7 +5539,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   int stmt_pos = peek_position();
   ForInfo for_info(this);
 
-  Expect(Token::FOR, CHECK_OK);
+  Consume(Token::FOR);
   Expect(Token::LPAREN, CHECK_OK);
 
   if (peek() == Token::CONST || (peek() == Token::LET && IsNextLetKeyword())) {
