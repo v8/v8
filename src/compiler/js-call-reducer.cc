@@ -3663,6 +3663,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReducePromisePrototypeFinally(node);
     case Builtins::kPromisePrototypeThen:
       return ReducePromisePrototypeThen(node);
+    case Builtins::kPromiseResolveTrampoline:
+      return ReducePromiseResolveTrampoline(node);
     case Builtins::kMapPrototypeEntries:
       return ReduceCollectionIteration(node, CollectionKind::kMap,
                                        IterationKind::kEntries);
