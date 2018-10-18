@@ -451,16 +451,14 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     }
   }
 
-  // Setup the map for the resulting JSBoundFunction with the
-  // correct instance {prototype}.
+  // Choose the map for the resulting JSBoundFunction (but bail out in case of a
+  // custom prototype).
   Handle<Map> map(
       is_constructor
           ? native_context()->bound_function_with_constructor_map()
           : native_context()->bound_function_without_constructor_map(),
       isolate());
-  if (map->prototype() != *prototype) {
-    map = Map::TransitionToPrototype(isolate(), map, prototype);
-  }
+  if (map->prototype() != *prototype) return NoChange();
 
   // Make sure we can rely on the {receiver_maps}.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
