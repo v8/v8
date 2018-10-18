@@ -42,6 +42,7 @@
 #include "src/objects/js-regexp.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format.h"
+#include "src/objects/js-segment-iterator.h"
 #include "src/objects/js-segmenter.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-weak-refs.h"
@@ -4766,17 +4767,69 @@ void Genesis::InitializeGlobal_harmony_intl_segmenter() {
   SimpleInstallFunction(isolate(), segmenter_fun, "supportedLocalesOf",
                         Builtins::kSegmenterSupportedLocalesOf, 1, false);
 
-  // Setup %SegmenterPrototype%.
-  Handle<JSObject> prototype(
-      JSObject::cast(segmenter_fun->instance_prototype()), isolate());
+  {
+    // Setup %SegmenterPrototype%.
+    Handle<JSObject> prototype(
+        JSObject::cast(segmenter_fun->instance_prototype()), isolate());
 
-  // Install the @@toStringTag property on the {prototype}.
-  JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
-                        factory()->NewStringFromStaticChars("Intl.Segmenter"),
-                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        isolate(), prototype, factory()->to_string_tag_symbol(),
+        factory()->NewStringFromStaticChars("Intl.Segmenter"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-  SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
-                        Builtins::kSegmenterPrototypeResolvedOptions, 0, false);
+    SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
+                          Builtins::kSegmenterPrototypeResolvedOptions, 0,
+                          false);
+
+    SimpleInstallFunction(isolate(), prototype, "segment",
+                          Builtins::kSegmenterPrototypeSegment, 1, false);
+  }
+
+  {
+    // Setup %SegmentIteratorPrototype%.
+    Handle<String> name = factory()->SegmentIterator_string();
+    Handle<JSObject> iterator_prototype(
+        native_context()->initial_iterator_prototype(), isolate());
+
+    Handle<JSObject> prototype =
+        factory()->NewJSObject(isolate()->object_function(), TENURED);
+    JSObject::ForceSetPrototype(prototype, iterator_prototype);
+
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        isolate(), prototype, factory()->to_string_tag_symbol(), name,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    SimpleInstallFunction(isolate(), prototype, "next",
+                          Builtins::kSegmentIteratorPrototypeNext, 0, false);
+
+    SimpleInstallFunction(isolate(), prototype, "following",
+                          Builtins::kSegmentIteratorPrototypeFollowing, 0,
+                          false);
+
+    SimpleInstallFunction(isolate(), prototype, "preceding",
+                          Builtins::kSegmentIteratorPrototypePreceding, 0,
+                          false);
+
+    SimpleInstallGetter(isolate(), prototype,
+                        factory()->InternalizeUtf8String("position"),
+                        Builtins::kSegmentIteratorPrototypePosition, false);
+
+    SimpleInstallGetter(isolate(), prototype,
+                        factory()->InternalizeUtf8String("breakType"),
+                        Builtins::kSegmentIteratorPrototypeBreakType, false);
+
+    // Setup SegmentIterator constructor.
+    Handle<JSFunction> segment_iterator_fun = InstallFunction(
+        isolate(), intl, "SegmentIterator", JS_INTL_SEGMENT_ITERATOR_TYPE,
+        JSSegmentIterator::kSize, 0, prototype, Builtins::kIllegal);
+    segment_iterator_fun->shared()->set_native(false);
+
+    Handle<Map> segment_iterator_map(segment_iterator_fun->initial_map(),
+                                     isolate());
+    native_context()->set_intl_segment_iterator_map(*segment_iterator_map);
+  }
 }
 
 #endif  // V8_INTL_SUPPORT

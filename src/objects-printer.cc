@@ -38,6 +38,7 @@
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-weak-refs-inl.h"
@@ -354,6 +355,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatPrint(os);
+      break;
+    case JS_INTL_SEGMENT_ITERATOR_TYPE:
+      JSSegmentIterator::cast(this)->JSSegmentIteratorPrint(os);
       break;
     case JS_INTL_SEGMENTER_TYPE:
       JSSegmenter::cast(this)->JSSegmenterPrint(os);
@@ -2071,12 +2075,20 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(
   os << "\n";
 }
 
+void JSSegmentIterator::JSSegmentIteratorPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSSegmentIterator");
+  os << "\n - icu break iterator: " << Brief(icu_break_iterator());
+  os << "\n - unicode string: " << Brief(unicode_string());
+  os << "\n - granularity: " << GranularityAsString();
+  os << "\n";
+}
+
 void JSSegmenter::JSSegmenterPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSSegmenter");
   os << "\n - locale: " << Brief(locale());
   os << "\n - granularity: " << GranularityAsString();
   os << "\n - lineBreakStyle: " << LineBreakStyleAsString();
-  os << "\n - icubreak iterator: " << Brief(icu_break_iterator());
+  os << "\n - icu break iterator: " << Brief(icu_break_iterator());
   os << "\n";
 }
 #endif  // V8_INTL_SUPPORT

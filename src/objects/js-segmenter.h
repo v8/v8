@@ -37,6 +37,7 @@ class JSSegmenter : public JSObject {
       Isolate* isolate, Handle<JSSegmenter> segmenter_holder);
 
   Handle<String> LineBreakStyleAsString() const;
+  const char* LineBreakStyleAsCString() const;
   Handle<String> GranularityAsString() const;
 
   DECL_CAST(JSSegmenter)

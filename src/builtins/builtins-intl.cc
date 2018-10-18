@@ -26,6 +26,7 @@
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
 #include "src/property-descriptor.h"
 
@@ -1014,6 +1015,62 @@ BUILTIN(CollatorInternalCompare) {
   return *Intl::CompareStrings(isolate, collator_holder, string_x, string_y);
 }
 
+// ecma402 #sec-segment-iterator-prototype-breakType
+BUILTIN(SegmentIteratorPrototypeBreakType) {
+  const char* const method = "get %SegmentIteratorPrototype%.breakType";
+  HandleScope scope(isolate);
+
+  CHECK_RECEIVER(JSSegmentIterator, segment_iterator, method);
+  return *segment_iterator->BreakType();
+}
+
+// ecma402 #sec-segment-iterator-prototype-following
+BUILTIN(SegmentIteratorPrototypeFollowing) {
+  const char* const method = "%SegmentIteratorPrototype%.following";
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSSegmentIterator, segment_iterator, method);
+
+  Handle<Object> from = args.atOrUndefined(isolate, 1);
+
+  Maybe<bool> success =
+      JSSegmentIterator::Following(isolate, segment_iterator, from);
+  MAYBE_RETURN(success, ReadOnlyRoots(isolate).exception());
+  return *isolate->factory()->ToBoolean(success.FromJust());
+}
+
+// ecma402 #sec-segment-iterator-prototype-next
+BUILTIN(SegmentIteratorPrototypeNext) {
+  const char* const method = "%SegmentIteratorPrototype%.next";
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSSegmentIterator, segment_iterator, method);
+
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSSegmentIterator::Next(isolate, segment_iterator));
+}
+
+// ecma402 #sec-segment-iterator-prototype-preceding
+BUILTIN(SegmentIteratorPrototypePreceding) {
+  const char* const method = "%SegmentIteratorPrototype%.preceding";
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSSegmentIterator, segment_iterator, method);
+
+  Handle<Object> from = args.atOrUndefined(isolate, 1);
+
+  Maybe<bool> success =
+      JSSegmentIterator::Preceding(isolate, segment_iterator, from);
+  MAYBE_RETURN(success, ReadOnlyRoots(isolate).exception());
+  return *isolate->factory()->ToBoolean(success.FromJust());
+}
+
+// ecma402 #sec-segment-iterator-prototype-position
+BUILTIN(SegmentIteratorPrototypePosition) {
+  const char* const method = "get %SegmentIteratorPrototype%.position";
+  HandleScope scope(isolate);
+
+  CHECK_RECEIVER(JSSegmentIterator, segment_iterator, method);
+  return *JSSegmentIterator::Position(isolate, segment_iterator);
+}
+
 BUILTIN(SegmenterConstructor) {
   HandleScope scope(isolate);
 
@@ -1061,6 +1118,25 @@ BUILTIN(SegmenterPrototypeResolvedOptions) {
   CHECK_RECEIVER(JSSegmenter, segmenter_holder,
                  "Intl.Segmenter.prototype.resolvedOptions");
   return *JSSegmenter::ResolvedOptions(isolate, segmenter_holder);
+}
+
+// ecma402 #sec-Intl.Segmenter.prototype.segment
+BUILTIN(SegmenterPrototypeSegment) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSSegmenter, segmenter_holder,
+                 "Intl.Segmenter.prototype.segment");
+  Handle<Object> input_text = args.atOrUndefined(isolate, 1);
+  // 3. Let string be ? ToString(string).
+  Handle<String> text;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, text,
+                                     Object::ToString(isolate, input_text));
+
+  // 4. Return ? CreateSegmentIterator(segment, string).
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      JSSegmentIterator::Create(
+          isolate, segmenter_holder->icu_break_iterator()->raw()->clone(),
+          segmenter_holder->granularity(), text));
 }
 
 BUILTIN(V8BreakIteratorConstructor) {

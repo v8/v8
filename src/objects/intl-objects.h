@@ -16,10 +16,12 @@
 #include "src/contexts.h"
 #include "src/intl.h"
 #include "src/objects.h"
+#include "src/objects/managed.h"
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
 namespace U_ICU_NAMESPACE {
+class BreakIterator;
 class DecimalFormat;
 class SimpleDateFormat;
 class UnicodeString;
@@ -218,6 +220,11 @@ class Intl {
       Isolate* isolate, const std::set<std::string>& available_locales,
       const std::vector<std::string>& requested_locales, MatcherOption options,
       const std::set<std::string>& relevant_extension_keys);
+
+  // Utility function to set text to BreakIterator.
+  static Managed<icu::UnicodeString>* SetTextToBreakIterator(
+      Isolate* isolate, Handle<String> text,
+      icu::BreakIterator* break_iterator);
 };
 
 }  // namespace internal

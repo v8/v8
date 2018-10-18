@@ -29,36 +29,6 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6891
-  'segmenter/segment': [FAIL],
-  'segmenter/segment-grapheme': [FAIL],
-  'segmenter/segment-grapheme-following': [FAIL],
-  'segmenter/segment-grapheme-iterable': [FAIL],
-  'segmenter/segment-grapheme-next': [FAIL],
-  'segmenter/segment-grapheme-preceding': [FAIL],
-  'segmenter/segment-iterator': [FAIL],
-  'segmenter/segment-iterator-breakType': [FAIL],
-  'segmenter/segment-iterator-following': [FAIL],
-  'segmenter/segment-iterator-next': [FAIL],
-  'segmenter/segment-iterator-position': [FAIL],
-  'segmenter/segment-iterator-preceding': [FAIL],
-  'segmenter/segment-line': [FAIL],
-  'segmenter/segment-line-following': [FAIL],
-  'segmenter/segment-line-following-modes': [FAIL],
-  'segmenter/segment-line-iterable': [FAIL],
-  'segmenter/segment-line-next': [FAIL],
-  'segmenter/segment-line-preceding': [FAIL],
-  'segmenter/segment-sentence': [FAIL],
-  'segmenter/segment-sentence-following': [FAIL],
-  'segmenter/segment-sentence-iterable': [FAIL],
-  'segmenter/segment-sentence-next': [FAIL],
-  'segmenter/segment-sentence-preceding': [FAIL],
-  'segmenter/segment-word': [FAIL],
-  'segmenter/segment-word-following': [FAIL],
-  'segmenter/segment-word-iterable': [FAIL],
-  'segmenter/segment-word-next': [FAIL],
-  'segmenter/segment-word-preceding': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {

@@ -1557,5 +1557,25 @@ Intl::ResolvedLocale Intl::ResolveLocale(
   return Intl::ResolvedLocale{locale, icu_locale, extensions};
 }
 
+Managed<icu::UnicodeString>* Intl::SetTextToBreakIterator(
+    Isolate* isolate, Handle<String> text, icu::BreakIterator* break_iterator) {
+  icu::UnicodeString* u_text;
+  int length = text->length();
+  text = String::Flatten(isolate, text);
+  {
+    DisallowHeapAllocation no_gc;
+    String::FlatContent flat = text->GetFlatContent();
+    std::unique_ptr<uc16[]> sap;
+    const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
+    u_text = new icu::UnicodeString(text_value, length);
+  }
+
+  Handle<Managed<icu::UnicodeString>> new_u_text =
+      Managed<icu::UnicodeString>::FromRawPtr(isolate, 0, u_text);
+
+  break_iterator->setText(*u_text);
+  return *new_u_text;
+}
+
 }  // namespace internal
 }  // namespace v8

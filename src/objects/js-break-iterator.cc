@@ -146,25 +146,12 @@ Handle<JSObject> JSV8BreakIterator::ResolvedOptions(
 void JSV8BreakIterator::AdoptText(
     Isolate* isolate, Handle<JSV8BreakIterator> break_iterator_holder,
     Handle<String> text) {
-  icu::UnicodeString* u_text;
-  int length = text->length();
-  text = String::Flatten(isolate, text);
-  {
-    DisallowHeapAllocation no_gc;
-    String::FlatContent flat = text->GetFlatContent();
-    std::unique_ptr<uc16[]> sap;
-    const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
-    u_text = new icu::UnicodeString(text_value, length);
-  }
-
-  Handle<Managed<icu::UnicodeString>> new_u_text =
-      Managed<icu::UnicodeString>::FromRawPtr(isolate, 0, u_text);
-  break_iterator_holder->set_unicode_string(*new_u_text);
-
   icu::BreakIterator* break_iterator =
       break_iterator_holder->break_iterator()->raw();
   CHECK_NOT_NULL(break_iterator);
-  break_iterator->setText(*u_text);
+  Managed<icu::UnicodeString>* unicode_string =
+      Intl::SetTextToBreakIterator(isolate, text, break_iterator);
+  break_iterator_holder->set_unicode_string(unicode_string);
 }
 
 Handle<String> JSV8BreakIterator::TypeAsString() const {

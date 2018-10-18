@@ -156,13 +156,21 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
       icu_break_iterator.reset(
           icu::BreakIterator::createSentenceInstance(icu_locale, status));
       break;
-    case Granularity::LINE:
-      icu_break_iterator.reset(
-          icu::BreakIterator::createLineInstance(icu_locale, status));
+    case Granularity::LINE: {
       // 15. If granularity is "line",
       // a. Set segmenter.[[SegmenterLineBreakStyle]] to r.[[lb]].
-      // TBW
+      const char* key = uloc_toLegacyKey("lb");
+      CHECK_NOT_NULL(key);
+      const char* value =
+          uloc_toLegacyType(key, segmenter_holder->LineBreakStyleAsCString());
+      CHECK_NOT_NULL(value);
+      UErrorCode status = U_ZERO_ERROR;
+      icu_locale.setKeywordValue(key, value, status);
+      CHECK(U_SUCCESS(status));
+      icu_break_iterator.reset(
+          icu::BreakIterator::createLineInstance(icu_locale, status));
       break;
+    }
     case Granularity::COUNT:
       UNREACHABLE();
   }
@@ -192,6 +200,20 @@ Handle<JSObject> JSSegmenter::ResolvedOptions(
   JSObject::AddProperty(isolate, result, factory->granularity_string(),
                         segmenter_holder->GranularityAsString(), NONE);
   return result;
+}
+
+const char* JSSegmenter::LineBreakStyleAsCString() const {
+  switch (line_break_style()) {
+    case LineBreakStyle::STRICT:
+      return "strict";
+    case LineBreakStyle::NORMAL:
+      return "normal";
+    case LineBreakStyle::LOOSE:
+      return "loose";
+    case LineBreakStyle::COUNT:
+    case LineBreakStyle::NOTSET:
+      UNREACHABLE();
+  }
 }
 
 Handle<String> JSSegmenter::LineBreakStyleAsString() const {

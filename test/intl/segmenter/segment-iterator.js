@@ -4,7 +4,6 @@
 
 // Flags: --harmony-intl-segmenter
 
-let descriptor;
 const text = "Hello World, Test 123! Foo Bar. How are you?";
 for (const granularity of ["grapheme", "word", "sentence", "line"]) {
   const segmenter = new Intl.Segmenter("en", { granularity });

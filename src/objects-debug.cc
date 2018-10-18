@@ -38,6 +38,7 @@
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-weak-refs-inl.h"
@@ -403,6 +404,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatVerify(isolate);
+      break;
+    case JS_INTL_SEGMENT_ITERATOR_TYPE:
+      JSSegmentIterator::cast(this)->JSSegmentIteratorVerify(isolate);
       break;
     case JS_INTL_SEGMENTER_TYPE:
       JSSegmenter::cast(this)->JSSegmenterVerify(isolate);
@@ -2020,6 +2024,13 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
   VerifyObjectField(isolate, kICUFormatterOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
+}
+
+void JSSegmentIterator::JSSegmentIteratorVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
+  VerifyObjectField(isolate, kICUBreakIteratorOffset);
+  VerifyObjectField(isolate, kUnicodeStringOffset);
   VerifyObjectField(isolate, kFlagsOffset);
 }
 
