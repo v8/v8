@@ -689,8 +689,16 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(broker(), resolution, effect,
                                         &resolution_maps);
-  if (result != NodeProperties::kReliableReceiverMaps) return NoChange();
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, resolution_maps.size());
+
+  // When the {resolution_maps} information is unreliable, we can
+  // still optimize if all individual {resolution_maps} are stable.
+  if (result == NodeProperties::kUnreliableReceiverMaps) {
+    for (Handle<Map> resolution_map : resolution_maps) {
+      if (!resolution_map->is_stable()) return NoChange();
+    }
+  }
 
   // Compute property access info for "then" on {resolution}.
   PropertyAccessInfo access_info;
@@ -712,6 +720,13 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
         broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
+  }
+
+  // Add stability dependencies on the {resolution_maps}.
+  if (result == NodeProperties::kUnreliableReceiverMaps) {
+    for (Handle<Map> resolution_map : resolution_maps) {
+      dependencies()->DependOnStableMap(MapRef(broker(), resolution_map));
+    }
   }
 
   // Simply fulfill the {promise} with the {resolution}.
