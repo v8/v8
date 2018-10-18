@@ -48,6 +48,25 @@
 
   // Verifies cycle detection still works properly after continuation.
   assertSame('9,2', a.join());
+  assertSame(2, callCount);
+})();
+
+(function ArrayLengthIncreasedWithHole() {
+  let callCount = 0;
+  const a = [1, , 2];
+  Object.defineProperty(a, '1', {
+    configurable: true,
+    get() {
+      callCount++;
+      a.push(3);
+    }
+  });
+  assertSame('1,,2', a.join());
+  assertSame(1, callCount);
+
+  // Verifies cycle detection still works properly after continuation.
+  assertSame('1,,2,3', a.join());
+  assertSame(2, callCount);
 })();
 
 (function ArrayLengthDecreased() {
@@ -66,6 +85,7 @@
 
   // Verifies cycle detection still works properly after continuation.
   assertSame('9', a.join());
+  assertSame(2, callCount);
 })();
 
 (function ElementsKindChangedToHoley() {
@@ -84,4 +104,5 @@
 
   // Verifies cycle detection still works properly after continuation.
   assertSame('9,1,', a.join());
+  assertSame(2, callCount);
 })();

@@ -247,8 +247,10 @@ module array {
             deferred {
               loadJoinElements = LoadJoinElement<GenericElementsAccessor>;
 
+              // Join the current buffer into a single string and add it to a
+              // new buffer that the fall back will continue with.
               const temp: String = BufferJoin(buffer, sep);
-              buffer = BufferInit((len - k), sep);
+              buffer = BufferInit((len - k + 1), sep);
               buffer = BufferAdd(buffer, temp, 0, separatorLength);
             }
         }
