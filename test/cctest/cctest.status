@@ -96,9 +96,6 @@
   # BUG(v8:8209). Flaky
   'test-cpu-profiler/Issue1398': [SKIP],
 
-  # BUG(7702). Flaky data race and other test failures.
-  'test-cpu-profiler/MultipleProfilers': [SKIP],
-
   # BUG(7202). The test is flaky.
   'test-cpu-profiler/NativeFrameStackTrace': [SKIP],
 

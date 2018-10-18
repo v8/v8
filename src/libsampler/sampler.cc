@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <atomic>
 
 #if !V8_OS_QNX && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
@@ -175,16 +176,15 @@ namespace {
 #if defined(USE_SIGNALS)
 typedef std::vector<Sampler*> SamplerList;
 typedef SamplerList::iterator SamplerListIterator;
-typedef base::AtomicValue<bool> AtomicMutex;
+typedef std::atomic_bool AtomicMutex;
 
 class AtomicGuard {
  public:
   explicit AtomicGuard(AtomicMutex* atomic, bool is_blocking = true)
       : atomic_(atomic), is_success_(false) {
     do {
-      // Use Acquire_Load to gain mutual exclusion.
-      USE(atomic_->Value());
-      is_success_ = atomic_->TrySetValue(false, true);
+      bool expected = false;
+      is_success_ = atomic->compare_exchange_weak(expected, true);
     } while (is_blocking && !is_success_);
   }
 
@@ -192,7 +192,7 @@ class AtomicGuard {
 
   ~AtomicGuard() {
     if (!is_success_) return;
-    atomic_->SetValue(false);
+    atomic_->store(false);
   }
 
  private:
