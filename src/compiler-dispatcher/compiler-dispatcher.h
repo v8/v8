@@ -122,7 +122,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
     ~Job();
 
     bool IsReadyToFinalize(const base::MutexGuard&) {
-      return aborted || (has_run && !function.is_null());
+      return has_run && (!function.is_null() || aborted);
     }
 
     bool IsReadyToFinalize(base::Mutex* mutex) {
