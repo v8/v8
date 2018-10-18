@@ -121,8 +121,6 @@ class ObjectRef {
 
  private:
   JSHeapBroker* broker_;
-
- protected:
 };
 
 // Temporary class that carries information from a Map. We'd like to remove
