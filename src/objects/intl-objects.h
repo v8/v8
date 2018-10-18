@@ -137,6 +137,10 @@ class Intl {
       Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
       Handle<JSObject> resolved);
 
+  // ecma-402 #sec-intl.getcanonicallocales
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetCanonicalLocales(
+      Isolate* isolate, Handle<Object> locales);
+
   // For locale sensitive functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> StringLocaleConvertCase(
       Isolate* isolate, Handle<String> s, bool is_upper,

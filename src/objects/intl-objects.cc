@@ -1304,12 +1304,35 @@ std::vector<std::string> BestFitSupportedLocales(
   return LookupSupportedLocales(available_locales, requested_locales);
 }
 
+enum MatcherOption { kBestFit, kLookup };
+
+// ecma262 #sec-createarrayfromlist
+Handle<JSArray> CreateArrayFromList(Isolate* isolate,
+                                    std::vector<std::string> elements,
+                                    PropertyAttributes attr) {
+  Factory* factory = isolate->factory();
+  // Let array be ! ArrayCreate(0).
+  Handle<JSArray> array = factory->NewJSArray(0);
+
+  uint32_t length = static_cast<uint32_t>(elements.size());
+  // 3. Let n be 0.
+  // 4. For each element e of elements, do
+  for (uint32_t i = 0; i < length; i++) {
+    // a. Let status be CreateDataProperty(array, ! ToString(n), e).
+    const std::string& part = elements[i];
+    Handle<String> value =
+        factory->NewStringFromUtf8(CStrVector(part.c_str())).ToHandleChecked();
+    JSObject::AddDataElement(array, i, value, attr);
+  }
+  // 5. Return array.
+  return array;
+}
+
 // TODO(bstell): should this be moved somewhere where it is reusable?
 // Implement steps 5, 6, 7 for ECMA 402 9.2.9 SupportedLocales
 // https://tc39.github.io/ecma402/#sec-supportedlocales
 MaybeHandle<JSObject> CreateReadOnlyArray(Isolate* isolate,
                                           std::vector<std::string> elements) {
-  Factory* factory = isolate->factory();
   if (elements.size() >= kMaxUInt32) {
     THROW_NEW_ERROR(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayLength), JSObject);
@@ -1319,17 +1342,9 @@ MaybeHandle<JSObject> CreateReadOnlyArray(Isolate* isolate,
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
 
   // 5. Let subset be CreateArrayFromList(elements).
-  // 6. Let keys be subset.[[OwnPropertyKeys]]().
-  Handle<JSArray> subset = factory->NewJSArray(0);
+  Handle<JSArray> subset = CreateArrayFromList(isolate, elements, attr);
 
-  // 7. For each element P of keys in List order, do
-  uint32_t length = static_cast<uint32_t>(elements.size());
-  for (uint32_t i = 0; i < length; i++) {
-    const std::string& part = elements[i];
-    Handle<String> value =
-        factory->NewStringFromUtf8(CStrVector(part.c_str())).ToHandleChecked();
-    JSObject::AddDataElement(subset, i, value, attr);
-  }
+  // 6. Let keys be subset.[[OwnPropertyKeys]]().
 
   // 7.a. Let desc be PropertyDescriptor { [[Configurable]]: false,
   //          [[Writable]]: false }.
@@ -1408,6 +1423,19 @@ MaybeHandle<JSObject> SupportedLocales(
   return subset;
 }
 }  // namespace
+
+// ecma-402 #sec-intl.getcanonicallocales
+MaybeHandle<JSArray> Intl::GetCanonicalLocales(Isolate* isolate,
+                                               Handle<Object> locales) {
+  // 1. Let ll be ? CanonicalizeLocaleList(locales).
+  Maybe<std::vector<std::string>> maybe_ll =
+      CanonicalizeLocaleList(isolate, locales, false);
+  MAYBE_RETURN(maybe_ll, MaybeHandle<JSArray>());
+
+  // 2. Return CreateArrayFromList(ll).
+  PropertyAttributes attr = static_cast<PropertyAttributes>(NONE);
+  return CreateArrayFromList(isolate, maybe_ll.FromJust(), attr);
+}
 
 // ECMA 402 Intl.*.supportedLocalesOf
 MaybeHandle<JSObject> Intl::SupportedLocalesOf(Isolate* isolate,
