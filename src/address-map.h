@@ -65,6 +65,9 @@ class RootIndexMap {
     }
     return false;
   }
+  bool Lookup(Address obj, RootIndex* out_root_list) {
+    return Lookup(reinterpret_cast<HeapObject*>(obj), out_root_list);
+  }
 
  private:
   HeapObjectToIndexHashMap* map_;
