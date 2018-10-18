@@ -428,6 +428,16 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
         }
         break;
       }
+      case IrOpcode::kJSCreatePromise: {
+        if (IsSame(receiver, effect)) {
+          *maps_return = ZoneHandleSet<Map>(broker->native_context()
+                                                .promise_function()
+                                                .initial_map()
+                                                .object());
+          return result;
+        }
+        break;
+      }
       case IrOpcode::kStoreField: {
         // We only care about StoreField of maps.
         Node* const object = GetValueInput(effect, 0);

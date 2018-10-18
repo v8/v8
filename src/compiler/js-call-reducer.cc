@@ -6064,6 +6064,19 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   result = effect = graph()->NewNode(
       javascript()->PerformPromiseThen(), receiver, on_fulfilled, on_rejected,
       result, context, frame_state, effect, control);
+
+  // At this point we know that {result} is going to have the
+  // initial Promise map, since even if {PerformPromiseThen}
+  // above called into the host rejection tracker, the {result}
+  // doesn't escape to user JavaScript. So bake this information
+  // into the graph such that subsequent passes can use the
+  // information for further optimizations.
+  Handle<Map> result_map(native_context()->promise_function()->initial_map(),
+                         isolate());
+  effect =
+      graph()->NewNode(simplified()->MapGuard(ZoneHandleSet<Map>(result_map)),
+                       result, effect, control);
+
   ReplaceWithValue(node, result, effect, control);
   return Replace(result);
 }
