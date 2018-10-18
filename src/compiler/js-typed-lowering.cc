@@ -2224,6 +2224,22 @@ Reduction JSTypedLowering::ReduceJSParseInt(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSResolvePromise(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSResolvePromise, node->opcode());
+  Node* resolution = NodeProperties::GetValueInput(node, 1);
+  Type resolution_type = NodeProperties::GetType(resolution);
+  // We can strength-reduce JSResolvePromise to JSFulfillPromise
+  // if the {resolution} is known to be a primitive, as in that
+  // case we don't perform the implicit chaining (via "then").
+  if (resolution_type.Is(Type::Primitive())) {
+    // JSResolvePromise(p,v:primitive) -> JSFulfillPromise(p,v)
+    node->RemoveInput(3);  // frame state
+    NodeProperties::ChangeOp(node, javascript()->FulfillPromise());
+    return Changed(node);
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::Reduce(Node* node) {
   DisallowHeapAccess no_heap_access;
 
@@ -2332,6 +2348,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceObjectIsArray(node);
     case IrOpcode::kJSParseInt:
       return ReduceJSParseInt(node);
+    case IrOpcode::kJSResolvePromise:
+      return ReduceJSResolvePromise(node);
     default:
       break;
   }
