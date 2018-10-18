@@ -2963,8 +2963,10 @@ TEST(ReleaseOverReservedPages) {
   if (FLAG_never_compact) return;
   FLAG_trace_gc = true;
   // The optimizer can allocate stuff, messing up the test.
+#ifndef V8_LITE_MODE
   FLAG_opt = false;
   FLAG_always_opt = false;
+#endif  // V8_LITE_MODE
   // - Parallel compaction increases fragmentation, depending on how existing
   //   memory is distributed. Since this is non-deterministic because of
   //   concurrent sweeping, we disable it for this test.
@@ -3305,7 +3307,10 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
     // See: https://codereview.chromium.org/181833004/
     return;
   }
-  FLAG_use_ic = false;  // ICs retain objects.
+#ifndef V8_LITE_MODE
+  // ICs retain objects.
+  FLAG_use_ic = false;
+#endif  // V8_LITE_MODE
   FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -3359,7 +3364,9 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
 
 TEST(Regress169928) {
   FLAG_allow_natives_syntax = true;
+#ifndef V8_LITE_MODE
   FLAG_opt = false;
+#endif  // V8_LITE_MODE
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   LocalContext env;

@@ -23024,7 +23024,9 @@ void TestStubCache(bool primary) {
   } else {
     i::FLAG_test_secondary_stub_cache = true;
   }
+#ifndef V8_LITE_MODE
   i::FLAG_opt = false;
+#endif  // V8_LITE_MODE
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -23964,7 +23966,9 @@ TEST(AccessCheckThrows) {
 
 TEST(AccessCheckInIC) {
   i::FLAG_native_code_counters = true;
+#ifndef V8_LITE_MODE
   i::FLAG_opt = false;
+#endif  // V8_LITE_MODE
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -26567,6 +26571,7 @@ TEST(StringConcatOverflow) {
 }
 
 TEST(TurboAsmDisablesNeuter) {
+#ifndef V8_LITE_MODE
   i::FLAG_opt = true;
   i::FLAG_allow_natives_syntax = true;
   v8::V8::Initialize();
@@ -26603,6 +26608,7 @@ TEST(TurboAsmDisablesNeuter) {
 
   result = CompileRun(store).As<v8::ArrayBuffer>();
   CHECK(!result->IsNeuterable());
+#endif  // V8_LITE_MODE
 }
 
 
