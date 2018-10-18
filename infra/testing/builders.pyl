@@ -63,11 +63,6 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
-  'v8_linux_embedded_builtins_rel_ng_triggered': {
-    'tests': [
-      {'name': 'v8testing', 'shards': 2},
-    ],
-  },
   'v8_linux_gc_stress_dbg': {
     'tests': [
       {'name': 'mjsunit', 'variant': 'slow_path', 'test_args': ['--gc-stress'], 'shards': 2},
@@ -92,6 +87,11 @@
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
+    ],
+  },
+  'v8_linux_noembed_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'v8_linux_noi18n_rel_ng_triggered': {
@@ -609,12 +609,12 @@
       },
     ],
   },
-  'V8 Linux - embedded builtins': {
+  'V8 Linux - noembed': {
     'tests': [
       {'name': 'v8testing'},
     ],
   },
-  'V8 Linux - embedded builtins - debug': {
+  'V8 Linux - noembed - debug': {
     'tests': [
       {'name': 'v8testing', 'shards': 3},
     ],
