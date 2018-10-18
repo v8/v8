@@ -18965,6 +18965,7 @@ void JSWeakFactoryCleanupTask::Run() {
                isolate_);
     native_context->set_dirty_js_weak_factories(weak_factory->next());
     weak_factory->set_next(ReadOnlyRoots(isolate_).undefined_value());
+    weak_factory->set_scheduled_for_cleanup(false);
 
     // TODO(marja): After WeakCell.cleanup() is added, it's possible that it's
     // called for something already in cleared_cells list. In that case, we

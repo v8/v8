@@ -224,6 +224,9 @@ void NativeContext::AddDirtyJSWeakFactory(
         gc_notify_updated_slot) {
   DCHECK(dirty_js_weak_factories()->IsUndefined(isolate) ||
          dirty_js_weak_factories()->IsJSWeakFactory());
+  DCHECK(weak_factory->next()->IsUndefined(isolate));
+  DCHECK(!weak_factory->scheduled_for_cleanup());
+  weak_factory->set_scheduled_for_cleanup(true);
   weak_factory->set_next(dirty_js_weak_factories());
   gc_notify_updated_slot(
       weak_factory,

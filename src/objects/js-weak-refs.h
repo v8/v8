@@ -30,11 +30,16 @@ class JSWeakFactory : public JSObject {
   // For storing a list of JSWeakFactory objects in NativeContext.
   DECL_ACCESSORS(next, Object)
 
+  DECL_INT_ACCESSORS(flags)
+
   // Adds a newly constructed JSWeakCell object into this JSWeakFactory.
   inline void AddWeakCell(JSWeakCell* weak_cell);
 
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
+
+  inline bool scheduled_for_cleanup() const;
+  inline void set_scheduled_for_cleanup(bool scheduled_for_cleanup);
 
   // Get and remove the first cleared JSWeakCell from the cleared_cells
   // list. (Assumes there is one.)
@@ -44,7 +49,11 @@ class JSWeakFactory : public JSObject {
   static const int kActiveCellsOffset = kCleanupOffset + kPointerSize;
   static const int kClearedCellsOffset = kActiveCellsOffset + kPointerSize;
   static const int kNextOffset = kClearedCellsOffset + kPointerSize;
-  static const int kSize = kNextOffset + kPointerSize;
+  static const int kFlagsOffset = kNextOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
+
+  // Bitfields in flags.
+  class ScheduledForCleanupField : public BitField<bool, 0, 1> {};
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakFactory);

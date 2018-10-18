@@ -19,6 +19,7 @@ namespace internal {
 ACCESSORS(JSWeakFactory, cleanup, Object, kCleanupOffset)
 ACCESSORS(JSWeakFactory, active_cells, Object, kActiveCellsOffset)
 ACCESSORS(JSWeakFactory, cleared_cells, Object, kClearedCellsOffset)
+SMI_ACCESSORS(JSWeakFactory, flags, kFlagsOffset)
 ACCESSORS(JSWeakFactory, next, Object, kNextOffset)
 CAST_ACCESSOR(JSWeakFactory)
 
@@ -43,6 +44,14 @@ void JSWeakFactory::AddWeakCell(JSWeakCell* weak_cell) {
 
 bool JSWeakFactory::NeedsCleanup() const {
   return cleared_cells()->IsJSWeakCell();
+}
+
+bool JSWeakFactory::scheduled_for_cleanup() const {
+  return ScheduledForCleanupField::decode(flags());
+}
+
+void JSWeakFactory::set_scheduled_for_cleanup(bool scheduled_for_cleanup) {
+  set_flags(ScheduledForCleanupField::update(flags(), scheduled_for_cleanup));
 }
 
 JSWeakCell* JSWeakFactory::PopClearedCell(Isolate* isolate) {

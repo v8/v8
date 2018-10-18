@@ -29,6 +29,8 @@ BUILTIN(WeakFactoryConstructor) {
   // function, if the spec said so.
   Handle<JSWeakFactory> weak_factory = Handle<JSWeakFactory>::cast(result);
   weak_factory->set_cleanup(*cleanup);
+  weak_factory->set_flags(
+      JSWeakFactory::ScheduledForCleanupField::encode(false));
   return *weak_factory;
 }
 

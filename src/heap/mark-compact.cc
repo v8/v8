@@ -2101,9 +2101,7 @@ void MarkCompactCollector::ClearJSWeakCells() {
     HeapObject* target = HeapObject::cast(weak_cell->target());
     JSWeakFactory* weak_factory = weak_cell->factory();
     if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
-      if (!weak_factory->NeedsCleanup()) {
-        // This is the first dirty JSWeakCell of that JSWeakFactory. Record
-        // the dirty JSWeakFactory in the native context.
+      if (!weak_factory->scheduled_for_cleanup()) {
         isolate()->native_context()->AddDirtyJSWeakFactory(
             weak_factory, isolate(),
             [](HeapObject* object, Object** slot, Object* target) {
@@ -2123,6 +2121,7 @@ void MarkCompactCollector::ClearJSWeakCells() {
                            }
                          });
       DCHECK(weak_factory->NeedsCleanup());
+      DCHECK(weak_factory->scheduled_for_cleanup());
     } else {
       // The value of the JSWeakCell is alive.
       Object** slot =
