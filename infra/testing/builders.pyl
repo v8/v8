@@ -626,8 +626,17 @@
   },
   'V8 Linux - gc stress': {
     'tests': [
-      {'name': 'd8testing', 'shards': 5},
-      {'name': 'mjsunit', 'variant': 'slow_path', 'shards': 2},
+      {
+        'name': 'd8testing',
+        'test_args': ['--gc-stress'],
+        'shards': 5,
+      },
+      {
+        'name': 'mjsunit',
+        'variant': 'slow_path',
+        'test_args': ['--gc-stress'],
+        'shards': 2,
+      },
     ],
   },
   'V8 Linux - interpreted regexp': {
@@ -744,7 +753,7 @@
   },
   'V8 Linux64 - custom snapshot - debug': {
     'tests': [
-      {'name': 'mjsunit'},
+      {'name': 'mjsunit', 'test_args': ['--no-harness']},
     ],
   },
   'V8 Linux64 - debug': {
@@ -826,7 +835,11 @@
   },
   'V8 Linux64 GC Stress - custom snapshot': {
     'tests': [
-      {'name': 'mjsunit', 'shards': 3},
+      {
+        'name': 'mjsunit',
+        'test_args': ['--gc-stress', '--no-harness'],
+        'shards': 3,
+      },
     ],
   },
   'V8 Linux64 TSAN': {
@@ -846,15 +859,29 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'benchmarks'},
-      {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 4},
-      {'name': 'v8testing', 'shards': 4},
+      {
+        'name': 'benchmarks',
+        'test_args': ['--extra-flags=--stress-incremental-marking'],
+      },
+      {
+        'name': 'mozilla',
+        'test_args': ['--extra-flags=--stress-incremental-marking'],
+      },
+      {
+        'name': 'test262',
+        'test_args': ['--extra-flags=--stress-incremental-marking'],
+        'shards': 4,
+      },
+      {
+        'name': 'v8testing',
+        'test_args': ['--extra-flags=--stress-incremental-marking'],
+        'shards': 4,
+      },
     ],
   },
   'V8 Linux64 TSAN - isolates': {
     'tests': [
-      {'name': 'v8testing', 'shards': 5},
+      {'name': 'v8testing', 'test_args': ['--isolates'], 'shards': 5},
     ],
   },
   'V8 Linux64 UBSan': {
@@ -906,7 +933,7 @@
       'os': 'Mac-10.13',
     },
     'tests': [
-      {'name': 'd8testing', 'shards': 4},
+      {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 4},
     ],
   },
   'V8 Win32': {
