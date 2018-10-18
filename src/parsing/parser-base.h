@@ -1106,7 +1106,12 @@ class ParserBase {
   ExpressionT ParseFunctionExpression(bool* ok);
   V8_INLINE ExpressionT ParseMemberExpression(bool* ok);
   V8_INLINE ExpressionT
-  ParseMemberExpressionContinuation(ExpressionT expression, bool* ok);
+  ParseMemberExpressionContinuation(ExpressionT expression, bool* ok) {
+    if (!Token::IsProperty(peek())) return expression;
+    return DoParseMemberExpressionContinuation(expression, ok);
+  }
+  ExpressionT DoParseMemberExpressionContinuation(ExpressionT expression,
+                                                  bool* ok);
 
   // `rewritable_length`: length of the destructuring_assignments_to_rewrite()
   // queue in the parent function state, prior to parsing of formal parameters.
@@ -3213,10 +3218,10 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
+  DCHECK(Token::IsPropertyOrCall(peek()));
   BindingPatternUnexpectedToken();
 
   do {
-    ValidateExpression(CHECK_OK);
     switch (peek()) {
       case Token::LBRACK: {
         ArrowFormalParametersUnexpectedToken();
@@ -3311,17 +3316,15 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
         break;
       }
 
-      case Token::TEMPLATE_SPAN:
-      case Token::TEMPLATE_TAIL: {
+      default:
+        DCHECK(peek() == Token::TEMPLATE_SPAN ||
+               peek() == Token::TEMPLATE_TAIL);
         ArrowFormalParametersUnexpectedToken();
         result = ParseTemplateLiteral(result, position(), true, CHECK_OK);
         break;
-      }
-
-      default:
-        UNREACHABLE();
     }
   } while (Token::IsPropertyOrCall(peek()));
+  ValidateExpression(CHECK_OK);
   return result;
 }
 
@@ -3563,42 +3566,34 @@ ParserBase<Impl>::ParseNewTargetExpression(bool* ok) {
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
-                                                    bool* ok) {
+ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression,
+                                                      bool* ok) {
+  DCHECK(Token::IsProperty(peek()));
+  BindingPatternUnexpectedToken();
+  ArrowFormalParametersUnexpectedToken();
   // Parses this part of MemberExpression:
   // ('[' Expression ']' | '.' Identifier | TemplateLiteral)*
-  while (true) {
+  do {
     switch (peek()) {
       case Token::LBRACK: {
-        ValidateExpression(CHECK_OK);
-        BindingPatternUnexpectedToken();
-        ArrowFormalParametersUnexpectedToken();
-
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = ParseExpressionCoverGrammar(true, CHECK_OK);
-        ValidateExpression(CHECK_OK);
         expression = factory()->NewProperty(expression, index, pos);
         impl()->PushPropertyName(index);
         Expect(Token::RBRACK, CHECK_OK);
         break;
       }
       case Token::PERIOD: {
-        ValidateExpression(CHECK_OK);
-        BindingPatternUnexpectedToken();
-        ArrowFormalParametersUnexpectedToken();
-
         Consume(Token::PERIOD);
         int pos = peek_position();
         ExpressionT key = ParseIdentifierNameOrPrivateName(CHECK_OK);
         expression = factory()->NewProperty(expression, key, pos);
         break;
       }
-      case Token::TEMPLATE_SPAN:
-      case Token::TEMPLATE_TAIL: {
-        ValidateExpression(CHECK_OK);
-        BindingPatternUnexpectedToken();
-        ArrowFormalParametersUnexpectedToken();
+      default: {
+        DCHECK(peek() == Token::TEMPLATE_SPAN ||
+               peek() == Token::TEMPLATE_TAIL);
         int pos;
         if (scanner()->current_token() == Token::IDENTIFIER) {
           pos = position();
@@ -3613,17 +3608,10 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
         expression = ParseTemplateLiteral(expression, pos, true, CHECK_OK);
         break;
       }
-      case Token::ILLEGAL: {
-        ReportUnexpectedTokenAt(scanner()->peek_location(), Token::ILLEGAL);
-        *ok = false;
-        return impl()->NullExpression();
-      }
-      default:
-        return expression;
     }
-  }
-  DCHECK(false);
-  return impl()->NullExpression();
+  } while (Token::IsProperty(peek()));
+  ValidateExpression(CHECK_OK);
+  return expression;
 }
 
 template <typename Impl>
