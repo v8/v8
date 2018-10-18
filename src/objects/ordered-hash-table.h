@@ -621,8 +621,7 @@ class JSCollectionIterator : public JSObject {
   // [index]: The index into the data table.
   DECL_ACCESSORS(index, Object)
 
-  // Dispatched behavior.
-  DECL_PRINTER(JSCollectionIterator)
+  void JSCollectionIteratorPrint(std::ostream& os, const char* name);
 
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kIndexOffset = kTableOffset + kPointerSize;
