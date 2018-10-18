@@ -2966,27 +2966,26 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
   BindingPatternUnexpectedToken();
   ArrowFormalParametersUnexpectedToken();
 
+  ExpressionClassifier classifier(this);
+
   ExpressionT left;
   {
     SourceRangeScope range_scope(scanner(), &then_range);
     Consume(Token::CONDITIONAL);
-    ExpressionClassifier classifier(this);
     // In parsing the first assignment expression in conditional
     // expressions we always accept the 'in' keyword; see ECMA-262,
     // section 11.12, page 58.
     left = ParseAssignmentExpression(true, CHECK_OK);
-    AccumulateNonBindingPatternErrors();
   }
   ExpressionT right;
   {
     SourceRangeScope range_scope(scanner(), &else_range);
     Expect(Token::COLON, CHECK_OK);
-    ExpressionClassifier classifier(this);
     right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-    AccumulateNonBindingPatternErrors();
   }
   ExpressionT expr = factory()->NewConditional(expression, left, right, pos);
   impl()->RecordConditionalSourceRange(expr, then_range, else_range);
+  AccumulateNonBindingPatternErrors();
   return expr;
 }
 
