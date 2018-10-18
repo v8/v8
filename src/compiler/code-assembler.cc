@@ -514,6 +514,23 @@ TNode<WordT> CodeAssembler::IntPtrAdd(SloppyTNode<WordT> left,
   return UncheckedCast<WordT>(raw_assembler()->IntPtrAdd(left, right));
 }
 
+TNode<IntPtrT> CodeAssembler::IntPtrDiv(TNode<IntPtrT> left,
+                                        TNode<IntPtrT> right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_right_constant) {
+    if (is_left_constant) {
+      return IntPtrConstant(left_constant / right_constant);
+    }
+    if (base::bits::IsPowerOfTwo(right_constant)) {
+      return WordSar(left, WhichPowerOf2(right_constant));
+    }
+  }
+  return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrDiv(left, right));
+}
+
 TNode<WordT> CodeAssembler::IntPtrSub(SloppyTNode<WordT> left,
                                       SloppyTNode<WordT> right) {
   intptr_t left_constant;

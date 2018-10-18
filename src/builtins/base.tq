@@ -355,6 +355,7 @@ extern operator '<<' macro SmiShl(Smi, constexpr int31): Smi;
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
 extern operator '*' macro IntPtrMul(intptr, intptr): intptr;
+extern operator '/' macro IntPtrDiv(intptr, intptr): intptr;
 extern operator '<<' macro WordShl(intptr, intptr): intptr;
 extern operator '&' macro WordAnd(intptr, intptr): intptr;
 extern operator '|' macro WordOr(intptr, intptr): intptr;

@@ -159,7 +159,7 @@ module array {
   }
 
   macro BufferAdd(implicit context: Context)(
-      initialBuffer: Buffer, str: String, nofSeparators: uintptr,
+      initialBuffer: Buffer, str: String, nofSeparators: intptr,
       separatorLength: intptr): Buffer {
     let buffer: Buffer = initialBuffer;
     // Add separators if necessary (at the beginning or more than one)
@@ -178,14 +178,15 @@ module array {
   }
 
   macro BufferAddSeparators(implicit context: Context)(
-      buffer: Buffer, nofSeparators: uintptr, separatorLength: intptr,
+      buffer: Buffer, nofSeparators: intptr, separatorLength: intptr,
       write: bool): Buffer {
     if (nofSeparators == 0 || separatorLength == 0) return buffer;
 
-    const nofSeparatorsInt: intptr = Signed(nofSeparators);
+    const nofSeparatorsInt: intptr = nofSeparators;
     const sepsLen: intptr = separatorLength * nofSeparatorsInt;
     // Detect integer overflow
-    if (nofSeparatorsInt <= 0 || sepsLen <= 0) deferred {
+    // TODO(tebbi): Replace with overflow-checked multiplication.
+    if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
         ThrowRangeError(context, kInvalidStringLength);
       }
 
@@ -225,14 +226,14 @@ module array {
     const initialMap: Map = receiver.map;
     const len: uintptr = Convert<uintptr>(lengthNumber);
     const separatorLength: intptr = sep.length;
-    let nofSeparators: uintptr = 0;
+    let nofSeparators: intptr = 0;
     let loadJoinElements: LoadJoinElementFn = initialLoadJoinElement;
     let buffer: Buffer = BufferInit(estimatedNonHoleyElements, sep);
 
-    // 6. Let k be 0.
-    let k: uintptr = 0;
-
     if (estimatedNonHoleyElements != 0) {
+      // 6. Let k be 0.
+      let k: uintptr = 0;
+
       // 7. Repeat, while k < len
       while (k < len) {
         if (k > 0) {
@@ -288,8 +289,7 @@ module array {
         nofSeparators = 0;
       }
     } else {
-      assert(len > k);
-      nofSeparators = len - k - 1;
+      nofSeparators = Signed(len - 1);
     }
 
     // Add any separators at the end.

@@ -884,6 +884,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<IntPtrT>(
         WordShr(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
+  TNode<IntPtrT> WordSar(TNode<IntPtrT> left, TNode<IntegralT> right) {
+    return UncheckedCast<IntPtrT>(
+        WordSar(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
 
   TNode<IntPtrT> WordAnd(TNode<IntPtrT> left, TNode<IntPtrT> right) {
     return UncheckedCast<IntPtrT>(
@@ -946,6 +950,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   TNode<WordT> IntPtrAdd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<IntPtrT> IntPtrDiv(TNode<IntPtrT> left, TNode<IntPtrT> right);
   TNode<WordT> IntPtrSub(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<WordT> IntPtrMul(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<IntPtrT> IntPtrAdd(TNode<IntPtrT> left, TNode<IntPtrT> right) {
@@ -974,6 +979,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<WordT> WordSar(SloppyTNode<WordT> value, int shift);
   TNode<IntPtrT> WordShr(TNode<IntPtrT> value, int shift) {
     return UncheckedCast<IntPtrT>(WordShr(static_cast<Node*>(value), shift));
+  }
+  TNode<IntPtrT> WordSar(TNode<IntPtrT> value, int shift) {
+    return UncheckedCast<IntPtrT>(WordSar(static_cast<Node*>(value), shift));
   }
   TNode<Word32T> Word32Shr(SloppyTNode<Word32T> value, int shift);
 
