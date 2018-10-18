@@ -10363,7 +10363,6 @@ AllocationProfile* HeapProfiler::GetAllocationProfile() {
   return reinterpret_cast<i::HeapProfiler*>(this)->GetAllocationProfile();
 }
 
-
 void HeapProfiler::DeleteAllHeapSnapshots() {
   reinterpret_cast<i::HeapProfiler*>(this)->DeleteAllSnapshots();
 }
