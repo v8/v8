@@ -257,7 +257,7 @@ size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
       kAllWasmFeatures, buffer, buffer + size, false, ModuleOrigin::kWasmOrigin,
       isolate->counters(), isolate->allocator());
   CHECK(result.ok());
-  const WasmFunction* func = &result.val->functions[1];
+  const WasmFunction* func = &result.value()->functions[1];
   return func->code.offset();
 }
 

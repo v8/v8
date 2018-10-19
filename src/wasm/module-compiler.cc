@@ -2429,7 +2429,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       job_->DoSync<DecodeFail>(std::move(result));
     } else {
       // Decode passed.
-      job_->DoSync<PrepareAndStartCompile>(std::move(result.val), true);
+      job_->DoSync<PrepareAndStartCompile>(std::move(result).value(), true);
     }
   }
 };
@@ -2797,7 +2797,8 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
       // prepare compilation first before we can finish it.
       // {PrepareAndStartCompile} will call {FinishCompile} by itself if there
       // is no code section.
-      job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(result.val, true);
+      job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(
+          std::move(result).value(), true);
     } else {
       HandleScope scope(job_->isolate_);
       SaveContext saved_context(job_->isolate_);

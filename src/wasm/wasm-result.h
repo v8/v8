@@ -70,11 +70,11 @@ class Result : public ResultBase {
   Result() = default;
 
   template <typename S>
-  explicit Result(S&& value) : val(std::forward<S>(value)) {}
+  explicit Result(S&& value) : value_(std::forward<S>(value)) {}
 
   template <typename S>
   Result(Result<S>&& other) V8_NOEXCEPT : ResultBase(std::move(other)),
-                                          val(std::move(other.val)) {}
+                                          value_(std::move(other).value()) {}
 
   Result& operator=(Result&& other) V8_NOEXCEPT = default;
 
@@ -87,9 +87,22 @@ class Result : public ResultBase {
     return result;
   }
 
-  T val = T{};
+  // Accessor for the value. Returns const reference if {this} is l-value or
+  // const, and returns r-value reference if {this} is r-value. This allows to
+  // extract non-copyable values like {std::unique_ptr} by using
+  // {std::move(result).value()}.
+  const T& value() const & {
+    DCHECK(ok());
+    return value_;
+  }
+  T&& value() && {
+    DCHECK(ok());
+    return std::move(value_);
+  }
 
  private:
+  T value_ = T{};
+
   DISALLOW_COPY_AND_ASSIGN(Result);
 };
 

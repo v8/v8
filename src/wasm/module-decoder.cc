@@ -1485,7 +1485,7 @@ ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
     auto peak_counter = SELECT_WASM_COUNTER(counters, origin, wasm_decode,
                                             module_peak_memory_bytes);
     peak_counter->AddSample(
-        static_cast<int>(result.val->signature_zone->allocation_size()));
+        static_cast<int>(result.value()->signature_zone->allocation_size()));
   }
   return result;
 }

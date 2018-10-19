@@ -412,25 +412,24 @@ Handle<ByteArray> GetDecodedAsmJsOffsetTable(
   DCHECK(table_type == Encoded || table_type == Decoded);
   if (table_type == Decoded) return offset_table;
 
-  wasm::AsmJsOffsetsResult asm_offsets;
+  wasm::AsmJsOffsets asm_offsets;
   {
     DisallowHeapAllocation no_gc;
     byte* bytes_start = offset_table->GetDataStartAddress();
     byte* bytes_end = reinterpret_cast<byte*>(
         reinterpret_cast<Address>(bytes_start) + offset_table->length() - 1);
-    asm_offsets = wasm::DecodeAsmJsOffsets(bytes_start, bytes_end);
+    asm_offsets = wasm::DecodeAsmJsOffsets(bytes_start, bytes_end).value();
   }
   // Wasm bytes must be valid and must contain asm.js offset table.
-  DCHECK(asm_offsets.ok());
-  DCHECK_GE(kMaxInt, asm_offsets.val.size());
-  int num_functions = static_cast<int>(asm_offsets.val.size());
+  DCHECK_GE(kMaxInt, asm_offsets.size());
+  int num_functions = static_cast<int>(asm_offsets.size());
   int num_imported_functions =
       static_cast<int>(module_object->module()->num_imported_functions);
   DCHECK_EQ(module_object->module()->functions.size(),
             static_cast<size_t>(num_functions) + num_imported_functions);
   int num_entries = 0;
   for (int func = 0; func < num_functions; ++func) {
-    size_t new_size = asm_offsets.val[func].size();
+    size_t new_size = asm_offsets[func].size();
     DCHECK_LE(new_size, static_cast<size_t>(kMaxInt) - num_entries);
     num_entries += static_cast<int>(new_size);
   }
@@ -447,8 +446,7 @@ Handle<ByteArray> GetDecodedAsmJsOffsetTable(
   const std::vector<WasmFunction>& wasm_funs =
       module_object->module()->functions;
   for (int func = 0; func < num_functions; ++func) {
-    std::vector<wasm::AsmJsOffsetEntry>& func_asm_offsets =
-        asm_offsets.val[func];
+    std::vector<wasm::AsmJsOffsetEntry>& func_asm_offsets = asm_offsets[func];
     if (func_asm_offsets.empty()) continue;
     int func_offset = wasm_funs[num_imported_functions + func].code.offset();
     for (wasm::AsmJsOffsetEntry& e : func_asm_offsets) {

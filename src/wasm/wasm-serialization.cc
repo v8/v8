@@ -549,9 +549,9 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   ModuleResult decode_result = DecodeWasmModule(
       enabled_features, wire_bytes.start(), wire_bytes.end(), false,
       i::wasm::kWasmOrigin, isolate->counters(), isolate->allocator());
-  if (!decode_result.ok()) return {};
-  CHECK_NOT_NULL(decode_result.val);
-  WasmModule* module = decode_result.val.get();
+  if (decode_result.failed()) return {};
+  CHECK_NOT_NULL(decode_result.value());
+  WasmModule* module = decode_result.value().get();
   Handle<Script> script =
       CreateWasmScript(isolate, wire_bytes, module->source_map_url);
 
@@ -565,7 +565,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   OwnedVector<uint8_t> wire_bytes_copy = OwnedVector<uint8_t>::Of(wire_bytes);
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, enabled_features, std::move(decode_result.val), env,
+      isolate, enabled_features, std::move(decode_result).value(), env,
       std::move(wire_bytes_copy), script, Handle<ByteArray>::null());
   NativeModule* native_module = module_object->native_module();
 

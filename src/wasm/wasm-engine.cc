@@ -50,7 +50,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompileTranslatedAsmJs(
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToModuleObject}.
   return CompileToModuleObject(isolate, kAsmjsWasmFeatures, thrower,
-                               std::move(result.val), bytes, asm_js_script,
+                               std::move(result).value(), bytes, asm_js_script,
                                asm_js_offset_table_bytes);
 }
 
@@ -67,8 +67,9 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToModuleObject}.
-  return CompileToModuleObject(isolate, enabled, thrower, std::move(result.val),
-                               bytes, Handle<Script>(), Vector<const byte>());
+  return CompileToModuleObject(isolate, enabled, thrower,
+                               std::move(result).value(), bytes,
+                               Handle<Script>(), Vector<const byte>());
 }
 
 MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
