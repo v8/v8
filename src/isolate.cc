@@ -614,9 +614,10 @@ bool IsBuiltinFunction(Isolate* isolate, HeapObject* object,
 
 void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                             FrameArrayBuilder* builder) {
-  CHECK_EQ(Promise::kPending, promise->status());
-
   while (!builder->full()) {
+    // Check that the {promise} is not settled.
+    if (promise->status() != Promise::kPending) return;
+
     // Check that we have exactly one PromiseReaction on the {promise}.
     if (!promise->reactions()->IsPromiseReaction()) return;
     Handle<PromiseReaction> reaction(
