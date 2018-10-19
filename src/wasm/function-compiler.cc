@@ -28,13 +28,6 @@ const char* GetExecutionTierAsString(ExecutionTier mode) {
   UNREACHABLE();
 }
 
-void RecordStats(const WasmCode* code, Counters* counters) {
-  counters->wasm_generated_code_size()->Increment(
-      static_cast<int>(code->instructions().size()));
-  counters->wasm_reloc_size()->Increment(
-      static_cast<int>(code->reloc_info().size()));
-}
-
 }  // namespace
 
 // static
@@ -99,13 +92,6 @@ void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   }
 }
 
-void WasmCompilationUnit::FinishCompilation() {
-  // TODO(clemensh): Move this somewhere else, then remove FinishCompilation.
-  if (!failed()) {
-    RecordStats(result(), counters_);
-  }
-}
-
 void WasmCompilationUnit::ReportError(ErrorThrower* thrower) const {
   DCHECK(result_.failed());
   // Add the function as another context for the exception. This is
@@ -161,12 +147,23 @@ WasmCode* WasmCompilationUnit::CompileWasmFunction(
                            function_body,
                            function->func_index, isolate->counters(), mode);
   unit.ExecuteCompilation(detected);
-  unit.FinishCompilation();
   if (unit.failed()) {
     unit.ReportError(thrower);
     return nullptr;
   }
   return unit.result();
+}
+
+void WasmCompilationUnit::SetResult(WasmCode* code) {
+  DCHECK(!result_.failed());
+  DCHECK_NULL(result_.value());
+  result_ = Result<WasmCode*>(code);
+  native_module()->PublishCode(code);
+
+  counters_->wasm_generated_code_size()->Increment(
+      static_cast<int>(code->instructions().size()));
+  counters_->wasm_reloc_size()->Increment(
+      static_cast<int>(code->reloc_info().size()));
 }
 
 }  // namespace wasm

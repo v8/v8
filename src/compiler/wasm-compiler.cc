@@ -5279,11 +5279,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
                               wasm_unit_->func_body_.start),
         decode_ms, node_count, pipeline_ms);
   }
-  if (succeeded) {
-    wasm::WasmCode* code = info.wasm_code();
-    wasm_unit_->result_ = wasm::Result<wasm::WasmCode*>(code);
-    wasm_unit_->native_module()->PublishCode(code);
-  }
+  if (succeeded) wasm_unit_->SetResult(info.wasm_code());
 }
 
 namespace {

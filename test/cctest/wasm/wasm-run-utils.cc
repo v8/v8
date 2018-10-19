@@ -425,7 +425,6 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                            isolate()->counters(), tier);
   WasmFeatures unused_detected_features;
   unit.ExecuteCompilation(&unused_detected_features);
-  unit.FinishCompilation();
   CHECK(!unit.failed());
   if (WasmCode::ShouldBeLogged(isolate())) unit.result()->LogCode(isolate());
 }

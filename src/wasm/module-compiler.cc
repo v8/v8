@@ -362,7 +362,6 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
                            body, func_index, isolate->counters());
   unit.ExecuteCompilation(
       native_module->compilation_state()->detected_features());
-  unit.FinishCompilation();
 
   // If there is a pending error, something really went wrong. The module was
   // verified before starting execution with lazy compilation.
@@ -549,7 +548,6 @@ void FinishCompilationUnits(CompilationState* compilation_state,
     std::unique_ptr<WasmCompilationUnit> unit =
         compilation_state->GetNextExecutedUnit();
     if (unit == nullptr) break;
-    unit->FinishCompilation();
 
     if (unit->failed()) {
       unit->ReportError(thrower);
@@ -788,8 +786,6 @@ class FinishCompileTask : public CancelableTask {
         }
         break;
       }
-
-      unit->FinishCompilation();
 
       if (unit->failed()) {
         ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");

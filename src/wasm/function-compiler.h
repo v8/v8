@@ -92,7 +92,6 @@ class WasmCompilationUnit final {
   ~WasmCompilationUnit();
 
   void ExecuteCompilation(WasmFeatures* detected);
-  void FinishCompilation();
 
   NativeModule* native_module() const { return native_module_; }
   ExecutionTier mode() const { return mode_; }
@@ -129,6 +128,9 @@ class WasmCompilationUnit final {
   std::unique_ptr<compiler::TurbofanWasmCompilationUnit> turbofan_unit_;
 
   void SwitchMode(ExecutionTier new_mode);
+
+  // Called from {ExecuteCompilation} to set the result of compilation.
+  void SetResult(WasmCode*);
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };

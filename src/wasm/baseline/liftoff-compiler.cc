@@ -1924,8 +1924,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
       wasm_unit_->func_index_, desc, frame_slot_count, safepoint_table_offset,
       0, std::move(protected_instructions), std::move(source_positions),
       WasmCode::kLiftoff);
-  wasm_unit_->result_ = Result<WasmCode*>(code);
-  wasm_unit_->native_module_->PublishCode(code);
+  wasm_unit_->SetResult(code);
 
   return true;
 }
