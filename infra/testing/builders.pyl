@@ -346,7 +346,7 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 9},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
     ],
   },
   ##############################################################################
