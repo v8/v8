@@ -964,11 +964,7 @@ def Main(args):
 
   (options, args) = parser.parse_args(args)
 
-  if options.buildbot:
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-  else:
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+  logging.basicConfig(level=logging.INFO, format="%(levelname)-8s  %(message)s")
 
   if len(args) == 0:  # pragma: no cover
     parser.print_help()
