@@ -176,8 +176,6 @@
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
-  'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
-  'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
@@ -229,6 +227,11 @@
 
   # BUG(v8:8169)
   'external-backing-store-gc': [SKIP],
+
+  # BUG(v8:8332)
+  'wasm/atomics-stress': [SKIP],
+  # BUG(v8:8331)
+  'wasm/atomics64-stress': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -756,9 +759,6 @@
   'd8/enable-tracing': [SKIP],
   # Relies on async compilation which requires background tasks.
   'wasm/streaming-error-position': [SKIP],
-  # Intentionally non-deterministic using shared arraybuffers.
-  'wasm/atomics-stress': [SKIP],
-  'wasm/atomics64-stress': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
