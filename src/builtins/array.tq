@@ -24,7 +24,7 @@ module array {
     // extract FixedArrays and don't have to worry about FixedDoubleArrays.
     assert(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
 
-    const length: Smi = array.length_fast;
+    const length: Smi = Cast<Smi>(array.length) otherwise unreachable;
     array.elements =
         ExtractFixedArray(elements, 0, length, length, kFixedArrays);
     assert(array.elements.map != kCOWMap);

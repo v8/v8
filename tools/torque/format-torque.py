@@ -45,13 +45,13 @@ def postprocess(output):
   output = re.sub(r',([\n ]*)\/\*_LABELS_HOLD_\*\/', r'\1labels', output)
   output = re.sub(r'\/\*_OPE \'([^\']+)\'\*\/', r"operator '\1'", output)
   output = re.sub(r'\/\*_TYPE\*\/(\s*)switch', r'typeswitch', output)
-  output = re.sub(r'case ([^\:]+)\:\s*\/\*_TSXDEFERRED_\*\/',
+  output = re.sub(r'case (\w+)\:\s*\/\*_TSXDEFERRED_\*\/',
       r'case (\1): deferred', output)
-  output = re.sub(r'case ([^\:]+)\:\s*\/\*_TSX\*\/',
+  output = re.sub(r'case (\w+)\:\s*\/\*_TSX\*\/',
       r'case (\1):', output)
-  output = re.sub(r'case ([^\:]+)\:\s*\/\*_TSVDEFERRED_([^\:]+)\:\*\/',
+  output = re.sub(r'case (\w+)\:\s*\/\*_TSVDEFERRED_([^\:]+)\:\*\/',
       r'case (\2: \1): deferred', output)
-  output = re.sub(r'case ([^\:]+)\:\s*\/\*_TSV([^\:]+)\:\*\/',
+  output = re.sub(r'case (\w+)\:\s*\/\*_TSV([^\:]+)\:\*\/',
       r'case (\2: \1):', output)
   output = re.sub(r'\n_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',
       r"\n    generates '\1'", output)

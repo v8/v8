@@ -423,6 +423,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return TNode<JSArgumentsObjectWithLength>::UncheckedCast(p_o);
   }
 
+  TNode<JSArray> RawCastObjectToFastJSArray(TNode<Object> p_o) {
+    return TNode<JSArray>::UncheckedCast(p_o);
+  }
+
+  TNode<JSArray> RawCastObjectToFastJSArrayForCopy(TNode<Object> p_o) {
+    return TNode<JSArray>::UncheckedCast(p_o);
+  }
+
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
@@ -1639,6 +1647,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return UncheckedCast<FixedDoubleArray>(base);
   }
 
+  TNode<FixedArray> HeapObjectToSloppyArgumentsElements(TNode<HeapObject> base,
+                                                        Label* cast_fail) {
+    GotoIf(WordNotEqual(LoadMap(base),
+                        LoadRoot(RootIndex::kSloppyArgumentsElementsMap)),
+           cast_fail);
+    return UncheckedCast<FixedArray>(base);
+  }
+
   TNode<Int32T> ConvertElementsKindToInt(TNode<Int32T> elements_kind) {
     return UncheckedCast<Int32T>(elements_kind);
   }
@@ -2008,6 +2024,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                                 SloppyTNode<Map> map);
   TNode<BoolT> IsPrototypeTypedArrayPrototype(SloppyTNode<Context> context,
                                               SloppyTNode<Map> map);
+
+  TNode<BoolT> IsFastAliasedArgumentsMap(TNode<Context> context,
+                                         TNode<Map> map);
+  TNode<BoolT> IsSlowAliasedArgumentsMap(TNode<Context> context,
+                                         TNode<Map> map);
+  TNode<BoolT> IsSloppyArgumentsMap(TNode<Context> context, TNode<Map> map);
+  TNode<BoolT> IsStrictArgumentsMap(TNode<Context> context, TNode<Map> map);
+
   TNode<BoolT> IsSequentialStringInstanceType(
       SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsUncachedExternalStringInstanceType(
