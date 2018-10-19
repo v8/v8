@@ -11,7 +11,6 @@
 #include "src/heap/factory.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
 #include "src/message-template.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"

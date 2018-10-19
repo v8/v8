@@ -14,9 +14,9 @@
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
 #include "src/base/optional.h"
+#include "src/constant-pool.h"
 #include "src/globals.h"
 #include "src/utils.h"
-
 
 namespace v8 {
 namespace internal {
@@ -3168,13 +3168,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
-
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
 
   // Returns true if we should emit a veneer as soon as possible for a branch
   // which can at most reach to specified pc.

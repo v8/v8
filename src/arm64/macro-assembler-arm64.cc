@@ -2531,6 +2531,10 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   Pop(fp, lr);
 }
 
+void MacroAssembler::LoadGlobalProxy(Register dst) {
+  LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+}
+
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
   CompareAndBranch(in, Operand(kClearedWeakHeapObject), eq, target_if_cleared);

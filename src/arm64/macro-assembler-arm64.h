@@ -1897,9 +1897,7 @@ class MacroAssembler : public TurboAssembler {
                       const Register& scratch2);
 
   // Load the global proxy from the current context.
-  void LoadGlobalProxy(Register dst) {
-    LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
-  }
+  void LoadGlobalProxy(Register dst);
 
   // ---------------------------------------------------------------------------
   // In-place weak references.

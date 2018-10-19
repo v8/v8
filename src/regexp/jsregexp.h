@@ -6,7 +6,6 @@
 #define V8_REGEXP_JSREGEXP_H_
 
 #include "src/allocation.h"
-#include "src/assembler.h"
 #include "src/isolate.h"
 #include "src/objects/js-regexp.h"
 #include "src/regexp/regexp-ast.h"

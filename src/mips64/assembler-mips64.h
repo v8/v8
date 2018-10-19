@@ -40,6 +40,9 @@
 #include <set>
 
 #include "src/assembler.h"
+#include "src/contexts.h"
+#include "src/external-reference.h"
+#include "src/label.h"
 #include "src/mips64/constants-mips64.h"
 
 namespace v8 {
@@ -1904,13 +1907,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsEmittedConstant(Instr instr);
 
   void CheckTrampolinePool();
-
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
 
   bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
   static bool IsCompactBranchSupported() { return kArchVariant == kMips64r6; }

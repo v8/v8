@@ -1901,6 +1901,10 @@ void TurboAssembler::Abort(AbortReason reason) {
   // will not return here
 }
 
+void MacroAssembler::LoadGlobalProxy(Register dst) {
+  LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+}
+
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
   ldr(dst, NativeContextMemOperand());
   ldr(dst, ContextMemOperand(dst, index));

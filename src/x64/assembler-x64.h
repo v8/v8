@@ -38,10 +38,11 @@
 #define V8_X64_ASSEMBLER_X64_H_
 
 #include <deque>
-#include <forward_list>
+#include <map>
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/label.h"
 #include "src/x64/constants-x64.h"
 #include "src/x64/sse-instr.h"
 
@@ -1923,12 +1924,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
                          int id);
 
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.

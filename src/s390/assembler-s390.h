@@ -1504,13 +1504,6 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
   void dq(uint64_t data);
   void dp(uintptr_t data);
 
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
-
   // Read/patch instructions
   SixByteInstr instr_at(int pos) {
     return Instruction::InstructionBits(buffer_ + pos);

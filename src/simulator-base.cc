@@ -4,7 +4,6 @@
 
 #include "src/simulator-base.h"
 
-#include "src/assembler.h"
 #include "src/isolate.h"
 #include "src/simulator.h"
 

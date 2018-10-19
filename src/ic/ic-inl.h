@@ -9,7 +9,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/debug/debug.h"
-#include "src/macro-assembler.h"
+#include "src/handles-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {

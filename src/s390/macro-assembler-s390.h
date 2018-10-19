@@ -7,6 +7,7 @@
 
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
+#include "src/contexts.h"
 #include "src/globals.h"
 #include "src/s390/assembler-s390.h"
 #include "src/turbo-assembler.h"

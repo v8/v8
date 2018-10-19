@@ -8,6 +8,7 @@
 #include "src/arm/assembler-arm.h"
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
+#include "src/contexts.h"
 #include "src/globals.h"
 #include "src/turbo-assembler.h"
 
@@ -656,9 +657,7 @@ class MacroAssembler : public TurboAssembler {
                       bool argument_count_is_length = false);
 
   // Load the global proxy from the current context.
-  void LoadGlobalProxy(Register dst) {
-    LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
-  }
+  void LoadGlobalProxy(Register dst);
 
   void LoadNativeContextSlot(int index, Register dst);
 

@@ -6,7 +6,6 @@
 
 #include <vector>
 
-#include "src/assembler.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"

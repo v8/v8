@@ -43,6 +43,7 @@
 #include "src/ia32/constants-ia32.h"
 #include "src/ia32/sse-instr.h"
 #include "src/isolate.h"
+#include "src/label.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -1778,13 +1779,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   byte byte_at(int pos) { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
-
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
 
   // Temporary helper data structures while adding kRootRegister support to ia32
   // builtins. The SupportsRootRegisterScope is intended to mark each builtin

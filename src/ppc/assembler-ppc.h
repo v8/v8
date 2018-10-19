@@ -44,7 +44,10 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/constant-pool.h"
 #include "src/double.h"
+#include "src/external-reference.h"
+#include "src/label.h"
 #include "src/ppc/constants-ppc.h"
 
 #if V8_HOST_ARCH_PPC && \
