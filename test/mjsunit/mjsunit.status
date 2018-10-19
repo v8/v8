@@ -173,12 +173,13 @@
   'string-replace-gc': [PASS, SLOW],
   'wasm/asm-wasm-f32': [PASS, SLOW],
   'wasm/asm-wasm-f64': [PASS, SLOW],
-  'wasm/compare-exchange-stress': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
-  'wasm/atomics-stress': [PASS, SLOW, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
-  'wasm/atomics64-stress': [PASS, SLOW, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
+  'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
+  'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
+  'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
+  'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
@@ -812,12 +813,6 @@
 
   # Too memory hungry on Odroid devices.
   'regress/regress-678917': [PASS, ['arch == arm and not simulator_run', SKIP]],
-
-  # These tests already stress d8 by using many workers. No need for extra stress.
-  'wasm/compare-exchange-stress': [SKIP],
-  'wasm/compare-exchange64-stress': [SKIP],
-  'wasm/atomics-stress': [SKIP],
-  'wasm/atomics64-stress': [SKIP],
 
   # Too slow for verify-csa builds.
   'big-object-literal': [PASS, ['verify_csa == True', SKIP]],
