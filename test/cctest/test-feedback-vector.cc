@@ -158,7 +158,9 @@ TEST(VectorICMetadata) {
 
 
 TEST(VectorCallICStates) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -184,7 +186,9 @@ TEST(VectorCallICStates) {
 }
 
 TEST(VectorCallFeedback) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -212,7 +216,9 @@ TEST(VectorCallFeedback) {
 }
 
 TEST(VectorCallFeedbackForArray) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -247,7 +253,9 @@ size_t GetFeedbackVectorLength(Isolate* isolate, const char* src,
 }
 
 TEST(OneShotCallICSlotCount) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -299,7 +307,9 @@ TEST(OneShotCallICSlotCount) {
 }
 
 TEST(VectorCallCounts) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -328,7 +338,9 @@ TEST(VectorCallCounts) {
 }
 
 TEST(VectorConstructCounts) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -359,7 +371,9 @@ TEST(VectorConstructCounts) {
 }
 
 TEST(VectorSpeculationMode) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -391,7 +405,9 @@ TEST(VectorSpeculationMode) {
 }
 
 TEST(VectorLoadICStates) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -444,7 +460,9 @@ TEST(VectorLoadICStates) {
 }
 
 TEST(VectorLoadGlobalICSlotSharing) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -479,7 +497,9 @@ TEST(VectorLoadGlobalICSlotSharing) {
 
 
 TEST(VectorLoadICOnSmi) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -537,7 +557,9 @@ TEST(VectorLoadICOnSmi) {
 
 
 TEST(ReferenceContextAllocatesNoSlots) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -675,6 +697,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
 
 TEST(VectorStoreICBasic) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
 
   CcTest::InitializeVM();
@@ -700,6 +723,7 @@ TEST(VectorStoreICBasic) {
 }
 
 TEST(StoreOwnIC) {
+  if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
 
   CcTest::InitializeVM();

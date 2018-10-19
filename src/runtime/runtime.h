@@ -489,6 +489,7 @@ namespace internal {
   F(HasSmiOrObjectElements, 1, 1)             \
   F(HaveSameMap, 2, 1)                        \
   F(HeapObjectVerify, 1, 1)                   \
+  F(ICsAreEnabled, 0, 1)                      \
   F(InNewSpace, 1, 1)                         \
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsConcurrentRecompilationSupported, 0, 1) \

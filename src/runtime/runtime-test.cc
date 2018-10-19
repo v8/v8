@@ -156,7 +156,6 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -176,7 +175,6 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_RunningInSimulator) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
@@ -187,6 +185,11 @@ RUNTIME_FUNCTION(Runtime_RunningInSimulator) {
 #endif
 }
 
+RUNTIME_FUNCTION(Runtime_ICsAreEnabled) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(FLAG_use_ic);
+}
 
 RUNTIME_FUNCTION(Runtime_IsConcurrentRecompilationSupported) {
   SealHandleScope shs(isolate);

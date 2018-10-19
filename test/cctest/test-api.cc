@@ -22955,6 +22955,8 @@ TEST(ScopedMicrotasks) {
   env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
 }
 
+#ifndef V8_LITE_MODE
+
 namespace {
 
 int probes_counter = 0;
@@ -23080,6 +23082,7 @@ UNINITIALIZED_TEST(SecondaryStubCache) {
 }
 
 #endif  // ENABLE_DISASSEMBLER
+#endif  // V8_LITE_MODE
 
 namespace {
 
@@ -23967,6 +23970,7 @@ TEST(AccessCheckThrows) {
 }
 
 TEST(AccessCheckInIC) {
+#ifndef V8_LITE_MODE
   i::FLAG_native_code_counters = true;
 #ifndef V8_LITE_MODE
   i::FLAG_opt = false;
@@ -24070,6 +24074,7 @@ TEST(AccessCheckInIC) {
     CHECK_EQ(13, updates_counter - initial_updates);
   }
   isolate->Dispose();
+#endif  // V8_LITE_MODE
 }
 
 class RequestInterruptTestBase {
