@@ -903,9 +903,20 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     AdvanceToOsrEntryAndPeelLoops(&iterator, &source_position_iterator);
   }
 
+  bool has_one_shot_bytecode = false;
   for (; !iterator.done(); iterator.Advance()) {
+    if (interpreter::Bytecodes::IsOneShotBytecode(
+            iterator.current_bytecode())) {
+      has_one_shot_bytecode = true;
+    }
     VisitSingleBytecode(&source_position_iterator);
   }
+
+  if (has_one_shot_bytecode) {
+    isolate()->CountUsage(
+        v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);
+  }
+
   set_bytecode_analysis(nullptr);
   set_bytecode_iterator(nullptr);
   DCHECK(exception_handlers_.empty());

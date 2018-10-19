@@ -687,6 +687,15 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
            bytecode == Bytecode::kInvokeIntrinsic;
   }
 
+  // Returns true if the bytecode is an one-shot bytecode.  One-shot bytecodes
+  // don`t collect feedback and are intended for code that runs only once and
+  // shouldn`t be optimized.
+  static constexpr bool IsOneShotBytecode(Bytecode bytecode) {
+    return bytecode == Bytecode::kCallNoFeedback ||
+           bytecode == Bytecode::kLdaNamedPropertyNoFeedback ||
+           bytecode == Bytecode::kStaNamedPropertyNoFeedback;
+  }
+
   // Returns true if the bytecode is a scaling prefix bytecode.
   static constexpr bool IsPrefixScalingBytecode(Bytecode bytecode) {
     return bytecode == Bytecode::kExtraWide || bytecode == Bytecode::kWide ||
