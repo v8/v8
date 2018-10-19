@@ -3362,7 +3362,7 @@ class AstNodeFactory final {
   bool AstNode::Is##type() const {                                           \
     NodeType mine = node_type();                                             \
     if (mine == AstNode::kRewritableExpression &&                            \
-        AstNode::k##type != AstNode::kRewritableExpression)                  \
+        AstNode::k##type == AstNode::kAssignment)                            \
       mine = reinterpret_cast<const RewritableExpression*>(this)             \
                  ->expression()                                              \
                  ->node_type();                                              \
@@ -3372,7 +3372,7 @@ class AstNodeFactory final {
     NodeType mine = node_type();                                             \
     AstNode* result = this;                                                  \
     if (mine == AstNode::kRewritableExpression &&                            \
-        AstNode::k##type != AstNode::kRewritableExpression) {                \
+        AstNode::k##type == AstNode::kAssignment) {                          \
       result =                                                               \
           reinterpret_cast<const RewritableExpression*>(this)->expression(); \
       mine = result->node_type();                                            \
