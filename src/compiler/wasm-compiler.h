@@ -57,12 +57,8 @@ class TurbofanWasmCompilationUnit {
 
   void ExecuteCompilation(wasm::WasmFeatures* detected);
 
-  wasm::WasmCode* FinishCompilation(wasm::ErrorThrower*);
-
  private:
   wasm::WasmCompilationUnit* const wasm_unit_;
-  wasm::WasmCode* wasm_code_ = nullptr;
-  wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
 
   DISALLOW_COPY_AND_ASSIGN(TurbofanWasmCompilationUnit);
 };

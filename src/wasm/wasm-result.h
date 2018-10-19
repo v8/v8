@@ -122,7 +122,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   PRINTF_FORMAT(2, 3) void RuntimeError(const char* fmt, ...);
 
   template <typename T>
-  void CompileFailed(const char* error, Result<T>& result) {
+  void CompileFailed(const char* error, const Result<T>& result) {
     DCHECK(result.failed());
     CompileError("%s: %s @+%u", error, result.error_msg().c_str(),
                  result.error_offset());
@@ -167,6 +167,11 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   // (things happen in the destructor).
   DISALLOW_NEW_AND_DELETE();
 };
+
+// Use {nullptr_t} as data value to indicate that this only stores the error,
+// but no result value (the only valid value is {nullptr}).
+// [Storing {void} would require template specialization.]
+using VoidResult = Result<std::nullptr_t>;
 
 }  // namespace wasm
 }  // namespace internal

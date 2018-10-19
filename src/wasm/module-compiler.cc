@@ -358,21 +358,22 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
                     module_start + func->code.offset(),
                     module_start + func->code.end_offset()};
 
-  ErrorThrower thrower(isolate, "WasmLazyCompile");
   WasmCompilationUnit unit(isolate->wasm_engine(), module_env, native_module,
                            body, func_index, isolate->counters());
   unit.ExecuteCompilation(
       native_module->compilation_state()->detected_features());
-  WasmCode* wasm_code = unit.FinishCompilation(&thrower);
-
-  if (WasmCode::ShouldBeLogged(isolate)) wasm_code->LogCode(isolate);
+  unit.FinishCompilation();
 
   // If there is a pending error, something really went wrong. The module was
   // verified before starting execution with lazy compilation.
   // This might be OOM, but then we cannot continue execution anyway.
   // TODO(clemensh): According to the spec, we can actually skip validation at
   // module creation time, and return a function that always traps here.
-  CHECK(!thrower.error());
+  CHECK(!unit.failed());
+
+  WasmCode* code = unit.result();
+
+  if (WasmCode::ShouldBeLogged(isolate)) code->LogCode(isolate);
 
   int64_t func_size =
       static_cast<int64_t>(func->code.end_offset() - func->code.offset());
@@ -385,7 +386,7 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
       compilation_time != 0 ? static_cast<int>(func_size / compilation_time)
                             : 0);
 
-  return wasm_code;
+  return code;
 }
 
 Address CompileLazy(Isolate* isolate, NativeModule* native_module,
@@ -548,17 +549,16 @@ void FinishCompilationUnits(CompilationState* compilation_state,
     std::unique_ptr<WasmCompilationUnit> unit =
         compilation_state->GetNextExecutedUnit();
     if (unit == nullptr) break;
-    WasmCode* result = unit->FinishCompilation(thrower);
+    unit->FinishCompilation();
 
-    if (thrower->error()) {
+    if (unit->failed()) {
+      unit->ReportError(thrower);
       compilation_state->Abort();
       break;
     }
 
     // Update the compilation state.
     compilation_state->OnFinishedUnit();
-    DCHECK_IMPLIES(result == nullptr, thrower->error());
-    if (result == nullptr) break;
   }
   if (!compilation_state->failed()) {
     compilation_state->RestartBackgroundTasks();
@@ -789,16 +789,18 @@ class FinishCompileTask : public CancelableTask {
         break;
       }
 
-      ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");
-      WasmCode* result = unit->FinishCompilation(&thrower);
+      unit->FinishCompilation();
 
-      if (thrower.error()) {
-        DCHECK_NULL(result);
+      if (unit->failed()) {
+        ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");
+        unit->ReportError(&thrower);
         compilation_state_->OnError(&thrower);
         compilation_state_->SetFinisherIsRunning(false);
         thrower.Reset();
         break;
       }
+
+      WasmCode* result = unit->result();
 
       if (compilation_state_->baseline_compilation_finished()) {
         // If Liftoff compilation finishes it will directly start executing.

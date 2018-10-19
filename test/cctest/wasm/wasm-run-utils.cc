@@ -412,7 +412,6 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                                          ->wire_bytes();
 
   ModuleEnv module_env = builder_->CreateModuleEnv();
-  ErrorThrower thrower(isolate(), "WasmFunctionCompiler::Build");
   ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.start(), wire_bytes.start() + function_->code.offset(),
          func_wire_bytes.length());
@@ -426,11 +425,9 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                            isolate()->counters(), tier);
   WasmFeatures unused_detected_features;
   unit.ExecuteCompilation(&unused_detected_features);
-  WasmCode* wasm_code = unit.FinishCompilation(&thrower);
-  if (WasmCode::ShouldBeLogged(isolate())) {
-    wasm_code->LogCode(isolate());
-  }
-  CHECK(!thrower.error());
+  unit.FinishCompilation();
+  CHECK(!unit.failed());
+  if (WasmCode::ShouldBeLogged(isolate())) unit.result()->LogCode(isolate());
 }
 
 WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,

@@ -92,15 +92,23 @@ class WasmCompilationUnit final {
   ~WasmCompilationUnit();
 
   void ExecuteCompilation(WasmFeatures* detected);
-  WasmCode* FinishCompilation(ErrorThrower* thrower);
+  void FinishCompilation();
+
+  NativeModule* native_module() const { return native_module_; }
+  ExecutionTier mode() const { return mode_; }
+  bool failed() const { return result_.failed(); }
+  WasmCode* result() const {
+    DCHECK(!failed());
+    DCHECK_NOT_NULL(result_.value());
+    return result_.value();
+  }
+
+  void ReportError(ErrorThrower* thrower) const;
 
   static WasmCode* CompileWasmFunction(
       Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
       ErrorThrower* thrower, ModuleEnv* env, const WasmFunction* function,
       ExecutionTier = GetDefaultExecutionTier());
-
-  NativeModule* native_module() const { return native_module_; }
-  ExecutionTier mode() const { return mode_; }
 
  private:
   friend class LiftoffCompilationUnit;
@@ -113,6 +121,8 @@ class WasmCompilationUnit final {
   int func_index_;
   NativeModule* native_module_;
   ExecutionTier mode_;
+  wasm::Result<WasmCode*> result_;
+
   // LiftoffCompilationUnit, set if {mode_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;
   // TurbofanWasmCompilationUnit, set if {mode_ == kTurbofan}.

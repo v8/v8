@@ -99,24 +99,30 @@ void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   }
 }
 
-WasmCode* WasmCompilationUnit::FinishCompilation(ErrorThrower* thrower) {
-  WasmCode* ret;
-  switch (mode_) {
-    case ExecutionTier::kBaseline:
-      ret = liftoff_unit_->FinishCompilation(thrower);
-      break;
-    case ExecutionTier::kOptimized:
-      ret = turbofan_unit_->FinishCompilation(thrower);
-      break;
-    case ExecutionTier::kInterpreter:
-      UNREACHABLE();  // TODO(titzer): finish interpreter entry stub.
+void WasmCompilationUnit::FinishCompilation() {
+  // TODO(clemensh): Move this somewhere else, then remove FinishCompilation.
+  if (!failed()) {
+    RecordStats(result(), counters_);
   }
-  if (ret == nullptr) {
-    thrower->RuntimeError("Error finalizing code.");
+}
+
+void WasmCompilationUnit::ReportError(ErrorThrower* thrower) const {
+  DCHECK(result_.failed());
+  // Add the function as another context for the exception. This is
+  // user-visible, so use official format.
+  EmbeddedVector<char, 128> message;
+  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
+  wasm::WireBytesRef name_ref =
+      native_module()->module()->LookupFunctionName(wire_bytes, func_index_);
+  if (name_ref.is_set()) {
+    wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
+    SNPrintF(message, "Compiling wasm function \"%.*s\" failed", name.length(),
+             name.start());
   } else {
-    RecordStats(ret, counters_);
+    SNPrintF(message, "Compiling wasm function \"wasm-function[%d]\" failed",
+             func_index_);
   }
-  return ret;
+  thrower->CompileFailed(message.start(), result_);
 }
 
 void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
@@ -155,7 +161,12 @@ WasmCode* WasmCompilationUnit::CompileWasmFunction(
                            function_body,
                            function->func_index, isolate->counters(), mode);
   unit.ExecuteCompilation(detected);
-  return unit.FinishCompilation(thrower);
+  unit.FinishCompilation();
+  if (unit.failed()) {
+    unit.ReportError(thrower);
+    return nullptr;
+  }
+  return unit.result();
 }
 
 }  // namespace wasm

@@ -5152,15 +5152,16 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
       new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
   WasmGraphBuilder builder(wasm_unit_->env_, mcgraph->zone(), mcgraph,
                            wasm_unit_->func_body_.sig, source_position_table);
-  graph_construction_result_ = wasm::BuildTFGraph(
+  wasm::VoidResult graph_construction_result = wasm::BuildTFGraph(
       wasm_unit_->wasm_engine_->allocator(),
       wasm_unit_->native_module_->enabled_features(), wasm_unit_->env_->module,
       &builder, detected, wasm_unit_->func_body_, node_origins);
-  if (graph_construction_result_.failed()) {
+  if (graph_construction_result.failed()) {
     if (FLAG_trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "
-                     << graph_construction_result_.error_msg() << std::endl;
+                     << graph_construction_result.error_msg() << std::endl;
     }
+    wasm_unit_->result_.MoveErrorFrom(graph_construction_result);
     return nullptr;
   }
 
@@ -5199,7 +5200,6 @@ Vector<const char> GetDebugName(Zone* zone, int index) {
   memcpy(index_name, name_vector.start(), name_len);
   return Vector<const char>(index_name, name_len);
 }
-
 }  // namespace
 
 void TurbofanWasmCompilationUnit::ExecuteCompilation(
@@ -5239,7 +5239,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
   SourcePositionTable* source_positions =
       BuildGraphForWasmFunction(detected, &decode_ms, mcgraph, node_origins);
 
-  if (graph_construction_result_.failed()) return;
+  if (wasm_unit_->failed()) return;
 
   if (node_origins) {
     node_origins->AddDecorator();
@@ -5280,36 +5280,10 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
         decode_ms, node_count, pipeline_ms);
   }
   if (succeeded) {
-    wasm_code_ = info.wasm_code();
-    wasm_unit_->native_module()->PublishCode(wasm_code_);
+    wasm::WasmCode* code = info.wasm_code();
+    wasm_unit_->result_ = wasm::Result<wasm::WasmCode*>(code);
+    wasm_unit_->native_module()->PublishCode(code);
   }
-}
-
-wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
-    wasm::ErrorThrower* thrower) {
-  DCHECK_IMPLIES(graph_construction_result_.failed(), wasm_code_ == nullptr);
-  if (wasm_code_ != nullptr) return wasm_code_;
-
-  if (graph_construction_result_.failed()) {
-    // Add the function as another context for the exception. This is
-    // user-visible, so use official format.
-    EmbeddedVector<char, 128> message;
-    wasm::ModuleWireBytes wire_bytes(wasm_unit_->native_module()->wire_bytes());
-    wasm::WireBytesRef name_ref =
-        wasm_unit_->native_module()->module()->LookupFunctionName(
-            wire_bytes, wasm_unit_->func_index_);
-    if (name_ref.is_set()) {
-      wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
-      SNPrintF(message, "Compiling wasm function \"%.*s\" failed",
-               name.length(), name.start());
-    } else {
-      SNPrintF(message, "Compiling wasm function \"wasm-function[%d]\" failed",
-               wasm_unit_->func_index_);
-    }
-    thrower->CompileFailed(message.start(), graph_construction_result_);
-  }
-
-  return nullptr;
 }
 
 namespace {

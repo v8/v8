@@ -28,11 +28,8 @@ namespace wasm {
     if (FLAG_trace_wasm_decoder && (cond)) PrintF(__VA_ARGS__); \
   } while (false)
 
-// A {DecodeResult} only stores the failure / success status, but no data. Thus
-// we use {nullptr_t} as data value, such that the only valid data stored in
-// this type is a nullptr.
-// Storing {void} would require template specialization.
-using DecodeResult = Result<std::nullptr_t>;
+// A {DecodeResult} only stores the failure / success status, but no data.
+using DecodeResult = VoidResult;
 
 // A helper utility to decode bytes, integers, fields, varints, etc, from
 // a buffer of bytes.

@@ -1920,17 +1920,14 @@ bool LiftoffCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   uint32_t frame_slot_count = compiler->GetTotalFrameSlotCount();
   int safepoint_table_offset = compiler->GetSafepointTableOffset();
 
-  code_ = wasm_unit_->native_module_->AddCode(
+  WasmCode* code = wasm_unit_->native_module_->AddCode(
       wasm_unit_->func_index_, desc, frame_slot_count, safepoint_table_offset,
       0, std::move(protected_instructions), std::move(source_positions),
       WasmCode::kLiftoff);
-  wasm_unit_->native_module_->PublishCode(code_);
+  wasm_unit_->result_ = Result<WasmCode*>(code);
+  wasm_unit_->native_module_->PublishCode(code);
 
   return true;
-}
-
-WasmCode* LiftoffCompilationUnit::FinishCompilation(ErrorThrower*) {
-  return code_;
 }
 
 #undef __
