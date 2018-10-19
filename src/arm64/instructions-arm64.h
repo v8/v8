@@ -19,6 +19,10 @@ struct AssemblerOptions;
 
 typedef uint32_t Instr;
 
+#if defined(V8_OS_WIN)
+extern "C" {
+#endif
+
 extern const float16 kFP16PositiveInfinity;
 extern const float16 kFP16NegativeInfinity;
 extern const float kFP32PositiveInfinity;
@@ -39,6 +43,10 @@ extern const float kFP32QuietNaN;
 extern const double kFP64DefaultNaN;
 extern const float kFP32DefaultNaN;
 extern const float16 kFP16DefaultNaN;
+
+#if defined(V8_OS_WIN)
+}  // end of extern "C"
+#endif
 
 unsigned CalcLSDataSize(LoadStoreOp op);
 unsigned CalcLSPairDataSize(LoadStorePairOp op);

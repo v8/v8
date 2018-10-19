@@ -418,7 +418,9 @@ v8_source_set("cctest_sources") {
       v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64") {
     # Disable fmadd/fmsub so that expected results match generated code in
     # RunFloat64MulAndFloat64Add1 and friends.
-    cflags += [ "-ffp-contract=off" ]
+    if (!is_win) {
+      cflags += [ "-ffp-contract=off" ]
+    }
   }
 
   if (is_win) {
