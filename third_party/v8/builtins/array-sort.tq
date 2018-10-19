@@ -325,12 +325,14 @@ module array {
   builtin CanUseSameAccessor<ElementsAccessor: type>(
       context: Context, receiver: JSReceiver, initialReceiverMap: Object,
       initialReceiverLength: Number): Boolean {
-    const a: JSArray = Cast<JSArray>(receiver) otherwise unreachable;
+    assert(IsJSArray(receiver));
+
+    let a: JSArray = UnsafeCast<JSArray>(receiver);
     if (a.map != initialReceiverMap) return False;
 
     assert(TaggedIsSmi(initialReceiverLength));
     let originalLength: Smi = UnsafeCast<Smi>(initialReceiverLength);
-    if (a.length != originalLength) return False;
+    if (a.length_fast != originalLength) return False;
 
     return True;
   }
@@ -545,7 +547,13 @@ module array {
   // Used for OOB asserts in Copy* builtins.
   macro GetReceiverLengthProperty(
       implicit context: Context)(sortState: FixedArray): Smi {
-    return Cast<Smi>(GetLengthProperty(GetReceiver(sortState))) otherwise unreachable;
+    const receiver: JSReceiver = GetReceiver(sortState);
+
+    if (IsJSArray(receiver)) return UnsafeCast<JSArray>(receiver).length_fast;
+
+    const len: Number =
+        ToLength_Inline(context, GetProperty(receiver, kLengthString));
+    return UnsafeCast<Smi>(len);
   }
 
   macro CopyToTempArray(
@@ -1739,10 +1747,12 @@ module array {
     sortState[kBailoutStatusIdx] = kSuccess;
 
     try {
-      const a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+      const a: JSArray = Cast<JSArray>(obj) otherwise Slow;
+      const elementsKind: ElementsKind = map.elements_kind;
+      if (!IsFastElementsKind(elementsKind)) goto Slow;
 
       // 3. Let len be ? ToLength(? Get(obj, "length")).
-      const len: Smi = a.length;
+      const len: Smi = a.length_fast;
       if (len < 2) return receiver;
 
       // TODO(szuend): Investigate performance tradeoff of skipping this step
@@ -1752,7 +1762,6 @@ module array {
 
       sortState[kInitialReceiverLengthIdx] = len;
 
-      const elementsKind: ElementsKind = map.elements_kind;
       if (IsDoubleElementsKind(elementsKind)) {
         InitializeSortStateAccessor<FastDoubleElements>(sortState);
       } else if (elementsKind == PACKED_SMI_ELEMENTS) {

@@ -143,22 +143,21 @@ module array {
     return object;
   }
 
-  macro TryFastPackedArrayReverse(implicit context: Context)(receiver: Object)
-  labels Slow {
-    const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+  macro TryFastPackedArrayReverse(receiver: Object) labels Slow {
+    const array: JSArray = Cast<JSArray>(receiver) otherwise Slow;
 
     const kind: ElementsKind = array.map.elements_kind;
     if (kind == PACKED_SMI_ELEMENTS) {
       EnsureWriteableFastElements(array);
       FastPackedArrayReverse<FastPackedSmiElements, Smi>(
-          array.elements, array.length);
+          array.elements, array.length_fast);
     } else if (kind == PACKED_ELEMENTS) {
       EnsureWriteableFastElements(array);
       FastPackedArrayReverse<FastPackedObjectElements, Object>(
-          array.elements, array.length);
+          array.elements, array.length_fast);
     } else if (kind == PACKED_DOUBLE_ELEMENTS) {
       FastPackedArrayReverse<FastPackedDoubleElements, float64>(
-          array.elements, array.length);
+          array.elements, array.length_fast);
     } else {
       goto Slow;
     }

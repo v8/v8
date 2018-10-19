@@ -75,8 +75,10 @@ module array {
       context: Context, receiver: JSReceiver, searchElement: Object,
       from: Number): Object
       labels Slow {
-    const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
-    const length: Smi = array.length;
+    EnsureFastJSArray(context, receiver) otherwise Slow;
+    const array: JSArray = UnsafeCast<JSArray>(receiver);
+
+    const length: Smi = array.length_fast;
     if (length == 0) return SmiConstant(-1);
 
     const fromSmi: Smi = Cast<Smi>(from) otherwise Slow;
