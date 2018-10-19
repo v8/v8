@@ -755,6 +755,9 @@
   'd8/enable-tracing': [SKIP],
   # Relies on async compilation which requires background tasks.
   'wasm/streaming-error-position': [SKIP],
+  # Intentionally non-deterministic using shared arraybuffers.
+  'wasm/atomics-stress': [SKIP],
+  'wasm/atomics64-stress': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
