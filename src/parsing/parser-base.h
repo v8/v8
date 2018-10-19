@@ -648,6 +648,10 @@ class ParserBase {
     return pending_error_handler()->stack_overflow();
   }
   void set_stack_overflow() { pending_error_handler()->set_stack_overflow(); }
+  void CheckStackOverflow() {
+    // Any further calls to Next or peek will return the illegal token.
+    if (GetCurrentStackPosition() < stack_limit_) set_stack_overflow();
+  }
   int script_id() { return script_id_; }
   void set_script_id(int id) { script_id_ = id; }
 
@@ -669,32 +673,18 @@ class ParserBase {
 
   V8_INLINE Token::Value Next() {
     if (stack_overflow()) return Token::ILLEGAL;
-    {
-      if (GetCurrentStackPosition() < stack_limit_) {
-        // Any further calls to Next or peek will return the illegal token.
-        // The current call must return the next token, which might already
-        // have been peek'ed.
-        set_stack_overflow();
-      }
-    }
     return scanner()->Next();
   }
 
-  void Consume(Token::Value token) {
+  V8_INLINE void Consume(Token::Value token) {
     Token::Value next = scanner()->Next();
-    if (GetCurrentStackPosition() < stack_limit_) {
-      // Any further calls to Next or peek will return the illegal token.
-      // The current call must return the next token, which might already
-      // have been peek'ed.
-      set_stack_overflow();
-    }
     USE(next);
     USE(token);
     DCHECK_EQ(next, token);
   }
 
-  bool Check(Token::Value token) {
-    Token::Value next = peek();
+  V8_INLINE bool Check(Token::Value token) {
+    Token::Value next = scanner()->peek();
     if (next == token) {
       Consume(next);
       return true;
@@ -1750,6 +1740,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBindingPattern(
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     bool* ok) {
+  CheckStackOverflow();
+
   // PrimaryExpression ::
   //   'this'
   //   'null'
@@ -2892,6 +2884,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   classifier()->RecordFormalParameterInitializerError(
       scanner()->peek_location(), MessageTemplate::kYieldInParameter);
   Consume(Token::YIELD);
+
+  CheckStackOverflow();
+
   // The following initialization is necessary.
   ExpressionT expression = impl()->NullExpression();
   bool delegating = false;  // yield*
@@ -3074,6 +3069,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryOpExpression(
     function_state_->set_next_function_is_likely_called();
   }
 
+  CheckStackOverflow();
+
   ExpressionT expression = ParseUnaryExpression(CHECK_OK);
 
   if (op == Token::DELETE) {
@@ -3108,6 +3105,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrefixExpression(
   ArrowFormalParametersUnexpectedToken();
   Token::Value op = Next();
   int beg_pos = peek_position();
+
+  CheckStackOverflow();
+
   ExpressionT expression = ParseUnaryExpression(CHECK_OK);
   expression = CheckAndRewriteReferenceExpression(
       expression, beg_pos, end_position(),
@@ -3126,6 +3126,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseAwaitExpression(
       MessageTemplate::kAwaitExpressionFormalParameter);
   int await_pos = peek_position();
   Consume(Token::AWAIT);
+
+  CheckStackOverflow();
 
   ExpressionT value = ParseUnaryExpression(CHECK_OK);
 
@@ -3341,6 +3343,9 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* ok) {
   Consume(Token::NEW);
   int new_pos = position();
   ExpressionT result;
+
+  CheckStackOverflow();
+
   if (peek() == Token::SUPER) {
     const bool is_new = true;
     result = ParseSuperExpression(is_new, CHECK_OK);
@@ -3400,10 +3405,6 @@ ParserBase<Impl>::ParseFunctionExpression(bool* ok) {
   if (impl()->ParsingDynamicFunctionDeclaration()) {
     // We don't want dynamic functions to actually declare their name
     // "anonymous". We just want that name in the toString().
-    if (stack_overflow()) {
-      *ok = false;
-      return impl()->NullExpression();
-    }
     Consume(Token::IDENTIFIER);
     DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
   } else if (peek_any_identifier()) {
@@ -3827,6 +3828,7 @@ template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseFunctionDeclaration(bool* ok) {
   Consume(Token::FUNCTION);
+
   int pos = position();
   ParseFunctionFlags flags = ParseFunctionFlag::kIsNormal;
   if (Check(Token::MUL)) {
@@ -3844,6 +3846,7 @@ typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseHoistableDeclaration(
     ZonePtrList<const AstRawString>* names, bool default_export, bool* ok) {
   Consume(Token::FUNCTION);
+
   int pos = position();
   ParseFunctionFlags flags = ParseFunctionFlag::kIsNormal;
   if (Check(Token::MUL)) {
@@ -3857,6 +3860,8 @@ typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseHoistableDeclaration(
     int pos, ParseFunctionFlags flags, ZonePtrList<const AstRawString>* names,
     bool default_export, bool* ok) {
+  CheckStackOverflow();
+
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
   //   'function' '(' FormalParameters ')' '{' FunctionBody '}'
@@ -4456,10 +4461,6 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
   if (impl()->ParsingDynamicFunctionDeclaration()) {
     // We don't want dynamic functions to actually declare their name
     // "anonymous". We just want that name in the toString().
-    if (stack_overflow()) {
-      *ok = false;
-      return impl()->NullExpression();
-    }
     Consume(Token::IDENTIFIER);
     DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
   } else if (peek_any_identifier()) {
@@ -4908,6 +4909,9 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE, CHECK_OK_CUSTOM(NullStatement));
+
+  CheckStackOverflow();
+
   {
     BlockState block_state(zone(), &scope_);
     scope()->set_start_position(scanner()->location().beg_pos);
@@ -5247,7 +5251,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
     ZonePtrList<const AstRawString>* own_labels, bool* ok) {
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
-
   auto loop =
       factory()->NewDoWhileStatement(labels, own_labels, peek_position());
   typename Types::Target target(this, loop);
@@ -5256,6 +5259,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   StatementT body = impl()->NullStatement();
 
   Consume(Token::DO);
+
+  CheckStackOverflow();
   {
     SourceRangeScope range_scope(scanner(), &body_range);
     body = ParseStatement(nullptr, nullptr, CHECK_OK);
