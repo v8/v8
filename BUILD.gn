@@ -1180,6 +1180,7 @@ action("v8_dump_build_config") {
     "v8_use_snapshot=$v8_use_snapshot",
     "v8_enable_embedded_builtins=$v8_enable_embedded_builtins",
     "v8_enable_verify_csa=$v8_enable_verify_csa",
+    "v8_enable_lite_mode=$v8_enable_lite_mode",
   ]
 
   if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
