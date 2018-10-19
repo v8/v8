@@ -903,6 +903,7 @@ DEFINE_BOOL(trace_deopt, false, "trace optimize function deoptimization")
 DEFINE_BOOL(trace_file_names, false,
             "include file names in trace-opt/trace-deopt output")
 DEFINE_BOOL(trace_interrupts, false, "trace interrupts when they are handled")
+DEFINE_BOOL(opt, true, "use adaptive optimizations")
 DEFINE_BOOL(always_opt, false, "always try to optimize functions")
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
 DEFINE_BOOL(prepare_always_opt, false, "prepare for turning on always opt")
@@ -1159,9 +1160,6 @@ DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
 #define FLAG FLAG_FULL
 #define V8_LITE_BOOL false
 #endif
-
-// Enable recompilation of function with optimized code.
-DEFINE_BOOL(opt, !V8_LITE_BOOL, "use adaptive optimizations")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, V8_LITE_BOOL,

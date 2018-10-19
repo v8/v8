@@ -2234,8 +2234,10 @@ TEST(CodeSerializerIsolatesEager) {
 TEST(CodeSerializerAfterExecute) {
   // We test that no compilations happen when running this code. Forcing
   // to always optimize breaks this test.
+  bool prev_opt_value = FLAG_opt;
   bool prev_always_opt_value = FLAG_always_opt;
   FLAG_always_opt = false;
+  FLAG_opt = false;
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache =
       CompileRunAndProduceCache(source, CodeCacheType::kAfterExecute);
@@ -2288,6 +2290,7 @@ TEST(CodeSerializerAfterExecute) {
 
   // Restore the flags.
   FLAG_always_opt = prev_always_opt_value;
+  FLAG_opt = prev_opt_value;
 }
 
 TEST(CodeSerializerFlagChange) {

@@ -1097,9 +1097,7 @@ TEST(BoundFunctionCall) {
 
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
-#ifndef V8_LITE_MODE
-  FLAG_opt = optimize;
-#endif  // V8_LITE_MODE
+  if (!optimize) i::FLAG_opt = false;
   CcTest::InitializeVM();
   LocalContext env;
   i::FLAG_allow_natives_syntax = true;
