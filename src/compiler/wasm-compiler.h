@@ -61,7 +61,6 @@ class TurbofanWasmCompilationUnit {
 
  private:
   wasm::WasmCompilationUnit* const wasm_unit_;
-  bool ok_ = true;
   wasm::WasmCode* wasm_code_ = nullptr;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
 

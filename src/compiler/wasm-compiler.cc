@@ -5209,114 +5209,107 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
   double decode_ms = 0;
   size_t node_count = 0;
 
-  // Scope for the {graph_zone}.
-  {
-    Zone graph_zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
-    MachineGraph* mcgraph = new (&graph_zone)
-        MachineGraph(new (&graph_zone) Graph(&graph_zone),
-                     new (&graph_zone) CommonOperatorBuilder(&graph_zone),
-                     new (&graph_zone) MachineOperatorBuilder(
-                         &graph_zone, MachineType::PointerRepresentation(),
-                         InstructionSelector::SupportedMachineOperatorFlags(),
-                         InstructionSelector::AlignmentRequirements()));
+  Zone graph_zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
+  MachineGraph* mcgraph = new (&graph_zone)
+      MachineGraph(new (&graph_zone) Graph(&graph_zone),
+                   new (&graph_zone) CommonOperatorBuilder(&graph_zone),
+                   new (&graph_zone) MachineOperatorBuilder(
+                       &graph_zone, MachineType::PointerRepresentation(),
+                       InstructionSelector::SupportedMachineOperatorFlags(),
+                       InstructionSelector::AlignmentRequirements()));
 
-    Zone compilation_zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
+  Zone compilation_zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
 
-    OptimizedCompilationInfo info(
-        GetDebugName(&compilation_zone, wasm_unit_->func_index_),
-        &compilation_zone, Code::WASM_FUNCTION);
-    if (wasm_unit_->env_->runtime_exception_support) {
-      info.SetWasmRuntimeExceptionSupport();
-    }
-
-    if (info.trace_turbo_json_enabled()) {
-      TurboCfgFile tcf;
-      tcf << AsC1VCompilation(&info);
-    }
-
-    NodeOriginTable* node_origins = info.trace_turbo_json_enabled()
-                                        ? new (&graph_zone)
-                                              NodeOriginTable(mcgraph->graph())
-                                        : nullptr;
-    SourcePositionTable* source_positions =
-        BuildGraphForWasmFunction(detected, &decode_ms, mcgraph, node_origins);
-
-    if (graph_construction_result_.failed()) {
-      ok_ = false;
-      return;
-    }
-
-    if (node_origins) {
-      node_origins->AddDecorator();
-    }
-
-    base::ElapsedTimer pipeline_timer;
-    if (FLAG_trace_wasm_decode_time) {
-      node_count = mcgraph->graph()->NodeCount();
-      pipeline_timer.Start();
-    }
-
-    // Run the compiler pipeline to generate machine code.
-    auto call_descriptor =
-        GetWasmCallDescriptor(&compilation_zone, wasm_unit_->func_body_.sig);
-    if (mcgraph->machine()->Is32()) {
-      call_descriptor =
-          GetI32WasmCallDescriptor(&compilation_zone, call_descriptor);
-    }
-
-    std::unique_ptr<OptimizedCompilationJob> job(
-        Pipeline::NewWasmCompilationJob(
-            &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
-            source_positions, node_origins, wasm_unit_->func_body_,
-            const_cast<wasm::WasmModule*>(wasm_unit_->env_->module),
-            wasm_unit_->native_module_, wasm_unit_->func_index_,
-            wasm_unit_->env_->module->origin));
-    ok_ = job->ExecuteJob() == CompilationJob::SUCCEEDED;
-    // TODO(bradnelson): Improve histogram handling of size_t.
-    wasm_unit_->counters_->wasm_compile_function_peak_memory_bytes()->AddSample(
-        static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
-
-    if (FLAG_trace_wasm_decode_time) {
-      double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
-      PrintF(
-          "wasm-compilation phase 1 ok: %u bytes, %0.3f ms decode, %zu nodes, "
-          "%0.3f ms pipeline\n",
-          static_cast<unsigned>(wasm_unit_->func_body_.end -
-                                wasm_unit_->func_body_.start),
-          decode_ms, node_count, pipeline_ms);
-    }
-    if (ok_) wasm_code_ = info.wasm_code();
+  OptimizedCompilationInfo info(
+      GetDebugName(&compilation_zone, wasm_unit_->func_index_),
+      &compilation_zone, Code::WASM_FUNCTION);
+  if (wasm_unit_->env_->runtime_exception_support) {
+    info.SetWasmRuntimeExceptionSupport();
   }
-  if (ok_) wasm_unit_->native_module()->PublishCode(wasm_code_);
+
+  if (info.trace_turbo_json_enabled()) {
+    TurboCfgFile tcf;
+    tcf << AsC1VCompilation(&info);
+  }
+
+  NodeOriginTable* node_origins = info.trace_turbo_json_enabled()
+                                      ? new (&graph_zone)
+                                            NodeOriginTable(mcgraph->graph())
+                                      : nullptr;
+  SourcePositionTable* source_positions =
+      BuildGraphForWasmFunction(detected, &decode_ms, mcgraph, node_origins);
+
+  if (graph_construction_result_.failed()) return;
+
+  if (node_origins) {
+    node_origins->AddDecorator();
+  }
+
+  base::ElapsedTimer pipeline_timer;
+  if (FLAG_trace_wasm_decode_time) {
+    node_count = mcgraph->graph()->NodeCount();
+    pipeline_timer.Start();
+  }
+
+  // Run the compiler pipeline to generate machine code.
+  auto call_descriptor =
+      GetWasmCallDescriptor(&compilation_zone, wasm_unit_->func_body_.sig);
+  if (mcgraph->machine()->Is32()) {
+    call_descriptor =
+        GetI32WasmCallDescriptor(&compilation_zone, call_descriptor);
+  }
+
+  std::unique_ptr<OptimizedCompilationJob> job(Pipeline::NewWasmCompilationJob(
+      &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
+      source_positions, node_origins, wasm_unit_->func_body_,
+      const_cast<wasm::WasmModule*>(wasm_unit_->env_->module),
+      wasm_unit_->native_module_, wasm_unit_->func_index_,
+      wasm_unit_->env_->module->origin));
+  bool succeeded = job->ExecuteJob() == CompilationJob::SUCCEEDED;
+  // TODO(bradnelson): Improve histogram handling of size_t.
+  wasm_unit_->counters_->wasm_compile_function_peak_memory_bytes()->AddSample(
+      static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
+
+  if (FLAG_trace_wasm_decode_time) {
+    double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
+    PrintF(
+        "wasm-compilation phase 1 ok: %u bytes, %0.3f ms decode, %zu nodes, "
+        "%0.3f ms pipeline\n",
+        static_cast<unsigned>(wasm_unit_->func_body_.end -
+                              wasm_unit_->func_body_.start),
+        decode_ms, node_count, pipeline_ms);
+  }
+  if (succeeded) {
+    wasm_code_ = info.wasm_code();
+    wasm_unit_->native_module()->PublishCode(wasm_code_);
+  }
 }
 
 wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
     wasm::ErrorThrower* thrower) {
-  if (!ok_) {
-    if (graph_construction_result_.failed()) {
-      // Add the function as another context for the exception. This is
-      // user-visible, so use official format.
-      EmbeddedVector<char, 128> message;
-      wasm::ModuleWireBytes wire_bytes(
-          wasm_unit_->native_module()->wire_bytes());
-      wasm::WireBytesRef name_ref =
-          wasm_unit_->native_module()->module()->LookupFunctionName(
-              wire_bytes, wasm_unit_->func_index_);
-      if (name_ref.is_set()) {
-        wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
-        SNPrintF(message, "Compiling wasm function \"%.*s\" failed",
-                 name.length(), name.start());
-      } else {
-        SNPrintF(message,
-                 "Compiling wasm function \"wasm-function[%d]\" failed",
-                 wasm_unit_->func_index_);
-      }
-      thrower->CompileFailed(message.start(), graph_construction_result_);
-    }
+  DCHECK_IMPLIES(graph_construction_result_.failed(), wasm_code_ == nullptr);
+  if (wasm_code_ != nullptr) return wasm_code_;
 
-    return nullptr;
+  if (graph_construction_result_.failed()) {
+    // Add the function as another context for the exception. This is
+    // user-visible, so use official format.
+    EmbeddedVector<char, 128> message;
+    wasm::ModuleWireBytes wire_bytes(wasm_unit_->native_module()->wire_bytes());
+    wasm::WireBytesRef name_ref =
+        wasm_unit_->native_module()->module()->LookupFunctionName(
+            wire_bytes, wasm_unit_->func_index_);
+    if (name_ref.is_set()) {
+      wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
+      SNPrintF(message, "Compiling wasm function \"%.*s\" failed",
+               name.length(), name.start());
+    } else {
+      SNPrintF(message, "Compiling wasm function \"wasm-function[%d]\" failed",
+               wasm_unit_->func_index_);
+    }
+    thrower->CompileFailed(message.start(), graph_construction_result_);
   }
-  return wasm_code_;
+
+  return nullptr;
 }
 
 namespace {
