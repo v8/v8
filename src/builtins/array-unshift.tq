@@ -9,8 +9,7 @@ module array {
       context: Context, receiver: Object, arguments: constexpr Arguments):
       never
       labels Slow {
-    EnsureFastJSArray(context, receiver) otherwise Slow;
-    const array: JSArray = UnsafeCast<JSArray>(receiver);
+    const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
     EnsureWriteableFastElements(array);
 
     const map: Map = array.map;

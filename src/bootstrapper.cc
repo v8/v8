@@ -1739,8 +1739,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kArrayPrototypeShift, 0, false);
     SimpleInstallFunction(isolate_, proto, "unshift",
                           Builtins::kArrayPrototypeUnshift, 1, false);
-    SimpleInstallFunction(isolate_, proto, "slice",
-                          Builtins::kArrayPrototypeSlice, 2, false);
+    SimpleInstallFunction(isolate_, proto, "slice", Builtins::kArraySlice, 2,
+                          false);
     SimpleInstallFunction(isolate_, proto, "sort",
                           Builtins::kArrayPrototypeSort, 1, false);
     SimpleInstallFunction(isolate_, proto, "splice", Builtins::kArraySplice, 2,

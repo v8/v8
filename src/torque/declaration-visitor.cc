@@ -228,8 +228,25 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
 
   if (matching_callable == nullptr) {
     std::stringstream stream;
+    if (generic_list->list().size() == 0) {
+      stream << "no generic defined with the name " << decl->name;
+      ReportError(stream.str());
+    }
     stream << "specialization of " << decl->name
-           << " doesn't match any generic declaration";
+           << " doesn't match any generic declaration\n";
+    stream << "specialization signature:";
+    stream << "\n  " << signature_with_types;
+    stream << "\ncandidates are:";
+    for (Generic* generic : generic_list->list()) {
+      SpecializationKey key = {generic,
+                               GetTypeVector(decl->generic_parameters)};
+      Declarations::CleanNodeScopeActivator specialization_activator(
+          declarations(), decl);
+      DeclareSpecializedTypes(key);
+      Signature generic_signature_with_types =
+          MakeSignature(generic->declaration()->callable->signature.get());
+      stream << "\n  " << generic_signature_with_types;
+    }
     ReportError(stream.str());
   }
 

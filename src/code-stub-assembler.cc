@@ -4674,7 +4674,8 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
   CSA_ASSERT(this, IntPtrLessThanOrEqual(
                        IntPtrAdd(src_index, length),
                        LoadAndUntagFixedArrayBaseLength(src_elements)));
-  CSA_ASSERT(this, WordNotEqual(dst_elements, src_elements));
+  CSA_ASSERT(this, Word32Or(WordNotEqual(dst_elements, src_elements),
+                            WordEqual(length, IntPtrConstant(0))));
 
   // The write barrier can be ignored if {dst_elements} is in new space, or if
   // the elements pointer is FixedDoubleArray.
@@ -5829,6 +5830,38 @@ TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
       IsJSObject(proto), [=] { return LoadMapPrototype(LoadMap(proto)); },
       [=] { return NullConstant(); });
   return WordEqual(proto_of_proto, typed_array_prototype);
+}
+
+TNode<BoolT> CodeStubAssembler::IsFastAliasedArgumentsMap(
+    TNode<Context> context, TNode<Map> map) {
+  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<Object> const arguments_map = LoadContextElement(
+      native_context, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
+  return WordEqual(arguments_map, map);
+}
+
+TNode<BoolT> CodeStubAssembler::IsSlowAliasedArgumentsMap(
+    TNode<Context> context, TNode<Map> map) {
+  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<Object> const arguments_map = LoadContextElement(
+      native_context, Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX);
+  return WordEqual(arguments_map, map);
+}
+
+TNode<BoolT> CodeStubAssembler::IsSloppyArgumentsMap(TNode<Context> context,
+                                                     TNode<Map> map) {
+  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<Object> const arguments_map =
+      LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX);
+  return WordEqual(arguments_map, map);
+}
+
+TNode<BoolT> CodeStubAssembler::IsStrictArgumentsMap(TNode<Context> context,
+                                                     TNode<Map> map) {
+  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<Object> const arguments_map =
+      LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
+  return WordEqual(arguments_map, map);
 }
 
 TNode<BoolT> CodeStubAssembler::TaggedIsCallable(TNode<Object> object) {

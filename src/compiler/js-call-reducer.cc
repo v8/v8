@@ -3439,6 +3439,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kArrayPrototypeShift:
       return ReduceArrayPrototypeShift(node);
     case Builtins::kArrayPrototypeSlice:
+    case Builtins::kArraySlice:
       return ReduceArrayPrototypeSlice(node);
     case Builtins::kArrayPrototypeEntries:
       return ReduceArrayIterator(node, IterationKind::kEntries);
