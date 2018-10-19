@@ -937,6 +937,23 @@ void Heap::GarbageCollectionEpilogue() {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
     ReduceNewSpaceSize();
   }
+
+  if (FLAG_harmony_weak_refs) {
+    // TODO(marja): (spec): The exact condition on when to schedule the cleanup
+    // task is unclear. This version schedules the cleanup task whenever there's
+    // a GC and we have dirty WeakCells (either because this GC discovered them
+    // or because an earlier invocation of the cleanup function didn't iterate
+    // through them). See https://github.com/tc39/proposal-weakrefs/issues/34
+    HandleScope handle_scope(isolate());
+    if (isolate()->context() != nullptr &&
+        isolate()->native_context()->IsNativeContext() &&
+        !isolate()->native_context()->dirty_js_weak_factories()->IsUndefined(
+            isolate())) {
+      v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate());
+      v8_isolate->EnqueueMicrotask(
+          JSWeakFactory::CleanupJSWeakFactoriesCallback, isolate());
+    }
+  }
 }
 
 class GCCallbacksScope {

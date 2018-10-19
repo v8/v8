@@ -2093,7 +2093,6 @@ void MarkCompactCollector::ClearJSWeakCells() {
     return;
   }
   JSWeakCell* weak_cell;
-  bool schedule_cleanup_task = false;
   HandleScope handle_scope(isolate());
   while (weak_objects_.js_weak_cells.Pop(kMainThread, &weak_cell)) {
     // We do not insert cleared weak cells into the list, so the value
@@ -2109,7 +2108,6 @@ void MarkCompactCollector::ClearJSWeakCells() {
                 RecordSlot(object, slot, HeapObject::cast(target));
               }
             });
-        schedule_cleanup_task = true;
       }
       // We're modifying the pointers in JSWeakCell and JSWeakFactory during GC;
       // thus we need to record the slots it writes. The normal write barrier is
@@ -2128,14 +2126,6 @@ void MarkCompactCollector::ClearJSWeakCells() {
           HeapObject::RawField(weak_cell, JSWeakCell::kTargetOffset);
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
-  }
-  if (schedule_cleanup_task) {
-    // TODO(marja): Make this a microtask.
-    v8::Platform* platform = V8::GetCurrentPlatform();
-    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate());
-    platform->GetForegroundTaskRunner(v8_isolate)
-        ->PostTask(
-            std::unique_ptr<v8::Task>(new JSWeakFactoryCleanupTask(isolate())));
   }
 }
 

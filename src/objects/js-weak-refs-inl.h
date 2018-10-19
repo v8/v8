@@ -122,15 +122,6 @@ void JSWeakCell::Nullify(
       this);
 }
 
-JSWeakFactoryCleanupTask::JSWeakFactoryCleanupTask(Isolate* isolate)
-    : isolate_(isolate) {
-  Handle<Context> native_context =
-      Handle<Context>::cast(isolate->native_context());
-  Local<v8::Context> native_context_local = Utils::ToLocal(native_context);
-  native_context_.Reset(reinterpret_cast<v8::Isolate*>(isolate),
-                        native_context_local);
-}
-
 }  // namespace internal
 }  // namespace v8
 

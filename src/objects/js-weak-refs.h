@@ -55,6 +55,8 @@ class JSWeakFactory : public JSObject {
   // Bitfields in flags.
   class ScheduledForCleanupField : public BitField<bool, 0, 1> {};
 
+  static void CleanupJSWeakFactoriesCallback(void* data);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakFactory);
 };
@@ -109,18 +111,6 @@ class JSWeakFactoryCleanupIterator : public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakFactoryCleanupIterator);
-};
-
-class JSWeakFactoryCleanupTask : public v8::Task {
- public:
-  inline explicit JSWeakFactoryCleanupTask(Isolate* isolate);
-  void Run() override;
-
- private:
-  v8::Persistent<v8::Context> native_context_;
-  Isolate* isolate_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakFactoryCleanupTask);
 };
 
 }  // namespace internal
