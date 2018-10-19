@@ -178,6 +178,7 @@
   'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
   'wasm/atomics-stress': [PASS, SLOW, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
+  'wasm/atomics64-stress': [PASS, SLOW, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
@@ -811,7 +812,9 @@
 
   # These tests already stress d8 by using many workers. No need for extra stress.
   'wasm/compare-exchange-stress': [SKIP],
+  'wasm/compare-exchange64-stress': [SKIP],
   'wasm/atomics-stress': [SKIP],
+  'wasm/atomics64-stress': [SKIP],
 
   # Too slow for verify-csa builds.
   'big-object-literal': [PASS, ['verify_csa == True', SKIP]],

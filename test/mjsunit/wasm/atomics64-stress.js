@@ -18,70 +18,91 @@ const kSequenceLength = 256;
 const kNumberOfWorker = 4;
 const kNumberOfSteps = 10000000;
 
-const kFirstOpcodeWithInput = 3;
-const kFirstOpcodeWithoutOutput = 3;
-const kLastOpcodeWithoutOutput = 5;
+const kFirstOpcodeWithInput = 4;
+const kFirstOpcodeWithoutOutput = 4;
+const kLastOpcodeWithoutOutput = 7;
 
 const opCodes = [
-    kExprI32AtomicLoad,
-    kExprI32AtomicLoad8U,
-    kExprI32AtomicLoad16U,
-    kExprI32AtomicStore,
-    kExprI32AtomicStore8U,
-    kExprI32AtomicStore16U,
-    kExprI32AtomicAdd,
-    kExprI32AtomicAdd8U,
-    kExprI32AtomicAdd16U,
-    kExprI32AtomicSub,
-    kExprI32AtomicSub8U,
-    kExprI32AtomicSub16U,
-    kExprI32AtomicAnd,
-    kExprI32AtomicAnd8U,
-    kExprI32AtomicAnd16U,
-    kExprI32AtomicOr,
-    kExprI32AtomicOr8U,
-    kExprI32AtomicOr16U,
-    kExprI32AtomicXor,
-    kExprI32AtomicXor8U,
-    kExprI32AtomicXor16U,
-    kExprI32AtomicExchange,
-    kExprI32AtomicExchange8U,
-    kExprI32AtomicExchange16U
+    kExprI64AtomicLoad,
+    kExprI64AtomicLoad8U,
+    kExprI64AtomicLoad16U,
+    kExprI64AtomicLoad32U,
+    kExprI64AtomicStore,
+    kExprI64AtomicStore8U,
+    kExprI64AtomicStore16U,
+    kExprI64AtomicStore32U,
+    kExprI64AtomicAdd,
+    kExprI64AtomicAdd8U,
+    kExprI64AtomicAdd16U,
+    kExprI64AtomicAdd32U,
+    kExprI64AtomicSub,
+    kExprI64AtomicSub8U,
+    kExprI64AtomicSub16U,
+    kExprI64AtomicSub32U,
+    kExprI64AtomicAnd,
+    kExprI64AtomicAnd8U,
+    kExprI64AtomicAnd16U,
+    kExprI64AtomicAnd32U,
+    kExprI64AtomicOr,
+    kExprI64AtomicOr8U,
+    kExprI64AtomicOr16U,
+    kExprI64AtomicOr32U,
+    kExprI64AtomicXor,
+    kExprI64AtomicXor8U,
+    kExprI64AtomicXor16U,
+    kExprI64AtomicXor32U,
+    kExprI64AtomicExchange,
+    kExprI64AtomicExchange8U,
+    kExprI64AtomicExchange16U,
+    kExprI64AtomicExchange32U
 ];
 
 const opCodeNames = [
-    "kExprI32AtomicLoad",
-    "kExprI32AtomicLoad8U",
-    "kExprI32AtomicLoad16U",
-    "kExprI32AtomicStore",
-    "kExprI32AtomicStore8U",
-    "kExprI32AtomicStore16U",
-    "kExprI32AtomicAdd",
-    "kExprI32AtomicAdd8U",
-    "kExprI32AtomicAdd16U",
-    "kExprI32AtomicSub",
-    "kExprI32AtomicSub8U",
-    "kExprI32AtomicSub16U",
-    "kExprI32AtomicAnd",
-    "kExprI32AtomicAnd8U",
-    "kExprI32AtomicAnd16U",
-    "kExprI32AtomicOr",
-    "kExprI32AtomicOr8U",
-    "kExprI32AtomicOr16U",
-    "kExprI32AtomicXor",
-    "kExprI32AtomicXor8U",
-    "kExprI32AtomicXor16U",
-    "kExprI32AtomicExchange",
-    "kExprI32AtomicExchange8U",
-    "kExprI32AtomicExchange16U"
+    "kExprI64AtomicLoad",
+    "kExprI64AtomicLoad8U",
+    "kExprI64AtomicLoad16U",
+    "kExprI64AtomicLoad32U",
+    "kExprI64AtomicStore",
+    "kExprI64AtomicStore8U",
+    "kExprI64AtomicStore16U",
+    "kExprI64AtomicStore32U",
+    "kExprI64AtomicAdd",
+    "kExprI64AtomicAdd8U",
+    "kExprI64AtomicAdd16U",
+    "kExprI64AtomicAdd32U",
+    "kExprI64AtomicSub",
+    "kExprI64AtomicSub8U",
+    "kExprI64AtomicSub16U",
+    "kExprI64AtomicSub32U",
+    "kExprI64AtomicAnd",
+    "kExprI64AtomicAnd8U",
+    "kExprI64AtomicAnd16U",
+    "kExprI64AtomicAnd32U",
+    "kExprI64AtomicOr",
+    "kExprI64AtomicOr8U",
+    "kExprI64AtomicOr16U",
+    "kExprI64AtomicOr32U",
+    "kExprI64AtomicXor",
+    "kExprI64AtomicXor8U",
+    "kExprI64AtomicXor16U",
+    "kExprI64AtomicXor32U",
+    "kExprI64AtomicExchange",
+    "kExprI64AtomicExchange8U",
+    "kExprI64AtomicExchange16U",
+    "kExprI64AtomicExchange32U"
 ];
 
+const kMaxInt32 = (1 << 31) * 2;
+
 class Operation {
-    constructor(opcode, input, offset) {
+    constructor(opcode, low_input, high_input, offset) {
         this.opcode = opcode != undefined ? opcode : Operation.nextOpcode();
         this.size = Operation.opcodeToSize(this.opcode);
-        this.input = input != undefined ? input : Operation.inputForSize(
-            this.size);
+        if (low_input == undefined) {
+            [low_input, high_input] = Operation.inputForSize(this.size);
+        }
+        this.low_input = low_input;
+        this.high_input = high_input;
         this.offset = offset != undefined ? offset : Operation.offsetForSize(
             this.size);
     }
@@ -92,23 +113,27 @@ class Operation {
     }
 
     static opcodeToSize(opcode) {
-        // Instructions are ordered in 32, 8, 16 bits size
-        return [32, 8, 16][opcode % 3];
+        // Instructions are ordered in 64, 8, 16, 32 bits size
+        return [64, 8, 16, 32][opcode % 4];
     }
 
     static opcodeToAlignment(opcode) {
-        // Instructions are ordered in 32, 8, 16 bits size
-        return [2, 0, 1][opcode % 3];
+        // Instructions are ordered in 64, 8, 16, 32 bits size
+        return [3, 0, 1, 2][opcode % 4];
     }
 
     static inputForSize(size) {
-        let random = Math.random();
-        // Avoid 32 bit overflow for integer here :(
-        return Math.floor(random * (1 << (size - 1)) * 2);
+        if (size <= 32) {
+            let random = Math.random();
+            // Avoid 32 bit overflow for integer here :(
+            return [Math.floor(random * (1 << (size - 1)) * 2), 0];
+        }
+        return [Math.floor(Math.random() * kMaxInt32), Math.floor(Math.random() *
+            kMaxInt32)];
     }
 
     static offsetForSize(size) {
-        // Pick an offset in bytes between 0 and 7.
+        // Pick an offset in bytes between 0 and 8.
         let offset = Math.floor(Math.random() * 8);
         // Make sure the offset matches the required alignment by masking out the lower bits.
         let size_in_bytes = size / 8;
@@ -131,6 +156,8 @@ class Operation {
     }
 
     truncateResultBits(low, high) {
+        if (this.size == 64) return [low, high]
+
         // Shift the lower part. For offsets greater four it drops out of the visible window.
         let shiftedL = this.offset >= 4 ? 0 : low >>> (this.offset * 8);
         // The higher part is zero for offset 0, left shifted for [1..3] and right shifted
@@ -142,11 +169,11 @@ class Operation {
 
         switch (this.size) {
             case 8:
-                return value & 0xFF;
+                return [value & 0xFF, 0];
             case 16:
-                return value & 0xFFFF;
+                return [value & 0xFFFF, 0];
             case 32:
-                return value;
+                return [value, 0];
             default:
                 throw "Unexpected size: " + this.size;
         }
@@ -195,18 +222,22 @@ class Operation {
                 // Load address of where our window starts.
                 kExprI32Const, 0,
                 // Load input if there is one.
-                ...(this.hasInput ? [kExprGetLocal, 2] : []),
+                ...(this.hasInput ? [kExprGetLocal, 3,
+                    kExprI64UConvertI32,
+                    kExprI64Const, 32,
+                    kExprI64Shl,
+                    kExprGetLocal, 2,
+                    kExprI64UConvertI32,
+                    kExprI64Ior
+                ] : []),
                 // Perform operation.
                 kAtomicPrefix, ...this.wasmOpcode,
                 // Drop output if it had any.
                 ...(this.hasOutput ? [kExprDrop] : []),
-                // Load resulting value.
-                kExprI32Const, 0,
-                kExprI32LoadMem, 2, 0,
                 // Return.
                 kExprReturn
             ]
-            builder.addFunction(this.key, kSig_i_iii)
+            builder.addFunction(this.key, kSig_v_iiii)
                 .addBody(body)
                 .exportAs(this.key);
             // Instantiate module, get function exports.
@@ -214,13 +245,12 @@ class Operation {
             Operation.instance = new WebAssembly.Instance(module);
             evalFun = Operation.exports[this.key];
         }
-        let result = evalFun(state.low, state.high, this.input);
+        evalFun(state.low, state.high, this.low_input, this.high_input);
         let ta = new Int32Array(Operation.memory.buffer);
         if (kDebug) {
             print(state.high + ":" + state.low + " " + this.toString() +
                 " -> " + ta[1] + ":" + ta[0]);
         }
-        if (result != ta[0]) throw "!";
         return {
             low: ta[0],
             high: ta[1]
@@ -228,7 +258,8 @@ class Operation {
     }
 
     toString() {
-        return opCodeNames[this.opcode] + "[+" + this.offset + "] " + this.input;
+        return opCodeNames[this.opcode] + "[+" + this.offset + "] " + this.high_input +
+            ":" + this.low_input;
     }
 
     get key() {
@@ -261,13 +292,21 @@ function makeSequenceOfOperations(size) {
     return result;
 }
 
-function toSLeb128(val) {
+function toSLeb128(low, high) {
     let result = [];
     while (true) {
-        let v = val & 0x7f;
-        val = val >> 7;
+        let v = low & 0x7f;
+        // For low, fill up with zeros, high will add extra bits.
+        low = low >>> 7;
+        if (high != 0) {
+            let shiftIn = high << (32 - 7);
+            low = low | shiftIn;
+            // For high, fill up with ones, so that we keep trailing one.
+            high = high >> 7;
+        }
         let msbIsSet = (v & 0x40) || false;
-        if (((val == 0) && !msbIsSet) || ((val == -1) && msbIsSet)) {
+        if (((low == 0) && (high == 0) && !msbIsSet) || ((low == -1) && (high ==
+                -1) && msbIsSet)) {
             result.push(v);
             break;
         }
@@ -277,8 +316,8 @@ function toSLeb128(val) {
 }
 
 function generateFunctionBodyForSequence(sequence) {
-    // We expect the int32* to perform ops on as arg 0 and
-    // the int32* for our value log as arg1. Argument 2 gives
+    // We expect the int64* to perform ops on as arg 0 and
+    // the int64* for our value log as arg1. Argument 2 gives
     // an int32* we use to count down spinning workers.
     let body = [];
     // Initially, we spin until all workers start running.
@@ -305,17 +344,17 @@ function generateFunctionBodyForSequence(sequence) {
             // Load address where atomic pointers are stored.
             kExprGetLocal, 0,
             // Load the second argument if it had any.
-            ...(operation.hasInput ? [kExprI32Const, ...toSLeb128(operation
-                .input)] : []),
+            ...(operation.hasInput ? [kExprI64Const, ...toSLeb128(operation
+                .low_input, operation.high_input)] : []),
             // Perform operation
             kAtomicPrefix, ...operation.wasmOpcode,
             // Generate fake output in needed.
-            ...(operation.hasOutput ? [] : [kExprI32Const, 0]),
+            ...(operation.hasOutput ? [] : [kExprI64Const, 0]),
             // Store read intermediate to sequence.
-            kExprI32StoreMem, 2, 0,
+            kExprI64StoreMem, 3, 0,
             // Increment result sequence pointer.
             kExprGetLocal, 1,
-            kExprI32Const, 4,
+            kExprI32Const, 8,
             kExprI32Add,
             kExprSetLocal, 1
         );
@@ -374,7 +413,7 @@ function executeSequenceInWorkers(workers) {
             index: i,
             address: 0,
             spin: 16,
-            sequence: 32 + ((kSequenceLength * 4) + 32) * i
+            sequence: 32 + ((kSequenceLength * 8) + 32) * i
         });
         // In debug mode, keep execution sequential.
         if (kDebug) {
@@ -392,9 +431,11 @@ function selectMatchingWorkers(state) {
         if (index >= kSequenceLength) continue;
         // We need to project the expected value to the number of bits this
         // operation will read at runtime.
-        let expected = sequences[i][index].truncateResultBits(state.low, state.high);
+        let [expected_low, expected_high] = sequences[i][index].truncateResultBits(
+            state.low, state.high);
         let hasOutput = sequences[i][index].hasOutput;
-        if (!hasOutput || (results[i][index] == expected)) {
+        if (!hasOutput || ((results[i][index * 2] == expected_low) && (results[
+                i][index * 2 + 1] == expected_high))) {
             matching.push(i);
         }
     }
@@ -410,6 +451,7 @@ function computeNextState(state, advanceIdx) {
         low,
         high
     } = operation.compute(state);
+
     return new State(low, high, newIndices, state.count + 1);
 }
 
