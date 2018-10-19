@@ -651,7 +651,7 @@ class Heap {
   V8_INLINE RootsTable& roots_table() { return isolate_data_.roots(); }
 
 // Heap root getters.
-#define ROOT_ACCESSOR(type, name, CamelName) inline type* name();
+#define ROOT_ACCESSOR(type, name, CamelName) inline type name();
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
@@ -1391,8 +1391,7 @@ class Heap {
     return 0;
   }
 
-#define ROOT_ACCESSOR(type, name, CamelName) \
-  inline void set_##name(type* value);
+#define ROOT_ACCESSOR(type, name, CamelName) inline void set_##name(type value);
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 

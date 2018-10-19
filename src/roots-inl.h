@@ -36,13 +36,16 @@ ReadOnlyRoots::ReadOnlyRoots(Heap* heap)
 ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate)
     : roots_table_(isolate->roots_table()) {}
 
-#define ROOT_ACCESSOR(type, name, CamelName)                       \
-  type* ReadOnlyRoots::name() {                                    \
-    return type::cast(roots_table_[RootIndex::k##CamelName]);      \
-  }                                                                \
-  Handle<type> ReadOnlyRoots::name##_handle() {                    \
-    return Handle<type>(                                           \
-        bit_cast<type**>(&roots_table_[RootIndex::k##CamelName])); \
+// TODO(jkummerow): Drop std::remove_pointer after the migration to ObjectPtr.
+#define ROOT_ACCESSOR(Type, name, CamelName)                             \
+  Type ReadOnlyRoots::name() const {                                     \
+    return std::remove_pointer<Type>::type::cast(                        \
+        roots_table_[RootIndex::k##CamelName]);                          \
+  }                                                                      \
+  Handle<std::remove_pointer<Type>::type> ReadOnlyRoots::name##_handle() \
+      const {                                                            \
+    return Handle<std::remove_pointer<Type>::type>(                      \
+        bit_cast<Address*>(&roots_table_[RootIndex::k##CamelName]));     \
   }
 
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)

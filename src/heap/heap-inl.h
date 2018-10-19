@@ -55,15 +55,17 @@ HeapObject* AllocationResult::ToObjectChecked() {
   return HeapObject::cast(object_);
 }
 
-#define ROOT_ACCESSOR(type, name, CamelName)                   \
-  type* Heap::name() {                                         \
-    return type::cast(roots_table()[RootIndex::k##CamelName]); \
+// TODO(jkummerow): Drop std::remove_pointer after the migration to ObjectPtr.
+#define ROOT_ACCESSOR(Type, name, CamelName)      \
+  Type Heap::name() {                             \
+    return std::remove_pointer<Type>::type::cast( \
+        roots_table()[RootIndex::k##CamelName]);  \
   }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 #define ROOT_ACCESSOR(type, name, CamelName)                                   \
-  void Heap::set_##name(type* value) {                                         \
+  void Heap::set_##name(type value) {                                          \
     /* The deserializer makes use of the fact that these common roots are */   \
     /* never in new space and never on a page that is being compacted.    */   \
     DCHECK_IMPLIES(deserialization_complete(),                                 \
