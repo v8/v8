@@ -12,7 +12,6 @@
 namespace v8 {
 namespace internal {
 
-class ByteArray;
 class Callable;
 template <typename T>
 class Handle;
@@ -188,10 +187,6 @@ class Builtins {
   // function.
   static Handle<Code> GenerateOffHeapTrampolineFor(Isolate* isolate,
                                                    Address off_heap_entry);
-
-  // Generate the RelocInfo ByteArray that would be generated for an offheap
-  // trampoline.
-  static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
 
  private:
   static void Generate_CallFunction(MacroAssembler* masm,

@@ -2575,9 +2575,7 @@ MaybeHandle<Code> Factory::TryNewCode(
     uint32_t stub_key, bool is_turbofanned, int stack_slots,
     int safepoint_table_offset, int handler_table_offset) {
   // Allocate objects needed for code initialization.
-  Handle<ByteArray> reloc_info = NewByteArray(
-      desc.reloc_size,
-      Builtins::IsBuiltinId(builtin_index) ? TENURED_READ_ONLY : TENURED);
+  Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
   Handle<ByteArray> source_position_table =
       maybe_source_position_table.is_null()
@@ -2627,9 +2625,7 @@ Handle<Code> Factory::NewCode(
     uint32_t stub_key, bool is_turbofanned, int stack_slots,
     int safepoint_table_offset, int handler_table_offset) {
   // Allocate objects needed for code initialization.
-  Handle<ByteArray> reloc_info = NewByteArray(
-      desc.reloc_size,
-      Builtins::IsBuiltinId(builtin_index) ? TENURED_READ_ONLY : TENURED);
+  Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
   Handle<ByteArray> source_position_table =
       maybe_source_position_table.is_null()
@@ -2712,21 +2708,6 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   if (code->has_safepoint_info()) {
     result->set_safepoint_table_offset(code->safepoint_table_offset());
   }
-
-  // Replace the newly generated trampoline's RelocInfo ByteArray with the
-  // canonical one stored in the roots to avoid duplicating it for every single
-  // builtin.
-  ByteArray* canonical_reloc_info =
-      ReadOnlyRoots(isolate()).off_heap_trampoline_relocation_info();
-#ifdef DEBUG
-  // Verify that the contents are the same.
-  ByteArray* reloc_info = result->relocation_info();
-  DCHECK_EQ(reloc_info->length(), canonical_reloc_info->length());
-  for (int i = 0; i < reloc_info->length(); ++i) {
-    DCHECK_EQ(reloc_info->get(i), canonical_reloc_info->get(i));
-  }
-#endif
-  result->set_relocation_info(canonical_reloc_info);
 
   return result;
 }

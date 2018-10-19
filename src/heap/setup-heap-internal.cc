@@ -896,9 +896,6 @@ void Heap::CreateInitialObjects() {
 
   set_noscript_shared_function_infos(roots.empty_weak_array_list());
 
-  set_off_heap_trampoline_relocation_info(
-      *Builtins::GenerateOffHeapTrampolineRelocInfo(isolate_));
-
   // Evaluate the hash values which will then be cached in the strings.
   isolate()->factory()->zero_string()->Hash();
   isolate()->factory()->one_string()->Hash();

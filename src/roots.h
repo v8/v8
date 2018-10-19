@@ -211,10 +211,7 @@ class RootVisitor;
   V(HeapNumber*, minus_zero_value, MinusZeroValue)                             \
   V(HeapNumber*, minus_infinity_value, MinusInfinityValue)                     \
   /* Marker for self-references during code-generation */                      \
-  V(HeapObject*, self_reference_marker, SelfReferenceMarker)                   \
-  /* Canonical trampoline RelocInfo */                                         \
-  V(ByteArray*, off_heap_trampoline_relocation_info,                           \
-    OffHeapTrampolineRelocationInfo)
+  V(HeapObject*, self_reference_marker, SelfReferenceMarker)
 
 // Mutable roots that are known to be immortal immovable, for which we can
 // safely skip write barriers.

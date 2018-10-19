@@ -14404,7 +14404,9 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   }
 
   // Copy reloc info.
-  CopyRelocInfoToByteArray(unchecked_relocation_info(), desc);
+  CopyBytes(relocation_start(),
+            desc.buffer + desc.buffer_size - desc.reloc_size,
+            static_cast<size_t>(desc.reloc_size));
 
   // Unbox handles and relocate.
   Assembler* origin = desc.origin;
