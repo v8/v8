@@ -199,7 +199,6 @@ namespace internal {
 
 #ifdef V8_INTL_SUPPORT
 #define FOR_EACH_INTRINSIC_INTL(F, I) \
-  F(AvailableLocalesOf, 1, 1)         \
   F(CanonicalizeLanguageTag, 1, 1)    \
   F(DateCacheVersion, 0, 1)           \
   F(FormatList, 2, 1)                 \

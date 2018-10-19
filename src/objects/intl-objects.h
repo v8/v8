@@ -36,32 +36,10 @@ class JSCollator;
 
 class Intl {
  public:
-  enum Type {
-    kNumberFormat = 0,
-    kCollator,
-    kDateTimeFormat,
-    kPluralRules,
-    kBreakIterator,
-    kLocale,
-
-    kTypeCount
-  };
-
   enum class BoundFunctionContextSlot {
     kBoundFunction = Context::MIN_CONTEXT_SLOTS,
     kLength
   };
-
-  inline static Intl::Type TypeFromInt(int type);
-  inline static Intl::Type TypeFromSmi(Smi* type);
-
-  // Checks if the given object has the expected_type based by looking
-  // up a private symbol on the object.
-  //
-  // TODO(gsathya): This should just be an instance type check once we
-  // move all the Intl objects to C++.
-  static bool IsObjectOfType(Isolate* isolate, Handle<Object> object,
-                             Intl::Type expected_type);
 
   // Gets the ICU locales for a given service. If there is a locale with a
   // script tag then the locales also include a locale without the script; eg,
@@ -74,9 +52,6 @@ class Intl {
   // for given locale NumberingSystem constructor produces the same digits as
   // NumberFormat/Calendar would.
   static std::string GetNumberingSystem(const icu::Locale& icu_locale);
-
-  static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> AvailableLocalesOf(
-      Isolate* isolate, Handle<String> service);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> SupportedLocalesOf(
       Isolate* isolate, ICUService service, Handle<Object> locales_in,
@@ -133,10 +108,6 @@ class Intl {
       Isolate* isolate, Handle<Object> locales,
       bool only_return_one_result = false);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> CreateNumberFormat(
-      Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
-      Handle<JSObject> resolved);
-
   // ecma-402 #sec-intl.getcanonicallocales
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetCanonicalLocales(
       Isolate* isolate, Handle<Object> locales);
@@ -164,8 +135,6 @@ class Intl {
       Isolate* isolate, icu::DecimalFormat* number_format,
       Handle<JSReceiver> options, int mnfd_default, int mxfd_default);
 
-  static icu::Locale CreateICULocale(Isolate* isolate,
-                                     Handle<String> bcp47_locale_str);
   static icu::Locale CreateICULocale(const std::string& bcp47_locale);
 
   // Helper funciton to convert a UnicodeString to a Handle<String>

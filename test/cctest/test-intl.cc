@@ -231,47 +231,6 @@ TEST(GetAvailableLocales) {
   CHECK(locales.count("en-US"));
 }
 
-TEST(IsObjectOfType) {
-  LocalContext env;
-  Isolate* isolate = CcTest::i_isolate();
-  v8::Isolate* v8_isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(v8_isolate);
-
-  Handle<JSObject> obj = isolate->factory()->NewJSObjectWithNullProto();
-  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-
-  STATIC_ASSERT(Intl::Type::kNumberFormat == 0);
-  Intl::Type types[] = {Intl::Type::kNumberFormat,   Intl::Type::kCollator,
-                        Intl::Type::kDateTimeFormat, Intl::Type::kPluralRules,
-                        Intl::Type::kBreakIterator,  Intl::Type::kLocale};
-
-  for (auto type : types) {
-    Handle<Smi> tag =
-        Handle<Smi>(Smi::FromInt(static_cast<int>(type)), isolate);
-    JSObject::SetProperty(isolate, obj, marker, tag, LanguageMode::kStrict)
-        .Assert();
-
-    CHECK(Intl::IsObjectOfType(isolate, obj, type));
-  }
-
-  Handle<Object> tag = isolate->factory()->NewStringFromAsciiChecked("foo");
-  JSObject::SetProperty(isolate, obj, marker, tag, LanguageMode::kStrict)
-      .Assert();
-  CHECK(!Intl::IsObjectOfType(isolate, obj, types[0]));
-
-  CHECK(!Intl::IsObjectOfType(isolate, tag, types[0]));
-  CHECK(!Intl::IsObjectOfType(isolate, Handle<Smi>(Smi::FromInt(0), isolate),
-                              types[0]));
-
-  // Proxy with target as an initialized object should fail.
-  tag = Handle<Smi>(Smi::FromInt(static_cast<int>(types[0])), isolate);
-  JSObject::SetProperty(isolate, obj, marker, tag, LanguageMode::kStrict)
-      .Assert();
-  Handle<JSReceiver> proxy = isolate->factory()->NewJSProxy(
-      obj, isolate->factory()->NewJSObjectWithNullProto());
-  CHECK(!Intl::IsObjectOfType(isolate, proxy, types[0]));
-}
-
 }  // namespace internal
 }  // namespace v8
 

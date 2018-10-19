@@ -311,8 +311,6 @@
   V(_, frozen_symbol)                       \
   V(_, generic_symbol)                      \
   V(_, home_object_symbol)                  \
-  V(_, intl_initialized_marker_symbol)      \
-  V(_, intl_resolved_symbol)                \
   V(_, interpreter_trampoline_symbol)       \
   V(_, megamorphic_symbol)                  \
   V(_, native_context_index_symbol)         \

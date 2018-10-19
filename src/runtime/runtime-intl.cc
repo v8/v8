@@ -17,7 +17,6 @@
 #include "src/heap/factory.h"
 #include "src/intl.h"
 #include "src/isolate-inl.h"
-#include "src/objects/intl-objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collator-inl.h"
@@ -89,16 +88,6 @@ RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
     return ReadOnlyRoots(isolate).exception();
   }
   return *isolate->factory()->NewStringFromAsciiChecked(canonicalized.c_str());
-}
-
-RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, service, 0);
-  Handle<JSObject> locales;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, locales, Intl::AvailableLocalesOf(isolate, service));
-  return *locales;
 }
 
 RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {

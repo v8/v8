@@ -8,7 +8,6 @@
 
 #include "src/objects/js-break-iterator.h"
 
-#include "src/objects/intl-objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-break-iterator-inl.h"
 #include "unicode/brkiter.h"
