@@ -12,6 +12,9 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#include "testing/gmock-support.h"
+
+using testing::HasSubstr;
 
 namespace v8 {
 namespace internal {
@@ -129,6 +132,12 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
   do {                        \
     EXPECT_TRUE(result.ok()); \
     if (!result.ok()) return; \
+  } while (false)
+
+#define EXPECT_NOT_OK(result, msg)                   \
+  do {                                               \
+    EXPECT_FALSE(result.ok());                       \
+    EXPECT_THAT(result.error_msg(), HasSubstr(msg)); \
   } while (false)
 
 static size_t SizeOfVarInt(size_t value) {
@@ -511,7 +520,8 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_index) {
 
   // Should fail decoding exception section.
   WASM_FEATURE_SCOPE(eh);
-  EXPECT_FAILURE(data);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "signature index 23 out of bounds");
 }
 
 TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_return) {
@@ -523,7 +533,8 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_return) {
 
   // Should fail decoding exception section.
   WASM_FEATURE_SCOPE(eh);
-  EXPECT_FAILURE(data);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "exception signature 0 has non-void return");
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionSectionCorrectPlacement) {
@@ -543,7 +554,8 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterExport) {
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
-  EXPECT_FAILURE(data);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "Exception section must appear before export section");
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
@@ -552,7 +564,8 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
-  EXPECT_FAILURE(data);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "unexpected section: Import");
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionImport) {
@@ -2221,6 +2234,7 @@ TEST_F(WasmModuleVerifyTest, MultipleNameSections) {
 #undef EXPECT_FAILURE
 #undef EXPECT_OFF_END_FAILURE
 #undef EXPECT_OK
+#undef EXPECT_NOT_OK
 
 }  // namespace module_decoder_unittest
 }  // namespace wasm
