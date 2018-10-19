@@ -341,6 +341,14 @@ int Code::ExecutableSize() const {
   return raw_instruction_size() + Code::kHeaderSize;
 }
 
+// static
+void Code::CopyRelocInfoToByteArray(ByteArray* dest, const CodeDesc& desc) {
+  DCHECK_EQ(dest->length(), desc.reloc_size);
+  CopyBytes(dest->GetDataStartAddress(),
+            desc.buffer + desc.buffer_size - desc.reloc_size,
+            static_cast<size_t>(desc.reloc_size));
+}
+
 int Code::CodeSize() const { return SizeFor(body_size()); }
 
 Code::Kind Code::kind() const {

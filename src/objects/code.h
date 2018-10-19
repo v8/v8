@@ -308,6 +308,11 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // Migrate code from desc without flushing the instruction cache.
   void CopyFromNoFlush(Heap* heap, const CodeDesc& desc);
 
+  // Copy the RelocInfo portion of |desc| to |dest|. The ByteArray must be
+  // exactly the same size as the RelocInfo in |desc|.
+  static inline void CopyRelocInfoToByteArray(ByteArray* dest,
+                                              const CodeDesc& desc);
+
   // Flushes the instruction cache for the executable instructions of this code
   // object.
   void FlushICache() const;
