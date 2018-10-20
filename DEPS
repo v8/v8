@@ -13,9 +13,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0353cd5458491c5df5b4e4a70c7a2bd718d05420',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8579f3da6fe49610e5b883d3cd039c5fbe4d97a7',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '93277a7fc8ef8ad9b5e2f774ea6e2e91c8ed3c9b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '98f1e59b41c6c580cd168ac4456bf27d78c12a95',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'ccad4472126e35ccd1d19bea38b6675802d40472',
   'v8/third_party/instrumented_libraries':
@@ -33,7 +33,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '237fb2a03b4b525d829b169d7061b79917262797',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b026043a43f9ce3f37c1cd57269f92cb8bee756c',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -51,7 +51,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '486c9b53c4d54dd4b95bb6ce0e31160e600dfc11',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + 'f78187ab77127de42555afe0ad410bebde6ac6a5',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
@@ -85,7 +85,7 @@ deps = {
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '445d7c4b6a4f10e188edb395b132e3996b127691',
   'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '64bf5c7a2447416f4690dae7c8ea9d7e2b841366',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '7e3c46a072a13fbfc871a3b78ddf7bd7e50a0ddd',
 }
 
 recursedeps = [
