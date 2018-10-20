@@ -78,6 +78,10 @@
       'filepath': 'src/ast/' \
                   '|src/parsing/',
     },
+    'profiler': {
+      'filepath': 'src/profiler/' \
+                  '|src/libsampler/',
+    },
     'tracing': {
       'filepath': 'src/tracing/',
     },
@@ -123,7 +127,11 @@
       'adamk+watch@chromium.org',
       'marja+watch@chromium.org',
     ],
+    'profiler': [
+      'alph+watch@chromium.org',
+    ],
     'tracing': [
+      'alph+watch@chromium.org',
       'lpy+v8tracing@chromium.org',
       'fmeawad@chromium.org',
     ],
