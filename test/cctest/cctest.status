@@ -456,6 +456,7 @@
 ##############################################################################
 ['arch == ia32', {
   # TODO(v8:8334): Fix code printing.
+  'test-assembler-ia32/AssemblerIa32JumpTables1': [SKIP],
   'test-assembler-ia32/AssemblerIa32JumpTables2': [SKIP],
 }],  # 'arch == ia32'
 
