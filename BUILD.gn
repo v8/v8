@@ -2150,8 +2150,6 @@ v8_source_set("v8_base") {
     "src/interpreter/interpreter-intrinsics.h",
     "src/interpreter/interpreter.cc",
     "src/interpreter/interpreter.h",
-    "src/intl.cc",
-    "src/intl.h",
     "src/isolate-data.h",
     "src/isolate-inl.h",
     "src/isolate.cc",
@@ -2976,8 +2974,6 @@ v8_source_set("v8_base") {
     sources -= [
       "src/builtins/builtins-intl.cc",
       "src/char-predicates.cc",
-      "src/intl.cc",
-      "src/intl.h",
       "src/objects/intl-objects.cc",
       "src/objects/intl-objects.h",
       "src/objects/js-break-iterator-inl.h",

@@ -15,7 +15,6 @@
 #include "src/date.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
-#include "src/intl.h"
 #include "src/isolate-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
@@ -103,7 +102,7 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
   DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   s = String::Flatten(isolate, s);
-  RETURN_RESULT_OR_FAILURE(isolate, ConvertToLower(s, isolate));
+  RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToLower(isolate, s));
 }
 
 RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
@@ -111,7 +110,7 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
   DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   s = String::Flatten(isolate, s);
-  RETURN_RESULT_OR_FAILURE(isolate, ConvertToUpper(s, isolate));
+  RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToUpper(isolate, s));
 }
 
 RUNTIME_FUNCTION(Runtime_DateCacheVersion) {

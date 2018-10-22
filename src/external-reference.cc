@@ -47,7 +47,7 @@
 #endif  // V8_INTERPRETED_REGEXP
 
 #ifdef V8_INTL_SUPPORT
-#include "src/intl.h"
+#include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
 
 namespace v8 {
@@ -815,11 +815,12 @@ ExternalReference ExternalReference::check_object_type() {
 
 #ifdef V8_INTL_SUPPORT
 ExternalReference ExternalReference::intl_convert_one_byte_to_lower() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(ConvertOneByteToLower)));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(Intl::ConvertOneByteToLower)));
 }
 
 ExternalReference ExternalReference::intl_to_latin1_lower_table() {
-  uint8_t* ptr = const_cast<uint8_t*>(ToLatin1LowerTable());
+  uint8_t* ptr = const_cast<uint8_t*>(Intl::ToLatin1LowerTable());
   return ExternalReference(reinterpret_cast<Address>(ptr));
 }
 #endif  // V8_INTL_SUPPORT

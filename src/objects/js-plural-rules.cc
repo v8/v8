@@ -152,7 +152,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
   // requestedLocales, opt, %PluralRules%.[[RelevantExtensionKeys]],
   // localeData).
   std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(ICUService::kPluralRules);
+      Intl::GetAvailableLocales(Intl::ICUService::kPluralRules);
   Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
                                                requested_locales, matcher, {});
 

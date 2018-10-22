@@ -785,7 +785,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   //     requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]],
   //     localeData).
   std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(ICUService::kDateFormat);
+      Intl::GetAvailableLocales(Intl::ICUService::kDateFormat);
   Intl::ResolvedLocale r = Intl::ResolveLocale(
       isolate, available_locales, requested_locales, locale_matcher, {"nu"});
 

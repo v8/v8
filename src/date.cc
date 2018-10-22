@@ -6,11 +6,10 @@
 
 #include "src/conversions.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
-
 #ifdef V8_INTL_SUPPORT
-#include "src/intl.h"
+#include "src/objects/intl-objects.h"
 #endif
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -30,8 +29,7 @@ DateCache::DateCache()
     : stamp_(nullptr),
       tz_cache_(
 #ifdef V8_INTL_SUPPORT
-          FLAG_icu_timezone_data ? new ICUTimezoneCache()
-                                 : base::OS::CreateTimezoneCache()
+          Intl::CreateTimeZoneCache()
 #else
           base::OS::CreateTimezoneCache()
 #endif

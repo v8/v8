@@ -14,7 +14,6 @@
 #include "src/builtins/builtins.h"
 #include "src/date.h"
 #include "src/elements.h"
-#include "src/intl.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
@@ -50,7 +49,7 @@ BUILTIN(StringPrototypeToUpperCaseIntl) {
   HandleScope scope(isolate);
   TO_THIS_STRING(string, "String.prototype.toUpperCase");
   string = String::Flatten(isolate, string);
-  RETURN_RESULT_OR_FAILURE(isolate, ConvertCase(string, true, isolate));
+  RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToUpper(isolate, string));
 }
 
 BUILTIN(StringPrototypeNormalizeIntl) {
@@ -98,27 +97,22 @@ BUILTIN(StringPrototypeNormalizeIntl) {
   icu::UnicodeString result;
   std::unique_ptr<uc16[]> sap;
   UErrorCode status = U_ZERO_ERROR;
-  {
-    DisallowHeapAllocation no_gc;
-    String::FlatContent flat = string->GetFlatContent();
-    const UChar* src = GetUCharBufferFromFlat(flat, &sap, length);
-    icu::UnicodeString input(false, src, length);
-    // Getting a singleton. Should not free it.
-    const icu::Normalizer2* normalizer =
-        icu::Normalizer2::getInstance(nullptr, form_name, form_mode, status);
-    DCHECK(U_SUCCESS(status));
-    CHECK_NOT_NULL(normalizer);
-    int32_t normalized_prefix_length =
-        normalizer->spanQuickCheckYes(input, status);
-    // Quick return if the input is already normalized.
-    if (length == normalized_prefix_length) return *string;
-    icu::UnicodeString unnormalized =
-        input.tempSubString(normalized_prefix_length);
-    // Read-only alias of the normalized prefix.
-    result.setTo(false, input.getBuffer(), normalized_prefix_length);
-    // copy-on-write; normalize the suffix and append to |result|.
-    normalizer->normalizeSecondAndAppend(result, unnormalized, status);
-  }
+  icu::UnicodeString input = Intl::ToICUUnicodeString(isolate, string);
+  // Getting a singleton. Should not free it.
+  const icu::Normalizer2* normalizer =
+      icu::Normalizer2::getInstance(nullptr, form_name, form_mode, status);
+  DCHECK(U_SUCCESS(status));
+  CHECK_NOT_NULL(normalizer);
+  int32_t normalized_prefix_length =
+      normalizer->spanQuickCheckYes(input, status);
+  // Quick return if the input is already normalized.
+  if (length == normalized_prefix_length) return *string;
+  icu::UnicodeString unnormalized =
+      input.tempSubString(normalized_prefix_length);
+  // Read-only alias of the normalized prefix.
+  result.setTo(false, input.getBuffer(), normalized_prefix_length);
+  // copy-on-write; normalize the suffix and append to |result|.
+  normalizer->normalizeSecondAndAppend(result, unnormalized, status);
 
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate,
@@ -137,8 +131,9 @@ BUILTIN(V8BreakIteratorSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kBreakIterator,
-                                        locales, options));
+      isolate,
+      Intl::SupportedLocalesOf(isolate, Intl::ICUService::kBreakIterator,
+                               locales, options));
 }
 
 BUILTIN(NumberFormatSupportedLocalesOf) {
@@ -147,8 +142,8 @@ BUILTIN(NumberFormatSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kNumberFormat,
-                                        locales, options));
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, Intl::ICUService::kNumberFormat, locales, options));
 }
 
 BUILTIN(NumberFormatPrototypeFormatToParts) {
@@ -189,7 +184,7 @@ BUILTIN(DateTimeFormatSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kDateFormat,
+      isolate, Intl::SupportedLocalesOf(isolate, Intl::ICUService::kDateFormat,
                                         locales, options));
 }
 
@@ -540,8 +535,9 @@ BUILTIN(ListFormatSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kListFormatter,
-                                        locales, options));
+      isolate,
+      Intl::SupportedLocalesOf(isolate, Intl::ICUService::kListFormatter,
+                               locales, options));
 }
 
 namespace {
@@ -647,9 +643,9 @@ BUILTIN(RelativeTimeFormatSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Intl::SupportedLocalesOf(isolate, ICUService::kRelativeDateTimeFormatter,
-                               locales, options));
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, Intl::ICUService::kRelativeDateTimeFormatter,
+                   locales, options));
 }
 
 BUILTIN(RelativeTimeFormatPrototypeFormat) {
@@ -911,7 +907,7 @@ BUILTIN(PluralRulesSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kPluralRules,
+      isolate, Intl::SupportedLocalesOf(isolate, Intl::ICUService::kPluralRules,
                                         locales, options));
 }
 
@@ -961,8 +957,8 @@ BUILTIN(CollatorSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kCollator, locales,
-                                        options));
+      isolate, Intl::SupportedLocalesOf(isolate, Intl::ICUService::kCollator,
+                                        locales, options));
 }
 
 BUILTIN(CollatorPrototypeCompare) {
@@ -1117,7 +1113,7 @@ BUILTIN(SegmenterSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, ICUService::kSegmenter,
+      isolate, Intl::SupportedLocalesOf(isolate, Intl::ICUService::kSegmenter,
                                         locales, options));
 }
 

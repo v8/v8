@@ -13,7 +13,6 @@
 #include <string>
 
 #include "src/heap/factory.h"
-#include "src/intl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"

@@ -309,7 +309,7 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
   // requestedLocales, opt, %Collator%.[[RelevantExtensionKeys]],
   // localeData).
   std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(ICUService::kCollator);
+      Intl::GetAvailableLocales(Intl::ICUService::kCollator);
   Intl::ResolvedLocale r =
       Intl::ResolveLocale(isolate, available_locales, requested_locales,
                           matcher, relevant_extension_keys);

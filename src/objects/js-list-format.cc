@@ -203,7 +203,7 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   // 15. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
   std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(ICUService::kListFormatter);
+      Intl::GetAvailableLocales(Intl::ICUService::kListFormatter);
   Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
                                                requested_locales, matcher, {});
 
@@ -353,13 +353,7 @@ Maybe<bool> ToUnicodeStringArray(Isolate* isolate, Handle<JSArray> array,
   }
   for (uint32_t i = 0; i < length; i++) {
     Handle<String> string = Handle<String>::cast(accessor->Get(array, i));
-    DisallowHeapAllocation no_gc;
-    string = String::Flatten(isolate, string);
-    std::unique_ptr<uc16[]> sap;
-    items[i] =
-        icu::UnicodeString(GetUCharBufferFromFlat(string->GetFlatContent(),
-                                                  &sap, string->length()),
-                           string->length());
+    items[i] = Intl::ToICUUnicodeString(isolate, string);
   }
   return Just(true);
 }

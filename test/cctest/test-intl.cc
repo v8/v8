@@ -211,23 +211,24 @@ TEST(GetBoolOption) {
 TEST(GetAvailableLocales) {
   std::set<std::string> locales;
 
-  locales = Intl::GetAvailableLocales(ICUService::kBreakIterator);
+  locales = Intl::GetAvailableLocales(Intl::ICUService::kBreakIterator);
   CHECK(locales.count("en-US"));
   CHECK(!locales.count("abcdefg"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kCollator);
+  locales = Intl::GetAvailableLocales(Intl::ICUService::kCollator);
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kDateFormat);
+  locales = Intl::GetAvailableLocales(Intl::ICUService::kDateFormat);
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kNumberFormat);
+  locales = Intl::GetAvailableLocales(Intl::ICUService::kNumberFormat);
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kPluralRules);
+  locales = Intl::GetAvailableLocales(Intl::ICUService::kPluralRules);
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(ICUService::kRelativeDateTimeFormatter);
+  locales =
+      Intl::GetAvailableLocales(Intl::ICUService::kRelativeDateTimeFormatter);
   CHECK(locales.count("en-US"));
 }
 

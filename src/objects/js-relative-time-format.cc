@@ -103,7 +103,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
   //               requestedLocales, opt,
   //               %RelativeTimeFormat%.[[RelevantExtensionKeys]], localeData).
   std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(ICUService::kRelativeDateTimeFormatter);
+      Intl::GetAvailableLocales(Intl::ICUService::kRelativeDateTimeFormatter);
   Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
                                                requested_locales, matcher, {});
 

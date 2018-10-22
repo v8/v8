@@ -13,8 +13,8 @@
 #include <set>
 #include <string>
 
+#include "src/base/timezone-cache.h"
 #include "src/contexts.h"
-#include "src/intl.h"
 #include "src/objects.h"
 #include "src/objects/managed.h"
 #include "unicode/locid.h"
@@ -39,6 +39,17 @@ class Intl {
   enum class BoundFunctionContextSlot {
     kBoundFunction = Context::MIN_CONTEXT_SLOTS,
     kLength
+  };
+
+  enum class ICUService {
+    kBreakIterator,
+    kCollator,
+    kDateFormat,
+    kNumberFormat,
+    kPluralRules,
+    kRelativeDateTimeFormatter,
+    kListFormatter,
+    kSegmenter
   };
 
   // Gets the ICU locales for a given service. If there is a locale with a
@@ -116,6 +127,12 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> StringLocaleConvertCase(
       Isolate* isolate, Handle<String> s, bool is_upper,
       Handle<Object> locales);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToUpper(
+      Isolate* isolate, Handle<String> s);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToLower(
+      Isolate* isolate, Handle<String> s);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> StringLocaleCompare(
       Isolate* isolate, Handle<String> s1, Handle<String> s2,
@@ -198,6 +215,16 @@ class Intl {
   static Managed<icu::UnicodeString>* SetTextToBreakIterator(
       Isolate* isolate, Handle<String> text,
       icu::BreakIterator* break_iterator);
+
+  static base::TimezoneCache* CreateTimeZoneCache();
+
+  // Convert a Handle<String> to icu::UnicodeString
+  static icu::UnicodeString ToICUUnicodeString(Isolate* isolate,
+                                               Handle<String> string);
+
+  static const uint8_t* ToLatin1LowerTable();
+
+  static String* ConvertOneByteToLower(String* src, String* dst);
 };
 
 }  // namespace internal

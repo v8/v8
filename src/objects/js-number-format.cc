@@ -235,7 +235,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   // requestedLocales, opt,  %NumberFormat%.[[RelevantExtensionKeys]],
   // localeData).
   std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(ICUService::kNumberFormat);
+      Intl::GetAvailableLocales(Intl::ICUService::kNumberFormat);
   std::set<std::string> relevant_extension_keys{"nu"};
   Intl::ResolvedLocale r =
       Intl::ResolveLocale(isolate, available_locales, requested_locales,

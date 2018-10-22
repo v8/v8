@@ -60,7 +60,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
     }
   }
   std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(ICUService::kBreakIterator);
+      Intl::GetAvailableLocales(Intl::ICUService::kBreakIterator);
   Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
                                                requested_locales, matcher, {});
 

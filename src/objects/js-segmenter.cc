@@ -86,7 +86,7 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
   // 9. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
   std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(ICUService::kSegmenter);
+      Intl::GetAvailableLocales(Intl::ICUService::kSegmenter);
   Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
                                                requested_locales, matcher, {});
 
