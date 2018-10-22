@@ -96,7 +96,8 @@ class EmbeddedData final {
 
   // Padded with kCodeAlignment.
   uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
-    return PadAndAlign(InstructionSizeOfBuiltin(i));
+    uint32_t size = InstructionSizeOfBuiltin(i);
+    return (size == 0) ? 0 : PadAndAlign(size);
   }
 
   size_t CreateHash() const;

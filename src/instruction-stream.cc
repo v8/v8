@@ -26,12 +26,17 @@ Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
   if (!PcIsOffHeap(isolate, address)) return nullptr;
 
   EmbeddedData d = EmbeddedData::FromBlob();
+  if (address < d.InstructionStartOfBuiltin(0)) return nullptr;
+
+  // Note: Addresses within the padding section between builtins (i.e. within
+  // start + size <= address < start + padded_size) are interpreted as belonging
+  // to the preceding builtin.
 
   int l = 0, r = Builtins::builtin_count;
   while (l < r) {
     const int mid = (l + r) / 2;
     Address start = d.InstructionStartOfBuiltin(mid);
-    Address end = start + d.InstructionSizeOfBuiltin(mid);
+    Address end = start + d.PaddedInstructionSizeOfBuiltin(mid);
 
     if (address < start) {
       r = mid;
