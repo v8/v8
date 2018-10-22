@@ -112,8 +112,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
                                isolate->factory()->wasm_exception_tag_symbol(),
                                tag, LanguageMode::kStrict)
            .is_null());
-  Handle<JSTypedArray> values =
-      isolate->factory()->NewJSTypedArray(ElementsKind::UINT16_ELEMENTS, size);
+  Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
   CHECK(!JSReceiver::SetProperty(
              isolate, exception,
              isolate->factory()->wasm_exception_values_symbol(), values,
@@ -159,15 +158,11 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
             isolate, exception,
             isolate->factory()->wasm_exception_values_symbol())
             .ToHandle(&values_obj)) {
-      if (values_obj->IsJSTypedArray()) {
-        Handle<JSTypedArray> values = Handle<JSTypedArray>::cast(values_obj);
-        CHECK_EQ(values->type(), kExternalUint16Array);
+      if (values_obj->IsFixedArray()) {
+        Handle<FixedArray> values = Handle<FixedArray>::cast(values_obj);
         CONVERT_SMI_ARG_CHECKED(index, 1);
-        CHECK(!values->WasNeutered());
-        CHECK_LT(index, Smi::ToInt(values->length()));
-        auto* vals =
-            reinterpret_cast<uint16_t*>(values->GetBuffer()->backing_store());
-        return Smi::FromInt(vals[index]);
+        CHECK_LT(index, values->length());
+        return values->get(index);
       }
     }
   }
@@ -190,16 +185,12 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
             isolate, exception,
             isolate->factory()->wasm_exception_values_symbol())
             .ToHandle(&values_obj)) {
-      if (values_obj->IsJSTypedArray()) {
-        Handle<JSTypedArray> values = Handle<JSTypedArray>::cast(values_obj);
-        CHECK_EQ(values->type(), kExternalUint16Array);
+      if (values_obj->IsFixedArray()) {
+        Handle<FixedArray> values = Handle<FixedArray>::cast(values_obj);
         CONVERT_SMI_ARG_CHECKED(index, 1);
-        CHECK(!values->WasNeutered());
-        CHECK_LT(index, Smi::ToInt(values->length()));
-        CONVERT_SMI_ARG_CHECKED(value, 2);
-        auto* vals =
-            reinterpret_cast<uint16_t*>(values->GetBuffer()->backing_store());
-        vals[index] = static_cast<uint16_t>(value);
+        CHECK_LT(index, values->length());
+        CONVERT_ARG_CHECKED(Object, value, 2);
+        values->set(index, value);
       }
     }
   }

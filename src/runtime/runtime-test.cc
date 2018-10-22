@@ -866,10 +866,13 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, exception, 0);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSReceiver::GetProperty(
-                   isolate, exception,
-                   isolate->factory()->wasm_exception_values_symbol()));
+  Handle<Object> values_obj;
+  CHECK(JSReceiver::GetProperty(
+            isolate, exception,
+            isolate->factory()->wasm_exception_values_symbol())
+            .ToHandle(&values_obj));
+  Handle<FixedArray> values = Handle<FixedArray>::cast(values_obj);
+  return *isolate->factory()->NewJSArrayWithElements(values);
 }
 
 namespace {
