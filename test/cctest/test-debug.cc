@@ -2818,6 +2818,21 @@ TEST(DebugBreakInWrappedScript) {
   CheckDebuggerUnloaded();
 }
 
+static void EmptyHandler(const v8::FunctionCallbackInfo<v8::Value>& args) {}
+
+TEST(DebugScopeIteratorWithFunctionTemplate) {
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  EnableDebugger(isolate);
+  v8::Local<v8::Function> func =
+      v8::Function::New(env.local(), EmptyHandler).ToLocalChecked();
+  std::unique_ptr<v8::debug::ScopeIterator> iterator =
+      v8::debug::ScopeIterator::CreateForFunction(isolate, func);
+  CHECK(iterator->Done());
+  DisableDebugger(isolate);
+}
+
 TEST(DebugBreakWithoutJS) {
   i::FLAG_stress_compaction = false;
 #ifdef VERIFY_HEAP

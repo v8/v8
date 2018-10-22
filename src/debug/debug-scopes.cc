@@ -54,13 +54,12 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
 }
 
 ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
-    : isolate_(isolate),
-      context_(function->context(), isolate),
-      script_(Script::cast(function->shared()->script()), isolate) {
+    : isolate_(isolate), context_(function->context(), isolate) {
   if (!function->shared()->IsSubjectToDebugging()) {
     context_ = Handle<Context>();
     return;
   }
+  script_ = handle(Script::cast(function->shared()->script()), isolate);
   UnwrapEvaluationContext();
 }
 
@@ -71,10 +70,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
       function_(generator->function(), isolate),
       context_(generator->context(), isolate),
       script_(Script::cast(function_->shared()->script()), isolate) {
-  if (!function_->shared()->IsSubjectToDebugging()) {
-    context_ = Handle<Context>();
-    return;
-  }
+  CHECK(function_->shared()->IsSubjectToDebugging());
   TryParseAndRetrieveScopes(DEFAULT);
 }
 
