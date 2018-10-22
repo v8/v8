@@ -47,7 +47,6 @@ constexpr Register kRuntimeCallArgvRegister = ecx;
 constexpr Register kWasmInstanceRegister = esi;
 constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
-// TODO(v8:6666): Implement full support.
 constexpr Register kRootRegister = ebx;
 
 // Convenience for platform-independent signatures.  We do not normally
@@ -250,25 +249,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadAddress(Register destination, ExternalReference source);
 
-  void PushRootRegister() {
-    // Check that a NoRootArrayScope exists.
-    CHECK(!root_array_available());
-    push(kRootRegister);
-  }
-  void PopRootRegister() {
-    // Check that a NoRootArrayScope exists.
-    CHECK(!root_array_available());
-    pop(kRootRegister);
-  }
-
   void CompareStackLimit(Register with);
   void CompareRealStackLimit(Register with);
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Register with, Register scratch, RootIndex index);
-
-  // Wrapper functions to ensure external reference operands produce
-  // isolate-independent code if needed.
-  Operand StaticVariable(const ExternalReference& ext);
 
   // Return and drop arguments from stack, where the number of arguments
   // may be bigger than 2^16 - 1.  Requires a scratch register.

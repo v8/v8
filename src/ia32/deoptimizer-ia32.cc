@@ -18,8 +18,6 @@ const int Deoptimizer::table_entry_size_ = 10;
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm());
-
   GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
@@ -197,7 +195,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   // Restore the registers from the stack.
-  Assembler::AllowExplicitEbxAccessScope restoring_spilled_value(masm());
   __ popad();
 
   __ InitializeRootRegister();

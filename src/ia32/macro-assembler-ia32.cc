@@ -50,7 +50,6 @@ void TurboAssembler::InitializeRootRegister() {
   // removed.
   if (!FLAG_embedded_builtins) return;
 
-  Assembler::AllowExplicitEbxAccessScope setup(this);
   ExternalReference roots_array_start =
       ExternalReference::roots_array_start(isolate());
   Move(kRootRegister, Immediate(roots_array_start));
@@ -62,7 +61,6 @@ void TurboAssembler::VerifyRootRegister() {
 
   DCHECK(FLAG_embedded_builtins);
 
-  Assembler::AllowExplicitEbxAccessScope read_only_access(this);
   Label root_register_ok;
   cmp(Operand(kRootRegister,
               IsolateData::kMagicNumberOffset - kRootRegisterBias),
@@ -75,7 +73,6 @@ void TurboAssembler::VerifyRootRegister() {
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
-    Assembler::AllowExplicitEbxAccessScope read_only_access(this);
     mov(destination,
         Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
     return;
@@ -118,7 +115,6 @@ void TurboAssembler::CompareRoot(Register with, Register scratch,
 void TurboAssembler::CompareRoot(Register with, RootIndex index) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
-    Assembler::AllowExplicitEbxAccessScope read_only_access(this);
     cmp(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
     return;
   }
@@ -161,7 +157,6 @@ void MacroAssembler::PushRoot(RootIndex index) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     DCHECK(RootsTable::IsImmortalImmovable(index));
-    Assembler::AllowExplicitEbxAccessScope read_only_access(this);
     push(Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
     return;
   }
@@ -179,7 +174,6 @@ void MacroAssembler::PushRoot(RootIndex index) {
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
   // TODO(jgruber): Add support for enable_root_array_delta_access.
-  Assembler::AllowExplicitEbxAccessScope read_only_access(this);
   if (root_array_available_ && options().isolate_independent_code) {
     if (IsAddressableThroughRootRegister(isolate(), reference)) {
       // Some external references can be efficiently loaded as an offset from
@@ -206,7 +200,6 @@ Operand TurboAssembler::ExternalReferenceAddressAsOperand(
   DCHECK(FLAG_embedded_builtins);
   DCHECK(root_array_available());
   DCHECK(options().isolate_independent_code);
-  Assembler::AllowExplicitEbxAccessScope read_only_access(this);
   return Operand(
       kRootRegister,
       RootRegisterOffsetForExternalReferenceTableEntry(isolate(), reference));
@@ -217,7 +210,6 @@ Operand TurboAssembler::ExternalReferenceAddressAsOperand(
 Operand TurboAssembler::HeapObjectAsOperand(Handle<HeapObject> object) {
   DCHECK(FLAG_embedded_builtins);
   DCHECK(root_array_available());
-  Assembler::AllowExplicitEbxAccessScope read_only_access(this);
 
   int builtin_index;
   RootIndex root_index;
@@ -239,7 +231,6 @@ Operand TurboAssembler::HeapObjectAsOperand(Handle<HeapObject> object) {
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
-  DCHECK(!is_ebx_addressable_);
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   mov(destination,
@@ -249,10 +240,8 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
 
 void TurboAssembler::LoadRootRegisterOffset(Register destination,
                                             intptr_t offset) {
-  DCHECK(!is_ebx_addressable_);
   DCHECK(is_int32(offset));
   DCHECK(root_array_available());
-  Assembler::AllowExplicitEbxAccessScope read_only_access(this);
   if (offset == 0) {
     mov(destination, kRootRegister);
   } else {
@@ -261,9 +250,7 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
 }
 
 void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
-  DCHECK(!is_ebx_addressable_);
   DCHECK(root_array_available());
-  Assembler::AllowExplicitEbxAccessScope read_only_access(this);
   mov(destination, Operand(kRootRegister, offset));
 }
 
@@ -277,11 +264,6 @@ void TurboAssembler::LoadAddress(Register destination,
     }
   }
   mov(destination, Immediate(source));
-}
-
-Operand TurboAssembler::StaticVariable(const ExternalReference& ext) {
-  // TODO(jgruber,v8:6666): Root-relative operand once kRootRegister exists.
-  return Operand(ext.address(), RelocInfo::EXTERNAL_REFERENCE);
 }
 
 static constexpr Register saved_regs[] = {eax, ecx, edx};
@@ -1372,7 +1354,6 @@ void TurboAssembler::Ret(int bytes_dropped, Register scratch) {
 void TurboAssembler::Push(Immediate value) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available_ && options().isolate_independent_code) {
-    Assembler::AllowExplicitEbxAccessScope read_only_access(this);
     if (value.is_embedded_object()) {
       Push(HeapObjectAsOperand(value.embedded_object()));
       return;
@@ -1414,7 +1395,6 @@ void TurboAssembler::Move(Operand dst, const Immediate& src) {
   if (root_array_available_ && options().isolate_independent_code) {
     if (src.is_embedded_object() || src.is_external_reference() ||
         src.is_heap_object_request()) {
-      Assembler::AllowExplicitEbxAccessScope read_only_access(this);
       Push(src);
       pop(dst);
       return;
@@ -1890,21 +1870,12 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
 
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
-    // TODO(jgruber): Pc-relative builtin-to-builtin calls.
     if (root_array_available_ && options().isolate_independent_code &&
         !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
-      // Since we don't have a scratch register available we call through a
-      // so-called virtual register.
-      // TODO(v8:6666): Remove once pc-relative jumps are supported on ia32.
-      Assembler::AllowExplicitEbxAccessScope read_only_access(this);
-      Operand virtual_call_target_register(
-          kRootRegister,
-          IsolateData::kVirtualCallTargetRegisterOffset - kRootRegisterBias);
-      Move(virtual_call_target_register, Immediate(code_object));
-      add(virtual_call_target_register,
-          Immediate(Code::kHeaderSize - kHeapObjectTag));
-      call(virtual_call_target_register);
-      return;
+      // All call targets are expected to be isolate-independent builtins.
+      // If this assumption is ever violated, we could add back support for
+      // calls through a virtual target register.
+      UNREACHABLE();
     } else if (options().inline_offheap_trampolines) {
       int builtin_index = Builtins::kNoBuiltinId;
       if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
@@ -1925,21 +1896,12 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
-    // TODO(jgruber): Pc-relative builtin-to-builtin calls.
     if (root_array_available_ && options().isolate_independent_code &&
         !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
-      // Since we don't have a scratch register available we call through a
-      // so-called virtual register.
-      // TODO(v8:6666): Remove once pc-relative jumps are supported on ia32.
-      Assembler::AllowExplicitEbxAccessScope read_only_access(this);
-      Operand virtual_call_target_register(
-          kRootRegister,
-          IsolateData::kVirtualCallTargetRegisterOffset - kRootRegisterBias);
-      Move(virtual_call_target_register, Immediate(code_object));
-      add(virtual_call_target_register,
-          Immediate(Code::kHeaderSize - kHeapObjectTag));
-      jmp(virtual_call_target_register);
-      return;
+      // All call targets are expected to be isolate-independent builtins.
+      // If this assumption is ever violated, we could add back support for
+      // calls through a virtual target register.
+      UNREACHABLE();
     } else if (options().inline_offheap_trampolines) {
       int builtin_index = Builtins::kNoBuiltinId;
       if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&

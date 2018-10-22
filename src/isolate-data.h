@@ -81,7 +81,8 @@ class IsolateData final {
   const intptr_t magic_number_ = kRootRegisterSentinel;
 
   // For isolate-independent calls on ia32.
-  // TODO(v8:6666): Remove once pc-relative jumps are supported on ia32.
+  // TODO(v8:6666): Remove once wasm supports pc-relative jumps to builtins on
+  // ia32 (otherwise the arguments adaptor call runs out of registers).
   void* virtual_call_target_register_ = nullptr;
 
   V8_INLINE static void AssertPredictableLayout();

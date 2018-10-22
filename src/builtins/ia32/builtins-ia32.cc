@@ -22,7 +22,6 @@ namespace internal {
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   __ Move(kJavaScriptCallExtraArg1Register,
           Immediate(ExternalReference::Create(address)));
   if (exit_frame_type == BUILTIN_EXIT) {
@@ -71,7 +70,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 namespace {
 
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
   //  -- edi: constructor function
@@ -143,7 +141,6 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
 // The construct stub for ES5 constructor functions and ES6 class constructors.
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax: number of arguments (untagged)
   //  -- edi: constructor function
@@ -316,12 +313,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
 
 void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   FrameScope scope(masm, StackFrame::INTERNAL);
   __ push(edi);
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
@@ -424,12 +419,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 }
 
 void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Generate_JSEntryTrampolineHelper(masm, false);
 }
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Generate_JSEntryTrampolineHelper(masm, true);
 }
 
@@ -448,8 +441,6 @@ static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
 
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax    : the value to pass to the generator
   //  -- edx    : the JSGeneratorObject to resume
@@ -502,7 +493,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   {
-    Assembler::AllowExplicitEbxAccessScope root_is_spilled(masm);
     __ movd(xmm0, ebx);
 
     // Copy the function arguments from the generator object's register file.
@@ -808,7 +798,6 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // The function builds an interpreter frame.  See InterpreterFrameConstants in
 // frames.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   __ VerifyRootRegister();
@@ -954,7 +943,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register array_limit,
                                          Register start_address) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- start_address : Pointer to the last argument in the args array.
   //  -- array_limit : Pointer to one before the first argument in the
@@ -974,7 +962,6 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     MacroAssembler* masm, ConvertReceiverMode receiver_mode,
     InterpreterPushArgsMode mode) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   DCHECK(mode != InterpreterPushArgsMode::kArrayFunction);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
@@ -1045,7 +1032,6 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
     MacroAssembler* masm, Register num_args, Register start_addr,
     Register scratch1, Register scratch2, int num_slots_to_move,
     Label* stack_overflow) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // We have to move return address and the temporary registers above it
   // before we can copy arguments onto the stack. To achieve this:
   // Step 1: Increment the stack pointer by num_args + 1 (for receiver).
@@ -1105,7 +1091,6 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
 // static
 void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     MacroAssembler* masm, InterpreterPushArgsMode mode) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax     : the number of arguments (not including the receiver)
   //  -- ecx     : the address of the first argument to be pushed. Subsequent
@@ -1243,8 +1228,6 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // Get bytecode array and bytecode offset from the stack frame.
   __ mov(kInterpreterBytecodeArrayRegister,
          Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
@@ -1271,13 +1254,10 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Generate_InterpreterEnterBytecode(masm);
 }
 
 void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax : argument count (preserved for callee)
   //  -- edx : new target (preserved for callee)
@@ -1392,7 +1372,6 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
 void Builtins::Generate_ContinueToCodeStubBuiltin(MacroAssembler* masm) {
 #ifdef V8_EMBEDDED_BUILTINS
   // TODO(v8:6666): Remove the ifdef once root is preserved by default.
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
 #endif
   Generate_ContinueToBuiltinHelper(masm, false, false);
 }
@@ -1401,7 +1380,6 @@ void Builtins::Generate_ContinueToCodeStubBuiltinWithResult(
     MacroAssembler* masm) {
 #ifdef V8_EMBEDDED_BUILTINS
   // TODO(v8:6666): Remove the ifdef once root is preserved by default.
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
 #endif
   Generate_ContinueToBuiltinHelper(masm, false, true);
 }
@@ -1409,7 +1387,6 @@ void Builtins::Generate_ContinueToCodeStubBuiltinWithResult(
 void Builtins::Generate_ContinueToJavaScriptBuiltin(MacroAssembler* masm) {
 #ifdef V8_EMBEDDED_BUILTINS
   // TODO(v8:6666): Remove the ifdef once root is preserved by default.
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
 #endif
   Generate_ContinueToBuiltinHelper(masm, true, false);
 }
@@ -1418,14 +1395,11 @@ void Builtins::Generate_ContinueToJavaScriptBuiltinWithResult(
     MacroAssembler* masm) {
 #ifdef V8_EMBEDDED_BUILTINS
   // TODO(v8:6666): Remove the ifdef once root is preserved by default.
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
 #endif
   Generate_ContinueToBuiltinHelper(masm, true, true);
 }
 
 void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ CallRuntime(Runtime::kNotifyDeoptimized);
@@ -1439,8 +1413,6 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax     : argc
   //  -- esp[0]  : return address
@@ -1509,8 +1481,6 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // Stack Layout:
   // esp[0]           : Return address
   // esp[8]           : Argument n
@@ -1556,8 +1526,6 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax     : argc
   //  -- esp[0]  : return address
@@ -1614,8 +1582,6 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax     : argc
   //  -- esp[0]  : return address
@@ -1679,8 +1645,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax : argc
   //  -- esp[0] : return address
@@ -1743,7 +1707,6 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
 // static
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- edi    : target
   //  -- esi    : context for the Call / Construct builtin
@@ -1760,7 +1723,6 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ movd(xmm2, eax);
   __ movd(xmm3, esi);  // Spill the context.
 
-  // TODO(v8:6666): Remove this usage of ebx to enable kRootRegister support.
   const Register kArgumentsList = esi;
   const Register kArgumentsLength = ecx;
 
@@ -1835,7 +1797,6 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                       CallOrConstructMode mode,
                                                       Handle<Code> code) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the target to call (can be any Object)
@@ -1928,8 +1889,6 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 // static
 void Builtins::Generate_CallFunction(MacroAssembler* masm,
                                      ConvertReceiverMode mode) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the function to call (checked to be a JSFunction)
@@ -2037,7 +1996,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 namespace {
 
 void Generate_PushBoundArguments(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : new.target (only in case of [[Construct]])
@@ -2127,7 +2085,6 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the function to call (checked to be a JSBoundFunction)
@@ -2149,7 +2106,6 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the target to call (can be any Object).
@@ -2203,7 +2159,6 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 
 // static
 void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target (checked to be a constructor)
@@ -2236,7 +2191,6 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target (checked to be a constructor)
@@ -2328,7 +2282,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- edi : function (passed through to callee)
   // -----------------------------------
 
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   const Register kExpectedNumberOfArgumentsRegister = ecx;
 
   Label invoke, dont_adapt_arguments, stack_overflow, enough, too_few;
@@ -2439,8 +2392,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // Lookup the function in the JavaScript frame.
   __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(eax, Operand(eax, JavaScriptFrameConstants::kFunctionOffset));
@@ -2484,8 +2435,6 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // The function index was put in edi by the jump table trampoline.
   // Convert to Smi for the runtime call.
   __ SmiTag(kWasmCompileLazyFuncIndexRegister);
@@ -2496,7 +2445,6 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    Assembler::AllowExplicitEbxAccessScope root_is_spilled(masm);
     static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs ==
                       arraysize(wasm::kGpParamRegisters),
                   "frame size mismatch");
@@ -2526,7 +2474,6 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     {
       // At this point, ebx has been spilled to the stack but is not yet
       // overwritten with another value. We can still use it as kRootRegister.
-      Assembler::SupportsRootRegisterScope root_is_unclobbered(masm);
       __ CallRuntimeWithCEntry(Runtime::kWasmCompileLazy, ecx);
     }
     // The entrypoint address is the return value.
@@ -2562,7 +2509,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
 #ifdef V8_EMBEDDED_BUILTINS
   // TODO(v8:6666): Remove the ifdef once branch load poisoning is removed.
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
 #endif
 
   STATIC_ASSERT(eax == kRuntimeCallArgCountRegister);
@@ -2704,8 +2650,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 }
 
 void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   Label check_negative, process_64_bits, done;
 
   // Account for return address and saved regs.
@@ -2719,7 +2663,6 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   MemOperand return_operand = mantissa_operand;
 
   Register scratch1 = ebx;
-  Assembler::AllowExplicitEbxAccessScope root_is_spilled(masm);
 
   // Since we must use ecx for shifts below, use some other register (eax)
   // to calculate the result.
@@ -2800,8 +2743,6 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   const Register exponent = eax;
   const Register scratch = ecx;
   const XMMRegister double_result = xmm3;
@@ -2979,8 +2920,6 @@ void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
 }  // namespace
 
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax : argc
   //  -- edi : constructor

@@ -33,7 +33,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   {  // NOLINT. Scope block confuses linter.
     NoRootArrayScope uninitialized_root_register(masm);
-    Assembler::AllowExplicitEbxAccessScope spill_register(masm);
 
     // Set up frame.
     __ push(ebp);
@@ -53,7 +52,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
     __ InitializeRootRegister();
   }
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
 
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp =
@@ -111,7 +109,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Restore the top frame descriptor from the stack.
   __ pop(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
-  Assembler::AllowExplicitEbxAccessScope exiting_js(masm);
   // Restore callee-saved registers (C calling conventions).
   __ pop(ebx);
   __ pop(esi);
@@ -139,8 +136,6 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // Save volatile registers.
   const int kNumSavedRegisters = 3;
   __ push(eax);
@@ -200,7 +195,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
                                      Operand thunk_last_arg, int stack_space,
                                      Operand* stack_space_operand,
                                      Operand return_value_operand) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Isolate* isolate = masm->isolate();
 
   ExternalReference next_address =
@@ -349,8 +343,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 }
 
 void CallApiCallbackStub::Generate(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // ----------- S t a t e -------------
   //  -- eax                 : call_data
   //  -- ecx                 : holder
@@ -441,8 +433,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
   STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);

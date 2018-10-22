@@ -24,16 +24,10 @@ using TNode = compiler::TNode<T>;
 // Interrupt and stack checks.
 
 void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   masm->TailCallRuntime(Runtime::kInterrupt);
 }
 
 void Builtins::Generate_StackCheck(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   masm->TailCallRuntime(Runtime::kStackGuard);
 }
 
@@ -1211,9 +1205,6 @@ void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit(
 }
 
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   // CallApiGetterStub only exists as a stub to avoid duplicating code between
   // here and code-stubs-<arch>.cc. For example, see CallApiFunctionAndReturn.
   // Here we abuse the instantiated stub to generate code.
@@ -1222,9 +1213,6 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_CallApiCallback_Argc0(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   // The common variants of CallApiCallbackStub (i.e. all that are embedded into
   // the snapshot) are generated as builtins. The rest remain available as code
   // stubs. Here we abuse the instantiated stub to generate code and avoid
@@ -1235,9 +1223,6 @@ void Builtins::Generate_CallApiCallback_Argc0(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_CallApiCallback_Argc1(MacroAssembler* masm) {
-#ifdef V8_TARGET_ARCH_IA32
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
-#endif
   // The common variants of CallApiCallbackStub (i.e. all that are embedded into
   // the snapshot) are generated as builtins. The rest remain available as code
   // stubs. Here we abuse the instantiated stub to generate code and avoid

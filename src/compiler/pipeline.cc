@@ -2550,10 +2550,6 @@ void PipelineImpl::AssembleCode(Linkage* linkage) {
   data->BeginPhaseKind("code generation");
   data->InitializeCodeGenerator(linkage);
 
-#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
-  code_generator()->tasm()->set_ebx_addressable(false);
-#endif
-
   Run<AssembleCodePhase>();
   if (data->info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data->info(), std::ios_base::app);

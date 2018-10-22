@@ -1080,11 +1080,8 @@ DEFINE_BOOL_READONLY(embedded_builtins, V8_EMBEDDED_BUILTINS_BOOL,
                      "Embed builtin code into the binary.")
 // TODO(jgruber,v8:6666): Remove once ia32 has full embedded builtin support.
 DEFINE_BOOL_READONLY(
-    ia32_verify_root_register, V8_EMBEDDED_BUILTINS_BOOL,
+    ia32_verify_root_register, false,
     "Check that the value of the root register was not clobbered.")
-// TODO(jgruber,v8:6666): Remove once ia32 has full embedded builtin support.
-DEFINE_BOOL(print_embedded_builtin_candidates, false,
-            "Prints builtins that are not yet embedded but could be.")
 DEFINE_BOOL(lazy_deserialization, true,
             "Deserialize code lazily from the snapshot.")
 DEFINE_BOOL(trace_lazy_deserialization, false, "Trace lazy deserialization.")

@@ -440,7 +440,6 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   do {                                                                  \
     Label binop;                                                        \
     __ bind(&binop);                                                    \
-    TurboAssembler::AllowExplicitEbxAccessScope spill_register(tasm()); \
     __ mov(eax, i.MemoryOperand(2));                                    \
     __ mov(edx, i.NextMemoryOperand(2));                                \
     __ push(ebx);                                                       \
@@ -700,7 +699,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // TODO(v8:6666): Remove once only embedded builtins are supported.
         __ push(eax);
         frame_access_state()->IncreaseSPDelta(1);
-        TurboAssembler::AllowExplicitEbxAccessScope read_only_access(tasm());
         Operand virtual_call_target_register(
             kRootRegister,
             IsolateData::kVirtualCallTargetRegisterOffset - kRootRegisterBias);
@@ -3700,7 +3698,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32Word32AtomicPairStore: {
       Label store;
       __ bind(&store);
-      TurboAssembler::AllowExplicitEbxAccessScope spill_register(tasm());
       __ mov(i.TempRegister(0), i.MemoryOperand(2));
       __ mov(i.TempRegister(1), i.NextMemoryOperand(2));
       __ push(ebx);
@@ -3741,7 +3738,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr));
       Label exchange;
       __ bind(&exchange);
-      TurboAssembler::AllowExplicitEbxAccessScope spill_ebx(tasm());
       __ mov(eax, i.MemoryOperand(2));
       __ mov(edx, i.NextMemoryOperand(2));
       __ push(ebx);
@@ -3784,7 +3780,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Word32AtomicPairCompareExchange: {
-      TurboAssembler::AllowExplicitEbxAccessScope spill_ebx(tasm());
       __ push(ebx);
       frame_access_state()->IncreaseSPDelta(1);
       i.MoveInstructionOperandToRegister(ebx, instr->InputAt(2));
@@ -3840,7 +3835,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr));
       Label binop;
       __ bind(&binop);
-      TurboAssembler::AllowExplicitEbxAccessScope spill_register(tasm());
       // Move memory operand into edx:eax
       __ mov(eax, i.MemoryOperand(2));
       __ mov(edx, i.NextMemoryOperand(2));
@@ -4329,7 +4323,6 @@ void CodeGenerator::AssembleConstructFrame() {
 
   if (saves != 0) {  // Save callee-saved registers.
     DCHECK(!info()->is_osr());
-    TurboAssembler::AllowExplicitEbxAccessScope spill_register(tasm());
     for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
       if (((1 << i) & saves)) __ push(Register::from_code(i));
     }
@@ -4352,7 +4345,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
       __ add(esp, Immediate(returns * kPointerSize));
     }
     for (int i = 0; i < Register::kNumRegisters; i++) {
-      TurboAssembler::AllowExplicitEbxAccessScope reload_register(tasm());
       if (!((1 << i) & saves)) continue;
       __ pop(Register::from_code(i));
     }
