@@ -890,11 +890,13 @@ domain Runtime
 
   experimental type CustomPreview extends object
     properties
+      # The JSON-stringified result of formatter.header(object, config) call.
+      # It contains json ML array that represents RemoteObject.
       string header
-      boolean hasBody
-      RemoteObjectId formatterObjectId
-      RemoteObjectId bindRemoteObjectFunctionId
-      optional RemoteObjectId configObjectId
+      # If formatter returns true as a result of formatter.hasBody call then bodyGetterId will
+      # contain RemoteObjectId for the function that returns result of formatter.body(object, config) call.
+      # The result value is json ML array.
+      optional RemoteObjectId bodyGetterId
 
   # Object containing abbreviated remote object value.
   experimental type ObjectPreview extends object

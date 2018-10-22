@@ -85,6 +85,11 @@ class InjectedScript final {
       v8::Local<v8::Value>, const String16& groupName, bool forceValueType,
       bool generatePreview,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result) const;
+  Response wrapObject(
+      v8::Local<v8::Value>, const String16& groupName, bool forceValueType,
+      bool generatePreview, v8::MaybeLocal<v8::Value> customPreviewConfig,
+      int maxCustomPreviewDepth,
+      std::unique_ptr<protocol::Runtime::RemoteObject>* result) const;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapTable(
       v8::Local<v8::Value> table, v8::Local<v8::Value> columns) const;
 
@@ -216,6 +221,7 @@ class InjectedScript final {
   std::unordered_map<int, String16> m_idToObjectGroupName;
   std::unordered_map<String16, std::vector<int>> m_nameToObjectGroup;
   std::unordered_set<EvaluateCallback*> m_evaluateCallbacks;
+  bool m_customPreviewEnabled = false;
 
   DISALLOW_COPY_AND_ASSIGN(InjectedScript);
 };

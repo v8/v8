@@ -103,6 +103,8 @@ v8_source_set("inspector") {
   ]
   sources += get_target_outputs(":inspector_injected_script")
   sources += [
+    "custom-preview.cc",
+    "custom-preview.h",
     "injected-script.cc",
     "injected-script.h",
     "inspected-context.cc",

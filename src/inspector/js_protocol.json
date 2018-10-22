@@ -1911,22 +1911,12 @@
                     "properties": [
                         {
                             "name": "header",
+                            "description": "The JSON-stringified result of formatter.header(object, config) call.\nIt contains json ML array that represents RemoteObject.",
                             "type": "string"
                         },
                         {
-                            "name": "hasBody",
-                            "type": "boolean"
-                        },
-                        {
-                            "name": "formatterObjectId",
-                            "$ref": "RemoteObjectId"
-                        },
-                        {
-                            "name": "bindRemoteObjectFunctionId",
-                            "$ref": "RemoteObjectId"
-                        },
-                        {
-                            "name": "configObjectId",
+                            "name": "bodyGetterId",
+                            "description": "If formatter returns true as a result of formatter.hasBody call then bodyGetterId will\ncontain RemoteObjectId for the function that returns result of formatter.body(object, config) call.\nThe result value is json ML array.",
                             "optional": true,
                             "$ref": "RemoteObjectId"
                         }
