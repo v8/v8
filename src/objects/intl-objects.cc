@@ -29,6 +29,7 @@
 #include "unicode/coll.h"
 #include "unicode/decimfmt.h"
 #include "unicode/locid.h"
+#include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
 #include "unicode/regex.h"
@@ -1854,6 +1855,74 @@ Managed<icu::UnicodeString>* Intl::SetTextToBreakIterator(
 
   break_iterator->setText(*u_text);
   return *new_u_text;
+}
+
+// ecma262 #sec-string.prototype.normalize
+MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
+                                    Handle<Object> form_input) {
+  const char* form_name;
+  UNormalization2Mode form_mode;
+  if (form_input->IsUndefined(isolate)) {
+    // default is FNC
+    form_name = "nfc";
+    form_mode = UNORM2_COMPOSE;
+  } else {
+    Handle<String> form;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, form,
+                               Object::ToString(isolate, form_input), String);
+
+    if (String::Equals(isolate, form, isolate->factory()->NFC_string())) {
+      form_name = "nfc";
+      form_mode = UNORM2_COMPOSE;
+    } else if (String::Equals(isolate, form,
+                              isolate->factory()->NFD_string())) {
+      form_name = "nfc";
+      form_mode = UNORM2_DECOMPOSE;
+    } else if (String::Equals(isolate, form,
+                              isolate->factory()->NFKC_string())) {
+      form_name = "nfkc";
+      form_mode = UNORM2_COMPOSE;
+    } else if (String::Equals(isolate, form,
+                              isolate->factory()->NFKD_string())) {
+      form_name = "nfkc";
+      form_mode = UNORM2_DECOMPOSE;
+    } else {
+      Handle<String> valid_forms =
+          isolate->factory()->NewStringFromStaticChars("NFC, NFD, NFKC, NFKD");
+      THROW_NEW_ERROR(
+          isolate,
+          NewRangeError(MessageTemplate::kNormalizationForm, valid_forms),
+          String);
+    }
+  }
+
+  int length = string->length();
+  string = String::Flatten(isolate, string);
+  icu::UnicodeString result;
+  std::unique_ptr<uc16[]> sap;
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString input = ToICUUnicodeString(isolate, string);
+  // Getting a singleton. Should not free it.
+  const icu::Normalizer2* normalizer =
+      icu::Normalizer2::getInstance(nullptr, form_name, form_mode, status);
+  DCHECK(U_SUCCESS(status));
+  CHECK_NOT_NULL(normalizer);
+  int32_t normalized_prefix_length =
+      normalizer->spanQuickCheckYes(input, status);
+  // Quick return if the input is already normalized.
+  if (length == normalized_prefix_length) return string;
+  icu::UnicodeString unnormalized =
+      input.tempSubString(normalized_prefix_length);
+  // Read-only alias of the normalized prefix.
+  result.setTo(false, input.getBuffer(), normalized_prefix_length);
+  // copy-on-write; normalize the suffix and append to |result|.
+  normalizer->normalizeSecondAndAppend(result, unnormalized, status);
+
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+  }
+
+  return Intl::ToString(isolate, result);
 }
 
 // ICUTimezoneCache calls out to ICU for TimezoneCache

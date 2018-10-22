@@ -168,5 +168,45 @@ Handle<String> JSV8BreakIterator::TypeAsString() const {
   }
 }
 
+Handle<Object> JSV8BreakIterator::Current(
+    Isolate* isolate, Handle<JSV8BreakIterator> break_iterator) {
+  return isolate->factory()->NewNumberFromInt(
+      break_iterator->break_iterator()->raw()->current());
+}
+
+Handle<Object> JSV8BreakIterator::First(
+    Isolate* isolate, Handle<JSV8BreakIterator> break_iterator) {
+  return isolate->factory()->NewNumberFromInt(
+      break_iterator->break_iterator()->raw()->first());
+}
+
+Handle<Object> JSV8BreakIterator::Next(
+    Isolate* isolate, Handle<JSV8BreakIterator> break_iterator) {
+  return isolate->factory()->NewNumberFromInt(
+      break_iterator->break_iterator()->raw()->next());
+}
+
+String* JSV8BreakIterator::BreakType(Isolate* isolate,
+                                     Handle<JSV8BreakIterator> break_iterator) {
+  int32_t status = break_iterator->break_iterator()->raw()->getRuleStatus();
+  // Keep return values in sync with JavaScript BreakType enum.
+  if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
+    return ReadOnlyRoots(isolate).none_string();
+  }
+  if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
+    return ReadOnlyRoots(isolate).number_string();
+  }
+  if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
+    return ReadOnlyRoots(isolate).letter_string();
+  }
+  if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {
+    return ReadOnlyRoots(isolate).kana_string();
+  }
+  if (status >= UBRK_WORD_IDEO && status < UBRK_WORD_IDEO_LIMIT) {
+    return ReadOnlyRoots(isolate).ideo_string();
+  }
+  return ReadOnlyRoots(isolate).unknown_string();
+}
+
 }  // namespace internal
 }  // namespace v8

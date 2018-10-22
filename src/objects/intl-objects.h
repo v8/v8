@@ -216,6 +216,9 @@ class Intl {
       Isolate* isolate, Handle<String> text,
       icu::BreakIterator* break_iterator);
 
+  // ecma262 #sec-string.prototype.normalize
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> Normalize(
+      Isolate* isolate, Handle<String> string, Handle<Object> form_input);
   static base::TimezoneCache* CreateTimeZoneCache();
 
   // Convert a Handle<String> to icu::UnicodeString

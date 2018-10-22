@@ -26,15 +26,24 @@ namespace internal {
 class JSV8BreakIterator : public JSObject {
  public:
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSV8BreakIterator> Initialize(
-      Isolate* isolate, Handle<JSV8BreakIterator> break_iterator_holder,
+      Isolate* isolate, Handle<JSV8BreakIterator> break_iterator,
       Handle<Object> input_locales, Handle<Object> input_options);
 
   static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSV8BreakIterator> break_iterator);
 
   static void AdoptText(Isolate* isolate,
-                        Handle<JSV8BreakIterator> break_iterator_holder,
+                        Handle<JSV8BreakIterator> break_iterator,
                         Handle<String> text);
+
+  static Handle<Object> Current(Isolate* isolate,
+                                Handle<JSV8BreakIterator> break_iterator);
+  static Handle<Object> First(Isolate* isolate,
+                              Handle<JSV8BreakIterator> break_iterator);
+  static Handle<Object> Next(Isolate* isolate,
+                             Handle<JSV8BreakIterator> break_iterator);
+  static String* BreakType(Isolate* isolate,
+                           Handle<JSV8BreakIterator> break_iterator);
 
   enum class Type { CHARACTER, WORD, SENTENCE, LINE, COUNT };
   inline void set_type(Type type);
