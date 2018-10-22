@@ -5209,20 +5209,16 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
   double decode_ms = 0;
   size_t node_count = 0;
 
-  Zone graph_zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
-  MachineGraph* mcgraph = new (&graph_zone)
-      MachineGraph(new (&graph_zone) Graph(&graph_zone),
-                   new (&graph_zone) CommonOperatorBuilder(&graph_zone),
-                   new (&graph_zone) MachineOperatorBuilder(
-                       &graph_zone, MachineType::PointerRepresentation(),
-                       InstructionSelector::SupportedMachineOperatorFlags(),
-                       InstructionSelector::AlignmentRequirements()));
+  Zone zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
+  MachineGraph* mcgraph = new (&zone) MachineGraph(
+      new (&zone) Graph(&zone), new (&zone) CommonOperatorBuilder(&zone),
+      new (&zone) MachineOperatorBuilder(
+          &zone, MachineType::PointerRepresentation(),
+          InstructionSelector::SupportedMachineOperatorFlags(),
+          InstructionSelector::AlignmentRequirements()));
 
-  Zone compilation_zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
-
-  OptimizedCompilationInfo info(
-      GetDebugName(&compilation_zone, wasm_unit_->func_index_),
-      &compilation_zone, Code::WASM_FUNCTION);
+  OptimizedCompilationInfo info(GetDebugName(&zone, wasm_unit_->func_index_),
+                                &zone, Code::WASM_FUNCTION);
   if (wasm_unit_->env_->runtime_exception_support) {
     info.SetWasmRuntimeExceptionSupport();
   }
@@ -5233,7 +5229,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
   }
 
   NodeOriginTable* node_origins = info.trace_turbo_json_enabled()
-                                      ? new (&graph_zone)
+                                      ? new (&zone)
                                             NodeOriginTable(mcgraph->graph())
                                       : nullptr;
   SourcePositionTable* source_positions =
@@ -5253,10 +5249,9 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
 
   // Run the compiler pipeline to generate machine code.
   auto call_descriptor =
-      GetWasmCallDescriptor(&compilation_zone, wasm_unit_->func_body_.sig);
+      GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
   if (mcgraph->machine()->Is32()) {
-    call_descriptor =
-        GetI32WasmCallDescriptor(&compilation_zone, call_descriptor);
+    call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
   std::unique_ptr<OptimizedCompilationJob> job(Pipeline::NewWasmCompilationJob(
@@ -5265,11 +5260,9 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
       const_cast<wasm::WasmModule*>(wasm_unit_->env_->module),
       wasm_unit_->native_module_, wasm_unit_->func_index_,
       wasm_unit_->env_->module->origin));
-  bool succeeded = job->ExecuteJob() == CompilationJob::SUCCEEDED;
-  // TODO(bradnelson): Improve histogram handling of size_t.
-  wasm_unit_->counters_->wasm_compile_function_peak_memory_bytes()->AddSample(
-      static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
-
+  if (job->ExecuteJob() == CompilationJob::SUCCEEDED) {
+    wasm_unit_->SetResult(info.wasm_code());
+  }
   if (FLAG_trace_wasm_decode_time) {
     double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
     PrintF(
@@ -5279,7 +5272,9 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
                               wasm_unit_->func_body_.start),
         decode_ms, node_count, pipeline_ms);
   }
-  if (succeeded) wasm_unit_->SetResult(info.wasm_code());
+  // TODO(bradnelson): Improve histogram handling of size_t.
+  wasm_unit_->counters_->wasm_compile_function_peak_memory_bytes()->AddSample(
+      static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
 }
 
 namespace {
