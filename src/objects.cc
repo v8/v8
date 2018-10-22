@@ -18972,12 +18972,9 @@ void JSWeakFactory::CleanupJSWeakFactoriesCallback(void* data) {
     weak_factory->set_next(ReadOnlyRoots(isolate).undefined_value());
     weak_factory->set_scheduled_for_cleanup(false);
 
-    // It's possible that the cleared_cells list is empty, since
-    // WeakCell.clear() was called on all its elements before this task ran. In
-    // that case, don't call the cleanup function.
-    if (weak_factory->cleared_cells()->IsUndefined(isolate)) {
-      continue;
-    }
+    // TODO(marja): After WeakCell.clear() is added, it's possible that it's
+    // called for something already in cleared_cells list. In that case, we
+    // shouldn't call the user's cleanup function.
 
     // Construct the iterator.
     Handle<JSWeakFactoryCleanupIterator> iterator;

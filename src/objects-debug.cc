@@ -1251,7 +1251,7 @@ void JSWeakCell::JSWeakCellVerify(Isolate* isolate) {
     CHECK_EQ(JSWeakCell::cast(prev())->next(), this);
   }
 
-  CHECK(factory()->IsUndefined(isolate) || factory()->IsJSWeakFactory());
+  CHECK(factory()->IsJSWeakFactory());
 }
 
 void JSWeakFactory::JSWeakFactoryVerify(Isolate* isolate) {

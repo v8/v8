@@ -23,7 +23,7 @@ SMI_ACCESSORS(JSWeakFactory, flags, kFlagsOffset)
 ACCESSORS(JSWeakFactory, next, Object, kNextOffset)
 CAST_ACCESSOR(JSWeakFactory)
 
-ACCESSORS(JSWeakCell, factory, Object, kFactoryOffset)
+ACCESSORS(JSWeakCell, factory, JSWeakFactory, kFactoryOffset)
 ACCESSORS(JSWeakCell, target, Object, kTargetOffset)
 ACCESSORS(JSWeakCell, holdings, Object, kHoldingsOffset)
 ACCESSORS(JSWeakCell, next, Object, kNextOffset)
@@ -75,9 +75,9 @@ void JSWeakCell::Nullify(
     std::function<void(HeapObject* object, Object** slot, Object* target)>
         gc_notify_updated_slot) {
   DCHECK(target()->IsJSReceiver());
-  set_target(ReadOnlyRoots(isolate).undefined_value());
+  set_target(Smi::kZero);
 
-  JSWeakFactory* weak_factory = JSWeakFactory::cast(factory());
+  JSWeakFactory* weak_factory = factory();
   // Remove from the JSWeakCell from the "active_cells" list of its
   // JSWeakFactory and insert it into the "cleared" list.
   if (prev()->IsJSWeakCell()) {
@@ -120,44 +120,6 @@ void JSWeakCell::Nullify(
       weak_factory,
       HeapObject::RawField(weak_factory, JSWeakFactory::kClearedCellsOffset),
       this);
-}
-
-void JSWeakCell::Clear(Isolate* isolate) {
-  // Unlink the JSWeakCell from the list it's in (if any). The JSWeakCell can be
-  // in its JSWeakFactory's active_cells list, cleared_cells list or neither (if
-  // it has been already taken out).
-
-  DCHECK(target()->IsUndefined() || target()->IsJSReceiver());
-  set_target(ReadOnlyRoots(isolate).undefined_value());
-
-  if (factory()->IsJSWeakFactory()) {
-    JSWeakFactory* weak_factory = JSWeakFactory::cast(factory());
-    if (weak_factory->active_cells() == this) {
-      DCHECK(!prev()->IsJSWeakCell());
-      weak_factory->set_active_cells(next());
-    } else if (weak_factory->cleared_cells() == this) {
-      DCHECK(!prev()->IsJSWeakCell());
-      weak_factory->set_cleared_cells(next());
-    } else if (prev()->IsJSWeakCell()) {
-      JSWeakCell* prev_cell = JSWeakCell::cast(prev());
-      prev_cell->set_next(next());
-    }
-    if (next()->IsJSWeakCell()) {
-      JSWeakCell* next_cell = JSWeakCell::cast(next());
-      next_cell->set_prev(prev());
-    }
-    set_prev(ReadOnlyRoots(isolate).undefined_value());
-    set_next(ReadOnlyRoots(isolate).undefined_value());
-
-    set_holdings(ReadOnlyRoots(isolate).undefined_value());
-    set_factory(ReadOnlyRoots(isolate).undefined_value());
-  } else {
-    // Already cleared.
-    DCHECK(next()->IsUndefined(isolate));
-    DCHECK(prev()->IsUndefined(isolate));
-    DCHECK(holdings()->IsUndefined(isolate));
-    DCHECK(factory()->IsUndefined(isolate));
-  }
 }
 
 }  // namespace internal

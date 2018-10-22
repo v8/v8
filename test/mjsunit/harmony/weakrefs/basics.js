@@ -32,17 +32,11 @@
   assertNotSame(wc.__proto__, Object.prototype);
   assertSame(wc.__proto__.__proto__, Object.prototype);
   assertEquals(wc.holdings, undefined);
-
-  let holdings_desc = Object.getOwnPropertyDescriptor(wc.__proto__, "holdings");
-  assertEquals(true, holdings_desc.configurable);
-  assertEquals(false, holdings_desc.enumerable);
-  assertEquals("function", typeof holdings_desc.get);
-  assertEquals(undefined, holdings_desc.set);
-
-  let clear_desc = Object.getOwnPropertyDescriptor(wc.__proto__, "clear");
-  assertEquals(true, clear_desc.configurable);
-  assertEquals(false, clear_desc.enumerable);
-  assertEquals("function", typeof clear_desc.value);
+  let desc = Object.getOwnPropertyDescriptor(wc.__proto__, "holdings");
+  assertEquals(true, desc.configurable);
+  assertEquals(false, desc.enumerable);
+  assertEquals("function", typeof desc.get);
+  assertEquals(undefined, desc.set);
 })();
 
 (function TestMakeCellWithHoldings() {
@@ -117,13 +111,4 @@
   assertThrows(() => holdings_getter.call({}), TypeError);
   // Does not throw:
   holdings_getter.call(wc);
-})();
-
-(function TestClearWithoutWeakCell() {
-  let wf = new WeakFactory();
-  let wc = wf.makeCell({});
-  let clear = Object.getOwnPropertyDescriptor(wc.__proto__, "clear").value;
-  assertThrows(() => clear.call({}), TypeError);
-  // Does not throw:
-  clear.call(wc);
 })();

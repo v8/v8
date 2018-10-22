@@ -4569,6 +4569,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
         factory->NewJSObject(isolate()->object_function(), TENURED);
     Map::SetPrototype(isolate(), weak_cell_map, weak_cell_prototype);
 
+    // TODO(marja): install functions here.
     JSObject::AddProperty(
         isolate(), weak_cell_prototype, factory->to_string_tag_symbol(),
         factory->WeakCell_string(),
@@ -4577,9 +4578,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     SimpleInstallGetter(isolate(), weak_cell_prototype,
                         factory->holdings_string(),
                         Builtins::kWeakCellHoldingsGetter, false);
-    Handle<String> clear_name = factory->clear_string();
-    SimpleInstallFunction(isolate(), weak_cell_prototype, clear_name,
-                          Builtins::kWeakCellClear, 0, false);
   }
 
   {
