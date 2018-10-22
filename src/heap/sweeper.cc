@@ -289,6 +289,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
             free_start, static_cast<int>(size), ClearRecordedSlots::kNo,
             ClearFreedMemoryMode::kClearFreedMemory);
       }
+      p->DiscardUnusedMemory(free_start, size);
       RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, free_end,
                                              SlotSet::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, free_end,
@@ -329,7 +330,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                                       ClearRecordedSlots::kNo,
                                       ClearFreedMemoryMode::kClearFreedMemory);
     }
-
+    p->DiscardUnusedMemory(free_start, size);
     RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, p->area_end(),
                                            SlotSet::KEEP_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, p->area_end(),

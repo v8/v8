@@ -120,6 +120,12 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
+bool OS::DiscardSystemPages(void* address, size_t size) {
+  // TODO(hpayer): Does Fuchsia have madvise?
+  return true;
+}
+
+// static
 bool OS::HasLazyCommits() {
   // TODO(scottmg): Port, https://crbug.com/731217.
   return false;

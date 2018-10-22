@@ -431,6 +431,8 @@ class MemoryChunk {
       ExternalBackingStoreType type, MemoryChunk* from, MemoryChunk* to,
       size_t amount);
 
+  void DiscardUnusedMemory(Address addr, size_t size);
+
   Address address() const {
     return reinterpret_cast<Address>(const_cast<MemoryChunk*>(this));
   }
@@ -1286,6 +1288,12 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   }
 
   static intptr_t GetCommitPageSize();
+
+  // Computes the memory area of discardable memory within a given memory area
+  // [addr, addr+size) and returns the result as base::AddressRegion. If the
+  // memory is not discardable base::AddressRegion is an empty region.
+  static base::AddressRegion ComputeDiscardMemoryArea(Address addr,
+                                                      size_t size);
 
   MemoryAllocator(Isolate* isolate, size_t max_capacity,
                   size_t code_range_size);

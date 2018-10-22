@@ -145,32 +145,6 @@ void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
   return result;
 }
 
-int ReclaimInaccessibleMemory(void* address, size_t size) {
-#if defined(OS_MACOSX)
-  // On OSX, MADV_FREE_REUSABLE has comparable behavior to MADV_FREE, but also
-  // marks the pages with the reusable bit, which allows both Activity Monitor
-  // and memory-infra to correctly track the pages.
-  int ret = madvise(address, size, MADV_FREE_REUSABLE);
-#elif defined(_AIX) || defined(V8_OS_SOLARIS)
-  int ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_FREE);
-#else
-  int ret = madvise(address, size, MADV_FREE);
-#endif
-  if (ret != 0 && errno == ENOSYS)
-    return 0;  // madvise is not available on all systems.
-  if (ret != 0 && errno == EINVAL) {
-    // MADV_FREE only works on Linux 4.5+ . If request failed, retry with older
-    // MADV_DONTNEED . Note that MADV_FREE being defined at compile time doesn't
-    // imply runtime support.
-#if defined(_AIX) || defined(V8_OS_SOLARIS)
-    ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_DONTNEED);
-#else
-    ret = madvise(address, size, MADV_DONTNEED);
-#endif
-  }
-  return ret;
-}
-
 #endif  // !V8_OS_FUCHSIA
 
 }  // namespace
@@ -352,7 +326,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   int ret = mprotect(address, size, prot);
   if (ret == 0 && access == OS::MemoryPermission::kNoAccess) {
     // This is advisory; ignore errors and continue execution.
-    ReclaimInaccessibleMemory(address, size);
+    USE(DiscardSystemPages(address, size));
   }
 
 // For accounting purposes, we want to call MADV_FREE_REUSE on macOS after
@@ -366,6 +340,34 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
     madvise(address, size, MADV_FREE_REUSE);
 #endif
 
+  return ret == 0;
+}
+
+bool OS::DiscardSystemPages(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+#if defined(OS_MACOSX)
+  // On OSX, MADV_FREE_REUSABLE has comparable behavior to MADV_FREE, but also
+  // marks the pages with the reusable bit, which allows both Activity Monitor
+  // and memory-infra to correctly track the pages.
+  int ret = madvise(address, size, MADV_FREE_REUSABLE);
+#elif defined(_AIX) || defined(V8_OS_SOLARIS)
+  int ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_FREE);
+#else
+  int ret = madvise(address, size, MADV_FREE);
+#endif
+  if (ret != 0 && errno == ENOSYS)
+    return true;  // madvise is not available on all systems.
+  if (ret != 0 && errno == EINVAL) {
+// MADV_FREE only works on Linux 4.5+ . If request failed, retry with older
+// MADV_DONTNEED . Note that MADV_FREE being defined at compile time doesn't
+// imply runtime support.
+#if defined(_AIX) || defined(V8_OS_SOLARIS)
+    ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_DONTNEED);
+#else
+    ret = madvise(address, size, MADV_DONTNEED);
+#endif
+  }
   return ret == 0;
 }
 

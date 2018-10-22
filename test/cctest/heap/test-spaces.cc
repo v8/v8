@@ -213,6 +213,44 @@ TEST(MemoryAllocator) {
   delete memory_allocator;
 }
 
+TEST(ComputeDiscardMemoryAreas) {
+  base::AddressRegion memory_area;
+  size_t page_size = MemoryAllocator::GetCommitPageSize();
+  size_t free_header_size = FreeSpace::kSize;
+
+  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(0, 0);
+  CHECK_EQ(memory_area.begin(), 0);
+  CHECK_EQ(memory_area.size(), 0);
+
+  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(
+      0, page_size + free_header_size);
+  CHECK_EQ(memory_area.begin(), 0);
+  CHECK_EQ(memory_area.size(), 0);
+
+  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(
+      page_size - free_header_size, page_size + free_header_size);
+  CHECK_EQ(memory_area.begin(), page_size);
+  CHECK_EQ(memory_area.size(), page_size);
+
+  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(page_size, page_size);
+  CHECK_EQ(memory_area.begin(), 0);
+  CHECK_EQ(memory_area.size(), 0);
+
+  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(
+      page_size / 2, page_size + page_size / 2);
+  CHECK_EQ(memory_area.begin(), page_size);
+  CHECK_EQ(memory_area.size(), page_size);
+
+  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(
+      page_size / 2, page_size + page_size / 4);
+  CHECK_EQ(memory_area.begin(), 0);
+  CHECK_EQ(memory_area.size(), 0);
+
+  memory_area =
+      MemoryAllocator::ComputeDiscardMemoryArea(page_size / 2, page_size * 3);
+  CHECK_EQ(memory_area.begin(), page_size);
+  CHECK_EQ(memory_area.size(), page_size * 2);
+}
 
 TEST(NewSpace) {
   Isolate* isolate = CcTest::i_isolate();

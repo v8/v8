@@ -446,6 +446,18 @@ Address MemoryAllocator::AllocateAlignedMemory(
   return base;
 }
 
+void MemoryChunk::DiscardUnusedMemory(Address addr, size_t size) {
+  base::AddressRegion memory_area =
+      MemoryAllocator::ComputeDiscardMemoryArea(addr, size);
+  if (memory_area.size() != 0) {
+    MemoryAllocator* memory_allocator = heap_->memory_allocator();
+    v8::PageAllocator* page_allocator =
+        memory_allocator->page_allocator(executable());
+    CHECK(page_allocator->DiscardSystemPages(
+        reinterpret_cast<void*>(memory_area.begin()), memory_area.size()));
+  }
+}
+
 Heap* MemoryChunk::synchronized_heap() {
   return reinterpret_cast<Heap*>(
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(&heap_)));
@@ -1127,6 +1139,19 @@ intptr_t MemoryAllocator::GetCommitPageSize() {
   } else {
     return CommitPageSize();
   }
+}
+
+base::AddressRegion MemoryAllocator::ComputeDiscardMemoryArea(Address addr,
+                                                              size_t size) {
+  size_t page_size = MemoryAllocator::GetCommitPageSize();
+  if (size < page_size + FreeSpace::kSize) {
+    return base::AddressRegion(0, 0);
+  }
+  Address discardable_start = RoundUp(addr + FreeSpace::kSize, page_size);
+  Address discardable_end = RoundDown(addr + size, page_size);
+  if (discardable_start >= discardable_end) return base::AddressRegion(0, 0);
+  return base::AddressRegion(discardable_start,
+                             discardable_end - discardable_start);
 }
 
 bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,

@@ -97,5 +97,9 @@ bool BoundedPageAllocator::SetPermissions(void* address, size_t size,
   return page_allocator_->SetPermissions(address, size, access);
 }
 
+bool BoundedPageAllocator::DiscardSystemPages(void* address, size_t size) {
+  return page_allocator_->DiscardSystemPages(address, size);
+}
+
 }  // namespace base
 }  // namespace v8
