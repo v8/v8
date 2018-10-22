@@ -3140,8 +3140,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
                                   const AstRawString* property_name,
                                   ClassLiteralProperty::Kind kind,
                                   bool is_static, bool is_constructor,
-                                  bool is_computed_name, ClassInfo* class_info,
-                                  bool* ok) {
+                                  bool is_computed_name, bool is_private,
+                                  ClassInfo* class_info, bool* ok) {
   if (is_constructor) {
     DCHECK(!class_info->constructor);
     class_info->constructor = property->value()->AsFunctionLiteral();
@@ -3152,8 +3152,7 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     return;
   }
 
-  if (kind != ClassLiteralProperty::PUBLIC_FIELD &&
-      kind != ClassLiteralProperty::PRIVATE_FIELD) {
+  if (kind != ClassLiteralProperty::FIELD) {
     class_info->properties->Add(property, zone());
     return;
   }
@@ -3162,14 +3161,16 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
 
   if (is_static) {
     DCHECK(allow_harmony_static_fields());
-    DCHECK_EQ(kind, ClassLiteralProperty::PUBLIC_FIELD);
+    DCHECK_EQ(kind, ClassLiteralProperty::FIELD);
+    DCHECK(!is_private);
     class_info->static_fields->Add(property, zone());
   } else {
     class_info->instance_fields->Add(property, zone());
   }
 
   if (is_computed_name) {
-    DCHECK_EQ(kind, ClassLiteralProperty::PUBLIC_FIELD);
+    DCHECK_EQ(kind, ClassLiteralProperty::FIELD);
+    DCHECK(!is_private);
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
     Variable* computed_name_var = CreateSyntheticContextVariable(
@@ -3180,7 +3181,7 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     class_info->properties->Add(property, zone());
   }
 
-  if (kind == ClassLiteralProperty::PRIVATE_FIELD) {
+  if (kind == ClassLiteralProperty::FIELD && is_private) {
     Variable* private_field_name_var =
         CreateSyntheticContextVariable(property_name, CHECK_OK_VOID);
     property->set_private_field_name_var(private_field_name_var);

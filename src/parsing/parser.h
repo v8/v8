@@ -345,7 +345,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       const AstRawString* property_name,
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
-                                      bool is_computed_name,
+                                      bool is_computed_name, bool is_private,
                                       ClassInfo* class_info, bool* ok);
   V8_INLINE Expression* RewriteClassLiteral(Scope* block_scope,
                                             const AstRawString* name,

@@ -597,7 +597,8 @@ class PreParserFactory {
                                               const PreParserExpression& value,
                                               ClassLiteralProperty::Kind kind,
                                               bool is_static,
-                                              bool is_computed_name) {
+                                              bool is_computed_name,
+                                              bool is_private) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewObjectLiteralProperty(const PreParserExpression& key,
@@ -1232,16 +1233,17 @@ class PreParser : public ParserBase<PreParser> {
                                       const PreParserIdentifier& property_name,
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
-                                      bool is_computed_name,
+                                      bool is_computed_name, bool is_private,
                                       ClassInfo* class_info, bool* ok) {
-    if (kind == ClassLiteralProperty::PUBLIC_FIELD && is_computed_name) {
+    if (kind == ClassLiteralProperty::FIELD && !is_private &&
+        is_computed_name) {
       scope()->DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           VariableMode::kConst);
     }
 
-    if (kind == ClassLiteralProperty::PRIVATE_FIELD &&
+    if (kind == ClassLiteralProperty::FIELD && is_private &&
         property_name.string_ != nullptr) {
       scope()->DeclareVariableName(property_name.string_, VariableMode::kConst);
     }

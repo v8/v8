@@ -333,10 +333,12 @@ bool LiteralProperty::NeedsSetFunctionName() const {
 
 ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
                                            Kind kind, bool is_static,
-                                           bool is_computed_name)
+                                           bool is_computed_name,
+                                           bool is_private)
     : LiteralProperty(key, value, is_computed_name),
       kind_(kind),
       is_static_(is_static),
+      is_private_(is_private),
       private_or_computed_name_var_(nullptr) {}
 
 bool ObjectLiteral::Property::IsCompileTimeValue() const {

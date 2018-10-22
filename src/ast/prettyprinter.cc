@@ -1064,16 +1064,13 @@ void AstPrinter::PrintClassProperties(
       case ClassLiteral::Property::SETTER:
         prop_kind = "SETTER";
         break;
-      case ClassLiteral::Property::PUBLIC_FIELD:
-        prop_kind = "PUBLIC FIELD";
-        break;
-      case ClassLiteral::Property::PRIVATE_FIELD:
-        prop_kind = "PRIVATE FIELD";
+      case ClassLiteral::Property::FIELD:
+        prop_kind = "FIELD";
         break;
     }
     EmbeddedVector<char, 128> buf;
-    SNPrintF(buf, "PROPERTY%s - %s", property->is_static() ? " - STATIC" : "",
-             prop_kind);
+    SNPrintF(buf, "PROPERTY%s%s - %s", property->is_static() ? " - STATIC" : "",
+             property->is_private() ? "- PRIVATE" : "- PUBLIC", prop_kind);
     IndentedScope prop(this, buf.start());
     PrintIndentedVisit("KEY", properties->at(i)->key());
     PrintIndentedVisit("VALUE", properties->at(i)->value());

@@ -2433,27 +2433,34 @@ class FunctionLiteral final : public Expression {
 // about a class literal's properties from the parser to the code generator.
 class ClassLiteralProperty final : public LiteralProperty {
  public:
-  enum Kind : uint8_t { METHOD, GETTER, SETTER, PUBLIC_FIELD, PRIVATE_FIELD };
+  enum Kind : uint8_t { METHOD, GETTER, SETTER, FIELD };
 
   Kind kind() const { return kind_; }
 
   bool is_static() const { return is_static_; }
 
+  bool is_private() const { return is_private_; }
+
   void set_computed_name_var(Variable* var) {
-    DCHECK_EQ(PUBLIC_FIELD, kind());
+    DCHECK_EQ(FIELD, kind());
+    DCHECK(!is_private());
     private_or_computed_name_var_ = var;
   }
+
   Variable* computed_name_var() const {
-    DCHECK_EQ(PUBLIC_FIELD, kind());
+    DCHECK_EQ(FIELD, kind());
+    DCHECK(!is_private());
     return private_or_computed_name_var_;
   }
 
   void set_private_field_name_var(Variable* var) {
-    DCHECK_EQ(PRIVATE_FIELD, kind());
+    DCHECK_EQ(FIELD, kind());
+    DCHECK(is_private());
     private_or_computed_name_var_ = var;
   }
   Variable* private_field_name_var() const {
-    DCHECK_EQ(PRIVATE_FIELD, kind());
+    DCHECK_EQ(FIELD, kind());
+    DCHECK(is_private());
     return private_or_computed_name_var_;
   }
 
@@ -2461,10 +2468,11 @@ class ClassLiteralProperty final : public LiteralProperty {
   friend class AstNodeFactory;
 
   ClassLiteralProperty(Expression* key, Expression* value, Kind kind,
-                       bool is_static, bool is_computed_name);
+                       bool is_static, bool is_computed_name, bool is_private);
 
   Kind kind_;
   bool is_static_;
+  bool is_private_;
   Variable* private_or_computed_name_var_;
 };
 
@@ -3258,9 +3266,9 @@ class AstNodeFactory final {
 
   ClassLiteral::Property* NewClassLiteralProperty(
       Expression* key, Expression* value, ClassLiteralProperty::Kind kind,
-      bool is_static, bool is_computed_name) {
-    return new (zone_)
-        ClassLiteral::Property(key, value, kind, is_static, is_computed_name);
+      bool is_static, bool is_computed_name, bool is_private) {
+    return new (zone_) ClassLiteral::Property(key, value, kind, is_static,
+                                              is_computed_name, is_private);
   }
 
   ClassLiteral* NewClassLiteral(

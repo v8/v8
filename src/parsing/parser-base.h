@@ -1043,12 +1043,14 @@ class ParserBase {
 
   ExpressionT ParsePropertyName(IdentifierT* name, ParsePropertyKind* kind,
                                 ParseFunctionFlags* flags,
-                                bool* is_computed_name, bool* ok);
+                                bool* is_computed_name, bool* is_private,
+                                bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
   ClassLiteralPropertyT ParseClassPropertyDefinition(
       ClassLiteralChecker* checker, ClassInfo* class_info,
       IdentifierT* property_name, bool has_extends, bool* is_computed_name,
-      ClassLiteralProperty::Kind* property_kind, bool* is_static, bool* ok);
+      ClassLiteralProperty::Kind* property_kind, bool* is_static,
+      bool* is_private, bool* ok);
   ExpressionT ParseClassFieldInitializer(ClassInfo* class_info, int beg_pos,
                                          bool is_static, bool* ok);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
@@ -2057,7 +2059,7 @@ inline bool ParseAsAccessor(Token::Value token, Token::Value contextual_token,
 template <class Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     IdentifierT* name, ParsePropertyKind* kind, ParseFunctionFlags* flags,
-    bool* is_computed_name, bool* ok) {
+    bool* is_computed_name, bool* is_private, bool* ok) {
   DCHECK_EQ(ParsePropertyKind::kNotSet, *kind);
   DCHECK_EQ(*flags, ParseFunctionFlag::kIsNormal);
   DCHECK(!*is_computed_name);
@@ -2181,7 +2183,8 @@ typename ParserBase<Impl>::ClassLiteralPropertyT
 ParserBase<Impl>::ParseClassPropertyDefinition(
     ClassLiteralChecker* checker, ClassInfo* class_info, IdentifierT* name,
     bool has_extends, bool* is_computed_name,
-    ClassLiteralProperty::Kind* property_kind, bool* is_static, bool* ok) {
+    ClassLiteralProperty::Kind* property_kind, bool* is_static,
+    bool* is_private, bool* ok) {
   DCHECK_NOT_NULL(class_info);
   ParseFunctionFlags function_flags = ParseFunctionFlag::kIsNormal;
   *is_static = false;
@@ -2217,16 +2220,17 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       *is_static = true;
       name_expression =
           ParsePropertyName(name, &kind, &function_flags, is_computed_name,
-                            CHECK_OK_CUSTOM(NullLiteralProperty));
+                            is_private, CHECK_OK_CUSTOM(NullLiteralProperty));
     }
   } else if (name_token == Token::PRIVATE_NAME) {
     Consume(Token::PRIVATE_NAME);
+    *is_private = true;
     *name = impl()->GetSymbol();
     name_expression = factory()->NewStringLiteral(*name, position());
   } else {
     name_expression =
         ParsePropertyName(name, &kind, &function_flags, is_computed_name,
-                          CHECK_OK_CUSTOM(NullLiteralProperty));
+                          is_private, CHECK_OK_CUSTOM(NullLiteralProperty));
   }
 
   if (!class_info->has_name_static_property && *is_static &&
@@ -2247,9 +2251,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
     case ParsePropertyKind::kShorthand:
     case ParsePropertyKind::kValue:
       if (allow_harmony_public_fields() || allow_harmony_private_fields()) {
-        *property_kind = name_token == Token::PRIVATE_NAME
-                             ? ClassLiteralProperty::PRIVATE_FIELD
-                             : ClassLiteralProperty::PUBLIC_FIELD;
+        *property_kind = ClassLiteralProperty::FIELD;
+        *is_private = name_token == Token::PRIVATE_NAME;
         if (*is_static && !allow_harmony_static_fields()) {
           ReportUnexpectedToken(Next());
           *ok = false;
@@ -2265,7 +2268,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
         ExpectSemicolon(CHECK_OK_CUSTOM(NullLiteralProperty));
         ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
             name_expression, initializer, *property_kind, *is_static,
-            *is_computed_name);
+            *is_computed_name, *is_private);
         impl()->SetFunctionNameFromPropertyName(result, *name);
         return result;
 
@@ -2305,8 +2308,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       *property_kind = ClassLiteralProperty::METHOD;
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
-          name_expression, value, *property_kind, *is_static,
-          *is_computed_name);
+          name_expression, value, *property_kind, *is_static, *is_computed_name,
+          *is_private);
       impl()->SetFunctionNameFromPropertyName(result, *name);
       return result;
     }
@@ -2338,8 +2341,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       *property_kind =
           is_get ? ClassLiteralProperty::GETTER : ClassLiteralProperty::SETTER;
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
-          name_expression, value, *property_kind, *is_static,
-          *is_computed_name);
+          name_expression, value, *property_kind, *is_static, *is_computed_name,
+          *is_private);
       const AstRawString* prefix =
           is_get ? ast_value_factory()->get_space_string()
                  : ast_value_factory()->set_space_string();
@@ -2411,10 +2414,15 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
   int next_beg_pos = peek_position();
   int next_end_pos = peek_end_position();
 
+  bool is_private = false;
   ExpressionT name_expression =
       ParsePropertyName(&name, &kind, &function_flags, is_computed_name,
-                        CHECK_OK_CUSTOM(NullLiteralProperty));
+                        &is_private, CHECK_OK_CUSTOM(NullLiteralProperty));
 
+  if (is_private) {
+    // TODO(joyee): private names in object literals should be Syntax Errors
+    // https://tc39.github.io/proposal-private-methods/#prod-PropertyDefinition
+  }
   switch (kind) {
     case ParsePropertyKind::kSpread:
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
@@ -4374,6 +4382,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     bool is_static;
+    bool is_private = false;
     ClassLiteralProperty::Kind property_kind;
     ExpressionClassifier property_classifier(this);
     IdentifierT property_name;
@@ -4382,13 +4391,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     bool is_constructor = !class_info.has_seen_constructor;
     ClassLiteralPropertyT property = ParseClassPropertyDefinition(
         &checker, &class_info, &property_name, has_extends, &is_computed_name,
-        &property_kind, &is_static, CHECK_OK);
+        &property_kind, &is_static, &is_private, CHECK_OK);
     if (!class_info.has_static_computed_names && is_static &&
         is_computed_name) {
       class_info.has_static_computed_names = true;
     }
-    if (is_computed_name &&
-        property_kind == ClassLiteralProperty::PUBLIC_FIELD) {
+    if (is_computed_name && !is_private &&
+        property_kind == ClassLiteralProperty::FIELD) {
       class_info.computed_field_count++;
     }
     is_constructor &= class_info.has_seen_constructor;
@@ -4397,7 +4406,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
     impl()->DeclareClassProperty(name, property, property_name, property_kind,
                                  is_static, is_constructor, is_computed_name,
-                                 &class_info, CHECK_OK);
+                                 is_private, &class_info, CHECK_OK);
     impl()->InferFunctionName();
   }
 
