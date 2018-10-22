@@ -637,6 +637,14 @@ void PromiseBuiltinsAssembler::BranchIfPromiseResolveLookupChainIntact(
   Branch(IsPromiseResolveProtectorCellInvalid(), if_slow, if_fast);
 }
 
+void PromiseBuiltinsAssembler::GotoIfNotPromiseResolveLookupChainIntact(
+    Node* native_context, Node* constructor, Label* if_slow) {
+  Label if_fast(this);
+  BranchIfPromiseResolveLookupChainIntact(native_context, constructor, &if_fast,
+                                          if_slow);
+  BIND(&if_fast);
+}
+
 void PromiseBuiltinsAssembler::BranchIfPromiseSpeciesLookupChainIntact(
     Node* native_context, Node* promise_map, Label* if_fast, Label* if_slow) {
   CSA_ASSERT(this, IsNativeContext(native_context));
@@ -1889,15 +1897,13 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
         native_context, next, fast_iterator_result_map, if_exception,
         var_exception);
 
-    // Let nextPromise be ? Invoke(constructor, "resolve", « nextValue »).
-    Node* const next_promise =
-        InvokeResolve(native_context, constructor, next_value, &close_iterator,
-                      var_exception);
-
     // Check if we reached the limit.
     TNode<Smi> const index = var_index.value();
     GotoIf(SmiEqual(index, SmiConstant(PropertyArray::HashField::kMax)),
            &too_many_elements);
+
+    // Set index to index + 1.
+    var_index = SmiAdd(index, SmiConstant(1));
 
     // Set remainingElementsCount.[[Value]] to
     //     remainingElementsCount.[[Value]] + 1.
@@ -1921,28 +1927,73 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     Node* const resolve_element_fun = CreatePromiseAllResolveElementFunction(
         resolve_element_context, index, native_context);
 
-    // Perform ? Invoke(nextPromise, "then", « resolveElement,
-    //                  resultCapability.[[Reject]] »).
-    Node* const then =
-        GetProperty(native_context, next_promise, factory()->then_string());
-    GotoIfException(then, &close_iterator, var_exception);
+    // We can skip the "resolve" lookup on the {constructor} as well as the
+    // "then" lookup on the result of the "resolve" call, and immediately
+    // chain continuation onto the {next_value} if:
+    //
+    //   (a) The {constructor} is the intrinsic %Promise% function, and
+    //       looking up "resolve" on {constructor} yields the initial
+    //       Promise.resolve() builtin, and
+    //   (b) the {next_value} is a JSPromise whose [[Prototype]] field
+    //       contains the intrinsic %PromisePrototype%, and
+    //   (c) we're not running with async_hooks or DevTools enabled.
+    //
+    // In that case we also don't need to allocate a chained promise for
+    // the PromiseReaction (aka we can pass undefined to PerformPromiseThen),
+    // since this is only necessary for DevTools and PromiseHooks.
+    Label if_fast(this), if_slow(this);
+    GotoIfNotPromiseResolveLookupChainIntact(native_context, constructor,
+                                             &if_slow);
+    GotoIf(instrumenting, &if_slow);
+    GotoIf(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &if_slow);
+    GotoIf(TaggedIsSmi(next_value), &if_slow);
+    Node* const next_value_map = LoadMap(next_value);
+    BranchIfPromiseThenLookupChainIntact(native_context, next_value_map,
+                                         &if_fast, &if_slow);
 
-    Node* const then_call = CallJS(
-        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-        native_context, then, next_promise, resolve_element_fun,
-        LoadObjectField(capability, PromiseCapability::kRejectOffset));
-    GotoIfException(then_call, &close_iterator, var_exception);
+    BIND(&if_fast);
+    {
+      // Register the PromiseReaction immediately on the {next_value}, not
+      // passing any chained promise since neither async_hooks nor DevTools
+      // are enabled, so there's no use of the resulting promise.
+      PerformPromiseThen(
+          native_context, next_value, resolve_element_fun,
+          LoadObjectField(capability, PromiseCapability::kRejectOffset),
+          UndefinedConstant());
+      Goto(&loop);
+    }
 
-    // For catch prediction, mark that rejections here are semantically
-    // handled by the combined Promise.
-    SetPromiseHandledByIfTrue(native_context, instrumenting, then_call, [=]() {
-      // Load promiseCapability.[[Promise]]
-      return LoadObjectField(capability, PromiseCapability::kPromiseOffset);
-    });
+    BIND(&if_slow);
+    {
+      // Let nextPromise be ? Invoke(constructor, "resolve", « nextValue »).
+      Node* const next_promise =
+          InvokeResolve(native_context, constructor, next_value,
+                        &close_iterator, var_exception);
 
-    // Set index to index + 1.
-    var_index = SmiAdd(index, SmiConstant(1));
-    Goto(&loop);
+      // Perform ? Invoke(nextPromise, "then", « resolveElement,
+      //                  resultCapability.[[Reject]] »).
+      Node* const then =
+          GetProperty(native_context, next_promise, factory()->then_string());
+      GotoIfException(then, &close_iterator, var_exception);
+
+      Node* const then_call =
+          CallJS(CodeFactory::Call(isolate(),
+                                   ConvertReceiverMode::kNotNullOrUndefined),
+                 native_context, then, next_promise, resolve_element_fun,
+                 LoadObjectField(capability, PromiseCapability::kRejectOffset));
+      GotoIfException(then_call, &close_iterator, var_exception);
+
+      // For catch prediction, mark that rejections here are semantically
+      // handled by the combined Promise.
+      SetPromiseHandledByIfTrue(
+          native_context, instrumenting, then_call, [=]() {
+            // Load promiseCapability.[[Promise]]
+            return LoadObjectField(capability,
+                                   PromiseCapability::kPromiseOffset);
+          });
+
+      Goto(&loop);
+    }
   }
 
   BIND(&too_many_elements);

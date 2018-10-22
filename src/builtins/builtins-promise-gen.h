@@ -144,6 +144,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void BranchIfPromiseResolveLookupChainIntact(Node* native_context,
                                                Node* constructor,
                                                Label* if_fast, Label* if_slow);
+  void GotoIfNotPromiseResolveLookupChainIntact(Node* native_context,
+                                                Node* constructor,
+                                                Label* if_slow);
 
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
   // [[Prototype]] is the (initial)  Promise.prototype and the @@species
