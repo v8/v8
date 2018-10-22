@@ -244,11 +244,13 @@ class Config(object):
   def Build(self):
     path = GetPath(self.arch, self.mode)
     args_gn = os.path.join(path, "args.gn")
+    build_ninja = os.path.join(path, "build.ninja")
     if not os.path.exists(path):
       print("# mkdir -p %s" % path)
       os.makedirs(path)
     if not os.path.exists(args_gn):
       _Write(args_gn, self.GetGnArgs())
+    if not os.path.exists(build_ninja):
       code = _Call("gn gen %s" % path)
       if code != 0: return code
     targets = " ".join(self.targets)
@@ -266,6 +268,21 @@ class Config(object):
       _Notify("V8 build requires your attention",
               "Detected mksnapshot failure, re-running in GDB...")
       _Call("gdb -args %(path)s/mksnapshot "
+            "--startup_src %(path)s/gen/snapshot.cc "
+            "--random-seed 314159265 "
+            "--startup-blob %(path)s/snapshot_blob.bin"
+            "%(extra)s"% {"path": path, "extra": extra_opt})
+    if (return_code != 0 and
+        "FAILED: gen/embedded.cc snapshot_blob.bin" in output):
+      csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
+      match = csa_trap.search(output)
+      extra_opt = match.group(1) if match else ""
+      _Notify("V8 build requires your attention",
+              "Detected mksnapshot failure, re-running in GDB...")
+      _Call("gdb -args %(path)s/mksnapshot "
+            "--turbo-instruction-scheduling "
+            "--embedded_src %(path)s/gen/embedded.cc "
+            "--embedded_variant Default "
             "--startup_src %(path)s/gen/snapshot.cc "
             "--random-seed 314159265 "
             "--startup-blob %(path)s/snapshot_blob.bin"
