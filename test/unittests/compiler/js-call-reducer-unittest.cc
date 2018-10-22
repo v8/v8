@@ -38,7 +38,7 @@ class JSCallReducerTest : public TypedGraphTest {
     GraphReducer graph_reducer(zone(), graph());
 
     JSCallReducer reducer(&graph_reducer, &jsgraph, broker(),
-                          JSCallReducer::kNoFlags, native_context(), &deps_);
+                          JSCallReducer::kNoFlags, &deps_);
     return reducer.Reduce(node);
   }
 

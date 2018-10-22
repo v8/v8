@@ -251,30 +251,38 @@ class ContextRef : public HeapObjectRef {
   ObjectRef get(int index) const;
 };
 
-#define BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V) \
-  V(JSFunction, array_function)                    \
-  V(JSFunction, boolean_function)                  \
-  V(JSFunction, bigint_function)                   \
-  V(JSFunction, number_function)                   \
-  V(JSFunction, object_function)                   \
-  V(JSFunction, promise_function)                  \
-  V(JSFunction, string_function)                   \
-  V(JSFunction, symbol_function)                   \
-  V(JSGlobalProxy, global_proxy_object)            \
-  V(Map, fast_aliased_arguments_map)               \
-  V(Map, initial_array_iterator_map)               \
-  V(Map, initial_string_iterator_map)              \
-  V(Map, iterator_result_map)                      \
-  V(Map, js_array_holey_double_elements_map)       \
-  V(Map, js_array_holey_elements_map)              \
-  V(Map, js_array_holey_smi_elements_map)          \
-  V(Map, js_array_packed_double_elements_map)      \
-  V(Map, js_array_packed_elements_map)             \
-  V(Map, js_array_packed_smi_elements_map)         \
-  V(Map, sloppy_arguments_map)                     \
-  V(Map, slow_object_with_null_prototype_map)      \
-  V(Map, strict_arguments_map)                     \
-  V(ScriptContextTable, script_context_table)
+#define BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V)                    \
+  V(JSFunction, array_function)                                       \
+  V(JSFunction, boolean_function)                                     \
+  V(JSFunction, bigint_function)                                      \
+  V(JSFunction, number_function)                                      \
+  V(JSFunction, object_function)                                      \
+  V(JSFunction, promise_function)                                     \
+  V(JSFunction, promise_then)                                         \
+  V(JSFunction, string_function)                                      \
+  V(JSFunction, symbol_function)                                      \
+  V(JSGlobalProxy, global_proxy_object)                               \
+  V(JSObject, promise_prototype)                                      \
+  V(Map, bound_function_with_constructor_map)                         \
+  V(Map, bound_function_without_constructor_map)                      \
+  V(Map, fast_aliased_arguments_map)                                  \
+  V(Map, initial_array_iterator_map)                                  \
+  V(Map, initial_string_iterator_map)                                 \
+  V(Map, iterator_result_map)                                         \
+  V(Map, js_array_holey_double_elements_map)                          \
+  V(Map, js_array_holey_elements_map)                                 \
+  V(Map, js_array_holey_smi_elements_map)                             \
+  V(Map, js_array_packed_double_elements_map)                         \
+  V(Map, js_array_packed_elements_map)                                \
+  V(Map, js_array_packed_smi_elements_map)                            \
+  V(Map, sloppy_arguments_map)                                        \
+  V(Map, slow_object_with_null_prototype_map)                         \
+  V(Map, strict_arguments_map)                                        \
+  V(ScriptContextTable, script_context_table)                         \
+  V(SharedFunctionInfo, promise_capability_default_reject_shared_fun) \
+  V(SharedFunctionInfo, promise_catch_finally_shared_fun)             \
+  V(SharedFunctionInfo, promise_then_finally_shared_fun)              \
+  V(SharedFunctionInfo, promise_capability_default_resolve_shared_fun)
 
 // Those are set by Bootstrapper::ExportFromRuntime, which may not yet have
 // happened when Turbofan is invoked via --always-opt.
@@ -378,8 +386,10 @@ class MapRef : public HeapObjectRef {
   int constructor_function_index() const;
   ElementsKind elements_kind() const;
   bool is_stable() const;
+  bool is_extensible() const;
   bool is_constructor() const;
   bool has_prototype_slot() const;
+  bool is_access_check_needed() const;
   bool is_deprecated() const;
   bool CanBeDeprecated() const;
   bool CanTransition() const;
@@ -394,7 +404,7 @@ class MapRef : public HeapObjectRef {
   INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
-  ObjectRef constructor_or_backpointer() const;
+  ObjectRef GetConstructor() const;
 
   void SerializePrototype();
   ObjectRef prototype() const;

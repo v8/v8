@@ -47,7 +47,7 @@ bool IsAllocationInlineable(const JSFunctionRef& target,
   CHECK_IMPLIES(new_target.has_initial_map(),
                 !new_target.initial_map().is_dictionary_map());
   return new_target.has_initial_map() &&
-         new_target.initial_map().constructor_or_backpointer().equals(target);
+         new_target.initial_map().GetConstructor().equals(target);
 }
 
 // When initializing arrays, we'll unfold the loop if the number of

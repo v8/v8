@@ -39,13 +39,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   typedef base::Flags<Flag> Flags;
 
   JSCallReducer(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
-                Flags flags, Handle<Context> native_context,
-                CompilationDependencies* dependencies)
+                Flags flags, CompilationDependencies* dependencies)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
         broker_(broker),
         flags_(flags),
-        native_context_(native_context),
         dependencies_(dependencies) {}
 
   const char* reducer_name() const override { return "JSCallReducer"; }
@@ -237,8 +235,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;
   Factory* factory() const;
-  Handle<Context> native_context() const { return native_context_; }
-  Handle<JSGlobalProxy> global_proxy() const;
+  NativeContextRef native_context() const { return broker()->native_context(); }
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
@@ -248,7 +245,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
   Flags const flags_;
-  Handle<Context> const native_context_;
   CompilationDependencies* const dependencies_;
   std::set<Node*> waitlist_;
 };

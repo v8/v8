@@ -416,8 +416,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
             if (original_constructor.has_initial_map()) {
               original_constructor.Serialize();
               MapRef initial_map = original_constructor.initial_map();
-              if (initial_map.constructor_or_backpointer().equals(
-                      mtarget.Ref(broker))) {
+              if (initial_map.GetConstructor().equals(mtarget.Ref(broker))) {
                 *maps_return = ZoneHandleSet<Map>(initial_map.object());
                 return result;
               }

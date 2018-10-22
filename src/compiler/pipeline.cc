@@ -1213,7 +1213,7 @@ struct InliningPhase {
                                data->info()->is_bailout_on_uninitialized()
                                    ? JSCallReducer::kBailoutOnUninitialized
                                    : JSCallReducer::kNoFlags,
-                               data->native_context(), data->dependencies());
+                               data->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(),
         ChooseSpecializationContext(isolate, data->info()),
