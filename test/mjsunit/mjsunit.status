@@ -145,7 +145,7 @@
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
 
   # BUG(v8:2989).
-  'regress/regress-2989': [FAIL, NO_VARIANTS],
+  'regress/regress-2989': [FAIL, NO_VARIANTS, ['lite_mode == True', SKIP]],
 
   # This test variant makes only sense on arm.
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],

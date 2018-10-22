@@ -775,6 +775,7 @@ enum class OptimizationStatus {
   kOptimizingConcurrently = 1 << 9,
   kIsExecuting = 1 << 10,
   kTopmostFrameIsTurboFanned = 1 << 11,
+  kLiteMode = 1 << 12,
 };
 
 Smi* SmiLexicographicCompare(Smi* x_value, Smi* y_value);

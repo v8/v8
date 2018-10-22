@@ -9,6 +9,10 @@
   'debugger/wasm-imports': [SKIP],
   # https://crbug.com/v8/7932
   'runtime/command-line-api-without-side-effects': [SKIP],
+
+  # Require optimization, so can't be run on Lite mode.
+  'cpu-profiler/coverage-block': [PASS, ['lite_mode == True', SKIP]],
+  'cpu-profiler/coverage': [PASS, ['lite_mode == True', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
