@@ -647,7 +647,10 @@ class ParserBase {
   bool stack_overflow() const {
     return pending_error_handler()->stack_overflow();
   }
-  void set_stack_overflow() { pending_error_handler()->set_stack_overflow(); }
+  void set_stack_overflow() {
+    scanner_->set_parser_error();
+    pending_error_handler()->set_stack_overflow();
+  }
   void CheckStackOverflow() {
     // Any further calls to Next or peek will return the illegal token.
     if (GetCurrentStackPosition() < stack_limit_) set_stack_overflow();
@@ -655,10 +658,7 @@ class ParserBase {
   int script_id() { return script_id_; }
   void set_script_id(int id) { script_id_ = id; }
 
-  V8_INLINE Token::Value peek() {
-    if (stack_overflow()) return Token::ILLEGAL;
-    return scanner()->peek();
-  }
+  V8_INLINE Token::Value peek() { return scanner()->peek(); }
 
   // Returns the position past the following semicolon (if it exists), and the
   // position past the end of the current token otherwise.
@@ -666,15 +666,9 @@ class ParserBase {
     return (peek() == Token::SEMICOLON) ? peek_end_position() : end_position();
   }
 
-  V8_INLINE Token::Value PeekAhead() {
-    if (stack_overflow()) return Token::ILLEGAL;
-    return scanner()->PeekAhead();
-  }
+  V8_INLINE Token::Value PeekAhead() { return scanner()->PeekAhead(); }
 
-  V8_INLINE Token::Value Next() {
-    if (stack_overflow()) return Token::ILLEGAL;
-    return scanner()->Next();
-  }
+  V8_INLINE Token::Value Next() { return scanner()->Next(); }
 
   V8_INLINE void Consume(Token::Value token) {
     Token::Value next = scanner()->Next();
@@ -4449,7 +4443,10 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
   if (impl()->ParsingDynamicFunctionDeclaration()) {
     // We don't want dynamic functions to actually declare their name
     // "anonymous". We just want that name in the toString().
-    Consume(Token::IDENTIFIER);
+
+    // Consuming token we did not peek yet, which could lead to a ILLEGAL token
+    // in the case of a stackoverflow.
+    Expect(Token::IDENTIFIER, CHECK_OK);
     DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
   } else if (peek_any_identifier()) {
     type = FunctionLiteral::kNamedExpression;

@@ -525,7 +525,9 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
           return Token::IDENTIFIER;
         }
         if (IsDecimalDigit(c0_)) return ScanNumber(false);
-        if (c0_ == kEndOfInput) return Token::EOS;
+        if (c0_ == kEndOfInput) {
+          return source_->has_parser_error() ? Token::ILLEGAL : Token::EOS;
+        }
         token = SkipWhiteSpace();
         continue;
     }

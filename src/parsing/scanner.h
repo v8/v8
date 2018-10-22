@@ -42,6 +42,13 @@ class Utf16CharacterStream {
 
   virtual ~Utf16CharacterStream() = default;
 
+  void set_parser_error() {
+    buffer_cursor_ = buffer_end_;
+    has_parser_error_ = true;
+  }
+
+  bool has_parser_error() const { return has_parser_error_; }
+
   inline uc32 Peek() {
     if (V8_LIKELY(buffer_cursor_ < buffer_end_)) {
       return static_cast<uc32>(*buffer_cursor_);
@@ -145,7 +152,7 @@ class Utf16CharacterStream {
   bool ReadBlockChecked() {
     size_t position = pos();
     USE(position);
-    bool success = ReadBlock();
+    bool success = !has_parser_error() && ReadBlock();
 
     // Post-conditions: 1, We should always be at the right position.
     //                  2, Cursor should be inside the buffer.
@@ -193,6 +200,7 @@ class Utf16CharacterStream {
   const uint16_t* buffer_end_;
   size_t buffer_pos_;
   RuntimeCallStats* runtime_call_stats_;
+  bool has_parser_error_ = false;
 };
 
 // ----------------------------------------------------------------------------
@@ -224,6 +232,11 @@ class Scanner {
 
     DISALLOW_COPY_AND_ASSIGN(BookmarkScope);
   };
+
+  // Sets the Scanner into an error state to stop further scanning and terminate
+  // the parsing by only returning ILLEGAL tokens after that.
+  void set_parser_error() { source_->set_parser_error(); }
+  bool has_parser_error_set() { return source_->has_parser_error(); }
 
   // Representation of an interval of source positions.
   struct Location {
