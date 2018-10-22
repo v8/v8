@@ -957,12 +957,8 @@ class ParserBase {
       ReportClassifierError(classifier()->arrow_formal_parameters_error());
       *ok = false;
     }
-    if (is_async && !classifier()->is_valid_async_arrow_formal_parameters()) {
-      const typename ExpressionClassifier::Error& error =
-          classifier()->async_arrow_formal_parameters_error();
-      ReportClassifierError(error);
-      *ok = false;
-    }
+    DCHECK_IMPLIES(is_async,
+                   classifier()->is_valid_async_arrow_formal_parameters());
   }
 
   void ValidateLetPattern(bool* ok) {
@@ -1766,6 +1762,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
       // async Identifier => AsyncConciseBody
       if (peek_any_identifier() && PeekAhead() == Token::ARROW) {
         name = ParseAndClassifyIdentifier(CHECK_OK);
+        if (!classifier()->is_valid_async_arrow_formal_parameters()) {
+          ReportClassifierError(
+              classifier()->async_arrow_formal_parameters_error());
+          *ok = false;
+          return impl()->NullExpression();
+        }
         infer = InferName::kNo;
       }
     }
