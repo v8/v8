@@ -7,6 +7,9 @@ module array {
       context: Context, args: JSArgumentsObjectWithLength, start: Smi,
       count: Smi): JSArray
       labels Bailout {
+    // If the resulting array doesn't fit in new space, use the slow path.
+    if (count >= kMaxNewSpaceFixedArrayElements) goto Bailout;
+
     const end: Smi = start + count;
     const sourceElements: FixedArray =
         Cast<FixedArray>(args.elements) otherwise Bailout;
@@ -27,6 +30,9 @@ module array {
       context: Context, args: JSArgumentsObjectWithLength, start: Smi,
       count: Smi): JSArray
       labels Bailout {
+    // If the resulting array doesn't fit in new space, use the slow path.
+    if (count >= kMaxNewSpaceFixedArrayElements) goto Bailout;
+
     const sloppyElements: SloppyArgumentsElements =
         Cast<SloppyArgumentsElements>(args.elements) otherwise Bailout;
     const sloppyElementsLength: Smi = sloppyElements.length;
@@ -82,9 +88,6 @@ module array {
     const start: Smi = Cast<Smi>(startNumber) otherwise Bailout;
     const count: Smi = Cast<Smi>(countNumber) otherwise Bailout;
     assert(start >= 0);
-
-    // If the resulting array doesn't fit in new space, use the slow path.
-    if (count >= kMaxNewSpaceFixedArrayElements) goto Bailout;
 
     typeswitch (o) {
       case (a: FastJSArrayForCopy): {
