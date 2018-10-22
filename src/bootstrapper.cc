@@ -2387,16 +2387,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallSpeciesGetter(isolate_, promise_fun);
 
     SimpleInstallFunction(isolate_, promise_fun, "all", Builtins::kPromiseAll,
-                          1, true);
+                          1, true, BuiltinFunctionId::kPromiseAll);
 
     SimpleInstallFunction(isolate_, promise_fun, "race", Builtins::kPromiseRace,
-                          1, true);
+                          1, true, BuiltinFunctionId::kPromiseRace);
 
     SimpleInstallFunction(isolate_, promise_fun, "resolve",
-                          Builtins::kPromiseResolveTrampoline, 1, true);
+                          Builtins::kPromiseResolveTrampoline, 1, true,
+                          BuiltinFunctionId::kPromiseResolve);
 
     SimpleInstallFunction(isolate_, promise_fun, "reject",
-                          Builtins::kPromiseReject, 1, true);
+                          Builtins::kPromiseReject, 1, true,
+                          BuiltinFunctionId::kPromiseReject);
 
     // Setup %PromisePrototype%.
     Handle<JSObject> prototype(
@@ -2411,17 +2413,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSFunction> promise_then = SimpleInstallFunction(
         isolate_, prototype, isolate_->factory()->then_string(),
-        Builtins::kPromisePrototypeThen, 2, true);
+        Builtins::kPromisePrototypeThen, 2, true, DONT_ENUM,
+        BuiltinFunctionId::kPromisePrototypeThen);
     native_context()->set_promise_then(*promise_then);
 
-    Handle<JSFunction> promise_catch =
-        SimpleInstallFunction(isolate_, prototype, "catch",
-                              Builtins::kPromisePrototypeCatch, 1, true);
+    Handle<JSFunction> promise_catch = SimpleInstallFunction(
+        isolate_, prototype, "catch", Builtins::kPromisePrototypeCatch, 1, true,
+        BuiltinFunctionId::kPromisePrototypeCatch);
     native_context()->set_promise_catch(*promise_catch);
 
-    SimpleInstallFunction(isolate_, prototype, "finally",
-                          Builtins::kPromisePrototypeFinally, 1, true,
-                          DONT_ENUM);
+    SimpleInstallFunction(
+        isolate_, prototype, "finally", Builtins::kPromisePrototypeFinally, 1,
+        true, DONT_ENUM, BuiltinFunctionId::kPromisePrototypeFinally);
 
     {
       Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(

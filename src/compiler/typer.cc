@@ -1626,6 +1626,21 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     case BuiltinFunctionId::kObjectToString:
       return Type::String();
 
+    case BuiltinFunctionId::kPromiseAll:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromisePrototypeCatch:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromisePrototypeFinally:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromisePrototypeThen:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromiseRace:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromiseReject:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromiseResolve:
+      return Type::Receiver();
+
     // RegExp functions.
     case BuiltinFunctionId::kRegExpCompile:
       return Type::OtherObject();
