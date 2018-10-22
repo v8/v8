@@ -536,8 +536,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_WASM(F, I) \
   F(ThrowWasmError, 1, 1)             \
   F(ThrowWasmStackOverflow, 0, 1)     \
-  F(WasmExceptionGetElement, 2, 1)    \
-  F(WasmExceptionSetElement, 3, 1)    \
+  F(WasmExceptionGetValues, 1, 1)     \
   F(WasmExceptionGetTag, 1, 1)        \
   F(WasmGrowMemory, 2, 1)             \
   F(WasmRunInterpreter, 2, 1)         \

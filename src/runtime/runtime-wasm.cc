@@ -142,10 +142,10 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
+RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
@@ -153,45 +153,13 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
   Handle<Object> except_obj(except_obj_raw, isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
-    Handle<Object> values_obj;
+    Handle<Object> values;
     if (JSReceiver::GetProperty(
             isolate, exception,
             isolate->factory()->wasm_exception_values_symbol())
-            .ToHandle(&values_obj)) {
-      if (values_obj->IsFixedArray()) {
-        Handle<FixedArray> values = Handle<FixedArray>::cast(values_obj);
-        CONVERT_SMI_ARG_CHECKED(index, 1);
-        CHECK_LT(index, values->length());
-        return values->get(index);
-      }
-    }
-  }
-  return Smi::FromInt(0);
-}
-
-RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
-  // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
-  // TODO(mstarzinger): Manually box because parameters are not visited yet.
-  Handle<Object> except_obj(except_obj_raw, isolate);
-  if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
-    Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
-    Handle<Object> values_obj;
-    if (JSReceiver::GetProperty(
-            isolate, exception,
-            isolate->factory()->wasm_exception_values_symbol())
-            .ToHandle(&values_obj)) {
-      if (values_obj->IsFixedArray()) {
-        Handle<FixedArray> values = Handle<FixedArray>::cast(values_obj);
-        CONVERT_SMI_ARG_CHECKED(index, 1);
-        CHECK_LT(index, values->length());
-        CONVERT_ARG_CHECKED(Object, value, 2);
-        values->set(index, value);
-      }
+            .ToHandle(&values)) {
+      DCHECK(values->IsFixedArray());
+      return *values;
     }
   }
   return ReadOnlyRoots(isolate).undefined_value();
