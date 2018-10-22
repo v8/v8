@@ -941,30 +941,26 @@ class ParserBase {
     }
   }
 
-  bool IsValidArrowFormalParametersStart(Token::Value token) {
-    return Token::IsAnyIdentifier(token) || token == Token::LPAREN;
-  }
-
   void ValidateArrowFormalParameters(ExpressionT expr,
                                      bool parenthesized_formals, bool is_async,
                                      bool* ok) {
-    if (classifier()->is_valid_binding_pattern()) {
-      // A simple arrow formal parameter: IDENTIFIER => BODY.
+    if (!parenthesized_formals) {
+      // A simple arrow formal parameter: async? IDENTIFIER => BODY.
       if (!impl()->IsIdentifier(expr)) {
-        impl()->ReportMessageAt(scanner()->location(),
-                                MessageTemplate::kUnexpectedToken,
-                                Token::String(scanner()->current_token()));
+        if (classifier()->is_valid_binding_pattern()) {
+          // Non-parenthesized destructuring param.
+          impl()->ReportMessageAt(
+              Scanner::Location(expr->position(), position()),
+              MessageTemplate::kMalformedArrowFunParamList);
+        } else {
+          // Otherwise simply throw where we detect that it's not a valid
+          // binding pattern.
+          ReportClassifierError(classifier()->binding_pattern_error());
+        }
         *ok = false;
       }
     } else if (!classifier()->is_valid_arrow_formal_parameters()) {
-      // If after parsing the expr, we see an error but the expression is
-      // neither a valid binding pattern nor a valid parenthesized formal
-      // parameter list, show the "arrow formal parameters" error if the formals
-      // started with a parenthesis, and the binding pattern error otherwise.
-      const typename ExpressionClassifier::Error& error =
-          parenthesized_formals ? classifier()->arrow_formal_parameters_error()
-                                : classifier()->binding_pattern_error();
-      ReportClassifierError(error);
+      ReportClassifierError(classifier()->arrow_formal_parameters_error());
       *ok = false;
     }
     if (is_async && !classifier()->is_valid_async_arrow_formal_parameters()) {
@@ -2728,12 +2724,9 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   Scope::Snapshot scope_snapshot(scope());
   int rewritable_length = static_cast<int>(
       function_state_->destructuring_assignments_to_rewrite().size());
-
-  bool is_async = peek() == Token::ASYNC &&
-                  !scanner()->HasLineTerminatorAfterNext() &&
-                  IsValidArrowFormalParametersStart(PeekAhead());
-
-  bool parenthesized_formals = peek() == Token::LPAREN;
+  bool is_async = peek() == Token::ASYNC && PeekAhead() != Token::ARROW;
+  bool parenthesized_formals =
+      (is_async ? PeekAhead() : peek()) == Token::LPAREN;
 
   // Parse a simple, faster sub-grammar (primary expression) if it's evident
   // that we have only a trivial expression to parse.
@@ -2741,9 +2734,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   if (peek() == Token::ARROW) {
     Scanner::Location arrow_loc = scanner()->peek_location();
-    if (!is_async && !parenthesized_formals) {
-      ArrowFormalParametersUnexpectedToken();
-    }
     ValidateArrowFormalParameters(expression, parenthesized_formals, is_async,
                                   CHECK_OK);
     // This reads strangely, but is correct: it checks whether any
@@ -3243,7 +3233,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
         bool has_spread;
         ExpressionListT args;
         if (impl()->IsIdentifier(result) &&
-            impl()->IsAsync(impl()->AsIdentifier(result))) {
+            impl()->IsAsync(impl()->AsIdentifier(result)) &&
+            !scanner()->HasLineTerminatorBeforeNext()) {
           ExpressionClassifier async_classifier(this);
           args = ParseArguments(&has_spread, true, CHECK_OK);
           if (peek() == Token::ARROW) {
