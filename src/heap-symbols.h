@@ -10,6 +10,7 @@
   V(_, breakType_string, "breakType")                               \
   V(_, calendar_string, "calendar")                                 \
   V(_, caseFirst_string, "caseFirst")                               \
+  V(_, clear_string, "clear")                                       \
   V(_, day_string, "day")                                           \
   V(_, dayPeriod_string, "dayPeriod")                               \
   V(_, decimal_string, "decimal")                                   \

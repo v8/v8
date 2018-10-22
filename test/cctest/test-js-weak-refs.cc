@@ -51,6 +51,15 @@ void NullifyWeakCell(Handle<JSWeakCell> weak_cell, Isolate* isolate) {
 #endif  // VERIFY_HEAP
 }
 
+void ClearWeakCell(Handle<JSWeakCell> weak_cell, Isolate* isolate) {
+  weak_cell->Clear(isolate);
+  CHECK(weak_cell->next()->IsUndefined(isolate));
+  CHECK(weak_cell->prev()->IsUndefined(isolate));
+#ifdef VERIFY_HEAP
+  weak_cell->JSWeakCellVerify(isolate);
+#endif  // VERIFY_HEAP
+}
+
 TEST(TestJSWeakCellCreation) {
   FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
@@ -185,6 +194,124 @@ TEST(TestJSWeakFactoryPopClearedCell) {
   CHECK(!weak_factory->NeedsCleanup());
   CHECK(weak_factory->active_cells()->IsUndefined(isolate));
   CHECK(weak_factory->cleared_cells()->IsUndefined(isolate));
+}
+
+TEST(TestJSWeakCellClearActiveCells) {
+  FLAG_harmony_weak_refs = true;
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope outer_scope(isolate);
+  Handle<JSWeakFactory> weak_factory = ConstructJSWeakFactory(isolate);
+  Handle<JSObject> js_object =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  Handle<JSWeakCell> weak_cell1 = MakeCell(isolate, js_object, weak_factory);
+  Handle<JSWeakCell> weak_cell2 = MakeCell(isolate, js_object, weak_factory);
+  Handle<JSWeakCell> weak_cell3 = MakeCell(isolate, js_object, weak_factory);
+
+  CHECK_EQ(weak_factory->active_cells(), *weak_cell3);
+  CHECK(weak_cell3->prev()->IsUndefined(isolate));
+  CHECK_EQ(weak_cell3->next(), *weak_cell2);
+  CHECK_EQ(weak_cell2->prev(), *weak_cell3);
+  CHECK_EQ(weak_cell2->next(), *weak_cell1);
+  CHECK_EQ(weak_cell1->prev(), *weak_cell2);
+  CHECK(weak_cell1->next()->IsUndefined(isolate));
+
+  // Clear all JSWeakCells in active_cells and verify the consistency of the
+  // active_cells list in all stages.
+  ClearWeakCell(weak_cell2, isolate);
+  CHECK_EQ(weak_factory->active_cells(), *weak_cell3);
+  CHECK(weak_cell3->prev()->IsUndefined(isolate));
+  CHECK_EQ(weak_cell3->next(), *weak_cell1);
+  CHECK_EQ(weak_cell1->prev(), *weak_cell3);
+  CHECK(weak_cell1->next()->IsUndefined(isolate));
+
+  ClearWeakCell(weak_cell3, isolate);
+  CHECK_EQ(weak_factory->active_cells(), *weak_cell1);
+  CHECK(weak_cell1->prev()->IsUndefined(isolate));
+  CHECK(weak_cell1->next()->IsUndefined(isolate));
+
+  ClearWeakCell(weak_cell1, isolate);
+  CHECK(weak_factory->active_cells()->IsUndefined(isolate));
+}
+
+TEST(TestJSWeakCellClearClearedCells) {
+  FLAG_harmony_weak_refs = true;
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope outer_scope(isolate);
+  Handle<JSWeakFactory> weak_factory = ConstructJSWeakFactory(isolate);
+  Handle<JSObject> js_object =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  Handle<JSWeakCell> weak_cell1 = MakeCell(isolate, js_object, weak_factory);
+  Handle<JSWeakCell> weak_cell2 = MakeCell(isolate, js_object, weak_factory);
+  Handle<JSWeakCell> weak_cell3 = MakeCell(isolate, js_object, weak_factory);
+
+  NullifyWeakCell(weak_cell1, isolate);
+  NullifyWeakCell(weak_cell2, isolate);
+  NullifyWeakCell(weak_cell3, isolate);
+
+  CHECK_EQ(weak_factory->cleared_cells(), *weak_cell3);
+  CHECK(weak_cell3->prev()->IsUndefined(isolate));
+  CHECK_EQ(weak_cell3->next(), *weak_cell2);
+  CHECK_EQ(weak_cell2->prev(), *weak_cell3);
+  CHECK_EQ(weak_cell2->next(), *weak_cell1);
+  CHECK_EQ(weak_cell1->prev(), *weak_cell2);
+  CHECK(weak_cell1->next()->IsUndefined(isolate));
+
+  // Clear all JSWeakCells in cleared_cells and verify the consistency of the
+  // cleared_cells list in all stages.
+  ClearWeakCell(weak_cell2, isolate);
+  CHECK_EQ(weak_factory->cleared_cells(), *weak_cell3);
+  CHECK(weak_cell3->prev()->IsUndefined(isolate));
+  CHECK_EQ(weak_cell3->next(), *weak_cell1);
+  CHECK_EQ(weak_cell1->prev(), *weak_cell3);
+  CHECK(weak_cell1->next()->IsUndefined(isolate));
+
+  ClearWeakCell(weak_cell3, isolate);
+  CHECK_EQ(weak_factory->cleared_cells(), *weak_cell1);
+  CHECK(weak_cell1->prev()->IsUndefined(isolate));
+  CHECK(weak_cell1->next()->IsUndefined(isolate));
+
+  ClearWeakCell(weak_cell1, isolate);
+  CHECK(weak_factory->cleared_cells()->IsUndefined(isolate));
+}
+
+TEST(TestJSWeakCellClearTwice) {
+  FLAG_harmony_weak_refs = true;
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope outer_scope(isolate);
+  Handle<JSWeakFactory> weak_factory = ConstructJSWeakFactory(isolate);
+  Handle<JSObject> js_object =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  Handle<JSWeakCell> weak_cell1 = MakeCell(isolate, js_object, weak_factory);
+
+  ClearWeakCell(weak_cell1, isolate);
+  ClearWeakCell(weak_cell1, isolate);
+}
+
+TEST(TestJSWeakCellClearPopped) {
+  FLAG_harmony_weak_refs = true;
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope outer_scope(isolate);
+  Handle<JSWeakFactory> weak_factory = ConstructJSWeakFactory(isolate);
+  Handle<JSObject> js_object =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  Handle<JSWeakCell> weak_cell1 = MakeCell(isolate, js_object, weak_factory);
+  NullifyWeakCell(weak_cell1, isolate);
+  JSWeakCell* cleared1 = weak_factory->PopClearedCell(isolate);
+  CHECK_EQ(cleared1, *weak_cell1);
+
+  ClearWeakCell(weak_cell1, isolate);
 }
 
 }  // namespace internal

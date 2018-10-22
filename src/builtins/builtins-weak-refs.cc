@@ -94,5 +94,12 @@ BUILTIN(WeakCellHoldingsGetter) {
   return weak_cell->holdings();
 }
 
+BUILTIN(WeakCellClear) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSWeakCell, weak_cell, "WeakCell.clear");
+  weak_cell->Clear(isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8
