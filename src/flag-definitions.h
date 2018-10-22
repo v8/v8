@@ -97,19 +97,6 @@
 #define COMMA ,
 
 #ifdef FLAG_MODE_DECLARE
-// Structure used to hold a collection of arguments to the JavaScript code.
-struct JSArguments {
- public:
-  inline const char*& operator[](int idx) const { return argv[idx]; }
-  static JSArguments Create(int argc, const char** argv) {
-    JSArguments args;
-    args.argc = argc;
-    args.argv = argv;
-    return args;
-  }
-  int argc;
-  const char** argv;
-};
 
 struct MaybeBoolFlag {
   static MaybeBoolFlag Create(bool has_value, bool value) {
@@ -166,16 +153,12 @@ struct MaybeBoolFlag {
 #define DEFINE_FLOAT(nam, def, cmt) FLAG(FLOAT, double, nam, def, cmt)
 #define DEFINE_SIZE_T(nam, def, cmt) FLAG(SIZE_T, size_t, nam, def, cmt)
 #define DEFINE_STRING(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
-#define DEFINE_ARGS(nam, cmt) \
-  FLAG(ARGS, JSArguments, nam, {0 COMMA nullptr}, cmt)
-
 #define DEFINE_ALIAS_BOOL(alias, nam) FLAG_ALIAS(BOOL, bool, alias, nam)
 #define DEFINE_ALIAS_INT(alias, nam) FLAG_ALIAS(INT, int, alias, nam)
 #define DEFINE_ALIAS_FLOAT(alias, nam) FLAG_ALIAS(FLOAT, double, alias, nam)
 #define DEFINE_ALIAS_SIZE_T(alias, nam) FLAG_ALIAS(SIZE_T, size_t, alias, nam)
 #define DEFINE_ALIAS_STRING(alias, nam) \
   FLAG_ALIAS(STRING, const char*, alias, nam)
-#define DEFINE_ALIAS_ARGS(alias, nam) FLAG_ALIAS(ARGS, JSArguments, alias, nam)
 
 #ifdef DEBUG
 #define DEFINE_DEBUG_BOOL DEFINE_BOOL
@@ -1137,8 +1120,6 @@ DEFINE_BOOL(dump_counters_nvp, false,
 DEFINE_BOOL(use_external_strings, false, "Use external strings for source code")
 
 DEFINE_STRING(map_counters, "", "Map counters to a file")
-DEFINE_ARGS(js_arguments,
-            "Pass all remaining arguments to the script. Alias for \"--\".")
 DEFINE_BOOL(mock_arraybuffer_allocator, false,
             "Use a mock ArrayBuffer allocator for testing.")
 DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
@@ -1483,7 +1464,6 @@ DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
 #undef DEFINE_INT
 #undef DEFINE_STRING
 #undef DEFINE_FLOAT
-#undef DEFINE_ARGS
 #undef DEFINE_IMPLICATION
 #undef DEFINE_NEG_IMPLICATION
 #undef DEFINE_NEG_VALUE_IMPLICATION
@@ -1492,7 +1472,6 @@ DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
 #undef DEFINE_ALIAS_INT
 #undef DEFINE_ALIAS_STRING
 #undef DEFINE_ALIAS_FLOAT
-#undef DEFINE_ALIAS_ARGS
 
 #undef FLAG_MODE_DECLARE
 #undef FLAG_MODE_DEFINE

@@ -518,10 +518,6 @@
   'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
   'annexB/language/statements/for-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7186
-  'language/statements/class/fields-indirect-eval-err-contains-arguments': [FAIL],
-  'language/expressions/class/fields-indirect-eval-err-contains-arguments': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7468
   'language/statements/class/privatename-not-valid-earlyerr-script-8': [FAIL],
 

@@ -1940,23 +1940,22 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   InitializeModuleEmbedderData(context);
   Context::Scope scope(context);
 
-  i::Factory* factory = reinterpret_cast<i::Isolate*>(isolate)->factory();
-  i::JSArguments js_args = i::FLAG_js_arguments;
-  i::Handle<i::FixedArray> arguments_array =
-      factory->NewFixedArray(js_args.argc);
-  for (int j = 0; j < js_args.argc; j++) {
-    i::Handle<i::String> arg =
-        factory->NewStringFromUtf8(i::CStrVector(js_args[j])).ToHandleChecked();
-    arguments_array->set(j, *arg);
+  const std::vector<const char*>& args = options.arguments;
+  int size = static_cast<int>(args.size());
+  if (size > 0) {
+    Local<Array> array = Array::New(isolate, size);
+    for (int i = 0; i < size; i++) {
+      Local<String> arg =
+          v8::String::NewFromUtf8(isolate, args[i], v8::NewStringType::kNormal)
+              .ToLocalChecked();
+      Local<Number> index = v8::Number::New(isolate, i);
+      array->Set(context, index, arg).FromJust();
+    }
+    Local<String> name =
+        String::NewFromUtf8(isolate, "arguments", NewStringType::kInternalized)
+            .ToLocalChecked();
+    context->Global()->Set(context, name, array).FromJust();
   }
-  i::Handle<i::JSArray> arguments_jsarray =
-      factory->NewJSArrayWithElements(arguments_array);
-  context->Global()
-      ->Set(context,
-            String::NewFromUtf8(isolate, "arguments", NewStringType::kNormal)
-                .ToLocalChecked(),
-            Utils::ToLocal(arguments_jsarray))
-      .FromJust();
   return handle_scope.Escape(context);
 }
 
@@ -2760,6 +2759,14 @@ void SetFlagsFromString(const char* flags) {
 bool Shell::SetOptions(int argc, char* argv[]) {
   bool logfile_per_isolate = false;
   for (int i = 0; i < argc; i++) {
+    if (strcmp(argv[i], "--") == 0) {
+      argv[i] = nullptr;
+      for (int j = i + 1; j < argc; j++) {
+        options.arguments.push_back(argv[j]);
+        argv[j] = nullptr;
+      }
+      break;
+    }
     if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
       argv[i] = nullptr;
