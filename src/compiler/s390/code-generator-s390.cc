@@ -2784,8 +2784,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label do_cs;
       __ la(r1, MemOperand(base, index));
       __ lg(output, MemOperand(r1));
-      __ csg(output, value, MemOperand(r1));
       __ bind(&do_cs);
+      __ csg(output, value, MemOperand(r1));
       __ bne(&do_cs, Label::kNear);
       break;
     }
