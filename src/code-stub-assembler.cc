@@ -4187,14 +4187,28 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     Comment("Copy FixedArray new space");
     // We use PACKED_ELEMENTS to tell AllocateFixedArray and
     // CopyFixedArrayElements that we want a FixedArray.
-    ElementsKind to_kind = PACKED_ELEMENTS;
-    Node* to_elements =
+    const ElementsKind to_kind = PACKED_ELEMENTS;
+    TNode<FixedArrayBase> to_elements =
         AllocateFixedArray(to_kind, capacity, parameter_mode,
                            AllocationFlag::kNone, var_target_map.value());
     var_result.Bind(to_elements);
-    CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
-                           count, capacity, SKIP_WRITE_BARRIER, parameter_mode,
-                           convert_holes, var_holes_converted);
+
+    if (convert_holes == HoleConversionMode::kDontConvert &&
+        !IsDoubleElementsKind(from_kind)) {
+      // We can use CopyElements (memcpy) because we don't need to replace or
+      // convert any values. Since {to_elements} is in new-space, CopyElements
+      // will efficiently use memcpy.
+      FillFixedArrayWithValue(to_kind, to_elements, count, capacity,
+                              RootIndex::kTheHoleValue, parameter_mode);
+      CopyElements(to_kind, to_elements, IntPtrConstant(0), CAST(source),
+                   ParameterToIntPtr(first, parameter_mode),
+                   ParameterToIntPtr(count, parameter_mode));
+    } else {
+      CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
+                             count, capacity, SKIP_WRITE_BARRIER,
+                             parameter_mode, convert_holes,
+                             var_holes_converted);
+    }
     Goto(&done);
 
     if (handle_old_space) {
@@ -4231,7 +4245,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
   CSA_ASSERT(this, IsFixedDoubleArrayMap(fixed_array_map));
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
-  ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
+  const ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
   Node* to_elements = AllocateFixedArray(kind, capacity, mode, allocation_flags,
                                          fixed_array_map);
   var_result.Bind(to_elements);
