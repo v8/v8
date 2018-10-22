@@ -768,22 +768,22 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
             this);
         Handle<JSGeneratorObject> generator_object(
             JSGeneratorObject::cast(context->extension()), this);
-        CHECK(generator_object->is_executing());
-
-        if (generator_object->IsJSAsyncFunctionObject()) {
-          Handle<JSAsyncFunctionObject> async_function_object =
-              Handle<JSAsyncFunctionObject>::cast(generator_object);
-          Handle<JSPromise> promise(async_function_object->promise(), this);
-          CaptureAsyncStackTrace(this, promise, &builder);
-        } else {
-          Handle<JSAsyncGeneratorObject> async_generator_object =
-              Handle<JSAsyncGeneratorObject>::cast(generator_object);
-          Handle<AsyncGeneratorRequest> async_generator_request(
-              AsyncGeneratorRequest::cast(async_generator_object->queue()),
-              this);
-          Handle<JSPromise> promise(
-              JSPromise::cast(async_generator_request->promise()), this);
-          CaptureAsyncStackTrace(this, promise, &builder);
+        if (generator_object->is_executing()) {
+          if (generator_object->IsJSAsyncFunctionObject()) {
+            Handle<JSAsyncFunctionObject> async_function_object =
+                Handle<JSAsyncFunctionObject>::cast(generator_object);
+            Handle<JSPromise> promise(async_function_object->promise(), this);
+            CaptureAsyncStackTrace(this, promise, &builder);
+          } else {
+            Handle<JSAsyncGeneratorObject> async_generator_object =
+                Handle<JSAsyncGeneratorObject>::cast(generator_object);
+            Handle<AsyncGeneratorRequest> async_generator_request(
+                AsyncGeneratorRequest::cast(async_generator_object->queue()),
+                this);
+            Handle<JSPromise> promise(
+                JSPromise::cast(async_generator_request->promise()), this);
+            CaptureAsyncStackTrace(this, promise, &builder);
+          }
         }
       } else {
         // The {promise_reaction_job_task} doesn't belong to an await (or
