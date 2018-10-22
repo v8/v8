@@ -1764,15 +1764,22 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
 
   if (IsInRange(token, Token::IDENTIFIER,
                 Token::ESCAPED_STRICT_RESERVED_WORD)) {
-    if (token == Token::ASYNC && !scanner()->HasLineTerminatorAfterNext() &&
-        PeekAhead() == Token::FUNCTION) {
-      BindingPatternUnexpectedToken();
-      Consume(Token::ASYNC);
-      return ParseAsyncFunctionLiteral(ok);
-    }
     // Using eval or arguments in this context is OK even in strict mode.
     IdentifierT name = ParseAndClassifyIdentifier(CHECK_OK);
-    return impl()->ExpressionFromIdentifier(name, beg_pos);
+    InferName infer = InferName::kYes;
+    if (V8_UNLIKELY(impl()->IsAsync(name) &&
+                    !scanner()->HasLineTerminatorBeforeNext())) {
+      if (peek() == Token::FUNCTION) {
+        BindingPatternUnexpectedToken();
+        return ParseAsyncFunctionLiteral(ok);
+      }
+      // async Identifier => AsyncConciseBody
+      if (peek_any_identifier() && PeekAhead() == Token::ARROW) {
+        name = ParseAndClassifyIdentifier(CHECK_OK);
+        infer = InferName::kNo;
+      }
+    }
+    return impl()->ExpressionFromIdentifier(name, beg_pos, infer);
   }
   DCHECK_IMPLIES(Token::IsAnyIdentifier(token), token == Token::ENUM);
 
@@ -2731,16 +2738,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   // Parse a simple, faster sub-grammar (primary expression) if it's evident
   // that we have only a trivial expression to parse.
   ExpressionT expression = ParseConditionalExpression(accept_IN, CHECK_OK);
-
-  if (is_async && impl()->IsIdentifier(expression) && peek_any_identifier() &&
-      PeekAhead() == Token::ARROW) {
-    // async Identifier => AsyncConciseBody
-    IdentifierT name = ParseAndClassifyIdentifier(CHECK_OK);
-    expression =
-        impl()->ExpressionFromIdentifier(name, position(), InferName::kNo);
-    // Remove `async` keyword from inferred name stack.
-    fni_.RemoveAsyncKeywordFromEnd();
-  }
 
   if (peek() == Token::ARROW) {
     Scanner::Location arrow_loc = scanner()->peek_location();
