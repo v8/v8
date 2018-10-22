@@ -15,6 +15,20 @@
 namespace v8 {
 namespace internal {
 
+Sweeper::Sweeper(Heap* heap, MajorNonAtomicMarkingState* marking_state)
+    : heap_(heap),
+      marking_state_(marking_state),
+      num_tasks_(0),
+      pending_sweeper_tasks_semaphore_(0),
+      incremental_sweeper_pending_(false),
+      sweeping_in_progress_(false),
+      num_sweeping_tasks_(0),
+      stop_sweeper_tasks_(false),
+      iterability_task_semaphore_(0),
+      iterability_in_progress_(false),
+      iterability_task_started_(false),
+      should_reduce_memory_(heap->ShouldReduceMemory()) {}
+
 Sweeper::PauseOrCompleteScope::PauseOrCompleteScope(Sweeper* sweeper)
     : sweeper_(sweeper) {
   sweeper_->stop_sweeper_tasks_ = true;
@@ -289,7 +303,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
             free_start, static_cast<int>(size), ClearRecordedSlots::kNo,
             ClearFreedMemoryMode::kClearFreedMemory);
       }
-      p->DiscardUnusedMemory(free_start, size);
+      if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
       RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, free_end,
                                              SlotSet::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, free_end,
@@ -330,7 +344,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                                       ClearRecordedSlots::kNo,
                                       ClearFreedMemoryMode::kClearFreedMemory);
     }
-    p->DiscardUnusedMemory(free_start, size);
+    if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
     RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, p->area_end(),
                                            SlotSet::KEEP_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, p->area_end(),
