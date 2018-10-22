@@ -51,6 +51,8 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/external-reference.h"
+#include "src/label.h"
 #include "src/s390/constants-s390.h"
 
 #define ABI_USES_FUNCTION_DESCRIPTORS 0
