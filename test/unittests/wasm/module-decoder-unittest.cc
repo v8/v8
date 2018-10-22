@@ -105,6 +105,8 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
 
 #define LINEAR_MEMORY_INDEX_0 0
 
+#define EXCEPTION_ENTRY(sig_index) U32V_1(kExceptionAttribute), sig_index
+
 #define EXPECT_VERIFIES(data)                                      \
   do {                                                             \
     ModuleResult result = DecodeModule(data, data + sizeof(data)); \
@@ -475,7 +477,8 @@ TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
 TEST_F(WasmModuleVerifyTest, OneI32Exception) {
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kLocalI32)),  // sig#0 (i32)
-      SECTION(Exception, ENTRY_COUNT(1), SIG_INDEX(0))};  // except[0] (sig#0)
+      SECTION(Exception, ENTRY_COUNT(1),
+              EXCEPTION_ENTRY(SIG_INDEX(0)))};  // except[0] (sig#0)
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -494,8 +497,8 @@ TEST_F(WasmModuleVerifyTest, TwoExceptions) {
               SIG_ENTRY_v_x(kLocalI32),               // sig#0 (i32)
               SIG_ENTRY_v_xx(kLocalF32, kLocalI64)),  // sig#1 (f32, i64)
       SECTION(Exception, ENTRY_COUNT(2),
-              SIG_INDEX(1),    // except[0] (sig#1)
-              SIG_INDEX(0))};  // except[1] (sig#0)
+              EXCEPTION_ENTRY(SIG_INDEX(1)),    // except[0] (sig#1)
+              EXCEPTION_ENTRY(SIG_INDEX(0)))};  // except[1] (sig#0)
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -514,7 +517,8 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_index) {
   static const byte data[] = {
       SIGNATURES_SECTION_VOID_VOID,
       SECTION(Exception, ENTRY_COUNT(1),
-              SIG_INDEX(23))};  // except[0] (sig#23 [out-of-bounds])
+              EXCEPTION_ENTRY(
+                  SIG_INDEX(23)))};  // except[0] (sig#23 [out-of-bounds])
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   // Should fail decoding exception section.
@@ -527,13 +531,27 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_return) {
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_i_i),
       SECTION(Exception, ENTRY_COUNT(1),
-              SIG_INDEX(0))};  // except[0] (sig#0 [invalid-return-type])
+              EXCEPTION_ENTRY(
+                  SIG_INDEX(0)))};  // except[0] (sig#0 [invalid-return-type])
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   // Should fail decoding exception section.
   WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "exception signature 0 has non-void return");
+}
+
+TEST_F(WasmModuleVerifyTest, Exception_invalid_attribute) {
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_i_i),
+      SECTION(Exception, ENTRY_COUNT(1), 23,
+              SIG_INDEX(0))};  // except[0] (sig#0) [invalid-attribute]
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
+
+  // Should fail decoding exception section.
+  WASM_FEATURE_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "exception attribute 23 not supported");
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionSectionCorrectPlacement) {
@@ -568,13 +586,14 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionImport) {
-  static const byte data[] = {SIGNATURES_SECTION_VOID_VOID,
-                              SECTION(Import,               // section header
-                                      ENTRY_COUNT(1),       // number of imports
-                                      ADD_COUNT('m'),       // module name
-                                      ADD_COUNT('e', 'x'),  // exception name
-                                      kExternalException,   // import kind
-                                      SIG_INDEX(0))};       // except[0] (sig#0)
+  static const byte data[] = {
+      SIGNATURES_SECTION_VOID_VOID,
+      SECTION(Import,                           // section header
+              ENTRY_COUNT(1),                   // number of imports
+              ADD_COUNT('m'),                   // module name
+              ADD_COUNT('e', 'x'),              // exception name
+              kExternalException,               // import kind
+              EXCEPTION_ENTRY(SIG_INDEX(0)))};  // except[0] (sig#0)
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -585,13 +604,14 @@ TEST_F(WasmModuleVerifyTest, ExceptionImport) {
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionExport) {
-  static const byte data[] = {SIGNATURES_SECTION_VOID_VOID,
-                              SECTION(Exception, ENTRY_COUNT(1),
-                                      SIG_INDEX(0)),  // except[0] (sig#0)
-                              SECTION(Export, ENTRY_COUNT(1),  // --
-                                      NO_NAME,                 // --
-                                      kExternalException,      // --
-                                      EXCEPTION_INDEX(0))};
+  static const byte data[] = {
+      SIGNATURES_SECTION_VOID_VOID,
+      SECTION(Exception, ENTRY_COUNT(1),
+              EXCEPTION_ENTRY(SIG_INDEX(0))),  // except[0] (sig#0)
+      SECTION(Export, ENTRY_COUNT(1),          // --
+              NO_NAME,                         // --
+              kExternalException,              // --
+              EXCEPTION_INDEX(0))};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -2228,6 +2248,7 @@ TEST_F(WasmModuleVerifyTest, MultipleNameSections) {
 #undef FOUR_EMPTY_BODIES
 #undef SIGNATURES_SECTION_VOID_VOID
 #undef LINEAR_MEMORY_INDEX_0
+#undef EXCEPTION_ENTRY
 #undef EXPECT_VERIFIES
 #undef EXPECT_FAILURE_LEN
 #undef EXPECT_FAILURE

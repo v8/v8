@@ -102,6 +102,8 @@ let kExternalException = 4;
 let kTableZero = 0;
 let kMemoryZero = 0;
 
+let kExceptionAttribute = 0;
+
 // Useful signatures
 let kSig_i_i = makeSig([kWasmI32], [kWasmI32]);
 let kSig_l_l = makeSig([kWasmI64], [kWasmI64]);

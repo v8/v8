@@ -550,6 +550,7 @@ class ModuleDecoderImpl : public Decoder {
           }
           import->index = static_cast<uint32_t>(module_->exceptions.size());
           WasmExceptionSig* exception_sig = nullptr;
+          consume_exception_attribute();  // Attribute ignored for now.
           consume_exception_sig_index(module_.get(), &exception_sig);
           module_->exceptions.emplace_back(exception_sig);
           break;
@@ -894,6 +895,7 @@ class ModuleDecoderImpl : public Decoder {
       TRACE("DecodeException[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
       WasmExceptionSig* exception_sig = nullptr;
+      consume_exception_attribute();  // Attribute ignored for now.
       consume_exception_sig_index(module_.get(), &exception_sig);
       module_->exceptions.emplace_back(exception_sig);
     }
@@ -1432,12 +1434,11 @@ class ModuleDecoderImpl : public Decoder {
       params.push_back(param);
     }
     std::vector<ValueType> returns;
-    uint32_t return_count = 0;
     // parse return types
     const size_t max_return_count = enabled_features_.mv
                                         ? kV8MaxWasmFunctionMultiReturns
                                         : kV8MaxWasmFunctionReturns;
-    return_count = consume_count("return count", max_return_count);
+    uint32_t return_count = consume_count("return count", max_return_count);
     if (failed()) return nullptr;
     for (uint32_t i = 0; ok() && i < return_count; ++i) {
       ValueType ret = consume_value_type();
@@ -1453,6 +1454,17 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];
 
     return new (zone) FunctionSig(return_count, param_count, buffer);
+  }
+
+  // Consume the attribute field of an exception.
+  uint32_t consume_exception_attribute() {
+    const byte* pos = pc_;
+    uint32_t attribute = consume_u32v("exception attribute");
+    if (attribute != kExceptionAttribute) {
+      errorf(pos, "exception attribute %u not supported", attribute);
+      return 0;
+    }
+    return attribute;
   }
 };
 

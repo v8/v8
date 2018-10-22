@@ -85,6 +85,8 @@ static_assert(kWasmPageSize == size_t{1} << kWasmPageSizeLog2, "consistency");
 using WasmCodePosition = int;
 constexpr WasmCodePosition kNoCodePosition = -1;
 
+constexpr uint32_t kExceptionAttribute = 0;
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

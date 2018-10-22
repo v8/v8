@@ -401,6 +401,7 @@ class WasmModuleBuilder {
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else if (imp.kind == kExternalException) {
+            section.emit_u32v(kExceptionAttribute);
             section.emit_u32v(imp.type);
           } else {
             throw new Error("unknown/unsupported import kind " + imp.kind);
@@ -508,6 +509,7 @@ class WasmModuleBuilder {
       binary.emit_section(kExceptionSectionCode, section => {
         section.emit_u32v(wasm.exceptions.length);
         for (let type of wasm.exceptions) {
+          section.emit_u32v(kExceptionAttribute);
           section.emit_u32v(type);
         }
       });
