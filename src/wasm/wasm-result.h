@@ -33,17 +33,6 @@ class V8_EXPORT_PRIVATE ResultBase {
       : error_offset_(other.error_offset_),
         error_msg_(std::move(other.error_msg_)) {}
 
-  void error(uint32_t offset, std::string error_msg);
-
-  void PRINTF_FORMAT(2, 3) error(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    verror(format, args);
-    va_end(args);
-  }
-
-  void PRINTF_FORMAT(2, 0) verror(const char* format, va_list args);
-
   void MoveErrorFrom(ResultBase& that) {
     error_offset_ = that.error_offset_;
     // Use {swap()} + {clear()} instead of move assign, as {that} might still
@@ -57,6 +46,15 @@ class V8_EXPORT_PRIVATE ResultBase {
 
   uint32_t error_offset() const { return error_offset_; }
   const std::string& error_msg() const { return error_msg_; }
+
+ protected:
+  ResultBase(uint32_t error_offset, std::string error_msg)
+      : error_offset_(error_offset), error_msg_(std::move(error_msg)) {
+    // The error message must not be empty, otherwise {failed()} will be false.
+    DCHECK(!error_msg_.empty());
+  }
+
+  static std::string FormatError(const char* format, va_list args);
 
  private:
   uint32_t error_offset_ = 0;
@@ -78,13 +76,18 @@ class Result : public ResultBase {
 
   Result& operator=(Result&& other) V8_NOEXCEPT = default;
 
-  static Result<T> PRINTF_FORMAT(1, 2) Error(const char* format, ...) {
+  static Result<T> PRINTF_FORMAT(2, 3)
+      Error(uint32_t offset, const char* format, ...) {
     va_list args;
     va_start(args, format);
-    Result<T> result;
-    result.verror(format, args);
+    Result<T> error_result{offset, FormatError(format, args)};
     va_end(args);
-    return result;
+    return error_result;
+  }
+
+  static Result<T> Error(uint32_t error_offset, std::string error_msg) {
+    // Call private constructor.
+    return Result<T>{error_offset, std::move(error_msg)};
   }
 
   // Accessor for the value. Returns const reference if {this} is l-value or
@@ -102,6 +105,9 @@ class Result : public ResultBase {
 
  private:
   T value_ = T{};
+
+  Result(uint32_t error_offset, std::string error_msg)
+      : ResultBase(error_offset, std::move(error_msg)) {}
 
   DISALLOW_COPY_AND_ASSIGN(Result);
 };

@@ -224,9 +224,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   }
 
   std::unique_ptr<DecodingState> Error(std::string message) {
-    DecodeResult result(nullptr);
-    result.error(module_offset_ - 1, std::move(message));
-    return Error(std::move(result));
+    return Error(DecodeResult::Error(module_offset_ - 1, std::move(message)));
   }
 
   void ProcessModuleHeader() {

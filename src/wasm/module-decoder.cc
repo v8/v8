@@ -1132,7 +1132,7 @@ class ModuleDecoderImpl : public Decoder {
       // Wrap the error message from the function decoder.
       std::ostringstream wrapped;
       wrapped << "in function " << func_name << ": " << result.error_msg();
-      result.error(result.error_offset(), wrapped.str());
+      result = DecodeResult::Error(result.error_offset(), wrapped.str());
 
       // Set error code and location, if this is the first error.
       if (intermediate_result_.ok()) {
@@ -1477,9 +1477,11 @@ ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
       SELECT_WASM_COUNTER(counters, origin, wasm_decode, module_time);
   TimedHistogramScope wasm_decode_module_time_scope(counter);
   size_t size = module_end - module_start;
-  if (module_start > module_end) return ModuleResult::Error("start > end");
-  if (size >= kV8MaxWasmModuleSize)
-    return ModuleResult::Error("size > maximum module size: %zu", size);
+  CHECK_LE(module_start, module_end);
+  if (size >= kV8MaxWasmModuleSize) {
+    return ModuleResult::Error(0, "size > maximum module size (%zu): %zu",
+                               kV8MaxWasmModuleSize, size);
+  }
   // TODO(bradnelson): Improve histogram handling of size_t.
   auto size_counter =
       SELECT_WASM_COUNTER(counters, origin, wasm, module_size_bytes);
@@ -1591,14 +1593,15 @@ FunctionResult DecodeWasmFunctionForTesting(
     const WasmModule* module, const byte* function_start,
     const byte* function_end, Counters* counters) {
   size_t size = function_end - function_start;
-  if (function_start > function_end)
-    return FunctionResult::Error("start > end");
+  CHECK_LE(function_start, function_end);
   auto size_histogram = SELECT_WASM_COUNTER(counters, module->origin, wasm,
                                             function_size_bytes);
   // TODO(bradnelson): Improve histogram handling of ptrdiff_t.
   size_histogram->AddSample(static_cast<int>(size));
-  if (size > kV8MaxWasmFunctionSize)
-    return FunctionResult::Error("size > maximum function size: %zu", size);
+  if (size > kV8MaxWasmFunctionSize) {
+    return FunctionResult::Error(0, "size > maximum function size (%zu): %zu",
+                                 kV8MaxWasmFunctionSize, size);
+  }
   ModuleDecoderImpl decoder(enabled, function_start, function_end, kWasmOrigin);
   decoder.SetCounters(counters);
   return decoder.DecodeSingleFunction(zone, wire_bytes, module,
