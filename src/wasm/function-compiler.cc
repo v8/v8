@@ -63,7 +63,7 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 // {TurbofanWasmCompilationUnit} can be opaque in the header file.
 WasmCompilationUnit::~WasmCompilationUnit() = default;
 
-void WasmCompilationUnit::ExecuteCompilation(ModuleEnv* env,
+void WasmCompilationUnit::ExecuteCompilation(CompilationEnv* env,
                                              WasmFeatures* detected) {
   const WasmModule* module = native_module_->module();
   auto size_histogram =
@@ -145,7 +145,7 @@ WasmCode* WasmCompilationUnit::CompileWasmFunction(
 
   WasmCompilationUnit unit(isolate->wasm_engine(), native_module, function_body,
                            function->func_index, isolate->counters(), mode);
-  ModuleEnv env = native_module->CreateModuleEnv();
+  CompilationEnv env = native_module->CreateCompilationEnv();
   unit.ExecuteCompilation(&env, detected);
   if (unit.failed()) {
     unit.ReportError(thrower);

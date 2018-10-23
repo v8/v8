@@ -20,16 +20,16 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+struct CompilationEnv;
 class InterpretedFrame;
 struct InterpretedFrameDeleter;
 class NativeModule;
-struct ModuleEnv;
-class WasmCode;
-struct WasmModule;
 class SignatureMap;
-class WireBytesRef;
-class WasmInterpreter;
+class WasmCode;
 struct WasmFeatures;
+class WasmInterpreter;
+struct WasmModule;
+class WireBytesRef;
 }  // namespace wasm
 
 class BreakPoint;

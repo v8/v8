@@ -314,9 +314,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
-  // Create a {ModuleEnv} object for compilation. Only valid as long as this
-  // {NativeModule} is alive.
-  ModuleEnv CreateModuleEnv() const;
+  // Create a {CompilationEnv} object for compilation. Only valid as long as
+  // this {NativeModule} is alive.
+  CompilationEnv CreateCompilationEnv() const;
 
   uint32_t num_functions() const {
     return module_->num_declared_functions + module_->num_imported_functions;

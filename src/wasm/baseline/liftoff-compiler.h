@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-struct ModuleEnv;
+struct CompilationEnv;
 class WasmCompilationUnit;
 struct WasmFeatures;
 
@@ -20,7 +20,7 @@ class LiftoffCompilationUnit final {
   explicit LiftoffCompilationUnit(WasmCompilationUnit* wasm_unit)
       : wasm_unit_(wasm_unit) {}
 
-  bool ExecuteCompilation(ModuleEnv*, WasmFeatures* detected);
+  bool ExecuteCompilation(CompilationEnv*, WasmFeatures* detected);
 
  private:
   WasmCompilationUnit* const wasm_unit_;

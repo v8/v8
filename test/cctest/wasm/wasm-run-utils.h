@@ -208,7 +208,7 @@ class TestingModuleBuilder {
     native_module_->SetExecutable(true);
   }
 
-  ModuleEnv CreateModuleEnv();
+  CompilationEnv CreateCompilationEnv();
 
   ExecutionTier execution_tier() const { return execution_tier_; }
 
@@ -239,7 +239,7 @@ class TestingModuleBuilder {
 };
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       ModuleEnv* module, FunctionSig* sig,
+                       CompilationEnv* module, FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end);
 

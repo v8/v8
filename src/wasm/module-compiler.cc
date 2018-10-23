@@ -356,7 +356,7 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
 
   WasmCompilationUnit unit(isolate->wasm_engine(), native_module, body,
                            func_index, isolate->counters());
-  ModuleEnv env = native_module->CreateModuleEnv();
+  CompilationEnv env = native_module->CreateCompilationEnv();
   unit.ExecuteCompilation(
       &env, native_module->compilation_state()->detected_features());
 
@@ -489,7 +489,7 @@ double MonotonicallyIncreasingTimeInMs() {
 // foreground and background threads). The no_finisher_callback is called
 // within the result_mutex_ lock when no finishing task is running, i.e. when
 // the finisher_is_running_ flag is not set.
-bool FetchAndExecuteCompilationUnit(ModuleEnv* env,
+bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
                                     CompilationState* compilation_state,
                                     WasmFeatures* detected) {
   DisallowHeapAccess no_heap_access;
@@ -603,7 +603,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   //      The foreground task bypasses waiting on memory threshold, because
   //      its results will immediately be converted to code (below).
   WasmFeatures detected_features;
-  ModuleEnv env = native_module->CreateModuleEnv();
+  CompilationEnv env = native_module->CreateCompilationEnv();
   while (FetchAndExecuteCompilationUnit(&env, compilation_state,
                                         &detected_features) &&
          !compilation_state->baseline_compilation_finished()) {
@@ -826,7 +826,7 @@ class BackgroundCompileTask : public CancelableTask {
     TRACE_COMPILE("(3b) Compiling...\n");
     // The number of currently running background tasks is reduced in
     // {OnBackgroundTaskStopped}.
-    ModuleEnv env = native_module_->CreateModuleEnv();
+    CompilationEnv env = native_module_->CreateCompilationEnv();
     auto* compilation_state = native_module_->compilation_state();
     while (!compilation_state->failed()) {
       if (!FetchAndExecuteCompilationUnit(&env, compilation_state,

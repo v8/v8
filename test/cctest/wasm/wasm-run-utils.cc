@@ -187,7 +187,7 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   return bytes_offset;
 }
 
-ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
+CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {
       test_module_ptr_,
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler,
@@ -252,7 +252,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
 }
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       ModuleEnv* module, FunctionSig* sig,
+                       CompilationEnv* module, FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end) {
   compiler::WasmGraphBuilder builder(module, zone, jsgraph, sig,
@@ -410,7 +410,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                                          ->native_module()
                                          ->wire_bytes();
 
-  ModuleEnv env = builder_->CreateModuleEnv();
+  CompilationEnv env = builder_->CreateCompilationEnv();
   ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.start(), wire_bytes.start() + function_->code.offset(),
          func_wire_bytes.length());

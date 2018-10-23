@@ -29,12 +29,12 @@ class Vector;
 
 namespace wasm {
 
+struct CompilationEnv;
 class CompilationResultResolver;
 class ErrorThrower;
 class ModuleCompiler;
 class NativeModule;
 class WasmCode;
-struct ModuleEnv;
 struct WasmModule;
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(

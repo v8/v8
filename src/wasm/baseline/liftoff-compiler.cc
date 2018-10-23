@@ -147,8 +147,8 @@ class LiftoffCompiler {
     }
   };
 
-  LiftoffCompiler(compiler::CallDescriptor* call_descriptor, ModuleEnv* env,
-                  Zone* compilation_zone)
+  LiftoffCompiler(compiler::CallDescriptor* call_descriptor,
+                  CompilationEnv* env, Zone* compilation_zone)
       : descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
@@ -1836,7 +1836,7 @@ class LiftoffCompiler {
  private:
   LiftoffAssembler asm_;
   compiler::CallDescriptor* const descriptor_;
-  ModuleEnv* const env_;
+  CompilationEnv* const env_;
   bool ok_ = true;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder source_position_table_builder_;
@@ -1872,7 +1872,7 @@ class LiftoffCompiler {
 
 }  // namespace
 
-bool LiftoffCompilationUnit::ExecuteCompilation(ModuleEnv* env,
+bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
                                                 WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation");

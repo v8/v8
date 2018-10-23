@@ -136,7 +136,7 @@ bool ContainsInt64(wasm::FunctionSig* sig) {
 }  // namespace
 
 WasmGraphBuilder::WasmGraphBuilder(
-    wasm::ModuleEnv* env, Zone* zone, MachineGraph* mcgraph,
+    wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
     wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table)
     : zone_(zone),
@@ -4063,8 +4063,8 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 
 class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
-  WasmWrapperGraphBuilder(Zone* zone, wasm::ModuleEnv* env, JSGraph* jsgraph,
-                          wasm::FunctionSig* sig,
+  WasmWrapperGraphBuilder(Zone* zone, wasm::CompilationEnv* env,
+                          JSGraph* jsgraph, wasm::FunctionSig* sig,
                           compiler::SourcePositionTable* spt,
                           StubCallMode stub_mode)
       : WasmGraphBuilder(env, zone, jsgraph, sig, spt),
@@ -4880,8 +4880,8 @@ MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  wasm::ModuleEnv env(nullptr, wasm::kNoTrapHandler,
-                      wasm::kRuntimeExceptionSupport);
+  wasm::CompilationEnv env(nullptr, wasm::kNoTrapHandler,
+                           wasm::kRuntimeExceptionSupport);
   WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallOnHeapBuiltin);
   builder.set_control_ptr(&control);
@@ -4990,8 +4990,8 @@ MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate* isolate,
   SourcePositionTable* source_position_table =
       source_positions ? new (&zone) SourcePositionTable(&graph) : nullptr;
 
-  wasm::ModuleEnv env(nullptr, wasm::kNoTrapHandler,
-                      wasm::kRuntimeExceptionSupport);
+  wasm::CompilationEnv env(nullptr, wasm::kNoTrapHandler,
+                           wasm::kRuntimeExceptionSupport);
 
   WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig,
                                   source_position_table,
@@ -5144,7 +5144,7 @@ TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
 TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
 
 SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
-    wasm::ModuleEnv* env, wasm::WasmFeatures* detected, double* decode_ms,
+    wasm::CompilationEnv* env, wasm::WasmFeatures* detected, double* decode_ms,
     MachineGraph* mcgraph, NodeOriginTable* node_origins) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
@@ -5207,7 +5207,7 @@ Vector<const char> GetDebugName(Zone* zone, int index) {
 }  // namespace
 
 void TurbofanWasmCompilationUnit::ExecuteCompilation(
-    wasm::ModuleEnv* env, wasm::WasmFeatures* detected) {
+    wasm::CompilationEnv* env, wasm::WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteTurbofanCompilation");
   double decode_ms = 0;

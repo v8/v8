@@ -50,13 +50,14 @@ class TurbofanWasmCompilationUnit {
   explicit TurbofanWasmCompilationUnit(wasm::WasmCompilationUnit* wasm_unit);
   ~TurbofanWasmCompilationUnit();
 
-  SourcePositionTable* BuildGraphForWasmFunction(wasm::ModuleEnv* env,
+  SourcePositionTable* BuildGraphForWasmFunction(wasm::CompilationEnv* env,
                                                  wasm::WasmFeatures* detected,
                                                  double* decode_ms,
                                                  MachineGraph* mcgraph,
                                                  NodeOriginTable* node_origins);
 
-  void ExecuteCompilation(wasm::ModuleEnv* env, wasm::WasmFeatures* detected);
+  void ExecuteCompilation(wasm::CompilationEnv* env,
+                          wasm::WasmFeatures* detected);
 
  private:
   wasm::WasmCompilationUnit* const wasm_unit_;
@@ -137,7 +138,7 @@ class WasmGraphBuilder {
     kNoExtraCallableParam = false
   };
 
-  WasmGraphBuilder(wasm::ModuleEnv* env, Zone* zone, MachineGraph* mcgraph,
+  WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
                    wasm::FunctionSig* sig,
                    compiler::SourcePositionTable* spt = nullptr);
 
@@ -338,7 +339,7 @@ class WasmGraphBuilder {
 
   Zone* const zone_;
   MachineGraph* const mcgraph_;
-  wasm::ModuleEnv* const env_;
+  wasm::CompilationEnv* const env_;
 
   Node** control_ = nullptr;
   Node** effect_ = nullptr;

@@ -31,10 +31,9 @@ enum UseTrapHandler : bool { kUseTrapHandler = true, kNoTrapHandler = false };
 
 enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
 
-// The {ModuleEnv} encapsulates the module data that is used during compilation.
-// ModuleEnvs are shareable across multiple compilations.
-// TODO(clemensh): Rename this struct to CompilationEnv.
-struct ModuleEnv {
+// The {CompilationEnv} encapsulates the module data that is used during
+// compilation. CompilationEnvs are shareable across multiple compilations.
+struct CompilationEnv {
   // A pointer to the decoded module's static representation.
   const WasmModule* const module;
 
@@ -57,9 +56,10 @@ struct ModuleEnv {
 
   const LowerSimd lower_simd;
 
-  constexpr ModuleEnv(const WasmModule* module, UseTrapHandler use_trap_handler,
-                      RuntimeExceptionSupport runtime_exception_support,
-                      LowerSimd lower_simd = kNoLowerSimd)
+  constexpr CompilationEnv(const WasmModule* module,
+                           UseTrapHandler use_trap_handler,
+                           RuntimeExceptionSupport runtime_exception_support,
+                           LowerSimd lower_simd = kNoLowerSimd)
       : module(module),
         use_trap_handler(use_trap_handler),
         runtime_exception_support(runtime_exception_support),

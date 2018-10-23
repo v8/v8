@@ -42,7 +42,7 @@ class WasmCompilationUnit final {
 
   ~WasmCompilationUnit();
 
-  void ExecuteCompilation(ModuleEnv*, WasmFeatures* detected);
+  void ExecuteCompilation(CompilationEnv*, WasmFeatures* detected);
 
   NativeModule* native_module() const { return native_module_; }
   ExecutionTier mode() const { return mode_; }
