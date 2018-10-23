@@ -662,7 +662,10 @@
     },
 
     'mips_bundled_toolchain': {
-      'gn_args': 'custom_toolchain="//tools/toolchain:mips-bundled"',
+      'gn_args': 'custom_toolchain="//tools/toolchain:mips-bundled" '
+                 'ldso_path="//tools/mips_toolchain/sysroot/usr/lib/ld.so.1" '
+                 'gcc_target_rpath="//tools/mips_toolchain/sysroot/usr/lib:'
+                 '//tools/mips_toolchain/mips-mti-linux-gnu/lib:\$ORIGIN/."',
     },
 
     'msan': {
