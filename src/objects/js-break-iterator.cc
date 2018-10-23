@@ -46,19 +46,11 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
   }
 
   // Extract locale string
-  const std::vector<const char*> values = {"lookup", "best fit"};
-  std::unique_ptr<char[]> matcher_str = nullptr;
-  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
-  Maybe<bool> found_matcher =
-      Intl::GetStringOption(isolate, options, "localeMatcher", values,
-                            "Intl.JSV8BreakIterator", &matcher_str);
-  MAYBE_RETURN(found_matcher, MaybeHandle<JSV8BreakIterator>());
-  if (found_matcher.FromJust()) {
-    DCHECK_NOT_NULL(matcher_str.get());
-    if (strcmp(matcher_str.get(), "lookup") == 0) {
-      matcher = Intl::MatcherOption::kLookup;
-    }
-  }
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, "Intl.JSV8BreakIterator");
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSV8BreakIterator>());
+  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
+
   std::set<std::string> available_locales =
       Intl::GetAvailableLocales(Intl::ICUService::kBreakIterator);
   Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,

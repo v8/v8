@@ -262,18 +262,10 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
   // 9. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
   // 10. Set opt.[[localeMatcher]] to matcher.
-  values = {"lookup", "best fit"};
-  std::unique_ptr<char[]> matcher_str = nullptr;
-  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
-  Maybe<bool> found_matcher = Intl::GetStringOption(
-      isolate, options, "localeMatcher", values, "Intl.Collator", &matcher_str);
-  MAYBE_RETURN(found_matcher, MaybeHandle<JSCollator>());
-  if (found_matcher.FromJust()) {
-    DCHECK_NOT_NULL(matcher_str.get());
-    if (strcmp(matcher_str.get(), "lookup") == 0) {
-      matcher = Intl::MatcherOption::kLookup;
-    }
-  }
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, "Intl.Collator");
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSCollator>());
+  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   // 11. Let numeric be ? GetOption(options, "numeric", "boolean",
   // undefined, undefined).

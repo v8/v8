@@ -1637,18 +1637,10 @@ MaybeHandle<JSObject> SupportedLocales(
 
     // 1. b. Let matcher be ? GetOption(options, "localeMatcher", "string",
     //       « "lookup", "best fit" », "best fit").
-    std::unique_ptr<char[]> matcher_str = nullptr;
-    std::vector<const char*> matcher_values = {"lookup", "best fit"};
-    Maybe<bool> maybe_found_matcher = Intl::GetStringOption(
-        isolate, options_obj, "localeMatcher", matcher_values,
-        ICUServiceToString(service), &matcher_str);
-    MAYBE_RETURN(maybe_found_matcher, MaybeHandle<JSObject>());
-    if (maybe_found_matcher.FromJust()) {
-      DCHECK_NOT_NULL(matcher_str.get());
-      if (strcmp(matcher_str.get(), "lookup") == 0) {
-        matcher = Intl::MatcherOption::kLookup;
-      }
-    }
+    Maybe<Intl::MatcherOption> maybe_locale_matcher = Intl::GetLocaleMatcher(
+        isolate, options_obj, ICUServiceToString(service));
+    MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSObject>());
+    matcher = maybe_locale_matcher.FromJust();
   }
 
   // 3. If matcher is "best fit", then
@@ -2022,6 +2014,23 @@ void ICUTimezoneCache::Clear() {
 base::TimezoneCache* Intl::CreateTimeZoneCache() {
   return FLAG_icu_timezone_data ? new ICUTimezoneCache()
                                 : base::OS::CreateTimezoneCache();
+}
+
+Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
+                                                  Handle<JSReceiver> options,
+                                                  const char* method) {
+  const std::vector<const char*> values = {"lookup", "best fit"};
+  std::unique_ptr<char[]> matcher_str = nullptr;
+  Maybe<bool> found_matcher = Intl::GetStringOption(
+      isolate, options, "localeMatcher", values, method, &matcher_str);
+  MAYBE_RETURN(found_matcher, Nothing<Intl::MatcherOption>());
+  if (found_matcher.FromJust()) {
+    DCHECK_NOT_NULL(matcher_str.get());
+    if (strcmp(matcher_str.get(), "lookup") == 0) {
+      return Just(Intl::MatcherOption::kLookup);
+    }
+  }
+  return Just(Intl::MatcherOption::kBestFit);
 }
 
 }  // namespace internal

@@ -111,23 +111,14 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
   // 6. Set opt.[[localeMatcher]] to matcher.
-  std::vector<const char*> values = {"lookup", "best fit"};
-  std::unique_ptr<char[]> matcher_str = nullptr;
-  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
-  Maybe<bool> found_matcher =
-      Intl::GetStringOption(isolate, options, "localeMatcher", values,
-                            "Intl.PluralRules", &matcher_str);
-  MAYBE_RETURN(found_matcher, MaybeHandle<JSPluralRules>());
-  if (found_matcher.FromJust()) {
-    DCHECK_NOT_NULL(matcher_str.get());
-    if (strcmp(matcher_str.get(), "lookup") == 0) {
-      matcher = Intl::MatcherOption::kLookup;
-    }
-  }
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, "Intl.PluralRules");
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSPluralRules>());
+  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   // 7. Let t be ? GetOption(options, "type", "string", « "cardinal",
   // "ordinal" », "cardinal").
-  values = {"cardinal", "ordinal"};
+  std::vector<const char*> values = {"cardinal", "ordinal"};
   std::unique_ptr<char[]> type_str = nullptr;
   const char* type_cstr = "cardinal";
   Maybe<bool> found = Intl::GetStringOption(isolate, options, "type", values,

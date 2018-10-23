@@ -211,6 +211,10 @@ class Intl {
       const std::vector<std::string>& requested_locales, MatcherOption options,
       const std::set<std::string>& relevant_extension_keys);
 
+  // Shared function to read the "localeMatcher" option.
+  V8_WARN_UNUSED_RESULT static Maybe<MatcherOption> GetLocaleMatcher(
+      Isolate* isolate, Handle<JSReceiver> options, const char* method);
+
   // Utility function to set text to BreakIterator.
   static Managed<icu::UnicodeString>* SetTextToBreakIterator(
       Isolate* isolate, Handle<String> text,

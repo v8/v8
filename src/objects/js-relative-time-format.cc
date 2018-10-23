@@ -83,19 +83,10 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
   // 6. Set opt.[[localeMatcher]] to matcher.
-  const std::vector<const char*> values = {"lookup", "best fit"};
-  std::unique_ptr<char[]> matcher_str = nullptr;
-  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
-  Maybe<bool> found_matcher =
-      Intl::GetStringOption(isolate, options, "localeMatcher", values,
-                            "Intl.RelativeTimeFormat", &matcher_str);
-  MAYBE_RETURN(found_matcher, MaybeHandle<JSRelativeTimeFormat>());
-  if (found_matcher.FromJust()) {
-    DCHECK_NOT_NULL(matcher_str.get());
-    if (strcmp(matcher_str.get(), "lookup") == 0) {
-      matcher = Intl::MatcherOption::kLookup;
-    }
-  }
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, "Intl.RelativeTimeFormat");
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSRelativeTimeFormat>());
+  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   // 7. Let localeData be %RelativeTimeFormat%.[[LocaleData]].
   // 8. Let r be

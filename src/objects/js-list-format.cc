@@ -178,19 +178,10 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
 
   // 12. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
-  const std::vector<const char*> values = {"lookup", "best fit"};
-  std::unique_ptr<char[]> matcher_str = nullptr;
-  Intl::MatcherOption matcher = Intl::MatcherOption::kBestFit;
-  Maybe<bool> found_matcher =
-      Intl::GetStringOption(isolate, options, "localeMatcher", values,
-                            "Intl.ListFormat", &matcher_str);
-  MAYBE_RETURN(found_matcher, MaybeHandle<JSListFormat>());
-  if (found_matcher.FromJust()) {
-    DCHECK_NOT_NULL(matcher_str.get());
-    if (strcmp(matcher_str.get(), "lookup") == 0) {
-      matcher = Intl::MatcherOption::kLookup;
-    }
-  }
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, "Intl.ListFormat");
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSListFormat>());
+  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   // 14. If style is "narrow" and type is not "unit", throw a RangeError
   // exception.

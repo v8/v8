@@ -739,19 +739,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   // 4. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
   // 5. Set opt.[[localeMatcher]] to matcher.
-  std::vector<const char*> values = {"lookup", "best fit"};
-  std::unique_ptr<char[]> locale_matcher_str = nullptr;
-  Intl::MatcherOption locale_matcher = Intl::MatcherOption::kBestFit;
-  Maybe<bool> found_locale_matcher =
-      Intl::GetStringOption(isolate, options, "localeMatcher", values,
-                            "Intl.DateTimeFormat", &locale_matcher_str);
-  MAYBE_RETURN(found_locale_matcher, MaybeHandle<JSDateTimeFormat>());
-  if (found_locale_matcher.FromJust()) {
-    DCHECK_NOT_NULL(locale_matcher_str.get());
-    if (strcmp(locale_matcher_str.get(), "lookup") == 0) {
-      locale_matcher = Intl::MatcherOption::kLookup;
-    }
-  }
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, "Intl.DateTimeFormat");
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSDateTimeFormat>());
+  Intl::MatcherOption locale_matcher = maybe_locale_matcher.FromJust();
 
   // 6. Let hour12 be ? GetOption(options, "hour12", "boolean", undefined,
   // undefined).
