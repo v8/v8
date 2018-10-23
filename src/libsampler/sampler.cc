@@ -690,6 +690,10 @@ void Sampler::DoSample() {
     state.pc = reinterpret_cast<void*>(context.Rip);
     state.sp = reinterpret_cast<void*>(context.Rsp);
     state.fp = reinterpret_cast<void*>(context.Rbp);
+#elif V8_HOST_ARCH_ARM64
+    state.pc = reinterpret_cast<void*>(context.Pc);
+    state.sp = reinterpret_cast<void*>(context.Sp);
+    state.fp = reinterpret_cast<void*>(context.Fp);
 #else
     state.pc = reinterpret_cast<void*>(context.Eip);
     state.sp = reinterpret_cast<void*>(context.Esp);

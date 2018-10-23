@@ -68,7 +68,7 @@ CPURegister CPURegList::PopLowestIndex() {
     return NoCPUReg;
   }
   int index = CountTrailingZeros(list_, kRegListSizeInBits);
-  DCHECK((1 << index) & list_);
+  DCHECK((1LL << index) & list_);
   Remove(index);
   return CPURegister::Create(index, size_, type_);
 }
@@ -81,7 +81,7 @@ CPURegister CPURegList::PopHighestIndex() {
   }
   int index = CountLeadingZeros(list_, kRegListSizeInBits);
   index = kRegListSizeInBits - 1 - index;
-  DCHECK((1 << index) & list_);
+  DCHECK((1LL << index) & list_);
   Remove(index);
   return CPURegister::Create(index, size_, type_);
 }
@@ -110,8 +110,14 @@ CPURegList CPURegList::GetCalleeSavedV(int size) {
 
 
 CPURegList CPURegList::GetCallerSaved(int size) {
+#if defined(V8_OS_WIN)
+  // x18 is reserved as platform register on Windows arm64.
+  // Registers x0-x17 and lr (x30) are caller-saved.
+  CPURegList list = CPURegList(CPURegister::kRegister, size, 0, 17);
+#else
   // Registers x0-x18 and lr (x30) are caller-saved.
   CPURegList list = CPURegList(CPURegister::kRegister, size, 0, 18);
+#endif
   list.Combine(lr);
   return list;
 }
@@ -144,9 +150,13 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
   list.Remove(16);
   list.Remove(17);
 
+// Don't add x18 to safepoint list on Windows arm64 because it is reserved
+// as platform register.
+#if !defined(V8_OS_WIN)
   // Add x18 to the safepoint list, as although it's not in kJSCallerSaved, it
   // is a caller-saved register according to the procedure call standard.
   list.Combine(18);
+#endif
 
   // Add the link register (x30) to the safepoint list.
   list.Combine(30);
@@ -506,11 +516,11 @@ MemOperand::PairResult MemOperand::AreConsistentForPair(
   }
   // Step two: check that the offsets are contiguous and that the range
   // is OK for ldp/stp.
-  if ((operandB.offset() == operandA.offset() + (1 << access_size_log2)) &&
+  if ((operandB.offset() == operandA.offset() + (1LL << access_size_log2)) &&
       is_int7(operandA.offset() >> access_size_log2)) {
     return kPairAB;
   }
-  if ((operandA.offset() == operandB.offset() + (1 << access_size_log2)) &&
+  if ((operandA.offset() == operandB.offset() + (1LL << access_size_log2)) &&
       is_int7(operandB.offset() >> access_size_log2)) {
     return kPairBA;
   }
@@ -4002,16 +4012,16 @@ void Assembler::MoveWide(const Register& rd, uint64_t imm, int shift,
     // Calculate a new immediate and shift combination to encode the immediate
     // argument.
     shift = 0;
-    if ((imm & ~0xFFFFUL) == 0) {
+    if ((imm & ~0xFFFFULL) == 0) {
       // Nothing to do.
-    } else if ((imm & ~(0xFFFFUL << 16)) == 0) {
+    } else if ((imm & ~(0xFFFFULL << 16)) == 0) {
       imm >>= 16;
       shift = 1;
-    } else if ((imm & ~(0xFFFFUL << 32)) == 0) {
+    } else if ((imm & ~(0xFFFFULL << 32)) == 0) {
       DCHECK(rd.Is64Bits());
       imm >>= 32;
       shift = 2;
-    } else if ((imm & ~(0xFFFFUL << 48)) == 0) {
+    } else if ((imm & ~(0xFFFFULL << 48)) == 0) {
       DCHECK(rd.Is64Bits());
       imm >>= 48;
       shift = 3;

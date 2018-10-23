@@ -89,14 +89,14 @@ inline void CPURegList::Remove(const CPURegister& other1,
 inline void CPURegList::Combine(int code) {
   DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
-  list_ |= (1UL << code);
+  list_ |= (1ULL << code);
 }
 
 
 inline void CPURegList::Remove(int code) {
   DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
-  list_ &= ~(1UL << code);
+  list_ &= ~(1ULL << code);
 }
 
 
@@ -679,7 +679,7 @@ Address RelocInfo::target_address_address() {
     return constant_pool_entry_address();
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    return reinterpret_cast<Address>(pc_);
+    return pc_;
   }
 }
 
