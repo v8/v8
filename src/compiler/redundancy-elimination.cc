@@ -28,7 +28,9 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckInternalizedString:
     case IrOpcode::kCheckNotTaggedHole:
     case IrOpcode::kCheckNumber:
+    case IrOpcode::kCheckOddball:
     case IrOpcode::kCheckReceiver:
+    case IrOpcode::kCheckReceiverOrOddball:
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
     case IrOpcode::kCheckSymbol:
@@ -135,6 +137,12 @@ bool CheckSubsumes(Node const* a, Node const* b) {
     } else if (a->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 &&
                b->opcode() == IrOpcode::kCheckedTaggedToInt32) {
       // CheckedTaggedSignedToInt32(node) implies CheckedTaggedToInt32(node)
+    } else if (a->opcode() == IrOpcode::kCheckOddball &&
+               b->opcode() == IrOpcode::kCheckReceiverOrOddball) {
+      // CheckOddball(node) implies CheckReceiverOrOddball(node)
+    } else if (a->opcode() == IrOpcode::kCheckReceiver &&
+               b->opcode() == IrOpcode::kCheckReceiverOrOddball) {
+      // CheckReceiver(node) implies CheckReceiverOrOddball(node)
     } else if (a->opcode() != b->opcode()) {
       return false;
     } else {

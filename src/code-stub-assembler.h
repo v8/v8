@@ -1975,6 +1975,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsEphemeronHashTable(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsHeapNumber(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsHeapNumberInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsOddball(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsOddballInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsIndirectStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSArrayBuffer(SloppyTNode<HeapObject> object);

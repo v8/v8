@@ -43,14 +43,21 @@ class JSBinopReduction final {
         *hint = NumberOperationHint::kNumber;
         return true;
       case CompareOperationHint::kNumberOrOddball:
-        *hint = NumberOperationHint::kNumberOrOddball;
-        return true;
+        if (node_->opcode() != IrOpcode::kJSStrictEqual) {
+          // Number equality comparisons don't truncate Oddball
+          // to Number, so we must not consume this feedback.
+          *hint = NumberOperationHint::kNumberOrOddball;
+          return true;
+        }
+        V8_FALLTHROUGH;
       case CompareOperationHint::kAny:
       case CompareOperationHint::kNone:
       case CompareOperationHint::kString:
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kBigInt:
+      case CompareOperationHint::kOddball:
       case CompareOperationHint::kReceiver:
+      case CompareOperationHint::kReceiverOrOddball:
       case CompareOperationHint::kInternalizedString:
         break;
     }
@@ -64,11 +71,25 @@ class JSBinopReduction final {
            BothInputsMaybe(Type::InternalizedString());
   }
 
+  bool IsOddballCompareOperation() {
+    DCHECK_EQ(1, node_->op()->EffectOutputCount());
+    return (CompareOperationHintOf(node_->op()) ==
+            CompareOperationHint::kOddball) &&
+           BothInputsMaybe(Type::Oddball());
+  }
+
   bool IsReceiverCompareOperation() {
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
     return (CompareOperationHintOf(node_->op()) ==
             CompareOperationHint::kReceiver) &&
            BothInputsMaybe(Type::Receiver());
+  }
+
+  bool IsReceiverOrOddballCompareOperation() {
+    DCHECK_EQ(1, node_->op()->EffectOutputCount());
+    return (CompareOperationHintOf(node_->op()) ==
+            CompareOperationHint::kReceiverOrOddball) &&
+           BothInputsMaybe(Type::ReceiverOrOddball());
   }
 
   bool IsStringCompareOperation() {
@@ -114,10 +135,26 @@ class JSBinopReduction final {
     return false;
   }
 
+  // Inserts a CheckOddball for the left input.
+  void CheckLeftInputToOddball() {
+    Node* left_input = graph()->NewNode(simplified()->CheckOddball(), left(),
+                                        effect(), control());
+    node_->ReplaceInput(0, left_input);
+    update_effect(left_input);
+  }
+
   // Inserts a CheckReceiver for the left input.
   void CheckLeftInputToReceiver() {
     Node* left_input = graph()->NewNode(simplified()->CheckReceiver(), left(),
                                         effect(), control());
+    node_->ReplaceInput(0, left_input);
+    update_effect(left_input);
+  }
+
+  // Inserts a CheckReceiverOrOddball for the left input.
+  void CheckLeftInputToReceiverOrOddball() {
+    Node* left_input = graph()->NewNode(simplified()->CheckReceiverOrOddball(),
+                                        left(), effect(), control());
     node_->ReplaceInput(0, left_input);
     update_effect(left_input);
   }
@@ -875,11 +912,23 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
         simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
+  } else if (r.IsOddballCompareOperation()) {
+    // For strict equality, it's enough to know that one input is an Oddball,
+    // as a strict equality comparison with an Oddball can only yield true if
+    // both sides refer to the same Oddball.
+    r.CheckLeftInputToOddball();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   } else if (r.IsReceiverCompareOperation()) {
     // For strict equality, it's enough to know that one input is a Receiver,
     // as a strict equality comparison with a Receiver can only yield true if
     // both sides refer to the same Receiver.
     r.CheckLeftInputToReceiver();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
+  } else if (r.IsReceiverOrOddballCompareOperation()) {
+    // For strict equality, it's enough to know that one input is a Receiver
+    // or an Oddball, as a strict equality comparison with a Receiver and/or
+    // Oddball can only yield true if both sides refer to the same instance.
+    r.CheckLeftInputToReceiverOrOddball();
     return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   } else if (r.IsStringCompareOperation()) {
     r.CheckInputsToString();

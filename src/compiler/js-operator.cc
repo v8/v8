@@ -706,6 +706,7 @@ struct JSOperatorGlobalCache final {
   Name##Operator<CompareOperationHint::kSignedSmall>                         \
       k##Name##SignedSmallOperator;                                          \
   Name##Operator<CompareOperationHint::kNumber> k##Name##NumberOperator;     \
+  Name##Operator<CompareOperationHint::kOddball> k##Name##OddballOperator;   \
   Name##Operator<CompareOperationHint::kNumberOrOddball>                     \
       k##Name##NumberOrOddballOperator;                                      \
   Name##Operator<CompareOperationHint::kInternalizedString>                  \
@@ -714,6 +715,8 @@ struct JSOperatorGlobalCache final {
   Name##Operator<CompareOperationHint::kSymbol> k##Name##SymbolOperator;     \
   Name##Operator<CompareOperationHint::kBigInt> k##Name##BigIntOperator;     \
   Name##Operator<CompareOperationHint::kReceiver> k##Name##ReceiverOperator; \
+  Name##Operator<CompareOperationHint::kReceiverOrOddball>                   \
+      k##Name##ReceiverOrOddballOperator;                                    \
   Name##Operator<CompareOperationHint::kAny> k##Name##AnyOperator;
   COMPARE_OP_LIST(COMPARE_OP)
 #undef COMPARE_OP
@@ -769,6 +772,8 @@ BINARY_OP_LIST(BINARY_OP)
         return &cache_.k##Name##SignedSmallOperator;                   \
       case CompareOperationHint::kNumber:                              \
         return &cache_.k##Name##NumberOperator;                        \
+      case CompareOperationHint::kOddball:                             \
+        return &cache_.k##Name##OddballOperator;                       \
       case CompareOperationHint::kNumberOrOddball:                     \
         return &cache_.k##Name##NumberOrOddballOperator;               \
       case CompareOperationHint::kInternalizedString:                  \
@@ -781,6 +786,8 @@ BINARY_OP_LIST(BINARY_OP)
         return &cache_.k##Name##BigIntOperator;                        \
       case CompareOperationHint::kReceiver:                            \
         return &cache_.k##Name##ReceiverOperator;                      \
+      case CompareOperationHint::kReceiverOrOddball:                   \
+        return &cache_.k##Name##ReceiverOrOddballOperator;             \
       case CompareOperationHint::kAny:                                 \
         return &cache_.k##Name##AnyOperator;                           \
     }                                                                  \

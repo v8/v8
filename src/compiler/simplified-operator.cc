@@ -788,7 +788,9 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckHeapObject, 1, 1)               \
   V(CheckInternalizedString, 1, 1)       \
   V(CheckNotTaggedHole, 1, 1)            \
+  V(CheckOddball, 1, 1)                  \
   V(CheckReceiver, 1, 1)                 \
+  V(CheckReceiverOrOddball, 1, 1)        \
   V(CheckSymbol, 1, 1)                   \
   V(CheckedInt32Add, 2, 1)               \
   V(CheckedInt32Div, 2, 1)               \

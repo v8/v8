@@ -1309,11 +1309,13 @@ class BinaryOperationFeedback {
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
 //
-//   kSignedSmall -> kNumber             -> kNumberOrOddball -> kAny
-//                   kInternalizedString -> kString          -> kAny
-//                                          kSymbol          -> kAny
-//                                          kBigInt          -> kAny
-//                                          kReceiver        -> kAny
+//   kSignedSmall -> kNumber             -> kNumberOrOddball   -> kAny
+//                   kOddball            -> kNumberOrOddball   -> kAny
+//                   kOddball            -> kReceiverOrOddball -> kAny
+//                   kReceiver           -> kReceiverOrOddball -> kAny
+//                   kInternalizedString -> kString            -> kAny
+//                                          kSymbol            -> kAny
+//                                          kBigInt            -> kAny
 //
 // This is distinct from BinaryOperationFeedback on purpose, because the
 // feedback that matters differs greatly as well as the way it is consumed.
@@ -1323,12 +1325,14 @@ class CompareOperationFeedback {
     kNone = 0x00,
     kSignedSmall = 0x01,
     kNumber = 0x3,
-    kNumberOrOddball = 0x7,
+    kOddball = 0x04,
+    kNumberOrOddball = kNumber | kOddball,
     kInternalizedString = 0x8,
     kString = 0x18,
     kSymbol = 0x20,
     kBigInt = 0x30,
     kReceiver = 0x40,
+    kReceiverOrOddball = kReceiver | kOddball,
     kAny = 0xff
   };
 };

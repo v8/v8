@@ -6201,6 +6201,10 @@ TNode<BoolT> CodeStubAssembler::IsHeapNumberInstanceType(
   return InstanceTypeEqual(instance_type, HEAP_NUMBER_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsOddball(SloppyTNode<HeapObject> object) {
+  return IsOddballInstanceType(LoadInstanceType(object));
+}
+
 TNode<BoolT> CodeStubAssembler::IsOddballInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, ODDBALL_TYPE);
@@ -11267,15 +11271,16 @@ void CodeStubAssembler::GenerateEqual_Same(Node* value, Label* if_equal,
   if (var_type_feedback != nullptr) {
     Node* instance_type = LoadMapInstanceType(value_map);
 
-    Label if_string(this), if_receiver(this), if_symbol(this), if_bigint(this),
-        if_other(this, Label::kDeferred);
+    Label if_string(this), if_receiver(this), if_oddball(this), if_symbol(this),
+        if_bigint(this);
     GotoIf(IsStringInstanceType(instance_type), &if_string);
     GotoIf(IsJSReceiverInstanceType(instance_type), &if_receiver);
-    GotoIf(IsBigIntInstanceType(instance_type), &if_bigint);
-    Branch(IsSymbolInstanceType(instance_type), &if_symbol, &if_other);
+    GotoIf(IsOddballInstanceType(instance_type), &if_oddball);
+    Branch(IsBigIntInstanceType(instance_type), &if_bigint, &if_symbol);
 
     BIND(&if_string);
     {
+      CSA_ASSERT(this, IsString(value));
       CombineFeedback(var_type_feedback,
                       CollectFeedbackForString(instance_type));
       Goto(if_equal);
@@ -11283,25 +11288,29 @@ void CodeStubAssembler::GenerateEqual_Same(Node* value, Label* if_equal,
 
     BIND(&if_symbol);
     {
+      CSA_ASSERT(this, IsSymbol(value));
       CombineFeedback(var_type_feedback, CompareOperationFeedback::kSymbol);
       Goto(if_equal);
     }
 
     BIND(&if_receiver);
     {
+      CSA_ASSERT(this, IsJSReceiver(value));
       CombineFeedback(var_type_feedback, CompareOperationFeedback::kReceiver);
       Goto(if_equal);
     }
 
     BIND(&if_bigint);
     {
+      CSA_ASSERT(this, IsBigInt(value));
       CombineFeedback(var_type_feedback, CompareOperationFeedback::kBigInt);
       Goto(if_equal);
     }
 
-    BIND(&if_other);
+    BIND(&if_oddball);
     {
-      CombineFeedback(var_type_feedback, CompareOperationFeedback::kAny);
+      CSA_ASSERT(this, IsOddball(value));
+      CombineFeedback(var_type_feedback, CompareOperationFeedback::kOddball);
       Goto(if_equal);
     }
   } else {
@@ -11891,18 +11900,37 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
             // Load the instance type of {rhs}.
             Node* rhs_instance_type = LoadInstanceType(rhs);
 
-            Label if_lhsissymbol(this), if_lhsisreceiver(this);
+            Label if_lhsissymbol(this), if_lhsisreceiver(this),
+                if_lhsisoddball(this);
             GotoIf(IsJSReceiverInstanceType(lhs_instance_type),
                    &if_lhsisreceiver);
+            GotoIf(IsOddballInstanceType(lhs_instance_type), &if_lhsisoddball);
             Branch(IsSymbolInstanceType(lhs_instance_type), &if_lhsissymbol,
                    &if_notequal);
 
             BIND(&if_lhsisreceiver);
             {
-              GotoIfNot(IsJSReceiverInstanceType(rhs_instance_type),
-                        &if_notequal);
               var_type_feedback->Bind(
                   SmiConstant(CompareOperationFeedback::kReceiver));
+              GotoIf(IsJSReceiverInstanceType(rhs_instance_type), &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kReceiverOrOddball));
+              GotoIf(IsOddballInstanceType(rhs_instance_type), &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+              Goto(&if_notequal);
+            }
+
+            BIND(&if_lhsisoddball);
+            {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kOddball));
+              GotoIf(IsOddballInstanceType(rhs_instance_type), &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kReceiverOrOddball));
+              GotoIf(IsJSReceiverInstanceType(rhs_instance_type), &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
               Goto(&if_notequal);
             }
 

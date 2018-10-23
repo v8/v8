@@ -678,7 +678,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                             const VectorSlotPair& = VectorSlotPair());
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const VectorSlotPair& feedback);
+  const Operator* CheckOddball();
   const Operator* CheckReceiver();
+  const Operator* CheckReceiverOrOddball();
   const Operator* CheckSmi(const VectorSlotPair& feedback);
   const Operator* CheckString(const VectorSlotPair& feedback);
   const Operator* CheckSymbol();

@@ -213,6 +213,8 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kSignedSmall;
     case CompareOperationFeedback::kNumber:
       return CompareOperationHint::kNumber;
+    case CompareOperationFeedback::kOddball:
+      return CompareOperationHint::kOddball;
     case CompareOperationFeedback::kNumberOrOddball:
       return CompareOperationHint::kNumberOrOddball;
     case CompareOperationFeedback::kInternalizedString:
@@ -225,6 +227,8 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kBigInt;
     case CompareOperationFeedback::kReceiver:
       return CompareOperationHint::kReceiver;
+    case CompareOperationFeedback::kReceiverOrOddball:
+      return CompareOperationHint::kReceiverOrOddball;
     default:
       return CompareOperationHint::kAny;
   }
