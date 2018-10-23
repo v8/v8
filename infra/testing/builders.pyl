@@ -620,8 +620,13 @@
     ],
   },
   'V8 Linux - full debug': {
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
     'tests': [
-      {'name': 'v8testing', 'variant': 'default'},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
     ],
   },
   'V8 Linux - gc stress': {
