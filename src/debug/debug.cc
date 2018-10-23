@@ -1822,6 +1822,7 @@ bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
 bool Debug::AllFramesOnStackAreBlackboxed() {
   HandleScope scope(isolate_);
   for (StackTraceFrameIterator it(isolate_); !it.done(); it.Advance()) {
+    if (!it.is_javascript()) continue;
     if (!IsFrameBlackboxed(it.javascript_frame())) return false;
   }
   return true;
