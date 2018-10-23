@@ -277,7 +277,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
   if (GetCurrentStackPosition() < c_limit) {
-    return get_sp();
+    return reinterpret_cast<uintptr_t>(get_sp());
   }
 
   // Otherwise the limit is the JS stack. Leave a safety margin of 1024 bytes
@@ -332,7 +332,7 @@ void Simulator::Init(FILE* stream) {
   stack_limit_ = stack_ + stack_protection_size_;
   uintptr_t tos = stack_ + stack_size_ - stack_protection_size_;
   // The stack pointer must be 16-byte aligned.
-  set_sp(tos & ~0xFULL);
+  set_sp(tos & ~0xFUL);
 
   stream_ = stream;
   print_disasm_ = new PrintDisassembler(stream_);
@@ -403,14 +403,6 @@ void Simulator::RunFrom(Instruction* start) {
 // uses the ObjectPair structure.
 // The simulator assumes all runtime calls return two 64-bits values. If they
 // don't, register x1 is clobbered. This is fine because x1 is caller-saved.
-#if defined(V8_OS_WIN)
-typedef int64_t (*SimulatorRuntimeCall_ReturnPtr)(int64_t arg0, int64_t arg1,
-                                                  int64_t arg2, int64_t arg3,
-                                                  int64_t arg4, int64_t arg5,
-                                                  int64_t arg6, int64_t arg7,
-                                                  int64_t arg8);
-#endif
-
 typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0, int64_t arg1,
                                            int64_t arg2, int64_t arg3,
                                            int64_t arg4, int64_t arg5,
@@ -472,51 +464,12 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       break;
 
     case ExternalReference::BUILTIN_CALL:
-#if defined(V8_OS_WIN)
-    {
-      // Object* f(v8::internal::Arguments).
-      TraceSim("Type: BUILTIN_CALL\n");
-
-      // When this simulator runs on Windows x64 host, function with ObjectPair
-      // return type accepts an implicit pointer to caller allocated memory for
-      // ObjectPair as return value. This diverges the calling convention from
-      // function which returns primitive type, so function returns ObjectPair
-      // and primitive type cannot share implementation.
-
-      // We don't know how many arguments are being passed, but we can
-      // pass 8 without touching the stack. They will be ignored by the
-      // host function if they aren't used.
-      TraceSim(
-          "Arguments: "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64,
-          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-
-      SimulatorRuntimeCall_ReturnPtr target =
-          reinterpret_cast<SimulatorRuntimeCall_ReturnPtr>(external);
-
-      int64_t result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-      TraceSim("Returned: 0x%16\n", result);
-#ifdef DEBUG
-      CorruptAllCallerSavedCPURegisters();
-#endif
-      set_xreg(0, result);
-
-      break;
-    }
-#endif
     case ExternalReference::BUILTIN_CALL_PAIR: {
       // Object* f(v8::internal::Arguments) or
       // ObjectPair f(v8::internal::Arguments).
       TraceSim("Type: BUILTIN_CALL\n");
+      SimulatorRuntimeCall target =
+        reinterpret_cast<SimulatorRuntimeCall>(external);
 
       // We don't know how many arguments are being passed, but we can
       // pass 8 without touching the stack. They will be ignored by the
@@ -533,8 +486,6 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
           ", "
           "0x%016" PRIx64,
           arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-      SimulatorRuntimeCall target =
-          reinterpret_cast<SimulatorRuntimeCall>(external);
       ObjectPair result =
           target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
       TraceSim("Returned: {%p, %p}\n", static_cast<void*>(result.x),
@@ -1538,7 +1489,7 @@ void Simulator::VisitUnconditionalBranchToRegister(Instruction* instr) {
 void Simulator::VisitTestBranch(Instruction* instr) {
   unsigned bit_pos = (instr->ImmTestBranchBit5() << 5) |
                      instr->ImmTestBranchBit40();
-  bool take_branch = ((xreg(instr->Rt()) & (1ULL << bit_pos)) == 0);
+  bool take_branch = ((xreg(instr->Rt()) & (1UL << bit_pos)) == 0);
   switch (instr->Mask(TestBranchMask)) {
     case TBZ: break;
     case TBNZ: take_branch = !take_branch; break;
@@ -1907,7 +1858,7 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
   unsigned rt = instr->Rt();
   unsigned rt2 = instr->Rt2();
   unsigned addr_reg = instr->Rn();
-  size_t access_size = 1ULL << instr->SizeLSPair();
+  size_t access_size = 1 << instr->SizeLSPair();
   int64_t offset = instr->ImmLSPair() * access_size;
   uintptr_t address = LoadStoreAddress(addr_reg, offset, addrmode);
   uintptr_t address2 = address + access_size;
@@ -2315,7 +2266,7 @@ void Simulator::VisitConditionalSelect(Instruction* instr) {
         break;
       case CSNEG_w:
       case CSNEG_x:
-        new_val = (uint64_t)(-(int64_t)new_val);
+        new_val = -new_val;
         break;
       default: UNIMPLEMENTED();
     }
@@ -2445,14 +2396,14 @@ static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
   uint64_t u0, v0, w0;
   int64_t u1, v1, w1, w2, t;
 
-  u0 = u & 0xFFFFFFFFLL;
+  u0 = u & 0xFFFFFFFFL;
   u1 = u >> 32;
-  v0 = v & 0xFFFFFFFFLL;
+  v0 = v & 0xFFFFFFFFL;
   v1 = v >> 32;
 
   w0 = u0 * v0;
   t = u1 * v0 + (w0 >> 32);
-  w1 = t & 0xFFFFFFFFLL;
+  w1 = t & 0xFFFFFFFFL;
   w2 = t >> 32;
   w1 = u0 * v1 + w1;
 
@@ -2507,7 +2458,7 @@ void Simulator::BitfieldHelper(Instruction* instr) {
     mask = diff < reg_size - 1 ? (static_cast<T>(1) << (diff + 1)) - 1
                                : static_cast<T>(-1);
   } else {
-    uint64_t umask = ((1LL << (S + 1)) - 1);
+    uint64_t umask = ((1L << (S + 1)) - 1);
     umask = (umask >> R) | (umask << (reg_size - R));
     mask = static_cast<T>(umask);
     diff += reg_size;
@@ -3022,11 +2973,7 @@ void Simulator::VisitSystem(Instruction* instr) {
       default: UNIMPLEMENTED();
     }
   } else if (instr->Mask(MemBarrierFMask) == MemBarrierFixed) {
-#if defined(V8_OS_WIN)
-    MemoryBarrier();
-#else
     __sync_synchronize();
-#endif
   } else {
     UNIMPLEMENTED();
   }
@@ -4850,7 +4797,7 @@ void Simulator::VisitNEONModifiedImmediate(Instruction* instr) {
         vform = q ? kFormat2D : kFormat1D;
         imm = 0;
         for (int i = 0; i < 8; ++i) {
-          if (imm8 & (1ULL << i)) {
+          if (imm8 & (1 << i)) {
             imm |= (UINT64_C(0xFF) << (8 * i));
           }
         }

@@ -549,26 +549,6 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   // Check if the arguments will overflow the stack.
   __ Cmp(scratch, Operand(num_args, LSL, kPointerSizeLog2));
   __ B(le, stack_overflow);
-
-#if defined(V8_OS_WIN)
-  // Simulate _chkstk to extend stack guard page on Windows ARM64.
-  const int kPageSize = 4096;
-  Label chkstk, chkstk_done;
-  Register probe = temps.AcquireX();
-
-  __ Sub(scratch, sp, Operand(num_args, LSL, kPointerSizeLog2));
-  __ Mov(probe, sp);
-
-  // Loop start of stack probe.
-  __ Bind(&chkstk);
-  __ Sub(probe, probe, kPageSize);
-  __ Cmp(probe, scratch);
-  __ B(lo, &chkstk_done);
-  __ Ldrb(xzr, MemOperand(probe));
-  __ B(&chkstk);
-
-  __ Bind(&chkstk_done);
-#endif
 }
 
 // Input:
@@ -1016,15 +996,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Mov(
       kInterpreterDispatchTableRegister,
       ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
-#if defined(V8_OS_WIN)
-  __ Ldrb(x23, MemOperand(kInterpreterBytecodeArrayRegister,
-                          kInterpreterBytecodeOffsetRegister));
-  __ Mov(x1, Operand(x23, LSL, kPointerSizeLog2));
-#else
   __ Ldrb(x18, MemOperand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister));
   __ Mov(x1, Operand(x18, LSL, kPointerSizeLog2));
-#endif
   __ Ldr(kJavaScriptCallCodeStartRegister,
          MemOperand(kInterpreterDispatchTableRegister, x1));
   __ Call(kJavaScriptCallCodeStartRegister);
@@ -1258,15 +1232,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-#if defined(V8_OS_WIN)
-  __ Ldrb(x23, MemOperand(kInterpreterBytecodeArrayRegister,
-                          kInterpreterBytecodeOffsetRegister));
-  __ Mov(x1, Operand(x23, LSL, kPointerSizeLog2));
-#else
   __ Ldrb(x18, MemOperand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister));
   __ Mov(x1, Operand(x18, LSL, kPointerSizeLog2));
-#endif
   __ Ldr(kJavaScriptCallCodeStartRegister,
          MemOperand(kInterpreterDispatchTableRegister, x1));
   __ Jump(kJavaScriptCallCodeStartRegister);
@@ -2989,7 +2957,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Isolate the mantissa bits, and set the implicit '1'.
   Register mantissa = scratch2;
   __ Ubfx(mantissa, result, 0, HeapNumber::kMantissaBits);
-  __ Orr(mantissa, mantissa, 1ULL << HeapNumber::kMantissaBits);
+  __ Orr(mantissa, mantissa, 1UL << HeapNumber::kMantissaBits);
 
   // Negate the mantissa if necessary.
   __ Tst(result, kXSignMask);

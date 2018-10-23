@@ -250,7 +250,7 @@ class LiftoffCompiler {
           int reg_code = param_loc.AsRegister();
           RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
                                             : kLiftoffAssemblerFpCacheRegs;
-          if (cache_regs & (1ULL << reg_code)) {
+          if (cache_regs & (1 << reg_code)) {
             LiftoffRegister in_reg = LiftoffRegister::from_code(rc, reg_code);
             param_regs.set(in_reg);
           }
@@ -278,7 +278,7 @@ class LiftoffCompiler {
         int reg_code = param_loc.AsRegister();
         RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
                                           : kLiftoffAssemblerFpCacheRegs;
-        if (cache_regs & (1ULL << reg_code)) {
+        if (cache_regs & (1 << reg_code)) {
           // This is a cache register, just use it.
           in_reg = LiftoffRegister::from_code(rc, reg_code);
         } else {

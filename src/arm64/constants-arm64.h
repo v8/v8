@@ -8,16 +8,12 @@
 #include "src/base/macros.h"
 #include "src/globals.h"
 
-// Assert that this is an LP64 system, or LLP64 on Windows.
+// Assert that this is an LP64 system.
 STATIC_ASSERT(sizeof(int) == sizeof(int32_t));
-#if defined(V8_OS_WIN)
-STATIC_ASSERT(sizeof(1L) == sizeof(int32_t));
-#else
 STATIC_ASSERT(sizeof(long) == sizeof(int64_t));    // NOLINT(runtime/int)
-STATIC_ASSERT(sizeof(1L) == sizeof(int64_t));
-#endif
 STATIC_ASSERT(sizeof(void *) == sizeof(int64_t));
 STATIC_ASSERT(sizeof(1) == sizeof(int32_t));
+STATIC_ASSERT(sizeof(1L) == sizeof(int64_t));
 
 
 // Get the standard printf format macros for C99 stdint types.
@@ -81,17 +77,17 @@ const int64_t kDRegMask = 0xffffffffffffffffL;
 // TODO(all) check if the expression below works on all compilers or if it
 // triggers an overflow error.
 const int64_t kDSignBit = 63;
-const int64_t kDSignMask = 0x1LL << kDSignBit;
+const int64_t kDSignMask = 0x1L << kDSignBit;
 const int64_t kSSignBit = 31;
-const int64_t kSSignMask = 0x1LL << kSSignBit;
+const int64_t kSSignMask = 0x1L << kSSignBit;
 const int64_t kXSignBit = 63;
-const int64_t kXSignMask = 0x1LL << kXSignBit;
+const int64_t kXSignMask = 0x1L << kXSignBit;
 const int64_t kWSignBit = 31;
-const int64_t kWSignMask = 0x1LL << kWSignBit;
+const int64_t kWSignMask = 0x1L << kWSignBit;
 const int64_t kDQuietNanBit = 51;
-const int64_t kDQuietNanMask = 0x1LL << kDQuietNanBit;
+const int64_t kDQuietNanMask = 0x1L << kDQuietNanBit;
 const int64_t kSQuietNanBit = 22;
-const int64_t kSQuietNanMask = 0x1LL << kSQuietNanBit;
+const int64_t kSQuietNanMask = 0x1L << kSQuietNanBit;
 const int64_t kByteMask = 0xffL;
 const int64_t kHalfWordMask = 0xffffL;
 const int64_t kWordMask = 0xffffffffL;
@@ -277,7 +273,7 @@ V_(Flags, 31, 28, Bits, uint32_t)                                              \
 V_(N,     31, 31, Bits, bool)                                                  \
 V_(Z,     30, 30, Bits, bool)                                                  \
 V_(C,     29, 29, Bits, bool)                                                  \
-V_(V,     28, 28, Bits, bool)                                                  \
+V_(V,     28, 28, Bits, uint32_t)                                              \
 M_(NZCV, Flags_mask)                                                           \
                                                                                \
 /* FPCR */                                                                     \
@@ -449,14 +445,14 @@ enum SystemRegister {
 const uint32_t kUnallocatedInstruction = 0xffffffff;
 
 // Generic fields.
-enum GenericInstrField : uint32_t {
+enum GenericInstrField {
   SixtyFourBits        = 0x80000000,
   ThirtyTwoBits        = 0x00000000,
   FP32                 = 0x00000000,
   FP64                 = 0x00400000
 };
 
-enum NEONFormatField : uint32_t {
+enum NEONFormatField {
   NEONFormatFieldMask = 0x40C00000,
   NEON_Q = 0x40000000,
   NEON_8B = 0x00000000,
@@ -469,14 +465,14 @@ enum NEONFormatField : uint32_t {
   NEON_2D = 0x00C00000 | NEON_Q
 };
 
-enum NEONFPFormatField : uint32_t {
+enum NEONFPFormatField {
   NEONFPFormatFieldMask = 0x40400000,
   NEON_FP_2S = FP32,
   NEON_FP_4S = FP32 | NEON_Q,
   NEON_FP_2D = FP64 | NEON_Q
 };
 
-enum NEONLSFormatField : uint32_t {
+enum NEONLSFormatField {
   NEONLSFormatFieldMask = 0x40000C00,
   LS_NEON_8B = 0x00000000,
   LS_NEON_16B = LS_NEON_8B | NEON_Q,
@@ -488,7 +484,7 @@ enum NEONLSFormatField : uint32_t {
   LS_NEON_2D = LS_NEON_1D | NEON_Q
 };
 
-enum NEONScalarFormatField : uint32_t {
+enum NEONScalarFormatField {
   NEONScalarFormatFieldMask = 0x00C00000,
   NEONScalar = 0x10000000,
   NEON_B = 0x00000000,
@@ -498,7 +494,7 @@ enum NEONScalarFormatField : uint32_t {
 };
 
 // PC relative addressing.
-enum PCRelAddressingOp : uint32_t {
+enum PCRelAddressingOp {
   PCRelAddressingFixed = 0x10000000,
   PCRelAddressingFMask = 0x1F000000,
   PCRelAddressingMask  = 0x9F000000,
@@ -508,7 +504,7 @@ enum PCRelAddressingOp : uint32_t {
 
 // Add/sub (immediate, shifted and extended.)
 const int kSFOffset = 31;
-enum AddSubOp : uint32_t {
+enum AddSubOp {
   AddSubOpMask      = 0x60000000,
   AddSubSetFlagsBit = 0x20000000,
   ADD               = 0x00000000,
@@ -523,7 +519,7 @@ enum AddSubOp : uint32_t {
   V(SUB),                   \
   V(SUBS)
 
-enum AddSubImmediateOp : uint32_t {
+enum AddSubImmediateOp {
   AddSubImmediateFixed = 0x11000000,
   AddSubImmediateFMask = 0x1F000000,
   AddSubImmediateMask  = 0xFF000000,
@@ -534,7 +530,7 @@ enum AddSubImmediateOp : uint32_t {
   #undef ADD_SUB_IMMEDIATE
 };
 
-enum AddSubShiftedOp : uint32_t {
+enum AddSubShiftedOp {
   AddSubShiftedFixed   = 0x0B000000,
   AddSubShiftedFMask   = 0x1F200000,
   AddSubShiftedMask    = 0xFF200000,
@@ -545,7 +541,7 @@ enum AddSubShiftedOp : uint32_t {
   #undef ADD_SUB_SHIFTED
 };
 
-enum AddSubExtendedOp : uint32_t {
+enum AddSubExtendedOp {
   AddSubExtendedFixed  = 0x0B200000,
   AddSubExtendedFMask  = 0x1F200000,
   AddSubExtendedMask   = 0xFFE00000,
@@ -557,7 +553,7 @@ enum AddSubExtendedOp : uint32_t {
 };
 
 // Add/sub with carry.
-enum AddSubWithCarryOp : uint32_t {
+enum AddSubWithCarryOp {
   AddSubWithCarryFixed = 0x1A000000,
   AddSubWithCarryFMask = 0x1FE00000,
   AddSubWithCarryMask  = 0xFFE0FC00,
@@ -575,7 +571,7 @@ enum AddSubWithCarryOp : uint32_t {
 
 
 // Logical (immediate and shifted register).
-enum LogicalOp : uint32_t {
+enum LogicalOp {
   LogicalOpMask = 0x60200000,
   NOT   = 0x00200000,
   AND   = 0x00000000,
@@ -589,7 +585,7 @@ enum LogicalOp : uint32_t {
 };
 
 // Logical immediate.
-enum LogicalImmediateOp : uint32_t {
+enum LogicalImmediateOp {
   LogicalImmediateFixed = 0x12000000,
   LogicalImmediateFMask = 0x1F800000,
   LogicalImmediateMask  = 0xFF800000,
@@ -604,7 +600,7 @@ enum LogicalImmediateOp : uint32_t {
 };
 
 // Logical shifted register.
-enum LogicalShiftedOp : uint32_t {
+enum LogicalShiftedOp {
   LogicalShiftedFixed = 0x0A000000,
   LogicalShiftedFMask = 0x1F000000,
   LogicalShiftedMask  = 0xFF200000,
@@ -635,7 +631,7 @@ enum LogicalShiftedOp : uint32_t {
 };
 
 // Move wide immediate.
-enum MoveWideImmediateOp : uint32_t {
+enum MoveWideImmediateOp {
   MoveWideImmediateFixed = 0x12800000,
   MoveWideImmediateFMask = 0x1F800000,
   MoveWideImmediateMask  = 0xFF800000,
@@ -652,7 +648,7 @@ enum MoveWideImmediateOp : uint32_t {
 
 // Bitfield.
 const int kBitfieldNOffset = 22;
-enum BitfieldOp : uint32_t {
+enum BitfieldOp {
   BitfieldFixed = 0x13000000,
   BitfieldFMask = 0x1F800000,
   BitfieldMask  = 0xFF800000,
@@ -669,7 +665,7 @@ enum BitfieldOp : uint32_t {
 };
 
 // Extract.
-enum ExtractOp : uint32_t {
+enum ExtractOp {
   ExtractFixed = 0x13800000,
   ExtractFMask = 0x1F800000,
   ExtractMask  = 0xFFA00000,
@@ -679,7 +675,7 @@ enum ExtractOp : uint32_t {
 };
 
 // Unconditional branch.
-enum UnconditionalBranchOp : uint32_t {
+enum UnconditionalBranchOp {
   UnconditionalBranchFixed = 0x14000000,
   UnconditionalBranchFMask = 0x7C000000,
   UnconditionalBranchMask  = 0xFC000000,
@@ -688,7 +684,7 @@ enum UnconditionalBranchOp : uint32_t {
 };
 
 // Unconditional branch to register.
-enum UnconditionalBranchToRegisterOp : uint32_t {
+enum UnconditionalBranchToRegisterOp {
   UnconditionalBranchToRegisterFixed = 0xD6000000,
   UnconditionalBranchToRegisterFMask = 0xFE000000,
   UnconditionalBranchToRegisterMask  = 0xFFFFFC1F,
@@ -698,7 +694,7 @@ enum UnconditionalBranchToRegisterOp : uint32_t {
 };
 
 // Compare and branch.
-enum CompareBranchOp : uint32_t {
+enum CompareBranchOp {
   CompareBranchFixed = 0x34000000,
   CompareBranchFMask = 0x7E000000,
   CompareBranchMask  = 0xFF000000,
@@ -711,7 +707,7 @@ enum CompareBranchOp : uint32_t {
 };
 
 // Test and branch.
-enum TestBranchOp : uint32_t {
+enum TestBranchOp {
   TestBranchFixed = 0x36000000,
   TestBranchFMask = 0x7E000000,
   TestBranchMask  = 0x7F000000,
@@ -720,7 +716,7 @@ enum TestBranchOp : uint32_t {
 };
 
 // Conditional branch.
-enum ConditionalBranchOp : uint32_t {
+enum ConditionalBranchOp {
   ConditionalBranchFixed = 0x54000000,
   ConditionalBranchFMask = 0xFE000000,
   ConditionalBranchMask  = 0xFF000010,
@@ -732,12 +728,12 @@ enum ConditionalBranchOp : uint32_t {
 // and CR fields to encode parameters. To handle this cleanly, the system
 // instructions are split into more than one enum.
 
-enum SystemOp : uint32_t {
+enum SystemOp {
   SystemFixed = 0xD5000000,
   SystemFMask = 0xFFC00000
 };
 
-enum SystemSysRegOp : uint32_t {
+enum SystemSysRegOp {
   SystemSysRegFixed = 0xD5100000,
   SystemSysRegFMask = 0xFFD00000,
   SystemSysRegMask  = 0xFFF00000,
@@ -745,7 +741,7 @@ enum SystemSysRegOp : uint32_t {
   MSR               = SystemSysRegFixed | 0x00000000
 };
 
-enum SystemHintOp : uint32_t {
+enum SystemHintOp {
   SystemHintFixed = 0xD503201F,
   SystemHintFMask = 0xFFFFF01F,
   SystemHintMask  = 0xFFFFF01F,
@@ -753,7 +749,7 @@ enum SystemHintOp : uint32_t {
 };
 
 // Exception.
-enum ExceptionOp : uint32_t {
+enum ExceptionOp {
   ExceptionFixed = 0xD4000000,
   ExceptionFMask = 0xFF000000,
   ExceptionMask  = 0xFFE0001F,
@@ -769,7 +765,7 @@ enum ExceptionOp : uint32_t {
 // Code used to spot hlt instructions that should not be hit.
 const int kHltBadCode = 0xbad;
 
-enum MemBarrierOp : uint32_t {
+enum MemBarrierOp {
   MemBarrierFixed = 0xD503309F,
   MemBarrierFMask = 0xFFFFF09F,
   MemBarrierMask  = 0xFFFFF0FF,
@@ -779,13 +775,13 @@ enum MemBarrierOp : uint32_t {
 };
 
 // Any load or store (including pair).
-enum LoadStoreAnyOp : uint32_t {
+enum LoadStoreAnyOp {
   LoadStoreAnyFMask = 0x0a000000,
   LoadStoreAnyFixed = 0x08000000
 };
 
 // Any load pair or store pair.
-enum LoadStorePairAnyOp : uint32_t {
+enum LoadStorePairAnyOp {
   LoadStorePairAnyFMask = 0x3a000000,
   LoadStorePairAnyFixed = 0x28000000
 };
@@ -798,7 +794,7 @@ enum LoadStorePairAnyOp : uint32_t {
       V(LDP, q, 0x84400000)
 
 // Load/store pair (post, pre and offset.)
-enum LoadStorePairOp : uint32_t {
+enum LoadStorePairOp {
   LoadStorePairMask = 0xC4400000,
   LoadStorePairLBit = 1 << 22,
   #define LOAD_STORE_PAIR(A, B, C) \
@@ -807,7 +803,7 @@ enum LoadStorePairOp : uint32_t {
   #undef LOAD_STORE_PAIR
 };
 
-enum LoadStorePairPostIndexOp : uint32_t {
+enum LoadStorePairPostIndexOp {
   LoadStorePairPostIndexFixed = 0x28800000,
   LoadStorePairPostIndexFMask = 0x3B800000,
   LoadStorePairPostIndexMask  = 0xFFC00000,
@@ -817,7 +813,7 @@ enum LoadStorePairPostIndexOp : uint32_t {
   #undef LOAD_STORE_PAIR_POST_INDEX
 };
 
-enum LoadStorePairPreIndexOp : uint32_t {
+enum LoadStorePairPreIndexOp {
   LoadStorePairPreIndexFixed = 0x29800000,
   LoadStorePairPreIndexFMask = 0x3B800000,
   LoadStorePairPreIndexMask  = 0xFFC00000,
@@ -827,7 +823,7 @@ enum LoadStorePairPreIndexOp : uint32_t {
   #undef LOAD_STORE_PAIR_PRE_INDEX
 };
 
-enum LoadStorePairOffsetOp : uint32_t {
+enum LoadStorePairOffsetOp {
   LoadStorePairOffsetFixed = 0x29000000,
   LoadStorePairOffsetFMask = 0x3B800000,
   LoadStorePairOffsetMask  = 0xFFC00000,
@@ -838,7 +834,7 @@ enum LoadStorePairOffsetOp : uint32_t {
 };
 
 // Load literal.
-enum LoadLiteralOp : uint32_t {
+enum LoadLiteralOp {
   LoadLiteralFixed = 0x18000000,
   LoadLiteralFMask = 0x3B000000,
   LoadLiteralMask  = 0xFF000000,
@@ -880,7 +876,7 @@ enum LoadLiteralOp : uint32_t {
 // clang-format on
 
 // Load/store unscaled offset.
-enum LoadStoreUnscaledOffsetOp : uint32_t {
+enum LoadStoreUnscaledOffsetOp {
   LoadStoreUnscaledOffsetFixed = 0x38000000,
   LoadStoreUnscaledOffsetFMask = 0x3B200C00,
   LoadStoreUnscaledOffsetMask  = 0xFFE00C00,
@@ -891,7 +887,7 @@ enum LoadStoreUnscaledOffsetOp : uint32_t {
 };
 
 // Load/store (post, pre, offset and unsigned.)
-enum LoadStoreOp : uint32_t {
+enum LoadStoreOp {
   LoadStoreMask = 0xC4C00000,
 #define LOAD_STORE(A, B, C, D) A##B##_##C = D
   LOAD_STORE_OP_LIST(LOAD_STORE),
@@ -900,7 +896,7 @@ enum LoadStoreOp : uint32_t {
 };
 
 // Load/store post index.
-enum LoadStorePostIndex : uint32_t {
+enum LoadStorePostIndex {
   LoadStorePostIndexFixed = 0x38000400,
   LoadStorePostIndexFMask = 0x3B200C00,
   LoadStorePostIndexMask  = 0xFFE00C00,
@@ -911,7 +907,7 @@ enum LoadStorePostIndex : uint32_t {
 };
 
 // Load/store pre index.
-enum LoadStorePreIndex : uint32_t {
+enum LoadStorePreIndex {
   LoadStorePreIndexFixed = 0x38000C00,
   LoadStorePreIndexFMask = 0x3B200C00,
   LoadStorePreIndexMask  = 0xFFE00C00,
@@ -922,7 +918,7 @@ enum LoadStorePreIndex : uint32_t {
 };
 
 // Load/store unsigned offset.
-enum LoadStoreUnsignedOffset : uint32_t {
+enum LoadStoreUnsignedOffset {
   LoadStoreUnsignedOffsetFixed = 0x39000000,
   LoadStoreUnsignedOffsetFMask = 0x3B000000,
   LoadStoreUnsignedOffsetMask  = 0xFFC00000,
@@ -934,7 +930,7 @@ enum LoadStoreUnsignedOffset : uint32_t {
 };
 
 // Load/store register offset.
-enum LoadStoreRegisterOffset : uint32_t {
+enum LoadStoreRegisterOffset {
   LoadStoreRegisterOffsetFixed = 0x38200800,
   LoadStoreRegisterOffsetFMask = 0x3B200C00,
   LoadStoreRegisterOffsetMask  = 0xFFE00C00,
@@ -946,7 +942,7 @@ enum LoadStoreRegisterOffset : uint32_t {
 };
 
 // Load/store acquire/release.
-enum LoadStoreAcquireReleaseOp : uint32_t {
+enum LoadStoreAcquireReleaseOp {
   LoadStoreAcquireReleaseFixed = 0x08000000,
   LoadStoreAcquireReleaseFMask = 0x3F000000,
   LoadStoreAcquireReleaseMask = 0xCFC08000,
@@ -969,14 +965,14 @@ enum LoadStoreAcquireReleaseOp : uint32_t {
 };
 
 // Conditional compare.
-enum ConditionalCompareOp : uint32_t {
+enum ConditionalCompareOp {
   ConditionalCompareMask = 0x60000000,
   CCMN                   = 0x20000000,
   CCMP                   = 0x60000000
 };
 
 // Conditional compare register.
-enum ConditionalCompareRegisterOp : uint32_t {
+enum ConditionalCompareRegisterOp {
   ConditionalCompareRegisterFixed = 0x1A400000,
   ConditionalCompareRegisterFMask = 0x1FE00800,
   ConditionalCompareRegisterMask  = 0xFFE00C10,
@@ -987,7 +983,7 @@ enum ConditionalCompareRegisterOp : uint32_t {
 };
 
 // Conditional compare immediate.
-enum ConditionalCompareImmediateOp : uint32_t {
+enum ConditionalCompareImmediateOp {
   ConditionalCompareImmediateFixed = 0x1A400800,
   ConditionalCompareImmediateFMask = 0x1FE00800,
   ConditionalCompareImmediateMask  = 0xFFE00C10,
@@ -998,7 +994,7 @@ enum ConditionalCompareImmediateOp : uint32_t {
 };
 
 // Conditional select.
-enum ConditionalSelectOp : uint32_t {
+enum ConditionalSelectOp {
   ConditionalSelectFixed = 0x1A800000,
   ConditionalSelectFMask = 0x1FE00000,
   ConditionalSelectMask  = 0xFFE00C00,
@@ -1017,7 +1013,7 @@ enum ConditionalSelectOp : uint32_t {
 };
 
 // Data processing 1 source.
-enum DataProcessing1SourceOp : uint32_t {
+enum DataProcessing1SourceOp {
   DataProcessing1SourceFixed = 0x5AC00000,
   DataProcessing1SourceFMask = 0x5FE00000,
   DataProcessing1SourceMask  = 0xFFFFFC00,
@@ -1040,7 +1036,7 @@ enum DataProcessing1SourceOp : uint32_t {
 };
 
 // Data processing 2 source.
-enum DataProcessing2SourceOp : uint32_t {
+enum DataProcessing2SourceOp {
   DataProcessing2SourceFixed = 0x1AC00000,
   DataProcessing2SourceFMask = 0x5FE00000,
   DataProcessing2SourceMask  = 0xFFE0FC00,
@@ -1073,7 +1069,7 @@ enum DataProcessing2SourceOp : uint32_t {
 };
 
 // Data processing 3 source.
-enum DataProcessing3SourceOp : uint32_t {
+enum DataProcessing3SourceOp {
   DataProcessing3SourceFixed = 0x1B000000,
   DataProcessing3SourceFMask = 0x1F000000,
   DataProcessing3SourceMask  = 0xFFE08000,
@@ -1092,7 +1088,7 @@ enum DataProcessing3SourceOp : uint32_t {
 };
 
 // Floating point compare.
-enum FPCompareOp : uint32_t {
+enum FPCompareOp {
   FPCompareFixed = 0x1E202000,
   FPCompareFMask = 0x5F203C00,
   FPCompareMask  = 0xFFE0FC1F,
@@ -1109,7 +1105,7 @@ enum FPCompareOp : uint32_t {
 };
 
 // Floating point conditional compare.
-enum FPConditionalCompareOp : uint32_t {
+enum FPConditionalCompareOp {
   FPConditionalCompareFixed = 0x1E200400,
   FPConditionalCompareFMask = 0x5F200C00,
   FPConditionalCompareMask  = 0xFFE00C10,
@@ -1122,7 +1118,7 @@ enum FPConditionalCompareOp : uint32_t {
 };
 
 // Floating point conditional select.
-enum FPConditionalSelectOp : uint32_t {
+enum FPConditionalSelectOp {
   FPConditionalSelectFixed = 0x1E200C00,
   FPConditionalSelectFMask = 0x5F200C00,
   FPConditionalSelectMask  = 0xFFE00C00,
@@ -1132,7 +1128,7 @@ enum FPConditionalSelectOp : uint32_t {
 };
 
 // Floating point immediate.
-enum FPImmediateOp : uint32_t {
+enum FPImmediateOp {
   FPImmediateFixed = 0x1E201000,
   FPImmediateFMask = 0x5F201C00,
   FPImmediateMask  = 0xFFE01C00,
@@ -1141,7 +1137,7 @@ enum FPImmediateOp : uint32_t {
 };
 
 // Floating point data processing 1 source.
-enum FPDataProcessing1SourceOp : uint32_t {
+enum FPDataProcessing1SourceOp {
   FPDataProcessing1SourceFixed = 0x1E204000,
   FPDataProcessing1SourceFMask = 0x5F207C00,
   FPDataProcessing1SourceMask = 0xFFFFFC00,
@@ -1187,7 +1183,7 @@ enum FPDataProcessing1SourceOp : uint32_t {
 };
 
 // Floating point data processing 2 source.
-enum FPDataProcessing2SourceOp : uint32_t {
+enum FPDataProcessing2SourceOp {
   FPDataProcessing2SourceFixed = 0x1E200800,
   FPDataProcessing2SourceFMask = 0x5F200C00,
   FPDataProcessing2SourceMask  = 0xFFE0FC00,
@@ -1221,7 +1217,7 @@ enum FPDataProcessing2SourceOp : uint32_t {
 };
 
 // Floating point data processing 3 source.
-enum FPDataProcessing3SourceOp : uint32_t {
+enum FPDataProcessing3SourceOp {
   FPDataProcessing3SourceFixed = 0x1F000000,
   FPDataProcessing3SourceFMask = 0x5F000000,
   FPDataProcessing3SourceMask  = 0xFFE08000,
@@ -1236,7 +1232,7 @@ enum FPDataProcessing3SourceOp : uint32_t {
 };
 
 // Conversion between floating point and integer.
-enum FPIntegerConvertOp : uint32_t {
+enum FPIntegerConvertOp {
   FPIntegerConvertFixed = 0x1E200000,
   FPIntegerConvertFMask = 0x5F20FC00,
   FPIntegerConvertMask = 0xFFFFFC00,
@@ -1309,7 +1305,7 @@ enum FPIntegerConvertOp : uint32_t {
 };
 
 // Conversion between fixed point and floating point.
-enum FPFixedPointConvertOp : uint32_t {
+enum FPFixedPointConvertOp {
   FPFixedPointConvertFixed = 0x1E000000,
   FPFixedPointConvertFMask = 0x5F200000,
   FPFixedPointConvertMask  = 0xFFFF0000,
@@ -1336,7 +1332,7 @@ enum FPFixedPointConvertOp : uint32_t {
 };
 
 // NEON instructions with two register operands.
-enum NEON2RegMiscOp : uint32_t {
+enum NEON2RegMiscOp {
   NEON2RegMiscFixed = 0x0E200800,
   NEON2RegMiscFMask = 0x9F3E0C00,
   NEON2RegMiscMask = 0xBF3FFC00,
@@ -1418,7 +1414,7 @@ enum NEON2RegMiscOp : uint32_t {
 };
 
 // NEON instructions with three same-type operands.
-enum NEON3SameOp : uint32_t {
+enum NEON3SameOp {
   NEON3SameFixed = 0x0E200400,
   NEON3SameFMask = 0x9F200400,
   NEON3SameMask = 0xBF20FC00,
@@ -1514,7 +1510,7 @@ enum NEON3SameOp : uint32_t {
 };
 
 // NEON instructions with three different-type operands.
-enum NEON3DifferentOp : uint32_t {
+enum NEON3DifferentOp {
   NEON3DifferentFixed = 0x0E200000,
   NEON3DifferentFMask = 0x9F200C00,
   NEON3DifferentMask = 0xFF20FC00,
@@ -1573,7 +1569,7 @@ enum NEON3DifferentOp : uint32_t {
 };
 
 // NEON instructions operating across vectors.
-enum NEONAcrossLanesOp : uint32_t {
+enum NEONAcrossLanesOp {
   NEONAcrossLanesFixed = 0x0E300800,
   NEONAcrossLanesFMask = 0x9F3E0C00,
   NEONAcrossLanesMask = 0xBF3FFC00,
@@ -1597,7 +1593,7 @@ enum NEONAcrossLanesOp : uint32_t {
 };
 
 // NEON instructions with indexed element operand.
-enum NEONByIndexedElementOp : uint32_t {
+enum NEONByIndexedElementOp {
   NEONByIndexedElementFixed = 0x0F000000,
   NEONByIndexedElementFMask = 0x9F000400,
   NEONByIndexedElementMask = 0xBF00F400,
@@ -1626,7 +1622,7 @@ enum NEONByIndexedElementOp : uint32_t {
 };
 
 // NEON modified immediate.
-enum NEONModifiedImmediateOp : uint32_t {
+enum NEONModifiedImmediateOp {
   NEONModifiedImmediateFixed = 0x0F000400,
   NEONModifiedImmediateFMask = 0x9FF80400,
   NEONModifiedImmediateOpBit = 0x20000000,
@@ -1637,14 +1633,14 @@ enum NEONModifiedImmediateOp : uint32_t {
 };
 
 // NEON extract.
-enum NEONExtractOp : uint32_t {
+enum NEONExtractOp {
   NEONExtractFixed = 0x2E000000,
   NEONExtractFMask = 0xBF208400,
   NEONExtractMask = 0xBFE08400,
   NEON_EXT = NEONExtractFixed | 0x00000000
 };
 
-enum NEONLoadStoreMultiOp : uint32_t {
+enum NEONLoadStoreMultiOp {
   NEONLoadStoreMultiL = 0x00400000,
   NEONLoadStoreMulti1_1v = 0x00007000,
   NEONLoadStoreMulti1_2v = 0x0000A000,
@@ -1656,7 +1652,7 @@ enum NEONLoadStoreMultiOp : uint32_t {
 };
 
 // NEON load/store multiple structures.
-enum NEONLoadStoreMultiStructOp : uint32_t {
+enum NEONLoadStoreMultiStructOp {
   NEONLoadStoreMultiStructFixed = 0x0C000000,
   NEONLoadStoreMultiStructFMask = 0xBFBF0000,
   NEONLoadStoreMultiStructMask = 0xBFFFF000,
@@ -1680,7 +1676,7 @@ enum NEONLoadStoreMultiStructOp : uint32_t {
 };
 
 // NEON load/store multiple structures with post-index addressing.
-enum NEONLoadStoreMultiStructPostIndexOp : uint32_t {
+enum NEONLoadStoreMultiStructPostIndexOp {
   NEONLoadStoreMultiStructPostIndexFixed = 0x0C800000,
   NEONLoadStoreMultiStructPostIndexFMask = 0xBFA00000,
   NEONLoadStoreMultiStructPostIndexMask = 0xBFE0F000,
@@ -1701,7 +1697,7 @@ enum NEONLoadStoreMultiStructPostIndexOp : uint32_t {
   NEON_ST4_post = NEON_ST4 | NEONLoadStoreMultiStructPostIndex
 };
 
-enum NEONLoadStoreSingleOp : uint32_t {
+enum NEONLoadStoreSingleOp {
   NEONLoadStoreSingle1 = 0x00000000,
   NEONLoadStoreSingle2 = 0x00200000,
   NEONLoadStoreSingle3 = 0x00002000,
@@ -1716,7 +1712,7 @@ enum NEONLoadStoreSingleOp : uint32_t {
 };
 
 // NEON load/store single structure.
-enum NEONLoadStoreSingleStructOp : uint32_t {
+enum NEONLoadStoreSingleStructOp {
   NEONLoadStoreSingleStructFixed = 0x0D000000,
   NEONLoadStoreSingleStructFMask = 0xBF9F0000,
   NEONLoadStoreSingleStructMask = 0xBFFFE000,
@@ -1781,7 +1777,7 @@ enum NEONLoadStoreSingleStructOp : uint32_t {
 };
 
 // NEON load/store single structure with post-index addressing.
-enum NEONLoadStoreSingleStructPostIndexOp : uint32_t {
+enum NEONLoadStoreSingleStructPostIndexOp {
   NEONLoadStoreSingleStructPostIndexFixed = 0x0D800000,
   NEONLoadStoreSingleStructPostIndexFMask = 0xBF800000,
   NEONLoadStoreSingleStructPostIndexMask = 0xBFE0E000,
@@ -1828,7 +1824,7 @@ enum NEONLoadStoreSingleStructPostIndexOp : uint32_t {
 };
 
 // NEON register copy.
-enum NEONCopyOp : uint32_t {
+enum NEONCopyOp {
   NEONCopyFixed = 0x0E000400,
   NEONCopyFMask = 0x9FE08400,
   NEONCopyMask = 0x3FE08400,
@@ -1847,7 +1843,7 @@ enum NEONCopyOp : uint32_t {
 };
 
 // NEON scalar instructions with indexed element operand.
-enum NEONScalarByIndexedElementOp : uint32_t {
+enum NEONScalarByIndexedElementOp {
   NEONScalarByIndexedElementFixed = 0x5F000000,
   NEONScalarByIndexedElementFMask = 0xDF000400,
   NEONScalarByIndexedElementMask = 0xFF00F400,
@@ -1870,7 +1866,7 @@ enum NEONScalarByIndexedElementOp : uint32_t {
 };
 
 // NEON shift immediate.
-enum NEONShiftImmediateOp : uint32_t {
+enum NEONShiftImmediateOp {
   NEONShiftImmediateFixed = 0x0F000400,
   NEONShiftImmediateFMask = 0x9F800400,
   NEONShiftImmediateMask = 0xBF80FC00,
@@ -1906,7 +1902,7 @@ enum NEONShiftImmediateOp : uint32_t {
 };
 
 // NEON scalar register copy.
-enum NEONScalarCopyOp : uint32_t {
+enum NEONScalarCopyOp {
   NEONScalarCopyFixed = 0x5E000400,
   NEONScalarCopyFMask = 0xDFE08400,
   NEONScalarCopyMask = 0xFFE0FC00,
@@ -1914,7 +1910,7 @@ enum NEONScalarCopyOp : uint32_t {
 };
 
 // NEON scalar pairwise instructions.
-enum NEONScalarPairwiseOp : uint32_t {
+enum NEONScalarPairwiseOp {
   NEONScalarPairwiseFixed = 0x5E300800,
   NEONScalarPairwiseFMask = 0xDF3E0C00,
   NEONScalarPairwiseMask = 0xFFB1F800,
@@ -1927,7 +1923,7 @@ enum NEONScalarPairwiseOp : uint32_t {
 };
 
 // NEON scalar shift immediate.
-enum NEONScalarShiftImmediateOp : uint32_t {
+enum NEONScalarShiftImmediateOp {
   NEONScalarShiftImmediateFixed = 0x5F000400,
   NEONScalarShiftImmediateFMask = 0xDF800400,
   NEONScalarShiftImmediateMask = 0xFF80FC00,
@@ -1958,7 +1954,7 @@ enum NEONScalarShiftImmediateOp : uint32_t {
 };
 
 // NEON table.
-enum NEONTableOp : uint32_t {
+enum NEONTableOp {
   NEONTableFixed = 0x0E000000,
   NEONTableFMask = 0xBF208C00,
   NEONTableExt = 0x00001000,
@@ -1974,7 +1970,7 @@ enum NEONTableOp : uint32_t {
 };
 
 // NEON perm.
-enum NEONPermOp : uint32_t {
+enum NEONPermOp {
   NEONPermFixed = 0x0E000800,
   NEONPermFMask = 0xBF208C00,
   NEONPermMask = 0x3F20FC00,
@@ -1987,7 +1983,7 @@ enum NEONPermOp : uint32_t {
 };
 
 // NEON scalar instructions with two register operands.
-enum NEONScalar2RegMiscOp : uint32_t {
+enum NEONScalar2RegMiscOp {
   NEONScalar2RegMiscFixed = 0x5E200800,
   NEONScalar2RegMiscFMask = 0xDF3E0C00,
   NEONScalar2RegMiscMask = NEON_Q | NEONScalar | NEON2RegMiscMask,
@@ -2034,7 +2030,7 @@ enum NEONScalar2RegMiscOp : uint32_t {
 };
 
 // NEON scalar instructions with three same-type operands.
-enum NEONScalar3SameOp : uint32_t {
+enum NEONScalar3SameOp {
   NEONScalar3SameFixed = 0x5E200400,
   NEONScalar3SameFMask = 0xDF200400,
   NEONScalar3SameMask = 0xFF20FC00,
@@ -2077,7 +2073,7 @@ enum NEONScalar3SameOp : uint32_t {
 };
 
 // NEON scalar instructions with three different-type operands.
-enum NEONScalar3DiffOp : uint32_t {
+enum NEONScalar3DiffOp {
   NEONScalar3DiffFixed = 0x5E200000,
   NEONScalar3DiffFMask = 0xDF200C00,
   NEONScalar3DiffMask = NEON_Q | NEONScalar | NEON3DifferentMask,
@@ -2088,12 +2084,12 @@ enum NEONScalar3DiffOp : uint32_t {
 
 // Unimplemented and unallocated instructions. These are defined to make fixed
 // bit assertion easier.
-enum UnimplementedOp : uint32_t {
+enum UnimplementedOp {
   UnimplementedFixed = 0x00000000,
   UnimplementedFMask = 0x00000000
 };
 
-enum UnallocatedOp : uint32_t {
+enum UnallocatedOp {
   UnallocatedFixed = 0x00000000,
   UnallocatedFMask = 0x00000000
 };
