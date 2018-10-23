@@ -435,7 +435,6 @@ namespace internal {
   TFS(AsyncFunctionAwaitUncaught, kAsyncFunctionObject, kValue)                \
   TFJ(AsyncFunctionAwaitRejectClosure, 1, kReceiver, kSentError)               \
   TFJ(AsyncFunctionAwaitResolveClosure, 1, kReceiver, kSentValue)              \
-  TFJ(AsyncFunctionPromiseCreate, 0, kReceiver)                                \
                                                                                \
   /* BigInt */                                                                 \
   CPP(BigIntConstructor)                                                       \

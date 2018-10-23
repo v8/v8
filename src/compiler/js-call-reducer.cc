@@ -3655,8 +3655,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayIterator(node, IterationKind::kKeys);
     case Builtins::kTypedArrayPrototypeValues:
       return ReduceArrayIterator(node, IterationKind::kValues);
-    case Builtins::kAsyncFunctionPromiseCreate:
-      return ReduceAsyncFunctionPromiseCreate(node);
     case Builtins::kPromiseInternalConstructor:
       return ReducePromiseInternalConstructor(node);
     case Builtins::kPromiseInternalReject:
@@ -5493,25 +5491,6 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
-}
-
-Reduction JSCallReducer::ReduceAsyncFunctionPromiseCreate(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
-
-  // Install a code dependency on the promise hook protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_hook_protector()));
-
-  // Morph this {node} into a JSCreatePromise node.
-  RelaxControls(node);
-  node->ReplaceInput(0, context);
-  node->ReplaceInput(1, effect);
-  node->TrimInputCount(2);
-  NodeProperties::ChangeOp(node, javascript()->CreatePromise());
-  return Changed(node);
 }
 
 Node* JSCallReducer::CreateArtificialFrameState(

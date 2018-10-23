@@ -4298,13 +4298,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           factory->empty_string(), 1);
       native_context->set_async_function_await_resolve_shared_fun(*info);
     }
-
-    {
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kAsyncFunctionPromiseCreate, 0, false);
-      native_context->set_async_function_promise_create(*function);
-    }
   }
 
   {  // -- C a l l S i t e

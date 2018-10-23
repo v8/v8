@@ -303,27 +303,5 @@ TF_BUILTIN(AsyncFunctionAwaitUncaught, AsyncFunctionBuiltinsAssembler) {
   AsyncFunctionAwait<Descriptor>(kIsPredictedAsCaught);
 }
 
-TF_BUILTIN(AsyncFunctionPromiseCreate, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 0);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  Node* const promise = AllocateAndInitJSPromise(context);
-
-  Label if_is_debug_active(this, Label::kDeferred);
-  GotoIf(IsDebugActive(), &if_is_debug_active);
-
-  // Early exit if debug is not active.
-  Return(promise);
-
-  BIND(&if_is_debug_active);
-  {
-    // Push the Promise under construction in an async function on
-    // the catch prediction stack to handle exceptions thrown before
-    // the first await.
-    CallRuntime(Runtime::kDebugPushPromise, context, promise);
-    Return(promise);
-  }
-}
-
 }  // namespace internal
 }  // namespace v8
