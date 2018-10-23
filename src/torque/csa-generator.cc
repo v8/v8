@@ -254,11 +254,7 @@ void CSAGenerator::EmitInstruction(
       out_ << ", &" << var_names[i][j];
     }
   }
-  if (return_type->IsStructType()) {
-    out_ << ").Flatten();\n";
-  } else {
-    out_ << ");\n";
-  }
+  out_ << ");\n";
   if (instruction.return_continuation) {
     out_ << "    Goto(&" << BlockName(*instruction.return_continuation);
     for (const std::string& value : *stack) {
