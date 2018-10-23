@@ -39,12 +39,10 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
   Handle<FixedArray> array;
   int allocated = 0;
   do {
-    if (allocated + kArraySize * 2 >
-        static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage())) {
+    if (allocated + kArraySize * 2 > MemoryChunk::kAllocatableMemory) {
       int size =
           kArraySize * 2 -
-          ((allocated + kArraySize * 2) -
-           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage())) -
+          ((allocated + kArraySize * 2) - MemoryChunk::kAllocatableMemory) -
           remainder;
       int last_array_len = heap::FixedArrayLenFromSize(size);
       array = isolate->factory()->NewFixedArray(last_array_len, TENURED);
@@ -61,8 +59,7 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
                Page::FromAddress(array->address())->area_start());
     }
     handles.push_back(array);
-  } while (allocated <
-           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()));
+  } while (allocated < MemoryChunk::kAllocatableMemory);
   return handles;
 }
 

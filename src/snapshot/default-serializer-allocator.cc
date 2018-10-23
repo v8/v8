@@ -26,8 +26,7 @@ void DefaultSerializerAllocator::UseCustomChunkSize(uint32_t chunk_size) {
 
 static uint32_t PageSizeOfSpace(int space) {
   return static_cast<uint32_t>(
-      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
-          static_cast<AllocationSpace>(space)));
+      MemoryAllocator::PageAreaSize(static_cast<AllocationSpace>(space)));
 }
 
 uint32_t DefaultSerializerAllocator::TargetChunkSize(int space) {

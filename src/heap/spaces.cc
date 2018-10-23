@@ -458,62 +458,6 @@ void MemoryChunk::DiscardUnusedMemory(Address addr, size_t size) {
   }
 }
 
-size_t MemoryChunkLayout::CodePageGuardStartOffset() {
-  // We are guarding code pages: the first OS page after the header
-  // will be protected as non-writable.
-  return ::RoundUp(Page::kHeaderSize, MemoryAllocator::GetCommitPageSize());
-}
-
-size_t MemoryChunkLayout::CodePageGuardSize() {
-  return MemoryAllocator::GetCommitPageSize();
-}
-
-intptr_t MemoryChunkLayout::ObjectStartOffsetInCodePage() {
-  // We are guarding code pages: the first OS page after the header
-  // will be protected as non-writable.
-  return CodePageGuardStartOffset() + CodePageGuardSize();
-}
-
-intptr_t MemoryChunkLayout::ObjectEndOffsetInCodePage() {
-  // We are guarding code pages: the last OS page will be protected as
-  // non-writable.
-  return Page::kPageSize -
-         static_cast<int>(MemoryAllocator::GetCommitPageSize());
-}
-
-size_t MemoryChunkLayout::AllocatableMemoryInCodePage() {
-  size_t memory = ObjectEndOffsetInCodePage() - ObjectStartOffsetInCodePage();
-  DCHECK_LE(kMaxRegularHeapObjectSize, memory);
-  return memory;
-}
-
-intptr_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
-  return MemoryChunk::kHeaderSize +
-         (kPointerSize - MemoryChunk::kHeaderSize % kPointerSize);
-}
-
-size_t MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(
-    AllocationSpace space) {
-  if (space == CODE_SPACE) {
-    return ObjectStartOffsetInCodePage();
-  }
-  return ObjectStartOffsetInDataPage();
-}
-
-size_t MemoryChunkLayout::AllocatableMemoryInDataPage() {
-  size_t memory = MemoryChunk::kPageSize - ObjectStartOffsetInDataPage();
-  DCHECK_LE(kMaxRegularHeapObjectSize, memory);
-  return memory;
-}
-
-size_t MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
-    AllocationSpace space) {
-  if (space == CODE_SPACE) {
-    return AllocatableMemoryInCodePage();
-  }
-  return AllocatableMemoryInDataPage();
-}
-
 Heap* MemoryChunk::synchronized_heap() {
   return reinterpret_cast<Heap*>(
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(&heap_)));
@@ -547,7 +491,7 @@ void MemoryChunk::SetReadAndExecutable() {
   DCHECK_LT(write_unprotect_counter_, kMaxWriteUnprotectCounter);
   if (write_unprotect_counter_ == 0) {
     Address protect_start =
-        address() + MemoryChunkLayout::ObjectStartOffsetInCodePage();
+        address() + MemoryAllocator::CodePageAreaStartOffset();
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAligned(protect_start, page_size));
     size_t protect_size = RoundUp(area_size(), page_size);
@@ -566,7 +510,7 @@ void MemoryChunk::SetReadAndWritable() {
   DCHECK_LE(write_unprotect_counter_, kMaxWriteUnprotectCounter);
   if (write_unprotect_counter_ == 1) {
     Address unprotect_start =
-        address() + MemoryChunkLayout::ObjectStartOffsetInCodePage();
+        address() + MemoryAllocator::CodePageAreaStartOffset();
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAligned(unprotect_start, page_size));
     size_t unprotect_size = RoundUp(area_size(), page_size);
@@ -653,9 +597,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
 Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   Page* page = static_cast<Page*>(chunk);
-  DCHECK_EQ(MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
-                page->owner()->identity()),
-            page->area_size());
+  DCHECK_GE(Page::kAllocatableMemory, page->area_size());
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocatedBytes();
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
@@ -791,7 +733,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   //           Non-executable
   // +----------------------------+<- base aligned with MemoryChunk::kAlignment
   // |          Header            |
-  // +----------------------------+<- area_start_ (base + area_start_)
+  // +----------------------------+<- area_start_ (base + kObjectStartOffset)
   // |           Area             |
   // +----------------------------+<- area_end_ (area_start + commit_area_size)
   // |  Committed but not used    |
@@ -801,15 +743,13 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   //
 
   if (executable == EXECUTABLE) {
-    chunk_size = ::RoundUp(MemoryChunkLayout::ObjectStartOffsetInCodePage() +
-                               reserve_area_size +
-                               MemoryChunkLayout::CodePageGuardSize(),
-                           GetCommitPageSize());
+    chunk_size = ::RoundUp(
+        CodePageAreaStartOffset() + reserve_area_size + CodePageGuardSize(),
+        GetCommitPageSize());
 
     // Size of header (not executable) plus area (executable).
     size_t commit_size = ::RoundUp(
-        MemoryChunkLayout::CodePageGuardStartOffset() + commit_area_size,
-        GetCommitPageSize());
+        CodePageGuardStartOffset() + commit_area_size, GetCommitPageSize());
     base =
         AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
                               executable, address_hint, &reservation);
@@ -818,20 +758,18 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     size_executable_ += reservation.size();
 
     if (Heap::ShouldZapGarbage()) {
-      ZapBlock(base, MemoryChunkLayout::CodePageGuardStartOffset(), kZapValue);
-      ZapBlock(base + MemoryChunkLayout::ObjectStartOffsetInCodePage(),
-               commit_area_size, kZapValue);
+      ZapBlock(base, CodePageGuardStartOffset(), kZapValue);
+      ZapBlock(base + CodePageAreaStartOffset(), commit_area_size, kZapValue);
     }
 
-    area_start = base + MemoryChunkLayout::ObjectStartOffsetInCodePage();
+    area_start = base + CodePageAreaStartOffset();
     area_end = area_start + commit_area_size;
   } else {
-    chunk_size = ::RoundUp(
-        MemoryChunkLayout::ObjectStartOffsetInDataPage() + reserve_area_size,
-        GetCommitPageSize());
-    size_t commit_size = ::RoundUp(
-        MemoryChunkLayout::ObjectStartOffsetInDataPage() + commit_area_size,
-        GetCommitPageSize());
+    chunk_size = ::RoundUp(MemoryChunk::kObjectStartOffset + reserve_area_size,
+                           GetCommitPageSize());
+    size_t commit_size =
+        ::RoundUp(MemoryChunk::kObjectStartOffset + commit_area_size,
+                  GetCommitPageSize());
     base =
         AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
                               executable, address_hint, &reservation);
@@ -839,13 +777,10 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     if (base == kNullAddress) return nullptr;
 
     if (Heap::ShouldZapGarbage()) {
-      ZapBlock(
-          base,
-          MemoryChunkLayout::ObjectStartOffsetInDataPage() + commit_area_size,
-          kZapValue);
+      ZapBlock(base, Page::kObjectStartOffset + commit_area_size, kZapValue);
     }
 
-    area_start = base + MemoryChunkLayout::ObjectStartOffsetInDataPage();
+    area_start = base + Page::kObjectStartOffset;
     area_end = area_start + commit_area_size;
   }
 
@@ -1019,7 +954,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
     size_t page_size = GetCommitPageSize();
     DCHECK_EQ(0, chunk->area_end_ % static_cast<Address>(page_size));
     DCHECK_EQ(chunk->address() + chunk->size(),
-              chunk->area_end() + MemoryChunkLayout::CodePageGuardSize());
+              chunk->area_end() + CodePageGuardSize());
     reservation->SetPermissions(chunk->area_end_, page_size,
                                 PageAllocator::kNoAccess);
   }
@@ -1118,9 +1053,7 @@ Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
                                     Executability executable) {
   MemoryChunk* chunk = nullptr;
   if (alloc_mode == kPooled) {
-    DCHECK_EQ(size, static_cast<size_t>(
-                        MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
-                            owner->identity())));
+    DCHECK_EQ(size, static_cast<size_t>(MemoryChunk::kAllocatableMemory));
     DCHECK_EQ(executable, NOT_EXECUTABLE);
     chunk = AllocatePagePooled(owner);
   }
@@ -1155,9 +1088,7 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   if (chunk == nullptr) return nullptr;
   const int size = MemoryChunk::kPageSize;
   const Address start = reinterpret_cast<Address>(chunk);
-  const Address area_start =
-      start +
-      MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(owner->identity());
+  const Address area_start = start + MemoryChunk::kObjectStartOffset;
   const Address area_end = start + size;
   // Pooled pages are always regular data pages.
   DCHECK_NE(CODE_SPACE, owner->identity());
@@ -1179,6 +1110,26 @@ void MemoryAllocator::ZapBlock(Address start, size_t size,
   for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
     Memory<Address>(start + s) = static_cast<Address>(zap_value);
   }
+}
+
+size_t MemoryAllocator::CodePageGuardStartOffset() {
+  // We are guarding code pages: the first OS page after the header
+  // will be protected as non-writable.
+  return ::RoundUp(Page::kObjectStartOffset, GetCommitPageSize());
+}
+
+size_t MemoryAllocator::CodePageGuardSize() { return GetCommitPageSize(); }
+
+size_t MemoryAllocator::CodePageAreaStartOffset() {
+  // We are guarding code pages: the first OS page after the header
+  // will be protected as non-writable.
+  return CodePageGuardStartOffset() + CodePageGuardSize();
+}
+
+size_t MemoryAllocator::CodePageAreaEndOffset() {
+  // We are guarding code pages: the last OS page will be protected as
+  // non-writable.
+  return Page::kPageSize - static_cast<int>(GetCommitPageSize());
 }
 
 intptr_t MemoryAllocator::GetCommitPageSize() {
@@ -1211,10 +1162,9 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
   DCHECK(IsAligned(start, page_size));
   DCHECK_EQ(0, commit_size % page_size);
   DCHECK_EQ(0, reserved_size % page_size);
-  const size_t guard_size = MemoryChunkLayout::CodePageGuardSize();
-  const size_t pre_guard_offset = MemoryChunkLayout::CodePageGuardStartOffset();
-  const size_t code_area_offset =
-      MemoryChunkLayout::ObjectStartOffsetInCodePage();
+  const size_t guard_size = CodePageGuardSize();
+  const size_t pre_guard_offset = CodePageGuardStartOffset();
+  const size_t code_area_offset = CodePageAreaStartOffset();
   // reserved_size includes two guard regions, commit_size does not.
   DCHECK_LE(commit_size, reserved_size - 2 * guard_size);
   const Address pre_guard_page = start + pre_guard_offset;
@@ -1469,7 +1419,7 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
     : SpaceWithLinearArea(heap, space), executable_(executable) {
-  area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
+  area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 }
 
@@ -2161,8 +2111,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       actual_pages++;
       current_page =
           heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-              MemoryChunkLayout::AllocatableMemoryInDataPage(), this,
-              NOT_EXECUTABLE);
+              Page::kAllocatableMemory, this, NOT_EXECUTABLE);
       if (current_page == nullptr) return false;
       DCHECK_NOT_NULL(current_page);
       memory_chunk_list_.PushBack(current_page);
@@ -2264,7 +2213,7 @@ void PagedSpace::UpdateInlineAllocationLimit(size_t min_size) {
 
 bool NewSpace::AddFreshPage() {
   Address top = allocation_info_.top();
-  DCHECK(!OldSpace::IsAtPageStart(top));
+  DCHECK(!Page::IsAtObjectStart(top));
 
   // Do a step to account for memory allocated on previous page.
   InlineAllocationStep(top, top, kNullAddress, 0);
@@ -2324,9 +2273,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 }
 
 size_t LargeObjectSpace::Available() {
-  // We return zero here since we cannot take advantage of already allocated
-  // large object memory.
-  return 0;
+  return ObjectSizeFor(heap()->memory_allocator()->Available());
 }
 
 void SpaceWithLinearArea::StartNextInlineAllocationStep() {
@@ -2503,8 +2450,7 @@ bool SemiSpace::Commit() {
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-            MemoryChunkLayout::AllocatableMemoryInDataPage(), this,
-            NOT_EXECUTABLE);
+            Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
       if (pages_added) RewindPages(pages_added);
       return false;
@@ -2561,8 +2507,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-            MemoryChunkLayout::AllocatableMemoryInDataPage(), this,
-            NOT_EXECUTABLE);
+            Page::kAllocatableMemory, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
       if (pages_added) RewindPages(pages_added);
       return false;
@@ -3274,8 +3219,7 @@ void ReadOnlyPage::MakeHeaderRelocatable() {
 
 void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
   const size_t page_size = MemoryAllocator::GetCommitPageSize();
-  const size_t area_start_offset =
-      RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage(), page_size);
+  const size_t area_start_offset = RoundUp(Page::kObjectStartOffset, page_size);
   MemoryAllocator* memory_allocator = heap()->memory_allocator();
   for (Page* p : *this) {
     ReadOnlyPage* page = static_cast<ReadOnlyPage*>(p);

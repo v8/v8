@@ -148,8 +148,9 @@ Heap::Heap()
 }
 
 size_t Heap::MaxReserved() {
-  return static_cast<size_t>(2 * max_semi_space_size_ +
-                             max_old_generation_size_);
+  const double kFactor = Page::kPageSize * 1.0 / Page::kAllocatableMemory;
+  return static_cast<size_t>(
+      (2 * max_semi_space_size_ + max_old_generation_size_) * kFactor);
 }
 
 size_t Heap::ComputeMaxOldGenerationSize(uint64_t physical_memory) {
@@ -239,8 +240,6 @@ size_t Heap::Available() {
   for (SpaceIterator it(this); it.has_next();) {
     total += it.next()->Available();
   }
-
-  total += memory_allocator()->Available();
   return total;
 }
 
@@ -1515,7 +1514,7 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
           AllocationResult allocation;
           int size = chunk.size;
           DCHECK_LE(static_cast<size_t>(size),
-                    MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
+                    MemoryAllocator::PageAreaSize(
                         static_cast<AllocationSpace>(space)));
           if (space == NEW_SPACE) {
             allocation = new_space()->AllocateRawUnaligned(size);

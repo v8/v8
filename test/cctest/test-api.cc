@@ -19322,8 +19322,6 @@ TEST(GetHeapSpaceStatistics) {
     CHECK_GT(space_statistics.physical_space_size(), 0u);
     total_physical_size += space_statistics.physical_space_size();
   }
-  total_available_size += CcTest::heap()->memory_allocator()->Available();
-
   CHECK_EQ(total_size, heap_statistics.total_heap_size());
   CHECK_EQ(total_used_size, heap_statistics.used_heap_size());
   CHECK_EQ(total_available_size, heap_statistics.total_available_size());
