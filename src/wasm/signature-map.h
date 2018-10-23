@@ -35,7 +35,6 @@ class V8_EXPORT_PRIVATE SignatureMap {
   void Freeze() { frozen_ = true; }
 
  private:
-  uint32_t next_ = 0;
   bool frozen_ = false;
   std::unordered_map<FunctionSig, uint32_t, base::hash<FunctionSig>> map_;
 };
