@@ -615,13 +615,18 @@ Sampler::Sampler(Isolate* isolate)
   data_ = new PlatformData;
 }
 
-Sampler::~Sampler() {
-  DCHECK(!IsActive());
+void Sampler::UnregisterIfRegistered() {
 #if defined(USE_SIGNALS)
   if (IsRegistered()) {
     SamplerManager::instance()->RemoveSampler(this);
+    SetRegistered(false);
   }
 #endif
+}
+
+Sampler::~Sampler() {
+  DCHECK(!IsActive());
+  DCHECK(!IsRegistered());
   delete data_;
 }
 

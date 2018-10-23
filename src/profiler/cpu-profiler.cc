@@ -65,6 +65,7 @@ SamplingEventsProcessor::SamplingEventsProcessor(Isolate* isolate,
 
 SamplingEventsProcessor::~SamplingEventsProcessor() {
   sampler_->DecreaseProfilingDepth();
+  sampler_->UnregisterIfRegistered();
 }
 
 ProfilerEventsProcessor::~ProfilerEventsProcessor() = default;
