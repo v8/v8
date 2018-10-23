@@ -80,9 +80,7 @@ struct CompilationStateDeleter {
 // Wrapper to create a CompilationState exists in order to avoid having
 // the CompilationState in the header file.
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate*, const ModuleEnv&);
-
-ModuleEnv* GetModuleEnv(CompilationState* compilation_state);
+    Isolate*, NativeModule*);
 
 }  // namespace wasm
 }  // namespace internal

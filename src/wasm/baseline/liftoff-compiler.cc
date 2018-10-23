@@ -1872,7 +1872,8 @@ class LiftoffCompiler {
 
 }  // namespace
 
-bool LiftoffCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
+bool LiftoffCompilationUnit::ExecuteCompilation(ModuleEnv* env,
+                                                WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation");
   base::ElapsedTimer compile_timer;
@@ -1881,15 +1882,14 @@ bool LiftoffCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   }
 
   Zone zone(wasm_unit_->wasm_engine_->allocator(), "LiftoffCompilationZone");
-  const WasmModule* module =
-      wasm_unit_->env_ ? wasm_unit_->env_->module : nullptr;
+  const WasmModule* module = env ? env->module : nullptr;
   auto call_descriptor =
       compiler::GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, wasm_unit_->counters_->liftoff_compile_time());
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, module, wasm_unit_->native_module_->enabled_features(), detected,
-      wasm_unit_->func_body_, call_descriptor, wasm_unit_->env_, &zone);
+      wasm_unit_->func_body_, call_descriptor, env, &zone);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();

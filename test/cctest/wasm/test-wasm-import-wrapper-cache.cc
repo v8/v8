@@ -22,11 +22,8 @@ std::unique_ptr<NativeModule> NewModule(Isolate* isolate) {
   std::shared_ptr<WasmModule> module(new WasmModule);
   bool can_request_more = false;
   size_t size = 100;
-  ModuleEnv env(module.get(), UseTrapHandler::kNoTrapHandler,
-                RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
-  auto native_module =
-      manager->NewNativeModule(isolate, kAllWasmFeatures, size,
-                               can_request_more, std::move(module), env);
+  auto native_module = manager->NewNativeModule(
+      isolate, kAllWasmFeatures, size, can_request_more, std::move(module));
   native_module->SetRuntimeStubs(isolate);
   return native_module;
 }

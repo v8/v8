@@ -36,23 +36,22 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
 }
 
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
-                                         ModuleEnv* env,
                                          NativeModule* native_module,
                                          FunctionBody body, int index,
                                          Counters* counters, ExecutionTier mode)
-    : env_(env),
-      wasm_engine_(wasm_engine),
+    : wasm_engine_(wasm_engine),
       func_body_(body),
       counters_(counters),
       func_index_(index),
       native_module_(native_module),
       mode_(mode) {
-  DCHECK_GE(index, env->module->num_imported_functions);
-  DCHECK_LT(index, env->module->functions.size());
+  const WasmModule* module = native_module->module();
+  DCHECK_GE(index, module->num_imported_functions);
+  DCHECK_LT(index, module->functions.size());
   // Always disable Liftoff for asm.js, for two reasons:
   //    1) asm-specific opcodes are not implemented, and
   //    2) tier-up does not work with lazy compilation.
-  if (env->module->origin == kAsmJsOrigin) mode = ExecutionTier::kOptimized;
+  if (module->origin == kAsmJsOrigin) mode = ExecutionTier::kOptimized;
   if (V8_UNLIKELY(FLAG_wasm_tier_mask_for_testing) && index < 32 &&
       (FLAG_wasm_tier_mask_for_testing & (1 << index))) {
     mode = ExecutionTier::kOptimized;
@@ -64,12 +63,14 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 // {TurbofanWasmCompilationUnit} can be opaque in the header file.
 WasmCompilationUnit::~WasmCompilationUnit() = default;
 
-void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
-  auto size_histogram = SELECT_WASM_COUNTER(counters_, env_->module->origin,
-                                            wasm, function_size_bytes);
+void WasmCompilationUnit::ExecuteCompilation(ModuleEnv* env,
+                                             WasmFeatures* detected) {
+  const WasmModule* module = native_module_->module();
+  auto size_histogram =
+      SELECT_WASM_COUNTER(counters_, module->origin, wasm, function_size_bytes);
   size_histogram->AddSample(
       static_cast<int>(func_body_.end - func_body_.start));
-  auto timed_histogram = SELECT_WASM_COUNTER(counters_, env_->module->origin,
+  auto timed_histogram = SELECT_WASM_COUNTER(counters_, module->origin,
                                              wasm_compile, function_time);
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
@@ -80,12 +81,12 @@ void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
 
   switch (mode_) {
     case ExecutionTier::kBaseline:
-      if (liftoff_unit_->ExecuteCompilation(detected)) break;
+      if (liftoff_unit_->ExecuteCompilation(env, detected)) break;
       // Otherwise, fall back to turbofan.
       SwitchMode(ExecutionTier::kOptimized);
       V8_FALLTHROUGH;
     case ExecutionTier::kOptimized:
-      turbofan_unit_->ExecuteCompilation(detected);
+      turbofan_unit_->ExecuteCompilation(env, detected);
       break;
     case ExecutionTier::kInterpreter:
       UNREACHABLE();  // TODO(titzer): compile interpreter entry stub.
@@ -136,17 +137,16 @@ void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
 // static
 WasmCode* WasmCompilationUnit::CompileWasmFunction(
     Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
-    ErrorThrower* thrower, ModuleEnv* env, const WasmFunction* function,
-    ExecutionTier mode) {
+    ErrorThrower* thrower, const WasmFunction* function, ExecutionTier mode) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset()};
 
-  WasmCompilationUnit unit(isolate->wasm_engine(), env, native_module,
-                           function_body,
+  WasmCompilationUnit unit(isolate->wasm_engine(), native_module, function_body,
                            function->func_index, isolate->counters(), mode);
-  unit.ExecuteCompilation(detected);
+  ModuleEnv env = native_module->CreateModuleEnv();
+  unit.ExecuteCompilation(&env, detected);
   if (unit.failed()) {
     unit.ReportError(thrower);
     return nullptr;

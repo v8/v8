@@ -137,7 +137,7 @@ class WasmModuleObject : public JSObject {
   // Creates a new {WasmModuleObject} with a new {NativeModule} underneath.
   static Handle<WasmModuleObject> New(
       Isolate* isolate, const wasm::WasmFeatures& enabled,
-      std::shared_ptr<const wasm::WasmModule> module, wasm::ModuleEnv& env,
+      std::shared_ptr<const wasm::WasmModule> module,
       OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
       Handle<ByteArray> asm_js_offset_table);
 

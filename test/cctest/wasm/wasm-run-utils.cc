@@ -209,9 +209,8 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<Script> script =
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
-  ModuleEnv env = CreateModuleEnv();
   Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate_, enabled_features_, test_module_, env, {},
+      WasmModuleObject::New(isolate_, enabled_features_, test_module_, {},
                             script, Handle<ByteArray>::null());
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
@@ -411,7 +410,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                                          ->native_module()
                                          ->wire_bytes();
 
-  ModuleEnv module_env = builder_->CreateModuleEnv();
+  ModuleEnv env = builder_->CreateModuleEnv();
   ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.start(), wire_bytes.start() + function_->code.offset(),
          func_wire_bytes.length());
@@ -420,11 +419,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                          func_wire_bytes.start(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
-  WasmCompilationUnit unit(isolate()->wasm_engine(), &module_env, native_module,
-                           func_body, function_->func_index,
-                           isolate()->counters(), tier);
+  WasmCompilationUnit unit(isolate()->wasm_engine(), native_module, func_body,
+                           function_->func_index, isolate()->counters(), tier);
   WasmFeatures unused_detected_features;
-  unit.ExecuteCompilation(&unused_detected_features);
+  unit.ExecuteCompilation(&env, &unused_detected_features);
   CHECK(!unit.failed());
   if (WasmCode::ShouldBeLogged(isolate())) unit.result()->LogCode(isolate());
 }

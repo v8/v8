@@ -175,19 +175,16 @@ enum DispatchTableElements : int {
 // static
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, const wasm::WasmFeatures& enabled,
-    std::shared_ptr<const wasm::WasmModule> shared_module, wasm::ModuleEnv& env,
+    std::shared_ptr<const wasm::WasmModule> shared_module,
     OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
-  DCHECK_EQ(shared_module.get(), env.module);
-
   // Create a new {NativeModule} first.
   size_t native_memory_estimate =
       isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
-          env.module);
+          shared_module.get());
   auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
       isolate, enabled, native_memory_estimate,
-      wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module),
-      env);
+      wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module));
   native_module->set_wire_bytes(std::move(wire_bytes));
   native_module->SetRuntimeStubs(isolate);
 

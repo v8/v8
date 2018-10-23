@@ -178,7 +178,6 @@ bool WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
   WasmFeatures detected = kNoWasmFeatures;
   WasmCode* ret = WasmCompilationUnit::CompileWasmFunction(
       isolate, native_module, &detected, &thrower,
-      GetModuleEnv(native_module->compilation_state()),
       &native_module->module()->functions[function_index], tier);
   return ret != nullptr;
 }

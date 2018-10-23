@@ -354,7 +354,6 @@ TEST(SharedEngineRunThreadedTierUp) {
     WasmFeatures detected = kNoWasmFeatures;
     WasmCompilationUnit::CompileWasmFunction(
         isolate.isolate(), module.get(), &detected, &thrower,
-        GetModuleEnv(module->compilation_state()),
         &module->module()->functions[0], ExecutionTier::kOptimized);
     CHECK_EQ(23, isolate.Run(instance));
   });

@@ -11,17 +11,16 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-struct WasmFeatures;
-class ErrorThrower;
-class WasmCode;
+struct ModuleEnv;
 class WasmCompilationUnit;
+struct WasmFeatures;
 
 class LiftoffCompilationUnit final {
  public:
   explicit LiftoffCompilationUnit(WasmCompilationUnit* wasm_unit)
       : wasm_unit_(wasm_unit) {}
 
-  bool ExecuteCompilation(WasmFeatures* detected);
+  bool ExecuteCompilation(ModuleEnv*, WasmFeatures* detected);
 
  private:
   WasmCompilationUnit* const wasm_unit_;

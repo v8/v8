@@ -150,9 +150,8 @@ void WasmCode::LogCode(Isolate* isolate) const {
 
   ModuleWireBytes wire_bytes(native_module()->wire_bytes());
   // TODO(herhut): Allow to log code without on-heap round-trip of the name.
-  ModuleEnv* module_env = GetModuleEnv(native_module()->compilation_state());
   WireBytesRef name_ref =
-      module_env->module->LookupFunctionName(wire_bytes, index());
+      native_module()->module()->LookupFunctionName(wire_bytes, index());
   WasmName name_vec = wire_bytes.GetNameOrNull(name_ref);
   if (!name_vec.is_empty()) {
     MaybeHandle<String> maybe_name = isolate->factory()->NewStringFromUtf8(
@@ -339,18 +338,17 @@ WasmCode::~WasmCode() {
 NativeModule::NativeModule(Isolate* isolate, const WasmFeatures& enabled,
                            bool can_request_more, VirtualMemory code_space,
                            WasmCodeManager* code_manager,
-                           std::shared_ptr<const WasmModule> module,
-                           const ModuleEnv& env)
+                           std::shared_ptr<const WasmModule> module)
     : enabled_features_(enabled),
       module_(std::move(module)),
-      compilation_state_(NewCompilationState(isolate, env)),
+      compilation_state_(NewCompilationState(isolate, this)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache(this))),
       free_code_space_(code_space.region()),
       wasm_code_manager_(code_manager),
       can_request_more_memory_(can_request_more),
-      use_trap_handler_(env.use_trap_handler) {
-  DCHECK_EQ(module_.get(), env.module);
+      use_trap_handler_(trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
+                                                             : kNoTrapHandler) {
   DCHECK_NOT_NULL(module_);
   owned_code_space_.emplace_back(std::move(code_space));
   owned_code_.reserve(num_functions());
@@ -384,6 +382,10 @@ void NativeModule::LogWasmCodes(Isolate* isolate) {
   for (WasmCode* code : code_table()) {
     if (code != nullptr) code->LogCode(isolate);
   }
+}
+
+ModuleEnv NativeModule::CreateModuleEnv() const {
+  return {module(), use_trap_handler_, kRuntimeExceptionSupport};
 }
 
 WasmCode* NativeModule::AddOwnedCode(
@@ -932,8 +934,7 @@ bool WasmCodeManager::ShouldForceCriticalMemoryPressureNotification() {
 
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, size_t memory_estimate,
-    bool can_request_more, std::shared_ptr<const WasmModule> module,
-    const ModuleEnv& env) {
+    bool can_request_more, std::shared_ptr<const WasmModule> module) {
   if (ShouldForceCriticalMemoryPressureNotification()) {
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
@@ -963,7 +964,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   Address end = mem.end();
   std::unique_ptr<NativeModule> ret(
       new NativeModule(isolate, enabled, can_request_more, std::move(mem), this,
-                       std::move(module), env));
+                       std::move(module)));
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
              size);
   AssignRangesAndAddModule(start, end, ret.get());

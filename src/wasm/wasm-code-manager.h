@@ -314,6 +314,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
+  // Create a {ModuleEnv} object for compilation. Only valid as long as this
+  // {NativeModule} is alive.
+  ModuleEnv CreateModuleEnv() const;
+
   uint32_t num_functions() const {
     return module_->num_declared_functions + module_->num_imported_functions;
   }
@@ -349,7 +353,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   NativeModule(Isolate* isolate, const WasmFeatures& enabled_features,
                bool can_request_more, VirtualMemory code_space,
                WasmCodeManager* code_manager,
-               std::shared_ptr<const WasmModule> module, const ModuleEnv& env);
+               std::shared_ptr<const WasmModule> module);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind,
                              const char* name = nullptr);
@@ -473,7 +477,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   std::unique_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, const WasmFeatures& enabled_features,
       size_t memory_estimate, bool can_request_more,
-      std::shared_ptr<const WasmModule> module, const ModuleEnv& env);
+      std::shared_ptr<const WasmModule> module);
 
   NativeModule* LookupNativeModule(Address pc) const;
   WasmCode* LookupCode(Address pc) const;
