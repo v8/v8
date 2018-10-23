@@ -2724,8 +2724,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   bool parenthesized_formals =
       (is_async ? PeekAhead() : peek()) == Token::LPAREN;
 
-  // Parse a simple, faster sub-grammar (primary expression) if it's evident
-  // that we have only a trivial expression to parse.
   ExpressionT expression = ParseConditionalExpression(accept_IN, CHECK_OK);
 
   if (peek() == Token::ARROW) {
