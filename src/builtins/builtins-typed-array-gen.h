@@ -73,11 +73,11 @@ class TypedArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
                                           JSTypedArray::kBufferOffset);
   }
 
-  TNode<Object> GetDefaultConstructor(TNode<Context> context,
-                                      TNode<JSTypedArray> exemplar);
+  TNode<JSFunction> GetDefaultConstructor(TNode<Context> context,
+                                          TNode<JSTypedArray> exemplar);
 
-  TNode<Object> TypedArraySpeciesConstructor(TNode<Context> context,
-                                             TNode<JSTypedArray> exemplar);
+  TNode<JSReceiver> TypedArraySpeciesConstructor(TNode<Context> context,
+                                                 TNode<JSTypedArray> exemplar);
 
   TNode<JSTypedArray> SpeciesCreateByArrayBuffer(TNode<Context> context,
                                                  TNode<JSTypedArray> exemplar,

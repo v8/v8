@@ -114,7 +114,7 @@ TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const constructor = Parameter(Descriptor::kConstructor);
   Node* const debug_event = Parameter(Descriptor::kDebugEvent);
-  Node* const native_context = LoadNativeContext(context);
+  TNode<Context> const native_context = LoadNativeContext(context);
 
   Label if_not_constructor(this, Label::kDeferred),
       if_notcallable(this, Label::kDeferred), if_fast_promise_capability(this),
@@ -164,11 +164,10 @@ TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
         native_context, Context::PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN);
     Node* function_map = LoadContextElement(
         native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-    Node* executor = AllocateFunctionWithMapAndContext(
-        function_map, executor_info, executor_context);
+    TNode<JSFunction> executor = CAST(AllocateFunctionWithMapAndContext(
+        function_map, executor_info, executor_context));
 
-    Node* promise = ConstructJS(CodeFactory::Construct(isolate()),
-                                native_context, constructor, executor);
+    Node* promise = Construct(native_context, CAST(constructor), executor);
     StoreObjectField(capability, PromiseCapability::kPromiseOffset, promise);
 
     Node* resolve =

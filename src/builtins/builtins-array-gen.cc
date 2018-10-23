@@ -869,10 +869,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     BIND(&runtime);
     {
       // 5. Let A be ? ArraySpeciesCreate(O, len).
-      Node* constructor =
-          CallRuntime(Runtime::kArraySpeciesConstructor, context(), o());
-      a_.Bind(ConstructJS(CodeFactory::Construct(isolate()), context(),
-                          constructor, len));
+      TNode<JSReceiver> constructor =
+          CAST(CallRuntime(Runtime::kArraySpeciesConstructor, context(), o()));
+      a_.Bind(Construct(context(), constructor, len));
       Goto(&fully_spec_compliant_);
     }
 
@@ -918,10 +917,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     BIND(&runtime);
     {
       // 5. Let A be ? ArraySpeciesCreate(O, len).
-      Node* constructor =
-          CallRuntime(Runtime::kArraySpeciesConstructor, context(), o());
-      a_.Bind(ConstructJS(CodeFactory::Construct(isolate()), context(),
-                          constructor, len));
+      TNode<JSReceiver> constructor =
+          CAST(CallRuntime(Runtime::kArraySpeciesConstructor, context(), o()));
+      a_.Bind(Construct(context(), constructor, len));
       Goto(&fully_spec_compliant_);
     }
 
@@ -1424,7 +1422,7 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   BIND(&relative_end_done);
 
   // 11. Let count be max(final – k, 0).
-  Node* count =
+  TNode<Number> count =
       NumberMax(NumberSub(final.value(), k.value()), NumberConstant(0));
 
   // Handle FAST_ELEMENTS
@@ -1437,10 +1435,9 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   // 13. ReturnIfAbrupt(A).
   BIND(&non_fast);
 
-  Node* constructor =
-      CallRuntime(Runtime::kArraySpeciesConstructor, context, o.value());
-  Node* a = ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
-                        count);
+  TNode<JSReceiver> constructor =
+      CAST(CallRuntime(Runtime::kArraySpeciesConstructor, context, o.value()));
+  TNode<JSReceiver> a = Construct(context, constructor, count);
 
   // 14. Let n be 0.
   VARIABLE(n, MachineRepresentation::kTagged);
@@ -1471,7 +1468,7 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
 
   // 16. Let setStatus be Set(A, "length", n, true).
   // 17. ReturnIfAbrupt(setStatus).
-  SetPropertyStrict(context, CAST(a), CodeStubAssembler::LengthStringConstant(),
+  SetPropertyStrict(context, a, CodeStubAssembler::LengthStringConstant(),
                     CAST(n.value()));
   args.PopAndReturn(a);
 }
@@ -1863,8 +1860,7 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
 
     BIND(&is_constructor);
     {
-      array = CAST(
-          ConstructJS(CodeFactory::Construct(isolate()), context, receiver));
+      array = Construct(context, CAST(receiver));
       Goto(&done);
     }
 
@@ -1896,49 +1892,13 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
 
     BIND(&is_constructor);
     {
-      array = CAST(ConstructJS(CodeFactory::Construct(isolate()), context,
-                               receiver, length));
+      array = Construct(context, CAST(receiver), length);
       Goto(&done);
     }
 
     BIND(&is_not_constructor);
     {
-      Label allocate_js_array(this);
-
-      Label next(this), runtime(this, Label::kDeferred);
-      TNode<Smi> limit = SmiConstant(JSArray::kInitialMaxFastElementArray);
-      CSA_ASSERT_BRANCH(this, [=](Label* ok, Label* not_ok) {
-        BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual,
-                                           length, SmiConstant(0), ok, not_ok);
-      });
-      // This check also transitively covers the case where length is too big
-      // to be representable by a SMI and so is not usable with
-      // AllocateJSArray.
-      BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual, length,
-                                         limit, &runtime, &next);
-
-      BIND(&runtime);
-      {
-        TNode<Context> native_context = LoadNativeContext(context);
-        TNode<JSFunction> array_function = CAST(
-            LoadContextElement(native_context, Context::ARRAY_FUNCTION_INDEX));
-        array = CallRuntime(Runtime::kNewArray, context, array_function, length,
-                            array_function, UndefinedConstant());
-        Goto(&done);
-      }
-
-      BIND(&next);
-      CSA_ASSERT(this, TaggedIsSmi(length));
-
-      TNode<Map> array_map = CAST(LoadContextElement(
-          context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
-
-      // TODO(delphick): Consider using
-      // AllocateUninitializedJSArrayWithElements to avoid initializing an
-      // array and then writing over it.
-      array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length,
-                                   SmiConstant(0), nullptr,
-                                   ParameterMode::SMI_PARAMETERS));
+      array = ArrayCreate(context, length);
       Goto(&done);
     }
 
@@ -2189,21 +2149,38 @@ TF_BUILTIN(ArrayOf, ArrayPopulatorAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   CodeStubArguments args(this, length, nullptr, ParameterMode::SMI_PARAMETERS);
+  TNode<Object> receiver = args.GetReceiver();
 
-  TNode<Object> array = ConstructArrayLike(context, args.GetReceiver(), length);
+  TVARIABLE(Object, array);
+  Label is_constructor(this), is_not_constructor(this), fill_array(this);
+  GotoIf(TaggedIsSmi(receiver), &is_not_constructor);
+  Branch(IsConstructor(CAST(receiver)), &is_constructor, &is_not_constructor);
 
+  BIND(&is_constructor);
+  {
+    array = Construct(context, CAST(receiver), length);
+    Goto(&fill_array);
+  }
+
+  BIND(&is_not_constructor);
+  {
+    array = ArrayCreate(context, length);
+    Goto(&fill_array);
+  }
+
+  BIND(&fill_array);
   // TODO(delphick): Avoid using CreateDataProperty on the fast path.
   BuildFastLoop(SmiConstant(0), length,
-                [=](Node* index) {
+                [&](Node* index) {
                   CallRuntime(
                       Runtime::kCreateDataProperty, context,
-                      static_cast<Node*>(array), index,
+                      static_cast<Node*>(array.value()), index,
                       args.AtIndex(index, ParameterMode::SMI_PARAMETERS));
                 },
                 1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
 
-  GenerateSetLength(context, array, length);
-  args.PopAndReturn(array);
+  GenerateSetLength(context, array.value(), length);
+  args.PopAndReturn(array.value());
 }
 
 // ES #sec-get-%typedarray%.prototype.find
@@ -3839,38 +3816,37 @@ TF_BUILTIN(FlatMapIntoArray, ArrayFlattenAssembler) {
 
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat
 TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
-  Node* const argc =
+  TNode<IntPtrT> const argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* const context = Parameter(Descriptor::kContext);
-  Node* const receiver = args.GetReceiver();
-  Node* const depth = args.GetOptionalArgumentValue(0);
+  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> const receiver = args.GetReceiver();
+  TNode<Object> const depth = args.GetOptionalArgumentValue(0);
 
   // 1. Let O be ? ToObject(this value).
-  Node* const o = ToObject_Inline(CAST(context), CAST(receiver));
+  TNode<JSReceiver> const o = ToObject_Inline(context, receiver);
 
   // 2. Let sourceLen be ? ToLength(? Get(O, "length")).
-  Node* const source_length =
+  TNode<Number> const source_length =
       ToLength_Inline(context, GetProperty(context, o, LengthStringConstant()));
 
   // 3. Let depthNum be 1.
-  VARIABLE(var_depth_num, MachineRepresentation::kTagged, SmiConstant(1));
+  TVARIABLE(Number, var_depth_num, SmiConstant(1));
 
   // 4. If depth is not undefined, then
   Label done(this);
   GotoIf(IsUndefined(depth), &done);
   {
     // a. Set depthNum to ? ToInteger(depth).
-    var_depth_num.Bind(ToInteger_Inline(context, depth));
+    var_depth_num = ToInteger_Inline(context, depth);
     Goto(&done);
   }
   BIND(&done);
 
   // 5. Let A be ? ArraySpeciesCreate(O, 0).
-  Node* const constructor =
-      CallRuntime(Runtime::kArraySpeciesConstructor, context, o);
-  Node* const a = ConstructJS(CodeFactory::Construct(isolate()), context,
-                              constructor, SmiConstant(0));
+  TNode<JSReceiver> const constructor =
+      CAST(CallRuntime(Runtime::kArraySpeciesConstructor, context, o));
+  Node* const a = Construct(context, constructor, SmiConstant(0));
 
   // 6. Perform ? FlattenIntoArray(A, O, sourceLen, 0, depthNum).
   CallBuiltin(Builtins::kFlattenIntoArray, context, a, o, source_length,
@@ -3882,33 +3858,32 @@ TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
 
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
 TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
-  Node* const argc =
+  TNode<IntPtrT> const argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* const context = Parameter(Descriptor::kContext);
-  Node* const receiver = args.GetReceiver();
-  Node* const mapper_function = args.GetOptionalArgumentValue(0);
+  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> const receiver = args.GetReceiver();
+  TNode<Object> const mapper_function = args.GetOptionalArgumentValue(0);
 
   // 1. Let O be ? ToObject(this value).
-  Node* const o = ToObject_Inline(CAST(context), CAST(receiver));
+  TNode<JSReceiver> const o = ToObject_Inline(context, receiver);
 
   // 2. Let sourceLen be ? ToLength(? Get(O, "length")).
-  Node* const source_length =
+  TNode<Number> const source_length =
       ToLength_Inline(context, GetProperty(context, o, LengthStringConstant()));
 
   // 3. If IsCallable(mapperFunction) is false, throw a TypeError exception.
   Label if_not_callable(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(mapper_function), &if_not_callable);
-  GotoIfNot(IsCallable(mapper_function), &if_not_callable);
+  GotoIfNot(IsCallable(CAST(mapper_function)), &if_not_callable);
 
   // 4. If thisArg is present, let T be thisArg; else let T be undefined.
-  Node* const t = args.GetOptionalArgumentValue(1);
+  TNode<Object> const t = args.GetOptionalArgumentValue(1);
 
   // 5. Let A be ? ArraySpeciesCreate(O, 0).
-  Node* const constructor =
-      CallRuntime(Runtime::kArraySpeciesConstructor, context, o);
-  Node* const a = ConstructJS(CodeFactory::Construct(isolate()), context,
-                              constructor, SmiConstant(0));
+  TNode<JSReceiver> const constructor =
+      CAST(CallRuntime(Runtime::kArraySpeciesConstructor, context, o));
+  TNode<JSReceiver> const a = Construct(context, constructor, SmiConstant(0));
 
   // 6. Perform ? FlattenIntoArray(A, O, sourceLen, 0, 1, mapperFunction, T).
   CallBuiltin(Builtins::kFlatMapIntoArray, context, a, o, source_length,

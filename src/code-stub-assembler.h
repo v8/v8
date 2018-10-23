@@ -503,9 +503,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Float64T> Float64RoundToEven(SloppyTNode<Float64T> x);
   TNode<Float64T> Float64Trunc(SloppyTNode<Float64T> x);
   // Select the minimum of the two provided Number values.
-  TNode<Object> NumberMax(SloppyTNode<Object> left, SloppyTNode<Object> right);
+  TNode<Number> NumberMax(SloppyTNode<Number> left, SloppyTNode<Number> right);
   // Select the minimum of the two provided Number values.
-  TNode<Object> NumberMin(SloppyTNode<Object> left, SloppyTNode<Object> right);
+  TNode<Number> NumberMin(SloppyTNode<Number> left, SloppyTNode<Number> right);
 
   // After converting an index to an integer, calculate a relative index: if
   // index < 0, max(length + index, 0); else min(index, length)
@@ -703,6 +703,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     }
     return UncheckedCast<Object>(CallJS(CodeFactory::Call(isolate()), context,
                                         callable, receiver, args...));
+  }
+
+  template <class... TArgs>
+  TNode<JSReceiver> Construct(TNode<Context> context,
+                              TNode<JSReceiver> new_target, TArgs... args) {
+    return CAST(ConstructJS(CodeFactory::Construct(isolate()), context,
+                            new_target, implicit_cast<TNode<Object>>(args)...));
   }
 
   template <class A, class F, class G>
@@ -1544,9 +1551,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* AllocateJSIteratorResult(Node* context, Node* value, Node* done);
   Node* AllocateJSIteratorResultForEntry(Node* context, Node* key, Node* value);
 
-  Node* ArraySpeciesCreate(TNode<Context> context, TNode<Object> originalArray,
-                           TNode<Number> len);
-  Node* InternalArrayCreate(TNode<Context> context, TNode<Number> len);
+  TNode<JSReceiver> ArraySpeciesCreate(TNode<Context> context,
+                                       TNode<Object> originalArray,
+                                       TNode<Number> len);
+  TNode<JSReceiver> InternalArrayCreate(TNode<Context> context,
+                                        TNode<Number> len);
 
   void FillFixedArrayWithValue(ElementsKind kind, Node* array, Node* from_index,
                                Node* to_index, RootIndex value_root_index,
@@ -2966,9 +2975,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Object> GetSuperConstructor(SloppyTNode<Context> context,
                                     SloppyTNode<JSFunction> active_function);
 
-  TNode<Object> SpeciesConstructor(SloppyTNode<Context> context,
-                                   SloppyTNode<Object> object,
-                                   SloppyTNode<Object> default_constructor);
+  TNode<JSReceiver> SpeciesConstructor(
+      SloppyTNode<Context> context, SloppyTNode<Object> object,
+      SloppyTNode<JSReceiver> default_constructor);
 
   Node* InstanceOf(Node* object, Node* callable, Node* context);
 
@@ -3152,6 +3161,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void InitializeFunctionContext(Node* native_context, Node* context,
                                  int slots);
+
+  TNode<JSArray> ArrayCreate(TNode<Context> context, TNode<Number> length);
 
  private:
   friend class CodeStubArguments;

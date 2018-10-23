@@ -276,8 +276,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   BIND(&allocate_off_heap);
   {
     GotoIf(IsFalse(initialize), &allocate_off_heap_no_init);
-    var_buffer = CAST(ConstructJS(CodeFactory::Construct(isolate()), context,
-                                  default_constructor, byte_length));
+    var_buffer = CAST(Construct(context, default_constructor, byte_length));
     Goto(&attach_buffer);
   }
 
@@ -522,7 +521,7 @@ void TypedArrayBuiltinsAssembler::ConstructByTypedArray(
   BIND(&if_buffernotshared);
   {
     buffer_constructor =
-        CAST(SpeciesConstructor(context, source_buffer, default_constructor));
+        SpeciesConstructor(context, source_buffer, default_constructor);
     // TODO(petermarshall): Throw on detached typedArray.
     GotoIfNot(IsDetachedBuffer(source_buffer), &construct);
     source_length = SmiConstant(0);
@@ -871,7 +870,7 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
   return element_size.value();
 }
 
-TNode<Object> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
+TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
     TNode<Context> context, TNode<JSTypedArray> exemplar) {
   TVARIABLE(IntPtrT, context_slot);
   TNode<Word32T> elements_kind = LoadElementsKind(exemplar);
@@ -882,17 +881,19 @@ TNode<Object> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
         context_slot = IntPtrConstant(typed_array_function_index);
       });
 
-  return LoadContextElement(LoadNativeContext(context), context_slot.value());
+  return CAST(
+      LoadContextElement(LoadNativeContext(context), context_slot.value()));
 }
 
-TNode<Object> TypedArrayBuiltinsAssembler::TypedArraySpeciesConstructor(
+TNode<JSReceiver> TypedArrayBuiltinsAssembler::TypedArraySpeciesConstructor(
     TNode<Context> context, TNode<JSTypedArray> exemplar) {
-  TVARIABLE(Object, var_constructor);
+  TVARIABLE(JSReceiver, var_constructor);
   Label slow(this), done(this);
 
   // Let defaultConstructor be the intrinsic object listed in column one of
   // Table 52 for exemplar.[[TypedArrayName]].
-  TNode<Object> default_constructor = GetDefaultConstructor(context, exemplar);
+  TNode<JSFunction> default_constructor =
+      GetDefaultConstructor(context, exemplar);
 
   var_constructor = default_constructor;
   Node* map = LoadMap(exemplar);
@@ -912,12 +913,12 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::SpeciesCreateByArrayBuffer(
     TNode<JSArrayBuffer> buffer, TNode<Number> byte_offset, TNode<Smi> len,
     const char* method_name) {
   // Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
-  TNode<Object> constructor = TypedArraySpeciesConstructor(context, exemplar);
+  TNode<JSReceiver> constructor =
+      TypedArraySpeciesConstructor(context, exemplar);
 
   // Let newTypedArray be ? Construct(constructor, argumentList).
-  TNode<Object> new_object =
-      CAST(ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
-                       buffer, byte_offset, len));
+  TNode<JSReceiver> new_object =
+      Construct(context, constructor, buffer, byte_offset, len);
 
   // Perform ? ValidateTypedArray(newTypedArray).
   return ValidateTypedArray(context, new_object, method_name);
@@ -929,8 +930,8 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::SpeciesCreateByLength(
   CSA_ASSERT(this, TaggedIsPositiveSmi(len));
 
   // Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
-  TNode<HeapObject> constructor =
-      CAST(TypedArraySpeciesConstructor(context, exemplar));
+  TNode<JSReceiver> constructor =
+      TypedArraySpeciesConstructor(context, exemplar);
   return CreateByLength(context, constructor, len, method_name);
 }
 

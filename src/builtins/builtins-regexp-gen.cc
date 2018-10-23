@@ -2069,9 +2069,9 @@ TNode<Object> RegExpBuiltinsAssembler::MatchAllIterator(
   BIND(&if_slow_regexp);
   {
     // a. Let C be ? SpeciesConstructor(R, %RegExp%).
-    TNode<Object> regexp_fun =
-        LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
-    TNode<Object> species_constructor =
+    TNode<JSFunction> regexp_fun = CAST(
+        LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
+    TNode<JSReceiver> species_constructor =
         SpeciesConstructor(native_context, maybe_regexp, regexp_fun);
 
     // b. Let flags be ? ToString(? Get(R, "flags")).
@@ -2081,8 +2081,7 @@ TNode<Object> RegExpBuiltinsAssembler::MatchAllIterator(
 
     // c. Let matcher be ? Construct(C, « R, flags »).
     var_matcher =
-        CAST(ConstructJS(CodeFactory::Construct(isolate()), context,
-                         species_constructor, maybe_regexp, flags_string));
+        Construct(context, species_constructor, maybe_regexp, flags_string);
 
     // d. Let global be ? ToBoolean(? Get(matcher, "global")).
     var_global = UncheckedCast<Int32T>(

@@ -665,42 +665,42 @@ TNode<Smi> CodeStubAssembler::TrySmiSub(TNode<Smi> lhs, TNode<Smi> rhs,
   }
 }
 
-TNode<Object> CodeStubAssembler::NumberMax(SloppyTNode<Object> a,
-                                           SloppyTNode<Object> b) {
+TNode<Number> CodeStubAssembler::NumberMax(SloppyTNode<Number> a,
+                                           SloppyTNode<Number> b) {
   // TODO(danno): This could be optimized by specifically handling smi cases.
-  VARIABLE(result, MachineRepresentation::kTagged);
+  TVARIABLE(Number, result);
   Label done(this), greater_than_equal_a(this), greater_than_equal_b(this);
   GotoIfNumberGreaterThanOrEqual(a, b, &greater_than_equal_a);
   GotoIfNumberGreaterThanOrEqual(b, a, &greater_than_equal_b);
-  result.Bind(NanConstant());
+  result = NanConstant();
   Goto(&done);
   BIND(&greater_than_equal_a);
-  result.Bind(a);
+  result = a;
   Goto(&done);
   BIND(&greater_than_equal_b);
-  result.Bind(b);
+  result = b;
   Goto(&done);
   BIND(&done);
-  return TNode<Object>::UncheckedCast(result.value());
+  return result.value();
 }
 
-TNode<Object> CodeStubAssembler::NumberMin(SloppyTNode<Object> a,
-                                           SloppyTNode<Object> b) {
+TNode<Number> CodeStubAssembler::NumberMin(SloppyTNode<Number> a,
+                                           SloppyTNode<Number> b) {
   // TODO(danno): This could be optimized by specifically handling smi cases.
-  VARIABLE(result, MachineRepresentation::kTagged);
+  TVARIABLE(Number, result);
   Label done(this), greater_than_equal_a(this), greater_than_equal_b(this);
   GotoIfNumberGreaterThanOrEqual(a, b, &greater_than_equal_a);
   GotoIfNumberGreaterThanOrEqual(b, a, &greater_than_equal_b);
-  result.Bind(NanConstant());
+  result = NanConstant();
   Goto(&done);
   BIND(&greater_than_equal_a);
-  result.Bind(b);
+  result = b;
   Goto(&done);
   BIND(&greater_than_equal_b);
-  result.Bind(a);
+  result = a;
   Goto(&done);
   BIND(&done);
-  return TNode<Object>::UncheckedCast(result.value());
+  return result.value();
 }
 
 TNode<IntPtrT> CodeStubAssembler::ConvertToRelativeIndex(
@@ -12314,11 +12314,11 @@ TNode<Object> CodeStubAssembler::GetSuperConstructor(
   return result.value();
 }
 
-TNode<Object> CodeStubAssembler::SpeciesConstructor(
+TNode<JSReceiver> CodeStubAssembler::SpeciesConstructor(
     SloppyTNode<Context> context, SloppyTNode<Object> object,
-    SloppyTNode<Object> default_constructor) {
+    SloppyTNode<JSReceiver> default_constructor) {
   Isolate* isolate = this->isolate();
-  TVARIABLE(Object, var_result, default_constructor);
+  TVARIABLE(JSReceiver, var_result, default_constructor);
 
   // 2. Let C be ? Get(O, "constructor").
   TNode<Object> constructor =
@@ -12343,7 +12343,7 @@ TNode<Object> CodeStubAssembler::SpeciesConstructor(
   Label throw_error(this);
   GotoIf(TaggedIsSmi(species), &throw_error);
   GotoIfNot(IsConstructorMap(LoadMap(CAST(species))), &throw_error);
-  var_result = species;
+  var_result = CAST(species);
   Goto(&out);
 
   // 8. Throw a TypeError exception.
@@ -12687,22 +12687,20 @@ Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
   return result;
 }
 
-Node* CodeStubAssembler::ArraySpeciesCreate(TNode<Context> context,
-                                            TNode<Object> o,
-                                            TNode<Number> len) {
-  Node* constructor =
-      CallRuntime(Runtime::kArraySpeciesConstructor, context, o);
-  return ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
-                     len);
+TNode<JSReceiver> CodeStubAssembler::ArraySpeciesCreate(TNode<Context> context,
+                                                        TNode<Object> o,
+                                                        TNode<Number> len) {
+  TNode<JSReceiver> constructor =
+      CAST(CallRuntime(Runtime::kArraySpeciesConstructor, context, o));
+  return Construct(context, constructor, len);
 }
 
-Node* CodeStubAssembler::InternalArrayCreate(TNode<Context> context,
-                                             TNode<Number> len) {
-  Node* native_context = LoadNativeContext(context);
-  Node* const constructor = LoadContextElement(
-      native_context, Context::INTERNAL_ARRAY_FUNCTION_INDEX);
-  return ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
-                     len);
+TNode<JSReceiver> CodeStubAssembler::InternalArrayCreate(TNode<Context> context,
+                                                         TNode<Number> len) {
+  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<JSReceiver> constructor = CAST(LoadContextElement(
+      native_context, Context::INTERNAL_ARRAY_FUNCTION_INDEX));
+  return Construct(context, constructor, len);
 }
 
 Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
@@ -13290,6 +13288,51 @@ void CodeStubAssembler::InitializeFunctionContext(Node* native_context,
                                     TheHoleConstant());
   StoreContextElementNoWriteBarrier(context, Context::NATIVE_CONTEXT_INDEX,
                                     native_context);
+}
+
+TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
+                                              TNode<Number> length) {
+  TVARIABLE(JSArray, array);
+  Label allocate_js_array(this);
+
+  Label done(this), next(this), runtime(this, Label::kDeferred);
+  TNode<Smi> limit = SmiConstant(JSArray::kInitialMaxFastElementArray);
+  CSA_ASSERT_BRANCH(this, [=](Label* ok, Label* not_ok) {
+    BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual, length,
+                                       SmiConstant(0), ok, not_ok);
+  });
+  // This check also transitively covers the case where length is too big
+  // to be representable by a SMI and so is not usable with
+  // AllocateJSArray.
+  BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual, length,
+                                     limit, &runtime, &next);
+
+  BIND(&runtime);
+  {
+    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<JSFunction> array_function =
+        CAST(LoadContextElement(native_context, Context::ARRAY_FUNCTION_INDEX));
+    array = CAST(CallRuntime(Runtime::kNewArray, context, array_function,
+                             length, array_function, UndefinedConstant()));
+    Goto(&done);
+  }
+
+  BIND(&next);
+  CSA_ASSERT(this, TaggedIsSmi(length));
+
+  TNode<Map> array_map = CAST(LoadContextElement(
+      context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
+
+  // TODO(delphick): Consider using
+  // AllocateUninitializedJSArrayWithElements to avoid initializing an
+  // array and then writing over it.
+  array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length,
+                               SmiConstant(0), nullptr,
+                               ParameterMode::SMI_PARAMETERS));
+  Goto(&done);
+
+  BIND(&done);
+  return array.value();
 }
 
 }  // namespace internal
