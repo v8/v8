@@ -117,6 +117,7 @@
   V(_, cell_value_string, "%cell_value")                              \
   V(_, char_at_string, "CharAt")                                      \
   V(_, character_string, "character")                                 \
+  V(_, clear_string, "clear")                                         \
   V(_, closure_string, "(closure)")                                   \
   V(_, code_string, "code")                                           \
   V(_, column_string, "column")                                       \

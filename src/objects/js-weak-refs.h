@@ -68,7 +68,7 @@ class JSWeakCell : public JSObject {
   DECL_VERIFIER(JSWeakCell)
   DECL_CAST(JSWeakCell)
 
-  DECL_ACCESSORS(factory, JSWeakFactory)
+  DECL_ACCESSORS(factory, Object)
   DECL_ACCESSORS(target, Object)
   DECL_ACCESSORS(holdings, Object)
 
@@ -93,6 +93,8 @@ class JSWeakCell : public JSObject {
       Isolate* isolate,
       std::function<void(HeapObject* object, Object** slot, Object* target)>
           gc_notify_updated_slot);
+
+  inline void Clear(Isolate* isolate);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCell);
