@@ -781,7 +781,7 @@ uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
 void NativeModule::DisableTrapHandler() {
   // Switch {use_trap_handler_} from true to false.
   DCHECK(use_trap_handler_);
-  use_trap_handler_ = false;
+  use_trap_handler_ = kNoTrapHandler;
 
   // Clear the code table (just to increase the chances to hit an error if we
   // forget to re-add all code).

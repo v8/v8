@@ -320,7 +320,9 @@ class WasmGraphBuilder {
 
   const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
 
-  bool use_trap_handler() const { return env_ && env_->use_trap_handler; }
+  wasm::UseTrapHandler use_trap_handler() const {
+    return env_ ? env_->use_trap_handler : wasm::kNoTrapHandler;
+  }
 
   MachineGraph* mcgraph() { return mcgraph_; }
   Graph* graph();
