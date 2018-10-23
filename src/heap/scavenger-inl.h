@@ -242,7 +242,8 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(Map* map,
                                                     HeapObjectSlot slot,
                                                     HeapObject* object,
                                                     int object_size) {
-  SLOW_DCHECK(object_size <= Page::kAllocatableMemory);
+  SLOW_DCHECK(static_cast<size_t>(object_size) <=
+              MemoryChunkLayout::AllocatableMemoryInDataPage());
   SLOW_DCHECK(object->SizeFromMap(map) == object_size);
   CopyAndForwardResult result;
 

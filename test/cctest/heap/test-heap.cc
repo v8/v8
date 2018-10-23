@@ -4598,7 +4598,8 @@ TEST(Regress388880) {
   // Allocate padding objects in old pointer space so, that object allocated
   // afterwards would end at the end of the page.
   heap::SimulateFullSpace(heap->old_space());
-  size_t padding_size = desired_offset - Page::kObjectStartOffset;
+  size_t padding_size =
+      desired_offset - MemoryChunkLayout::ObjectStartOffsetInDataPage();
   heap::CreatePadding(heap, static_cast<int>(padding_size), TENURED);
 
   Handle<JSObject> o = factory->NewJSObjectFromMap(map1, TENURED);
@@ -6133,7 +6134,8 @@ size_t NearHeapLimitCallback(void* raw_state, size_t current_heap_limit,
 
 size_t MemoryAllocatorSizeFromHeapCapacity(size_t capacity) {
   // Size to capacity factor.
-  double factor = Page::kPageSize * 1.0 / Page::kAllocatableMemory;
+  double factor =
+      Page::kPageSize * 1.0 / MemoryChunkLayout::AllocatableMemoryInDataPage();
   // Some tables (e.g. deoptimization table) are allocated directly with the
   // memory allocator. Allow some slack to account for them.
   size_t slack = 5 * MB;

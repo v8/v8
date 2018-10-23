@@ -47,7 +47,7 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltins() {
     DCHECK(!Builtins::IsLazy(Builtins::kDeserializeLazy));
     uint32_t builtin_size =
         deserializer()->ExtractCodeObjectSize(Builtins::kDeserializeLazy);
-    DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
+    DCHECK_LE(builtin_size, MemoryChunkLayout::AllocatableMemoryInCodePage());
     result.push_back({builtin_size, kNullAddress, kNullAddress});
   }
 
@@ -61,7 +61,7 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltins() {
     }
 
     uint32_t builtin_size = deserializer()->ExtractCodeObjectSize(i);
-    DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
+    DCHECK_LE(builtin_size, MemoryChunkLayout::AllocatableMemoryInCodePage());
     result.push_back({builtin_size, kNullAddress, kNullAddress});
   }
 
@@ -126,7 +126,7 @@ void BuiltinDeserializerAllocator::ReserveAndInitializeBuiltinsTableForBuiltin(
 
   const uint32_t builtin_size =
       deserializer()->ExtractCodeObjectSize(builtin_id);
-  DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
+  DCHECK_LE(builtin_size, MemoryChunkLayout::AllocatableMemoryInCodePage());
 
   Handle<HeapObject> o =
       isolate()->factory()->NewCodeForDeserialization(builtin_size);
