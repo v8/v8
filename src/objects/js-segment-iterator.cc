@@ -143,33 +143,6 @@ Handle<Object> JSSegmentIterator::Position(
   return isolate->factory()->NewNumberFromInt(icu_break_iterator->current());
 }
 
-namespace {
-
-Handle<JSReceiver> CreateResultForNext(Isolate* isolate, Handle<String> segment,
-                                       Handle<Object> break_type) {
-  Factory* factory = isolate->factory();
-  // Step 10-13 of %SegmentIteratorPrototype%.next( )
-  // ecma402 #sec-segment-iterator-prototype-next
-  // 10. Let result be ! ObjectCreate(%ObjectPrototype%).
-  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
-
-  // 11. Perform ! CreateDataProperty(result "segment", segment).
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, result, factory->segment_string(), segment, kDontThrow)
-            .FromJust());
-
-  // 12. Perform ! CreateDataProperty(result, "breakType", breakType).
-  CHECK(JSReceiver::CreateDataProperty(isolate, result,
-                                       factory->breakType_string(), break_type,
-                                       kDontThrow)
-            .FromJust());
-
-  // 13. Return CreateIterResultObject(result, false).
-  return factory->NewJSIteratorResult(result, false);
-}
-
-}  // namespace
-
 // ecma402 #sec-segment-iterator-prototype-next
 MaybeHandle<JSReceiver> JSSegmentIterator::Next(
     Isolate* isolate, Handle<JSSegmentIterator> segment_iterator) {
@@ -185,6 +158,8 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
     return factory->NewJSIteratorResult(isolate->factory()->undefined_value(),
                                         true);
   }
+  // 6. Let newPosition be iterator.[[SegmentIteratorPosition]].
+  Handle<Object> new_position = factory->NewNumberFromInt(position);
 
   // 8. Let segment be the substring of string from previousPosition to
   // newPosition, inclusive of previousPosition and exclusive of newPosition.
@@ -192,8 +167,32 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, segment, segment_iterator->GetSegment(isolate, prev, position),
       JSReceiver);
+
+  // 9. Let breakType be iterator.[[SegmentIteratorBreakType]].
   Handle<Object> break_type = segment_iterator->BreakType();
-  return CreateResultForNext(isolate, segment, break_type);
+
+  // 10. Let result be ! ObjectCreate(%ObjectPrototype%).
+  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+
+  // 11. Perform ! CreateDataProperty(result "segment", segment).
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, result, factory->segment_string(), segment, kDontThrow)
+            .FromJust());
+
+  // 12. Perform ! CreateDataProperty(result, "breakType", breakType).
+  CHECK(JSReceiver::CreateDataProperty(isolate, result,
+                                       factory->breakType_string(), break_type,
+                                       kDontThrow)
+            .FromJust());
+
+  // 13. Perform ! CreateDataProperty(result, "position", newPosition).
+  CHECK(JSReceiver::CreateDataProperty(isolate, result,
+                                       factory->position_string(), new_position,
+                                       kDontThrow)
+            .FromJust());
+
+  // 14. Return CreateIterResultObject(result, false).
+  return factory->NewJSIteratorResult(result, false);
 }
 
 // ecma402 #sec-segment-iterator-prototype-following

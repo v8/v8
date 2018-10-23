@@ -25,12 +25,16 @@ for (const text of [
     ]) {
   const iter = seg.segment(text);
   let segments = [];
+  let oldPos = -1;
   for (let result = iter.next(); !result.done; result = iter.next()) {
     const v = result.value;
     assertTrue(["sep", "term"].includes(iter.breakType), iter.breakType);
     assertEquals("string", typeof v.segment);
     assertTrue(v.segment.length > 0);
     segments.push(v.segment);
+    assertEquals("number", typeof v.position);
+    assertTrue(oldPos < v.position);
+    oldPos = v.position;
   }
   assertEquals(text, segments.join(''));
 }

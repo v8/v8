@@ -73,3 +73,19 @@ for (let rec of otherReceivers) {
    assertThrows(() => prototype.following.call(rec), TypeError);
    assertThrows(() => prototype.preceding.call(rec), TypeError);
 }
+
+// Check the property of the return object of next()
+let nextReturn = segmentIterator.next();
+
+function checkProperty(obj, property) {
+  let desc = Object.getOwnPropertyDescriptor(obj, property);
+  assertTrue(desc.writable);
+  assertTrue(desc.enumerable);
+  assertTrue(desc.configurable);
+}
+
+checkProperty(nextReturn, 'done');
+checkProperty(nextReturn, 'value');
+checkProperty(nextReturn.value, 'segment');
+checkProperty(nextReturn.value, 'breakType');
+checkProperty(nextReturn.value, 'position');
