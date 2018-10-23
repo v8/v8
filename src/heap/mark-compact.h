@@ -440,7 +440,7 @@ struct WeakObjects {
 
   // TODO(marja): For old space, we only need the slot, not the host
   // object. Optimize this by adding a different storage for old space.
-  Worklist<std::pair<HeapObject*, HeapObjectReference**>, 64> weak_references;
+  Worklist<std::pair<HeapObject*, HeapObjectSlot>, 64> weak_references;
   Worklist<std::pair<HeapObject*, Code*>, 64> weak_objects_in_code;
 
   Worklist<JSWeakCell*, 64> js_weak_cells;
@@ -628,10 +628,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   }
 
   void RecordRelocSlot(Code* host, RelocInfo* rinfo, Object* target);
-  V8_INLINE static void RecordSlot(HeapObject* object, Object** slot,
+  V8_INLINE static void RecordSlot(HeapObject* object, ObjectSlot slot,
                                    HeapObject* target);
-  V8_INLINE static void RecordSlot(HeapObject* object,
-                                   HeapObjectReference** slot,
+  V8_INLINE static void RecordSlot(HeapObject* object, HeapObjectSlot slot,
                                    HeapObject* target);
   void RecordLiveSlotsOnPage(Page* page);
 
@@ -669,7 +668,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                              Ephemeron{key, value});
   }
 
-  void AddWeakReference(HeapObject* host, HeapObjectReference** slot) {
+  void AddWeakReference(HeapObject* host, HeapObjectSlot slot) {
     weak_objects_.weak_references.Push(kMainThread, std::make_pair(host, slot));
   }
 
@@ -795,7 +794,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
-  static bool IsUnmarkedHeapObject(Heap* heap, Object** p);
+  static bool IsUnmarkedHeapObject(Heap* heap, ObjectSlot p);
 
   // Clear non-live references in weak cells, transition and descriptor arrays,
   // and deoptimize dependent code of non-live maps.
@@ -938,19 +937,19 @@ class MarkingVisitor final
   V8_INLINE int VisitJSWeakCell(Map* map, JSWeakCell* object);
 
   // ObjectVisitor implementation.
-  V8_INLINE void VisitPointer(HeapObject* host, Object** p) final;
-  V8_INLINE void VisitPointer(HeapObject* host, MaybeObject** p) final;
-  V8_INLINE void VisitPointers(HeapObject* host, Object** start,
-                               Object** end) final;
-  V8_INLINE void VisitPointers(HeapObject* host, MaybeObject** start,
-                               MaybeObject** end) final;
+  V8_INLINE void VisitPointer(HeapObject* host, ObjectSlot p) final;
+  V8_INLINE void VisitPointer(HeapObject* host, MaybeObjectSlot p) final;
+  V8_INLINE void VisitPointers(HeapObject* host, ObjectSlot start,
+                               ObjectSlot end) final;
+  V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                               MaybeObjectSlot end) final;
   V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
 
   // Weak list pointers should be ignored during marking. The lists are
   // reconstructed after GC.
-  void VisitCustomWeakPointers(HeapObject* host, Object** start,
-                               Object** end) final {}
+  void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
+                               ObjectSlot end) final {}
 
  private:
   // Granularity in which FixedArrays are scanned if |fixed_array_mode|

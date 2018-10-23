@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/handles.h"
 #include "src/objects.h"
+#include "src/objects/slots.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
@@ -54,9 +55,11 @@ class Arguments {
 
   Object** arguments() { return arguments_; }
 
-  Object** lowest_address() { return &this->operator[](length() - 1); }
+  ObjectSlot lowest_address() {
+    return ObjectSlot(&this->operator[](length() - 1));
+  }
 
-  Object** highest_address() { return &this->operator[](0); }
+  ObjectSlot highest_address() { return ObjectSlot(&this->operator[](0)); }
 
  private:
   intptr_t length_;

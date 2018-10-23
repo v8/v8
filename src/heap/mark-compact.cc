@@ -30,6 +30,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/transitions-inl.h"
 #include "src/utils-inl.h"
 #include "src/v8.h"
@@ -63,24 +64,25 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
 
   virtual Bitmap* bitmap(const MemoryChunk* chunk) = 0;
 
-  virtual void VerifyPointers(Object** start, Object** end) = 0;
-  virtual void VerifyPointers(MaybeObject** start, MaybeObject** end) = 0;
+  virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
+  virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
 
   virtual bool IsMarked(HeapObject* object) = 0;
 
   virtual bool IsBlackOrGrey(HeapObject* object) = 0;
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
     VerifyPointers(start, end);
   }
 
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {
     VerifyPointers(start, end);
   }
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
     VerifyPointers(start, end);
   }
 
@@ -182,8 +184,8 @@ class FullMarkingVerifier : public MarkingVerifier {
     return marking_state_->IsBlackOrGrey(object);
   }
 
-  void VerifyPointers(Object** start, Object** end) override {
-    for (Object** current = start; current < end; current++) {
+  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
+    for (ObjectSlot current = start; current < end; ++current) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
         CHECK(marking_state_->IsBlackOrGrey(object));
@@ -191,8 +193,8 @@ class FullMarkingVerifier : public MarkingVerifier {
     }
   }
 
-  void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
-    for (MaybeObject** current = start; current < end; current++) {
+  void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
+    for (MaybeObjectSlot current = start; current < end; ++current) {
       HeapObject* object;
       if ((*current)->GetHeapObjectIfStrong(&object)) {
         CHECK(marking_state_->IsBlackOrGrey(object));
@@ -204,7 +206,7 @@ class FullMarkingVerifier : public MarkingVerifier {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     if (!host->IsWeakObject(rinfo->target_object())) {
       Object* p = rinfo->target_object();
-      VisitPointer(host, &p);
+      VisitPointer(host, ObjectSlot(&p));
     }
   }
 
@@ -216,17 +218,18 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
  public:
   virtual void Run() = 0;
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
     VerifyPointers(start, end);
   }
 
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {
     VerifyPointers(start, end);
   }
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
     VerifyPointers(start, end);
   }
 
@@ -235,8 +238,8 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
 
   inline Heap* heap() { return heap_; }
 
-  virtual void VerifyPointers(Object** start, Object** end) = 0;
-  virtual void VerifyPointers(MaybeObject** start, MaybeObject** end) = 0;
+  virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
+  virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
 
   void VerifyRoots(VisitMode mode);
   void VerifyEvacuationOnPage(Address start, Address end);
@@ -296,8 +299,8 @@ class FullEvacuationVerifier : public EvacuationVerifier {
   }
 
  protected:
-  void VerifyPointers(Object** start, Object** end) override {
-    for (Object** current = start; current < end; current++) {
+  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
+    for (ObjectSlot current = start; current < end; ++current) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
         if (Heap::InNewSpace(object)) {
@@ -307,8 +310,8 @@ class FullEvacuationVerifier : public EvacuationVerifier {
       }
     }
   }
-  void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
-    for (MaybeObject** current = start; current < end; current++) {
+  void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
+    for (MaybeObjectSlot current = start; current < end; ++current) {
       HeapObject* object;
       if ((*current)->GetHeapObjectIfStrong(&object)) {
         if (Heap::InNewSpace(object)) {
@@ -856,17 +859,18 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
   explicit RootMarkingVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitRootPointer(Root root, const char* description, Object** p) final {
+  void VisitRootPointer(Root root, const char* description,
+                        ObjectSlot p) final {
     MarkObjectByPointer(root, p);
   }
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) final {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(root, p);
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) final {
+    for (ObjectSlot p = start; p < end; ++p) MarkObjectByPointer(root, p);
   }
 
  private:
-  V8_INLINE void MarkObjectByPointer(Root root, Object** p) {
+  V8_INLINE void MarkObjectByPointer(Root root, ObjectSlot p) {
     if (!(*p)->IsHeapObject()) return;
 
     collector_->MarkRootObject(root, HeapObject::cast(*p));
@@ -890,19 +894,19 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   explicit CustomRootBodyMarkingVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitPointer(HeapObject* host, Object** p) final {
+  void VisitPointer(HeapObject* host, ObjectSlot p) final {
     MarkObject(host, *p);
   }
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) final {
-    for (Object** p = start; p < end; p++) {
+  void VisitPointers(HeapObject* host, ObjectSlot start, ObjectSlot end) final {
+    for (ObjectSlot p = start; p < end; ++p) {
       DCHECK(!HasWeakHeapObjectTag(*p));
       MarkObject(host, *p);
     }
   }
 
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) final {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) final {
     // At the moment, custom roots cannot contain weak pointers.
     UNREACHABLE();
   }
@@ -923,19 +927,20 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
   InternalizedStringTableCleaner(Heap* heap, HeapObject* table)
       : heap_(heap), pointers_removed_(0), table_(table) {}
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
     Object* the_hole = ReadOnlyRoots(heap_).the_hole_value();
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
-    for (Object** p = start; p < end; p++) {
+    for (ObjectSlot p = start; p < end; ++p) {
       Object* o = *p;
       if (o->IsHeapObject()) {
         HeapObject* heap_object = HeapObject::cast(o);
         if (marking_state->IsWhite(heap_object)) {
           pointers_removed_++;
           // Set the entry to the_hole_value (as deleted).
-          *p = the_hole;
+          p.store(the_hole);
         } else {
           // StringTable contains only old space strings.
           DCHECK(!Heap::InNewSpace(o));
@@ -945,8 +950,8 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
     }
   }
 
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) final {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) final {
     UNREACHABLE();
   }
 
@@ -964,25 +969,25 @@ class ExternalStringTableCleaner : public RootVisitor {
  public:
   explicit ExternalStringTableCleaner(Heap* heap) : heap_(heap) {}
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
     Object* the_hole = ReadOnlyRoots(heap_).the_hole_value();
-    for (Object** p = start; p < end; p++) {
+    for (ObjectSlot p = start; p < end; ++p) {
       Object* o = *p;
       if (o->IsHeapObject()) {
         HeapObject* heap_object = HeapObject::cast(o);
         if (marking_state->IsWhite(heap_object)) {
           if (o->IsExternalString()) {
-            heap_->FinalizeExternalString(String::cast(*p));
+            heap_->FinalizeExternalString(String::cast(o));
           } else {
             // The original external string may have been internalized.
             DCHECK(o->IsThinString());
           }
           // Set the entry to the_hole_value (as deleted).
-          *p = the_hole;
+          p.store(the_hole);
         }
       }
     }
@@ -1035,26 +1040,25 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
   explicit RecordMigratedSlotVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  inline void VisitPointer(HeapObject* host, Object** p) final {
+  inline void VisitPointer(HeapObject* host, ObjectSlot p) final {
     DCHECK(!HasWeakHeapObjectTag(*p));
-    RecordMigratedSlot(host, reinterpret_cast<MaybeObject*>(*p),
-                       reinterpret_cast<Address>(p));
+    RecordMigratedSlot(host, reinterpret_cast<MaybeObject*>(*p), p.address());
   }
 
-  inline void VisitPointer(HeapObject* host, MaybeObject** p) final {
-    RecordMigratedSlot(host, *p, reinterpret_cast<Address>(p));
+  inline void VisitPointer(HeapObject* host, MaybeObjectSlot p) final {
+    RecordMigratedSlot(host, *p, p.address());
   }
 
-  inline void VisitPointers(HeapObject* host, Object** start,
-                            Object** end) final {
+  inline void VisitPointers(HeapObject* host, ObjectSlot start,
+                            ObjectSlot end) final {
     while (start < end) {
       VisitPointer(host, start);
       ++start;
     }
   }
 
-  inline void VisitPointers(HeapObject* host, MaybeObject** start,
-                            MaybeObject** end) final {
+  inline void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                            MaybeObjectSlot end) final {
     while (start < end) {
       VisitPointer(host, start);
       ++start;
@@ -1415,7 +1419,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   Heap* heap_;
 };
 
-bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, Object** p) {
+bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, ObjectSlot p) {
   Object* o = *p;
   if (!o->IsHeapObject()) return false;
   HeapObject* heap_object = HeapObject::cast(o);
@@ -1968,12 +1972,11 @@ bool MarkCompactCollector::CompactTransitionArray(
       if (i != transition_index) {
         Name* key = transitions->GetKey(i);
         transitions->SetKey(transition_index, key);
-        HeapObjectReference** key_slot =
-            transitions->GetKeySlot(transition_index);
+        HeapObjectSlot key_slot = transitions->GetKeySlot(transition_index);
         RecordSlot(transitions, key_slot, key);
         MaybeObject* raw_target = transitions->GetRawTarget(i);
         transitions->SetRawTarget(transition_index, raw_target);
-        HeapObjectReference** target_slot =
+        HeapObjectSlot target_slot =
             transitions->GetTargetSlot(transition_index);
         RecordSlot(transitions, target_slot, raw_target->GetHeapObject());
       }
@@ -2072,10 +2075,10 @@ void MarkCompactCollector::ClearWeakCollections() {
 
 void MarkCompactCollector::ClearWeakReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
-  std::pair<HeapObject*, HeapObjectReference**> slot;
+  std::pair<HeapObject*, HeapObjectSlot> slot;
   while (weak_objects_.weak_references.Pop(kMainThread, &slot)) {
     HeapObject* value;
-    HeapObjectReference** location = slot.second;
+    HeapObjectSlot location = slot.second;
     if ((*location)->GetHeapObjectIfWeak(&value)) {
       DCHECK(!value->IsCell());
       if (non_atomic_marking_state()->IsBlackOrGrey(value)) {
@@ -2086,7 +2089,7 @@ void MarkCompactCollector::ClearWeakReferences() {
           // The map is non-live.
           ClearPotentialSimpleMapTransition(Map::cast(value));
         }
-        *location = HeapObjectReference::ClearedValue();
+        location.store(HeapObjectReference::ClearedValue());
       }
     }
   }
@@ -2107,7 +2110,7 @@ void MarkCompactCollector::ClearJSWeakCells() {
       if (!weak_factory->scheduled_for_cleanup()) {
         isolate()->native_context()->AddDirtyJSWeakFactory(
             weak_factory, isolate(),
-            [](HeapObject* object, Object** slot, Object* target) {
+            [](HeapObject* object, ObjectSlot slot, Object* target) {
               if (target->IsHeapObject()) {
                 RecordSlot(object, slot, HeapObject::cast(target));
               }
@@ -2116,17 +2119,17 @@ void MarkCompactCollector::ClearJSWeakCells() {
       // We're modifying the pointers in JSWeakCell and JSWeakFactory during GC;
       // thus we need to record the slots it writes. The normal write barrier is
       // not enough, since it's disabled before GC.
-      weak_cell->Nullify(isolate(),
-                         [](HeapObject* object, Object** slot, Object* target) {
-                           if (target->IsHeapObject()) {
-                             RecordSlot(object, slot, HeapObject::cast(target));
-                           }
-                         });
+      weak_cell->Nullify(
+          isolate(), [](HeapObject* object, ObjectSlot slot, Object* target) {
+            if (target->IsHeapObject()) {
+              RecordSlot(object, slot, HeapObject::cast(target));
+            }
+          });
       DCHECK(weak_factory->NeedsCleanup());
       DCHECK(weak_factory->scheduled_for_cleanup());
     } else {
       // The value of the JSWeakCell is alive.
-      Object** slot =
+      ObjectSlot slot =
           HeapObject::RawField(weak_cell, JSWeakCell::kTargetOffset);
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
@@ -2170,7 +2173,7 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
 
 template <AccessMode access_mode>
 static inline SlotCallbackResult UpdateSlot(
-    MaybeObject** slot, MaybeObject* old, HeapObject* heap_obj,
+    MaybeObjectSlot slot, MaybeObject* old, HeapObject* heap_obj,
     HeapObjectReferenceType reference_type) {
   MapWord map_word = heap_obj->map_word();
   if (map_word.IsForwardingAddress()) {
@@ -2183,9 +2186,9 @@ static inline SlotCallbackResult UpdateSlot(
             ? HeapObjectReference::Weak(map_word.ToForwardingAddress())
             : HeapObjectReference::Strong(map_word.ToForwardingAddress());
     if (access_mode == AccessMode::NON_ATOMIC) {
-      *slot = target;
+      slot.store(target);
     } else {
-      base::AsAtomicPointer::Release_CompareAndSwap(slot, old, target);
+      slot.Release_CompareAndSwap(old, target);
     }
     DCHECK(!Heap::InFromSpace(target));
     DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
@@ -2197,8 +2200,8 @@ static inline SlotCallbackResult UpdateSlot(
 }
 
 template <AccessMode access_mode>
-static inline SlotCallbackResult UpdateSlot(MaybeObject** slot) {
-  MaybeObject* obj = base::AsAtomicPointer::Relaxed_Load(slot);
+static inline SlotCallbackResult UpdateSlot(MaybeObjectSlot slot) {
+  MaybeObject* obj = slot.Relaxed_Load();
   HeapObject* heap_obj;
   if (obj->GetHeapObjectIfWeak(&heap_obj)) {
     UpdateSlot<access_mode>(slot, obj, heap_obj, HeapObjectReferenceType::WEAK);
@@ -2210,10 +2213,10 @@ static inline SlotCallbackResult UpdateSlot(MaybeObject** slot) {
 }
 
 template <AccessMode access_mode>
-static inline SlotCallbackResult UpdateStrongSlot(MaybeObject** maybe_slot) {
+static inline SlotCallbackResult UpdateStrongSlot(MaybeObjectSlot maybe_slot) {
   DCHECK((*maybe_slot)->IsSmi() || (*maybe_slot)->IsStrong());
-  Object** slot = reinterpret_cast<Object**>(maybe_slot);
-  Object* obj = base::AsAtomicPointer::Relaxed_Load(slot);
+  ObjectSlot slot(maybe_slot);
+  Object* obj = slot.Relaxed_Load();
   if (obj->IsHeapObject()) {
     HeapObject* heap_obj = HeapObject::cast(obj);
     return UpdateSlot<access_mode>(maybe_slot, MaybeObject::FromObject(obj),
@@ -2230,35 +2233,36 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
   explicit PointersUpdatingVisitor(Heap* heap) : heap_(heap) {}
 
-  void VisitPointer(HeapObject* host, Object** p) override {
+  void VisitPointer(HeapObject* host, ObjectSlot p) override {
     UpdateStrongSlotInternal(p);
   }
 
-  void VisitPointer(HeapObject* host, MaybeObject** p) override {
+  void VisitPointer(HeapObject* host, MaybeObjectSlot p) override {
     UpdateSlotInternal(p);
   }
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) {
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p) {
       UpdateStrongSlotInternal(p);
     }
   }
 
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) final {
-    for (MaybeObject** p = start; p < end; p++) {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) final {
+    for (MaybeObjectSlot p = start; p < end; ++p) {
       UpdateSlotInternal(p);
     }
   }
 
   void VisitRootPointer(Root root, const char* description,
-                        Object** p) override {
+                        ObjectSlot p) override {
     UpdateStrongSlotInternal(p);
   }
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++) UpdateStrongSlotInternal(p);
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p) UpdateStrongSlotInternal(p);
   }
 
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
@@ -2273,18 +2277,17 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
 
  private:
   static inline SlotCallbackResult UpdateStrongMaybeObjectSlotInternal(
-      MaybeObject** slot) {
+      MaybeObjectSlot slot) {
     DCHECK(!(*slot)->IsWeakOrCleared());
-    return UpdateStrongSlotInternal(reinterpret_cast<Object**>(slot));
+    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(slot);
   }
 
-  static inline SlotCallbackResult UpdateStrongSlotInternal(Object** slot) {
+  static inline SlotCallbackResult UpdateStrongSlotInternal(ObjectSlot slot) {
     DCHECK(!HasWeakHeapObjectTag(*slot));
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(
-        reinterpret_cast<MaybeObject**>(slot));
+    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(MaybeObjectSlot(slot));
   }
 
-  static inline SlotCallbackResult UpdateSlotInternal(MaybeObject** slot) {
+  static inline SlotCallbackResult UpdateSlotInternal(MaybeObjectSlot slot) {
     return UpdateSlot<AccessMode::NON_ATOMIC>(slot);
   }
 
@@ -2292,7 +2295,7 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
 };
 
 static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
-                                                         Object** p) {
+                                                         ObjectSlot p) {
   MapWord map_word = HeapObject::cast(*p)->map_word();
 
   if (map_word.IsForwardingAddress()) {
@@ -2941,8 +2944,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
  private:
-  inline SlotCallbackResult CheckAndUpdateOldToNewSlot(Address slot_address) {
-    MaybeObject** slot = reinterpret_cast<MaybeObject**>(slot_address);
+  inline SlotCallbackResult CheckAndUpdateOldToNewSlot(MaybeObjectSlot slot) {
     HeapObject* heap_object;
     if (!(*slot)->GetHeapObject(&heap_object)) {
       return REMOVE_SLOT;
@@ -2950,9 +2952,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if (Heap::InFromSpace(heap_object)) {
       MapWord map_word = heap_object->map_word();
       if (map_word.IsForwardingAddress()) {
-        HeapObjectReference::Update(
-            reinterpret_cast<HeapObjectReference**>(slot),
-            map_word.ToForwardingAddress());
+        HeapObjectReference::Update(HeapObjectSlot(slot),
+                                    map_word.ToForwardingAddress());
       }
       bool success = (*slot)->GetHeapObject(&heap_object);
       USE(success);
@@ -2992,7 +2993,9 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
       RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
-          [this](Address slot) { return CheckAndUpdateOldToNewSlot(slot); },
+          [this](MaybeObjectSlot slot) {
+            return CheckAndUpdateOldToNewSlot(slot);
+          },
           SlotSet::PREFREE_EMPTY_BUCKETS);
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
@@ -3000,10 +3003,9 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       InvalidatedSlotsFilter filter(chunk_);
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
-          [&filter](Address slot) {
-            if (!filter.IsValid(slot)) return REMOVE_SLOT;
-            return UpdateSlot<AccessMode::NON_ATOMIC>(
-                reinterpret_cast<MaybeObject**>(slot));
+          [&filter](MaybeObjectSlot slot) {
+            if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+            return UpdateSlot<AccessMode::NON_ATOMIC>(slot);
           },
           SlotSet::PREFREE_EMPTY_BUCKETS);
     }
@@ -3027,8 +3029,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         nullptr) {
       CHECK_NE(chunk_->owner(), heap_->map_space());
       const auto check_and_update_old_to_new_slot_fn =
-          [this](MaybeObject** slot) {
-            return CheckAndUpdateOldToNewSlot(reinterpret_cast<Address>(slot));
+          [this](MaybeObjectSlot slot) {
+            return CheckAndUpdateOldToNewSlot(slot);
           };
       RememberedSet<OLD_TO_NEW>::IterateTyped(
           chunk_, [=](SlotType slot_type, Address host_addr, Address slot) {
@@ -3495,8 +3497,8 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     VerifyMarking(heap_->new_space());
   }
 
-  void VerifyPointers(Object** start, Object** end) override {
-    for (Object** current = start; current < end; current++) {
+  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
+    for (ObjectSlot current = start; current < end; ++current) {
       DCHECK(!HasWeakHeapObjectTag(*current));
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
@@ -3506,8 +3508,8 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     }
   }
 
-  void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
-    for (MaybeObject** current = start; current < end; current++) {
+  void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
+    for (MaybeObjectSlot current = start; current < end; ++current) {
       HeapObject* object;
       // Minor MC treats weak references as strong.
       if ((*current)->GetHeapObject(&object)) {
@@ -3537,16 +3539,16 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   }
 
  protected:
-  void VerifyPointers(Object** start, Object** end) override {
-    for (Object** current = start; current < end; current++) {
+  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
+    for (ObjectSlot current = start; current < end; ++current) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
         CHECK_IMPLIES(Heap::InNewSpace(object), Heap::InToSpace(object));
       }
     }
   }
-  void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
-    for (MaybeObject** current = start; current < end; current++) {
+  void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
+    for (MaybeObjectSlot current = start; current < end; ++current) {
       HeapObject* object;
       if ((*current)->GetHeapObject(&object)) {
         CHECK_IMPLIES(Heap::InNewSpace(object), Heap::InToSpace(object));
@@ -3571,7 +3573,7 @@ void SeedGlobalHandles(Heap* heap, GlobalHandles* global_handles,
   }
 }
 
-bool IsUnmarkedObjectForYoungGeneration(Heap* heap, Object** p) {
+bool IsUnmarkedObjectForYoungGeneration(Heap* heap, ObjectSlot p) {
   DCHECK_IMPLIES(Heap::InNewSpace(*p), Heap::InToSpace(*p));
   return Heap::InNewSpace(*p) && !heap->minor_mark_compact_collector()
                                       ->non_atomic_marking_state()
@@ -3588,21 +3590,21 @@ class YoungGenerationMarkingVisitor final
       MinorMarkCompactCollector::MarkingWorklist* global_worklist, int task_id)
       : worklist_(global_worklist, task_id), marking_state_(marking_state) {}
 
-  V8_INLINE void VisitPointers(HeapObject* host, Object** start,
-                               Object** end) final {
-    for (Object** p = start; p < end; p++) {
+  V8_INLINE void VisitPointers(HeapObject* host, ObjectSlot start,
+                               ObjectSlot end) final {
+    for (ObjectSlot p = start; p < end; ++p) {
       VisitPointer(host, p);
     }
   }
 
-  V8_INLINE void VisitPointers(HeapObject* host, MaybeObject** start,
-                               MaybeObject** end) final {
-    for (MaybeObject** p = start; p < end; p++) {
+  V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                               MaybeObjectSlot end) final {
+    for (MaybeObjectSlot p = start; p < end; ++p) {
       VisitPointer(host, p);
     }
   }
 
-  V8_INLINE void VisitPointer(HeapObject* host, Object** slot) final {
+  V8_INLINE void VisitPointer(HeapObject* host, ObjectSlot slot) final {
     Object* target = *slot;
     DCHECK(!HasWeakHeapObjectTag(target));
     if (Heap::InNewSpace(target)) {
@@ -3611,7 +3613,7 @@ class YoungGenerationMarkingVisitor final
     }
   }
 
-  V8_INLINE void VisitPointer(HeapObject* host, MaybeObject** slot) final {
+  V8_INLINE void VisitPointer(HeapObject* host, MaybeObjectSlot slot) final {
     MaybeObject* target = *slot;
     if (Heap::InNewSpace(target)) {
       HeapObject* target_object;
@@ -3803,19 +3805,20 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
   explicit RootMarkingVisitor(MinorMarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitRootPointer(Root root, const char* description, Object** p) final {
+  void VisitRootPointer(Root root, const char* description,
+                        ObjectSlot p) final {
     MarkObjectByPointer(p);
   }
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) final {
-    for (Object** p = start; p < end; p++) {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) final {
+    for (ObjectSlot p = start; p < end; ++p) {
       MarkObjectByPointer(p);
     }
   }
 
  private:
-  V8_INLINE void MarkObjectByPointer(Object** p) {
+  V8_INLINE void MarkObjectByPointer(ObjectSlot p) {
     if (!(*p)->IsHeapObject()) return;
     collector_->MarkRootObject(HeapObject::cast(*p));
   }
@@ -3936,12 +3939,12 @@ class YoungGenerationExternalStringTableCleaner : public RootVisitor {
       : heap_(collector->heap()),
         marking_state_(collector->non_atomic_marking_state()) {}
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
     DCHECK_EQ(static_cast<int>(root),
               static_cast<int>(Root::kExternalStringsTable));
     // Visit all HeapObject pointers in [start, end).
-    for (Object** p = start; p < end; p++) {
+    for (ObjectSlot p = start; p < end; ++p) {
       Object* o = *p;
       if (o->IsHeapObject()) {
         HeapObject* heap_object = HeapObject::cast(o);
@@ -3953,7 +3956,7 @@ class YoungGenerationExternalStringTableCleaner : public RootVisitor {
             DCHECK(o->IsThinString());
           }
           // Set the entry to the_hole_value (as deleted).
-          *p = ReadOnlyRoots(heap_).the_hole_value();
+          p.store(ReadOnlyRoots(heap_).the_hole_value());
         }
       }
     }
@@ -4149,10 +4152,11 @@ class PageMarkingItem : public MarkingItem {
   inline Heap* heap() { return chunk_->heap(); }
 
   void MarkUntypedPointers(YoungGenerationMarkingTask* task) {
-    RememberedSet<OLD_TO_NEW>::Iterate(
-        chunk_,
-        [this, task](Address slot) { return CheckAndMarkObject(task, slot); },
-        SlotSet::PREFREE_EMPTY_BUCKETS);
+    RememberedSet<OLD_TO_NEW>::Iterate(chunk_,
+                                       [this, task](MaybeObjectSlot slot) {
+                                         return CheckAndMarkObject(task, slot);
+                                       },
+                                       SlotSet::PREFREE_EMPTY_BUCKETS);
   }
 
   void MarkTypedPointers(YoungGenerationMarkingTask* task) {
@@ -4160,16 +4164,15 @@ class PageMarkingItem : public MarkingItem {
         chunk_,
         [this, task](SlotType slot_type, Address host_addr, Address slot) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
-              heap(), slot_type, slot, [this, task](MaybeObject** slot) {
-                return CheckAndMarkObject(task,
-                                          reinterpret_cast<Address>(slot));
+              heap(), slot_type, slot, [this, task](MaybeObjectSlot slot) {
+                return CheckAndMarkObject(task, slot);
               });
         });
   }
 
   SlotCallbackResult CheckAndMarkObject(YoungGenerationMarkingTask* task,
-                                        Address slot_address) {
-    MaybeObject* object = *reinterpret_cast<MaybeObject**>(slot_address);
+                                        MaybeObjectSlot slot) {
+    MaybeObject* object = *slot;
     if (Heap::InNewSpace(object)) {
       // Marking happens before flipping the young generation, so the object
       // has to be in ToSpace.
@@ -4213,15 +4216,15 @@ class GlobalHandlesMarkingItem : public MarkingItem {
         : task_(task) {}
 
     void VisitRootPointer(Root root, const char* description,
-                          Object** p) override {
+                          ObjectSlot p) override {
       DCHECK_EQ(Root::kGlobalHandles, root);
       task_->MarkObject(*p);
     }
 
-    void VisitRootPointers(Root root, const char* description, Object** start,
-                           Object** end) override {
+    void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                           ObjectSlot end) override {
       DCHECK_EQ(Root::kGlobalHandles, root);
-      for (Object** p = start; p < end; p++) {
+      for (ObjectSlot p = start; p < end; ++p) {
         task_->MarkObject(*p);
       }
     }

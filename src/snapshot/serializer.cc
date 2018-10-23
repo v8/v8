@@ -11,6 +11,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/map.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/builtin-serializer-allocator.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
@@ -110,11 +111,12 @@ bool Serializer<AllocatorT>::MustBeDeferred(HeapObject* object) {
 template <class AllocatorT>
 void Serializer<AllocatorT>::VisitRootPointers(Root root,
                                                const char* description,
-                                               Object** start, Object** end) {
+                                               ObjectSlot start,
+                                               ObjectSlot end) {
   // Builtins are serialized in a separate pass by the BuiltinSerializer.
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
 
-  for (Object** current = start; current < end; current++) {
+  for (ObjectSlot current = start; current < end; ++current) {
     SerializeRootObject(*current);
   }
 }
@@ -731,15 +733,17 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeContent(Map* map,
 
 template <class AllocatorT>
 void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(HeapObject* host,
-                                                             Object** start,
-                                                             Object** end) {
-  VisitPointers(host, reinterpret_cast<MaybeObject**>(start),
-                reinterpret_cast<MaybeObject**>(end));
+                                                             ObjectSlot start,
+                                                             ObjectSlot end) {
+  VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
 }
 
 template <class AllocatorT>
 void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
-    HeapObject* host, MaybeObject** start, MaybeObject** end) {
+    HeapObject* host, MaybeObjectSlot start_slot, MaybeObjectSlot end_slot) {
+  // TODO(3770): Migrate away from MaybeObject*/MaybeObject**.
+  MaybeObject** start = reinterpret_cast<MaybeObject**>(start_slot.address());
+  MaybeObject** end = reinterpret_cast<MaybeObject**>(end_slot.address());
   MaybeObject** current = start;
   while (current < end) {
     while (current < end && ((*current)->IsSmi() || (*current)->IsCleared())) {

@@ -213,7 +213,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Gives access to raw memory which stores the array's data.
-  inline MaybeObject** slots_start();
+  inline MaybeObjectSlot slots_start();
 
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;

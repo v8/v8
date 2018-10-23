@@ -11,6 +11,7 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-weak-refs.h"
+#include "src/objects/slots.h"
 #include "src/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -507,9 +508,10 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    v->VisitExternalReference(Foreign::cast(obj),
-                              reinterpret_cast<Address*>(HeapObject::RawField(
-                                  obj, kForeignAddressOffset)));
+    v->VisitExternalReference(
+        Foreign::cast(obj),
+        reinterpret_cast<Address*>(
+            HeapObject::RawField(obj, kForeignAddressOffset).address()));
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }

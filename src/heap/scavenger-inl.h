@@ -11,6 +11,7 @@
 #include "src/heap/local-allocator-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/map.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -148,7 +149,7 @@ bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
 }
 
 CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map* map,
-                                                    HeapObjectReference** slot,
+                                                    HeapObjectSlot slot,
                                                     HeapObject* object,
                                                     int object_size) {
   DCHECK(heap()->AllowedToBeMigrated(object, NEW_SPACE));
@@ -179,8 +180,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map* map,
   return CopyAndForwardResult::FAILURE;
 }
 
-CopyAndForwardResult Scavenger::PromoteObject(Map* map,
-                                              HeapObjectReference** slot,
+CopyAndForwardResult Scavenger::PromoteObject(Map* map, HeapObjectSlot slot,
                                               HeapObject* object,
                                               int object_size) {
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
@@ -239,7 +239,7 @@ bool Scavenger::HandleLargeObject(Map* map, HeapObject* object,
 }
 
 SlotCallbackResult Scavenger::EvacuateObjectDefault(Map* map,
-                                                    HeapObjectReference** slot,
+                                                    HeapObjectSlot slot,
                                                     HeapObject* object,
                                                     int object_size) {
   SLOW_DCHECK(object_size <= Page::kAllocatableMemory);
@@ -277,7 +277,7 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(Map* map,
   UNREACHABLE();
 }
 
-SlotCallbackResult Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
+SlotCallbackResult Scavenger::EvacuateThinString(Map* map, HeapObjectSlot slot,
                                                  ThinString* object,
                                                  int object_size) {
   if (!is_incremental_marking_) {
@@ -288,16 +288,15 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
     // ThinStrings always refer to internalized strings, which are always in old
     // space.
     DCHECK(!Heap::InNewSpace(actual));
-    *slot = actual;
+    slot.StoreHeapObject(actual);
     return REMOVE_SLOT;
   }
 
-  return EvacuateObjectDefault(
-      map, reinterpret_cast<HeapObjectReference**>(slot), object, object_size);
+  return EvacuateObjectDefault(map, slot, object, object_size);
 }
 
 SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
-                                                        HeapObject** slot,
+                                                        HeapObjectSlot slot,
                                                         ConsString* object,
                                                         int object_size) {
   DCHECK(IsShortcutCandidate(map->instance_type()));
@@ -305,7 +304,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
       object->unchecked_second() == ReadOnlyRoots(heap()).empty_string()) {
     HeapObject* first = HeapObject::cast(object->unchecked_first());
 
-    *slot = first;
+    slot.StoreHeapObject(first);
 
     if (!Heap::InNewSpace(first)) {
       base::AsAtomicPointer::Release_Store(
@@ -318,28 +317,26 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
     if (first_word.IsForwardingAddress()) {
       HeapObject* target = first_word.ToForwardingAddress();
 
-      *slot = target;
+      slot.StoreHeapObject(target);
       base::AsAtomicPointer::Release_Store(
           reinterpret_cast<Map**>(object->address()),
           MapWord::FromForwardingAddress(target).ToMap());
       return Heap::InToSpace(target) ? KEEP_SLOT : REMOVE_SLOT;
     }
     Map* map = first_word.ToMap();
-    SlotCallbackResult result = EvacuateObjectDefault(
-        map, reinterpret_cast<HeapObjectReference**>(slot), first,
-        first->SizeFromMap(map));
+    SlotCallbackResult result =
+        EvacuateObjectDefault(map, slot, first, first->SizeFromMap(map));
     base::AsAtomicPointer::Release_Store(
         reinterpret_cast<Map**>(object->address()),
-        MapWord::FromForwardingAddress(*slot).ToMap());
+        MapWord::FromForwardingAddress(slot.ToHeapObject()).ToMap());
     return result;
   }
 
-  return EvacuateObjectDefault(
-      map, reinterpret_cast<HeapObjectReference**>(slot), object, object_size);
+  return EvacuateObjectDefault(map, slot, object, object_size);
 }
 
-SlotCallbackResult Scavenger::EvacuateObject(HeapObjectReference** slot,
-                                             Map* map, HeapObject* source) {
+SlotCallbackResult Scavenger::EvacuateObject(HeapObjectSlot slot, Map* map,
+                                             HeapObject* source) {
   SLOW_DCHECK(Heap::InFromSpace(source));
   SLOW_DCHECK(!MapWord::FromMap(map).IsForwardingAddress());
   int size = source->SizeFromMap(map);
@@ -349,20 +346,19 @@ SlotCallbackResult Scavenger::EvacuateObject(HeapObjectReference** slot,
     case kVisitThinString:
       // At the moment we don't allow weak pointers to thin strings.
       DCHECK(!(*slot)->IsWeak());
-      return EvacuateThinString(map, reinterpret_cast<HeapObject**>(slot),
+      return EvacuateThinString(map, slot,
                                 reinterpret_cast<ThinString*>(source), size);
     case kVisitShortcutCandidate:
       DCHECK(!(*slot)->IsWeak());
       // At the moment we don't allow weak pointers to cons strings.
       return EvacuateShortcutCandidate(
-          map, reinterpret_cast<HeapObject**>(slot),
-          reinterpret_cast<ConsString*>(source), size);
+          map, slot, reinterpret_cast<ConsString*>(source), size);
     default:
       return EvacuateObjectDefault(map, slot, source, size);
   }
 }
 
-SlotCallbackResult Scavenger::ScavengeObject(HeapObjectReference** p,
+SlotCallbackResult Scavenger::ScavengeObject(HeapObjectSlot p,
                                              HeapObject* object) {
   DCHECK(Heap::InFromSpace(object));
 
@@ -375,10 +371,10 @@ SlotCallbackResult Scavenger::ScavengeObject(HeapObjectReference** p,
     HeapObject* dest = first_word.ToForwardingAddress();
     DCHECK(Heap::InFromSpace(*p));
     if ((*p)->IsWeak()) {
-      *p = HeapObjectReference::Weak(dest);
+      p.store(HeapObjectReference::Weak(dest));
     } else {
       DCHECK((*p)->IsStrong());
-      *p = HeapObjectReference::Strong(dest);
+      p.store(HeapObjectReference::Strong(dest));
     }
     DCHECK(Heap::InToSpace(dest) || !Heap::InNewSpace((dest)));
     return Heap::InToSpace(dest) ? KEEP_SLOT : REMOVE_SLOT;
@@ -392,15 +388,14 @@ SlotCallbackResult Scavenger::ScavengeObject(HeapObjectReference** p,
 }
 
 SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
-                                                     Address slot_address) {
-  MaybeObject** slot = reinterpret_cast<MaybeObject**>(slot_address);
+                                                     MaybeObjectSlot slot) {
   MaybeObject* object = *slot;
   if (Heap::InFromSpace(object)) {
     HeapObject* heap_object = object->GetHeapObject();
     DCHECK(heap_object->IsHeapObject());
 
-    SlotCallbackResult result = ScavengeObject(
-        reinterpret_cast<HeapObjectReference**>(slot), heap_object);
+    SlotCallbackResult result =
+        ScavengeObject(HeapObjectSlot(slot), heap_object);
     DCHECK_IMPLIES(result == REMOVE_SLOT, !Heap::InNewSpace(*slot));
     return result;
   } else if (Heap::InToSpace(object)) {
@@ -413,26 +408,25 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
   return REMOVE_SLOT;
 }
 
-void ScavengeVisitor::VisitPointers(HeapObject* host, Object** start,
-                                    Object** end) {
-  for (Object** p = start; p < end; p++) {
+void ScavengeVisitor::VisitPointers(HeapObject* host, ObjectSlot start,
+                                    ObjectSlot end) {
+  for (ObjectSlot p = start; p < end; ++p) {
     Object* object = *p;
     if (!Heap::InNewSpace(object)) continue;
-    scavenger_->ScavengeObject(reinterpret_cast<HeapObjectReference**>(p),
+    scavenger_->ScavengeObject(HeapObjectSlot(p),
                                reinterpret_cast<HeapObject*>(object));
   }
 }
 
-void ScavengeVisitor::VisitPointers(HeapObject* host, MaybeObject** start,
-                                    MaybeObject** end) {
-  for (MaybeObject** p = start; p < end; p++) {
+void ScavengeVisitor::VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                                    MaybeObjectSlot end) {
+  for (MaybeObjectSlot p = start; p < end; ++p) {
     MaybeObject* object = *p;
     if (!Heap::InNewSpace(object)) continue;
     // Treat the weak reference as strong.
     HeapObject* heap_object;
     if (object->GetHeapObject(&heap_object)) {
-      scavenger_->ScavengeObject(reinterpret_cast<HeapObjectReference**>(p),
-                                 heap_object);
+      scavenger_->ScavengeObject(HeapObjectSlot(p), heap_object);
     } else {
       UNREACHABLE();
     }

@@ -441,10 +441,9 @@ int TransitionsAccessor::NumberOfTransitions() {
 }
 
 void TransitionArray::Zap(Isolate* isolate) {
-  MemsetPointer(
-      data_start() + kPrototypeTransitionsIndex,
-      MaybeObject::FromObject(ReadOnlyRoots(isolate).the_hole_value()),
-      length() - kPrototypeTransitionsIndex);
+  MemsetPointer(ObjectSlot(data_start() + kPrototypeTransitionsIndex),
+                ReadOnlyRoots(isolate).the_hole_value(),
+                length() - kPrototypeTransitionsIndex);
   SetNumberOfTransitions(0);
 }
 

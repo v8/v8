@@ -52,6 +52,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/slots-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
@@ -1408,22 +1409,20 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
   if (len == 0) return;
 
   DCHECK(array->map() != ReadOnlyRoots(this).fixed_cow_array_map());
-  Object** dst = array->data_start() + dst_index;
-  Object** src = array->data_start() + src_index;
+  ObjectSlot dst = array->RawFieldOfElementAt(dst_index);
+  ObjectSlot src = array->RawFieldOfElementAt(src_index);
   if (FLAG_concurrent_marking && incremental_marking()->IsMarking()) {
     if (dst < src) {
       for (int i = 0; i < len; i++) {
-        base::AsAtomicPointer::Relaxed_Store(
-            dst + i, base::AsAtomicPointer::Relaxed_Load(src + i));
+        dst.Relaxed_Store(i, src.Relaxed_Load(i));
       }
     } else {
       for (int i = len - 1; i >= 0; i--) {
-        base::AsAtomicPointer::Relaxed_Store(
-            dst + i, base::AsAtomicPointer::Relaxed_Load(src + i));
+        dst.Relaxed_Store(i, src.Relaxed_Load(i));
       }
     }
   } else {
-    MemMove(dst, src, len * kPointerSize);
+    MemMove(dst.ToVoidPtr(), src.ToVoidPtr(), len * kPointerSize);
   }
   if (mode == SKIP_WRITE_BARRIER) return;
   FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(this, array, dst_index, len);
@@ -1436,9 +1435,10 @@ class StringTableVerifier : public ObjectVisitor {
  public:
   explicit StringTableVerifier(Isolate* isolate) : isolate_(isolate) {}
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
-    for (Object** p = start; p < end; p++) {
+    for (ObjectSlot p = start; p < end; ++p) {
       DCHECK(!HasWeakHeapObjectTag(*p));
       if ((*p)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*p);
@@ -1448,8 +1448,8 @@ class StringTableVerifier : public ObjectVisitor {
       }
     }
   }
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {
     UNREACHABLE();
   }
 
@@ -2007,7 +2007,7 @@ bool Heap::ExternalStringTable::Contains(HeapObject* obj) {
 }
 
 String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
-                                                                Object** p) {
+                                                                ObjectSlot p) {
   MapWord first_word = HeapObject::cast(*p)->map_word();
 
   if (!first_word.IsForwardingAddress()) {
@@ -2091,11 +2091,11 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
   if (new_space_strings_.empty()) return;
 
-  Object** start = new_space_strings_.data();
-  Object** end = start + new_space_strings_.size();
-  Object** last = start;
+  ObjectSlot start(new_space_strings_.data());
+  ObjectSlot end(new_space_strings_.data() + new_space_strings_.size());
+  ObjectSlot last = start;
 
-  for (Object** p = start; p < end; ++p) {
+  for (ObjectSlot p = start; p < end; ++p) {
     String* target = updater_func(heap_, p);
 
     if (target == nullptr) continue;
@@ -2104,7 +2104,7 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
 
     if (InNewSpace(target)) {
       // String is still in new space. Update the table entry.
-      *last = target;
+      last.store(target);
       ++last;
     } else {
       // String got promoted. Move it to the old string list.
@@ -2112,8 +2112,8 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
     }
   }
 
-  DCHECK_LE(last, end);
-  new_space_strings_.resize(static_cast<size_t>(last - start));
+  DCHECK(last <= end);
+  new_space_strings_.resize(last - start);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     VerifyNewSpace();
@@ -2131,18 +2131,20 @@ void Heap::ExternalStringTable::PromoteAllNewSpaceStrings() {
 
 void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
   if (!new_space_strings_.empty()) {
-    v->VisitRootPointers(Root::kExternalStringsTable, nullptr,
-                         new_space_strings_.data(),
-                         new_space_strings_.data() + new_space_strings_.size());
+    v->VisitRootPointers(
+        Root::kExternalStringsTable, nullptr,
+        ObjectSlot(new_space_strings_.data()),
+        ObjectSlot(new_space_strings_.data() + new_space_strings_.size()));
   }
 }
 
 void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
   IterateNewSpaceStrings(v);
   if (!old_space_strings_.empty()) {
-    v->VisitRootPointers(Root::kExternalStringsTable, nullptr,
-                         old_space_strings_.data(),
-                         old_space_strings_.data() + old_space_strings_.size());
+    v->VisitRootPointers(
+        Root::kExternalStringsTable, nullptr,
+        ObjectSlot(old_space_strings_.data()),
+        ObjectSlot(old_space_strings_.data() + old_space_strings_.size()));
   }
 }
 
@@ -2154,9 +2156,9 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 void Heap::ExternalStringTable::UpdateReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
   if (old_space_strings_.size() > 0) {
-    Object** start = old_space_strings_.data();
-    Object** end = start + old_space_strings_.size();
-    for (Object** p = start; p < end; ++p) *p = updater_func(heap_, p);
+    ObjectSlot start(old_space_strings_.data());
+    ObjectSlot end(old_space_strings_.data() + old_space_strings_.size());
+    for (ObjectSlot p = start; p < end; ++p) p.store(updater_func(heap_, p));
   }
 
   UpdateNewSpaceReferences(updater_func);
@@ -2264,9 +2266,9 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
     explicit ExternalStringTableVisitorAdapter(
         Isolate* isolate, v8::ExternalResourceVisitor* visitor)
         : isolate_(isolate), visitor_(visitor) {}
-    void VisitRootPointers(Root root, const char* description,
-                                   Object** start, Object** end) override {
-      for (Object** p = start; p < end; p++) {
+    void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                           ObjectSlot end) override {
+      for (ObjectSlot p = start; p < end; ++p) {
         DCHECK((*p)->IsExternalString());
         visitor_->VisitExternalString(
             Utils::ToLocal(Handle<String>(String::cast(*p), isolate_)));
@@ -2476,9 +2478,9 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
   explicit LeftTrimmerVerifierRootVisitor(FixedArrayBase* to_check)
       : to_check_(to_check) {}
 
-  void VisitRootPointers(Root root, const char* description,
-                                 Object** start, Object** end) override {
-    for (Object** p = start; p < end; ++p) {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p) {
       DCHECK_NE(*p, to_check_);
     }
   }
@@ -2967,23 +2969,23 @@ void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
 // Helper class for collecting slot addresses.
 class SlotCollectingVisitor final : public ObjectVisitor {
  public:
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    VisitPointers(host, reinterpret_cast<MaybeObject**>(start),
-                  reinterpret_cast<MaybeObject**>(end));
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
+    VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
   }
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) final {
-    for (MaybeObject** p = start; p < end; p++) {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) final {
+    for (MaybeObjectSlot p = start; p < end; ++p) {
       slots_.push_back(p);
     }
   }
 
   int number_of_slots() { return static_cast<int>(slots_.size()); }
 
-  MaybeObject** slot(int i) { return slots_[i]; }
+  MaybeObjectSlot slot(int i) { return slots_[i]; }
 
  private:
-  std::vector<MaybeObject**> slots_;
+  std::vector<MaybeObjectSlot> slots_;
 };
 
 void Heap::VerifyObjectLayoutChange(HeapObject* object, Map* new_map) {
@@ -3009,7 +3011,7 @@ void Heap::VerifyObjectLayoutChange(HeapObject* object, Map* new_map) {
       object->set_map_word(old_map_word);
       DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
       for (int i = 0; i < new_visitor.number_of_slots(); i++) {
-        DCHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));
+        DCHECK(new_visitor.slot(i) == old_visitor.slot(i));
       }
     }
   } else {
@@ -3466,14 +3468,14 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
       : VerifyPointersVisitor(heap) {}
 
  protected:
-  void VerifyPointers(HeapObject* host, MaybeObject** start,
-                      MaybeObject** end) override {
+  void VerifyPointers(HeapObject* host, MaybeObjectSlot start,
+                      MaybeObjectSlot end) override {
     if (host != nullptr) {
       CHECK(heap_->InReadOnlySpace(host->map()));
     }
     VerifyPointersVisitor::VerifyPointers(host, start, end);
 
-    for (MaybeObject** current = start; current < end; current++) {
+    for (MaybeObjectSlot current = start; current < end; ++current) {
       HeapObject* object;
       if ((*current)->GetHeapObject(&object)) {
         CHECK(heap_->InReadOnlySpace(object));
@@ -3518,21 +3520,21 @@ class SlotVerifyingVisitor : public ObjectVisitor {
   virtual bool ShouldHaveBeenRecorded(HeapObject* host,
                                       MaybeObject* target) = 0;
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
 #ifdef DEBUG
-    for (Object** slot = start; slot < end; slot++) {
+    for (ObjectSlot slot = start; slot < end; ++slot) {
       DCHECK(!HasWeakHeapObjectTag(*slot));
     }
 #endif  // DEBUG
-    VisitPointers(host, reinterpret_cast<MaybeObject**>(start),
-                  reinterpret_cast<MaybeObject**>(end));
+    VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
   }
 
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) final {
-    for (MaybeObject** slot = start; slot < end; slot++) {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) final {
+    for (MaybeObjectSlot slot = start; slot < end; ++slot) {
       if (ShouldHaveBeenRecorded(host, *slot)) {
-        CHECK_GT(untyped_->count(reinterpret_cast<Address>(slot)), 0);
+        CHECK_GT(untyped_->count(slot.address()), 0);
       }
     }
   }
@@ -3582,14 +3584,15 @@ template <RememberedSetType direction>
 void CollectSlots(MemoryChunk* chunk, Address start, Address end,
                   std::set<Address>* untyped,
                   std::set<std::pair<SlotType, Address> >* typed) {
-  RememberedSet<direction>::Iterate(chunk,
-                                    [start, end, untyped](Address slot) {
-                                      if (start <= slot && slot < end) {
-                                        untyped->insert(slot);
-                                      }
-                                      return KEEP_SLOT;
-                                    },
-                                    SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<direction>::Iterate(
+      chunk,
+      [start, end, untyped](MaybeObjectSlot slot) {
+        if (start <= slot.address() && slot.address() < end) {
+          untyped->insert(slot.address());
+        }
+        return KEEP_SLOT;
+      },
+      SlotSet::PREFREE_EMPTY_BUCKETS);
   RememberedSet<direction>::IterateTyped(
       chunk, [start, end, typed](SlotType type, Address host, Address slot) {
         if (start <= slot && slot < end) {
@@ -3649,8 +3652,9 @@ void Heap::ZapFromSpace() {
 
 void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #ifdef DEBUG
-  for (int i = 0; i < size_in_bytes / kPointerSize; i++) {
-    reinterpret_cast<Object**>(start_address)[i] = Smi::FromInt(kCodeZapValue);
+  DCHECK(IsAligned(start_address, kIntSize));
+  for (int i = 0; i < size_in_bytes / kIntSize; i++) {
+    Memory<int>(start_address + i * kIntSize) = kCodeZapValue;
   }
 #endif
 }
@@ -3685,7 +3689,7 @@ void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
   v->VisitRootPointer(Root::kStringTable, nullptr,
-                      &roots_table()[RootIndex::kStringTable]);
+                      ObjectSlot(&roots_table()[RootIndex::kStringTable]));
   v->Synchronize(VisitorSynchronization::kStringTable);
   if (!isMinorGC && mode != VISIT_ALL_IN_SWEEP_NEWSPACE &&
       mode != VISIT_FOR_SERIALIZATION) {
@@ -3717,17 +3721,17 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
   }
 
   void VisitRootPointer(Root root, const char* description,
-                        Object** p) override {
+                        ObjectSlot p) override {
     FixHandle(p);
   }
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++) FixHandle(p);
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p) FixHandle(p);
   }
 
  private:
-  inline void FixHandle(Object** p) {
+  inline void FixHandle(ObjectSlot p) {
     if (!(*p)->IsHeapObject()) return;
     HeapObject* current = reinterpret_cast<HeapObject*>(*p);
     const MapWord map_word = current->map_word();
@@ -3748,7 +3752,7 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
       }
       DCHECK(current->IsFixedArrayBase());
 #endif  // DEBUG
-      *p = nullptr;
+      p.store(nullptr);
     }
   }
 
@@ -3835,7 +3839,8 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
 
   // Iterate over other strong roots (currently only identity maps).
   for (StrongRootsList* list = strong_roots_list_; list; list = list->next) {
-    v->VisitRootPointers(Root::kStrongRoots, nullptr, list->start, list->end);
+    v->VisitRootPointers(Root::kStrongRoots, nullptr, ObjectSlot(list->start),
+                         ObjectSlot(list->end));
   }
   v->Synchronize(VisitorSynchronization::kStrongRoots);
 
@@ -3854,7 +3859,7 @@ void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
 void Heap::IterateBuiltins(RootVisitor* v) {
   for (int i = 0; i < Builtins::builtin_count; i++) {
     v->VisitRootPointer(Root::kBuiltins, Builtins::name(i),
-                        &builtins_table()[i]);
+                        ObjectSlot(builtin_address(i)));
   }
 }
 
@@ -4834,11 +4839,10 @@ void Heap::FatalProcessOutOfMemory(const char* location) {
 
 class PrintHandleVisitor : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++)
-      PrintF("  handle %p to %p\n", reinterpret_cast<void*>(p),
-             reinterpret_cast<void*>(*p));
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p)
+      PrintF("  handle %p to %p\n", p.ToVoidPtr(), reinterpret_cast<void*>(*p));
   }
 };
 
@@ -4857,8 +4861,8 @@ class CheckHandleCountVisitor : public RootVisitor {
   ~CheckHandleCountVisitor() override {
     CHECK_GT(HandleScope::kCheckHandleThreshold, handle_count_);
   }
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
     handle_count_ += end - start;
   }
 
@@ -4886,25 +4890,23 @@ Address Heap::store_buffer_overflow_function_address() {
   return FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow);
 }
 
-void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
-  Address slot_addr = reinterpret_cast<Address>(slot);
-  Page* page = Page::FromAddress(slot_addr);
+void Heap::ClearRecordedSlot(HeapObject* object, ObjectSlot slot) {
+  Page* page = Page::FromAddress(slot.address());
   if (!page->InNewSpace()) {
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
-    store_buffer()->DeleteEntry(slot_addr);
+    store_buffer()->DeleteEntry(slot.address());
   }
 }
 
 #ifdef DEBUG
-void Heap::VerifyClearedSlot(HeapObject* object, Object** slot) {
+void Heap::VerifyClearedSlot(HeapObject* object, ObjectSlot slot) {
   if (InNewSpace(object)) return;
-  Address slot_addr = reinterpret_cast<Address>(slot);
-  Page* page = Page::FromAddress(slot_addr);
+  Page* page = Page::FromAddress(slot.address());
   DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
   store_buffer()->MoveAllEntriesToRememberedSet();
-  CHECK(!RememberedSet<OLD_TO_NEW>::Contains(page, slot_addr));
+  CHECK(!RememberedSet<OLD_TO_NEW>::Contains(page, slot.address()));
   // Old to old slots are filtered with invalidated slots.
-  CHECK_IMPLIES(RememberedSet<OLD_TO_OLD>::Contains(page, slot_addr),
+  CHECK_IMPLIES(RememberedSet<OLD_TO_OLD>::Contains(page, slot.address()),
                 page->RegisteredObjectWithInvalidatedSlots(object));
 }
 #endif
@@ -4993,21 +4995,19 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     explicit MarkingVisitor(UnreachableObjectsFilter* filter)
         : filter_(filter) {}
 
-    void VisitPointers(HeapObject* host, Object** start,
-                       Object** end) override {
-      MarkPointers(reinterpret_cast<MaybeObject**>(start),
-                   reinterpret_cast<MaybeObject**>(end));
+    void VisitPointers(HeapObject* host, ObjectSlot start,
+                       ObjectSlot end) override {
+      MarkPointers(MaybeObjectSlot(start), MaybeObjectSlot(end));
     }
 
-    void VisitPointers(HeapObject* host, MaybeObject** start,
-                       MaybeObject** end) final {
+    void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                       MaybeObjectSlot end) final {
       MarkPointers(start, end);
     }
 
-    void VisitRootPointers(Root root, const char* description, Object** start,
-                           Object** end) override {
-      MarkPointers(reinterpret_cast<MaybeObject**>(start),
-                   reinterpret_cast<MaybeObject**>(end));
+    void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                           ObjectSlot end) override {
+      MarkPointers(MaybeObjectSlot(start), MaybeObjectSlot(end));
     }
 
     void TransitiveClosure() {
@@ -5019,9 +5019,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     }
 
    private:
-    void MarkPointers(MaybeObject** start, MaybeObject** end) {
+    void MarkPointers(MaybeObjectSlot start, MaybeObjectSlot end) {
       // Treat weak references as strong.
-      for (MaybeObject** p = start; p < end; p++) {
+      for (MaybeObjectSlot p = start; p < end; ++p) {
         HeapObject* heap_object;
         if ((*p)->GetHeapObject(&heap_object)) {
           if (filter_->MarkAsReachable(heap_object)) {
@@ -5308,28 +5308,28 @@ const char* AllocationSpaceName(AllocationSpace space) {
   return nullptr;
 }
 
-void VerifyPointersVisitor::VisitPointers(HeapObject* host, Object** start,
-                                          Object** end) {
-  VerifyPointers(host, reinterpret_cast<MaybeObject**>(start),
-                 reinterpret_cast<MaybeObject**>(end));
+void VerifyPointersVisitor::VisitPointers(HeapObject* host, ObjectSlot start,
+                                          ObjectSlot end) {
+  VerifyPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
 }
 
-void VerifyPointersVisitor::VisitPointers(HeapObject* host, MaybeObject** start,
-                                          MaybeObject** end) {
+void VerifyPointersVisitor::VisitPointers(HeapObject* host,
+                                          MaybeObjectSlot start,
+                                          MaybeObjectSlot end) {
   VerifyPointers(host, start, end);
 }
 
 void VerifyPointersVisitor::VisitRootPointers(Root root,
                                               const char* description,
-                                              Object** start, Object** end) {
-  VerifyPointers(nullptr, reinterpret_cast<MaybeObject**>(start),
-                 reinterpret_cast<MaybeObject**>(end));
+                                              ObjectSlot start,
+                                              ObjectSlot end) {
+  VerifyPointers(nullptr, MaybeObjectSlot(start), MaybeObjectSlot(end));
 }
 
 void VerifyPointersVisitor::VerifyPointers(HeapObject* host,
-                                           MaybeObject** start,
-                                           MaybeObject** end) {
-  for (MaybeObject** current = start; current < end; current++) {
+                                           MaybeObjectSlot start,
+                                           MaybeObjectSlot end) {
+  for (MaybeObjectSlot current = start; current < end; ++current) {
     HeapObject* object;
     if ((*current)->GetHeapObject(&object)) {
       CHECK(heap_->Contains(object));
@@ -5341,8 +5341,8 @@ void VerifyPointersVisitor::VerifyPointers(HeapObject* host,
 }
 
 void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,
-                                          Object** start, Object** end) {
-  for (Object** current = start; current < end; current++) {
+                                          ObjectSlot start, ObjectSlot end) {
+  for (ObjectSlot current = start; current < end; ++current) {
     CHECK((*current)->IsSmi());
   }
 }
@@ -5488,7 +5488,7 @@ void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray* array,
   for (int i = 0; i < length; i++) {
     if (!InNewSpace(array->get(offset + i))) continue;
     heap->store_buffer()->InsertEntry(
-        reinterpret_cast<Address>(array->RawFieldOfElementAt(offset + i)));
+        array->RawFieldOfElementAt(offset + i).address());
   }
 }
 
@@ -5515,8 +5515,8 @@ void Heap::GenerationalBarrierForCodeSlow(Code* host, RelocInfo* rinfo,
 void Heap::MarkingBarrierSlow(HeapObject* object, Address slot,
                               HeapObject* value) {
   Heap* heap = Heap::FromWritableHeapObject(object);
-  heap->incremental_marking()->RecordWriteSlow(
-      object, reinterpret_cast<HeapObjectReference**>(slot), value);
+  heap->incremental_marking()->RecordWriteSlow(object, HeapObjectSlot(slot),
+                                               value);
 }
 
 void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject* object) {

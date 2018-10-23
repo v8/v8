@@ -10,6 +10,7 @@
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"
@@ -86,7 +87,7 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
   DisallowHeapAllocation no_gc;
 
   VisitRootPointer(Root::kHandleScope, nullptr,
-                   Handle<Object>::cast(info).location());
+                   ObjectSlot(Handle<Object>::cast(info).location()));
   SerializeDeferredObjects();
   Pad();
 

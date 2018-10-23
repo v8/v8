@@ -18,6 +18,7 @@
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/slots.h"
 #include "src/objects/templates.h"
 #include "src/utils.h"
 
@@ -66,11 +67,12 @@ class FieldStatsCollector : public ObjectVisitor {
     *raw_fields_count_ += raw_fields_count_in_object;
   }
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
     *tagged_fields_count_ += (end - start);
   }
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {
     *tagged_fields_count_ += (end - start);
   }
 
@@ -600,8 +602,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
     size_t calculated_size = 0;
 
     // Log the feedback vector's header (fixed fields).
-    size_t header_size =
-        reinterpret_cast<Address>(vector->slots_start()) - vector->address();
+    size_t header_size = vector->slots_start().address() - vector->address();
     stats_->RecordVirtualObjectStats(ObjectStats::FEEDBACK_VECTOR_HEADER_TYPE,
                                      header_size,
                                      ObjectStats::kNoOverAllocation);

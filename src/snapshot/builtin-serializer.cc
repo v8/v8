@@ -48,7 +48,7 @@ void BuiltinSerializer::SerializeBuiltinsAndHandlers() {
 }
 
 void BuiltinSerializer::VisitRootPointers(Root root, const char* description,
-                                          Object** start, Object** end) {
+                                          ObjectSlot start, ObjectSlot end) {
   UNREACHABLE();  // We iterate manually in SerializeBuiltins.
 }
 

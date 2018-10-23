@@ -20,6 +20,7 @@
 #include "src/heap/worklist.h"
 #include "src/isolate.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/utils-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -56,10 +57,10 @@ class SlotSnapshot {
  public:
   SlotSnapshot() : number_of_slots_(0) {}
   int number_of_slots() const { return number_of_slots_; }
-  Object** slot(int i) const { return snapshot_[i].first; }
+  ObjectSlot slot(int i) const { return snapshot_[i].first; }
   Object* value(int i) const { return snapshot_[i].second; }
   void clear() { number_of_slots_ = 0; }
-  void add(Object** slot, Object* value) {
+  void add(ObjectSlot slot, Object* value) {
     snapshot_[number_of_slots_].first = slot;
     snapshot_[number_of_slots_].second = value;
     ++number_of_slots_;
@@ -68,7 +69,7 @@ class SlotSnapshot {
  private:
   static const int kMaxSnapshotSize = JSObject::kMaxInstanceSize / kPointerSize;
   int number_of_slots_;
-  std::pair<Object**, Object*> snapshot_[kMaxSnapshotSize];
+  std::pair<ObjectSlot, Object*> snapshot_[kMaxSnapshotSize];
   DISALLOW_COPY_AND_ASSIGN(SlotSnapshot);
 };
 
@@ -102,13 +103,13 @@ class ConcurrentMarkingVisitor final
 
   bool AllowDefaultJSObjectVisit() { return false; }
 
-  void ProcessStrongHeapObject(HeapObject* host, Object** slot,
+  void ProcessStrongHeapObject(HeapObject* host, ObjectSlot slot,
                                HeapObject* heap_object) {
     MarkObject(heap_object);
     MarkCompactCollector::RecordSlot(host, slot, heap_object);
   }
 
-  void ProcessWeakHeapObject(HeapObject* host, HeapObjectReference** slot,
+  void ProcessWeakHeapObject(HeapObject* host, HeapObjectSlot slot,
                              HeapObject* heap_object) {
 #ifdef THREAD_SANITIZER
     // Perform a dummy acquire load to tell TSAN that there is no data race
@@ -130,9 +131,10 @@ class ConcurrentMarkingVisitor final
     }
   }
 
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    for (Object** slot = start; slot < end; slot++) {
-      Object* object = base::AsAtomicPointer::Relaxed_Load(slot);
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
+    for (ObjectSlot slot = start; slot < end; ++slot) {
+      Object* object = slot.Relaxed_Load();
       DCHECK(!HasWeakHeapObjectTag(object));
       if (object->IsHeapObject()) {
         ProcessStrongHeapObject(host, slot, HeapObject::cast(object));
@@ -140,32 +142,30 @@ class ConcurrentMarkingVisitor final
     }
   }
 
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override {
-    for (MaybeObject** slot = start; slot < end; slot++) {
-      MaybeObject* object = base::AsAtomicPointer::Relaxed_Load(slot);
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {
+    for (MaybeObjectSlot slot = start; slot < end; ++slot) {
+      MaybeObject* object = slot.Relaxed_Load();
       HeapObject* heap_object;
       if (object->GetHeapObjectIfStrong(&heap_object)) {
         // If the reference changes concurrently from strong to weak, the write
         // barrier will treat the weak reference as strong, so we won't miss the
         // weak reference.
-        ProcessStrongHeapObject(host, reinterpret_cast<Object**>(slot),
-                                heap_object);
+        ProcessStrongHeapObject(host, ObjectSlot(slot), heap_object);
       } else if (object->GetHeapObjectIfWeak(&heap_object)) {
-        ProcessWeakHeapObject(
-            host, reinterpret_cast<HeapObjectReference**>(slot), heap_object);
+        ProcessWeakHeapObject(host, HeapObjectSlot(slot), heap_object);
       }
     }
   }
 
   // Weak list pointers should be ignored during marking. The lists are
   // reconstructed after GC.
-  void VisitCustomWeakPointers(HeapObject* host, Object** start,
-                               Object** end) override {}
+  void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
+                               ObjectSlot end) override {}
 
   void VisitPointersInSnapshot(HeapObject* host, const SlotSnapshot& snapshot) {
     for (int i = 0; i < snapshot.number_of_slots(); i++) {
-      Object** slot = snapshot.slot(i);
+      ObjectSlot slot = snapshot.slot(i);
       Object* object = snapshot.value(i);
       DCHECK(!HasWeakHeapObjectTag(object));
       if (!object->IsHeapObject()) continue;
@@ -202,7 +202,7 @@ class ConcurrentMarkingVisitor final
       if (marking_state_.IsBlackOrGrey(target)) {
         // Record the slot inside the JSWeakCell, since the
         // VisitJSObjectSubclass above didn't visit it.
-        Object** slot =
+        ObjectSlot slot =
             HeapObject::RawField(weak_cell, JSWeakCell::kTargetOffset);
         MarkCompactCollector::RecordSlot(weak_cell, slot, target);
       } else {
@@ -339,12 +339,12 @@ class ConcurrentMarkingVisitor final
     weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
 
     for (int i = 0; i < table->Capacity(); i++) {
-      Object** key_slot =
+      ObjectSlot key_slot =
           table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
       HeapObject* key = HeapObject::cast(table->KeyAt(i));
       MarkCompactCollector::RecordSlot(table, key_slot, key);
 
-      Object** value_slot =
+      ObjectSlot value_slot =
           table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
       if (marking_state_.IsBlackOrGrey(key)) {
@@ -408,24 +408,23 @@ class ConcurrentMarkingVisitor final
       slot_snapshot_->clear();
     }
 
-    void VisitPointers(HeapObject* host, Object** start,
-                       Object** end) override {
-      for (Object** p = start; p < end; p++) {
-        Object* object = reinterpret_cast<Object*>(
-            base::Relaxed_Load(reinterpret_cast<const base::AtomicWord*>(p)));
+    void VisitPointers(HeapObject* host, ObjectSlot start,
+                       ObjectSlot end) override {
+      for (ObjectSlot p = start; p < end; ++p) {
+        Object* object = p.Relaxed_Load();
         slot_snapshot_->add(p, object);
       }
     }
 
-    void VisitPointers(HeapObject* host, MaybeObject** start,
-                       MaybeObject** end) override {
+    void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                       MaybeObjectSlot end) override {
       // This should never happen, because we don't use snapshotting for objects
       // which contain weak references.
       UNREACHABLE();
     }
 
-    void VisitCustomWeakPointers(HeapObject* host, Object** start,
-                                 Object** end) override {
+    void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
+                                 ObjectSlot end) override {
       DCHECK(host->IsJSWeakCell());
     }
 
@@ -480,8 +479,7 @@ class ConcurrentMarkingVisitor final
   template <typename T>
   const SlotSnapshot& MakeSlotSnapshot(Map* map, T* object, int size) {
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
-    visitor.VisitPointer(object,
-                         reinterpret_cast<Object**>(object->map_slot()));
+    visitor.VisitPointer(object, ObjectSlot(object->map_slot().address()));
     T::BodyDescriptor::IterateBody(map, object, size, &visitor);
     return slot_snapshot_;
   }

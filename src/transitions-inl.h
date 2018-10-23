@@ -10,6 +10,7 @@
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/slots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -35,10 +36,9 @@ WeakFixedArray* TransitionArray::GetPrototypeTransitions() {
   return WeakFixedArray::cast(prototype_transitions);
 }
 
-HeapObjectReference** TransitionArray::GetKeySlot(int transition_number) {
+HeapObjectSlot TransitionArray::GetKeySlot(int transition_number) {
   DCHECK(transition_number < number_of_transitions());
-  return reinterpret_cast<HeapObjectReference**>(
-      RawFieldOfElementAt(ToKeyIndex(transition_number)));
+  return HeapObjectSlot(RawFieldOfElementAt(ToKeyIndex(transition_number)));
 }
 
 void TransitionArray::SetPrototypeTransitions(WeakFixedArray* transitions) {
@@ -83,10 +83,9 @@ void TransitionArray::SetKey(int transition_number, Name* key) {
                       HeapObjectReference::Strong(key));
 }
 
-HeapObjectReference** TransitionArray::GetTargetSlot(int transition_number) {
+HeapObjectSlot TransitionArray::GetTargetSlot(int transition_number) {
   DCHECK(transition_number < number_of_transitions());
-  return reinterpret_cast<HeapObjectReference**>(
-      RawFieldOfElementAt(ToTargetIndex(transition_number)));
+  return HeapObjectSlot(RawFieldOfElementAt(ToTargetIndex(transition_number)));
 }
 
 // static

@@ -22,6 +22,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/globals.h"
+#include "src/objects/slots.h"
 #include "src/vector.h"
 
 #if defined(V8_OS_AIX)
@@ -1218,6 +1219,10 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #endif
 
 #undef STOS
+}
+
+inline void MemsetPointer(ObjectSlot start, Object* value, int counter) {
+  MemsetPointer(reinterpret_cast<Object**>(start.address()), value, counter);
 }
 
 // Simple support to read a file into std::string.

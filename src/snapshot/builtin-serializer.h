@@ -26,8 +26,8 @@ class BuiltinSerializer : public Serializer<BuiltinSerializerAllocator> {
   void SerializeBuiltinsAndHandlers();
 
  private:
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override;
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override;
 
   void SerializeBuiltin(Code* code);
   void SerializeObject(HeapObject* o, HowToCode how_to_code,

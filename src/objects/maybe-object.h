@@ -9,6 +9,7 @@
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -128,7 +129,7 @@ class HeapObjectReference : public MaybeObject {
     return reinterpret_cast<HeapObjectReference*>(kClearedWeakHeapObject);
   }
 
-  static void Update(HeapObjectReference** slot, HeapObject* value) {
+  static void Update(HeapObjectSlot slot, HeapObject* value) {
     DCHECK(!HAS_SMI_TAG(*slot));
     DCHECK(Internals::HasHeapObjectTag(reinterpret_cast<Address>(value)));
 
@@ -136,9 +137,9 @@ class HeapObjectReference : public MaybeObject {
     bool weak_before = HasWeakHeapObjectTag(*slot);
 #endif
 
-    *slot = reinterpret_cast<HeapObjectReference*>(
+    slot.store(reinterpret_cast<HeapObjectReference*>(
         reinterpret_cast<intptr_t>(value) |
-        (reinterpret_cast<intptr_t>(*slot) & kWeakHeapObjectMask));
+        (reinterpret_cast<intptr_t>(*slot) & kWeakHeapObjectMask)));
 
 #ifdef DEBUG
     bool weak_after = HasWeakHeapObjectTag(*slot);

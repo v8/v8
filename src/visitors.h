@@ -6,6 +6,7 @@
 #define V8_VISITORS_H_
 
 #include "src/globals.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -63,11 +64,11 @@ class RootVisitor {
   // Visits a contiguous arrays of pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.
   virtual void VisitRootPointers(Root root, const char* description,
-                                 Object** start, Object** end) = 0;
+                                 ObjectSlot start, ObjectSlot end) = 0;
 
   // Handy shorthand for visiting a single pointer.
   virtual void VisitRootPointer(Root root, const char* description,
-                                Object** p) {
+                                ObjectSlot p) {
     VisitRootPointers(root, description, p, p + 1);
   }
 
@@ -90,28 +91,28 @@ class ObjectVisitor {
 
   // Visits a contiguous arrays of pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.
-  virtual void VisitPointers(HeapObject* host, Object** start,
-                             Object** end) = 0;
-  virtual void VisitPointers(HeapObject* host, MaybeObject** start,
-                             MaybeObject** end) = 0;
+  virtual void VisitPointers(HeapObject* host, ObjectSlot start,
+                             ObjectSlot end) = 0;
+  virtual void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                             MaybeObjectSlot end) = 0;
 
   // Custom weak pointers must be ignored by the GC but not other
   // visitors. They're used for e.g., lists that are recreated after GC. The
   // default implementation treats them as strong pointers. Visitors who want to
   // ignore them must override this function with empty.
-  virtual void VisitCustomWeakPointers(HeapObject* host, Object** start,
-                                       Object** end) {
+  virtual void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
+                                       ObjectSlot end) {
     VisitPointers(host, start, end);
   }
 
   // Handy shorthand for visiting a single pointer.
-  virtual void VisitPointer(HeapObject* host, Object** p) {
+  virtual void VisitPointer(HeapObject* host, ObjectSlot p) {
     VisitPointers(host, p, p + 1);
   }
-  virtual void VisitPointer(HeapObject* host, MaybeObject** p) {
+  virtual void VisitPointer(HeapObject* host, MaybeObjectSlot p) {
     VisitPointers(host, p, p + 1);
   }
-  virtual void VisitCustomWeakPointer(HeapObject* host, Object** p) {
+  virtual void VisitCustomWeakPointer(HeapObject* host, ObjectSlot p) {
     VisitCustomWeakPointers(host, p, p + 1);
   }
 

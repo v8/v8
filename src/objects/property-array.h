@@ -35,7 +35,7 @@ class PropertyArray : public HeapObject {
   inline void set(int index, Object* value, WriteBarrierMode mode);
 
   // Gives access to raw memory which stores the array's data.
-  inline Object** data_start();
+  inline ObjectSlot data_start();
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {

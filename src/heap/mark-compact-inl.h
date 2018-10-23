@@ -11,6 +11,7 @@
 #include "src/heap/remembered-set.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -120,12 +121,12 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
   collector_->AddEphemeronHashTable(table);
 
   for (int i = 0; i < table->Capacity(); i++) {
-    Object** key_slot =
+    ObjectSlot key_slot =
         table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
     HeapObject* key = HeapObject::cast(table->KeyAt(i));
     collector_->RecordSlot(table, key_slot, key);
 
-    Object** value_slot =
+    ObjectSlot value_slot =
         table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
     if (marking_state()->IsBlackOrGrey(key)) {
@@ -186,7 +187,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
     if (marking_state()->IsBlackOrGrey(target)) {
       // Record the slot inside the JSWeakCell, since the IterateBody below
       // won't visit it.
-      Object** slot =
+      ObjectSlot slot =
           HeapObject::RawField(weak_cell, JSWeakCell::kTargetOffset);
       collector_->RecordSlot(weak_cell, slot, target);
     } else {
@@ -203,7 +204,8 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitPointer(HeapObject* host, Object** p) {
+                    MarkingState>::VisitPointer(HeapObject* host,
+                                                ObjectSlot p) {
   if (!(*p)->IsHeapObject()) return;
   HeapObject* target_object = HeapObject::cast(*p);
   collector_->RecordSlot(host, p, target_object);
@@ -214,24 +216,21 @@ template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::VisitPointer(HeapObject* host,
-                                                MaybeObject** p) {
+                                                MaybeObjectSlot p) {
   HeapObject* target_object;
   if ((*p)->GetHeapObjectIfStrong(&target_object)) {
-    collector_->RecordSlot(host, reinterpret_cast<HeapObjectReference**>(p),
-                           target_object);
+    collector_->RecordSlot(host, HeapObjectSlot(p), target_object);
     MarkObject(host, target_object);
   } else if ((*p)->GetHeapObjectIfWeak(&target_object)) {
     if (marking_state()->IsBlackOrGrey(target_object)) {
       // Weak references with live values are directly processed here to reduce
       // the processing time of weak cells during the main GC pause.
-      collector_->RecordSlot(host, reinterpret_cast<HeapObjectReference**>(p),
-                             target_object);
+      collector_->RecordSlot(host, HeapObjectSlot(p), target_object);
     } else {
       // If we do not know about liveness of values of weak cells, we have to
       // process them when we know the liveness of the whole transitive
       // closure.
-      collector_->AddWeakReference(host,
-                                   reinterpret_cast<HeapObjectReference**>(p));
+      collector_->AddWeakReference(host, HeapObjectSlot(p));
     }
   }
 }
@@ -240,8 +239,9 @@ template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::VisitPointers(HeapObject* host,
-                                                 Object** start, Object** end) {
-  for (Object** p = start; p < end; p++) {
+                                                 ObjectSlot start,
+                                                 ObjectSlot end) {
+  for (ObjectSlot p = start; p < end; ++p) {
     VisitPointer(host, p);
   }
 }
@@ -250,9 +250,9 @@ template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::VisitPointers(HeapObject* host,
-                                                 MaybeObject** start,
-                                                 MaybeObject** end) {
-  for (MaybeObject** p = start; p < end; p++) {
+                                                 MaybeObjectSlot start,
+                                                 MaybeObjectSlot end) {
+  for (MaybeObjectSlot p = start; p < end; ++p) {
     VisitPointer(host, p);
   }
 }
@@ -371,7 +371,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   if (!map->is_prototype_map()) {
     DescriptorArray* descriptors = map->instance_descriptors();
     if (MarkObjectWithoutPush(map, descriptors) && descriptors->length() > 0) {
-      VisitPointers(descriptors, descriptors->GetFirstElementAddress(),
+      VisitPointers(descriptors, descriptors->data_start(),
                     descriptors->GetDescriptorEndSlot(0));
     }
     int start = 0;
@@ -426,20 +426,18 @@ void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject* obj) {
   }
 }
 
-void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
+void MarkCompactCollector::RecordSlot(HeapObject* object, ObjectSlot slot,
                                       HeapObject* target) {
-  RecordSlot(object, reinterpret_cast<HeapObjectReference**>(slot), target);
+  RecordSlot(object, HeapObjectSlot(slot), target);
 }
 
-void MarkCompactCollector::RecordSlot(HeapObject* object,
-                                      HeapObjectReference** slot,
+void MarkCompactCollector::RecordSlot(HeapObject* object, HeapObjectSlot slot,
                                       HeapObject* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&
       !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
-    RememberedSet<OLD_TO_OLD>::Insert(source_page,
-                                      reinterpret_cast<Address>(slot));
+    RememberedSet<OLD_TO_OLD>::Insert(source_page, slot.address());
   }
 }
 

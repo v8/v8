@@ -182,8 +182,8 @@ class SlotSet : public Malloced {
   // This method should only be called on the main thread.
   //
   // Sample usage:
-  // Iterate([](Address slot_address) {
-  //    if (good(slot_address)) return KEEP_SLOT;
+  // Iterate([](MaybeObjectSlot slot) {
+  //    if (good(slot)) return KEEP_SLOT;
   //    else return REMOVE_SLOT;
   // });
   template <typename Callback>
@@ -203,7 +203,7 @@ class SlotSet : public Malloced {
               int bit_offset = base::bits::CountTrailingZeros(cell);
               uint32_t bit_mask = 1u << bit_offset;
               uint32_t slot = (cell_offset + bit_offset) << kPointerSizeLog2;
-              if (callback(page_start_ + slot) == KEEP_SLOT) {
+              if (callback(MaybeObjectSlot(page_start_ + slot)) == KEEP_SLOT) {
                 ++in_bucket_count;
               } else {
                 mask |= bit_mask;

@@ -7,6 +7,7 @@
 
 #include "src/heap/factory.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/natives.h"
 #include "src/visitors.h"
 
@@ -26,7 +27,7 @@ class SourceCodeCache final {
 
   void Iterate(RootVisitor* v) {
     v->VisitRootPointer(Root::kExtensions, nullptr,
-                        bit_cast<Object**, FixedArray**>(&cache_));
+                        ObjectSlot(reinterpret_cast<Address>(&cache_)));
   }
 
   bool Lookup(Isolate* isolate, Vector<const char> name,

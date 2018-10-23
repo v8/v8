@@ -7,6 +7,7 @@
 #include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -37,16 +38,16 @@ void RootsSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
 }
 
 void RootsSerializer::VisitRootPointers(Root root, const char* description,
-                                        Object** start, Object** end) {
+                                        ObjectSlot start, ObjectSlot end) {
   RootsTable& roots_table = isolate()->heap()->roots_table();
   if (start ==
-      roots_table.begin() + static_cast<size_t>(first_root_to_be_serialized_)) {
+      roots_table.begin() + static_cast<int>(first_root_to_be_serialized_)) {
     // Serializing the root list needs special handling:
     // - Only root list elements that have been fully serialized can be
     //   referenced using kRootArray bytecodes.
-    for (Object** current = start; current < end; current++) {
+    for (ObjectSlot current = start; current < end; ++current) {
       SerializeRootObject(*current);
-      size_t root_index = static_cast<size_t>(current - roots_table.begin());
+      size_t root_index = current - roots_table.begin();
       root_has_been_serialized_.set(root_index);
     }
   } else {

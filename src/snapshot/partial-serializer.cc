@@ -8,6 +8,7 @@
 #include "src/api-inl.h"
 #include "src/math-random.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -44,7 +45,7 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
   MathRandom::ResetContext(context_);
 
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                   reinterpret_cast<Object**>(o));
+                   ObjectSlot(reinterpret_cast<Address>(o)));
   SerializeDeferredObjects();
   SerializeEmbedderFields();
   Pad();

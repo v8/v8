@@ -37,6 +37,7 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/slots.h"
 #include "src/objects/template-objects.h"
 #include "src/objects/templates.h"
 #include "src/property-details.h"
@@ -723,12 +724,13 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   return value;
 }
 
-Object** HeapObject::RawField(const HeapObject* obj, int byte_offset) {
-  return reinterpret_cast<Object**>(FIELD_ADDR(obj, byte_offset));
+ObjectSlot HeapObject::RawField(const HeapObject* obj, int byte_offset) {
+  return ObjectSlot(FIELD_ADDR(obj, byte_offset));
 }
 
-MaybeObject** HeapObject::RawMaybeWeakField(HeapObject* obj, int byte_offset) {
-  return reinterpret_cast<MaybeObject**>(FIELD_ADDR(obj, byte_offset));
+MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject* obj,
+                                              int byte_offset) {
+  return MaybeObjectSlot(FIELD_ADDR(obj, byte_offset));
 }
 
 int Smi::ToInt(const Object* object) { return Smi::cast(object)->value(); }
@@ -802,9 +804,9 @@ void HeapObject::set_map(Map* value) {
   }
   set_map_word(MapWord::FromMap(value));
   if (value != nullptr) {
-    // TODO(1600) We are passing nullptr as a slot because maps can never be on
-    // evacuation candidate.
-    MarkingBarrier(this, nullptr, value);
+    // TODO(1600) We are passing kNullAddress as a slot because maps can never
+    // be on an evacuation candidate.
+    MarkingBarrier(this, ObjectSlot(kNullAddress), value);
   }
 }
 
@@ -821,9 +823,9 @@ void HeapObject::synchronized_set_map(Map* value) {
   }
   synchronized_set_map_word(MapWord::FromMap(value));
   if (value != nullptr) {
-    // TODO(1600) We are passing nullptr as a slot because maps can never be on
-    // evacuation candidate.
-    MarkingBarrier(this, nullptr, value);
+    // TODO(1600) We are passing kNullAddress as a slot because maps can never
+    // be on an evacuation candidate.
+    MarkingBarrier(this, ObjectSlot(kNullAddress), value);
   }
 }
 
@@ -842,14 +844,14 @@ void HeapObject::set_map_after_allocation(Map* value, WriteBarrierMode mode) {
   set_map_word(MapWord::FromMap(value));
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK_NOT_NULL(value);
-    // TODO(1600) We are passing nullptr as a slot because maps can never be on
-    // evacuation candidate.
-    MarkingBarrier(this, nullptr, value);
+    // TODO(1600) We are passing kNullAddress as a slot because maps can never
+    // be on an evacuation candidate.
+    MarkingBarrier(this, ObjectSlot(kNullAddress), value);
   }
 }
 
-HeapObject** HeapObject::map_slot() {
-  return reinterpret_cast<HeapObject**>(FIELD_ADDR(this, kMapOffset));
+ObjectSlot HeapObject::map_slot() {
+  return ObjectSlot(FIELD_ADDR(this, kMapOffset));
 }
 
 MapWord HeapObject::map_word() const {
@@ -1253,19 +1255,17 @@ int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
   return number;
 }
 
-
-Object** DescriptorArray::GetKeySlot(int descriptor_number) {
+ObjectSlot DescriptorArray::GetKeySlot(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   DCHECK((*RawFieldOfElementAt(ToKeyIndex(descriptor_number)))->IsObject());
-  return reinterpret_cast<Object**>(
-      RawFieldOfElementAt(ToKeyIndex(descriptor_number)));
+  return ObjectSlot(RawFieldOfElementAt(ToKeyIndex(descriptor_number)));
 }
 
-MaybeObject** DescriptorArray::GetDescriptorStartSlot(int descriptor_number) {
-  return reinterpret_cast<MaybeObject**>(GetKeySlot(descriptor_number));
+MaybeObjectSlot DescriptorArray::GetDescriptorStartSlot(int descriptor_number) {
+  return MaybeObjectSlot(GetKeySlot(descriptor_number));
 }
 
-MaybeObject** DescriptorArray::GetDescriptorEndSlot(int descriptor_number) {
+MaybeObjectSlot DescriptorArray::GetDescriptorEndSlot(int descriptor_number) {
   return GetValueSlot(descriptor_number - 1) + 1;
 }
 
@@ -1293,7 +1293,7 @@ void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
       MaybeObject::FromObject(details.set_pointer(pointer).AsSmi()));
 }
 
-MaybeObject** DescriptorArray::GetValueSlot(int descriptor_number) {
+MaybeObjectSlot DescriptorArray::GetValueSlot(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   return RawFieldOfElementAt(ToValueIndex(descriptor_number));
 }

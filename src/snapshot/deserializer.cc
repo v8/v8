@@ -12,6 +12,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/slots.h"
 #include "src/objects/string.h"
 #include "src/snapshot/builtin-deserializer-allocator.h"
 #include "src/snapshot/natives.h"
@@ -68,14 +69,16 @@ Deserializer<AllocatorT>::~Deserializer() {
 template <class AllocatorT>
 void Deserializer<AllocatorT>::VisitRootPointers(Root root,
                                                  const char* description,
-                                                 Object** start, Object** end) {
+                                                 ObjectSlot start,
+                                                 ObjectSlot end) {
   // Builtins are deserialized in a separate pass by the BuiltinDeserializer.
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
 
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using nullptr as the address.
-  ReadData(reinterpret_cast<MaybeObject**>(start),
-           reinterpret_cast<MaybeObject**>(end), NEW_SPACE, kNullAddress);
+  ReadData(reinterpret_cast<MaybeObject**>(start.address()),
+           reinterpret_cast<MaybeObject**>(end.address()), NEW_SPACE,
+           kNullAddress);
 }
 
 template <class AllocatorT>
@@ -713,7 +716,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         if (write_barrier_needed && Heap::InNewSpace(hot_object)) {
           Address current_address = reinterpret_cast<Address>(current);
           GenerationalBarrier(HeapObject::FromAddress(current_object_address),
-                              reinterpret_cast<MaybeObject**>(current_address),
+                              MaybeObjectSlot(current_address),
                               hot_maybe_object);
         }
         current++;
@@ -877,9 +880,9 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
   if (emit_write_barrier && write_barrier_needed) {
     Address current_address = reinterpret_cast<Address>(current);
     SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));
-    GenerationalBarrier(HeapObject::FromAddress(current_object_address),
-                        reinterpret_cast<MaybeObject**>(current_address),
-                        *reinterpret_cast<MaybeObject**>(current_address));
+    MaybeObjectSlot slot(current_address);
+    GenerationalBarrier(HeapObject::FromAddress(current_object_address), slot,
+                        *slot);
   }
   if (!current_was_incremented) {
     current++;

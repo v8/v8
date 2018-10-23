@@ -100,8 +100,8 @@ class Deserializer : public SerializerDeserializer {
   void Rehash();
 
  private:
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override;
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override;
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 

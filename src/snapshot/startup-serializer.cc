@@ -8,6 +8,7 @@
 #include "src/code-tracer.h"
 #include "src/global-handles.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer.h"
 #include "src/v8threads.h"
 
@@ -88,7 +89,8 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // add entries to the partial snapshot cache of the startup snapshot. Add
   // one entry with 'undefined' to terminate the partial snapshot cache.
   Object* undefined = ReadOnlyRoots(isolate()).undefined_value();
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &undefined);
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
+                   ObjectSlot(&undefined));
   isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
   SerializeDeferredObjects();
   Pad();
@@ -145,8 +147,9 @@ void SerializedHandleChecker::AddToSet(FixedArray* serialized) {
 
 void SerializedHandleChecker::VisitRootPointers(Root root,
                                                 const char* description,
-                                                Object** start, Object** end) {
-  for (Object** p = start; p < end; p++) {
+                                                ObjectSlot start,
+                                                ObjectSlot end) {
+  for (ObjectSlot p = start; p < end; ++p) {
     if (serialized_.find(*p) != serialized_.end()) continue;
     PrintF("%s handle not serialized: ",
            root == Root::kGlobalHandles ? "global" : "eternal");

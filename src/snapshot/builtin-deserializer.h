@@ -47,8 +47,8 @@ class BuiltinDeserializer final
 
   // BuiltinDeserializer implements its own builtin iteration logic. Make sure
   // the RootVisitor API is not used accidentally.
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
     UNREACHABLE();
   }
 

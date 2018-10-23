@@ -32,7 +32,7 @@ class PreParsedScopeData : public HeapObject {
   inline void set_child_data(int index, Object* value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Object** child_data_start() const;
+  inline ObjectSlot child_data_start() const;
 
   // Clear uninitialized padding space.
   inline void clear_padding();

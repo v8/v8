@@ -177,7 +177,7 @@ void FeedbackVector::set(int index, Object* value, WriteBarrierMode mode) {
   set(index, MaybeObject::FromObject(value), mode);
 }
 
-inline MaybeObject** FeedbackVector::slots_start() {
+inline MaybeObjectSlot FeedbackVector::slots_start() {
   return HeapObject::RawMaybeWeakField(this, kFeedbackSlotsOffset);
 }
 

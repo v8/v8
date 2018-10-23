@@ -14,6 +14,7 @@ class JSGlobalObject;
 class JSGlobalProxy;
 class JSWeakFactory;
 class NativeContext;
+class ObjectSlot;
 class RegExpMatchInfo;
 
 enum ContextLookupFlags {
@@ -637,7 +638,7 @@ class NativeContext : public Context {
   // Add weak_factory into the dirty_js_weak_factories list.
   inline void AddDirtyJSWeakFactory(
       JSWeakFactory* weak_factory, Isolate* isolate,
-      std::function<void(HeapObject* object, Object** slot, Object* target)>
+      std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
           gc_notify_updated_slot);
 
  private:

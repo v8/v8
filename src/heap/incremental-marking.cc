@@ -18,6 +18,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/sweeper.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/slots.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 #include "src/visitors.h"
@@ -95,17 +96,17 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   return is_compacting_ && need_recording;
 }
 
-void IncrementalMarking::RecordWriteSlow(HeapObject* obj,
-                                         HeapObjectReference** slot,
+void IncrementalMarking::RecordWriteSlow(HeapObject* obj, HeapObjectSlot slot,
                                          Object* value) {
-  if (BaseRecordWrite(obj, value) && slot != nullptr) {
+  if (BaseRecordWrite(obj, value) && slot.address() != kNullAddress) {
     // Object is not going to be rescanned we need to record the slot.
     heap_->mark_compact_collector()->RecordSlot(obj, slot,
                                                 HeapObject::cast(value));
   }
 }
 
-int IncrementalMarking::RecordWriteFromCode(HeapObject* obj, MaybeObject** slot,
+int IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
+                                            MaybeObjectSlot slot,
                                             Isolate* isolate) {
   DCHECK(obj->IsHeapObject());
   isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(obj, slot,
@@ -217,17 +218,17 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
       : heap_(incremental_marking->heap()) {}
 
   void VisitRootPointer(Root root, const char* description,
-                        Object** p) override {
+                        ObjectSlot p) override {
     MarkObjectByPointer(p);
   }
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p) MarkObjectByPointer(p);
   }
 
  private:
-  void MarkObjectByPointer(Object** p) {
+  void MarkObjectByPointer(ObjectSlot p) {
     Object* obj = *p;
     if (!obj->IsHeapObject()) return;
 
@@ -652,19 +653,18 @@ T* ForwardingAddress(T* heap_obj) {
 
 void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
   weak_objects_->weak_references.Update(
-      [](std::pair<HeapObject*, HeapObjectReference**> slot_in,
-         std::pair<HeapObject*, HeapObjectReference**>* slot_out) -> bool {
+      [](std::pair<HeapObject*, HeapObjectSlot> slot_in,
+         std::pair<HeapObject*, HeapObjectSlot>* slot_out) -> bool {
         HeapObject* heap_obj = slot_in.first;
         HeapObject* forwarded = ForwardingAddress(heap_obj);
 
         if (forwarded) {
-          ptrdiff_t distance_to_slot =
-              reinterpret_cast<Address>(slot_in.second) -
-              reinterpret_cast<Address>(slot_in.first);
+          ptrdiff_t distance_to_slot = slot_in.second.address() -
+                                       reinterpret_cast<Address>(slot_in.first);
           Address new_slot =
               reinterpret_cast<Address>(forwarded) + distance_to_slot;
           slot_out->first = forwarded;
-          slot_out->second = reinterpret_cast<HeapObjectReference**>(new_slot);
+          slot_out->second = HeapObjectSlot(new_slot);
           return true;
         }
 

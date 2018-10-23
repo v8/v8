@@ -270,7 +270,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 // caching.
 class JSObject : public JSReceiver {
  public:
-  static bool IsUnmodifiedApiObject(Object** o);
+  static bool IsUnmodifiedApiObject(ObjectSlot o);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
@@ -495,7 +495,8 @@ class JSObject : public JSReceiver {
 
   // Makes sure that this object can contain the specified elements.
   static inline void EnsureCanContainElements(Handle<JSObject> object,
-                                              Object** elements, uint32_t count,
+                                              ObjectSlot elements,
+                                              uint32_t count,
                                               EnsureElementsMode mode);
   static inline void EnsureCanContainElements(Handle<JSObject> object,
                                               Handle<FixedArrayBase> elements,

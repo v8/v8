@@ -59,8 +59,8 @@ class StartupSerializer : public RootsSerializer {
 class SerializedHandleChecker : public RootVisitor {
  public:
   SerializedHandleChecker(Isolate* isolate, std::vector<Context*>* contexts);
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override;
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override;
   bool CheckGlobalAndEternalHandles();
 
  private:

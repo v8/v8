@@ -13,6 +13,7 @@
 #include "src/lookup-inl.h"
 #include "src/objects/property-array-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/slots.h"
 #include "src/prototype.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -126,7 +127,7 @@ void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
 }
 
 void JSObject::EnsureCanContainElements(Handle<JSObject> object,
-                                        Object** objects, uint32_t count,
+                                        ObjectSlot objects, uint32_t count,
                                         EnsureElementsMode mode) {
   ElementsKind current_kind = object->GetElementsKind();
   ElementsKind target_kind = current_kind;
@@ -136,8 +137,8 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
     bool is_holey = IsHoleyElementsKind(current_kind);
     if (current_kind == HOLEY_ELEMENTS) return;
     Object* the_hole = object->GetReadOnlyRoots().the_hole_value();
-    for (uint32_t i = 0; i < count; ++i) {
-      Object* current = *objects++;
+    for (uint32_t i = 0; i < count; ++i, ++objects) {
+      Object* current = *objects;
       if (current == the_hole) {
         is_holey = true;
         target_kind = GetHoleyElementsKind(target_kind);
@@ -175,7 +176,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
     if (mode == ALLOW_COPIED_DOUBLE_ELEMENTS) {
       mode = DONT_ALLOW_DOUBLE_ELEMENTS;
     }
-    Object** objects =
+    ObjectSlot objects =
         Handle<FixedArray>::cast(elements)->GetFirstElementAddress();
     EnsureCanContainElements(object, objects, length, mode);
     return;

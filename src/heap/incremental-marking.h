@@ -181,7 +181,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   inline void RestartIfNotMarking();
 
-  static int RecordWriteFromCode(HeapObject* obj, MaybeObject** slot,
+  static int RecordWriteFromCode(HeapObject* obj, MaybeObjectSlot slot,
                                  Isolate* isolate);
 
   // Record a slot for compaction.  Returns false for objects that are
@@ -191,13 +191,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // cannot be interpreted correctly if the underlying object does not survive
   // the incremental cycle (stays white).
   V8_INLINE bool BaseRecordWrite(HeapObject* obj, Object* value);
-  V8_INLINE void RecordWrite(HeapObject* obj, Object** slot, Object* value);
-  V8_INLINE void RecordMaybeWeakWrite(HeapObject* obj, MaybeObject** slot,
+  V8_INLINE void RecordWrite(HeapObject* obj, ObjectSlot slot, Object* value);
+  V8_INLINE void RecordMaybeWeakWrite(HeapObject* obj, MaybeObjectSlot slot,
                                       MaybeObject* value);
   void RevisitObject(HeapObject* obj);
 
-  void RecordWriteSlow(HeapObject* obj, HeapObjectReference** slot,
-                       Object* value);
+  void RecordWriteSlow(HeapObject* obj, HeapObjectSlot slot, Object* value);
   void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, HeapObject* value);
 
   // Returns true if the function succeeds in transitioning the object

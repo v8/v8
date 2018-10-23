@@ -33,6 +33,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -380,11 +381,12 @@ char* Debug::RestoreDebug(char* storage) {
 int Debug::ArchiveSpacePerThread() { return sizeof(ThreadLocal); }
 
 void Debug::Iterate(RootVisitor* v) {
-  v->VisitRootPointer(Root::kDebug, nullptr, &thread_local_.return_value_);
   v->VisitRootPointer(Root::kDebug, nullptr,
-                      &thread_local_.suspended_generator_);
+                      ObjectSlot(&thread_local_.return_value_));
   v->VisitRootPointer(Root::kDebug, nullptr,
-                      &thread_local_.ignore_step_into_function_);
+                      ObjectSlot(&thread_local_.suspended_generator_));
+  v->VisitRootPointer(Root::kDebug, nullptr,
+                      ObjectSlot(&thread_local_.ignore_step_into_function_));
 }
 
 DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo* debug_info)

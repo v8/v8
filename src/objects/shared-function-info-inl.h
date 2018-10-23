@@ -39,7 +39,7 @@ void PreParsedScopeData::set_child_data(int index, Object* value,
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
-Object** PreParsedScopeData::child_data_start() const {
+ObjectSlot PreParsedScopeData::child_data_start() const {
   return HeapObject::RawField(this, kChildDataStartOffset);
 }
 

@@ -653,6 +653,7 @@ class KeyAccumulator;
 class LayoutDescriptor;
 class LookupIterator;
 class FieldType;
+class MaybeObjectSlot;
 class MicrotaskQueue;
 class Module;
 class ModuleInfoEntry;
@@ -1604,7 +1605,7 @@ class HeapObject: public Object {
   inline Map* map() const;
   inline void set_map(Map* value);
 
-  inline HeapObject** map_slot();
+  inline ObjectSlot map_slot();
 
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
@@ -1710,8 +1711,8 @@ class HeapObject: public Object {
   // Does no checking, and is safe to use during GC, while maps are invalid.
   // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
-  static inline Object** RawField(const HeapObject* obj, int offset);
-  static inline MaybeObject** RawMaybeWeakField(HeapObject* obj, int offset);
+  static inline ObjectSlot RawField(const HeapObject* obj, int offset);
+  static inline MaybeObjectSlot RawMaybeWeakField(HeapObject* obj, int offset);
 
   DECL_CAST(HeapObject)
 

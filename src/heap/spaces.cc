@@ -3366,13 +3366,6 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
 
   HeapObject* object = page->GetObject();
 
-  if (Heap::ShouldZapGarbage()) {
-    // Make the object consistent so the heap can be verified in OldSpaceStep.
-    // We only need to do this in debug builds or if verify_heap is on.
-    reinterpret_cast<Object**>(object->address())[0] =
-        ReadOnlyRoots(heap()).fixed_array_map();
-    reinterpret_cast<Object**>(object->address())[1] = Smi::kZero;
-  }
   heap()->CreateFillerObjectAt(object->address(), object_size,
                                ClearRecordedSlots::kNo);
   AllocationStep(object_size, object->address(), object_size);

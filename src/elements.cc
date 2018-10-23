@@ -17,6 +17,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/slots.h"
 #include "src/utils.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,
@@ -146,7 +147,7 @@ void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase* from_base,
       int start = to_start + copy_size;
       int length = to_base->length() - start;
       if (length > 0) {
-        MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
+        MemsetPointer(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
                       roots.the_hole_value(), length);
       }
     }
@@ -184,7 +185,7 @@ static void CopyDictionaryToObjectElements(
       int start = to_start + copy_size;
       int length = to_base->length() - start;
       if (length > 0) {
-        MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
+        MemsetPointer(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
                       ReadOnlyRoots(isolate).the_hole_value(), length);
       }
     }
@@ -233,7 +234,7 @@ static void CopyDoubleToObjectElements(Isolate* isolate,
       int start = to_start;
       int length = to_base->length() - start;
       if (length > 0) {
-        MemsetPointer(FixedArray::cast(to_base)->data_start() + start,
+        MemsetPointer(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
                       ReadOnlyRoots(isolate).the_hole_value(), length);
       }
     }
@@ -462,7 +463,7 @@ static void SortIndices(
   // store operations that are safe for concurrent marking.
   base::AtomicElement<Object*>* start =
       reinterpret_cast<base::AtomicElement<Object*>*>(
-          indices->GetFirstElementAddress());
+          indices->GetFirstElementAddress().address());
   std::sort(start, start + sort_size,
             [isolate](const base::AtomicElement<Object*>& elementA,
                       const base::AtomicElement<Object*>& elementB) {
@@ -2233,15 +2234,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       DCHECK_LE(hole_start, backing_store->length());
       DCHECK_LE(hole_end, backing_store->length());
     } else if (len != 0) {
-      if (IsDoubleElementsKind(KindTraits::Kind)) {
-        MemMove(dst_elms->data_start() + dst_index,
-                dst_elms->data_start() + src_index, len * kDoubleSize);
-      } else {
-        DisallowHeapAllocation no_gc;
-        WriteBarrierMode mode = GetWriteBarrierMode(KindTraits::Kind);
-        heap->MoveElements(FixedArray::cast(*dst_elms), dst_index, src_index,
-                           len, mode);
-      }
+      WriteBarrierMode mode = GetWriteBarrierMode(KindTraits::Kind);
+      dst_elms->MoveElements(heap, dst_index, src_index, len, mode);
     }
     if (hole_start != hole_end) {
       dst_elms->FillWithHoles(hole_start, hole_end);

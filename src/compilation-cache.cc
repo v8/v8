@@ -9,6 +9,7 @@
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/objects/compilation-cache-inl.h"
+#include "src/objects/slots.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -67,8 +68,9 @@ void CompilationSubCache::Age() {
 }
 
 void CompilationSubCache::Iterate(RootVisitor* v) {
-  v->VisitRootPointers(Root::kCompilationCache, nullptr, &tables_[0],
-                       &tables_[generations_]);
+  v->VisitRootPointers(Root::kCompilationCache, nullptr,
+                       ObjectSlot(&tables_[0]),
+                       ObjectSlot(&tables_[generations_]));
 }
 
 void CompilationSubCache::Clear() {

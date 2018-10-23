@@ -8,6 +8,7 @@
 #include "src/code-tracer.h"
 #include "src/global-handles.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/startup-serializer.h"
 #include "src/v8threads.h"
 
@@ -59,7 +60,7 @@ void ReadOnlySerializer::FinalizeSerialization() {
   // add entries to the read-only object cache. Add one entry with 'undefined'
   // to terminate the read-only object cache.
   Object* undefined = ReadOnlyRoots(isolate()).undefined_value();
-  VisitRootPointer(Root::kReadOnlyObjectCache, nullptr, &undefined);
+  VisitRootPointer(Root::kReadOnlyObjectCache, nullptr, ObjectSlot(&undefined));
   SerializeDeferredObjects();
   Pad();
 }

@@ -44,8 +44,8 @@ class RootsSerializer : public Serializer<> {
   int SerializeInObjectCache(HeapObject* object);
 
  private:
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override;
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override;
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
   const RootIndex first_root_to_be_serialized_;

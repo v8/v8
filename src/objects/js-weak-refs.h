@@ -91,7 +91,7 @@ class JSWeakCell : public JSObject {
   // since it's disabled before GC.
   inline void Nullify(
       Isolate* isolate,
-      std::function<void(HeapObject* object, Object** slot, Object* target)>
+      std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
           gc_notify_updated_slot);
 
   inline void Clear(Isolate* isolate);

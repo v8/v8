@@ -72,10 +72,9 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
-    HeapObject* host, HeapObject** map) {
-  static_cast<ConcreteVisitor*>(this)->VisitPointer(
-      host, reinterpret_cast<Object**>(map));
+void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(HeapObject* host,
+                                                               ObjectSlot map) {
+  static_cast<ConcreteVisitor*>(this)->VisitPointer(host, map);
 }
 
 #define VISIT(type)                                                            \

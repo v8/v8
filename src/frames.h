@@ -1075,7 +1075,7 @@ class WasmCompileLazyFrame : public StandardFrame {
 
   Code* unchecked_code() const override { return nullptr; }
   WasmInstanceObject* wasm_instance() const;
-  Object** wasm_instance_slot() const;
+  ObjectSlot wasm_instance_slot() const;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;

@@ -58,6 +58,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
+#include "src/objects/slots.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
@@ -10551,15 +10552,15 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
     if (last_handle_before_deferred_block_ != nullptr &&
         (last_handle_before_deferred_block_ <= &block[kHandleBlockSize]) &&
         (last_handle_before_deferred_block_ >= block)) {
-      v->VisitRootPointers(Root::kHandleScope, nullptr, block,
-                           last_handle_before_deferred_block_);
+      v->VisitRootPointers(Root::kHandleScope, nullptr, ObjectSlot(block),
+                           ObjectSlot(last_handle_before_deferred_block_));
       DCHECK(!found_block_before_deferred);
 #ifdef DEBUG
       found_block_before_deferred = true;
 #endif
     } else {
-      v->VisitRootPointers(Root::kHandleScope, nullptr, block,
-                           &block[kHandleBlockSize]);
+      v->VisitRootPointers(Root::kHandleScope, nullptr, ObjectSlot(block),
+                           ObjectSlot(&block[kHandleBlockSize]));
     }
   }
 
@@ -10568,21 +10569,23 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
 
   // Iterate over live handles in the last block (if any).
   if (!blocks()->empty()) {
-    v->VisitRootPointers(Root::kHandleScope, nullptr, blocks()->back(),
-                         handle_scope_data_.next);
+    v->VisitRootPointers(Root::kHandleScope, nullptr,
+                         ObjectSlot(blocks()->back()),
+                         ObjectSlot(handle_scope_data_.next));
   }
 
   DetachableVector<Context*>* context_lists[2] = {&saved_contexts_,
                                                   &entered_contexts_};
   for (unsigned i = 0; i < arraysize(context_lists); i++) {
     if (context_lists[i]->empty()) continue;
-    Object** start = reinterpret_cast<Object**>(&context_lists[i]->front());
+    ObjectSlot start(reinterpret_cast<Address>(&context_lists[i]->front()));
     v->VisitRootPointers(Root::kHandleScope, nullptr, start,
-                         start + context_lists[i]->size());
+                         start + static_cast<int>(context_lists[i]->size()));
   }
   if (microtask_context_) {
-    v->VisitRootPointer(Root::kHandleScope, nullptr,
-                        reinterpret_cast<Object**>(&microtask_context_));
+    v->VisitRootPointer(
+        Root::kHandleScope, nullptr,
+        ObjectSlot(reinterpret_cast<Address>(&microtask_context_)));
   }
 }
 
@@ -10651,12 +10654,12 @@ void DeferredHandles::Iterate(RootVisitor* v) {
   DCHECK((first_block_limit_ >= blocks_.front()) &&
          (first_block_limit_ <= &(blocks_.front())[kHandleBlockSize]));
 
-  v->VisitRootPointers(Root::kHandleScope, nullptr, blocks_.front(),
-                       first_block_limit_);
+  v->VisitRootPointers(Root::kHandleScope, nullptr, ObjectSlot(blocks_.front()),
+                       ObjectSlot(first_block_limit_));
 
   for (size_t i = 1; i < blocks_.size(); i++) {
-    v->VisitRootPointers(Root::kHandleScope, nullptr, blocks_[i],
-                         &blocks_[i][kHandleBlockSize]);
+    v->VisitRootPointers(Root::kHandleScope, nullptr, ObjectSlot(blocks_[i]),
+                         ObjectSlot(&blocks_[i][kHandleBlockSize]));
   }
 }
 

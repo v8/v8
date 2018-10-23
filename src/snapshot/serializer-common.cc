@@ -6,6 +6,7 @@
 
 #include "src/external-reference-table.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -119,7 +120,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
     visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                              &cache->at(i));
+                              ObjectSlot(&cache->at(i)));
     if (cache->at(i)->IsUndefined(isolate)) break;
   }
 }

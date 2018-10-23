@@ -9,6 +9,7 @@
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects-definitions.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -434,45 +435,51 @@ class RootsTable {
   }
 
  private:
-  Object** begin() {
-    return &roots_[static_cast<size_t>(RootIndex::kFirstRoot)];
+  ObjectSlot begin() {
+    return ObjectSlot(&roots_[static_cast<size_t>(RootIndex::kFirstRoot)]);
   }
-  Object** end() {
-    return &roots_[static_cast<size_t>(RootIndex::kLastRoot) + 1];
+  ObjectSlot end() {
+    return ObjectSlot(&roots_[static_cast<size_t>(RootIndex::kLastRoot) + 1]);
   }
 
   // Used for iterating over all of the read-only and mutable strong roots.
-  Object** strong_or_read_only_roots_begin() {
+  ObjectSlot strong_or_read_only_roots_begin() {
     STATIC_ASSERT(static_cast<size_t>(RootIndex::kLastReadOnlyRoot) ==
                   static_cast<size_t>(RootIndex::kFirstStrongRoot) - 1);
-    return &roots_[static_cast<size_t>(RootIndex::kFirstStrongOrReadOnlyRoot)];
+    return ObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kFirstStrongOrReadOnlyRoot)]);
   }
-  Object** strong_or_read_only_roots_end() {
-    return &roots_[static_cast<size_t>(RootIndex::kLastStrongOrReadOnlyRoot) +
-                   1];
+  ObjectSlot strong_or_read_only_roots_end() {
+    return ObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastStrongOrReadOnlyRoot) + 1]);
   }
 
   // The read-only, strong and Smi roots as defined by these accessors are all
   // disjoint.
-  Object** read_only_roots_begin() {
-    return &roots_[static_cast<size_t>(RootIndex::kFirstReadOnlyRoot)];
+  ObjectSlot read_only_roots_begin() {
+    return ObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kFirstReadOnlyRoot)]);
   }
-  Object** read_only_roots_end() {
-    return &roots_[static_cast<size_t>(RootIndex::kLastReadOnlyRoot) + 1];
-  }
-
-  Object** strong_roots_begin() {
-    return &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)];
-  }
-  Object** strong_roots_end() {
-    return &roots_[static_cast<size_t>(RootIndex::kLastStrongRoot) + 1];
+  ObjectSlot read_only_roots_end() {
+    return ObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastReadOnlyRoot) + 1]);
   }
 
-  Object** smi_roots_begin() {
-    return &roots_[static_cast<size_t>(RootIndex::kFirstSmiRoot)];
+  ObjectSlot strong_roots_begin() {
+    return ObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)]);
   }
-  Object** smi_roots_end() {
-    return &roots_[static_cast<size_t>(RootIndex::kLastSmiRoot) + 1];
+  ObjectSlot strong_roots_end() {
+    return ObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastStrongRoot) + 1]);
+  }
+
+  ObjectSlot smi_roots_begin() {
+    return ObjectSlot(&roots_[static_cast<size_t>(RootIndex::kFirstSmiRoot)]);
+  }
+  ObjectSlot smi_roots_end() {
+    return ObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastSmiRoot) + 1]);
   }
 
   Object*& operator[](RootIndex root_index) {

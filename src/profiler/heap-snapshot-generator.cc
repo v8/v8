@@ -23,6 +23,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/slots.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
@@ -665,32 +666,34 @@ class IndexedReferencesExtractor : public ObjectVisitor {
                              HeapEntry* parent)
       : generator_(generator),
         parent_obj_(parent_obj),
-        parent_start_(HeapObject::RawField(parent_obj_, 0)),
-        parent_end_(HeapObject::RawField(parent_obj_, parent_obj_->Size())),
+        parent_start_(HeapObject::RawMaybeWeakField(parent_obj_, 0)),
+        parent_end_(
+            HeapObject::RawMaybeWeakField(parent_obj_, parent_obj_->Size())),
         parent_(parent) {}
-  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    VisitPointers(host, reinterpret_cast<MaybeObject**>(start),
-                  reinterpret_cast<MaybeObject**>(end));
+  void VisitPointers(HeapObject* host, ObjectSlot start,
+                     ObjectSlot end) override {
+    VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
   }
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override {
+  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {
     int next_index = 0;
-    for (MaybeObject** p = start; p < end; p++) {
-      int index = static_cast<int>(reinterpret_cast<Object**>(p) -
-                                   HeapObject::RawField(parent_obj_, 0));
-      ++next_index;
+    for (MaybeObjectSlot p = start; p < end; ++p) {
+      int index = -1;
       // |p| could be outside of the object, e.g., while visiting RelocInfo of
       // code objects.
-      if (reinterpret_cast<Object**>(p) >= parent_start_ &&
-          reinterpret_cast<Object**>(p) < parent_end_ &&
-          generator_->visited_fields_[index]) {
-        generator_->visited_fields_[index] = false;
-        continue;
+      if (parent_start_ <= p && p < parent_end_) {
+        index = static_cast<int>(p - parent_start_);
+        if (generator_->visited_fields_[index]) {
+          generator_->visited_fields_[index] = false;
+          continue;
+        }
       }
       HeapObject* heap_object;
-      if ((*p)->GetHeapObjectIfWeak(&heap_object) ||
-          (*p)->GetHeapObjectIfStrong(&heap_object)) {
-        generator_->SetHiddenReference(parent_obj_, parent_, next_index,
+      if ((*p)->GetHeapObject(&heap_object)) {
+        // The last parameter {field_offset} is only used to check some
+        // well-known skipped references, so passing -1 * kPointerSize
+        // for out-of-object slots is fine.
+        generator_->SetHiddenReference(parent_obj_, parent_, next_index++,
                                        heap_object, index * kPointerSize);
       }
     }
@@ -699,8 +702,8 @@ class IndexedReferencesExtractor : public ObjectVisitor {
  private:
   V8HeapExplorer* generator_;
   HeapObject* parent_obj_;
-  Object** parent_start_;
-  Object** parent_end_;
+  MaybeObjectSlot parent_start_;
+  MaybeObjectSlot parent_end_;
   HeapEntry* parent_;
 };
 
@@ -1394,7 +1397,7 @@ class RootsReferencesExtractor : public RootVisitor {
   void SetVisitingWeakRoots() { visiting_weak_roots_ = true; }
 
   void VisitRootPointer(Root root, const char* description,
-                        Object** object) override {
+                        ObjectSlot object) override {
     if (root == Root::kBuiltins) {
       explorer_->TagBuiltinCodeObject(Code::cast(*object), description);
     }
@@ -1402,9 +1405,9 @@ class RootsReferencesExtractor : public RootVisitor {
                                      *object);
   }
 
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++)
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p)
       VisitRootPointer(root, description, p);
   }
 
@@ -1699,9 +1702,9 @@ void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
 
 class GlobalObjectsEnumerator : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, const char* description, Object** start,
-                         Object** end) override {
-    for (Object** p = start; p < end; p++) {
+  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
+                         ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p) {
       if (!(*p)->IsNativeContext()) continue;
       JSObject* proxy = Context::cast(*p)->global_proxy();
       if (!proxy->IsJSGlobalProxy()) continue;

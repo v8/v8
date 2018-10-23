@@ -3385,7 +3385,7 @@ void JSObject::PrintInstanceMigration(FILE* file,
   PrintF(file, "\n");
 }
 
-bool JSObject::IsUnmodifiedApiObject(Object** o) {
+bool JSObject::IsUnmodifiedApiObject(ObjectSlot o) {
   Object* object = *o;
   if (object->IsSmi()) return false;
   HeapObject* heap_object = HeapObject::cast(object);
@@ -9254,9 +9254,12 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                   MaybeObject::FromObject(Smi::kZero));
         STATIC_ASSERT(kDescriptorsOffset ==
                       kTransitionsOrPrototypeInfoOffset + kPointerSize);
-        DCHECK_EQ(0, memcmp(HeapObject::RawField(*fresh, kDescriptorsOffset),
-                            HeapObject::RawField(*new_map, kDescriptorsOffset),
-                            kDependentCodeOffset - kDescriptorsOffset));
+        DCHECK_EQ(
+            0,
+            memcmp(
+                HeapObject::RawField(*fresh, kDescriptorsOffset).ToVoidPtr(),
+                HeapObject::RawField(*new_map, kDescriptorsOffset).ToVoidPtr(),
+                kDependentCodeOffset - kDescriptorsOffset));
       } else {
         DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address()),
                             reinterpret_cast<void*>(new_map->address()),
@@ -14348,7 +14351,7 @@ void ObjectVisitor::VisitCodeTarget(Code* host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   Object* old_pointer = Code::GetCodeFromTargetAddress(rinfo->target_address());
   Object* new_pointer = old_pointer;
-  VisitPointer(host, &new_pointer);
+  VisitPointer(host, ObjectSlot(&new_pointer));
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
@@ -14356,7 +14359,7 @@ void ObjectVisitor::VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   Object* old_pointer = rinfo->target_object();
   Object* new_pointer = old_pointer;
-  VisitPointer(host, &new_pointer);
+  VisitPointer(host, ObjectSlot(&new_pointer));
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
@@ -15626,7 +15629,8 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
   // stack), but the method that's called here iterates over them in forward
   // direction.
   return EnsureCanContainElements(
-      object, args->arguments() - first_arg - (arg_count - 1), arg_count, mode);
+      object, ObjectSlot(args->arguments() - first_arg - (arg_count - 1)),
+      arg_count, mode);
 }
 
 
@@ -17979,7 +17983,7 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
   // store operations that are safe for concurrent marking.
   base::AtomicElement<Smi*>* start =
       reinterpret_cast<base::AtomicElement<Smi*>*>(
-          storage->GetFirstElementAddress());
+          storage->GetFirstElementAddress().address());
   std::sort(start, start + length, cmp);
   for (int i = 0; i < length; i++) {
     int index = Smi::ToInt(raw_storage->get(i));
@@ -18011,7 +18015,7 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
     // store operations that are safe for concurrent marking.
     base::AtomicElement<Smi*>* start =
         reinterpret_cast<base::AtomicElement<Smi*>*>(
-            array->GetFirstElementAddress());
+            array->GetFirstElementAddress().address());
     std::sort(start, start + array_size, cmp);
   }
   return FixedArray::ShrinkOrEmpty(isolate, array, array_size);
@@ -18053,7 +18057,7 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
     // store operations that are safe for concurrent marking.
     base::AtomicElement<Smi*>* start =
         reinterpret_cast<base::AtomicElement<Smi*>*>(
-            array->GetFirstElementAddress());
+            array->GetFirstElementAddress().address());
     std::sort(start, start + array_size, cmp);
   }
 

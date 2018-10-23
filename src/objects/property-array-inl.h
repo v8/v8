@@ -40,7 +40,7 @@ void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
-Object** PropertyArray::data_start() {
+ObjectSlot PropertyArray::data_start() {
   return HeapObject::RawField(this, kHeaderSize);
 }
 

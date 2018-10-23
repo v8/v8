@@ -7,6 +7,7 @@
 #include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/slots.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime-utils.h"
@@ -586,7 +587,8 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
   if (i < length) {
     static_assert(Smi::kZero == nullptr,
                   "Can use memset since Smi::kZero is 0");
-    memset(elements->data_start() + i, 0, kPointerSize * (length - i));
+    memset(elements->RawFieldOfElementAt(i).ToVoidPtr(), 0,
+           kPointerSize * (length - i));
   }
 #ifdef DEBUG
   for (int j = 0; j < length; ++j) {
