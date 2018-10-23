@@ -684,6 +684,7 @@ void GCTracer::PrintNVP() const {
           "evacuate.update_pointers.slots.map_space=%.1f "
           "evacuate.update_pointers.weak=%.1f "
           "finish=%.1f "
+          "finish.wrapper_epilogue=%.1f "
           "mark=%.1f "
           "mark.finish_incremental=%.1f "
           "mark.roots=%.1f "
@@ -696,7 +697,6 @@ void GCTracer::PrintNVP() const {
           "mark.weak_closure.weak_roots=%.1f "
           "mark.weak_closure.harmony=%.1f "
           "mark.wrapper_prologue=%.1f "
-          "mark.wrapper_epilogue=%.1f "
           "mark.wrapper_tracing=%.1f "
           "prologue=%.1f "
           "sweep=%.1f "
@@ -779,7 +779,9 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
-          current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
+          current_.scopes[Scope::MC_FINISH],
+          current_.scopes[Scope::MC_FINISH_WRAPPER_EPILOGUE],
+          current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
           current_.scopes[Scope::MC_MARK_ROOTS],
           current_.scopes[Scope::MC_MARK_MAIN],
@@ -791,7 +793,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_HARMONY],
           current_.scopes[Scope::MC_MARK_WRAPPER_PROLOGUE],
-          current_.scopes[Scope::MC_MARK_WRAPPER_EPILOGUE],
           current_.scopes[Scope::MC_MARK_WRAPPER_TRACING],
           current_.scopes[Scope::MC_PROLOGUE], current_.scopes[Scope::MC_SWEEP],
           current_.scopes[Scope::MC_SWEEP_CODE],

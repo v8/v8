@@ -841,6 +841,14 @@ void MarkCompactCollector::Finish() {
     Deoptimizer::DeoptimizeMarkedCode(isolate());
     have_code_to_deoptimize_ = false;
   }
+
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH_WRAPPER_EPILOGUE);
+    // TraceEpilogue may trigger operations that invalidate global handles. It
+    // has to be called *after* all other operations that potentially touch and
+    // reset global handles.
+    heap()->local_embedder_heap_tracer()->TraceEpilogue();
+  }
 }
 
 class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
@@ -1808,10 +1816,6 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeronMarking();
-      {
-        TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
-        heap()->local_embedder_heap_tracer()->TraceEpilogue();
-      }
       DCHECK(marking_worklist()->IsEmbedderEmpty());
       DCHECK(marking_worklist()->IsEmpty());
     }
