@@ -2745,6 +2745,10 @@ bool Parser::SkipFunction(
     LanguageMode language_mode;
     int num_inner_functions;
     bool uses_super_property;
+    if (stack_overflow()) {
+      *ok = false;
+      return true;
+    }
     *produced_preparsed_scope_data =
         consumed_preparsed_scope_data_->GetDataForSkippableFunction(
             main_zone(), function_scope->start_position(), &end_position,

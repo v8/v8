@@ -147,12 +147,17 @@ void Scanner::BookmarkScope::Set() {
 
 void Scanner::BookmarkScope::Apply() {
   DCHECK(HasBeenSet());  // Caller hasn't called SetBookmark.
-  if (bookmark_ == kBookmarkAtFirstPos) {
-    scanner_->SeekNext(0);
+  if (had_parser_error_) {
+    scanner_->set_parser_error();
   } else {
-    scanner_->SeekNext(bookmark_);
-    scanner_->Next();
-    DCHECK_EQ(scanner_->location().beg_pos, static_cast<int>(bookmark_));
+    scanner_->reset_parser_error_flag();
+    if (bookmark_ == kBookmarkAtFirstPos) {
+      scanner_->SeekNext(0);
+    } else {
+      scanner_->SeekNext(bookmark_);
+      scanner_->Next();
+      DCHECK_EQ(scanner_->location().beg_pos, static_cast<int>(bookmark_));
+    }
   }
   bookmark_ = kBookmarkWasApplied;
 }

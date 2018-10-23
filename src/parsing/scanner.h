@@ -46,7 +46,7 @@ class Utf16CharacterStream {
     buffer_cursor_ = buffer_end_;
     has_parser_error_ = true;
   }
-
+  void reset_parser_error_flag() { has_parser_error_ = false; }
   bool has_parser_error() const { return has_parser_error_; }
 
   inline uc32 Peek() {
@@ -212,7 +212,9 @@ class Scanner {
   class BookmarkScope {
    public:
     explicit BookmarkScope(Scanner* scanner)
-        : scanner_(scanner), bookmark_(kNoBookmark) {
+        : scanner_(scanner),
+          bookmark_(kNoBookmark),
+          had_parser_error_(scanner->has_parser_error_set()) {
       DCHECK_NOT_NULL(scanner_);
     }
     ~BookmarkScope() = default;
@@ -229,6 +231,7 @@ class Scanner {
 
     Scanner* scanner_;
     size_t bookmark_;
+    bool had_parser_error_;
 
     DISALLOW_COPY_AND_ASSIGN(BookmarkScope);
   };
@@ -236,6 +239,7 @@ class Scanner {
   // Sets the Scanner into an error state to stop further scanning and terminate
   // the parsing by only returning ILLEGAL tokens after that.
   void set_parser_error() { source_->set_parser_error(); }
+  void reset_parser_error_flag() { source_->reset_parser_error_flag(); }
   bool has_parser_error_set() { return source_->has_parser_error(); }
 
   // Representation of an interval of source positions.
