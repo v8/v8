@@ -1510,7 +1510,7 @@
     ],
   },
   ##############################################################################
-  # Clusterfuzz.
+  # Branches.
   'V8 Linux - beta branch': {
     'swarming_task_attrs': {
       'expiration': 14400,
