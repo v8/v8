@@ -5165,7 +5165,8 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
       StdoutStream{} << "Compilation failed: "
                      << graph_construction_result.error_msg() << std::endl;
     }
-    wasm_unit_->result_.MoveErrorFrom(graph_construction_result);
+    wasm_unit_->result_ = wasm::Result<wasm::WasmCode*>::ErrorFrom(
+        std::move(graph_construction_result));
     return nullptr;
   }
 

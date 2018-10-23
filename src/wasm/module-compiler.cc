@@ -2641,14 +2641,14 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
       compilation_unit_builder_(nullptr) {}
 
 void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
+  DCHECK(error.failed());
   // Make sure all background tasks stopped executing before we change the state
   // of the AsyncCompileJob to DecodeFail.
   job_->background_task_manager_.CancelAndWait();
 
   // Create a ModuleResult from the result we got as parameter. Since there was
-  // no error, we don't have to provide a real wasm module to the ModuleResult.
-  ModuleResult result(nullptr);
-  result.MoveErrorFrom(error);
+  // an error, we don't have to provide a real wasm module to the ModuleResult.
+  ModuleResult result = ModuleResult::ErrorFrom(std::move(error));
 
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationState as well.

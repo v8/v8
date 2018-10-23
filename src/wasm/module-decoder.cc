@@ -906,9 +906,9 @@ class ModuleDecoderImpl : public Decoder {
       CalculateGlobalOffsets(module_.get());
     }
     ModuleResult result = toResult(std::move(module_));
-    if (verify_functions && result.ok()) {
+    if (verify_functions && result.ok() && intermediate_result_.failed()) {
       // Copy error code and location.
-      result.MoveErrorFrom(intermediate_result_);
+      result = ModuleResult::ErrorFrom(std::move(intermediate_result_));
     }
     return result;
   }
@@ -963,10 +963,11 @@ class ModuleDecoderImpl : public Decoder {
       VerifyFunctionBody(zone->allocator(), 0, wire_bytes, module,
                          function.get());
 
-    FunctionResult result(std::move(function));
-    // Copy error code and location.
-    result.MoveErrorFrom(intermediate_result_);
-    return result;
+    if (intermediate_result_.failed()) {
+      return FunctionResult::ErrorFrom(std::move(intermediate_result_));
+    }
+
+    return FunctionResult(std::move(function));
   }
 
   // Decodes a single function signature at {start}.
@@ -1010,7 +1011,7 @@ class ModuleDecoderImpl : public Decoder {
                         sizeof(ModuleDecoderImpl::seen_unordered_sections_) >
                     kLastKnownModuleSection,
                 "not enough bits");
-  Result<bool> intermediate_result_;
+  VoidResult intermediate_result_;
   ModuleOrigin origin_;
 
   uint32_t off(const byte* ptr) {
@@ -1128,16 +1129,14 @@ class ModuleDecoderImpl : public Decoder {
                               &unused_detected_features, body);
     }
 
-    if (result.failed()) {
+    // If the decode failed and this is the first error, set error code and
+    // location.
+    if (result.failed() && intermediate_result_.ok()) {
       // Wrap the error message from the function decoder.
-      std::ostringstream wrapped;
-      wrapped << "in function " << func_name << ": " << result.error_msg();
-      result = DecodeResult::Error(result.error_offset(), wrapped.str());
-
-      // Set error code and location, if this is the first error.
-      if (intermediate_result_.ok()) {
-        intermediate_result_.MoveErrorFrom(result);
-      }
+      std::ostringstream error_msg;
+      error_msg << "in function " << func_name << ": " << result.error_msg();
+      intermediate_result_ =
+          VoidResult::Error(result.error_offset(), error_msg.str());
     }
   }
 

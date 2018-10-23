@@ -33,19 +33,12 @@ class V8_EXPORT_PRIVATE ResultBase {
       : error_offset_(other.error_offset_),
         error_msg_(std::move(other.error_msg_)) {}
 
-  void MoveErrorFrom(ResultBase& that) {
-    error_offset_ = that.error_offset_;
-    // Use {swap()} + {clear()} instead of move assign, as {that} might still
-    // be used afterwards.
-    error_msg_.swap(that.error_msg_);
-    that.error_msg_.clear();
-  }
-
   bool ok() const { return error_msg_.empty(); }
   bool failed() const { return !ok(); }
 
   uint32_t error_offset() const { return error_offset_; }
-  const std::string& error_msg() const { return error_msg_; }
+  const std::string& error_msg() const & { return error_msg_; }
+  std::string&& error_msg() && { return std::move(error_msg_); }
 
  protected:
   ResultBase(uint32_t error_offset, std::string error_msg)
@@ -88,6 +81,11 @@ class Result : public ResultBase {
   static Result<T> Error(uint32_t error_offset, std::string error_msg) {
     // Call private constructor.
     return Result<T>{error_offset, std::move(error_msg)};
+  }
+
+  static Result<T> ErrorFrom(ResultBase&& error_result) {
+    return Error(error_result.error_offset(),
+                 std::move(error_result).error_msg());
   }
 
   // Accessor for the value. Returns const reference if {this} is l-value or
