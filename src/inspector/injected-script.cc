@@ -395,6 +395,10 @@ Response InjectedScript::wrapObject(
   v8::HandleScope handles(m_context->isolate());
   v8::Local<v8::Value> wrappedObject;
   v8::Local<v8::Context> context = m_context->context();
+
+  int customPreviewEnabled = m_customPreviewEnabled;
+  int sessionId = m_sessionId;
+
   Response response = wrapValue(value, groupName, forceValueType,
                                 generatePreview, &wrappedObject);
   if (!response.isSuccess()) return response;
@@ -406,11 +410,11 @@ Response InjectedScript::wrapObject(
   *result =
       protocol::Runtime::RemoteObject::fromValue(protocolValue.get(), &errors);
   if (!result->get()) return Response::Error(errors.errors());
-  if (m_customPreviewEnabled && value->IsObject()) {
+  if (customPreviewEnabled && value->IsObject()) {
     std::unique_ptr<protocol::Runtime::CustomPreview> customPreview;
-    generateCustomPreview(m_sessionId, groupName, m_context->context(),
-                          value.As<v8::Object>(), customPreviewConfig,
-                          maxCustomPreviewDepth, &customPreview);
+    generateCustomPreview(sessionId, groupName, context, value.As<v8::Object>(),
+                          customPreviewConfig, maxCustomPreviewDepth,
+                          &customPreview);
     if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
   }
   return Response::OK();
