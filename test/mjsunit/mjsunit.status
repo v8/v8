@@ -170,10 +170,13 @@
   'string-replace-gc': [PASS, SLOW],
   'wasm/asm-wasm-f32': [PASS, SLOW],
   'wasm/asm-wasm-f64': [PASS, SLOW],
-  'wasm/compare-exchange-stress': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
+  'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
+  'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
+  'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
+  'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
