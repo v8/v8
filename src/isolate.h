@@ -1453,6 +1453,11 @@ class Isolate : private HiddenFactory {
     return reinterpret_cast<Address>(&promise_hook_or_async_event_delegate_);
   }
 
+  Address promise_hook_or_debug_is_active_or_async_event_delegate_address() {
+    return reinterpret_cast<Address>(
+        &promise_hook_or_debug_is_active_or_async_event_delegate_);
+  }
+
   Address handle_scope_implementer_address() {
     return reinterpret_cast<Address>(&handle_scope_implementer_);
   }
@@ -1468,6 +1473,7 @@ class Isolate : private HiddenFactory {
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                       Handle<Object> parent);
+  void PromiseHookStateUpdated();
 
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
@@ -1712,7 +1718,6 @@ class Isolate : private HiddenFactory {
 
   void SetTerminationOnExternalTryCatch();
 
-  void PromiseHookStateUpdated();
   void RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                                            Handle<JSPromise> promise);
 
@@ -1907,6 +1912,7 @@ class Isolate : private HiddenFactory {
 
   debug::AsyncEventDelegate* async_event_delegate_ = nullptr;
   bool promise_hook_or_async_event_delegate_ = false;
+  bool promise_hook_or_debug_is_active_or_async_event_delegate_ = false;
   int async_task_count_ = 0;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback

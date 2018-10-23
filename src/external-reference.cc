@@ -865,6 +865,14 @@ ExternalReference::promise_hook_or_async_event_delegate_address(
       isolate->promise_hook_or_async_event_delegate_address());
 }
 
+ExternalReference ExternalReference::
+    promise_hook_or_debug_is_active_or_async_event_delegate_address(
+        Isolate* isolate) {
+  return ExternalReference(
+      isolate
+          ->promise_hook_or_debug_is_active_or_async_event_delegate_address());
+}
+
 ExternalReference ExternalReference::debug_execution_mode_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug_execution_mode_address());

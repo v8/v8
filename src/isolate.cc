@@ -3622,6 +3622,8 @@ bool Isolate::IsPromiseHookProtectorIntact() {
       Smi::ToInt(promise_hook_cell->value()) == kProtectorValid;
   DCHECK_IMPLIES(is_promise_hook_protector_intact,
                  !promise_hook_or_async_event_delegate_);
+  DCHECK_IMPLIES(is_promise_hook_protector_intact,
+                 !promise_hook_or_debug_is_active_or_async_event_delegate_);
   return is_promise_hook_protector_intact;
 }
 
@@ -3937,12 +3939,18 @@ void Isolate::FireCallCompletedCallback() {
 }
 
 void Isolate::PromiseHookStateUpdated() {
-  bool is_active = promise_hook_ || async_event_delegate_;
-  if (is_active && IsPromiseHookProtectorIntact()) {
+  bool promise_hook_or_async_event_delegate =
+      promise_hook_ || async_event_delegate_;
+  bool promise_hook_or_debug_is_active_or_async_event_delegate =
+      promise_hook_or_async_event_delegate || debug()->is_active();
+  if (promise_hook_or_debug_is_active_or_async_event_delegate &&
+      IsPromiseHookProtectorIntact()) {
     HandleScope scope(this);
     InvalidatePromiseHookProtector();
   }
-  promise_hook_or_async_event_delegate_ = is_active;
+  promise_hook_or_async_event_delegate_ = promise_hook_or_async_event_delegate;
+  promise_hook_or_debug_is_active_or_async_event_delegate_ =
+      promise_hook_or_debug_is_active_or_async_event_delegate;
 }
 
 namespace {

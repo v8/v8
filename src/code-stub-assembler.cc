@@ -12956,6 +12956,18 @@ Node* CodeStubAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate() {
   return Word32NotEqual(promise_hook_or_async_event_delegate, Int32Constant(0));
 }
 
+Node* CodeStubAssembler::
+    IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() {
+  Node* const promise_hook_or_debug_is_active_or_async_event_delegate = Load(
+      MachineType::Uint8(),
+      ExternalConstant(
+          ExternalReference::
+              promise_hook_or_debug_is_active_or_async_event_delegate_address(
+                  isolate())));
+  return Word32NotEqual(promise_hook_or_debug_is_active_or_async_event_delegate,
+                        Int32Constant(0));
+}
+
 TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   CSA_ASSERT(this, SmiGreaterThanOrEqual(builtin_id, SmiConstant(0)));
   CSA_ASSERT(this,

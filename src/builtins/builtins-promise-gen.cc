@@ -1094,8 +1094,8 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
   GotoIfNot(WordEqual(then, promise_then), &if_slow);
   Node* const thenable_map = LoadMap(thenable);
   GotoIfNot(IsJSPromiseMap(thenable_map), &if_slow);
-  GotoIf(IsPromiseHookEnabled(), &if_slow);
-  GotoIf(IsDebugActive(), &if_slow);
+  GotoIf(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
+         &if_slow);
   BranchIfPromiseSpeciesLookupChainIntact(native_context, thenable_map,
                                           &if_fast, &if_slow);
 
@@ -1713,8 +1713,8 @@ TF_BUILTIN(RejectPromise, PromiseBuiltinsAssembler) {
   // the runtime handle this operation, which greatly reduces
   // the complexity here and also avoids a couple of back and
   // forth between JavaScript and C++ land.
-  GotoIf(IsPromiseHookEnabled(), &if_runtime);
-  GotoIf(IsDebugActive(), &if_runtime);
+  GotoIf(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
+         &if_runtime);
 
   // 7. If promise.[[PromiseIsHandled]] is false, perform
   //    HostPromiseRejectionTracker(promise, "reject").
@@ -1761,8 +1761,8 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
   // the runtime handle this operation, which greatly reduces
   // the complexity here and also avoids a couple of back and
   // forth between JavaScript and C++ land.
-  GotoIf(IsPromiseHookEnabled(), &if_runtime);
-  GotoIf(IsDebugActive(), &if_runtime);
+  GotoIf(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
+         &if_runtime);
 
   // 6. If SameValue(resolution, promise) is true, then
   // We can use pointer comparison here, since the {promise} is guaranteed
@@ -1861,13 +1861,12 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     Variable* var_exception) {
   IteratorBuiltinsAssembler iter_assembler(state());
 
-  Node* const instrumenting = IsDebugActive();
   Node* const native_context = LoadNativeContext(context);
 
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
   SetForwardingHandlerIfTrue(
-      native_context, instrumenting,
+      native_context, IsDebugActive(),
       LoadObjectField(capability, PromiseCapability::kRejectOffset));
 
   Node* const resolve_element_context =
@@ -1944,8 +1943,8 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     Label if_fast(this), if_slow(this);
     GotoIfNotPromiseResolveLookupChainIntact(native_context, constructor,
                                              &if_slow);
-    GotoIf(instrumenting, &if_slow);
-    GotoIf(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &if_slow);
+    GotoIf(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
+           &if_slow);
     GotoIf(TaggedIsSmi(next_value), &if_slow);
     Node* const next_value_map = LoadMap(next_value);
     BranchIfPromiseThenLookupChainIntact(native_context, next_value_map,
@@ -1986,7 +1985,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
       // For catch prediction, mark that rejections here are semantically
       // handled by the combined Promise.
       SetPromiseHandledByIfTrue(
-          native_context, instrumenting, then_call, [=]() {
+          native_context, IsDebugActive(), then_call, [=]() {
             // Load promiseCapability.[[Promise]]
             return LoadObjectField(capability,
                                    PromiseCapability::kPromiseOffset);
@@ -2267,14 +2266,12 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
   Node* const reject =
       LoadObjectField(capability, PromiseCapability::kRejectOffset);
 
-  Node* const instrumenting = IsDebugActive();
-
   Label close_iterator(this, Label::kDeferred);
   Label reject_promise(this, Label::kDeferred);
 
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
-  SetForwardingHandlerIfTrue(context, instrumenting, reject);
+  SetForwardingHandlerIfTrue(context, IsDebugActive(), reject);
 
   // Let iterator be GetIterator(iterable).
   // IfAbruptRejectPromise(iterator, promiseCapability).
@@ -2326,7 +2323,7 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
 
       // For catch prediction, mark that rejections here are semantically
       // handled by the combined Promise.
-      SetPromiseHandledByIfTrue(context, instrumenting, then_call, [=]() {
+      SetPromiseHandledByIfTrue(context, IsDebugActive(), then_call, [=]() {
         // Load promiseCapability.[[Promise]]
         return LoadObjectField(capability, PromiseCapability::kPromiseOffset);
       });

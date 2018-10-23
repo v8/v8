@@ -3024,6 +3024,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsPromiseHookEnabled();
   Node* HasAsyncEventDelegate();
   Node* IsPromiseHookEnabledOrHasAsyncEventDelegate();
+  Node* IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate();
 
   // Helpers for StackFrame markers.
   Node* MarkerIsFrameType(Node* marker_or_function,

@@ -1913,9 +1913,7 @@ void Debug::UpdateState() {
     Unload();
   }
   is_active_ = is_active;
-  if (is_active && isolate_->IsPromiseHookProtectorIntact()) {
-    isolate_->InvalidatePromiseHookProtector();
-  }
+  isolate_->PromiseHookStateUpdated();
 }
 
 void Debug::UpdateHookOnFunctionCall() {

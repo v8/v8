@@ -97,9 +97,8 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
   // also allocates the throwaway promise, which is only needed in
   // case of PromiseHooks or debugging.
   Label if_debugging(this, Label::kDeferred), do_resolve_promise(this);
-  GotoIf(IsDebugActive(), &if_debugging);
-  Branch(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &if_debugging,
-         &do_resolve_promise);
+  Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
+         &if_debugging, &do_resolve_promise);
   BIND(&if_debugging);
   var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInitOld, context, value,
                                  wrapped_value, outer_promise, on_reject,
@@ -169,9 +168,8 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(Node* context, Node* generator,
   // also allocates the throwaway promise, which is only needed in
   // case of PromiseHooks or debugging.
   Label if_debugging(this, Label::kDeferred), do_perform_promise_then(this);
-  GotoIf(IsDebugActive(), &if_debugging);
-  Branch(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &if_debugging,
-         &do_perform_promise_then);
+  Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
+         &if_debugging, &do_perform_promise_then);
   BIND(&if_debugging);
   var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInit, context, promise,
                                  promise, outer_promise, on_reject,

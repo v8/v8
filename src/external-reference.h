@@ -53,6 +53,9 @@ class StatsCounter;
   V(async_event_delegate_address, "Isolate::async_event_delegate_address()")   \
   V(promise_hook_or_async_event_delegate_address,                              \
     "Isolate::promise_hook_or_async_event_delegate_address()")                 \
+  V(promise_hook_or_debug_is_active_or_async_event_delegate_address,           \
+    "Isolate::promise_hook_or_debug_is_active_or_async_event_delegate_"        \
+    "address()")                                                               \
   V(debug_execution_mode_address, "Isolate::debug_execution_mode_address()")   \
   V(debug_is_active_address, "Debug::is_active_address()")                     \
   V(debug_hook_on_function_call_address,                                       \
