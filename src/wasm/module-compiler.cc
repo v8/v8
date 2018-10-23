@@ -546,9 +546,6 @@ void FinishCompilationUnits(CompilationState* compilation_state,
     // Update the compilation state.
     compilation_state->OnFinishedUnit();
   }
-  if (!compilation_state->failed()) {
-    compilation_state->RestartBackgroundTasks();
-  }
 }
 
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
@@ -636,7 +633,6 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   if (!compilation_state->failed() &&
       compilation_state->compile_mode() == CompileMode::kTiering) {
     compilation_state->SetFinisherIsRunning(false);
-    compilation_state->RestartBackgroundTasks();
   }
 }
 
@@ -2973,7 +2969,6 @@ void CompilationState::OnFinishedUnit() {
     // If we are in {kRegular} mode, {num_tiering_units_} is 0, therefore
     // this case is already caught by the previous check.
     NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation, nullptr);
-    RestartBackgroundTasks();
   }
 }
 
