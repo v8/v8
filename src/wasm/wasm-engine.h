@@ -18,14 +18,15 @@ namespace internal {
 
 class CodeTracer;
 class CompilationStatistics;
-class WasmModuleObject;
 class WasmInstanceObject;
+class WasmModuleObject;
 
 namespace wasm {
 
+class AsyncCompileJob;
 class ErrorThrower;
-struct WasmFeatures;
 struct ModuleWireBytes;
+struct WasmFeatures;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:

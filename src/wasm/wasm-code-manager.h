@@ -16,7 +16,7 @@
 #include "src/handles.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/vector.h"
-#include "src/wasm/module-compiler.h"
+#include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 

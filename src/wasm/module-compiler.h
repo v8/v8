@@ -11,6 +11,7 @@
 
 #include "src/cancelable-task.h"
 #include "src/globals.h"
+#include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
 
@@ -29,24 +30,12 @@ class Vector;
 namespace wasm {
 
 class CompilationResultResolver;
-class CompilationState;
 class ErrorThrower;
 class ModuleCompiler;
 class NativeModule;
 class WasmCode;
 struct ModuleEnv;
 struct WasmModule;
-
-struct CompilationStateDeleter {
-  void operator()(CompilationState* compilation_state) const;
-};
-
-// Wrapper to create a CompilationState exists in order to avoid having
-// the CompilationState in the header file.
-std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate* isolate, const ModuleEnv& env);
-
-ModuleEnv* GetModuleEnv(CompilationState* compilation_state);
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
