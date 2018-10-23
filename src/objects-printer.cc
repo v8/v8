@@ -2056,7 +2056,7 @@ void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {  // NOLINT
 void JSPluralRules::JSPluralRulesPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSPluralRules");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - type: " << Brief(type());
+  os << "\n - type: " << TypeAsString();
   os << "\n - icu plural rules: " << Brief(icu_plural_rules());
   os << "\n - icu decimal format: " << Brief(icu_decimal_format());
   JSObjectPrintBody(os, this);

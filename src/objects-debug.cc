@@ -2015,7 +2015,7 @@ void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
   CHECK(IsJSPluralRules());
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kTypeOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
   VerifyObjectField(isolate, kICUPluralRulesOffset);
   VerifyObjectField(isolate, kICUDecimalFormatOffset);
 }

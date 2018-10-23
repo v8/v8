@@ -9,6 +9,7 @@
 #define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)               \
   V(_, breakType_string, "breakType")                               \
   V(_, calendar_string, "calendar")                                 \
+  V(_, cardinal_string, "cardinal")                                 \
   V(_, caseFirst_string, "caseFirst")                               \
   V(_, day_string, "day")                                           \
   V(_, dayPeriod_string, "dayPeriod")                               \
@@ -54,6 +55,7 @@
   V(_, normal_string, "normal")                                     \
   V(_, numberingSystem_string, "numberingSystem")                   \
   V(_, numeric_string, "numeric")                                   \
+  V(_, ordinal_string, "ordinal")                                   \
   V(_, percentSign_string, "percentSign")                           \
   V(_, plusSign_string, "plusSign")                                 \
   V(_, quarter_string, "quarter")                                   \

@@ -792,6 +792,7 @@ BUILTIN(PluralRulesConstructor) {
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   Handle<JSPluralRules> plural_rules =
       Handle<JSPluralRules>::cast(plural_rules_obj);
+  plural_rules->set_flags(0);
 
   // 3. Return ? InitializePluralRules(pluralRules, locales, options).
   RETURN_RESULT_OR_FAILURE(

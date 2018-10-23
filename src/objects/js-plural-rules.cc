@@ -23,22 +23,22 @@ namespace internal {
 namespace {
 
 bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
-                          const char* type_string,
+                          JSPluralRules::Type type,
                           std::unique_ptr<icu::PluralRules>* pl,
                           std::unique_ptr<icu::DecimalFormat>* nf) {
   // Make formatter from options. Numbering system is added
   // to the locale as Unicode extension (if it was specified at all).
   UErrorCode status = U_ZERO_ERROR;
 
-  UPluralType type = UPLURAL_TYPE_CARDINAL;
-  if (strcmp(type_string, "ordinal") == 0) {
-    type = UPLURAL_TYPE_ORDINAL;
+  UPluralType icu_type = UPLURAL_TYPE_CARDINAL;
+  if (type == JSPluralRules::Type::ORDINAL) {
+    icu_type = UPLURAL_TYPE_ORDINAL;
   } else {
-    CHECK_EQ(0, strcmp(type_string, "cardinal"));
+    CHECK_EQ(JSPluralRules::Type::CARDINAL, type);
   }
 
   std::unique_ptr<icu::PluralRules> plural_rules(
-      icu::PluralRules::forLocale(icu_locale, type, status));
+      icu::PluralRules::forLocale(icu_locale, icu_type, status));
   if (U_FAILURE(status)) {
     return false;
   }
@@ -59,7 +59,7 @@ bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
 }
 
 void InitializeICUPluralRules(
-    Isolate* isolate, const icu::Locale& icu_locale, const char* type,
+    Isolate* isolate, const icu::Locale& icu_locale, JSPluralRules::Type type,
     std::unique_ptr<icu::PluralRules>* plural_rules,
     std::unique_ptr<icu::DecimalFormat>* number_format) {
   bool success = CreateICUPluralRules(isolate, icu_locale, type, plural_rules,
@@ -81,10 +81,22 @@ void InitializeICUPluralRules(
 
 }  // namespace
 
+Handle<String> JSPluralRules::TypeAsString() const {
+  switch (type()) {
+    case Type::CARDINAL:
+      return GetReadOnlyRoots().cardinal_string_handle();
+    case Type::ORDINAL:
+      return GetReadOnlyRoots().ordinal_string_handle();
+    case Type::COUNT:
+      UNREACHABLE();
+  }
+}
+
 // static
 MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
     Isolate* isolate, Handle<JSPluralRules> plural_rules,
     Handle<Object> locales, Handle<Object> options_obj) {
+  plural_rules->set_flags(0);
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -120,18 +132,21 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
   // "ordinal" », "cardinal").
   std::vector<const char*> values = {"cardinal", "ordinal"};
   std::unique_ptr<char[]> type_str = nullptr;
-  const char* type_cstr = "cardinal";
+  JSPluralRules::Type type = JSPluralRules::Type::CARDINAL;
   Maybe<bool> found = Intl::GetStringOption(isolate, options, "type", values,
                                             "Intl.PluralRules", &type_str);
   MAYBE_RETURN(found, MaybeHandle<JSPluralRules>());
   if (found.FromJust()) {
-    type_cstr = type_str.get();
+    DCHECK_NOT_NULL(type_str.get());
+    if (strcmp("ordinal", type_str.get()) == 0) {
+      type = JSPluralRules::Type::ORDINAL;
+    } else {
+      DCHECK_EQ(0, strcmp("cardinal", type_str.get()));
+    }
   }
 
   // 8. Set pluralRules.[[Type]] to t.
-  Handle<String> type =
-      isolate->factory()->NewStringFromAsciiChecked(type_cstr);
-  plural_rules->set_type(*type);
+  plural_rules->set_type(type);
 
   // Note: The spec says we should do ResolveLocale after performing
   // SetNumberFormatDigitOptions but we need the locale to create all
@@ -160,7 +175,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
 
   std::unique_ptr<icu::PluralRules> icu_plural_rules;
   std::unique_ptr<icu::DecimalFormat> icu_decimal_format;
-  InitializeICUPluralRules(isolate, icu_locale, type_cstr, &icu_plural_rules,
+  InitializeICUPluralRules(isolate, icu_locale, type, &icu_plural_rules,
                            &icu_decimal_format);
   CHECK_NOT_NULL(icu_plural_rules.get());
   CHECK_NOT_NULL(icu_decimal_format.get());
@@ -245,8 +260,8 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   Handle<String> locale_value(plural_rules->locale(), isolate);
   CreateDataPropertyForOptions(isolate, options, locale_value, "locale");
 
-  Handle<String> type_value(plural_rules->type(), isolate);
-  CreateDataPropertyForOptions(isolate, options, type_value, "type");
+  CreateDataPropertyForOptions(isolate, options, plural_rules->TypeAsString(),
+                               "type");
 
   icu::DecimalFormat* icu_decimal_format =
       plural_rules->icu_decimal_format()->raw();
