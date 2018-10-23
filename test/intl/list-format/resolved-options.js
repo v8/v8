@@ -147,9 +147,6 @@ assertEquals(
     'ar',
     (new Intl.ListFormat(['xyz', 'ar'])).resolvedOptions().locale);
 
-// The following is not working yet because it depend on the getAvailableLocales
-// work in another path set.
-// TODO(ftang): uncomment the following once that patchset is checked in.
-// assertEquals(
-//     'ar',
-//     (new Intl.ListFormat(['i-default', 'ar'])).resolvedOptions().locale);
+assertEquals(
+    'ar',
+    (new Intl.ListFormat(['i-default', 'ar'])).resolvedOptions().locale);
