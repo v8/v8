@@ -71,11 +71,13 @@ struct CompilationEnv {
         lower_simd(lower_simd) {}
 };
 
-// The implementation of {CompilationState} and {CompilationStateDeleter} lives
-// in module-compiler.cc.
+// The implementation of {CompilationState}, {CompilationStateDeleter} and
+// {CancelAndWaitCompilationState} lives in module-compiler.cc.
 struct CompilationStateDeleter {
   void operator()(CompilationState* compilation_state) const;
 };
+
+void CancelAndWaitCompilationState(CompilationState* state);
 
 // Wrapper to create a CompilationState exists in order to avoid having
 // the CompilationState in the header file.

@@ -796,7 +796,9 @@ void NativeModule::DisableTrapHandler() {
 
 NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
-  compilation_state_.reset();  // Cancels tasks, needs to be done first.
+  // Cancel all background compilation before resetting any field of the
+  // NativeModule or freeing anything.
+  CancelAndWaitCompilationState(compilation_state_.get());
   wasm_code_manager_->FreeNativeModule(this);
 }
 

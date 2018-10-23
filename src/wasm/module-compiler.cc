@@ -68,6 +68,10 @@ class CompilationState {
   CompilationState(internal::Isolate*, NativeModule*);
   ~CompilationState();
 
+  // Cancel all background compilation and wait for all tasks to finish. Call
+  // this before destructing this object.
+  void CancelAndWait();
+
   // Set the number of compilations unit expected to be executed. Needs to be
   // set before {AddCompilationUnits} is run, which triggers background
   // compilation.
@@ -2835,6 +2839,10 @@ void CompilationStateDeleter::operator()(
   delete compilation_state;
 }
 
+void CancelAndWaitCompilationState(CompilationState* state) {
+  state->CancelAndWait();
+}
+
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
     Isolate* isolate, NativeModule* native_module) {
   return std::unique_ptr<CompilationState, CompilationStateDeleter>(
@@ -2859,6 +2867,11 @@ CompilationState::CompilationState(internal::Isolate* isolate,
 }
 
 CompilationState::~CompilationState() {
+  DCHECK(background_task_manager_.canceled());
+  DCHECK(foreground_task_manager_.canceled());
+}
+
+void CompilationState::CancelAndWait() {
   background_task_manager_.CancelAndWait();
   foreground_task_manager_.CancelAndWait();
 }
