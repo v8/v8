@@ -2366,10 +2366,11 @@ class Evacuator : public Malloced {
 
   // NewSpacePages with more live bytes than this threshold qualify for fast
   // evacuation.
-  static int PageEvacuationThreshold() {
+  static intptr_t NewSpacePageEvacuationThreshold() {
     if (FLAG_page_promotion)
-      return FLAG_page_promotion_threshold * Page::kAllocatableMemory / 100;
-    return Page::kAllocatableMemory + kPointerSize;
+      return FLAG_page_promotion_threshold *
+             MemoryChunkLayout::AllocatableMemoryInDataPage() / 100;
+    return MemoryChunkLayout::AllocatableMemoryInDataPage() + kPointerSize;
   }
 
   Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
@@ -2619,7 +2620,7 @@ bool MarkCompactCollectorBase::ShouldMovePage(Page* p, intptr_t live_bytes) {
   const bool reduce_memory = heap()->ShouldReduceMemory();
   const Address age_mark = heap()->new_space()->age_mark();
   return !reduce_memory && !p->NeverEvacuate() &&
-         (live_bytes > Evacuator::PageEvacuationThreshold()) &&
+         (live_bytes > Evacuator::NewSpacePageEvacuationThreshold()) &&
          !p->Contains(age_mark) && heap()->CanExpandOldGeneration(live_bytes);
 }
 

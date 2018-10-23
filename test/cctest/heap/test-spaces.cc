@@ -98,19 +98,19 @@ static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
     v8::PageAllocator* page_allocator =
         memory_allocator->page_allocator(executable);
 
-    size_t header_size = (executable == EXECUTABLE)
-                             ? MemoryAllocator::CodePageGuardStartOffset()
-                             : MemoryChunk::kObjectStartOffset;
+    size_t allocatable_memory_area_offset =
+        MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());
     size_t guard_size =
-        (executable == EXECUTABLE) ? MemoryAllocator::CodePageGuardSize() : 0;
+        (executable == EXECUTABLE) ? MemoryChunkLayout::CodePageGuardSize() : 0;
 
     MemoryChunk* memory_chunk = memory_allocator->AllocateChunk(
         reserve_area_size, commit_area_size, executable, space);
     size_t reserved_size =
         ((executable == EXECUTABLE))
-            ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
-                      page_allocator->CommitPageSize())
-            : RoundUp(header_size + reserve_area_size,
+            ? allocatable_memory_area_offset +
+                  RoundUp(reserve_area_size, page_allocator->CommitPageSize()) +
+                  guard_size
+            : RoundUp(allocatable_memory_area_offset + reserve_area_size,
                       page_allocator->CommitPageSize());
     CHECK(memory_chunk->size() == reserved_size);
     CHECK(memory_chunk->area_start() <
@@ -319,13 +319,9 @@ TEST(LargeObjectSpace) {
   CHECK(lo->Contains(ho));
 
   while (true) {
-    size_t available = lo->Available();
     { AllocationResult allocation = lo->AllocateRaw(lo_size, NOT_EXECUTABLE);
       if (allocation.IsRetry()) break;
     }
-    // The available value is conservative such that it may report
-    // zero prior to heap exhaustion.
-    CHECK(lo->Available() < available || available == 0);
   }
 
   CHECK(!lo->IsEmpty());
@@ -670,9 +666,10 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK(filler->IsFreeSpace());
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
-  size_t should_have_shrunk =
-      RoundDown(static_cast<size_t>(Page::kAllocatableMemory - array->Size()),
-                CommitPageSize());
+  size_t should_have_shrunk = RoundDown(
+      static_cast<size_t>(MemoryChunkLayout::AllocatableMemoryInDataPage() -
+                          array->Size()),
+      CommitPageSize());
   CHECK_EQ(should_have_shrunk, shrunk);
 }
 
