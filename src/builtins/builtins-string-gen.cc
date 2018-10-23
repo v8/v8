@@ -1257,7 +1257,6 @@ TF_BUILTIN(StringRepeat, StringBuiltinsAssembler) {
   CSA_ASSERT(this, IsString(string));
   CSA_ASSERT(this, Word32BinaryNot(IsEmptyString(string)));
   CSA_ASSERT(this, TaggedIsPositiveSmi(count));
-  CSA_ASSERT(this, SmiLessThanOrEqual(count, SmiConstant(String::kMaxLength)));
 
   // The string is repeated with the following algorithm:
   //   let n = count;

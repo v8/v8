@@ -10,15 +10,9 @@ module array {
   extern macro CallJSArrayArrayJoinConcatToSequentialString(
       FixedArray, intptr, String, String): String;
 
-  extern macro CallLoadJoinElement(implicit context: Context)(
-      LoadJoinElementFn, JSReceiver, Number): Object
-      labels IfException(Object);
-
-  extern macro CallConvertToLocaleString(implicit context: Context)(
-      Object, Object, Object): String
-      labels IfException(Object);
-
-  extern macro CallToString(implicit context: Context)(Object): String
+  extern macro CallArrayJoin(
+      Context, constexpr bool, JSReceiver, String, Number, Object, Object):
+      String
       labels IfException(Object);
 
   builtin LoadJoinElement<T: type>(
@@ -148,11 +142,11 @@ module array {
     isOneByte: bool;
   }
 
-  macro BufferInit(estimatedNonHoleyElements: uintptr, sep: String): Buffer {
-    const bufferSize: intptr = Signed(estimatedNonHoleyElements + 1);
-    const cappedBufferSize: intptr = bufferSize > kFixedArrayMaxLength ?
+  macro BufferInit(len: uintptr, sep: String): Buffer {
+    const cappedBufferSize: intptr = len > kFixedArrayMaxLength ?
         FromConstexpr<intptr>(kFixedArrayMaxLength) :
-        bufferSize;
+        Signed(len);
+    assert(cappedBufferSize > 0);
     const fixedArray: FixedArray = AllocateZeroedFixedArray(cappedBufferSize);
     const isOneByte: bool = HasOnlyOneByteChars(sep.instanceType);
     return Buffer{fixedArray, 0, 0, isOneByte};
@@ -220,76 +214,62 @@ module array {
   macro ArrayJoinImpl(
       context: Context, receiver: JSReceiver, sep: String, lengthNumber: Number,
       useToLocaleString: constexpr bool, locales: Object, options: Object,
-      estimatedNonHoleyElements: uintptr,
-      initialLoadJoinElement: LoadJoinElementFn): String
-      labels IfException(Object) {
+      initialLoadJoinElement: LoadJoinElementFn): String {
     const initialMap: Map = receiver.map;
     const len: uintptr = Convert<uintptr>(lengthNumber);
     const separatorLength: intptr = sep.length;
     let nofSeparators: intptr = 0;
     let loadJoinElements: LoadJoinElementFn = initialLoadJoinElement;
-    let buffer: Buffer = BufferInit(estimatedNonHoleyElements, sep);
+    let buffer: Buffer = BufferInit(len, sep);
 
-    if (estimatedNonHoleyElements != 0) {
-      // 6. Let k be 0.
-      let k: uintptr = 0;
+    // 6. Let k be 0.
+    let k: uintptr = 0;
 
-      // 7. Repeat, while k < len
-      while (k < len) {
-        if (k > 0) {
-          // a. If k > 0, let R be the string-concatenation of R and sep.
-          nofSeparators = nofSeparators + 1;
+    // 7. Repeat, while k < len
+    while (k < len) {
+      if (k > 0) {
+        // a. If k > 0, let R be the string-concatenation of R and sep.
+        nofSeparators = nofSeparators + 1;
 
-          // Verify the current LoadJoinElement specialization can safely be
-          // used. Otherwise, fall back to generic element access (see
-          // LoadJoinElement<GenericElementsAccessor>).
-          if (loadJoinElements != LoadJoinElement<GenericElementsAccessor>&&
-              CannotUseSameArrayAccessor(initialMap, lengthNumber, receiver))
-            deferred {
-              loadJoinElements = LoadJoinElement<GenericElementsAccessor>;
+        // Verify the current LoadJoinElement specialization can safely be
+        // used. Otherwise, fall back to generic element access (see
+        // LoadJoinElement<GenericElementsAccessor>).
+        if (loadJoinElements != LoadJoinElement<GenericElementsAccessor>&&
+            CannotUseSameArrayAccessor(initialMap, lengthNumber, receiver))
+          deferred {
+            loadJoinElements = LoadJoinElement<GenericElementsAccessor>;
+          }
+      }
 
-              // Join the current buffer into a single string and add it to a
-              // new buffer that the fall back will continue with.
-              const temp: String = BufferJoin(buffer, sep);
-              buffer = BufferInit((len - k + 1), sep);
-              buffer = BufferAdd(buffer, temp, 0, separatorLength);
-            }
-        }
+      // b. Let element be ? Get(O, ! ToString(k)).
+      const element: Object =
+          loadJoinElements(context, receiver, Convert<Number>(k++));
 
-        // b. Let element be ? Get(O, ! ToString(k)).
-        const element: Object = CallLoadJoinElement(
-            loadJoinElements, receiver, Convert<Number>(k++))
-            otherwise IfException;
-
-        // c. If element is undefined or null, let next be the empty String;
-        //    otherwise, let next be ? ToString(element).
-        let next: String;
-        if constexpr (useToLocaleString) {
-          next = CallConvertToLocaleString(element, locales, options)
-              otherwise IfException;
-          if (next == kEmptyString) continue;
-        } else {
-          typeswitch (element) {
-            case (str: String): {
-              if (str == kEmptyString) continue;
-              next = str;
-            }
-            case (num: Number): {
-              next = NumberToString(num);
-            }
-            case (obj: HeapObject): {
-              if (IsNullOrUndefined(obj)) continue;
-              next = CallToString(obj) otherwise IfException;
-            }
+      // c. If element is undefined or null, let next be the empty String;
+      //    otherwise, let next be ? ToString(element).
+      let next: String;
+      if constexpr (useToLocaleString) {
+        next = ConvertToLocaleString(context, element, locales, options);
+        if (next == kEmptyString) continue;
+      } else {
+        typeswitch (element) {
+          case (str: String): {
+            if (str == kEmptyString) continue;
+            next = str;
+          }
+          case (num: Number): {
+            next = NumberToString(num);
+          }
+          case (obj: HeapObject): {
+            if (IsNullOrUndefined(obj)) continue;
+            next = ToString(context, obj);
           }
         }
-
-        // d. Set R to the string-concatenation of R and next.
-        buffer = BufferAdd(buffer, next, nofSeparators, separatorLength);
-        nofSeparators = 0;
       }
-    } else {
-      nofSeparators = Signed(len - 1);
+
+      // d. Set R to the string-concatenation of R and next.
+      buffer = BufferAdd(buffer, next, nofSeparators, separatorLength);
+      nofSeparators = 0;
     }
 
     // Add any separators at the end.
@@ -301,8 +281,7 @@ module array {
 
   macro ArrayJoin(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-      lenNumber: Number, locales: Object, options: Object): Object
-      labels IfException(Object) {
+      lenNumber: Number, locales: Object, options: Object): Object {
     const map: Map = receiver.map;
     const kind: ElementsKind = map.elements_kind;
     const len: uintptr = Convert<uintptr>(lenNumber);
@@ -310,7 +289,6 @@ module array {
     // Estimated number of elements that are not holes. This is conservatively
     // defaulted to `len`. When the receiver has dictionary elements, a better
     // estimate can be determined through GetNumberDictionaryNumberOfElements.
-    let estimatedNonHoleyElements: uintptr = len;
     let loadJoinElements: LoadJoinElementFn;
 
     try {
@@ -323,14 +301,26 @@ module array {
         loadJoinElements = LoadJoinElement<FastSmiOrObjectElements>;
       } else if (IsElementsKindLessThanOrEqual(kind, HOLEY_DOUBLE_ELEMENTS)) {
         loadJoinElements = LoadJoinElement<FastDoubleElements>;
-      } else if (kind == DICTIONARY_ELEMENTS) {
-        const dict: NumberDictionary =
-            UnsafeCast<NumberDictionary>(array.elements);
-        estimatedNonHoleyElements =
-            Unsigned(Convert<intptr>(GetNumberDictionaryNumberOfElements(dict)))
-            << 1;
-        loadJoinElements = LoadJoinElement<DictionaryElements>;
-      } else {
+      } else if (kind == DICTIONARY_ELEMENTS)
+        deferred {
+          const dict: NumberDictionary =
+              UnsafeCast<NumberDictionary>(array.elements);
+          const nofElements: Smi = GetNumberDictionaryNumberOfElements(dict);
+          if (nofElements == 0) {
+            if (sep == kEmptyString) return kEmptyString;
+            try {
+              const nofSeparators: Smi =
+                  Cast<Smi>(lenNumber - 1) otherwise IfNotSmi;
+              return StringRepeat(context, sep, nofSeparators);
+            }
+            label IfNotSmi {
+              ThrowRangeError(context, kInvalidStringLength);
+            }
+          } else {
+            loadJoinElements = LoadJoinElement<DictionaryElements>;
+          }
+        }
+      else {
         goto IfSlowPath;
       }
     }
@@ -339,8 +329,19 @@ module array {
     }
     return ArrayJoinImpl(
         context, receiver, sep, lenNumber, useToLocaleString, locales, options,
-        estimatedNonHoleyElements, loadJoinElements)
-        otherwise IfException;
+        loadJoinElements);
+  }
+
+  builtin ArrayJoinWithToLocaleString(
+      context: Context, receiver: JSReceiver, sep: String, len: Number,
+      locales: Object, options: Object): Object {
+    return ArrayJoin(true, receiver, sep, len, locales, options);
+  }
+
+  builtin ArrayJoinWithoutToLocaleString(
+      context: Context, receiver: JSReceiver, sep: String, len: Number,
+      locales: Object, options: Object): Object {
+    return ArrayJoin(false, receiver, sep, len, locales, options);
   }
 
   // The Join Stack detects cyclical calls to Array Join builtins
@@ -472,8 +473,8 @@ module array {
 
       JoinStackPushInline(o) otherwise IfReturnEmpty;
 
-      const result: Object =
-          ArrayJoin(useToLocaleString, o, sep, len, locales, options)
+      const result: Object = CallArrayJoin(
+          context, useToLocaleString, o, sep, len, locales, options)
           otherwise IfException;
 
       JoinStackPopInline(o);

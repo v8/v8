@@ -91,43 +91,16 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
 
   // Temporary Torque support for Array.prototype.join().
   // TODO(pwong): Remove this when Torque supports exception handlers.
-  TNode<Object> CallLoadJoinElement(TNode<Context> context,
-                                    TNode<Code> loadJoinElement,
-                                    TNode<JSReceiver> receiver, TNode<Number> k,
-                                    Label* if_exception,
-                                    TVariable<Object>* var_exception) {
-    // Calling a specialization of LoadJoinElement (see array-join.tq), requires
-    // a descriptor.  We arbitrarily use one of specialization's descriptor, as
-    // all specializations share the same interface.
-    TNode<Object> result = CallStub(
-        Builtins::CallableFor(isolate(),
-                              Builtins::kLoadJoinElement20ATDictionaryElements)
-            .descriptor(),
-        loadJoinElement, context, receiver, k);
-    GotoIfException(result, if_exception, var_exception);
-    return result;
-  }
-
-  // Temporary Torque support for Array.prototype.join().
-  // TODO(pwong): Remove this when Torque supports exception handlers.
-  TNode<String> CallConvertToLocaleString(TNode<Context> context,
-                                          TNode<Object> element,
-                                          TNode<Object> locales,
-                                          TNode<Object> options,
-                                          Label* if_exception,
-                                          TVariable<Object>* var_exception) {
-    TNode<Object> result = CallBuiltin(Builtins::kConvertToLocaleString,
-                                       context, element, locales, options);
-    GotoIfException(result, if_exception, var_exception);
-    return CAST(result);
-  }
-
-  // Temporary Torque support for Array.prototype.join().
-  // TODO(pwong): Remove this when Torque supports exception handlers.
-  TNode<String> CallToString(TNode<Context> context, TNode<Object> obj,
-                             Label* if_exception,
-                             TVariable<Object>* var_exception) {
-    TNode<Object> result = CallBuiltin(Builtins::kToString, context, obj);
+  TNode<String> CallArrayJoin(TNode<Context> context, bool use_to_locale_string,
+                              TNode<JSReceiver> receiver, TNode<String> sep,
+                              TNode<Number> len, TNode<Object> locales,
+                              TNode<Object> options, Label* if_exception,
+                              TVariable<Object>* var_exception) {
+    Builtins::Name builtin = use_to_locale_string
+                                 ? Builtins::kArrayJoinWithToLocaleString
+                                 : Builtins::kArrayJoinWithoutToLocaleString;
+    TNode<Object> result =
+        CallBuiltin(builtin, context, receiver, sep, len, locales, options);
     GotoIfException(result, if_exception, var_exception);
     return CAST(result);
   }

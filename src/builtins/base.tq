@@ -1168,3 +1168,4 @@ extern macro TryIntPtrAdd(intptr, intptr): intptr
     labels IfOverflow;
 
 extern builtin ObjectToString(Context, Object): Object;
+extern builtin StringRepeat(Context, String, Number): String;
