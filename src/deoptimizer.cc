@@ -1879,15 +1879,7 @@ FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)
     // TODO(jbramley): It isn't safe to use kZapUint32 here. If the register
     // isn't used before the next safepoint, the GC will try to scan it as a
     // tagged value. kZapUint32 looks like a valid tagged pointer, but it isn't.
-#if defined(V8_OS_WIN) && defined(V8_TARGET_ARCH_ARM64)
-    // x18 is reserved as platform register on Windows arm64 platform
-    const int kPlatformRegister = 18;
-    if (r != kPlatformRegister) {
-      SetRegister(r, kZapUint32);
-    }
-#else
     SetRegister(r, kZapUint32);
-#endif
   }
 
   // Zap all the slots.

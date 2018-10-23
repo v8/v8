@@ -53,27 +53,13 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion) const {
   int bytes = 0;
   auto list = kCallerSaved;
+  DCHECK_EQ(list.Count() % 2, 0);
   // We only allow one exclusion register, so if the list is of even length
   // before exclusions, it must still be afterwards, to maintain alignment.
   // Therefore, we can ignore the exclusion register in the computation.
   // However, we leave it in the argument list to mirror the prototype for
   // Push/PopCallerSaved().
-
-#if defined(V8_OS_WIN)
-  // X18 is excluded from caller-saved register list on Windows ARM64 which
-  // makes caller-saved registers in odd number. padreg is used accordingly
-  // to maintain the alignment.
-  DCHECK_EQ(list.Count() % 2, 1);
-  if (exclusion.Is(no_reg)) {
-    bytes += kXRegSizeInBits / 8;
-  } else {
-    bytes -= kXRegSizeInBits / 8;
-  }
-#else
-  DCHECK_EQ(list.Count() % 2, 0);
   USE(exclusion);
-#endif
-
   bytes += list.Count() * kXRegSizeInBits / 8;
 
   if (fp_mode == kSaveFPRegs) {
@@ -87,24 +73,12 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
                                     Register exclusion) {
   int bytes = 0;
   auto list = kCallerSaved;
-
-#if defined(V8_OS_WIN)
-  // X18 is excluded from caller-saved register list on Windows ARM64, use
-  // padreg accordingly to maintain alignment.
-  if (!exclusion.Is(no_reg)) {
-    list.Remove(exclusion);
-  } else {
-    list.Combine(padreg);
-  }
-#else
+  DCHECK_EQ(list.Count() % 2, 0);
   if (!exclusion.Is(no_reg)) {
     // Replace the excluded register with padding to maintain alignment.
     list.Remove(exclusion);
     list.Combine(padreg);
   }
-#endif
-
-  DCHECK_EQ(list.Count() % 2, 0);
   PushCPURegList(list);
   bytes += list.Count() * kXRegSizeInBits / 8;
 
@@ -125,24 +99,12 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   }
 
   auto list = kCallerSaved;
-
-#if defined(V8_OS_WIN)
-  // X18 is excluded from caller-saved register list on Windows ARM64, use
-  // padreg accordingly to maintain alignment.
-  if (!exclusion.Is(no_reg)) {
-    list.Remove(exclusion);
-  } else {
-    list.Combine(padreg);
-  }
-#else
+  DCHECK_EQ(list.Count() % 2, 0);
   if (!exclusion.Is(no_reg)) {
     // Replace the excluded register with padding to maintain alignment.
     list.Remove(exclusion);
     list.Combine(padreg);
   }
-#endif
-
-  DCHECK_EQ(list.Count() % 2, 0);
   PopCPURegList(list);
   bytes += list.Count() * kXRegSizeInBits / 8;
 

@@ -48,14 +48,7 @@ constexpr Register kReturnRegister2 = x2;
 constexpr Register kJSFunctionRegister = x1;
 constexpr Register kContextRegister = cp;
 constexpr Register kAllocateSizeRegister = x1;
-
-#if defined(V8_OS_WIN)
-// x18 is reserved as platform register on Windows ARM64.
-constexpr Register kSpeculationPoisonRegister = x23;
-#else
 constexpr Register kSpeculationPoisonRegister = x18;
-#endif
-
 constexpr Register kInterpreterAccumulatorRegister = x0;
 constexpr Register kInterpreterBytecodeOffsetRegister = x19;
 constexpr Register kInterpreterBytecodeArrayRegister = x20;
