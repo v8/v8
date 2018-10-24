@@ -20,7 +20,7 @@
 #define V8_ASM_MANGLE_LABEL ""
 #define V8_ASM_DECLARE(NAME) ".globl " V8_ASM_MANGLE_LABEL NAME "\n"
 #elif defined(V8_OS_WIN)  // WIN
-#if defined(V8_TARGET_ARCH_X64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
 #define V8_ASM_MANGLE_LABEL ""
 #else
 #define V8_ASM_MANGLE_LABEL "_"
