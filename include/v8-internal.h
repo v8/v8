@@ -103,7 +103,7 @@ struct SmiTagging<8> {
   }
 };
 
-#if V8_COMPRESS_POINTERS
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
 static_assert(
     kApiPointerSize == kApiInt64Size,
     "Pointer compression can be enabled only for 64-bit architectures");
