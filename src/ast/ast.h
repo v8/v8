@@ -809,7 +809,8 @@ class CaseClause final : public ZoneObject {
  private:
   friend class AstNodeFactory;
 
-  CaseClause(Expression* label, const ScopedPtrList<Statement>& statements);
+  CaseClause(Zone* zone, Expression* label,
+             const ScopedPtrList<Statement>& statements);
 
   Expression* label_;
   ZonePtrList<Statement> statements_;
@@ -1403,7 +1404,7 @@ class ObjectLiteral final : public AggregateLiteral {
  private:
   friend class AstNodeFactory;
 
-  ObjectLiteral(const ScopedPtrList<Property>& properties,
+  ObjectLiteral(Zone* zone, const ScopedPtrList<Property>& properties,
                 uint32_t boilerplate_properties, int pos,
                 bool has_rest_property)
       : AggregateLiteral(pos, kObjectLiteral),
@@ -1413,7 +1414,7 @@ class ObjectLiteral final : public AggregateLiteral {
                   HasRestPropertyField::encode(has_rest_property) |
                   FastElementsField::encode(false) |
                   HasNullPrototypeField::encode(false);
-    properties.CopyTo(&properties_);
+    properties.CopyTo(&properties_, zone);
   }
 
   void InitFlagsForPendingNullPrototype(int i);
@@ -1506,12 +1507,12 @@ class ArrayLiteral final : public AggregateLiteral {
  private:
   friend class AstNodeFactory;
 
-  ArrayLiteral(const ScopedPtrList<Expression>& values, int first_spread_index,
-               int pos)
+  ArrayLiteral(Zone* zone, const ScopedPtrList<Expression>& values,
+               int first_spread_index, int pos)
       : AggregateLiteral(pos, kArrayLiteral),
         first_spread_index_(first_spread_index),
         values_(0, nullptr) {
-    values.CopyTo(&values_);
+    values.CopyTo(&values_, zone);
   }
 
   int first_spread_index_;
@@ -1736,25 +1737,27 @@ class Call final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Call(Expression* expression, const ScopedPtrList<Expression>& arguments,
-       int pos, PossiblyEval possibly_eval)
+  Call(Zone* zone, Expression* expression,
+       const ScopedPtrList<Expression>& arguments, int pos,
+       PossiblyEval possibly_eval)
       : Expression(pos, kCall),
         expression_(expression),
         arguments_(0, nullptr) {
     bit_field_ |=
         IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL) |
         IsTaggedTemplateField::encode(false);
-    arguments.CopyTo(&arguments_);
+    arguments.CopyTo(&arguments_, zone);
   }
 
-  Call(Expression* expression, const ScopedPtrList<Expression>& arguments,
-       int pos, TaggedTemplateTag tag)
+  Call(Zone* zone, Expression* expression,
+       const ScopedPtrList<Expression>& arguments, int pos,
+       TaggedTemplateTag tag)
       : Expression(pos, kCall),
         expression_(expression),
         arguments_(0, nullptr) {
     bit_field_ |= IsPossiblyEvalField::encode(false) |
                   IsTaggedTemplateField::encode(true);
-    arguments.CopyTo(&arguments_);
+    arguments.CopyTo(&arguments_, zone);
   }
 
   class IsPossiblyEvalField
@@ -1779,12 +1782,12 @@ class CallNew final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  CallNew(Expression* expression, const ScopedPtrList<Expression>& arguments,
-          int pos)
+  CallNew(Zone* zone, Expression* expression,
+          const ScopedPtrList<Expression>& arguments, int pos)
       : Expression(pos, kCallNew),
         expression_(expression),
         arguments_(0, nullptr) {
-    arguments.CopyTo(&arguments_);
+    arguments.CopyTo(&arguments_, zone);
   }
 
   Expression* expression_;
@@ -1814,20 +1817,20 @@ class CallRuntime final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  CallRuntime(const Runtime::Function* function,
+  CallRuntime(Zone* zone, const Runtime::Function* function,
               const ScopedPtrList<Expression>& arguments, int pos)
       : Expression(pos, kCallRuntime),
         function_(function),
         arguments_(0, nullptr) {
-    arguments.CopyTo(&arguments_);
+    arguments.CopyTo(&arguments_, zone);
   }
-  CallRuntime(int context_index, const ScopedPtrList<Expression>& arguments,
-              int pos)
+  CallRuntime(Zone* zone, int context_index,
+              const ScopedPtrList<Expression>& arguments, int pos)
       : Expression(pos, kCallRuntime),
         context_index_(context_index),
         function_(nullptr),
         arguments_(0, nullptr) {
-    arguments.CopyTo(&arguments_);
+    arguments.CopyTo(&arguments_, zone);
   }
 
   int context_index_;
@@ -3018,7 +3021,7 @@ class AstNodeFactory final {
 
   CaseClause* NewCaseClause(Expression* label,
                             const ScopedPtrList<Statement>& statements) {
-    return new (zone_) CaseClause(label, statements);
+    return new (zone_) CaseClause(zone_, label, statements);
   }
 
   Literal* NewStringLiteral(const AstRawString* string, int pos) {
@@ -3059,8 +3062,8 @@ class AstNodeFactory final {
   ObjectLiteral* NewObjectLiteral(
       const ScopedPtrList<ObjectLiteral::Property>& properties,
       uint32_t boilerplate_properties, int pos, bool has_rest_property) {
-    return new (zone_) ObjectLiteral(properties, boilerplate_properties, pos,
-                                     has_rest_property);
+    return new (zone_) ObjectLiteral(zone_, properties, boilerplate_properties,
+                                     pos, has_rest_property);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(
@@ -3084,12 +3087,12 @@ class AstNodeFactory final {
 
   ArrayLiteral* NewArrayLiteral(const ScopedPtrList<Expression>& values,
                                 int pos) {
-    return new (zone_) ArrayLiteral(values, -1, pos);
+    return new (zone_) ArrayLiteral(zone_, values, -1, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(const ScopedPtrList<Expression>& values,
                                 int first_spread_index, int pos) {
-    return new (zone_) ArrayLiteral(values, first_spread_index, pos);
+    return new (zone_) ArrayLiteral(zone_, values, first_spread_index, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,
@@ -3126,36 +3129,37 @@ class AstNodeFactory final {
   Call* NewCall(Expression* expression,
                 const ScopedPtrList<Expression>& arguments, int pos,
                 Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
-    return new (zone_) Call(expression, arguments, pos, possibly_eval);
+    return new (zone_) Call(zone_, expression, arguments, pos, possibly_eval);
   }
 
   Call* NewTaggedTemplate(Expression* expression,
                           const ScopedPtrList<Expression>& arguments, int pos) {
     return new (zone_)
-        Call(expression, arguments, pos, Call::TaggedTemplateTag::kTrue);
+        Call(zone_, expression, arguments, pos, Call::TaggedTemplateTag::kTrue);
   }
 
   CallNew* NewCallNew(Expression* expression,
                       const ScopedPtrList<Expression>& arguments, int pos) {
-    return new (zone_) CallNew(expression, arguments, pos);
+    return new (zone_) CallNew(zone_, expression, arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(Runtime::FunctionId id,
                               const ScopedPtrList<Expression>& arguments,
                               int pos) {
-    return new (zone_) CallRuntime(Runtime::FunctionForId(id), arguments, pos);
+    return new (zone_)
+        CallRuntime(zone_, Runtime::FunctionForId(id), arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(const Runtime::Function* function,
                               const ScopedPtrList<Expression>& arguments,
                               int pos) {
-    return new (zone_) CallRuntime(function, arguments, pos);
+    return new (zone_) CallRuntime(zone_, function, arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(int context_index,
                               const ScopedPtrList<Expression>& arguments,
                               int pos) {
-    return new (zone_) CallRuntime(context_index, arguments, pos);
+    return new (zone_) CallRuntime(zone_, context_index, arguments, pos);
   }
 
   UnaryOperation* NewUnaryOperation(Token::Value op,

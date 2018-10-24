@@ -207,14 +207,12 @@ class ParserBase {
   typedef typename Types::ClassLiteralProperty ClassLiteralPropertyT;
   typedef typename Types::Suspend SuspendExpressionT;
   typedef typename Types::RewritableExpression RewritableExpressionT;
-  typedef typename Types::ExpressionList ExpressionListT;
   typedef typename Types::ObjectPropertyList ObjectPropertyListT;
-  typedef typename Types::ScopedObjectPropertyList ScopedObjectPropertyListT;
   typedef typename Types::FormalParameters FormalParametersT;
   typedef typename Types::Statement StatementT;
   typedef typename Types::StatementList StatementListT;
   typedef typename Types::ScopedStatementList ScopedStatementListT;
-  typedef typename Types::ScopedExpressionList ScopedExpressionListT;
+  typedef typename Types::ExpressionList ExpressionListT;
   typedef typename Types::Block BlockT;
   typedef typename Types::ForStatement ForStatementT;
   typedef typename v8::internal::ExpressionClassifier<Types>
@@ -248,9 +246,6 @@ class ParserBase {
         pending_error_handler_(pending_error_handler),
         zone_(zone),
         classifier_(nullptr),
-        statement_buffer_(impl()->NewStatementList(32)),
-        expression_buffer_(impl()->NewExpressionList(32)),
-        property_buffer_(impl()->NewObjectPropertyList(32)),
         scanner_(scanner),
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
         function_literal_id_(0),
@@ -262,7 +257,9 @@ class ParserBase {
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
         allow_harmony_private_fields_(false),
-        allow_eval_cache_(true) {}
+        allow_eval_cache_(true) {
+    pointer_buffer_.reserve(128);
+  }
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -1063,9 +1060,9 @@ class ParserBase {
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ObjectLiteralChecker* checker, bool* is_computed_name,
       bool* is_rest_property, bool* ok);
-  void ParseArguments(ScopedExpressionListT* args, bool* has_spread,
-                      bool maybe_arrow, bool* ok);
-  void ParseArguments(ScopedExpressionListT* args, bool* has_spread, bool* ok) {
+  void ParseArguments(ExpressionListT* args, bool* has_spread, bool maybe_arrow,
+                      bool* ok);
+  void ParseArguments(ExpressionListT* args, bool* has_spread, bool* ok) {
     ParseArguments(args, has_spread, false, ok);
   }
 
@@ -1469,7 +1466,7 @@ class ParserBase {
                ExpressionClassifier::AsyncArrowFormalParametersProduction);
   }
 
-  ExpressionListT expression_buffer() { return expression_buffer_; }
+  std::vector<void*>* pointer_buffer() { return &pointer_buffer_; }
 
   // Parser base's protected field members.
 
@@ -1493,10 +1490,7 @@ class ParserBase {
   Zone* zone_;
   ExpressionClassifier* classifier_;
 
-  // TODO(verwaest): Merge and/or buffer page-wise.
-  StatementListT statement_buffer_;
-  ExpressionListT expression_buffer_;
-  ObjectPropertyListT property_buffer_;
+  std::vector<void*> pointer_buffer_;
 
   Scanner* scanner_;
 
@@ -1912,7 +1906,7 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
 
-  ScopedExpressionListT list(zone_, expression_buffer_);
+  ExpressionListT list(pointer_buffer());
   ExpressionT right;
   while (true) {
     ExpressionClassifier binding_classifier(this);
@@ -1976,7 +1970,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   //   '[' Expression? (',' Expression?)* ']'
 
   int pos = peek_position();
-  ScopedExpressionListT values(zone_, expression_buffer_);
+  ExpressionListT values(pointer_buffer());
   int first_spread_index = -1;
   Consume(Token::LBRACK);
   while (!Check(Token::RBRACK)) {
@@ -2601,7 +2595,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   // '{' (PropertyDefinition (',' PropertyDefinition)* ','? )? '}'
 
   int pos = peek_position();
-  ScopedObjectPropertyListT properties(zone_, property_buffer_);
+  ObjectPropertyListT properties(pointer_buffer());
   int number_of_boilerplate_properties = 0;
 
   bool has_computed_names = false;
@@ -2658,7 +2652,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 
 template <typename Impl>
 void ParserBase<Impl>::ParseArguments(
-    typename ParserBase<Impl>::ScopedExpressionListT* args, bool* has_spread,
+    typename ParserBase<Impl>::ExpressionListT* args, bool* has_spread,
     bool maybe_arrow, bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
@@ -3235,7 +3229,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
           }
         }
         bool has_spread;
-        ScopedExpressionListT args(zone_, expression_buffer_);
+        ExpressionListT args(pointer_buffer());
         if (impl()->IsIdentifier(result) &&
             impl()->IsAsync(impl()->AsIdentifier(result)) &&
             !scanner()->HasLineTerminatorBeforeNext()) {
@@ -3356,7 +3350,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* ok) {
   if (peek() == Token::LPAREN) {
     // NewExpression with arguments.
     {
-      ScopedExpressionListT args(zone_, expression_buffer_);
+      ExpressionListT args(pointer_buffer());
       bool has_spread;
       ParseArguments(&args, &has_spread, CHECK_OK);
 
@@ -3370,7 +3364,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* ok) {
     return ParseMemberExpressionContinuation(result, ok);
   }
   // NewExpression without arguments.
-  ScopedExpressionListT args(zone_, expression_buffer_);
+  ExpressionListT args(pointer_buffer());
   return factory()->NewCallNew(result, args, new_pos);
 }
 
@@ -4630,7 +4624,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic(
     return impl()->NullExpression();
   }
   bool has_spread;
-  ScopedExpressionListT args(zone_, expression_buffer_);
+  ExpressionListT args(pointer_buffer());
   ParseArguments(&args, &has_spread, CHECK_OK);
 
   if (has_spread) {
@@ -5364,7 +5358,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     while (peek() != Token::RBRACE) {
       // An empty label indicates the default case.
       ExpressionT label = impl()->NullExpression();
-      ScopedStatementListT statements(zone_, statement_buffer_);
+      ScopedStatementListT statements(pointer_buffer());
       SourceRange clause_range;
       {
         SourceRangeScope range_scope(scanner(), &clause_range);

@@ -324,42 +324,49 @@ using ZonePtrList = ZoneList<T*>;
 template <typename T>
 class ScopedPtrList final {
  public:
-  ScopedPtrList(Zone* zone, ZonePtrList<T>* buffer)
-      : zone_(zone),
-        buffer_(buffer),
-        start_(buffer->length()),
-        end_(buffer->length()) {}
+  explicit ScopedPtrList(std::vector<void*>* buffer)
+      : buffer_(*buffer), start_(buffer->size()), end_(buffer->size()) {}
 
   ~ScopedPtrList() {
-    DCHECK_EQ(buffer_->length(), end_);
-    buffer_->Rewind(start_);
+    DCHECK_EQ(buffer_.size(), end_);
+    buffer_.resize(start_);
   }
 
-  int length() const { return end_ - start_; }
-  T* at(int i) const { return buffer_->at(i + start_); }
+  int length() const { return static_cast<int>(end_ - start_); }
+  T* at(int i) const {
+    size_t index = start_ + i;
+    DCHECK_LT(index, buffer_.size());
+    return reinterpret_cast<T*>(buffer_[index]);
+  }
 
-  void CopyTo(ZonePtrList<T>* target) const {
-    target->Initialize(length(), zone_);
-    target->AddAll(buffer_->ToVector(start_, length()), zone_);
+  void CopyTo(ZonePtrList<T>* target, Zone* zone) const {
+    DCHECK_LE(end_, buffer_.size());
+    // Make sure we don't reference absent elements below.
+    if (length() == 0) return;
+    target->Initialize(length(), zone);
+    T** data = reinterpret_cast<T**>(&buffer_[start_]);
+    target->AddAll(Vector<T*>(data, length()), zone);
   }
 
   void Add(T* value) {
-    DCHECK_EQ(buffer_->length(), end_);
-    buffer_->Add(value, zone_);
+    DCHECK_EQ(buffer_.size(), end_);
+    buffer_.push_back(value);
     ++end_;
   }
 
   void AddAll(const ZonePtrList<T>& list) {
-    DCHECK_EQ(buffer_->length(), end_);
-    buffer_->AddAll(list, zone_);
+    DCHECK_EQ(buffer_.size(), end_);
+    buffer_.reserve(buffer_.size() + list.length());
+    for (int i = 0; i < list.length(); i++) {
+      buffer_.push_back(list.at(i));
+    }
     end_ += list.length();
   }
 
  private:
-  Zone* zone_;
-  ZonePtrList<T>* buffer_;
-  int start_;
-  int end_;
+  std::vector<void*>& buffer_;
+  size_t start_;
+  size_t end_;
 };
 
 // ZoneThreadedList is a special variant of the ThreadedList that can be put

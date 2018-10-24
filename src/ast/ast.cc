@@ -862,10 +862,10 @@ Call::CallType Call::GetCallType() const {
   return OTHER_CALL;
 }
 
-CaseClause::CaseClause(Expression* label,
+CaseClause::CaseClause(Zone* zone, Expression* label,
                        const ScopedPtrList<Statement>& statements)
     : label_(label), statements_(0, nullptr) {
-  statements.CopyTo(&statements_);
+  statements.CopyTo(&statements_, zone);
 }
 
 bool Literal::IsPropertyName() const {

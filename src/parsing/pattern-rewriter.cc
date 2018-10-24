@@ -111,9 +111,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
     return parser_->ast_value_factory();
   }
 
-  ZonePtrList<Expression>* expression_buffer() {
-    return parser_->expression_buffer();
-  }
+  std::vector<void*>* pointer_buffer() { return parser_->pointer_buffer(); }
 
   Zone* zone() const { return parser_->zone(); }
   Scope* scope() const { return scope_; }
@@ -341,7 +339,7 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
                                          Variable** temp_var) {
   auto temp = *temp_var = CreateTempVar(current_value_);
 
-  ScopedPtrList<Expression> rest_runtime_callargs(zone(), expression_buffer());
+  ScopedPtrList<Expression> rest_runtime_callargs(pointer_buffer());
   if (pattern->has_rest_property()) {
     rest_runtime_callargs.Add(factory()->NewVariableProxy(temp));
   }
@@ -377,7 +375,7 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
 
         if (property->is_computed_name()) {
           DCHECK(!key->IsPropertyName() || !key->IsNumberLiteral());
-          ScopedPtrList<Expression> args(zone(), expression_buffer());
+          ScopedPtrList<Expression> args(pointer_buffer());
           args.Add(key);
           auto to_name_key = CreateTempVar(factory()->NewCallRuntime(
               Runtime::kToName, args, kNoSourcePosition));
@@ -555,7 +553,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // let array = [];
     Variable* array;
     {
-      ScopedPtrList<Expression> empty_exprs(zone(), expression_buffer());
+      ScopedPtrList<Expression> empty_exprs(pointer_buffer());
       array = CreateTempVar(
           factory()->NewArrayLiteral(empty_exprs, kNoSourcePosition));
     }

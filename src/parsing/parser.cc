@@ -56,7 +56,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
           constructor_args_name, VariableMode::kTemporary, is_optional, is_rest,
           ast_value_factory(), pos);
 
-      ScopedPtrList<Expression> args(zone(), expression_buffer());
+      ScopedPtrList<Expression> args(pointer_buffer());
       Spread* spread_args = factory()->NewSpread(
           factory()->NewVariableProxy(constructor_args), pos, pos);
 
@@ -289,7 +289,7 @@ Expression* Parser::BuildUnaryExpression(Expression* expression,
 Expression* Parser::NewThrowError(Runtime::FunctionId id,
                                   MessageTemplate message,
                                   const AstRawString* arg, int pos) {
-  ScopedPtrList<Expression> args(zone(), expression_buffer());
+  ScopedPtrList<Expression> args(pointer_buffer());
   args.Add(factory()->NewSmiLiteral(static_cast<int>(message), pos));
   args.Add(factory()->NewStringLiteral(arg, pos));
   CallRuntime* call_constructor = factory()->NewCallRuntime(id, args, pos);
@@ -325,7 +325,7 @@ Expression* Parser::NewTargetExpression(int pos) {
 }
 
 Expression* Parser::ImportMetaExpression(int pos) {
-  ScopedPtrList<Expression> args(zone(), expression_buffer());
+  ScopedPtrList<Expression> args(pointer_buffer());
   return factory()->NewCallRuntime(Runtime::kInlineGetImportMetaObject, args,
                                    pos);
 }
@@ -1790,7 +1790,7 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
   // For AsyncGenerators, a top-level catch block will reject the Promise.
   Scope* catch_scope = NewHiddenCatchScope();
 
-  ScopedPtrList<Expression> reject_args(zone(), expression_buffer());
+  ScopedPtrList<Expression> reject_args(pointer_buffer());
   reject_args.Add(factory()->NewVariableProxy(
       function_state_->scope()->generator_object_var()));
   reject_args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
@@ -1807,7 +1807,7 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
   try_block->statements()->Add(try_catch, zone());
 
   Block* finally_block = factory()->NewBlock(1, false);
-  ScopedPtrList<Expression> close_args(zone(), expression_buffer());
+  ScopedPtrList<Expression> close_args(pointer_buffer());
   VariableProxy* call_proxy = factory()->NewVariableProxy(
       function_state_->scope()->generator_object_var());
   close_args.Add(call_proxy);
@@ -1843,7 +1843,7 @@ Expression* Parser::BuildIteratorNextResult(VariableProxy* iterator,
                                             Variable* result, IteratorType type,
                                             int pos) {
   Expression* next_property = factory()->NewResolvedProperty(iterator, next);
-  ScopedPtrList<Expression> next_arguments(zone(), expression_buffer());
+  ScopedPtrList<Expression> next_arguments(pointer_buffer());
   Expression* next_call =
       factory()->NewCall(next_property, next_arguments, kNoSourcePosition);
   if (type == IteratorType::kAsync) {
@@ -1855,14 +1855,14 @@ Expression* Parser::BuildIteratorNextResult(VariableProxy* iterator,
       factory()->NewAssignment(Token::ASSIGN, result_proxy, next_call, pos);
 
   // %_IsJSReceiver(...)
-  ScopedPtrList<Expression> is_spec_object_args(zone(), expression_buffer());
+  ScopedPtrList<Expression> is_spec_object_args(pointer_buffer());
   is_spec_object_args.Add(left);
   Expression* is_spec_object_call = factory()->NewCallRuntime(
       Runtime::kInlineIsJSReceiver, is_spec_object_args, pos);
 
   // %ThrowIteratorResultNotAnObject(result)
   Expression* result_proxy_again = factory()->NewVariableProxy(result);
-  ScopedPtrList<Expression> throw_arguments(zone(), expression_buffer());
+  ScopedPtrList<Expression> throw_arguments(pointer_buffer());
   throw_arguments.Add(result_proxy_again);
   Expression* throw_call = factory()->NewCallRuntime(
       Runtime::kThrowIteratorResultNotAnObject, throw_arguments, pos);
@@ -2970,7 +2970,7 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
 
   Expression* reject_promise;
   {
-    ScopedPtrList<Expression> args(zone(), expression_buffer());
+    ScopedPtrList<Expression> args(pointer_buffer());
     args.Add(factory()->NewVariableProxy(
         function_state_->scope()->generator_object_var()));
     args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
@@ -3459,7 +3459,7 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
         factory()->NewGetTemplateObject(cooked_strings, raw_strings, pos);
 
     // Call TagFn
-    ScopedPtrList<Expression> call_args(zone(), expression_buffer());
+    ScopedPtrList<Expression> call_args(pointer_buffer());
     call_args.Add(template_object);
     call_args.AddAll(*expressions);
     return factory()->NewTaggedTemplate(tag, call_args, pos);
@@ -3503,7 +3503,7 @@ Expression* Parser::SpreadCall(Expression* function,
     return factory()->NewCall(function, args_list, pos);
   }
 
-  ScopedPtrList<Expression> args(zone(), expression_buffer());
+  ScopedPtrList<Expression> args(pointer_buffer());
   if (function->IsProperty()) {
     // Method calls
     if (function->AsProperty()->IsSuperAccess()) {
@@ -3537,7 +3537,7 @@ Expression* Parser::SpreadCallNew(Expression* function,
     // Handle in BytecodeGenerator.
     return factory()->NewCallNew(function, args_list, pos);
   }
-  ScopedPtrList<Expression> args(zone(), expression_buffer());
+  ScopedPtrList<Expression> args(pointer_buffer());
   args.Add(function);
   args.Add(ArrayLiteralFromListWithSpread(args_list));
 
@@ -3768,7 +3768,7 @@ void Parser::BuildIteratorClose(ZonePtrList<Statement>* statements,
   // output = %_Call(iteratorReturn, iterator, input);
   Statement* call_return;
   {
-    ScopedPtrList<Expression> args(zone(), expression_buffer());
+    ScopedPtrList<Expression> args(pointer_buffer());
     args.Add(factory()->NewVariableProxy(var_return));
     args.Add(factory()->NewVariableProxy(iterator));
     args.Add(factory()->NewVariableProxy(input));
@@ -3790,7 +3790,7 @@ void Parser::BuildIteratorClose(ZonePtrList<Statement>* statements,
   {
     Expression* is_receiver_call;
     {
-      ScopedPtrList<Expression> args(zone(), expression_buffer());
+      ScopedPtrList<Expression> args(pointer_buffer());
       args.Add(factory()->NewVariableProxy(var_output));
       is_receiver_call =
           factory()->NewCallRuntime(Runtime::kInlineIsJSReceiver, args, nopos);
@@ -3798,7 +3798,7 @@ void Parser::BuildIteratorClose(ZonePtrList<Statement>* statements,
 
     Statement* throw_call;
     {
-      ScopedPtrList<Expression> args(zone(), expression_buffer());
+      ScopedPtrList<Expression> args(pointer_buffer());
       args.Add(factory()->NewVariableProxy(var_output));
       Expression* call = factory()->NewCallRuntime(
           Runtime::kThrowIteratorResultNotAnObject, args, nopos);
@@ -3896,7 +3896,7 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
     // TryCatchStatementForReThrow below (which does not clear the pending
     // message), rather than a TryCatchStatement.
     {
-      ScopedPtrList<Expression> args(zone(), expression_buffer());
+      ScopedPtrList<Expression> args(pointer_buffer());
       args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
       rethrow = factory()->NewExpressionStatement(
           factory()->NewCallRuntime(Runtime::kReThrow, args, nopos), nopos);
@@ -3986,7 +3986,7 @@ void Parser::BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
   // try { %_Call(iteratorReturn, iterator) } catch (_) { }
   Statement* try_call_return;
   {
-    ScopedPtrList<Expression> args(zone(), expression_buffer());
+    ScopedPtrList<Expression> args(pointer_buffer());
     args.Add(factory()->NewVariableProxy(var_return));
     args.Add(factory()->NewVariableProxy(iterator));
 
@@ -4016,7 +4016,7 @@ void Parser::BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
     Variable* var_output = NewTemporary(ast_value_factory()->empty_string());
     Statement* call_return;
     {
-      ScopedPtrList<Expression> args(zone(), expression_buffer());
+      ScopedPtrList<Expression> args(pointer_buffer());
       args.Add(factory()->NewVariableProxy(var_return));
       args.Add(factory()->NewVariableProxy(iterator));
       Expression* call =
@@ -4034,7 +4034,7 @@ void Parser::BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
 
     Expression* is_receiver_call;
     {
-      ScopedPtrList<Expression> args(zone(), expression_buffer());
+      ScopedPtrList<Expression> args(pointer_buffer());
       args.Add(factory()->NewVariableProxy(var_output));
       is_receiver_call =
           factory()->NewCallRuntime(Runtime::kInlineIsJSReceiver, args, nopos);
@@ -4042,7 +4042,7 @@ void Parser::BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
 
     Statement* throw_call;
     {
-      ScopedPtrList<Expression> args(zone(), expression_buffer());
+      ScopedPtrList<Expression> args(pointer_buffer());
       args.Add(factory()->NewVariableProxy(var_output));
       Expression* call = factory()->NewCallRuntime(
           Runtime::kThrowIteratorResultNotAnObject, args, nopos);

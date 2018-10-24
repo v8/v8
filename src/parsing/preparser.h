@@ -402,17 +402,10 @@ class PreParserExpression {
 
   friend class PreParser;
   friend class PreParserFactory;
-  friend class PreParserScopedExpressionList;
+  friend class PreParserExpressionList;
 };
 
-
-// The pre-parser doesn't need to build lists of expressions, identifiers, or
-// the like. If the PreParser is used in variable tracking mode, it needs to
-// build lists of variables though.
-class PreParserExpressionList {};
-
 class PreParserStatement;
-
 class PreParserStatementList {
  public:
   PreParserStatementList() : PreParserStatementList(false) {}
@@ -428,18 +421,19 @@ class PreParserStatementList {
 
 class PreParserScopedStatementList {
  public:
-  PreParserScopedStatementList(Zone* zone,
-                               const PreParserStatementList& buffer) {}
+  explicit PreParserScopedStatementList(std::vector<void*>* buffer) {}
   void Add(const PreParserStatement& element) {}
 };
 
-class PreParserScopedExpressionList {
+// The pre-parser doesn't need to build lists of expressions, identifiers, or
+// the like. If the PreParser is used in variable tracking mode, it needs to
+// build lists of variables though.
+class PreParserExpressionList {
   using VariableZoneThreadedListType =
       ZoneThreadedList<VariableProxy, VariableProxy::PreParserNext>;
 
  public:
-  PreParserScopedExpressionList(Zone* zone,
-                                const PreParserExpressionList& buffer)
+  explicit PreParserExpressionList(std::vector<void*>* buffer)
       : length_(0), variables_(nullptr) {}
 
   int length() const { return length_; }
@@ -583,9 +577,8 @@ class PreParserFactory {
                                        int js_flags, int pos) {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewArrayLiteral(
-      const PreParserScopedExpressionList& values, int first_spread_index,
-      int pos) {
+  PreParserExpression NewArrayLiteral(const PreParserExpressionList& values,
+                                      int first_spread_index, int pos) {
     return PreParserExpression::ArrayLiteral(values.variables_);
   }
   PreParserExpression NewClassLiteralProperty(const PreParserExpression& key,
@@ -608,8 +601,8 @@ class PreParserFactory {
     return PreParserExpression::Default(value.variables_);
   }
   PreParserExpression NewObjectLiteral(
-      const PreParserScopedExpressionList& properties,
-      int boilerplate_properties, int pos, bool has_rest_property) {
+      const PreParserExpressionList& properties, int boilerplate_properties,
+      int pos, bool has_rest_property) {
     return PreParserExpression::ObjectLiteral(properties.variables_);
   }
   PreParserExpression NewVariableProxy(void* variable) {
@@ -681,9 +674,8 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
   PreParserExpression NewCall(
-      PreParserExpression expression,
-      const PreParserScopedExpressionList& arguments, int pos,
-      Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
+      PreParserExpression expression, const PreParserExpressionList& arguments,
+      int pos, Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
     if (possibly_eval == Call::IS_POSSIBLY_EVAL) {
       DCHECK(expression.IsIdentifier() && expression.AsIdentifier().IsEval());
       return PreParserExpression::CallEval();
@@ -691,12 +683,12 @@ class PreParserFactory {
     return PreParserExpression::Call();
   }
   PreParserExpression NewTaggedTemplate(
-      PreParserExpression expression,
-      const PreParserScopedExpressionList& arguments, int pos) {
+      PreParserExpression expression, const PreParserExpressionList& arguments,
+      int pos) {
     return PreParserExpression::CallTaggedTemplate();
   }
   PreParserExpression NewCallNew(const PreParserExpression& expression,
-                                 const PreParserScopedExpressionList& arguments,
+                                 const PreParserExpressionList& arguments,
                                  int pos) {
     return PreParserExpression::Default();
   }
@@ -900,6 +892,8 @@ class PreParserSourceRangeScope {
   DISALLOW_IMPLICIT_CONSTRUCTORS(PreParserSourceRangeScope);
 };
 
+class PreParserPropertyList {};
+
 template <>
 struct ParserTypes<PreParser> {
   typedef ParserBase<PreParser> Base;
@@ -913,15 +907,13 @@ struct ParserTypes<PreParser> {
   typedef PreParserExpression ClassLiteralProperty;
   typedef PreParserExpression Suspend;
   typedef PreParserExpression RewritableExpression;
-  typedef PreParserExpressionList ExpressionList;
-  typedef PreParserExpressionList ObjectPropertyList;
-  typedef PreParserExpressionList ClassPropertyList;
+  typedef PreParserPropertyList ClassPropertyList;
   typedef PreParserFormalParameters FormalParameters;
   typedef PreParserStatement Statement;
   typedef PreParserStatementList StatementList;
   typedef PreParserScopedStatementList ScopedStatementList;
-  typedef PreParserScopedExpressionList ScopedExpressionList;
-  typedef PreParserScopedExpressionList ScopedObjectPropertyList;
+  typedef PreParserExpressionList ExpressionList;
+  typedef PreParserExpressionList ObjectPropertyList;
   typedef PreParserStatement Block;
   typedef PreParserStatement BreakableStatement;
   typedef PreParserStatement IterationStatement;
@@ -1082,13 +1074,13 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void SetAsmModule() {}
 
-  V8_INLINE PreParserExpression
-  SpreadCall(const PreParserExpression& function,
-             const PreParserScopedExpressionList& args, int pos,
-             Call::PossiblyEval possibly_eval);
+  V8_INLINE PreParserExpression SpreadCall(const PreParserExpression& function,
+                                           const PreParserExpressionList& args,
+                                           int pos,
+                                           Call::PossiblyEval possibly_eval);
   V8_INLINE PreParserExpression
   SpreadCallNew(const PreParserExpression& function,
-                const PreParserScopedExpressionList& args, int pos);
+                const PreParserExpressionList& args, int pos);
 
   V8_INLINE void RewriteDestructuringAssignments() {}
 
@@ -1631,25 +1623,17 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserIdentifier& name, int start_position,
       InferName infer = InferName::kYes);
 
-  V8_INLINE PreParserExpressionList NewExpressionList(int size) const {
-    return PreParserExpressionList();
-  }
-
-  V8_INLINE PreParserExpressionList NewObjectPropertyList(int size) const {
-    return PreParserExpressionList();
-  }
-
-  V8_INLINE PreParserExpressionList NewClassPropertyList(int size) const {
-    return PreParserExpressionList();
+  V8_INLINE PreParserPropertyList NewClassPropertyList(int size) const {
+    return PreParserPropertyList();
   }
 
   V8_INLINE PreParserStatementList NewStatementList(int size) const {
     return PreParserStatementList();
   }
 
-  V8_INLINE PreParserExpression NewV8Intrinsic(
-      const PreParserIdentifier& name,
-      const PreParserScopedExpressionList& arguments, int pos, bool* ok) {
+  V8_INLINE PreParserExpression
+  NewV8Intrinsic(const PreParserIdentifier& name,
+                 const PreParserExpressionList& arguments, int pos, bool* ok) {
     return PreParserExpression::Default();
   }
 
@@ -1710,7 +1694,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression
-  ExpressionListToExpression(const PreParserScopedExpressionList& args) {
+  ExpressionListToExpression(const PreParserExpressionList& args) {
     return PreParserExpression::Default(args.variables_);
   }
 
@@ -1748,16 +1732,16 @@ class PreParser : public ParserBase<PreParser> {
   PreParsedScopeDataBuilder* preparsed_scope_data_builder_;
 };
 
-PreParserExpression PreParser::SpreadCall(
-    const PreParserExpression& function,
-    const PreParserScopedExpressionList& args, int pos,
-    Call::PossiblyEval possibly_eval) {
+PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,
+                                          const PreParserExpressionList& args,
+                                          int pos,
+                                          Call::PossiblyEval possibly_eval) {
   return factory()->NewCall(function, args, pos, possibly_eval);
 }
 
 PreParserExpression PreParser::SpreadCallNew(
-    const PreParserExpression& function,
-    const PreParserScopedExpressionList& args, int pos) {
+    const PreParserExpression& function, const PreParserExpressionList& args,
+    int pos) {
   return factory()->NewCallNew(function, args, pos);
 }
 

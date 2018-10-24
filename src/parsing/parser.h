@@ -131,16 +131,13 @@ struct ParserTypes<Parser> {
   typedef ClassLiteral::Property* ClassLiteralProperty;
   typedef v8::internal::Suspend* Suspend;
   typedef v8::internal::RewritableExpression* RewritableExpression;
-  typedef ZonePtrList<v8::internal::Expression>* ExpressionList;
-  typedef ZonePtrList<ObjectLiteral::Property>* ObjectPropertyList;
   typedef ZonePtrList<ClassLiteral::Property>* ClassPropertyList;
   typedef ParserFormalParameters FormalParameters;
   typedef v8::internal::Statement* Statement;
   typedef ZonePtrList<v8::internal::Statement>* StatementList;
   typedef ScopedPtrList<v8::internal::Statement> ScopedStatementList;
-  typedef ScopedPtrList<v8::internal::Expression> ScopedExpressionList;
-  typedef ScopedPtrList<v8::internal::ObjectLiteralProperty>
-      ScopedObjectPropertyList;
+  typedef ScopedPtrList<v8::internal::Expression> ExpressionList;
+  typedef ScopedPtrList<v8::internal::ObjectLiteralProperty> ObjectPropertyList;
   typedef v8::internal::Block* Block;
   typedef v8::internal::BreakableStatement* BreakableStatement;
   typedef v8::internal::ForStatement* ForStatement;
@@ -742,7 +739,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // A shortcut for performing a ToString operation
   V8_INLINE Expression* ToString(Expression* expr) {
     if (expr->IsStringLiteral()) return expr;
-    ScopedPtrList<Expression> args(zone(), expression_buffer());
+    ScopedPtrList<Expression> args(pointer_buffer());
     args.Add(expr);
     return factory()->NewCallRuntime(Runtime::kInlineToString, args,
                                      expr->position());
