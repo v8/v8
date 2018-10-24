@@ -555,7 +555,8 @@ Oddball* Heap::ToBoolean(bool condition) {
 
 uint64_t Heap::HashSeed() {
   uint64_t seed;
-  hash_seed()->copy_out(0, reinterpret_cast<byte*>(&seed), kInt64Size);
+  ReadOnlyRoots(this).hash_seed()->copy_out(0, reinterpret_cast<byte*>(&seed),
+                                            kInt64Size);
   DCHECK(FLAG_randomize_hashes || seed == 0);
   return seed;
 }

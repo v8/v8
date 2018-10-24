@@ -623,7 +623,7 @@ void Heap::CreateInitialObjects() {
   set_minus_infinity_value(
       *factory->NewHeapNumber(-V8_INFINITY, TENURED_READ_ONLY));
 
-  set_hash_seed(*factory->NewByteArray(kInt64Size, TENURED));
+  set_hash_seed(*factory->NewByteArray(kInt64Size, TENURED_READ_ONLY));
   InitializeHashSeed();
 
   // There's no "current microtask" in the beginning.

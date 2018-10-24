@@ -215,7 +215,9 @@ class RootVisitor;
   V(HeapObject*, self_reference_marker, SelfReferenceMarker)                   \
   /* Canonical trampoline RelocInfo */                                         \
   V(ByteArray*, off_heap_trampoline_relocation_info,                           \
-    OffHeapTrampolineRelocationInfo)
+    OffHeapTrampolineRelocationInfo)                                           \
+  /* Hash seed */                                                              \
+  V(ByteArray*, hash_seed, HashSeed)
 
 // Mutable roots that are known to be immortal immovable, for which we can
 // safely skip write barriers.
@@ -253,8 +255,6 @@ class RootVisitor;
   V(MicrotaskQueue*, default_microtask_queue, DefaultMicrotaskQueue)          \
   /* Indirection lists for isolate-independent builtins */                    \
   V(FixedArray*, builtins_constants_table, BuiltinsConstantsTable)            \
-  /* Hash seed */                                                             \
-  V(ByteArray*, hash_seed, HashSeed)                                          \
   /* JS Entries */                                                            \
   V(Code*, js_entry_code, JsEntryCode)                                        \
   V(Code*, js_construct_entry_code, JsConstructEntryCode)                     \
