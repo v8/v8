@@ -149,17 +149,24 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
   // TODO(neis): Once the concurrent compiler frontend is always-on, we no
   // longer need to explicitly store the type.
   FieldTypeDependency(const MapRef& owner, int descriptor,
-                      const ObjectRef& type)
-      : owner_(owner), descriptor_(descriptor), type_(type) {
+                      const ObjectRef& type, PropertyConstness constness)
+      : owner_(owner),
+        descriptor_(descriptor),
+        type_(type),
+        constness_(constness) {
     DCHECK(owner_.equals(owner_.FindFieldOwner(descriptor_)));
     DCHECK(type_.equals(owner_.GetFieldType(descriptor_)));
+    DCHECK_EQ(constness_, owner_.GetPropertyDetails(descriptor_).constness());
   }
 
   bool IsValid() const override {
     DisallowHeapAllocation no_heap_allocation;
     Handle<Map> owner = owner_.object();
     Handle<Object> type = type_.object();
-    return *type == owner->instance_descriptors()->GetFieldType(descriptor_);
+    return *type == owner->instance_descriptors()->GetFieldType(descriptor_) &&
+           constness_ == owner->instance_descriptors()
+                             ->GetDetails(descriptor_)
+                             .constness();
   }
 
   void Install(const MaybeObjectHandle& code) override {
@@ -172,6 +179,7 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
   MapRef owner_;
   int descriptor_;
   ObjectRef type_;
+  PropertyConstness constness_;
 };
 
 class GlobalPropertyDependency final
@@ -327,9 +335,11 @@ void CompilationDependencies::DependOnFieldType(const MapRef& map,
                                                 int descriptor) {
   MapRef owner = map.FindFieldOwner(descriptor);
   ObjectRef type = owner.GetFieldType(descriptor);
+  PropertyConstness constness =
+      owner.GetPropertyDetails(descriptor).constness();
   DCHECK(type.equals(map.GetFieldType(descriptor)));
-  dependencies_.push_front(new (zone_)
-                               FieldTypeDependency(owner, descriptor, type));
+  dependencies_.push_front(
+      new (zone_) FieldTypeDependency(owner, descriptor, type, constness));
 }
 
 void CompilationDependencies::DependOnGlobalProperty(
