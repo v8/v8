@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_BREAK_ITERATOR_H_
 #define V8_OBJECTS_JS_BREAK_ITERATOR_H_
 
+#include <set>
+#include <string>
+
 #include "src/objects.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
@@ -31,6 +34,8 @@ class JSV8BreakIterator : public JSObject {
 
   static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSV8BreakIterator> break_iterator);
+
+  static std::set<std::string> GetAvailableLocales();
 
   static void AdoptText(Isolate* isolate,
                         Handle<JSV8BreakIterator> break_iterator,

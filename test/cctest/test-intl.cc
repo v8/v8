@@ -7,7 +7,14 @@
 #include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-break-iterator.h"
+#include "src/objects/js-collator.h"
+#include "src/objects/js-date-time-format.h"
+#include "src/objects/js-list-format.h"
 #include "src/objects/js-number-format.h"
+#include "src/objects/js-plural-rules.h"
+#include "src/objects/js-relative-time-format.h"
+#include "src/objects/js-segmenter.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -211,25 +218,31 @@ TEST(GetBoolOption) {
 TEST(GetAvailableLocales) {
   std::set<std::string> locales;
 
-  locales = Intl::GetAvailableLocales(Intl::ICUService::kBreakIterator);
+  locales = JSV8BreakIterator::GetAvailableLocales();
   CHECK(locales.count("en-US"));
   CHECK(!locales.count("abcdefg"));
 
-  locales = Intl::GetAvailableLocales(Intl::ICUService::kCollator);
+  locales = JSCollator::GetAvailableLocales();
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(Intl::ICUService::kDateFormat);
+  locales = JSDateTimeFormat::GetAvailableLocales();
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(Intl::ICUService::kNumberFormat);
+  locales = JSListFormat::GetAvailableLocales();
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(Intl::ICUService::kPluralRules);
+  locales = JSNumberFormat::GetAvailableLocales();
   CHECK(locales.count("en-US"));
 
-  locales =
-      Intl::GetAvailableLocales(Intl::ICUService::kRelativeDateTimeFormatter);
+  locales = JSPluralRules::GetAvailableLocales();
   CHECK(locales.count("en-US"));
+
+  locales = JSRelativeTimeFormat::GetAvailableLocales();
+  CHECK(locales.count("en-US"));
+
+  locales = JSSegmenter::GetAvailableLocales();
+  CHECK(locales.count("en-US"));
+  CHECK(!locales.count("abcdefg"));
 }
 
 }  // namespace internal

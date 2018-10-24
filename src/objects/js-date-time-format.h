@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
 #define V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
 
+#include <set>
+#include <string>
+
 #include "src/isolate.h"
 #include "src/objects/managed.h"
 
@@ -66,6 +69,8 @@ class JSDateTimeFormat : public JSObject {
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
       Handle<Object> options, RequiredOption required, DefaultsOption defaults,
       const char* service);
+
+  static std::set<std::string> GetAvailableLocales();
 
   DECL_CAST(JSDateTimeFormat)
 

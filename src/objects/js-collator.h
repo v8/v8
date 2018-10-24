@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_COLLATOR_H_
 #define V8_OBJECTS_JS_COLLATOR_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -35,6 +38,8 @@ class JSCollator : public JSObject {
   // ecma402/#sec-intl.collator.prototype.resolvedoptions
   static Handle<JSObject> ResolvedOptions(Isolate* isolate,
                                           Handle<JSCollator> collator);
+
+  static std::set<std::string> GetAvailableLocales();
 
   DECL_CAST(JSCollator)
   DECL_PRINTER(JSCollator)

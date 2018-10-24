@@ -775,10 +775,9 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   // 11. Let r be ResolveLocale( %DateTimeFormat%.[[AvailableLocales]],
   //     requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]],
   //     localeData).
-  std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(Intl::ICUService::kDateFormat);
-  Intl::ResolvedLocale r = Intl::ResolveLocale(
-      isolate, available_locales, requested_locales, locale_matcher, {"nu"});
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, JSDateTimeFormat::GetAvailableLocales(),
+                          requested_locales, locale_matcher, {"nu"});
 
   // TODO(ftang): Make sure that "nu" key doesn't have "native",
   // "traditio" or "finance" values.
@@ -977,5 +976,13 @@ MaybeHandle<Object> JSDateTimeFormat::FormatToParts(
   JSObject::ValidateElements(*result);
   return result;
 }
+
+std::set<std::string> JSDateTimeFormat::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  const icu::Locale* icu_available_locales =
+      icu::DateFormat::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -225,12 +225,10 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   // 8. Let r be ResolveLocale(%NumberFormat%.[[AvailableLocales]],
   // requestedLocales, opt,  %NumberFormat%.[[RelevantExtensionKeys]],
   // localeData).
-  std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(Intl::ICUService::kNumberFormat);
   std::set<std::string> relevant_extension_keys{"nu"};
   Intl::ResolvedLocale r =
-      Intl::ResolveLocale(isolate, available_locales, requested_locales,
-                          matcher, relevant_extension_keys);
+      Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
+                          requested_locales, matcher, relevant_extension_keys);
 
   // 9. Set numberFormat.[[Locale]] to r.[[locale]].
   Handle<String> locale_str =
@@ -694,6 +692,13 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
   JSObject::ValidateElements(*result);
 
   return result;
+}
+
+std::set<std::string> JSNumberFormat::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  const icu::Locale* icu_available_locales =
+      icu::NumberFormat::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
 }  // namespace internal

@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_NUMBER_FORMAT_H_
 #define V8_OBJECTS_JS_NUMBER_FORMAT_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -45,6 +48,8 @@ class JSNumberFormat : public JSObject {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumber(
       Isolate* isolate, Handle<JSNumberFormat> number_format, double number);
+
+  static std::set<std::string> GetAvailableLocales();
 
   Handle<String> StyleAsString() const;
   Handle<String> CurrencyDisplayAsString() const;

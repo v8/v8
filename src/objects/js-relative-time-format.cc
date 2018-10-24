@@ -17,6 +17,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-relative-time-format-inl.h"
+#include "unicode/datefmt.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
 #include "unicode/uvernum.h"  // for U_ICU_VERSION_MAJOR_NUM
@@ -93,10 +94,9 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
   // ResolveLocale(%RelativeTimeFormat%.[[AvailableLocales]],
   //               requestedLocales, opt,
   //               %RelativeTimeFormat%.[[RelevantExtensionKeys]], localeData).
-  std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(Intl::ICUService::kRelativeDateTimeFormatter);
-  Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
-                                               requested_locales, matcher, {});
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales(),
+                          requested_locales, matcher, {});
 
   // 9. Let locale be r.[[Locale]].
   // 10. Set relativeTimeFormat.[[Locale]] to locale.
@@ -421,6 +421,13 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
   return factory->NewStringFromTwoByte(Vector<const uint16_t>(
       reinterpret_cast<const uint16_t*>(formatted.getBuffer()),
       formatted.length()));
+}
+
+std::set<std::string> JSRelativeTimeFormat::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  const icu::Locale* icu_available_locales =
+      icu::DateFormat::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
 }  // namespace internal

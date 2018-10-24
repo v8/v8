@@ -41,22 +41,12 @@ class Intl {
     kLength
   };
 
-  enum class ICUService {
-    kBreakIterator,
-    kCollator,
-    kDateFormat,
-    kNumberFormat,
-    kPluralRules,
-    kRelativeDateTimeFormatter,
-    kListFormatter,
-    kSegmenter
-  };
-
-  // Gets the ICU locales for a given service. If there is a locale with a
-  // script tag then the locales also include a locale without the script; eg,
-  // pa_Guru_IN (language=Panjabi, script=Gurmukhi, country-India) would include
-  // pa_IN.
-  static std::set<std::string> GetAvailableLocales(ICUService service);
+  // Build a set of ICU locales from a list of Locales. If there is a locale
+  // with a script tag then the locales also include a locale without the
+  // script; eg, pa_Guru_IN (language=Panjabi, script=Gurmukhi, country-India)
+  // would include pa_IN.
+  static std::set<std::string> BuildLocaleSet(
+      const icu::Locale* icu_available_locales, int32_t count);
 
   // Get the name of the numbering system from locale.
   // ICU doesn't expose numbering system in any way, so we have to assume that
@@ -65,7 +55,8 @@ class Intl {
   static std::string GetNumberingSystem(const icu::Locale& icu_locale);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> SupportedLocalesOf(
-      Isolate* isolate, ICUService service, Handle<Object> locales_in,
+      Isolate* isolate, const char* method,
+      const std::set<std::string>& available_locales, Handle<Object> locales_in,
       Handle<Object> options_in);
 
   static std::string DefaultLocale(Isolate* isolate);

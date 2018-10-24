@@ -193,10 +193,9 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
 
   // 15. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
-  std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(Intl::ICUService::kListFormatter);
-  Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
-                                               requested_locales, matcher, {});
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
+                          requested_locales, matcher, {});
 
   // 24. Set listFormat.[[Locale]] to r.[[Locale]].
   Handle<String> locale_str =
@@ -400,6 +399,17 @@ MaybeHandle<JSArray> JSListFormat::FormatListToParts(
       FormatListCommon(isolate, format_holder, list, formatted, &length, array),
       Handle<JSArray>());
   return GenerateListFormatParts(isolate, formatted, array.get(), length);
+}
+
+std::set<std::string> JSListFormat::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  // TODO(ftang): for now just use
+  // icu::Locale::getAvailableLocales(count) until we migrate to
+  // Intl::GetAvailableLocales().
+  // ICU FR at https://unicode-org.atlassian.net/browse/ICU-20015
+  const icu::Locale* icu_available_locales =
+      icu::Locale::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
 }  // namespace internal

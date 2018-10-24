@@ -157,10 +157,9 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
   // 11. Let r be ResolveLocale(%PluralRules%.[[AvailableLocales]],
   // requestedLocales, opt, %PluralRules%.[[RelevantExtensionKeys]],
   // localeData).
-  std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(Intl::ICUService::kPluralRules);
-  Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
-                                               requested_locales, matcher, {});
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, JSPluralRules::GetAvailableLocales(),
+                          requested_locales, matcher, {});
 
   // 18. Set collator.[[Locale]] to r.[[locale]].
   icu::Locale icu_locale = r.icu_locale;
@@ -329,6 +328,18 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
                                "pluralCategories");
 
   return options;
+}
+
+std::set<std::string> JSPluralRules::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  // TODO(ftang): For PluralRules, filter out locales that
+  // don't support PluralRules.
+  // PluralRules is missing an appropriate getAvailableLocales method,
+  // so we should filter from all locales, but it's not clear how; see
+  // https://ssl.icu-project.org/trac/ticket/12756
+  const icu::Locale* icu_available_locales =
+      icu::Locale::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
 }  // namespace internal

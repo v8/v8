@@ -57,9 +57,9 @@ BUILTIN(V8BreakIteratorSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Intl::SupportedLocalesOf(isolate, Intl::ICUService::kBreakIterator,
-                               locales, options));
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, "Intl.v8BreakIterator.supportedLocalesOf",
+                   JSV8BreakIterator::GetAvailableLocales(), locales, options));
 }
 
 BUILTIN(NumberFormatSupportedLocalesOf) {
@@ -69,7 +69,8 @@ BUILTIN(NumberFormatSupportedLocalesOf) {
 
   RETURN_RESULT_OR_FAILURE(
       isolate, Intl::SupportedLocalesOf(
-                   isolate, Intl::ICUService::kNumberFormat, locales, options));
+                   isolate, "Intl.NumberFormat.supportedLocalesOf",
+                   JSNumberFormat::GetAvailableLocales(), locales, options));
 }
 
 BUILTIN(NumberFormatPrototypeFormatToParts) {
@@ -110,8 +111,9 @@ BUILTIN(DateTimeFormatSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, Intl::ICUService::kDateFormat,
-                                        locales, options));
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, "Intl.DateTimeFormat.supportedLocalesOf",
+                   JSDateTimeFormat::GetAvailableLocales(), locales, options));
 }
 
 BUILTIN(DateTimeFormatPrototypeFormatToParts) {
@@ -461,9 +463,9 @@ BUILTIN(ListFormatSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Intl::SupportedLocalesOf(isolate, Intl::ICUService::kListFormatter,
-                               locales, options));
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, "Intl.ListFormat.supportedLocalesOf",
+                   JSListFormat::GetAvailableLocales(), locales, options));
 }
 
 namespace {
@@ -569,9 +571,10 @@ BUILTIN(RelativeTimeFormatSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(
-                   isolate, Intl::ICUService::kRelativeDateTimeFormatter,
-                   locales, options));
+      isolate,
+      Intl::SupportedLocalesOf(
+          isolate, "Intl.RelativeTimeFormat.supportedLocalesOf",
+          JSRelativeTimeFormat::GetAvailableLocales(), locales, options));
 }
 
 BUILTIN(RelativeTimeFormatPrototypeFormat) {
@@ -834,8 +837,9 @@ BUILTIN(PluralRulesSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, Intl::ICUService::kPluralRules,
-                                        locales, options));
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, "Intl.PluralRules.supportedLocalesOf",
+                   JSPluralRules::GetAvailableLocales(), locales, options));
 }
 
 BUILTIN(CollatorConstructor) {
@@ -884,8 +888,9 @@ BUILTIN(CollatorSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, Intl::ICUService::kCollator,
-                                        locales, options));
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, "Intl.Collator.supportedLocalesOf",
+                   JSCollator::GetAvailableLocales(), locales, options));
 }
 
 BUILTIN(CollatorPrototypeCompare) {
@@ -1040,8 +1045,9 @@ BUILTIN(SegmenterSupportedLocalesOf) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, Intl::ICUService::kSegmenter,
-                                        locales, options));
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, "Intl.Segmenter.supportedLocalesOf",
+                   JSSegmenter::GetAvailableLocales(), locales, options));
 }
 
 BUILTIN(SegmenterPrototypeResolvedOptions) {

@@ -300,11 +300,9 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
   // 17. Let r be ResolveLocale(%Collator%.[[AvailableLocales]],
   // requestedLocales, opt, %Collator%.[[RelevantExtensionKeys]],
   // localeData).
-  std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(Intl::ICUService::kCollator);
   Intl::ResolvedLocale r =
-      Intl::ResolveLocale(isolate, available_locales, requested_locales,
-                          matcher, relevant_extension_keys);
+      Intl::ResolveLocale(isolate, JSCollator::GetAvailableLocales(),
+                          requested_locales, matcher, relevant_extension_keys);
 
   // 18. Set collator.[[Locale]] to r.[[locale]].
   icu::Locale icu_locale = r.icu_locale;
@@ -492,6 +490,13 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
 
   // 29. Return collator.
   return collator;
+}
+
+std::set<std::string> JSCollator::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  const icu::Locale* icu_available_locales =
+      icu::Collator::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
 }  // namespace internal

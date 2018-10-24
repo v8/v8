@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_SEGMENTER_H_
 #define V8_OBJECTS_JS_SEGMENTER_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -35,6 +38,8 @@ class JSSegmenter : public JSObject {
 
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSSegmenter> segmenter_holder);
+
+  static std::set<std::string> GetAvailableLocales();
 
   Handle<String> LineBreakStyleAsString() const;
   const char* LineBreakStyleAsCString() const;

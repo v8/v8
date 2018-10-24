@@ -51,10 +51,9 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSV8BreakIterator>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(Intl::ICUService::kBreakIterator);
-  Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
-                                               requested_locales, matcher, {});
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, JSV8BreakIterator::GetAvailableLocales(),
+                          requested_locales, matcher, {});
 
   // Extract type from options
   std::unique_ptr<char[]> type_str = nullptr;
@@ -198,6 +197,13 @@ String* JSV8BreakIterator::BreakType(Isolate* isolate,
     return ReadOnlyRoots(isolate).ideo_string();
   }
   return ReadOnlyRoots(isolate).unknown_string();
+}
+
+std::set<std::string> JSV8BreakIterator::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  const icu::Locale* icu_available_locales =
+      icu::BreakIterator::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
 }  // namespace internal

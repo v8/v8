@@ -76,10 +76,9 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
 
   // 9. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
-  std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(Intl::ICUService::kSegmenter);
-  Intl::ResolvedLocale r = Intl::ResolveLocale(isolate, available_locales,
-                                               requested_locales, matcher, {});
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
+                          requested_locales, matcher, {});
 
   // 7. Let lineBreakStyle be ? GetOption(options, "lineBreakStyle", "string", «
   // "strict", "normal", "loose" », "normal").
@@ -234,6 +233,13 @@ Handle<String> JSSegmenter::GranularityAsString() const {
     case Granularity::COUNT:
       UNREACHABLE();
   }
+}
+
+std::set<std::string> JSSegmenter::GetAvailableLocales() {
+  int32_t num_locales = 0;
+  const icu::Locale* icu_available_locales =
+      icu::BreakIterator::getAvailableLocales(num_locales);
+  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
 }  // namespace internal

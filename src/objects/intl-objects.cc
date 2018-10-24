@@ -511,44 +511,9 @@ bool RemoveLocaleScriptTag(const std::string& icu_locale,
 
 }  // namespace
 
-std::set<std::string> Intl::GetAvailableLocales(Intl::ICUService service) {
-  const icu::Locale* icu_available_locales = nullptr;
-  int32_t count = 0;
+std::set<std::string> Intl::BuildLocaleSet(
+    const icu::Locale* icu_available_locales, int32_t count) {
   std::set<std::string> locales;
-
-  switch (service) {
-    case Intl::ICUService::kBreakIterator:
-    case Intl::ICUService::kSegmenter:
-      icu_available_locales = icu::BreakIterator::getAvailableLocales(count);
-      break;
-    case Intl::ICUService::kCollator:
-      icu_available_locales = icu::Collator::getAvailableLocales(count);
-      break;
-    case Intl::ICUService::kRelativeDateTimeFormatter:
-    case Intl::ICUService::kDateFormat:
-      icu_available_locales = icu::DateFormat::getAvailableLocales(count);
-      break;
-    case Intl::ICUService::kNumberFormat:
-      icu_available_locales = icu::NumberFormat::getAvailableLocales(count);
-      break;
-    case Intl::ICUService::kPluralRules:
-      // TODO(littledan): For PluralRules, filter out locales that
-      // don't support PluralRules.
-      // PluralRules is missing an appropriate getAvailableLocales method,
-      // so we should filter from all locales, but it's not clear how; see
-      // https://ssl.icu-project.org/trac/ticket/12756
-      icu_available_locales = icu::Locale::getAvailableLocales(count);
-      break;
-    case Intl::ICUService::kListFormatter: {
-      // TODO(ftang): for now just use
-      // icu::Locale::getAvailableLocales(count) until we migrate to
-      // Intl::GetAvailableLocales().
-      // ICU FR at https://unicode-org.atlassian.net/browse/ICU-20015
-      icu_available_locales = icu::Locale::getAvailableLocales(count);
-      break;
-    }
-  }
-
   UErrorCode error = U_ZERO_ERROR;
   char result[ULOC_FULLNAME_CAPACITY];
 
@@ -574,32 +539,6 @@ std::set<std::string> Intl::GetAvailableLocales(Intl::ICUService service) {
 
   return locales;
 }
-
-namespace {
-
-const char* ICUServiceToString(Intl::ICUService service) {
-  switch (service) {
-    case Intl::ICUService::kCollator:
-      return "Intl.Collator";
-    case Intl::ICUService::kNumberFormat:
-      return "Intl.NumberFormat";
-    case Intl::ICUService::kDateFormat:
-      return "Intl.DateFormat";
-    case Intl::ICUService::kBreakIterator:
-      return "Intl.v8BreakIterator";
-    case Intl::ICUService::kPluralRules:
-      return "Intl.PluralRules";
-    case Intl::ICUService::kRelativeDateTimeFormatter:
-      return "Intl.RelativeTimeFormat";
-    case Intl::ICUService::kListFormatter:
-      return "Intl.kListFormat";
-    case Intl::ICUService::kSegmenter:
-      return "Intl.kSegmenter";
-  }
-  UNREACHABLE();
-}
-
-}  // namespace
 
 std::string Intl::DefaultLocale(Isolate* isolate) {
   if (isolate->default_locale().empty()) {
@@ -1620,7 +1559,7 @@ MaybeHandle<JSObject> CreateReadOnlyArray(Isolate* isolate,
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
 // https://tc39.github.io/ecma402/#sec-supportedlocales
 MaybeHandle<JSObject> SupportedLocales(
-    Isolate* isolate, Intl::ICUService service,
+    Isolate* isolate, const char* method,
     const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales, Handle<Object> options) {
   std::vector<std::string> supported_locales;
@@ -1637,8 +1576,8 @@ MaybeHandle<JSObject> SupportedLocales(
 
     // 1. b. Let matcher be ? GetOption(options, "localeMatcher", "string",
     //       « "lookup", "best fit" », "best fit").
-    Maybe<Intl::MatcherOption> maybe_locale_matcher = Intl::GetLocaleMatcher(
-        isolate, options_obj, ICUServiceToString(service));
+    Maybe<Intl::MatcherOption> maybe_locale_matcher =
+        Intl::GetLocaleMatcher(isolate, options_obj, method);
     MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSObject>());
     matcher = maybe_locale_matcher.FromJust();
   }
@@ -1690,12 +1629,11 @@ MaybeHandle<JSArray> Intl::GetCanonicalLocales(Isolate* isolate,
 }
 
 // ECMA 402 Intl.*.supportedLocalesOf
-MaybeHandle<JSObject> Intl::SupportedLocalesOf(Isolate* isolate,
-                                               Intl::ICUService service,
-                                               Handle<Object> locales,
-                                               Handle<Object> options) {
+MaybeHandle<JSObject> Intl::SupportedLocalesOf(
+    Isolate* isolate, const char* method,
+    const std::set<std::string>& available_locales, Handle<Object> locales,
+    Handle<Object> options) {
   // Let availableLocales be %Collator%.[[AvailableLocales]].
-  std::set<std::string> available_locales = GetAvailableLocales(service);
 
   // Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> requested_locales =
@@ -1703,7 +1641,7 @@ MaybeHandle<JSObject> Intl::SupportedLocalesOf(Isolate* isolate,
   MAYBE_RETURN(requested_locales, MaybeHandle<JSObject>());
 
   // Return ? SupportedLocales(availableLocales, requestedLocales, options).
-  return SupportedLocales(isolate, service, available_locales,
+  return SupportedLocales(isolate, method, available_locales,
                           requested_locales.FromJust(), options);
 }
 

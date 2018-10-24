@@ -9,6 +9,9 @@
 #ifndef V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_H_
 #define V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_H_
 
+#include <set>
+#include <string>
+
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -46,6 +49,8 @@ class JSRelativeTimeFormat : public JSObject {
       Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
       Handle<JSRelativeTimeFormat> format_holder, const char* func_name,
       bool to_parts);
+
+  static std::set<std::string> GetAvailableLocales();
 
   DECL_CAST(JSRelativeTimeFormat)
 
