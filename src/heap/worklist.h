@@ -62,6 +62,7 @@ class Worklist {
   Worklist() : Worklist(kMaxNumTasks) {}
 
   explicit Worklist(int num_tasks) : num_tasks_(num_tasks) {
+    DCHECK_LE(num_tasks, kMaxNumTasks);
     for (int i = 0; i < num_tasks_; i++) {
       private_push_segment(i) = NewSegment();
       private_pop_segment(i) = NewSegment();
