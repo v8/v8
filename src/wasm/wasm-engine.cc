@@ -176,10 +176,9 @@ bool WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
   ErrorThrower thrower(isolate, "Manually requested tier up");
   // Note we assume that "one-off" compilations can discard detected features.
   WasmFeatures detected = kNoWasmFeatures;
-  WasmCode* ret = WasmCompilationUnit::CompileWasmFunction(
+  return WasmCompilationUnit::CompileWasmFunction(
       isolate, native_module, &detected, &thrower,
       &native_module->module()->functions[function_index], tier);
-  return ret != nullptr;
 }
 
 std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(

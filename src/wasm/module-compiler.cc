@@ -652,9 +652,9 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
     if (func.imported) continue;  // Imports are compiled at instantiation time.
 
     // Compile the function.
-    WasmCode* code = WasmCompilationUnit::CompileWasmFunction(
+    bool success = WasmCompilationUnit::CompileWasmFunction(
         isolate, native_module, &detected, thrower, &func);
-    if (code == nullptr) {
+    if (!success) {
       TruncatedUserString<> name(wire_bytes.GetNameOrNull(&func, module));
       thrower->CompileError("Compilation of #%d:%.*s failed.", i, name.length(),
                             name.start());

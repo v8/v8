@@ -55,10 +55,10 @@ class WasmCompilationUnit final {
 
   void ReportError(ErrorThrower* thrower) const;
 
-  static WasmCode* CompileWasmFunction(
-      Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
-      ErrorThrower* thrower, const WasmFunction* function,
-      ExecutionTier = GetDefaultExecutionTier());
+  static bool CompileWasmFunction(Isolate* isolate, NativeModule* native_module,
+                                  WasmFeatures* detected, ErrorThrower* thrower,
+                                  const WasmFunction* function,
+                                  ExecutionTier = GetDefaultExecutionTier());
 
  private:
   friend class LiftoffCompilationUnit;

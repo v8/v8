@@ -135,7 +135,7 @@ void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
 }
 
 // static
-WasmCode* WasmCompilationUnit::CompileWasmFunction(
+bool WasmCompilationUnit::CompileWasmFunction(
     Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
     ErrorThrower* thrower, const WasmFunction* function, ExecutionTier mode) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
@@ -149,9 +149,9 @@ WasmCode* WasmCompilationUnit::CompileWasmFunction(
   unit.ExecuteCompilation(&env, detected);
   if (unit.failed()) {
     unit.ReportError(thrower);
-    return nullptr;
+    return false;
   }
-  return unit.result();
+  return true;
 }
 
 void WasmCompilationUnit::SetResult(WasmCode* code) {
