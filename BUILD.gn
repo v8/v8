@@ -977,20 +977,6 @@ action("run_torque") {
   }
 }
 
-v8_header_set("torque_generated_core") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  deps = [
-    ":run_torque",
-  ]
-
-  sources = [
-    "$target_gen_dir/torque-generated/builtin-definitions-from-dsl.h",
-  ]
-
-  configs = [ ":internal_config" ]
-}
-
 v8_source_set("torque_generated_initializers") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -2964,7 +2950,7 @@ v8_source_set("v8_base") {
   defines = []
   deps = [
     ":generate_bytecode_builtins_list",
-    ":torque_generated_core",
+    ":run_torque",
     ":v8_headers",
     ":v8_libbase",
     ":v8_libsampler",
@@ -3814,7 +3800,7 @@ v8_source_set("wasm_module_runner") {
 
   deps = [
     ":generate_bytecode_builtins_list",
-    ":torque_generated_core",
+    ":run_torque",
   ]
 
   if (v8_enable_i18n_support) {
@@ -3898,7 +3884,7 @@ v8_source_set("lib_wasm_fuzzer_common") {
 
   deps = [
     ":generate_bytecode_builtins_list",
-    ":torque_generated_core",
+    ":run_torque",
   ]
 
   if (v8_enable_i18n_support) {
