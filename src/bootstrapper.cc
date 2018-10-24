@@ -2534,6 +2534,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Handle<JSFunction> fun = SimpleInstallFunction(
             isolate_, prototype, factory->exec_string(),
             Builtins::kRegExpPrototypeExec, 1, true, DONT_ENUM);
+        // Check that index of "exec" function in JSRegExp is correct.
+        DCHECK_EQ(JSRegExp::kExecFunctionDescriptorIndex,
+                  prototype->map()->LastAdded());
+
         native_context()->set_regexp_exec_function(*fun);
       }
 
