@@ -2128,7 +2128,8 @@ void EventHandler(const v8::JitCodeEvent* event) {
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
       Address addr = reinterpret_cast<Address>(event->code_start);
-      Code* code = Code::GetCodeFromTargetAddress(addr);
+      Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
+      Code* code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
       LineInfo* lineinfo = GetLineInfo(addr);
       EmbeddedVector<char, 256> buffer;
       StringBuilder builder(buffer.start(), buffer.length());
