@@ -1327,6 +1327,7 @@ namespace internal {
   ASM(DoubleToI)                                                               \
   TFC(GetProperty, GetProperty, 1)                                             \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
+  TFS(SetPropertyInLiteral, kReceiver, kKey, kValue)                           \
   ASM(MathPowInternal)                                                         \
                                                                                \
   /* Trace */                                                                  \

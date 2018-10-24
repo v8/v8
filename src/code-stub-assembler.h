@@ -2603,6 +2603,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return CallBuiltin(Builtins::kSetProperty, context, receiver, key, value);
   }
 
+  TNode<Object> SetPropertyInLiteral(TNode<Context> context,
+                                     TNode<JSObject> receiver,
+                                     TNode<Object> key, TNode<Object> value) {
+    return CallBuiltin(Builtins::kSetPropertyInLiteral, context, receiver, key,
+                       value);
+  }
+
   Node* GetMethod(Node* context, Node* object, Handle<Name> name,
                   Label* if_null_or_undefined);
 

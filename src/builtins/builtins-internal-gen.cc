@@ -1296,5 +1296,19 @@ TF_BUILTIN(SetProperty, CodeStubAssembler) {
                                           value, LanguageMode::kStrict);
 }
 
+// ES6 CreateDataProperty(), specialized for the case where objects are still
+// being initialized, and have not yet been made accessible to the user. Thus,
+// any operation here should be unobservable until after the object has been
+// returned.
+TF_BUILTIN(SetPropertyInLiteral, CodeStubAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSObject> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+
+  KeyedStoreGenericGenerator::SetPropertyInLiteral(state(), context, receiver,
+                                                   key, value);
+}
+
 }  // namespace internal
 }  // namespace v8
