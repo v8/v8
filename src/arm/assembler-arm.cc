@@ -1167,7 +1167,7 @@ void Assembler::Move32BitImmediate(Register rd, const Operand& x,
     DCHECK(!x.MustOutputRelocInfo(this));
     UseScratchRegisterScope temps(this);
     // Re-use the destination register as a scratch if possible.
-    Register target = rd != pc ? rd : temps.Acquire();
+    Register target = rd != pc && rd != sp ? rd : temps.Acquire();
     uint32_t imm32 = static_cast<uint32_t>(x.immediate());
     movw(target, imm32 & 0xFFFF, cond);
     movt(target, imm32 >> 16, cond);
@@ -1241,8 +1241,9 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
       // it first to a scratch register and change the original instruction to
       // use it.
       // Re-use the destination register if possible.
-      Register scratch =
-          (rd.is_valid() && rd != rn && rd != pc) ? rd : temps.Acquire();
+      Register scratch = (rd.is_valid() && rd != rn && rd != pc && rd != sp)
+                             ? rd
+                             : temps.Acquire();
       mov(scratch, x, LeaveCC, cond);
       AddrMode1(instr, rd, rn, Operand(scratch));
     }
@@ -1307,8 +1308,9 @@ void Assembler::AddrMode2(Instr instr, Register rd, const MemOperand& x) {
       UseScratchRegisterScope temps(this);
       // Allow re-using rd for load instructions if possible.
       bool is_load = (instr & L) == L;
-      Register scratch =
-          (is_load && rd != x.rn_ && rd != pc) ? rd : temps.Acquire();
+      Register scratch = (is_load && rd != x.rn_ && rd != pc && rd != sp)
+                             ? rd
+                             : temps.Acquire();
       mov(scratch, Operand(x.offset_), LeaveCC,
           Instruction::ConditionField(instr));
       AddrMode2(instr, rd, MemOperand(x.rn_, scratch, x.am_));
@@ -1347,8 +1349,9 @@ void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
       // register.
       UseScratchRegisterScope temps(this);
       // Allow re-using rd for load instructions if possible.
-      Register scratch =
-          (is_load && rd != x.rn_ && rd != pc) ? rd : temps.Acquire();
+      Register scratch = (is_load && rd != x.rn_ && rd != pc && rd != sp)
+                             ? rd
+                             : temps.Acquire();
       mov(scratch, Operand(x.offset_), LeaveCC,
           Instruction::ConditionField(instr));
       AddrMode3(instr, rd, MemOperand(x.rn_, scratch, x.am_));
@@ -1362,7 +1365,7 @@ void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
     UseScratchRegisterScope temps(this);
     // Allow re-using rd for load instructions if possible.
     Register scratch =
-        (is_load && rd != x.rn_ && rd != pc) ? rd : temps.Acquire();
+        (is_load && rd != x.rn_ && rd != pc && rd != sp) ? rd : temps.Acquire();
     mov(scratch, Operand(x.rm_, x.shift_op_, x.shift_imm_), LeaveCC,
         Instruction::ConditionField(instr));
     AddrMode3(instr, rd, MemOperand(x.rn_, scratch, x.am_));
