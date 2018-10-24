@@ -392,6 +392,16 @@ module test {
       j++;
     }
     check(sum == 7);
+
+    j = 0;
+    try {
+      for (;;) {
+        if (++j == 10) goto Exit;
+      }
+    }
+    label Exit {
+      check(j == 10);
+    }
   }
 
   macro TestSubtyping(x: Smi) {
