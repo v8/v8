@@ -2531,9 +2531,9 @@ TNode<JSArray> StringBuiltinsAssembler::StringToList(TNode<Context> context,
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   TNode<IntPtrT> first_to_element_offset =
       ElementOffsetFromIndex(IntPtrConstant(0), kind, INTPTR_PARAMETERS, 0);
-  VARIABLE(
-      var_offset, MachineType::PointerRepresentation(),
-      IntPtrAdd(first_to_element_offset, IntPtrConstant(first_element_offset)));
+  TNode<IntPtrT> first_offset =
+      IntPtrAdd(first_to_element_offset, IntPtrConstant(first_element_offset));
+  TVARIABLE(IntPtrT, var_offset, first_offset);
   TVARIABLE(IntPtrT, var_position, IntPtrConstant(0));
   Label done(this), next_codepoint(this, {&var_position, &var_offset});
 
@@ -2554,12 +2554,19 @@ TNode<JSArray> StringBuiltinsAssembler::StringToList(TNode<Context> context,
     TNode<IntPtrT> ch_length = LoadStringLengthAsWord(value);
     var_position = IntPtrAdd(var_position.value(), ch_length);
     // Increment the array offset and continue the loop.
-    var_offset.Bind(
-        IntPtrAdd(var_offset.value(), IntPtrConstant(kPointerSize)));
+    var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(kPointerSize));
     Goto(&next_codepoint);
   }
 
   BIND(&done);
+  TNode<IntPtrT> new_length =
+      IntPtrDiv(IntPtrSub(var_offset.value(), first_offset),
+                IntPtrConstant(kPointerSize));
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(new_length, IntPtrConstant(0)));
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(length, new_length));
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset,
+                                 SmiTag(new_length));
+
   return UncheckedCast<JSArray>(array);
 }
 
