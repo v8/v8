@@ -3360,6 +3360,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSFunction> map_set = SimpleInstallFunction(
         isolate_, prototype, "set", Builtins::kMapPrototypeSet, 2, true);
+    // Check that index of "set" function in JSCollection is correct.
+    DCHECK_EQ(JSCollection::kAddFunctionDescriptorIndex,
+              prototype->map()->LastAdded());
     native_context()->set_map_set(*map_set);
 
     Handle<JSFunction> map_has = SimpleInstallFunction(
@@ -3461,6 +3464,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSFunction> set_add = SimpleInstallFunction(
         isolate_, prototype, "add", Builtins::kSetPrototypeAdd, 1, true);
+    // Check that index of "add" function in JSCollection is correct.
+    DCHECK_EQ(JSCollection::kAddFunctionDescriptorIndex,
+              prototype->map()->LastAdded());
     native_context()->set_set_add(*set_add);
 
     Handle<JSFunction> set_delete = SimpleInstallFunction(
@@ -3552,11 +3558,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> weakmap_get = SimpleInstallFunction(
         isolate_, prototype, "get", Builtins::kWeakMapGet, 1, true);
     native_context()->set_weakmap_get(*weakmap_get);
-    SimpleInstallFunction(isolate_, prototype, "has", Builtins::kWeakMapHas, 1,
-                          true);
+
     Handle<JSFunction> weakmap_set = SimpleInstallFunction(
         isolate_, prototype, "set", Builtins::kWeakMapPrototypeSet, 2, true);
+    // Check that index of "set" function in JSWeakCollection is correct.
+    DCHECK_EQ(JSWeakCollection::kAddFunctionDescriptorIndex,
+              prototype->map()->LastAdded());
+
     native_context()->set_weakmap_set(*weakmap_set);
+    SimpleInstallFunction(isolate_, prototype, "has", Builtins::kWeakMapHas, 1,
+                          true);
 
     JSObject::AddProperty(
         isolate_, prototype, factory->to_string_tag_symbol(),
@@ -3585,8 +3596,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kWeakSetPrototypeDelete, 1, true);
     SimpleInstallFunction(isolate_, prototype, "has", Builtins::kWeakSetHas, 1,
                           true);
+
     Handle<JSFunction> weakset_add = SimpleInstallFunction(
         isolate_, prototype, "add", Builtins::kWeakSetPrototypeAdd, 1, true);
+    // Check that index of "add" function in JSWeakCollection is correct.
+    DCHECK_EQ(JSWeakCollection::kAddFunctionDescriptorIndex,
+              prototype->map()->LastAdded());
+
     native_context()->set_weakset_add(*weakset_add);
 
     JSObject::AddProperty(

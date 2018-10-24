@@ -100,6 +100,16 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   TNode<JSFunction> GetInitialAddFunction(Variant variant,
                                           TNode<Context> native_context);
 
+  // Checks whether {collection}'s initial add/set function has been modified
+  // (depending on {variant}, loaded from {native_context}).
+  void CheckIfInitialAddFunctionModified(Variant variant,
+                                         TNode<Context> native_context,
+                                         TNode<Object> collection,
+                                         Label* if_modified);
+
+  // Gets root index for the name of the add/set function.
+  TNode<Object> GetAddFunctionName(Variant variant);
+
   // Retrieves the offset to access the backing table from the collection.
   int GetTableOffset(Variant variant);
 
@@ -115,6 +125,10 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   TNode<BoolT> HasInitialCollectionPrototype(Variant variant,
                                              TNode<Context> native_context,
                                              TNode<Object> collection);
+
+  // Gets the initial prototype map for given collection {variant}.
+  TNode<Map> GetInitialCollectionPrototype(Variant variant,
+                                           TNode<Context> native_context);
 
   // Loads an element from a fixed array.  If the element is the hole, returns
   // `undefined`.
@@ -174,9 +188,8 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     TNode<Object> table = AllocateTable(variant, context, at_least_space_for);
     StoreObjectField(collection, GetTableOffset(variant), table);
     GotoIf(IsNullOrUndefined(initial_entries), &exit);
-    GotoIfNot(
-        HasInitialCollectionPrototype(variant, native_context, collection),
-        &slow_loop);
+    CheckIfInitialAddFunctionModified(variant, native_context, collection,
+                                      &slow_loop);
     Branch(use_fast_loop.value(), &fast_loop, &slow_loop);
   }
   BIND(&fast_loop);
@@ -198,8 +211,16 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     if (variant == kMap || variant == kWeakMap) {
       BIND(&if_may_have_side_effects);
 #if DEBUG
-      CSA_ASSERT(this, HasInitialCollectionPrototype(variant, native_context,
-                                                     collection));
+      {
+        // Check that add/set function has not been modified.
+        Label if_not_modified(this), if_modified(this);
+        CheckIfInitialAddFunctionModified(variant, native_context, collection,
+                                          &if_modified);
+        Goto(&if_not_modified);
+        BIND(&if_modified);
+        Unreachable();
+        BIND(&if_not_modified);
+      }
       CSA_ASSERT(this, WordEqual(original_initial_entries_map,
                                  LoadMap(initial_entries_jsarray)));
 #endif
@@ -321,6 +342,65 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
                                                 &var_exception);
   }
   BIND(&exit);
+}
+
+TNode<Object> BaseCollectionsAssembler::GetAddFunctionName(Variant variant) {
+  switch (variant) {
+    case kMap:
+    case kWeakMap:
+      return LoadRoot(RootIndex::kset_string);
+    case kSet:
+    case kWeakSet:
+      return LoadRoot(RootIndex::kadd_string);
+  }
+  UNREACHABLE();
+}
+
+void BaseCollectionsAssembler::CheckIfInitialAddFunctionModified(
+    Variant variant, TNode<Context> native_context, TNode<Object> collection,
+    Label* if_modified) {
+  Label done(this);
+  TVARIABLE(BoolT, result, Int32FalseConstant());
+
+  TNode<Map> prototype_map =
+      LoadMap(LoadMapPrototype(LoadMap(CAST(collection))));
+  GotoIfNot(WordEqual(prototype_map,
+                      GetInitialCollectionPrototype(variant, native_context)),
+            if_modified);
+
+  if (FLAG_track_constant_fields) {
+    // With constant field tracking, we need to make sure that the add/set
+    // function in the prototype has not been tampered with. We do this by
+    // checking that the slot in the prototype's descriptor array is still
+    // marked as const.
+    TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
+
+    STATIC_ASSERT(JSCollection::kAddFunctionDescriptorIndex ==
+                  JSWeakCollection::kAddFunctionDescriptorIndex);
+    int index = JSCollection::kAddFunctionDescriptorIndex;
+
+    // Assert the index is in-bounds.
+    CSA_ASSERT(this, SmiLessThan(SmiConstant(index),
+                                 LoadWeakFixedArrayLength(descriptors)));
+    // Assert that the name is correct. This essentially checks that
+    // kAddFunctionDescriptorArrayIndex corresponds to the insertion order in
+    // the bootstrapper.
+    CSA_ASSERT(this,
+               WordEqual(LoadWeakFixedArrayElement(
+                             descriptors, DescriptorArray::ToKeyIndex(index)),
+                         GetAddFunctionName(variant)));
+
+    TNode<Uint32T> details =
+        DescriptorArrayGetDetails(descriptors, Uint32Constant(index));
+
+    TNode<Uint32T> constness =
+        DecodeWord32<PropertyDetails::ConstnessField>(details);
+
+    GotoIfNot(
+        Word32Equal(constness,
+                    Int32Constant(static_cast<int>(PropertyConstness::kConst))),
+        if_modified);
+  }
 }
 
 TNode<Object> BaseCollectionsAssembler::AllocateJSCollection(
@@ -462,8 +542,8 @@ void BaseCollectionsAssembler::GotoIfNotJSReceiver(Node* const obj,
   GotoIfNot(IsJSReceiver(obj), if_not_receiver);
 }
 
-TNode<BoolT> BaseCollectionsAssembler::HasInitialCollectionPrototype(
-    Variant variant, TNode<Context> native_context, TNode<Object> collection) {
+TNode<Map> BaseCollectionsAssembler::GetInitialCollectionPrototype(
+    Variant variant, TNode<Context> native_context) {
   int initial_prototype_index;
   switch (variant) {
     case kMap:
@@ -479,12 +559,16 @@ TNode<BoolT> BaseCollectionsAssembler::HasInitialCollectionPrototype(
       initial_prototype_index = Context::INITIAL_WEAKSET_PROTOTYPE_MAP_INDEX;
       break;
   }
-  TNode<Map> initial_prototype_map =
-      CAST(LoadContextElement(native_context, initial_prototype_index));
+  return CAST(LoadContextElement(native_context, initial_prototype_index));
+}
+
+TNode<BoolT> BaseCollectionsAssembler::HasInitialCollectionPrototype(
+    Variant variant, TNode<Context> native_context, TNode<Object> collection) {
   TNode<Map> collection_proto_map =
       LoadMap(LoadMapPrototype(LoadMap(CAST(collection))));
 
-  return WordEqual(collection_proto_map, initial_prototype_map);
+  return WordEqual(collection_proto_map,
+                   GetInitialCollectionPrototype(variant, native_context));
 }
 
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedArrayElement(
