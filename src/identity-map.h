@@ -7,6 +7,7 @@
 
 #include "src/base/functional.h"
 #include "src/handles.h"
+#include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {
@@ -103,6 +104,7 @@ class IdentityMap : public IdentityMapBase {
   V* Get(Object* key) {
     return reinterpret_cast<V*>(GetEntry(reinterpret_cast<Address>(key)));
   }
+  V* Get(ObjectPtr key) { return reinterpret_cast<V*>(GetEntry(key.ptr())); }
 
   // Searches this map for the given key using the object's address
   // as the identity, returning:
@@ -112,11 +114,17 @@ class IdentityMap : public IdentityMapBase {
   V* Find(Object* key) const {
     return reinterpret_cast<V*>(FindEntry(reinterpret_cast<Address>(key)));
   }
+  V* Find(ObjectPtr key) const {
+    return reinterpret_cast<V*>(FindEntry(key.ptr()));
+  }
 
   // Set the value for the given key.
   void Set(Handle<Object> key, V v) { Set(*key, v); }
   void Set(Object* key, V v) {
     *(reinterpret_cast<V*>(GetEntry(reinterpret_cast<Address>(key)))) = v;
+  }
+  void Set(ObjectPtr key, V v) {
+    *(reinterpret_cast<V*>(GetEntry(key.ptr()))) = v;
   }
 
   bool Delete(Handle<Object> key, V* deleted_value) {
@@ -125,6 +133,14 @@ class IdentityMap : public IdentityMapBase {
   bool Delete(Object* key, V* deleted_value) {
     void* v = nullptr;
     bool deleted_something = DeleteEntry(reinterpret_cast<Address>(key), &v);
+    if (deleted_value != nullptr && deleted_something) {
+      *deleted_value = *reinterpret_cast<V*>(&v);
+    }
+    return deleted_something;
+  }
+  bool Delete(ObjectPtr key, V* deleted_value) {
+    void* v = nullptr;
+    bool deleted_something = DeleteEntry(key.ptr(), &v);
     if (deleted_value != nullptr && deleted_something) {
       *deleted_value = *reinterpret_cast<V*>(&v);
     }

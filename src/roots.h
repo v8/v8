@@ -174,7 +174,7 @@ class RootVisitor;
   V(Map*, self_reference_marker_map, SelfReferenceMarkerMap)                   \
   /* Canonical empty values */                                                 \
   V(EnumCache*, empty_enum_cache, EmptyEnumCache)                              \
-  V(PropertyArray*, empty_property_array, EmptyPropertyArray)                  \
+  V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
   V(ByteArray*, empty_byte_array, EmptyByteArray)                              \
   V(ObjectBoilerplateDescription*, empty_object_boilerplate_description,       \
     EmptyObjectBoilerplateDescription)                                         \

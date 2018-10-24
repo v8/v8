@@ -12,6 +12,11 @@
 #include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
+// TODO(3770): The objects.h include is required to make the
+// std::enable_if<std::is_base_of<...>> conditions below work. Once the
+// migration is complete, we should be able to get by with just forward
+// declarations.
+#include "src/objects.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -23,7 +28,7 @@ class HandleScopeImplementer;
 class Isolate;
 template <typename T>
 class MaybeHandle;
-class Object;
+class ObjectPtr;
 
 // ----------------------------------------------------------------------------
 // Base class for Handle instantiations.  Don't use directly.
@@ -105,14 +110,29 @@ class Handle final : public HandleBase {
   }
   V8_INLINE explicit Handle(Address* location) : HandleBase(location) {
     // Type check:
-    static_assert(std::is_convertible<T*, Object*>::value,
+    static_assert(std::is_convertible<T*, Object*>::value ||
+                      std::is_convertible<T, ObjectPtr>::value,
                   "static type violation");
   }
 
+  // Here and below: for object types T that still derive from Object,
+  // enable the overloads that consume/produce a T*; for types already
+  // ported to deriving from ObjectPtr, use non-pointer T values.
+  // TODO(3770): The T* versions should disappear eventually.
+  template <typename T1 = T, typename = typename std::enable_if<
+                                 std::is_base_of<Object, T1>::value>::type>
   V8_INLINE Handle(T* object, Isolate* isolate);
+  template <typename T1 = T, typename = typename std::enable_if<
+                                 std::is_base_of<ObjectPtr, T1>::value>::type>
+  V8_INLINE Handle(T object, Isolate* isolate);
 
   // Allocate a new handle for the object, do not canonicalize.
+  template <typename T1 = T, typename = typename std::enable_if<
+                                 std::is_base_of<Object, T1>::value>::type>
   V8_INLINE static Handle<T> New(T* object, Isolate* isolate);
+  template <typename T1 = T, typename = typename std::enable_if<
+                                 std::is_base_of<ObjectPtr, T1>::value>::type>
+  V8_INLINE static Handle<T> New(T object, Isolate* isolate);
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
@@ -120,11 +140,33 @@ class Handle final : public HandleBase {
                             std::is_convertible<S*, T*>::value>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
-  V8_INLINE T* operator->() const { return operator*(); }
+  // The NeverReadOnlySpaceObject special-case is needed for the
+  // ContextFromNeverReadOnlySpaceObject helper function in api.cc.
+  template <typename T1 = T,
+            typename = typename std::enable_if<
+                std::is_base_of<Object, T1>::value ||
+                std::is_base_of<NeverReadOnlySpaceObject, T1>::value>::type>
+  V8_INLINE T* operator->() const {
+    return operator*();
+  }
+  template <typename T1 = T, typename = typename std::enable_if<
+                                 std::is_base_of<ObjectPtr, T1>::value>::type>
+  V8_INLINE T operator->() const {
+    return operator*();
+  }
 
   // Provides the C++ dereference operator.
+  template <typename T1 = T,
+            typename = typename std::enable_if<
+                std::is_base_of<Object, T1>::value ||
+                std::is_base_of<NeverReadOnlySpaceObject, T1>::value>::type>
   V8_INLINE T* operator*() const {
     return reinterpret_cast<T*>(HandleBase::operator*());
+  }
+  template <typename T1 = T, typename = typename std::enable_if<
+                                 std::is_base_of<ObjectPtr, T1>::value>::type>
+  V8_INLINE T operator*() const {
+    return T::cast(ObjectPtr(HandleBase::operator*()));
   }
 
   // Returns the address to where the raw pointer is stored.

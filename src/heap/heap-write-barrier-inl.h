@@ -12,6 +12,7 @@
 
 #include "src/globals.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
 
@@ -102,6 +103,16 @@ inline void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
                                               value_heap_object);
 }
 
+inline void GenerationalBarrier(HeapObjectPtr* object, ObjectSlot slot,
+                                Object* value) {
+  DCHECK(!HasWeakHeapObjectTag(*slot));
+  DCHECK(!HasWeakHeapObjectTag(value));
+  if (!value->IsHeapObject()) return;
+  heap_internals::GenerationalBarrierInternal(
+      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
+      HeapObject::cast(value));
+}
+
 inline void GenerationalBarrierForElements(Heap* heap, FixedArray* array,
                                            int offset, int length) {
   heap_internals::MemoryChunk* array_chunk =
@@ -133,6 +144,16 @@ inline void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
   if (!value->GetHeapObject(&value_heap_object)) return;
   heap_internals::MarkingBarrierInternal(object, slot.address(),
                                          value_heap_object);
+}
+
+inline void MarkingBarrier(HeapObjectPtr* object, ObjectSlot slot,
+                           Object* value) {
+  DCHECK_IMPLIES(slot.address() != kNullAddress, !HasWeakHeapObjectTag(*slot));
+  DCHECK(!HasWeakHeapObjectTag(value));
+  if (!value->IsHeapObject()) return;
+  heap_internals::MarkingBarrierInternal(
+      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
+      HeapObject::cast(value));
 }
 
 inline void MarkingBarrierForElements(Heap* heap, HeapObject* object) {

@@ -92,8 +92,15 @@ class ConcurrentMarkingVisitor final
         task_id_(task_id),
         embedder_tracing_enabled_(embedder_tracing_enabled) {}
 
-  template <typename T>
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<Object, T>::value>::type>
   static V8_INLINE T* Cast(HeapObject* object) {
+    return T::cast(object);
+  }
+
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<ObjectPtr, T>::value>::type>
+  static V8_INLINE T Cast(HeapObject* object) {
     return T::cast(object);
   }
 

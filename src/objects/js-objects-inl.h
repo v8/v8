@@ -803,7 +803,7 @@ NameDictionary* JSReceiver::property_dictionary() const {
 
 // TODO(gsathya): Pass isolate directly to this function and access
 // the heap from this.
-PropertyArray* JSReceiver::property_array() const {
+PropertyArray JSReceiver::property_array() const {
   DCHECK(HasFastProperties());
 
   Object* prop = raw_properties_or_hash();

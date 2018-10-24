@@ -1545,6 +1545,10 @@ V8_INLINE static bool HasWeakHeapObjectTag(const Object* value) {
           kWeakHeapObjectTag);
 }
 
+V8_INLINE static bool HasWeakHeapObjectTag(const Address value) {
+  return (value & kHeapObjectTagMask) == kWeakHeapObjectTag;
+}
+
 V8_INLINE static bool IsClearedWeakHeapObject(const MaybeObject* value) {
   return reinterpret_cast<intptr_t>(value) == kClearedWeakHeapObject;
 }

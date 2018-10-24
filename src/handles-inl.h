@@ -17,9 +17,15 @@ HandleBase::HandleBase(Address object, Isolate* isolate)
 
 // Allocate a new handle for the object, do not canonicalize.
 template <typename T>
+template <typename T1, typename>
 Handle<T> Handle<T>::New(T* object, Isolate* isolate) {
   return Handle(reinterpret_cast<T**>(
       HandleScope::CreateHandle(isolate, reinterpret_cast<Address>(object))));
+}
+template <typename T>
+template <typename T1, typename>
+Handle<T> Handle<T>::New(T object, Isolate* isolate) {
+  return Handle(HandleScope::CreateHandle(isolate, object.ptr()));
 }
 
 template <typename T>
@@ -38,11 +44,24 @@ HandleScope::HandleScope(Isolate* isolate) {
 }
 
 template <typename T>
+template <typename T1, typename>
 Handle<T>::Handle(T* object, Isolate* isolate)
     : HandleBase(reinterpret_cast<Address>(object), isolate) {}
 
 template <typename T>
+template <typename T1, typename>
+Handle<T>::Handle(T object, Isolate* isolate)
+    : HandleBase(object.ptr(), isolate) {}
+
+template <typename T, typename = typename std::enable_if<
+                          std::is_base_of<Object, T>::value>::type>
 V8_INLINE Handle<T> handle(T* object, Isolate* isolate) {
+  return Handle<T>(object, isolate);
+}
+
+template <typename T, typename = typename std::enable_if<
+                          std::is_base_of<ObjectPtr, T>::value>::type>
+V8_INLINE Handle<T> handle(T object, Isolate* isolate) {
   return Handle<T>(object, isolate);
 }
 

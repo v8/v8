@@ -61,6 +61,7 @@ class GCIdleTimeHeapState;
 class GCTracer;
 class HeapController;
 class HeapObjectAllocationTracker;
+class HeapObjectPtr;
 class HeapObjectsFilter;
 class HeapStats;
 class HistogramTimer;
@@ -904,12 +905,14 @@ class Heap {
   static inline bool InNewSpace(Object* object);
   static inline bool InNewSpace(MaybeObject* object);
   static inline bool InNewSpace(HeapObject* heap_object);
+  static inline bool InNewSpace(HeapObjectPtr heap_object);
   static inline bool InFromSpace(Object* object);
   static inline bool InFromSpace(MaybeObject* object);
   static inline bool InFromSpace(HeapObject* heap_object);
   static inline bool InToSpace(Object* object);
   static inline bool InToSpace(MaybeObject* object);
   static inline bool InToSpace(HeapObject* heap_object);
+  static inline bool InToSpace(HeapObjectPtr heap_object);
 
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object* object);
@@ -935,6 +938,11 @@ class Heap {
   // Find the heap which owns this HeapObject. Should never be called for
   // objects in RO space.
   static inline Heap* FromWritableHeapObject(const HeapObject* obj);
+  // This takes a HeapObjectPtr* (as opposed to a plain HeapObjectPtr)
+  // to keep the WRITE_BARRIER macro syntax-compatible to the HeapObject*
+  // version above.
+  // TODO(3770): This should probably take a HeapObjectPtr eventually.
+  static inline Heap* FromWritableHeapObject(const HeapObjectPtr* obj);
 
   // ===========================================================================
   // Object statistics tracking. ===============================================

@@ -25,6 +25,7 @@
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/marking.h"
 #include "src/objects.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/map.h"
 #include "src/utils.h"
 
@@ -408,6 +409,10 @@ class MemoryChunk {
   static MemoryChunk* FromHeapObject(const HeapObject* o) {
     return reinterpret_cast<MemoryChunk*>(reinterpret_cast<Address>(o) &
                                           ~kAlignmentMask);
+  }
+  // Only works if the object is in the first kPageSize of the MemoryChunk.
+  static MemoryChunk* FromHeapObject(const HeapObjectPtr o) {
+    return reinterpret_cast<MemoryChunk*>(o.ptr() & ~kAlignmentMask);
   }
 
   void SetOldGenerationPageFlags(bool is_marking);

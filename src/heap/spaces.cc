@@ -3651,7 +3651,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
         }
       }
     } else if (object->IsPropertyArray()) {
-      PropertyArray* array = PropertyArray::cast(object);
+      PropertyArray array = PropertyArray::cast(object);
       for (int j = 0; j < array->length(); j++) {
         Object* property = array->get(j);
         if (property->IsHeapObject()) {

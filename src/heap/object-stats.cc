@@ -473,7 +473,7 @@ void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
     if (boilerplate->HasFastProperties()) {
       // We'll mis-classify the empty_property_array here. Given that there is a
       // single instance, this is negligible.
-      PropertyArray* properties = boilerplate->property_array();
+      PropertyArray properties = boilerplate->property_array();
       RecordSimpleVirtualObjectStats(
           site, properties, ObjectStats::BOILERPLATE_PROPERTY_ARRAY_TYPE);
     } else {
@@ -535,7 +535,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
 
   // Properties.
   if (object->HasFastProperties()) {
-    PropertyArray* properties = object->property_array();
+    PropertyArray properties = object->property_array();
     CHECK_EQ(PROPERTY_ARRAY_TYPE, properties->map()->instance_type());
   } else {
     NameDictionary* properties = object->property_dictionary();

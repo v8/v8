@@ -1934,7 +1934,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
 
   // Update properties if necessary.
   if (source->HasFastProperties()) {
-    PropertyArray* properties = source->property_array();
+    PropertyArray properties = source->property_array();
     if (properties->length() > 0) {
       // TODO(gsathya): Do not copy hash code.
       Handle<PropertyArray> prop = CopyArrayWithMap(
@@ -1952,12 +1952,12 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
 
 namespace {
 template <typename T>
-void initialize_length(T* array, int length) {
+void initialize_length(Handle<T> array, int length) {
   array->set_length(length);
 }
 
 template <>
-void initialize_length<PropertyArray>(PropertyArray* array, int length) {
+void initialize_length<PropertyArray>(Handle<PropertyArray> array, int length) {
   array->initialize_length(length);
 }
 
@@ -1969,7 +1969,7 @@ Handle<T> Factory::CopyArrayWithMap(Handle<T> src, Handle<Map> map) {
   HeapObject* obj = AllocateRawFixedArray(len, NOT_TENURED);
   obj->set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
 
-  T* result = T::cast(obj);
+  Handle<T> result(T::cast(obj), isolate());
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
 
@@ -1983,7 +1983,7 @@ Handle<T> Factory::CopyArrayWithMap(Handle<T> src, Handle<Map> map) {
     initialize_length(result, len);
     for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   }
-  return Handle<T>(result, isolate());
+  return result;
 }
 
 template <typename T>
@@ -1996,7 +1996,7 @@ Handle<T> Factory::CopyArrayAndGrow(Handle<T> src, int grow_by,
   HeapObject* obj = AllocateRawFixedArray(new_len, pretenure);
   obj->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
 
-  T* result = T::cast(obj);
+  Handle<T> result(T::cast(obj), isolate());
   initialize_length(result, new_len);
 
   // Copy the content.
@@ -2004,7 +2004,7 @@ Handle<T> Factory::CopyArrayAndGrow(Handle<T> src, int grow_by,
   WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < old_len; i++) result->set(i, src->get(i), mode);
   MemsetPointer(result->data_start() + old_len, *undefined_value(), grow_by);
-  return Handle<T>(result, isolate());
+  return result;
 }
 
 Handle<FixedArray> Factory::CopyFixedArrayWithMap(Handle<FixedArray> array,

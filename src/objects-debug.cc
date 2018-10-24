@@ -687,14 +687,14 @@ void WeakArrayList::WeakArrayListVerify(Isolate* isolate) {
 
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   if (length() == 0) {
-    CHECK_EQ(this, ReadOnlyRoots(isolate).empty_property_array());
+    CHECK_EQ(*this, ReadOnlyRoots(isolate).empty_property_array());
     return;
   }
   // There are no empty PropertyArrays.
   CHECK_LT(0, length());
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);
-    VerifyPointer(isolate, e);
+    Object::VerifyPointer(isolate, e);
   }
 }
 

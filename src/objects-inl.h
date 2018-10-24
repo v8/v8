@@ -724,8 +724,16 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   return value;
 }
 
+ObjectSlot HeapObject::RawField(int byte_offset) const {
+  return ObjectSlot(FIELD_ADDR(this, byte_offset));
+}
+
 ObjectSlot HeapObject::RawField(const HeapObject* obj, int byte_offset) {
   return ObjectSlot(FIELD_ADDR(obj, byte_offset));
+}
+
+MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
+  return MaybeObjectSlot(FIELD_ADDR(this, byte_offset));
 }
 
 MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject* obj,
@@ -1551,7 +1559,7 @@ int HeapObject::SizeFromMap(Map* map) const {
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
-        reinterpret_cast<const PropertyArray*>(this)->synchronized_length());
+        PropertyArray::cast(this)->synchronized_length());
   }
   if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
     return SmallOrderedHashMap::SizeFor(

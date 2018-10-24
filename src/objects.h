@@ -1066,6 +1066,10 @@ class Object {
   // Type testing.
   bool IsObject() const { return true; }
 
+  // Syntax compatibility with ObjectPtr, so the same macros can consume
+  // arguments of either type.
+  Address ptr() const { return reinterpret_cast<Address>(this); }
+
 #define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
@@ -1711,7 +1715,9 @@ class HeapObject: public Object {
   // Does no checking, and is safe to use during GC, while maps are invalid.
   // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
+  inline ObjectSlot RawField(int byte_offset) const;
   static inline ObjectSlot RawField(const HeapObject* obj, int offset);
+  inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
   static inline MaybeObjectSlot RawMaybeWeakField(HeapObject* obj, int offset);
 
   DECL_CAST(HeapObject)

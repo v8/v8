@@ -89,6 +89,19 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
   if (!IsMap()) os << "\n - map: " << Brief(map());
 }
 
+void HeapObjectPtr::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
+  os << reinterpret_cast<void*>(ptr()) << ": [";
+  if (id != nullptr) {
+    os << id;
+  } else {
+    os << map()->instance_type();
+  }
+  os << "]";
+  MemoryChunk* chunk = MemoryChunk::FromAddress(ptr());
+  if (chunk->owner()->identity() == OLD_SPACE) os << " in OldSpace";
+  if (!IsMap()) os << "\n - map: " << Brief(map());
+}
+
 void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
   InstanceType instance_type = map()->instance_type();
 
@@ -979,7 +992,7 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
 }
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PropertyArray");
+  PrintHeader(os, "PropertyArray");
   os << "\n - length: " << length();
   os << "\n - hash: " << Hash();
   PrintFixedArrayElements(os, this);

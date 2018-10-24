@@ -28,7 +28,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
   // exists. Otherwise, returns an empty_property_array when there's a
   // Smi (hash code) or an empty_fixed_array for a fast properties
   // map.
-  inline PropertyArray* property_array() const;
+  inline PropertyArray property_array() const;
 
   // Gets slow properties for non-global objects.
   inline NameDictionary* property_dictionary() const;

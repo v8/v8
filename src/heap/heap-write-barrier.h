@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_HEAP_WRITE_BARRIER_H_
 #define V8_HEAP_HEAP_WRITE_BARRIER_H_
 
+#include "include/v8-internal.h"
+
 namespace v8 {
 namespace internal {
 
@@ -12,6 +14,7 @@ class Code;
 class FixedArray;
 class Heap;
 class HeapObject;
+class HeapObjectPtr;
 class MaybeObject;
 class MaybeObjectSlot;
 class Object;
@@ -36,6 +39,11 @@ void WriteBarrierForCode(Code* host);
 void GenerationalBarrier(HeapObject* object, ObjectSlot slot, Object* value);
 void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
                          MaybeObject* value);
+// This takes a HeapObjectPtr* (as opposed to a plain HeapObjectPtr)
+// to keep the WRITE_BARRIER macro syntax-compatible to the HeapObject*
+// version above.
+// TODO(3770): This should probably take a HeapObjectPtr eventually.
+void GenerationalBarrier(HeapObjectPtr* object, ObjectSlot slot, Object* value);
 void GenerationalBarrierForElements(Heap* heap, FixedArray* array, int offset,
                                     int length);
 void GenerationalBarrierForCode(Code* host, RelocInfo* rinfo,
@@ -45,6 +53,11 @@ void GenerationalBarrierForCode(Code* host, RelocInfo* rinfo,
 void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object* value);
 void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
                     MaybeObject* value);
+// This takes a HeapObjectPtr* (as opposed to a plain HeapObjectPtr)
+// to keep the WRITE_BARRIER macro syntax-compatible to the HeapObject*
+// version above.
+// TODO(3770): This should probably take a HeapObjectPtr eventually.
+void MarkingBarrier(HeapObjectPtr* object, ObjectSlot slot, Object* value);
 void MarkingBarrierForElements(Heap* heap, HeapObject* object);
 void MarkingBarrierForCode(Code* host, RelocInfo* rinfo, HeapObject* object);
 

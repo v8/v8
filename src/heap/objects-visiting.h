@@ -30,46 +30,46 @@ class UncompiledDataWithoutPreParsedScope;
 class UncompiledDataWithPreParsedScope;
 class WasmInstanceObject;
 
-#define TYPED_VISITOR_ID_LIST(V)         \
-  V(AllocationSite)                      \
-  V(BigInt)                              \
-  V(ByteArray)                           \
-  V(BytecodeArray)                       \
-  V(Cell)                                \
-  V(Code)                                \
-  V(CodeDataContainer)                   \
-  V(ConsString)                          \
-  V(DataHandler)                         \
-  V(EphemeronHashTable)                  \
-  V(FeedbackCell)                        \
-  V(FeedbackVector)                      \
-  V(FixedArray)                          \
-  V(FixedDoubleArray)                    \
-  V(FixedFloat64Array)                   \
-  V(FixedTypedArrayBase)                 \
-  V(JSArrayBuffer)                       \
-  V(JSDataView)                          \
-  V(JSObject)                            \
-  V(JSTypedArray)                        \
-  V(JSWeakCollection)                    \
-  V(Map)                                 \
-  V(Oddball)                             \
-  V(PreParsedScopeData)                  \
-  V(PropertyArray)                       \
-  V(PropertyCell)                        \
-  V(PrototypeInfo)                       \
-  V(SeqOneByteString)                    \
-  V(SeqTwoByteString)                    \
-  V(SharedFunctionInfo)                  \
-  V(SlicedString)                        \
-  V(SmallOrderedHashMap)                 \
-  V(SmallOrderedHashSet)                 \
-  V(Symbol)                              \
-  V(ThinString)                          \
-  V(TransitionArray)                     \
-  V(UncompiledDataWithoutPreParsedScope) \
-  V(UncompiledDataWithPreParsedScope)    \
-  V(WasmInstanceObject)
+#define TYPED_VISITOR_ID_LIST(V)                                               \
+  V(AllocationSite, AllocationSite*)                                           \
+  V(BigInt, BigInt*)                                                           \
+  V(ByteArray, ByteArray*)                                                     \
+  V(BytecodeArray, BytecodeArray*)                                             \
+  V(Cell, Cell*)                                                               \
+  V(Code, Code*)                                                               \
+  V(CodeDataContainer, CodeDataContainer*)                                     \
+  V(ConsString, ConsString*)                                                   \
+  V(DataHandler, DataHandler*)                                                 \
+  V(EphemeronHashTable, EphemeronHashTable*)                                   \
+  V(FeedbackCell, FeedbackCell*)                                               \
+  V(FeedbackVector, FeedbackVector*)                                           \
+  V(FixedArray, FixedArray*)                                                   \
+  V(FixedDoubleArray, FixedDoubleArray*)                                       \
+  V(FixedFloat64Array, FixedFloat64Array*)                                     \
+  V(FixedTypedArrayBase, FixedTypedArrayBase*)                                 \
+  V(JSArrayBuffer, JSArrayBuffer*)                                             \
+  V(JSDataView, JSDataView*)                                                   \
+  V(JSObject, JSObject*)                                                       \
+  V(JSTypedArray, JSTypedArray*)                                               \
+  V(JSWeakCollection, JSWeakCollection*)                                       \
+  V(Map, Map*)                                                                 \
+  V(Oddball, Oddball*)                                                         \
+  V(PreParsedScopeData, PreParsedScopeData*)                                   \
+  V(PropertyArray, PropertyArray)                                              \
+  V(PropertyCell, PropertyCell*)                                               \
+  V(PrototypeInfo, PrototypeInfo*)                                             \
+  V(SeqOneByteString, SeqOneByteString*)                                       \
+  V(SeqTwoByteString, SeqTwoByteString*)                                       \
+  V(SharedFunctionInfo, SharedFunctionInfo*)                                   \
+  V(SlicedString, SlicedString*)                                               \
+  V(SmallOrderedHashMap, SmallOrderedHashMap*)                                 \
+  V(SmallOrderedHashSet, SmallOrderedHashSet*)                                 \
+  V(Symbol, Symbol*)                                                           \
+  V(ThinString, ThinString*)                                                   \
+  V(TransitionArray, TransitionArray*)                                         \
+  V(UncompiledDataWithoutPreParsedScope, UncompiledDataWithoutPreParsedScope*) \
+  V(UncompiledDataWithPreParsedScope, UncompiledDataWithPreParsedScope*)       \
+  V(WasmInstanceObject, WasmInstanceObject*)
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using
@@ -101,7 +101,8 @@ class HeapVisitor : public ObjectVisitor {
   // in default Visit implemention for subclasses of JSObject.
   V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }
 
-#define VISIT(type) V8_INLINE ResultType Visit##type(Map* map, type* object);
+#define VISIT(TypeName, Type) \
+  V8_INLINE ResultType Visit##TypeName(Map* map, Type object);
   TYPED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
   V8_INLINE ResultType VisitShortcutCandidate(Map* map, ConsString* object);
@@ -113,8 +114,13 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE ResultType VisitFreeSpace(Map* map, FreeSpace* object);
   V8_INLINE ResultType VisitWeakArray(Map* map, HeapObject* object);
 
-  template <typename T>
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<Object, T>::value>::type>
   static V8_INLINE T* Cast(HeapObject* object);
+
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<ObjectPtr, T>::value>::type>
+  static V8_INLINE T Cast(HeapObject* object);
 };
 
 template <typename ConcreteVisitor>
