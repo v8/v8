@@ -3568,11 +3568,17 @@ void Parser::SetAsmModule() {
 Expression* Parser::ExpressionListToExpression(
     const ScopedPtrList<Expression>& args) {
   Expression* expr = args.at(0);
-  for (int i = 1; i < args.length(); ++i) {
-    expr = factory()->NewBinaryOperation(Token::COMMA, expr, args.at(i),
+  if (args.length() == 1) return expr;
+  if (args.length() == 2) {
+    return factory()->NewBinaryOperation(Token::COMMA, expr, args.at(1),
                                          expr->position());
   }
-  return expr;
+  NaryOperation* result =
+      factory()->NewNaryOperation(Token::COMMA, expr, args.length() - 1);
+  for (int i = 1; i < args.length(); i++) {
+    result->AddSubsequent(args.at(i), expr->position());
+  }
+  return result;
 }
 
 // This method completes the desugaring of the body of async_function.

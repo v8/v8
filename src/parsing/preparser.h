@@ -119,18 +119,6 @@ class PreParserExpression {
                                              Token::Value op,
                                              const PreParserExpression& right,
                                              Zone* zone) {
-    if (op == Token::COMMA) {
-      // Possibly an arrow function parameter list.
-      if (left.variables_ == nullptr) {
-        return PreParserExpression(TypeField::encode(kExpression),
-                                   right.variables_);
-      }
-      if (right.variables_ != nullptr) {
-        left.variables_->Append(std::move(*right.variables_));
-      }
-      return PreParserExpression(TypeField::encode(kExpression),
-                                 left.variables_);
-    }
     return PreParserExpression(TypeField::encode(kExpression));
   }
 

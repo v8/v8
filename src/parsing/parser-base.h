@@ -1912,11 +1912,10 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
 
-  ExpressionT result = impl()->NullExpression();
+  ScopedExpressionListT list(zone_, expression_buffer_);
+  ExpressionT right;
   while (true) {
-    int comma_pos = position();
     ExpressionClassifier binding_classifier(this);
-    ExpressionT right;
     if (Check(Token::ELLIPSIS)) {
       // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
       // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
@@ -1930,7 +1929,7 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
       if (peek() == Token::ASSIGN) {
         ReportMessage(MessageTemplate::kRestDefaultInitializer);
         *ok = false;
-        return result;
+        return impl()->NullExpression();
       }
       right = factory()->NewSpread(pattern, ellipsis_pos, pattern_pos);
     } else {
@@ -1940,17 +1939,7 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
     // an Expression can't be a binding pattern anyway.
     AccumulateNonBindingPatternErrors();
     if (!impl()->IsIdentifier(right)) classifier()->RecordNonSimpleParameter();
-    if (impl()->IsNull(result)) {
-      // First time through the loop.
-      result = right;
-    } else if (impl()->CollapseNaryExpression(&result, right, Token::COMMA,
-                                              comma_pos,
-                                              SourceRange::Empty())) {
-      // Do nothing, "result" is already updated.
-    } else {
-      result =
-          factory()->NewBinaryOperation(Token::COMMA, result, right, comma_pos);
-    }
+    list.Add(right);
 
     if (!Check(Token::COMMA)) break;
 
@@ -1972,7 +1961,12 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
     }
   }
 
-  return result;
+  // Return the single element if the list is empty. We need to do this because
+  // callers of this function care about the type of the result if there was
+  // only a single assignment expression. The preparser would lose this
+  // information otherwise.
+  if (list.length() == 1) return right;
+  return impl()->ExpressionListToExpression(list);
 }
 
 template <typename Impl>
