@@ -53,3 +53,8 @@ assertEquals(b, 43);
 assertEquals(c, 43);
 var c = (a, b = (function z(){ return a+1; })()) => { return b; };
 assertEquals(c(314), 315);
+
+// http://crbug.com/898076
+(function() {
+  class foo {};
+});  // Don't call IIFE so that it is compiled during idle time

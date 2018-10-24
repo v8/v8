@@ -460,9 +460,6 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   // Initialize class object template.
   //
   static_desc.CreateTemplates(isolate, kMinimumClassPropertiesCount);
-  Handle<DescriptorArray> class_function_descriptors(
-      isolate->native_context()->class_function_map()->instance_descriptors(),
-      isolate);
   STATIC_ASSERT(JSFunction::kLengthDescriptorIndex == 0);
   {
     // Add length_accessor.
