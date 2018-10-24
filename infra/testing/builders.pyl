@@ -299,6 +299,11 @@
       {'name': 'v8testing', 'shards': 2},
     ],
   },
+  'v8_linux64_sanitizer_coverage_rel': {
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
   'v8_linux64_tsan_rel': {
     'tests': [
       {'name': 'benchmarks'},
