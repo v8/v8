@@ -208,6 +208,7 @@ class JSFunctionRef : public JSObjectRef {
   // The following are available only after calling Serialize().
   ObjectRef prototype() const;
   MapRef initial_map() const;
+  ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
   int InitialMapInstanceSizeWithMinSlack() const;

@@ -241,6 +241,8 @@
   V(_, raw_string, "raw")                                             \
   V(_, ReconfigureToDataProperty_string, "ReconfigureToDataProperty") \
   V(_, ReferenceError_string, "ReferenceError")                       \
+  V(_, ReflectGet_string, "Reflect.get")                              \
+  V(_, ReflectHas_string, "Reflect.has")                              \
   V(_, RegExp_string, "RegExp")                                       \
   V(_, regexp_to_string, "[object RegExp]")                           \
   V(_, reject_string, "reject")                                       \

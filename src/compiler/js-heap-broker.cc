@@ -284,6 +284,7 @@ class JSFunctionData : public JSObjectData {
 
   void Serialize(JSHeapBroker* broker);
 
+  ContextData* context() const { return context_; }
   NativeContextData* native_context() const { return native_context_; }
   MapData* initial_map() const { return initial_map_; }
   ObjectData* prototype() const { return prototype_; }
@@ -300,6 +301,7 @@ class JSFunctionData : public JSObjectData {
 
   bool serialized_ = false;
 
+  ContextData* context_ = nullptr;
   NativeContextData* native_context_ = nullptr;
   MapData* initial_map_ = nullptr;
   ObjectData* prototype_ = nullptr;
@@ -749,11 +751,13 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
   TraceScope tracer(broker, this, "JSFunctionData::Serialize");
   Handle<JSFunction> function = Handle<JSFunction>::cast(object());
 
+  DCHECK_NULL(context_);
   DCHECK_NULL(native_context_);
   DCHECK_NULL(initial_map_);
   DCHECK_NULL(prototype_);
   DCHECK_NULL(shared_);
 
+  context_ = broker->GetOrCreateData(function->context())->AsContext();
   native_context_ =
       broker->GetOrCreateData(function->native_context())->AsNativeContext();
   shared_ = broker->GetOrCreateData(function->shared())->AsSharedFunctionInfo();
@@ -2059,6 +2063,7 @@ BIMODAL_ACCESSOR(JSArray, Object, length)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
 BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
+BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
 BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)

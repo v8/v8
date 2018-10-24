@@ -502,8 +502,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   Node* context;
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
-    context = jsgraph()->HeapConstant(handle(function->context(), isolate()));
+    JSFunctionRef function = m.Ref(broker()).AsJSFunction();
+    context = jsgraph()->Constant(function.context());
   } else {
     context = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
@@ -855,9 +855,8 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
         javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
         jsgraph()->Constant(
             static_cast<int>(MessageTemplate::kCalledOnNonObject)),
-        jsgraph()->HeapConstant(
-            factory()->NewStringFromAsciiChecked("Reflect.get")),
-        context, frame_state, efalse, if_false);
+        jsgraph()->HeapConstant(factory()->ReflectGet_string()), context,
+        frame_state, efalse, if_false);
   }
 
   // Otherwise just use the existing GetPropertyStub.
@@ -933,9 +932,8 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
         javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
         jsgraph()->Constant(
             static_cast<int>(MessageTemplate::kCalledOnNonObject)),
-        jsgraph()->HeapConstant(
-            factory()->NewStringFromAsciiChecked("Reflect.has")),
-        context, frame_state, efalse, if_false);
+        jsgraph()->HeapConstant(factory()->ReflectHas_string()), context,
+        frame_state, efalse, if_false);
   }
 
   // Otherwise just use the existing {JSHasProperty} logic.
@@ -2561,24 +2559,24 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
     return NoChange();
   }
 
-  Handle<Map> receiver_map;
-  if (!NodeProperties::GetMapWitness(broker(), node).ToHandle(&receiver_map))
+  Handle<Map> map;
+  if (!NodeProperties::GetMapWitness(broker(), node).ToHandle(&map))
     return NoChange();
 
-  if (!CanInlineArrayIteratingBuiltin(isolate(),
-                                      MapRef(broker(), receiver_map)))
+  MapRef receiver_map(broker(), map);
+  if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
     return NoChange();
 
-  if (IsHoleyElementsKind(receiver_map->elements_kind())) {
+  ElementsKind const elements_kind = receiver_map.elements_kind();
+  if (IsHoleyElementsKind(elements_kind)) {
     dependencies()->DependOnProtector(
         PropertyCellRef(broker(), factory()->no_elements_protector()));
   }
 
   Callable const callable =
       search_variant == SearchVariant::kIndexOf
-          ? GetCallableForArrayIndexOf(receiver_map->elements_kind(), isolate())
-          : GetCallableForArrayIncludes(receiver_map->elements_kind(),
-                                        isolate());
+          ? GetCallableForArrayIndexOf(elements_kind, isolate())
+          : GetCallableForArrayIncludes(elements_kind, isolate());
   CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
@@ -2596,8 +2594,7 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
                              ? NodeProperties::GetValueInput(node, 2)
                              : jsgraph()->UndefinedConstant();
   Node* length = effect = graph()->NewNode(
-      simplified()->LoadField(
-          AccessBuilder::ForJSArrayLength(receiver_map->elements_kind())),
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(elements_kind)),
       receiver, effect, control);
   Node* new_from_index = jsgraph()->ZeroConstant();
   if (node->op()->ValueInputCount() >= 4) {
@@ -2658,7 +2655,7 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
   if (receiver_maps.size() == 0) return NoChange();
 
-  const ElementsKind kind = receiver_maps[0]->elements_kind();
+  const ElementsKind kind = MapRef(broker(), receiver_maps[0]).elements_kind();
 
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
