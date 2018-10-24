@@ -1646,10 +1646,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // needs to be the same. Copy from src_elements at
   // [src_index, src_index + length) to dst_elements at
   // [dst_index, dst_index + length).
+  // The function decides whether it can use memcpy. In case it cannot,
+  // |write_barrier| can help it to skip write barrier. SKIP_WRITE_BARRIER is
+  // only safe when copying to new space, or when copying to old space and the
+  // array does not contain object pointers.
   void CopyElements(ElementsKind kind, TNode<FixedArrayBase> dst_elements,
                     TNode<IntPtrT> dst_index,
                     TNode<FixedArrayBase> src_elements,
-                    TNode<IntPtrT> src_index, TNode<IntPtrT> length);
+                    TNode<IntPtrT> src_index, TNode<IntPtrT> length,
+                    WriteBarrierMode write_barrier = UPDATE_WRITE_BARRIER);
 
   TNode<FixedArray> HeapObjectToFixedArray(TNode<HeapObject> base,
                                            Label* cast_fail);
@@ -1710,13 +1715,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // * If |var_holes_converted| is given, any holes will be converted to
   // undefined and the variable will be set according to whether or not there
   // were any hole.
+  // * If |source_elements_kind| is given, the function will try to use the
+  // runtime elements kind of source to make copy faster. More specifically, it
+  // can skip write barriers.
   TNode<FixedArrayBase> ExtractFixedArray(
       Node* source, Node* first, Node* count = nullptr,
       Node* capacity = nullptr,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
-      TVariable<BoolT>* var_holes_converted = nullptr);
+      TVariable<BoolT>* var_holes_converted = nullptr,
+      Node* source_elements_kind = nullptr);
 
   TNode<FixedArrayBase> ExtractFixedArray(
       TNode<FixedArrayBase> source, TNode<Smi> first, TNode<Smi> count,
@@ -1762,7 +1771,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
-      TVariable<BoolT>* var_holes_converted = nullptr);
+      TVariable<BoolT>* var_holes_converted = nullptr,
+      Node* source_runtime_kind = nullptr);
 
   // Attempt to copy a FixedDoubleArray to another FixedDoubleArray. In the case
   // where the source array has a hole, produce a FixedArray instead where holes
