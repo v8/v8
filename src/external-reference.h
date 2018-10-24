@@ -32,7 +32,7 @@ class StatsCounter;
   V(date_cache_stamp, "date_cache_stamp")                                      \
   V(stress_deopt_count, "Isolate::stress_deopt_count_address()")               \
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
-  V(roots_array_start, "Heap::roots_array_start()")                            \
+  V(isolate_root, "Isolate::isolate_root()")                                   \
   V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
   V(address_of_stack_limit, "StackGuard::address_of_jslimit()")                \
   V(address_of_real_stack_limit, "StackGuard::address_of_real_jslimit()")      \

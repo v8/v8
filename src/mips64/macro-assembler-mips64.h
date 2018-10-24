@@ -158,10 +158,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Prologue();
 
   void InitializeRootRegister() {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(isolate());
-    li(kRootRegister, Operand(roots_array_start));
-    daddiu(kRootRegister, kRootRegister, kRootRegisterBias);
+    ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
+    li(kRootRegister, Operand(isolate_root));
   }
 
   // Jump unconditionally to given label.

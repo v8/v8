@@ -81,22 +81,19 @@ void TurboAssemblerBase::IndirectLoadExternalReference(
 // static
 int32_t TurboAssemblerBase::RootRegisterOffsetForRootIndex(
     RootIndex root_index) {
-  return (static_cast<int32_t>(root_index) << kPointerSizeLog2) -
-         kRootRegisterBias;
+  return IsolateData::root_slot_offset(root_index);
 }
 
 // static
 int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
     int builtin_index) {
-  return IsolateData::kBuiltinsTableOffset - kRootRegisterBias +
-         builtin_index * kPointerSize;
+  return IsolateData::builtin_slot_offset(builtin_index);
 }
 
 // static
 intptr_t TurboAssemblerBase::RootRegisterOffsetForExternalReference(
     Isolate* isolate, const ExternalReference& reference) {
-  return static_cast<intptr_t>(reference.address()) - kRootRegisterBias -
-         reinterpret_cast<intptr_t>(isolate->roots_array_start());
+  return static_cast<intptr_t>(reference.address() - isolate->isolate_root());
 }
 
 // static
@@ -108,7 +105,7 @@ int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceTableEntry(
   ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
   CHECK(!v.is_from_api());
 
-  return IsolateData::kExternalReferenceTableOffset - kRootRegisterBias +
+  return IsolateData::external_reference_table_offset() +
          ExternalReferenceTable::OffsetOfEntry(v.index());
 }
 

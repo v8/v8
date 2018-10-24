@@ -4542,9 +4542,8 @@ TEST_F(InstructionSelectorTest, ExternalReferenceLoad1) {
   const int64_t kOffsets[] = {0, 1, 4, INT32_MIN, INT32_MAX};
   TRACED_FOREACH(int64_t, offset, kOffsets) {
     StreamBuilder m(this, MachineType::Int64());
-    ExternalReference reference = bit_cast<ExternalReference>(
-        reinterpret_cast<intptr_t>(isolate()->roots_array_start()) + offset +
-        kRootRegisterBias);
+    ExternalReference reference =
+        bit_cast<ExternalReference>(isolate()->isolate_root() + offset);
     Node* const value =
         m.Load(MachineType::Int64(), m.ExternalConstant(reference));
     m.Return(value);
@@ -4564,9 +4563,8 @@ TEST_F(InstructionSelectorTest, ExternalReferenceLoad2) {
   // Offset too large, we cannot use kMode_Root.
   StreamBuilder m(this, MachineType::Int64());
   int64_t offset = 0x100000000;
-  ExternalReference reference = bit_cast<ExternalReference>(
-      reinterpret_cast<intptr_t>(isolate()->roots_array_start()) + offset +
-      kRootRegisterBias);
+  ExternalReference reference =
+      bit_cast<ExternalReference>(isolate()->isolate_root() + offset);
   Node* const value =
       m.Load(MachineType::Int64(), m.ExternalConstant(reference));
   m.Return(value);

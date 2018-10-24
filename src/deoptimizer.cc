@@ -815,12 +815,9 @@ void Deoptimizer::DoComputeOutputFrames() {
   constexpr bool kShouldInitializeRootRegister = true;
 #endif
   if (kShouldInitializeRootRegister) {
-    Address root_pointer =
-        reinterpret_cast<Address>(isolate()->roots_array_start()) +
-        kRootRegisterBias;
     FrameDescription* topmost = output_[count - 1];
     topmost->GetRegisterValues()->SetRegister(kRootRegister.code(),
-                                              root_pointer);
+                                              isolate()->isolate_root());
   }
 
   // Print some helpful diagnostic information.

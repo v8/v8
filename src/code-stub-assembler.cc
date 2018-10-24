@@ -1459,18 +1459,18 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagSmi(Node* base, int index) {
 
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32Root(
     RootIndex root_index) {
-  Node* roots_array_start =
-      ExternalConstant(ExternalReference::roots_array_start(isolate()));
-  int offset = static_cast<int>(root_index) * kPointerSize;
+  Node* isolate_root =
+      ExternalConstant(ExternalReference::isolate_root(isolate()));
+  int offset = IsolateData::root_slot_offset(root_index);
   if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
     offset += kPointerSize / 2;
 #endif
     return UncheckedCast<Int32T>(
-        Load(MachineType::Int32(), roots_array_start, IntPtrConstant(offset)));
+        Load(MachineType::Int32(), isolate_root, IntPtrConstant(offset)));
   } else {
-    return SmiToInt32(Load(MachineType::AnyTagged(), roots_array_start,
-                           IntPtrConstant(offset)));
+    return SmiToInt32(
+        Load(MachineType::AnyTagged(), isolate_root, IntPtrConstant(offset)));
   }
 }
 

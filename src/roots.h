@@ -420,6 +420,10 @@ class RootsTable {
     return root_names_[index];
   }
 
+  static constexpr int offset_of(RootIndex root_index) {
+    return static_cast<int>(root_index) * kPointerSize;
+  }
+
   static RootIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
   static RootIndex RootIndexForFixedTypedArray(ElementsKind elements_kind);
   static RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind);

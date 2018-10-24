@@ -2998,10 +2998,10 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
 
 Node* WasmGraphBuilder::BuildLoadBuiltinFromInstance(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
-  Node* roots =
-      LOAD_INSTANCE_FIELD(RootsArrayAddress, MachineType::TaggedPointer());
-  return LOAD_TAGGED_POINTER(
-      roots, IsolateData::kBuiltinsTableOffset + builtin_index * kPointerSize);
+  Node* isolate_root =
+      LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::TaggedPointer());
+  return LOAD_TAGGED_POINTER(isolate_root,
+                             IsolateData::builtin_slot_offset(builtin_index));
 }
 
 // Only call this function for code which is not reused across instantiations,

@@ -17,6 +17,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/checks.h"
+#include "src/constants-arch.h"
 #include "src/elements-kind.h"
 #include "src/field-index.h"
 #include "src/flags.h"
@@ -26,19 +27,6 @@
 #include "src/roots.h"
 #include "src/utils.h"
 
-#if V8_TARGET_ARCH_ARM
-#include "src/arm/constants-arm.h"  // NOLINT
-#elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/constants-arm64.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS
-#include "src/mips/constants-mips.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/constants-mips64.h"  // NOLINT
-#elif V8_TARGET_ARCH_PPC
-#include "src/ppc/constants-ppc.h"  // NOLINT
-#elif V8_TARGET_ARCH_S390
-#include "src/s390/constants-s390.h"  // NOLINT
-#endif
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

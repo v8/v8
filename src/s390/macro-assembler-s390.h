@@ -648,10 +648,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void RestoreFrameStateForTailCall();
 
   void InitializeRootRegister() {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(isolate());
-    mov(kRootRegister, Operand(roots_array_start));
-    AddP(kRootRegister, kRootRegister, Operand(kRootRegisterBias));
+    ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
+    mov(kRootRegister, Operand(isolate_root));
   }
 
   // If the value is a NaN, canonicalize the value else, do nothing.

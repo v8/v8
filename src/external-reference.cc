@@ -383,8 +383,8 @@ ExternalReference ExternalReference::log_leave_external_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(Logger::LeaveExternal)));
 }
 
-ExternalReference ExternalReference::roots_array_start(Isolate* isolate) {
-  return ExternalReference(isolate->roots_array_start());
+ExternalReference ExternalReference::isolate_root(Isolate* isolate) {
+  return ExternalReference(isolate->isolate_root());
 }
 
 ExternalReference ExternalReference::allocation_sites_list_address(
