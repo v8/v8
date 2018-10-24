@@ -341,6 +341,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return CAST(heap_object);
   }
 
+  TNode<JSReceiver> HeapObjectToConstructor(TNode<HeapObject> heap_object,
+                                            Label* fail) {
+    GotoIfNot(IsConstructor(heap_object), fail);
+    return CAST(heap_object);
+  }
+
   TNode<HeapNumber> UnsafeCastNumberToHeapNumber(TNode<Number> p_n) {
     return CAST(p_n);
   }

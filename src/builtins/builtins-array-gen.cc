@@ -2140,49 +2140,6 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
   args.PopAndReturn(array.value());
 }
 
-// ES #sec-array.of
-TF_BUILTIN(ArrayOf, ArrayPopulatorAssembler) {
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  TNode<Smi> length = SmiFromInt32(argc);
-
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  CodeStubArguments args(this, length, nullptr, ParameterMode::SMI_PARAMETERS);
-  TNode<Object> receiver = args.GetReceiver();
-
-  TVARIABLE(Object, array);
-  Label is_constructor(this), is_not_constructor(this), fill_array(this);
-  GotoIf(TaggedIsSmi(receiver), &is_not_constructor);
-  Branch(IsConstructor(CAST(receiver)), &is_constructor, &is_not_constructor);
-
-  BIND(&is_constructor);
-  {
-    array = Construct(context, CAST(receiver), length);
-    Goto(&fill_array);
-  }
-
-  BIND(&is_not_constructor);
-  {
-    array = ArrayCreate(context, length);
-    Goto(&fill_array);
-  }
-
-  BIND(&fill_array);
-  // TODO(delphick): Avoid using CreateDataProperty on the fast path.
-  BuildFastLoop(SmiConstant(0), length,
-                [&](Node* index) {
-                  CallRuntime(
-                      Runtime::kCreateDataProperty, context,
-                      static_cast<Node*>(array.value()), index,
-                      args.AtIndex(index, ParameterMode::SMI_PARAMETERS));
-                },
-                1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
-
-  GenerateSetLength(context, array.value(), length);
-  args.PopAndReturn(array.value());
-}
-
 // ES #sec-get-%typedarray%.prototype.find
 TF_BUILTIN(TypedArrayPrototypeFind, ArrayBuiltinsAssembler) {
   TNode<IntPtrT> argc =

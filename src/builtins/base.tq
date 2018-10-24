@@ -25,6 +25,7 @@ type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
 type AbstractCode extends HeapObject generates 'TNode<AbstractCode>';
 type Code extends AbstractCode generates 'TNode<Code>';
 type JSReceiver extends HeapObject generates 'TNode<JSReceiver>';
+type Constructor extends JSReceiver generates 'TNode<JSReceiver>';
 type Context extends HeapObject generates 'TNode<Context>';
 type NativeContext extends Context generates 'TNode<Context>';
 type String extends HeapObject generates 'TNode<String>';
@@ -264,10 +265,18 @@ extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object): never;
 extern macro ThrowTypeError(
     Context, constexpr MessageTemplate, Object, Object, Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
+extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
 extern macro InternalArrayCreate(Context, Number): JSArray;
 extern macro EnsureArrayPushable(Map): ElementsKind
     labels Bailout;
 extern macro EnsureArrayLengthWritable(Map) labels Bailout;
+// TODO: Reduce duplication once varargs are supported in macros.
+extern macro Construct(implicit context: Context)(
+    Constructor, Object): JSReceiver;
+extern macro Construct(implicit context: Context)(
+    Constructor, Object, Object): JSReceiver;
+extern macro Construct(implicit context: Context)(
+    Constructor, Object, Object, Object): JSReceiver;
 
 extern builtin ToObject(Context, Object): JSReceiver;
 extern macro ToObject_Inline(Context, Object): JSReceiver;
@@ -455,6 +464,8 @@ extern macro HeapObjectToFixedDoubleArray(HeapObject): FixedDoubleArray
     labels CastError;
 extern macro HeapObjectToString(HeapObject): String
     labels CastError;
+extern macro HeapObjectToConstructor(HeapObject): Constructor
+    labels CastError;
 extern macro HeapObjectToHeapNumber(HeapObject): HeapNumber
     labels CastError;
 extern macro HeapObjectToSloppyArgumentsElements(HeapObject):
@@ -496,6 +507,10 @@ CastHeapObject<JSArray>(o: HeapObject): JSArray
 CastHeapObject<String>(o: HeapObject): String
     labels CastError {
   return HeapObjectToString(o) otherwise CastError;
+}
+CastHeapObject<Constructor>(o: HeapObject): Constructor
+    labels CastError {
+  return HeapObjectToConstructor(o) otherwise CastError;
 }
 
 macro Cast<A: type>(o: HeapObject): A
