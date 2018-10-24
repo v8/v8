@@ -476,7 +476,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // TODO(titzer): isolate is only required here for CompilationState.
   std::unique_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, const WasmFeatures& enabled_features,
-      size_t memory_estimate, bool can_request_more,
+      size_t code_size_estimate, bool can_request_more,
       std::shared_ptr<const WasmModule> module);
 
   NativeModule* LookupNativeModule(Address pc) const;

@@ -669,8 +669,8 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   // This happens under a lock assumed by the caller.
   size = RoundUp(size, kCodeAlignment);
-  base::AddressRegion mem = free_code_space_.Allocate(size);
-  if (mem.is_empty()) {
+  base::AddressRegion code_space = free_code_space_.Allocate(size);
+  if (code_space.is_empty()) {
     if (!can_request_more_memory_) {
       V8::FatalProcessOutOfMemory(nullptr,
                                   "NativeModule::AllocateForCode reservation");
@@ -691,14 +691,14 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
 
     free_code_space_.Merge(new_mem.region());
     owned_code_space_.emplace_back(std::move(new_mem));
-    mem = free_code_space_.Allocate(size);
-    DCHECK(!mem.is_empty());
+    code_space = free_code_space_.Allocate(size);
+    DCHECK(!code_space.is_empty());
   }
   const Address page_size = page_allocator->AllocatePageSize();
-  Address commit_start = RoundUp(mem.begin(), page_size);
-  Address commit_end = RoundUp(mem.end(), page_size);
-  // {commit_start} will be either mem.start or the start of the next page.
-  // {commit_end} will be the start of the page after the one in which
+  Address commit_start = RoundUp(code_space.begin(), page_size);
+  Address commit_end = RoundUp(code_space.end(), page_size);
+  // {commit_start} will be either code_space.start or the start of the next
+  // page. {commit_end} will be the start of the page after the one in which
   // the allocation ends.
   // We start from an aligned start, and we know we allocated vmem in
   // page multiples.
@@ -739,10 +739,11 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
     }
 #endif
   }
-  DCHECK(IsAligned(mem.begin(), kCodeAlignment));
-  allocated_code_space_.Merge(mem);
-  TRACE_HEAP("Code alloc for %p: %" PRIxPTR ",+%zu\n", this, mem.begin(), size);
-  return {reinterpret_cast<byte*>(mem.begin()), mem.size()};
+  DCHECK(IsAligned(code_space.begin(), kCodeAlignment));
+  allocated_code_space_.Merge(code_space);
+  TRACE_HEAP("Code alloc for %p: %" PRIxPTR ",+%zu\n", this, code_space.begin(),
+             size);
+  return {reinterpret_cast<byte*>(code_space.begin()), code_space.size()};
 }
 
 WasmCode* NativeModule::Lookup(Address pc) const {
@@ -935,7 +936,7 @@ bool WasmCodeManager::ShouldForceCriticalMemoryPressureNotification() {
 }
 
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    Isolate* isolate, const WasmFeatures& enabled, size_t memory_estimate,
+    Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
     bool can_request_more, std::shared_ptr<const WasmModule> module) {
   if (ShouldForceCriticalMemoryPressureNotification()) {
     (reinterpret_cast<v8::Isolate*>(isolate))
@@ -943,15 +944,16 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   }
 
   // If the code must be contiguous, reserve enough address space up front.
-  size_t vmem_size = kRequiresCodeRange ? kMaxWasmCodeMemory : memory_estimate;
+  size_t code_vmem_size =
+      kRequiresCodeRange ? kMaxWasmCodeMemory : code_size_estimate;
   // Try up to three times; getting rid of dead JSArrayBuffer allocations might
   // require two GCs because the first GC maybe incremental and may have
   // floating garbage.
   static constexpr int kAllocationRetries = 2;
-  VirtualMemory mem;
+  VirtualMemory code_space;
   for (int retries = 0;; ++retries) {
-    mem = TryAllocate(vmem_size);
-    if (mem.IsReserved()) break;
+    code_space = TryAllocate(code_vmem_size);
+    if (code_space.IsReserved()) break;
     if (retries == kAllocationRetries) {
       V8::FatalProcessOutOfMemory(isolate, "WasmCodeManager::NewNativeModule");
       UNREACHABLE();
@@ -961,12 +963,12 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
                                                 true);
   }
 
-  Address start = mem.address();
-  size_t size = mem.size();
-  Address end = mem.end();
+  Address start = code_space.address();
+  size_t size = code_space.size();
+  Address end = code_space.end();
   std::unique_ptr<NativeModule> ret(
-      new NativeModule(isolate, enabled, can_request_more, std::move(mem), this,
-                       std::move(module)));
+      new NativeModule(isolate, enabled, can_request_more,
+                       std::move(code_space), this, std::move(module)));
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
              size);
   AssignRangesAndAddModule(start, end, ret.get());
@@ -1027,14 +1029,14 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   DCHECK_EQ(1, native_modules_.count(native_module));
   native_modules_.erase(native_module);
   TRACE_HEAP("Freeing NativeModule %p\n", this);
-  for (auto& mem : native_module->owned_code_space_) {
-    DCHECK(mem.IsReserved());
-    TRACE_HEAP("VMem Release: %" PRIxPTR ":%" PRIxPTR " (%zu)\n", mem.address(),
-               mem.end(), mem.size());
-    lookup_map_.erase(mem.address());
-    memory_tracker_->ReleaseReservation(mem.size());
-    mem.Free();
-    DCHECK(!mem.IsReserved());
+  for (auto& code_space : native_module->owned_code_space_) {
+    DCHECK(code_space.IsReserved());
+    TRACE_HEAP("VMem Release: %" PRIxPTR ":%" PRIxPTR " (%zu)\n",
+               code_space.address(), code_space.end(), code_space.size());
+    lookup_map_.erase(code_space.address());
+    memory_tracker_->ReleaseReservation(code_space.size());
+    code_space.Free();
+    DCHECK(!code_space.IsReserved());
   }
   native_module->owned_code_space_.clear();
 
