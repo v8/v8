@@ -2251,6 +2251,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
 #endif
     case SYNC: {
       // todo - simulate sync
+      __sync_synchronize();
       break;
     }
     case ICBI: {

@@ -155,24 +155,44 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_AtomicCompareExchangeWord64:
     case kPPC_AtomicAddUint8:
     case kPPC_AtomicAddUint16:
-    case kPPC_AtomicAddWord32:
-    case kPPC_AtomicAddWord64:
+    case kPPC_AtomicAddUint32:
+    case kPPC_AtomicAddUint64:
+    case kPPC_AtomicAddInt8:
+    case kPPC_AtomicAddInt16:
+    case kPPC_AtomicAddInt32:
+    case kPPC_AtomicAddInt64:
     case kPPC_AtomicSubUint8:
     case kPPC_AtomicSubUint16:
-    case kPPC_AtomicSubWord32:
-    case kPPC_AtomicSubWord64:
+    case kPPC_AtomicSubUint32:
+    case kPPC_AtomicSubUint64:
+    case kPPC_AtomicSubInt8:
+    case kPPC_AtomicSubInt16:
+    case kPPC_AtomicSubInt32:
+    case kPPC_AtomicSubInt64:
     case kPPC_AtomicAndUint8:
     case kPPC_AtomicAndUint16:
-    case kPPC_AtomicAndWord32:
-    case kPPC_AtomicAndWord64:
+    case kPPC_AtomicAndUint32:
+    case kPPC_AtomicAndUint64:
+    case kPPC_AtomicAndInt8:
+    case kPPC_AtomicAndInt16:
+    case kPPC_AtomicAndInt32:
+    case kPPC_AtomicAndInt64:
     case kPPC_AtomicOrUint8:
     case kPPC_AtomicOrUint16:
-    case kPPC_AtomicOrWord32:
-    case kPPC_AtomicOrWord64:
+    case kPPC_AtomicOrUint32:
+    case kPPC_AtomicOrUint64:
+    case kPPC_AtomicOrInt8:
+    case kPPC_AtomicOrInt16:
+    case kPPC_AtomicOrInt32:
+    case kPPC_AtomicOrInt64:
     case kPPC_AtomicXorUint8:
     case kPPC_AtomicXorUint16:
-    case kPPC_AtomicXorWord32:
-    case kPPC_AtomicXorWord64:
+    case kPPC_AtomicXorUint32:
+    case kPPC_AtomicXorUint64:
+    case kPPC_AtomicXorInt8:
+    case kPPC_AtomicXorInt16:
+    case kPPC_AtomicXorInt32:
+    case kPPC_AtomicXorInt64:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

@@ -145,24 +145,44 @@ namespace compiler {
   V(PPC_AtomicCompareExchangeWord64) \
   V(PPC_AtomicAddUint8)              \
   V(PPC_AtomicAddUint16)             \
-  V(PPC_AtomicAddWord32)             \
-  V(PPC_AtomicAddWord64)             \
+  V(PPC_AtomicAddUint32)             \
+  V(PPC_AtomicAddUint64)             \
+  V(PPC_AtomicAddInt8)               \
+  V(PPC_AtomicAddInt16)              \
+  V(PPC_AtomicAddInt32)              \
+  V(PPC_AtomicAddInt64)              \
   V(PPC_AtomicSubUint8)              \
   V(PPC_AtomicSubUint16)             \
-  V(PPC_AtomicSubWord32)             \
-  V(PPC_AtomicSubWord64)             \
+  V(PPC_AtomicSubUint32)             \
+  V(PPC_AtomicSubUint64)             \
+  V(PPC_AtomicSubInt8)               \
+  V(PPC_AtomicSubInt16)              \
+  V(PPC_AtomicSubInt32)              \
+  V(PPC_AtomicSubInt64)              \
   V(PPC_AtomicAndUint8)              \
   V(PPC_AtomicAndUint16)             \
-  V(PPC_AtomicAndWord32)             \
-  V(PPC_AtomicAndWord64)             \
+  V(PPC_AtomicAndUint32)             \
+  V(PPC_AtomicAndUint64)             \
+  V(PPC_AtomicAndInt8)               \
+  V(PPC_AtomicAndInt16)              \
+  V(PPC_AtomicAndInt32)              \
+  V(PPC_AtomicAndInt64)              \
   V(PPC_AtomicOrUint8)               \
   V(PPC_AtomicOrUint16)              \
-  V(PPC_AtomicOrWord32)              \
-  V(PPC_AtomicOrWord64)              \
+  V(PPC_AtomicOrUint32)              \
+  V(PPC_AtomicOrUint64)              \
+  V(PPC_AtomicOrInt8)                \
+  V(PPC_AtomicOrInt16)               \
+  V(PPC_AtomicOrInt32)               \
+  V(PPC_AtomicOrInt64)               \
   V(PPC_AtomicXorUint8)              \
   V(PPC_AtomicXorUint16)             \
-  V(PPC_AtomicXorWord32)             \
-  V(PPC_AtomicXorWord64)
+  V(PPC_AtomicXorUint32)             \
+  V(PPC_AtomicXorUint64)             \
+  V(PPC_AtomicXorInt8)               \
+  V(PPC_AtomicXorInt16)              \
+  V(PPC_AtomicXorInt32)              \
+  V(PPC_AtomicXorInt64)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
