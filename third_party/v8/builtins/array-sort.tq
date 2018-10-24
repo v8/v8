@@ -1776,4 +1776,3 @@ module array {
     return receiver;
   }
 }
-
