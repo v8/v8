@@ -29,6 +29,14 @@ def preprocess(input):
   input = re.sub(r'(\s+)case\s*\(\s*([^\s]+)\s*\:\s*([^\:]+)\s*\)(\s*)\:',
       r'\1case \3: /*_TSV\2:*/', input)
 
+  # Add extra space around | operators to fix union types later.
+  while True:
+    old = input
+    input = re.sub(r'(\w+\s*)\|(\s*\w+)',
+        r'\1|/**/\2', input)
+    if old == input:
+      break;
+
   input = re.sub(r'\sgenerates\s+\'([^\']+)\'\s*',
       r' _GeNeRaTeS00_/*\1@*/', input)
   input = re.sub(r'\sconstexpr\s+\'([^\']+)\'\s*',
@@ -65,6 +73,14 @@ def postprocess(output):
       r"\n\1otherwise", output)
   output = re.sub(r'_OtheSaLi',
       r"otherwise", output)
+
+  while True:
+    old = output
+    output = re.sub(r'(\w+)\|/\*\*/(\s*\w+)',
+        r'\1 |\2', output)
+    if old == output:
+      break;
+
   return output
 
 if len(sys.argv) < 2 or len(sys.argv) > 3:
