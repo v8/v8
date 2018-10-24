@@ -137,6 +137,10 @@ struct ParserTypes<Parser> {
   typedef ParserFormalParameters FormalParameters;
   typedef v8::internal::Statement* Statement;
   typedef ZonePtrList<v8::internal::Statement>* StatementList;
+  typedef ScopedPtrList<v8::internal::Statement> ScopedStatementList;
+  typedef ScopedPtrList<v8::internal::Expression> ScopedExpressionList;
+  typedef ScopedPtrList<v8::internal::ObjectLiteralProperty>
+      ScopedObjectPropertyList;
   typedef v8::internal::Block* Block;
   typedef v8::internal::BreakableStatement* BreakableStatement;
   typedef v8::internal::ForStatement* ForStatement;
@@ -533,11 +537,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                    Expression* tag);
 
-  ArrayLiteral* ArrayLiteralFromListWithSpread(ZonePtrList<Expression>* list);
-  Expression* SpreadCall(Expression* function, ZonePtrList<Expression>* args,
-                         int pos, Call::PossiblyEval is_possibly_eval);
-  Expression* SpreadCallNew(Expression* function, ZonePtrList<Expression>* args,
-                            int pos);
+  ArrayLiteral* ArrayLiteralFromListWithSpread(
+      const ScopedPtrList<Expression>& list);
+  Expression* SpreadCall(Expression* function,
+                         const ScopedPtrList<Expression>& args, int pos,
+                         Call::PossiblyEval is_possibly_eval);
+  Expression* SpreadCallNew(Expression* function,
+                            const ScopedPtrList<Expression>& args, int pos);
   Expression* RewriteSuperCall(Expression* call_expression);
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
@@ -736,9 +742,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // A shortcut for performing a ToString operation
   V8_INLINE Expression* ToString(Expression* expr) {
     if (expr->IsStringLiteral()) return expr;
-    ZonePtrList<Expression>* args =
-        new (zone()) ZonePtrList<Expression>(1, zone());
-    args->Add(expr, zone());
+    ScopedPtrList<Expression> args(zone(), expression_buffer());
+    args.Add(expr);
     return factory()->NewCallRuntime(Runtime::kInlineToString, args,
                                      expr->position());
   }
@@ -898,8 +903,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   V8_INLINE Expression* NewV8Intrinsic(const AstRawString* name,
-                                       ZonePtrList<Expression>* args, int pos,
-                                       bool* ok);
+                                       const ScopedPtrList<Expression>& args,
+                                       int pos, bool* ok);
 
   V8_INLINE Statement* NewThrowStatement(Expression* exception, int pos) {
     return factory()->NewExpressionStatement(
@@ -953,7 +958,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                             const Scanner::Location& params_loc,
                                             bool* ok);
 
-  Expression* ExpressionListToExpression(ZonePtrList<Expression>* args);
+  Expression* ExpressionListToExpression(const ScopedPtrList<Expression>& args);
 
   void SetFunctionNameFromPropertyName(LiteralProperty* property,
                                        const AstRawString* name,

@@ -1327,7 +1327,8 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
   globals_builder_ = new (zone()) GlobalDeclarationsBuilder(zone());
 }
 
-void BytecodeGenerator::VisitStatements(ZonePtrList<Statement>* statements) {
+void BytecodeGenerator::VisitStatements(
+    const ZonePtrList<Statement>* statements) {
   for (int i = 0; i < statements->length(); i++) {
     // Allocate an outer register allocations scope for the statement.
     RegisterAllocationScope allocation_scope(this);
@@ -2450,7 +2451,7 @@ void BytecodeGenerator::BuildArrayLiteralSpread(Spread* spread, Register array,
 }
 
 void BytecodeGenerator::BuildCreateArrayLiteral(
-    ZonePtrList<Expression>* elements, ArrayLiteral* expr) {
+    const ZonePtrList<Expression>* elements, ArrayLiteral* expr) {
   RegisterAllocationScope register_scope(this);
   Register index = register_allocator()->NewRegister();
   Register array = register_allocator()->NewRegister();
@@ -3578,7 +3579,7 @@ void BytecodeGenerator::VisitResolvedProperty(ResolvedProperty* expr) {
   UNREACHABLE();
 }
 
-void BytecodeGenerator::VisitArguments(ZonePtrList<Expression>* args,
+void BytecodeGenerator::VisitArguments(const ZonePtrList<Expression>* args,
                                        RegisterList* arg_regs) {
   // Visit arguments.
   for (int i = 0; i < static_cast<int>(args->length()); i++) {
@@ -3755,7 +3756,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 void BytecodeGenerator::VisitCallSuper(Call* expr) {
   RegisterAllocationScope register_scope(this);
   SuperCallReference* super = expr->expression()->AsSuperCallReference();
-  ZonePtrList<Expression>* args = expr->arguments();
+  const ZonePtrList<Expression>* args = expr->arguments();
 
   int first_spread_index = 0;
   for (; first_spread_index < args->length(); first_spread_index++) {

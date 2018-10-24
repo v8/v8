@@ -208,9 +208,13 @@ class ParserBase {
   typedef typename Types::Suspend SuspendExpressionT;
   typedef typename Types::RewritableExpression RewritableExpressionT;
   typedef typename Types::ExpressionList ExpressionListT;
+  typedef typename Types::ObjectPropertyList ObjectPropertyListT;
+  typedef typename Types::ScopedObjectPropertyList ScopedObjectPropertyListT;
   typedef typename Types::FormalParameters FormalParametersT;
   typedef typename Types::Statement StatementT;
   typedef typename Types::StatementList StatementListT;
+  typedef typename Types::ScopedStatementList ScopedStatementListT;
+  typedef typename Types::ScopedExpressionList ScopedExpressionListT;
   typedef typename Types::Block BlockT;
   typedef typename Types::ForStatement ForStatementT;
   typedef typename v8::internal::ExpressionClassifier<Types>
@@ -244,6 +248,9 @@ class ParserBase {
         pending_error_handler_(pending_error_handler),
         zone_(zone),
         classifier_(nullptr),
+        statement_buffer_(impl()->NewStatementList(32)),
+        expression_buffer_(impl()->NewExpressionList(32)),
+        property_buffer_(impl()->NewObjectPropertyList(32)),
         scanner_(scanner),
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
         function_literal_id_(0),
@@ -1056,9 +1063,10 @@ class ParserBase {
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ObjectLiteralChecker* checker, bool* is_computed_name,
       bool* is_rest_property, bool* ok);
-  ExpressionListT ParseArguments(bool* has_spread, bool maybe_arrow, bool* ok);
-  ExpressionListT ParseArguments(bool* has_spread, bool* ok) {
-    return ParseArguments(has_spread, false, ok);
+  void ParseArguments(ScopedExpressionListT* args, bool* has_spread,
+                      bool maybe_arrow, bool* ok);
+  void ParseArguments(ScopedExpressionListT* args, bool* has_spread, bool* ok) {
+    ParseArguments(args, has_spread, false, ok);
   }
 
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
@@ -1461,6 +1469,8 @@ class ParserBase {
                ExpressionClassifier::AsyncArrowFormalParametersProduction);
   }
 
+  ExpressionListT expression_buffer() { return expression_buffer_; }
+
   // Parser base's protected field members.
 
   Scope* scope_;                   // Scope stack.
@@ -1482,6 +1492,11 @@ class ParserBase {
  private:
   Zone* zone_;
   ExpressionClassifier* classifier_;
+
+  // TODO(verwaest): Merge and/or buffer page-wise.
+  StatementListT statement_buffer_;
+  ExpressionListT expression_buffer_;
+  ObjectPropertyListT property_buffer_;
 
   Scanner* scanner_;
 
@@ -1967,7 +1982,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   //   '[' Expression? (',' Expression?)* ']'
 
   int pos = peek_position();
-  ExpressionListT values = impl()->NewExpressionList(4);
+  ScopedExpressionListT values(zone_, expression_buffer_);
   int first_spread_index = -1;
   Consume(Token::LBRACK);
   while (!Check(Token::RBRACK)) {
@@ -1981,7 +1996,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
       elem = factory()->NewSpread(argument, start_pos, expr_pos);
 
       if (first_spread_index < 0) {
-        first_spread_index = values->length();
+        first_spread_index = values.length();
       }
 
       if (argument->IsAssignment()) {
@@ -2002,7 +2017,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
       elem = ParseAssignmentExpression(true, CHECK_OK);
       CheckDestructuringElement(elem, beg_pos, end_position());
     }
-    values->Add(elem, zone_);
+    values.Add(elem);
     if (peek() != Token::RBRACK) {
       Expect(Token::COMMA, CHECK_OK);
     }
@@ -2592,8 +2607,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   // '{' (PropertyDefinition (',' PropertyDefinition)* ','? )? '}'
 
   int pos = peek_position();
-  typename Types::ObjectPropertyList properties =
-      impl()->NewObjectPropertyList(4);
+  ScopedObjectPropertyListT properties(zone_, property_buffer_);
   int number_of_boilerplate_properties = 0;
 
   bool has_computed_names = false;
@@ -2624,7 +2638,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
       number_of_boilerplate_properties++;
     }
 
-    properties->Add(property, zone());
+    properties.Add(property);
 
     if (peek() != Token::RBRACE) {
       // Need {} because of the CHECK_OK macro.
@@ -2639,7 +2653,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   // this runtime function. Here, we make sure that the number of
   // properties is less than number of arguments allowed for a runtime
   // call.
-  if (has_rest_property && properties->length() > Code::kMaxArguments) {
+  if (has_rest_property && properties.length() > Code::kMaxArguments) {
     this->classifier()->RecordPatternError(Scanner::Location(pos, position()),
                                            MessageTemplate::kTooManyArguments);
   }
@@ -2649,24 +2663,21 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
-    bool* has_spread, bool maybe_arrow, bool* ok) {
+void ParserBase<Impl>::ParseArguments(
+    typename ParserBase<Impl>::ScopedExpressionListT* args, bool* has_spread,
+    bool maybe_arrow, bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
   *has_spread = false;
   Consume(Token::LPAREN);
-  if (Check(Token::RPAREN)) return impl()->NewExpressionList(0);
 
-  ExpressionListT result = impl()->NewExpressionList(4);
-
-  do {
+  while (peek() != Token::RPAREN) {
     int start_pos = peek_position();
     bool is_spread = Check(Token::ELLIPSIS);
     int expr_pos = peek_position();
 
-    ExpressionT argument =
-        ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpressionList));
+    ExpressionT argument = ParseAssignmentExpression(true, CHECK_OK_VOID);
     if (maybe_arrow) {
       if (!impl()->IsIdentifier(argument)) {
         classifier()->previous()->RecordNonSimpleParameter();
@@ -2687,24 +2698,21 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
       *has_spread = true;
       argument = factory()->NewSpread(argument, start_pos, expr_pos);
     }
-    result->Add(argument, zone_);
+    args->Add(argument);
     if (!Check(Token::COMMA)) break;
-  } while (peek() != Token::RPAREN);
+  }
 
-  if (result->length() > Code::kMaxArguments) {
+  if (args->length() > Code::kMaxArguments) {
     ReportMessage(MessageTemplate::kTooManyArguments);
     *ok = false;
-    return impl()->NullExpressionList();
+    return;
   }
 
   Scanner::Location location = scanner_->location();
   if (!Check(Token::RPAREN)) {
     impl()->ReportMessageAt(location, MessageTemplate::kUnterminatedArgList);
     *ok = false;
-    return impl()->NullExpressionList();
   }
-
-  return result;
 }
 
 // Precedence = 2
@@ -3233,12 +3241,12 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
           }
         }
         bool has_spread;
-        ExpressionListT args;
+        ScopedExpressionListT args(zone_, expression_buffer_);
         if (impl()->IsIdentifier(result) &&
             impl()->IsAsync(impl()->AsIdentifier(result)) &&
             !scanner()->HasLineTerminatorBeforeNext()) {
           ExpressionClassifier async_classifier(this);
-          args = ParseArguments(&has_spread, true, CHECK_OK);
+          ParseArguments(&args, &has_spread, true, CHECK_OK);
           if (peek() == Token::ARROW) {
             fni_.RemoveAsyncKeywordFromEnd();
             ValidateBindingPattern(CHECK_OK);
@@ -3249,7 +3257,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
               *ok = false;
               return impl()->NullExpression();
             }
-            if (args->length()) {
+            if (args.length()) {
               // async ( Arguments ) => ...
               return impl()->ExpressionListToExpression(args);
             } else {
@@ -3261,7 +3269,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result, bool* ok) {
             AccumulateFormalParameterContainmentErrors();
           }
         } else {
-          args = ParseArguments(&has_spread, CHECK_OK);
+          ParseArguments(&args, &has_spread, CHECK_OK);
         }
 
         ArrowFormalParametersUnexpectedToken();
@@ -3353,19 +3361,23 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* ok) {
   }
   if (peek() == Token::LPAREN) {
     // NewExpression with arguments.
-    bool has_spread;
-    ExpressionListT args = ParseArguments(&has_spread, CHECK_OK);
+    {
+      ScopedExpressionListT args(zone_, expression_buffer_);
+      bool has_spread;
+      ParseArguments(&args, &has_spread, CHECK_OK);
 
-    if (has_spread) {
-      result = impl()->SpreadCallNew(result, args, new_pos);
-    } else {
-      result = factory()->NewCallNew(result, args, new_pos);
+      if (has_spread) {
+        result = impl()->SpreadCallNew(result, args, new_pos);
+      } else {
+        result = factory()->NewCallNew(result, args, new_pos);
+      }
     }
     // The expression can still continue with . or [ after the arguments.
     return ParseMemberExpressionContinuation(result, ok);
   }
   // NewExpression without arguments.
-  return factory()->NewCallNew(result, impl()->NewExpressionList(0), new_pos);
+  ScopedExpressionListT args(zone_, expression_buffer_);
+  return factory()->NewCallNew(result, args, new_pos);
 }
 
 template <typename Impl>
@@ -4624,7 +4636,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic(
     return impl()->NullExpression();
   }
   bool has_spread;
-  ExpressionListT args = ParseArguments(&has_spread, CHECK_OK);
+  ScopedExpressionListT args(zone_, expression_buffer_);
+  ParseArguments(&args, &has_spread, CHECK_OK);
 
   if (has_spread) {
     *ok = false;
@@ -5357,7 +5370,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     while (peek() != Token::RBRACE) {
       // An empty label indicates the default case.
       ExpressionT label = impl()->NullExpression();
-      StatementListT statements = impl()->NewStatementList(5);
+      ScopedStatementListT statements(zone_, statement_buffer_);
       SourceRange clause_range;
       {
         SourceRangeScope range_scope(scanner(), &clause_range);
@@ -5376,7 +5389,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
         while (peek() != Token::CASE && peek() != Token::DEFAULT &&
                peek() != Token::RBRACE) {
           StatementT stat = ParseStatementListItem(CHECK_OK);
-          statements->Add(stat, zone());
+          statements.Add(stat);
         }
       }
       auto clause = factory()->NewCaseClause(label, statements);

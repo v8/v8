@@ -225,6 +225,9 @@ class ZoneList final {
   V8_INLINE int capacity() const { return capacity_; }
 
   Vector<T> ToVector() const { return Vector<T>(data_, length_); }
+  Vector<T> ToVector(int start, int length) const {
+    return Vector<T>(data_ + start, Min(length_ - start, length));
+  }
 
   Vector<const T> ToConstVector() const {
     return Vector<const T>(data_, length_);
@@ -317,6 +320,47 @@ class ZoneList final {
 // zone as the list object.
 template <typename T>
 using ZonePtrList = ZoneList<T*>;
+
+template <typename T>
+class ScopedPtrList final {
+ public:
+  ScopedPtrList(Zone* zone, ZonePtrList<T>* buffer)
+      : zone_(zone),
+        buffer_(buffer),
+        start_(buffer->length()),
+        end_(buffer->length()) {}
+
+  ~ScopedPtrList() {
+    DCHECK_EQ(buffer_->length(), end_);
+    buffer_->Rewind(start_);
+  }
+
+  int length() const { return end_ - start_; }
+  T* at(int i) const { return buffer_->at(i + start_); }
+
+  void CopyTo(ZonePtrList<T>* target) const {
+    target->Initialize(length(), zone_);
+    target->AddAll(buffer_->ToVector(start_, length()), zone_);
+  }
+
+  void Add(T* value) {
+    DCHECK_EQ(buffer_->length(), end_);
+    buffer_->Add(value, zone_);
+    ++end_;
+  }
+
+  void AddAll(const ZonePtrList<T>& list) {
+    DCHECK_EQ(buffer_->length(), end_);
+    buffer_->AddAll(list, zone_);
+    end_ += list.length();
+  }
+
+ private:
+  Zone* zone_;
+  ZonePtrList<T>* buffer_;
+  int start_;
+  int end_;
+};
 
 // ZoneThreadedList is a special variant of the ThreadedList that can be put
 // into a Zone.

@@ -110,6 +110,11 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   AstValueFactory* ast_value_factory() const {
     return parser_->ast_value_factory();
   }
+
+  ZonePtrList<Expression>* expression_buffer() {
+    return parser_->expression_buffer();
+  }
+
   Zone* zone() const { return parser_->zone(); }
   Scope* scope() const { return scope_; }
 
@@ -336,15 +341,9 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
                                          Variable** temp_var) {
   auto temp = *temp_var = CreateTempVar(current_value_);
 
-  ZonePtrList<Expression>* rest_runtime_callargs = nullptr;
+  ScopedPtrList<Expression> rest_runtime_callargs(zone(), expression_buffer());
   if (pattern->has_rest_property()) {
-    // non_rest_properties_count = pattern->properties()->length - 1;
-    // args_length = 1 + non_rest_properties_count because we need to
-    // pass temp as well to the runtime function.
-    int args_length = pattern->properties()->length();
-    rest_runtime_callargs =
-        new (zone()) ZonePtrList<Expression>(args_length, zone());
-    rest_runtime_callargs->Add(factory()->NewVariableProxy(temp), zone());
+    rest_runtime_callargs.Add(factory()->NewVariableProxy(temp));
   }
 
   block_->statements()->Add(parser_->BuildAssertIsCoercible(temp, pattern),
@@ -378,8 +377,8 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
 
         if (property->is_computed_name()) {
           DCHECK(!key->IsPropertyName() || !key->IsNumberLiteral());
-          auto args = new (zone()) ZonePtrList<Expression>(1, zone());
-          args->Add(key, zone());
+          ScopedPtrList<Expression> args(zone(), expression_buffer());
+          args.Add(key);
           auto to_name_key = CreateTempVar(factory()->NewCallRuntime(
               Runtime::kToName, args, kNoSourcePosition));
           key = factory()->NewVariableProxy(to_name_key);
@@ -388,8 +387,7 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
           DCHECK(key->IsPropertyName() || key->IsNumberLiteral());
         }
 
-        DCHECK_NOT_NULL(rest_runtime_callargs);
-        rest_runtime_callargs->Add(excluded_property, zone());
+        rest_runtime_callargs.Add(excluded_property);
       }
 
       value = factory()->NewProperty(factory()->NewVariableProxy(temp), key,
@@ -557,7 +555,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // let array = [];
     Variable* array;
     {
-      auto empty_exprs = new (zone()) ZonePtrList<Expression>(0, zone());
+      ScopedPtrList<Expression> empty_exprs(zone(), expression_buffer());
       array = CreateTempVar(
           factory()->NewArrayLiteral(empty_exprs, kNoSourcePosition));
     }

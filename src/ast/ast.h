@@ -804,15 +804,15 @@ class CaseClause final : public ZoneObject {
     DCHECK(!is_default());
     return label_;
   }
-  ZonePtrList<Statement>* statements() const { return statements_; }
+  ZonePtrList<Statement>* statements() { return &statements_; }
 
  private:
   friend class AstNodeFactory;
 
-  CaseClause(Expression* label, ZonePtrList<Statement>* statements);
+  CaseClause(Expression* label, const ScopedPtrList<Statement>& statements);
 
   Expression* label_;
-  ZonePtrList<Statement>* statements_;
+  ZonePtrList<Statement> statements_;
 };
 
 
@@ -1328,7 +1328,7 @@ class ObjectLiteral final : public AggregateLiteral {
     return boilerplate_description_;
   }
   int properties_count() const { return boilerplate_properties_; }
-  ZonePtrList<Property>* properties() const { return properties_; }
+  const ZonePtrList<Property>* properties() const { return &properties_; }
   bool has_elements() const { return HasElementsField::decode(bit_field_); }
   bool has_rest_property() const {
     return HasRestPropertyField::decode(bit_field_);
@@ -1403,16 +1403,17 @@ class ObjectLiteral final : public AggregateLiteral {
  private:
   friend class AstNodeFactory;
 
-  ObjectLiteral(ZonePtrList<Property>* properties,
+  ObjectLiteral(const ScopedPtrList<Property>& properties,
                 uint32_t boilerplate_properties, int pos,
                 bool has_rest_property)
       : AggregateLiteral(pos, kObjectLiteral),
         boilerplate_properties_(boilerplate_properties),
-        properties_(properties) {
+        properties_(0, nullptr) {
     bit_field_ |= HasElementsField::encode(false) |
                   HasRestPropertyField::encode(has_rest_property) |
                   FastElementsField::encode(false) |
                   HasNullPrototypeField::encode(false);
+    properties.CopyTo(&properties_);
   }
 
   void InitFlagsForPendingNullPrototype(int i);
@@ -1429,7 +1430,7 @@ class ObjectLiteral final : public AggregateLiteral {
 
   uint32_t boilerplate_properties_;
   Handle<ObjectBoilerplateDescription> boilerplate_description_;
-  ZoneList<Property*>* properties_;
+  ZoneList<Property*> properties_;
 
   class HasElementsField
       : public BitField<bool, AggregateLiteral::kNextBitFieldIndex, 1> {};
@@ -1475,7 +1476,7 @@ class ArrayLiteral final : public AggregateLiteral {
     return boilerplate_description_;
   }
 
-  ZonePtrList<Expression>* values() const { return values_; }
+  const ZonePtrList<Expression>* values() const { return &values_; }
 
   int first_spread_index() const { return first_spread_index_; }
 
@@ -1505,14 +1506,17 @@ class ArrayLiteral final : public AggregateLiteral {
  private:
   friend class AstNodeFactory;
 
-  ArrayLiteral(ZonePtrList<Expression>* values, int first_spread_index, int pos)
+  ArrayLiteral(const ScopedPtrList<Expression>& values, int first_spread_index,
+               int pos)
       : AggregateLiteral(pos, kArrayLiteral),
         first_spread_index_(first_spread_index),
-        values_(values) {}
+        values_(0, nullptr) {
+    values.CopyTo(&values_);
+  }
 
   int first_spread_index_;
   Handle<ArrayBoilerplateDescription> boilerplate_description_;
-  ZonePtrList<Expression>* values_;
+  ZonePtrList<Expression> values_;
 };
 
 enum class HoleCheckMode { kRequired, kElided };
@@ -1693,7 +1697,7 @@ class ResolvedProperty final : public Expression {
 class Call final : public Expression {
  public:
   Expression* expression() const { return expression_; }
-  ZonePtrList<Expression>* arguments() const { return arguments_; }
+  const ZonePtrList<Expression>* arguments() const { return &arguments_; }
 
   bool is_possibly_eval() const {
     return IsPossiblyEvalField::decode(bit_field_);
@@ -1704,7 +1708,7 @@ class Call final : public Expression {
   }
 
   bool only_last_arg_is_spread() {
-    return !arguments_->is_empty() && arguments_->last()->IsSpread();
+    return !arguments_.is_empty() && arguments_.last()->IsSpread();
   }
 
   enum CallType {
@@ -1732,19 +1736,25 @@ class Call final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Call(Expression* expression, ZonePtrList<Expression>* arguments, int pos,
-       PossiblyEval possibly_eval)
-      : Expression(pos, kCall), expression_(expression), arguments_(arguments) {
+  Call(Expression* expression, const ScopedPtrList<Expression>& arguments,
+       int pos, PossiblyEval possibly_eval)
+      : Expression(pos, kCall),
+        expression_(expression),
+        arguments_(0, nullptr) {
     bit_field_ |=
         IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL) |
         IsTaggedTemplateField::encode(false);
+    arguments.CopyTo(&arguments_);
   }
 
-  Call(Expression* expression, ZonePtrList<Expression>* arguments, int pos,
-       TaggedTemplateTag tag)
-      : Expression(pos, kCall), expression_(expression), arguments_(arguments) {
+  Call(Expression* expression, const ScopedPtrList<Expression>& arguments,
+       int pos, TaggedTemplateTag tag)
+      : Expression(pos, kCall),
+        expression_(expression),
+        arguments_(0, nullptr) {
     bit_field_ |= IsPossiblyEvalField::encode(false) |
                   IsTaggedTemplateField::encode(true);
+    arguments.CopyTo(&arguments_);
   }
 
   class IsPossiblyEvalField
@@ -1753,29 +1763,32 @@ class Call final : public Expression {
       : public BitField<bool, IsPossiblyEvalField::kNext, 1> {};
 
   Expression* expression_;
-  ZonePtrList<Expression>* arguments_;
+  ZonePtrList<Expression> arguments_;
 };
 
 
 class CallNew final : public Expression {
  public:
   Expression* expression() const { return expression_; }
-  ZonePtrList<Expression>* arguments() const { return arguments_; }
+  const ZonePtrList<Expression>* arguments() const { return &arguments_; }
 
   bool only_last_arg_is_spread() {
-    return !arguments_->is_empty() && arguments_->last()->IsSpread();
+    return !arguments_.is_empty() && arguments_.last()->IsSpread();
   }
 
  private:
   friend class AstNodeFactory;
 
-  CallNew(Expression* expression, ZonePtrList<Expression>* arguments, int pos)
+  CallNew(Expression* expression, const ScopedPtrList<Expression>& arguments,
+          int pos)
       : Expression(pos, kCallNew),
         expression_(expression),
-        arguments_(arguments) {}
+        arguments_(0, nullptr) {
+    arguments.CopyTo(&arguments_);
+  }
 
   Expression* expression_;
-  ZonePtrList<Expression>* arguments_;
+  ZonePtrList<Expression> arguments_;
 };
 
 // The CallRuntime class does not represent any official JavaScript
@@ -1784,7 +1797,7 @@ class CallNew final : public Expression {
 // implemented in JavaScript.
 class CallRuntime final : public Expression {
  public:
-  ZonePtrList<Expression>* arguments() const { return arguments_; }
+  const ZonePtrList<Expression>* arguments() const { return &arguments_; }
   bool is_jsruntime() const { return function_ == nullptr; }
 
   int context_index() const {
@@ -1802,19 +1815,24 @@ class CallRuntime final : public Expression {
   friend class AstNodeFactory;
 
   CallRuntime(const Runtime::Function* function,
-              ZonePtrList<Expression>* arguments, int pos)
+              const ScopedPtrList<Expression>& arguments, int pos)
       : Expression(pos, kCallRuntime),
         function_(function),
-        arguments_(arguments) {}
-  CallRuntime(int context_index, ZonePtrList<Expression>* arguments, int pos)
+        arguments_(0, nullptr) {
+    arguments.CopyTo(&arguments_);
+  }
+  CallRuntime(int context_index, const ScopedPtrList<Expression>& arguments,
+              int pos)
       : Expression(pos, kCallRuntime),
         context_index_(context_index),
         function_(nullptr),
-        arguments_(arguments) {}
+        arguments_(0, nullptr) {
+    arguments.CopyTo(&arguments_);
+  }
 
   int context_index_;
   const Runtime::Function* function_;
-  ZonePtrList<Expression>* arguments_;
+  ZonePtrList<Expression> arguments_;
 };
 
 
@@ -2247,7 +2265,7 @@ class FunctionLiteral final : public Expression {
   const AstConsString* raw_name() const { return raw_name_; }
   void set_raw_name(const AstConsString* name) { raw_name_ = name; }
   DeclarationScope* scope() const { return scope_; }
-  ZonePtrList<Statement>* body() const { return body_; }
+  ZonePtrList<Statement>* body() { return body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
   int function_token_position() const { return function_token_position_; }
   int start_position() const;
@@ -2766,7 +2784,7 @@ class AstVisitor {
     for (Declaration* decl : *declarations) Visit(decl);
   }
 
-  void VisitStatements(ZonePtrList<Statement>* statements) {
+  void VisitStatements(const ZonePtrList<Statement>* statements) {
     for (int i = 0; i < statements->length(); i++) {
       Statement* stmt = statements->at(i);
       Visit(stmt);
@@ -2774,7 +2792,7 @@ class AstVisitor {
     }
   }
 
-  void VisitExpressions(ZonePtrList<Expression>* expressions) {
+  void VisitExpressions(const ZonePtrList<Expression>* expressions) {
     for (int i = 0; i < expressions->length(); i++) {
       // The variable statement visiting code may pass null expressions
       // to this code. Maybe this should be handled by introducing an
@@ -2999,7 +3017,7 @@ class AstNodeFactory final {
   }
 
   CaseClause* NewCaseClause(Expression* label,
-                            ZonePtrList<Statement>* statements) {
+                            const ScopedPtrList<Statement>& statements) {
     return new (zone_) CaseClause(label, statements);
   }
 
@@ -3039,7 +3057,7 @@ class AstNodeFactory final {
   }
 
   ObjectLiteral* NewObjectLiteral(
-      ZonePtrList<ObjectLiteral::Property>* properties,
+      const ScopedPtrList<ObjectLiteral::Property>& properties,
       uint32_t boilerplate_properties, int pos, bool has_rest_property) {
     return new (zone_) ObjectLiteral(properties, boilerplate_properties, pos,
                                      has_rest_property);
@@ -3064,11 +3082,12 @@ class AstNodeFactory final {
     return new (zone_) RegExpLiteral(pattern, flags, pos);
   }
 
-  ArrayLiteral* NewArrayLiteral(ZonePtrList<Expression>* values, int pos) {
+  ArrayLiteral* NewArrayLiteral(const ScopedPtrList<Expression>& values,
+                                int pos) {
     return new (zone_) ArrayLiteral(values, -1, pos);
   }
 
-  ArrayLiteral* NewArrayLiteral(ZonePtrList<Expression>* values,
+  ArrayLiteral* NewArrayLiteral(const ScopedPtrList<Expression>& values,
                                 int first_spread_index, int pos) {
     return new (zone_) ArrayLiteral(values, first_spread_index, pos);
   }
@@ -3104,34 +3123,38 @@ class AstNodeFactory final {
     return new (zone_) ResolvedProperty(obj, property, pos);
   }
 
-  Call* NewCall(Expression* expression, ZonePtrList<Expression>* arguments,
-                int pos, Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
+  Call* NewCall(Expression* expression,
+                const ScopedPtrList<Expression>& arguments, int pos,
+                Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
     return new (zone_) Call(expression, arguments, pos, possibly_eval);
   }
 
   Call* NewTaggedTemplate(Expression* expression,
-                          ZonePtrList<Expression>* arguments, int pos) {
+                          const ScopedPtrList<Expression>& arguments, int pos) {
     return new (zone_)
         Call(expression, arguments, pos, Call::TaggedTemplateTag::kTrue);
   }
 
   CallNew* NewCallNew(Expression* expression,
-                      ZonePtrList<Expression>* arguments, int pos) {
+                      const ScopedPtrList<Expression>& arguments, int pos) {
     return new (zone_) CallNew(expression, arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(Runtime::FunctionId id,
-                              ZonePtrList<Expression>* arguments, int pos) {
+                              const ScopedPtrList<Expression>& arguments,
+                              int pos) {
     return new (zone_) CallRuntime(Runtime::FunctionForId(id), arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(const Runtime::Function* function,
-                              ZonePtrList<Expression>* arguments, int pos) {
+                              const ScopedPtrList<Expression>& arguments,
+                              int pos) {
     return new (zone_) CallRuntime(function, arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(int context_index,
-                              ZonePtrList<Expression>* arguments, int pos) {
+                              const ScopedPtrList<Expression>& arguments,
+                              int pos) {
     return new (zone_) CallRuntime(context_index, arguments, pos);
   }
 

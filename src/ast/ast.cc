@@ -646,7 +646,7 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
 
 bool ArrayLiteral::IsFastCloningSupported() const {
   return depth() <= 1 &&
-         values()->length() <=
+         values_.length() <=
              ConstructorBuiltins::kMaximumClonedShallowArrayElements;
 }
 
@@ -862,8 +862,11 @@ Call::CallType Call::GetCallType() const {
   return OTHER_CALL;
 }
 
-CaseClause::CaseClause(Expression* label, ZonePtrList<Statement>* statements)
-    : label_(label), statements_(statements) {}
+CaseClause::CaseClause(Expression* label,
+                       const ScopedPtrList<Statement>& statements)
+    : label_(label), statements_(0, nullptr) {
+  statements.CopyTo(&statements_);
+}
 
 bool Literal::IsPropertyName() const {
   if (type() != kString) return false;
