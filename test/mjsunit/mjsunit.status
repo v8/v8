@@ -176,8 +176,8 @@
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
-  'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
-  'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
+  'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP], ['tsan', SKIP]],
+  'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP], ['tsan', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
