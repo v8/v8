@@ -191,28 +191,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
 
-  void SaveRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-    __ MultiPush(regs | r14.bit());
-  }
-
-  void RestoreRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-    __ MultiPop(regs | r14.bit());
-  }
-
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());

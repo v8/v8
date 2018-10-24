@@ -282,24 +282,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         mode_(mode),
         zone_(gen->zone()) {}
 
-  void SaveRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        __ push(Register::from_code(i));
-      }
-    }
-  }
-
-  void RestoreRegisters(RegList registers) {
-    DCHECK_LT(0, NumRegs(registers));
-    for (int i = Register::kNumRegisters - 1; i >= 0; --i) {
-      if ((registers >> i) & 1u) {
-        __ pop(Register::from_code(i));
-      }
-    }
-  }
-
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
