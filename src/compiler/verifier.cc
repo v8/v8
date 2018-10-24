@@ -1450,17 +1450,13 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Number());
       break;
-    case IrOpcode::kCheckOddball:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::Oddball());
-      break;
     case IrOpcode::kCheckReceiver:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Receiver());
       break;
-    case IrOpcode::kCheckReceiverOrOddball:
+    case IrOpcode::kCheckReceiverOrNullOrUndefined:
       CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::ReceiverOrOddball());
+      CheckTypeIs(node, Type::ReceiverOrNullOrUndefined());
       break;
     case IrOpcode::kCheckSmi:
       CheckValueInputIs(node, 0, Type::Any());

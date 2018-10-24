@@ -134,6 +134,8 @@ DEFINE_GETTER(AllocateInOldSpaceStubConstant,
 DEFINE_GETTER(ArrayConstructorStubConstant,
               HeapConstant(BUILTIN_CODE(isolate(), ArrayConstructorImpl)))
 
+DEFINE_GETTER(BooleanMapConstant, HeapConstant(factory()->boolean_map()))
+
 DEFINE_GETTER(ToNumberBuiltinConstant,
               HeapConstant(BUILTIN_CODE(isolate(), ToNumber)))
 

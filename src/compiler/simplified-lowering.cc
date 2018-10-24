@@ -2599,16 +2599,12 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kCheckOddball: {
-        VisitCheck(node, Type::Oddball(), lowering);
-        return;
-      }
       case IrOpcode::kCheckReceiver: {
         VisitCheck(node, Type::Receiver(), lowering);
         return;
       }
-      case IrOpcode::kCheckReceiverOrOddball: {
-        VisitCheck(node, Type::ReceiverOrOddball(), lowering);
+      case IrOpcode::kCheckReceiverOrNullOrUndefined: {
+        VisitCheck(node, Type::ReceiverOrNullOrUndefined(), lowering);
         return;
       }
       case IrOpcode::kCheckSmi: {

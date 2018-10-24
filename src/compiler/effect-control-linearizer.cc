@@ -691,14 +691,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckNumber:
       result = LowerCheckNumber(node, frame_state);
       break;
-    case IrOpcode::kCheckOddball:
-      result = LowerCheckOddball(node, frame_state);
-      break;
     case IrOpcode::kCheckReceiver:
       result = LowerCheckReceiver(node, frame_state);
       break;
-    case IrOpcode::kCheckReceiverOrOddball:
-      result = LowerCheckReceiverOrOddball(node, frame_state);
+    case IrOpcode::kCheckReceiverOrNullOrUndefined:
+      result = LowerCheckReceiverOrNullOrUndefined(node, frame_state);
       break;
     case IrOpcode::kCheckSymbol:
       result = LowerCheckSymbol(node, frame_state);
@@ -1594,21 +1591,6 @@ Node* EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state) {
   return value;
 }
 
-Node* EffectControlLinearizer::LowerCheckOddball(Node* node,
-                                                 Node* frame_state) {
-  Node* value = node->InputAt(0);
-
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* value_instance_type =
-      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
-
-  Node* check =
-      __ Word32Equal(value_instance_type, __ Uint32Constant(ODDBALL_TYPE));
-  __ DeoptimizeIfNot(DeoptimizeReason::kNotAnOddball, VectorSlotPair(), check,
-                     frame_state);
-  return value;
-}
-
 Node* EffectControlLinearizer::LowerCheckReceiver(Node* node,
                                                   Node* frame_state) {
   Node* value = node->InputAt(0);
@@ -1625,20 +1607,26 @@ Node* EffectControlLinearizer::LowerCheckReceiver(Node* node,
   return value;
 }
 
-Node* EffectControlLinearizer::LowerCheckReceiverOrOddball(Node* node,
-                                                           Node* frame_state) {
+Node* EffectControlLinearizer::LowerCheckReceiverOrNullOrUndefined(
+    Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
 
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
 
+  // Rule out all primitives except oddballs (true, false, undefined, null).
   STATIC_ASSERT(LAST_PRIMITIVE_TYPE == ODDBALL_TYPE);
   STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-  Node* check = __ Uint32LessThanOrEqual(__ Uint32Constant(ODDBALL_TYPE),
-                                         value_instance_type);
-  __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObjectOrOddball,
-                     VectorSlotPair(), check, frame_state);
+  Node* check0 = __ Uint32LessThanOrEqual(__ Uint32Constant(ODDBALL_TYPE),
+                                          value_instance_type);
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined,
+                     VectorSlotPair(), check0, frame_state);
+
+  // Rule out booleans.
+  Node* check1 = __ WordEqual(value_map, __ BooleanMapConstant());
+  __ DeoptimizeIf(DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined,
+                  VectorSlotPair(), check1, frame_state);
   return value;
 }
 

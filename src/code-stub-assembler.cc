@@ -11310,8 +11310,22 @@ void CodeStubAssembler::GenerateEqual_Same(Node* value, Label* if_equal,
     BIND(&if_oddball);
     {
       CSA_ASSERT(this, IsOddball(value));
-      CombineFeedback(var_type_feedback, CompareOperationFeedback::kOddball);
-      Goto(if_equal);
+      Label if_boolean(this), if_not_boolean(this);
+      Branch(IsBooleanMap(value_map), &if_boolean, &if_not_boolean);
+
+      BIND(&if_boolean);
+      {
+        CombineFeedback(var_type_feedback, CompareOperationFeedback::kAny);
+        Goto(if_equal);
+      }
+
+      BIND(&if_not_boolean);
+      {
+        CSA_ASSERT(this, IsNullOrUndefined(value));
+        CombineFeedback(var_type_feedback,
+                        CompareOperationFeedback::kReceiverOrNullOrUndefined);
+        Goto(if_equal);
+      }
     }
   } else {
     Goto(if_equal);
@@ -11451,13 +11465,12 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
       Node* left_type = LoadMapInstanceType(left_map);
       Node* right_type = LoadMapInstanceType(right_map);
 
-      GotoIf(Int32LessThan(left_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-             &if_left_string);
-      GotoIf(InstanceTypeEqual(left_type, SYMBOL_TYPE), &if_left_symbol);
-      GotoIf(InstanceTypeEqual(left_type, HEAP_NUMBER_TYPE), &if_left_number);
-      GotoIf(InstanceTypeEqual(left_type, ODDBALL_TYPE), &if_left_oddball);
-      GotoIf(InstanceTypeEqual(left_type, BIGINT_TYPE), &if_left_bigint);
-      Goto(&if_left_receiver);
+      GotoIf(IsStringInstanceType(left_type), &if_left_string);
+      GotoIf(IsSymbolInstanceType(left_type), &if_left_symbol);
+      GotoIf(IsHeapNumberInstanceType(left_type), &if_left_number);
+      GotoIf(IsOddballInstanceType(left_type), &if_left_oddball);
+      Branch(IsBigIntInstanceType(left_type), &if_left_bigint,
+             &if_left_receiver);
 
       BIND(&if_left_string);
       {
@@ -11554,20 +11567,53 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
 
       BIND(&if_left_oddball);
       {
-        if (var_type_feedback != nullptr) {
-          var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
-        }
+        Label if_left_boolean(this), if_left_not_boolean(this);
+        Branch(IsBooleanMap(left_map), &if_left_boolean, &if_left_not_boolean);
 
-        Label if_left_boolean(this);
-        GotoIf(IsBooleanMap(left_map), &if_left_boolean);
-        // {left} is either Null or Undefined. Check if {right} is
-        // undetectable (which includes Null and Undefined).
-        Branch(IsUndetectableMap(right_map), &if_equal, &if_notequal);
+        BIND(&if_left_not_boolean);
+        {
+          // {left} is either Null or Undefined. Check if {right} is
+          // undetectable (which includes Null and Undefined).
+          Label if_right_undetectable(this), if_right_not_undetectable(this);
+          Branch(IsUndetectableMap(right_map), &if_right_undetectable,
+                 &if_right_not_undetectable);
+
+          BIND(&if_right_undetectable);
+          {
+            if (var_type_feedback != nullptr) {
+              // If {right} is undetectable, it must be either also
+              // Null or Undefined, or a Receiver (aka document.all).
+              var_type_feedback->Bind(SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
+            }
+            Goto(&if_equal);
+          }
+
+          BIND(&if_right_not_undetectable);
+          {
+            if (var_type_feedback != nullptr) {
+              // Track whether {right} is Null, Undefined or Receiver.
+              var_type_feedback->Bind(SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
+              GotoIf(IsJSReceiverInstanceType(right_type), &if_notequal);
+              GotoIfNot(IsBooleanMap(right_map), &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+            }
+            Goto(&if_notequal);
+          }
+        }
 
         BIND(&if_left_boolean);
         {
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kAny));
+          }
+
           // If {right} is a Boolean too, it must be a different Boolean.
           GotoIf(WordEqual(right_map, left_map), &if_notequal);
+
           // Otherwise, convert {left} to number and try again.
           var_left.Bind(LoadObjectField(left, Oddball::kToNumberOffset));
           Goto(&loop);
@@ -11611,29 +11657,50 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
       BIND(&if_left_receiver);
       {
         CSA_ASSERT(this, IsJSReceiverInstanceType(left_type));
-        Label if_right_not_receiver(this);
-        GotoIfNot(IsJSReceiverInstanceType(right_type), &if_right_not_receiver);
+        Label if_right_receiver(this), if_right_not_receiver(this);
+        Branch(IsJSReceiverInstanceType(right_type), &if_right_receiver,
+               &if_right_not_receiver);
 
-        // {left} and {right} are different JSReceiver references.
-        CombineFeedback(var_type_feedback, CompareOperationFeedback::kReceiver);
-        Goto(&if_notequal);
+        BIND(&if_right_receiver);
+        {
+          // {left} and {right} are different JSReceiver references.
+          CombineFeedback(var_type_feedback,
+                          CompareOperationFeedback::kReceiver);
+          Goto(&if_notequal);
+        }
 
         BIND(&if_right_not_receiver);
         {
-          if (var_type_feedback != nullptr) {
-            var_type_feedback->Bind(
-                SmiConstant(CompareOperationFeedback::kAny));
+          // Check if {right} is undetectable, which means it must be Null
+          // or Undefined, since we already ruled out Receiver for {right}.
+          Label if_right_undetectable(this),
+              if_right_not_undetectable(this, Label::kDeferred);
+          Branch(IsUndetectableMap(right_map), &if_right_undetectable,
+                 &if_right_not_undetectable);
+
+          BIND(&if_right_undetectable);
+          {
+            // When we get here, {right} must be either Null or Undefined.
+            CSA_ASSERT(this, IsNullOrUndefined(right));
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
+            }
+            Branch(IsUndetectableMap(left_map), &if_equal, &if_notequal);
           }
-          Label if_right_null_or_undefined(this);
-          GotoIf(IsUndetectableMap(right_map), &if_right_null_or_undefined);
 
-          // {right} is a Primitive; convert {left} to Primitive too.
-          Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
-          var_left.Bind(CallStub(callable, context, left));
-          Goto(&loop);
-
-          BIND(&if_right_null_or_undefined);
-          Branch(IsUndetectableMap(left_map), &if_equal, &if_notequal);
+          BIND(&if_right_not_undetectable);
+          {
+            // {right} is a Primitive, and neither Null or Undefined;
+            // convert {left} to Primitive too.
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+            }
+            Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
+            var_left.Bind(CallStub(callable, context, left));
+            Goto(&loop);
+          }
         }
       }
     }
@@ -11898,23 +11965,26 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
           BIND(&if_lhsisnotbigint);
           if (var_type_feedback != nullptr) {
             // Load the instance type of {rhs}.
-            Node* rhs_instance_type = LoadInstanceType(rhs);
+            Node* rhs_map = LoadMap(rhs);
+            Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
 
             Label if_lhsissymbol(this), if_lhsisreceiver(this),
                 if_lhsisoddball(this);
             GotoIf(IsJSReceiverInstanceType(lhs_instance_type),
                    &if_lhsisreceiver);
+            GotoIf(IsBooleanMap(lhs_map), &if_notequal);
             GotoIf(IsOddballInstanceType(lhs_instance_type), &if_lhsisoddball);
             Branch(IsSymbolInstanceType(lhs_instance_type), &if_lhsissymbol,
                    &if_notequal);
 
             BIND(&if_lhsisreceiver);
             {
+              GotoIf(IsBooleanMap(rhs_map), &if_notequal);
               var_type_feedback->Bind(
                   SmiConstant(CompareOperationFeedback::kReceiver));
               GotoIf(IsJSReceiverInstanceType(rhs_instance_type), &if_notequal);
-              var_type_feedback->Bind(
-                  SmiConstant(CompareOperationFeedback::kReceiverOrOddball));
+              var_type_feedback->Bind(SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
               GotoIf(IsOddballInstanceType(rhs_instance_type), &if_notequal);
               var_type_feedback->Bind(
                   SmiConstant(CompareOperationFeedback::kAny));
@@ -11923,14 +11993,13 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
 
             BIND(&if_lhsisoddball);
             {
-              var_type_feedback->Bind(
-                  SmiConstant(CompareOperationFeedback::kOddball));
-              GotoIf(IsOddballInstanceType(rhs_instance_type), &if_notequal);
-              var_type_feedback->Bind(
-                  SmiConstant(CompareOperationFeedback::kReceiverOrOddball));
-              GotoIf(IsJSReceiverInstanceType(rhs_instance_type), &if_notequal);
-              var_type_feedback->Bind(
-                  SmiConstant(CompareOperationFeedback::kAny));
+              STATIC_ASSERT(LAST_PRIMITIVE_TYPE == ODDBALL_TYPE);
+              GotoIf(IsBooleanMap(rhs_map), &if_notequal);
+              GotoIf(
+                  Int32LessThan(rhs_instance_type, Int32Constant(ODDBALL_TYPE)),
+                  &if_notequal);
+              var_type_feedback->Bind(SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
               Goto(&if_notequal);
             }
 

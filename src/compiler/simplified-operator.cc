@@ -782,21 +782,20 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(SpeculativeNumberLessThan)                \
   V(SpeculativeNumberLessThanOrEqual)
 
-#define CHECKED_OP_LIST(V)               \
-  V(CheckEqualsInternalizedString, 2, 0) \
-  V(CheckEqualsSymbol, 2, 0)             \
-  V(CheckHeapObject, 1, 1)               \
-  V(CheckInternalizedString, 1, 1)       \
-  V(CheckNotTaggedHole, 1, 1)            \
-  V(CheckOddball, 1, 1)                  \
-  V(CheckReceiver, 1, 1)                 \
-  V(CheckReceiverOrOddball, 1, 1)        \
-  V(CheckSymbol, 1, 1)                   \
-  V(CheckedInt32Add, 2, 1)               \
-  V(CheckedInt32Div, 2, 1)               \
-  V(CheckedInt32Mod, 2, 1)               \
-  V(CheckedInt32Sub, 2, 1)               \
-  V(CheckedUint32Div, 2, 1)              \
+#define CHECKED_OP_LIST(V)                \
+  V(CheckEqualsInternalizedString, 2, 0)  \
+  V(CheckEqualsSymbol, 2, 0)              \
+  V(CheckHeapObject, 1, 1)                \
+  V(CheckInternalizedString, 1, 1)        \
+  V(CheckNotTaggedHole, 1, 1)             \
+  V(CheckReceiver, 1, 1)                  \
+  V(CheckReceiverOrNullOrUndefined, 1, 1) \
+  V(CheckSymbol, 1, 1)                    \
+  V(CheckedInt32Add, 2, 1)                \
+  V(CheckedInt32Div, 2, 1)                \
+  V(CheckedInt32Mod, 2, 1)                \
+  V(CheckedInt32Sub, 2, 1)                \
+  V(CheckedUint32Div, 2, 1)               \
   V(CheckedUint32Mod, 2, 1)
 
 #define CHECKED_WITH_FEEDBACK_OP_LIST(V) \

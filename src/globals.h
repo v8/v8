@@ -1309,31 +1309,28 @@ class BinaryOperationFeedback {
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
 //
-//   kSignedSmall -> kNumber             -> kNumberOrOddball   -> kAny
-//                   kOddball            -> kNumberOrOddball   -> kAny
-//                   kOddball            -> kReceiverOrOddball -> kAny
-//                   kReceiver           -> kReceiverOrOddball -> kAny
-//                   kInternalizedString -> kString            -> kAny
-//                                          kSymbol            -> kAny
-//                                          kBigInt            -> kAny
+//   kSignedSmall -> kNumber             -> kNumberOrOddball           -> kAny
+//                   kReceiver           -> kReceiverOrNullOrUndefined -> kAny
+//                   kInternalizedString -> kString                    -> kAny
+//                                          kSymbol                    -> kAny
+//                                          kBigInt                    -> kAny
 //
 // This is distinct from BinaryOperationFeedback on purpose, because the
 // feedback that matters differs greatly as well as the way it is consumed.
 class CompareOperationFeedback {
  public:
   enum {
-    kNone = 0x00,
-    kSignedSmall = 0x01,
-    kNumber = 0x3,
-    kOddball = 0x04,
-    kNumberOrOddball = kNumber | kOddball,
-    kInternalizedString = 0x8,
-    kString = 0x18,
-    kSymbol = 0x20,
-    kBigInt = 0x30,
-    kReceiver = 0x40,
-    kReceiverOrOddball = kReceiver | kOddball,
-    kAny = 0xff
+    kNone = 0x000,
+    kSignedSmall = 0x001,
+    kNumber = 0x003,
+    kNumberOrOddball = 0x007,
+    kInternalizedString = 0x008,
+    kString = 0x018,
+    kSymbol = 0x020,
+    kBigInt = 0x040,
+    kReceiver = 0x080,
+    kReceiverOrNullOrUndefined = 0x180,
+    kAny = 0x1ff
   };
 };
 

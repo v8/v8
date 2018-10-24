@@ -2003,19 +2003,14 @@ Type Typer::Visitor::TypeCheckNumber(Node* node) {
   return typer_->operation_typer_.CheckNumber(Operand(node, 0));
 }
 
-Type Typer::Visitor::TypeCheckOddball(Node* node) {
-  Type arg = Operand(node, 0);
-  return Type::Intersect(arg, Type::Oddball(), zone());
-}
-
 Type Typer::Visitor::TypeCheckReceiver(Node* node) {
   Type arg = Operand(node, 0);
   return Type::Intersect(arg, Type::Receiver(), zone());
 }
 
-Type Typer::Visitor::TypeCheckReceiverOrOddball(Node* node) {
+Type Typer::Visitor::TypeCheckReceiverOrNullOrUndefined(Node* node) {
   Type arg = Operand(node, 0);
-  return Type::Intersect(arg, Type::ReceiverOrOddball(), zone());
+  return Type::Intersect(arg, Type::ReceiverOrNullOrUndefined(), zone());
 }
 
 Type Typer::Visitor::TypeCheckSmi(Node* node) {

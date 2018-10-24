@@ -379,9 +379,8 @@
   V(CheckMaps)                          \
   V(CheckNumber)                        \
   V(CheckInternalizedString)            \
-  V(CheckOddball)                       \
   V(CheckReceiver)                      \
-  V(CheckReceiverOrOddball)             \
+  V(CheckReceiverOrNullOrUndefined)     \
   V(CheckString)                        \
   V(CheckSymbol)                        \
   V(CheckSmi)                           \

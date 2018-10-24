@@ -39,8 +39,6 @@ std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
       return os << "SignedSmall";
     case CompareOperationHint::kNumber:
       return os << "Number";
-    case CompareOperationHint::kOddball:
-      return os << "Oddball";
     case CompareOperationHint::kNumberOrOddball:
       return os << "NumberOrOddball";
     case CompareOperationHint::kInternalizedString:
@@ -53,8 +51,8 @@ std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
       return os << "BigInt";
     case CompareOperationHint::kReceiver:
       return os << "Receiver";
-    case CompareOperationHint::kReceiverOrOddball:
-      return os << "ReceiverOrOddball";
+    case CompareOperationHint::kReceiverOrNullOrUndefined:
+      return os << "ReceiverOrNullOrUndefined";
     case CompareOperationHint::kAny:
       return os << "Any";
   }

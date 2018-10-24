@@ -188,7 +188,6 @@ namespace compiler {
   V(Receiver,                     kObject | kProxy) \
   V(ReceiverOrUndefined,          kReceiver | kUndefined) \
   V(ReceiverOrNullOrUndefined,    kReceiver | kNull | kUndefined) \
-  V(ReceiverOrOddball,            kReceiver | kOddball) \
   V(SymbolOrReceiver,             kSymbol | kReceiver) \
   V(StringOrReceiver,             kString | kReceiver) \
   V(Unique,                       kBoolean | kUniqueName | kNull | \
