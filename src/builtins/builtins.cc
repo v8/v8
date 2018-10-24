@@ -12,6 +12,7 @@
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/fixed-array.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -364,6 +365,39 @@ bool Builtins::IsWasmRuntimeStub(int index) {
   UNREACHABLE();
 }
 
+namespace {
+
+class OffHeapTrampolineGenerator {
+ public:
+  explicit OffHeapTrampolineGenerator(Isolate* isolate)
+      : isolate_(isolate),
+        masm_(isolate, buffer, kBufferSize, CodeObjectRequired::kYes) {}
+
+  CodeDesc Generate(Address off_heap_entry) {
+    // Generate replacement code that simply tail-calls the off-heap code.
+    DCHECK(!masm_.has_frame());
+    {
+      FrameScope scope(&masm_, StackFrame::NONE);
+      masm_.JumpToInstructionStream(off_heap_entry);
+    }
+
+    CodeDesc desc;
+    masm_.GetCode(isolate_, &desc);
+    return desc;
+  }
+
+  Handle<HeapObject> CodeObject() { return masm_.CodeObject(); }
+
+ private:
+  Isolate* isolate_;
+  // Enough to fit the single jmp.
+  static constexpr size_t kBufferSize = 256;
+  byte buffer[kBufferSize];
+  MacroAssembler masm_;
+};
+
+}  // namespace
+
 // static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
                                                     Address off_heap_entry) {
@@ -371,21 +405,26 @@ Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
   DCHECK_NOT_NULL(isolate->embedded_blob());
   DCHECK_NE(0, isolate->embedded_blob_size());
 
-  constexpr size_t buffer_size = 256;  // Enough to fit the single jmp.
-  byte buffer[buffer_size];            // NOLINT(runtime/arrays)
+  OffHeapTrampolineGenerator generator(isolate);
+  CodeDesc desc = generator.Generate(off_heap_entry);
 
-  // Generate replacement code that simply tail-calls the off-heap code.
-  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
-  DCHECK(!masm.has_frame());
-  {
-    FrameScope scope(&masm, StackFrame::NONE);
-    masm.JumpToInstructionStream(off_heap_entry);
-  }
+  return isolate->factory()->NewCode(desc, Code::BUILTIN,
+                                     generator.CodeObject());
+}
 
-  CodeDesc desc;
-  masm.GetCode(isolate, &desc);
+// static
+Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
+    Isolate* isolate) {
+  OffHeapTrampolineGenerator generator(isolate);
+  // Generate a jump to a dummy address as we're not actually interested in the
+  // generated instruction stream.
+  CodeDesc desc = generator.Generate(kNullAddress);
 
-  return isolate->factory()->NewCode(desc, Code::BUILTIN, masm.CodeObject());
+  Handle<ByteArray> reloc_info =
+      isolate->factory()->NewByteArray(desc.reloc_size, TENURED_READ_ONLY);
+  Code::CopyRelocInfoToByteArray(*reloc_info, desc);
+
+  return reloc_info;
 }
 
 // static
