@@ -520,12 +520,12 @@ void ObjectStatsCollectorImpl::RecordVirtualJSCollectionDetails(
   if (object->IsJSMap()) {
     RecordSimpleVirtualObjectStats(
         object, FixedArray::cast(JSMap::cast(object)->table()),
-        ObjectStats::JS_COLLETION_TABLE_TYPE);
+        ObjectStats::JS_COLLECTION_TABLE_TYPE);
   }
   if (object->IsJSSet()) {
     RecordSimpleVirtualObjectStats(
         object, FixedArray::cast(JSSet::cast(object)->table()),
-        ObjectStats::JS_COLLETION_TABLE_TYPE);
+        ObjectStats::JS_COLLECTION_TABLE_TYPE);
   }
 }
 
