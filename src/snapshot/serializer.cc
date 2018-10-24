@@ -740,17 +740,14 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(HeapObject* host,
 
 template <class AllocatorT>
 void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
-    HeapObject* host, MaybeObjectSlot start_slot, MaybeObjectSlot end_slot) {
-  // TODO(3770): Migrate away from MaybeObject*/MaybeObject**.
-  MaybeObject** start = reinterpret_cast<MaybeObject**>(start_slot.address());
-  MaybeObject** end = reinterpret_cast<MaybeObject**>(end_slot.address());
-  MaybeObject** current = start;
+    HeapObject* host, MaybeObjectSlot start, MaybeObjectSlot end) {
+  MaybeObjectSlot current = start;
   while (current < end) {
     while (current < end && ((*current)->IsSmi() || (*current)->IsCleared())) {
-      current++;
+      ++current;
     }
     if (current < end) {
-      OutputRawData(reinterpret_cast<Address>(current));
+      OutputRawData(current.address());
     }
     HeapObject* current_contents;
     HeapObjectReferenceType reference_type;
@@ -763,12 +760,12 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
           serializer_->root_index_map()->Lookup(current_contents,
                                                 &root_index) &&
           RootsTable::IsImmortalImmovable(root_index) &&
-          *current == current[-1]) {
+          *current == *(current - 1)) {
         DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
         DCHECK(!Heap::InNewSpace(current_contents));
         int repeat_count = 1;
-        while (&current[repeat_count] < end - 1 &&
-               current[repeat_count] == *current) {
+        while (current + repeat_count < end - 1 &&
+               *(current + repeat_count) == *current) {
           repeat_count++;
         }
         current += repeat_count;
@@ -786,7 +783,7 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
         serializer_->SerializeObject(current_contents, kPlain, kStartOfObject,
                                      0);
         bytes_processed_so_far_ += kPointerSize;
-        current++;
+        ++current;
       }
     }
   }

@@ -18,23 +18,29 @@ class SlotBase {
     return *static_cast<Subclass*>(this);
   }
 
-  bool operator<(const SlotBase& other) { return ptr_ < other.ptr_; }
-  bool operator<=(const SlotBase& other) { return ptr_ <= other.ptr_; }
-  bool operator==(const SlotBase& other) { return ptr_ == other.ptr_; }
-  size_t operator-(const SlotBase& other) {
+  bool operator<(const SlotBase& other) const { return ptr_ < other.ptr_; }
+  bool operator<=(const SlotBase& other) const { return ptr_ <= other.ptr_; }
+  bool operator==(const SlotBase& other) const { return ptr_ == other.ptr_; }
+  bool operator!=(const SlotBase& other) const { return ptr_ != other.ptr_; }
+  size_t operator-(const SlotBase& other) const {
     DCHECK_GE(ptr_, other.ptr_);
     return static_cast<size_t>((ptr_ - other.ptr_) / kPointerSize);
   }
-  Subclass operator+(int i) { return Subclass(ptr_ + i * kPointerSize); }
+  Subclass operator-(int i) const { return Subclass(ptr_ - i * kPointerSize); }
+  Subclass operator+(int i) const { return Subclass(ptr_ + i * kPointerSize); }
   Subclass& operator+=(int i) {
     ptr_ += i * kPointerSize;
     return *static_cast<Subclass*>(this);
   }
 
-  ValueType operator*() { return *reinterpret_cast<ValueType*>(address()); }
+  ValueType operator*() const {
+    return *reinterpret_cast<ValueType*>(address());
+  }
   void store(ValueType value) {
     *reinterpret_cast<ValueType*>(address()) = value;
   }
+
+  void* ToVoidPtr() const { return reinterpret_cast<void*>(address()); }
 
   Address address() const { return ptr_; }
 
@@ -62,8 +68,6 @@ class ObjectSlot : public SlotBase<ObjectSlot, Object*> {
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T, typename U>
   explicit ObjectSlot(SlotBase<T, U> slot) : SlotBase(slot.address()) {}
-
-  void* ToVoidPtr() const { return reinterpret_cast<void*>(address()); }
 
   inline Object* Relaxed_Load() const;
   inline Object* Relaxed_Load(int offset) const;

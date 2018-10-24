@@ -18,6 +18,7 @@ namespace internal {
 class AllocationSite;
 class HeapObject;
 class Object;
+class UnalignedSlot;
 
 // Used for platforms with embedded constant pools to trigger deserialization
 // of objects found in code.
@@ -105,33 +106,30 @@ class Deserializer : public SerializerDeserializer {
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
-  template <typename T>
-  void UnalignedCopy(T** dest, T** src) {
-    DCHECK(!allocator()->next_reference_is_weak());
-    memcpy(dest, src, sizeof(*src));
-  }
+  void UnalignedCopy(UnalignedSlot dest, MaybeObject* value);
+  void UnalignedCopy(UnalignedSlot dest, Address value);
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
   // of the object we are writing into, or nullptr if we are not writing into an
   // object, i.e. if we are writing a series of tagged values that are not on
   // the heap. Return false if the object content has been deferred.
-  bool ReadData(MaybeObject** start, MaybeObject** end, int space,
+  bool ReadData(UnalignedSlot start, UnalignedSlot end, int space,
                 Address object_address);
 
   // A helper function for ReadData, templatized on the bytecode for efficiency.
   // Returns the new value of {current}.
   template <int where, int how, int within, int space_number_if_any>
-  inline MaybeObject** ReadDataCase(Isolate* isolate, MaybeObject** current,
+  inline UnalignedSlot ReadDataCase(Isolate* isolate, UnalignedSlot current,
                                     Address current_object_address, byte data,
                                     bool write_barrier_needed);
 
   // A helper function for ReadData for reading external references.
   // Returns the new value of {current}.
-  inline void** ReadExternalReferenceCase(HowToCode how, void** current,
-                                          Address current_object_address);
+  inline UnalignedSlot ReadExternalReferenceCase(
+      HowToCode how, UnalignedSlot current, Address current_object_address);
 
-  void ReadObject(int space_number, MaybeObject** write_back,
+  void ReadObject(int space_number, UnalignedSlot write_back,
                   HeapObjectReferenceType reference_type);
 
   // Special handling for serialized code like hooking up internalized strings.
