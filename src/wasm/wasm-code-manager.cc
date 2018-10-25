@@ -341,7 +341,7 @@ NativeModule::NativeModule(Isolate* isolate, const WasmFeatures& enabled,
                            std::shared_ptr<const WasmModule> module)
     : enabled_features_(enabled),
       module_(std::move(module)),
-      compilation_state_(NewCompilationState(isolate, this)),
+      compilation_state_(CompilationState::New(isolate, this)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache(this))),
       free_code_space_(code_space.region()),
@@ -801,7 +801,7 @@ NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
   // Cancel all background compilation before resetting any field of the
   // NativeModule or freeing anything.
-  CancelAndWaitCompilationState(compilation_state_.get());
+  compilation_state_->CancelAndWait();
   wasm_engine_->code_manager()->FreeNativeModule(this);
 }
 

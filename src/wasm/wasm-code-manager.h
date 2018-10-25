@@ -426,7 +426,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // The compilation state keeps track of compilation tasks for this module.
   // Note that its destructor blocks until all tasks are finished/aborted and
   // hence needs to be destructed first when this native module dies.
-  std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
+  std::unique_ptr<CompilationState> compilation_state_;
 
   // A cache of the import wrappers, keyed on the kind and signature.
   std::unique_ptr<WasmImportWrapperCache> import_wrapper_cache_;

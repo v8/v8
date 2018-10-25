@@ -71,18 +71,20 @@ struct CompilationEnv {
         lower_simd(lower_simd) {}
 };
 
-// The implementation of {CompilationState}, {CompilationStateDeleter} and
-// {CancelAndWaitCompilationState} lives in module-compiler.cc.
-struct CompilationStateDeleter {
-  void operator()(CompilationState* compilation_state) const;
+// The implementation of {CompilationState} lives in module-compiler.cc.
+// This is the PIMPL interface to that private class.
+class CompilationState {
+ public:
+  ~CompilationState();
+
+  void CancelAndWait();
+
+ private:
+  friend class NativeModule;
+  CompilationState() = delete;
+
+  static std::unique_ptr<CompilationState> New(Isolate*, NativeModule*);
 };
-
-void CancelAndWaitCompilationState(CompilationState* state);
-
-// Wrapper to create a CompilationState exists in order to avoid having
-// the CompilationState in the header file.
-std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
-    Isolate*, NativeModule*);
 
 }  // namespace wasm
 }  // namespace internal
