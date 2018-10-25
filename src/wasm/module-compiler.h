@@ -173,8 +173,6 @@ class AsyncCompileJob {
   // compilation. The AsyncCompileJob does not actively use the
   // StreamingDecoder.
   std::shared_ptr<StreamingDecoder> stream_;
-
-  bool tiering_completed_ = false;
 };
 }  // namespace wasm
 }  // namespace internal
