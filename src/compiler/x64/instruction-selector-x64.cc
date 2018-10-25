@@ -1671,10 +1671,15 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   // The 32-bit comparisons automatically truncate Word64
   // values to Word32 range, no need to do that explicitly.
   if (opcode == kX64Cmp32 || opcode == kX64Test32) {
-    while (left->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+    if (left->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
+        selector->CanCover(node, left) &&
+        selector->CanCover(left, left->InputAt(0))) {
       left = left->InputAt(0);
     }
-    while (right->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+
+    if (right->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
+        selector->CanCover(node, right) &&
+        selector->CanCover(right, right->InputAt(0))) {
       right = right->InputAt(0);
     }
   }
