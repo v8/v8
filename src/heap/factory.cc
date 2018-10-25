@@ -2569,7 +2569,9 @@ MaybeHandle<Code> Factory::TryNewCode(
     uint32_t stub_key, bool is_turbofanned, int stack_slots,
     int safepoint_table_offset, int handler_table_offset) {
   // Allocate objects needed for code initialization.
-  Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
+  Handle<ByteArray> reloc_info = NewByteArray(
+      desc.reloc_size,
+      Builtins::IsBuiltinId(builtin_index) ? TENURED_READ_ONLY : TENURED);
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
   Handle<ByteArray> source_position_table =
       maybe_source_position_table.is_null()
@@ -2619,7 +2621,9 @@ Handle<Code> Factory::NewCode(
     uint32_t stub_key, bool is_turbofanned, int stack_slots,
     int safepoint_table_offset, int handler_table_offset) {
   // Allocate objects needed for code initialization.
-  Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
+  Handle<ByteArray> reloc_info = NewByteArray(
+      desc.reloc_size,
+      Builtins::IsBuiltinId(builtin_index) ? TENURED_READ_ONLY : TENURED);
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
   Handle<ByteArray> source_position_table =
       maybe_source_position_table.is_null()
