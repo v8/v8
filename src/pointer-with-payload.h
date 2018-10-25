@@ -88,9 +88,9 @@ class PointerWithPayload {
   }
 
   V8_INLINE void SetPayload(PayloadType new_payload) {
-    DCHECK_EQ(static_cast<PayloadType>(new_payload & kPayloadMask),
-              new_payload);
-    pointer_ = (pointer_ & kPointerMask) | static_cast<uintptr_t>(new_payload);
+    uintptr_t new_payload_ptr = static_cast<uintptr_t>(new_payload);
+    DCHECK_EQ(new_payload_ptr & kPayloadMask, new_payload_ptr);
+    pointer_ = (pointer_ & kPointerMask) | new_payload_ptr;
     DCHECK_EQ(GetPayload(), new_payload);
   }
 

@@ -2355,6 +2355,7 @@ v8_source_set("v8_base") {
     "src/pending-compilation-error-handler.h",
     "src/perf-jit.cc",
     "src/perf-jit.h",
+    "src/pointer-with-payload.h",
     "src/profiler/allocation-tracker.cc",
     "src/profiler/allocation-tracker.h",
     "src/profiler/circular-queue-inl.h",
