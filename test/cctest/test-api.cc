@@ -7728,15 +7728,13 @@ static int lookup_count = 0;
 v8::Local<v8::FunctionTemplate> FunctionExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<String> name) {
   lookup_count++;
-  if (name->Equals(isolate->GetCurrentContext(), v8_str("A")).FromJust()) {
+  if (name->StrictEquals(v8_str("A"))) {
     return v8::FunctionTemplate::New(isolate, CallFun,
                                      v8::Integer::New(isolate, 8));
-  } else if (name->Equals(isolate->GetCurrentContext(), v8_str("B"))
-                 .FromJust()) {
+  } else if (name->StrictEquals(v8_str("B"))) {
     return v8::FunctionTemplate::New(isolate, CallFun,
                                      v8::Integer::New(isolate, 7));
-  } else if (name->Equals(isolate->GetCurrentContext(), v8_str("C"))
-                 .FromJust()) {
+  } else if (name->StrictEquals(v8_str("C"))) {
     return v8::FunctionTemplate::New(isolate, CallFun,
                                      v8::Integer::New(isolate, 6));
   } else {
