@@ -1716,7 +1716,6 @@ module array {
 
     // 2. Let obj be ? ToObject(this value).
     const obj: JSReceiver = ToObject(context, receiver);
-    let map: Map = obj.map;
 
     const sortState: FixedArray = AllocateZeroedFixedArray(kSortStateSize);
 
@@ -1724,22 +1723,24 @@ module array {
     sortState[kUserCmpFnIdx] = comparefnObj;
     sortState[kSortComparePtrIdx] =
         comparefnObj != Undefined ? SortCompareUserFn : SortCompareDefault;
-    sortState[kInitialReceiverMapIdx] = map;
     sortState[kBailoutStatusIdx] = kSuccess;
 
+    // 3. Let len be ? ToLength(? Get(obj, "length")).
+    const len: Number = GetLengthProperty(obj);
+
+    if (len < 2) return receiver;
+
+    // TODO(szuend): Investigate performance tradeoff of skipping this step
+    //               for PACKED_* and handling Undefineds during sorting.
+    const nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
+    assert(nofNonUndefined <= len);
+
+    let map: Map = obj.map;
+    sortState[kInitialReceiverMapIdx] = map;
+    sortState[kInitialReceiverLengthIdx] = len;
+
     try {
-      const a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
-
-      // 3. Let len be ? ToLength(? Get(obj, "length")).
-      const len: Smi = a.length;
-      if (len < 2) return receiver;
-
-      // TODO(szuend): Investigate performance tradeoff of skipping this step
-      //               for PACKED_* and handling Undefineds during sorting.
-      const nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
-      assert(a.map == map);
-
-      sortState[kInitialReceiverLengthIdx] = len;
+      let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
       const elementsKind: ElementsKind = map.elements_kind;
       if (IsDoubleElementsKind(elementsKind)) {
@@ -1752,18 +1753,6 @@ module array {
       ArrayTimSort(context, sortState, nofNonUndefined);
     }
     label Slow {
-      // 3. Let len be ? ToLength(? Get(obj, "length")).
-      const len: Number = GetLengthProperty(obj);
-
-      if (len < 2) return receiver;
-      const nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
-
-      sortState[kInitialReceiverLengthIdx] = len;
-
-      // Reload the map, PrepareElementsForSort might have changed the
-      // elements kind.
-      map = obj.map;
-
       if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
           !IsCustomElementsReceiverInstanceType(map.instance_type)) {
         InitializeSortStateAccessor<DictionaryElements>(sortState);
