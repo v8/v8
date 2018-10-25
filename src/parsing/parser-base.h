@@ -3426,17 +3426,13 @@ ParserBase<Impl>::ParseMemberExpression() {
   ExpressionT result;
   if (peek() == Token::FUNCTION) {
     result = ParseFunctionExpression();
-    RETURN_IF_PARSE_ERROR;
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
     result = ParseSuperExpression(is_new);
-    RETURN_IF_PARSE_ERROR;
   } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT) {
     result = ParseImportExpressions();
-    RETURN_IF_PARSE_ERROR;
   } else {
     result = ParsePrimaryExpression();
-    RETURN_IF_PARSE_ERROR;
   }
 
   return ParseMemberExpressionContinuation(result);
@@ -3553,18 +3549,17 @@ ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = ParseExpressionCoverGrammar(true);
+        // TODO(verwaest): Remove once we have FailureExpression.
         RETURN_IF_PARSE_ERROR;
         expression = factory()->NewProperty(expression, index, pos);
         impl()->PushPropertyName(index);
         Expect(Token::RBRACK);
-        RETURN_IF_PARSE_ERROR;
         break;
       }
       case Token::PERIOD: {
         Consume(Token::PERIOD);
         int pos = peek_position();
         ExpressionT key = ParseIdentifierNameOrPrivateName();
-        RETURN_IF_PARSE_ERROR;
         expression = factory()->NewProperty(expression, key, pos);
         break;
       }
@@ -3576,6 +3571,8 @@ ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
           pos = position();
         } else {
           pos = peek_position();
+          // TODO(verwaest): Remove once we have FailureExpression.
+          RETURN_IF_PARSE_ERROR;
           if (expression->IsFunctionLiteral()) {
             // If the tag function looks like an IIFE, set_parenthesized() to
             // force eager compilation.
@@ -3583,7 +3580,6 @@ ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
           }
         }
         expression = ParseTemplateLiteral(expression, pos, true);
-        RETURN_IF_PARSE_ERROR;
         break;
       }
     }
