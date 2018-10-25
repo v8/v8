@@ -1522,11 +1522,9 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
     AllowRestrictedIdentifiers allow_restricted_identifiers) {
   ExpressionClassifier classifier(this);
   auto result = ParseAndClassifyIdentifier();
-  RETURN_IF_PARSE_ERROR_CUSTOM(NullIdentifier);
 
   if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers) {
     ValidateBindingPattern();
-    RETURN_IF_PARSE_ERROR_CUSTOM(NullIdentifier);
   }
 
   return result;
@@ -1628,9 +1626,9 @@ ParserBase<Impl>::ParseIdentifierNameOrPrivateName() {
     key = key_proxy;
   } else {
     name = ParseIdentifierName();
-    RETURN_IF_PARSE_ERROR;
     key = factory()->NewStringLiteral(name, pos);
   }
+  RETURN_IF_PARSE_ERROR;
   impl()->PushLiteralName(name);
   return key;
 }
@@ -4236,7 +4234,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
             nullptr, kind, FunctionLiteral::kAnonymousExpression,
             formal_parameters.scope, &dummy_num_parameters,
             &produced_preparsed_scope_data, false, &hint);
-        RETURN_IF_PARSE_ERROR;
 
         // Validate parameter names. We can do this only after preparsing the
         // function, since the function can declare itself strict.
@@ -4269,7 +4266,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
                           formal_parameters, kind,
                           FunctionLiteral::kAnonymousExpression,
                           FunctionBodyType::kBlock, true);
-        RETURN_IF_PARSE_ERROR;
         expected_property_count = function_state.expected_property_count();
       }
     } else {
@@ -4280,7 +4276,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
                         formal_parameters, kind,
                         FunctionLiteral::kAnonymousExpression,
                         FunctionBodyType::kExpression, accept_IN);
-      RETURN_IF_PARSE_ERROR;
       expected_property_count = function_state.expected_property_count();
     }
 
@@ -4290,10 +4285,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     if (is_strict(language_mode())) {
       CheckStrictOctalLiteral(formal_parameters.scope->start_position(),
                               end_position());
-      RETURN_IF_PARSE_ERROR;
     }
     impl()->CheckConflictingVarDeclarations(formal_parameters.scope);
-    RETURN_IF_PARSE_ERROR;
 
     impl()->RewriteDestructuringAssignments();
     suspend_count = function_state.suspend_count();
@@ -4354,23 +4347,19 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
   impl()->DeclareClassVariable(name, &class_info, class_token_pos);
-  RETURN_IF_PARSE_ERROR;
 
   scope()->set_start_position(end_position());
   if (Check(Token::EXTENDS)) {
     FuncNameInferrerState fni_state(&fni_);
     ExpressionClassifier extends_classifier(this);
     class_info.extends = ParseLeftHandSideExpression();
-    RETURN_IF_PARSE_ERROR;
     ValidateExpression();
-    RETURN_IF_PARSE_ERROR;
     AccumulateFormalParameterContainmentErrors();
   }
 
   ClassLiteralChecker checker(this);
 
   Expect(Token::LBRACE);
-  RETURN_IF_PARSE_ERROR;
 
   const bool has_extends = !impl()->IsNull(class_info.extends);
   while (peek() != Token::RBRACE) {
@@ -4400,18 +4389,16 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
     is_constructor &= class_info.has_seen_constructor;
     ValidateExpression();
-    RETURN_IF_PARSE_ERROR;
     AccumulateFormalParameterContainmentErrors();
 
+    RETURN_IF_PARSE_ERROR;
     impl()->DeclareClassProperty(name, property, property_name, property_kind,
                                  is_static, is_constructor, is_computed_name,
                                  is_private, &class_info);
-    RETURN_IF_PARSE_ERROR;
     impl()->InferFunctionName();
   }
 
   Expect(Token::RBRACE);
-  RETURN_IF_PARSE_ERROR;
   int end_pos = end_position();
   block_scope->set_end_position(end_pos);
   return impl()->RewriteClassLiteral(block_scope, name, &class_info,
@@ -4424,10 +4411,8 @@ void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope,
   BlockT block = factory()->NewBlock(8, true);
 
   ParseStatementList(block->statements(), Token::RBRACE);
-  RETURN_IF_PARSE_ERROR_VOID;
   impl()->RewriteAsyncFunctionBody(
       body, block, factory()->NewUndefinedLiteral(kNoSourcePosition));
-  RETURN_IF_PARSE_ERROR_VOID;
   scope->set_end_position(end_position());
 }
 
@@ -4465,7 +4450,6 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral() {
     bool is_await = false;
     name = ParseIdentifierOrStrictReservedWord(kind, &is_strict_reserved,
                                                &is_await);
-    RETURN_IF_PARSE_ERROR;
     // If the function name is "await", ParseIdentifierOrStrictReservedWord
     // recognized the error.
     DCHECK(!is_await);
@@ -4508,7 +4492,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
     int pos = position();
     typename Impl::TemplateLiteralState ts = impl()->OpenTemplateLiteral(pos);
     bool is_valid = CheckTemplateEscapes(forbid_illegal_escapes);
-    RETURN_IF_PARSE_ERROR;
     impl()->AddTemplateSpan(&ts, is_valid, true);
     return impl()->CloseTemplateLiteral(&ts, start, tag);
   }
@@ -4517,7 +4500,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
   int pos = position();
   typename Impl::TemplateLiteralState ts = impl()->OpenTemplateLiteral(pos);
   bool is_valid = CheckTemplateEscapes(forbid_illegal_escapes);
-  RETURN_IF_PARSE_ERROR;
   impl()->AddTemplateSpan(&ts, is_valid, false);
   Token::Value next;
 
@@ -4530,6 +4512,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
 
     int expr_pos = peek_position();
     ExpressionT expression = ParseExpressionCoverGrammar(true);
+    // TODO(verwaest): Remove once we have FailureExpression.
     RETURN_IF_PARSE_ERROR;
     impl()->AddTemplateExpression(&ts, expression);
 
@@ -4546,10 +4529,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
     pos = position();
 
     bool is_valid = CheckTemplateEscapes(forbid_illegal_escapes);
-    RETURN_IF_PARSE_ERROR;
     impl()->AddTemplateSpan(&ts, is_valid, next == Token::TEMPLATE_TAIL);
   } while (next == Token::TEMPLATE_SPAN);
 
+  RETURN_IF_PARSE_ERROR;
   DCHECK_EQ(next, Token::TEMPLATE_TAIL);
   // Once we've reached a TEMPLATE_TAIL, we can close the TemplateLiteral.
   return impl()->CloseTemplateLiteral(&ts, start, tag);
