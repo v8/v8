@@ -381,7 +381,8 @@ DEFINE_BOOL(block_concurrent_recompilation, false,
             "block queued jobs until released")
 DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
-DEFINE_BOOL(strict_heap_broker, false, "fail on incomplete serialization")
+DEFINE_IMPLICATION(future, concurrent_inlining)
+DEFINE_BOOL(strict_heap_broker, true, "fail on incomplete serialization")
 DEFINE_BOOL(trace_heap_broker, false, "trace the heap broker")
 
 // Flags for stress-testing the compiler.
