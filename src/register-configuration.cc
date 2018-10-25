@@ -166,7 +166,7 @@ static base::LazyInstance<ArchDefaultPoisoningRegisterConfiguration,
                           PoisoningRegisterConfigurationInitializer>::type
     kDefaultPoisoningRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
 
-#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+#ifdef V8_TARGET_ARCH_IA32
 // Allocatable registers with the root register removed.
 // TODO(v8:6666): Once all builtins have been migrated, we could remove this
 // configuration and remove kRootRegister from ALLOCATABLE_GENERAL_REGISTERS
@@ -213,7 +213,7 @@ struct PreserveRootIA32RegisterConfigurationInitializer {
 static base::LazyInstance<ArchPreserveRootIA32RegisterConfiguration,
                           PreserveRootIA32RegisterConfigurationInitializer>::
     type kPreserveRootIA32RegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
-#endif  // defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+#endif  // V8_TARGET_ARCH_IA32
 
 // RestrictedRegisterConfiguration uses the subset of allocatable general
 // registers the architecture support, which results into generating assembly
@@ -267,11 +267,11 @@ const RegisterConfiguration* RegisterConfiguration::Poisoning() {
   return &kDefaultPoisoningRegisterConfiguration.Get();
 }
 
-#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+#ifdef V8_TARGET_ARCH_IA32
 const RegisterConfiguration* RegisterConfiguration::PreserveRootIA32() {
   return &kPreserveRootIA32RegisterConfiguration.Get();
 }
-#endif  // defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+#endif  // V8_TARGET_ARCH_IA32
 
 const RegisterConfiguration* RegisterConfiguration::RestrictGeneralRegisters(
     RegList registers) {

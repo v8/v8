@@ -21,7 +21,6 @@ constexpr Register kReturnRegister2 = edi;
 constexpr Register kJSFunctionRegister = edi;
 constexpr Register kContextRegister = esi;
 constexpr Register kAllocateSizeRegister = edx;
-constexpr Register kSpeculationPoisonRegister = ebx;
 constexpr Register kInterpreterAccumulatorRegister = eax;
 constexpr Register kInterpreterBytecodeOffsetRegister = edx;
 constexpr Register kInterpreterBytecodeArrayRegister = edi;
@@ -48,6 +47,9 @@ constexpr Register kWasmInstanceRegister = esi;
 constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
 constexpr Register kRootRegister = ebx;
+
+// TODO(860429): Remove remaining poisoning infrastructure on ia32.
+constexpr Register kSpeculationPoisonRegister = no_reg;
 
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
@@ -454,7 +456,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // This is an alternative to embedding the {CodeObject} handle as a reference.
   void ComputeCodeStartAddress(Register dst);
 
-  void ResetSpeculationPoisonRegister();
+  // TODO(860429): Remove remaining poisoning infrastructure on ia32.
+  void ResetSpeculationPoisonRegister() { UNREACHABLE(); }
 };
 
 // MacroAssembler implements a collection of frequently used macros.
