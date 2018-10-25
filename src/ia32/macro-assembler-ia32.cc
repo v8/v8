@@ -41,15 +41,9 @@ MacroAssembler::MacroAssembler(Isolate* isolate,
     code_object_ = Handle<HeapObject>::New(
         *isolate->factory()->NewSelfReferenceMarker(), isolate);
   }
-  // TODO(jgruber, v8:6666): Remove once root register is always available.
-  set_root_array_available(FLAG_embedded_builtins);
 }
 
 void TurboAssembler::InitializeRootRegister() {
-  // TODO(v8:6666): Initialize unconditionally once poisoning support has been
-  // removed.
-  if (!FLAG_embedded_builtins) return;
-
   ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
   Move(kRootRegister, Immediate(isolate_root));
 }
@@ -1997,10 +1991,6 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   if (pc != 0) {
     sub(dst, Immediate(pc));
   }
-}
-
-void TurboAssembler::ResetSpeculationPoisonRegister() {
-  mov(kSpeculationPoisonRegister, Immediate(-1));
 }
 
 }  // namespace internal

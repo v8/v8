@@ -1334,13 +1334,8 @@ namespace {
 void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool java_script_builtin,
                                       bool with_result) {
-#ifdef V8_EMBEDDED_BUILTINS
-  // TODO(v8:6666): Fold into Default config once root is fully supported.
   const RegisterConfiguration* config(
       RegisterConfiguration::PreserveRootIA32());
-#else
-  const RegisterConfiguration* config(RegisterConfiguration::Default());
-#endif
   int allocatable_register_count = config->num_allocatable_general_registers();
   if (with_result) {
     // Overwrite the hole inserted by the deoptimizer with the return value from
@@ -1370,32 +1365,20 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
 }  // namespace
 
 void Builtins::Generate_ContinueToCodeStubBuiltin(MacroAssembler* masm) {
-#ifdef V8_EMBEDDED_BUILTINS
-  // TODO(v8:6666): Remove the ifdef once root is preserved by default.
-#endif
   Generate_ContinueToBuiltinHelper(masm, false, false);
 }
 
 void Builtins::Generate_ContinueToCodeStubBuiltinWithResult(
     MacroAssembler* masm) {
-#ifdef V8_EMBEDDED_BUILTINS
-  // TODO(v8:6666): Remove the ifdef once root is preserved by default.
-#endif
   Generate_ContinueToBuiltinHelper(masm, false, true);
 }
 
 void Builtins::Generate_ContinueToJavaScriptBuiltin(MacroAssembler* masm) {
-#ifdef V8_EMBEDDED_BUILTINS
-  // TODO(v8:6666): Remove the ifdef once root is preserved by default.
-#endif
   Generate_ContinueToBuiltinHelper(masm, true, false);
 }
 
 void Builtins::Generate_ContinueToJavaScriptBuiltinWithResult(
     MacroAssembler* masm) {
-#ifdef V8_EMBEDDED_BUILTINS
-  // TODO(v8:6666): Remove the ifdef once root is preserved by default.
-#endif
   Generate_ContinueToBuiltinHelper(masm, true, true);
 }
 
@@ -2507,10 +2490,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // If argv_mode == kArgvInRegister:
   // ecx: pointer to the first argument
 
-#ifdef V8_EMBEDDED_BUILTINS
-  // TODO(v8:6666): Remove the ifdef once branch load poisoning is removed.
-#endif
-
   STATIC_ASSERT(eax == kRuntimeCallArgCountRegister);
   STATIC_ASSERT(ecx == kRuntimeCallArgvRegister);
   STATIC_ASSERT(edx == kRuntimeCallFunctionRegister);
@@ -2631,17 +2610,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ j(zero, &skip, Label::kNear);
   __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
   __ bind(&skip);
-
-#ifdef V8_EMBEDDED_BUILTINS
-  STATIC_ASSERT(kRootRegister == kSpeculationPoisonRegister);
-  CHECK(!FLAG_untrusted_code_mitigations);
-#else
-  // Reset the masking register. This is done independent of the underlying
-  // feature flag {FLAG_untrusted_code_mitigations} to make the snapshot work
-  // with both configurations. It is safe to always do this, because the
-  // underlying register is caller-saved and can be arbitrarily clobbered.
-  __ ResetSpeculationPoisonRegister();
-#endif
 
   // Compute the handler entry address and jump to it.
   __ mov(edi, __ ExternalReferenceAsOperand(pending_handler_entrypoint_address,

@@ -361,7 +361,7 @@ class TestEnvironment : public HandleAndZoneScope {
  public:
   // These constants may be tuned to experiment with different environments.
 
-#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+#ifdef V8_TARGET_ARCH_IA32
   static constexpr int kGeneralRegisterCount = 3;
 #else
   static constexpr int kGeneralRegisterCount = 4;

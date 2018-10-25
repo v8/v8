@@ -1353,7 +1353,6 @@ void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
   // For Word64 operations, the value input is split into the a high node,
   // and a low node in the int64-lowering phase.
   Node* value_high = node->InputAt(3);
-  bool block_root_register = !FLAG_embedded_builtins;
 
   // Wasm lives in 32-bit address space, so we do not need to worry about
   // base/index lowering. This will need to be fixed for Wasm64.
@@ -1366,22 +1365,19 @@ void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   if (projection1) {
-    InstructionOperand temps[] = {g.TempRegister(ebx)};
     InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax),
                                     g.DefineAsFixed(projection1, edx)};
-    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
     selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-                   num_temps, temps);
+                   0, {});
   } else if (projection0) {
     InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax)};
-    InstructionOperand temps[] = {g.TempRegister(edx), g.TempRegister(ebx)};
-    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    InstructionOperand temps[] = {g.TempRegister(edx)};
+    const int num_temps = arraysize(temps);
     selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                    num_temps, temps);
   } else {
-    InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx),
-                                  g.TempRegister(ebx)};
-    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
+    const int num_temps = arraysize(temps);
     selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, num_temps,
                    temps);
   }
@@ -1803,7 +1799,6 @@ void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   Node* value_high = node->InputAt(3);
-  bool block_root_register = !FLAG_embedded_builtins;
 
   AddressingMode addressing_mode;
   InstructionOperand inputs[] = {
@@ -1813,9 +1808,8 @@ void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
   // Allocating temp registers here as stores are performed using an atomic
   // exchange, the output of which is stored in edx:eax, which should be saved
   // and restored at the end of the instruction.
-  InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx),
-                                g.TempRegister(ebx)};
-  const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+  InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
+  const int num_temps = arraysize(temps);
   InstructionCode code =
       kIA32Word32AtomicPairStore | AddressingModeField::encode(addressing_mode);
   Emit(code, 0, nullptr, arraysize(inputs), inputs, num_temps, temps);
@@ -1849,7 +1843,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   IA32OperandGenerator g(this);
   Node* index = node->InputAt(1);
   AddressingMode addressing_mode;
-  bool block_root_register = !FLAG_embedded_builtins;
 
   InstructionOperand inputs[] = {
       // High, Low values of old value
@@ -1866,22 +1859,18 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
                          AddressingModeField::encode(addressing_mode);
 
   if (projection1) {
-    InstructionOperand temps[] = {g.TempRegister(ebx)};
     InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax),
                                     g.DefineAsFixed(projection1, edx)};
-    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         num_temps, temps);
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs, 0, {});
   } else if (projection0) {
     InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax)};
-    InstructionOperand temps[] = {g.TempRegister(edx), g.TempRegister(ebx)};
-    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    InstructionOperand temps[] = {g.TempRegister(edx)};
+    const int num_temps = arraysize(temps);
     Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
          num_temps, temps);
   } else {
-    InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx),
-                                  g.TempRegister(ebx)};
-    const int num_temps = arraysize(temps) - (block_root_register ? 0 : 1);
+    InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
+    const int num_temps = arraysize(temps);
     Emit(code, 0, nullptr, arraysize(inputs), inputs, num_temps, temps);
   }
 }
