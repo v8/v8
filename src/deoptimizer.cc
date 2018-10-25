@@ -809,9 +809,16 @@ void Deoptimizer::DoComputeOutputFrames() {
     }
   }
 
-  FrameDescription* topmost = output_[count - 1];
-  topmost->GetRegisterValues()->SetRegister(kRootRegister.code(),
-                                            isolate()->isolate_root());
+#if defined(V8_TARGET_ARCH_IA32)
+  constexpr bool kShouldInitializeRootRegister = FLAG_embedded_builtins;
+#else
+  constexpr bool kShouldInitializeRootRegister = true;
+#endif
+  if (kShouldInitializeRootRegister) {
+    FrameDescription* topmost = output_[count - 1];
+    topmost->GetRegisterValues()->SetRegister(kRootRegister.code(),
+                                              isolate()->isolate_root());
+  }
 
   // Print some helpful diagnostic information.
   if (trace_scope_ != nullptr) {
@@ -1477,7 +1484,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   const bool must_handle_result =
       !is_topmost || deopt_kind_ == DeoptimizeKind::kLazy;
 
-#ifdef V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
   // TODO(v8:6666): Fold into Default config once root is fully supported.
   const RegisterConfiguration* config(
       RegisterConfiguration::PreserveRootIA32());

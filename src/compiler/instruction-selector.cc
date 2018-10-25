@@ -1015,7 +1015,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison &&
           unallocated.HasFixedRegisterPolicy()) {
         int reg = unallocated.fixed_register_index();
-        if (Register::from_code(reg) == kSpeculationPoisonRegister) {
+        if (reg == kSpeculationPoisonRegister.code()) {
           buffer->instruction_args[poison_alias_index] = g.TempImmediate(
               static_cast<int32_t>(buffer->instruction_args.size()));
           op = g.UseRegisterOrSlotOrConstant(*iter);
@@ -2590,6 +2590,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   if (flags & CallDescriptor::kAllowCallThroughSlot) {
     // TODO(v8:6666): Remove kAllowCallThroughSlot and use a pc-relative call
     // instead once builtins are embedded in every build configuration.
+    DCHECK(FLAG_embedded_builtins);
     call_buffer_flags |= kAllowCallThroughSlot;
 #ifndef V8_TARGET_ARCH_32_BIT
     // kAllowCallThroughSlot is only supported on ia32.

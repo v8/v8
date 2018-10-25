@@ -2458,24 +2458,28 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     std::unique_ptr<const RegisterConfiguration> config;
     config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
     AllocateRegisters(config.get(), call_descriptor, run_verifier);
-#ifdef V8_TARGET_ARCH_IA32
-  } else {
-    // TODO(v8:6666): Ensure that that this configuration cooperates with
-    // restricted allocatable registers above, i.e. that we guarantee a
-    // restricted configuration cannot allocate kRootRegister on ia32.
-    AllocateRegisters(RegisterConfiguration::PreserveRootIA32(),
-                      call_descriptor, run_verifier);
-  }
-#else
   } else if (data->info()->GetPoisoningMitigationLevel() !=
              PoisoningMitigationLevel::kDontPoison) {
+#if defined(V8_TARGET_ARCH_IA32)
+    DCHECK(!FLAG_embedded_builtins);
+#endif
     AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
                       run_verifier);
   } else {
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+    // TODO(v8:6666): Ensure that that this configuration cooperates with
+    // restricted allocatable registers above, i.e. that we guarantee a
+    // restricted configuration cannot allocate kRootRegister on ia32.
+    static_assert(kRootRegister == kSpeculationPoisonRegister,
+                  "The following checks assume root equals poison register");
+    CHECK(!FLAG_untrusted_code_mitigations);
+    AllocateRegisters(RegisterConfiguration::PreserveRootIA32(),
+                      call_descriptor, run_verifier);
+#else
     AllocateRegisters(RegisterConfiguration::Default(), call_descriptor,
                       run_verifier);
+#endif  // defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
   }
-#endif  // V8_TARGET_ARCH_IA32
 
   // Verify the instruction sequence has the same hash in two stages.
   VerifyGeneratedCodeIsIdempotent();
