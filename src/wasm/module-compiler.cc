@@ -2238,6 +2238,41 @@ AsyncCompileJob::~AsyncCompileJob() {
   for (auto d : deferred_handles_) delete d;
 }
 
+void AsyncCompileJob::PrepareRuntimeObjects(
+    std::shared_ptr<const WasmModule> module) {
+  // Embedder usage count for declared shared memories.
+  if (module->has_shared_memory) {
+    isolate_->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
+  }
+
+  // Create heap objects for script and module bytes to be stored in the
+  // module object. Asm.js is not compiled asynchronously.
+  Handle<Script> script =
+      CreateWasmScript(isolate_, wire_bytes_, module->source_map_url);
+  Handle<ByteArray> asm_js_offset_table;
+
+  // TODO(wasm): Improve efficiency of storing module wire bytes. Only store
+  // relevant sections, not function bodies
+
+  // Create the module object and populate with compiled functions and
+  // information needed at instantiation time.
+  // TODO(clemensh): For the same module (same bytes / same hash), we should
+  // only have one {WasmModuleObject}. Otherwise, we might only set
+  // breakpoints on a (potentially empty) subset of the instances.
+  // Create the module object.
+  module_object_ =
+      WasmModuleObject::New(isolate_, enabled_features_, std::move(module),
+                            {std::move(bytes_copy_), wire_bytes_.length()},
+                            script, asm_js_offset_table);
+  native_module_ = module_object_->native_module();
+
+  {
+    DeferredHandleScope deferred(isolate_);
+    module_object_ = handle(*module_object_, isolate_);
+    deferred_handles_.push_back(deferred.Detach());
+  }
+}
+
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
 void AsyncCompileJob::FinishCompile(bool compile_wrappers) {
@@ -2469,41 +2504,10 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // is done.
     job_->background_task_manager_.CancelAndWait();
 
-    // Embedder usage count for declared shared memories.
-    if (module_->has_shared_memory) {
-      job_->isolate_->CountUsage(
-          v8::Isolate::UseCounterFeature::kWasmSharedMemory);
-    }
+    job_->PrepareRuntimeObjects(module_);
 
-    // Create heap objects for script and module bytes to be stored in the
-    // module object. Asm.js is not compiled asynchronously.
-    const WasmModule* module = module_.get();
-    Handle<Script> script = CreateWasmScript(job_->isolate_, job_->wire_bytes_,
-                                             module->source_map_url);
-    Handle<ByteArray> asm_js_offset_table;
-
-    // TODO(wasm): Improve efficiency of storing module wire bytes. Only store
-    // relevant sections, not function bodies
-
-    // Create the module object and populate with compiled functions and
-    // information needed at instantiation time.
-    // TODO(clemensh): For the same module (same bytes / same hash), we should
-    // only have one {WasmModuleObject}. Otherwise, we might only set
-    // breakpoints on a (potentially empty) subset of the instances.
-    // Create the module object.
-    job_->module_object_ = WasmModuleObject::New(
-        job_->isolate_, job_->enabled_features_, module_,
-        {std::move(job_->bytes_copy_), job_->wire_bytes_.length()}, script,
-        asm_js_offset_table);
-    job_->native_module_ = job_->module_object_->native_module();
-
-    {
-      DeferredHandleScope deferred(job_->isolate_);
-      job_->module_object_ = handle(*job_->module_object_, job_->isolate_);
-      job_->deferred_handles_.push_back(deferred.Detach());
-    }
     size_t num_functions =
-        module->functions.size() - module->num_imported_functions;
+        module_->functions.size() - module_->num_imported_functions;
 
     if (num_functions == 0) {
       // Degenerate case of an empty module.
@@ -2569,7 +2573,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // then DoAsync would do the same as NextStep already.
 
       compilation_state->SetNumberOfFunctionsToCompile(
-          module->num_declared_functions);
+          module_->num_declared_functions);
       // Add compilation units and kick off compilation.
       InitializeCompilationUnits(job_->native_module_);
     }
@@ -2776,14 +2780,10 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   DCHECK(result.ok());
   bool needs_finish = job_->DecrementAndCheckFinisherCount();
   if (job_->native_module_ == nullptr) {
-    // We are processing a WebAssembly module without code section. We need to
-    // prepare compilation first before we can finish it.
-    // {PrepareAndStartCompile} will call {FinishCompile} by itself if there
-    // is no code section.
+    // We are processing a WebAssembly module without code section. Create the
+    // runtime objects now (would otherwise happen in {PrepareAndStartCompile}.
+    job_->PrepareRuntimeObjects(std::move(result).value());
     DCHECK(needs_finish);
-    needs_finish = false;
-    job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
-        std::move(result).value(), true);
   }
   job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
   job_->native_module_->set_wire_bytes(std::move(bytes));
