@@ -66,6 +66,16 @@ TF_BUILTIN(WasmCallJavaScript, WasmBuiltinsAssembler) {
   TailCallStub(CallTrampolineDescriptor{}, target, context, function, argc);
 }
 
+TF_BUILTIN(WasmRecordWrite, WasmBuiltinsAssembler) {
+  TNode<Object> object = UncheckedParameter(Descriptor::kObject);
+  TNode<Object> slot = UncheckedParameter(Descriptor::kSlot);
+  TNode<Object> remembered = UncheckedParameter(Descriptor::kRememberedSet);
+  TNode<Object> fp_mode = UncheckedParameter(Descriptor::kFPMode);
+  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kRecordWrite);
+  TailCallStub(RecordWriteDescriptor{}, target, NoContextConstant(), object,
+               slot, remembered, fp_mode);
+}
+
 TF_BUILTIN(WasmToNumber, WasmBuiltinsAssembler) {
   TNode<Object> context = UncheckedParameter(Descriptor::kContext);
   TNode<Object> argument = UncheckedParameter(Descriptor::kArgument);

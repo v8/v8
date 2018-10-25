@@ -470,6 +470,7 @@ class WasmGraphBuilder {
   void BuildEncodeException32BitValue(Node* values_array, uint32_t* index,
                                       Node* value);
   Node* BuildDecodeException32BitValue(Node* const* values, uint32_t* index);
+  Node* BuildDecodeException64BitValue(Node* const* values, uint32_t* index);
 
   Node** Realloc(Node* const* buffer, size_t old_count, size_t new_count) {
     Node** buf = Buffer(new_count);

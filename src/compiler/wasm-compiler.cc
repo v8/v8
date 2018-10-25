@@ -98,9 +98,8 @@ MachineType assert_size(int expected_size, MachineType type) {
   LOAD_TAGGED_POINTER(                           \
       array_node, wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index))
 
-// TODO(mstarzinger): This macro only works for Smi values and needs to be
-// extended appropriately before it can be used for tagged pointers.
-#define STORE_FIXED_ARRAY_SLOT(array_node, index, value)               \
+// This can be used to store tagged Smi values only.
+#define STORE_FIXED_ARRAY_SLOT_SMI(array_node, index, value)           \
   SetEffect(graph()->NewNode(                                          \
       mcgraph()->machine()->Store(StoreRepresentation(                 \
           MachineRepresentation::kTaggedSigned, kNoWriteBarrier)),     \
@@ -109,7 +108,15 @@ MachineType assert_size(int expected_size, MachineType type) {
           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index)), \
       value, Effect(), Control()))
 
-constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
+// This can be used to store any tagged (Smi and HeapObject) value.
+#define STORE_FIXED_ARRAY_SLOT_ANY(array_node, index, value)           \
+  SetEffect(graph()->NewNode(                                          \
+      mcgraph()->machine()->Store(StoreRepresentation(                 \
+          MachineRepresentation::kTagged, kFullWriteBarrier)),         \
+      array_node,                                                      \
+      mcgraph()->Int32Constant(                                        \
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index)), \
+      value, Effect(), Control()))
 
 void MergeControlToEnd(MachineGraph* mcgraph, Node* node) {
   Graph* g = mcgraph->graph();
@@ -2041,16 +2048,50 @@ Node* WasmGraphBuilder::GrowMemory(Node* input) {
                                   call_target, input, Effect(), Control())));
 }
 
+#ifdef DEBUG
+
+namespace {
+
+constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
+
+size_t ComputeEncodedElementSize(wasm::ValueType type) {
+  size_t byte_size =
+      static_cast<size_t>(wasm::ValueTypes::ElementSizeInBytes(type));
+  DCHECK_EQ(byte_size % kBytesPerExceptionValuesArrayElement, 0);
+  DCHECK_LE(1, byte_size / kBytesPerExceptionValuesArrayElement);
+  return byte_size / kBytesPerExceptionValuesArrayElement;
+}
+
+}  // namespace
+
+#endif  // DEBUG
+
 uint32_t WasmGraphBuilder::GetExceptionEncodedSize(
     const wasm::WasmException* exception) const {
   const wasm::WasmExceptionSig* sig = exception->sig;
   uint32_t encoded_size = 0;
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
-    size_t byte_size = static_cast<size_t>(
-        wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)));
-    DCHECK_EQ(byte_size % kBytesPerExceptionValuesArrayElement, 0);
-    DCHECK_LE(1, byte_size / kBytesPerExceptionValuesArrayElement);
-    encoded_size += byte_size / kBytesPerExceptionValuesArrayElement;
+    switch (sig->GetParam(i)) {
+      case wasm::kWasmI32:
+      case wasm::kWasmF32:
+        DCHECK_EQ(2, ComputeEncodedElementSize(sig->GetParam(i)));
+        encoded_size += 2;
+        break;
+      case wasm::kWasmI64:
+      case wasm::kWasmF64:
+        DCHECK_EQ(4, ComputeEncodedElementSize(sig->GetParam(i)));
+        encoded_size += 4;
+        break;
+      case wasm::kWasmS128:
+        // TODO(mstarzinger): Implement and test this case.
+        UNIMPLEMENTED();
+        break;
+      case wasm::kWasmAnyRef:
+        encoded_size += 1;
+        break;
+      default:
+        UNREACHABLE();
+    }
   }
   return encoded_size;
 }
@@ -2092,6 +2133,10 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         BuildEncodeException32BitValue(values_array, &index, lower32);
         break;
       }
+      case wasm::kWasmAnyRef:
+        STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
+        ++index;
+        break;
       default:
         UNREACHABLE();
     }
@@ -2115,11 +2160,11 @@ void WasmGraphBuilder::BuildEncodeException32BitValue(Node* values_array,
   MachineOperatorBuilder* machine = mcgraph()->machine();
   Node* upper_halfword_as_smi = BuildChangeUint31ToSmi(
       graph()->NewNode(machine->Word32Shr(), value, Int32Constant(16)));
-  STORE_FIXED_ARRAY_SLOT(values_array, *index, upper_halfword_as_smi);
+  STORE_FIXED_ARRAY_SLOT_SMI(values_array, *index, upper_halfword_as_smi);
   ++(*index);
   Node* lower_halfword_as_smi = BuildChangeUint31ToSmi(
       graph()->NewNode(machine->Word32And(), value, Int32Constant(0xFFFFu)));
-  STORE_FIXED_ARRAY_SLOT(values_array, *index, lower_halfword_as_smi);
+  STORE_FIXED_ARRAY_SLOT_SMI(values_array, *index, lower_halfword_as_smi);
   ++(*index);
 }
 
@@ -2133,6 +2178,17 @@ Node* WasmGraphBuilder::BuildDecodeException32BitValue(Node* const* values,
   (*index)++;
   Node* value = graph()->NewNode(machine->Word32Or(), upper, lower);
   return value;
+}
+
+Node* WasmGraphBuilder::BuildDecodeException64BitValue(Node* const* values,
+                                                       uint32_t* index) {
+  Node* upper = Binop(wasm::kExprI64Shl,
+                      Unop(wasm::kExprI64UConvertI32,
+                           BuildDecodeException32BitValue(values, index)),
+                      Int64Constant(32));
+  Node* lower = Unop(wasm::kExprI64UConvertI32,
+                     BuildDecodeException32BitValue(values, index));
+  return Binop(wasm::kExprI64Ior, upper, lower);
 }
 
 Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
@@ -2186,27 +2242,28 @@ Node** WasmGraphBuilder::GetExceptionValues(
   uint32_t index = 0;
   const wasm::WasmExceptionSig* sig = except_decl->sig;
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
-    Node* value = BuildDecodeException32BitValue(values, &index);
-    switch (wasm::ValueType type = sig->GetParam(i)) {
-      case wasm::kWasmF32: {
-        value = Unop(wasm::kExprF32ReinterpretI32, value);
-        break;
-      }
+    Node* value;
+    switch (sig->GetParam(i)) {
       case wasm::kWasmI32:
+        value = BuildDecodeException32BitValue(values, &index);
         break;
-      case wasm::kWasmF64:
-      case wasm::kWasmI64: {
-        Node* upper =
-            Binop(wasm::kExprI64Shl, Unop(wasm::kExprI64UConvertI32, value),
-                  Int64Constant(32));
-        Node* lower = Unop(wasm::kExprI64UConvertI32,
-                           BuildDecodeException32BitValue(values, &index));
-        value = Binop(wasm::kExprI64Ior, upper, lower);
-        if (type == wasm::kWasmF64) {
-          value = Unop(wasm::kExprF64ReinterpretI64, value);
-        }
+      case wasm::kWasmI64:
+        value = BuildDecodeException64BitValue(values, &index);
+        break;
+      case wasm::kWasmF32: {
+        value = Unop(wasm::kExprF32ReinterpretI32,
+                     BuildDecodeException32BitValue(values, &index));
         break;
       }
+      case wasm::kWasmF64: {
+        value = Unop(wasm::kExprF64ReinterpretI64,
+                     BuildDecodeException64BitValue(values, &index));
+        break;
+      }
+      case wasm::kWasmAnyRef:
+        value = values[index];
+        ++index;
+        break;
       default:
         UNREACHABLE();
     }
@@ -5485,7 +5542,8 @@ AssemblerOptions WasmAssemblerOptions() {
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_TAGGED_POINTER
 #undef LOAD_FIXED_ARRAY_SLOT
-#undef STORE_FIXED_ARRAY_SLOT
+#undef STORE_FIXED_ARRAY_SLOT_SMI
+#undef STORE_FIXED_ARRAY_SLOT_ANY
 
 }  // namespace compiler
 }  // namespace internal
