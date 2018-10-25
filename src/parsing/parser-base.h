@@ -946,9 +946,10 @@ class ParserBase {
       }
     } else if (!classifier()->is_valid_arrow_formal_parameters()) {
       ReportClassifierError(classifier()->arrow_formal_parameters_error());
+    } else {
+      DCHECK_IMPLIES(is_async,
+                     classifier()->is_valid_async_arrow_formal_parameters());
     }
-    DCHECK_IMPLIES(is_async,
-                   classifier()->is_valid_async_arrow_formal_parameters());
   }
 
   void ValidateLetPattern() {
