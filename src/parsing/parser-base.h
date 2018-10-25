@@ -3507,7 +3507,6 @@ void ParserBase<Impl>::ExpectMetaProperty(Token::Value property_name,
                                           const char* full_name, int pos) {
   Consume(Token::PERIOD);
   ExpectContextualKeyword(property_name);
-  RETURN_IF_PARSE_ERROR_CUSTOM(Void);
   if (scanner()->literal_contains_escapes()) {
     impl()->ReportMessageAt(Scanner::Location(pos, end_position()),
                             MessageTemplate::kInvalidEscapedMetaProperty,
