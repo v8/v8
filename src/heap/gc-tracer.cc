@@ -1134,13 +1134,41 @@ void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
       current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE]
           .duration +
       atomic_pause_duration;
+  const double background_duration =
+      background_counter_[BackgroundScope::MC_BACKGROUND_EVACUATE_COPY]
+          .total_duration_ms +
+      background_counter_
+          [BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]
+              .total_duration_ms +
+      background_counter_[BackgroundScope::MC_BACKGROUND_MARKING]
+          .total_duration_ms +
+      background_counter_[BackgroundScope::MC_BACKGROUND_SWEEPING]
+          .total_duration_ms;
+
+  const double marking_duration =
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_START]
+          .duration +
+      incremental_marking_duration_ +
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE]
+          .duration +
+      current_.scopes[Scope::MC_MARK];
+  const double marking_background_duration =
+      background_counter_[BackgroundScope::MC_BACKGROUND_MARKING]
+          .total_duration_ms;
+
+  // UMA.
   heap_->isolate()->counters()->gc_mark_compactor()->AddSample(
       static_cast<int>(overall_duration));
 
   // Emit trace event counters.
-  TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+  TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                        "V8.GCMarkCompactorSummary", TRACE_EVENT_SCOPE_THREAD,
-                       "duration", overall_duration);
+                       "duration", overall_duration, "background_duration",
+                       background_duration);
+  TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                       "V8.GCMarkCompactorMarkingSummary",
+                       TRACE_EVENT_SCOPE_THREAD, "duration", marking_duration,
+                       "background_duration", marking_background_duration);
 }
 
 }  // namespace internal
