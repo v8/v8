@@ -13,9 +13,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6455acf1c78ab1f3a9be215adaa0fd7ce8017dea',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5a371bcc0efe2cc84f384f14bdf5eaf5fe3e271a',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '98f1e59b41c6c580cd168ac4456bf27d78c12a95',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2b71832f6d8dc74119589992836cf95aeb8a9842',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'b029971f1fc6b20d06887c47c7afebd5881f31ff',
   'v8/third_party/instrumented_libraries':
@@ -33,7 +33,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b026043a43f9ce3f37c1cd57269f92cb8bee756c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ed6fe0f638403e1afd377e38975e4fd430f53432',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -41,7 +41,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + 'bac04339dfb1e41704eca419eb0196028a15b8c3',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '29de0c2af139b63a8a59ceeeb732cf4b049f4f0d',
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
@@ -81,11 +81,11 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a245b955fe9cd620081ed267fae303c88d033fef',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '3041f30dd6b3fa4fb8ca7db6439bed372f4accc0',
   'v8/tools/luci-go':
-    Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '445d7c4b6a4f10e188edb395b132e3996b127691',
+    Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '86c09e88368d0eb01a08841b7f959b63330f30f7',
   'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '7e3c46a072a13fbfc871a3b78ddf7bd7e50a0ddd',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'b0e783867ebc917c2b69a55f55ca5500e298e356',
 }
 
 recursedeps = [
