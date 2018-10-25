@@ -132,36 +132,6 @@ V8_INLINE uint64_t QPCNowRaw() {
 namespace v8 {
 namespace base {
 
-TimeDelta TimeDelta::FromDays(int days) {
-  return TimeDelta(days * Time::kMicrosecondsPerDay);
-}
-
-
-TimeDelta TimeDelta::FromHours(int hours) {
-  return TimeDelta(hours * Time::kMicrosecondsPerHour);
-}
-
-
-TimeDelta TimeDelta::FromMinutes(int minutes) {
-  return TimeDelta(minutes * Time::kMicrosecondsPerMinute);
-}
-
-
-TimeDelta TimeDelta::FromSeconds(int64_t seconds) {
-  return TimeDelta(seconds * Time::kMicrosecondsPerSecond);
-}
-
-
-TimeDelta TimeDelta::FromMilliseconds(int64_t milliseconds) {
-  return TimeDelta(milliseconds * Time::kMicrosecondsPerMillisecond);
-}
-
-
-TimeDelta TimeDelta::FromNanoseconds(int64_t nanoseconds) {
-  return TimeDelta(nanoseconds / Time::kNanosecondsPerMicrosecond);
-}
-
-
 int TimeDelta::InDays() const {
   if (IsMax()) {
     // Preserve max to prevent overflow.
