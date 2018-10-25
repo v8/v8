@@ -30,6 +30,7 @@ namespace wasm {
 
 class NativeModule;
 class WasmCodeManager;
+class WasmEngine;
 class WasmMemoryTracker;
 class WasmImportWrapperCache;
 struct WasmModule;
@@ -332,7 +333,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     wire_bytes_ = std::move(wire_bytes);
   }
   const WasmModule* module() const { return module_.get(); }
-  WasmCodeManager* code_manager() const { return wasm_code_manager_; }
+  WasmEngine* wasm_engine() const { return wasm_engine_; }
 
   WasmCode* Lookup(Address) const;
 
@@ -352,7 +353,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   NativeModule(Isolate* isolate, const WasmFeatures& enabled_features,
                bool can_request_more, VirtualMemory code_space,
-               WasmCodeManager* code_manager,
+               WasmEngine* wasm_engine,
                std::shared_ptr<const WasmModule> module);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind,
@@ -453,7 +454,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  WasmCodeManager* wasm_code_manager_;
+  WasmEngine* const wasm_engine_;
   std::atomic<size_t> committed_code_space_{0};
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;
@@ -485,6 +486,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   // Add a sample of all module sizes.
   void SampleModuleSizes(Isolate* isolate) const;
+
+  void SetMaxCommittedMemoryForTesting(size_t limit);
 
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
   // bias samples towards apps with high memory pressure. We should switch to

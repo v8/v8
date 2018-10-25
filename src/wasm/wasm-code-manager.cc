@@ -337,7 +337,7 @@ WasmCode::~WasmCode() {
 
 NativeModule::NativeModule(Isolate* isolate, const WasmFeatures& enabled,
                            bool can_request_more, VirtualMemory code_space,
-                           WasmCodeManager* code_manager,
+                           WasmEngine* wasm_engine,
                            std::shared_ptr<const WasmModule> module)
     : enabled_features_(enabled),
       module_(std::move(module)),
@@ -345,7 +345,7 @@ NativeModule::NativeModule(Isolate* isolate, const WasmFeatures& enabled,
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache(this))),
       free_code_space_(code_space.region()),
-      wasm_code_manager_(code_manager),
+      wasm_engine_(wasm_engine),
       can_request_more_memory_(can_request_more),
       use_trap_handler_(trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                                              : kNoTrapHandler) {
@@ -680,14 +680,15 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
     Address hint = owned_code_space_.empty() ? kNullAddress
                                              : owned_code_space_.back().end();
 
-    VirtualMemory new_mem =
-        wasm_code_manager_->TryAllocate(size, reinterpret_cast<void*>(hint));
+    VirtualMemory new_mem = wasm_engine_->code_manager()->TryAllocate(
+        size, reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) {
       V8::FatalProcessOutOfMemory(nullptr,
                                   "NativeModule::AllocateForCode reservation");
       UNREACHABLE();
     }
-    wasm_code_manager_->AssignRanges(new_mem.address(), new_mem.end(), this);
+    wasm_engine_->code_manager()->AssignRanges(new_mem.address(), new_mem.end(),
+                                               this);
 
     free_code_space_.Merge(new_mem.region());
     owned_code_space_.emplace_back(std::move(new_mem));
@@ -720,7 +721,7 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
       Address start = std::max(commit_start, vmem.address());
       Address end = std::min(commit_end, vmem.end());
       size_t commit_size = static_cast<size_t>(end - start);
-      if (!wasm_code_manager_->Commit(start, commit_size)) {
+      if (!wasm_engine_->code_manager()->Commit(start, commit_size)) {
         V8::FatalProcessOutOfMemory(nullptr,
                                     "NativeModule::AllocateForCode commit");
         UNREACHABLE();
@@ -732,7 +733,8 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
       if (commit_start >= commit_end) break;
     }
 #else
-    if (!wasm_code_manager_->Commit(commit_start, commit_end - commit_start)) {
+    if (!wasm_engine_->code_manager()->Commit(commit_start,
+                                              commit_end - commit_start)) {
       V8::FatalProcessOutOfMemory(nullptr,
                                   "NativeModule::AllocateForCode commit");
       UNREACHABLE();
@@ -800,7 +802,7 @@ NativeModule::~NativeModule() {
   // Cancel all background compilation before resetting any field of the
   // NativeModule or freeing anything.
   CancelAndWaitCompilationState(compilation_state_.get());
-  wasm_code_manager_->FreeNativeModule(this);
+  wasm_engine_->code_manager()->FreeNativeModule(this);
 }
 
 WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
@@ -886,6 +888,10 @@ void WasmCodeManager::SampleModuleSizes(Isolate* isolate) const {
   }
 }
 
+void WasmCodeManager::SetMaxCommittedMemoryForTesting(size_t limit) {
+  remaining_uncommitted_code_space_.store(limit);
+}
+
 namespace {
 
 void ModuleSamplingCallback(v8::Isolate* v8_isolate, v8::GCType type,
@@ -938,6 +944,7 @@ bool WasmCodeManager::ShouldForceCriticalMemoryPressureNotification() {
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
     bool can_request_more, std::shared_ptr<const WasmModule> module) {
+  DCHECK_EQ(this, isolate->wasm_engine()->code_manager());
   if (ShouldForceCriticalMemoryPressureNotification()) {
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
@@ -966,9 +973,9 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   Address start = code_space.address();
   size_t size = code_space.size();
   Address end = code_space.end();
-  std::unique_ptr<NativeModule> ret(
-      new NativeModule(isolate, enabled, can_request_more,
-                       std::move(code_space), this, std::move(module)));
+  std::unique_ptr<NativeModule> ret(new NativeModule(
+      isolate, enabled, can_request_more, std::move(code_space),
+      isolate->wasm_engine(), std::move(module)));
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
              size);
   AssignRangesAndAddModule(start, end, ret.get());

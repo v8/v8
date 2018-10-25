@@ -119,7 +119,7 @@ class CompilationState {
 
   bool has_outstanding_units() const { return outstanding_units_ > 0; }
 
-  WasmEngine* wasm_engine() const { return wasm_engine_; }
+  WasmEngine* wasm_engine() const { return native_module_->wasm_engine(); }
   CompileMode compile_mode() const { return compile_mode_; }
   WasmFeatures* detected_features() { return &detected_features_; }
 
@@ -131,10 +131,9 @@ class CompilationState {
                                           : baseline_finish_units_;
   }
 
-  // TODO(7423): Get rid of the Isolate field to make sure the CompilationState
-  // can be shared across multiple Isolates.
+  // TODO(mstarzinger): Get rid of the Isolate field to make sure the
+  // CompilationState can be shared across multiple Isolates.
   Isolate* const isolate_;
-  WasmEngine* const wasm_engine_;
   NativeModule* const native_module_;
   const CompileMode compile_mode_;
   bool baseline_compilation_finished_ = false;
@@ -2848,7 +2847,6 @@ std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
 CompilationState::CompilationState(internal::Isolate* isolate,
                                    NativeModule* native_module)
     : isolate_(isolate),
-      wasm_engine_(isolate->wasm_engine()),
       native_module_(native_module),
       compile_mode_(FLAG_wasm_tier_up &&
                             native_module->module()->origin == kWasmOrigin
