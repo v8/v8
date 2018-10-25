@@ -107,17 +107,15 @@ class SourceRangeScope final {
 //     SAFE_USE(foo);
 
 #define RETURN_IF_PARSE_ERROR_CUSTOM(x, ...) \
-  if (scanner()->has_parser_error_set()) {   \
+  if (has_error()) {                         \
     return impl()->x(__VA_ARGS__);           \
   }
 
 // Used in functions where the return type is ExpressionT.
 #define RETURN_IF_PARSE_ERROR RETURN_IF_PARSE_ERROR_CUSTOM(NullExpression)
 
-#define RETURN_IF_PARSE_ERROR_VOID         \
-  if (scanner()->has_parser_error_set()) { \
-    return;                                \
-  }
+#define RETURN_IF_PARSE_ERROR_VOID \
+  if (has_error()) return;
 
 // Common base class template shared between parser and pre-parser.
 // The Impl parameter is the actual class of the parser/pre-parser,
@@ -276,6 +274,7 @@ class ParserBase {
 
 #undef ALLOW_ACCESSORS
 
+  bool has_error() const { return scanner()->has_parser_error_set(); }
   bool allow_harmony_numeric_separator() const {
     return scanner()->allow_harmony_numeric_separator();
   }
@@ -679,7 +678,7 @@ class ParserBase {
     Token::Value next = scanner()->Next();
     USE(next);
     USE(token);
-    DCHECK_IMPLIES(!scanner_->has_parser_error_set(), next == token);
+    DCHECK_IMPLIES(!has_error(), next == token);
   }
 
   V8_INLINE bool Check(Token::Value token) {
@@ -4256,7 +4255,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
                             formal_parameters, kind,
                             FunctionLiteral::kAnonymousExpression,
                             FunctionBodyType::kBlock, true);
-          CHECK(scanner()->has_parser_error_set());
+          CHECK(has_error());
           return impl()->NullExpression();
         }
       } else {
@@ -5317,11 +5316,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
 
   Consume(Token::SWITCH);
   Expect(Token::LPAREN);
-  RETURN_IF_PARSE_ERROR;
   ExpressionT tag = ParseExpression();
-  RETURN_IF_PARSE_ERROR;
   Expect(Token::RPAREN);
-  RETURN_IF_PARSE_ERROR;
 
   auto switch_statement =
       factory()->NewSwitchStatement(labels, tag, switch_pos);
@@ -5334,7 +5330,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
 
     bool default_seen = false;
     Expect(Token::LBRACE);
-    RETURN_IF_PARSE_ERROR;
     while (peek() != Token::RBRACE) {
       // An empty label indicates the default case.
       ExpressionT label = impl()->NullExpression();
@@ -5344,7 +5339,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
         SourceRangeScope range_scope(scanner(), &clause_range);
         if (Check(Token::CASE)) {
           label = ParseExpression();
-          RETURN_IF_PARSE_ERROR;
         } else {
           Expect(Token::DEFAULT);
           RETURN_IF_PARSE_ERROR;
@@ -5355,7 +5349,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
           default_seen = true;
         }
         Expect(Token::COLON);
-        RETURN_IF_PARSE_ERROR;
         while (peek() != Token::CASE && peek() != Token::DEFAULT &&
                peek() != Token::RBRACE) {
           StatementT stat = ParseStatementListItem();
@@ -5368,7 +5361,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
       switch_statement->cases()->Add(clause, zone());
     }
     Expect(Token::RBRACE);
-    RETURN_IF_PARSE_ERROR;
 
     int end_pos = end_position();
     scope()->set_end_position(end_pos);
@@ -5398,7 +5390,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
   int pos = position();
 
   BlockT try_block = ParseBlock(nullptr);
-  RETURN_IF_PARSE_ERROR;
 
   CatchInfo catch_info(this);
 
@@ -5438,26 +5429,22 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
             if (peek_any_identifier()) {
               catch_info.name =
                   ParseIdentifier(kDontAllowRestrictedIdentifiers);
-              RETURN_IF_PARSE_ERROR;
             } else {
               ExpressionClassifier pattern_classifier(this);
               catch_info.pattern = ParseBindingPattern();
-              RETURN_IF_PARSE_ERROR;
             }
 
             Expect(Token::RPAREN);
             RETURN_IF_PARSE_ERROR;
             impl()->RewriteCatchPattern(&catch_info);
-            RETURN_IF_PARSE_ERROR;
             if (!impl()->IsNull(catch_info.init_block)) {
               catch_block->statements()->Add(catch_info.init_block, zone());
             }
 
             catch_info.inner_block = ParseBlock(nullptr);
-            RETURN_IF_PARSE_ERROR;
             catch_block->statements()->Add(catch_info.inner_block, zone());
-            impl()->ValidateCatchBlock(catch_info);
             RETURN_IF_PARSE_ERROR;
+            impl()->ValidateCatchBlock(catch_info);
             scope()->set_end_position(end_position());
             catch_block->set_scope(scope()->FinalizeBlockScope());
           }
@@ -5466,21 +5453,21 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
         catch_info.scope->set_end_position(end_position());
       } else {
         catch_block = ParseBlock(nullptr);
-        RETURN_IF_PARSE_ERROR;
       }
     }
   }
 
   BlockT finally_block = impl()->NullStatement();
-  DCHECK(peek() == Token::FINALLY || !impl()->IsNull(catch_block));
+  DCHECK(has_error() || peek() == Token::FINALLY ||
+         !impl()->IsNull(catch_block));
   {
     SourceRangeScope range_scope(scanner(), &finally_range);
     if (Check(Token::FINALLY)) {
       finally_block = ParseBlock(nullptr);
-      RETURN_IF_PARSE_ERROR;
     }
   }
 
+  RETURN_IF_PARSE_ERROR;
   return impl()->RewriteTryStatement(try_block, catch_block, catch_range,
                                      finally_block, finally_range, catch_info,
                                      pos);
@@ -5503,7 +5490,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
 
   Consume(Token::FOR);
   Expect(Token::LPAREN);
-  RETURN_IF_PARSE_ERROR;
 
   if (peek() == Token::CONST || (peek() == Token::LET && IsNextLetKeyword())) {
     // The initializer contains lexical declarations,
@@ -5524,7 +5510,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
       BlockState inner_state(&scope_, inner_block_scope);
       ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
                                 nullptr);
-      RETURN_IF_PARSE_ERROR;
     }
     DCHECK(IsLexicalVariableMode(for_info.parsing_result.descriptor.mode));
     for_info.position = scanner()->location().beg_pos;
@@ -5536,11 +5521,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     }
 
     Expect(Token::SEMICOLON);
-    RETURN_IF_PARSE_ERROR;
 
+    RETURN_IF_PARSE_ERROR;
     StatementT init = impl()->BuildInitializationBlock(&for_info.parsing_result,
                                                        &for_info.bound_names);
-    RETURN_IF_PARSE_ERROR;
 
     Scope* finalized = inner_block_scope->FinalizeBlockScope();
     // No variable declarations will have been created in inner_block_scope.
@@ -5553,7 +5537,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   StatementT init = impl()->NullStatement();
   if (peek() == Token::VAR) {
     ParseVariableDeclarations(kForStatement, &for_info.parsing_result, nullptr);
-    RETURN_IF_PARSE_ERROR;
     DCHECK_EQ(for_info.parsing_result.descriptor.mode, VariableMode::kVar);
     for_info.position = scanner()->location().beg_pos;
 
@@ -5562,26 +5545,25 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
                                                    own_labels, nullptr);
     }
 
-    init = impl()->BuildInitializationBlock(&for_info.parsing_result, nullptr);
     RETURN_IF_PARSE_ERROR;
+    init = impl()->BuildInitializationBlock(&for_info.parsing_result, nullptr);
   } else if (peek() != Token::SEMICOLON) {
     // The initializer does not contain declarations.
     int lhs_beg_pos = peek_position();
     ExpressionClassifier classifier(this);
     ExpressionT expression = ParseExpressionCoverGrammar(false);
-    RETURN_IF_PARSE_ERROR;
     int lhs_end_pos = end_position();
 
     bool is_for_each = CheckInOrOf(&for_info.mode);
+    // TODO(verwaest): Remove once we have FailureExpression.
+    RETURN_IF_PARSE_ERROR;
     bool is_destructuring = is_for_each && (expression->IsArrayLiteral() ||
                                             expression->IsObjectLiteral());
 
     if (is_destructuring) {
       ValidateAssignmentPattern();
-      RETURN_IF_PARSE_ERROR;
     } else {
       ValidateExpression();
-      RETURN_IF_PARSE_ERROR;
     }
 
     if (is_for_each) {
@@ -5594,7 +5576,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   }
 
   Expect(Token::SEMICOLON);
-  RETURN_IF_PARSE_ERROR;
 
   // Standard 'for' loop, we have parsed the initializer at this point.
   ExpressionT cond = impl()->NullExpression();
@@ -5645,16 +5626,12 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
   if (for_info->mode == ForEachStatement::ITERATE) {
     ExpressionClassifier classifier(this);
     enumerable = ParseAssignmentExpression(true);
-    RETURN_IF_PARSE_ERROR;
     ValidateExpression();
-    RETURN_IF_PARSE_ERROR;
   } else {
     enumerable = ParseExpression();
-    RETURN_IF_PARSE_ERROR;
   }
 
   Expect(Token::RPAREN);
-  RETURN_IF_PARSE_ERROR;
 
   Scope* for_scope = nullptr;
   if (inner_block_scope != nullptr) {
@@ -5674,10 +5651,10 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     {
       SourceRangeScope range_scope(scanner(), &body_range);
       body = ParseStatement(nullptr, nullptr);
-      RETURN_IF_PARSE_ERROR;
     }
     impl()->RecordIterationStatementSourceRange(loop, body_range);
 
+    RETURN_IF_PARSE_ERROR;
     impl()->DesugarBindingInForEachStatement(for_info, &body_block,
                                              &each_variable);
     RETURN_IF_PARSE_ERROR;
@@ -5689,11 +5666,11 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     }
   }
 
+  RETURN_IF_PARSE_ERROR;
   StatementT final_loop = impl()->InitializeForEachStatement(
       loop, each_variable, enumerable, body_block);
 
   init_block = impl()->CreateForEachStatementTDZ(init_block, *for_info);
-  RETURN_IF_PARSE_ERROR;
 
   if (for_scope != nullptr) {
     for_scope->set_end_position(end_position());
@@ -5733,25 +5710,21 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
   if (for_info->mode == ForEachStatement::ITERATE) {
     ExpressionClassifier classifier(this);
     enumerable = ParseAssignmentExpression(true);
-    RETURN_IF_PARSE_ERROR;
     ValidateExpression();
-    RETURN_IF_PARSE_ERROR;
   } else {
     enumerable = ParseExpression();
-    RETURN_IF_PARSE_ERROR;
   }
 
   Expect(Token::RPAREN);
-  RETURN_IF_PARSE_ERROR;
 
   StatementT body = impl()->NullStatement();
   SourceRange body_range;
   {
     SourceRangeScope range_scope(scanner(), &body_range);
     body = ParseStatement(nullptr, nullptr);
-    RETURN_IF_PARSE_ERROR;
   }
   impl()->RecordIterationStatementSourceRange(loop, body_range);
+  RETURN_IF_PARSE_ERROR;
   return impl()->InitializeForEachStatement(loop, expression, enumerable, body);
 }
 
