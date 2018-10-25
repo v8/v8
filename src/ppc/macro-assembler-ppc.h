@@ -297,7 +297,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode);
+                           SaveFPRegsMode fp_mode, Address wasm_target);
 
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
@@ -659,6 +659,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                 int num_double_arguments);
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
+                           Address wasm_target);
 };
 
 // MacroAssembler implements a collection of frequently used acros.

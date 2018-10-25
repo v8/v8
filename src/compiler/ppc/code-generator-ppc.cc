@@ -13,6 +13,7 @@
 #include "src/double.h"
 #include "src/optimized-compilation-info.h"
 #include "src/ppc/macro-assembler-ppc.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -129,7 +130,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register offset,
                        Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode)
+                       RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
@@ -138,12 +139,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
+        stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
 
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t offset,
                        Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode)
+                       RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         offset_(no_reg),
@@ -152,6 +154,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
+        stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
 
@@ -179,8 +182,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ mflr(scratch0_);
       __ Push(scratch0_);
     }
-    __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
-                           save_fp_mode);
+    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode, wasm::WasmCode::kWasmRecordWrite);
+    } else {
+      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                             save_fp_mode);
+    }
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
       __ Pop(scratch0_);
@@ -196,6 +204,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
+  StubCallMode stub_mode_;
   bool must_save_lr_;
   Zone* zone_;
 };
@@ -1125,14 +1134,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           AddressingModeField::decode(instr->opcode());
       if (addressing_mode == kMode_MRI) {
         int32_t offset = i.InputInt32(1);
-        ool = new (zone()) OutOfLineRecordWrite(this, object, offset, value,
-                                                scratch0, scratch1, mode);
+        ool = new (zone())
+            OutOfLineRecordWrite(this, object, offset, value, scratch0,
+                                 scratch1, mode, DetermineStubCallMode());
         __ StoreP(value, MemOperand(object, offset));
       } else {
         DCHECK_EQ(kMode_MRR, addressing_mode);
         Register offset(i.InputRegister(1));
-        ool = new (zone()) OutOfLineRecordWrite(this, object, offset, value,
-                                                scratch0, scratch1, mode);
+        ool = new (zone())
+            OutOfLineRecordWrite(this, object, offset, value, scratch0,
+                                 scratch1, mode, DetermineStubCallMode());
         __ StorePX(value, MemOperand(object, offset));
       }
       __ CheckPageFlag(object, scratch0,
@@ -2125,7 +2136,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       } else {
         gen_->AssembleSourcePosition(instr_);
         // A direct call to a wasm runtime stub defined in this module.
-        // Just encode the stub index. This will be patched at relocation.
+        // Just encode the stub index. This will be patched when the code
+        // is added to the native module and copied into wasm code space.
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
