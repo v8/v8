@@ -3213,8 +3213,9 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         bool has_spread;
         ExpressionListT args(pointer_buffer());
         if (impl()->IsIdentifier(result) &&
-            impl()->IsAsync(impl()->AsIdentifier(result)) &&
+            scanner()->current_token() == Token::ASYNC &&
             !scanner()->HasLineTerminatorBeforeNext()) {
+          DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
           ExpressionClassifier async_classifier(this);
           ParseArguments(&args, &has_spread, true);
           RETURN_IF_PARSE_ERROR;
