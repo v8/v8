@@ -262,6 +262,57 @@ TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
   TailCallBuiltin(Builtins::kIterableToList, context, iterable, iterator_fn);
 }
 
+void IteratorBuiltinsAssembler::FastIterableToList(
+    TNode<Context> context, TNode<Object> iterable,
+    TVariable<Object>* var_result, Label* slow) {
+  Label done(this), check_string(this), check_map(this), check_set(this);
+
+  GotoIfNot(IsFastJSArrayWithNoCustomIteration(iterable, context),
+            &check_string);
+
+  // Fast path for fast JSArray.
+  *var_result =
+      CallBuiltin(Builtins::kCloneFastJSArrayFillingHoles, context, iterable);
+  Goto(&done);
+
+  BIND(&check_string);
+  {
+    Label string_fast_call(this);
+    StringBuiltinsAssembler string_assembler(state());
+    string_assembler.BranchIfStringPrimitiveWithNoCustomIteration(
+        iterable, context, &string_fast_call, &check_map);
+
+    BIND(&string_fast_call);
+    *var_result = CallBuiltin(Builtins::kStringToList, context, iterable);
+    Goto(&done);
+  }
+
+  BIND(&check_map);
+  {
+    Label map_fast_call(this);
+    BranchIfIterableWithOriginalKeyOrValueMapIterator(
+        state(), iterable, context, &map_fast_call, &check_set);
+
+    BIND(&map_fast_call);
+    *var_result = CallBuiltin(Builtins::kMapIteratorToList, context, iterable);
+    Goto(&done);
+  }
+
+  BIND(&check_set);
+  {
+    Label set_fast_call(this);
+    BranchIfIterableWithOriginalValueSetIterator(state(), iterable, context,
+                                                 &set_fast_call, slow);
+
+    BIND(&set_fast_call);
+    *var_result =
+        CallBuiltin(Builtins::kSetOrSetIteratorToList, context, iterable);
+    Goto(&done);
+  }
+
+  BIND(&done);
+}
+
 // This builtin loads the property Symbol.iterator as the iterator, and has fast
 // paths for fast arrays, for primitive strings, for sets and set iterators, and
 // for map iterators. These fast paths will only be taken if Symbol.iterator and
@@ -277,46 +328,13 @@ TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
 
-  Label slow_path(this), check_string(this), check_map(this), check_set(this);
+  Label slow_path(this);
 
   GotoIfForceSlowPath(&slow_path);
 
-  GotoIfNot(IsFastJSArrayWithNoCustomIteration(iterable, context),
-            &check_string);
-
-  // Fast path for fast JSArray.
-  TailCallBuiltin(Builtins::kCloneFastJSArrayFillingHoles, context, iterable);
-
-  BIND(&check_string);
-  {
-    Label string_fast_call(this);
-    StringBuiltinsAssembler string_assembler(state());
-    string_assembler.BranchIfStringPrimitiveWithNoCustomIteration(
-        iterable, context, &string_fast_call, &check_map);
-
-    BIND(&string_fast_call);
-    TailCallBuiltin(Builtins::kStringToList, context, iterable);
-  }
-
-  BIND(&check_map);
-  {
-    Label map_fast_call(this);
-    BranchIfIterableWithOriginalKeyOrValueMapIterator(
-        state(), iterable, context, &map_fast_call, &check_set);
-
-    BIND(&map_fast_call);
-    TailCallBuiltin(Builtins::kMapIteratorToList, context, iterable);
-  }
-
-  BIND(&check_set);
-  {
-    Label set_fast_call(this);
-    BranchIfIterableWithOriginalValueSetIterator(state(), iterable, context,
-                                                 &set_fast_call, &slow_path);
-
-    BIND(&set_fast_call);
-    TailCallBuiltin(Builtins::kSetOrSetIteratorToList, context, iterable);
-  }
+  TVARIABLE(Object, var_result);
+  FastIterableToList(context, iterable, &var_result, &slow_path);
+  Return(var_result.value());
 
   BIND(&slow_path);
   {
