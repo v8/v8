@@ -297,6 +297,7 @@ bool Builtins::IsLazy(int index) {
     case kInterpreterEnterBytecodeAdvance:
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:
+    case kPromiseAllResolveElementClosure:  // https://crbug.com/v8/7522
     case kPromiseConstructorLazyDeoptContinuation:
     case kRecordWrite:  // https://crbug.com/chromium/765301.
     case kThrowWasmTrapDivByZero:             // Required by wasm.

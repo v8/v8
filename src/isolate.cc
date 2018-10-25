@@ -22,6 +22,7 @@
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
+#include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/cancelable-task.h"
 #include "src/code-stubs.h"
@@ -437,6 +438,20 @@ class FrameArrayBuilder {
                                           offset, flags);
   }
 
+  void AppendPromiseAllFrame(Handle<Context> context, int offset) {
+    if (full()) return;
+    int flags = FrameArray::kIsAsync | FrameArray::kIsPromiseAll;
+
+    Handle<Context> native_context(context->native_context(), isolate_);
+    Handle<JSFunction> function(native_context->promise_all(), isolate_);
+    if (!IsVisibleInStackTrace(function)) return;
+
+    Handle<Object> receiver(native_context->promise_function(), isolate_);
+    Handle<AbstractCode> code(AbstractCode::cast(function->code()), isolate_);
+    elements_ = FrameArray::AppendJSFrame(elements_, receiver, function, code,
+                                          offset, flags);
+  }
+
   void AppendJavaScriptFrame(
       FrameSummary::JavaScriptFrameSummary const& summary) {
     // Filter out internal frames that we do not want to show.
@@ -666,6 +681,26 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
         promise = handle(JSPromise::cast(async_generator_request->promise()),
                          isolate);
       }
+    } else if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
+                                 Builtins::kPromiseAllResolveElementClosure)) {
+      Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
+                                  isolate);
+      Handle<Context> context(function->context(), isolate);
+
+      // We store the offset of the promise into the {function}'s
+      // hash field for promise resolve element callbacks.
+      int const offset = Smi::ToInt(Smi::cast(function->GetIdentityHash())) - 1;
+      builder->AppendPromiseAllFrame(context, offset);
+
+      // Now peak into the Promise.all() resolve element context to
+      // find the promise capability that's being resolved when all
+      // the concurrent promises resolve.
+      int const index =
+          PromiseBuiltinsAssembler::kPromiseAllResolveElementCapabilitySlot;
+      Handle<PromiseCapability> capability(
+          PromiseCapability::cast(context->get(index)), isolate);
+      if (!capability->promise()->IsJSPromise()) return;
+      promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else {
       // We have some generic promise chain here, so try to
       // continue with the chained promise on the reaction
@@ -682,6 +717,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       } else {
         // Otherwise the {promise_or_capability} must be undefined here.
         CHECK(promise_or_capability->IsUndefined(isolate));
+        return;
       }
     }
   }

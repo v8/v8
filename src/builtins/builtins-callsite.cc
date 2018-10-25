@@ -169,6 +169,14 @@ BUILTIN(CallSitePrototypeIsNative) {
   return isolate->heap()->ToBoolean(it.Frame()->IsNative());
 }
 
+BUILTIN(CallSitePrototypeIsPromiseAll) {
+  HandleScope scope(isolate);
+  CHECK_CALLSITE(recv, "isPromiseAll");
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return isolate->heap()->ToBoolean(it.Frame()->IsPromiseAll());
+}
+
 BUILTIN(CallSitePrototypeIsToplevel) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isToplevel");

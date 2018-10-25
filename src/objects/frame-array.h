@@ -51,7 +51,8 @@ class FrameArray : public FixedArray {
     kIsStrict = 1 << 3,
     kIsConstructor = 1 << 4,
     kAsmJsAtNumberConversion = 1 << 5,
-    kIsAsync = 1 << 6
+    kIsAsync = 1 << 6,
+    kIsPromiseAll = 1 << 7
   };
 
   static Handle<FrameArray> AppendJSFrame(Handle<FrameArray> in,

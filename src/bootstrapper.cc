@@ -2386,8 +2386,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     InstallSpeciesGetter(isolate_, promise_fun);
 
-    SimpleInstallFunction(isolate_, promise_fun, "all", Builtins::kPromiseAll,
-                          1, true, BuiltinFunctionId::kPromiseAll);
+    Handle<JSFunction> promise_all = SimpleInstallFunction(
+        isolate_, promise_fun, "all", Builtins::kPromiseAll, 1, true,
+        BuiltinFunctionId::kPromiseAll);
+    native_context()->set_promise_all(*promise_all);
 
     SimpleInstallFunction(isolate_, promise_fun, "race", Builtins::kPromiseRace,
                           1, true, BuiltinFunctionId::kPromiseRace);
@@ -4360,6 +4362,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           {"isConstructor", Builtins::kCallSitePrototypeIsConstructor},
           {"isEval", Builtins::kCallSitePrototypeIsEval},
           {"isNative", Builtins::kCallSitePrototypeIsNative},
+          {"isPromiseAll", Builtins::kCallSitePrototypeIsPromiseAll},
           {"isToplevel", Builtins::kCallSitePrototypeIsToplevel},
           {"toString", Builtins::kCallSitePrototypeToString}};
 

@@ -307,6 +307,7 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   is_constructor_ = (flags & FrameArray::kIsConstructor) != 0;
   is_strict_ = (flags & FrameArray::kIsStrict) != 0;
   is_async_ = (flags & FrameArray::kIsAsync) != 0;
+  is_promise_all_ = (flags & FrameArray::kIsPromiseAll) != 0;
 }
 
 JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
@@ -608,11 +609,22 @@ MaybeHandle<String> JSStackFrame::ToString() {
 
   const bool is_toplevel = IsToplevel();
   const bool is_async = IsAsync();
+  const bool is_promise_all = IsPromiseAll();
   const bool is_constructor = IsConstructor();
   const bool is_method_call = !(is_toplevel || is_constructor);
 
   if (is_async) {
     builder.AppendCString("async ");
+  }
+  if (is_promise_all) {
+    // For `Promise.all(iterable)` frames we interpret the {offset_}
+    // as the element index into `iterable` where the error occurred.
+    builder.AppendCString("Promise.all (index ");
+    Handle<String> index_string = isolate_->factory()->NumberToString(
+        handle(Smi::FromInt(offset_), isolate_), isolate_);
+    builder.AppendString(index_string);
+    builder.AppendCString(")");
+    return builder.Finish();
   }
   if (is_method_call) {
     AppendMethodCall(isolate_, this, &builder);

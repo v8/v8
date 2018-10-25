@@ -29,7 +29,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kPromiseContextLength,
   };
 
- protected:
+  // TODO(bmeurer): Move this to a proper context map in contexts.h?
+  // Similar to the AwaitContext that we introduced for await closures.
   enum PromiseAllResolveElementContextSlots {
     // Remaining elements count
     kPromiseAllResolveElementRemainingSlot = Context::MIN_CONTEXT_SLOTS,
@@ -43,7 +44,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kPromiseAllResolveElementLength
   };
 
- public:
   enum FunctionContextSlot {
     kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
 

@@ -466,6 +466,7 @@ namespace internal {
   CPP(CallSitePrototypeIsConstructor)                                          \
   CPP(CallSitePrototypeIsEval)                                                 \
   CPP(CallSitePrototypeIsNative)                                               \
+  CPP(CallSitePrototypeIsPromiseAll)                                           \
   CPP(CallSitePrototypeIsToplevel)                                             \
   CPP(CallSitePrototypeToString)                                               \
                                                                                \
