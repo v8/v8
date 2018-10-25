@@ -62,24 +62,24 @@ void TurboAssembler::VerifyRootRegister() {
 }
 
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
-#ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     mov(destination,
         Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
     return;
   }
-#endif  // V8_EMBEDDED_BUILTINS
+
   if (RootsTable::IsImmortalImmovable(index)) {
     Handle<Object> object = isolate()->root_handle(index);
     if (object->IsSmi()) {
       mov(destination, Immediate(Smi::cast(*object)));
       return;
-    } else if (!options().isolate_independent_code) {
+    } else {
       DCHECK(object->IsHeapObject());
       mov(destination, Handle<HeapObject>::cast(object));
       return;
     }
   }
+
   ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
   lea(destination,
       Operand(isolate_root.address(), RelocInfo::EXTERNAL_REFERENCE));
@@ -88,24 +88,22 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
 
 void TurboAssembler::CompareRoot(Register with, Register scratch,
                                  RootIndex index) {
-#ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     CompareRoot(with, index);
-    return;
+  } else {
+    ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
+    lea(scratch,
+        Operand(isolate_root.address(), RelocInfo::EXTERNAL_REFERENCE));
+    cmp(with, Operand(scratch, RootRegisterOffsetForRootIndex(index)));
   }
-#endif  // V8_EMBEDDED_BUILTINS
-  ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
-  lea(scratch, Operand(isolate_root.address(), RelocInfo::EXTERNAL_REFERENCE));
-  cmp(with, Operand(scratch, RootRegisterOffsetForRootIndex(index)));
 }
 
 void TurboAssembler::CompareRoot(Register with, RootIndex index) {
-#ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     cmp(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
     return;
   }
-#endif  // V8_EMBEDDED_BUILTINS
+
   DCHECK(RootsTable::IsImmortalImmovable(index));
   Handle<Object> object = isolate()->root_handle(index);
   if (object->IsHeapObject()) {
@@ -116,38 +114,34 @@ void TurboAssembler::CompareRoot(Register with, RootIndex index) {
 }
 
 void TurboAssembler::CompareStackLimit(Register with) {
-#ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     CompareRoot(with, RootIndex::kStackLimit);
-    return;
+  } else {
+    DCHECK(!options().isolate_independent_code);
+    ExternalReference ref =
+        ExternalReference::address_of_stack_limit(isolate());
+    cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
   }
-#endif
-  DCHECK(!options().isolate_independent_code);
-  ExternalReference ref = ExternalReference::address_of_stack_limit(isolate());
-  cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
 }
 
 void TurboAssembler::CompareRealStackLimit(Register with) {
-#ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     CompareRoot(with, RootIndex::kRealStackLimit);
-    return;
+  } else {
+    DCHECK(!options().isolate_independent_code);
+    ExternalReference ref =
+        ExternalReference::address_of_real_stack_limit(isolate());
+    cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
   }
-#endif
-  DCHECK(!options().isolate_independent_code);
-  ExternalReference ref =
-      ExternalReference::address_of_real_stack_limit(isolate());
-  cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
 }
 
 void MacroAssembler::PushRoot(RootIndex index) {
-#ifdef V8_EMBEDDED_BUILTINS
   if (root_array_available()) {
     DCHECK(RootsTable::IsImmortalImmovable(index));
     push(Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
     return;
   }
-#endif  // V8_EMBEDDED_BUILTINS
+
   // TODO(v8:6666): Add a scratch register or remove all uses.
   DCHECK(RootsTable::IsImmortalImmovable(index));
   Handle<Object> object = isolate()->root_handle(index);
@@ -161,7 +155,7 @@ void MacroAssembler::PushRoot(RootIndex index) {
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
   // TODO(jgruber): Add support for enable_root_array_delta_access.
-  if (root_array_available_ && options().isolate_independent_code) {
+  if (root_array_available() && options().isolate_independent_code) {
     if (IsAddressableThroughRootRegister(isolate(), reference)) {
       // Some external references can be efficiently loaded as an offset from
       // kRootRegister.
@@ -244,11 +238,9 @@ void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
 void TurboAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
   // TODO(jgruber): Add support for enable_root_array_delta_access.
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadExternalReference(destination, source);
-      return;
-    }
+  if (root_array_available() && options().isolate_independent_code) {
+    IndirectLoadExternalReference(destination, source);
+    return;
   }
   mov(destination, Immediate(source));
 }
@@ -1339,8 +1331,7 @@ void TurboAssembler::Ret(int bytes_dropped, Register scratch) {
 }
 
 void TurboAssembler::Push(Immediate value) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && options().isolate_independent_code) {
+  if (root_array_available() && options().isolate_independent_code) {
     if (value.is_embedded_object()) {
       Push(HeapObjectAsOperand(value.embedded_object()));
       return;
@@ -1349,7 +1340,6 @@ void TurboAssembler::Push(Immediate value) {
       return;
     }
   }
-#endif  // V8_EMBEDDED_BUILTINS
   push(value);
 }
 
@@ -1376,10 +1366,9 @@ void TurboAssembler::Move(Register dst, const Immediate& src) {
 }
 
 void TurboAssembler::Move(Operand dst, const Immediate& src) {
-#ifdef V8_EMBEDDED_BUILTINS
   // Since there's no scratch register available, take a detour through the
   // stack.
-  if (root_array_available_ && options().isolate_independent_code) {
+  if (root_array_available() && options().isolate_independent_code) {
     if (src.is_embedded_object() || src.is_external_reference() ||
         src.is_heap_object_request()) {
       Push(src);
@@ -1387,7 +1376,7 @@ void TurboAssembler::Move(Operand dst, const Immediate& src) {
       return;
     }
   }
-#endif  // V8_EMBEDDED_BUILTINS
+
   if (src.is_embedded_object()) {
     mov(dst, src.embedded_object());
   } else {
@@ -1396,7 +1385,7 @@ void TurboAssembler::Move(Operand dst, const Immediate& src) {
 }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> src) {
-  if (root_array_available_ && options().isolate_independent_code) {
+  if (root_array_available() && options().isolate_independent_code) {
     IndirectLoadConstant(dst, src);
     return;
   }
@@ -1857,7 +1846,7 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
 
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code &&
+    if (root_array_available() && options().isolate_independent_code &&
         !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
       // All call targets are expected to be isolate-independent builtins.
       // If this assumption is ever violated, we could add back support for
@@ -1883,7 +1872,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code &&
+    if (root_array_available() && options().isolate_independent_code &&
         !Builtins::IsIsolateIndependentBuiltin(*code_object)) {
       // All call targets are expected to be isolate-independent builtins.
       // If this assumption is ever violated, we could add back support for
