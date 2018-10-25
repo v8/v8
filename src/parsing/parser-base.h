@@ -679,7 +679,7 @@ class ParserBase {
     Token::Value next = scanner()->Next();
     USE(next);
     USE(token);
-    DCHECK_EQ(next, token);
+    DCHECK_IMPLIES(!scanner_->has_parser_error_set(), next == token);
   }
 
   V8_INLINE bool Check(Token::Value token) {
@@ -4902,7 +4902,6 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE);
-  RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
 
   CheckStackOverflow();
 
@@ -4920,7 +4919,6 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
     }
 
     Expect(Token::RBRACE);
-    RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
     int end_pos = end_position();
     scope()->set_end_position(end_pos);
     impl()->RecordBlockSourceRange(body, end_pos);
@@ -4941,7 +4939,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
     scope()->set_start_position(scanner()->location().beg_pos);
     BlockT block = factory()->NewBlock(1, false);
     StatementT body = ParseFunctionDeclaration();
-    RETURN_IF_PARSE_ERROR;
     block->statements()->Add(body, zone());
     scope()->set_end_position(end_position());
     block->set_scope(scope()->FinalizeBlockScope());
@@ -4971,7 +4968,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseVariableStatement(
   DeclarationParsingResult parsing_result;
   StatementT result =
       ParseVariableDeclarations(var_context, &parsing_result, names);
-  RETURN_IF_PARSE_ERROR;
   ExpectSemicolon();
   return result;
 }
@@ -4988,7 +4984,6 @@ ParserBase<Impl>::ParseDebuggerStatement() {
   int pos = peek_position();
   Consume(Token::DEBUGGER);
   ExpectSemicolon();
-  RETURN_IF_PARSE_ERROR;
   return factory()->NewDebuggerStatement(pos);
 }
 
@@ -5034,6 +5029,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
 
   bool starts_with_identifier = peek_any_identifier();
   ExpressionT expr = ParseExpression();
+  // TODO(verwaest): Remove once we have FailureExpression.
   RETURN_IF_PARSE_ERROR;
   if (peek() == Token::COLON && starts_with_identifier &&
       impl()->IsIdentifier(expr)) {
@@ -5041,7 +5037,6 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
     // something starting with an identifier or a parenthesized identifier.
     impl()->DeclareLabel(&labels, &own_labels,
                          impl()->AsIdentifierExpression(expr));
-    RETURN_IF_PARSE_ERROR;
     Consume(Token::COLON);
     // ES#sec-labelled-function-declarations Labelled Function Declarations
     if (peek() == Token::FUNCTION && is_sloppy(language_mode()) &&
@@ -5062,7 +5057,6 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
 
   // Parsed expression statement, followed by semicolon.
   ExpectSemicolon();
-  RETURN_IF_PARSE_ERROR;
   return factory()->NewExpressionStatement(expr, pos);
 }
 
@@ -5075,24 +5069,19 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
   int pos = peek_position();
   Consume(Token::IF);
   Expect(Token::LPAREN);
-  RETURN_IF_PARSE_ERROR;
   ExpressionT condition = ParseExpression();
-  RETURN_IF_PARSE_ERROR;
   Expect(Token::RPAREN);
-  RETURN_IF_PARSE_ERROR;
 
   SourceRange then_range, else_range;
   StatementT then_statement = impl()->NullStatement();
   {
     SourceRangeScope range_scope(scanner(), &then_range);
     then_statement = ParseScopedStatement(labels);
-    RETURN_IF_PARSE_ERROR
   }
 
   StatementT else_statement = impl()->NullStatement();
   if (Check(Token::ELSE)) {
     else_statement = ParseScopedStatement(labels);
-    RETURN_IF_PARSE_ERROR;
     else_range = SourceRange::ContinuationOf(then_range, end_position());
   } else {
     else_statement = factory()->NewEmptyStatement(kNoSourcePosition);
@@ -5117,17 +5106,15 @@ ParserBase<Impl>::ParseContinueStatement() {
       !Token::IsAutoSemicolon(tok)) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
     label = ParseIdentifier(kAllowRestrictedIdentifiers);
-    RETURN_IF_PARSE_ERROR;
   }
+  RETURN_IF_PARSE_ERROR;
   typename Types::IterationStatement target =
       impl()->LookupContinueTarget(label);
-  RETURN_IF_PARSE_ERROR;
   if (impl()->IsNull(target)) {
     // Illegal continue statement.
     MessageTemplate message = MessageTemplate::kIllegalContinue;
     typename Types::BreakableStatement breakable_target =
         impl()->LookupBreakTarget(label);
-    RETURN_IF_PARSE_ERROR;
     if (impl()->IsNull(label)) {
       message = MessageTemplate::kNoIterationStatement;
     } else if (impl()->IsNull(breakable_target)) {
@@ -5137,7 +5124,6 @@ ParserBase<Impl>::ParseContinueStatement() {
     return impl()->NullStatement();
   }
   ExpectSemicolon();
-  RETURN_IF_PARSE_ERROR;
   StatementT stmt = factory()->NewContinueStatement(target, pos);
   impl()->RecordJumpStatementSourceRange(stmt, end_position());
   return stmt;
@@ -5157,17 +5143,14 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
       !Token::IsAutoSemicolon(tok)) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
     label = ParseIdentifier(kAllowRestrictedIdentifiers);
-    RETURN_IF_PARSE_ERROR;
   }
   // Parse labeled break statements that target themselves into
   // empty statements, e.g. 'l1: l2: l3: break l2;'
   if (!impl()->IsNull(label) && impl()->ContainsLabel(labels, label)) {
     ExpectSemicolon();
-    RETURN_IF_PARSE_ERROR;
     return factory()->NewEmptyStatement(pos);
   }
   typename Types::BreakableStatement target = impl()->LookupBreakTarget(label);
-  RETURN_IF_PARSE_ERROR;
   if (impl()->IsNull(target)) {
     // Illegal break statement.
     MessageTemplate message = MessageTemplate::kIllegalBreak;
@@ -5178,7 +5161,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
     return impl()->NullStatement();
   }
   ExpectSemicolon();
-  RETURN_IF_PARSE_ERROR;
   StatementT stmt = factory()->NewBreakStatement(target, pos);
   impl()->RecordJumpStatementSourceRange(stmt, end_position());
   return stmt;
@@ -5213,10 +5195,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement() {
     }
   } else {
     return_value = ParseExpression();
-    RETURN_IF_PARSE_ERROR;
   }
   ExpectSemicolon();
-  RETURN_IF_PARSE_ERROR;
+
   return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
   int continuation_pos = end_position();
   StatementT stmt =
@@ -5240,11 +5221,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
   }
 
   Expect(Token::LPAREN);
-  RETURN_IF_PARSE_ERROR;
   ExpressionT expr = ParseExpression();
-  RETURN_IF_PARSE_ERROR;
   Expect(Token::RPAREN);
-  RETURN_IF_PARSE_ERROR;
 
   Scope* with_scope = NewScope(WITH_SCOPE);
   StatementT body = impl()->NullStatement();
@@ -5252,7 +5230,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
     BlockState block_state(&scope_, with_scope);
     with_scope->set_start_position(scanner()->peek_location().beg_pos);
     body = ParseStatement(labels, nullptr);
-    RETURN_IF_PARSE_ERROR;
     with_scope->set_end_position(end_position());
   }
   return factory()->NewWithStatement(with_scope, expr, body, pos);
@@ -5277,17 +5254,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   {
     SourceRangeScope range_scope(scanner(), &body_range);
     body = ParseStatement(nullptr, nullptr);
-    RETURN_IF_PARSE_ERROR;
   }
   Expect(Token::WHILE);
-  RETURN_IF_PARSE_ERROR;
   Expect(Token::LPAREN);
-  RETURN_IF_PARSE_ERROR;
 
   ExpressionT cond = ParseExpression();
-  RETURN_IF_PARSE_ERROR
   Expect(Token::RPAREN);
-  RETURN_IF_PARSE_ERROR;
 
   // Allow do-statements to be terminated with and without
   // semi-colons. This allows code such as 'do;while(0)return' to
@@ -5316,15 +5288,11 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
 
   Consume(Token::WHILE);
   Expect(Token::LPAREN);
-  RETURN_IF_PARSE_ERROR;
   ExpressionT cond = ParseExpression();
-  RETURN_IF_PARSE_ERROR
   Expect(Token::RPAREN);
-  RETURN_IF_PARSE_ERROR;
   {
     SourceRangeScope range_scope(scanner(), &body_range);
     body = ParseStatement(nullptr, nullptr);
-    RETURN_IF_PARSE_ERROR;
   }
 
   loop->Initialize(cond, body);
@@ -5345,9 +5313,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseThrowStatement() {
     return impl()->NullStatement();
   }
   ExpressionT exception = ParseExpression();
-  RETURN_IF_PARSE_ERROR;
   ExpectSemicolon();
-  RETURN_IF_PARSE_ERROR;
 
   StatementT stmt = impl()->NewThrowStatement(exception, pos);
   impl()->RecordThrowSourceRange(stmt, end_position());
