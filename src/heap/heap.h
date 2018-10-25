@@ -81,6 +81,7 @@ class ScavengerCollector;
 class Space;
 class StoreBuffer;
 class StressScavengeObserver;
+class TimedHistogram;
 class TracePossibleWrapperReporter;
 class WeakObjectRetainer;
 
@@ -1528,8 +1529,8 @@ class Heap {
   // - GCFinalzeMC: finalization of incremental full GC
   // - GCFinalizeMCReduceMemory: finalization of incremental full GC with
   // memory reduction
-  HistogramTimer* GCTypeTimer(GarbageCollector collector);
-  HistogramTimer* GCTypePriorityTimer(GarbageCollector collector);
+  TimedHistogram* GCTypeTimer(GarbageCollector collector);
+  TimedHistogram* GCTypePriorityTimer(GarbageCollector collector);
 
   // ===========================================================================
   // Pretenuring. ==============================================================

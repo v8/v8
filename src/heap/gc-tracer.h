@@ -321,7 +321,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void AddBackgroundScopeSample(BackgroundScope::ScopeId scope, double duration,
                                 RuntimeCallCounter* runtime_call_counter);
 
-  void RecordGCPhasesHistograms(HistogramTimer* gc_timer);
+  void RecordGCPhasesHistograms(TimedHistogram* gc_timer);
 
  private:
   FRIEND_TEST(GCTracer, AverageSpeed);

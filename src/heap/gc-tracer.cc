@@ -1096,7 +1096,7 @@ void GCTracer::AddBackgroundScopeSample(
   }
 }
 
-void GCTracer::RecordGCPhasesHistograms(HistogramTimer* gc_timer) {
+void GCTracer::RecordGCPhasesHistograms(TimedHistogram* gc_timer) {
   Counters* counters = heap_->isolate()->counters();
   if (gc_timer == counters->gc_finalize()) {
     DCHECK_EQ(Scope::FIRST_TOP_MC_SCOPE, Scope::MC_CLEAR);

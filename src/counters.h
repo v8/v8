@@ -305,6 +305,34 @@ class TimedHistogramScope {
   DISALLOW_IMPLICIT_CONSTRUCTORS(TimedHistogramScope);
 };
 
+enum class OptionalTimedHistogramScopeMode { TAKE_TIME, DONT_TAKE_TIME };
+
+// Helper class for scoping a TimedHistogram.
+// It will not take time for mode = DONT_TAKE_TIME.
+class OptionalTimedHistogramScope {
+ public:
+  OptionalTimedHistogramScope(TimedHistogram* histogram, Isolate* isolate,
+                              OptionalTimedHistogramScopeMode mode)
+      : histogram_(histogram), isolate_(isolate), mode_(mode) {
+    if (mode == OptionalTimedHistogramScopeMode::TAKE_TIME) {
+      histogram_->Start(&timer_, isolate);
+    }
+  }
+
+  ~OptionalTimedHistogramScope() {
+    if (mode_ == OptionalTimedHistogramScopeMode::TAKE_TIME) {
+      histogram_->Stop(&timer_, isolate_);
+    }
+  }
+
+ private:
+  base::ElapsedTimer timer_;
+  TimedHistogram* const histogram_;
+  Isolate* const isolate_;
+  const OptionalTimedHistogramScopeMode mode_;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(OptionalTimedHistogramScope);
+};
+
 // Helper class for recording a TimedHistogram asynchronously with manual
 // controls (it will not generate a report if destroyed without explicitly
 // triggering a report). |async_counters| should be a shared_ptr to
@@ -433,27 +461,6 @@ class HistogramTimerScope {
 #ifdef DEBUG
   bool skipped_timer_start_;
 #endif
-};
-
-enum class OptionalHistogramTimerScopeMode { TAKE_TIME, DONT_TAKE_TIME };
-
-// Helper class for scoping a HistogramTimer.
-// It will not take time if take_time is set to false.
-class OptionalHistogramTimerScope {
- public:
-  OptionalHistogramTimerScope(HistogramTimer* timer,
-                              OptionalHistogramTimerScopeMode mode)
-      : timer_(timer), mode_(mode) {
-    if (mode == OptionalHistogramTimerScopeMode::TAKE_TIME) timer_->Start();
-  }
-
-  ~OptionalHistogramTimerScope() {
-    if (mode_ == OptionalHistogramTimerScopeMode::TAKE_TIME) timer_->Stop();
-  }
-
- private:
-  HistogramTimer* timer_;
-  OptionalHistogramTimerScopeMode mode_;
 };
 
 // A histogram timer that can aggregate events within a larger scope.
@@ -1225,21 +1232,6 @@ class RuntimeCallTimerScope {
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
-  HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                         \
-  HT(gc_compactor_background, V8.GCCompactorBackground, 10000, MILLISECOND)    \
-  HT(gc_compactor_foreground, V8.GCCompactorForeground, 10000, MILLISECOND)    \
-  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                         \
-  HT(gc_finalize_background, V8.GCFinalizeMCBackground, 10000, MILLISECOND)    \
-  HT(gc_finalize_foreground, V8.GCFinalizeMCForeground, 10000, MILLISECOND)    \
-  HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,            \
-     MILLISECOND)                                                              \
-  HT(gc_finalize_reduce_memory_background,                                     \
-     V8.GCFinalizeMCReduceMemoryBackground, 10000, MILLISECOND)                \
-  HT(gc_finalize_reduce_memory_foreground,                                     \
-     V8.GCFinalizeMCReduceMemoryForeground, 10000, MILLISECOND)                \
-  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
-  HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
-  HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
   HT(gc_context, V8.GCContext, 10000,                                          \
      MILLISECOND) /* GC context cleanup time */                                \
   HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)          \
@@ -1270,6 +1262,23 @@ class RuntimeCallTimerScope {
      MICROSECOND)
 
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
+  /* Garbage collection timers. */                                             \
+  HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                         \
+  HT(gc_compactor_background, V8.GCCompactorBackground, 10000, MILLISECOND)    \
+  HT(gc_compactor_foreground, V8.GCCompactorForeground, 10000, MILLISECOND)    \
+  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                         \
+  HT(gc_finalize_background, V8.GCFinalizeMCBackground, 10000, MILLISECOND)    \
+  HT(gc_finalize_foreground, V8.GCFinalizeMCForeground, 10000, MILLISECOND)    \
+  HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,            \
+     MILLISECOND)                                                              \
+  HT(gc_finalize_reduce_memory_background,                                     \
+     V8.GCFinalizeMCReduceMemoryBackground, 10000, MILLISECOND)                \
+  HT(gc_finalize_reduce_memory_foreground,                                     \
+     V8.GCFinalizeMCReduceMemoryForeground, 10000, MILLISECOND)                \
+  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
+  HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
+  HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
+  /* Wasm timers. */                                                           \
   HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,         \
      1000000, MICROSECOND)                                                     \
   HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds.wasm,       \
