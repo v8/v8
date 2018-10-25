@@ -852,7 +852,7 @@ class PreParserTargetScope {
 
 class PreParserFuncNameInferrer {
  public:
-  PreParserFuncNameInferrer(AstValueFactory* avf, Zone* zone) {}
+  explicit PreParserFuncNameInferrer(AstValueFactory* avf) {}
   void RemoveAsyncKeywordFromEnd() const {}
   void Infer() const {}
   void RemoveLastFunction() const {}
