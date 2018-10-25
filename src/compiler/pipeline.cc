@@ -2042,19 +2042,11 @@ bool PipelineImpl::CreateGraph() {
       // brokerization of JSNativeContextSpecialization is complete.
       Run<CopyMetadataForConcurrentCompilePhase>();
       data->broker()->StopSerializing();
-    } else if (FLAG_concurrent_typed_lowering) {
+    } else {
       data->broker()->StartSerializing();
       Run<SerializeStandardObjectsPhase>();
       Run<CopyMetadataForConcurrentCompilePhase>();
       data->broker()->StopSerializing();
-    } else {
-      // Type the graph and keep the Typer running such that new nodes get
-      // automatically typed when they are created.
-      Run<TyperPhase>(data->CreateTyper());
-      RunPrintAndVerify(TyperPhase::phase_name());
-      Run<TypedLoweringPhase>();
-      RunPrintAndVerify(TypedLoweringPhase::phase_name());
-      data->DeleteTyper();
     }
   }
 
@@ -2068,15 +2060,13 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   data->BeginPhaseKind("lowering");
 
-  if (FLAG_concurrent_typed_lowering) {
-    // Type the graph and keep the Typer running such that new nodes get
-    // automatically typed when they are created.
-    Run<TyperPhase>(data->CreateTyper());
-    RunPrintAndVerify(TyperPhase::phase_name());
-    Run<TypedLoweringPhase>();
-    RunPrintAndVerify(TypedLoweringPhase::phase_name());
-    data->DeleteTyper();
-  }
+  // Type the graph and keep the Typer running such that new nodes get
+  // automatically typed when they are created.
+  Run<TyperPhase>(data->CreateTyper());
+  RunPrintAndVerify(TyperPhase::phase_name());
+  Run<TypedLoweringPhase>();
+  RunPrintAndVerify(TypedLoweringPhase::phase_name());
+  data->DeleteTyper();
 
   if (data->info()->is_loop_peeling_enabled()) {
     Run<LoopPeelingPhase>();
@@ -2580,7 +2570,7 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
 
 MaybeHandle<Code> PipelineImpl::FinalizeCode() {
   PipelineData* data = this->data_;
-  if (data->broker() && FLAG_concurrent_typed_lowering) {
+  if (data->broker()) {
     data->broker()->Retire();
   }
   Run<FinalizeCodePhase>();
