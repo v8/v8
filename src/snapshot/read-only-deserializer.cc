@@ -34,6 +34,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
     DisallowHeapAllocation no_gc;
 
     ReadOnlyRoots(isolate).Iterate(this);
+    isolate->heap()->read_only_space()->RepairFreeListsAfterDeserialization();
 
     // Deserialize the Read-only Object Cache.
     std::vector<Object*>* cache = isolate->read_only_object_cache();

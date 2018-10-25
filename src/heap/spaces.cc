@@ -3129,34 +3129,6 @@ size_t PagedSpace::SizeOfObjects() {
   return Size() - (limit() - top());
 }
 
-// After we have booted, we have created a map which represents free space
-// on the heap.  If there was already a free list then the elements on it
-// were created with the wrong FreeSpaceMap (normally nullptr), so we need to
-// fix them.
-void PagedSpace::RepairFreeListsAfterDeserialization() {
-  free_list_.RepairLists(heap());
-  // Each page may have a small free space that is not tracked by a free list.
-  // Those free spaces still contain null as their map pointer.
-  // Overwrite them with new fillers.
-  for (Page* page : *this) {
-    int size = static_cast<int>(page->wasted_memory());
-    if (size == 0) {
-      // If there is no wasted memory then all free space is in the free list.
-      continue;
-    }
-    Address start = page->HighWaterMark();
-    Address end = page->area_end();
-    if (start < end - size) {
-      // A region at the high watermark is already in free list.
-      HeapObject* filler = HeapObject::FromAddress(start);
-      CHECK(filler->IsFiller());
-      start += filler->Size();
-    }
-    CHECK_EQ(size, static_cast<int>(end - start));
-    heap()->CreateFillerObjectAt(start, size, ClearRecordedSlots::kNo);
-  }
-}
-
 bool PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
@@ -3289,6 +3261,34 @@ void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
         memory_allocator->page_allocator(page->executable());
     CHECK(SetPermissions(page_allocator, page->address() + area_start_offset,
                          page->size() - area_start_offset, access));
+  }
+}
+
+// After we have booted, we have created a map which represents free space
+// on the heap.  If there was already a free list then the elements on it
+// were created with the wrong FreeSpaceMap (normally nullptr), so we need to
+// fix them.
+void ReadOnlySpace::RepairFreeListsAfterDeserialization() {
+  free_list_.RepairLists(heap());
+  // Each page may have a small free space that is not tracked by a free list.
+  // Those free spaces still contain null as their map pointer.
+  // Overwrite them with new fillers.
+  for (Page* page : *this) {
+    int size = static_cast<int>(page->wasted_memory());
+    if (size == 0) {
+      // If there is no wasted memory then all free space is in the free list.
+      continue;
+    }
+    Address start = page->HighWaterMark();
+    Address end = page->area_end();
+    if (start < end - size) {
+      // A region at the high watermark is already in free list.
+      HeapObject* filler = HeapObject::FromAddress(start);
+      CHECK(filler->IsFiller());
+      start += filler->Size();
+    }
+    CHECK_EQ(size, static_cast<int>(end - start));
+    heap()->CreateFillerObjectAt(start, size, ClearRecordedSlots::kNo);
   }
 }
 

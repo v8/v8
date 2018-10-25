@@ -2077,10 +2077,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Does the space need executable memory?
   Executability executable() { return executable_; }
 
-  // During boot the free_space_map is created, and afterwards we may need
-  // to write it into the free list nodes that were already created.
-  void RepairFreeListsAfterDeserialization();
-
   // Prepares for a mark-compact GC.
   void PrepareForMarkCompact();
 
@@ -2928,6 +2924,10 @@ class ReadOnlySpace : public PagedSpace {
 
   void ClearStringPaddingIfNeeded();
   void MarkAsReadOnly();
+
+  // During boot the free_space_map is created, and afterwards we may need
+  // to write it into the free list nodes that were already created.
+  void RepairFreeListsAfterDeserialization();
 
  private:
   void MarkAsReadWrite();

@@ -607,14 +607,6 @@ const char* Heap::GetSpaceName(int idx) {
   return nullptr;
 }
 
-void Heap::RepairFreeListsAfterDeserialization() {
-  PagedSpaces spaces(this);
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
-    space->RepairFreeListsAfterDeserialization();
-  }
-}
-
 void Heap::MergeAllocationSitePretenuringFeedback(
     const PretenuringFeedbackMap& local_pretenuring_feedback) {
   AllocationSite* site = nullptr;
