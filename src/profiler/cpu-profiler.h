@@ -145,7 +145,7 @@ class ProfilerEventsProcessor : public base::Thread, public CodeEventObserver {
   // Puts current stack into the tick sample events buffer.
   void AddCurrentStack(bool update_stats = false);
   void AddDeoptStack(Address from, int fp_to_sp_delta);
-  // Puts the given sample into the tick sample events buffer.
+  // Add a sample into the tick sample events buffer. Used for testing.
   void AddSample(TickSample sample);
 
  protected:
@@ -187,6 +187,8 @@ class SamplingEventsProcessor : public ProfilerEventsProcessor {
   // queue (because the structure is of fixed width, but usually not all
   // stack frame entries are filled.) This method returns a pointer to the
   // next record of the buffer.
+  // These methods are not thread-safe and should only ever be called by one
+  // producer (from CpuSampler::SampleStack()). For testing, use AddSample.
   inline TickSample* StartTickSample();
   inline void FinishTickSample();
 
