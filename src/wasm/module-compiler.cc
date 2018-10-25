@@ -2833,7 +2833,12 @@ void AsyncStreamingProcessor::OnAbort() {
 
 bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
                                           Vector<const uint8_t> wire_bytes) {
+  // DeserializeNativeModule and FinishCompile assume that they are executed in
+  // a HandleScope, and that a context is set on the isolate.
   HandleScope scope(job_->isolate_);
+  SaveContext saved_context(job_->isolate_);
+  job_->isolate_->set_context(*job_->native_context_);
+
   MaybeHandle<WasmModuleObject> result =
       DeserializeNativeModule(job_->isolate_, module_bytes, wire_bytes);
   if (result.is_null()) return false;
@@ -2849,8 +2854,6 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
   job_->wire_bytes_ = ModuleWireBytes(owned_wire_bytes.as_vector());
   job_->native_module_->set_wire_bytes(std::move(owned_wire_bytes));
 
-  SaveContext saved_context(job_->isolate_);
-  job_->isolate_->set_context(*job_->native_context_);
   job_->FinishCompile(false);
   return true;
 }
