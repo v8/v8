@@ -19,21 +19,23 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// The CHECK_OK macro is a convenient macro to enforce error
-// handling for functions that may fail (by returning !*ok).
+// The RETURN_IF_PARSE_ERROR macro is a convenient macro to enforce error
+// handling for functions that may fail (by returning if there was an parser
+// error scanner()->has_parser_error_set).
 //
-// CAUTION: This macro appends extra statements after a call,
-// thus it must never be used where only a single statement
-// is correct (e.g. an if statement branch w/o braces)!
+// Usage:
+//     foo = ParseFoo(); // may fail
+//     RETURN_IF_PARSE_ERROR
+//
+//     SAFE_USE(foo);
 
-#define CHECK_OK_VALUE(x) ok); \
-  if (!*ok) return x;          \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
+#define RETURN_IF_PARSE_ERROR_VALUE(x)     \
+  if (scanner()->has_parser_error_set()) { \
+    return x;                              \
+  }
 
-#define CHECK_OK CHECK_OK_VALUE(Expression::Default())
-#define CHECK_OK_VOID CHECK_OK_VALUE(this->Void())
+#define RETURN_IF_PARSE_ERROR RETURN_IF_PARSE_ERROR_VALUE(Expression::Default())
+#define RETURN_IF_PARSE_ERROR_VOID RETURN_IF_PARSE_ERROR_VALUE(this->Void())
 
 namespace {
 
@@ -101,13 +103,14 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   bool ok = true;
   int start_position = scanner()->peek_location().beg_pos;
   PreParserStatementList body;
-  ParseStatementList(body, Token::EOS, &ok);
+  ParseStatementList(body, Token::EOS);
+  ok = !scanner()->has_parser_error_set();
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (!ok) {
     ReportUnexpectedToken(scanner()->current_token());
   } else if (is_strict(language_mode())) {
-    CheckStrictOctalLiteral(start_position, scanner()->location().end_pos, &ok);
+    CheckStrictOctalLiteral(start_position, scanner()->location().end_pos);
   }
   return kPreParseSuccess;
 }
@@ -145,9 +148,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   DCHECK_NULL(function_state_);
   DCHECK_NULL(scope_);
   FunctionState function_state(&function_state_, &scope_, function_scope);
-  // This indirection is needed so that we can use the CHECK_OK macros.
-  bool ok_holder = true;
-  bool* ok = &ok_holder;
 
   PreParserFormalParameters formals(function_scope);
   std::unique_ptr<ExpressionClassifier> formals_classifier;
@@ -158,21 +158,23 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     formals_classifier.reset(new ExpressionClassifier(this));
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
-    ParseFormalParameterList(
-        &formals,
-        CHECK_OK_VALUE(
-            pending_error_handler()->has_error_unidentifiable_by_preparser()
-                ? kPreParseNotIdentifiableError
-                : kPreParseSuccess));
-    Expect(Token::RPAREN, CHECK_OK_VALUE(kPreParseSuccess));
+    ParseFormalParameterList(&formals);
+    RETURN_IF_PARSE_ERROR_VALUE(
+        pending_error_handler()->has_error_unidentifiable_by_preparser()
+            ? kPreParseNotIdentifiableError
+            : kPreParseSuccess);
+    Expect(Token::RPAREN);
+    RETURN_IF_PARSE_ERROR_VALUE(kPreParseSuccess);
     int formals_end_position = scanner()->location().end_pos;
 
-    CheckArityRestrictions(
-        formals.arity, kind, formals.has_rest, function_scope->start_position(),
-        formals_end_position, CHECK_OK_VALUE(kPreParseSuccess));
+    CheckArityRestrictions(formals.arity, kind, formals.has_rest,
+                           function_scope->start_position(),
+                           formals_end_position);
+    RETURN_IF_PARSE_ERROR_VALUE(kPreParseSuccess);
   }
 
-  Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
+  Expect(Token::LBRACE);
+  RETURN_IF_PARSE_ERROR_VALUE(kPreParseSuccess);
   DeclarationScope* inner_scope = function_scope;
   LazyParsingResult result;
 
@@ -183,7 +185,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   {
     BlockState block_state(&scope_, inner_scope);
-    result = ParseStatementListAndLogFunction(&formals, may_abort, ok);
+    result = ParseStatementListAndLogFunction(&formals, may_abort);
   }
 
   bool allow_duplicate_parameters = false;
@@ -197,7 +199,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
                                  !IsConciseMethod(kind) &&
                                  !IsArrowFunction(kind);
   } else {
-    BuildParameterInitializationBlock(formals, ok);
+    BuildParameterInitializationBlock(formals);
 
     if (is_sloppy(inner_scope->language_mode())) {
       inner_scope->HoistSloppyBlockFunctions(nullptr);
@@ -216,9 +218,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   } else if (stack_overflow()) {
     return kPreParseStackOverflow;
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
-    DCHECK(!*ok);
     return kPreParseNotIdentifiableError;
-  } else if (!*ok) {
+  } else if (scanner()->has_parser_error_set()) {
     DCHECK(pending_error_handler()->has_pending_error());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
@@ -227,8 +228,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     if (!IsArrowFunction(kind)) {
       // Validate parameter names. We can do this only after parsing the
       // function, since the function can declare itself strict.
-      ValidateFormalParameters(language_mode(), allow_duplicate_parameters, ok);
-      if (!*ok) {
+      ValidateFormalParameters(language_mode(), allow_duplicate_parameters);
+      if (scanner()->has_parser_error_set()) {
         if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
           return kPreParseNotIdentifiableError;
         } else {
@@ -247,11 +248,14 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       *produced_preparsed_scope_data = ProducedPreParsedScopeData::For(
           preparsed_scope_data_builder_, main_zone());
     }
-    DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
+
+    if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
+      return kPreParseNotIdentifiableError;
+    }
 
     if (is_strict(function_scope->language_mode())) {
       int end_pos = scanner()->location().end_pos;
-      CheckStrictOctalLiteral(function_scope->start_position(), end_pos, ok);
+      CheckStrictOctalLiteral(function_scope->start_position(), end_pos);
     }
   }
 
@@ -278,7 +282,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
     LanguageMode language_mode,
-    ZonePtrList<const AstRawString>* arguments_for_wrapped_function, bool* ok) {
+    ZonePtrList<const AstRawString>* arguments_for_wrapped_function) {
   // Wrapped functions are not parsed in the preparser.
   DCHECK_NULL(arguments_for_wrapped_function);
   DCHECK_NE(FunctionLiteral::kWrapped, function_type);
@@ -311,25 +315,31 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   ExpressionClassifier formals_classifier(this);
   int func_id = GetNextFunctionLiteralId();
 
-  Expect(Token::LPAREN, CHECK_OK);
+  Expect(Token::LPAREN);
+  RETURN_IF_PARSE_ERROR;
   int start_position = scanner()->location().beg_pos;
   function_scope->set_start_position(start_position);
   PreParserFormalParameters formals(function_scope);
-  ParseFormalParameterList(&formals, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
+  ParseFormalParameterList(&formals);
+  RETURN_IF_PARSE_ERROR;
+  Expect(Token::RPAREN);
+  RETURN_IF_PARSE_ERROR;
   int formals_end_position = scanner()->location().end_pos;
 
   CheckArityRestrictions(formals.arity, kind, formals.has_rest, start_position,
-                         formals_end_position, CHECK_OK);
+                         formals_end_position);
+  RETURN_IF_PARSE_ERROR;
 
-  Expect(Token::LBRACE, CHECK_OK);
+  Expect(Token::LBRACE);
+  RETURN_IF_PARSE_ERROR;
 
   // Parse function body.
   PreParserStatementList body;
   int pos = function_token_pos == kNoSourcePosition ? peek_position()
                                                     : function_token_pos;
   ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
-                    FunctionBodyType::kBlock, true, CHECK_OK);
+                    FunctionBodyType::kBlock, true);
+  RETURN_IF_PARSE_ERROR;
 
   // Parsing the body may change the language mode in our scope.
   language_mode = function_scope->language_mode();
@@ -341,11 +351,13 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Validate name and parameter names. We can do this only after parsing the
   // function, since the function can declare itself strict.
   CheckFunctionName(language_mode, function_name, function_name_validity,
-                    function_name_location, CHECK_OK);
+                    function_name_location);
+  RETURN_IF_PARSE_ERROR;
 
   int end_position = scanner()->location().end_pos;
   if (is_strict(language_mode)) {
-    CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
+    CheckStrictOctalLiteral(start_position, end_position);
+    RETURN_IF_PARSE_ERROR;
   }
 
   if (preparsed_scope_data_builder_scope) {
@@ -373,10 +385,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 }
 
 PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
-    PreParserFormalParameters* formals, bool may_abort, bool* ok) {
+    PreParserFormalParameters* formals, bool may_abort) {
   PreParserStatementList body;
-  LazyParsingResult result = ParseStatementList(
-      body, Token::RBRACE, may_abort, CHECK_OK_VALUE(kLazyParsingComplete));
+  LazyParsingResult result = ParseStatementList(body, Token::RBRACE, may_abort);
+  RETURN_IF_PARSE_ERROR_VALUE(kLazyParsingComplete);
   if (result == kLazyParsingAborted) return result;
 
   // Position right after terminal '}'.
@@ -389,7 +401,7 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
 }
 
 PreParserStatement PreParser::BuildParameterInitializationBlock(
-    const PreParserFormalParameters& parameters, bool* ok) {
+    const PreParserFormalParameters& parameters) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   if (scope()->AsDeclarationScope()->calls_sloppy_eval() &&
@@ -425,7 +437,7 @@ void PreParser::DeclareAndInitializeVariables(
     PreParserStatement block,
     const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
-    ZonePtrList<const AstRawString>* names, bool* ok) {
+    ZonePtrList<const AstRawString>* names) {
   if (declaration->pattern.variables_ != nullptr) {
     for (auto variable : *(declaration->pattern.variables_)) {
       declaration_descriptor->scope->RemoveUnresolved(variable);
@@ -443,9 +455,8 @@ void PreParser::DeclareAndInitializeVariables(
   }
 }
 
-#undef CHECK_OK
-#undef CHECK_OK_CUSTOM
-
-
+#undef RETURN_IF_PARSE_ERROR_VOID
+#undef RETURN_IF_PARSE_ERROR
+#undef RETURN_IF_PARSE_ERROR_VALUE
 }  // namespace internal
 }  // namespace v8

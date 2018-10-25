@@ -42,12 +42,12 @@ class Utf16CharacterStream {
 
   virtual ~Utf16CharacterStream() = default;
 
-  void set_parser_error() {
+  V8_INLINE void set_parser_error() {
     buffer_cursor_ = buffer_end_;
     has_parser_error_ = true;
   }
-  void reset_parser_error_flag() { has_parser_error_ = false; }
-  bool has_parser_error() const { return has_parser_error_; }
+  V8_INLINE void reset_parser_error_flag() { has_parser_error_ = false; }
+  V8_INLINE bool has_parser_error() const { return has_parser_error_; }
 
   inline uc32 Peek() {
     if (V8_LIKELY(buffer_cursor_ < buffer_end_)) {
@@ -238,9 +238,13 @@ class Scanner {
 
   // Sets the Scanner into an error state to stop further scanning and terminate
   // the parsing by only returning ILLEGAL tokens after that.
-  void set_parser_error() { source_->set_parser_error(); }
-  void reset_parser_error_flag() { source_->reset_parser_error_flag(); }
-  bool has_parser_error_set() { return source_->has_parser_error(); }
+  V8_INLINE void set_parser_error() { source_->set_parser_error(); }
+  V8_INLINE void reset_parser_error_flag() {
+    source_->reset_parser_error_flag();
+  }
+  V8_INLINE bool has_parser_error_set() const {
+    return source_->has_parser_error();
+  }
 
   // Representation of an interval of source positions.
   struct Location {

@@ -270,20 +270,20 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return reusable_preparser_;
   }
 
-  void ParseModuleItemList(ZonePtrList<Statement>* body, bool* ok);
-  Statement* ParseModuleItem(bool* ok);
-  const AstRawString* ParseModuleSpecifier(bool* ok);
-  void ParseImportDeclaration(bool* ok);
-  Statement* ParseExportDeclaration(bool* ok);
-  Statement* ParseExportDefault(bool* ok);
-  void ParseExportStar(bool* ok);
+  void ParseModuleItemList(ZonePtrList<Statement>* body);
+  Statement* ParseModuleItem();
+  const AstRawString* ParseModuleSpecifier();
+  void ParseImportDeclaration();
+  Statement* ParseExportDeclaration();
+  Statement* ParseExportDefault();
+  void ParseExportStar();
   struct ExportClauseData {
     const AstRawString* export_name;
     const AstRawString* local_name;
     Scanner::Location location;
   };
   ZoneChunkList<ExportClauseData>* ParseExportClause(
-      Scanner::Location* reserved_loc, bool* ok);
+      Scanner::Location* reserved_loc);
   struct NamedImport : public ZoneObject {
     const AstRawString* import_name;
     const AstRawString* local_name;
@@ -294,20 +294,19 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
           local_name(local_name),
           location(location) {}
   };
-  ZonePtrList<const NamedImport>* ParseNamedImports(int pos, bool* ok);
+  ZonePtrList<const NamedImport>* ParseNamedImports(int pos);
   Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
-                                  ZonePtrList<const AstRawString>* names,
-                                  bool* ok);
+                                  ZonePtrList<const AstRawString>* names);
   void DeclareLabel(ZonePtrList<const AstRawString>** labels,
                     ZonePtrList<const AstRawString>** own_labels,
-                    VariableProxy* expr, bool* ok);
+                    VariableProxy* expr);
   bool ContainsLabel(ZonePtrList<const AstRawString>* labels,
                      const AstRawString* label);
   Expression* RewriteReturn(Expression* return_value, int pos);
   Statement* RewriteSwitchStatement(SwitchStatement* switch_statement,
                                     Scope* scope);
-  void RewriteCatchPattern(CatchInfo* catch_info, bool* ok);
-  void ValidateCatchBlock(const CatchInfo& catch_info, bool* ok);
+  void RewriteCatchPattern(CatchInfo* catch_info);
+  void ValidateCatchBlock(const CatchInfo& catch_info);
   Statement* RewriteTryStatement(Block* try_block, Block* catch_block,
                                  const SourceRange& catch_range,
                                  Block* finally_block,
@@ -316,11 +315,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void GetUnexpectedTokenMessage(Token::Value token, MessageTemplate* message,
                                  Scanner::Location* location, const char** arg);
   void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
-                                            ZonePtrList<Statement>* body,
-                                            bool* ok);
+                                            ZonePtrList<Statement>* body);
   void ParseAndRewriteAsyncGeneratorFunctionBody(int pos, FunctionKind kind,
-                                                 ZonePtrList<Statement>* body,
-                                                 bool* ok);
+                                                 ZonePtrList<Statement>* body);
   void DeclareFunctionNameVar(const AstRawString* function_name,
                               FunctionLiteral::FunctionType function_type,
                               DeclarationScope* function_scope);
@@ -328,32 +325,30 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Statement* DeclareFunction(const AstRawString* variable_name,
                              FunctionLiteral* function, VariableMode mode,
                              int pos, bool is_sloppy_block_function,
-                             ZonePtrList<const AstRawString>* names, bool* ok);
-  Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name,
-                                           bool* ok);
+                             ZonePtrList<const AstRawString>* names);
+  Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name);
   FunctionLiteral* CreateInitializerFunction(
       const char* name, DeclarationScope* scope,
       ZonePtrList<ClassLiteral::Property>* fields);
   V8_INLINE Statement* DeclareClass(const AstRawString* variable_name,
                                     Expression* value,
                                     ZonePtrList<const AstRawString>* names,
-                                    int class_token_pos, int end_pos, bool* ok);
+                                    int class_token_pos, int end_pos);
   V8_INLINE void DeclareClassVariable(const AstRawString* name,
                                       ClassInfo* class_info,
-                                      int class_token_pos, bool* ok);
+                                      int class_token_pos);
   V8_INLINE void DeclareClassProperty(const AstRawString* class_name,
                                       ClassLiteralProperty* property,
                                       const AstRawString* property_name,
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       bool is_computed_name, bool is_private,
-                                      ClassInfo* class_info, bool* ok);
+                                      ClassInfo* class_info);
   V8_INLINE Expression* RewriteClassLiteral(Scope* block_scope,
                                             const AstRawString* name,
                                             ClassInfo* class_info, int pos,
-                                            int end_pos, bool* ok);
-  V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
-                                     bool* ok);
+                                            int end_pos);
+  V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos);
 
   V8_INLINE Block* IgnoreCompletion(Statement* statement);
 
@@ -364,7 +359,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeclareAndInitializeVariables(
       Block* block, const DeclarationDescriptor* declaration_descriptor,
       const DeclarationParsingResult::Declaration* declaration,
-      ZonePtrList<const AstRawString>* names, bool* ok);
+      ZonePtrList<const AstRawString>* names);
   void RewriteDestructuringAssignment(RewritableExpression* expr);
   Expression* RewriteDestructuringAssignment(Assignment* assignment);
 
@@ -390,23 +385,21 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Block* RewriteForVarInLegacy(const ForInfo& for_info);
   void DesugarBindingInForEachStatement(ForInfo* for_info, Block** body_block,
-                                        Expression** each_variable, bool* ok);
-  Block* CreateForEachStatementTDZ(Block* init_block, const ForInfo& for_info,
-                                   bool* ok);
+                                        Expression** each_variable);
+  Block* CreateForEachStatementTDZ(Block* init_block, const ForInfo& for_info);
 
   Statement* DesugarLexicalBindingsInForStatement(
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
       Statement* body, Scope* inner_scope, const ForInfo& for_info, bool* ok);
 
-  Expression* RewriteDoExpression(Block* body, int pos, bool* ok);
+  Expression* RewriteDoExpression(Block* body, int pos);
 
   FunctionLiteral* ParseFunctionLiteral(
       const AstRawString* name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
       LanguageMode language_mode,
-      ZonePtrList<const AstRawString>* arguments_for_wrapped_function,
-      bool* ok);
+      ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
 
   ObjectLiteral* InitializeObjectLiteral(ObjectLiteral* object_literal) {
     object_literal->CalculateEmitStore(main_zone());
@@ -422,7 +415,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // The var declarations are hoisted to the function scope, but originate from
   // a scope where the name has also been let bound or the var declaration is
   // hoisted over such a scope.
-  void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
+  void CheckConflictingVarDeclarations(Scope* scope);
 
   bool IsPropertyWithPrivateFieldKey(Expression* property);
 
@@ -438,17 +431,17 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   VariableProxy* NewUnresolved(const AstRawString* name);
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind,
-                    VariableMode mode, InitializationFlag init, bool* ok,
+                    VariableMode mode, InitializationFlag init,
                     Scope* declaration_scope = nullptr,
                     int var_end_pos = kNoSourcePosition);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
-                               int pos, bool* ok);
+                               int pos);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
-                               InitializationFlag init, int pos, bool* ok);
+                               InitializationFlag init, int pos);
 
   bool TargetStackContainsLabel(const AstRawString* label);
-  BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);
-  IterationStatement* LookupContinueTarget(const AstRawString* label, bool* ok);
+  BreakableStatement* LookupBreakTarget(const AstRawString* label);
+  IterationStatement* LookupContinueTarget(const AstRawString* label);
 
   Statement* BuildAssertIsCoercible(Variable* var, ObjectLiteral* pattern);
 
@@ -471,11 +464,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                     FunctionLiteral::FunctionType function_type,
                     DeclarationScope* function_scope, int* num_parameters,
                     ProducedPreParsedScopeData** produced_preparsed_scope_data,
-                    bool may_abort, FunctionLiteral::EagerCompileHint* hint,
-                    bool* ok);
+                    bool may_abort, FunctionLiteral::EagerCompileHint* hint);
 
   Block* BuildParameterInitializationBlock(
-      const ParserFormalParameters& parameters, bool* ok);
+      const ParserFormalParameters& parameters);
   Block* BuildRejectPromiseOnException(Block* block);
 
   ZonePtrList<Statement>* ParseFunction(
@@ -484,8 +476,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       DeclarationScope* function_scope, int* num_parameters,
       int* function_length, bool* has_duplicate_parameters,
       int* expected_property_count, int* suspend_count,
-      ZonePtrList<const AstRawString>* arguments_for_wrapped_function,
-      bool* ok);
+      ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
 
@@ -583,11 +574,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE void RewriteAsyncFunctionBody(ZonePtrList<Statement>* body,
                                           Block* block,
-                                          Expression* return_value, bool* ok);
+                                          Expression* return_value);
 
   void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,
-                                        Expression* params, int end_pos,
-                                        bool* ok);
+                                        Expression* params, int end_pos);
   void SetFunctionName(Expression* value, const AstRawString* name,
                        const AstRawString* prefix = nullptr);
 
@@ -802,6 +792,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     pending_error_handler()->ReportMessageAt(source_location.beg_pos,
                                              source_location.end_pos, message,
                                              arg, error_type);
+    scanner_.set_parser_error();
   }
 
   // Dummy implementation. The parser should never have a unidentifiable
@@ -821,6 +812,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     pending_error_handler()->ReportMessageAt(source_location.beg_pos,
                                              source_location.end_pos, message,
                                              arg, error_type);
+    scanner_.set_parser_error();
   }
 
   // "null" return type creators.
@@ -901,7 +893,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE Expression* NewV8Intrinsic(const AstRawString* name,
                                        const ScopedPtrList<Expression>& args,
-                                       int pos, bool* ok);
+                                       int pos);
 
   V8_INLINE Statement* NewThrowStatement(Expression* exception, int pos) {
     return factory()->NewExpressionStatement(
@@ -950,10 +942,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
   }
 
-  void DeclareArrowFunctionFormalParameters(ParserFormalParameters* parameters,
-                                            Expression* params,
-                                            const Scanner::Location& params_loc,
-                                            bool* ok);
+  void DeclareArrowFunctionFormalParameters(
+      ParserFormalParameters* parameters, Expression* params,
+      const Scanner::Location& params_loc);
 
   Expression* ExpressionListToExpression(const ScopedPtrList<Expression>& args);
 

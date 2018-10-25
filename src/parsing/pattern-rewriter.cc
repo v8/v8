@@ -29,7 +29,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
       Parser* parser, Block* block,
       const DeclarationDescriptor* declaration_descriptor,
       const Parser::DeclarationParsingResult::Declaration* declaration,
-      ZonePtrList<const AstRawString>* names, bool* ok);
+      ZonePtrList<const AstRawString>* names);
 
   static Expression* RewriteDestructuringAssignment(Parser* parser,
                                                     Assignment* to_rewrite,
@@ -50,7 +50,6 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
         descriptor_(descriptor),
         names_(names),
         current_value_(nullptr),
-        ok_(nullptr),
         initializer_position_(initializer_position),
         value_beg_position_(value_beg_position),
         context_(context),
@@ -122,7 +121,6 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   const DeclarationDescriptor* descriptor_;
   ZonePtrList<const AstRawString>* names_;
   Expression* current_value_;
-  bool* ok_;
   const int initializer_position_;
   const int value_beg_position_;
   PatternContext context_;
@@ -135,9 +133,9 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 void Parser::DeclareAndInitializeVariables(
     Block* block, const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
-    ZonePtrList<const AstRawString>* names, bool* ok) {
+    ZonePtrList<const AstRawString>* names) {
   PatternRewriter::DeclareAndInitializeVariables(
-      this, block, declaration_descriptor, declaration, names, ok);
+      this, block, declaration_descriptor, declaration, names);
 }
 
 void Parser::RewriteDestructuringAssignment(RewritableExpression* to_rewrite) {
@@ -159,7 +157,7 @@ void PatternRewriter::DeclareAndInitializeVariables(
     Parser* parser, Block* block,
     const DeclarationDescriptor* declaration_descriptor,
     const Parser::DeclarationParsingResult::Declaration* declaration,
-    ZonePtrList<const AstRawString>* names, bool* ok) {
+    ZonePtrList<const AstRawString>* names) {
   DCHECK(block->ignore_completion_value());
 
   Scope* scope = declaration_descriptor->scope;
@@ -170,7 +168,6 @@ void PatternRewriter::DeclareAndInitializeVariables(
                                    DeclarationDescriptor::PARAMETER &&
                                scope->is_block_scope());
   rewriter.block_ = block;
-  rewriter.ok_ = ok;
 
   rewriter.RecurseIntoSubpattern(declaration->pattern,
                                  declaration->initializer);
@@ -199,7 +196,6 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
   DCHECK_NOT_NULL(block_);
   DCHECK_NOT_NULL(descriptor_);
-  DCHECK_NOT_NULL(ok_);
 
   Scope* outer_function_scope = nullptr;
   bool success;
@@ -239,9 +235,9 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // scope which will be used for the initializer expression.
   Variable* var = parser_->Declare(
       declaration, descriptor_->declaration_kind, descriptor_->mode,
-      Variable::DefaultInitializationFlag(descriptor_->mode), ok_,
+      Variable::DefaultInitializationFlag(descriptor_->mode),
       outer_function_scope);
-  if (!*ok_) return;
+  if (parser_->scanner_.has_parser_error_set()) return;
   DCHECK_NOT_NULL(var);
   DCHECK(proxy->is_resolved());
   DCHECK_NE(initializer_position_, kNoSourcePosition);
@@ -254,7 +250,6 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
                                         : scope()->GetDeclarationScope());
   if (declaration_scope->num_var() > kMaxNumFunctionLocals) {
     parser_->ReportMessage(MessageTemplate::kTooManyVariables);
-    *ok_ = false;
     return;
   }
   if (names_) {
