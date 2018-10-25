@@ -3519,7 +3519,6 @@ typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseNewTargetExpression() {
   int pos = position();
   ExpectMetaProperty(Token::TARGET, "new.target", pos);
-  RETURN_IF_PARSE_ERROR;
 
   classifier()->RecordAssignmentPatternError(
       Scanner::Location(pos, end_position()),
