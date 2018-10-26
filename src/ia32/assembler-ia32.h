@@ -63,7 +63,6 @@ namespace internal {
   V(eax)                                 \
   V(ecx)                                 \
   V(edx)                                 \
-  V(ebx)                                 \
   V(esi)                                 \
   V(edi)
 

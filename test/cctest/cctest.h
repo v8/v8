@@ -51,12 +51,7 @@ class RandomNumberGenerator;
 
 namespace internal {
 
-#ifdef V8_TARGET_ARCH_IA32
-// TODO(v8:6666): Fold into Default config once root is fully supported.
-const auto GetRegConfig = RegisterConfiguration::PreserveRootIA32;
-#else
 const auto GetRegConfig = RegisterConfiguration::Default;
-#endif
 
 class HandleScope;
 class Zone;

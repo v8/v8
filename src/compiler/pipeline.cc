@@ -2448,24 +2448,18 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     std::unique_ptr<const RegisterConfiguration> config;
     config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
     AllocateRegisters(config.get(), call_descriptor, run_verifier);
-#ifdef V8_TARGET_ARCH_IA32
-  } else {
-    // TODO(v8:6666): Ensure that that this configuration cooperates with
-    // restricted allocatable registers above, i.e. that we guarantee a
-    // restricted configuration cannot allocate kRootRegister on ia32.
-    AllocateRegisters(RegisterConfiguration::PreserveRootIA32(),
-                      call_descriptor, run_verifier);
-  }
-#else
   } else if (data->info()->GetPoisoningMitigationLevel() !=
              PoisoningMitigationLevel::kDontPoison) {
+#ifdef V8_TARGET_ARCH_IA32
+    FATAL("Poisoning is not supported on ia32.");
+#else
     AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
                       run_verifier);
+#endif  // V8_TARGET_ARCH_IA32
   } else {
     AllocateRegisters(RegisterConfiguration::Default(), call_descriptor,
                       run_verifier);
   }
-#endif  // V8_TARGET_ARCH_IA32
 
   // Verify the instruction sequence has the same hash in two stages.
   VerifyGeneratedCodeIsIdempotent();
