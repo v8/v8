@@ -1629,7 +1629,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label check_iterator(this), from_array_like(this), fast_path(this),
-      slow_path(this), create_typed_array(this),
+      slow_path(this), create_typed_array(this), check_typedarray(this),
       if_not_constructor(this, Label::kDeferred),
       if_map_fn_not_callable(this, Label::kDeferred),
       if_iterator_fn_not_callable(this, Label::kDeferred),
@@ -1652,7 +1652,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   // 3. If mapfn is present and mapfn is not undefined, then
   TNode<Object> map_fn = args.GetOptionalArgumentValue(1);
   TVARIABLE(BoolT, mapping, Int32FalseConstant());
-  GotoIf(IsUndefined(map_fn), &check_iterator);
+  GotoIf(IsUndefined(map_fn), &check_typedarray);
 
   //  a. If IsCallable(mapfn) is false, throw a TypeError exception.
   //  b. Let mapping be true.
@@ -1660,7 +1660,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   GotoIf(TaggedIsSmi(map_fn), &if_map_fn_not_callable);
   GotoIfNot(IsCallable(CAST(map_fn)), &if_map_fn_not_callable);
   mapping = Int32TrueConstant();
-  Goto(&check_iterator);
+  Goto(&check_typedarray);
 
   TVARIABLE(Object, final_source);
   TVARIABLE(Smi, final_length);
@@ -1674,13 +1674,62 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   // (starting at 7.e and 13) because they are essentially identical. We also
   // save on code-size this way.
 
+  // Get the iterator function
+  BIND(&check_typedarray);
+  TNode<Object> iterator_fn =
+      CAST(GetMethod(context, source, isolate()->factory()->iterator_symbol(),
+                     &from_array_like));
+  GotoIf(TaggedIsSmi(iterator_fn), &if_iterator_fn_not_callable);
+
+  {
+    // TypedArrays have iterators, so normally we would go through the
+    // IterableToList case below, which would convert the TypedArray to a
+    // JSArray (boxing the values if they won't fit in a Smi).
+    //
+    // However, if we can guarantee that the source object has the built-in
+    // iterator and that the %ArrayIteratorPrototype%.next method has not been
+    // overridden, then we know the behavior of the iterator: returning the
+    // values in the TypedArray sequentially from index 0 to length-1.
+    //
+    // In this case, we can avoid creating the intermediate array and the
+    // associated HeapNumbers, and use the fast path in TypedArrayCopyElements
+    // which uses the same ordering as the default iterator.
+    //
+    // Drop through to the default check_iterator behavior if any of these
+    // checks fail.
+
+    // Check that the source is a TypedArray
+    GotoIf(TaggedIsSmi(source), &check_iterator);
+    GotoIfNot(IsJSTypedArray(CAST(source)), &check_iterator);
+    // Check that the iterator function is Builtins::kTypedArrayPrototypeValues
+    GotoIfNot(IsJSFunction(CAST(iterator_fn)), &check_iterator);
+    TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
+        CAST(iterator_fn), JSFunction::kSharedFunctionInfoOffset);
+    GotoIfNot(
+        WordEqual(LoadObjectField(shared_info,
+                                  SharedFunctionInfo::kFunctionDataOffset),
+                  SmiConstant(Builtins::kTypedArrayPrototypeValues)),
+        &check_iterator);
+    // Check that the ArrayIterator prototype's "next" method hasn't been
+    // overridden
+    TNode<PropertyCell> protector_cell =
+        CAST(LoadRoot(RootIndex::kArrayIteratorProtector));
+    GotoIfNot(
+        WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                  SmiConstant(Isolate::kProtectorValid)),
+        &check_iterator);
+
+    // Source is a TypedArray with unmodified iterator behavior. Use the
+    // source object directly, taking advantage of the special-case code in
+    // TypedArrayCopyElements
+    final_length = LoadJSTypedArrayLength(CAST(source));
+    final_source = source;
+    Goto(&create_typed_array);
+  }
+
   BIND(&check_iterator);
   {
     // 6. Let usingIterator be ? GetMethod(source, @@iterator).
-    TNode<Object> iterator_fn =
-        CAST(GetMethod(context, source, isolate()->factory()->iterator_symbol(),
-                       &from_array_like));
-    GotoIf(TaggedIsSmi(iterator_fn), &if_iterator_fn_not_callable);
     GotoIfNot(IsCallable(CAST(iterator_fn)), &if_iterator_fn_not_callable);
 
     // We are using the iterator.
