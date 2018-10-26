@@ -101,6 +101,11 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
+#ifdef V8_OS_POSIX
+#include <signal.h>
+#include "src/trap-handler/handler-inside-posix.h"
+#endif
+
 namespace v8 {
 
 /*
@@ -5887,13 +5892,18 @@ bool v8::V8::Initialize() {
 }
 
 #if V8_OS_POSIX
-bool V8::TryHandleSignal(int signum, void* info, void* context) {
+bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
+                                   void* context) {
 #if V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
-  return v8::internal::trap_handler::TryHandleSignal(
-      signum, static_cast<siginfo_t*>(info), static_cast<ucontext_t*>(context));
+  return i::trap_handler::TryHandleSignal(sig_code, info, context);
 #else  // V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
   return false;
 #endif
+}
+
+bool V8::TryHandleSignal(int signum, void* info, void* context) {
+  return TryHandleWebAssemblyTrapPosix(
+      signum, reinterpret_cast<siginfo_t*>(info), context);
 }
 #endif
 

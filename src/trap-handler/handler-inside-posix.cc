@@ -23,6 +23,8 @@
 // context. Some additional code is used both inside and outside the signal
 // handler. This code can be found in handler-shared.cc.
 
+#include "src/trap-handler/handler-inside-posix.h"
+
 #include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -59,7 +61,7 @@ class SigUnmaskStack {
   void operator=(const SigUnmaskStack&) = delete;
 };
 
-bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context) {
+bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
   // Bail out early in case we got called for the wrong kind of signal.
   if (signum != SIGSEGV) {
     return false;
@@ -91,11 +93,12 @@ bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context) {
     sigaddset(&sigs, SIGSEGV);
     SigUnmaskStack unmask(sigs);
 
-    uintptr_t fault_addr = context->uc_mcontext.gregs[REG_RIP];
+    ucontext_t* uc = reinterpret_cast<ucontext_t*>(context);
+    uintptr_t fault_addr = uc->uc_mcontext.gregs[REG_RIP];
     uintptr_t landing_pad = 0;
     if (TryFindLandingPad(fault_addr, &landing_pad)) {
       // Tell the caller to return to the landing pad.
-      context->uc_mcontext.gregs[REG_RIP] = landing_pad;
+      uc->uc_mcontext.gregs[REG_RIP] = landing_pad;
       // We will return to wasm code, so restore the g_thread_in_wasm_code flag.
       g_thread_in_wasm_code = true;
       return true;
@@ -109,9 +112,7 @@ bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context) {
 }
 
 void HandleSignal(int signum, siginfo_t* info, void* context) {
-  ucontext_t* uc = reinterpret_cast<ucontext_t*>(context);
-
-  if (!TryHandleSignal(signum, info, uc)) {
+  if (!TryHandleSignal(signum, info, context)) {
     // Since V8 didn't handle this signal, we want to re-raise the same signal.
     // For kernel-generated SEGV signals, we do this by restoring the original
     // SEGV handler and then returning. The fault will happen again and the
@@ -120,7 +121,7 @@ void HandleSignal(int signum, siginfo_t* info, void* context) {
     // We handle user-generated signals by calling raise() instead. This is for
     // completeness. We should never actually see one of these, but just in
     // case, we do the right thing.
-    RestoreOriginalSignalHandler();
+    RemoveTrapHandler();
     if (!IsKernelGeneratedSignal(info)) {
       raise(signum);
     }

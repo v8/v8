@@ -58,7 +58,7 @@ TEST_F(SignalHandlerFallbackTest, DoTest) {
     FAIL();
   } else {
     // Our signal handler ran.
-    v8::internal::trap_handler::RestoreOriginalSignalHandler();
+    v8::internal::trap_handler::RemoveTrapHandler();
     SUCCEED();
     return;
   }

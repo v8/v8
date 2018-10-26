@@ -5,17 +5,12 @@
 #ifndef V8_TRAP_HANDLER_TRAP_HANDLER_H_
 #define V8_TRAP_HANDLER_TRAP_HANDLER_H_
 
-#include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #include "src/base/build_config.h"
 #include "src/flags.h"
 #include "src/globals.h"
-
-#if V8_OS_LINUX
-#include <ucontext.h>
-#endif
 
 namespace v8 {
 namespace internal {
@@ -101,11 +96,7 @@ inline void ClearThreadInWasm() {
 }
 
 bool RegisterDefaultTrapHandler();
-V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler();
-
-#if V8_OS_LINUX
-bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context);
-#endif  // V8_OS_LINUX
+V8_EXPORT_PRIVATE void RemoveTrapHandler();
 
 size_t GetRecoveredTrapCount();
 

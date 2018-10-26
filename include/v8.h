@@ -8460,7 +8460,9 @@ class V8_EXPORT V8 {
    * \param context The third argument passed to the Linux signal handler, which
    * points to a ucontext_t structure.
    */
-  static bool TryHandleSignal(int signal_number, void* info, void* context);
+  V8_DEPRECATE_SOON("Use TryHandleWebAssemblyTrapPosix",
+                    static bool TryHandleSignal(int signal_number, void* info,
+                                                void* context));
 #endif  // V8_OS_POSIX
 
   /**

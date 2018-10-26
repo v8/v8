@@ -21,14 +21,23 @@
 
 #include <signal.h>
 
+#include "src/trap-handler/handler-inside-posix.h"
 #include "src/trap-handler/trap-handler-internal.h"
-#include "src/trap-handler/trap-handler.h"
 
 namespace v8 {
 namespace internal {
 namespace trap_handler {
 
 #if V8_TRAP_HANDLER_SUPPORTED
+namespace {
+struct sigaction g_old_handler;
+
+// When using the default signal handler, we save the old one to restore in case
+// V8 chooses not to handle the signal.
+bool g_is_default_signal_handler_registered;
+
+}  // namespace
+
 bool RegisterDefaultTrapHandler() {
   CHECK(!g_is_default_signal_handler_registered);
 
@@ -66,7 +75,17 @@ bool RegisterDefaultTrapHandler() {
   g_is_default_signal_handler_registered = true;
   return true;
 }
+#endif  // V8_TRAP_HANDLER_SUPPORTED
+
+void RemoveTrapHandler() {
+#if V8_TRAP_HANDLER_SUPPORTED
+  if (g_is_default_signal_handler_registered) {
+    if (sigaction(SIGSEGV, &g_old_handler, nullptr) == 0) {
+      g_is_default_signal_handler_registered = false;
+    }
+  }
 #endif
+}
 
 }  // namespace trap_handler
 }  // namespace internal
