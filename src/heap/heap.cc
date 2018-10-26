@@ -130,7 +130,8 @@ class IdleScavengeObserver : public AllocationObserver {
 };
 
 Heap::Heap()
-    : initial_max_old_generation_size_(max_old_generation_size_),
+    : isolate_(isolate()),
+      initial_max_old_generation_size_(max_old_generation_size_),
       initial_old_generation_size_(max_old_generation_size_ /
                                    kInitalOldGenerationLimitFactor),
       memory_pressure_level_(MemoryPressureLevel::kNone),

@@ -1693,89 +1693,92 @@ class Isolate final : private HiddenFactory {
 
   Heap heap_;
   base::Atomic32 id_;
-  EntryStackItem* entry_stack_;
-  int stack_trace_nesting_level_;
-  StringStream* incomplete_message_;
-  Address isolate_addresses_[kIsolateAddressCount + 1];  // NOLINT
-  Bootstrapper* bootstrapper_;
-  RuntimeProfiler* runtime_profiler_;
-  CompilationCache* compilation_cache_;
+  EntryStackItem* entry_stack_ = nullptr;
+  int stack_trace_nesting_level_ = 0;
+  StringStream* incomplete_message_ = nullptr;
+  Address isolate_addresses_[kIsolateAddressCount + 1] = {};
+  Bootstrapper* bootstrapper_ = nullptr;
+  RuntimeProfiler* runtime_profiler_ = nullptr;
+  CompilationCache* compilation_cache_ = nullptr;
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
-  Logger* logger_;
+  Logger* logger_ = nullptr;
   StackGuard stack_guard_;
-  StubCache* load_stub_cache_;
-  StubCache* store_stub_cache_;
-  DeoptimizerData* deoptimizer_data_;
-  bool deoptimizer_lazy_throw_;
-  MaterializedObjectStore* materialized_object_store_;
+  StubCache* load_stub_cache_ = nullptr;
+  StubCache* store_stub_cache_ = nullptr;
+  DeoptimizerData* deoptimizer_data_ = nullptr;
+  bool deoptimizer_lazy_throw_ = false;
+  MaterializedObjectStore* materialized_object_store_ = nullptr;
   ThreadLocalTop thread_local_top_;
-  bool capture_stack_trace_for_uncaught_exceptions_;
-  int stack_trace_for_uncaught_exceptions_frame_limit_;
-  StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_;
-  ContextSlotCache* context_slot_cache_;
-  DescriptorLookupCache* descriptor_lookup_cache_;
+  bool capture_stack_trace_for_uncaught_exceptions_ = false;
+  int stack_trace_for_uncaught_exceptions_frame_limit_ = 0;
+  StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_ =
+      StackTrace::kOverview;
+  ContextSlotCache* context_slot_cache_ = nullptr;
+  DescriptorLookupCache* descriptor_lookup_cache_ = nullptr;
   HandleScopeData handle_scope_data_;
-  HandleScopeImplementer* handle_scope_implementer_;
-  UnicodeCache* unicode_cache_;
-  AccountingAllocator* allocator_;
-  InnerPointerToCodeCache* inner_pointer_to_code_cache_;
-  GlobalHandles* global_handles_;
-  EternalHandles* eternal_handles_;
-  ThreadManager* thread_manager_;
+  HandleScopeImplementer* handle_scope_implementer_ = nullptr;
+  UnicodeCache* unicode_cache_ = nullptr;
+  AccountingAllocator* allocator_ = nullptr;
+  InnerPointerToCodeCache* inner_pointer_to_code_cache_ = nullptr;
+  GlobalHandles* global_handles_ = nullptr;
+  EternalHandles* eternal_handles_ = nullptr;
+  ThreadManager* thread_manager_ = nullptr;
   RuntimeState runtime_state_;
   Builtins builtins_;
-  SetupIsolateDelegate* setup_delegate_;
+  SetupIsolateDelegate* setup_delegate_ = nullptr;
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
-  RegExpStack* regexp_stack_;
+  RegExpStack* regexp_stack_ = nullptr;
   std::vector<int> regexp_indices_;
-  DateCache* date_cache_;
-  base::RandomNumberGenerator* random_number_generator_;
-  base::RandomNumberGenerator* fuzzer_rng_;
+  DateCache* date_cache_ = nullptr;
+  base::RandomNumberGenerator* random_number_generator_ = nullptr;
+  base::RandomNumberGenerator* fuzzer_rng_ = nullptr;
   base::AtomicValue<RAILMode> rail_mode_;
-  v8::Isolate::AtomicsWaitCallback atomics_wait_callback_;
-  void* atomics_wait_callback_data_;
-  PromiseHook promise_hook_;
-  HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_;
+  v8::Isolate::AtomicsWaitCallback atomics_wait_callback_ = nullptr;
+  void* atomics_wait_callback_data_ = nullptr;
+  PromiseHook promise_hook_ = nullptr;
+  HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_ =
+      nullptr;
   HostInitializeImportMetaObjectCallback
-      host_initialize_import_meta_object_callback_;
+      host_initialize_import_meta_object_callback_ = nullptr;
   base::Mutex rail_mutex_;
-  double load_start_time_ms_;
+  double load_start_time_ms_ = 0;
 
 #ifdef V8_INTL_SUPPORT
 #if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  icu::RegexMatcher* language_singleton_regexp_matcher_;
-  icu::RegexMatcher* language_tag_regexp_matcher_;
-  icu::RegexMatcher* language_variant_regexp_matcher_;
+  icu::RegexMatcher* language_singleton_regexp_matcher_ = nullptr;
+  icu::RegexMatcher* language_tag_regexp_matcher_ = nullptr;
+  icu::RegexMatcher* language_variant_regexp_matcher_ = nullptr;
 #endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   std::string default_locale_;
 #endif  // V8_INTL_SUPPORT
 
   // Whether the isolate has been created for snapshotting.
-  bool serializer_enabled_;
+  bool serializer_enabled_ = false;
 
   // True if fatal error has been signaled for this isolate.
-  bool has_fatal_error_;
+  bool has_fatal_error_ = false;
 
   // True if this isolate was initialized from a snapshot.
-  bool initialized_from_snapshot_;
+  bool initialized_from_snapshot_ = false;
 
+  // TODO(ishell): remove
   // True if ES2015 tail call elimination feature is enabled.
-  bool is_tail_call_elimination_enabled_;
+  bool is_tail_call_elimination_enabled_ = true;
 
   // True if the isolate is in background. This flag is used
   // to prioritize between memory usage and latency.
-  bool is_isolate_in_background_;
+  bool is_isolate_in_background_ = false;
 
   // True if the isolate is in memory savings mode. This flag is used to
   // favor memory over runtime performance.
-  bool memory_savings_mode_active_;
+  bool memory_savings_mode_active_ = false;
 
   // Time stamp at initialization.
-  double time_millis_at_init_;
+  double time_millis_at_init_ = 0;
 
 #ifdef DEBUG
   static std::atomic<size_t> non_disposed_isolates_;
@@ -1783,19 +1786,19 @@ class Isolate final : private HiddenFactory {
   JSObject::SpillInformation js_spill_information_;
 #endif
 
-  Debug* debug_;
-  HeapProfiler* heap_profiler_;
+  Debug* debug_ = nullptr;
+  HeapProfiler* heap_profiler_ = nullptr;
   std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
-  FunctionEntryHook function_entry_hook_;
+  FunctionEntryHook function_entry_hook_ = nullptr;
 
-  const AstStringConstants* ast_string_constants_;
+  const AstStringConstants* ast_string_constants_ = nullptr;
 
-  interpreter::Interpreter* interpreter_;
+  interpreter::Interpreter* interpreter_ = nullptr;
 
   compiler::PerIsolateCompilerCache* compiler_cache_ = nullptr;
   Zone* compiler_zone_ = nullptr;
 
-  CompilerDispatcher* compiler_dispatcher_;
+  CompilerDispatcher* compiler_dispatcher_ = nullptr;
 
   typedef std::pair<InterruptCallback, void*> InterruptEntry;
   std::queue<InterruptEntry> api_interrupts_queue_;
@@ -1821,18 +1824,18 @@ class Isolate final : private HiddenFactory {
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
-  DeferredHandles* deferred_handles_head_;
-  OptimizingCompileDispatcher* optimizing_compile_dispatcher_;
+  DeferredHandles* deferred_handles_head_ = nullptr;
+  OptimizingCompileDispatcher* optimizing_compile_dispatcher_ = nullptr;
 
   // Counts deopt points if deopt_every_n_times is enabled.
-  unsigned int stress_deopt_count_;
+  unsigned int stress_deopt_count_ = 0;
 
-  bool force_slow_path_;
+  bool force_slow_path_ = false;
 
-  int next_optimization_id_;
+  int next_optimization_id_ = 0;
 
 #if V8_SFI_HAS_UNIQUE_ID
-  int next_unique_sfi_id_;
+  int next_unique_sfi_id_ = 0;
 #endif
 
   // Vector of callbacks before a Call starts execution.
@@ -1843,9 +1846,9 @@ class Isolate final : private HiddenFactory {
 
   // Vector of callbacks after microtasks were run.
   std::vector<MicrotasksCompletedCallback> microtasks_completed_callbacks_;
-  bool is_running_microtasks_;
+  bool is_running_microtasks_ = false;
 
-  v8::Isolate::UseCounterCallback use_counter_callback_;
+  v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
 
   std::vector<Object*> read_only_object_cache_;
   std::vector<Object*> partial_snapshot_cache_;
@@ -1859,11 +1862,11 @@ class Isolate final : private HiddenFactory {
   const uint8_t* embedded_blob_ = nullptr;
   uint32_t embedded_blob_size_ = 0;
 
-  v8::ArrayBuffer::Allocator* array_buffer_allocator_;
+  v8::ArrayBuffer::Allocator* array_buffer_allocator_ = nullptr;
 
   FutexWaitListNode futex_wait_list_node_;
 
-  CancelableTaskManager* cancelable_task_manager_;
+  CancelableTaskManager* cancelable_task_manager_ = nullptr;
 
   debug::ConsoleDelegate* console_delegate_ = nullptr;
 
@@ -1873,14 +1876,14 @@ class Isolate final : private HiddenFactory {
   int async_task_count_ = 0;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
-      abort_on_uncaught_exception_callback_;
+      abort_on_uncaught_exception_callback_ = nullptr;
 
-  bool allow_atomics_wait_;
+  bool allow_atomics_wait_ = true;
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
 
-  size_t total_regexp_code_generated_;
+  size_t total_regexp_code_generated_ = 0;
 
   size_t elements_deletion_counter_ = 0;
 

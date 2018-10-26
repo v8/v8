@@ -2662,91 +2662,21 @@ void Isolate::Delete(Isolate* isolate) {
 }
 
 Isolate::Isolate()
-    : entry_stack_(nullptr),
-      stack_trace_nesting_level_(0),
-      incomplete_message_(nullptr),
-      bootstrapper_(nullptr),
-      runtime_profiler_(nullptr),
-      compilation_cache_(nullptr),
-      logger_(nullptr),
-      load_stub_cache_(nullptr),
-      store_stub_cache_(nullptr),
-      deoptimizer_data_(nullptr),
-      deoptimizer_lazy_throw_(false),
-      materialized_object_store_(nullptr),
-      capture_stack_trace_for_uncaught_exceptions_(false),
-      stack_trace_for_uncaught_exceptions_frame_limit_(0),
-      stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
-      context_slot_cache_(nullptr),
-      descriptor_lookup_cache_(nullptr),
-      handle_scope_implementer_(nullptr),
-      unicode_cache_(nullptr),
+    : id_(base::Relaxed_AtomicIncrement(&isolate_counter_, 1)),
+      stack_guard_(this),
       allocator_(FLAG_trace_zone_stats ? new VerboseAccountingAllocator(
                                              &heap_, 256 * KB, 128 * KB)
                                        : new AccountingAllocator()),
-      inner_pointer_to_code_cache_(nullptr),
-      global_handles_(nullptr),
-      eternal_handles_(nullptr),
-      thread_manager_(nullptr),
       builtins_(this),
-      setup_delegate_(nullptr),
-      regexp_stack_(nullptr),
-      date_cache_(nullptr),
-      // TODO(bmeurer) Initialized lazily because it depends on flags; can
-      // be fixed once the default isolate cleanup is done.
-      random_number_generator_(nullptr),
-      fuzzer_rng_(nullptr),
       rail_mode_(PERFORMANCE_ANIMATION),
-      atomics_wait_callback_(nullptr),
-      atomics_wait_callback_data_(nullptr),
-      promise_hook_(nullptr),
-      host_import_module_dynamically_callback_(nullptr),
-      host_initialize_import_meta_object_callback_(nullptr),
-      load_start_time_ms_(0),
-#ifdef V8_INTL_SUPPORT
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-      language_singleton_regexp_matcher_(nullptr),
-      language_tag_regexp_matcher_(nullptr),
-      language_variant_regexp_matcher_(nullptr),
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-      default_locale_(""),
-#endif  // V8_INTL_SUPPORT
-      serializer_enabled_(false),
-      has_fatal_error_(false),
-      initialized_from_snapshot_(false),
-      is_tail_call_elimination_enabled_(true),
-      is_isolate_in_background_(false),
-      memory_savings_mode_active_(false),
-      heap_profiler_(nullptr),
       code_event_dispatcher_(new CodeEventDispatcher()),
-      function_entry_hook_(nullptr),
-      deferred_handles_head_(nullptr),
-      optimizing_compile_dispatcher_(nullptr),
-      stress_deopt_count_(0),
-      force_slow_path_(false),
-      next_optimization_id_(0),
-#if V8_SFI_HAS_UNIQUE_ID
-      next_unique_sfi_id_(0),
-#endif
-      is_running_microtasks_(false),
-      use_counter_callback_(nullptr),
-      cancelable_task_manager_(new CancelableTaskManager()),
-      abort_on_uncaught_exception_callback_(nullptr),
-      total_regexp_code_generated_(0) {
-  CheckIsolateLayout();
-  id_ = base::Relaxed_AtomicIncrement(&isolate_counter_, 1);
+      cancelable_task_manager_(new CancelableTaskManager()) {
   TRACE_ISOLATE(constructor);
-
-  memset(isolate_addresses_, 0,
-      sizeof(isolate_addresses_[0]) * (kIsolateAddressCount + 1));
-
-  heap_.isolate_ = this;
-  stack_guard_.isolate_ = this;
+  CheckIsolateLayout();
 
   // ThreadManager is initialized early to support locking an isolate
   // before it is entered.
-  thread_manager_ = new ThreadManager();
-  thread_manager_->isolate_ = this;
+  thread_manager_ = new ThreadManager(this);
 
   handle_scope_data_.Initialize();
 
@@ -3833,6 +3763,8 @@ static base::RandomNumberGenerator* ensure_rng_exists(
 }
 
 base::RandomNumberGenerator* Isolate::random_number_generator() {
+  // TODO(bmeurer) Initialized lazily because it depends on flags; can
+  // be fixed once the default isolate cleanup is done.
   return ensure_rng_exists(&random_number_generator_, FLAG_random_seed);
 }
 
