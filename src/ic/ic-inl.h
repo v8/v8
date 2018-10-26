@@ -47,9 +47,9 @@ void IC::update_receiver_map(Handle<Object> receiver) {
   }
 }
 
-bool IC::IsHandler(MaybeObject* object) {
+bool IC::IsHandler(MaybeObject object) {
   HeapObject* heap_object;
-  return (object->IsSmi() && (object != nullptr)) ||
+  return (object->IsSmi() && (object.ptr() != kNullAddress)) ||
          (object->GetHeapObjectIfWeak(&heap_object) &&
           (heap_object->IsMap() || heap_object->IsPropertyCell())) ||
          (object->GetHeapObjectIfStrong(&heap_object) &&

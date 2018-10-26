@@ -193,7 +193,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   V8_INLINE bool BaseRecordWrite(HeapObject* obj, Object* value);
   V8_INLINE void RecordWrite(HeapObject* obj, ObjectSlot slot, Object* value);
   V8_INLINE void RecordMaybeWeakWrite(HeapObject* obj, MaybeObjectSlot slot,
-                                      MaybeObject* value);
+                                      MaybeObject value);
   void RevisitObject(HeapObject* obj);
 
   void RecordWriteSlow(HeapObject* obj, HeapObjectSlot slot, Object* value);

@@ -8,6 +8,7 @@
 #include "src/objects/slots.h"
 
 #include "src/base/atomic-utils.h"
+#include "src/objects/maybe-object.h"
 
 namespace v8 {
 namespace internal {
@@ -29,17 +30,31 @@ void ObjectSlot::Relaxed_Store(int offset, Object* value) const {
   base::AsAtomicWord::Relaxed_Store(addr, reinterpret_cast<Address>(value));
 }
 
-MaybeObject* MaybeObjectSlot::Relaxed_Load() const {
-  Address object_ptr =
-      base::AsAtomicWord::Relaxed_Load(reinterpret_cast<Address*>(address()));
-  return reinterpret_cast<MaybeObject*>(object_ptr);
+MaybeObject MaybeObjectSlot::operator*() {
+  return MaybeObject(*reinterpret_cast<Address*>(address()));
 }
 
-void MaybeObjectSlot::Release_CompareAndSwap(MaybeObject* old,
-                                             MaybeObject* target) const {
+void MaybeObjectSlot::store(MaybeObject value) {
+  *reinterpret_cast<Address*>(address()) = value.ptr();
+}
+
+MaybeObject MaybeObjectSlot::Relaxed_Load() const {
+  Address object_ptr =
+      base::AsAtomicWord::Relaxed_Load(reinterpret_cast<Address*>(address()));
+  return MaybeObject(object_ptr);
+}
+
+void MaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
+                                             MaybeObject target) const {
   base::AsAtomicWord::Release_CompareAndSwap(
-      reinterpret_cast<Address*>(address()), reinterpret_cast<Address>(old),
-      reinterpret_cast<Address>(target));
+      reinterpret_cast<Address*>(address()), old.ptr(), target.ptr());
+}
+
+HeapObjectReference HeapObjectSlot::operator*() {
+  return HeapObjectReference(*reinterpret_cast<Address*>(address()));
+}
+void HeapObjectSlot::store(HeapObjectReference value) {
+  *reinterpret_cast<Address*>(address()) = value.ptr();
 }
 
 }  // namespace internal

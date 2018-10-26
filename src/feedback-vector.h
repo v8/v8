@@ -163,7 +163,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 
   // [optimized_code_weak_or_smi]: weak reference to optimized code or a Smi
   // marker defining optimization behaviour.
-  DECL_ACCESSORS(optimized_code_weak_or_smi, MaybeObject)
+  DECL_ACCESSORS2(optimized_code_weak_or_smi, MaybeObject)
 
   // [length]: The length of the feedback vector (not including the header, i.e.
   // the number of feedback slots).
@@ -201,11 +201,11 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackSlot ToSlot(int index);
-  inline MaybeObject* Get(FeedbackSlot slot) const;
-  inline MaybeObject* get(int index) const;
-  inline void Set(FeedbackSlot slot, MaybeObject* value,
+  inline MaybeObject Get(FeedbackSlot slot) const;
+  inline MaybeObject get(int index) const;
+  inline void Set(FeedbackSlot slot, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, MaybeObject* value,
+  inline void set(int index, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(FeedbackSlot slot, Object* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -248,7 +248,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
     return GetLanguageModeFromSlotKind(GetKind(slot));
   }
 
-  static void AssertNoLegacyTypes(MaybeObject* object);
+  static void AssertNoLegacyTypes(MaybeObject object);
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
@@ -625,8 +625,8 @@ class FeedbackNexus final {
   bool ConfigureMegamorphic();
   bool ConfigureMegamorphic(IcCheckType property_type);
 
-  inline MaybeObject* GetFeedback() const;
-  inline MaybeObject* GetFeedbackExtra() const;
+  inline MaybeObject GetFeedback() const;
+  inline MaybeObject GetFeedbackExtra() const;
 
   inline Isolate* GetIsolate() const;
 
@@ -703,11 +703,11 @@ class FeedbackNexus final {
 
   inline void SetFeedback(Object* feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetFeedback(MaybeObject* feedback,
+  inline void SetFeedback(MaybeObject feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetFeedbackExtra(Object* feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetFeedbackExtra(MaybeObject* feedback_extra,
+  inline void SetFeedbackExtra(MaybeObject feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   Handle<WeakFixedArray> EnsureArrayOfSize(int length);

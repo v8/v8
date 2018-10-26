@@ -50,7 +50,7 @@ void TransitionArray::SetPrototypeTransitions(WeakFixedArray* transitions) {
 int TransitionArray::NumberOfPrototypeTransitions(
     WeakFixedArray* proto_transitions) {
   if (proto_transitions->length() == 0) return 0;
-  MaybeObject* raw =
+  MaybeObject raw =
       proto_transitions->Get(kProtoTransitionNumberOfEntriesOffset);
   return Smi::ToInt(raw->cast<Smi>());
 }
@@ -99,17 +99,17 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
 }
 
 // static
-Map* TransitionsAccessor::GetTargetFromRaw(MaybeObject* raw) {
+Map* TransitionsAccessor::GetTargetFromRaw(MaybeObject raw) {
   return Map::cast(raw->GetHeapObjectAssumeWeak());
 }
 
-MaybeObject* TransitionArray::GetRawTarget(int transition_number) {
+MaybeObject TransitionArray::GetRawTarget(int transition_number) {
   DCHECK(transition_number < number_of_transitions());
   return Get(ToTargetIndex(transition_number));
 }
 
 Map* TransitionArray::GetTarget(int transition_number) {
-  MaybeObject* raw = GetRawTarget(transition_number);
+  MaybeObject raw = GetRawTarget(transition_number);
   return TransitionsAccessor::GetTargetFromRaw(raw);
 }
 
@@ -127,7 +127,7 @@ Map* TransitionsAccessor::GetTarget(int transition_number) {
   UNREACHABLE();
 }
 
-void TransitionArray::SetRawTarget(int transition_number, MaybeObject* value) {
+void TransitionArray::SetRawTarget(int transition_number, MaybeObject value) {
   DCHECK(transition_number < number_of_transitions());
   DCHECK(value->IsWeak());
   DCHECK(value->GetHeapObjectAssumeWeak()->IsMap());
@@ -136,7 +136,7 @@ void TransitionArray::SetRawTarget(int transition_number, MaybeObject* value) {
 
 bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
                                         Map** target) {
-  MaybeObject* raw = GetRawTarget(transition_number);
+  MaybeObject raw = GetRawTarget(transition_number);
   HeapObject* heap_object;
   if (raw->GetHeapObjectIfStrong(&heap_object) &&
       heap_object->IsUndefined(isolate)) {
@@ -194,7 +194,7 @@ int TransitionArray::CompareDetails(PropertyKind kind1,
 }
 
 void TransitionArray::Set(int transition_number, Name* key,
-                          MaybeObject* target) {
+                          MaybeObject target) {
   WeakFixedArray::Set(ToKeyIndex(transition_number),
                       MaybeObject::FromObject(key));
   WeakFixedArray::Set(ToTargetIndex(transition_number), target);

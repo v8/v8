@@ -23,7 +23,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
-#include "src/objects/slots.h"
+#include "src/objects/slots-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
@@ -983,7 +983,7 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map* map) {
-  MaybeObject* maybe_raw_transitions_or_prototype_info = map->raw_transitions();
+  MaybeObject maybe_raw_transitions_or_prototype_info = map->raw_transitions();
   HeapObject* raw_transitions_or_prototype_info;
   if (maybe_raw_transitions_or_prototype_info->GetHeapObjectIfWeak(
           &raw_transitions_or_prototype_info)) {
@@ -1232,7 +1232,7 @@ void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
     HeapEntry* entry, FeedbackVector* feedback_vector) {
-  MaybeObject* code = feedback_vector->optimized_code_weak_or_smi();
+  MaybeObject code = feedback_vector->optimized_code_weak_or_smi();
   HeapObject* code_heap_object;
   if (code->GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(entry, "optimized code", code_heap_object,
@@ -1244,7 +1244,7 @@ template <typename T>
 void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
                                                 HeapEntry* entry, T* array) {
   for (int i = 0; i < array->length(); ++i) {
-    MaybeObject* object = array->Get(i);
+    MaybeObject object = array->Get(i);
     HeapObject* heap_object;
     if (object->GetHeapObjectIfWeak(&heap_object)) {
       SetWeakReference(entry, i, heap_object, header_size + i * kPointerSize);

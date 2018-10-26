@@ -4140,13 +4140,13 @@ TEST(WeakFunctionInConstructor) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(createObj->feedback_vector(), CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
-    MaybeObject* slot_value = feedback_vector->Get(FeedbackSlot(0));
+    MaybeObject slot_value = feedback_vector->Get(FeedbackSlot(0));
     CHECK(slot_value->IsWeakOrCleared());
     if (slot_value->IsCleared()) break;
     CcTest::CollectAllGarbage();
   }
 
-  MaybeObject* slot_value = feedback_vector->Get(FeedbackSlot(0));
+  MaybeObject slot_value = feedback_vector->Get(FeedbackSlot(0));
   CHECK(slot_value->IsCleared());
   CompileRun(
       "function coat() { this.x = 6; }"

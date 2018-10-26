@@ -92,7 +92,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     // Treat weak references as strong. TODO(marja): Proper weakness handling in
     // the young generation.
     for (MaybeObjectSlot slot = start; slot < end; ++slot) {
-      MaybeObject* target = *slot;
+      MaybeObject target = *slot;
       HeapObject* heap_object;
       if (target->GetHeapObject(&heap_object)) {
         HandleSlot(host, HeapObjectSlot(slot), heap_object);
@@ -102,7 +102,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
   inline void HandleSlot(HeapObject* host, HeapObjectSlot slot,
                          HeapObject* target) {
-    scavenger_->PageMemoryFence(reinterpret_cast<MaybeObject*>(target));
+    scavenger_->PageMemoryFence(MaybeObject::FromObject(target));
 
     if (Heap::InFromSpace(target)) {
       SlotCallbackResult result = scavenger_->ScavengeObject(slot, target);

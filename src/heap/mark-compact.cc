@@ -30,6 +30,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
 #include "src/transitions-inl.h"
 #include "src/utils-inl.h"
@@ -1042,7 +1043,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
 
   inline void VisitPointer(HeapObject* host, ObjectSlot p) final {
     DCHECK(!HasWeakHeapObjectTag(*p));
-    RecordMigratedSlot(host, reinterpret_cast<MaybeObject*>(*p), p.address());
+    RecordMigratedSlot(host, MaybeObject::FromObject(*p), p.address());
   }
 
   inline void VisitPointer(HeapObject* host, MaybeObjectSlot p) final {
@@ -1090,10 +1091,10 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
   inline void VisitInternalReference(Code* host, RelocInfo* rinfo) final {}
 
  protected:
-  inline virtual void RecordMigratedSlot(HeapObject* host, MaybeObject* value,
+  inline virtual void RecordMigratedSlot(HeapObject* host, MaybeObject value,
                                          Address slot) {
     if (value->IsStrongOrWeak()) {
-      Page* p = Page::FromAddress(reinterpret_cast<Address>(value));
+      Page* p = Page::FromAddress(value.ptr());
       if (p->InNewSpace()) {
         DCHECK_IMPLIES(p->InToSpace(),
                        p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
@@ -1974,7 +1975,7 @@ bool MarkCompactCollector::CompactTransitionArray(
         transitions->SetKey(transition_index, key);
         HeapObjectSlot key_slot = transitions->GetKeySlot(transition_index);
         RecordSlot(transitions, key_slot, key);
-        MaybeObject* raw_target = transitions->GetRawTarget(i);
+        MaybeObject raw_target = transitions->GetRawTarget(i);
         transitions->SetRawTarget(transition_index, raw_target);
         HeapObjectSlot target_slot =
             transitions->GetTargetSlot(transition_index);
@@ -2147,6 +2148,10 @@ void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.js_weak_cells.Clear();
 }
 
+bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {
+  return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
+}
+
 void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
                                            Object* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
@@ -2173,7 +2178,7 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
 
 template <AccessMode access_mode>
 static inline SlotCallbackResult UpdateSlot(
-    MaybeObjectSlot slot, MaybeObject* old, HeapObject* heap_obj,
+    MaybeObjectSlot slot, MaybeObject old, HeapObject* heap_obj,
     HeapObjectReferenceType reference_type) {
   MapWord map_word = heap_obj->map_word();
   if (map_word.IsForwardingAddress()) {
@@ -2181,7 +2186,7 @@ static inline SlotCallbackResult UpdateSlot(
            MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
            Page::FromAddress(heap_obj->address())
                ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
-    MaybeObject* target =
+    MaybeObject target =
         reference_type == HeapObjectReferenceType::WEAK
             ? HeapObjectReference::Weak(map_word.ToForwardingAddress())
             : HeapObjectReference::Strong(map_word.ToForwardingAddress());
@@ -2201,7 +2206,7 @@ static inline SlotCallbackResult UpdateSlot(
 
 template <AccessMode access_mode>
 static inline SlotCallbackResult UpdateSlot(MaybeObjectSlot slot) {
-  MaybeObject* obj = slot.Relaxed_Load();
+  MaybeObject obj = slot.Relaxed_Load();
   HeapObject* heap_obj;
   if (obj->GetHeapObjectIfWeak(&heap_obj)) {
     UpdateSlot<access_mode>(slot, obj, heap_obj, HeapObjectReferenceType::WEAK);
@@ -3615,7 +3620,7 @@ class YoungGenerationMarkingVisitor final
   }
 
   V8_INLINE void VisitPointer(HeapObject* host, MaybeObjectSlot slot) final {
-    MaybeObject* target = *slot;
+    MaybeObject target = *slot;
     if (Heap::InNewSpace(target)) {
       HeapObject* target_object;
       // Treat weak references as strong. TODO(marja): Proper weakness handling
@@ -3722,10 +3727,10 @@ class YoungGenerationRecordMigratedSlotVisitor final
     return collector_->non_atomic_marking_state()->IsBlack(object);
   }
 
-  inline void RecordMigratedSlot(HeapObject* host, MaybeObject* value,
+  inline void RecordMigratedSlot(HeapObject* host, MaybeObject value,
                                  Address slot) final {
     if (value->IsStrongOrWeak()) {
-      Page* p = Page::FromAddress(reinterpret_cast<Address>(value));
+      Page* p = Page::FromAddress(value.ptr());
       if (p->InNewSpace()) {
         DCHECK_IMPLIES(p->InToSpace(),
                        p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
@@ -4173,7 +4178,7 @@ class PageMarkingItem : public MarkingItem {
 
   SlotCallbackResult CheckAndMarkObject(YoungGenerationMarkingTask* task,
                                         MaybeObjectSlot slot) {
-    MaybeObject* object = *slot;
+    MaybeObject object = *slot;
     if (Heap::InNewSpace(object)) {
       // Marking happens before flipping the young generation, so the object
       // has to be in ToSpace.

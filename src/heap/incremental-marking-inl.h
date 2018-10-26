@@ -44,7 +44,7 @@ void IncrementalMarking::RecordWrite(HeapObject* obj, ObjectSlot slot,
 
 void IncrementalMarking::RecordMaybeWeakWrite(HeapObject* obj,
                                               MaybeObjectSlot slot,
-                                              MaybeObject* value) {
+                                              MaybeObject value) {
   // When writing a weak reference, treat it as strong for the purposes of the
   // marking barrier.
   HeapObject* heap_object;

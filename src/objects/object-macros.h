@@ -54,6 +54,14 @@
   inline void set_##name(type* value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+// Replacement for the above, temporarily separate to allow incremental
+// transition.
+// TODO(3770): Get rid of the duplication when the migration is complete.
+#define DECL_ACCESSORS2(name, type)  \
+  inline type name() const;          \
+  inline void set_##name(type value, \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
 #define DECL_CAST(type)                        \
   V8_INLINE static type* cast(Object* object); \
   V8_INLINE static const type* cast(const Object* object);
@@ -146,17 +154,17 @@
 #define SYNCHRONIZED_ACCESSORS(holder, name, type, offset) \
   SYNCHRONIZED_ACCESSORS_CHECKED(holder, name, type, offset, true)
 
-#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,   \
-                                set_condition)                         \
-  MaybeObject* holder::name() const {                                  \
-    MaybeObject* value = READ_WEAK_FIELD(this, offset);                \
-    DCHECK(get_condition);                                             \
-    return value;                                                      \
-  }                                                                    \
-  void holder::set_##name(MaybeObject* value, WriteBarrierMode mode) { \
-    DCHECK(set_condition);                                             \
-    WRITE_WEAK_FIELD(this, offset, value);                             \
-    CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);         \
+#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,  \
+                                set_condition)                        \
+  MaybeObject holder::name() const {                                  \
+    MaybeObject value = READ_WEAK_FIELD(this, offset);                \
+    DCHECK(get_condition);                                            \
+    return value;                                                     \
+  }                                                                   \
+  void holder::set_##name(MaybeObject value, WriteBarrierMode mode) { \
+    DCHECK(set_condition);                                            \
+    WRITE_WEAK_FIELD(this, offset, value);                            \
+    CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);        \
   }
 
 #define WEAK_ACCESSORS_CHECKED(holder, name, offset, condition) \
@@ -231,7 +239,7 @@
   (*reinterpret_cast<Object* const*>(FIELD_ADDR(p, offset)))
 
 #define READ_WEAK_FIELD(p, offset) \
-  (*reinterpret_cast<MaybeObject* const*>(FIELD_ADDR(p, offset)))
+  MaybeObject(*reinterpret_cast<Address*>(FIELD_ADDR(p, offset)))
 
 #define ACQUIRE_READ_FIELD(p, offset)           \
   reinterpret_cast<Object*>(base::Acquire_Load( \
@@ -241,24 +249,24 @@
   reinterpret_cast<Object*>(base::Relaxed_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
 
-#define RELAXED_READ_WEAK_FIELD(p, offset)           \
-  reinterpret_cast<MaybeObject*>(base::Relaxed_Load( \
+#define RELAXED_READ_WEAK_FIELD(p, offset) \
+  MaybeObject(base::Relaxed_Load(          \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
 
 #ifdef V8_CONCURRENT_MARKING
 #define WRITE_FIELD(p, offset, value)                             \
   base::Relaxed_Store(                                            \
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      reinterpret_cast<base::AtomicWord>(value));
+      static_cast<base::AtomicWord>((value)->ptr()));
 #define WRITE_WEAK_FIELD(p, offset, value)                        \
   base::Relaxed_Store(                                            \
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      reinterpret_cast<base::AtomicWord>(value));
+      static_cast<base::AtomicWord>(value.ptr()));
 #else
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
 #define WRITE_WEAK_FIELD(p, offset, value) \
-  (*reinterpret_cast<MaybeObject**>(FIELD_ADDR(p, offset)) = value)
+  (*reinterpret_cast<Address*>(FIELD_ADDR(p, offset)) = value.ptr())
 #endif
 
 #define RELEASE_WRITE_FIELD(p, offset, value)                     \
@@ -269,7 +277,7 @@
 #define RELAXED_WRITE_FIELD(p, offset, value)                     \
   base::Relaxed_Store(                                            \
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      reinterpret_cast<base::AtomicWord>(value));
+      static_cast<base::AtomicWord>((value)->ptr()));
 
 #define WRITE_BARRIER(object, offset, value)                        \
   do {                                                              \

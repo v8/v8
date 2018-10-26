@@ -11,7 +11,7 @@
 #include "src/heap/local-allocator-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/map.h"
-#include "src/objects/slots.h"
+#include "src/objects/slots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -110,7 +110,7 @@ bool Scavenger::ContainsOnlyData(VisitorId visitor_id) {
   return false;
 }
 
-void Scavenger::PageMemoryFence(MaybeObject* object) {
+void Scavenger::PageMemoryFence(MaybeObject object) {
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race
   // with  page initialization.
@@ -390,7 +390,7 @@ SlotCallbackResult Scavenger::ScavengeObject(HeapObjectSlot p,
 
 SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
                                                      MaybeObjectSlot slot) {
-  MaybeObject* object = *slot;
+  MaybeObject object = *slot;
   if (Heap::InFromSpace(object)) {
     HeapObject* heap_object = object->GetHeapObject();
     DCHECK(heap_object->IsHeapObject());
@@ -422,7 +422,7 @@ void ScavengeVisitor::VisitPointers(HeapObject* host, ObjectSlot start,
 void ScavengeVisitor::VisitPointers(HeapObject* host, MaybeObjectSlot start,
                                     MaybeObjectSlot end) {
   for (MaybeObjectSlot p = start; p < end; ++p) {
-    MaybeObject* object = *p;
+    MaybeObject object = *p;
     if (!Heap::InNewSpace(object)) continue;
     // Treat the weak reference as strong.
     HeapObject* heap_object;

@@ -431,9 +431,9 @@ bool Heap::IsRetainingPathTarget(HeapObject* object,
                                  RetainingPathOption* option) {
   WeakArrayList* targets = retaining_path_targets();
   int length = targets->length();
-  MaybeObject* object_to_check = HeapObjectReference::Weak(object);
+  MaybeObject object_to_check = HeapObjectReference::Weak(object);
   for (int i = 0; i < length; i++) {
-    MaybeObject* target = targets->Get(i);
+    MaybeObject target = targets->Get(i);
     DCHECK(target->IsWeakOrCleared());
     if (target == object_to_check) {
       DCHECK(retaining_path_target_option_.count(i));
@@ -3518,8 +3518,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
                        std::set<std::pair<SlotType, Address> >* typed)
       : untyped_(untyped), typed_(typed) {}
 
-  virtual bool ShouldHaveBeenRecorded(HeapObject* host,
-                                      MaybeObject* target) = 0;
+  virtual bool ShouldHaveBeenRecorded(HeapObject* host, MaybeObject target) = 0;
 
   void VisitPointers(HeapObject* host, ObjectSlot start,
                      ObjectSlot end) override {
@@ -3573,7 +3572,7 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
                                std::set<std::pair<SlotType, Address>>* typed)
       : SlotVerifyingVisitor(untyped, typed) {}
 
-  bool ShouldHaveBeenRecorded(HeapObject* host, MaybeObject* target) override {
+  bool ShouldHaveBeenRecorded(HeapObject* host, MaybeObject target) override {
     DCHECK_IMPLIES(target->IsStrongOrWeak() && Heap::InNewSpace(target),
                    Heap::InToSpace(target));
     return target->IsStrongOrWeak() && Heap::InNewSpace(target) &&
@@ -4734,7 +4733,7 @@ Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
   // fill in the new array.
   int copy_to = 0;
   for (int i = 0; i < array->length(); i++) {
-    MaybeObject* element = array->Get(i);
+    MaybeObject element = array->Get(i);
     if (element->IsCleared()) continue;
     new_array->Set(copy_to++, element);
   }
@@ -4808,14 +4807,14 @@ void Heap::CompactRetainedMaps(WeakArrayList* retained_maps) {
   int new_number_of_disposed_maps = 0;
   // This loop compacts the array by removing cleared weak cells.
   for (int i = 0; i < length; i += 2) {
-    MaybeObject* maybe_object = retained_maps->Get(i);
+    MaybeObject maybe_object = retained_maps->Get(i);
     if (maybe_object->IsCleared()) {
       continue;
     }
 
     DCHECK(maybe_object->IsWeak());
 
-    MaybeObject* age = retained_maps->Get(i + 1);
+    MaybeObject age = retained_maps->Get(i + 1);
     DCHECK(age->IsSmi());
     if (i != new_length) {
       retained_maps->Set(new_length, maybe_object);

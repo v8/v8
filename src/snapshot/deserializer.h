@@ -106,7 +106,7 @@ class Deserializer : public SerializerDeserializer {
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
-  void UnalignedCopy(UnalignedSlot dest, MaybeObject* value);
+  void UnalignedCopy(UnalignedSlot dest, MaybeObject value);
   void UnalignedCopy(UnalignedSlot dest, Address value);
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The

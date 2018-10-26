@@ -162,11 +162,11 @@ DependentCode::DependencyGroup DependentCode::group() {
   return static_cast<DependencyGroup>(GroupField::decode(flags()));
 }
 
-void DependentCode::set_object_at(int i, MaybeObject* object) {
+void DependentCode::set_object_at(int i, MaybeObject object) {
   Set(kCodesStartIndex + i, object);
 }
 
-MaybeObject* DependentCode::object_at(int i) {
+MaybeObject DependentCode::object_at(int i) {
   return Get(kCodesStartIndex + i);
 }
 
@@ -190,10 +190,10 @@ CODE_ACCESSORS(code_data_container, CodeDataContainer, kCodeDataContainerOffset)
 #undef CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
-  WRITE_FIELD(this, kRelocationInfoOffset, nullptr);
-  WRITE_FIELD(this, kDeoptimizationDataOffset, nullptr);
-  WRITE_FIELD(this, kSourcePositionTableOffset, nullptr);
-  WRITE_FIELD(this, kCodeDataContainerOffset, nullptr);
+  WRITE_FIELD(this, kRelocationInfoOffset, Smi::FromInt(0));
+  WRITE_FIELD(this, kDeoptimizationDataOffset, Smi::FromInt(0));
+  WRITE_FIELD(this, kSourcePositionTableOffset, Smi::FromInt(0));
+  WRITE_FIELD(this, kCodeDataContainerOffset, Smi::FromInt(0));
 }
 
 void Code::clear_padding() {

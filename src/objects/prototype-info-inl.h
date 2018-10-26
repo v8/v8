@@ -30,7 +30,7 @@ void PrototypeInfo::SetObjectCreateMap(Handle<PrototypeInfo> info,
 }
 
 bool PrototypeInfo::HasObjectCreateMap() {
-  MaybeObject* cache = object_create_map();
+  MaybeObject cache = object_create_map();
   return cache->IsWeak();
 }
 

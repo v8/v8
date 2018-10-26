@@ -11,7 +11,7 @@
 #include "src/heap/remembered-set.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
-#include "src/objects/slots.h"
+#include "src/objects/slots-inl.h"
 
 namespace v8 {
 namespace internal {

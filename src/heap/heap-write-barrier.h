@@ -38,7 +38,7 @@ void WriteBarrierForCode(Code* host);
 // Generational write barrier.
 void GenerationalBarrier(HeapObject* object, ObjectSlot slot, Object* value);
 void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
-                         MaybeObject* value);
+                         MaybeObject value);
 // This takes a HeapObjectPtr* (as opposed to a plain HeapObjectPtr)
 // to keep the WRITE_BARRIER macro syntax-compatible to the HeapObject*
 // version above.
@@ -52,7 +52,7 @@ void GenerationalBarrierForCode(Code* host, RelocInfo* rinfo,
 // Marking write barrier.
 void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object* value);
 void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
-                    MaybeObject* value);
+                    MaybeObject value);
 // This takes a HeapObjectPtr* (as opposed to a plain HeapObjectPtr)
 // to keep the WRITE_BARRIER macro syntax-compatible to the HeapObject*
 // version above.

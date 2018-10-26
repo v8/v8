@@ -18,7 +18,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/sweeper.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/slots.h"
+#include "src/objects/slots-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 #include "src/visitors.h"
@@ -496,7 +496,7 @@ void IncrementalMarking::RetainMaps() {
   // We do not age and retain disposed maps to avoid memory leaks.
   int number_of_disposed_maps = heap()->number_of_disposed_maps_;
   for (int i = 0; i < length; i += 2) {
-    MaybeObject* value = retained_maps->Get(i);
+    MaybeObject value = retained_maps->Get(i);
     HeapObject* map_heap_object;
     if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
       continue;

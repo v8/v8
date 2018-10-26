@@ -42,7 +42,7 @@ TEST(WeakReferencesBasic) {
       CreateFeedbackVectorForTest(CcTest::isolate(), factory);
   CHECK(Heap::InNewSpace(*fv));
 
-  MaybeObject* code_object = fv->optimized_code_weak_or_smi();
+  MaybeObject code_object = fv->optimized_code_weak_or_smi();
   CHECK(code_object->IsSmi());
   CcTest::CollectAllGarbage();
   CHECK(Heap::InNewSpace(*fv));

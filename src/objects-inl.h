@@ -37,7 +37,7 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
-#include "src/objects/slots.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/template-objects.h"
 #include "src/objects/templates.h"
 #include "src/property-details.h"
@@ -749,10 +749,7 @@ MapWord MapWord::FromMap(const Map* map) {
 
 Map* MapWord::ToMap() const { return reinterpret_cast<Map*>(value_); }
 
-bool MapWord::IsForwardingAddress() const {
-  return HAS_SMI_TAG(reinterpret_cast<Object*>(value_));
-}
-
+bool MapWord::IsForwardingAddress() const { return HAS_SMI_TAG(value_); }
 
 MapWord MapWord::FromForwardingAddress(HeapObject* object) {
   Address raw = reinterpret_cast<Address>(object) - kHeapObjectTag;
@@ -1321,14 +1318,14 @@ void DescriptorArray::SetValue(int descriptor_index, Object* value) {
   set(ToValueIndex(descriptor_index), MaybeObject::FromObject(value));
 }
 
-MaybeObject* DescriptorArray::GetValue(int descriptor_number) {
+MaybeObject DescriptorArray::GetValue(int descriptor_number) {
   DCHECK_LT(descriptor_number, number_of_descriptors());
   return get(ToValueIndex(descriptor_number));
 }
 
 PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
-  MaybeObject* details = get(ToDetailsIndex(descriptor_number));
+  MaybeObject details = get(ToDetailsIndex(descriptor_number));
   return PropertyDetails(details->cast<Smi>());
 }
 
@@ -1339,11 +1336,11 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
 
 FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
-  MaybeObject* wrapped_type = GetValue(descriptor_number);
+  MaybeObject wrapped_type = GetValue(descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }
 
-void DescriptorArray::Set(int descriptor_number, Name* key, MaybeObject* value,
+void DescriptorArray::Set(int descriptor_number, Name* key, MaybeObject value,
                           PropertyDetails details) {
   // Range check.
   DCHECK(descriptor_number < number_of_descriptors());
@@ -1355,7 +1352,7 @@ void DescriptorArray::Set(int descriptor_number, Name* key, MaybeObject* value,
 
 void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   Name* key = *desc->GetKey();
-  MaybeObject* value = *desc->GetValue();
+  MaybeObject value = *desc->GetValue();
   Set(descriptor_number, key, value, desc->GetDetails());
 }
 
@@ -1386,11 +1383,11 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
   SetSortedKey(second, first_key);
 }
 
-MaybeObject* DescriptorArray::get(int index) const {
+MaybeObject DescriptorArray::get(int index) const {
   return WeakFixedArray::Get(index);
 }
 
-void DescriptorArray::set(int index, MaybeObject* value) {
+void DescriptorArray::set(int index, MaybeObject value) {
   WeakFixedArray::Set(index, value);
 }
 

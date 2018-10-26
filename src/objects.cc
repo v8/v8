@@ -2550,23 +2550,22 @@ void Object::ShortPrint(std::ostream& os) { os << Brief(this); }
 
 void MaybeObject::ShortPrint(FILE* out) {
   OFStream os(out);
-  os << Brief(this);
+  os << Brief(*this);
 }
 
 void MaybeObject::ShortPrint(StringStream* accumulator) {
   std::ostringstream os;
-  os << Brief(this);
+  os << Brief(*this);
   accumulator->Add(os.str().c_str());
 }
 
-void MaybeObject::ShortPrint(std::ostream& os) { os << Brief(this); }
+void MaybeObject::ShortPrint(std::ostream& os) { os << Brief(*this); }
 
-Brief::Brief(const Object* v)
-    : value(MaybeObject::FromObject(const_cast<Object*>(v))) {}
+Brief::Brief(const Object* v) : value(reinterpret_cast<Address>(v)) {}
+Brief::Brief(const MaybeObject v) : value(v.ptr()) {}
 
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
-  // TODO(marja): const-correct HeapObjectShortPrint.
-  MaybeObject* maybe_object = const_cast<MaybeObject*>(v.value);
+  MaybeObject maybe_object(v.value);
   Smi* smi;
   HeapObject* heap_object;
   if (maybe_object->ToSmi(&smi)) {
@@ -3987,7 +3986,7 @@ MaybeObjectHandle Map::WrapFieldType(Isolate* isolate, Handle<FieldType> type) {
 }
 
 // static
-FieldType* Map::UnwrapFieldType(MaybeObject* wrapped_type) {
+FieldType* Map::UnwrapFieldType(MaybeObject wrapped_type) {
   if (wrapped_type->IsCleared()) {
     return FieldType::None();
   }
@@ -6458,7 +6457,7 @@ Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
 MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
                                          PropertyNormalizationMode mode) {
   DisallowHeapAllocation no_gc;
-  MaybeObject* value = WeakFixedArray::Get(GetIndex(fast_map));
+  MaybeObject value = WeakFixedArray::Get(GetIndex(fast_map));
   HeapObject* heap_object;
   if (!value->GetHeapObjectIfWeak(&heap_object)) {
     return MaybeHandle<Map>();
@@ -10137,7 +10136,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
 
   if (attributes != NONE) {
     for (int i = 0; i < size; ++i) {
-      MaybeObject* value_or_field_type = desc->GetValue(i);
+      MaybeObject value_or_field_type = desc->GetValue(i);
       Name* key = desc->GetKey(i);
       PropertyDetails details = desc->GetDetails(i);
       // Bulk attribute changes never affect private properties.
@@ -10194,7 +10193,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
                                 details.field_index());
     // Do not propagate the field type of normal object fields from the
     // original descriptors since FieldType changes don't create new maps.
-    MaybeObject* type = src->GetValue(i);
+    MaybeObject type = src->GetValue(i);
     if (details.location() == PropertyLocation::kField) {
       type = MaybeObject::FromObject(FieldType::Any());
     }
@@ -10535,7 +10534,7 @@ WeakArrayList* PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
   // cleared weak heap objects. Count the number of live objects again.
   int copy_to = kFirstIndex;
   for (int i = kFirstIndex; i < array->length(); i++) {
-    MaybeObject* element = array->Get(i);
+    MaybeObject element = array->Get(i);
     HeapObject* value;
     if (element->GetHeapObjectIfWeak(&value)) {
       callback(value, i, copy_to);
@@ -13723,8 +13722,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   // AstTraversalVisitor doesn't recurse properly in the construct which
   // triggers the mismatch.
   CHECK_LT(fun->function_literal_id(), shared_function_infos()->length());
-  MaybeObject* shared =
-      shared_function_infos()->Get(fun->function_literal_id());
+  MaybeObject shared = shared_function_infos()->Get(fun->function_literal_id());
   HeapObject* heap_object;
   if (!shared->GetHeapObject(&heap_object) ||
       heap_object->IsUndefined(isolate)) {
@@ -13804,7 +13802,7 @@ SharedFunctionInfo::ScriptIterator::ScriptIterator(
 
 SharedFunctionInfo* SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
-    MaybeObject* raw = shared_function_infos_->Get(index_++);
+    MaybeObject raw = shared_function_infos_->Get(index_++);
     HeapObject* heap_object;
     if (!raw->GetHeapObject(&heap_object) ||
         heap_object->IsUndefined(isolate_)) {
@@ -13860,7 +13858,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
         handle(script->shared_function_infos(), isolate);
 #ifdef DEBUG
     DCHECK_LT(function_literal_id, list->length());
-    MaybeObject* maybe_object = list->Get(function_literal_id);
+    MaybeObject maybe_object = list->Get(function_literal_id);
     HeapObject* heap_object;
     if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
       DCHECK_EQ(heap_object, *shared);
@@ -13899,7 +13897,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     // about the SharedFunctionInfo, so we have to guard against that.
     Handle<WeakFixedArray> infos(old_script->shared_function_infos(), isolate);
     if (function_literal_id < infos->length()) {
-      MaybeObject* raw =
+      MaybeObject raw =
           old_script->shared_function_infos()->Get(function_literal_id);
       HeapObject* heap_object;
       if (raw->GetHeapObjectIfWeak(&heap_object) && heap_object == *shared) {
@@ -15320,7 +15318,7 @@ bool DependentCode::Compact() {
   int old_count = count();
   int new_count = 0;
   for (int i = 0; i < old_count; i++) {
-    MaybeObject* obj = object_at(i);
+    MaybeObject obj = object_at(i);
     if (!obj->IsCleared()) {
       if (i != new_count) {
         copy(i, new_count);
@@ -15352,7 +15350,7 @@ bool DependentCode::MarkCodeForDeoptimization(
   bool marked = false;
   int count = this->count();
   for (int i = 0; i < count; i++) {
-    MaybeObject* obj = object_at(i);
+    MaybeObject obj = object_at(i);
     if (obj->IsCleared()) continue;
     Code* code = Code::cast(obj->GetHeapObjectAssumeWeak());
     if (!code->marked_for_deoptimization()) {
@@ -17513,7 +17511,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
 
 #ifdef DEBUG
   for (int i = 0; i < new_literals_map->length(); i += kLiteralEntryLength) {
-    MaybeObject* object = new_literals_map->Get(i + kLiteralContextOffset);
+    MaybeObject object = new_literals_map->Get(i + kLiteralContextOffset);
     DCHECK(object->IsCleared() ||
            object->GetHeapObjectAssumeWeak()->IsNativeContext());
     object = new_literals_map->Get(i + kLiteralLiteralsOffset);
@@ -17536,7 +17534,7 @@ FeedbackCell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
     WeakFixedArray* literals_map =
         WeakFixedArray::cast(cache->get(cache_entry));
     DCHECK_LE(entry + kLiteralEntryLength, literals_map->length());
-    MaybeObject* object = literals_map->Get(entry + kLiteralLiteralsOffset);
+    MaybeObject object = literals_map->Get(entry + kLiteralLiteralsOffset);
 
     result = object->IsCleared()
                  ? nullptr

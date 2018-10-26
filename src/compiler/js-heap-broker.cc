@@ -842,7 +842,7 @@ void FeedbackVectorData::SerializeSlots(JSHeapBroker* broker) {
   DCHECK(feedback_.empty());
   feedback_.reserve(vector->length());
   for (int i = 0; i < vector->length(); ++i) {
-    MaybeObject* value = vector->get(i);
+    MaybeObject value = vector->get(i);
     ObjectData* slot_value =
         value->IsObject() ? broker->GetOrCreateData(value->cast<Object>())
                           : nullptr;

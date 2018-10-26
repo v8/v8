@@ -11,7 +11,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/map.h"
-#include "src/objects/slots.h"
+#include "src/objects/slots-inl.h"
 #include "src/snapshot/builtin-serializer-allocator.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"

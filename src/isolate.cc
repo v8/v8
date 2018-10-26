@@ -4269,7 +4269,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
     int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
-    MaybeObject* context = detached_contexts->Get(i + 1);
+    MaybeObject context = detached_contexts->Get(i + 1);
     DCHECK(context->IsWeakOrCleared());
     if (!context->IsCleared()) {
       detached_contexts->Set(
@@ -4289,11 +4289,11 @@ void Isolate::CheckDetachedContextsAfterGC() {
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
       int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
-      MaybeObject* context = detached_contexts->Get(i + 1);
+      MaybeObject context = detached_contexts->Get(i + 1);
       DCHECK(context->IsWeakOrCleared());
       if (mark_sweeps > 3) {
         PrintF("detached context %p\n survived %d GCs (leak?)\n",
-               static_cast<void*>(context), mark_sweeps);
+               reinterpret_cast<void*>(context.ptr()), mark_sweeps);
       }
     }
   }

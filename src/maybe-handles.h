@@ -81,15 +81,15 @@ class MaybeHandle final {
 class MaybeObjectHandle {
  public:
   inline MaybeObjectHandle();
-  inline MaybeObjectHandle(MaybeObject* object, Isolate* isolate);
+  inline MaybeObjectHandle(MaybeObject object, Isolate* isolate);
   inline MaybeObjectHandle(Object* object, Isolate* isolate);
   inline explicit MaybeObjectHandle(Handle<Object> object);
 
   static inline MaybeObjectHandle Weak(Object* object, Isolate* isolate);
   static inline MaybeObjectHandle Weak(Handle<Object> object);
 
-  inline MaybeObject* operator*() const;
-  inline MaybeObject* operator->() const;
+  inline MaybeObject operator*() const;
+  inline MaybeObject operator->() const;
   inline Handle<Object> object() const;
 
   bool is_identical_to(const MaybeObjectHandle& other) const {

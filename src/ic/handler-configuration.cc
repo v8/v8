@@ -165,7 +165,7 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 }
 
 // static
-KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject* handler) {
+KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
   DisallowHeapAllocation no_gc;
   if (handler->IsSmi()) {
     int const raw_handler = handler->cast<Smi>()->value();

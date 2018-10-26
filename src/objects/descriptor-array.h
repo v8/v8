@@ -72,7 +72,7 @@ class DescriptorArray : public WeakFixedArray {
   inline ObjectSlot GetKeySlot(int descriptor_number);
   inline Object* GetStrongValue(int descriptor_number);
   inline void SetValue(int descriptor_number, Object* value);
-  inline MaybeObject* GetValue(int descriptor_number);
+  inline MaybeObject GetValue(int descriptor_number);
   inline MaybeObjectSlot GetValueSlot(int descriptor_number);
   static inline int GetValueOffset(int descriptor_number);
   inline MaybeObjectSlot GetDescriptorStartSlot(int descriptor_number);
@@ -87,7 +87,7 @@ class DescriptorArray : public WeakFixedArray {
 
   // Accessor for complete descriptor.
   inline void Set(int descriptor_number, Descriptor* desc);
-  inline void Set(int descriptor_number, Name* key, MaybeObject* value,
+  inline void Set(int descriptor_number, Name* key, MaybeObject value,
                   PropertyDetails details);
   void Replace(int descriptor_number, Descriptor* descriptor);
 
@@ -188,8 +188,8 @@ class DescriptorArray : public WeakFixedArray {
   }
 
  private:
-  inline MaybeObject* get(int index) const;
-  inline void set(int index, MaybeObject* value);
+  inline MaybeObject get(int index) const;
+  inline void set(int index, MaybeObject value);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.

@@ -28,7 +28,7 @@ class UnalignedSlot {
  public:
   explicit UnalignedSlot(ObjectSlot slot) : ptr_(slot.address()) {}
   explicit UnalignedSlot(Address address) : ptr_(address) {}
-  explicit UnalignedSlot(MaybeObject** slot)
+  explicit UnalignedSlot(MaybeObject* slot)
       : ptr_(reinterpret_cast<Address>(slot)) {}
   explicit UnalignedSlot(Object** slot)
       : ptr_(reinterpret_cast<Address>(slot)) {}
@@ -42,16 +42,16 @@ class UnalignedSlot {
 
   inline void Advance(int bytes = kPointerSize) { ptr_ += bytes; }
 
-  MaybeObject* Read() {
-    MaybeObject* result;
+  MaybeObject Read() {
+    Address result;
     memcpy(&result, reinterpret_cast<void*>(ptr_), sizeof(result));
-    return result;
+    return MaybeObject(result);
   }
-  MaybeObject* ReadPrevious() {
-    MaybeObject* result;
+  MaybeObject ReadPrevious() {
+    Address result;
     memcpy(&result, reinterpret_cast<void*>(ptr_ - kPointerSize),
            sizeof(result));
-    return result;
+    return MaybeObject(result);
   }
   inline void Write(Address value) {
     memcpy(reinterpret_cast<void*>(ptr_), &value, sizeof(value));
@@ -66,9 +66,9 @@ class UnalignedSlot {
 
 template <class AllocatorT>
 void Deserializer<AllocatorT>::UnalignedCopy(UnalignedSlot dest,
-                                             MaybeObject* value) {
+                                             MaybeObject value) {
   DCHECK(!allocator()->next_reference_is_weak());
-  dest.Write(reinterpret_cast<Address>(value));
+  dest.Write(value.ptr());
 }
 
 template <class AllocatorT>
@@ -396,10 +396,9 @@ void Deserializer<AllocatorT>::ReadObject(
     obj = PostProcessNewObject(obj, space_number);
   }
 
-  MaybeObject* write_back_obj =
-      reference_type == HeapObjectReferenceType::STRONG
-          ? HeapObjectReference::Strong(obj)
-          : HeapObjectReference::Weak(obj);
+  MaybeObject write_back_obj = reference_type == HeapObjectReferenceType::STRONG
+                                   ? HeapObjectReference::Strong(obj)
+                                   : HeapObjectReference::Weak(obj);
   UnalignedCopy(write_back, write_back_obj);
 #ifdef DEBUG
   if (obj->IsCode()) {
@@ -412,7 +411,7 @@ void Deserializer<AllocatorT>::ReadObject(
 
 template <class AllocatorT>
 Object* Deserializer<AllocatorT>::ReadDataSingle() {
-  MaybeObject* o;
+  MaybeObject o;
   UnalignedSlot start(&o);
   UnalignedSlot end(start.address() + kPointerSize);
   int source_space = NEW_SPACE;
@@ -663,7 +662,7 @@ bool Deserializer<AllocatorT>::ReadData(UnalignedSlot current,
 
       case kVariableRepeat: {
         int repeats = source_.GetInt();
-        MaybeObject* object = current.ReadPrevious();
+        MaybeObject object = current.ReadPrevious();
         DCHECK(!Heap::InNewSpace(object));
         for (int i = 0; i < repeats; i++) {
           UnalignedCopy(current, object);
@@ -733,8 +732,7 @@ bool Deserializer<AllocatorT>::ReadData(UnalignedSlot current,
       SIXTEEN_CASES(kRootArrayConstants + 16) {
         int id = data & kRootArrayConstantsMask;
         RootIndex root_index = static_cast<RootIndex>(id);
-        MaybeObject* object =
-            MaybeObject::FromObject(isolate->root(root_index));
+        MaybeObject object = MaybeObject::FromObject(isolate->root(root_index));
         DCHECK(!Heap::InNewSpace(object));
         UnalignedCopy(current, object);
         current.Advance();
@@ -753,7 +751,7 @@ bool Deserializer<AllocatorT>::ReadData(UnalignedSlot current,
       FOUR_CASES(kHotObject + 4) {
         int index = data & kHotObjectMask;
         Object* hot_object = hot_objects_.Get(index);
-        MaybeObject* hot_maybe_object = MaybeObject::FromObject(hot_object);
+        MaybeObject hot_maybe_object = MaybeObject::FromObject(hot_object);
         if (allocator()->GetAndClearNextReferenceIsWeak()) {
           hot_maybe_object = MaybeObject::MakeWeak(hot_maybe_object);
         }
@@ -781,7 +779,7 @@ bool Deserializer<AllocatorT>::ReadData(UnalignedSlot current,
       STATIC_ASSERT(kNumberOfFixedRepeat == 16);
       SIXTEEN_CASES(kFixedRepeat) {
         int repeats = data - kFixedRepeatStart;
-        MaybeObject* object = current.ReadPrevious();
+        MaybeObject object = current.ReadPrevious();
         DCHECK(!Heap::InNewSpace(object));
         for (int i = 0; i < repeats; i++) {
           UnalignedCopy(current, object);
@@ -911,7 +909,7 @@ UnalignedSlot Deserializer<AllocatorT>::ReadDataCase(
       current.Advance(skip);
       current_was_incremented = true;
     } else {
-      MaybeObject* new_maybe_object = MaybeObject::FromObject(new_object);
+      MaybeObject new_maybe_object = MaybeObject::FromObject(new_object);
       if (allocator()->GetAndClearNextReferenceIsWeak()) {
         new_maybe_object = MaybeObject::MakeWeak(new_maybe_object);
       }

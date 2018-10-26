@@ -243,12 +243,12 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
   }
 }
 
-MaybeObject* WeakFixedArray::Get(int index) const {
+MaybeObject WeakFixedArray::Get(int index) const {
   DCHECK(index >= 0 && index < this->length());
   return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
 }
 
-void WeakFixedArray::Set(int index, MaybeObject* value) {
+void WeakFixedArray::Set(int index, MaybeObject value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
   int offset = OffsetOfElementAt(index);
@@ -256,7 +256,7 @@ void WeakFixedArray::Set(int index, MaybeObject* value) {
   WEAK_WRITE_BARRIER(this, offset, value);
 }
 
-void WeakFixedArray::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
+void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
   int offset = OffsetOfElementAt(index);
@@ -272,12 +272,12 @@ MaybeObjectSlot WeakFixedArray::RawFieldOfElementAt(int index) {
   return HeapObject::RawMaybeWeakField(this, OffsetOfElementAt(index));
 }
 
-MaybeObject* WeakArrayList::Get(int index) const {
+MaybeObject WeakArrayList::Get(int index) const {
   DCHECK(index >= 0 && index < this->capacity());
   return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
 }
 
-void WeakArrayList::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
+void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->capacity());
   int offset = OffsetOfElementAt(index);
@@ -292,7 +292,7 @@ MaybeObjectSlot WeakArrayList::data_start() {
 HeapObject* WeakArrayList::Iterator::Next() {
   if (array_ != nullptr) {
     while (index_ < array_->length()) {
-      MaybeObject* item = array_->Get(index_++);
+      MaybeObject item = array_->Get(index_++);
       DCHECK(item->IsWeakOrCleared());
       if (!item->IsCleared()) return item->GetHeapObjectAssumeWeak();
     }

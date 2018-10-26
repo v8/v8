@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-template <typename Subclass, typename ValueType>
+template <typename Subclass>
 class SlotBase {
  public:
   Subclass& operator++() {
@@ -33,13 +33,6 @@ class SlotBase {
     return *static_cast<Subclass*>(this);
   }
 
-  ValueType operator*() const {
-    return *reinterpret_cast<ValueType*>(address());
-  }
-  void store(ValueType value) {
-    *reinterpret_cast<ValueType*>(address()) = value;
-  }
-
   void* ToVoidPtr() const { return reinterpret_cast<void*>(address()); }
 
   Address address() const { return ptr_; }
@@ -60,14 +53,17 @@ class SlotBase {
 // a tagged pointer (smi or heap object).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
-class ObjectSlot : public SlotBase<ObjectSlot, Object*> {
+class ObjectSlot : public SlotBase<ObjectSlot> {
  public:
   ObjectSlot() : SlotBase(kNullAddress) {}
   explicit ObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit ObjectSlot(Object** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  template <typename T, typename U>
-  explicit ObjectSlot(SlotBase<T, U> slot) : SlotBase(slot.address()) {}
+  template <typename T>
+  explicit ObjectSlot(SlotBase<T> slot) : SlotBase(slot.address()) {}
+
+  Object* operator*() const { return *reinterpret_cast<Object**>(address()); }
+  void store(Object* value) { *reinterpret_cast<Object**>(address()) = value; }
 
   inline Object* Relaxed_Load() const;
   inline Object* Relaxed_Load(int offset) const;
@@ -78,17 +74,19 @@ class ObjectSlot : public SlotBase<ObjectSlot, Object*> {
 // a possibly-weak tagged pointer (think: MaybeObject).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
-class MaybeObjectSlot : public SlotBase<MaybeObjectSlot, MaybeObject*> {
+class MaybeObjectSlot : public SlotBase<MaybeObjectSlot> {
  public:
   explicit MaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit MaybeObjectSlot(Object** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  template <typename T, typename U>
-  explicit MaybeObjectSlot(SlotBase<T, U> slot) : SlotBase(slot.address()) {}
+  template <typename T>
+  explicit MaybeObjectSlot(SlotBase<T> slot) : SlotBase(slot.address()) {}
 
-  inline MaybeObject* Relaxed_Load() const;
-  inline void Release_CompareAndSwap(MaybeObject* old,
-                                     MaybeObject* target) const;
+  inline MaybeObject operator*();
+  inline void store(MaybeObject value);
+
+  inline MaybeObject Relaxed_Load() const;
+  inline void Release_CompareAndSwap(MaybeObject old, MaybeObject target) const;
 };
 
 // A HeapObjectSlot instance describes a pointer-sized field ("slot") holding
@@ -97,12 +95,15 @@ class MaybeObjectSlot : public SlotBase<MaybeObjectSlot, MaybeObject*> {
 // The slot's contents can be read and written using operator* and store().
 // In case it is known that that slot contains a strong heap object pointer,
 // ToHeapObject() can be used to retrieve that heap object.
-class HeapObjectSlot : public SlotBase<HeapObjectSlot, HeapObjectReference*> {
+class HeapObjectSlot : public SlotBase<HeapObjectSlot> {
  public:
   HeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit HeapObjectSlot(Address ptr) : SlotBase(ptr) {}
-  template <typename T, typename U>
-  explicit HeapObjectSlot(SlotBase<T, U> slot) : SlotBase(slot.address()) {}
+  template <typename T>
+  explicit HeapObjectSlot(SlotBase<T> slot) : SlotBase(slot.address()) {}
+
+  inline HeapObjectReference operator*();
+  inline void store(HeapObjectReference value);
 
   HeapObject* ToHeapObject() {
     DCHECK((*reinterpret_cast<Address*>(address()) & kHeapObjectTagMask) ==

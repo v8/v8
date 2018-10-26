@@ -426,8 +426,8 @@ constexpr int kCodeAlignmentBits = 5;
 constexpr intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 constexpr intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
-const intptr_t kWeakHeapObjectMask = 1 << 1;
-const intptr_t kClearedWeakHeapObject = 3;
+const Address kWeakHeapObjectMask = 1 << 1;
+const Address kClearedWeakHeapObject = 3;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a failure.
@@ -782,10 +782,10 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // Testers for test.
 
 #define HAS_SMI_TAG(value) \
-  ((reinterpret_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
+  ((static_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
 
-#define HAS_HEAP_OBJECT_TAG(value)                                   \
-  (((reinterpret_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+#define HAS_HEAP_OBJECT_TAG(value)                              \
+  (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
     ::i::kHeapObjectTag))
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
@@ -1533,8 +1533,9 @@ enum IsolateAddressId {
       kIsolateAddressCount
 };
 
-V8_INLINE static bool HasWeakHeapObjectTag(const internal::MaybeObject* value) {
-  return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
+V8_INLINE static bool HasWeakHeapObjectTag(Address value) {
+  // TODO(jkummerow): Consolidate integer types here.
+  return ((static_cast<intptr_t>(value) & kHeapObjectTagMask) ==
           kWeakHeapObjectTag);
 }
 
@@ -1543,30 +1544,6 @@ V8_INLINE static bool HasWeakHeapObjectTag(const internal::MaybeObject* value) {
 V8_INLINE static bool HasWeakHeapObjectTag(const Object* value) {
   return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
           kWeakHeapObjectTag);
-}
-
-V8_INLINE static bool HasWeakHeapObjectTag(const Address value) {
-  return (value & kHeapObjectTagMask) == kWeakHeapObjectTag;
-}
-
-V8_INLINE static bool IsClearedWeakHeapObject(const MaybeObject* value) {
-  return reinterpret_cast<intptr_t>(value) == kClearedWeakHeapObject;
-}
-
-V8_INLINE static HeapObject* RemoveWeakHeapObjectMask(
-    HeapObjectReference* value) {
-  return reinterpret_cast<HeapObject*>(reinterpret_cast<intptr_t>(value) &
-                                       ~kWeakHeapObjectMask);
-}
-
-V8_INLINE static HeapObjectReference* AddWeakHeapObjectMask(Object* value) {
-  return reinterpret_cast<HeapObjectReference*>(
-      reinterpret_cast<intptr_t>(value) | kWeakHeapObjectMask);
-}
-
-V8_INLINE static MaybeObject* AddWeakHeapObjectMask(MaybeObject* value) {
-  return reinterpret_cast<MaybeObject*>(reinterpret_cast<intptr_t>(value) |
-                                        kWeakHeapObjectMask);
 }
 
 enum class HeapObjectReferenceType {

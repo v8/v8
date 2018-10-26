@@ -178,7 +178,7 @@ class LoadHandler final : public DataHandler {
                                               KeyedAccessLoadMode load_mode);
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
-  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject* handler);
+  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject handler);
 };
 
 // A set of bit fields representing Smi handlers for stores and a HeapObject

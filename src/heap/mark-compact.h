@@ -622,10 +622,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
         ->IsEvacuationCandidate();
   }
 
-  static inline bool IsOnEvacuationCandidate(MaybeObject* obj) {
-    return Page::FromAddress(reinterpret_cast<Address>(obj))
-        ->IsEvacuationCandidate();
-  }
+  static bool IsOnEvacuationCandidate(MaybeObject obj);
 
   void RecordRelocSlot(Code* host, RelocInfo* rinfo, Object* target);
   V8_INLINE static void RecordSlot(HeapObject* object, ObjectSlot slot,

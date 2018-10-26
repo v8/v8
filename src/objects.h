@@ -1459,17 +1459,19 @@ class Object {
 };
 
 // In objects.h to be usable without objects-inl.h inclusion.
-bool Object::IsSmi() const { return HAS_SMI_TAG(this); }
+bool Object::IsSmi() const { return HAS_SMI_TAG(ptr()); }
 bool Object::IsHeapObject() const {
-  DCHECK_EQ(!IsSmi(),
-            Internals::HasHeapObjectTag(reinterpret_cast<Address>(this)));
+  DCHECK_EQ(!IsSmi(), Internals::HasHeapObjectTag(ptr()));
   return !IsSmi();
 }
 
 struct Brief {
   V8_EXPORT_PRIVATE explicit Brief(const Object* v);
-  explicit Brief(const MaybeObject* v) : value(v) {}
-  const MaybeObject* value;
+  explicit Brief(const MaybeObject v);
+  // {value} is a tagged heap object reference (weak or strong), equivalent to
+  // a MaybeObject's payload. It has a plain Address type to keep #includes
+  // lightweight.
+  const Address value;
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Brief& v);

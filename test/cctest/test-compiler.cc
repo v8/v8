@@ -315,7 +315,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
   CHECK(!feedback_vector->is_empty());
   FeedbackSlot slot_for_a(0);
-  MaybeObject* object = feedback_vector->Get(slot_for_a);
+  MaybeObject object = feedback_vector->Get(slot_for_a);
   {
     HeapObject* heap_object;
     CHECK(object->GetHeapObjectIfWeak(&heap_object));

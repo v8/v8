@@ -98,7 +98,7 @@ void Object::VerifyPointer(Isolate* isolate, Object* p) {
   }
 }
 
-void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject* p) {
+void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p) {
   HeapObject* heap_object;
   if (p->GetHeapObject(&heap_object)) {
     HeapObject::VerifyHeapPointer(isolate, heap_object);
@@ -472,7 +472,7 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
 
 void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
   CHECK(IsFeedbackVector());
-  MaybeObject* code = optimized_code_weak_or_smi();
+  MaybeObject code = optimized_code_weak_or_smi();
   MaybeObject::VerifyMaybeObjectPointer(isolate, code);
   CHECK(code->IsSmi() || code->IsWeakOrCleared());
 }
@@ -750,7 +750,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
       if (Name::cast(key)->IsPrivate()) {
         CHECK_NE(details.attributes() & DONT_ENUM, 0);
       }
-      MaybeObject* value = get(ToValueIndex(descriptor));
+      MaybeObject value = get(ToValueIndex(descriptor));
       HeapObject* heap_object;
       if (details.location() == kField) {
         CHECK(
@@ -1669,7 +1669,7 @@ void PrototypeUsers::Verify(WeakArrayList* array) {
   int weak_maps_count = 0;
   for (int i = kFirstIndex; i < array->length(); ++i) {
     HeapObject* heap_object;
-    MaybeObject* object = array->Get(i);
+    MaybeObject object = array->Get(i);
     if ((object->GetHeapObjectIfWeak(&heap_object) && heap_object->IsMap()) ||
         object->IsCleared()) {
       ++weak_maps_count;
@@ -1883,7 +1883,7 @@ void Script::ScriptVerify(Isolate* isolate) {
   VerifyPointer(isolate, name());
   VerifyPointer(isolate, line_ends());
   for (int i = 0; i < shared_function_infos()->length(); ++i) {
-    MaybeObject* maybe_object = shared_function_infos()->Get(i);
+    MaybeObject maybe_object = shared_function_infos()->Get(i);
     HeapObject* heap_object;
     CHECK(maybe_object->IsWeak() || maybe_object->IsCleared() ||
           (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
@@ -1895,7 +1895,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
   WeakFixedArray::cast(this)->WeakFixedArrayVerify(isolate);
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
-      MaybeObject* e = WeakFixedArray::Get(i);
+      MaybeObject e = WeakFixedArray::Get(i);
       HeapObject* heap_object;
       if (e->GetHeapObjectIfWeak(&heap_object)) {
         Map::cast(heap_object)->DictionaryMapVerify(isolate);

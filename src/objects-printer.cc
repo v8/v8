@@ -947,8 +947,9 @@ void PrintHashTableWithHeader(std::ostream& os, T* table, const char* type) {
 template <typename T>
 void PrintWeakArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
-  MaybeObject* previous_value = array->length() > 0 ? array->Get(0) : nullptr;
-  MaybeObject* value = nullptr;
+  MaybeObject previous_value =
+      array->length() > 0 ? array->Get(0) : MaybeObject(kNullAddress);
+  MaybeObject value;
   int previous_index = 0;
   int i;
   for (i = 1; i <= array->length(); i++) {

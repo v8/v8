@@ -264,18 +264,18 @@ class FixedDoubleArray : public FixedArrayBase {
 };
 
 // WeakFixedArray describes fixed-sized arrays with element type
-// MaybeObject*.
+// MaybeObject.
 class WeakFixedArray : public HeapObject {
  public:
   DECL_CAST(WeakFixedArray)
 
-  inline MaybeObject* Get(int index) const;
+  inline MaybeObject Get(int index) const;
 
   // Setter that uses write barrier.
-  inline void Set(int index, MaybeObject* value);
+  inline void Set(int index, MaybeObject value);
 
   // Setter with explicit barrier mode.
-  inline void Set(int index, MaybeObject* value, WriteBarrierMode mode);
+  inline void Set(int index, MaybeObject value, WriteBarrierMode mode);
 
   static constexpr int SizeFor(int length) {
     return kHeaderSize + length * kPointerSize;
@@ -333,12 +333,12 @@ class WeakArrayList : public HeapObject {
                                         Handle<WeakArrayList> array,
                                         const MaybeObjectHandle& value);
 
-  inline MaybeObject* Get(int index) const;
+  inline MaybeObject Get(int index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the WeakArrayList, use the static AddToEnd() method
   // instead.
-  inline void Set(int index, MaybeObject* value,
+  inline void Set(int index, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   static constexpr int SizeForCapacity(int capacity) {

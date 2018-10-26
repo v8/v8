@@ -3738,7 +3738,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
   } else {
     // Check to see whether there is a matching element in the cache.
     Handle<WeakFixedArray> cache = Handle<WeakFixedArray>::cast(maybe_cache);
-    MaybeObject* result = cache->Get(cache_index);
+    MaybeObject result = cache->Get(cache_index);
     HeapObject* heap_object;
     if (result->GetHeapObjectIfWeak(&heap_object)) {
       Map* map = Map::cast(heap_object);

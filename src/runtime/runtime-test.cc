@@ -537,8 +537,8 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   DCHECK_EQ(1, args.length());
 
   // Hack: The argument is passed as Object* but here it's really a
-  // MaybeObject*.
-  MaybeObject* maybe_object = reinterpret_cast<MaybeObject*>(args[0]);
+  // MaybeObject.
+  MaybeObject maybe_object(reinterpret_cast<Address>(args[0]));
 
   StdoutStream os;
   if (maybe_object->IsCleared()) {

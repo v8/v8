@@ -316,7 +316,7 @@ bool TransitionArray::CompactPrototypeTransitionArray(Isolate* isolate,
   }
   int new_number_of_transitions = 0;
   for (int i = 0; i < number_of_transitions; i++) {
-    MaybeObject* target = array->Get(header + i);
+    MaybeObject target = array->Get(header + i);
     DCHECK(target->IsCleared() ||
            (target->IsWeak() && target->GetHeapObject()->IsMap()));
     if (!target->IsCleared()) {
@@ -327,7 +327,7 @@ bool TransitionArray::CompactPrototypeTransitionArray(Isolate* isolate,
     }
   }
   // Fill slots that became free with undefined value.
-  MaybeObject* undefined =
+  MaybeObject undefined =
       MaybeObject::FromObject(*isolate->factory()->undefined_value());
   for (int i = new_number_of_transitions; i < number_of_transitions; i++) {
     array->Set(header + i, undefined);
@@ -396,7 +396,7 @@ Handle<Map> TransitionsAccessor::GetPrototypeTransition(
   WeakFixedArray* cache = GetPrototypeTransitions();
   int length = TransitionArray::NumberOfPrototypeTransitions(cache);
   for (int i = 0; i < length; i++) {
-    MaybeObject* target =
+    MaybeObject target =
         cache->Get(TransitionArray::kProtoTransitionHeaderSize + i);
     DCHECK(target->IsWeakOrCleared());
     HeapObject* heap_object;
@@ -447,7 +447,7 @@ void TransitionArray::Zap(Isolate* isolate) {
   SetNumberOfTransitions(0);
 }
 
-void TransitionsAccessor::ReplaceTransitions(MaybeObject* new_transitions) {
+void TransitionsAccessor::ReplaceTransitions(MaybeObject new_transitions) {
   if (encoding() == kFullTransitionArray) {
     TransitionArray* old_transitions = transitions();
 #if DEBUG
@@ -510,7 +510,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
         int length = TransitionArray::NumberOfPrototypeTransitions(proto_trans);
         for (int i = 0; i < length; ++i) {
           int index = TransitionArray::kProtoTransitionHeaderSize + i;
-          MaybeObject* target = proto_trans->Get(index);
+          MaybeObject target = proto_trans->Get(index);
           HeapObject* heap_object;
           if (target->GetHeapObjectIfWeak(&heap_object)) {
             TransitionsAccessor(isolate_, Map::cast(heap_object), no_gc)
@@ -596,7 +596,7 @@ void TransitionArray::Sort() {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   for (int i = 1; i < length; i++) {
     Name* key = GetKey(i);
-    MaybeObject* target = GetRawTarget(i);
+    MaybeObject target = GetRawTarget(i);
     PropertyKind kind = kData;
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(roots, key)) {
@@ -609,7 +609,7 @@ void TransitionArray::Sort() {
     int j;
     for (j = i - 1; j >= 0; j--) {
       Name* temp_key = GetKey(j);
-      MaybeObject* temp_target = GetRawTarget(j);
+      MaybeObject temp_target = GetRawTarget(j);
       PropertyKind temp_kind = kData;
       PropertyAttributes temp_attributes = NONE;
       if (!TransitionsAccessor::IsSpecialTransition(roots, temp_key)) {

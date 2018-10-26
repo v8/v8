@@ -134,7 +134,7 @@ class Scavenger {
 
   inline Heap* heap() { return heap_; }
 
-  inline void PageMemoryFence(MaybeObject* object);
+  inline void PageMemoryFence(MaybeObject object);
 
   void AddPageToSweeperIfNecessary(MemoryChunk* page);
 

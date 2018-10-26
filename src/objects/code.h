@@ -620,7 +620,7 @@ class DependentCode : public WeakFixedArray {
 
   // The following low-level accessors are exposed only for tests.
   inline DependencyGroup group();
-  inline MaybeObject* object_at(int i);
+  inline MaybeObject object_at(int i);
   inline int count();
   inline DependentCode* next_link();
 
@@ -658,7 +658,7 @@ class DependentCode : public WeakFixedArray {
 
   inline void set_next_link(DependentCode* next);
   inline void set_count(int value);
-  inline void set_object_at(int i, MaybeObject* object);
+  inline void set_object_at(int i, MaybeObject object);
   inline void clear_at(int i);
   inline void copy(int from, int to);
 

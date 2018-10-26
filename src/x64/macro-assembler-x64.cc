@@ -2068,7 +2068,7 @@ void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
   cmpp(in_out, Immediate(kClearedWeakHeapObject));
   j(equal, target_if_cleared);
 
-  andp(in_out, Immediate(~kWeakHeapObjectMask));
+  andp(in_out, Immediate(~static_cast<int32_t>(kWeakHeapObjectMask)));
 }
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {

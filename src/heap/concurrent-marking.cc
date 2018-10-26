@@ -152,7 +152,7 @@ class ConcurrentMarkingVisitor final
   void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
     for (MaybeObjectSlot slot = start; slot < end; ++slot) {
-      MaybeObject* object = slot.Relaxed_Load();
+      MaybeObject object = slot.Relaxed_Load();
       HeapObject* heap_object;
       if (object->GetHeapObjectIfStrong(&heap_object)) {
         // If the reference changes concurrently from strong to weak, the write

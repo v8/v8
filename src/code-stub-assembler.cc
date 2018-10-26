@@ -1846,8 +1846,8 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
   GotoIf(TaggedIsSmi(maybe_object), &inner_if_smi);
 
   GotoIf(WordEqual(BitcastMaybeObjectToWord(maybe_object),
-                   IntPtrConstant(reinterpret_cast<intptr_t>(
-                       HeapObjectReference::ClearedValue()))),
+                   IntPtrConstant(static_cast<intptr_t>(
+                       HeapObjectReference::ClearedValue().ptr()))),
          if_cleared);
 
   GotoIf(WordEqual(WordAnd(BitcastMaybeObjectToWord(maybe_object),
