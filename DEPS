@@ -13,7 +13,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5a371bcc0efe2cc84f384f14bdf5eaf5fe3e271a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'df2e6ae8196aee3407a293d2559efd0b62142b61',
   'v8/third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2b71832f6d8dc74119589992836cf95aeb8a9842',
   'v8/third_party/icu':
@@ -33,7 +33,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ed6fe0f638403e1afd377e38975e4fd430f53432',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '687f318e303c48b791fa608da923c23b31cd6afe',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -92,7 +92,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'b0e783867ebc917c2b69a55f55ca5500e298e356',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'c90bc9686f1a90b76fb2ec782256d26323164c91',
 }
 
 recursedeps = [
