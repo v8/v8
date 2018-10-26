@@ -64,6 +64,10 @@ class MarkingStateBase {
     return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
   }
 
+  V8_INLINE bool IsBlackAssumingNotWhite(HeapObject* obj) {
+    return Marking::IsBlackAssumingNotWhite<access_mode>(MarkBitFrom(obj));
+  }
+
   V8_INLINE bool WhiteToGrey(HeapObject* obj);
   V8_INLINE bool WhiteToBlack(HeapObject* obj);
   V8_INLINE bool GreyToBlack(HeapObject* obj);

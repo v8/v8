@@ -248,6 +248,13 @@ class Marking : public AllStatic {
     return mark_bit.Get<mode>();
   }
 
+  // IsBlackAssumingNotWhite assumes that the color known to be
+  // black or grey. It only checks the second bit.
+  template <AccessMode mode = AccessMode::NON_ATOMIC>
+  V8_INLINE static bool IsBlackAssumingNotWhite(MarkBit mark_bit) {
+    return mark_bit.Next().Get<mode>();
+  }
+
   template <AccessMode mode = AccessMode::NON_ATOMIC>
   V8_INLINE static void MarkWhite(MarkBit markbit) {
     STATIC_ASSERT(mode == AccessMode::NON_ATOMIC);
