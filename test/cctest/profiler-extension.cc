@@ -42,14 +42,15 @@ const char* ProfilerExtension::kSource =
 
 v8::Local<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> name) {
-  if (name->StrictEquals(v8_str(isolate, "startProfiling"))) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  if (name->Equals(context, v8_str(isolate, "startProfiling")).FromJust()) {
     return v8::FunctionTemplate::New(isolate,
                                      ProfilerExtension::StartProfiling);
   }
-  if (name->StrictEquals(v8_str(isolate, "stopProfiling"))) {
+  if (name->Equals(context, v8_str(isolate, "stopProfiling")).FromJust()) {
     return v8::FunctionTemplate::New(isolate, ProfilerExtension::StopProfiling);
   }
-  if (name->StrictEquals(v8_str(isolate, "collectSample"))) {
+  if (name->Equals(context, v8_str(isolate, "collectSample")).FromJust()) {
     return v8::FunctionTemplate::New(isolate, ProfilerExtension::CollectSample);
   }
   UNREACHABLE();
