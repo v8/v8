@@ -10391,7 +10391,7 @@ MaybeLocal<T> Isolate::GetDataFromSnapshotOnce(size_t index) {
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
   typedef internal::Internals I;
-  const int64_t kMemoryReducerActivationLimit = 32 * 1024 * 1024;
+  constexpr int64_t kMemoryReducerActivationLimit = 32 * 1024 * 1024;
   int64_t* external_memory = reinterpret_cast<int64_t*>(
       reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryOffset);
   int64_t* external_memory_limit = reinterpret_cast<int64_t*>(
@@ -10399,15 +10399,12 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
   int64_t* external_memory_at_last_mc =
       reinterpret_cast<int64_t*>(reinterpret_cast<uint8_t*>(this) +
                                  I::kExternalMemoryAtLastMarkCompactOffset);
-  const int64_t amount = *external_memory + change_in_bytes;
 
+  const int64_t amount = *external_memory + change_in_bytes;
   *external_memory = amount;
 
   int64_t allocation_diff_since_last_mc =
       *external_memory_at_last_mc - *external_memory;
-  allocation_diff_since_last_mc = allocation_diff_since_last_mc < 0
-                                      ? -allocation_diff_since_last_mc
-                                      : allocation_diff_since_last_mc;
   if (allocation_diff_since_last_mc > kMemoryReducerActivationLimit) {
     CheckMemoryPressure();
   }
