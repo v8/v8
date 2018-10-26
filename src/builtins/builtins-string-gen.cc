@@ -1064,29 +1064,6 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   // Smis definitely don't have an attached symbol.
   GotoIf(TaggedIsSmi(object), &out);
 
-  Node* const object_map = LoadMap(object);
-
-  // Skip the slow lookup for Strings.
-  {
-    Label next(this);
-
-    GotoIfNot(IsStringInstanceType(LoadMapInstanceType(object_map)), &next);
-
-    Node* const native_context = LoadNativeContext(context);
-    Node* const initial_proto_initial_map = LoadContextElement(
-        native_context, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX);
-
-    Node* const string_fun =
-        LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX);
-    Node* const initial_map =
-        LoadObjectField(string_fun, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* const proto_map = LoadMap(LoadMapPrototype(initial_map));
-
-    Branch(WordEqual(proto_map, initial_proto_initial_map), &out, &next);
-
-    BIND(&next);
-  }
-
   // Take the fast path for RegExps.
   // There's two conditions: {object} needs to be a fast regexp, and
   // {maybe_string} must be a string (we can't call ToString on the fast path
@@ -1098,7 +1075,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     GotoIfNot(IsString(maybe_string), &slow_lookup);
 
     RegExpBuiltinsAssembler regexp_asm(state());
-    regexp_asm.BranchIfFastRegExp(context, object, object_map, &stub_call,
+    regexp_asm.BranchIfFastRegExp(context, object, LoadMap(object), &stub_call,
                                   &slow_lookup);
 
     BIND(&stub_call);
