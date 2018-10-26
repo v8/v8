@@ -2028,10 +2028,10 @@ Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
   return tl_d.Phi(int_ty.representation(), nan_val, load);
 }
 
-Node* WasmGraphBuilder::GrowMemory(Node* input) {
+Node* WasmGraphBuilder::MemoryGrow(Node* input) {
   needs_stack_check_ = true;
 
-  WasmGrowMemoryDescriptor interface_descriptor;
+  WasmMemoryGrowDescriptor interface_descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       mcgraph()->zone(),                              // zone
       interface_descriptor,                           // descriptor
@@ -2042,7 +2042,7 @@ Node* WasmGraphBuilder::GrowMemory(Node* input) {
   // A direct call to a wasm runtime stub defined in this module.
   // Just encode the stub index. This will be patched at relocation.
   Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-      wasm::WasmCode::kWasmGrowMemory, RelocInfo::WASM_STUB_CALL);
+      wasm::WasmCode::kWasmMemoryGrow, RelocInfo::WASM_STUB_CALL);
   return SetEffect(
       SetControl(graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
                                   call_target, input, Effect(), Control())));

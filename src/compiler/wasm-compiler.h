@@ -177,7 +177,7 @@ class WasmGraphBuilder {
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
-  Node* GrowMemory(Node* input);
+  Node* MemoryGrow(Node* input);
   Node* Throw(uint32_t exception_index, const wasm::WasmException* exception,
               const Vector<Node*> values);
   Node* Rethrow(Node* except_obj);

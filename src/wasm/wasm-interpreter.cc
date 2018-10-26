@@ -2475,7 +2475,7 @@ class ThreadImpl {
           ASMJS_STORE_CASE(F32AsmjsStoreMem, float, float);
           ASMJS_STORE_CASE(F64AsmjsStoreMem, double, double);
 #undef ASMJS_STORE_CASE
-        case kExprGrowMemory: {
+        case kExprMemoryGrow: {
           MemoryIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();

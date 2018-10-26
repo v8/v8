@@ -1575,7 +1575,7 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, LiftoffRegister(mem_size));
   }
 
-  void GrowMemory(FullDecoder* decoder, const Value& value, Value* result_val) {
+  void MemoryGrow(FullDecoder* decoder, const Value& value, Value* result_val) {
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
     LiftoffRegister input = pinned.set(__ PopToRegister());
@@ -1587,7 +1587,7 @@ class LiftoffCompiler {
                   "complex code here otherwise)");
     LiftoffRegister result = pinned.set(LiftoffRegister(kGpReturnReg));
 
-    WasmGrowMemoryDescriptor descriptor;
+    WasmMemoryGrowDescriptor descriptor;
     DCHECK_EQ(0, descriptor.GetStackParameterCount());
     DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
     DCHECK_EQ(ValueTypes::MachineTypeFor(kWasmI32),
@@ -1596,7 +1596,7 @@ class LiftoffCompiler {
     Register param_reg = descriptor.GetRegisterParameter(0);
     if (input.gp() != param_reg) __ Move(param_reg, input.gp(), kWasmI32);
 
-    __ CallRuntimeStub(WasmCode::kWasmGrowMemory);
+    __ CallRuntimeStub(WasmCode::kWasmMemoryGrow);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);
 

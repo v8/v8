@@ -539,7 +539,7 @@ namespace internal {
   F(ThrowWasmStackOverflow, 0, 1)     \
   F(WasmExceptionGetValues, 1, 1)     \
   F(WasmExceptionGetTag, 1, 1)        \
-  F(WasmGrowMemory, 2, 1)             \
+  F(WasmMemoryGrow, 2, 1)             \
   F(WasmRunInterpreter, 2, 1)         \
   F(WasmStackGuard, 0, 1)             \
   F(WasmThrowCreate, 2, 1)            \

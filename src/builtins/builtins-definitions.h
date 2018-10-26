@@ -1217,7 +1217,7 @@ namespace internal {
   ASM(WasmCompileLazy)                                                         \
   TFC(WasmAllocateHeapNumber, AllocateHeapNumber, 1)                           \
   TFC(WasmCallJavaScript, CallTrampoline, 1)                                   \
-  TFC(WasmGrowMemory, WasmGrowMemory, 1)                                       \
+  TFC(WasmMemoryGrow, WasmMemoryGrow, 1)                                       \
   TFC(WasmRecordWrite, RecordWrite, 1)                                         \
   TFC(WasmStackGuard, NoContext, 1)                                            \
   TFC(WasmToNumber, TypeConversion, 1)                                         \
@@ -1512,7 +1512,7 @@ namespace internal {
   FOREACH_WASM_TRAPREASON(VTRAP)         \
   V(WasmAllocateHeapNumber)              \
   V(WasmCallJavaScript)                  \
-  V(WasmGrowMemory)                      \
+  V(WasmMemoryGrow)                      \
   V(WasmRecordWrite)                     \
   V(WasmStackGuard)                      \
   V(WasmToNumber)                        \

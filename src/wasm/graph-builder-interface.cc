@@ -360,8 +360,8 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(CurrentMemoryPages);
   }
 
-  void GrowMemory(FullDecoder* decoder, const Value& value, Value* result) {
-    result->node = BUILD(GrowMemory, value.node);
+  void MemoryGrow(FullDecoder* decoder, const Value& value, Value* result) {
+    result->node = BUILD(MemoryGrow, value.node);
     // Always reload the instance cache after growing memory.
     LoadContextIntoSsa(ssa_env_);
   }

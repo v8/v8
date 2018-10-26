@@ -873,7 +873,7 @@ void WasmTableObject::ClearDispatchTables(Isolate* isolate,
 }
 
 namespace {
-MaybeHandle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
+MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
                                             Handle<JSArrayBuffer> old_buffer,
                                             uint32_t pages,
                                             uint32_t maximum_pages) {
@@ -1055,7 +1055,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     maximum_pages = Min(FLAG_wasm_max_mem_pages,
                         static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  if (!GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages)
+  if (!MemoryGrowBuffer(isolate, old_buffer, pages, maximum_pages)
            .ToHandle(&new_buffer)) {
     return -1;
   }
