@@ -748,7 +748,6 @@ class ParserBase {
   void ExpectContextualKeyword(Token::Value token) {
     DCHECK(Token::IsContextualKeyword(token));
     Expect(Token::IDENTIFIER);
-    RETURN_IF_PARSE_ERROR_CUSTOM(Void);
     if (scanner()->current_contextual_token() != token) {
       ReportUnexpectedToken(scanner()->current_token());
     }
@@ -1674,10 +1673,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBindingPattern() {
 
     if (token == Token::LBRACK) {
       result = ParseArrayLiteral();
-      RETURN_IF_PARSE_ERROR;
     } else if (token == Token::LBRACE) {
       result = ParseObjectLiteral();
-      RETURN_IF_PARSE_ERROR;
     } else {
       ReportUnexpectedToken(Next());
       return impl()->NullExpression();
@@ -1685,7 +1682,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBindingPattern() {
   }
 
   ValidateBindingPattern();
-  RETURN_IF_PARSE_ERROR;
   return result;
 }
 
@@ -1718,7 +1714,6 @@ ParserBase<Impl>::ParsePrimaryExpression() {
                 Token::ESCAPED_STRICT_RESERVED_WORD)) {
     // Using eval or arguments in this context is OK even in strict mode.
     IdentifierT name = ParseAndClassifyIdentifier();
-    RETURN_IF_PARSE_ERROR;
     InferName infer = InferName::kYes;
     if (V8_UNLIKELY(impl()->IsAsync(name) &&
                     !scanner()->HasLineTerminatorBeforeNext())) {
@@ -1729,7 +1724,6 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       // async Identifier => AsyncConciseBody
       if (peek_any_identifier() && PeekAhead() == Token::ARROW) {
         name = ParseAndClassifyIdentifier();
-        RETURN_IF_PARSE_ERROR;
 
         if (!classifier()->is_valid_async_arrow_formal_parameters()) {
           ReportClassifierError(
@@ -1739,6 +1733,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         infer = InferName::kNo;
       }
     }
+    RETURN_IF_PARSE_ERROR;
     return impl()->ExpressionFromIdentifier(name, beg_pos, infer);
   }
   DCHECK_IMPLIES(Token::IsAnyIdentifier(token), token == Token::ENUM);
@@ -1794,7 +1789,6 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         function_state_->set_next_function_is_likely_called();
       }
       ExpressionT expr = ParseExpressionCoverGrammar(true);
-      RETURN_IF_PARSE_ERROR;
       Expect(Token::RPAREN);
       return expr;
     }
@@ -1810,7 +1804,6 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         bool is_await = false;
         name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
                                                    &is_await);
-        RETURN_IF_PARSE_ERROR;
         class_name_location = scanner()->location();
         if (is_await) {
           classifier()->RecordAsyncArrowFormalParametersError(
@@ -1852,7 +1845,6 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseExpression() {
   ExpressionClassifier classifier(this);
   ExpressionT result = ParseExpressionCoverGrammar(true);
-  RETURN_IF_PARSE_ERROR;
   ValidateExpression();
   return result;
 }
@@ -1878,7 +1870,6 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN) {
       int ellipsis_pos = position();
       int pattern_pos = peek_position();
       ExpressionT pattern = ParseBindingPattern();
-      RETURN_IF_PARSE_ERROR;
       if (peek() == Token::ASSIGN) {
         ReportMessage(MessageTemplate::kRestDefaultInitializer);
         return impl()->NullExpression();
@@ -1886,11 +1877,12 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN) {
       right = factory()->NewSpread(pattern, ellipsis_pos, pattern_pos);
     } else {
       right = ParseAssignmentExpression(accept_IN);
-      RETURN_IF_PARSE_ERROR;
     }
     // No need to accumulate binding pattern-related errors, since
     // an Expression can't be a binding pattern anyway.
     AccumulateNonBindingPatternErrors();
+    // TODO(verwaest): Remove once we have FailureExpression.
+    RETURN_IF_PARSE_ERROR;
     if (!impl()->IsIdentifier(right)) classifier()->RecordNonSimpleParameter();
     list.Add(right);
 
@@ -1939,13 +1931,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
       int start_pos = position();
       int expr_pos = peek_position();
       ExpressionT argument = ParseAssignmentExpression(true);
-      RETURN_IF_PARSE_ERROR;
       elem = factory()->NewSpread(argument, start_pos, expr_pos);
 
       if (first_spread_index < 0) {
         first_spread_index = values.length();
       }
 
+      // TODO(verwaest): Remove once we have FailureExpression.
+      RETURN_IF_PARSE_ERROR;
       if (argument->IsAssignment()) {
         classifier()->RecordPatternError(
             Scanner::Location(start_pos, end_position()),
@@ -1962,13 +1955,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
     } else {
       int beg_pos = peek_position();
       elem = ParseAssignmentExpression(true);
+      // TODO(verwaest): Remove once we have FailureExpression.
       RETURN_IF_PARSE_ERROR;
       CheckDestructuringElement(elem, beg_pos, end_position());
     }
     values.Add(elem);
     if (peek() != Token::RBRACK) {
       Expect(Token::COMMA);
-      RETURN_IF_PARSE_ERROR;
     }
   }
 
@@ -2092,12 +2085,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
       Consume(Token::LBRACK);
       ExpressionClassifier computed_name_classifier(this);
       ExpressionT expression = ParseAssignmentExpression(true);
-      RETURN_IF_PARSE_ERROR;
       ValidateExpression();
-      RETURN_IF_PARSE_ERROR;
       AccumulateFormalParameterContainmentErrors();
       Expect(Token::RBRACK);
-      RETURN_IF_PARSE_ERROR;
       if (*kind == ParsePropertyKind::kNotSet) {
         ParsePropertyKindFromToken(peek(), kind);
       }
@@ -2109,9 +2099,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
         *name = impl()->NullIdentifier();
         Consume(Token::ELLIPSIS);
         ExpressionT expression = ParseAssignmentExpression(true);
-        RETURN_IF_PARSE_ERROR;
         *kind = ParsePropertyKind::kSpread;
 
+        // TODO(verwaest): Remove once we have FailureExpression.
+        RETURN_IF_PARSE_ERROR;
         if (!impl()->IsIdentifier(expression)) {
           classifier()->RecordBindingPatternError(
               scanner()->location(),
@@ -2134,7 +2125,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
 
     default:
       *name = ParseIdentifierName();
-      RETURN_IF_PARSE_ERROR;
       is_array_index = false;
       break;
   }
@@ -2142,6 +2132,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
   if (*kind == ParsePropertyKind::kNotSet) {
     ParsePropertyKindFromToken(peek(), kind);
   }
+  RETURN_IF_PARSE_ERROR;
   impl()->PushLiteralName(*name);
   return is_array_index ? factory()->NewNumberLiteral(index, pos)
                         : factory()->NewStringLiteral(*name, pos);
