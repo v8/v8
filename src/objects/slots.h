@@ -57,6 +57,8 @@ class ObjectSlot : public SlotBase<ObjectSlot> {
  public:
   ObjectSlot() : SlotBase(kNullAddress) {}
   explicit ObjectSlot(Address ptr) : SlotBase(ptr) {}
+  explicit ObjectSlot(Address* ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   explicit ObjectSlot(Object** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>

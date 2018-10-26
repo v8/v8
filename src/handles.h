@@ -12,11 +12,12 @@
 #include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
-// TODO(3770): The objects.h include is required to make the
-// std::enable_if<std::is_base_of<...>> conditions below work. Once the
+// TODO(3770): The objects.h and heap-object.h includes are required to make
+// the std::enable_if<std::is_base_of<...>> conditions below work. Once the
 // migration is complete, we should be able to get by with just forward
 // declarations.
 #include "src/objects.h"
+#include "src/objects/heap-object.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -170,14 +171,7 @@ class Handle final : public HandleBase {
   }
 
   // Returns the address to where the raw pointer is stored.
-  V8_INLINE T** location() const {
-    return reinterpret_cast<T**>(HandleBase::location());
-  }
-  // TODO(jkummerow): This is temporary; eventually location() should
-  // return an Address*.
-  V8_INLINE Address* location_as_address_ptr() const {
-    return HandleBase::location();
-  }
+  V8_INLINE Address* location() const { return HandleBase::location(); }
 
   template <typename S>
   inline static const Handle<T> cast(Handle<S> that);

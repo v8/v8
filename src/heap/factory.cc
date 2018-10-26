@@ -94,7 +94,7 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
       auto builder = heap->isolate()->builtins_constants_table_builder();
       if (builder != nullptr) builder->PatchSelfReference(self_ref, code);
     }
-    *(self_ref.location()) = *code;
+    *(self_ref.location()) = code->ptr();
   }
 
   // Migrate generated code.

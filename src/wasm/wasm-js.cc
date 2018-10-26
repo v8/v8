@@ -241,7 +241,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
   ~AsyncCompilationResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
@@ -277,7 +277,7 @@ class InstantiateModuleResultResolver
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
   ~InstantiateModuleResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnInstantiationSucceeded(
@@ -313,8 +313,8 @@ class InstantiateBytesResultResolver
         module_(isolate_->global_handles()->Create(*module)) {}
 
   ~InstantiateBytesResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(module_).location());
+    i::GlobalHandles::Destroy(promise_.location());
+    i::GlobalHandles::Destroy(module_.location());
   }
 
   void OnInstantiationSucceeded(
@@ -378,11 +378,9 @@ class AsyncInstantiateCompileResultResolver
                                  *maybe_imports.ToHandleChecked())) {}
 
   ~AsyncInstantiateCompileResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
     if (!maybe_imports_.is_null()) {
-      i::GlobalHandles::Destroy(
-          i::Handle<i::Object>::cast(maybe_imports_.ToHandleChecked())
-              .location());
+      i::GlobalHandles::Destroy(maybe_imports_.ToHandleChecked().location());
     }
   }
 

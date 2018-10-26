@@ -156,7 +156,7 @@ Address* CanonicalHandleScope::Lookup(Address object) {
   if (Internals::HasHeapObjectTag(object)) {
     RootIndex root_index;
     if (root_index_map_->Lookup(object, &root_index)) {
-      return isolate_->root_handle(root_index).location_as_address_ptr();
+      return isolate_->root_handle(root_index).location();
     }
   }
   Address** entry = identity_map_->Get(reinterpret_cast<Object*>(object));

@@ -51,6 +51,7 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -981,15 +982,15 @@ i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
-    reinterpret_cast<i::Object*>(*obj)->ObjectVerify(isolate);
+    i::ObjectPtr(*obj)->ObjectVerify(isolate);
   }
 #endif  // VERIFY_HEAP
-  return result.location_as_address_ptr();
+  return result.location();
 }
 
 i::Address* V8::CopyPersistent(i::Address* obj) {
   i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
-  return result.location_as_address_ptr();
+  return result.location();
 }
 
 void V8::RegisterExternallyReferencedObject(i::Address* location,
@@ -6303,7 +6304,7 @@ i::Address* GetSerializedDataFromFixedArray(i::Isolate* isolate,
       int last = list->length() - 1;
       while (last >= 0 && list->is_the_hole(isolate, last)) last--;
       if (last != -1) list->Shrink(isolate, last + 1);
-      return i::Handle<i::Object>(object, isolate).location_as_address_ptr();
+      return i::Handle<i::Object>(object, isolate).location();
     }
   }
   return nullptr;
@@ -7419,7 +7420,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
                 *Utils::OpenHandle(*promise))) {}
 
   ~AsyncCompilationResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
