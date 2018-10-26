@@ -3246,7 +3246,6 @@ class AstNodeFactory final {
   }
 
   YieldStar* NewYieldStar(Expression* expression, int pos) {
-    DCHECK_NOT_NULL(expression);
     return new (zone_) YieldStar(expression, pos);
   }
 
