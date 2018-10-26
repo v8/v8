@@ -101,22 +101,46 @@ class IsolateData final {
 
 // Static layout definition.
 #define FIELDS(V)                                                         \
+  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kPointerSize)   \
+  V(kExternalMemoryOffset, kInt64Size)                                    \
+  V(kExternalMemoryLlimitOffset, kInt64Size)                              \
+  V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                   \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kPointerSize)           \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::SizeInBytes()) \
   V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)          \
   V(kMagicNumberOffset, kIntptrSize)                                      \
   V(kVirtualCallTargetRegisterOffset, kPointerSize)                       \
+  /* This padding aligns IsolateData size by 8 bytes. */                  \
+  V(kPaddingOffset,                                                       \
+    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)    \
   /* Total size. */                                                       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(0, FIELDS)
 #undef FIELDS
 
+  // These fields are accessed through the API, offsets must be kept in sync
+  // with v8::internal::Internals (in include/v8-internal.h) constants.
+  // The layout consitency is verified in Isolate::CheckIsolateLayout() using
+  // runtime checks.
+  void* embedder_data_[Internals::kNumIsolateDataSlots] = {};
+
+  // TODO(ishell): Move these external memory counters back to Heap once the
+  // Node JS bot issue is solved.
+  // The amount of external memory registered through the API.
+  int64_t external_memory_ = 0;
+
+  // The limit when to trigger memory pressure from the API.
+  int64_t external_memory_limit_ = kExternalAllocationSoftLimit;
+
+  // Caches the amount of external memory registered at the last MC.
+  int64_t external_memory_at_last_mark_compact_ = 0;
+
   RootsTable roots_;
 
   ExternalReferenceTable external_reference_table_;
 
-  Object* builtins_[Builtins::builtin_count];
+  Object* builtins_[Builtins::builtin_count] = {};
 
   // For root register verification.
   // TODO(v8:6666): Remove once the root register is fully supported on ia32.
@@ -127,9 +151,21 @@ class IsolateData final {
   // ia32 (otherwise the arguments adaptor call runs out of registers).
   void* virtual_call_target_register_ = nullptr;
 
+  // Ensure the size is 8-byte aligned in order to make alignment of the field
+  // following the IsolateData field predictable. This solves the issue with
+  // C++ compilers for 32-bit platforms which are not consistent at aligning
+  // int64_t fields.
+  // In order to avoid dealing with zero-size arrays the padding size is always
+  // in the range [8, 15).
+  STATIC_ASSERT(kPaddingOffsetEnd + 1 - kPaddingOffset >= 8);
+  char padding_[kPaddingOffsetEnd + 1 - kPaddingOffset];
+
   V8_INLINE static void AssertPredictableLayout();
 
   friend class Isolate;
+  friend class Heap;
+  FRIEND_TEST(HeapTest, ExternalLimitDefault);
+  FRIEND_TEST(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling);
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
@@ -139,12 +175,22 @@ class IsolateData final {
 // issues because of different compilers used for snapshot generator and
 // actual V8 code.
 void IsolateData::AssertPredictableLayout() {
-  STATIC_ASSERT(offsetof(IsolateData, roots_) ==
-                IsolateData::kRootsTableOffset);
+  STATIC_ASSERT(std::is_standard_layout<RootsTable>::value);
+  STATIC_ASSERT(std::is_standard_layout<ExternalReferenceTable>::value);
+  STATIC_ASSERT(std::is_standard_layout<IsolateData>::value);
+  STATIC_ASSERT(offsetof(IsolateData, roots_) == kRootsTableOffset);
   STATIC_ASSERT(offsetof(IsolateData, external_reference_table_) ==
-                IsolateData::kExternalReferenceTableOffset);
-  STATIC_ASSERT(offsetof(IsolateData, builtins_) ==
-                IsolateData::kBuiltinsTableOffset);
+                kExternalReferenceTableOffset);
+  STATIC_ASSERT(offsetof(IsolateData, builtins_) == kBuiltinsTableOffset);
+  STATIC_ASSERT(offsetof(IsolateData, magic_number_) == kMagicNumberOffset);
+  STATIC_ASSERT(offsetof(IsolateData, virtual_call_target_register_) ==
+                kVirtualCallTargetRegisterOffset);
+  STATIC_ASSERT(offsetof(IsolateData, external_memory_) ==
+                kExternalMemoryOffset);
+  STATIC_ASSERT(offsetof(IsolateData, external_memory_limit_) ==
+                kExternalMemoryLlimitOffset);
+  STATIC_ASSERT(offsetof(IsolateData, external_memory_at_last_mark_compact_) ==
+                kExternalMemoryAtLastMarkCompactOffset);
   STATIC_ASSERT(sizeof(IsolateData) == IsolateData::kSize);
 }
 

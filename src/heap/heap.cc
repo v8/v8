@@ -377,7 +377,7 @@ void Heap::PrintShortHeapStatistics() {
                memory_allocator()->unmapper()->NumberOfChunks(),
                CommittedMemoryOfHeapAndUnmapper() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
-               external_memory_ / KB);
+               isolate()->isolate_data()->external_memory_ / KB);
   PrintIsolate(isolate_, "Backing store memory: %6" PRIuS " KB\n",
                backing_store_bytes_ / KB);
   PrintIsolate(isolate_, "External memory global %zu KB\n",
@@ -1186,8 +1186,9 @@ void Heap::ReportExternalMemoryPressure() {
       static_cast<GCCallbackFlags>(
           kGCCallbackFlagSynchronousPhantomCallbackProcessing |
           kGCCallbackFlagCollectAllExternalMemory);
-  if (external_memory_ >
-      (external_memory_at_last_mark_compact_ + external_memory_hard_limit())) {
+  if (isolate()->isolate_data()->external_memory_ >
+      (isolate()->isolate_data()->external_memory_at_last_mark_compact_ +
+       external_memory_hard_limit())) {
     CollectAllGarbage(
         kReduceMemoryFootprintMask,
         GarbageCollectionReason::kExternalMemoryPressure,
@@ -1209,10 +1210,12 @@ void Heap::ReportExternalMemoryPressure() {
     // Incremental marking is turned on an has already been started.
     const double kMinStepSize = 5;
     const double kMaxStepSize = 10;
-    const double ms_step =
-        Min(kMaxStepSize,
-            Max(kMinStepSize, static_cast<double>(external_memory_) /
-                                  external_memory_limit_ * kMinStepSize));
+    const double ms_step = Min(
+        kMaxStepSize,
+        Max(kMinStepSize,
+            static_cast<double>(isolate()->isolate_data()->external_memory_) /
+                isolate()->isolate_data()->external_memory_limit_ *
+                kMinStepSize));
     const double deadline = MonotonicallyIncreasingTimeInMs() + ms_step;
     // Extend the gc callback flags with external memory flags.
     current_gc_callback_flags_ = static_cast<GCCallbackFlags>(
@@ -1704,8 +1707,11 @@ bool Heap::PerformGarbageCollection(
   size_t old_gen_size = OldGenerationSizeOfObjects();
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
-    external_memory_at_last_mark_compact_ = external_memory_;
-    external_memory_limit_ = external_memory_ + kExternalAllocationSoftLimit;
+    isolate()->isolate_data()->external_memory_at_last_mark_compact_ =
+        isolate()->isolate_data()->external_memory_;
+    isolate()->isolate_data()->external_memory_limit_ =
+        isolate()->isolate_data()->external_memory_ +
+        kExternalAllocationSoftLimit;
 
     double max_factor =
         heap_controller()->MaxGrowingFactor(max_old_generation_size_);
@@ -3189,8 +3195,8 @@ void Heap::CollectGarbageOnMemoryPressure() {
   double end = MonotonicallyIncreasingTimeInMs();
 
   // Estimate how much memory we can free.
-  int64_t potential_garbage =
-      (CommittedMemory() - SizeOfObjects()) + external_memory_;
+  int64_t potential_garbage = (CommittedMemory() - SizeOfObjects()) +
+                              isolate()->isolate_data()->external_memory_;
   // If we can potentially free large amount of memory, then start GC right
   // away instead of waiting for memory reducer.
   if (potential_garbage >= kGarbageThresholdInBytes &&
@@ -3655,12 +3661,12 @@ Code* Heap::builtin(int index) {
   DCHECK(Builtins::IsBuiltinId(index));
   // Code::cast cannot be used here since we access builtins
   // during the marking phase of mark sweep. See IC::Clear.
-  return reinterpret_cast<Code*>(builtins_table()[index]);
+  return reinterpret_cast<Code*>(isolate()->builtins_table()[index]);
 }
 
 Address Heap::builtin_address(int index) {
   DCHECK(Builtins::IsBuiltinId(index) || index == Builtins::builtin_count);
-  return reinterpret_cast<Address>(&builtins_table()[index]);
+  return reinterpret_cast<Address>(&isolate()->builtins_table()[index]);
 }
 
 void Heap::set_builtin(int index, HeapObject* builtin) {
@@ -3668,7 +3674,7 @@ void Heap::set_builtin(int index, HeapObject* builtin) {
   DCHECK(Internals::HasHeapObjectTag(reinterpret_cast<Address>(builtin)));
   // The given builtin may be completely uninitialized thus we cannot check its
   // type here.
-  builtins_table()[index] = builtin;
+  isolate()->builtins_table()[index] = builtin;
 }
 
 void Heap::IterateRoots(RootVisitor* v, VisitMode mode) {
@@ -4031,9 +4037,14 @@ size_t Heap::OldGenerationSizeOfObjects() {
 }
 
 uint64_t Heap::PromotedExternalMemorySize() {
-  if (external_memory_ <= external_memory_at_last_mark_compact_) return 0;
-  return static_cast<uint64_t>(external_memory_ -
-                               external_memory_at_last_mark_compact_);
+  IsolateData* isolate_data = isolate()->isolate_data();
+  if (isolate_data->external_memory_ <=
+      isolate_data->external_memory_at_last_mark_compact_) {
+    return 0;
+  }
+  return static_cast<uint64_t>(
+      isolate_data->external_memory_ -
+      isolate_data->external_memory_at_last_mark_compact_);
 }
 
 bool Heap::ShouldOptimizeForLoadTime() {
@@ -4114,7 +4125,8 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (FLAG_stress_marking > 0) {
     double gained_since_last_gc =
         PromotedSinceLastGC() +
-        (external_memory_ - external_memory_at_last_mark_compact_);
+        (isolate()->isolate_data()->external_memory_ -
+         isolate()->isolate_data()->external_memory_at_last_mark_compact_);
     double size_before_gc =
         OldGenerationObjectsAndPromotedExternalMemorySize() -
         gained_since_last_gc;
@@ -4399,8 +4411,6 @@ void Heap::SetUp() {
   }
 
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
-
-  isolate_data_.external_reference_table()->Init(isolate_);
 }
 
 void Heap::InitializeHashSeed() {

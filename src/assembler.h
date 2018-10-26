@@ -38,6 +38,7 @@
 #include <forward_list>
 
 #include "src/deoptimize-reason.h"
+#include "src/external-reference.h"
 #include "src/flags.h"
 #include "src/globals.h"
 #include "src/handles.h"

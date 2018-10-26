@@ -21,6 +21,7 @@
 // TODO(mstarzinger): There is one more include to remove in order to no longer
 // leak heap internals to users of this interface!
 #include "src/heap/spaces-inl.h"
+#include "src/isolate-data.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/msan.h"
@@ -54,6 +55,32 @@ HeapObject* AllocationResult::ToObjectChecked() {
   CHECK(!IsRetry());
   return HeapObject::cast(object_);
 }
+
+Isolate* Heap::isolate() {
+  return reinterpret_cast<Isolate*>(
+      reinterpret_cast<intptr_t>(this) -
+      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
+}
+
+int64_t Heap::external_memory() {
+  return isolate()->isolate_data()->external_memory_;
+}
+
+void Heap::update_external_memory(int64_t delta) {
+  isolate()->isolate_data()->external_memory_ += delta;
+}
+
+void Heap::update_external_memory_concurrently_freed(intptr_t freed) {
+  external_memory_concurrently_freed_ += freed;
+}
+
+void Heap::account_external_memory_concurrently_freed() {
+  isolate()->isolate_data()->external_memory_ -=
+      external_memory_concurrently_freed_;
+  external_memory_concurrently_freed_ = 0;
+}
+
+RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
 // TODO(jkummerow): Drop std::remove_pointer after the migration to ObjectPtr.
 #define ROOT_ACCESSOR(Type, name, CamelName)      \
@@ -562,12 +589,6 @@ void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
   // till actually merging the data.
   Address key = memento_candidate->GetAllocationSiteUnchecked();
   (*pretenuring_feedback)[reinterpret_cast<AllocationSite*>(key)]++;
-}
-
-Isolate* Heap::isolate() {
-  return reinterpret_cast<Isolate*>(
-      reinterpret_cast<intptr_t>(this) -
-      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
 }
 
 void Heap::ExternalStringTable::AddString(String* string) {

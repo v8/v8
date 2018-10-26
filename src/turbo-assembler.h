@@ -7,7 +7,7 @@
 
 #include "src/assembler-arch.h"
 #include "src/base/template-utils.h"
-#include "src/heap/heap.h"
+#include "src/builtins/builtins.h"
 
 namespace v8 {
 namespace internal {

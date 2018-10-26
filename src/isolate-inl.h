@@ -12,15 +12,6 @@
 namespace v8 {
 namespace internal {
 
-base::AddressRegion Isolate::root_register_addressable_region() {
-  // TODO(ishell): limit this region to the IsolateData object once all the
-  // data is moved there.
-  Address start = reinterpret_cast<Address>(this);
-  Address end =
-      reinterpret_cast<Address>(heap_.isolate_data()) + sizeof(IsolateData);
-  return base::AddressRegion(start, end - start);
-}
-
 bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
   i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(obj);
   if (chunk->owner()->identity() == i::RO_SPACE) {

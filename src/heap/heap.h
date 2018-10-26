@@ -21,7 +21,6 @@
 #include "src/base/atomic-utils.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
-#include "src/isolate-data.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/string-table.h"
@@ -508,17 +507,10 @@ class Heap {
 
   int64_t external_memory_hard_limit() { return MaxOldGenerationSize() / 2; }
 
-  int64_t external_memory() { return external_memory_; }
-  void update_external_memory(int64_t delta) { external_memory_ += delta; }
-
-  void update_external_memory_concurrently_freed(intptr_t freed) {
-    external_memory_concurrently_freed_ += freed;
-  }
-
-  void account_external_memory_concurrently_freed() {
-    external_memory_ -= external_memory_concurrently_freed_;
-    external_memory_concurrently_freed_ = 0;
-  }
+  V8_INLINE int64_t external_memory();
+  V8_INLINE void update_external_memory(int64_t delta);
+  V8_INLINE void update_external_memory_concurrently_freed(intptr_t freed);
+  V8_INLINE void account_external_memory_concurrently_freed();
 
   size_t backing_store_bytes() const { return backing_store_bytes_; }
 
@@ -636,18 +628,12 @@ class Heap {
     return array_buffer_collector_;
   }
 
-  const IsolateData* isolate_data() const { return &isolate_data_; }
-  IsolateData* isolate_data() { return &isolate_data_; }
-
   // ===========================================================================
   // Root set access. ==========================================================
   // ===========================================================================
 
-  // Shortcut to the roots table stored in |isolate_data_|.
-  V8_INLINE const RootsTable& roots_table() const {
-    return isolate_data_.roots();
-  }
-  V8_INLINE RootsTable& roots_table() { return isolate_data_.roots(); }
+  // Shortcut to the roots table stored in the Isolate.
+  V8_INLINE RootsTable& roots_table();
 
 // Heap root getters.
 #define ROOT_ACCESSOR(type, name, CamelName) inline type name();
@@ -731,9 +717,6 @@ class Heap {
   // ===========================================================================
   // Builtins. =================================================================
   // ===========================================================================
-
-  // Shortcut to the builtins table stored in |isolate_data_|.
-  V8_INLINE Object** builtins_table() { return isolate_data_.builtins(); }
 
   Code* builtin(int index);
   Address builtin_address(int index);
@@ -1746,23 +1729,12 @@ class Heap {
   bool IsRetainingPathTarget(HeapObject* object, RetainingPathOption* option);
   void PrintRetainingPath(HeapObject* object, RetainingPathOption option);
 
-  // The amount of external memory registered through the API.
-  int64_t external_memory_ = 0;
-
-  // The limit when to trigger memory pressure from the API.
-  int64_t external_memory_limit_ = kExternalAllocationSoftLimit;
-
-  // Caches the amount of external memory registered at the last MC.
-  int64_t external_memory_at_last_mark_compact_ = 0;
-
   // The amount of memory that has been freed concurrently.
   std::atomic<intptr_t> external_memory_concurrently_freed_{0};
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_ = nullptr;
-
-  IsolateData isolate_data_;
 
   size_t code_range_size_ = 0;
   size_t max_semi_space_size_ = 8 * (kPointerSize / 4) * MB;

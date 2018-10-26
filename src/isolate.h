@@ -27,6 +27,7 @@
 #include "src/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
+#include "src/isolate-data.h"
 #include "src/messages.h"
 #include "src/objects/code.h"
 #include "src/objects/debug-objects.h"
@@ -999,8 +1000,8 @@ class Isolate : private HiddenFactory {
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
 
-  const IsolateData* isolate_data() const { return heap_.isolate_data(); }
-  IsolateData* isolate_data() { return heap_.isolate_data(); }
+  const IsolateData* isolate_data() const { return &isolate_data_; }
+  IsolateData* isolate_data() { return &isolate_data_; }
 
   // Generated code can embed this address to get access to the isolate-specific
   // data (for example, roots, external references, builtins, etc.).
@@ -1009,10 +1010,17 @@ class Isolate : private HiddenFactory {
 
   RootsTable& roots_table() { return isolate_data()->roots(); }
 
-  // kRootRegister may be used to address any location that falls into this
-  // region. Fields outside this region are not guaranteed to live at a static
-  // offset from kRootRegister.
-  inline base::AddressRegion root_register_addressable_region();
+  // A sub-region of the Isolate object that has "predictable" layout which
+  // depends only on the pointer size and therefore it's guaranteed that there
+  // will be no compatibility issues because of different compilers used for
+  // snapshot generator and actual V8 code.
+  // Thus, kRootRegister may be used to address any location that falls into
+  // this region.
+  // See IsolateData::AssertPredictableLayout() for details.
+  base::AddressRegion root_register_addressable_region() const {
+    return base::AddressRegion(reinterpret_cast<Address>(&isolate_data_),
+                               sizeof(IsolateData));
+  }
 
   Object* root(RootIndex index) { return roots_table()[index]; }
 
@@ -1024,6 +1032,8 @@ class Isolate : private HiddenFactory {
     DCHECK(isolate_data()->external_reference_table()->is_initialized());
     return isolate_data()->external_reference_table();
   }
+
+  V8_INLINE Object** builtins_table() { return isolate_data_.builtins(); }
 
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
@@ -1124,11 +1134,11 @@ class Isolate : private HiddenFactory {
 
   void SetData(uint32_t slot, void* data) {
     DCHECK_LT(slot, Internals::kNumIsolateDataSlots);
-    embedder_data_[slot] = data;
+    isolate_data_.embedder_data_[slot] = data;
   }
   void* GetData(uint32_t slot) {
     DCHECK_LT(slot, Internals::kNumIsolateDataSlots);
-    return embedder_data_[slot];
+    return isolate_data_.embedder_data_[slot];
   }
 
   bool serializer_enabled() const { return serializer_enabled_; }
@@ -1617,17 +1627,13 @@ class Isolate : private HiddenFactory {
 
  protected:
   Isolate();
+
+  void CheckIsolateLayout();
   bool IsArrayOrObjectOrStringPrototype(Object* object);
 
  private:
   friend struct GlobalState;
   friend struct InitializeGlobalState;
-
-  // These fields are accessed through the API, offsets must be kept in sync
-  // with v8::internal::Internals (in include/v8.h) constants. This is also
-  // verified in Isolate::Init() using runtime checks.
-  void* embedder_data_[Internals::kNumIsolateDataSlots];
-  Heap heap_;
 
   class ThreadDataTable {
    public:
@@ -1737,6 +1743,12 @@ class Isolate : private HiddenFactory {
     return "";
   }
 
+  // This class contains a collection of data accessible from both C++ runtime
+  // and compiled code (including assembly stubs, builtins, interpreter bytecode
+  // handlers and optimized code).
+  IsolateData isolate_data_;
+
+  Heap heap_;
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
   int stack_trace_nesting_level_;

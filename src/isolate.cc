@@ -2646,8 +2646,7 @@ std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
 Isolate::Isolate()
-    : embedder_data_(),
-      entry_stack_(nullptr),
+    : entry_stack_(nullptr),
       stack_trace_nesting_level_(0),
       incomplete_message_(nullptr),
       bootstrapper_(nullptr),
@@ -2718,6 +2717,7 @@ Isolate::Isolate()
       cancelable_task_manager_(new CancelableTaskManager()),
       abort_on_uncaught_exception_callback_(nullptr),
       total_regexp_code_generated_(0) {
+  CheckIsolateLayout();
   id_ = base::Relaxed_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -2766,6 +2766,24 @@ Isolate::Isolate()
   }
 }
 
+void Isolate::CheckIsolateLayout() {
+  CHECK_EQ(OFFSET_OF(Isolate, isolate_data_), 0);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)),
+           Internals::kIsolateEmbedderDataOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_)),
+           Internals::kIsolateRootsOffset);
+  CHECK_EQ(Internals::kExternalMemoryOffset % 8, 0);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.external_memory_)),
+           Internals::kExternalMemoryOffset);
+  CHECK_EQ(Internals::kExternalMemoryLimitOffset % 8, 0);
+  CHECK_EQ(static_cast<int>(
+               OFFSET_OF(Isolate, isolate_data_.external_memory_limit_)),
+           Internals::kExternalMemoryLimitOffset);
+  CHECK_EQ(Internals::kExternalMemoryAtLastMarkCompactOffset % 8, 0);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(
+               Isolate, isolate_data_.external_memory_at_last_mark_compact_)),
+           Internals::kExternalMemoryAtLastMarkCompactOffset);
+}
 
 void Isolate::TearDown() {
   TRACE_ISOLATE(tear_down);
@@ -3186,6 +3204,8 @@ bool Isolate::Init(StartupDeserializer* des) {
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp();
 
+  isolate_data_.external_reference_table()->Init(this);
+
   // Setup the wasm engine.
   if (wasm_engine_ == nullptr) {
     SetWasmEngine(wasm::WasmEngine::GetWasmEngine());
@@ -3281,24 +3301,6 @@ bool Isolate::Init(StartupDeserializer* des) {
     // Create an empty file.
     std::ofstream(GetTurboCfgFileName(this).c_str(), std::ios_base::trunc);
   }
-
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
-           Internals::kIsolateEmbedderDataOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.isolate_data_.roots_)),
-           Internals::kIsolateRootsOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.external_memory_)),
-           Internals::kExternalMemoryOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.external_memory_limit_)),
-           Internals::kExternalMemoryLimitOffset);
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, heap_.external_memory_at_last_mark_compact_)),
-           Internals::kExternalMemoryAtLastMarkCompactOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(
-               Isolate, heap_.isolate_data_.external_reference_table_)),
-           Internals::kIsolateRootsOffset +
-               IsolateData::kExternalReferenceTableOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.isolate_data_.builtins_)),
-           Internals::kIsolateRootsOffset + IsolateData::kBuiltinsTableOffset);
 
   {
     HandleScope scope(this);
