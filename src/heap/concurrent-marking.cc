@@ -105,8 +105,6 @@ class ConcurrentMarkingVisitor final
   }
 
   bool ShouldVisit(HeapObject* object) {
-    // TODO(ulan): It is sufficient to flip the second markbit without
-    // doing checking for the first bit.
     return marking_state_.GreyToBlack(object);
   }
 
@@ -408,8 +406,6 @@ class ConcurrentMarkingVisitor final
     }
   }
 
-  ConcurrentMarkingState* marking_state() { return &marking_state_; }
-
  private:
   // Helper class for collecting in-object slot addresses and values.
   class SlotSnapshottingVisitor final : public ObjectVisitor {
@@ -624,21 +620,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
         Address addr = object->address();
         if (new_space_top <= addr && addr < new_space_limit) {
           on_hold_->Push(task_id, object);
-        } else if (!visitor.marking_state()->IsBlackAssumingNotWhite(object)) {
-          // We need to ensure that the object is fully initialized.
-          // The new_space_top check above takes care of the newly allocated
-          // objects in the young generation. Now we need to rule out the black
-          // allocated objects in the old generation.
-          //
-          // Black allocation performs the following operations:
-          // 1) Set marking bitmap range to black using relaxed stores.
-          // 2) Issue base::SeqCst_MemoryFence().
-          // 3) Allocate, initialize, and publish an object.
-          //
-          // Since we loaded the object from the worklist, it must have
-          // been published. Since IsBlackAssumingNotWhite was false,
-          // was grey after it was published, so it is not black allocated.
-          // Thus the following operation loads a valid map pointer.
+        } else {
           Map* map = object->synchronized_map();
           current_marked_bytes += visitor.Visit(map, object);
         }
