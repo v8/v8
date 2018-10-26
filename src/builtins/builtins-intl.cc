@@ -180,8 +180,11 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
  * NumberFormatConstrutor
  */
 template <class T>
-Object* FormatConstructor(BuiltinArguments args, Isolate* isolate,
-                          Handle<Object> constructor, const char* method) {
+Object* LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
+                                v8::Isolate::UseCounterFeature feature,
+                                Handle<Object> constructor,
+                                const char* method) {
+  isolate->CountUsage(feature);
   Handle<JSReceiver> new_target;
   // 1. If NewTarget is undefined, let newTarget be the active
   // function object, else let newTarget be NewTarget.
@@ -200,11 +203,11 @@ Object* FormatConstructor(BuiltinArguments args, Isolate* isolate,
   // 2. Let format be ? OrdinaryCreateFromConstructor(newTarget,
   // "%<T>Prototype%", ...).
 
-  Handle<JSObject> format_obj;
+  Handle<JSObject> obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, format_obj,
+      isolate, obj,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<T> format = Handle<T>::cast(format_obj);
+  Handle<T> format = Handle<T>::cast(obj);
 
   // 3. Perform ? Initialize<T>(Format, locales, options).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -254,16 +257,80 @@ Object* FormatConstructor(BuiltinArguments args, Isolate* isolate,
   return *format;
 }
 
+/**
+ * Common code shared by ListFormat, RelativeTimeFormat, PluralRules, and
+ * Segmenter
+ */
+template <class T>
+Object* DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
+                                v8::Isolate::UseCounterFeature feature,
+                                const char* method) {
+  isolate->CountUsage(feature);
+
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kConstructorNotFunction,
+                     isolate->factory()->NewStringFromAsciiChecked(method)));
+  }
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+
+  Handle<JSObject> obj;
+  // 2. Let result be OrdinaryCreateFromConstructor(NewTarget,
+  //    "%<T>Prototype%").
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, obj,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
+  Handle<T> result = Handle<T>::cast(obj);
+  result->set_flags(0);
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 3. Return Initialize<T>(t, locales, options).
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           T::Initialize(isolate, result, locales, options));
+}
+
+/**
+ * Common code shared by Collator and V8BreakIterator
+ */
+template <class T>
+Object* CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate) {
+  Handle<JSReceiver> new_target;
+
+  if (args.new_target()->IsUndefined(isolate)) {
+    new_target = args.target();
+  } else {
+    new_target = Handle<JSReceiver>::cast(args.new_target());
+  }
+
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  Handle<JSObject> obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, obj,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
+  Handle<T> result = Handle<T>::cast(obj);
+
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           T::Initialize(isolate, result, locales, options));
+}
 }  // namespace
 
 BUILTIN(NumberFormatConstructor) {
   HandleScope scope(isolate);
 
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kNumberFormat);
-
-  return FormatConstructor<JSNumberFormat>(
-      args, isolate, isolate->intl_number_format_function(),
-      "Intl.NumberFormat");
+  return LegacyFormatConstructor<JSNumberFormat>(
+      args, isolate, v8::Isolate::UseCounterFeature::kNumberFormat,
+      isolate->intl_number_format_function(), "Intl.NumberFormat");
 }
 
 BUILTIN(NumberFormatPrototypeResolvedOptions) {
@@ -351,11 +418,9 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 BUILTIN(DateTimeFormatConstructor) {
   HandleScope scope(isolate);
 
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormat);
-
-  return FormatConstructor<JSDateTimeFormat>(
-      args, isolate, isolate->intl_date_time_format_function(),
-      "Intl.DateTimeFormat");
+  return LegacyFormatConstructor<JSDateTimeFormat>(
+      args, isolate, v8::Isolate::UseCounterFeature::kDateTimeFormat,
+      isolate->intl_date_time_format_function(), "Intl.DateTimeFormat");
 }
 
 BUILTIN(DateTimeFormatPrototypeFormat) {
@@ -420,34 +485,9 @@ BUILTIN(IntlGetCanonicalLocales) {
 BUILTIN(ListFormatConstructor) {
   HandleScope scope(isolate);
 
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kListFormat);
-
-  // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "Intl.ListFormat")));
-  }
-  // [[Construct]]
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-
-  Handle<JSObject> result;
-  // 2. Let listFormat be OrdinaryCreateFromConstructor(NewTarget,
-  //    "%ListFormatPrototype%").
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<JSListFormat> format = Handle<JSListFormat>::cast(result);
-  format->set_flags(0);
-
-  Handle<Object> locales = args.atOrUndefined(isolate, 1);
-  Handle<Object> options = args.atOrUndefined(isolate, 2);
-
-  // 3. Return InitializeListFormat(listFormat, locales, options).
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSListFormat::Initialize(isolate, format, locales, options));
+  return DisallowCallConstructor<JSListFormat>(
+      args, isolate, v8::Isolate::UseCounterFeature::kListFormat,
+      "Intl.ListFormat");
 }
 
 BUILTIN(ListFormatPrototypeResolvedOptions) {
@@ -700,37 +740,9 @@ BUILTIN(LocalePrototypeToString) {
 BUILTIN(RelativeTimeFormatConstructor) {
   HandleScope scope(isolate);
 
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kRelativeTimeFormat);
-
-  // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "Intl.RelativeTimeFormat")));
-  }
-  // [[Construct]]
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-
-  Handle<JSObject> result;
-  // 2. Let relativeTimeFormat be
-  //    ! OrdinaryCreateFromConstructor(NewTarget,
-  //                                    "%RelativeTimeFormatPrototype%").
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<JSRelativeTimeFormat> format =
-      Handle<JSRelativeTimeFormat>::cast(result);
-  format->set_flags(0);
-
-  Handle<Object> locales = args.atOrUndefined(isolate, 1);
-  Handle<Object> options = args.atOrUndefined(isolate, 2);
-
-  // 3. Return ? InitializeRelativeTimeFormat(relativeTimeFormat, locales,
-  //                                          options).
-  RETURN_RESULT_OR_FAILURE(isolate, JSRelativeTimeFormat::Initialize(
-                                        isolate, format, locales, options));
+  return DisallowCallConstructor<JSRelativeTimeFormat>(
+      args, isolate, v8::Isolate::UseCounterFeature::kRelativeTimeFormat,
+      "Intl.RelativeTimeFormat");
 }
 
 BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
@@ -767,40 +779,9 @@ BUILTIN(StringPrototypeToLocaleUpperCase) {
 BUILTIN(PluralRulesConstructor) {
   HandleScope scope(isolate);
 
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kPluralRules);
-
-  // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "Intl.PluralRules")));
-  }
-
-  // [[Construct]]
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-
-  Handle<Object> locales = args.atOrUndefined(isolate, 1);
-  Handle<Object> options = args.atOrUndefined(isolate, 2);
-
-  // 2. Let pluralRules be ? OrdinaryCreateFromConstructor(newTarget,
-  // "%PluralRulesPrototype%", « [[InitializedPluralRules]],
-  // [[Locale]], [[Type]], [[MinimumIntegerDigits]],
-  // [[MinimumFractionDigits]], [[MaximumFractionDigits]],
-  // [[MinimumSignificantDigits]], [[MaximumSignificantDigits]] »).
-  Handle<JSObject> plural_rules_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, plural_rules_obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<JSPluralRules> plural_rules =
-      Handle<JSPluralRules>::cast(plural_rules_obj);
-  plural_rules->set_flags(0);
-
-  // 3. Return ? InitializePluralRules(pluralRules, locales, options).
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      JSPluralRules::Initialize(isolate, plural_rules, locales, options));
+  return DisallowCallConstructor<JSPluralRules>(
+      args, isolate, v8::Isolate::UseCounterFeature::kPluralRules,
+      "Intl.PluralRules");
 }
 
 BUILTIN(PluralRulesPrototypeResolvedOptions) {
@@ -847,32 +828,7 @@ BUILTIN(CollatorConstructor) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kCollator);
 
-  Handle<JSReceiver> new_target;
-  // 1. If NewTarget is undefined, let newTarget be the active
-  // function object, else let newTarget be NewTarget.
-  if (args.new_target()->IsUndefined(isolate)) {
-    new_target = args.target();
-  } else {
-    new_target = Handle<JSReceiver>::cast(args.new_target());
-  }
-
-  // [[Construct]]
-  Handle<JSFunction> target = args.target();
-
-  Handle<Object> locales = args.atOrUndefined(isolate, 1);
-  Handle<Object> options = args.atOrUndefined(isolate, 2);
-
-  // 5. Let collator be ? OrdinaryCreateFromConstructor(newTarget,
-  // "%CollatorPrototype%", internalSlotsList).
-  Handle<JSObject> collator_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, collator_obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<JSCollator> collator = Handle<JSCollator>::cast(collator_obj);
-
-  // 6. Return ? InitializeCollator(collator, locales, options).
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSCollator::Initialize(isolate, collator, locales, options));
+  return CallOrConstructConstructor<JSCollator>(args, isolate);
 }
 
 BUILTIN(CollatorPrototypeResolvedOptions) {
@@ -1010,33 +966,9 @@ BUILTIN(SegmentIteratorPrototypePosition) {
 BUILTIN(SegmenterConstructor) {
   HandleScope scope(isolate);
 
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kSegmenter);
-
-  // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "Intl.Segmenter")));
-  }
-  // [[Construct]]
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-
-  Handle<JSObject> result;
-  // 2. Let segmenter be OrdinaryCreateFromConstructor(NewTarget,
-  //    "%SegmenterPrototype%").
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<JSSegmenter> segmenter = Handle<JSSegmenter>::cast(result);
-  segmenter->set_flags(0);
-
-  Handle<Object> locales = args.atOrUndefined(isolate, 1);
-  Handle<Object> options = args.atOrUndefined(isolate, 2);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSSegmenter::Initialize(isolate, segmenter, locales, options));
+  return DisallowCallConstructor<JSSegmenter>(
+      args, isolate, v8::Isolate::UseCounterFeature::kSegmenter,
+      "Intl.Segmenter");
 }
 
 BUILTIN(SegmenterSupportedLocalesOf) {
@@ -1078,30 +1010,8 @@ BUILTIN(SegmenterPrototypeSegment) {
 
 BUILTIN(V8BreakIteratorConstructor) {
   HandleScope scope(isolate);
-  Handle<JSReceiver> new_target;
 
-  if (args.new_target()->IsUndefined(isolate)) {
-    new_target = args.target();
-  } else {
-    new_target = Handle<JSReceiver>::cast(args.new_target());
-  }
-
-  // [[Construct]]
-  Handle<JSFunction> target = args.target();
-
-  Handle<Object> locales = args.atOrUndefined(isolate, 1);
-  Handle<Object> options = args.atOrUndefined(isolate, 2);
-
-  Handle<JSObject> break_iterator_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, break_iterator_obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<JSV8BreakIterator> break_iterator =
-      Handle<JSV8BreakIterator>::cast(break_iterator_obj);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      JSV8BreakIterator::Initialize(isolate, break_iterator, locales, options));
+  return CallOrConstructConstructor<JSV8BreakIterator>(args, isolate);
 }
 
 BUILTIN(V8BreakIteratorPrototypeResolvedOptions) {
