@@ -4069,6 +4069,8 @@ void ParserBase<Impl>::ParseFunctionBody(
     DCHECK_EQ(function_scope, scope());
     DCHECK_EQ(function_scope, inner_scope->outer_scope());
     impl()->SetLanguageMode(function_scope, inner_scope->language_mode());
+    // TODO(verwaest): Disable DCHECKs in failure mode?
+    RETURN_IF_PARSE_ERROR_VOID;
     BlockT init_block = impl()->BuildParameterInitializationBlock(parameters);
 
     if (is_sloppy(inner_scope->language_mode())) {
