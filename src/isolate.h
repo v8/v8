@@ -32,6 +32,7 @@
 #include "src/objects/code.h"
 #include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
+#include "src/thread-id.h"
 #include "src/unicode.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -330,59 +331,6 @@ class WasmEngine;
       }                                                                    \
     }                                                                      \
   } while (false)
-
-// Platform-independent, reliable thread identifier.
-class ThreadId {
- public:
-  // Creates an invalid ThreadId.
-  ThreadId() { base::Relaxed_Store(&id_, kInvalidId); }
-
-  ThreadId& operator=(const ThreadId& other) {
-    base::Relaxed_Store(&id_, base::Relaxed_Load(&other.id_));
-    return *this;
-  }
-
-  bool operator==(const ThreadId& other) const { return Equals(other); }
-
-  // Returns ThreadId for current thread.
-  static ThreadId Current() { return ThreadId(GetCurrentThreadId()); }
-
-  // Returns invalid ThreadId (guaranteed not to be equal to any thread).
-  static ThreadId Invalid() { return ThreadId(kInvalidId); }
-
-  // Compares ThreadIds for equality.
-  V8_INLINE bool Equals(const ThreadId& other) const {
-    return base::Relaxed_Load(&id_) == base::Relaxed_Load(&other.id_);
-  }
-
-  // Checks whether this ThreadId refers to any thread.
-  V8_INLINE bool IsValid() const {
-    return base::Relaxed_Load(&id_) != kInvalidId;
-  }
-
-  // Converts ThreadId to an integer representation
-  // (required for public API: V8::V8::GetCurrentThreadId).
-  int ToInteger() const { return static_cast<int>(base::Relaxed_Load(&id_)); }
-
-  // Converts ThreadId to an integer representation
-  // (required for public API: V8::V8::TerminateExecution).
-  static ThreadId FromInteger(int id) { return ThreadId(id); }
-
- private:
-  static const int kInvalidId = -1;
-
-  explicit ThreadId(int id) { base::Relaxed_Store(&id_, id); }
-
-  static int AllocateThreadId();
-
-  V8_EXPORT_PRIVATE static int GetCurrentThreadId();
-
-  base::Atomic32 id_;
-
-  static base::Atomic32 highest_thread_id_;
-
-  friend class Isolate;
-};
 
 #define FIELD_ACCESSOR(type, name)                 \
   inline void set_##name(type v) { name##_ = v; }  \
@@ -691,11 +639,6 @@ class Isolate final : private HiddenFactory {
   // are part of the domain of an isolate (like the context switcher).
   static base::Thread::LocalStorageKey isolate_key() {
     return isolate_key_;
-  }
-
-  // Returns the key used to store process-wide thread IDs.
-  static base::Thread::LocalStorageKey thread_id_key() {
-    return thread_id_key_;
   }
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key();
@@ -1693,7 +1636,6 @@ class Isolate final : private HiddenFactory {
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
-  static base::Thread::LocalStorageKey thread_id_key_;
 
   // A global counter for all generated Isolates, might overflow.
   static base::Atomic32 isolate_counter_;
@@ -1962,7 +1904,6 @@ class Isolate final : private HiddenFactory {
   friend class Simulator;
   friend class StackGuard;
   friend class TestSerializer;
-  friend class ThreadId;
   friend class ThreadManager;
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);

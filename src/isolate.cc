@@ -87,8 +87,6 @@ namespace internal {
 #define TRACE_ISOLATE(tag)
 #endif
 
-base::Atomic32 ThreadId::highest_thread_id_ = 0;
-
 extern const uint8_t* DefaultEmbeddedBlob();
 extern uint32_t DefaultEmbeddedBlobSize();
 
@@ -140,21 +138,6 @@ uint32_t Isolate::CurrentEmbeddedBlobSize() {
       std::memory_order::memory_order_relaxed);
 }
 
-int ThreadId::AllocateThreadId() {
-  int new_id = base::Relaxed_AtomicIncrement(&highest_thread_id_, 1);
-  return new_id;
-}
-
-
-int ThreadId::GetCurrentThreadId() {
-  int thread_id = base::Thread::GetThreadLocalInt(Isolate::thread_id_key_);
-  if (thread_id == 0) {
-    thread_id = AllocateThreadId();
-    base::Thread::SetThreadLocalInt(Isolate::thread_id_key_, thread_id);
-  }
-  return thread_id;
-}
-
 void ThreadLocalTop::Initialize(Isolate* isolate) {
   *this = ThreadLocalTop();
   isolate_ = isolate;
@@ -173,7 +156,6 @@ void ThreadLocalTop::Free() {
 
 
 base::Thread::LocalStorageKey Isolate::isolate_key_;
-base::Thread::LocalStorageKey Isolate::thread_id_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 base::Atomic32 Isolate::isolate_counter_ = 0;
 #if DEBUG
@@ -198,9 +180,8 @@ Isolate::PerIsolateThreadData*
 
 
 void Isolate::DiscardPerThreadDataForThisThread() {
-  int thread_id_int = base::Thread::GetThreadLocalInt(Isolate::thread_id_key_);
-  if (thread_id_int) {
-    ThreadId thread_id = ThreadId(thread_id_int);
+  ThreadId thread_id = ThreadId::TryGetCurrent();
+  if (thread_id.IsValid()) {
     DCHECK(!thread_manager_->mutex_owner_.Equals(thread_id));
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
     PerIsolateThreadData* per_thread = thread_data_table_.Lookup(thread_id);
@@ -234,7 +215,6 @@ void Isolate::InitializeOncePerProcess() {
 #if DEBUG
   base::Relaxed_Store(&isolate_key_created_, 1);
 #endif
-  thread_id_key_ = base::Thread::CreateThreadLocalKey();
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
 }
 
