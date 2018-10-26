@@ -572,8 +572,8 @@ SnapshotCreator::SnapshotCreator(Isolate* isolate,
 
 SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
                                  StartupData* existing_snapshot)
-    : SnapshotCreator(reinterpret_cast<Isolate*>(new i::Isolate()),
-                      external_references, existing_snapshot) {}
+    : SnapshotCreator(Isolate::Allocate(), external_references,
+                      existing_snapshot) {}
 
 SnapshotCreator::~SnapshotCreator() {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
@@ -8141,7 +8141,7 @@ Isolate* Isolate::GetCurrent() {
 
 // static
 Isolate* Isolate::Allocate() {
-  return reinterpret_cast<Isolate*>(new i::Isolate());
+  return reinterpret_cast<Isolate*>(i::Isolate::New());
 }
 
 // static
@@ -8228,7 +8228,7 @@ void Isolate::Dispose() {
                        "Disposing the isolate that is entered by a thread.")) {
     return;
   }
-  isolate->TearDown();
+  i::Isolate::Delete(isolate);
 }
 
 void Isolate::DumpAndResetStats() {

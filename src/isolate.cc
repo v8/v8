@@ -2645,6 +2645,42 @@ class VerboseAccountingAllocator : public AccountingAllocator {
 std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
+// static
+Isolate* Isolate::New() {
+  Isolate* isolate = new Isolate();
+
+#ifdef DEBUG
+  non_disposed_isolates_++;
+#endif  // DEBUG
+
+  return isolate;
+}
+
+// static
+void Isolate::Delete(Isolate* isolate) {
+  DCHECK_NOT_NULL(isolate);
+  // Temporarily set this isolate as current so that various parts of
+  // the isolate can access it in their destructors without having a
+  // direct pointer. We don't use Enter/Exit here to avoid
+  // initializing the thread data.
+  PerIsolateThreadData* saved_data = isolate->CurrentPerIsolateThreadData();
+  DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
+  Isolate* saved_isolate = reinterpret_cast<Isolate*>(
+      base::Thread::GetThreadLocal(isolate->isolate_key_));
+  SetIsolateThreadLocals(isolate, nullptr);
+
+  isolate->Deinit();
+
+#ifdef DEBUG
+  non_disposed_isolates_--;
+#endif  // DEBUG
+
+  delete isolate;
+
+  // Restore the previous current isolate.
+  SetIsolateThreadLocals(saved_isolate, saved_data);
+}
+
 Isolate::Isolate()
     : entry_stack_(nullptr),
       stack_trace_nesting_level_(0),
@@ -2732,10 +2768,6 @@ Isolate::Isolate()
   thread_manager_ = new ThreadManager();
   thread_manager_->isolate_ = this;
 
-#ifdef DEBUG
-  non_disposed_isolates_++;
-#endif  // DEBUG
-
   handle_scope_data_.Initialize();
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
@@ -2785,42 +2817,6 @@ void Isolate::CheckIsolateLayout() {
            Internals::kExternalMemoryAtLastMarkCompactOffset);
 }
 
-void Isolate::TearDown() {
-  TRACE_ISOLATE(tear_down);
-
-  tracing_cpu_profiler_.reset();
-  if (FLAG_stress_sampling_allocation_profiler > 0) {
-    heap_profiler()->StopSamplingHeapProfiler();
-  }
-
-  // Temporarily set this isolate as current so that various parts of
-  // the isolate can access it in their destructors without having a
-  // direct pointer. We don't use Enter/Exit here to avoid
-  // initializing the thread data.
-  PerIsolateThreadData* saved_data = CurrentPerIsolateThreadData();
-  DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
-  Isolate* saved_isolate =
-      reinterpret_cast<Isolate*>(base::Thread::GetThreadLocal(isolate_key_));
-  SetIsolateThreadLocals(this, nullptr);
-
-  Deinit();
-
-  {
-    base::MutexGuard lock_guard(&thread_data_table_mutex_);
-    thread_data_table_.RemoveAllThreads();
-  }
-
-#ifdef DEBUG
-  non_disposed_isolates_--;
-#endif  // DEBUG
-
-  delete this;
-
-  // Restore the previous current isolate.
-  SetIsolateThreadLocals(saved_isolate, saved_data);
-}
-
-
 void Isolate::ClearSerializerData() {
   delete external_reference_map_;
   external_reference_map_ = nullptr;
@@ -2836,6 +2832,11 @@ bool Isolate::LogObjectRelocation() {
 
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
+
+  tracing_cpu_profiler_.reset();
+  if (FLAG_stress_sampling_allocation_profiler > 0) {
+    heap_profiler()->StopSamplingHeapProfiler();
+  }
 
   debug()->Unload();
 
@@ -2922,6 +2923,11 @@ void Isolate::Deinit() {
   compiler_cache_ = nullptr;
 
   ClearSerializerData();
+
+  {
+    base::MutexGuard lock_guard(&thread_data_table_mutex_);
+    thread_data_table_.RemoveAllThreads();
+  }
 }
 
 

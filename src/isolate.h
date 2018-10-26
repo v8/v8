@@ -554,14 +554,12 @@ typedef std::vector<HeapObject*> DebugObjectCache;
 // Factory's members available to Isolate directly.
 class V8_EXPORT_PRIVATE HiddenFactory : private Factory {};
 
-class Isolate : private HiddenFactory {
+class Isolate final : private HiddenFactory {
   // These forward declarations are required to make the friend declarations in
   // PerIsolateThreadData work on some older versions of gcc.
   class ThreadDataTable;
   class EntryStackItem;
  public:
-  ~Isolate();
-
   // A thread has a PerIsolateThreadData instance for each isolate that it has
   // entered. That instance is allocated when the isolate is initially entered
   // and reused on subsequent entries.
@@ -615,6 +613,16 @@ class Isolate : private HiddenFactory {
 
   static void InitializeOncePerProcess();
 
+  // Creates Isolate object. Must be used instead of constructing Isolate with
+  // new operator.
+  static Isolate* New();
+
+  // Deletes Isolate object. Must be used instead of delete operator.
+  // Destroys the non-default isolates.
+  // Sets default isolate into "has_been_disposed" state rather then destroying,
+  // for legacy API reasons.
+  static void Delete(Isolate* isolate);
+
   // Returns the PerIsolateThreadData for the current thread (or nullptr if one
   // is not currently set).
   static PerIsolateThreadData* CurrentPerIsolateThreadData() {
@@ -649,16 +657,22 @@ class Isolate : private HiddenFactory {
   // True if at least one thread Enter'ed this isolate.
   bool IsInUse() { return entry_stack_ != nullptr; }
 
-  // Destroys the non-default isolates.
-  // Sets default isolate into "has_been_disposed" state rather then destroying,
-  // for legacy API reasons.
-  void TearDown();
-
   void ReleaseSharedPtrs();
 
   void ClearSerializerData();
 
   bool LogObjectRelocation();
+
+  // Initializes the current thread to run this Isolate.
+  // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
+  // at the same time, this should be prevented using external locking.
+  void Enter();
+
+  // Exits the current thread. The previosuly entered Isolate is restored
+  // for the thread.
+  // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
+  // at the same time, this should be prevented using external locking.
+  void Exit();
 
   // Find the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, return null.
@@ -1260,6 +1274,8 @@ class Isolate : private HiddenFactory {
   bool IsNoElementsProtectorIntact(Context* context);
   bool IsNoElementsProtectorIntact();
 
+  bool IsArrayOrObjectOrStringPrototype(Object* object);
+
   inline bool IsArraySpeciesLookupChainIntact();
   inline bool IsTypedArraySpeciesLookupChainIntact();
   inline bool IsPromiseSpeciesLookupChainIntact();
@@ -1625,15 +1641,11 @@ class Isolate : private HiddenFactory {
 
   void SetIdle(bool is_idle);
 
- protected:
+ private:
   Isolate();
+  ~Isolate();
 
   void CheckIsolateLayout();
-  bool IsArrayOrObjectOrStringPrototype(Object* object);
-
- private:
-  friend struct GlobalState;
-  friend struct InitializeGlobalState;
 
   class ThreadDataTable {
    public:
@@ -1698,17 +1710,6 @@ class Isolate : private HiddenFactory {
   // Find the PerThread for this particular (isolate, thread) combination.
   // If one does not yet exist, allocate a new one.
   PerIsolateThreadData* FindOrAllocatePerThreadDataForThisThread();
-
-  // Initializes the current thread to run this Isolate.
-  // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
-  // at the same time, this should be prevented using external locking.
-  void Enter();
-
-  // Exits the current thread. The previosuly entered Isolate is restored
-  // for the thread.
-  // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
-  // at the same time, this should be prevented using external locking.
-  void Exit();
 
   void InitializeThreadLocal();
 
@@ -1957,20 +1958,12 @@ class Isolate : private HiddenFactory {
   base::Mutex thread_data_table_mutex_;
   ThreadDataTable thread_data_table_;
 
-  friend class ExecutionAccess;
-  friend class HandleScopeImplementer;
   friend class heap::HeapTester;
-  friend class OptimizingCompileDispatcher;
   friend class Simulator;
   friend class StackGuard;
-  friend class SweeperThread;
-  friend class TestIsolate;
+  friend class TestSerializer;
   friend class ThreadId;
   friend class ThreadManager;
-  friend class v8::Isolate;
-  friend class v8::Locker;
-  friend class v8::SnapshotCreator;
-  friend class v8::Unlocker;
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
