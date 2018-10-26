@@ -622,6 +622,10 @@ class Isolate final : private HiddenFactory {
   // at the same time, this should be prevented using external locking.
   void Exit();
 
+  // Find the PerThread for this particular (isolate, thread) combination.
+  // If one does not yet exist, allocate a new one.
+  PerIsolateThreadData* FindOrAllocatePerThreadDataForThisThread();
+
   // Find the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThisThread();
@@ -1649,10 +1653,6 @@ class Isolate final : private HiddenFactory {
   static void SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data);
 
-  // Find the PerThread for this particular (isolate, thread) combination.
-  // If one does not yet exist, allocate a new one.
-  PerIsolateThreadData* FindOrAllocatePerThreadDataForThisThread();
-
   void InitializeThreadLocal();
 
   void MarkCompactPrologue(bool is_compacting,
@@ -1901,10 +1901,7 @@ class Isolate final : private HiddenFactory {
   ThreadDataTable thread_data_table_;
 
   friend class heap::HeapTester;
-  friend class Simulator;
-  friend class StackGuard;
   friend class TestSerializer;
-  friend class ThreadManager;
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
