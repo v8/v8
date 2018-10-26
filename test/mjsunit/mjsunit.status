@@ -707,6 +707,9 @@
   'code-coverage-ad-hoc': [SKIP],
   'code-coverage-precise': [SKIP],
 
+  # Passes incompatible arguments.
+  'd8/d8-arguments': [SKIP],
+
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
 
