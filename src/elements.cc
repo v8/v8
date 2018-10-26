@@ -2626,6 +2626,10 @@ class FastSmiOrObjectElementsAccessor
     // NaN can never be found by strict equality.
     if (value->IsNaN()) return Just<int64_t>(-1);
 
+    // k can be greater than receiver->length() below, but it is bounded by
+    // elements_base->length() so we never read out of bounds. This means that
+    // elements->get(k) can return the hole, for which the StrictEquals will
+    // always fail.
     FixedArray* elements = FixedArray::cast(receiver->elements());
     for (uint32_t k = start_from; k < length; ++k) {
       if (value->StrictEquals(elements->get(k))) return Just<int64_t>(k);
