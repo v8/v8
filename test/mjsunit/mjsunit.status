@@ -210,10 +210,10 @@
 
   # TODO(vogelheim): big-object-literal exceeds the stack in debug builds,
   #                  which makes the test useless.
-  'big-object-literal': [PASS, ['mode == debug', SKIP]],
+  'big-object-literal': [PASS, ['mode == debug or dcheck_always_on', SKIP]],
 
   # Runs out of stack space in debug builds.
-  'big-array-literal': [PASS, ['mode == debug', SKIP]],
+  'big-array-literal': [PASS, ['mode == debug or dcheck_always_on', SKIP]],
 
   # BUG(v8:6306).
   'wasm/huge-memory': [SKIP],
@@ -793,9 +793,10 @@
 
 ##############################################################################
 ['variant == stress', {
-  'es6/array-iterator-turbo': [SKIP],
-
+  # Slow tests.
   'array-natives-elements': [SKIP],
+  'big-object-literal': [SKIP],
+  'es6/array-iterator-turbo': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 
@@ -814,9 +815,6 @@
 
   # Too memory hungry on Odroid devices.
   'regress/regress-678917': [PASS, ['arch == arm and not simulator_run', SKIP]],
-
-  # Too slow for verify-csa builds.
-  'big-object-literal': [PASS, ['verify_csa == True', SKIP]],
 }],  # variant == stress
 
 ##############################################################################
