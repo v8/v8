@@ -58,8 +58,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
 
   // The folded allocation.
 
-  Node* result = Allocate(total_size);
-  Node* elements = InnerAllocate(result, kElementsOffset);
+  TNode<Object> result = Allocate(total_size);
+  TNode<Object> elements = InnerAllocate(result, kElementsOffset);
 
   // Initialize the JSRegExpResult.
 
@@ -2132,7 +2132,7 @@ TNode<Object> RegExpBuiltinsAssembler::MatchAllIterator(
     // 4. Let iterator be ObjectCreate(%RegExpStringIteratorPrototype%, «
     // [[IteratingRegExp]], [[IteratedString]], [[Global]], [[Unicode]],
     // [[Done]] »).
-    TNode<Object> iterator = CAST(Allocate(JSRegExpStringIterator::kSize));
+    TNode<Object> iterator = Allocate(JSRegExpStringIterator::kSize);
     StoreMapNoWriteBarrier(iterator, map);
     StoreObjectFieldRoot(iterator,
                          JSRegExpStringIterator::kPropertiesOrHashOffset,
@@ -2366,7 +2366,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
   Node* const allocation_site = nullptr;
   Node* const native_context = LoadNativeContext(context);
-  Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
+  TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
   Label return_empty_array(this, Label::kDeferred);
 
@@ -2400,12 +2400,12 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
       BIND(&return_singleton_array);
       {
-        Node* const length = SmiConstant(1);
-        Node* const capacity = IntPtrConstant(1);
-        Node* const result = AllocateJSArray(kind, array_map, capacity, length,
-                                             allocation_site, mode);
+        TNode<Smi> length = SmiConstant(1);
+        TNode<IntPtrT> capacity = IntPtrConstant(1);
+        TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity,
+                                                length, allocation_site, mode);
 
-        TNode<FixedArray> const fixed_array = CAST(LoadElements(result));
+        TNode<FixedArray> fixed_array = CAST(LoadElements(result));
         StoreFixedArrayElement(fixed_array, 0, string);
 
         Return(result);
@@ -2577,10 +2577,10 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
   BIND(&return_empty_array);
   {
-    Node* const length = SmiZero();
-    Node* const capacity = IntPtrZero();
-    Node* const result = AllocateJSArray(kind, array_map, capacity, length,
-                                         allocation_site, mode);
+    TNode<Smi> length = SmiZero();
+    TNode<IntPtrT> capacity = IntPtrZero();
+    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length,
+                                            allocation_site, mode);
     Return(result);
   }
 }
@@ -2702,7 +2702,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
   Node* result_array;
   {
     ElementsKind kind = PACKED_ELEMENTS;
-    Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
+    TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
     TNode<IntPtrT> capacity = IntPtrConstant(16);
     TNode<Smi> length = SmiZero();
     Node* const allocation_site = nullptr;

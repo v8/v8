@@ -188,10 +188,10 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
 
 TNode<JSArray> IntlBuiltinsAssembler::AllocateEmptyJSArray(
     TNode<Context> context) {
-  return CAST(CodeStubAssembler::AllocateJSArray(
+  return CodeStubAssembler::AllocateJSArray(
       PACKED_ELEMENTS,
       LoadJSArrayElementsMap(PACKED_ELEMENTS, LoadNativeContext(context)),
-      SmiConstant(0), SmiConstant(0)));
+      SmiConstant(0), SmiConstant(0));
 }
 
 TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {

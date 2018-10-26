@@ -39,8 +39,8 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
   static const int kTotalSize =
       kRejectClosureOffset + JSFunction::kSizeWithoutPrototype;
 
-  Node* const base = AllocateInNewSpace(kTotalSize);
-  Node* const closure_context = base;
+  TNode<Object> base = AllocateInNewSpace(kTotalSize);
+  TNode<Context> closure_context = UncheckedCast<Context>(base);
   {
     // Initialize the await context, storing the {generator} as extension.
     StoreMapNoWriteBarrier(closure_context, RootIndex::kAwaitContextMap);
@@ -69,7 +69,7 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
   CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(promise_map),
                              IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
                                             kPointerSize)));
-  Node* const wrapped_value = InnerAllocate(base, kWrappedPromiseOffset);
+  TNode<Object> wrapped_value = InnerAllocate(base, kWrappedPromiseOffset);
   {
     // Initialize Promise
     StoreMapNoWriteBarrier(wrapped_value, promise_map);
@@ -81,12 +81,12 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
   }
 
   // Initialize resolve handler
-  Node* const on_resolve = InnerAllocate(base, kResolveClosureOffset);
+  TNode<Object> on_resolve = InnerAllocate(base, kResolveClosureOffset);
   InitializeNativeClosure(closure_context, native_context, on_resolve,
                           on_resolve_context_index);
 
   // Initialize reject handler
-  Node* const on_reject = InnerAllocate(base, kRejectClosureOffset);
+  TNode<Object> on_reject = InnerAllocate(base, kRejectClosureOffset);
   InitializeNativeClosure(closure_context, native_context, on_reject,
                           on_reject_context_index);
 
@@ -132,8 +132,8 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(Node* context, Node* generator,
   // Node* const promise =
   // CallBuiltin(Builtins::kPromiseResolve, context, promise_fun, value);
 
-  Node* const base = AllocateInNewSpace(kTotalSize);
-  Node* const closure_context = base;
+  TNode<Object> base = AllocateInNewSpace(kTotalSize);
+  TNode<Context> closure_context = UncheckedCast<Context>(base);
   {
     // Initialize the await context, storing the {generator} as extension.
     StoreMapNoWriteBarrier(closure_context, RootIndex::kAwaitContextMap);
@@ -152,12 +152,12 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(Node* context, Node* generator,
   }
 
   // Initialize resolve handler
-  Node* const on_resolve = InnerAllocate(base, kResolveClosureOffset);
+  TNode<Object> on_resolve = InnerAllocate(base, kResolveClosureOffset);
   InitializeNativeClosure(closure_context, native_context, on_resolve,
                           on_resolve_context_index);
 
   // Initialize reject handler
-  Node* const on_reject = InnerAllocate(base, kRejectClosureOffset);
+  TNode<Object> on_reject = InnerAllocate(base, kRejectClosureOffset);
   InitializeNativeClosure(closure_context, native_context, on_reject,
                           on_reject_context_index);
 

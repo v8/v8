@@ -647,13 +647,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Number> BitwiseOp(Node* left32, Node* right32, Operation bitwise_op);
 
   // Allocate an object of the given size.
-  Node* AllocateInNewSpace(Node* size, AllocationFlags flags = kNone);
-  Node* AllocateInNewSpace(int size, AllocationFlags flags = kNone);
-  Node* Allocate(Node* size, AllocationFlags flags = kNone);
-  Node* Allocate(int size, AllocationFlags flags = kNone);
-  Node* InnerAllocate(Node* previous, int offset);
-  Node* InnerAllocate(Node* previous, Node* offset);
-  Node* IsRegularHeapObjectSize(Node* size);
+  TNode<Object> AllocateInNewSpace(TNode<IntPtrT> size,
+                                   AllocationFlags flags = kNone);
+  TNode<Object> AllocateInNewSpace(int size, AllocationFlags flags = kNone);
+  TNode<Object> Allocate(TNode<IntPtrT> size, AllocationFlags flags = kNone);
+  TNode<Object> Allocate(int size, AllocationFlags flags = kNone);
+  TNode<Object> InnerAllocate(TNode<Object> previous, int offset);
+  TNode<Object> InnerAllocate(TNode<Object> previous, TNode<IntPtrT> offset);
+
+  TNode<BoolT> IsRegularHeapObjectSize(TNode<IntPtrT> size);
 
   typedef std::function<void(Label*, Label*)> BranchGenerator;
   typedef std::function<Node*()> NodeGenerator;
@@ -1460,28 +1462,33 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       int start_offset = JSObject::kHeaderSize);
 
   // Allocate a JSArray without elements and initialize the header fields.
-  Node* AllocateUninitializedJSArrayWithoutElements(
-      Node* array_map, Node* length, Node* allocation_site = nullptr);
+  TNode<JSArray> AllocateUninitializedJSArrayWithoutElements(
+      TNode<Map> array_map, TNode<Smi> length, Node* allocation_site = nullptr);
+  //
   // Allocate and return a JSArray with initialized header fields and its
   // uninitialized elements.
   // The ParameterMode argument is only used for the capacity parameter.
-  std::pair<Node*, Node*> AllocateUninitializedJSArrayWithElements(
-      ElementsKind kind, Node* array_map, Node* length, Node* allocation_site,
-      Node* capacity, ParameterMode capacity_mode = INTPTR_PARAMETERS);
+  std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
+  AllocateUninitializedJSArrayWithElements(
+      ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
+      Node* allocation_site, Node* capacity,
+      ParameterMode capacity_mode = INTPTR_PARAMETERS);
+
   // Allocate a JSArray and fill elements with the hole.
   // The ParameterMode argument is only used for the capacity parameter.
-  Node* AllocateJSArray(ElementsKind kind, Node* array_map, Node* capacity,
-                        Node* length, Node* allocation_site = nullptr,
-                        ParameterMode capacity_mode = INTPTR_PARAMETERS);
+  TNode<JSArray> AllocateJSArray(
+      ElementsKind kind, TNode<Map> array_map, Node* capacity,
+      TNode<Smi> length, Node* allocation_site = nullptr,
+      ParameterMode capacity_mode = INTPTR_PARAMETERS);
 
-  Node* AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
-                        TNode<Smi> capacity, TNode<Smi> length) {
+  TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
+                                 TNode<Smi> capacity, TNode<Smi> length) {
     return AllocateJSArray(kind, array_map, capacity, length, nullptr,
                            SMI_PARAMETERS);
   }
 
-  Node* AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
-                        TNode<IntPtrT> capacity, TNode<Smi> length) {
+  TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
+                                 TNode<IntPtrT> capacity, TNode<Smi> length) {
     return AllocateJSArray(kind, array_map, capacity, length, nullptr,
                            INTPTR_PARAMETERS);
   }
@@ -3192,17 +3199,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void HandleBreakOnNode();
 
-  Node* AllocateRawDoubleAligned(Node* size_in_bytes, AllocationFlags flags,
-                                 Node* top_address, Node* limit_address);
-  Node* AllocateRawUnaligned(Node* size_in_bytes, AllocationFlags flags,
-                             Node* top_adddress, Node* limit_address);
-  Node* AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
-                    Node* top_address, Node* limit_address);
+  TNode<Object> AllocateRawDoubleAligned(TNode<IntPtrT> size_in_bytes,
+                                         AllocationFlags flags,
+                                         TNode<RawPtrT> top_address,
+                                         TNode<RawPtrT> limit_address);
+  TNode<Object> AllocateRawUnaligned(TNode<IntPtrT> size_in_bytes,
+                                     AllocationFlags flags,
+                                     TNode<RawPtrT> top_address,
+                                     TNode<RawPtrT> limit_address);
+  TNode<Object> AllocateRaw(TNode<IntPtrT> size_in_bytes, AllocationFlags flags,
+                            TNode<RawPtrT> top_address,
+                            TNode<RawPtrT> limit_address);
+
   // Allocate and return a JSArray of given total size in bytes with header
   // fields initialized.
-  Node* AllocateUninitializedJSArray(Node* array_map, Node* length,
-                                     Node* allocation_site,
-                                     Node* size_in_bytes);
+  TNode<JSArray> AllocateUninitializedJSArray(TNode<Map> array_map,
+                                              TNode<Smi> length,
+                                              Node* allocation_site,
+                                              TNode<IntPtrT> size_in_bytes);
 
   TNode<BoolT> IsValidSmi(TNode<Smi> smi);
   Node* SmiShiftBitsConstant();

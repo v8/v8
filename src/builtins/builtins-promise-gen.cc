@@ -203,10 +203,10 @@ Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementContext(
   CSA_ASSERT(this, IsNativeContext(native_context));
 
   // TODO(bmeurer): Manually fold this into a single allocation.
-  Node* const array_map = LoadContextElement(
-      native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
-  Node* const values_array = AllocateJSArray(PACKED_ELEMENTS, array_map,
-                                             IntPtrConstant(0), SmiConstant(0));
+  TNode<Map> array_map = CAST(LoadContextElement(
+      native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX));
+  TNode<JSArray> values_array = AllocateJSArray(
+      PACKED_ELEMENTS, array_map, IntPtrConstant(0), SmiConstant(0));
 
   Node* const context =
       CreatePromiseContext(native_context, kPromiseAllResolveElementLength);

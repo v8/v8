@@ -1095,9 +1095,9 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
       LoadAndUntagObjectField(table, OrderedHashMap::kNumberOfElementsOffset);
 
   const ElementsKind kind = PACKED_ELEMENTS;
-  Node* const array_map =
+  TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
-  Node* const array = AllocateJSArray(kind, array_map, size, SmiTag(size));
+  TNode<JSArray> array = AllocateJSArray(kind, array_map, size, SmiTag(size));
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
@@ -1206,9 +1206,9 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
       LoadAndUntagObjectField(table, OrderedHashMap::kNumberOfElementsOffset);
 
   const ElementsKind kind = PACKED_ELEMENTS;
-  Node* const array_map =
+  TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
-  Node* const array = AllocateJSArray(kind, array_map, size, SmiTag(size));
+  TNode<JSArray> array = AllocateJSArray(kind, array_map, size, SmiTag(size));
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;

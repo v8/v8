@@ -1800,8 +1800,8 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
         1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 
     TNode<Map> array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, context);
-    result_array = CAST(
-        AllocateUninitializedJSArrayWithoutElements(array_map, length_smi));
+    result_array =
+        AllocateUninitializedJSArrayWithoutElements(array_map, length_smi);
     StoreObjectField(result_array.value(), JSObject::kElementsOffset, elements);
     Goto(&done);
 
@@ -1878,13 +1878,13 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
     const ElementsKind kind = PACKED_ELEMENTS;
     Node* const native_context = LoadNativeContext(context);
-    Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
+    TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
-    Node* const length = SmiConstant(1);
-    Node* const capacity = IntPtrConstant(1);
-    Node* const result = AllocateJSArray(kind, array_map, capacity, length);
+    TNode<Smi> length = SmiConstant(1);
+    TNode<IntPtrT> capacity = IntPtrConstant(1);
+    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length);
 
-    TNode<FixedArray> const fixed_array = CAST(LoadElements(result));
+    TNode<FixedArray> fixed_array = CAST(LoadElements(result));
     StoreFixedArrayElement(fixed_array, 0, subject_string);
 
     args.PopAndReturn(result);
@@ -1916,11 +1916,11 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   {
     const ElementsKind kind = PACKED_ELEMENTS;
     Node* const native_context = LoadNativeContext(context);
-    Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
+    TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
-    Node* const length = smi_zero;
-    Node* const capacity = IntPtrConstant(0);
-    Node* const result = AllocateJSArray(kind, array_map, capacity, length);
+    TNode<Smi> length = smi_zero;
+    TNode<IntPtrT> capacity = IntPtrConstant(0);
+    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length);
 
     args.PopAndReturn(result);
   }
@@ -2498,11 +2498,12 @@ TNode<JSArray> StringBuiltinsAssembler::StringToList(TNode<Context> context,
   const ElementsKind kind = PACKED_ELEMENTS;
   const TNode<IntPtrT> length = LoadStringLengthAsWord(string);
 
-  Node* const array_map =
+  TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
   // Allocate the array to new space, assuming that the new array will fit in.
-  Node* const array = AllocateJSArray(kind, array_map, length, SmiTag(length));
-  Node* const elements = LoadElements(array);
+  TNode<JSArray> array =
+      AllocateJSArray(kind, array_map, length, SmiTag(length));
+  TNode<FixedArrayBase> elements = LoadElements(array);
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   TNode<IntPtrT> first_to_element_offset =

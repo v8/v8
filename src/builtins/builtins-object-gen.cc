@@ -218,9 +218,10 @@ void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
   BIND(&if_no_properties);
   {
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* empty_array = AllocateJSArray(PACKED_ELEMENTS, array_map,
-                                        IntPtrConstant(0), SmiConstant(0));
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<JSArray> empty_array = AllocateJSArray(
+        PACKED_ELEMENTS, array_map, IntPtrConstant(0), SmiConstant(0));
     Return(empty_array);
   }
 
@@ -609,8 +610,9 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     Node* array = nullptr;
     Node* elements = nullptr;
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* array_length = SmiTag(object_enum_length);
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<Smi> array_length = SmiTag(object_enum_length);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
@@ -640,9 +642,10 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   {
     // Wrap the elements into a proper JSArray and return that.
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* array = AllocateUninitializedJSArrayWithoutElements(
-        array_map, var_length.value(), nullptr);
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<JSArray> array = AllocateUninitializedJSArrayWithoutElements(
+        array_map, CAST(var_length.value()), nullptr);
     StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
                                    var_elements.value());
     Return(array);
@@ -700,8 +703,9 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     Node* array = nullptr;
     Node* elements = nullptr;
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* array_length = SmiTag(object_enum_length);
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<Smi> array_length = SmiTag(object_enum_length);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
@@ -742,9 +746,10 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   {
     // Wrap the elements into a proper JSArray and return that.
     Node* native_context = LoadNativeContext(context);
-    Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    Node* array = AllocateUninitializedJSArrayWithoutElements(
-        array_map, var_length.value(), nullptr);
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+    TNode<JSArray> array = AllocateUninitializedJSArrayWithoutElements(
+        array_map, CAST(var_length.value()), nullptr);
     StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
                                    var_elements.value());
     Return(array);

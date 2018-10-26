@@ -82,12 +82,12 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
 
   // Allocate space for the promise, the async function object
   // and the register file.
-  TNode<WordT> size = IntPtrAdd(
+  TNode<IntPtrT> size = IntPtrAdd(
       IntPtrConstant(JSPromise::kSizeWithEmbedderFields +
                      JSAsyncFunctionObject::kSize + FixedArray::kHeaderSize),
-      WordShl(parameters_and_register_length,
-              IntPtrConstant(kPointerSizeLog2)));
-  Node* base = AllocateInNewSpace(size);
+      Signed(WordShl(parameters_and_register_length,
+                     IntPtrConstant(kPointerSizeLog2))));
+  TNode<Object> base = AllocateInNewSpace(size);
 
   // Initialize the register file.
   TNode<FixedArray> parameters_and_registers = UncheckedCast<FixedArray>(

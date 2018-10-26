@@ -860,8 +860,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     TNode<Map> array_map =
         LoadJSArrayElementsMap(elements_kind, native_context);
     TNode<JSArray> array =
-        CAST(AllocateJSArray(GetInitialFastElementsKind(), array_map, len, len,
-                             nullptr, CodeStubAssembler::SMI_PARAMETERS));
+        AllocateJSArray(GetInitialFastElementsKind(), array_map, len, len,
+                        nullptr, CodeStubAssembler::SMI_PARAMETERS);
     a_.Bind(array);
 
     Goto(&done);
@@ -909,8 +909,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     TNode<Context> native_context = LoadNativeContext(context());
     TNode<Map> array_map =
         LoadJSArrayElementsMap(elements_kind, native_context);
-    a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, len, nullptr,
-                            CodeStubAssembler::SMI_PARAMETERS));
+    a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, CAST(len),
+                            nullptr, CodeStubAssembler::SMI_PARAMETERS));
 
     Goto(&done);
 
@@ -1213,8 +1213,9 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
 
     GotoIf(SmiAbove(end, unmapped_elements_length), slow);
 
-    Node* array_map = LoadJSArrayElementsMap(HOLEY_ELEMENTS, native_context);
-    result.Bind(AllocateJSArray(HOLEY_ELEMENTS, array_map, count, count,
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(HOLEY_ELEMENTS, native_context);
+    result.Bind(AllocateJSArray(HOLEY_ELEMENTS, array_map, count, CAST(count),
                                 nullptr, SMI_PARAMETERS));
 
     index_out.Bind(IntPtrConstant(0));
@@ -1871,9 +1872,9 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
       TNode<Map> array_map = CAST(LoadContextElement(
           context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
 
-      array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map,
-                                   SmiConstant(0), SmiConstant(0), nullptr,
-                                   ParameterMode::SMI_PARAMETERS));
+      array = AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, SmiConstant(0),
+                              SmiConstant(0), nullptr,
+                              ParameterMode::SMI_PARAMETERS);
       Goto(&done);
     }
 
@@ -4111,8 +4112,8 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
 
   BIND(&small_smi_size);
   {
-    Node* array = AllocateJSArray(
-        elements_kind, array_map, array_size, array_size,
+    TNode<JSArray> array = AllocateJSArray(
+        elements_kind, CAST(array_map), array_size, CAST(array_size),
         mode == DONT_TRACK_ALLOCATION_SITE ? nullptr : allocation_site,
         CodeStubAssembler::SMI_PARAMETERS);
     Return(array);
@@ -4134,8 +4135,8 @@ void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
       AllocationSite::ShouldTrack(kind) && mode != DISABLE_ALLOCATION_SITES;
   Node* allocation_site =
       track_allocation_site ? Parameter(Descriptor::kAllocationSite) : nullptr;
-  Node* array_map = LoadJSArrayElementsMap(kind, native_context);
-  Node* array = AllocateJSArray(
+  TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
+  TNode<JSArray> array = AllocateJSArray(
       kind, array_map, IntPtrConstant(JSArray::kPreallocatedArrayElements),
       SmiConstant(0), allocation_site);
   Return(array);
@@ -4194,9 +4195,10 @@ TF_BUILTIN(ArrayNArgumentsConstructor, ArrayBuiltinsAssembler) {
 void ArrayBuiltinsAssembler::GenerateInternalArrayNoArgumentConstructor(
     ElementsKind kind) {
   typedef ArrayNoArgumentConstructorDescriptor Descriptor;
-  Node* array_map = LoadObjectField(Parameter(Descriptor::kFunction),
-                                    JSFunction::kPrototypeOrInitialMapOffset);
-  Node* array = AllocateJSArray(
+  TNode<Map> array_map =
+      CAST(LoadObjectField(Parameter(Descriptor::kFunction),
+                           JSFunction::kPrototypeOrInitialMapOffset));
+  TNode<JSArray> array = AllocateJSArray(
       kind, array_map, IntPtrConstant(JSArray::kPreallocatedArrayElements),
       SmiConstant(0));
   Return(array);

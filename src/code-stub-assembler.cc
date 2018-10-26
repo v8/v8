@@ -1133,9 +1133,10 @@ void CodeStubAssembler::GotoIfDebugExecutionModeChecksSideEffects(
          if_true);
 }
 
-Node* CodeStubAssembler::AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
-                                     Node* top_address, Node* limit_address) {
-  // TODO(jgruber, chromium:848672): TNodeify AllocateRaw.
+TNode<Object> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
+                                             AllocationFlags flags,
+                                             TNode<RawPtrT> top_address,
+                                             TNode<RawPtrT> limit_address) {
   // TODO(jgruber, chromium:848672): Call FatalProcessOutOfMemory if this fails.
   {
     intptr_t constant_value;
@@ -1143,18 +1144,18 @@ Node* CodeStubAssembler::AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
       CHECK(Internals::IsValidSmi(constant_value));
       CHECK_GT(constant_value, 0);
     } else {
-      CSA_CHECK(this,
-                IsValidPositiveSmi(UncheckedCast<IntPtrT>(size_in_bytes)));
+      CSA_CHECK(this, IsValidPositiveSmi(size_in_bytes));
     }
   }
 
-  Node* top = Load(MachineType::Pointer(), top_address);
-  Node* limit = Load(MachineType::Pointer(), limit_address);
+  TNode<RawPtrT> top =
+      UncheckedCast<RawPtrT>(Load(MachineType::Pointer(), top_address));
+  TNode<RawPtrT> limit =
+      UncheckedCast<RawPtrT>(Load(MachineType::Pointer(), limit_address));
 
   // If there's not enough space, call the runtime.
-  VARIABLE(result, MachineRepresentation::kTagged);
-  Label runtime_call(this, Label::kDeferred), no_runtime_call(this);
-  Label merge_runtime(this, &result);
+  TVARIABLE(Object, result);
+  Label runtime_call(this, Label::kDeferred), no_runtime_call(this), out(this);
 
   bool needs_double_alignment = flags & kDoubleAlignment;
 
@@ -1162,101 +1163,89 @@ Node* CodeStubAssembler::AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
     Label next(this);
     GotoIf(IsRegularHeapObjectSize(size_in_bytes), &next);
 
-    Node* runtime_flags = SmiConstant(
+    TNode<Smi> runtime_flags = SmiConstant(
         Smi::FromInt(AllocateDoubleAlignFlag::encode(needs_double_alignment) |
                      AllocateTargetSpace::encode(AllocationSpace::LO_SPACE)));
-    Node* const runtime_result =
-        CallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
-                    SmiTag(size_in_bytes), runtime_flags);
-    result.Bind(runtime_result);
-    Goto(&merge_runtime);
+    result = CallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
+                         SmiTag(size_in_bytes), runtime_flags);
+    Goto(&out);
 
     BIND(&next);
   }
 
-  VARIABLE(adjusted_size, MachineType::PointerRepresentation(), size_in_bytes);
+  TVARIABLE(IntPtrT, adjusted_size, size_in_bytes);
 
   if (needs_double_alignment) {
-    Label not_aligned(this), done_alignment(this, &adjusted_size);
+    Label next(this);
+    GotoIfNot(WordAnd(top, IntPtrConstant(kDoubleAlignmentMask)), &next);
 
-    Branch(WordAnd(top, IntPtrConstant(kDoubleAlignmentMask)), &not_aligned,
-           &done_alignment);
+    adjusted_size = IntPtrAdd(size_in_bytes, IntPtrConstant(4));
+    Goto(&next);
 
-    BIND(&not_aligned);
-    Node* not_aligned_size = IntPtrAdd(size_in_bytes, IntPtrConstant(4));
-    adjusted_size.Bind(not_aligned_size);
-    Goto(&done_alignment);
-
-    BIND(&done_alignment);
+    BIND(&next);
   }
 
-  Node* new_top = IntPtrAdd(top, adjusted_size.value());
+  TNode<IntPtrT> new_top =
+      IntPtrAdd(UncheckedCast<IntPtrT>(top), adjusted_size.value());
 
   Branch(UintPtrGreaterThanOrEqual(new_top, limit), &runtime_call,
          &no_runtime_call);
 
   BIND(&runtime_call);
-  Node* runtime_result;
-  if (flags & kPretenured) {
-    Node* runtime_flags = SmiConstant(
-        Smi::FromInt(AllocateDoubleAlignFlag::encode(needs_double_alignment) |
-                     AllocateTargetSpace::encode(AllocationSpace::OLD_SPACE)));
-    runtime_result =
-        CallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
-                    SmiTag(size_in_bytes), runtime_flags);
-  } else {
-    runtime_result = CallRuntime(Runtime::kAllocateInNewSpace,
-                                 NoContextConstant(), SmiTag(size_in_bytes));
+  {
+    if (flags & kPretenured) {
+      TNode<Smi> runtime_flags = SmiConstant(Smi::FromInt(
+          AllocateDoubleAlignFlag::encode(needs_double_alignment) |
+          AllocateTargetSpace::encode(AllocationSpace::OLD_SPACE)));
+      result = CallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
+                           SmiTag(size_in_bytes), runtime_flags);
+    } else {
+      result = CallRuntime(Runtime::kAllocateInNewSpace, NoContextConstant(),
+                           SmiTag(size_in_bytes));
+    }
+    Goto(&out);
   }
-  result.Bind(runtime_result);
-  Goto(&merge_runtime);
 
   // When there is enough space, return `top' and bump it up.
   BIND(&no_runtime_call);
-  Node* no_runtime_result = top;
-  StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
-                      new_top);
+  {
+    StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
+                        new_top);
 
-  VARIABLE(address, MachineType::PointerRepresentation(), no_runtime_result);
+    TVARIABLE(IntPtrT, address, UncheckedCast<IntPtrT>(top));
 
-  if (needs_double_alignment) {
-    Label needs_filler(this), done_filling(this, &address);
-    Branch(IntPtrEqual(adjusted_size.value(), size_in_bytes), &done_filling,
-           &needs_filler);
+    if (needs_double_alignment) {
+      Label next(this);
+      GotoIf(IntPtrEqual(adjusted_size.value(), size_in_bytes), &next);
 
-    BIND(&needs_filler);
-    // Store a filler and increase the address by kPointerSize.
-    StoreNoWriteBarrier(MachineRepresentation::kTagged, top,
-                        LoadRoot(RootIndex::kOnePointerFillerMap));
-    address.Bind(IntPtrAdd(no_runtime_result, IntPtrConstant(4)));
+      // Store a filler and increase the address by kPointerSize.
+      StoreNoWriteBarrier(MachineRepresentation::kTagged, top,
+                          LoadRoot(RootIndex::kOnePointerFillerMap));
+      address = IntPtrAdd(UncheckedCast<IntPtrT>(top), IntPtrConstant(4));
+      Goto(&next);
 
-    Goto(&done_filling);
+      BIND(&next);
+    }
 
-    BIND(&done_filling);
+    result = BitcastWordToTagged(
+        IntPtrAdd(address.value(), IntPtrConstant(kHeapObjectTag)));
+    Goto(&out);
   }
 
-  no_runtime_result = BitcastWordToTagged(
-      IntPtrAdd(address.value(), IntPtrConstant(kHeapObjectTag)));
-
-  result.Bind(no_runtime_result);
-  Goto(&merge_runtime);
-
-  BIND(&merge_runtime);
+  BIND(&out);
   return result.value();
 }
 
-Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
-                                              AllocationFlags flags,
-                                              Node* top_address,
-                                              Node* limit_address) {
+TNode<Object> CodeStubAssembler::AllocateRawUnaligned(
+    TNode<IntPtrT> size_in_bytes, AllocationFlags flags,
+    TNode<RawPtrT> top_address, TNode<RawPtrT> limit_address) {
   DCHECK_EQ(flags & kDoubleAlignment, 0);
   return AllocateRaw(size_in_bytes, flags, top_address, limit_address);
 }
 
-Node* CodeStubAssembler::AllocateRawDoubleAligned(Node* size_in_bytes,
-                                                  AllocationFlags flags,
-                                                  Node* top_address,
-                                                  Node* limit_address) {
+TNode<Object> CodeStubAssembler::AllocateRawDoubleAligned(
+    TNode<IntPtrT> size_in_bytes, AllocationFlags flags,
+    TNode<RawPtrT> top_address, TNode<RawPtrT> limit_address) {
 #if defined(V8_HOST_ARCH_32_BIT)
   return AllocateRaw(size_in_bytes, flags | kDoubleAlignment, top_address,
                      limit_address);
@@ -1269,17 +1258,18 @@ Node* CodeStubAssembler::AllocateRawDoubleAligned(Node* size_in_bytes,
 #endif
 }
 
-Node* CodeStubAssembler::AllocateInNewSpace(Node* size_in_bytes,
-                                            AllocationFlags flags) {
+TNode<Object> CodeStubAssembler::AllocateInNewSpace(
+    TNode<IntPtrT> size_in_bytes, AllocationFlags flags) {
   DCHECK(flags == kNone || flags == kDoubleAlignment);
   CSA_ASSERT(this, IsRegularHeapObjectSize(size_in_bytes));
   return Allocate(size_in_bytes, flags);
 }
 
-Node* CodeStubAssembler::Allocate(Node* size_in_bytes, AllocationFlags flags) {
+TNode<Object> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
+                                          AllocationFlags flags) {
   Comment("Allocate");
   bool const new_space = !(flags & kPretenured);
-  Node* top_address = ExternalConstant(
+  TNode<ExternalReference> top_address = ExternalConstant(
       new_space
           ? ExternalReference::new_space_allocation_top_address(isolate())
           : ExternalReference::old_space_allocation_top_address(isolate()));
@@ -1293,37 +1283,43 @@ Node* CodeStubAssembler::Allocate(Node* size_in_bytes, AllocationFlags flags) {
                     .address() -
                 ExternalReference::old_space_allocation_top_address(isolate())
                     .address());
-  Node* limit_address = IntPtrAdd(top_address, IntPtrConstant(kPointerSize));
+  TNode<IntPtrT> limit_address = IntPtrAdd(
+      ReinterpretCast<IntPtrT>(top_address), IntPtrConstant(kPointerSize));
 
   if (flags & kDoubleAlignment) {
-    return AllocateRawDoubleAligned(size_in_bytes, flags, top_address,
-                                    limit_address);
+    return AllocateRawDoubleAligned(size_in_bytes, flags,
+                                    ReinterpretCast<RawPtrT>(top_address),
+                                    ReinterpretCast<RawPtrT>(limit_address));
   } else {
-    return AllocateRawUnaligned(size_in_bytes, flags, top_address,
-                                limit_address);
+    return AllocateRawUnaligned(size_in_bytes, flags,
+                                ReinterpretCast<RawPtrT>(top_address),
+                                ReinterpretCast<RawPtrT>(limit_address));
   }
 }
 
-Node* CodeStubAssembler::AllocateInNewSpace(int size_in_bytes,
-                                            AllocationFlags flags) {
+TNode<Object> CodeStubAssembler::AllocateInNewSpace(int size_in_bytes,
+                                                    AllocationFlags flags) {
   CHECK(flags == kNone || flags == kDoubleAlignment);
   DCHECK_LE(size_in_bytes, kMaxRegularHeapObjectSize);
   return CodeStubAssembler::Allocate(IntPtrConstant(size_in_bytes), flags);
 }
 
-Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
+TNode<Object> CodeStubAssembler::Allocate(int size_in_bytes,
+                                          AllocationFlags flags) {
   return CodeStubAssembler::Allocate(IntPtrConstant(size_in_bytes), flags);
 }
 
-Node* CodeStubAssembler::InnerAllocate(Node* previous, Node* offset) {
+TNode<Object> CodeStubAssembler::InnerAllocate(TNode<Object> previous,
+                                               TNode<IntPtrT> offset) {
   return BitcastWordToTagged(IntPtrAdd(BitcastTaggedToWord(previous), offset));
 }
 
-Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
+TNode<Object> CodeStubAssembler::InnerAllocate(TNode<Object> previous,
+                                               int offset) {
   return InnerAllocate(previous, IntPtrConstant(offset));
 }
 
-Node* CodeStubAssembler::IsRegularHeapObjectSize(Node* size) {
+TNode<BoolT> CodeStubAssembler::IsRegularHeapObjectSize(TNode<IntPtrT> size) {
   return UintPtrLessThanOrEqual(size,
                                 IntPtrConstant(kMaxRegularHeapObjectSize));
 }
@@ -3164,14 +3160,15 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   Node* raw_size = GetArrayAllocationSize(
       Signed(ChangeUint32ToWord(length)), UINT8_ELEMENTS, INTPTR_PARAMETERS,
       SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
-  Node* size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+  TNode<WordT> size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
   Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
          &if_sizeissmall, &if_notsizeissmall);
 
   BIND(&if_sizeissmall);
   {
     // Just allocate the SeqOneByteString in new space.
-    Node* result = AllocateInNewSpace(size, flags);
+    TNode<Object> result =
+        AllocateInNewSpace(UncheckedCast<IntPtrT>(size), flags);
     DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kOneByteStringMap));
     StoreMapNoWriteBarrier(result, RootIndex::kOneByteStringMap);
     StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
@@ -3234,14 +3231,15 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
   Node* raw_size = GetArrayAllocationSize(
       Signed(ChangeUint32ToWord(length)), UINT16_ELEMENTS, INTPTR_PARAMETERS,
       SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
-  Node* size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+  TNode<WordT> size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
   Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
          &if_sizeissmall, &if_notsizeissmall);
 
   BIND(&if_sizeissmall);
   {
     // Just allocate the SeqTwoByteString in new space.
-    Node* result = AllocateInNewSpace(size, flags);
+    TNode<Object> result =
+        AllocateInNewSpace(UncheckedCast<IntPtrT>(size), flags);
     DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kStringMap));
     StoreMapNoWriteBarrier(result, RootIndex::kStringMap);
     StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
@@ -3420,7 +3418,7 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
   CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
   CSA_ASSERT(this, IntPtrGreaterThan(capacity, IntPtrConstant(0)));
   TNode<IntPtrT> length = EntryToIndex<NameDictionary>(capacity);
-  TNode<WordT> store_size = IntPtrAdd(
+  TNode<IntPtrT> store_size = IntPtrAdd(
       TimesPointerSize(length), IntPtrConstant(NameDictionary::kHeaderSize));
 
   TNode<NameDictionary> result =
@@ -3568,7 +3566,7 @@ TNode<CollectionType> CodeStubAssembler::AllocateSmallOrderedHashTable(
   // Allocate the table and add the proper map.
   TNode<Map> small_ordered_hash_map =
       CAST(LoadRoot(CollectionType::GetMapRootIndex()));
-  TNode<Object> table_obj = CAST(AllocateInNewSpace(total_size_word_aligned));
+  TNode<Object> table_obj = AllocateInNewSpace(total_size_word_aligned);
   StoreMapNoWriteBarrier(table_obj, small_ordered_hash_map);
   TNode<CollectionType> table = UncheckedCast<CollectionType>(table_obj);
 
@@ -3692,8 +3690,8 @@ template void CodeStubAssembler::FindOrderedHashTableEntry<OrderedHashSet>(
 Node* CodeStubAssembler::AllocateStruct(Node* map, AllocationFlags flags) {
   Comment("AllocateStruct");
   CSA_ASSERT(this, IsMap(map));
-  Node* size = TimesPointerSize(LoadMapInstanceSizeInWords(map));
-  Node* object = Allocate(size, flags);
+  TNode<IntPtrT> size = TimesPointerSize(LoadMapInstanceSizeInWords(map));
+  TNode<Object> object = Allocate(size, flags);
   StoreMapNoWriteBarrier(object, map);
   InitializeStructBody(object, map, size, Struct::kHeaderSize);
   return object;
@@ -3720,8 +3718,9 @@ Node* CodeStubAssembler::AllocateJSObjectFromMap(
   CSA_ASSERT(this, Word32BinaryNot(IsJSFunctionMap(map)));
   CSA_ASSERT(this, Word32BinaryNot(InstanceTypeEqual(LoadMapInstanceType(map),
                                                      JS_GLOBAL_OBJECT_TYPE)));
-  Node* instance_size = TimesPointerSize(LoadMapInstanceSizeInWords(map));
-  Node* object = AllocateInNewSpace(instance_size, flags);
+  TNode<IntPtrT> instance_size =
+      TimesPointerSize(LoadMapInstanceSizeInWords(map));
+  TNode<Object> object = AllocateInNewSpace(instance_size, flags);
   StoreMapNoWriteBarrier(object, map);
   InitializeJSObjectFromMap(object, map, instance_size, properties, elements,
                             slack_tracking_mode);
@@ -3844,29 +3843,25 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
                 kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 }
 
-Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
-    Node* array_map, Node* length, Node* allocation_site) {
-  Comment("begin allocation of JSArray without elements");
+TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
+    TNode<Map> array_map, TNode<Smi> length, Node* allocation_site) {
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
-  CSA_SLOW_ASSERT(this, IsMap(array_map));
+
   int base_size = JSArray::kSize;
   if (allocation_site != nullptr) {
     base_size += AllocationMemento::kSize;
   }
 
-  Node* size = IntPtrConstant(base_size);
-  Node* array =
-      AllocateUninitializedJSArray(array_map, length, allocation_site, size);
-  return array;
+  TNode<IntPtrT> size = IntPtrConstant(base_size);
+  return AllocateUninitializedJSArray(array_map, length, allocation_site, size);
 }
 
-std::pair<Node*, Node*>
+std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
 CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
-    ElementsKind kind, Node* array_map, Node* length, Node* allocation_site,
-    Node* capacity, ParameterMode capacity_mode) {
+    ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
+    Node* allocation_site, Node* capacity, ParameterMode capacity_mode) {
   Comment("begin allocation of JSArray with elements");
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
-  CSA_SLOW_ASSERT(this, IsMap(array_map));
   int base_size = JSArray::kSize;
 
   if (allocation_site != nullptr) {
@@ -3877,12 +3872,13 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
   // Compute space for elements
   base_size += FixedArray::kHeaderSize;
-  Node* size = ElementOffsetFromIndex(capacity, kind, capacity_mode, base_size);
+  TNode<IntPtrT> size =
+      ElementOffsetFromIndex(capacity, kind, capacity_mode, base_size);
 
-  Node* array =
+  TNode<Object> array =
       AllocateUninitializedJSArray(array_map, length, allocation_site, size);
 
-  Node* elements = InnerAllocate(array, elements_offset);
+  TNode<Object> elements = InnerAllocate(array, elements_offset);
   StoreObjectFieldNoWriteBarrier(array, JSObject::kElementsOffset, elements);
   // Setup elements object.
   STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
@@ -3895,24 +3891,19 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   CSA_ASSERT(this, SmiGreaterThan(capacity_smi, SmiConstant(0)));
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
                                  capacity_smi);
-  return {array, elements};
+  return {CAST(array), CAST(elements)};
 }
 
-Node* CodeStubAssembler::AllocateUninitializedJSArray(Node* array_map,
-                                                      Node* length,
-                                                      Node* allocation_site,
-                                                      Node* size_in_bytes) {
+TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
+    TNode<Map> array_map, TNode<Smi> length, Node* allocation_site,
+    TNode<IntPtrT> size_in_bytes) {
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
-  CSA_SLOW_ASSERT(this, IsMap(array_map));
 
   // Allocate space for the JSArray and the elements FixedArray in one go.
-  Node* array = AllocateInNewSpace(size_in_bytes);
+  TNode<Object> array = AllocateInNewSpace(size_in_bytes);
 
-  Comment("write JSArray headers");
   StoreMapNoWriteBarrier(array, array_map);
-
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
-
   StoreObjectFieldRoot(array, JSArray::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
 
@@ -3920,19 +3911,20 @@ Node* CodeStubAssembler::AllocateUninitializedJSArray(Node* array_map,
     InitializeAllocationMemento(array, IntPtrConstant(JSArray::kSize),
                                 allocation_site);
   }
-  return array;
+
+  return CAST(array);
 }
 
-Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
-                                         Node* capacity, Node* length,
-                                         Node* allocation_site,
-                                         ParameterMode capacity_mode) {
-  CSA_SLOW_ASSERT(this, IsMap(array_map));
+TNode<JSArray> CodeStubAssembler::AllocateJSArray(
+    ElementsKind kind, TNode<Map> array_map, Node* capacity, TNode<Smi> length,
+    Node* allocation_site, ParameterMode capacity_mode) {
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, capacity_mode));
 
+  TNode<JSArray> array;
+  TNode<FixedArrayBase> elements;
   int capacity_as_constant;
-  Node *array = nullptr, *elements = nullptr;
+
   if (IsIntPtrOrSmiConstantZero(capacity, capacity_mode)) {
     // Array is empty. Use the shared empty fixed array instead of allocating a
     // new one.
@@ -3952,7 +3944,7 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
                             RootIndex::kTheHoleValue, capacity_mode);
   } else {
     Label out(this), empty(this), nonempty(this);
-    VARIABLE(var_array, MachineRepresentation::kTagged);
+    TVARIABLE(JSArray, var_array);
 
     Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
            &empty, &nonempty);
@@ -3961,8 +3953,8 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
     {
       // Array is empty. Use the shared empty fixed array instead of allocating
       // a new one.
-      var_array.Bind(AllocateUninitializedJSArrayWithoutElements(
-          array_map, length, allocation_site));
+      var_array = AllocateUninitializedJSArrayWithoutElements(array_map, length,
+                                                              allocation_site);
       StoreObjectFieldRoot(var_array.value(), JSArray::kElementsOffset,
                            RootIndex::kEmptyFixedArray);
       Goto(&out);
@@ -3971,10 +3963,10 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
     BIND(&nonempty);
     {
       // Allocate both array and elements object, and initialize the JSArray.
-      Node* array;
+      TNode<JSArray> array;
       std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
           kind, array_map, length, allocation_site, capacity, capacity_mode);
-      var_array.Bind(array);
+      var_array = array;
       // Fill in the elements with holes.
       FillFixedArrayWithValue(kind, elements,
                               IntPtrOrSmiConstant(0, capacity_mode), capacity,
@@ -3998,13 +3990,13 @@ Node* CodeStubAssembler::ExtractFastJSArray(Node* context, Node* array,
 
   // Use the cannonical map for the Array's ElementsKind
   Node* native_context = LoadNativeContext(context);
-  Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);
+  TNode<Map> array_map = LoadJSArrayElementsMap(elements_kind, native_context);
 
   Node* new_elements = ExtractFixedArray(
       LoadElements(array), begin, count, capacity,
       ExtractFixedArrayFlag::kAllFixedArrays, mode, nullptr, elements_kind);
 
-  Node* result = AllocateUninitializedJSArrayWithoutElements(
+  TNode<Object> result = AllocateUninitializedJSArrayWithoutElements(
       array_map, ParameterToTagged(count, mode), allocation_site);
   StoreObjectField(result, JSObject::kElementsOffset, new_elements);
   return result;
@@ -4067,11 +4059,11 @@ Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
   BIND(&allocate_jsarray);
   // Use the cannonical map for the chosen elements kind.
   Node* native_context = LoadNativeContext(context);
-  Node* array_map =
+  TNode<Map> array_map =
       LoadJSArrayElementsMap(var_elements_kind.value(), native_context);
 
-  Node* result = AllocateUninitializedJSArrayWithoutElements(array_map, length,
-                                                             allocation_site);
+  TNode<Object> result = AllocateUninitializedJSArrayWithoutElements(
+      array_map, CAST(length), allocation_site);
   StoreObjectField(result, JSObject::kElementsOffset, var_new_elements.value());
   return result;
 }
@@ -4473,9 +4465,10 @@ Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,
   CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity_node, mode));
   CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity_node,
                                           IntPtrOrSmiConstant(0, mode), mode));
-  Node* total_size = GetPropertyArrayAllocationSize(capacity_node, mode);
+  TNode<IntPtrT> total_size =
+      GetPropertyArrayAllocationSize(capacity_node, mode);
 
-  Node* array = Allocate(total_size, flags);
+  TNode<Object> array = Allocate(total_size, flags);
   RootIndex map_index = RootIndex::kPropertyArrayMap;
   DCHECK(RootsTable::IsImmortalImmovable(map_index));
   StoreMapNoWriteBarrier(array, map_index);
@@ -5166,7 +5159,8 @@ void CodeStubAssembler::InitializeAllocationMemento(Node* base,
                                                     Node* base_allocation_size,
                                                     Node* allocation_site) {
   Comment("[Initialize AllocationMemento");
-  Node* memento = InnerAllocate(base, base_allocation_size);
+  TNode<Object> memento =
+      InnerAllocate(CAST(base), UncheckedCast<IntPtrT>(base_allocation_size));
   StoreMapNoWriteBarrier(memento, RootIndex::kAllocationMementoMap);
   StoreObjectFieldNoWriteBarrier(
       memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
@@ -12776,7 +12770,7 @@ Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
   StoreFixedArrayElement(elements, 1, value);
   Node* array_map = LoadContextElement(
       native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
-  Node* array = InnerAllocate(elements, elements_size);
+  TNode<Object> array = InnerAllocate(elements, elements_size);
   StoreMapNoWriteBarrier(array, array_map);
   StoreObjectFieldRoot(array, JSArray::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
@@ -12784,7 +12778,7 @@ Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
   Node* iterator_map =
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
-  Node* result = InnerAllocate(array, JSArray::kSize);
+  TNode<Object> result = InnerAllocate(array, JSArray::kSize);
   StoreMapNoWriteBarrier(result, iterator_map);
   StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
@@ -13435,9 +13429,9 @@ TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
   // TODO(delphick): Consider using
   // AllocateUninitializedJSArrayWithElements to avoid initializing an
   // array and then writing over it.
-  array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length,
-                               SmiConstant(0), nullptr,
-                               ParameterMode::SMI_PARAMETERS));
+  array =
+      AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length, SmiConstant(0),
+                      nullptr, ParameterMode::SMI_PARAMETERS);
   Goto(&done);
 
   BIND(&done);

@@ -106,9 +106,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
       LoadContextElement(native_context, function_map_index);
 
   // Create a new closure from the given function info in new space
-  Node* instance_size_in_bytes =
+  TNode<IntPtrT> instance_size_in_bytes =
       TimesPointerSize(LoadMapInstanceSizeInWords(function_map));
-  Node* const result = Allocate(instance_size_in_bytes);
+  TNode<Object> result = Allocate(instance_size_in_bytes);
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBodyNoSlackTracking(result, function_map,
                                         instance_size_in_bytes,
@@ -230,7 +230,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   ParameterMode mode = INTPTR_PARAMETERS;
   Node* min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
   Node* length = IntPtrAdd(slots, min_context_slots);
-  Node* size = GetFixedArrayAllocationSize(length, PACKED_ELEMENTS, mode);
+  TNode<IntPtrT> size =
+      GetFixedArrayAllocationSize(length, PACKED_ELEMENTS, mode);
 
   // Create a new closure from the given function info in new space
   TNode<Context> function_context =
@@ -406,10 +407,10 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   TNode<Int32T> kind = LoadElementsKind(allocation_site.value());
   TNode<Context> native_context = LoadNativeContext(context);
   Comment("LoadJSArrayElementsMap");
-  Node* array_map = LoadJSArrayElementsMap(kind, native_context);
-  Node* zero = SmiConstant(0);
+  TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
+  TNode<Smi> zero = SmiConstant(0);
   Comment("Allocate JSArray");
-  Node* result =
+  TNode<JSArray> result =
       AllocateJSArray(GetInitialFastElementsKind(), array_map, zero, zero,
                       allocation_site.value(), ParameterMode::SMI_PARAMETERS);
 
@@ -492,9 +493,9 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   // Ensure new-space allocation for a fresh JSObject so we can skip write
   // barriers when copying all object fields.
   STATIC_ASSERT(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
-  Node* instance_size =
+  TNode<IntPtrT> instance_size =
       TimesPointerSize(LoadMapInstanceSizeInWords(boilerplate_map));
-  Node* allocation_size = instance_size;
+  TNode<IntPtrT> allocation_size = instance_size;
   bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
   if (needs_allocation_memento) {
     // Prepare for inner-allocating the AllocationMemento.
@@ -502,7 +503,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
         IntPtrAdd(instance_size, IntPtrConstant(AllocationMemento::kSize));
   }
 
-  Node* copy = AllocateInNewSpace(allocation_size);
+  TNode<HeapObject> copy =
+      UncheckedCast<HeapObject>(AllocateInNewSpace(allocation_size));
   {
     Comment("Initialize Literal Copy");
     // Initialize Object fields.
