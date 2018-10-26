@@ -412,14 +412,16 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, receiver_maps.size());
-  MapRef const first_receiver_map(broker(), receiver_maps[0]);
+  MapRef first_receiver_map(broker(), receiver_maps[0]);
   bool const is_constructor = first_receiver_map.is_constructor();
+  first_receiver_map.SerializePrototype();
   ObjectRef const prototype = first_receiver_map.prototype();
   for (Handle<Map> const map : receiver_maps) {
     MapRef receiver_map(broker(), map);
 
     // Check for consistency among the {receiver_maps}.
     STATIC_ASSERT(LAST_TYPE == LAST_FUNCTION_TYPE);
+    receiver_map.SerializePrototype();
     if (!receiver_map.prototype().equals(prototype) ||
         receiver_map.is_constructor() != is_constructor ||
         receiver_map.instance_type() < FIRST_FUNCTION_TYPE) {
@@ -461,6 +463,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   MapRef map = is_constructor
                    ? native_context().bound_function_with_constructor_map()
                    : native_context().bound_function_without_constructor_map();
+  map.SerializePrototype();
   if (!map.prototype().equals(prototype)) return NoChange();
 
   // Make sure we can rely on the {receiver_maps}.
@@ -974,8 +977,8 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   return Changed(vtrue);
 }
 
-bool CanInlineArrayIteratingBuiltin(Isolate* isolate,
-                                    const MapRef& receiver_map) {
+bool CanInlineArrayIteratingBuiltin(Isolate* isolate, MapRef& receiver_map) {
+  receiver_map.SerializePrototype();
   if (!receiver_map.prototype().IsJSArray()) return false;
   JSArrayRef receiver_prototype = receiver_map.prototype().AsJSArray();
   return receiver_map.instance_type() == JS_ARRAY_TYPE &&
@@ -4324,8 +4327,8 @@ bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
 }
 
 // TODO(turbofan): This was copied from old compiler, might be too restrictive.
-bool CanInlineArrayResizeOperation(Isolate* isolate,
-                                   const MapRef& receiver_map) {
+bool CanInlineArrayResizeOperation(Isolate* isolate, MapRef& receiver_map) {
+  receiver_map.SerializePrototype();
   if (!receiver_map.prototype().IsJSArray()) return false;
   JSArrayRef receiver_prototype = receiver_map.prototype().AsJSArray();
   return receiver_map.instance_type() == JS_ARRAY_TYPE &&
@@ -5784,6 +5787,7 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
     if (!receiver_map.IsJSPromiseMap()) return NoChange();
+    receiver_map.SerializePrototype();
     if (!receiver_map.prototype().equals(
             native_context().promise_prototype())) {
       return NoChange();
@@ -5862,6 +5866,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
     if (!receiver_map.IsJSPromiseMap()) return NoChange();
+    receiver_map.SerializePrototype();
     if (!receiver_map.prototype().equals(
             native_context().promise_prototype())) {
       return NoChange();
@@ -6018,6 +6023,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
     if (!receiver_map.IsJSPromiseMap()) return NoChange();
+    receiver_map.SerializePrototype();
     if (!receiver_map.prototype().equals(
             native_context().promise_prototype())) {
       return NoChange();
