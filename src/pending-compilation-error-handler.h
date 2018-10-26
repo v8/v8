@@ -59,8 +59,14 @@ class PendingCompilationErrorHandler {
 
   Handle<String> FormatErrorMessageForTest(Isolate* isolate) const;
 
-  bool set_unidentifiable_error() { return unidentifiable_error_ = true; }
-  bool clear_unidentifiable_error() { return unidentifiable_error_ = false; }
+  void set_unidentifiable_error() {
+    has_pending_error_ = true;
+    unidentifiable_error_ = true;
+  }
+  void clear_unidentifiable_error() {
+    has_pending_error_ = false;
+    unidentifiable_error_ = false;
+  }
   bool has_error_unidentifiable_by_preparser() const {
     return unidentifiable_error_;
   }
