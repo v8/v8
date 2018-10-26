@@ -166,10 +166,9 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I)
 #endif
 
-#define FOR_EACH_INTRINSIC_INTERPRETER(F, I)          \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I)          \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I) \
-  F(InterpreterDeserializeLazy, 2, 1)
+#define FOR_EACH_INTRINSIC_INTERPRETER(F, I) \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I) \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F, I)  \
   I(Call, -1 /* >= 2 */, 1)                \
@@ -221,7 +220,6 @@ namespace internal {
   I(CreateAsyncFromSyncIterator, 1, 1)             \
   F(CreateListFromArrayLike, 1, 1)                 \
   F(CreateTemplateObject, 1, 1)                    \
-  F(DeserializeLazy, 1, 1)                         \
   F(ExportFromRuntime, 1, 1)                       \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1) \
   F(IncrementUseCounter, 1, 1)                     \

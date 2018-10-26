@@ -19,10 +19,8 @@ template <class AllocatorT>
 class Deserializer;
 
 class BuiltinDeserializer;
-class BuiltinSnapshotUtils;
 
 class BuiltinDeserializerAllocator final {
-  using BSU = BuiltinSnapshotUtils;
   using Bytecode = interpreter::Bytecode;
   using OperandScale = interpreter::OperandScale;
 
@@ -40,10 +38,10 @@ class BuiltinDeserializerAllocator final {
   // deserialization) in order to avoid having to patch builtin references
   // later on. See also the kBuiltin case in deserializer.cc.
   //
-  // There is one way that we use to reserve / allocate space. Required objects
-  // are requested from the GC prior to deserialization. Pre-allocated builtin
-  // code objects are written into the builtins table (this is to make
-  // deserialization of builtin references easier).
+  // When reserving / allocating space, required objects are requested from the
+  // GC prior to deserialization. Pre-allocated builtin code objects are written
+  // into the builtins table (this is to make deserialization of builtin
+  // references easier).
   //
   // Allocate simply returns the pre-allocated object prepared by
   // InitializeFromReservations.
@@ -86,10 +84,6 @@ class BuiltinDeserializerAllocator final {
   // make this less messy.
   Heap::Reservation CreateReservationsForEagerBuiltins();
   void InitializeFromReservations(const Heap::Reservation& reservation);
-
-  // Creates reservations and initializes the builtins table in preparation for
-  // lazily deserializing a single builtin.
-  void ReserveAndInitializeBuiltinsTableForBuiltin(int builtin_id);
 
 #ifdef DEBUG
   bool ReservationsAreFullyUsed() const;

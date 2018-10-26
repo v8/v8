@@ -96,8 +96,6 @@ class Deserializer : public SerializerDeserializer {
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool can_rehash() const { return can_rehash_; }
 
-  bool IsLazyDeserializationEnabled() const;
-
   void Rehash();
 
  private:
@@ -134,10 +132,6 @@ class Deserializer : public SerializerDeserializer {
 
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* PostProcessNewObject(HeapObject* obj, int space);
-
-  // May replace the given builtin_id with the DeserializeLazy builtin for lazy
-  // deserialization.
-  int MaybeReplaceWithDeserializeLazy(int builtin_id);
 
   // Cached current isolate.
   Isolate* isolate_;

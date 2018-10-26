@@ -155,10 +155,9 @@ bool DefaultDeserializerAllocator::ReserveSpace(
     BuiltinDeserializer* builtin_deserializer) {
   Isolate* isolate = startup_deserializer->isolate();
 
-  // Create a set of merged reservations to reserve space in one go.
-  // The BuiltinDeserializer's reservations are ignored, since our actual
-  // requirements vary based on whether lazy deserialization is enabled.
-  // Instead, we manually determine the required code-space.
+  // Create a set of merged reservations to reserve space in one go.  The
+  // BuiltinDeserializer's reservations are ignored. Instead, we manually
+  // determine the required code-space.
 
   Heap::Reservation merged_reservations[kNumberOfSpaces];
   for (int i = FIRST_SPACE; i < kNumberOfSpaces; i++) {

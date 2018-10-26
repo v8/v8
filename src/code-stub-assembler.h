@@ -2633,8 +2633,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   template <class... TArgs>
   TNode<Object> CallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
                             TArgs... args) {
-    DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
-                   !Builtins::IsLazy(id));
     return CallStub<Object>(Builtins::CallableFor(isolate(), id), context,
                             args...);
   }
@@ -2642,8 +2640,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   template <class... TArgs>
   void TailCallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
                        TArgs... args) {
-    DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
-                   !Builtins::IsLazy(id));
     return TailCallStub(Builtins::CallableFor(isolate(), id), context, args...);
   }
 

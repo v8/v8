@@ -74,26 +74,11 @@ int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
 
 }  // namespace
 
-Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
-    Bytecode bytecode, OperandScale operand_scale) {
+Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
+                                      OperandScale operand_scale) {
   int builtin_index = BuiltinIndexFromBytecode(bytecode, operand_scale);
   Builtins* builtins = isolate_->builtins();
-  Code* code = builtins->builtin(builtin_index);
-
-  // Already deserialized? Then just return the handler.
-  if (!Builtins::IsLazyDeserializer(code)) return code;
-
-  DCHECK(FLAG_lazy_deserialization);
-  DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
-  code = Snapshot::DeserializeBuiltin(isolate_, builtin_index);
-
-  DCHECK(code->IsCode());
-  DCHECK_EQ(code->kind(), Code::BYTECODE_HANDLER);
-  DCHECK(!Builtins::IsLazyDeserializer(code));
-
-  SetBytecodeHandler(bytecode, operand_scale, code);
-
-  return code;
+  return builtins->builtin(builtin_index);
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,

@@ -17,7 +17,6 @@ class BuiltinSnapshotData;
 // Deserializes the builtins blob.
 class BuiltinDeserializer final
     : public Deserializer<BuiltinDeserializerAllocator> {
-  using BSU = BuiltinSnapshotUtils;
   using Bytecode = interpreter::Bytecode;
   using OperandScale = interpreter::OperandScale;
 
@@ -32,10 +31,6 @@ class BuiltinDeserializer final
   // After this, the instruction cache must be flushed by the caller (we don't
   // do it ourselves since the startup serializer batch-flushes all code pages).
   void DeserializeEagerBuiltins();
-
-  // Deserializes the single given builtin. This is used whenever a builtin is
-  // lazily deserialized at runtime.
-  Code* DeserializeBuiltin(int builtin_id);
 
  private:
   // Deserializes the single given builtin. Assumes that reservations have
@@ -54,9 +49,6 @@ class BuiltinDeserializer final
 
   int CurrentCodeObjectId() const { return current_code_object_id_; }
 
-  // Convenience function to grab the handler off the heap's strong root list.
-  Code* GetDeserializeLazyHandler(OperandScale operand_scale) const;
-
  private:
   // Stores the code object currently being deserialized. The
   // {current_code_object_id} stores the index of the currently-deserialized
@@ -72,8 +64,7 @@ class BuiltinDeserializer final
   // For current_code_object_id_.
   friend class DeserializingCodeObjectScope;
 
-  // For isolate(), IsLazyDeserializationEnabled(), CurrentCodeObjectId() and
-  // ExtractBuiltinSize().
+  // For isolate(), CurrentCodeObjectId() and ExtractBuiltinSize().
   friend class BuiltinDeserializerAllocator;
 };
 

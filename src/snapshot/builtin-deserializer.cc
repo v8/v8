@@ -56,51 +56,19 @@ void BuiltinDeserializer::DeserializeEagerBuiltins() {
 
   Builtins* builtins = isolate()->builtins();
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) {
-      // Do nothing. These builtins have been replaced by DeserializeLazy in
-      // InitializeFromReservations.
-      DCHECK_EQ(builtins->builtin(builtins->LazyDeserializerForBuiltin(i)),
-                builtins->builtin(i));
-    } else {
-      builtins->set_builtin(i, DeserializeBuiltinRaw(i));
-    }
+    Code* code = DeserializeBuiltinRaw(i);
+    builtins->set_builtin(i, code);
   }
-
-#ifdef DEBUG
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    Object* o = builtins->builtin(i);
-    DCHECK(o->IsCode() && Code::cast(o)->is_builtin());
-  }
-#endif
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_builtin_code) {
-    // We can't print builtins during deserialization because they may refer
-    // to not yet deserialized builtins.
     for (int i = 0; i < Builtins::builtin_count; i++) {
-      if (!IsLazyDeserializationEnabled() || !Builtins::IsLazy(i)) {
-        Code* code = builtins->builtin(i);
-        const char* name = Builtins::name(i);
-        code->PrintBuiltinCode(isolate(), name);
-      }
+      Code* code = builtins->builtin(i);
+      const char* name = Builtins::name(i);
+      code->PrintBuiltinCode(isolate(), name);
     }
   }
 #endif
-}
-
-Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
-  allocator()->ReserveAndInitializeBuiltinsTableForBuiltin(builtin_id);
-  DisallowHeapAllocation no_gc;
-  Code* code = DeserializeBuiltinRaw(builtin_id);
-
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_builtin_code) {
-    const char* name = Builtins::name(builtin_id);
-    code->PrintBuiltinCode(isolate(), name);
-  }
-#endif  // ENABLE_DISASSEMBLER
-
-  return code;
 }
 
 Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {

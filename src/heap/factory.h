@@ -776,12 +776,6 @@ class V8_EXPORT_PRIVATE Factory {
       bool is_turbofanned = false, int stack_slots = 0,
       int safepoint_table_offset = 0, int handler_table_offset = 0);
 
-  // Allocates a new, empty code object for use by builtin deserialization. The
-  // given {size} argument specifies the size of the entire code object.
-  // Can only be used when code space is unprotected and requires manual
-  // initialization by the caller.
-  Handle<Code> NewCodeForDeserialization(uint32_t size);
-
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
   Handle<Code> NewOffHeapTrampolineFor(Handle<Code> code,

@@ -2664,22 +2664,6 @@ Handle<Code> Factory::NewCode(
   return code;
 }
 
-Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
-  DCHECK(IsAligned(static_cast<intptr_t>(size), kCodeAlignment));
-  Heap* heap = isolate()->heap();
-  HeapObject* result = heap->AllocateRawWithRetryOrFail(size, CODE_SPACE);
-  // Unprotect the memory chunk of the object if it was not unprotected
-  // already.
-  heap->UnprotectAndRegisterMemoryChunk(result);
-  heap->ZapCodeObject(result->address(), size);
-  result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
-  DCHECK(IsAligned(result->address(), kCodeAlignment));
-  DCHECK_IMPLIES(
-      !heap->memory_allocator()->code_range().is_empty(),
-      heap->memory_allocator()->code_range().contains(result->address()));
-  return handle(Code::cast(result), isolate());
-}
-
 Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
                                               Address off_heap_entry) {
   CHECK(isolate()->serializer_enabled());
@@ -3478,7 +3462,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
                      !Code::cast(*function_data)->is_builtin());
       share->set_function_data(*function_data);
     } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
-      DCHECK_NE(maybe_builtin_index, Builtins::kDeserializeLazy);
       share->set_builtin_id(maybe_builtin_index);
     } else {
       share->set_builtin_id(Builtins::kIllegal);

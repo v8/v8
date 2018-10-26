@@ -92,89 +92,6 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   return result;
 }
 
-// static
-Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
-  if (FLAG_trace_lazy_deserialization) {
-    PrintF("Lazy-deserializing builtin %s\n", Builtins::name(builtin_id));
-  }
-
-  base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization) timer.Start();
-
-  const v8::StartupData* blob = isolate->snapshot_blob();
-  Vector<const byte> builtin_data = Snapshot::ExtractBuiltinData(blob);
-  BuiltinSnapshotData builtin_snapshot_data(builtin_data);
-
-  CodeSpaceMemoryModificationScope code_allocation(isolate->heap());
-  BuiltinDeserializer builtin_deserializer(isolate, &builtin_snapshot_data);
-  Code* code = builtin_deserializer.DeserializeBuiltin(builtin_id);
-  DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
-
-  if (FLAG_profile_deserialization) {
-    double ms = timer.Elapsed().InMillisecondsF();
-    int bytes = code->Size();
-    PrintF("[Deserializing builtin %s (%d bytes) took %0.3f ms]\n",
-           Builtins::name(builtin_id), bytes, ms);
-  }
-
-  if (isolate->logger()->is_listening_to_code_events() ||
-      isolate->is_profiling()) {
-    isolate->logger()->LogCodeObject(code);
-  }
-
-  return code;
-}
-
-// static
-void Snapshot::EnsureAllBuiltinsAreDeserialized(Isolate* isolate) {
-  if (!FLAG_lazy_deserialization) return;
-
-  if (FLAG_trace_lazy_deserialization) {
-    PrintF("Forcing eager builtin deserialization\n");
-  }
-
-  Builtins* builtins = isolate->builtins();
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (!Builtins::IsLazy(i)) continue;
-
-    DCHECK_NE(Builtins::kDeserializeLazy, i);
-    Code* code = builtins->builtin(i);
-    if (code->builtin_index() == Builtins::LazyDeserializerForBuiltin(i)) {
-      code = Snapshot::DeserializeBuiltin(isolate, i);
-    }
-
-    DCHECK_EQ(i, code->builtin_index());
-    DCHECK_EQ(code, builtins->builtin(i));
-  }
-
-  // Re-initialize the dispatch table now that any bytecodes have been
-  // deserialized.
-  isolate->interpreter()->InitializeDispatchTable();
-}
-
-// static
-Code* Snapshot::EnsureBuiltinIsDeserialized(Isolate* isolate,
-                                            Handle<SharedFunctionInfo> shared) {
-  DCHECK(FLAG_lazy_deserialization);
-
-  int builtin_id = shared->builtin_id();
-
-  // We should never lazily deserialize DeserializeLazy.
-  DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
-
-  // Look up code from builtins list.
-  Code* code = isolate->builtins()->builtin(builtin_id);
-
-  // Deserialize if builtin is not on the list.
-  if (code->builtin_index() != builtin_id) {
-    DCHECK_EQ(code->builtin_index(), Builtins::kDeserializeLazy);
-    code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
-    DCHECK_EQ(builtin_id, code->builtin_index());
-    DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
-  }
-  return code;
-}
-
 void ProfileDeserialization(
     const SnapshotData* read_only_snapshot,
     const SnapshotData* startup_snapshot, const SnapshotData* builtin_snapshot,
@@ -311,9 +228,8 @@ bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code* code) {
     case Builtins::TFS:
       break;
 
-    // Bytecode handlers (and their lazy deserializers) will only ever be used
-    // by the interpreter and so there will never be a need to use trampolines
-    // with them.
+    // Bytecode handlers will only ever be used by the interpreter and so there
+    // will never be a need to use trampolines with them.
     case Builtins::BCH:
     case Builtins::DLH:
     case Builtins::API:
@@ -398,8 +314,6 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     Code* code = builtins->builtin(i);
 
     if (Builtins::IsIsolateIndependent(i)) {
-      DCHECK(!Builtins::IsLazy(i));
-
       // Sanity-check that the given builtin is isolate-independent and does not
       // use the trampoline register in its calling convention.
       if (!code->IsIsolateIndependent(isolate)) {

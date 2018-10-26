@@ -51,8 +51,7 @@ class Interpreter {
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.
-  Code* GetAndMaybeDeserializeBytecodeHandler(Bytecode bytecode,
-                                              OperandScale operand_scale);
+  Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
 
   // Set the bytecode handler for |bytecode| and |operand_scale|.
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,

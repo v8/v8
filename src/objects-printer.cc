@@ -1397,16 +1397,8 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
   // Print Builtin name for builtin functions
   int builtin_index = code()->builtin_index();
-  if (builtin_index != -1 && !IsInterpreted()) {
-    if (builtin_index == Builtins::kDeserializeLazy) {
-      if (shared()->HasBuiltinId()) {
-        builtin_index = shared()->builtin_id();
-        os << "\n - builtin: " << isolate->builtins()->name(builtin_index)
-           << "(lazy)";
-      }
-    } else {
-      os << "\n - builtin: " << isolate->builtins()->name(builtin_index);
-    }
+  if (Builtins::IsBuiltinId(builtin_index) && !IsInterpreted()) {
+    os << "\n - builtin: " << isolate->builtins()->name(builtin_index);
   }
 
   os << "\n - formal_parameter_count: "

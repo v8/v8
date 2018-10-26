@@ -62,12 +62,6 @@ namespace internal {
 
 enum CodeCacheType { kLazy, kEager, kAfterExecute };
 
-void DisableLazyDeserialization() {
-  // UNINITIALIZED tests do not set up the isolate sufficiently for lazy
-  // deserialization to work.
-  FLAG_lazy_deserialization = false;
-}
-
 void DisableAlwaysOpt() {
   // Isolates prepared for serialization do not optimize. The only exception is
   // with the flag --always-opt.
@@ -335,41 +329,35 @@ void TestStartupSerializerOnceImpl() {
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   TestStartupSerializerOnceImpl();
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce1) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   FLAG_serialization_chunk_size = 1;
   TestStartupSerializerOnceImpl();
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce32) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   FLAG_serialization_chunk_size = 32;
   TestStartupSerializerOnceImpl();
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce1K) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   FLAG_serialization_chunk_size = 1 * KB;
   TestStartupSerializerOnceImpl();
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce4K) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   FLAG_serialization_chunk_size = 4 * KB;
   TestStartupSerializerOnceImpl();
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce32K) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   FLAG_serialization_chunk_size = 32 * KB;
   TestStartupSerializerOnceImpl();
@@ -423,7 +411,6 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwice) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
@@ -445,7 +432,6 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs = Serialize(isolate);
@@ -471,7 +457,6 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
@@ -565,7 +550,6 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 }
 
 UNINITIALIZED_TEST(PartialSerializerContext) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> builtin_blob;
@@ -700,7 +684,6 @@ static void PartiallySerializeCustomContext(
 }
 
 UNINITIALIZED_TEST(PartialSerializerCustomContext) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> builtin_blob;

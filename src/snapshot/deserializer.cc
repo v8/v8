@@ -99,11 +99,6 @@ void Deserializer<AllocatorT>::Initialize(Isolate* isolate) {
 }
 
 template <class AllocatorT>
-bool Deserializer<AllocatorT>::IsLazyDeserializationEnabled() const {
-  return FLAG_lazy_deserialization && !isolate()->serializer_enabled();
-}
-
-template <class AllocatorT>
 void Deserializer<AllocatorT>::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
   for (const auto& item : to_rehash_) item->RehashBasedOnMap(isolate());
@@ -318,14 +313,6 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),
                                     HeapObject::RequiredAlignment(obj->map())));
   return obj;
-}
-
-template <class AllocatorT>
-int Deserializer<AllocatorT>::MaybeReplaceWithDeserializeLazy(int builtin_id) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  return IsLazyDeserializationEnabled() && Builtins::IsLazy(builtin_id)
-             ? Builtins::kDeserializeLazy
-             : builtin_id;
 }
 
 template <class AllocatorT>
@@ -878,7 +865,7 @@ UnalignedSlot Deserializer<AllocatorT>::ReadDataCase(
       emit_write_barrier = Heap::InNewSpace(new_object);
     } else {
       DCHECK_EQ(where, kBuiltin);
-      int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
+      int builtin_id = source_.GetInt();
       new_object = isolate->builtins()->builtin(builtin_id);
       emit_write_barrier = false;
     }

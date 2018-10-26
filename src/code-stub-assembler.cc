@@ -12482,15 +12482,6 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
   GotoIfNot(WordEqual(inst_of_handler, function_has_instance),
             &if_otherhandler);
   {
-    // TODO(6786): A direct call to a TFJ builtin breaks the lazy
-    // deserialization mechanism in two ways: first, we always pass in a
-    // callable containing the DeserializeLazy code object (assuming that
-    // FunctionPrototypeHasInstance is lazy). Second, a direct call (without
-    // going through CodeFactory::Call) to DeserializeLazy will not initialize
-    // new_target properly. For now we can avoid this by marking
-    // FunctionPrototypeHasInstance as eager, but this should be fixed at some
-    // point.
-    //
     // Call to Function.prototype[@@hasInstance] directly.
     Callable builtin(BUILTIN_CODE(isolate(), FunctionPrototypeHasInstance),
                      CallTrampolineDescriptor{});
@@ -13162,7 +13153,6 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsBytecodeArray: Interpret bytecode
   BIND(&check_is_bytecode_array);
-  DCHECK(!Builtins::IsLazy(Builtins::kInterpreterEntryTrampoline));
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
   Goto(&done);
 
@@ -13174,7 +13164,6 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsFixedArray: Instantiate using AsmWasmData
   BIND(&check_is_fixed_array);
-  DCHECK(!Builtins::IsLazy(Builtins::kInstantiateAsmJs));
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));
   Goto(&done);
 
@@ -13183,13 +13172,11 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   BIND(&check_is_uncompiled_data_with_pre_parsed_scope);
   Goto(&check_is_uncompiled_data_without_pre_parsed_scope);
   BIND(&check_is_uncompiled_data_without_pre_parsed_scope);
-  DCHECK(!Builtins::IsLazy(Builtins::kCompileLazy));
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
   Goto(if_compile_lazy ? if_compile_lazy : &done);
 
   // IsFunctionTemplateInfo: API call
   BIND(&check_is_function_template_info);
-  DCHECK(!Builtins::IsLazy(Builtins::kHandleApiCall));
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), HandleApiCall));
   Goto(&done);
 

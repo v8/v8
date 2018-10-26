@@ -168,14 +168,6 @@ class Snapshot : public AllStatic {
       size_t context_index,
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
-  // Deserializes a single given builtin code object. Intended to be called at
-  // runtime after the isolate (and the builtins table) has been fully
-  // initialized.
-  static Code* DeserializeBuiltin(Isolate* isolate, int builtin_id);
-  static void EnsureAllBuiltinsAreDeserialized(Isolate* isolate);
-  static Code* EnsureBuiltinIsDeserialized(Isolate* isolate,
-                                           Handle<SharedFunctionInfo> shared);
-
   // ---------------- Helper methods ----------------
 
   static bool HasContextSnapshot(Isolate* isolate, size_t index);
