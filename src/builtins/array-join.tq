@@ -15,7 +15,7 @@ module array {
       String
       labels IfException(Object);
 
-  builtin LoadJoinElement<T: type>(
+  transitioning builtin LoadJoinElement<T: type>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     return GetProperty(receiver, k);
   }
@@ -59,7 +59,7 @@ module array {
     }
   }
 
-  builtin ConvertToLocaleString(
+  transitioning builtin ConvertToLocaleString(
       context: Context, element: Object, locales: Object,
       options: Object): String {
     if (IsNullOrUndefined(element)) return kEmptyString;
@@ -211,7 +211,7 @@ module array {
         buffer.fixedArray, buffer.index, sep, r);
   }
 
-  macro ArrayJoinImpl(
+  transitioning macro ArrayJoinImpl(
       context: Context, receiver: JSReceiver, sep: String, lengthNumber: Number,
       useToLocaleString: constexpr bool, locales: Object, options: Object,
       initialLoadJoinElement: LoadJoinElementFn): String {
@@ -279,7 +279,7 @@ module array {
     return BufferJoin(buffer, sep);
   }
 
-  macro ArrayJoin(implicit context: Context)(
+  transitioning macro ArrayJoin(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
       lenNumber: Number, locales: Object, options: Object): Object {
     const map: Map = receiver.map;
@@ -327,13 +327,13 @@ module array {
         loadJoinElements);
   }
 
-  builtin ArrayJoinWithToLocaleString(
+  transitioning builtin ArrayJoinWithToLocaleString(
       context: Context, receiver: JSReceiver, sep: String, len: Number,
       locales: Object, options: Object): Object {
     return ArrayJoin(true, receiver, sep, len, locales, options);
   }
 
-  builtin ArrayJoinWithoutToLocaleString(
+  transitioning builtin ArrayJoinWithoutToLocaleString(
       context: Context, receiver: JSReceiver, sep: String, len: Number,
       locales: Object, options: Object): Object {
     return ArrayJoin(false, receiver, sep, len, locales, options);
@@ -450,7 +450,7 @@ module array {
   }
 
   // Main entry point for all builtins using Array Join functionality.
-  macro CycleProtectedArrayJoin(implicit context: Context)(
+  transitioning macro CycleProtectedArrayJoin(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: Object, sepObj: Object,
       locales: Object, options: Object): Object {
     // 1. Let O be ? ToObject(this value).
@@ -485,7 +485,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.join
-  javascript builtin ArrayPrototypeJoin(
+  transitioning javascript builtin ArrayPrototypeJoin(
       context: Context, receiver: Object, ...arguments): Object {
     const separator: Object = arguments[0];
     return CycleProtectedArrayJoin(
@@ -493,7 +493,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.toLocaleString
-  javascript builtin ArrayPrototypeToLocaleString(
+  transitioning javascript builtin ArrayPrototypeToLocaleString(
       context: Context, receiver: Object, ...arguments): Object {
     const locales: Object = arguments[0];
     const options: Object = arguments[1];
@@ -501,7 +501,7 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.toString
-  javascript builtin ArrayPrototypeToString(
+  transitioning javascript builtin ArrayPrototypeToString(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let array be ? ToObject(this value).
     const array: JSReceiver = ToObject_Inline(context, receiver);
