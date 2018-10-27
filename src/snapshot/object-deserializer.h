@@ -20,8 +20,7 @@ class ObjectDeserializer final : public Deserializer<> {
       Isolate* isolate, const SerializedCodeData* data, Handle<String> source);
 
  private:
-  explicit ObjectDeserializer(const SerializedCodeData* data)
-      : Deserializer(data, true) {}
+  explicit ObjectDeserializer(const SerializedCodeData* data);
 
   // Deserialize an object graph. Fail gracefully.
   MaybeHandle<HeapObject> Deserialize(Isolate* isolate);
