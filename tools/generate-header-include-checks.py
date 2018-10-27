@@ -30,7 +30,6 @@ AUTO_EXCLUDE = [
   'src/flag-definitions.h',
   # blacklist of headers we need to fix (https://crbug.com/v8/7965).
   'src/compiler/js-context-specialization.h',
-  'src/compiler/raw-machine-assembler.h',
   'src/regexp/jsregexp.h',
   'src/snapshot/object-deserializer.h',
   'src/transitions.h',
