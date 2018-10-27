@@ -29,7 +29,6 @@ AUTO_EXCLUDE = [
   # flag-definitions.h needs a mode set for being included.
   'src/flag-definitions.h',
   # blacklist of headers we need to fix (https://crbug.com/v8/7965).
-  'src/regexp/jsregexp.h',
   'src/transitions.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
