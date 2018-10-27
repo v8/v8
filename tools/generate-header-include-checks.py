@@ -29,7 +29,6 @@ AUTO_EXCLUDE = [
   # flag-definitions.h needs a mode set for being included.
   'src/flag-definitions.h',
   # blacklist of headers we need to fix (https://crbug.com/v8/7965).
-  'src/allocation-site-scopes.h',
   'src/compiler/allocation-builder.h',
   'src/compiler/js-context-specialization.h',
   'src/compiler/raw-machine-assembler.h',
