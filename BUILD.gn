@@ -1701,6 +1701,7 @@ v8_source_set("v8_base") {
     "src/compiler/access-info.h",
     "src/compiler/all-nodes.cc",
     "src/compiler/all-nodes.h",
+    "src/compiler/allocation-builder-inl.h",
     "src/compiler/allocation-builder.h",
     "src/compiler/basic-block-instrumentor.cc",
     "src/compiler/basic-block-instrumentor.h",
