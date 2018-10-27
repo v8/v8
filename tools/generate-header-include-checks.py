@@ -36,8 +36,6 @@ AUTO_EXCLUDE = [
   'src/dateparser-inl.h',
   'src/ic/ic.h',
   'src/lookup.h',
-  'src/parsing/parser.h',
-  'src/parsing/preparser.h',
   'src/regexp/jsregexp.h',
   'src/snapshot/object-deserializer.h',
   'src/transitions.h',
