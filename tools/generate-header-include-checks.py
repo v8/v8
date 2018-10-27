@@ -34,7 +34,6 @@ AUTO_EXCLUDE = [
   'src/compiler/raw-machine-assembler.h',
   'src/dateparser-inl.h',
   'src/ic/ic.h',
-  'src/lookup.h',
   'src/regexp/jsregexp.h',
   'src/snapshot/object-deserializer.h',
   'src/transitions.h',
