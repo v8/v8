@@ -33,7 +33,6 @@ AUTO_EXCLUDE = [
   'src/compiler/js-context-specialization.h',
   'src/compiler/raw-machine-assembler.h',
   'src/dateparser-inl.h',
-  'src/ic/ic.h',
   'src/regexp/jsregexp.h',
   'src/snapshot/object-deserializer.h',
   'src/transitions.h',
