@@ -109,6 +109,27 @@ module array {
     }
   }
 
+  // Stores an element to a fixed array and return the fixed array. If the fixed
+  // array is not large enough, create and return a new, larger fixed array that
+  // contains all previously elements and the new element.
+  macro StoreAndGrowFixedArray<T: type>(
+      fixedArray: FixedArray, index: intptr, element: T): FixedArray {
+    const length: intptr = fixedArray.length_intptr;
+    assert(index <= length);
+    if (index < length) {
+      fixedArray[index] = element;
+      return fixedArray;
+    } else
+      deferred {
+        const newLength: intptr = CalculateNewElementsCapacity(length);
+        assert(index < newLength);
+        const newfixedArray: FixedArray =
+            ExtractFixedArray(fixedArray, 0, length, newLength, kFixedArrays);
+        newfixedArray[index] = element;
+        return newfixedArray;
+      }
+  }
+
   // Contains the information necessary to create a single, separator delimited,
   // flattened one or two byte string.
   // The buffer is maintained and updated by BufferInit(), BufferAdd(),
@@ -143,8 +164,8 @@ module array {
   }
 
   macro BufferInit(len: uintptr, sep: String): Buffer {
-    const cappedBufferSize: intptr = len > kFixedArrayMaxLength ?
-        FromConstexpr<intptr>(kFixedArrayMaxLength) :
+    const cappedBufferSize: intptr = len > kMaxNewSpaceFixedArrayElements ?
+        kMaxNewSpaceFixedArrayElements :
         Signed(len);
     assert(cappedBufferSize > 0);
     const fixedArray: FixedArray = AllocateZeroedFixedArray(cappedBufferSize);
@@ -164,11 +185,11 @@ module array {
     const totalStringLength: intptr =
         AddStringLength(buffer.totalStringLength, str.length);
     let index: intptr = buffer.index;
-    assert(index < buffer.fixedArray.length_intptr);
-    buffer.fixedArray[index++] = str;
+    const fixedArray: FixedArray =
+        StoreAndGrowFixedArray<String>(buffer.fixedArray, index++, str);
     const isOneByte: bool =
         HasOnlyOneByteChars(str.instanceType) & buffer.isOneByte;
-    return Buffer{buffer.fixedArray, index, totalStringLength, isOneByte};
+    return Buffer{fixedArray, index, totalStringLength, isOneByte};
   }
 
   macro BufferAddSeparators(implicit context: Context)(
@@ -187,16 +208,12 @@ module array {
     const totalStringLength: intptr =
         AddStringLength(buffer.totalStringLength, sepsLen);
     let index: intptr = buffer.index;
+    let fixedArray: FixedArray = buffer.fixedArray;
     if (write) deferred {
-        assert(index < buffer.fixedArray.length_intptr);
-        buffer.fixedArray[index++] = Convert<Smi>(nofSeparatorsInt);
+        fixedArray = StoreAndGrowFixedArray<Smi>(
+            buffer.fixedArray, index++, Convert<Smi>(nofSeparatorsInt));
       }
-    return Buffer{
-      buffer.fixedArray,
-      index,
-      totalStringLength,
-      buffer.isOneByte
-    };
+    return Buffer{fixedArray, index, totalStringLength, buffer.isOneByte};
   }
 
   macro BufferJoin(implicit context: Context)(
@@ -381,10 +398,8 @@ module array {
     }
 
     // If no open slots were found, grow the stack and add receiver to the end.
-    const newCapacity: intptr = CalculateNewElementsCapacity(capacity);
     const newStack: FixedArray =
-        ExtractFixedArray(stack, 0, capacity, newCapacity, kFixedArrays);
-    newStack[capacity] = receiver;
+        StoreAndGrowFixedArray<JSReceiver>(stack, capacity, receiver);
     SetJoinStack(newStack);
     return True;
   }
@@ -460,8 +475,8 @@ module array {
     const len: Number = GetLengthProperty(o);
     // 3. If separator is undefined, let sep be the single-element String ",".
     // 4. Else, let sep be ? ToString(separator).
-    let sep: String = sepObj == Undefined ? FromConstexpr<String>(',') :
-                                            ToString_Inline(context, sepObj);
+    let sep: String =
+        sepObj == Undefined ? ',' : ToString_Inline(context, sepObj);
     try {
       // Fast paths for zero elements
       if (len == 0) goto IfReturnEmpty;
