@@ -122,7 +122,6 @@ class CompilationStateImpl {
 
   bool has_outstanding_units() const { return outstanding_units_ > 0; }
 
-  WasmEngine* wasm_engine() const { return native_module_->wasm_engine(); }
   CompileMode compile_mode() const { return compile_mode_; }
   WasmFeatures* detected_features() { return &detected_features_; }
 
@@ -435,8 +434,9 @@ namespace {
 // {CompilationStateImpl} when {Commit} is called.
 class CompilationUnitBuilder {
  public:
-  explicit CompilationUnitBuilder(NativeModule* native_module)
-      : native_module_(native_module) {}
+  explicit CompilationUnitBuilder(NativeModule* native_module,
+                                  WasmEngine* wasm_engine)
+      : native_module_(native_module), wasm_engine_(wasm_engine) {}
 
   void AddUnit(const WasmFunction* function, uint32_t buffer_offset,
                Vector<const uint8_t> bytes) {
@@ -474,7 +474,7 @@ class CompilationUnitBuilder {
                                                   Vector<const uint8_t> bytes,
                                                   ExecutionTier mode) {
     return base::make_unique<WasmCompilationUnit>(
-        compilation_state()->wasm_engine(), native_module_,
+        wasm_engine_, native_module_,
         FunctionBody{function->sig, buffer_offset, bytes.begin(), bytes.end()},
         function->func_index,
         compilation_state()->isolate()->async_counters().get(), mode);
@@ -485,6 +485,7 @@ class CompilationUnitBuilder {
   }
 
   NativeModule* const native_module_;
+  WasmEngine* const wasm_engine_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_units_;
 };
@@ -540,10 +541,11 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   return true;
 }
 
-void InitializeCompilationUnits(NativeModule* native_module) {
+void InitializeCompilationUnits(NativeModule* native_module,
+                                WasmEngine* wasm_engine) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const WasmModule* module = native_module->module();
-  CompilationUnitBuilder builder(native_module);
+  CompilationUnitBuilder builder(native_module, wasm_engine);
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
   for (uint32_t i = start; i < end; ++i) {
@@ -622,7 +624,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   //    {compilation_state}. By adding units to the {compilation_state}, new
   //    {BackgroundCompileTask} instances are spawned which run on
   //    background threads.
-  InitializeCompilationUnits(native_module);
+  InitializeCompilationUnits(native_module, isolate->wasm_engine());
 
   // 2.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
@@ -2601,7 +2603,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       compilation_state->SetNumberOfFunctionsToCompile(
           module_->num_declared_functions);
       // Add compilation units and kick off compilation.
-      InitializeCompilationUnits(job_->native_module_);
+      InitializeCompilationUnits(job_->native_module_,
+                                 job_->isolate()->wasm_engine());
     }
   }
 };
@@ -2766,8 +2769,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_.store(2);
-  compilation_unit_builder_.reset(
-      new CompilationUnitBuilder(job_->native_module_));
+  compilation_unit_builder_.reset(new CompilationUnitBuilder(
+      job_->native_module_, job_->isolate()->wasm_engine()));
   return true;
 }
 
