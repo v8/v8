@@ -5,22 +5,14 @@
 #ifndef V8_WASM_COMPILATION_ENVIRONMENT_H_
 #define V8_WASM_COMPILATION_ENVIRONMENT_H_
 
-#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-tier.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
-class CompilationState;
-class LiftoffCompilationUnit;
-struct ModuleWireBytes;
 class NativeModule;
-class WasmCode;
-class WasmEngine;
-struct WasmFunction;
 
 enum RuntimeExceptionSupport : bool {
   kRuntimeExceptionSupport = true,
