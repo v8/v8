@@ -2234,6 +2234,14 @@ class RepresentationSelector {
             lowering->DoMax(node, lowering->machine()->Int32LessThan(),
                             MachineRepresentation::kWord32);
           }
+        } else if (jsgraph_->machine()->Is64() &&
+                   lhs_type.Is(type_cache_.kSafeInteger) &&
+                   rhs_type.Is(type_cache_.kSafeInteger)) {
+          VisitInt64Binop(node);
+          if (lower()) {
+            lowering->DoMax(node, lowering->machine()->Int64LessThan(),
+                            MachineRepresentation::kWord64);
+          }
         } else {
           VisitBinop(node,
                      UseInfo::TruncatingFloat64(truncation.identify_zeros()),
@@ -2279,6 +2287,14 @@ class RepresentationSelector {
           if (lower()) {
             lowering->DoMin(node, lowering->machine()->Int32LessThan(),
                             MachineRepresentation::kWord32);
+          }
+        } else if (jsgraph_->machine()->Is64() &&
+                   lhs_type.Is(type_cache_.kSafeInteger) &&
+                   rhs_type.Is(type_cache_.kSafeInteger)) {
+          VisitInt64Binop(node);
+          if (lower()) {
+            lowering->DoMin(node, lowering->machine()->Int64LessThan(),
+                            MachineRepresentation::kWord64);
           }
         } else {
           VisitBinop(node,
