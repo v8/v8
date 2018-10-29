@@ -192,11 +192,10 @@ size_t Heap::CommittedOldGenerationMemory() {
   return total + lo_space_->Size();
 }
 
-size_t Heap::CommittedMemoryOfHeapAndUnmapper() {
+size_t Heap::CommittedMemoryOfUnmapper() {
   if (!HasBeenSetUp()) return 0;
 
-  return CommittedMemory() +
-         memory_allocator()->unmapper()->CommittedBufferedMemory();
+  return memory_allocator()->unmapper()->CommittedBufferedMemory();
 }
 
 size_t Heap::CommittedMemory() {
@@ -374,9 +373,9 @@ void Heap::PrintShortHeapStatistics() {
                this->SizeOfObjects() / KB, this->Available() / KB,
                this->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Unmapper buffering %d chunks of committed: %6" PRIuS " KB\n",
-               memory_allocator()->unmapper()->NumberOfChunks(),
-               CommittedMemoryOfHeapAndUnmapper() / KB);
+               "Unmapper buffering %zu chunks of committed: %6" PRIuS " KB\n",
+               memory_allocator()->unmapper()->NumberOfCommittedChunks(),
+               CommittedMemoryOfUnmapper() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
                isolate()->isolate_data()->external_memory_ / KB);
   PrintIsolate(isolate_, "Backing store memory: %6" PRIuS " KB\n",

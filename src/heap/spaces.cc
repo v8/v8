@@ -360,6 +360,11 @@ void MemoryAllocator::Unmapper::TearDown() {
   }
 }
 
+size_t MemoryAllocator::Unmapper::NumberOfCommittedChunks() {
+  base::MutexGuard guard(&mutex_);
+  return chunks_[kRegular].size() + chunks_[kNonRegular].size();
+}
+
 int MemoryAllocator::Unmapper::NumberOfChunks() {
   base::MutexGuard guard(&mutex_);
   size_t result = 0;
