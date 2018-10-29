@@ -309,8 +309,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   X64OperandGenerator g(this);
 
   ArchOpcode opcode = GetLoadOpcode(load_rep);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand inputs[3];
   size_t input_count = 0;
   AddressingMode mode =
@@ -671,6 +670,52 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 }
 
 namespace {
+
+inline AddressingMode AddDisplacementToAddressingMode(AddressingMode mode) {
+  switch (mode) {
+    case kMode_MR:
+      return kMode_MRI;
+      break;
+    case kMode_MR1:
+      return kMode_MR1I;
+      break;
+    case kMode_MR2:
+      return kMode_MR2I;
+      break;
+    case kMode_MR4:
+      return kMode_MR4I;
+      break;
+    case kMode_MR8:
+      return kMode_MR8I;
+      break;
+    case kMode_M1:
+      return kMode_M1I;
+      break;
+    case kMode_M2:
+      return kMode_M2I;
+      break;
+    case kMode_M4:
+      return kMode_M4I;
+      break;
+    case kMode_M8:
+      return kMode_M8I;
+      break;
+    case kMode_None:
+    case kMode_MRI:
+    case kMode_MR1I:
+    case kMode_MR2I:
+    case kMode_MR4I:
+    case kMode_MR8I:
+    case kMode_M1I:
+    case kMode_M2I:
+    case kMode_M4I:
+    case kMode_M8I:
+    case kMode_Root:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
 bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
                                      InstructionCode opcode) {
   DCHECK(IrOpcode::kWord64Sar == node->opcode() ||
@@ -693,47 +738,7 @@ bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
         // Make sure that the addressing mode indicates the presence of an
         // immediate displacement. It seems that we never use M1 and M2, but we
         // handle them here anyways.
-        switch (mode) {
-          case kMode_MR:
-            mode = kMode_MRI;
-            break;
-          case kMode_MR1:
-            mode = kMode_MR1I;
-            break;
-          case kMode_MR2:
-            mode = kMode_MR2I;
-            break;
-          case kMode_MR4:
-            mode = kMode_MR4I;
-            break;
-          case kMode_MR8:
-            mode = kMode_MR8I;
-            break;
-          case kMode_M1:
-            mode = kMode_M1I;
-            break;
-          case kMode_M2:
-            mode = kMode_M2I;
-            break;
-          case kMode_M4:
-            mode = kMode_M4I;
-            break;
-          case kMode_M8:
-            mode = kMode_M8I;
-            break;
-          case kMode_None:
-          case kMode_MRI:
-          case kMode_MR1I:
-          case kMode_MR2I:
-          case kMode_MR4I:
-          case kMode_MR8I:
-          case kMode_M1I:
-          case kMode_M2I:
-          case kMode_M4I:
-          case kMode_M8I:
-          case kMode_Root:
-            UNREACHABLE();
-        }
+        mode = AddDisplacementToAddressingMode(mode);
         inputs[input_count++] = ImmediateOperand(ImmediateOperand::INLINE, 4);
       } else {
         // In the case that the base address was zero, the displacement will be
@@ -752,6 +757,7 @@ bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
   }
   return false;
 }
+
 }  // namespace
 
 void InstructionSelector::VisitWord64Shr(Node* node) {
