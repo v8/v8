@@ -214,7 +214,7 @@ class Scanner {
     explicit BookmarkScope(Scanner* scanner)
         : scanner_(scanner),
           bookmark_(kNoBookmark),
-          had_parser_error_(scanner->has_parser_error_set()) {
+          had_parser_error_(scanner->has_parser_error()) {
       DCHECK_NOT_NULL(scanner_);
     }
     ~BookmarkScope() = default;
@@ -251,7 +251,7 @@ class Scanner {
   V8_INLINE void reset_parser_error_flag() {
     source_->reset_parser_error_flag();
   }
-  V8_INLINE bool has_parser_error_set() const {
+  V8_INLINE bool has_parser_error() const {
     return source_->has_parser_error();
   }
 

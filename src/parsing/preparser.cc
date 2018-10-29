@@ -21,7 +21,7 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // The RETURN_IF_PARSE_ERROR macro is a convenient macro to enforce error
 // handling for functions that may fail (by returning if there was an parser
-// error scanner()->has_parser_error_set).
+// error scanner()->has_parser_error).
 //
 // Usage:
 //     foo = ParseFoo(); // may fail
@@ -29,9 +29,9 @@ namespace internal {
 //
 //     SAFE_USE(foo);
 
-#define RETURN_IF_PARSE_ERROR_VALUE(x)     \
-  if (scanner()->has_parser_error_set()) { \
-    return x;                              \
+#define RETURN_IF_PARSE_ERROR_VALUE(x) \
+  if (scanner()->has_parser_error()) { \
+    return x;                          \
   }
 
 #define RETURN_IF_PARSE_ERROR RETURN_IF_PARSE_ERROR_VALUE(Expression::Default())
@@ -104,7 +104,7 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   int start_position = scanner()->peek_location().beg_pos;
   PreParserStatementList body;
   ParseStatementList(body, Token::EOS);
-  ok = !scanner()->has_parser_error_set();
+  ok = !scanner()->has_parser_error();
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (!ok) {
@@ -219,7 +219,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     return kPreParseStackOverflow;
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
     return kPreParseNotIdentifiableError;
-  } else if (scanner()->has_parser_error_set()) {
+  } else if (scanner()->has_parser_error()) {
     DCHECK(pending_error_handler()->has_pending_error());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
@@ -229,7 +229,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       // Validate parameter names. We can do this only after parsing the
       // function, since the function can declare itself strict.
       ValidateFormalParameters(language_mode(), allow_duplicate_parameters);
-      if (scanner()->has_parser_error_set()) {
+      if (scanner()->has_parser_error()) {
         if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
           return kPreParseNotIdentifiableError;
         } else {

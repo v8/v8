@@ -498,7 +498,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
 
     void AddExpression(Expression* expression, Zone* zone) {
-      DCHECK_NOT_NULL(expression);
       expressions_.Add(expression, zone);
     }
 

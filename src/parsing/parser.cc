@@ -139,7 +139,7 @@ void Parser::GetUnexpectedTokenMessage(Token::Value token,
 // ----------------------------------------------------------------------------
 // The RETURN_IF_PARSE_ERROR macro is a convenient macro to enforce error
 // handling for functions that may fail (by returning if there was an parser
-// error scanner()->has_parser_error_set).
+// error scanner()->has_parser_error()).
 //
 // Usage:
 //     foo = ParseFoo(); // may fail
@@ -147,9 +147,9 @@ void Parser::GetUnexpectedTokenMessage(Token::Value token,
 //
 //     SAFE_USE(foo);
 
-#define RETURN_IF_PARSE_ERROR_VALUE(x)     \
-  if (scanner()->has_parser_error_set()) { \
-    return x;                              \
+#define RETURN_IF_PARSE_ERROR_VALUE(x) \
+  if (scanner()->has_parser_error()) { \
+    return x;                          \
   }
 
 #define RETURN_IF_PARSE_ERROR RETURN_IF_PARSE_ERROR_VALUE(nullptr)
@@ -589,7 +589,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
           zone());
 
       ParseModuleItemList(body);
-      ok = !scanner_.has_parser_error_set() &&
+      ok = !scanner_.has_parser_error() &&
            module()->Validate(this->scope()->AsModuleScope(),
                               pending_error_handler(), zone());
     } else if (info->is_wrapped_as_function()) {
@@ -600,7 +600,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       this->scope()->SetLanguageMode(info->language_mode());
       ParseStatementList(body, Token::EOS);
     }
-    ok = ok && !scanner_.has_parser_error_set();
+    ok = ok && !scanner_.has_parser_error();
 
     // The parser will peek but not consume EOS.  Our scope logically goes all
     // the way to the EOS, though.
@@ -608,7 +608,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
 
     if (ok && is_strict(language_mode())) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos);
-      ok = !scanner_.has_parser_error_set();
+      ok = !scanner_.has_parser_error();
     }
     if (ok && is_sloppy(language_mode())) {
       // TODO(littledan): Function bindings on the global object that modify
@@ -619,7 +619,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     }
     if (ok) {
       CheckConflictingVarDeclarations(scope);
-      ok = !scanner_.has_parser_error_set();
+      ok = !scanner_.has_parser_error();
     }
 
     if (ok && info->parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
@@ -816,12 +816,12 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         if (Check(Token::LPAREN)) {
           // '(' StrictFormalParameters ')'
           ParseFormalParameterList(&formals);
-          ok = !scanner_.has_parser_error_set();
+          ok = !scanner_.has_parser_error();
           if (ok) ok = Check(Token::RPAREN);
         } else {
           // BindingIdentifier
           ParseFormalParameter(&formals);
-          ok = !scanner_.has_parser_error_set();
+          ok = !scanner_.has_parser_error();
           if (ok) {
             DeclareFormalParameters(&formals);
           }
@@ -854,7 +854,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         const int rewritable_length = 0;
         Expression* expression =
             ParseArrowFunctionLiteral(accept_IN, formals, rewritable_length);
-        ok = !scanner_.has_parser_error_set();
+        ok = !scanner_.has_parser_error();
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack
@@ -885,10 +885,10 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, function_type, info->language_mode(),
           arguments_for_wrapped_function);
-      ok = !scanner_.has_parser_error_set();
+      ok = !scanner_.has_parser_error();
     }
 
-    DCHECK_EQ(ok, !scanner_.has_parser_error_set());
+    DCHECK_EQ(ok, !scanner_.has_parser_error());
     if (ok) {
       result->set_requires_instance_fields_initializer(
           info->requires_instance_fields_initializer());
@@ -1461,7 +1461,7 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
   }
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, nullptr,
           scanner()->location().end_pos);
-  if (scanner()->has_parser_error_set()) return nullptr;
+  if (scanner()->has_parser_error()) return nullptr;
   return declaration;
 }
 
@@ -1477,7 +1477,7 @@ Variable* Parser::Declare(Declaration* declaration,
   Variable* variable = scope->DeclareVariable(
       declaration, mode, init, &sloppy_mode_block_scope_function_redefinition,
       &local_ok);
-  if (!local_ok | scanner()->has_parser_error_set()) {
+  if (!local_ok | scanner()->has_parser_error()) {
     // If we only have the start position of a proxy, we can't highlight the
     // whole variable name.  Pretend its length is 1 so that we highlight at
     // least the first character.
@@ -1788,7 +1788,7 @@ void Parser::ParseAndRewriteGeneratorFunctionBody(
   Expression* initial_yield = BuildInitialYield(pos, kind);
   body->Add(factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
             zone());
-  ParseStatementList(body, Token::RBRACE, !scanner()->has_parser_error_set());
+  ParseStatementList(body, Token::RBRACE, !scanner()->has_parser_error());
 }
 
 void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
@@ -1821,7 +1821,7 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
       factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
       zone());
   ParseStatementList(try_block->statements(), Token::RBRACE,
-                     !scanner()->has_parser_error_set());
+                     !scanner()->has_parser_error());
   RETURN_IF_PARSE_ERROR_VOID;
 
   // Don't create iterator result for async generators, as the resume methods
@@ -2843,7 +2843,7 @@ bool Parser::SkipFunction(
     pending_error_handler()->clear_unidentifiable_error();
     return false;
   } else if (pending_error_handler()->has_pending_error()) {
-    DCHECK(scanner()->has_parser_error_set());
+    DCHECK(scanner()->has_parser_error());
   } else {
     set_allow_eval_cache(reusable_preparser()->allow_eval_cache());
 
