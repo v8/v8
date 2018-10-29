@@ -536,6 +536,43 @@ void InstructionSelector::VisitWord64Xor(Node* node) {
 
 namespace {
 
+bool TryMergeTruncateInt64ToInt32IntoLoad(InstructionSelector* selector,
+                                          Node* node, Node* load) {
+  if (load->opcode() == IrOpcode::kLoad && selector->CanCover(node, load)) {
+    LoadRepresentation load_rep = LoadRepresentationOf(load->op());
+    MachineRepresentation rep = load_rep.representation();
+    InstructionCode opcode = kArchNop;
+    switch (rep) {
+      case MachineRepresentation::kBit:  // Fall through.
+      case MachineRepresentation::kWord8:
+        opcode = load_rep.IsSigned() ? kX64Movsxbl : kX64Movzxbl;
+        break;
+      case MachineRepresentation::kWord16:
+        opcode = load_rep.IsSigned() ? kX64Movsxwl : kX64Movzxwl;
+        break;
+      case MachineRepresentation::kWord32:
+      case MachineRepresentation::kWord64:
+      case MachineRepresentation::kTaggedSigned:
+      case MachineRepresentation::kTagged:
+        opcode = kX64Movl;
+        break;
+      default:
+        UNREACHABLE();
+        return false;
+    }
+    X64OperandGenerator g(selector);
+    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+    size_t input_count = 0;
+    InstructionOperand inputs[3];
+    AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+        node->InputAt(0), inputs, &input_count);
+    opcode |= AddressingModeField::encode(mode);
+    selector->Emit(opcode, 1, outputs, input_count, inputs);
+    return true;
+  }
+  return false;
+}
+
 // Shared routine for multiple 32-bit shift operations.
 // TODO(bmeurer): Merge this with VisitWord64Shift using template magic?
 void VisitWord32Shift(InstructionSelector* selector, Node* node,
@@ -1355,6 +1392,12 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
           }
           Emit(kX64Shr, g.DefineSameAsFirst(node),
                g.UseRegister(m.left().node()), g.TempImmediate(32));
+          return;
+        }
+        break;
+      }
+      case IrOpcode::kLoad: {
+        if (TryMergeTruncateInt64ToInt32IntoLoad(this, node, value)) {
           return;
         }
         break;
