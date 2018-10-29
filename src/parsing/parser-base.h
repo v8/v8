@@ -3364,8 +3364,7 @@ ParserBase<Impl>::ParseFunctionExpression() {
     // We don't want dynamic functions to actually declare their name
     // "anonymous". We just want that name in the toString().
     Consume(Token::IDENTIFIER);
-    DCHECK_IMPLIES(!has_error(),
-                   scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
+    DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
   } else if (peek_any_identifier()) {
     bool is_await = false;
     name = ParseIdentifierOrStrictReservedWord(
@@ -4420,9 +4419,9 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral() {
 
     // Consuming token we did not peek yet, which could lead to a ILLEGAL token
     // in the case of a stackoverflow.
-    Consume(Token::IDENTIFIER);
-    DCHECK_IMPLIES(!has_error(),
-                   scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
+    Expect(Token::IDENTIFIER);
+    RETURN_IF_PARSE_ERROR;
+    DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
   } else if (peek_any_identifier()) {
     type = FunctionLiteral::kNamedExpression;
     bool is_await = false;
