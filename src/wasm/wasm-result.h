@@ -125,15 +125,11 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   PRINTF_FORMAT(2, 3) void LinkError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void RuntimeError(const char* fmt, ...);
 
-  void CompileFailed(const char* error, const ResultBase& result) {
+  template <typename T>
+  void CompileFailed(const char* error, const Result<T>& result) {
     DCHECK(result.failed());
     CompileError("%s: %s @+%u", error, result.error_msg().c_str(),
                  result.error_offset());
-  }
-
-  void CompileFailed(const ResultBase& result) {
-    DCHECK(result.failed());
-    CompileError("%s @+%u", result.error_msg().c_str(), result.error_offset());
   }
 
   // Create and return exception object.

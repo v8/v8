@@ -350,9 +350,10 @@ TEST(SharedEngineRunThreadedTierUp) {
   threads.emplace_back(&engine, [module](SharedEngineIsolate& isolate) {
     HandleScope scope(isolate.isolate());
     Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
+    ErrorThrower thrower(isolate.isolate(), "Forced Tier Up");
     WasmFeatures detected = kNoWasmFeatures;
     WasmCompilationUnit::CompileWasmFunction(
-        isolate.isolate(), module.get(), &detected,
+        isolate.isolate(), module.get(), &detected, &thrower,
         &module->module()->functions[0], ExecutionTier::kOptimized);
     CHECK_EQ(23, isolate.Run(instance));
   });

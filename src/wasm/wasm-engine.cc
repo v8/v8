@@ -173,10 +173,11 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
 
 bool WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
                                  uint32_t function_index, ExecutionTier tier) {
+  ErrorThrower thrower(isolate, "Manually requested tier up");
   // Note we assume that "one-off" compilations can discard detected features.
   WasmFeatures detected = kNoWasmFeatures;
   return WasmCompilationUnit::CompileWasmFunction(
-      isolate, native_module, &detected,
+      isolate, native_module, &detected, &thrower,
       &native_module->module()->functions[function_index], tier);
 }
 

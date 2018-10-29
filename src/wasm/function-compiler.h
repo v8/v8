@@ -46,11 +46,17 @@ class WasmCompilationUnit final {
 
   NativeModule* native_module() const { return native_module_; }
   ExecutionTier mode() const { return mode_; }
-  bool failed() const { return result_ == nullptr; }  // TODO(clemensh): Remove.
-  WasmCode* result() const { return result_; }
+  bool failed() const { return result_.failed(); }
+  WasmCode* result() const {
+    DCHECK(!failed());
+    DCHECK_NOT_NULL(result_.value());
+    return result_.value();
+  }
+
+  void ReportError(ErrorThrower* thrower) const;
 
   static bool CompileWasmFunction(Isolate* isolate, NativeModule* native_module,
-                                  WasmFeatures* detected,
+                                  WasmFeatures* detected, ErrorThrower* thrower,
                                   const WasmFunction* function,
                                   ExecutionTier = GetDefaultExecutionTier());
 
@@ -63,7 +69,7 @@ class WasmCompilationUnit final {
   int func_index_;
   NativeModule* native_module_;
   ExecutionTier mode_;
-  WasmCode* result_ = nullptr;
+  wasm::Result<WasmCode*> result_;
 
   // LiftoffCompilationUnit, set if {mode_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;

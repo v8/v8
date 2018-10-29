@@ -93,6 +93,25 @@ void WasmCompilationUnit::ExecuteCompilation(CompilationEnv* env,
   }
 }
 
+void WasmCompilationUnit::ReportError(ErrorThrower* thrower) const {
+  DCHECK(result_.failed());
+  // Add the function as another context for the exception. This is
+  // user-visible, so use official format.
+  EmbeddedVector<char, 128> message;
+  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
+  wasm::WireBytesRef name_ref =
+      native_module()->module()->LookupFunctionName(wire_bytes, func_index_);
+  if (name_ref.is_set()) {
+    wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
+    SNPrintF(message, "Compiling wasm function \"%.*s\" failed", name.length(),
+             name.start());
+  } else {
+    SNPrintF(message, "Compiling wasm function \"wasm-function[%d]\" failed",
+             func_index_);
+  }
+  thrower->CompileFailed(message.start(), result_);
+}
+
 void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
   // This method is being called in the constructor, where neither
   // {liftoff_unit_} nor {turbofan_unit_} are set, or to switch mode from
@@ -116,11 +135,9 @@ void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
 }
 
 // static
-bool WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
-                                              NativeModule* native_module,
-                                              WasmFeatures* detected,
-                                              const WasmFunction* function,
-                                              ExecutionTier mode) {
+bool WasmCompilationUnit::CompileWasmFunction(
+    Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
+    ErrorThrower* thrower, const WasmFunction* function, ExecutionTier mode) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
@@ -130,12 +147,17 @@ bool WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
                            function->func_index, mode);
   CompilationEnv env = native_module->CreateCompilationEnv();
   unit.ExecuteCompilation(&env, isolate->counters(), detected);
-  return !unit.failed();
+  if (unit.failed()) {
+    unit.ReportError(thrower);
+    return false;
+  }
+  return true;
 }
 
 void WasmCompilationUnit::SetResult(WasmCode* code, Counters* counters) {
-  DCHECK_NULL(result_);
-  result_ = code;
+  DCHECK(!result_.failed());
+  DCHECK_NULL(result_.value());
+  result_ = Result<WasmCode*>(code);
   native_module()->PublishCode(code);
 
   counters->wasm_generated_code_size()->Increment(

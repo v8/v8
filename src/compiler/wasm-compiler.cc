@@ -5200,18 +5200,19 @@ TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
 // Clears unique_ptrs, but (part of) the type is forward declared in the header.
 TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
 
-bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
+SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
     wasm::CompilationEnv* env, wasm::WasmFeatures* detected, double* decode_ms,
-    MachineGraph* mcgraph, NodeOriginTable* node_origins,
-    SourcePositionTable* source_positions) {
+    MachineGraph* mcgraph, NodeOriginTable* node_origins) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();
   }
 
   // Create a TF graph during decoding.
+  SourcePositionTable* source_position_table =
+      new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph,
-                           wasm_unit_->func_body_.sig, source_positions);
+                           wasm_unit_->func_body_.sig, source_position_table);
   wasm::VoidResult graph_construction_result = wasm::BuildTFGraph(
       wasm_unit_->wasm_engine_->allocator(),
       wasm_unit_->native_module_->enabled_features(), env->module, &builder,
@@ -5221,9 +5222,9 @@ bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
       StdoutStream{} << "Compilation failed: "
                      << graph_construction_result.error_msg() << std::endl;
     }
-    wasm_unit_->native_module()->compilation_state()->SetError(
-        wasm_unit_->func_index_, std::move(graph_construction_result));
-    return false;
+    wasm_unit_->result_ = wasm::Result<wasm::WasmCode*>::ErrorFrom(
+        std::move(graph_construction_result));
+    return nullptr;
   }
 
   builder.LowerInt64();
@@ -5244,7 +5245,7 @@ bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
   }
-  return true;
+  return source_position_table;
 }
 
 namespace {
@@ -5293,13 +5294,10 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
                                       ? new (&zone)
                                             NodeOriginTable(mcgraph->graph())
                                       : nullptr;
-  SourcePositionTable* source_positions =
-      new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
-  if (!BuildGraphForWasmFunction(env, detected, &decode_ms, mcgraph,
-                                 node_origins, source_positions)) {
-    // Compilation failed.
-    return;
-  }
+  SourcePositionTable* source_positions = BuildGraphForWasmFunction(
+      env, detected, &decode_ms, mcgraph, node_origins);
+
+  if (wasm_unit_->failed()) return;
 
   if (node_origins) {
     node_origins->AddDecorator();
