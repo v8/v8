@@ -1303,6 +1303,7 @@ void JSWeakCell::JSWeakCellPrint(std::ostream& os) {
 
 void JSWeakFactory::JSWeakFactoryPrint(std::ostream& os) {
   JSObjectPrintHeader(os, this, "JSWeakFactory");
+  os << "\n - native_context: " << Brief(native_context());
   os << "\n - cleanup: " << Brief(cleanup());
   os << "\n - active_cells: " << Brief(active_cells());
   os << "\n - cleared_cells: " << Brief(cleared_cells());
@@ -1314,6 +1315,12 @@ void JSWeakFactoryCleanupIterator::JSWeakFactoryCleanupIteratorPrint(
   JSObjectPrintHeader(os, this, "JSWeakFactoryCleanupIterator");
   os << "\n - factory: " << Brief(factory());
   JSObjectPrintBody(os, this);
+}
+
+void WeakFactoryCleanupJobTask::WeakFactoryCleanupJobTaskPrint(
+    std::ostream& os) {
+  HeapObject::PrintHeader(os, "WeakFactoryCleanupJobTask");
+  os << "\n - factory: " << Brief(factory());
 }
 
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {  // NOLINT

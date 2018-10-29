@@ -935,18 +935,33 @@ void Heap::GarbageCollectionEpilogue() {
 
   if (FLAG_harmony_weak_refs) {
     // TODO(marja): (spec): The exact condition on when to schedule the cleanup
-    // task is unclear. This version schedules the cleanup task whenever there's
-    // a GC and we have dirty WeakCells (either because this GC discovered them
-    // or because an earlier invocation of the cleanup function didn't iterate
-    // through them). See https://github.com/tc39/proposal-weakrefs/issues/34
+    // task is unclear. This version schedules the cleanup task for a factory
+    // whenever the GC has discovered new dirty WeakCells for it (at that point
+    // it might have leftover dirty WeakCells since an earlier invocation of the
+    // cleanup function didn't iterate through them). See
+    // https://github.com/tc39/proposal-weakrefs/issues/34
     HandleScope handle_scope(isolate());
-    if (isolate()->context() != nullptr &&
-        isolate()->native_context()->IsNativeContext() &&
-        !isolate()->native_context()->dirty_js_weak_factories()->IsUndefined(
-            isolate())) {
-      v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate());
-      v8_isolate->EnqueueMicrotask(
-          JSWeakFactory::CleanupJSWeakFactoriesCallback, isolate());
+    while (
+        !isolate()->heap()->dirty_js_weak_factories()->IsUndefined(isolate())) {
+      // Enqueue one microtask per JSWeakFactory.
+      Handle<JSWeakFactory> weak_factory(
+          JSWeakFactory::cast(isolate()->heap()->dirty_js_weak_factories()),
+          isolate());
+      isolate()->heap()->set_dirty_js_weak_factories(weak_factory->next());
+      weak_factory->set_next(ReadOnlyRoots(isolate()).undefined_value());
+      Handle<Context> context(weak_factory->native_context(), isolate());
+      // GC has no native context, but we use the creation context of the
+      // JSWeakFactory for the EnqueueTask operation. This is consitent with the
+      // Promise implementation, assuming the JSFactory creation context is the
+      // "caller's context" in promise functions. An alternative would be to use
+      // the native context of the cleanup function. This difference shouldn't
+      // be observable from JavaScript, since we enter the native context of the
+      // cleanup function before calling it. TODO(marja): Revisit when the spec
+      // clarifies this. See also
+      // https://github.com/tc39/proposal-weakrefs/issues/38 .
+      Handle<WeakFactoryCleanupJobTask> task =
+          isolate()->factory()->NewWeakFactoryCleanupJobTask(weak_factory);
+      isolate()->EnqueueMicrotask(task);
     }
   }
 }
@@ -5230,6 +5245,25 @@ void Heap::UnregisterStrongRoots(Object** start) {
 
 void Heap::SetBuiltinsConstantsTable(FixedArray* cache) {
   set_builtins_constants_table(cache);
+}
+
+void Heap::AddDirtyJSWeakFactory(
+    JSWeakFactory* weak_factory,
+    std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
+        gc_notify_updated_slot) {
+  DCHECK(dirty_js_weak_factories()->IsUndefined(isolate()) ||
+         dirty_js_weak_factories()->IsJSWeakFactory());
+  DCHECK(weak_factory->next()->IsUndefined(isolate()));
+  DCHECK(!weak_factory->scheduled_for_cleanup());
+  weak_factory->set_scheduled_for_cleanup(true);
+  weak_factory->set_next(dirty_js_weak_factories());
+  gc_notify_updated_slot(
+      weak_factory,
+      HeapObject::RawField(weak_factory, JSWeakFactory::kNextOffset),
+      dirty_js_weak_factories());
+  set_dirty_js_weak_factories(weak_factory);
+  // Roots are rescanned after objects are moved, so no need to record a slot
+  // for the root pointing to the first JSWeakFactory.
 }
 
 size_t Heap::NumberOfTrackedHeapObjectTypes() {

@@ -63,6 +63,7 @@ class TemplateObjectDescription;
 class UncompiledDataWithoutPreParsedScope;
 class UncompiledDataWithPreParsedScope;
 class WasmExportedFunctionData;
+class WeakFactoryCleanupJobTask;
 struct SourceRange;
 template <typename T>
 class ZoneVector;
@@ -439,6 +440,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(
       Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
       Handle<JSReceiver> thenable, Handle<Context> context);
+  Handle<WeakFactoryCleanupJobTask> NewWeakFactoryCleanupJobTask(
+      Handle<JSWeakFactory> weak_factory);
 
   Handle<MicrotaskQueue> NewMicrotaskQueue();
 

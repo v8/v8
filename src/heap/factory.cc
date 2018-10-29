@@ -1356,8 +1356,6 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context->set_errors_thrown(Smi::kZero);
   context->set_math_random_index(Smi::kZero);
   context->set_serialized_objects(*empty_fixed_array());
-  context->set_dirty_js_weak_factories(
-      ReadOnlyRoots(isolate()).undefined_value());
   return context;
 }
 
@@ -1617,6 +1615,15 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
   microtask->set_then(*then);
   microtask->set_thenable(*thenable);
   microtask->set_context(*context);
+  return microtask;
+}
+
+Handle<WeakFactoryCleanupJobTask> Factory::NewWeakFactoryCleanupJobTask(
+    Handle<JSWeakFactory> weak_factory) {
+  Handle<WeakFactoryCleanupJobTask> microtask =
+      Handle<WeakFactoryCleanupJobTask>::cast(
+          NewStruct(WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE));
+  microtask->set_factory(*weak_factory);
   return microtask;
 }
 
