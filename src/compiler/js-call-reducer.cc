@@ -1187,6 +1187,11 @@ Reduction JSCallReducer::ReduceArrayForEach(Node* node,
   control = if_false;
   effect = eloop;
 
+  // Introduce proper LoopExit and LoopExitEffect nodes to mark
+  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
+  control = graph()->NewNode(common()->LoopExit(), control, loop);
+  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
+
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
   // return a successful completion. Therefore, we simply connect the successful
@@ -2119,9 +2124,15 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
   Node* if_not_found_value = (variant == ArrayFindVariant::kFind)
                                  ? jsgraph()->UndefinedConstant()
                                  : jsgraph()->MinusOneConstant();
-  Node* return_value =
+  Node* value =
       graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                        if_found_return_value, if_not_found_value, control);
+
+  // Introduce proper LoopExit/LoopExitEffect/LoopExitValue to mark
+  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
+  control = graph()->NewNode(common()->LoopExit(), control, loop);
+  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
+  value = graph()->NewNode(common()->LoopExitValue(), value, control);
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
@@ -2131,8 +2142,8 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
 
-  ReplaceWithValue(node, return_value, effect, control);
-  return Replace(return_value);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
@@ -2463,9 +2474,15 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   control = graph()->NewNode(common()->Merge(2), if_false, if_false_callback);
   effect =
       graph()->NewNode(common()->EffectPhi(2), eloop, efalse_callback, control);
-  Node* return_value = graph()->NewNode(
+  Node* value = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2),
       jsgraph()->TrueConstant(), jsgraph()->FalseConstant(), control);
+
+  // Introduce proper LoopExit/LoopExitEffect/LoopExitValue to mark
+  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
+  control = graph()->NewNode(common()->LoopExit(), control, loop);
+  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
+  value = graph()->NewNode(common()->LoopExitValue(), value, control);
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
@@ -2475,8 +2492,8 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
 
-  ReplaceWithValue(node, return_value, effect, control);
-  return Replace(return_value);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 namespace {
@@ -2812,9 +2829,15 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   control = graph()->NewNode(common()->Merge(2), if_false, if_true_callback);
   effect =
       graph()->NewNode(common()->EffectPhi(2), eloop, etrue_callback, control);
-  Node* return_value = graph()->NewNode(
+  Node* value = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2),
       jsgraph()->FalseConstant(), jsgraph()->TrueConstant(), control);
+
+  // Introduce proper LoopExit/LoopExitEffect/LoopExitValue to mark
+  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
+  control = graph()->NewNode(common()->LoopExit(), control, loop);
+  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
+  value = graph()->NewNode(common()->LoopExitValue(), value, control);
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
@@ -2824,8 +2847,8 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
 
-  ReplaceWithValue(node, return_value, effect, control);
-  return Replace(return_value);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Reduction JSCallReducer::ReduceCallApiFunction(
