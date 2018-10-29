@@ -2279,15 +2279,17 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     Object* undefined = ReadOnlyRoots(isolate).undefined_value();
     Object* value = *search_value;
 
-    // Elements beyond the capacity of the backing store treated as undefined.
-    if (value == undefined &&
-        static_cast<uint32_t>(elements_base->length()) < length) {
-      return Just(true);
-    }
-
     if (start_from >= length) return Just(false);
 
-    length = std::min(static_cast<uint32_t>(elements_base->length()), length);
+    // Elements beyond the capacity of the backing store treated as undefined.
+    uint32_t elements_length = static_cast<uint32_t>(elements_base->length());
+    if (value == undefined && elements_length < length) return Just(true);
+    if (elements_length == 0) {
+      DCHECK_NE(value, undefined);
+      return Just(false);
+    }
+
+    length = std::min(elements_length, length);
 
     if (!value->IsNumber()) {
       if (value == undefined) {
