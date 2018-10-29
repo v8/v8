@@ -459,6 +459,7 @@ namespace internal {
   CPP(CallSitePrototypeGetLineNumber)                                          \
   CPP(CallSitePrototypeGetMethodName)                                          \
   CPP(CallSitePrototypeGetPosition)                                            \
+  CPP(CallSitePrototypeGetPromiseIndex)                                        \
   CPP(CallSitePrototypeGetScriptNameOrSourceURL)                               \
   CPP(CallSitePrototypeGetThis)                                                \
   CPP(CallSitePrototypeGetTypeName)                                            \
