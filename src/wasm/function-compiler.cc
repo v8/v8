@@ -38,10 +38,9 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
                                          NativeModule* native_module,
                                          FunctionBody body, int index,
-                                         Counters* counters, ExecutionTier mode)
+                                         ExecutionTier mode)
     : wasm_engine_(wasm_engine),
       func_body_(body),
-      counters_(counters),
       func_index_(index),
       native_module_(native_module),
       mode_(mode) {
@@ -64,13 +63,14 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 WasmCompilationUnit::~WasmCompilationUnit() = default;
 
 void WasmCompilationUnit::ExecuteCompilation(CompilationEnv* env,
+                                             Counters* counters,
                                              WasmFeatures* detected) {
   const WasmModule* module = native_module_->module();
   auto size_histogram =
-      SELECT_WASM_COUNTER(counters_, module->origin, wasm, function_size_bytes);
+      SELECT_WASM_COUNTER(counters, module->origin, wasm, function_size_bytes);
   size_histogram->AddSample(
       static_cast<int>(func_body_.end - func_body_.start));
-  auto timed_histogram = SELECT_WASM_COUNTER(counters_, module->origin,
+  auto timed_histogram = SELECT_WASM_COUNTER(counters, module->origin,
                                              wasm_compile, function_time);
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
@@ -81,12 +81,12 @@ void WasmCompilationUnit::ExecuteCompilation(CompilationEnv* env,
 
   switch (mode_) {
     case ExecutionTier::kBaseline:
-      if (liftoff_unit_->ExecuteCompilation(env, detected)) break;
+      if (liftoff_unit_->ExecuteCompilation(env, counters, detected)) break;
       // Otherwise, fall back to turbofan.
       SwitchMode(ExecutionTier::kOptimized);
       V8_FALLTHROUGH;
     case ExecutionTier::kOptimized:
-      turbofan_unit_->ExecuteCompilation(env, detected);
+      turbofan_unit_->ExecuteCompilation(env, counters, detected);
       break;
     case ExecutionTier::kInterpreter:
       UNREACHABLE();  // TODO(titzer): compile interpreter entry stub.
@@ -144,9 +144,9 @@ bool WasmCompilationUnit::CompileWasmFunction(
                              wire_bytes.start() + function->code.end_offset()};
 
   WasmCompilationUnit unit(isolate->wasm_engine(), native_module, function_body,
-                           function->func_index, isolate->counters(), mode);
+                           function->func_index, mode);
   CompilationEnv env = native_module->CreateCompilationEnv();
-  unit.ExecuteCompilation(&env, detected);
+  unit.ExecuteCompilation(&env, isolate->counters(), detected);
   if (unit.failed()) {
     unit.ReportError(thrower);
     return false;
@@ -154,15 +154,15 @@ bool WasmCompilationUnit::CompileWasmFunction(
   return true;
 }
 
-void WasmCompilationUnit::SetResult(WasmCode* code) {
+void WasmCompilationUnit::SetResult(WasmCode* code, Counters* counters) {
   DCHECK(!result_.failed());
   DCHECK_NULL(result_.value());
   result_ = Result<WasmCode*>(code);
   native_module()->PublishCode(code);
 
-  counters_->wasm_generated_code_size()->Increment(
+  counters->wasm_generated_code_size()->Increment(
       static_cast<int>(code->instructions().size()));
-  counters_->wasm_reloc_size()->Increment(
+  counters->wasm_reloc_size()->Increment(
       static_cast<int>(code->reloc_info().size()));
 }
 

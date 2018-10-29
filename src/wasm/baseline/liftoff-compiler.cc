@@ -1873,6 +1873,7 @@ class LiftoffCompiler {
 }  // namespace
 
 bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
+                                                Counters* counters,
                                                 WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation");
@@ -1886,7 +1887,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
   auto call_descriptor =
       compiler::GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
-      base::in_place, wasm_unit_->counters_->liftoff_compile_time());
+      base::in_place, counters->liftoff_compile_time());
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, module, wasm_unit_->native_module_->enabled_features(), detected,
       wasm_unit_->func_body_, call_descriptor, env, &zone);
@@ -1896,11 +1897,11 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
   if (decoder.failed()) return false;  // validation error
   if (!compiler->ok()) {
     // Liftoff compilation failed.
-    wasm_unit_->counters_->liftoff_unsupported_functions()->Increment();
+    counters->liftoff_unsupported_functions()->Increment();
     return false;
   }
 
-  wasm_unit_->counters_->liftoff_compiled_functions()->Increment();
+  counters->liftoff_compiled_functions()->Increment();
 
   if (FLAG_trace_wasm_decode_time) {
     double compile_ms = compile_timer.Elapsed().InMillisecondsF();
@@ -1924,7 +1925,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
       wasm_unit_->func_index_, desc, frame_slot_count, safepoint_table_offset,
       0, std::move(protected_instructions), std::move(source_positions),
       WasmCode::kLiftoff);
-  wasm_unit_->SetResult(code);
+  wasm_unit_->SetResult(code, counters);
 
   return true;
 }

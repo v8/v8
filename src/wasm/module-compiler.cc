@@ -381,10 +381,11 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
                     module_start + func->code.end_offset()};
 
   WasmCompilationUnit unit(isolate->wasm_engine(), native_module, body,
-                           func_index, isolate->counters());
+                           func_index);
   CompilationEnv env = native_module->CreateCompilationEnv();
   unit.ExecuteCompilation(
-      &env, Impl(native_module->compilation_state())->detected_features());
+      &env, isolate->counters(),
+      Impl(native_module->compilation_state())->detected_features());
 
   // If there is a pending error, something really went wrong. The module was
   // verified before starting execution with lazy compilation.
@@ -476,8 +477,7 @@ class CompilationUnitBuilder {
     return base::make_unique<WasmCompilationUnit>(
         wasm_engine_, native_module_,
         FunctionBody{function->sig, buffer_offset, bytes.begin(), bytes.end()},
-        function->func_index,
-        compilation_state()->isolate()->async_counters().get(), mode);
+        function->func_index, mode);
   }
 
   CompilationStateImpl* compilation_state() const {
@@ -522,7 +522,8 @@ double MonotonicallyIncreasingTimeInMs() {
 // the finisher_is_running_ flag is not set.
 bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
                                     CompilationStateImpl* compilation_state,
-                                    WasmFeatures* detected) {
+                                    WasmFeatures* detected,
+                                    Counters* counters) {
   DisallowHeapAccess no_heap_access;
 
   std::unique_ptr<WasmCompilationUnit> unit =
@@ -535,7 +536,7 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   // later as soon as Liftoff can compile any function. Then, we can directly
   // access {unit->mode()} within {ScheduleUnitForFinishing()}.
   ExecutionTier mode = unit->mode();
-  unit->ExecuteCompilation(env, detected);
+  unit->ExecuteCompilation(env, counters, detected);
   compilation_state->ScheduleUnitForFinishing(std::move(unit), mode);
 
   return true;
@@ -635,7 +636,8 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   WasmFeatures detected_features;
   CompilationEnv env = native_module->CreateCompilationEnv();
   while (FetchAndExecuteCompilationUnit(&env, compilation_state,
-                                        &detected_features) &&
+                                        &detected_features,
+                                        isolate->counters()) &&
          !compilation_state->baseline_compilation_finished()) {
     // 2.b) If {baseline_finish_units_} contains a compilation unit, the main
     //      thread dequeues it and finishes the compilation unit. Compilation
@@ -846,9 +848,12 @@ class FinishCompileTask : public CancelableTask {
 // The runnable task that performs compilations in the background.
 class BackgroundCompileTask : public CancelableTask {
  public:
-  explicit BackgroundCompileTask(NativeModule* native_module,
-                                 CancelableTaskManager* task_manager)
-      : CancelableTask(task_manager), native_module_(native_module) {}
+  explicit BackgroundCompileTask(CancelableTaskManager* task_manager,
+                                 NativeModule* native_module,
+                                 Counters* counters)
+      : CancelableTask(task_manager),
+        native_module_(native_module),
+        counters_(counters) {}
 
   void RunInternal() override {
     TRACE_COMPILE("(3b) Compiling...\n");
@@ -859,7 +864,7 @@ class BackgroundCompileTask : public CancelableTask {
     WasmFeatures detected_features = kNoWasmFeatures;
     while (!compilation_state->failed()) {
       if (!FetchAndExecuteCompilationUnit(&env, compilation_state,
-                                          &detected_features)) {
+                                          &detected_features, counters_)) {
         break;
       }
     }
@@ -868,6 +873,7 @@ class BackgroundCompileTask : public CancelableTask {
 
  private:
   NativeModule* const native_module_;
+  Counters* const counters_;
 };
 
 }  // namespace
@@ -3052,7 +3058,7 @@ void CompilationStateImpl::RestartBackgroundTasks(size_t max) {
 
   for (; num_restart > 0; --num_restart) {
     auto task = base::make_unique<BackgroundCompileTask>(
-        native_module_, &background_task_manager_);
+        &background_task_manager_, native_module_, isolate_->counters());
 
     // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
     // tasks. This is used to make timing deterministic.

@@ -5264,7 +5264,8 @@ Vector<const char> GetDebugName(Zone* zone, int index) {
 }  // namespace
 
 void TurbofanWasmCompilationUnit::ExecuteCompilation(
-    wasm::CompilationEnv* env, wasm::WasmFeatures* detected) {
+    wasm::CompilationEnv* env, Counters* counters,
+    wasm::WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteTurbofanCompilation");
   double decode_ms = 0;
@@ -5321,7 +5322,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
       const_cast<wasm::WasmModule*>(env->module), wasm_unit_->native_module_,
       wasm_unit_->func_index_, env->module->origin));
   if (job->ExecuteJob() == CompilationJob::SUCCEEDED) {
-    wasm_unit_->SetResult(info.wasm_code());
+    wasm_unit_->SetResult(info.wasm_code(), counters);
   }
   if (FLAG_trace_wasm_decode_time) {
     double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
@@ -5333,7 +5334,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
         decode_ms, node_count, pipeline_ms);
   }
   // TODO(bradnelson): Improve histogram handling of size_t.
-  wasm_unit_->counters_->wasm_compile_function_peak_memory_bytes()->AddSample(
+  counters->wasm_compile_function_peak_memory_bytes()->AddSample(
       static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
 }
 

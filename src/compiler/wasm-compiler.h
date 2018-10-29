@@ -56,7 +56,7 @@ class TurbofanWasmCompilationUnit {
                                                  MachineGraph* mcgraph,
                                                  NodeOriginTable* node_origins);
 
-  void ExecuteCompilation(wasm::CompilationEnv* env,
+  void ExecuteCompilation(wasm::CompilationEnv*, Counters*,
                           wasm::WasmFeatures* detected);
 
  private:

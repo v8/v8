@@ -38,11 +38,11 @@ class WasmCompilationUnit final {
   // If used exclusively from a foreground thread, Isolate::counters() may be
   // used by callers to pass Counters.
   WasmCompilationUnit(WasmEngine*, NativeModule*, FunctionBody, int index,
-                      Counters*, ExecutionTier = GetDefaultExecutionTier());
+                      ExecutionTier = GetDefaultExecutionTier());
 
   ~WasmCompilationUnit();
 
-  void ExecuteCompilation(CompilationEnv*, WasmFeatures* detected);
+  void ExecuteCompilation(CompilationEnv*, Counters*, WasmFeatures* detected);
 
   NativeModule* native_module() const { return native_module_; }
   ExecutionTier mode() const { return mode_; }
@@ -66,7 +66,6 @@ class WasmCompilationUnit final {
 
   WasmEngine* wasm_engine_;
   FunctionBody func_body_;
-  Counters* counters_;
   int func_index_;
   NativeModule* native_module_;
   ExecutionTier mode_;
@@ -80,7 +79,7 @@ class WasmCompilationUnit final {
   void SwitchMode(ExecutionTier new_mode);
 
   // Called from {ExecuteCompilation} to set the result of compilation.
-  void SetResult(WasmCode*);
+  void SetResult(WasmCode*, Counters*);
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };
