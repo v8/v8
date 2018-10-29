@@ -2835,6 +2835,7 @@ bool Parser::SkipFunction(
     // Propagate stack overflow.
     set_stack_overflow();
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
+    DCHECK(!pending_error_handler()->stack_overflow());
     // If we encounter an error that the preparser can not identify we reset to
     // the state before preparsing. The caller may then fully parse the function
     // to identify the actual error.
@@ -2843,8 +2844,10 @@ bool Parser::SkipFunction(
     pending_error_handler()->clear_unidentifiable_error();
     return false;
   } else if (pending_error_handler()->has_pending_error()) {
+    DCHECK(!pending_error_handler()->stack_overflow());
     DCHECK(scanner()->has_parser_error());
   } else {
+    DCHECK(!pending_error_handler()->stack_overflow());
     set_allow_eval_cache(reusable_preparser()->allow_eval_cache());
 
     PreParserLogger* logger = reusable_preparser()->logger();

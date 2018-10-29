@@ -66,7 +66,6 @@ class PendingCompilationErrorHandler {
   void clear_unidentifiable_error() {
     has_pending_error_ = false;
     unidentifiable_error_ = false;
-    stack_overflow_ = false;
   }
   bool has_error_unidentifiable_by_preparser() const {
     return unidentifiable_error_;

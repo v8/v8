@@ -159,10 +159,14 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
     ParseFormalParameterList(&formals);
-    RETURN_IF_PARSE_ERROR_VALUE(
-        pending_error_handler()->has_error_unidentifiable_by_preparser()
-            ? kPreParseNotIdentifiableError
-            : kPreParseSuccess);
+    if (pending_error_handler()->stack_overflow()) {
+      return kPreParseStackOverflow;
+    } else if (pending_error_handler()
+                   ->has_error_unidentifiable_by_preparser()) {
+      return kPreParseNotIdentifiableError;
+    } else if (scanner()->has_parser_error()) {
+      return kPreParseSuccess;
+    }
     Expect(Token::RPAREN);
     RETURN_IF_PARSE_ERROR_VALUE(kPreParseSuccess);
     int formals_end_position = scanner()->location().end_pos;
