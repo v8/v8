@@ -855,18 +855,18 @@ class BackgroundCompileTask : public CancelableTask {
     // {OnBackgroundTaskStopped}.
     CompilationEnv env = native_module_->CreateCompilationEnv();
     auto* compilation_state = Impl(native_module_->compilation_state());
+    WasmFeatures detected_features = kNoWasmFeatures;
     while (!compilation_state->failed()) {
       if (!FetchAndExecuteCompilationUnit(&env, compilation_state,
-                                          &detected_features_)) {
+                                          &detected_features)) {
         break;
       }
     }
-    compilation_state->OnBackgroundTaskStopped(detected_features_);
+    compilation_state->OnBackgroundTaskStopped(detected_features);
   }
 
  private:
   NativeModule* const native_module_;
-  WasmFeatures detected_features_ = kNoWasmFeatures;
 };
 
 }  // namespace
