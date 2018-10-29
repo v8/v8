@@ -2306,6 +2306,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       return result;
     }
     case ParsePropertyKind::kSpread:
+      RETURN_IF_PARSE_ERROR_CUSTOM(NullLiteralProperty);
       ReportUnexpectedTokenAt(
           Scanner::Location(name_token_position, name_expression->position()),
           name_token);
