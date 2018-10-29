@@ -176,9 +176,16 @@ Node* WasmGraphBuilder::Loop(Node* entry) {
   return graph()->NewNode(mcgraph()->common()->Loop(1), entry);
 }
 
-Node* WasmGraphBuilder::Terminate(Node* effect, Node* control) {
+Node* WasmGraphBuilder::TerminateLoop(Node* effect, Node* control) {
   Node* terminate =
       graph()->NewNode(mcgraph()->common()->Terminate(), effect, control);
+  MergeControlToEnd(mcgraph(), terminate);
+  return terminate;
+}
+
+Node* WasmGraphBuilder::TerminateThrow(Node* effect, Node* control) {
+  Node* terminate =
+      graph()->NewNode(mcgraph()->common()->Throw(), effect, control);
   MergeControlToEnd(mcgraph(), terminate);
   return terminate;
 }

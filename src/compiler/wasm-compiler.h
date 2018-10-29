@@ -159,7 +159,8 @@ class WasmGraphBuilder {
   Node* Start(unsigned params);
   Node* Param(unsigned index);
   Node* Loop(Node* entry);
-  Node* Terminate(Node* effect, Node* control);
+  Node* TerminateLoop(Node* effect, Node* control);
+  Node* TerminateThrow(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
   Node* Phi(wasm::ValueType type, unsigned count, Node** vals, Node* control);
   Node* CreateOrMergeIntoPhi(MachineRepresentation rep, Node* merge,
