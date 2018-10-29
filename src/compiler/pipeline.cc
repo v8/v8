@@ -1048,6 +1048,15 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::PrepareJobImpl(
 
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::ExecuteJobImpl() {
+  if (data_.info()->trace_turbo_json_enabled() ||
+      data_.info()->trace_turbo_graph_enabled()) {
+    CodeTracer::Scope tracing_scope(data_.GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "---------------------------------------------------\n"
+       << "Begin compiling method " << data_.info()->GetDebugName().get()
+       << " using Turbofan" << std::endl;
+  }
+
   pipeline_.RunPrintAndVerify("Machine", true);
 
   PipelineData* data = &data_;
@@ -1119,6 +1128,15 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   }
 
   compilation_info()->SetCode(code);
+
+  if (data_.info()->trace_turbo_json_enabled() ||
+      data_.info()->trace_turbo_graph_enabled()) {
+    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "---------------------------------------------------\n"
+       << "Finished compiling method " << data_.info()->GetDebugName().get()
+       << " using Turbofan" << std::endl;
+  }
 
   return SUCCEEDED;
 }
@@ -2225,6 +2243,15 @@ MaybeHandle<Code> Pipeline::GenerateCodeForWasmStub(
   }
 
   PipelineImpl pipeline(&data);
+
+  if (info.trace_turbo_json_enabled() ||
+      info.trace_turbo_graph_enabled()) {
+    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "---------------------------------------------------\n"
+       << "Begin compiling method " << info.GetDebugName().get()
+       << " using Turbofan" << std::endl;
+  }
 
   if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
     StdoutStream{} << "-- wasm stub " << Code::Kind2String(kind) << " graph -- "
