@@ -1493,6 +1493,8 @@ void InstructionSelector::VisitNode(Node* node) {
       } else {
         return EmitIdentity(node);
       }
+    case IrOpcode::kTruncateFloat64ToInt64:
+      return MarkAsWord64(node), VisitTruncateFloat64ToInt64(node);
     case IrOpcode::kTruncateFloat64ToUint32:
       return MarkAsWord32(node), VisitTruncateFloat64ToUint32(node);
     case IrOpcode::kTruncateFloat32ToInt32:
@@ -2308,6 +2310,10 @@ void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
 }
 
 void InstructionSelector::VisitChangeFloat64ToUint64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitTruncateFloat64ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 
