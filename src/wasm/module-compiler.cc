@@ -709,9 +709,8 @@ void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
                       base + func.code.end_offset()};
     DecodeResult result;
     {
-      auto time_counter =
-          SELECT_WASM_COUNTER(isolate->async_counters(), module->origin,
-                              wasm_decode, function_time);
+      auto time_counter = SELECT_WASM_COUNTER(
+          isolate->counters(), module->origin, wasm_decode, function_time);
 
       TimedHistogramScope wasm_decode_function_time_scope(time_counter);
       WasmFeatures detected;
@@ -2184,7 +2183,6 @@ AsyncCompileJob::AsyncCompileJob(
     std::shared_ptr<CompilationResultResolver> resolver)
     : isolate_(isolate),
       enabled_features_(enabled),
-      async_counters_(isolate->async_counters()),
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
       resolver_(std::move(resolver)) {
@@ -2199,7 +2197,7 @@ AsyncCompileJob::AsyncCompileJob(
 }
 
 void AsyncCompileJob::Start() {
-  DoAsync<DecodeModule>();  // --
+  DoAsync<DecodeModule>(isolate_->counters());  // --
 }
 
 void AsyncCompileJob::Abort() {
@@ -2471,6 +2469,8 @@ void AsyncCompileJob::NextStep(Args&&... args) {
 //==========================================================================
 class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
  public:
+  explicit DecodeModule(Counters* counters) : counters_(counters) {}
+
   void RunInBackground() override {
     ModuleResult result;
     {
@@ -2478,11 +2478,10 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       DisallowHeapAllocation no_allocation;
       // Decode the module bytes.
       TRACE_COMPILE("(1) Decoding module...\n");
-      result =
-          DecodeWasmModule(job_->enabled_features_, job_->wire_bytes_.start(),
-                           job_->wire_bytes_.end(), false, kWasmOrigin,
-                           job_->async_counters().get(),
-                           job_->isolate()->wasm_engine()->allocator());
+      result = DecodeWasmModule(
+          job_->enabled_features_, job_->wire_bytes_.start(),
+          job_->wire_bytes_.end(), false, kWasmOrigin, counters_,
+          job_->isolate()->wasm_engine()->allocator());
     }
     if (result.failed()) {
       // Decoding failure; reject the promise and clean up.
@@ -2492,6 +2491,9 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       job_->DoSync<PrepareAndStartCompile>(std::move(result).value(), true);
     }
   }
+
+ private:
+  Counters* const counters_;
 };
 
 //==========================================================================
@@ -2706,7 +2708,7 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
 bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
                                                   uint32_t offset) {
   TRACE_STREAMING("Process module header...\n");
-  decoder_.StartDecoding(job_->async_counters().get(),
+  decoder_.StartDecoding(job_->isolate()->counters(),
                          job_->isolate()->wasm_engine()->allocator());
   decoder_.DecodeModuleHeader(bytes, offset);
   if (!decoder_.ok()) {
