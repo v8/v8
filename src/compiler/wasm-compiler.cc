@@ -2168,26 +2168,28 @@ void WasmGraphBuilder::BuildEncodeException32BitValue(Node* values_array,
   ++(*index);
 }
 
-Node* WasmGraphBuilder::BuildDecodeException32BitValue(Node* const* values,
+Node* WasmGraphBuilder::BuildDecodeException32BitValue(Node* values_array,
                                                        uint32_t* index) {
   MachineOperatorBuilder* machine = mcgraph()->machine();
-  Node* upper = BuildChangeSmiToInt32(values[*index]);
+  Node* upper =
+      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT(values_array, *index));
   (*index)++;
   upper = graph()->NewNode(machine->Word32Shl(), upper, Int32Constant(16));
-  Node* lower = BuildChangeSmiToInt32(values[*index]);
+  Node* lower =
+      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT(values_array, *index));
   (*index)++;
   Node* value = graph()->NewNode(machine->Word32Or(), upper, lower);
   return value;
 }
 
-Node* WasmGraphBuilder::BuildDecodeException64BitValue(Node* const* values,
+Node* WasmGraphBuilder::BuildDecodeException64BitValue(Node* values_array,
                                                        uint32_t* index) {
   Node* upper = Binop(wasm::kExprI64Shl,
                       Unop(wasm::kExprI64UConvertI32,
-                           BuildDecodeException32BitValue(values, index)),
+                           BuildDecodeException32BitValue(values_array, index)),
                       Int64Constant(32));
   Node* lower = Unop(wasm::kExprI64UConvertI32,
-                     BuildDecodeException32BitValue(values, index));
+                     BuildDecodeException32BitValue(values_array, index));
   return Binop(wasm::kExprI64Ior, upper, lower);
 }
 
@@ -2224,44 +2226,33 @@ Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
 }
 
 Node** WasmGraphBuilder::GetExceptionValues(
-    Node* except_obj, const wasm::WasmException* except_decl) {
-  // TODO(kschimpf): We need to move this code to the function-body-decoder.cc
-  // in order to build landing-pad (exception) edges in case the runtime
-  // call causes an exception.
-
-  // Start by getting the encoded values from the exception.
+    Node* except_obj, const wasm::WasmException* exception) {
   Node* values_array =
       BuildCallToRuntime(Runtime::kWasmExceptionGetValues, &except_obj, 1);
-  uint32_t encoded_size = GetExceptionEncodedSize(except_decl);
-  Node** values = Buffer(encoded_size);
-  for (uint32_t i = 0; i < encoded_size; ++i) {
-    values[i] = LOAD_FIXED_ARRAY_SLOT(values_array, i);
-  }
-
-  // Now convert the leading entries to the corresponding parameter values.
   uint32_t index = 0;
-  const wasm::WasmExceptionSig* sig = except_decl->sig;
+  const wasm::WasmExceptionSig* sig = exception->sig;
+  Node** values = Buffer(sig->parameter_count());
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     Node* value;
     switch (sig->GetParam(i)) {
       case wasm::kWasmI32:
-        value = BuildDecodeException32BitValue(values, &index);
+        value = BuildDecodeException32BitValue(values_array, &index);
         break;
       case wasm::kWasmI64:
-        value = BuildDecodeException64BitValue(values, &index);
+        value = BuildDecodeException64BitValue(values_array, &index);
         break;
       case wasm::kWasmF32: {
         value = Unop(wasm::kExprF32ReinterpretI32,
-                     BuildDecodeException32BitValue(values, &index));
+                     BuildDecodeException32BitValue(values_array, &index));
         break;
       }
       case wasm::kWasmF64: {
         value = Unop(wasm::kExprF64ReinterpretI64,
-                     BuildDecodeException64BitValue(values, &index));
+                     BuildDecodeException64BitValue(values_array, &index));
         break;
       }
       case wasm::kWasmAnyRef:
-        value = values[index];
+        value = LOAD_FIXED_ARRAY_SLOT(values_array, index);
         ++index;
         break;
       default:
@@ -2269,7 +2260,7 @@ Node** WasmGraphBuilder::GetExceptionValues(
     }
     values[i] = value;
   }
-  DCHECK_EQ(index, encoded_size);
+  DCHECK_EQ(index, GetExceptionEncodedSize(exception));
   return values;
 }
 
