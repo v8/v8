@@ -649,14 +649,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return string->AsArrayIndex(index);
   }
 
-  V8_INLINE bool IsUseStrictDirective(Statement* statement) const {
-    return IsStringLiteral(statement, ast_value_factory()->use_strict_string());
-  }
-
-  V8_INLINE bool IsUseAsmDirective(Statement* statement) const {
-    return IsStringLiteral(statement, ast_value_factory()->use_asm_string());
-  }
-
   // Returns true if the statement is an expression statement containing
   // a single string literal.  If a second argument is given, the literal
   // is also compared with it and the result is true only if they are equal.

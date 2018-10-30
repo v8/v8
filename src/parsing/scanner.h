@@ -357,12 +357,6 @@ class Scanner {
                 Token::String(token), Token::StringLength(token))));
   }
 
-  bool IsUseStrict() const {
-    return current().token == Token::STRING &&
-           current().literal_chars.Equals(
-               Vector<const char>("use strict", strlen("use strict")));
-  }
-
   bool IsGet() { return CurrentMatchesContextual(Token::GET); }
 
   bool IsSet() { return CurrentMatchesContextual(Token::SET); }

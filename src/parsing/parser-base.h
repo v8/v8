@@ -4602,82 +4602,71 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
   // StatementList ::
   //   (StatementListItem)* <end_token>
 
-  // Allocate a target stack to use for this set of source
-  // elements. This way, all scripts and functions get their own
-  // target stack thus avoiding illegal breaks and continues across
-  // functions.
+  DCHECK(!impl()->IsNull(body));
+
+  while (peek() == Token::STRING && (scanner()->HasLineTerminatorAfterNext() ||
+                                     Token::IsAutoSemicolon(PeekAhead()))) {
+    const AstRawString* symbol = scanner()->NextSymbol(ast_value_factory_);
+    Scanner::Location token_loc = scanner()->peek_location();
+    // The length of the token is used to distinguish between strings literals
+    // that evaluate equal to directives but contain either escape sequences
+    // (e.g., "use \x73trict") or line continuations (e.g., "use \(newline)
+    // strict").
+    if (symbol == ast_value_factory()->use_strict_string() &&
+        token_loc.end_pos - token_loc.beg_pos == sizeof("use strict") + 1) {
+      // Directive "use strict" (ES5 14.1).
+      RaiseLanguageMode(LanguageMode::kStrict);
+      if (!scope()->HasSimpleParameters()) {
+        // TC39 deemed "use strict" directives to be an error when occurring
+        // in the body of a function with non-simple parameter list, on
+        // 29/7/2015. https://goo.gl/ueA7Ln
+        impl()->ReportMessageAt(token_loc,
+                                MessageTemplate::kIllegalLanguageModeDirective,
+                                "use strict");
+        return kLazyParsingComplete;
+      }
+    } else if (symbol == ast_value_factory()->use_asm_string() &&
+               token_loc.end_pos - token_loc.beg_pos == sizeof("use asm") + 1) {
+      // Directive "use asm".
+      impl()->SetAsmModule();
+    } else {
+      // Possibly an unknown directive.
+      // Should not change mode, but will increment usage counters
+      // as appropriate. Ditto usages below.
+      RaiseLanguageMode(LanguageMode::kSloppy);
+    }
+    StatementT stat = ParseStatementListItem();
+    DCHECK(!has_error());
+    body->Add(stat, zone());
+    may_abort = false;
+  }
+
+  // Allocate a target stack to use for this set of source elements. This way,
+  // all scripts and functions get their own target stack thus avoiding illegal
+  // breaks and continues across functions.
   typename Types::TargetScope target_scope(this);
   int count_statements = 0;
 
-  DCHECK(!impl()->IsNull(body));
-  bool directive_prologue = true;  // Parsing directive prologue.
+  if (may_abort) {
+    while (peek() == Token::IDENTIFIER) {
+      StatementT stat = ParseStatementListItem();
+      RETURN_IF_PARSE_ERROR_CUSTOM(Return, kLazyParsingComplete);
+      // If we're allowed to abort, we will do so when we see a "long and
+      // trivial" function. Our current definition of "long and trivial" is:
+      // - over kLazyParseTrialLimit statements
+      // - all starting with an identifier (i.e., no if, for, while, etc.)
+      if (++count_statements > kLazyParseTrialLimit) return kLazyParsingAborted;
+      body->Add(stat, zone());
+    }
+  }
 
   while (peek() != end_token) {
-    if (directive_prologue && peek() != Token::STRING) {
-      directive_prologue = false;
-    }
-
-    bool starts_with_identifier = peek() == Token::IDENTIFIER;
-    Scanner::Location token_loc = scanner()->peek_location();
     StatementT stat = ParseStatementListItem();
     RETURN_IF_PARSE_ERROR_CUSTOM(Return, kLazyParsingComplete)
-
-    if (impl()->IsNull(stat) || stat->IsEmptyStatement()) {
-      directive_prologue = false;  // End of directive prologue.
-      continue;
-    }
-
-    if (directive_prologue) {
-      // The length of the token is used to distinguish between strings literals
-      // that evaluate equal to directives but contain either escape sequences
-      // (e.g., "use \x73trict") or line continuations (e.g., "use \(newline)
-      // strict").
-      if (impl()->IsUseStrictDirective(stat) &&
-          token_loc.end_pos - token_loc.beg_pos == sizeof("use strict") + 1) {
-        // Directive "use strict" (ES5 14.1).
-        RaiseLanguageMode(LanguageMode::kStrict);
-        if (!scope()->HasSimpleParameters()) {
-          // TC39 deemed "use strict" directives to be an error when occurring
-          // in the body of a function with non-simple parameter list, on
-          // 29/7/2015. https://goo.gl/ueA7Ln
-          impl()->ReportMessageAt(
-              token_loc, MessageTemplate::kIllegalLanguageModeDirective,
-              "use strict");
-          return kLazyParsingComplete;
-        }
-      } else if (impl()->IsUseAsmDirective(stat) &&
-                 token_loc.end_pos - token_loc.beg_pos ==
-                     sizeof("use asm") + 1) {
-        // Directive "use asm".
-        impl()->SetAsmModule();
-      } else if (impl()->IsStringLiteral(stat)) {
-        // Possibly an unknown directive.
-        // Should not change mode, but will increment usage counters
-        // as appropriate. Ditto usages below.
-        RaiseLanguageMode(LanguageMode::kSloppy);
-      } else {
-        // End of the directive prologue.
-        directive_prologue = false;
-        RaiseLanguageMode(LanguageMode::kSloppy);
-      }
-    } else {
-      RaiseLanguageMode(LanguageMode::kSloppy);
-    }
-
-    // If we're allowed to abort, we will do so when we see a "long and
-    // trivial" function. Our current definition of "long and trivial" is:
-    // - over kLazyParseTrialLimit statements
-    // - all starting with an identifier (i.e., no if, for, while, etc.)
-    if (may_abort) {
-      if (!starts_with_identifier) {
-        may_abort = false;
-      } else if (++count_statements > kLazyParseTrialLimit) {
-        return kLazyParsingAborted;
-      }
-    }
-
+    if (impl()->IsNull(stat) || stat->IsEmptyStatement()) continue;
     body->Add(stat, zone());
   }
+
   return kLazyParsingComplete;
 }
 
