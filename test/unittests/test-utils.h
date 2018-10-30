@@ -24,7 +24,10 @@ class ArrayBufferAllocator;
 // RAII-like Isolate instance wrapper.
 class IsolateWrapper final {
  public:
-  IsolateWrapper();
+  // When enforce_pointer_compression is true the Isolate is created with
+  // enabled pointer compression. When it's false then the Isolate is created
+  // with the default pointer compression state for current build.
+  explicit IsolateWrapper(bool enforce_pointer_compression = false);
   ~IsolateWrapper();
 
   v8::Isolate* isolate() const { return isolate_; }
@@ -61,6 +64,23 @@ class SharedIsolateHolder final {
 // A set of mixins from which the test fixtures will be constructed.
 //
 template <typename TMixin>
+class WithPrivateIsolateMixin : public TMixin {
+ public:
+  explicit WithPrivateIsolateMixin(bool enforce_pointer_compression = false)
+      : isolate_wrapper_(enforce_pointer_compression) {}
+
+  v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
+
+  static void SetUpTestCase() { TMixin::SetUpTestCase(); }
+  static void TearDownTestCase() { TMixin::TearDownTestCase(); }
+
+ private:
+  v8::IsolateWrapper isolate_wrapper_;
+
+  DISALLOW_COPY_AND_ASSIGN(WithPrivateIsolateMixin);
+};
+
+template <typename TMixin>
 class WithSharedIsolateMixin : public TMixin {
  public:
   WithSharedIsolateMixin() = default;
@@ -79,6 +99,17 @@ class WithSharedIsolateMixin : public TMixin {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(WithSharedIsolateMixin);
+};
+
+template <typename TMixin>
+class WithPointerCompressionIsolateMixin
+    : public WithPrivateIsolateMixin<TMixin> {
+ public:
+  WithPointerCompressionIsolateMixin()
+      : WithPrivateIsolateMixin<TMixin>(true) {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(WithPointerCompressionIsolateMixin);
 };
 
 template <typename TMixin>
@@ -169,6 +200,12 @@ using TestWithContext =              //
     WithContextMixin<                //
         WithIsolateScopeMixin<       //
             WithSharedIsolateMixin<  //
+                ::testing::Test>>>;
+
+using TestWithIsolateAndPointerCompression =     //
+    WithContextMixin<                            //
+        WithIsolateScopeMixin<                   //
+            WithPointerCompressionIsolateMixin<  //
                 ::testing::Test>>>;
 
 namespace internal {

@@ -357,20 +357,19 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
   i::HeapStats heap_stats;
 
   if (isolate == nullptr) {
-    isolate = Isolate::Current();
+    isolate = Isolate::TryGetCurrent();
   }
 
   if (isolate == nullptr) {
-    // On a background thread -> we cannot retrieve memory information from the
-    // Isolate. Write easy-to-recognize values on the stack.
+    // If the Isolate is not available for the current thread we cannot retrieve
+    // memory information from the Isolate. Write easy-to-recognize values on
+    // the stack.
     memset(last_few_messages, 0x0BADC0DE, Heap::kTraceRingBufferSize + 1);
     memset(js_stacktrace, 0x0BADC0DE, Heap::kStacktraceBufferSize + 1);
     memset(&heap_stats, 0xBADC0DE, sizeof(heap_stats));
-    // Note that the embedder's oom handler won't be called in this case. We
-    // just crash.
-    FATAL(
-        "API fatal error handler returned after process out of memory on the "
-        "background thread");
+    // Note that the embedder's oom handler is also not available and therefore
+    // won't be called in this case. We just crash.
+    FATAL("Fatal process out of memory: %s", location);
     UNREACHABLE();
   }
 

@@ -2626,8 +2626,16 @@ std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
 // static
-Isolate* Isolate::New() {
-  Isolate* isolate = new Isolate();
+Isolate* Isolate::New(IsolateAllocationMode mode) {
+  // IsolateAllocator allocates the memory for the Isolate object according to
+  // the given allocation mode.
+  std::unique_ptr<IsolateAllocator> isolate_allocator =
+      base::make_unique<IsolateAllocator>(mode);
+  // Construct Isolate object in the allocated memory.
+  void* isolate_ptr = isolate_allocator->isolate_memory();
+  Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
+  DCHECK_IMPLIES(mode == IsolateAllocationMode::kAllocateInV8Heap,
+                 IsAligned(isolate->isolate_root(), size_t{4} * GB));
 
 #ifdef DEBUG
   non_disposed_isolates_++;
@@ -2655,14 +2663,25 @@ void Isolate::Delete(Isolate* isolate) {
   non_disposed_isolates_--;
 #endif  // DEBUG
 
-  delete isolate;
+  // Take ownership of the IsolateAllocator to ensure the Isolate memory will
+  // be available during Isolate descructor call.
+  std::unique_ptr<IsolateAllocator> isolate_allocator =
+      std::move(isolate->isolate_allocator_);
+  isolate->~Isolate();
+  // Now free the memory owned by the allocator.
+  isolate_allocator.reset();
 
   // Restore the previous current isolate.
   SetIsolateThreadLocals(saved_isolate, saved_data);
 }
 
-Isolate::Isolate()
-    : id_(base::Relaxed_AtomicIncrement(&isolate_counter_, 1)),
+v8::PageAllocator* Isolate::page_allocator() {
+  return isolate_allocator_->page_allocator();
+}
+
+Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
+    : isolate_allocator_(std::move(isolate_allocator)),
+      id_(base::Relaxed_AtomicIncrement(&isolate_counter_, 1)),
       stack_guard_(this),
       allocator_(FLAG_trace_zone_stats ? new VerboseAccountingAllocator(
                                              &heap_, 256 * KB, 128 * KB)

@@ -15,12 +15,18 @@
 
 namespace v8 {
 
-IsolateWrapper::IsolateWrapper()
+IsolateWrapper::IsolateWrapper(bool enforce_pointer_compression)
     : array_buffer_allocator_(
           v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = array_buffer_allocator_;
-  isolate_ = v8::Isolate::New(create_params);
+  if (enforce_pointer_compression) {
+    isolate_ = reinterpret_cast<v8::Isolate*>(
+        i::Isolate::New(i::IsolateAllocationMode::kAllocateInV8Heap));
+    v8::Isolate::Initialize(isolate_, create_params);
+  } else {
+    isolate_ = v8::Isolate::New(create_params);
+  }
   CHECK_NOT_NULL(isolate_);
 }
 

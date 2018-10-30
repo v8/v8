@@ -27,6 +27,7 @@
 #include "src/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
+#include "src/isolate-allocator.h"
 #include "src/isolate-data.h"
 #include "src/messages.h"
 #include "src/objects/code.h"
@@ -563,13 +564,17 @@ class Isolate final : private HiddenFactory {
 
   // Creates Isolate object. Must be used instead of constructing Isolate with
   // new operator.
-  static Isolate* New();
+  static V8_EXPORT_PRIVATE Isolate* New(
+      IsolateAllocationMode mode = IsolateAllocationMode::kDefault);
 
   // Deletes Isolate object. Must be used instead of delete operator.
   // Destroys the non-default isolates.
   // Sets default isolate into "has_been_disposed" state rather then destroying,
   // for legacy API reasons.
   static void Delete(Isolate* isolate);
+
+  // Page allocator that must be used for allocating V8 heap pages.
+  v8::PageAllocator* page_allocator();
 
   // Returns the PerIsolateThreadData for the current thread (or nullptr if one
   // is not currently set).
@@ -578,11 +583,16 @@ class Isolate final : private HiddenFactory {
         base::Thread::GetThreadLocal(per_isolate_thread_data_key_));
   }
 
+  // Returns the isolate inside which the current thread is running or nullptr.
+  V8_INLINE static Isolate* TryGetCurrent() {
+    DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
+    return reinterpret_cast<Isolate*>(
+        base::Thread::GetExistingThreadLocal(isolate_key_));
+  }
+
   // Returns the isolate inside which the current thread is running.
   V8_INLINE static Isolate* Current() {
-    DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
-    Isolate* isolate = reinterpret_cast<Isolate*>(
-        base::Thread::GetExistingThreadLocal(isolate_key_));
+    Isolate* isolate = TryGetCurrent();
     DCHECK_NOT_NULL(isolate);
     return isolate;
   }
@@ -968,6 +978,9 @@ class Isolate final : private HiddenFactory {
   // data (for example, roots, external references, builtins, etc.).
   // The kRootRegister is set to this value.
   Address isolate_root() const { return isolate_data()->isolate_root(); }
+  static size_t isolate_root_bias() {
+    return OFFSET_OF(Isolate, isolate_data_) + IsolateData::kIsolateRootBias;
+  }
 
   RootsTable& roots_table() { return isolate_data()->roots(); }
 
@@ -1589,7 +1602,7 @@ class Isolate final : private HiddenFactory {
   void SetIdle(bool is_idle);
 
  private:
-  Isolate();
+  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
 
   void CheckIsolateLayout();
@@ -1691,7 +1704,9 @@ class Isolate final : private HiddenFactory {
   // handlers and optimized code).
   IsolateData isolate_data_;
 
+  std::unique_ptr<IsolateAllocator> isolate_allocator_;
   Heap heap_;
+
   base::Atomic32 id_;
   EntryStackItem* entry_stack_ = nullptr;
   int stack_trace_nesting_level_ = 0;
@@ -1902,6 +1917,12 @@ class Isolate final : private HiddenFactory {
   // know if this is the case, so I'm preserving it for now.
   base::Mutex thread_data_table_mutex_;
   ThreadDataTable thread_data_table_;
+
+  // Delete new/delete operators to ensure that Isolate::New() and
+  // Isolate::Delete() are used for Isolate creation and deletion.
+  void* operator new(size_t, void* ptr) { return ptr; }
+  void* operator new(size_t) = delete;
+  void operator delete(void*) = delete;
 
   friend class heap::HeapTester;
   friend class TestSerializer;
