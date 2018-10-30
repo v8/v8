@@ -160,7 +160,7 @@ void ScavengerCollector::CollectGarbage() {
   Scavenger* scavengers[kMaxScavengerTasks];
   const bool is_logging = isolate_->LogObjectRelocation();
   const int num_scavenge_tasks = NumberOfScavengeTasks();
-  OneshotBarrier barrier;
+  OneshotBarrier barrier(base::TimeDelta::FromMilliseconds(kMaxWaitTimeMs));
   Scavenger::CopiedList copied_list(num_scavenge_tasks);
   Scavenger::PromotionList promotion_list(num_scavenge_tasks);
   for (int i = 0; i < num_scavenge_tasks; i++) {
