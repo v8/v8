@@ -200,10 +200,9 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_weak_refs, "harmony weak references")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)                    \
-  HARMONY_INPROGRESS_BASE(V)                     \
-  V(harmony_locale, "Intl.Locale")               \
-  V(harmony_intl_list_format, "Intl.ListFormat")
+#define HARMONY_INPROGRESS(V) \
+  HARMONY_INPROGRESS_BASE(V)  \
+  V(harmony_locale, "Intl.Locale")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
@@ -215,8 +214,9 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_string_matchall, "harmony String.prototype.matchAll")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V) \
-  HARMONY_STAGED_BASE(V)  \
+#define HARMONY_STAGED(V)                        \
+  HARMONY_STAGED_BASE(V)                         \
+  V(harmony_intl_list_format, "Intl.ListFormat") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
