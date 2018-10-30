@@ -282,6 +282,21 @@ bool InstructionSelector::CanCover(Node* user, Node* node) const {
   return true;
 }
 
+bool InstructionSelector::CanCoverTransitively(Node* user, Node* node,
+                                               Node* node_input) const {
+  if (CanCover(user, node) && CanCover(node, node_input)) {
+    // If {node} is pure, transitivity might not hold.
+    if (node->op()->HasProperty(Operator::kPure)) {
+      // If {node_input} is pure, the effect levels do not matter.
+      if (node_input->op()->HasProperty(Operator::kPure)) return true;
+      // Otherwise, {user} and {node_input} must have the same effect level.
+      return GetEffectLevel(user) == GetEffectLevel(node_input);
+    }
+    return true;
+  }
+  return false;
+}
+
 bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(Node* user,
                                                       Node* node) const {
   BasicBlock* bb_user = schedule()->block(user);

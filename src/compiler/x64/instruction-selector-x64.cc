@@ -766,6 +766,8 @@ bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
   Int64BinopMatcher m(node);
   if (selector->CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
       m.right().Is(32)) {
+    DCHECK_EQ(selector->GetEffectLevel(node),
+              selector->GetEffectLevel(m.left().node()));
     // Just load and sign-extend the interesting 4 bytes instead. This happens,
     // for example, when we're loading and untagging SMIs.
     BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(),
@@ -1393,7 +1395,8 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
       case IrOpcode::kWord64Shr: {
         Int64BinopMatcher m(value);
         if (m.right().Is(32)) {
-          if (TryMatchLoadWord64AndShiftRight(this, value, kX64Movl)) {
+          if (CanCoverTransitively(node, value, value->InputAt(0)) &&
+              TryMatchLoadWord64AndShiftRight(this, value, kX64Movl)) {
             return EmitIdentity(node);
           }
           Emit(kX64Shr, g.DefineSameAsFirst(node),
