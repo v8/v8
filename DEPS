@@ -246,17 +246,6 @@ hooks = [
     ],
   },
   {
-    'name': 'closure_compiler',
-    'pattern': '.',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--no_auth',
-                '-u',
-                '--bucket', 'chromium-v8-closure-compiler',
-                '-s', 'v8/src/inspector/build/closure-compiler.tar.gz.sha1',
-    ],
-  },
-  {
     'name': 'sysroot_arm',
     'pattern': '.',
     'condition': '(checkout_linux and checkout_arm)',
