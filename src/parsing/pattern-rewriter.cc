@@ -499,8 +499,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
       if_not_done = factory()->NewIfStatement(
           factory()->NewUnaryOperation(
               Token::NOT, factory()->NewVariableProxy(done), kNoSourcePosition),
-          next_block, factory()->NewEmptyStatement(kNoSourcePosition),
-          kNoSourcePosition);
+          next_block, factory()->EmptyStatement(), kNoSourcePosition);
     }
     block_->statements()->Add(if_not_done, zone());
 
@@ -608,7 +607,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
       maybe_store_and_unset_done = factory()->NewIfStatement(
           factory()->NewUnaryOperation(Token::NOT, result_done, nopos), then,
-          factory()->NewEmptyStatement(nopos), nopos);
+          factory()->EmptyStatement(), nopos);
     }
 
     // index++;

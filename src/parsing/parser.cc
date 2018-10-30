@@ -923,7 +923,7 @@ Statement* Parser::ParseModuleItem() {
     if ((!allow_harmony_dynamic_import() || peek_ahead != Token::LPAREN) &&
         (!allow_harmony_import_meta() || peek_ahead != Token::PERIOD)) {
       ParseImportDeclaration();
-      return factory()->NewEmptyStatement(kNoSourcePosition);
+      return factory()->EmptyStatement();
     }
   }
 
@@ -943,9 +943,8 @@ void Parser::ParseModuleItemList(ZonePtrList<Statement>* body) {
   while (peek() != Token::EOS) {
     Statement* stat = ParseModuleItem();
     RETURN_IF_PARSE_ERROR_VOID;
-    if (stat && !stat->IsEmpty()) {
-      body->Add(stat, zone());
-    }
+    if (stat->IsEmptyStatement()) continue;
+    body->Add(stat, zone());
   }
 }
 
@@ -1301,7 +1300,7 @@ Statement* Parser::ParseExportDeclaration() {
 
     case Token::MUL:
       ParseExportStar();
-      return factory()->NewEmptyStatement(position());
+      return factory()->EmptyStatement();
 
     case Token::LBRACE: {
       // There are two cases here:
@@ -1315,7 +1314,6 @@ Statement* Parser::ParseExportDeclaration() {
       // pass in a location that gets filled with the first reserved word
       // encountered, and then throw a SyntaxError if we are in the
       // non-FromClause case.
-      int pos = position();
       Scanner::Location reserved_loc = Scanner::Location::invalid();
       ZoneChunkList<ExportClauseData>* export_data =
           ParseExportClause(&reserved_loc);
@@ -1345,7 +1343,7 @@ Statement* Parser::ParseExportDeclaration() {
                               zone());
         }
       }
-      return factory()->NewEmptyStatement(pos);
+      return factory()->EmptyStatement();
     }
 
     case Token::FUNCTION:
@@ -1485,7 +1483,7 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
                                                       statement);
     return statement;
   }
-  return factory()->NewEmptyStatement(kNoSourcePosition);
+  return factory()->EmptyStatement();
 }
 
 Statement* Parser::DeclareClass(const AstRawString* variable_name,
@@ -2315,7 +2313,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     if (cond) {
       Statement* stop =
           factory()->NewBreakStatement(outer_loop, kNoSourcePosition);
-      Statement* noop = factory()->NewEmptyStatement(kNoSourcePosition);
+      Statement* noop = factory()->EmptyStatement();
       ignore_completion_block->statements()->Add(
           factory()->NewIfStatement(cond, noop, stop, cond->position()),
           zone());
@@ -2378,7 +2376,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       }
       Statement* stop =
           factory()->NewBreakStatement(outer_loop, kNoSourcePosition);
-      Statement* empty = factory()->NewEmptyStatement(kNoSourcePosition);
+      Statement* empty = factory()->EmptyStatement();
       Statement* if_flag_break =
           factory()->NewIfStatement(compare, stop, empty, kNoSourcePosition);
       inner_block->statements()->Add(IgnoreCompletion(if_flag_break), zone());
@@ -2848,7 +2846,7 @@ Statement* Parser::BuildAssertIsCoercible(Variable* var,
   IfStatement* if_statement = factory()->NewIfStatement(
       condition,
       factory()->NewExpressionStatement(throw_type_error, kNoSourcePosition),
-      factory()->NewEmptyStatement(kNoSourcePosition), kNoSourcePosition);
+      factory()->EmptyStatement(), kNoSourcePosition);
   return if_statement;
 }
 
@@ -3713,7 +3711,7 @@ Statement* Parser::CheckCallable(Variable* var, Expression* error, int pos) {
     Statement* throw_call = factory()->NewExpressionStatement(error, pos);
 
     validate_var = factory()->NewIfStatement(
-        condition, factory()->NewEmptyStatement(nopos), throw_call, nopos);
+        condition, factory()->EmptyStatement(), throw_call, nopos);
   }
   return validate_var;
 }
@@ -3764,7 +3762,7 @@ void Parser::BuildIteratorClose(ZonePtrList<Statement>* statements,
     Statement* return_input = BuildReturnStatement(value, nopos);
 
     check_return = factory()->NewIfStatement(
-        condition, return_input, factory()->NewEmptyStatement(nopos), nopos);
+        condition, return_input, factory()->EmptyStatement(), nopos);
   }
 
   // output = %_Call(iteratorReturn, iterator, input);
@@ -3808,8 +3806,7 @@ void Parser::BuildIteratorClose(ZonePtrList<Statement>* statements,
     }
 
     validate_output = factory()->NewIfStatement(
-        is_receiver_call, factory()->NewEmptyStatement(nopos), throw_call,
-        nopos);
+        is_receiver_call, factory()->EmptyStatement(), throw_call, nopos);
   }
 
   statements->Add(get_return, zone());
@@ -3866,7 +3863,7 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
         factory()->NewSmiLiteral(Parser::kThrowCompletion, nopos), nopos);
     Statement* statement = factory()->NewExpressionStatement(assignment, nopos);
     set_completion_throw = factory()->NewIfStatement(
-        condition, statement, factory()->NewEmptyStatement(nopos), nopos);
+        condition, statement, factory()->EmptyStatement(), nopos);
   }
 
   // if (condition) {
@@ -3880,7 +3877,7 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
     DCHECK_EQ(block->statements()->length(), 2);
 
     maybe_close = IgnoreCompletion(factory()->NewIfStatement(
-        condition, block, factory()->NewEmptyStatement(nopos), nopos));
+        condition, block, factory()->EmptyStatement(), nopos));
   }
 
   // try { #try_block }
@@ -4052,8 +4049,7 @@ void Parser::BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
     }
 
     Statement* check_return = factory()->NewIfStatement(
-        is_receiver_call, factory()->NewEmptyStatement(nopos), throw_call,
-        nopos);
+        is_receiver_call, factory()->EmptyStatement(), throw_call, nopos);
 
     validate_return = factory()->NewBlock(2, false);
     validate_return->statements()->Add(call_return, zone());
@@ -4088,8 +4084,7 @@ void Parser::BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
         factory()->NewNullLiteral(nopos), nopos);
 
     maybe_call_return = factory()->NewIfStatement(
-        condition, factory()->NewEmptyStatement(nopos), call_return_carefully,
-        nopos);
+        condition, factory()->EmptyStatement(), call_return_carefully, nopos);
   }
 
   statements->Add(get_return, zone());

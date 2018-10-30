@@ -685,9 +685,7 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
-  PreParserStatement NewEmptyStatement(int pos) {
-    return PreParserStatement::Default();
-  }
+  PreParserStatement EmptyStatement() { return PreParserStatement::Default(); }
 
   PreParserStatement NewBlock(
       int capacity, bool ignore_completion_value,

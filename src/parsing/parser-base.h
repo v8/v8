@@ -4662,8 +4662,8 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
 
   while (peek() != end_token) {
     StatementT stat = ParseStatementListItem();
-    RETURN_IF_PARSE_ERROR_CUSTOM(Return, kLazyParsingComplete)
-    if (impl()->IsNull(stat) || stat->IsEmptyStatement()) continue;
+    RETURN_IF_PARSE_ERROR_CUSTOM(Return, kLazyParsingComplete);
+    if (stat->IsEmptyStatement()) continue;
     body->Add(stat, zone());
   }
 
@@ -4753,7 +4753,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       return ParseBlock(labels);
     case Token::SEMICOLON:
       Next();
-      return factory()->NewEmptyStatement(kNoSourcePosition);
+      return factory()->EmptyStatement();
     case Token::IF:
       return ParseIfStatement(labels);
     case Token::DO:
@@ -4842,9 +4842,8 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
     while (peek() != Token::RBRACE) {
       StatementT stat = ParseStatementListItem();
       RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
-      if (!impl()->IsNull(stat) && !stat->IsEmptyStatement()) {
-        body->statements()->Add(stat, zone());
-      }
+      if (stat->IsEmptyStatement()) continue;
+      body->statements()->Add(stat, zone());
     }
 
     Expect(Token::RBRACE);
@@ -5011,7 +5010,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
     else_statement = ParseScopedStatement(labels);
     else_range = SourceRange::ContinuationOf(then_range, end_position());
   } else {
-    else_statement = factory()->NewEmptyStatement(kNoSourcePosition);
+    else_statement = factory()->EmptyStatement();
   }
   StatementT stmt =
       factory()->NewIfStatement(condition, then_statement, else_statement, pos);
@@ -5074,7 +5073,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
   // empty statements, e.g. 'l1: l2: l3: break l2;'
   if (!impl()->IsNull(label) && impl()->ContainsLabel(labels, label)) {
     ExpectSemicolon();
-    return factory()->NewEmptyStatement(pos);
+    return factory()->EmptyStatement();
   }
   typename Types::BreakableStatement target = impl()->LookupBreakTarget(label);
   if (impl()->IsNull(target)) {
@@ -5296,6 +5295,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
                peek() != Token::RBRACE) {
           StatementT stat = ParseStatementListItem();
           RETURN_IF_PARSE_ERROR;
+          if (stat->IsEmptyStatement()) continue;
           statements.Add(stat);
         }
       }
