@@ -176,7 +176,6 @@ class AstNode: public ZoneObject {
 
 class Statement : public AstNode {
  public:
-  bool IsEmpty() { return AsEmptyStatement() != nullptr; }
   bool IsJump() const;
 
  protected:
@@ -849,8 +848,8 @@ class SwitchStatement final : public BreakableStatement {
 // given if-statement has a then- or an else-part containing code.
 class IfStatement final : public Statement {
  public:
-  bool HasThenStatement() const { return !then_statement()->IsEmpty(); }
-  bool HasElseStatement() const { return !else_statement()->IsEmpty(); }
+  bool HasThenStatement() const { return !then_statement_->IsEmptyStatement(); }
+  bool HasElseStatement() const { return !else_statement_->IsEmptyStatement(); }
 
   Expression* condition() const { return condition_; }
   Statement* then_statement() const { return then_statement_; }
