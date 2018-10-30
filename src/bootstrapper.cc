@@ -4846,8 +4846,13 @@ void Genesis::InitializeGlobal_harmony_intl_segmenter() {
                         Builtins::kSegmentIteratorPrototypeBreakType, false);
 
     // Setup SegmentIterator constructor.
-    Handle<JSFunction> segment_iterator_fun = InstallFunction(
-        isolate(), intl, "SegmentIterator", JS_INTL_SEGMENT_ITERATOR_TYPE,
+    Handle<String> name_string =
+        Name::ToFunctionName(
+            isolate(),
+            isolate()->factory()->InternalizeUtf8String("SegmentIterator"))
+            .ToHandleChecked();
+    Handle<JSFunction> segment_iterator_fun = CreateFunction(
+        isolate(), name_string, JS_INTL_SEGMENT_ITERATOR_TYPE,
         JSSegmentIterator::kSize, 0, prototype, Builtins::kIllegal);
     segment_iterator_fun->shared()->set_native(false);
 
