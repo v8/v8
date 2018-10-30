@@ -4642,7 +4642,6 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
       RaiseLanguageMode(LanguageMode::kSloppy);
     }
     StatementT stat = ParseStatementListItem();
-    DCHECK(!has_error());
     body->Add(stat, zone());
     may_abort = false;
   }
@@ -4656,7 +4655,6 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
   if (may_abort) {
     while (peek() == Token::IDENTIFIER) {
       StatementT stat = ParseStatementListItem();
-      RETURN_IF_PARSE_ERROR_CUSTOM(Return, kLazyParsingComplete);
       // If we're allowed to abort, we will do so when we see a "long and
       // trivial" function. Our current definition of "long and trivial" is:
       // - over kLazyParseTrialLimit statements
