@@ -977,16 +977,6 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   return Changed(vtrue);
 }
 
-bool CanInlineArrayIteratingBuiltin(Isolate* isolate, MapRef& receiver_map) {
-  receiver_map.SerializePrototype();
-  if (!receiver_map.prototype().IsJSArray()) return false;
-  JSArrayRef receiver_prototype = receiver_map.prototype().AsJSArray();
-  return receiver_map.instance_type() == JS_ARRAY_TYPE &&
-         IsFastElementsKind(receiver_map.elements_kind()) &&
-         isolate->IsNoElementsProtectorIntact() &&
-         isolate->IsAnyInitialArrayPrototype(receiver_prototype.object());
-}
-
 Node* JSCallReducer::WireInLoopStart(Node* k, Node** control, Node** effect) {
   Node* loop = *control =
       graph()->NewNode(common()->Loop(2), *control, *control);
@@ -1004,6 +994,37 @@ void JSCallReducer::WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
   vloop->ReplaceInput(1, k);
   eloop->ReplaceInput(1, effect);
 }
+
+namespace {
+
+bool CanInlineArrayIteratingBuiltin(Isolate* isolate, MapRef& receiver_map) {
+  receiver_map.SerializePrototype();
+  if (!receiver_map.prototype().IsJSArray()) return false;
+  JSArrayRef receiver_prototype = receiver_map.prototype().AsJSArray();
+  return receiver_map.instance_type() == JS_ARRAY_TYPE &&
+         IsFastElementsKind(receiver_map.elements_kind()) &&
+         isolate->IsNoElementsProtectorIntact() &&
+         isolate->IsAnyInitialArrayPrototype(receiver_prototype.object());
+}
+
+bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
+                                    ZoneHandleSet<Map> receiver_maps,
+                                    ElementsKind* kind_return) {
+  DCHECK_NE(0, receiver_maps.size());
+  *kind_return = MapRef(broker, receiver_maps[0]).elements_kind();
+  for (auto receiver_map : receiver_maps) {
+    MapRef map(broker, receiver_map);
+    if (!CanInlineArrayIteratingBuiltin(broker->isolate(), map)) {
+      return false;
+    }
+    if (!UnionElementsKindUptoSize(kind_return, map.elements_kind())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
 
 Reduction JSCallReducer::ReduceArrayForEach(Node* node,
                                             Handle<SharedFunctionInfo> shared) {
@@ -1033,27 +1054,9 @@ Reduction JSCallReducer::ReduceArrayForEach(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // By ensuring that {kind} is object or double, we can be polymorphic
-  // on different elements kinds.
-  ElementsKind kind = receiver_maps[0]->elements_kind();
-  if (IsSmiElementsKind(kind)) {
-    kind = FastSmiToObjectElementsKind(kind);
-  }
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    ElementsKind next_kind = receiver_map.elements_kind();
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map)) {
-      return NoChange();
-    }
-    if (!IsFastElementsKind(next_kind)) {
-      return NoChange();
-    }
-    if (IsDoubleElementsKind(kind) != IsDoubleElementsKind(next_kind)) {
-      return NoChange();
-    }
-    if (IsHoleyElementsKind(next_kind)) {
-      kind = GetHoleyElementsKind(kind);
-    }
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   // Install code dependencies on the {receiver} prototype maps and the
@@ -1224,13 +1227,9 @@ Reduction JSCallReducer::ReduceArrayReduce(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  ElementsKind kind = receiver_maps[0]->elements_kind();
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    if (!UnionElementsKindUptoSize(&kind, receiver_map.elements_kind()))
-      return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   std::function<Node*(Node*)> hole_check = [this, kind](Node* element) {
@@ -1505,15 +1504,9 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
   // Ensure that any changes to the Array species constructor cause deopt.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
-  const ElementsKind kind = receiver_maps[0]->elements_kind();
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   if (IsHoleyElementsKind(kind)) {
@@ -1711,19 +1704,13 @@ Reduction JSCallReducer::ReduceArrayFilter(Node* node,
   // And ensure that any changes to the Array species constructor cause deopt.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
-  const ElementsKind kind = receiver_maps[0]->elements_kind();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
+  }
+
   // The output array is packed (filter doesn't visit holes).
   const ElementsKind packed_kind = GetPackedElementsKind(kind);
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map)) {
-      return NoChange();
-    }
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
-  }
 
   if (IsHoleyElementsKind(kind)) {
     dependencies()->DependOnProtector(
@@ -1989,15 +1976,9 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  const ElementsKind kind = receiver_maps[0]->elements_kind();
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   // Install code dependencies on the {receiver} prototype maps and the
@@ -2308,15 +2289,9 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   // And ensure that any changes to the Array species constructor cause deopt.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
-  const ElementsKind kind = receiver_maps[0]->elements_kind();
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   if (IsHoleyElementsKind(kind)) {
@@ -2656,17 +2631,9 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   // And ensure that any changes to the Array species constructor cause deopt.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
 
-  if (receiver_maps.size() == 0) return NoChange();
-
-  const ElementsKind kind = MapRef(broker(), receiver_maps[0]).elements_kind();
-
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-      return NoChange();
-    // We can handle different maps, as long as their elements kind are the
-    // same.
-    if (receiver_map.elements_kind() != kind) return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   if (IsHoleyElementsKind(kind)) {
@@ -4963,15 +4930,9 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
       }
     }
   } else {
-    for (Handle<Map> map : iterated_object_maps) {
-      MapRef iterated_object_map(broker(), map);
-      if (!CanInlineArrayIteratingBuiltin(isolate(), iterated_object_map)) {
-        return NoChange();
-      }
-      if (!UnionElementsKindUptoSize(&elements_kind,
-                                     iterated_object_map.elements_kind())) {
-        return NoChange();
-      }
+    if (!CanInlineArrayIteratingBuiltin(broker(), iterated_object_maps,
+                                        &elements_kind)) {
+      return NoChange();
     }
   }
 
