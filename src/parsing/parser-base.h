@@ -5896,6 +5896,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
       BlockT body_block = impl()->NullStatement();
       impl()->DesugarBindingInForEachStatement(&for_info, &body_block,
                                                &each_variable);
+      RETURN_IF_PARSE_ERROR;
       body_block->statements()->Add(body, zone());
       body_block->set_scope(scope()->FinalizeBlockScope());
       body = body_block;
