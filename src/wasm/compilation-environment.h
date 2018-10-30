@@ -58,9 +58,10 @@ struct CompilationEnv {
         runtime_exception_support(runtime_exception_support),
         min_memory_size(module ? module->initial_pages * uint64_t{kWasmPageSize}
                                : 0),
-        max_memory_size(module && module->has_maximum_pages
-                            ? (module->maximum_pages * uint64_t{kWasmPageSize})
-                            : kSpecMaxWasmMemoryBytes),
+        max_memory_size((module && module->has_maximum_pages
+                             ? module->maximum_pages
+                             : kV8MaxWasmMemoryPages) *
+                        uint64_t{kWasmPageSize}),
         lower_simd(lower_simd) {}
 };
 

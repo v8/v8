@@ -1880,13 +1880,13 @@ void InstanceBuilder::InitGlobals() {
 
 // Allocate memory for a module instance as a new JSArrayBuffer.
 Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
-  if (num_pages > FLAG_wasm_max_mem_pages) {
+  if (num_pages > max_mem_pages()) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return Handle<JSArrayBuffer>::null();
   }
   const bool is_shared_memory = module_->has_shared_memory && enabled_.threads;
-  i::SharedFlag shared_flag =
-      is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared;
+  SharedFlag shared_flag =
+      is_shared_memory ? SharedFlag::kShared : SharedFlag::kNotShared;
   Handle<JSArrayBuffer> mem_buffer;
   if (!NewArrayBuffer(isolate_, num_pages * kWasmPageSize, shared_flag)
            .ToHandle(&mem_buffer)) {

@@ -317,6 +317,12 @@ std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
   return std::shared_ptr<WasmEngine>(new WasmEngine());
 }
 
+// {max_mem_pages} is declared in wasm-limits.h.
+uint32_t max_mem_pages() {
+  STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
+  return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
