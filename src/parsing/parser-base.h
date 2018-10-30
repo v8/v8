@@ -2339,6 +2339,12 @@ ParserBase<Impl>::ParseClassFieldInitializer(ClassInfo* class_info, int beg_pos,
 
     initializer = ParseAssignmentExpression(true);
     ValidateExpression();
+
+    // TODO(gsathya): In the future, this could be changed to be
+    // called once for all the class field initializers, instead of
+    // rewriting after each class field initializer, improving
+    // performance.
+    impl()->RewriteDestructuringAssignments();
   } else {
     initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
