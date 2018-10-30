@@ -1890,9 +1890,7 @@
                                 "error",
                                 "proxy",
                                 "promise",
-                                "typedarray",
-                                "arraybuffer",
-                                "dataview"
+                                "typedarray"
                             ]
                         },
                         {

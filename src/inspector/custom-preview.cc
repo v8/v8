@@ -113,7 +113,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
     }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapper;
     protocol::Response response =
-        injectedScript->wrapObject(originValue, groupName, WrapMode::kNoPreview,
+        injectedScript->wrapObject(originValue, groupName, false, false,
                                    configValue, maxDepth - 1, &wrapper);
     if (!response.isSuccess() || !wrapper) {
       reportError(context, tryCatch, "cannot wrap value");
@@ -379,8 +379,13 @@ void generateCustomPreview(int sessionId, const String16& groupName,
         reportError(context, tryCatch, "cannot find context with specified id");
         return;
       }
-      (*preview)->setBodyGetterId(
-          injectedScript->bindObject(bodyFunction, groupName));
+      (*preview)->setBodyGetterId(String16::concat(
+          "{\"injectedScriptId\":",
+          String16::fromInteger(InspectedContext::contextId(context)),
+          ",\"id\":",
+          String16::fromInteger(
+              injectedScript->bindObject(bodyFunction, groupName)),
+          "}"));
     }
     return;
   }

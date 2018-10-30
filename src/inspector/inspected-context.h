@@ -40,7 +40,7 @@ class InspectedContext {
   V8InspectorImpl* inspector() const { return m_inspector; }
 
   InjectedScript* getInjectedScript(int sessionId);
-  InjectedScript* createInjectedScript(int sessionId);
+  bool createInjectedScript(int sessionId);
   void discardInjectedScript(int sessionId);
 
  private:
