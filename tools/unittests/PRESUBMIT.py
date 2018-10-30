@@ -5,5 +5,6 @@
 def CheckChangeOnCommit(input_api, output_api):
   # TODO(machenbach): Run all unittests.
   tests = input_api.canned_checks.GetUnitTestsInDirectory(
-      input_api, output_api, '.', whitelist=['run_tests_test.py$'])
+      input_api, output_api, '.',
+      whitelist=['run_tests_test.py$', 'run_perf_test.py$'])
   return input_api.RunTests(tests)
