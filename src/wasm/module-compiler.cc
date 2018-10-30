@@ -94,7 +94,6 @@ class CompilationStateImpl {
 
   bool HasCompilationUnitToFinish();
 
-  void PublishError();
   void OnFinishedUnit();
   void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
                                 ExecutionTier mode);
@@ -115,7 +114,7 @@ class CompilationStateImpl {
 
   bool failed() const {
     base::MutexGuard guard(&mutex_);
-    return failed_;
+    return compile_error_ != nullptr;
   }
 
   bool baseline_compilation_finished() const {
@@ -182,7 +181,6 @@ class CompilationStateImpl {
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_compilation_units_;
 
   bool finisher_is_running_ = false;
-  bool failed_ = false;  // TODO(clemensh): Remove; derive from compile_error_.
   size_t num_background_tasks_ = 0;
   std::unique_ptr<CompilationError> compile_error_;
 
@@ -841,11 +839,8 @@ class FinishCompileTask : public CancelableTask {
         break;
       }
 
-      if (unit->failed()) {
-        compilation_state_->PublishError();
-        compilation_state_->SetFinisherIsRunning(false);
-        break;
-      }
+      DCHECK_IMPLIES(unit->failed(), compilation_state_->failed());
+      if (unit->failed()) break;
 
       WasmCode* result = unit->result();
 
@@ -3004,14 +2999,6 @@ bool CompilationStateImpl::HasCompilationUnitToFinish() {
   return !finish_units().empty();
 }
 
-void CompilationStateImpl::PublishError() {
-  DCHECK_NOT_NULL(compile_error_);
-  DCHECK(compile_error_->result.failed());
-  Abort();
-  VoidResult error_result = GetCompileError();
-  NotifyOnEvent(CompilationEvent::kFailedCompilation, &error_result);
-}
-
 void CompilationStateImpl::OnFinishedUnit() {
   DCHECK_GT(outstanding_units_, 0);
   --outstanding_units_;
@@ -3052,7 +3039,7 @@ void CompilationStateImpl::ScheduleUnitForFinishing(
     baseline_finish_units_.push_back(std::move(unit));
   }
 
-  if (!finisher_is_running_ && !failed_) {
+  if (!finisher_is_running_ && !compile_error_) {
     ScheduleFinisherTask();
     // We set the flag here so that not more than one finisher is started.
     finisher_is_running_ = true;
@@ -3082,7 +3069,7 @@ void CompilationStateImpl::RestartBackgroundTasks(size_t max) {
   {
     base::MutexGuard guard(&mutex_);
     // No need to restart tasks if compilation already failed.
-    if (failed_) return;
+    if (compile_error_) return;
 
     DCHECK_LE(num_background_tasks_, max_background_tasks_);
     if (num_background_tasks_ == max_background_tasks_) return;
@@ -3122,7 +3109,10 @@ void CompilationStateImpl::ScheduleFinisherTask() {
 void CompilationStateImpl::Abort() {
   {
     base::MutexGuard guard(&mutex_);
-    failed_ = true;
+    if (!compile_error_) {
+      compile_error_ = base::make_unique<CompilationError>(
+          0, VoidResult::Error(0, "Compilation aborted"));
+    }
   }
   background_task_manager_.CancelAndWait();
 }
@@ -3135,6 +3125,16 @@ void CompilationStateImpl::SetError(uint32_t func_index,
   if (compile_error_) return;
   compile_error_ =
       base::make_unique<CompilationError>(func_index, error_result);
+  // Schedule a foreground task to call the callback and notify users about the
+  // compile error.
+  foreground_task_runner_->PostTask(
+      MakeCancelableLambdaTask(&foreground_task_manager_, [this] {
+        // This is only being called from foreground tasks.
+        base::MutexGuard guard(&mutex_);
+        HandleScope scope(isolate_);
+        VoidResult error_result = GetCompileError();
+        NotifyOnEvent(CompilationEvent::kFailedCompilation, &error_result);
+      }));
 }
 
 void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
