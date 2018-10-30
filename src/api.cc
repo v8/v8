@@ -106,6 +106,11 @@
 #include "src/trap-handler/handler-inside-posix.h"
 #endif
 
+#if V8_OS_WIN
+#include <windows.h>
+#include "src/trap-handler/handler-inside-win.h"
+#endif
+
 namespace v8 {
 
 /*
@@ -5904,6 +5909,15 @@ bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
 bool V8::TryHandleSignal(int signum, void* info, void* context) {
   return TryHandleWebAssemblyTrapPosix(
       signum, reinterpret_cast<siginfo_t*>(info), context);
+}
+#endif
+
+#if V8_OS_WIN
+bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
+#if V8_TARGET_ARCH_X64
+  return i::trap_handler::TryHandleWasmTrap(exception);
+#endif
+  return false;
 }
 #endif
 

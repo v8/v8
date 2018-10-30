@@ -1528,6 +1528,10 @@ v8_header_set("v8_headers") {
     sources += [ "include/v8-wasm-trap-handler-posix.h" ]
   }
 
+  if (is_win) {
+    sources += [ "include/v8-wasm-trap-handler-win.h" ]
+  }
+
   deps = [
     ":v8_version",
   ]
@@ -2758,7 +2762,11 @@ v8_source_set("v8_base") {
       ]
     }
     if (is_win) {
-      sources += [ "src/trap-handler/handler-outside-win.cc" ]
+      sources += [
+        "src/trap-handler/handler-inside-win.cc",
+        "src/trap-handler/handler-inside-win.h",
+        "src/trap-handler/handler-outside-win.cc",
+      ]
     }
   } else if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###

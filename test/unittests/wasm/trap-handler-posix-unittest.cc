@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/trap-handler/trap-handler.h"
 #include "include/v8.h"
+#include "src/trap-handler/trap-handler.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if V8_OS_POSIX
