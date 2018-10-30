@@ -4773,41 +4773,53 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
     return NoChange();
   }
 
-  int arity = static_cast<int>(p.arity() - 2);
-  // Here we only optimize for cloning, that is when slice is called
-  // without arguments, or with a single argument that is the constant 0.
-  if (arity >= 2) return NoChange();
-  if (arity == 1) {
-    NumberMatcher m(NodeProperties::GetValueInput(node, 2));
-    if (!m.HasValue()) return NoChange();
-    if (m.Value() != 0) return NoChange();
-  }
-
   Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* start = node->op()->ValueInputCount() > 2
+                    ? NodeProperties::GetValueInput(node, 2)
+                    : jsgraph()->ZeroConstant();
+  Node* end = node->op()->ValueInputCount() > 3
+                  ? NodeProperties::GetValueInput(node, 3)
+                  : jsgraph()->UndefinedConstant();
+  Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Try to determine the {receiver} map.
+  // Optimize for the case where we simply clone the {receiver},
+  // i.e. when the {start} is zero and the {end} is undefined
+  // (meaning it will be set to {receiver}s "length" property).
+  if (!NumberMatcher(start).Is(0) ||
+      !HeapObjectMatcher(end).Is(factory()->undefined_value())) {
+    return NoChange();
+  }
+
+  // Try to determine the {receiver} maps.
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(broker(), receiver, effect,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // Ensure that any changes to the Array species constructor cause deopt.
+  // We cannot optimize unless the Array[@@species] lookup chain is intact.
   if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->array_species_protector()));
 
+  // Check that the maps are of JSArray (and more).
+  // TODO(turbofan): Consider adding special case for the common pattern
+  // `slice.call(arguments)`, for example jQuery makes heavy use of that.
   bool can_be_holey = false;
-  // Check that the maps are of JSArray (and more)
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
+    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map)) {
       return NoChange();
+    }
 
-    if (IsHoleyElementsKind(receiver_map.elements_kind())) can_be_holey = true;
+    if (IsHoleyElementsKind(receiver_map.elements_kind())) {
+      can_be_holey = true;
+    }
   }
+
+  // Install code dependency on the Array[@@species] protector.
+  dependencies()->DependOnProtector(
+      PropertyCellRef(broker(), factory()->array_species_protector()));
 
   // Install code dependency on the array protector for holey arrays.
   if (can_be_holey) {
@@ -4815,10 +4827,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
         PropertyCellRef(broker(), factory()->no_elements_protector()));
   }
 
-  // If we have unreliable maps, we need a map check.
-  // This is actually redundant due to how JSNativeContextSpecialization
-  // reduces the load of slice, but we do it here nevertheless for consistency
-  // and robustness.
+  // If we have unreliable maps, we need a map check, as there might be
+  // side-effects caused by the evaluation of the {node}s parameters.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
     effect =
         graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
@@ -4826,8 +4836,12 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
                          receiver, effect, control);
   }
 
-  Node* context = NodeProperties::GetContextInput(node);
-
+  // TODO(turbofan): We can do even better here, either adding a CloneArray
+  // simplified operator, whose output type indicates that it's an Array,
+  // saving subsequent checks, or yet better, by introducing new operators
+  // CopySmiOrObjectElements / CopyDoubleElements and inlining the JSArray
+  // allocation in here. That way we'd even get escape analysis and scalar
+  // replacement to help in some cases.
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCloneFastJSArray);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
