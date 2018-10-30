@@ -582,6 +582,11 @@ void VisitWord32Shift(InstructionSelector* selector, Node* node,
   Node* left = m.left().node();
   Node* right = m.right().node();
 
+  if (left->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
+      selector->CanCover(node, left)) {
+    left = left->InputAt(0);
+  }
+
   if (g.CanBeImmediate(right)) {
     selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseImmediate(right));
