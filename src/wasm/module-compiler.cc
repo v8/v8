@@ -83,7 +83,7 @@ class CompilationStateImpl {
   // Set the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run.
   void SetCallback(
-      std::function<void(CompilationEvent, ErrorThrower*)> callback);
+      std::function<void(CompilationEvent, const VoidResult*)> callback);
 
   // Inserts new functions to compile and kicks off compilation.
   void AddCompilationUnits(
@@ -94,7 +94,7 @@ class CompilationStateImpl {
 
   bool HasCompilationUnitToFinish();
 
-  void OnError(ErrorThrower* thrower);
+  void PublishError();
   void OnFinishedUnit();
   void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
                                 ExecutionTier mode);
@@ -108,6 +108,8 @@ class CompilationStateImpl {
   void ScheduleFinisherTask();
 
   void Abort();
+
+  void SetError(uint32_t func_index, const ResultBase& error_result);
 
   Isolate* isolate() const { return isolate_; }
 
@@ -125,8 +127,37 @@ class CompilationStateImpl {
   CompileMode compile_mode() const { return compile_mode_; }
   WasmFeatures* detected_features() { return &detected_features_; }
 
+  // Call {GetCompileError} from foreground threads only, since we access
+  // NativeModule::wire_bytes, which is set from the foreground thread once the
+  // stream has finished.
+  VoidResult GetCompileError() {
+    DCHECK_NOT_NULL(compile_error_);
+    std::ostringstream error;
+    error << "Compiling wasm function \"";
+    wasm::ModuleWireBytes wire_bytes(native_module_->wire_bytes());
+    wasm::WireBytesRef name_ref = native_module_->module()->LookupFunctionName(
+        wire_bytes, compile_error_->func_index);
+    if (name_ref.is_set()) {
+      wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
+      error.write(name.start(), name.length());
+    } else {
+      error << "wasm-function[" << compile_error_->func_index << "]";
+    }
+    error << "\" failed: " << compile_error_->result.error_msg();
+    return VoidResult::Error(compile_error_->result.error_offset(),
+                             error.str());
+  }
+
  private:
-  void NotifyOnEvent(CompilationEvent event, ErrorThrower* thrower);
+  struct CompilationError {
+    uint32_t const func_index;
+    VoidResult const result;
+    CompilationError(uint32_t func_index, const ResultBase& compile_result)
+        : func_index(func_index),
+          result(VoidResult::ErrorFrom(compile_result)) {}
+  };
+
+  void NotifyOnEvent(CompilationEvent event, const VoidResult* error_result);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
     return baseline_compilation_finished_ ? tiering_finish_units_
@@ -151,8 +182,9 @@ class CompilationStateImpl {
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_compilation_units_;
 
   bool finisher_is_running_ = false;
-  bool failed_ = false;
+  bool failed_ = false;  // TODO(clemensh): Remove; derive from compile_error_.
   size_t num_background_tasks_ = 0;
+  std::unique_ptr<CompilationError> compile_error_;
 
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_finish_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_finish_units_;
@@ -165,7 +197,7 @@ class CompilationStateImpl {
   //////////////////////////////////////////////////////////////////////////////
 
   // Callback function to be called on compilation events.
-  std::function<void(CompilationEvent, ErrorThrower*)> callback_;
+  std::function<void(CompilationEvent, const VoidResult*)> callback_;
 
   CancelableTaskManager background_task_manager_;
   CancelableTaskManager foreground_task_manager_;
@@ -338,6 +370,11 @@ CompilationStateImpl* Impl(CompilationState* compilation_state) {
 // PIMPL implementation of {CompilationState}.
 
 void CompilationState::CancelAndWait() { Impl(this)->CancelAndWait(); }
+
+void CompilationState::SetError(uint32_t func_index,
+                                const ResultBase& error_result) {
+  Impl(this)->SetError(func_index, error_result);
+}
 
 CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
@@ -561,17 +598,14 @@ void InitializeCompilationUnits(NativeModule* native_module,
   builder.Commit();
 }
 
-void FinishCompilationUnits(CompilationStateImpl* compilation_state,
-                            ErrorThrower* thrower) {
+void FinishCompilationUnits(CompilationStateImpl* compilation_state) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FinishCompilationUnits");
-  while (true) {
-    if (compilation_state->failed()) break;
+  while (!compilation_state->failed()) {
     std::unique_ptr<WasmCompilationUnit> unit =
         compilation_state->GetNextExecutedUnit();
     if (unit == nullptr) break;
 
     if (unit->failed()) {
-      unit->ReportError(thrower);
       compilation_state->Abort();
       break;
     }
@@ -582,8 +616,7 @@ void FinishCompilationUnits(CompilationStateImpl* compilation_state,
 }
 
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
-                       Handle<WasmModuleObject> module_object,
-                       ErrorThrower* thrower) {
+                       Handle<WasmModuleObject> module_object) {
   // Data structures for the parallel compilation.
 
   //-----------------------------------------------------------------------
@@ -643,7 +676,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
     //      thread dequeues it and finishes the compilation unit. Compilation
     //      units are finished concurrently to the background threads to save
     //      memory.
-    FinishCompilationUnits(compilation_state, thrower);
+    FinishCompilationUnits(compilation_state);
 
     if (compilation_state->failed()) break;
   }
@@ -654,7 +687,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
     //    baseline compilation units are left to be processed. If compilation
     //    already failed, all background tasks have already been canceled
     //    in {FinishCompilationUnits}, and there are no units to finish.
-    FinishCompilationUnits(compilation_state, thrower);
+    FinishCompilationUnits(compilation_state);
 
     if (compilation_state->baseline_compilation_finished()) break;
   }
@@ -684,11 +717,10 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
 
     // Compile the function.
     bool success = WasmCompilationUnit::CompileWasmFunction(
-        isolate, native_module, &detected, thrower, &func);
+        isolate, native_module, &detected, &func);
     if (!success) {
-      TruncatedUserString<> name(wire_bytes.GetNameOrNull(&func, module));
-      thrower->CompileError("Compilation of #%d:%.*s failed.", i, name.length(),
-                            name.start());
+      thrower->CompileFailed(
+          Impl(native_module->compilation_state())->GetCompileError());
       break;
     }
   }
@@ -758,11 +790,14 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
 
     if (compile_parallel) {
-      CompileInParallel(isolate, native_module, module_object, thrower);
+      CompileInParallel(isolate, native_module, module_object);
     } else {
       CompileSequentially(isolate, native_module, thrower);
     }
-    if (thrower->error()) return;
+    auto* compilation_state = Impl(native_module->compilation_state());
+    if (compilation_state->failed()) {
+      thrower->CompileFailed(compilation_state->GetCompileError());
+    }
   }
 }
 
@@ -807,11 +842,8 @@ class FinishCompileTask : public CancelableTask {
       }
 
       if (unit->failed()) {
-        ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");
-        unit->ReportError(&thrower);
-        compilation_state_->OnError(&thrower);
+        compilation_state_->PublishError();
         compilation_state_->SetFinisherIsRunning(false);
-        thrower.Reset();
         break;
       }
 
@@ -2560,7 +2592,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // on the current step we are in.
       AsyncCompileJob* job = job_;
       compilation_state->SetCallback(
-          [job](CompilationEvent event, ErrorThrower* thrower) {
+          [job](CompilationEvent event, const VoidResult* error_result) {
             // Callback is called from a foreground thread.
             switch (event) {
               case CompilationEvent::kFinishedBaselineCompilation:
@@ -2583,6 +2615,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                 }
                 return;
               case CompilationEvent::kFailedCompilation: {
+                DCHECK_NOT_NULL(error_result);
                 // Tier-up compilation should not fail if baseline compilation
                 // did not fail.
                 DCHECK(!Impl(job->native_module_->compilation_state())
@@ -2590,7 +2623,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
                 SaveContext saved_context(job->isolate());
                 job->isolate()->set_context(*job->native_context_);
-                Handle<Object> error = thrower->Reify();
+                ErrorThrower thrower(job->isolate(), "AsyncCompilation");
+                thrower.CompileFailed(*error_result);
+                Handle<Object> error = thrower.Reify();
 
                 DeferredHandleScope deferred(job->isolate());
                 error = handle(*error, job->isolate());
@@ -2906,7 +2941,7 @@ void CompilationStateImpl::SetNumberOfFunctionsToCompile(size_t num_functions) {
 }
 
 void CompilationStateImpl::SetCallback(
-    std::function<void(CompilationEvent, ErrorThrower*)> callback) {
+    std::function<void(CompilationEvent, const VoidResult*)> callback) {
   DCHECK_NULL(callback_);
   callback_ = std::move(callback);
 }
@@ -2969,10 +3004,12 @@ bool CompilationStateImpl::HasCompilationUnitToFinish() {
   return !finish_units().empty();
 }
 
-void CompilationStateImpl::OnError(ErrorThrower* thrower) {
+void CompilationStateImpl::PublishError() {
+  DCHECK_NOT_NULL(compile_error_);
+  DCHECK(compile_error_->result.failed());
   Abort();
-  DCHECK(thrower->error());
-  NotifyOnEvent(CompilationEvent::kFailedCompilation, thrower);
+  VoidResult error_result = GetCompileError();
+  NotifyOnEvent(CompilationEvent::kFailedCompilation, &error_result);
 }
 
 void CompilationStateImpl::OnFinishedUnit() {
@@ -3090,9 +3127,19 @@ void CompilationStateImpl::Abort() {
   background_task_manager_.CancelAndWait();
 }
 
+void CompilationStateImpl::SetError(uint32_t func_index,
+                                    const ResultBase& error_result) {
+  DCHECK(error_result.failed());
+  base::MutexGuard guard(&mutex_);
+  // Ignore all but the first error.
+  if (compile_error_) return;
+  compile_error_ =
+      base::make_unique<CompilationError>(func_index, error_result);
+}
+
 void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
-                                         ErrorThrower* thrower) {
-  if (callback_) callback_(event, thrower);
+                                         const VoidResult* error_result) {
+  if (callback_) callback_(event, error_result);
 }
 
 void CompileJsToWasmWrappers(Isolate* isolate,
