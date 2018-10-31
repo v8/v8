@@ -219,17 +219,27 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   return list_format_holder;
 }
 
+// ecma402 #sec-intl.pluralrules.prototype.resolvedoptions
 Handle<JSObject> JSListFormat::ResolvedOptions(
     Isolate* isolate, Handle<JSListFormat> format_holder) {
   Factory* factory = isolate->factory();
+  // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+
+  // 5.  For each row of Table 1, except the header row, do
+  //  Table 1: Resolved Options of ListFormat Instances
+  //  Internal Slot    Property
+  //  [[Locale]]       "locale"
+  //  [[Type]]         "type"
+  //  [[Style]]        "style"
   Handle<String> locale(format_holder->locale(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
-  JSObject::AddProperty(isolate, result, factory->style_string(),
-                        format_holder->StyleAsString(), NONE);
   JSObject::AddProperty(isolate, result, factory->type_string(),
                         format_holder->TypeAsString(), NONE);
+  JSObject::AddProperty(isolate, result, factory->style_string(),
+                        format_holder->StyleAsString(), NONE);
+  // 6. Return options.
   return result;
 }
 
