@@ -552,7 +552,7 @@ struct ForOfLoopStatement : Statement {
 
 struct LabelBlock : AstNode {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(LabelBlock)
-  LabelBlock(SourcePosition pos, std::string label,
+  LabelBlock(SourcePosition pos, const std::string& label,
              const ParameterList& parameters, Statement* body)
       : AstNode(kKind, pos),
         label(std::move(label)),
@@ -572,13 +572,11 @@ struct StatementExpression : Expression {
 
 struct TryLabelExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TryLabelExpression)
-  TryLabelExpression(SourcePosition pos, bool catch_exceptions,
-                     Expression* try_expression, LabelBlock* label_block)
+  TryLabelExpression(SourcePosition pos, Expression* try_expression,
+                     LabelBlock* label_block)
       : Expression(kKind, pos),
-        catch_exceptions(catch_exceptions),
         try_expression(try_expression),
         label_block(label_block) {}
-  bool catch_exceptions;
   Expression* try_expression;
   LabelBlock* label_block;
 };

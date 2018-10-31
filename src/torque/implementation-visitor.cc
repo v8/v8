@@ -93,14 +93,11 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
   source << "#include \"builtins-" + DashifyString(module->name()) +
                 "-from-dsl-gen.h\"\n\n";
 
-  source
-      << "namespace v8 {\n"
-      << "namespace internal {\n"
-      << "\n"
-      << "using Node = compiler::Node;\n"
-      << "using CatchLabel = compiler::CodeAssemblerExceptionHandlerLabel;\n"
-      << "using ScopedCatch = compiler::CodeAssemblerScopedExceptionHandler;\n"
-      << "\n";
+  source << "namespace v8 {\n"
+         << "namespace internal {\n"
+         << "\n"
+         << "using Node = compiler::Node;\n"
+         << "\n";
 
   std::string upper_name(module->name());
   transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
@@ -1777,10 +1774,8 @@ VisitResult ImplementationVisitor::GenerateCall(
   }
 
   if (auto* builtin = Builtin::DynamicCast(callable)) {
-    base::Optional<Block*> catch_block = GetCatchBlock();
-    assembler().Emit(CallBuiltinInstruction{
-        is_tailcall, builtin, argument_range.Size(), catch_block});
-    GenerateCatchBlock(catch_block);
+    assembler().Emit(
+        CallBuiltinInstruction{is_tailcall, builtin, argument_range.Size()});
     if (is_tailcall) {
       return VisitResult::NeverResult();
     } else {
@@ -1811,10 +1806,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       return VisitResult(return_type, result.str());
     } else if (arguments.labels.empty() &&
                return_type != TypeOracle::GetNeverType()) {
-      base::Optional<Block*> catch_block = GetCatchBlock();
-      assembler().Emit(
-          CallCsaMacroInstruction{macro, constexpr_arguments, catch_block});
-      GenerateCatchBlock(catch_block);
+      assembler().Emit(CallCsaMacroInstruction{macro, constexpr_arguments});
       size_t return_slot_count = LoweredSlotCount(return_type);
       return VisitResult(return_type, assembler().TopRange(return_slot_count));
     } else {
@@ -1828,11 +1820,9 @@ VisitResult ImplementationVisitor::GenerateCall(
       for (size_t i = 0; i < label_count; ++i) {
         label_blocks.push_back(assembler().NewBlock());
       }
-      base::Optional<Block*> catch_block = GetCatchBlock();
+
       assembler().Emit(CallCsaMacroAndBranchInstruction{
-          macro, constexpr_arguments, return_continuation, label_blocks,
-          catch_block});
-      GenerateCatchBlock(catch_block);
+          macro, constexpr_arguments, return_continuation, label_blocks});
 
       for (size_t i = 0; i < label_count; ++i) {
         Binding<LocalLabel>* label = arguments.labels[i];
@@ -1872,10 +1862,8 @@ VisitResult ImplementationVisitor::GenerateCall(
       }
     }
   } else if (auto* runtime_function = RuntimeFunction::DynamicCast(callable)) {
-    base::Optional<Block*> catch_block = GetCatchBlock();
-    assembler().Emit(CallRuntimeInstruction{
-        is_tailcall, runtime_function, argument_range.Size(), catch_block});
-    GenerateCatchBlock(catch_block);
+    assembler().Emit(CallRuntimeInstruction{is_tailcall, runtime_function,
+                                            argument_range.Size()});
     if (is_tailcall || return_type == TypeOracle::GetNeverType()) {
       return VisitResult::NeverResult();
     } else {
@@ -2071,30 +2059,6 @@ bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
     }
   }
   return true;
-}
-
-base::Optional<Block*> ImplementationVisitor::GetCatchBlock() {
-  base::Optional<Block*> catch_block;
-  if (base::Optional<Binding<LocalLabel>*> catch_handler =
-          TryLookupLabel("_catch")) {
-    catch_block = assembler().NewBlock(base::nullopt, true);
-  }
-  return catch_block;
-}
-
-void ImplementationVisitor::GenerateCatchBlock(
-    base::Optional<Block*> catch_block) {
-  if (catch_block) {
-    base::Optional<Binding<LocalLabel>*> catch_handler =
-        TryLookupLabel("_catch");
-    if (assembler().CurrentBlockIsComplete()) {
-      assembler().Bind(*catch_block);
-      assembler().Goto((*catch_handler)->block, 1);
-    } else {
-      CfgAssemblerScopedTemporaryBlock temp(&assembler(), *catch_block);
-      assembler().Goto((*catch_handler)->block, 1);
-    }
-  }
 }
 
 }  // namespace torque

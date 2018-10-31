@@ -18,7 +18,6 @@ void Block::SetInputTypes(const Stack<const Type*>& input_types) {
     return;
   }
 
-  DCHECK_EQ(input_types.Size(), input_types_->Size());
   Stack<const Type*> merged_types;
   auto c2_iterator = input_types.begin();
   for (const Type* c1 : *input_types_) {

@@ -312,9 +312,6 @@ class ImplementationVisitor : public FileVisitor {
 
   std::string GetDSLAssemblerName(Module* module);
 
-  base::Optional<Block*> GetCatchBlock();
-  void GenerateCatchBlock(base::Optional<Block*> catch_block);
-
   // {StackScope} records the stack height at creation time and reconstructs it
   // when being destructed by emitting a {DeleteRangeInstruction}, except for
   // the slots protected by {StackScope::Yield}. Calling {Yield(v)} deletes all

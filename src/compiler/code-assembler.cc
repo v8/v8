@@ -1083,8 +1083,6 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
     return;
   }
 
-  // No catch handlers should be active if we're using catch labels
-  DCHECK_EQ(state()->exception_handler_labels_.size(), 0);
   DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
 
   Label success(this), exception(this, Label::kDeferred);
@@ -1101,29 +1099,6 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   }
   Goto(if_exception);
 
-  Bind(&success);
-}
-
-void CodeAssembler::HandleException(Node* node) {
-  if (state_->exception_handler_labels_.size() == 0) return;
-  CodeAssemblerExceptionHandlerLabel* label =
-      state_->exception_handler_labels_.back();
-
-  if (node->op()->HasProperty(Operator::kNoThrow)) {
-    return;
-  }
-
-  Label success(this), exception(this, Label::kDeferred);
-  success.MergeVariables();
-  exception.MergeVariables();
-
-  raw_assembler()->Continuations(node, success.label_, exception.label_);
-
-  Bind(&exception);
-  const Operator* op = raw_assembler()->common()->IfException();
-  Node* exception_value = raw_assembler()->AddNode(op, node, node);
-  label->AddInputs({UncheckedCast<Object>(exception_value)});
-  Goto(label->plain_label());
   Bind(&success);
 }
 
@@ -1177,7 +1152,6 @@ TNode<Object> CodeAssembler::CallRuntimeWithCEntryImpl(
   CallPrologue();
   Node* return_value =
       raw_assembler()->CallN(call_descriptor, inputs.size(), inputs.data());
-  HandleException(return_value);
   CallEpilogue();
   return UncheckedCast<Object>(return_value);
 }
@@ -1233,7 +1207,6 @@ Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
   CallPrologue();
   Node* return_value =
       raw_assembler()->CallN(call_descriptor, input_count, inputs);
-  HandleException(return_value);
   CallEpilogue();
   return return_value;
 }
@@ -1529,10 +1502,6 @@ Isolate* CodeAssembler::isolate() const { return raw_assembler()->isolate(); }
 Factory* CodeAssembler::factory() const { return isolate()->factory(); }
 
 Zone* CodeAssembler::zone() const { return raw_assembler()->zone(); }
-
-bool CodeAssembler::IsExceptionHandlerActive() const {
-  return state_->exception_handler_labels_.size() != 0;
-}
 
 RawMachineAssembler* CodeAssembler::raw_assembler() const {
   return state_->raw_assembler_.get();
@@ -1839,15 +1808,6 @@ const std::vector<Node*>& CodeAssemblerParameterizedLabelBase::CreatePhis(
     phi_nodes_.push_back(CreatePhi(representations[i], phi_inputs_[i]));
   }
   return phi_nodes_;
-}
-
-void CodeAssemblerState::PushExceptionHandler(
-    CodeAssemblerExceptionHandlerLabel* label) {
-  exception_handler_labels_.push_back(label);
-}
-
-void CodeAssemblerState::PopExceptionHandler() {
-  exception_handler_labels_.pop_back();
 }
 
 }  // namespace compiler

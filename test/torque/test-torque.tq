@@ -598,47 +598,4 @@ module test {
       assert(b == 5);
     }
   }
-
-  macro TestCatch1(context: Context): Smi {
-    let r: Smi = 0;
-    try {
-      ThrowTypeError(context, kInvalidArrayLength);
-    } catch (e) {
-      r = 1;
-      return r;
-    }
-  }
-
-  macro TestCatch2Wrapper(context: Context): never {
-    ThrowTypeError(context, kInvalidArrayLength);
-  }
-
-  macro TestCatch2(context: Context): Smi {
-    let r: Smi = 0;
-    try {
-      TestCatch2Wrapper(context);
-    } catch (e) {
-      r = 2;
-      return r;
-    }
-  }
-
-  macro TestCatch3WrapperWithLabel(context: Context): never
-      labels Abort {
-    ThrowTypeError(context, kInvalidArrayLength);
-  }
-
-  macro TestCatch3(context: Context): Smi {
-    let r: Smi = 0;
-    try {
-      TestCatch3WrapperWithLabel(context) otherwise Abort;
-    }
-    label Abort {
-      return -1;
-    }
-    catch (e) {
-      r = 2;
-      return r;
-    }
-  }
 }

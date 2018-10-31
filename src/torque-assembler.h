@@ -28,6 +28,12 @@ class TorqueAssembler : public CodeStubAssembler {
     return {};
   }
 
+  template <class... T, class... Args>
+  void Goto(PLabel<T...>* label, Args... args) {
+    label->AddInputs(args...);
+    CodeStubAssembler::Goto(label->plain_label());
+  }
+  using CodeStubAssembler::Goto;
   template <class... T>
   void Bind(PLabel<T...>* label, TNode<T>*... phis) {
     Bind(label->plain_label());
