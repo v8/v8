@@ -615,6 +615,14 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7871
   'intl402/ListFormat/prototype/formatToParts/en-us-disjunction': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8382
+  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-numeric-auto': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-numeric-always': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-style-short': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

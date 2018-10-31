@@ -16,6 +16,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-number-format.h"
 #include "src/objects/js-relative-time-format-inl.h"
 #include "unicode/datefmt.h"
 #include "unicode/numfmt.h"
@@ -244,7 +245,8 @@ Handle<String> UnitAsString(Isolate* isolate, URelativeDateTimeUnit unit_enum) {
 
 MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
     Isolate* isolate, const icu::UnicodeString& formatted,
-    const icu::UnicodeString& integer_part, URelativeDateTimeUnit unit_enum) {
+    const icu::UnicodeString& integer_part, URelativeDateTimeUnit unit_enum,
+    double number, const icu::NumberFormat& nf) {
   Factory* factory = isolate->factory();
   Handle<JSArray> array = factory->NewJSArray(0);
   int32_t found = formatted.indexOf(integer_part);
@@ -275,18 +277,12 @@ MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
                        substring);
     }
 
-    // array.push({
-    //     'type': 'integer',
-    //     'value': formatted.substring(found, found + integer_part.length),
-    //     'unit': unit})
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
-                               Intl::ToString(isolate, formatted, found,
-                                              found + integer_part.length()),
-                               JSArray);
     Handle<String> unit = UnitAsString(isolate, unit_enum);
-    Intl::AddElement(isolate, array, index++,
-                     factory->integer_string(),  // field_type_string
-                     substring, factory->unit_string(), unit);
+
+    Maybe<int> maybe_format_to_parts =
+        JSNumberFormat::FormatToParts(isolate, array, index, nf, number, unit);
+    MAYBE_RETURN(maybe_format_to_parts, Handle<JSArray>());
+    index = maybe_format_to_parts.FromJust();
 
     // array.push({
     //     'type': 'literal',
@@ -402,19 +398,21 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
   }
 
   if (to_parts) {
-    icu::UnicodeString integer;
+    icu::UnicodeString number_str;
     icu::FieldPosition pos;
-    formatter->getNumberFormat().format(std::abs(number), integer, pos, status);
+    double abs_number = std::abs(number);
+    formatter->getNumberFormat().format(abs_number, number_str, pos, status);
     if (U_FAILURE(status)) {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError),
                       Object);
     }
 
     Handle<JSArray> elements;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, elements,
-        GenerateRelativeTimeFormatParts(isolate, formatted, integer, unit_enum),
-        Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, elements,
+                               GenerateRelativeTimeFormatParts(
+                                   isolate, formatted, number_str, unit_enum,
+                                   abs_number, formatter->getNumberFormat()),
+                               Object);
     return elements;
   }
 

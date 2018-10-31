@@ -639,23 +639,23 @@ std::vector<NumberFormatSpan> FlattenRegionsToParts(
   return out_parts;
 }
 
-MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
-    Isolate* isolate, Handle<JSNumberFormat> number_format, double number) {
-  Factory* factory = isolate->factory();
-  icu::NumberFormat* fmt = number_format->icu_number_format()->raw();
-  CHECK_NOT_NULL(fmt);
-
+Maybe<int> JSNumberFormat::FormatToParts(Isolate* isolate,
+                                         Handle<JSArray> result,
+                                         int start_index,
+                                         const icu::NumberFormat& fmt,
+                                         double number, Handle<String> unit) {
   icu::UnicodeString formatted;
   icu::FieldPositionIterator fp_iter;
   UErrorCode status = U_ZERO_ERROR;
-  fmt->format(number, formatted, &fp_iter, status);
+  fmt.format(number, formatted, &fp_iter, status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewTypeError(MessageTemplate::kIcuError), Nothing<int>());
   }
 
-  Handle<JSArray> result = factory->NewJSArray(0);
   int32_t length = formatted.length();
-  if (length == 0) return result;
+  int index = start_index;
+  if (length == 0) return Just(index);
 
   std::vector<NumberFormatSpan> regions;
   // Add a "literal" backdrop for the entire string. This will be used if no
@@ -674,7 +674,6 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
 
   std::vector<NumberFormatSpan> parts = FlattenRegionsToParts(&regions);
 
-  int index = 0;
   for (auto it = parts.begin(); it < parts.end(); it++) {
     NumberFormatSpan part = *it;
     Handle<String> field_type_string =
@@ -682,14 +681,33 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
             ? isolate->factory()->literal_string()
             : IcuNumberFieldIdToNumberType(part.field_id, number, isolate);
     Handle<String> substring;
-    ASSIGN_RETURN_ON_EXCEPTION(
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, substring,
         Intl::ToString(isolate, formatted, part.begin_pos, part.end_pos),
-        JSArray);
-    Intl::AddElement(isolate, result, index, field_type_string, substring);
+        Nothing<int>());
+    if (unit.is_null()) {
+      Intl::AddElement(isolate, result, index, field_type_string, substring);
+    } else {
+      Intl::AddElement(isolate, result, index, field_type_string, substring,
+                       isolate->factory()->unit_string(), unit);
+    }
     ++index;
   }
   JSObject::ValidateElements(*result);
+  return Just(index);
+}
+
+MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
+    Isolate* isolate, Handle<JSNumberFormat> number_format, double number) {
+  Factory* factory = isolate->factory();
+  icu::NumberFormat* fmt = number_format->icu_number_format()->raw();
+  CHECK_NOT_NULL(fmt);
+
+  Handle<JSArray> result = factory->NewJSArray(0);
+
+  Maybe<int> maybe_format_to_parts = JSNumberFormat::FormatToParts(
+      isolate, result, 0, *fmt, number, Handle<String>());
+  MAYBE_RETURN(maybe_format_to_parts, Handle<JSArray>());
 
   return result;
 }
