@@ -82,7 +82,7 @@ class Builtins {
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> JSConstructStubGeneric();
 
-  // Used by BuiltinDeserializer and CreateOffHeapTrampolines in isolate.cc.
+  // Used by CreateOffHeapTrampolines in isolate.cc.
   void set_builtin(int index, HeapObject* builtin);
 
   Code* builtin(int index);

@@ -11,8 +11,6 @@
 #include "src/callable.h"
 #include "src/interface-descriptors.h"
 #include "src/objects-inl.h"
-#include "src/snapshot/builtin-deserializer.h"
-#include "src/snapshot/builtin-serializer.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 #include "src/snapshot/startup-deserializer.h"
@@ -47,12 +45,10 @@ bool Snapshot::Initialize(Isolate* isolate) {
   CHECK(VerifyChecksum(blob));
   Vector<const byte> startup_data = ExtractStartupData(blob);
   SnapshotData startup_snapshot_data(startup_data);
-  Vector<const byte> builtin_data = ExtractBuiltinData(blob);
-  BuiltinSnapshotData builtin_snapshot_data(builtin_data);
   Vector<const byte> read_only_data = ExtractReadOnlyData(blob);
   SnapshotData read_only_snapshot_data(read_only_data);
-  StartupDeserializer deserializer(
-      &startup_snapshot_data, &builtin_snapshot_data, &read_only_snapshot_data);
+  StartupDeserializer deserializer(&startup_snapshot_data,
+                                   &read_only_snapshot_data);
   deserializer.SetRehashability(ExtractRehashability(blob));
   bool success = isolate->Init(&deserializer);
   if (FLAG_profile_deserialization) {
@@ -94,7 +90,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
 
 void ProfileDeserialization(
     const SnapshotData* read_only_snapshot,
-    const SnapshotData* startup_snapshot, const SnapshotData* builtin_snapshot,
+    const SnapshotData* startup_snapshot,
     const std::vector<SnapshotData*>& context_snapshots) {
   if (FLAG_profile_deserialization) {
     int startup_total = 0;
@@ -103,9 +99,6 @@ void ProfileDeserialization(
       startup_total += reservation.chunk_size();
     }
     for (const auto& reservation : startup_snapshot->Reservations()) {
-      startup_total += reservation.chunk_size();
-    }
-    for (const auto& reservation : builtin_snapshot->Reservations()) {
       startup_total += reservation.chunk_size();
     }
     PrintF("%10d bytes per isolate\n", startup_total);
@@ -121,7 +114,6 @@ void ProfileDeserialization(
 
 v8::StartupData Snapshot::CreateSnapshotBlob(
     const SnapshotData* startup_snapshot,
-    const BuiltinSnapshotData* builtin_snapshot,
     const SnapshotData* read_only_snapshot,
     const std::vector<SnapshotData*>& context_snapshots, bool can_be_rehashed) {
   uint32_t num_contexts = static_cast<uint32_t>(context_snapshots.size());
@@ -130,8 +122,6 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   DCHECK(IsAligned(total_length, kPointerAlignment));
   total_length += static_cast<uint32_t>(startup_snapshot->RawData().length());
   DCHECK(IsAligned(total_length, kPointerAlignment));
-  total_length += static_cast<uint32_t>(builtin_snapshot->RawData().length());
-  DCHECK(IsAligned(total_length, kPointerAlignment));
   total_length += static_cast<uint32_t>(read_only_snapshot->RawData().length());
   DCHECK(IsAligned(total_length, kPointerAlignment));
   for (const auto context_snapshot : context_snapshots) {
@@ -139,7 +129,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
     DCHECK(IsAligned(total_length, kPointerAlignment));
   }
 
-  ProfileDeserialization(read_only_snapshot, startup_snapshot, builtin_snapshot,
+  ProfileDeserialization(read_only_snapshot, startup_snapshot,
                          context_snapshots);
 
   char* data = new char[total_length];
@@ -165,17 +155,6 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
     PrintF("Snapshot blob consists of:\n%10d bytes in %d chunks for startup\n",
            payload_length,
            static_cast<uint32_t>(startup_snapshot->Reservations().size()));
-  }
-  payload_offset += payload_length;
-
-  // Builtins.
-  SetHeaderValue(data, kBuiltinOffsetOffset, payload_offset);
-  payload_length = builtin_snapshot->RawData().length();
-  CopyBytes(data + payload_offset,
-            reinterpret_cast<const char*>(builtin_snapshot->RawData().start()),
-            payload_length);
-  if (FLAG_profile_deserialization) {
-    PrintF("%10d bytes for builtins\n", payload_length);
   }
   payload_offset += payload_length;
 
@@ -517,13 +496,6 @@ Vector<const byte> Snapshot::ExtractStartupData(const v8::StartupData* data) {
 
   uint32_t num_contexts = ExtractNumContexts(data);
   return ExtractData(data, StartupSnapshotOffset(num_contexts),
-                     GetHeaderValue(data, kBuiltinOffsetOffset));
-}
-
-Vector<const byte> Snapshot::ExtractBuiltinData(const v8::StartupData* data) {
-  DCHECK(SnapshotIsValid(data));
-
-  return ExtractData(data, GetHeaderValue(data, kBuiltinOffsetOffset),
                      GetHeaderValue(data, kReadOnlyOffsetOffset));
 }
 
@@ -573,8 +545,7 @@ void Snapshot::CheckVersion(const v8::StartupData* data) {
   }
 }
 
-template <class AllocatorT>
-SnapshotData::SnapshotData(const Serializer<AllocatorT>* serializer) {
+SnapshotData::SnapshotData(const Serializer* serializer) {
   DisallowHeapAllocation no_gc;
   std::vector<Reservation> reservations = serializer->EncodeReservations();
   const std::vector<byte>* payload = serializer->Payload();
@@ -608,10 +579,6 @@ SnapshotData::SnapshotData(const Serializer<AllocatorT>* serializer) {
             static_cast<size_t>(payload->size()));
 }
 
-// Explicit instantiation.
-template SnapshotData::SnapshotData(
-    const Serializer<DefaultSerializerAllocator>* serializer);
-
 std::vector<SerializedData::Reservation> SnapshotData::Reservations() const {
   uint32_t size = GetHeaderValue(kNumReservationsOffset);
   std::vector<SerializedData::Reservation> reservations(size);
@@ -629,28 +596,6 @@ Vector<const byte> SnapshotData::Payload() const {
   uint32_t length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
   return Vector<const byte>(payload, length);
-}
-
-BuiltinSnapshotData::BuiltinSnapshotData(const BuiltinSerializer* serializer)
-    : SnapshotData(serializer) {}
-
-Vector<const byte> BuiltinSnapshotData::Payload() const {
-  Vector<const byte> payload = SnapshotData::Payload();
-  const int builtin_offsets_size = Builtins::builtin_count * kUInt32Size;
-  DCHECK_EQ(data_ + size_, payload.start() + payload.size());
-  DCHECK_GT(payload.size(), builtin_offsets_size);
-  return Vector<const byte>(payload.start(),
-                            payload.size() - builtin_offsets_size);
-}
-
-Vector<const uint32_t> BuiltinSnapshotData::BuiltinOffsets() const {
-  Vector<const byte> payload = SnapshotData::Payload();
-  const int builtin_offsets_size = Builtins::builtin_count * kUInt32Size;
-  DCHECK_EQ(data_ + size_, payload.start() + payload.size());
-  DCHECK_GT(payload.size(), builtin_offsets_size);
-  const uint32_t* data = reinterpret_cast<const uint32_t*>(
-      payload.start() + payload.size() - builtin_offsets_size);
-  return Vector<const uint32_t>(data, Builtins::builtin_count);
 }
 
 }  // namespace internal

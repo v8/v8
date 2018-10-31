@@ -19,7 +19,6 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
-class BuiltinDeserializerAllocator;
 class Callable;
 class UnoptimizedCompilationJob;
 class FunctionLiteral;
@@ -82,7 +81,6 @@ class Interpreter {
  private:
   friend class SetupInterpreter;
   friend class v8::internal::SetupIsolateDelegate;
-  friend class v8::internal::BuiltinDeserializerAllocator;
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 

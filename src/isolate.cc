@@ -3044,8 +3044,7 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 
     // Note that references to the old, on-heap code objects may still exist on
     // the heap. This is fine for the sake of serialization, as serialization
-    // will replace all of them with a builtin reference which is later
-    // deserialized to point to the object within the builtins table.
+    // will canonicalize all builtins in MaybeCanonicalizeBuiltin().
     //
     // From this point onwards, some builtin code objects may be unreachable and
     // thus collected by the GC.

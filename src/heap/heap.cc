@@ -2930,7 +2930,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
   // object space for side effects.
   IncrementalMarking::MarkingState* marking_state =
       incremental_marking()->marking_state();
-  for (int i = OLD_SPACE; i < Serializer<>::kNumberOfSpaces; i++) {
+  for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
     const Heap::Reservation& res = reservations[i];
     for (auto& chunk : res) {
       Address addr = chunk.start;
@@ -3806,6 +3806,10 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   if (!isMinorGC) {
     IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
+    // Currently we iterate the dispatch table to update pointers to possibly
+    // moved Code objects for bytecode handlers.
+    // TODO(v8:6666): Remove iteration once builtins are embedded (and thus
+    // immovable) in every build configuration.
     isolate_->interpreter()->IterateDispatchTable(v);
     v->Synchronize(VisitorSynchronization::kDispatchTable);
   }

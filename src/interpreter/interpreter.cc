@@ -99,15 +99,13 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
 }
 
 void Interpreter::IterateDispatchTable(RootVisitor* v) {
+  Heap* heap = isolate_->heap();
   for (int i = 0; i < kDispatchTableSize; i++) {
     Address code_entry = dispatch_table_[i];
 
-    // If the handler is embedded, it is immovable.
-    if (InstructionStream::PcIsOffHeap(isolate_, code_entry)) continue;
-
     Object* code = code_entry == kNullAddress
                        ? nullptr
-                       : Code::GetCodeFromTargetAddress(code_entry);
+                       : heap->GcSafeFindCodeForInnerPointer(code_entry);
     Object* old_code = code;
     v->VisitRootPointer(Root::kDispatchTable, nullptr, ObjectSlot(&code));
     if (code != old_code) {
