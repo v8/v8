@@ -60,14 +60,13 @@ bool IsWellFormedCurrencyCode(const std::string& currency) {
 }  // anonymous namespace
 
 // static
+// ecma402 #sec-intl.numberformat.prototype.resolvedoptions
 Handle<JSObject> JSNumberFormat::ResolvedOptions(
     Isolate* isolate, Handle<JSNumberFormat> number_format_holder) {
   Factory* factory = isolate->factory();
+
+  // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->style_string(),
-            number_format_holder->StyleAsString(), kDontThrow)
-            .FromJust());
 
   icu::NumberFormat* number_format =
       number_format_holder->icu_number_format()->raw();
@@ -78,14 +77,30 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
 
   Handle<String> locale =
       Handle<String>(number_format_holder->locale(), isolate);
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->locale_string(), locale, kDontThrow)
-            .FromJust());
+
   UErrorCode error = U_ZERO_ERROR;
   icu::Locale icu_locale = number_format->getLocale(ULOC_VALID_LOCALE, error);
   DCHECK(U_SUCCESS(error));
 
   std::string numbering_system = Intl::GetNumberingSystem(icu_locale);
+
+  // 5. For each row of Table 4, except the header row, in table order, do
+  // Table 4: Resolved Options of NumberFormat Instances
+  //  Internal Slot                    Property
+  //    [[Locale]]                      "locale"
+  //    [[NumberingSystem]]             "numberingSystem"
+  //    [[Style]]                       "style"
+  //    [[Currency]]                    "currency"
+  //    [[CurrencyDisplay]]             "currencyDisplay"
+  //    [[MinimumIntegerDigits]]        "minimumIntegerDigits"
+  //    [[MinimumFractionDigits]]       "minimumFractionDigits"
+  //    [[MaximumFractionDigits]]       "maximumFractionDigits"
+  //    [[MinimumSignificantDigits]]    "minimumSignificantDigits"
+  //    [[MaximumSignificantDigits]]    "maximumSignificantDigits"
+  //    [[UseGrouping]]                 "useGrouping"
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->locale_string(), locale, kDontThrow)
+            .FromJust());
   if (!numbering_system.empty()) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->numberingSystem_string(),
@@ -93,12 +108,11 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
               kDontThrow)
               .FromJust());
   }
-
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->style_string(),
+            number_format_holder->StyleAsString(), kDontThrow)
+            .FromJust());
   if (number_format_holder->style() == Style::CURRENCY) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->currencyDisplay_string(),
-              number_format_holder->CurrencyDisplayAsString(), kDontThrow)
-              .FromJust());
     icu::UnicodeString currency(number_format->getCurrency());
     DCHECK(!currency.isEmpty());
     CHECK(JSReceiver::CreateDataProperty(
@@ -110,8 +124,12 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
                   .ToHandleChecked(),
               kDontThrow)
               .FromJust());
-  }
 
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->currencyDisplay_string(),
+              number_format_holder->CurrencyDisplayAsString(), kDontThrow)
+              .FromJust());
+  }
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->minimumIntegerDigits_string(),
             factory->NewNumberFromInt(number_format->getMinimumIntegerDigits()),
@@ -148,7 +166,6 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             factory->ToBoolean((number_format->isGroupingUsed() == TRUE)),
             kDontThrow)
             .FromJust());
-
   return options;
 }
 
