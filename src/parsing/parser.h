@@ -862,7 +862,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE VariableProxy* ExpressionFromIdentifier(
       const AstRawString* name, int start_position,
       InferName infer = InferName::kYes) {
-    if (has_error()) return nullptr;
     if (infer == InferName::kYes) {
       fni_.PushVariableName(name);
     }

@@ -2436,7 +2436,7 @@ void Parser::AddArrowFunctionFormalParameters(
 void Parser::DeclareArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr,
     const Scanner::Location& params_loc) {
-  if (expr->IsEmptyParentheses()) return;
+  if (expr->IsEmptyParentheses() || has_error()) return;
 
   AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos);
 
@@ -2446,7 +2446,8 @@ void Parser::DeclareArrowFunctionFormalParameters(
   }
 
   DeclareFormalParameters(parameters);
-  DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
+  DCHECK_IMPLIES(parameters->is_simple,
+                 parameters->scope->has_simple_parameters());
 }
 
 void Parser::PrepareGeneratorVariables() {
