@@ -134,6 +134,7 @@ void Parser::DeclareAndInitializeVariables(
     Block* block, const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
+  if (has_error()) return;
   PatternRewriter::DeclareAndInitializeVariables(
       this, block, declaration_descriptor, declaration, names);
 }
