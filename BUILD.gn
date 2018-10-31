@@ -1937,6 +1937,8 @@ v8_source_set("v8_base") {
     "src/debug/debug-frames.cc",
     "src/debug/debug-frames.h",
     "src/debug/debug-interface.h",
+    "src/debug/debug-property-iterator.cc",
+    "src/debug/debug-property-iterator.h",
     "src/debug/debug-scope-iterator.cc",
     "src/debug/debug-scope-iterator.h",
     "src/debug/debug-scopes.cc",

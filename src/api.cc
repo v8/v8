@@ -9548,20 +9548,8 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   i::HandleScope handle_scope(isolate);
   i::Builtins::Name builtin_id;
   switch (builtin) {
-    case kObjectKeys:
-      builtin_id = i::Builtins::kObjectKeys;
-      break;
-    case kObjectGetPrototypeOf:
-      builtin_id = i::Builtins::kObjectGetPrototypeOf;
-      break;
-    case kObjectGetOwnPropertyDescriptor:
-      builtin_id = i::Builtins::kObjectGetOwnPropertyDescriptor;
-      break;
-    case kObjectGetOwnPropertyNames:
-      builtin_id = i::Builtins::kObjectGetOwnPropertyNames;
-      break;
-    case kObjectGetOwnPropertySymbols:
-      builtin_id = i::Builtins::kObjectGetOwnPropertySymbols;
+    case kStringToLowerCase:
+      builtin_id = i::Builtins::kStringPrototypeToLocaleLowerCase;
       break;
     default:
       UNREACHABLE();
@@ -9569,10 +9557,11 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
 
   i::Handle<i::String> name = isolate->factory()->empty_string();
   i::NewFunctionArgs args = i::NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name, builtin_id, i::LanguageMode::kSloppy);
+      name, builtin_id, i::LanguageMode::kStrict);
   i::Handle<i::JSFunction> fun = isolate->factory()->NewFunction(args);
 
-  fun->shared()->DontAdaptArguments();
+  fun->shared()->set_internal_formal_parameter_count(0);
+  fun->shared()->set_length(0);
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
 }
 
@@ -9695,41 +9684,6 @@ void debug::SetReturnValue(v8::Isolate* v8_isolate,
                            v8::Local<v8::Value> value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   isolate->debug()->set_return_value(*Utils::OpenHandle(*value));
-}
-
-int debug::GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
-                                       v8::Local<v8::Object> v8_object,
-                                       v8::Local<v8::Name> v8_name) {
-  i::Handle<i::JSReceiver> object = Utils::OpenHandle(*v8_object);
-  i::Handle<i::Name> name = Utils::OpenHandle(*v8_name);
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) {
-    return static_cast<int>(debug::NativeAccessorType::None);
-  }
-  i::LookupIterator it = i::LookupIterator(object->GetIsolate(), object, name,
-                                           i::LookupIterator::OWN);
-  if (!it.IsFound()) return static_cast<int>(debug::NativeAccessorType::None);
-  if (it.state() != i::LookupIterator::ACCESSOR) {
-    return static_cast<int>(debug::NativeAccessorType::None);
-  }
-  i::Handle<i::Object> structure = it.GetAccessors();
-  if (!structure->IsAccessorInfo()) {
-    return static_cast<int>(debug::NativeAccessorType::None);
-  }
-  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  int result = 0;
-#define IS_BUILTIN_ACESSOR(_, name, ...)                    \
-  if (*structure == *isolate->factory()->name##_accessor()) \
-    result |= static_cast<int>(debug::NativeAccessorType::IsBuiltin);
-  ACCESSOR_INFO_LIST_GENERATOR(IS_BUILTIN_ACESSOR, /* not used */)
-#undef IS_BUILTIN_ACESSOR
-  i::Handle<i::AccessorInfo> accessor_info =
-      i::Handle<i::AccessorInfo>::cast(structure);
-  if (accessor_info->getter())
-    result |= static_cast<int>(debug::NativeAccessorType::HasGetter);
-  if (accessor_info->setter())
-    result |= static_cast<int>(debug::NativeAccessorType::HasSetter);
-  return result;
 }
 
 int64_t debug::GetNextRandomInt64(v8::Isolate* v8_isolate) {
