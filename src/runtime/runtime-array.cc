@@ -833,7 +833,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
 }
 
 RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
-  HandleScope shs(isolate);
+  HandleScope hs(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, search_element, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, from_index, 2);
@@ -911,6 +911,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
 
   // Otherwise, perform slow lookups for special receiver types
   for (; index < len; ++index) {
+    HandleScope iteration_hs(isolate);
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {
