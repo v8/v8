@@ -1181,7 +1181,14 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
   }
 }
 
-inline void MemsetPointer(Address* dest, Address value, int counter) {
+template <typename T, typename U>
+inline void MemsetPointer(T** dest, U* value, int counter) {
+#ifdef DEBUG
+  T* a = nullptr;
+  U* b = nullptr;
+  a = b;  // Fake assignment to check assignability.
+  USE(a);
+#endif  // DEBUG
 #if V8_HOST_ARCH_IA32
 #define STOS "stosl"
 #elif V8_HOST_ARCH_X64
@@ -1213,20 +1220,8 @@ inline void MemsetPointer(Address* dest, Address value, int counter) {
 #undef STOS
 }
 
-template <typename T, typename U>
-inline void MemsetPointer(T** dest, U* value, int counter) {
-#ifdef DEBUG
-  T* a = nullptr;
-  U* b = nullptr;
-  a = b;  // Fake assignment to check assignability.
-  USE(a);
-#endif  // DEBUG
-  MemsetPointer(reinterpret_cast<Address*>(dest),
-                reinterpret_cast<Address>(value), counter);
-}
-
 inline void MemsetPointer(ObjectSlot start, Object* value, int counter) {
-  MemsetPointer(start.location(), reinterpret_cast<Address>(value), counter);
+  MemsetPointer(reinterpret_cast<Object**>(start.address()), value, counter);
 }
 
 // Simple support to read a file into std::string.

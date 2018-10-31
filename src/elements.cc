@@ -292,8 +292,8 @@ static void CopyDoubleToDoubleElements(FixedArrayBase* from_base,
   to_address += kDoubleSize * to_start;
   from_address += kDoubleSize * from_start;
   int words_per_double = (kDoubleSize / kPointerSize);
-  CopyWords(reinterpret_cast<Address*>(to_address),
-            reinterpret_cast<Address*>(from_address),
+  CopyWords(reinterpret_cast<Object**>(to_address),
+            reinterpret_cast<Object**>(from_address),
             static_cast<size_t>(words_per_double * copy_size));
 }
 
@@ -2227,8 +2227,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         heap->CanMoveObjectStart(*dst_elms)) {
       // Update all the copies of this backing_store handle.
       *dst_elms.location() =
-          BackingStore::cast(heap->LeftTrimFixedArray(*dst_elms, src_index))
-              ->ptr();
+          BackingStore::cast(heap->LeftTrimFixedArray(*dst_elms, src_index));
       receiver->set_elements(*dst_elms);
       // Adjust the hole offset as the array has been shrunk.
       hole_end -= src_index;

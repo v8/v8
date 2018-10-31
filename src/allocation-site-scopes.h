@@ -30,7 +30,7 @@ class AllocationSiteContext {
 
  protected:
   void update_current_site(AllocationSite* site) {
-    *(current_.location()) = site->ptr();
+    *(current_.location()) = site;
   }
 
   inline void InitializeTraversal(Handle<AllocationSite> site);

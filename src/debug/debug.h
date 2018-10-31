@@ -179,7 +179,7 @@ class DebugInfoListNode {
 
  private:
   // Global (weak) handle to the debug info object.
-  Address* debug_info_;
+  DebugInfo** debug_info_;
 
   // Next pointer for linked list.
   DebugInfoListNode* next_;

@@ -51,7 +51,6 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
-#include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -974,15 +973,15 @@ i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
-    i::ObjectPtr(*obj)->ObjectVerify(isolate);
+    reinterpret_cast<i::Object*>(*obj)->ObjectVerify(isolate);
   }
 #endif  // VERIFY_HEAP
-  return result.location();
+  return result.location_as_address_ptr();
 }
 
 i::Address* V8::CopyPersistent(i::Address* obj) {
   i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
-  return result.location();
+  return result.location_as_address_ptr();
 }
 
 void V8::RegisterExternallyReferencedObject(i::Address* location,
@@ -1061,14 +1060,16 @@ void HandleScope::Initialize(Isolate* isolate) {
       "Entering the V8 API without proper locking in place");
   i::HandleScopeData* current = internal_isolate->handle_scope_data();
   isolate_ = internal_isolate;
-  prev_next_ = current->next;
-  prev_limit_ = current->limit;
+  prev_next_ = reinterpret_cast<i::Address*>(current->next);
+  prev_limit_ = reinterpret_cast<i::Address*>(current->limit);
   current->level++;
 }
 
 
 HandleScope::~HandleScope() {
-  i::HandleScope::CloseScope(isolate_, prev_next_, prev_limit_);
+  i::HandleScope::CloseScope(isolate_,
+                             reinterpret_cast<i::Object**>(prev_next_),
+                             reinterpret_cast<i::Object**>(prev_limit_));
 }
 
 void* HandleScope::operator new(size_t) { base::OS::Abort(); }
@@ -1124,7 +1125,7 @@ void EscapableHandleScope::operator delete[](void*, size_t) {
 SealHandleScope::SealHandleScope(Isolate* isolate)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
   i::HandleScopeData* current = isolate_->handle_scope_data();
-  prev_limit_ = current->limit;
+  prev_limit_ = reinterpret_cast<i::Address*>(current->limit);
   current->limit = current->next;
   prev_sealed_level_ = current->sealed_level;
   current->sealed_level = current->level;
@@ -1134,7 +1135,7 @@ SealHandleScope::SealHandleScope(Isolate* isolate)
 SealHandleScope::~SealHandleScope() {
   i::HandleScopeData* current = isolate_->handle_scope_data();
   DCHECK_EQ(current->next, current->limit);
-  current->limit = prev_limit_;
+  current->limit = reinterpret_cast<i::Object**>(prev_limit_);
   DCHECK_EQ(current->level, current->sealed_level);
   current->sealed_level = prev_sealed_level_;
 }
@@ -4892,7 +4893,7 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
-  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
@@ -4910,7 +4911,7 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto self = Utils::OpenHandle(this);
-  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
@@ -4956,7 +4957,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto self = Utils::OpenHandle(this);
-  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   bool should_set_has_no_side_effect =
       side_effect_type == SideEffectType::kHasNoSideEffect &&
       isolate->debug_execution_mode() == i::DebugInfo::kSideEffects;
@@ -5007,7 +5008,7 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
   Utils::ApiCheck(!self.is_null(), "v8::Function::Call",
                   "Function to be called is a null pointer");
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
-  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
@@ -5727,10 +5728,10 @@ Local<Value> Symbol::Name() const {
   i::Isolate* isolate;
   if (!i::Isolate::FromWritableHeapObject(*sym, &isolate)) {
     // If the Symbol is in RO_SPACE, then its name must be too. Since RO_SPACE
-    // objects are immovable we can use the Handle(Address*) constructor with
-    // the address of the name field in the Symbol object without needing an
+    // objects are immovable we can use the Handle(T**) constructor with the
+    // address of the name field in the Symbol object without needing an
     // isolate.
-    i::Handle<i::HeapObject> ro_name(reinterpret_cast<i::Address*>(
+    i::Handle<i::HeapObject> ro_name(reinterpret_cast<i::HeapObject**>(
         sym->GetFieldAddress(i::Symbol::kNameOffset)));
     return Utils::ToLocal(ro_name);
   }
@@ -6294,7 +6295,7 @@ i::Address* GetSerializedDataFromFixedArray(i::Isolate* isolate,
       int last = list->length() - 1;
       while (last >= 0 && list->is_the_hole(isolate, last)) last--;
       if (last != -1) list->Shrink(isolate, last + 1);
-      return i::Handle<i::Object>(object, isolate).location();
+      return i::Handle<i::Object>(object, isolate).location_as_address_ptr();
     }
   }
   return nullptr;
@@ -7410,7 +7411,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
                 *Utils::OpenHandle(*promise))) {}
 
   ~AsyncCompilationResolver() override {
-    i::GlobalHandles::Destroy(promise_.location());
+    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
@@ -10516,14 +10517,10 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
 #endif
   // Iterate over all handles in the blocks except for the last.
   for (int i = static_cast<int>(blocks()->size()) - 2; i >= 0; --i) {
-    Address* block = blocks()->at(i);
-    // Cast possibly-unrelated pointers to plain Address before comparing them
-    // to avoid undefined behavior.
+    Object** block = blocks()->at(i);
     if (last_handle_before_deferred_block_ != nullptr &&
-        (reinterpret_cast<Address>(last_handle_before_deferred_block_) <=
-         reinterpret_cast<Address>(&block[kHandleBlockSize])) &&
-        (reinterpret_cast<Address>(last_handle_before_deferred_block_) >=
-         reinterpret_cast<Address>(block))) {
+        (last_handle_before_deferred_block_ <= &block[kHandleBlockSize]) &&
+        (last_handle_before_deferred_block_ >= block)) {
       v->VisitRootPointers(Root::kHandleScope, nullptr, ObjectSlot(block),
                            ObjectSlot(last_handle_before_deferred_block_));
       DCHECK(!found_block_before_deferred);
@@ -10574,13 +10571,13 @@ char* HandleScopeImplementer::Iterate(RootVisitor* v, char* storage) {
   return storage + ArchiveSpacePerThread();
 }
 
-DeferredHandles* HandleScopeImplementer::Detach(Address* prev_limit) {
+DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
   DeferredHandles* deferred =
       new DeferredHandles(isolate()->handle_scope_data()->next, isolate());
 
   while (!blocks_.empty()) {
-    Address* block_start = blocks_.back();
-    Address* block_limit = &block_start[kHandleBlockSize];
+    Object** block_start = blocks_.back();
+    Object** block_limit = &block_start[kHandleBlockSize];
     // We should not need to check for SealHandleScope here. Assert this.
     DCHECK(prev_limit == block_limit ||
            !(block_start <= prev_limit && prev_limit <= block_limit));
@@ -10622,14 +10619,8 @@ DeferredHandles::~DeferredHandles() {
 void DeferredHandles::Iterate(RootVisitor* v) {
   DCHECK(!blocks_.empty());
 
-  // Comparing pointers that do not point into the same array is undefined
-  // behavior, which means if we didn't cast everything to plain Address
-  // before comparing, the compiler would be allowed to assume that all
-  // comparisons evaluate to true and drop the entire check.
-  DCHECK((reinterpret_cast<Address>(first_block_limit_) >=
-          reinterpret_cast<Address>(blocks_.front())) &&
-         (reinterpret_cast<Address>(first_block_limit_) <=
-          reinterpret_cast<Address>(&(blocks_.front())[kHandleBlockSize])));
+  DCHECK((first_block_limit_ >= blocks_.front()) &&
+         (first_block_limit_ <= &(blocks_.front())[kHandleBlockSize]));
 
   v->VisitRootPointers(Root::kHandleScope, nullptr, ObjectSlot(blocks_.front()),
                        ObjectSlot(first_block_limit_));

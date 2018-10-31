@@ -146,7 +146,7 @@ class MockInstantiationResolver : public InstantiationResultResolver {
   explicit MockInstantiationResolver(Handle<Object>* out_instance)
       : out_instance_(out_instance) {}
   void OnInstantiationSucceeded(Handle<WasmInstanceObject> result) override {
-    *out_instance_->location() = result->ptr();
+    *out_instance_->location() = *result;
   }
   void OnInstantiationFailed(Handle<Object> error_reason) override {
     UNREACHABLE();

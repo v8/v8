@@ -399,7 +399,7 @@ DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo* debug_info)
 
 DebugInfoListNode::~DebugInfoListNode() {
   if (debug_info_ == nullptr) return;
-  GlobalHandles::Destroy(debug_info_);
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_info_));
   debug_info_ = nullptr;
 }
 

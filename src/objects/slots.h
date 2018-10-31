@@ -20,8 +20,6 @@ class SlotBase {
 
   bool operator<(const SlotBase& other) const { return ptr_ < other.ptr_; }
   bool operator<=(const SlotBase& other) const { return ptr_ <= other.ptr_; }
-  bool operator>(const SlotBase& other) const { return ptr_ > other.ptr_; }
-  bool operator>=(const SlotBase& other) const { return ptr_ >= other.ptr_; }
   bool operator==(const SlotBase& other) const { return ptr_ == other.ptr_; }
   bool operator!=(const SlotBase& other) const { return ptr_ != other.ptr_; }
   size_t operator-(const SlotBase& other) const {
@@ -38,8 +36,6 @@ class SlotBase {
   void* ToVoidPtr() const { return reinterpret_cast<void*>(address()); }
 
   Address address() const { return ptr_; }
-  // For symmetry with Handle.
-  Address* location() const { return reinterpret_cast<Address*>(ptr_); }
 
  protected:
   explicit SlotBase(Address ptr) : ptr_(ptr) {
@@ -61,9 +57,7 @@ class ObjectSlot : public SlotBase<ObjectSlot> {
  public:
   ObjectSlot() : SlotBase(kNullAddress) {}
   explicit ObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit ObjectSlot(Address* ptr)
-      : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit ObjectSlot(Object const* const* ptr)
+  explicit ObjectSlot(Object** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit ObjectSlot(SlotBase<T> slot) : SlotBase(slot.address()) {}
@@ -74,7 +68,6 @@ class ObjectSlot : public SlotBase<ObjectSlot> {
   inline Object* Relaxed_Load() const;
   inline Object* Relaxed_Load(int offset) const;
   inline void Relaxed_Store(int offset, Object* value) const;
-  inline Object* Release_CompareAndSwap(Object* old, Object* target) const;
 };
 
 // A MaybeObjectSlot instance describes a pointer-sized field ("slot") holding

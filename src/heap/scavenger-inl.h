@@ -129,8 +129,9 @@ bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
   heap()->CopyBlock(target->address() + kPointerSize,
                     source->address() + kPointerSize, size - kPointerSize);
 
-  Object* old = source->map_slot().Release_CompareAndSwap(
-      map, MapWord::FromForwardingAddress(target).ToMap());
+  HeapObject* old = base::AsAtomicPointer::Release_CompareAndSwap(
+      reinterpret_cast<HeapObject**>(source->address()), map,
+      MapWord::FromForwardingAddress(target).ToMap());
   if (old != map) {
     // Other task migrated the object.
     return false;
@@ -223,8 +224,9 @@ bool Scavenger::HandleLargeObject(Map* map, HeapObject* object,
                   object_size > kMaxNewSpaceHeapObjectSize)) {
     DCHECK_EQ(NEW_LO_SPACE,
               MemoryChunk::FromHeapObject(object)->owner()->identity());
-    if (object->map_slot().Release_CompareAndSwap(
-            map, MapWord::FromForwardingAddress(object).ToMap()) == map) {
+    if (base::AsAtomicPointer::Release_CompareAndSwap(
+            reinterpret_cast<HeapObject**>(object->address()), map,
+            MapWord::FromForwardingAddress(object).ToMap()) == map) {
       surviving_new_large_objects_.insert({object, map});
 
       if (!ContainsOnlyData(map->visitor_id())) {

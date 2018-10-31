@@ -160,7 +160,7 @@ HeapObject* RelocInfo::target_object() {
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return Handle<HeapObject>(reinterpret_cast<Address*>(
+  return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
       Assembler::target_address_at(pc_, constant_pool_)));
 }
 

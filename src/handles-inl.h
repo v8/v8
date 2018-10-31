@@ -86,13 +86,13 @@ HandleScope::~HandleScope() {
 #endif  // DEBUG
 }
 
-void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
-                             Address* prev_limit) {
+void HandleScope::CloseScope(Isolate* isolate, Object** prev_next,
+                             Object** prev_limit) {
   HandleScopeData* current = isolate->handle_scope_data();
 
   std::swap(current->next, prev_next);
   current->level--;
-  Address* limit = prev_next;
+  Object** limit = prev_next;
   if (current->limit != prev_limit) {
     current->limit = prev_limit;
     limit = prev_limit;
@@ -102,9 +102,7 @@ void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
   ZapRange(current->next, limit);
 #endif
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(
-      current->next,
-      static_cast<size_t>(reinterpret_cast<Address>(limit) -
-                          reinterpret_cast<Address>(current->next)));
+      current->next, static_cast<size_t>(limit - current->next));
 }
 
 
@@ -129,15 +127,15 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
 Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   HandleScopeData* data = isolate->handle_scope_data();
-  Address* result = data->next;
-  if (result == data->limit) {
-    result = Extend(isolate);
+  Address* result = reinterpret_cast<Address*>(data->next);
+  if (result == reinterpret_cast<Address*>(data->limit)) {
+    result = reinterpret_cast<Address*>(Extend(isolate));
   }
   // Update the current next field, set the value in the created handle,
   // and return the result.
   DCHECK_LT(reinterpret_cast<Address>(result),
             reinterpret_cast<Address>(data->limit));
-  data->next = reinterpret_cast<Address*>(reinterpret_cast<Address>(result) +
+  data->next = reinterpret_cast<Object**>(reinterpret_cast<Address>(result) +
                                           sizeof(Address));
   *result = value;
   return result;

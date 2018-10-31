@@ -3093,8 +3093,8 @@ class WasmInterpreterInternals : public ZoneObject {
 
 namespace {
 void NopFinalizer(const v8::WeakCallbackInfo<void>& data) {
-  Address* global_handle_location =
-      reinterpret_cast<Address*>(data.GetParameter());
+  Object** global_handle_location =
+      reinterpret_cast<Object**>(data.GetParameter());
   GlobalHandles::Destroy(global_handle_location);
 }
 
@@ -3102,7 +3102,8 @@ Handle<WasmInstanceObject> MakeWeak(
     Isolate* isolate, Handle<WasmInstanceObject> instance_object) {
   Handle<WasmInstanceObject> weak_instance =
       isolate->global_handles()->Create<WasmInstanceObject>(*instance_object);
-  Address* global_handle_location = weak_instance.location();
+  Object** global_handle_location =
+      Handle<Object>::cast(weak_instance).location();
   GlobalHandles::MakeWeak(global_handle_location, global_handle_location,
                           &NopFinalizer, v8::WeakCallbackType::kParameter);
   return weak_instance;

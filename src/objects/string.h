@@ -821,7 +821,7 @@ class FlatStringReader : public Relocatable {
   int length() { return length_; }
 
  private:
-  Address* str_;
+  String** str_;
   bool is_one_byte_;
   int length_;
   const void* start_;
