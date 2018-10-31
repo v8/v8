@@ -98,7 +98,7 @@ class SourceRangeScope final {
 // ----------------------------------------------------------------------------
 // The RETURN_IF_PARSE_ERROR macro is a convenient macro to enforce error
 // handling for functions that may fail (by returning if there was an parser
-// error scanner()->has_parser_error()).
+// error).
 //
 // Usage:
 //     foo = ParseFoo(); // may fail
@@ -274,7 +274,7 @@ class ParserBase {
 
 #undef ALLOW_ACCESSORS
 
-  bool has_error() const { return scanner()->has_parser_error(); }
+  V8_INLINE bool has_error() const { return scanner()->has_parser_error(); }
   bool allow_harmony_numeric_separator() const {
     return scanner()->allow_harmony_numeric_separator();
   }
