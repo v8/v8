@@ -55,11 +55,10 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 void RelocInfo::apply(intptr_t delta) {
   DCHECK_EQ(kApplyMask, (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                          RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                         RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
                          RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
                          RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY)));
   if (IsRuntimeEntry(rmode_) || IsCodeTarget(rmode_) ||
-      IsJsToWasmCall(rmode_) || IsOffHeapTarget(rmode_)) {
+      IsOffHeapTarget(rmode_)) {
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p -= delta;  // Relocate entry.
   } else if (IsInternalReference(rmode_)) {

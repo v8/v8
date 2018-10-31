@@ -3686,7 +3686,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ li(dst, Operand::EmbeddedNumber(src.ToFloat32()));
           break;
         case Constant::kInt64:
-          if (RelocInfo::IsWasmPtrReference(src.rmode())) {
+          if (RelocInfo::IsWasmReference(src.rmode())) {
             __ li(dst, Operand(src.ToInt64(), src.rmode()));
           } else {
             __ li(dst, Operand(src.ToInt64()));

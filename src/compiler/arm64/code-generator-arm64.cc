@@ -213,7 +213,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       case Constant::kInt32:
         return Operand(constant.ToInt32());
       case Constant::kInt64:
-        if (RelocInfo::IsWasmPtrReference(constant.rmode())) {
+        if (RelocInfo::IsWasmReference(constant.rmode())) {
           return Operand(constant.ToInt64(), constant.rmode());
         } else {
           return Operand(constant.ToInt64());

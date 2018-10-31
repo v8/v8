@@ -3448,7 +3448,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   auto MoveConstantToRegister = [&](Register dst, Constant src) {
     switch (src.type()) {
       case Constant::kInt32: {
-        if (RelocInfo::IsWasmPtrReference(src.rmode())) {
+        if (RelocInfo::IsWasmReference(src.rmode())) {
           __ movq(dst, src.ToInt64(), src.rmode());
         } else {
           int32_t value = src.ToInt32();
@@ -3461,7 +3461,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         break;
       }
       case Constant::kInt64:
-        if (RelocInfo::IsWasmPtrReference(src.rmode())) {
+        if (RelocInfo::IsWasmReference(src.rmode())) {
           __ movq(dst, src.ToInt64(), src.rmode());
         } else {
           __ Set(dst, src.ToInt64());
@@ -3498,7 +3498,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   };
   // Helper function to write the given constant to the stack.
   auto MoveConstantToSlot = [&](Operand dst, Constant src) {
-    if (!RelocInfo::IsWasmPtrReference(src.rmode())) {
+    if (!RelocInfo::IsWasmReference(src.rmode())) {
       switch (src.type()) {
         case Constant::kInt32:
           __ movq(dst, Immediate(src.ToInt32()));

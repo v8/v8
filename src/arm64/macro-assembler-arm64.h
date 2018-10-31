@@ -204,12 +204,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   bool allow_macro_instructions() const { return allow_macro_instructions_; }
 #endif
 
-  // We should not use near calls or jumps for JS->WASM calls and calls to
-  // external references, since the code spaces are not guaranteed to be close
-  // to each other.
+  // We should not use near calls or jumps for calls to external references,
+  // since the code spaces are not guaranteed to be close to each other.
   bool CanUseNearCallOrJump(RelocInfo::Mode rmode) {
-    return rmode != RelocInfo::JS_TO_WASM_CALL &&
-           rmode != RelocInfo::EXTERNAL_REFERENCE;
+    return rmode != RelocInfo::EXTERNAL_REFERENCE;
   }
 
   // Activation support.
