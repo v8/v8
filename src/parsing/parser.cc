@@ -568,7 +568,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     FunctionState function_state(&function_state_, &scope_, scope);
     ZonePtrList<Statement>* body =
         new (zone()) ZonePtrList<Statement>(16, zone());
-    bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
     if (parsing_module_) {
       DCHECK(info->is_module());
@@ -588,56 +587,50 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
           zone());
 
       ParseModuleItemList(body);
-      ok = !has_error() && module()->Validate(this->scope()->AsModuleScope(),
-                                              pending_error_handler(), zone());
+      if (!module()->Validate(this->scope()->AsModuleScope(),
+                              pending_error_handler(), zone())) {
+        scanner()->set_parser_error();
+      }
     } else if (info->is_wrapped_as_function()) {
-      ParseWrapped(isolate, info, body, scope, zone(), &ok);
+      ParseWrapped(isolate, info, body, scope, zone());
     } else {
       // Don't count the mode in the use counters--give the program a chance
       // to enable script-wide strict mode below.
       this->scope()->SetLanguageMode(info->language_mode());
       ParseStatementList(body, Token::EOS);
     }
-    ok = ok && !has_error();
 
     // The parser will peek but not consume EOS.  Our scope logically goes all
     // the way to the EOS, though.
-    scope->set_end_position(scanner()->peek_location().beg_pos);
+    scope->set_end_position(peek_position());
 
-    if (ok && is_strict(language_mode())) {
-      CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos);
-      ok = !has_error();
+    if (is_strict(language_mode())) {
+      CheckStrictOctalLiteral(beg_pos, end_position());
     }
-    if (ok && is_sloppy(language_mode())) {
+    if (is_sloppy(language_mode())) {
       // TODO(littledan): Function bindings on the global object that modify
       // pre-existing bindings should be made writable, enumerable and
       // nonconfigurable if possible, whereas this code will leave attributes
       // unchanged if the property already exists.
       InsertSloppyBlockFunctionVarBindings(scope);
     }
-    if (ok) {
-      CheckConflictingVarDeclarations(scope);
-      ok = !has_error();
-    }
+    RETURN_IF_PARSE_ERROR;
+    CheckConflictingVarDeclarations(scope);
 
-    if (ok && info->parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
+    if (info->parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
       if (body->length() != 1 ||
           !body->at(0)->IsExpressionStatement() ||
           !body->at(0)->AsExpressionStatement()->
               expression()->IsFunctionLiteral()) {
         ReportMessage(MessageTemplate::kSingleFunctionLiteral);
-        ok = false;
       }
     }
 
-    if (ok) {
-      RewriteDestructuringAssignments();
-      int parameter_count = parsing_module_ ? 1 : 0;
-      result = factory()->NewScriptOrEvalFunctionLiteral(
-          scope, body, function_state.expected_property_count(),
-          parameter_count);
-      result->set_suspend_count(function_state.suspend_count());
-    }
+    RewriteDestructuringAssignments();
+    int parameter_count = parsing_module_ ? 1 : 0;
+    result = factory()->NewScriptOrEvalFunctionLiteral(
+        scope, body, function_state.expected_property_count(), parameter_count);
+    result->set_suspend_count(function_state.suspend_count());
   }
 
   info->set_max_function_literal_id(GetLastFunctionLiteralId());
@@ -645,6 +638,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   // Make sure the target stack is empty.
   DCHECK_NULL(target_stack_);
 
+  RETURN_IF_PARSE_ERROR;
   return result;
 }
 
@@ -666,7 +660,7 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
 
 void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
                           ZonePtrList<Statement>* body,
-                          DeclarationScope* outer_scope, Zone* zone, bool* ok) {
+                          DeclarationScope* outer_scope, Zone* zone) {
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK(info->is_wrapped_as_function());
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
@@ -777,7 +771,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
            is_strict(info->language_mode()));
     FunctionLiteral::FunctionType function_type = ComputeFunctionType(info);
     FunctionKind kind = info->function_kind();
-    bool ok = true;
 
     if (IsArrowFunction(kind)) {
       if (IsAsyncFunction(kind)) {
@@ -813,61 +806,50 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         if (Check(Token::LPAREN)) {
           // '(' StrictFormalParameters ')'
           ParseFormalParameterList(&formals);
-          ok = !has_error();
-          if (ok) ok = Check(Token::RPAREN);
+          Expect(Token::RPAREN);
         } else {
           // BindingIdentifier
           ParseFormalParameter(&formals);
-          ok = !has_error();
-          if (ok) {
-            DeclareFormalParameters(&formals);
-          }
+          DeclareFormalParameters(&formals);
         }
       }
 
-      if (ok) {
-        if (GetLastFunctionLiteralId() != info->function_literal_id() - 1) {
-          // If there were FunctionLiterals in the parameters, we need to
-          // renumber them to shift down so the next function literal id for
-          // the arrow function is the one requested.
-          AstFunctionLiteralIdReindexer reindexer(
-              stack_limit_,
-              (info->function_literal_id() - 1) - GetLastFunctionLiteralId());
-          for (auto p : formals.params) {
-            if (p->pattern != nullptr) reindexer.Reindex(p->pattern);
-            if (p->initializer() != nullptr) {
-              reindexer.Reindex(p->initializer());
-            }
+      if (GetLastFunctionLiteralId() != info->function_literal_id() - 1) {
+        // If there were FunctionLiterals in the parameters, we need to
+        // renumber them to shift down so the next function literal id for
+        // the arrow function is the one requested.
+        AstFunctionLiteralIdReindexer reindexer(
+            stack_limit_,
+            (info->function_literal_id() - 1) - GetLastFunctionLiteralId());
+        for (auto p : formals.params) {
+          if (p->pattern != nullptr) reindexer.Reindex(p->pattern);
+          if (p->initializer() != nullptr) {
+            reindexer.Reindex(p->initializer());
           }
-          ResetFunctionLiteralId();
-          SkipFunctionLiterals(info->function_literal_id() - 1);
         }
+        ResetFunctionLiteralId();
+        SkipFunctionLiterals(info->function_literal_id() - 1);
+      }
 
-        // Pass `accept_IN=true` to ParseArrowFunctionLiteral --- This should
-        // not be observable, or else the preparser would have failed.
-        const bool accept_IN = true;
-        // Any destructuring assignments in the current FunctionState
-        // actually belong to the arrow function itself.
-        const int rewritable_length = 0;
-        Expression* expression =
-            ParseArrowFunctionLiteral(accept_IN, formals, rewritable_length);
-        ok = !has_error();
-        if (ok) {
-          // Scanning must end at the same position that was recorded
-          // previously. If not, parsing has been interrupted due to a stack
-          // overflow, at which point the partially parsed arrow function
-          // concise body happens to be a valid expression. This is a problem
-          // only for arrow functions with single expression bodies, since there
-          // is no end token such as "}" for normal functions.
-          if (scanner()->location().end_pos == info->end_position()) {
-            // The pre-parser saw an arrow function here, so the full parser
-            // must produce a FunctionLiteral.
-            DCHECK(expression->IsFunctionLiteral());
-            result = expression->AsFunctionLiteral();
-          } else {
-            ok = false;
-          }
-        }
+      // Pass `accept_IN=true` to ParseArrowFunctionLiteral --- This should
+      // not be observable, or else the preparser would have failed.
+      const bool accept_IN = true;
+      // Any destructuring assignments in the current FunctionState
+      // actually belong to the arrow function itself.
+      const int rewritable_length = 0;
+      Expression* expression =
+          ParseArrowFunctionLiteral(accept_IN, formals, rewritable_length);
+      // Scanning must end at the same position that was recorded
+      // previously. If not, parsing has been interrupted due to a stack
+      // overflow, at which point the partially parsed arrow function
+      // concise body happens to be a valid expression. This is a problem
+      // only for arrow functions with single expression bodies, since there
+      // is no end token such as "}" for normal functions.
+      if (scanner()->location().end_pos == info->end_position()) {
+        // The pre-parser saw an arrow function here, so the full parser
+        // must produce a FunctionLiteral.
+        DCHECK(expression->IsFunctionLiteral());
+        result = expression->AsFunctionLiteral();
       }
     } else if (IsDefaultConstructor(kind)) {
       DCHECK_EQ(scope(), outer);
@@ -882,16 +864,11 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, function_type, info->language_mode(),
           arguments_for_wrapped_function);
-      ok = !has_error();
     }
 
-    DCHECK_EQ(ok, !has_error());
-    if (ok) {
-      result->set_requires_instance_fields_initializer(
-          info->requires_instance_fields_initializer());
-    }
-    // Make sure the results agree.
-    DCHECK(ok == (result != nullptr));
+    RETURN_IF_PARSE_ERROR;
+    result->set_requires_instance_fields_initializer(
+        info->requires_instance_fields_initializer());
   }
 
   // Make sure the target stack is empty.
@@ -2142,7 +2119,7 @@ Statement* Parser::InitializeForOfStatement(
 
 Statement* Parser::DesugarLexicalBindingsInForStatement(
     ForStatement* loop, Statement* init, Expression* cond, Statement* next,
-    Statement* body, Scope* inner_scope, const ForInfo& for_info, bool* ok) {
+    Statement* body, Scope* inner_scope, const ForInfo& for_info) {
   // ES6 13.7.4.8 specifies that on each loop iteration the let variables are
   // copied into a new environment.  Moreover, the "next" statement must be
   // evaluated not in the environment of the just completed iteration but in

@@ -244,7 +244,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // function wrapper.
   void ParseWrapped(Isolate* isolate, ParseInfo* info,
                     ZonePtrList<Statement>* body, DeclarationScope* scope,
-                    Zone* zone, bool* ok);
+                    Zone* zone);
 
   ZonePtrList<const AstRawString>* PrepareWrappedArguments(Isolate* isolate,
                                                            ParseInfo* info,
@@ -390,7 +390,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Statement* DesugarLexicalBindingsInForStatement(
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
-      Statement* body, Scope* inner_scope, const ForInfo& for_info, bool* ok);
+      Statement* body, Scope* inner_scope, const ForInfo& for_info);
 
   Expression* RewriteDoExpression(Block* body, int pos);
 

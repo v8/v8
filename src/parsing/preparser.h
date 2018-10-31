@@ -1424,8 +1424,7 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE StatementT DesugarLexicalBindingsInForStatement(
       PreParserStatement loop, PreParserStatement init,
       const PreParserExpression& cond, PreParserStatement next,
-      PreParserStatement body, Scope* inner_scope, const ForInfo& for_info,
-      bool* ok) {
+      PreParserStatement body, Scope* inner_scope, const ForInfo& for_info) {
     // See Parser::DesugarLexicalBindingsInForStatement.
     for (auto name : for_info.bound_names) {
       inner_scope->DeclareVariableName(name,

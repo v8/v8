@@ -5665,7 +5665,6 @@ ParserBase<Impl>::ParseStandardForLoopWithLexicalDeclarations(
     int stmt_pos, StatementT init, ForInfo* for_info,
     ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels) {
-  bool ok = true;
   // The condition and the next statement of the for loop must be parsed
   // in a new scope.
   Scope* inner_scope = NewScope(BLOCK_SCOPE);
@@ -5687,7 +5686,7 @@ ParserBase<Impl>::ParseStandardForLoopWithLexicalDeclarations(
       function_state_->contains_function_or_eval()) {
     scope()->set_is_hidden();
     return impl()->DesugarLexicalBindingsInForStatement(
-        loop, init, cond, next, body, inner_scope, *for_info, &ok);
+        loop, init, cond, next, body, inner_scope, *for_info);
   } else {
     inner_scope = inner_scope->FinalizeBlockScope();
     DCHECK_NULL(inner_scope);

@@ -81,16 +81,12 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
 
   FunctionState top_scope(&function_state_, &scope_, scope);
   original_scope_ = scope_;
-  bool ok = true;
   int start_position = scanner()->peek_location().beg_pos;
   PreParserStatementList body;
   ParseStatementList(body, Token::EOS);
-  ok = !has_error();
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
-  if (!ok) {
-    ReportUnexpectedToken(scanner()->current_token());
-  } else if (is_strict(language_mode())) {
+  if (is_strict(language_mode())) {
     CheckStrictOctalLiteral(start_position, scanner()->location().end_pos);
   }
   return kPreParseSuccess;
