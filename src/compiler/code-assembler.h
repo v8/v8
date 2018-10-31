@@ -451,6 +451,9 @@ class SloppyTNode : public TNode<T> {
       : TNode<T>(other) {}
 };
 
+template <class... Types>
+class CodeAssemblerParameterizedLabel;
+
 // This macro alias allows to use PairT<T1, T2> as a macro argument.
 #define PAIR_TYPE(T1, T2) PairT<T1, T2>
 
@@ -806,6 +809,15 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void GotoIfNot(SloppyTNode<IntegralT> condition, Label* false_label);
   void Branch(SloppyTNode<IntegralT> condition, Label* true_label,
               Label* false_label);
+
+  template <class... Ts>
+  using PLabel = compiler::CodeAssemblerParameterizedLabel<Ts...>;
+
+  template <class... T, class... Args>
+  void Goto(PLabel<T...>* label, Args... args) {
+    label->AddInputs(args...);
+    Goto(label->plain_label());
+  }
 
   void Branch(TNode<BoolT> condition, const std::function<void()>& true_body,
               const std::function<void()>& false_body);
@@ -1269,6 +1281,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool UnalignedLoadSupported(MachineRepresentation rep) const;
   bool UnalignedStoreSupported(MachineRepresentation rep) const;
 
+  bool IsExceptionHandlerActive() const;
+
  protected:
   void RegisterCallGenerationCallbacks(
       const CodeAssemblerCallback& call_prologue,
@@ -1281,6 +1295,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool IsJSFunctionCall() const;
 
  private:
+  void HandleException(Node* result);
+
   TNode<Object> CallRuntimeImpl(Runtime::FunctionId function,
                                 TNode<Object> context,
                                 std::initializer_list<TNode<Object>> args);
@@ -1482,6 +1498,7 @@ class CodeAssemblerParameterizedLabel
 
  private:
   friend class internal::TorqueAssembler;
+  friend class CodeAssembler;
 
   void AddInputs(TNode<Types>... inputs) {
     CodeAssemblerParameterizedLabelBase::AddInputs(
@@ -1500,6 +1517,9 @@ class CodeAssemblerParameterizedLabel
     if (phi != nullptr) *result = TNode<T>::UncheckedCast(phi);
   }
 };
+
+typedef CodeAssemblerParameterizedLabel<Object>
+    CodeAssemblerExceptionHandlerLabel;
 
 class V8_EXPORT_PRIVATE CodeAssemblerState {
  public:
@@ -1535,11 +1555,15 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   friend class CodeAssemblerVariable;
   friend class CodeAssemblerTester;
   friend class CodeAssemblerParameterizedLabelBase;
+  friend class CodeAssemblerScopedExceptionHandler;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,
                      const char* name, PoisoningMitigationLevel poisoning_level,
                      uint32_t stub_key, int32_t builtin_index);
+
+  void PushExceptionHandler(CodeAssemblerExceptionHandlerLabel* label);
+  void PopExceptionHandler();
 
   std::unique_ptr<RawMachineAssembler> raw_assembler_;
   Code::Kind kind_;
@@ -1550,8 +1574,25 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   ZoneSet<CodeAssemblerVariable::Impl*> variables_;
   CodeAssemblerCallback call_prologue_;
   CodeAssemblerCallback call_epilogue_;
+  std::vector<CodeAssemblerExceptionHandlerLabel*> exception_handler_labels_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
+};
+
+class CodeAssemblerScopedExceptionHandler {
+ public:
+  CodeAssemblerScopedExceptionHandler(CodeAssembler* assembler,
+                                      CodeAssemblerExceptionHandlerLabel* label)
+      : assembler_(assembler) {
+    assembler_->state()->PushExceptionHandler(label);
+  }
+
+  ~CodeAssemblerScopedExceptionHandler() {
+    assembler_->state()->PopExceptionHandler();
+  }
+
+ private:
+  CodeAssembler* assembler_;
 };
 
 }  // namespace compiler

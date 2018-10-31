@@ -104,6 +104,12 @@ void CallCsaMacroInstruction::TypeInstruction(Stack<const Type*>* stack,
     InvalidateTransientTypes(stack);
   }
 
+  if (catch_block) {
+    Stack<const Type*> catch_stack = *stack;
+    catch_stack.Push(TypeOracle::GetObjectType());
+    (*catch_block)->SetInputTypes(catch_stack);
+  }
+
   stack->PushMany(LowerType(macro->signature().return_type));
 }
 
@@ -136,6 +142,12 @@ void CallCsaMacroAndBranchInstruction::TypeInstruction(
     InvalidateTransientTypes(stack);
   }
 
+  if (catch_block) {
+    Stack<const Type*> catch_stack = *stack;
+    catch_stack.Push(TypeOracle::GetObjectType());
+    (*catch_block)->SetInputTypes(catch_stack);
+  }
+
   if (macro->signature().return_type != TypeOracle::GetNeverType()) {
     Stack<const Type*> return_stack = *stack;
     return_stack.PushMany(LowerType(macro->signature().return_type));
@@ -160,6 +172,13 @@ void CallBuiltinInstruction::TypeInstruction(Stack<const Type*>* stack,
   if (builtin->IsTransitioning()) {
     InvalidateTransientTypes(stack);
   }
+
+  if (catch_block) {
+    Stack<const Type*> catch_stack = *stack;
+    catch_stack.Push(TypeOracle::GetObjectType());
+    (*catch_block)->SetInputTypes(catch_stack);
+  }
+
   stack->PushMany(LowerType(builtin->signature().return_type));
 }
 
@@ -188,6 +207,13 @@ void CallRuntimeInstruction::TypeInstruction(Stack<const Type*>* stack,
   if (runtime_function->IsTransitioning()) {
     InvalidateTransientTypes(stack);
   }
+
+  if (catch_block) {
+    Stack<const Type*> catch_stack = *stack;
+    catch_stack.Push(TypeOracle::GetObjectType());
+    (*catch_block)->SetInputTypes(catch_stack);
+  }
+
   const Type* return_type = runtime_function->signature().return_type;
   if (return_type != TypeOracle::GetNeverType()) {
     stack->PushMany(LowerType(return_type));

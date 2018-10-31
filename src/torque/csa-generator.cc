@@ -150,6 +150,7 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
   }
   std::reverse(args.begin(), args.end());
 
+  Stack<std::string> pre_call_stack = *stack;
   const Type* return_type = instruction.macro->signature().return_type;
   std::vector<std::string> results;
   for (const Type* type : LowerType(return_type)) {
@@ -159,6 +160,8 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
          << stack->Top() << ";\n";
     out_ << "    USE(" << stack->Top() << ");\n";
   }
+  std::string catch_name =
+      PreCallableExceptionPreparation(instruction.catch_block);
   out_ << "    ";
   if (return_type->IsStructType()) {
     out_ << "std::tie(";
@@ -178,6 +181,8 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
     if (results.size() == 1) out_ << ")";
     out_ << ");\n";
   }
+  PostCallableExceptionPreparation(catch_name, return_type,
+                                   instruction.catch_block, &pre_call_stack);
 }
 
 void CSAGenerator::EmitInstruction(
@@ -205,6 +210,7 @@ void CSAGenerator::EmitInstruction(
   }
   std::reverse(args.begin(), args.end());
 
+  Stack<std::string> pre_call_stack = *stack;
   std::vector<std::string> results;
   const Type* return_type = instruction.macro->signature().return_type;
   if (return_type != TypeOracle::GetNeverType()) {
@@ -235,6 +241,8 @@ void CSAGenerator::EmitInstruction(
     out_ << "    Label " << label_names[i] << "(this);\n";
   }
 
+  std::string catch_name =
+      PreCallableExceptionPreparation(instruction.catch_block);
   out_ << "    ";
   if (results.size() == 1) {
     out_ << results[0] << " = ";
@@ -259,6 +267,10 @@ void CSAGenerator::EmitInstruction(
   } else {
     out_ << ");\n";
   }
+
+  PostCallableExceptionPreparation(catch_name, return_type,
+                                   instruction.catch_block, &pre_call_stack);
+
   if (instruction.return_continuation) {
     out_ << "    Goto(&" << BlockName(*instruction.return_continuation);
     for (const std::string& value : *stack) {
@@ -296,16 +308,24 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     PrintCommaSeparatedList(out_, arguments);
     out_ << ");\n";
   } else {
+    std::string result_name = FreshNodeName();
+    if (result_types.size() == 1) {
+      out_ << "    TNode<" << result_types[0]->GetGeneratedTNodeTypeName()
+           << "> " << result_name << ";\n";
+    }
+    std::string catch_name =
+        PreCallableExceptionPreparation(instruction.catch_block);
+    Stack<std::string> pre_call_stack = *stack;
     if (result_types.size() == 1) {
       std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
-      stack->Push(FreshNodeName());
-      out_ << "    TNode<" << generated_type << "> " << stack->Top() << " = ";
+      stack->Push(result_name);
+      out_ << "    " << result_name << " = ";
       if (generated_type != "Object") out_ << "CAST(";
       out_ << "CallBuiltin(Builtins::k" << instruction.builtin->name() << ", ";
       PrintCommaSeparatedList(out_, arguments);
       if (generated_type != "Object") out_ << ")";
       out_ << ");\n";
-      out_ << "    USE(" << stack->Top() << ");\n";
+      out_ << "    USE(" << result_name << ");\n";
     } else {
       DCHECK_EQ(0, result_types.size());
       // TODO(tebbi): Actually, builtins have to return a value, so we should
@@ -315,6 +335,10 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
       PrintCommaSeparatedList(out_, arguments);
       out_ << ");\n";
     }
+    PostCallableExceptionPreparation(
+        catch_name,
+        result_types.size() == 0 ? TypeOracle::GetVoidType() : result_types[0],
+        instruction.catch_block, &pre_call_stack);
   }
 }
 
@@ -348,6 +372,44 @@ void CSAGenerator::EmitInstruction(
   }
 }
 
+std::string CSAGenerator::PreCallableExceptionPreparation(
+    base::Optional<Block*> catch_block) {
+  std::string catch_name;
+  if (catch_block) {
+    catch_name = FreshCatchName();
+    out_ << "    CatchLabel " << catch_name
+         << "_label(this, compiler::CodeAssemblerLabel::kDeferred);\n";
+    out_ << "    { ScopedCatch s(this, &" << catch_name << "_label);\n";
+  }
+  return catch_name;
+}
+
+void CSAGenerator::PostCallableExceptionPreparation(
+    const std::string& catch_name, const Type* return_type,
+    base::Optional<Block*> catch_block, Stack<std::string>* stack) {
+  if (catch_block) {
+    std::string block_name = BlockName(*catch_block);
+    out_ << "    }\n";
+    out_ << "    if (" << catch_name << "_label.is_used()) {\n";
+    out_ << "      Label " << catch_name << "_skip(this);\n";
+    if (!return_type->IsNever()) {
+      out_ << "      Goto(&" << catch_name << "_skip);\n";
+    }
+    out_ << "      TNode<Object> " << catch_name << "_exception_object;\n";
+    out_ << "      Bind(&" << catch_name << "_label, &" << catch_name
+         << "_exception_object);\n";
+    out_ << "      Goto(&" << block_name;
+    for (size_t i = 0; i < stack->Size(); ++i) {
+      out_ << ", " << stack->begin()[i];
+    }
+    out_ << ", " << catch_name << "_exception_object);\n";
+    if (!return_type->IsNever()) {
+      out_ << "      Bind(&" << catch_name << "_skip);\n";
+    }
+    out_ << "    }\n";
+  }
+}
+
 void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
                                    Stack<std::string>* stack) {
   std::vector<std::string> arguments = stack->PopMany(instruction.argc);
@@ -366,14 +428,21 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
     PrintCommaSeparatedList(out_, arguments);
     out_ << ");\n";
   } else {
+    std::string result_name = FreshNodeName();
     if (result_types.size() == 1) {
-      stack->Push(FreshNodeName());
       out_ << "    TNode<" << result_types[0]->GetGeneratedTNodeTypeName()
-           << "> " << stack->Top() << " = CAST(CallRuntime(Runtime::k"
+           << "> " << result_name << ";\n";
+    }
+    std::string catch_name =
+        PreCallableExceptionPreparation(instruction.catch_block);
+    Stack<std::string> pre_call_stack = *stack;
+    if (result_types.size() == 1) {
+      stack->Push(result_name);
+      out_ << "    " << result_name << " = CAST(CallRuntime(Runtime::k"
            << instruction.runtime_function->name() << ", ";
       PrintCommaSeparatedList(out_, arguments);
       out_ << "));\n";
-      out_ << "    USE(" << stack->Top() << ");\n";
+      out_ << "    USE(" << result_name << ");\n";
     } else {
       DCHECK_EQ(0, result_types.size());
       out_ << "    CallRuntime(Runtime::k"
@@ -386,6 +455,8 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
         DCHECK(return_type == TypeOracle::GetVoidType());
       }
     }
+    PostCallableExceptionPreparation(catch_name, return_type,
+                                     instruction.catch_block, &pre_call_stack);
   }
 }
 
