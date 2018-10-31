@@ -30,9 +30,6 @@ class V8InspectorImpl;
 class V8StackTraceImpl;
 struct V8StackTraceId;
 
-enum class WrapMode { kForceValue, kNoPreview, kWithPreview };
-enum class V8InternalValueType { kNone, kEntry, kScope, kScopeList };
-
 using protocol::Response;
 using ScheduleStepIntoAsyncCallback =
     protocol::Debugger::Backend::ScheduleStepIntoAsyncCallback;
@@ -137,12 +134,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::shared_ptr<AsyncStackTrace> stackTraceFor(int contextGroupId,
                                                  const V8StackTraceId& id);
 
-  bool addInternalObject(v8::Local<v8::Context> context,
-                         v8::Local<v8::Object> object,
-                         V8InternalValueType type);
-  V8InternalValueType getInternalType(v8::Local<v8::Context> context,
-                                      v8::Local<v8::Object> object);
-
  private:
   void clearContinueToLocation();
   bool shouldContinueToCurrentLocation();
@@ -169,8 +160,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
                                            v8::Local<v8::Function>);
   v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
                                             v8::Local<v8::Value>);
-  v8::MaybeLocal<v8::Array> collectionsEntries(v8::Local<v8::Context> context,
-                                               v8::Local<v8::Value> value);
 
   void asyncTaskScheduledForStack(const String16& taskName, void* task,
                                   bool recurring);
@@ -263,8 +252,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   uint32_t m_lastStableObjectId = 0;
   v8::Global<v8::debug::WeakMap> m_stableObjectId;
-
-  v8::Global<v8::debug::WeakMap> m_internalObjects;
 
   WasmTranslation m_wasmTranslation;
 

@@ -589,6 +589,8 @@ Running test: testMap
         objectId : <objectId>
         preview : {
             description : Map(0)
+            entries : [
+            ]
             overflow : false
             properties : [
             ]
@@ -816,6 +818,8 @@ Running test: testMap
         objectId : <objectId>
         preview : {
             description : MapIterator
+            entries : [
+            ]
             overflow : false
             properties : [
             ]
@@ -893,6 +897,8 @@ Running test: testMap
         objectId : <objectId>
         preview : {
             description : MapIterator
+            entries : [
+            ]
             overflow : false
             properties : [
             ]
@@ -1110,6 +1116,8 @@ Running test: testWeakMap
         objectId : <objectId>
         preview : {
             description : WeakMap
+            entries : [
+            ]
             overflow : false
             properties : [
             ]
@@ -1194,6 +1202,8 @@ Running test: testWeakSet
         objectId : <objectId>
         preview : {
             description : WeakSet
+            entries : [
+            ]
             overflow : false
             properties : [
             ]

@@ -239,7 +239,6 @@ Checks console methods
                             name : 0
                             subtype : array
                             type : object
-                            value : Array(2)
                             valuePreview : {
                                 description : Array(2)
                                 overflow : false
@@ -263,7 +262,6 @@ Checks console methods
                             name : 1
                             subtype : array
                             type : object
-                            value : Array(2)
                             valuePreview : {
                                 description : Array(2)
                                 overflow : false
@@ -330,7 +328,6 @@ Checks console methods
                             name : 0
                             subtype : array
                             type : object
-                            value : Array(2)
                             valuePreview : {
                                 description : Array(2)
                                 overflow : false
@@ -349,7 +346,6 @@ Checks console methods
                             name : 1
                             subtype : array
                             type : object
-                            value : Array(2)
                             valuePreview : {
                                 description : Array(2)
                                 overflow : false

@@ -8,7 +8,7 @@ Terminate first evaluation (it forces injected-script-source compilation)
 {
     error : {
         code : -32000
-        message : Execution was terminated
+        message : Cannot access specified execution context
     }
     id : <messageId>
 }
