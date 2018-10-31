@@ -1547,7 +1547,7 @@ ParserBase<Impl>::ParseAndClassifyIdentifier() {
     if (impl()->IsEvalOrArguments(name)) {
       if (impl()->IsArguments(name) && scope()->ShouldBanArguments()) {
         ReportMessage(MessageTemplate::kArgumentsDisallowedInInitializer);
-        return impl()->EmptyIdentifierString();
+        return impl()->NullIdentifier();
       }
 
       classifier()->RecordStrictModeFormalParameterError(
@@ -1575,7 +1575,7 @@ ParserBase<Impl>::ParseAndClassifyIdentifier() {
     return impl()->GetSymbol();
   } else {
     ReportUnexpectedToken(next);
-    return impl()->EmptyIdentifierString();
+    return impl()->NullIdentifier();
   }
 }
 
@@ -1594,7 +1594,7 @@ ParserBase<Impl>::ParseIdentifierOrStrictReservedWord(
     *is_strict_reserved = true;
   } else {
     ReportUnexpectedToken(next);
-    return impl()->EmptyIdentifierString();
+    return impl()->NullIdentifier();
   }
 
   return impl()->GetSymbol();
@@ -1606,7 +1606,7 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifierName() {
   if (!Token::IsAnyIdentifier(next) && next != Token::ESCAPED_KEYWORD &&
       !Token::IsKeyword(next)) {
     ReportUnexpectedToken(next);
-    return impl()->EmptyIdentifierString();
+    return impl()->NullIdentifier();
   }
 
   return impl()->GetSymbol();
@@ -1628,6 +1628,7 @@ ParserBase<Impl>::ParseIdentifierNameOrPrivateName() {
     name = ParseIdentifierName();
     key = factory()->NewStringLiteral(name, pos);
   }
+  RETURN_IF_PARSE_ERROR;
   impl()->PushLiteralName(name);
   return key;
 }
@@ -2130,6 +2131,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
   if (*kind == ParsePropertyKind::kNotSet) {
     ParsePropertyKindFromToken(peek(), kind);
   }
+  RETURN_IF_PARSE_ERROR;
   impl()->PushLiteralName(*name);
   return is_array_index ? factory()->NewNumberLiteral(index, pos)
                         : factory()->NewStringLiteral(*name, pos);
@@ -2703,6 +2705,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN) {
     }
 
     scope->set_start_position(lhs_beg_pos);
+    // TODO(verwaest): Disable DCHECKs in failure mode?
+    RETURN_IF_PARSE_ERROR;
     impl()->DeclareArrowFunctionFormalParameters(&parameters, expression, loc);
 
     expression =
@@ -3833,6 +3837,8 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   }
 
   FuncNameInferrerState fni_state(&fni_);
+  // TODO(verwaest): Remove once we have FailureIdentifier.
+  RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
   impl()->PushEnclosingName(name);
 
   FunctionKind kind = FunctionKindFor(flags);
@@ -3856,6 +3862,7 @@ ParserBase<Impl>::ParseHoistableDeclaration(
                                   !scope()->is_declaration_scope() &&
                                   flags == ParseFunctionFlag::kIsNormal;
 
+  RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
   return impl()->DeclareFunction(variable_name, function, mode, pos,
                                  is_sloppy_block_function, names);
 }
@@ -3897,6 +3904,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseClassDeclaration(
   ExpressionT value = ParseClassLiteral(name, scanner()->location(),
                                         is_strict_reserved, class_token_pos);
   int end_pos = position();
+  RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
   return impl()->DeclareClass(variable_name, value, names, class_token_pos,
                               end_pos);
 }
@@ -4130,7 +4138,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
-  DCHECK_IMPLIES(!has_error(), peek() == Token::ARROW);
+  DCHECK_EQ(Token::ARROW, peek());
   if (scanner_->HasLineTerminatorBeforeNext()) {
     // ASI inserts `;` after arrow parameters if a line terminator is found.
     // `=> ...` is never a valid expression, so report as syntax error.

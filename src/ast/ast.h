@@ -449,7 +449,9 @@ class FunctionDeclaration final : public Declaration {
   friend class AstNodeFactory;
 
   FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun, int pos)
-      : Declaration(proxy, pos, kFunctionDeclaration), fun_(fun) {}
+      : Declaration(proxy, pos, kFunctionDeclaration), fun_(fun) {
+    DCHECK_NOT_NULL(fun);
+  }
 
   FunctionLiteral* fun_;
 };
