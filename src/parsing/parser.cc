@@ -1211,7 +1211,6 @@ Statement* Parser::ParseExportDefault() {
       // no way of writing to it.
       Declaration* decl =
           DeclareVariable(local_name, VariableMode::kConst, pos);
-      RETURN_IF_PARSE_ERROR;
       decl->proxy()->var()->set_initializer_position(position());
 
       Assignment* assignment = factory()->NewAssignment(
@@ -1415,7 +1414,6 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
   }
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, nullptr,
           scanner()->location().end_pos);
-  if (scanner()->has_parser_error()) return nullptr;
   return declaration;
 }
 
@@ -1431,7 +1429,7 @@ Variable* Parser::Declare(Declaration* declaration,
   Variable* variable = scope->DeclareVariable(
       declaration, mode, init, &sloppy_mode_block_scope_function_redefinition,
       &local_ok);
-  if (!local_ok | scanner()->has_parser_error()) {
+  if (!local_ok) {
     // If we only have the start position of a proxy, we can't highlight the
     // whole variable name.  Pretend its length is 1 so that we highlight at
     // least the first character.
@@ -1445,9 +1443,7 @@ Variable* Parser::Declare(Declaration* declaration,
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
                       declaration->proxy()->raw_name());
     }
-    return nullptr;
-  }
-  if (sloppy_mode_block_scope_function_redefinition) {
+  } else if (sloppy_mode_block_scope_function_redefinition) {
     ++use_counts_[v8::Isolate::kSloppyModeBlockScopedFunctionRedefinition];
   }
   return variable;
@@ -1460,7 +1456,6 @@ Block* Parser::BuildInitializationBlock(
   for (const auto& declaration : parsing_result->declarations) {
     DeclareAndInitializeVariables(result, &(parsing_result->descriptor),
                                   &declaration, names);
-    RETURN_IF_PARSE_ERROR;
   }
   return result;
 }
@@ -1475,7 +1470,6 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
       factory()->NewFunctionDeclaration(proxy, function, pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode,
           kCreatedInitialized);
-  RETURN_IF_PARSE_ERROR;
   if (names) names->Add(variable_name, zone());
   if (is_sloppy_block_function) {
     SloppyBlockFunctionStatement* statement =
@@ -1493,7 +1487,6 @@ Statement* Parser::DeclareClass(const AstRawString* variable_name,
                                 int class_token_pos, int end_pos) {
   Declaration* decl =
       DeclareVariable(variable_name, VariableMode::kLet, class_token_pos);
-  RETURN_IF_PARSE_ERROR;
   decl->proxy()->var()->set_initializer_position(end_pos);
   if (names) names->Add(variable_name, zone());
 
@@ -1514,7 +1507,6 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos) {
   // introduced dynamically when we meet their declarations, whereas
   // other functions are set up when entering the surrounding scope.
   Declaration* decl = DeclareVariable(name, VariableMode::kVar, pos);
-  RETURN_IF_PARSE_ERROR;
   NativeFunctionLiteral* lit =
       factory()->NewNativeFunctionLiteral(name, extension_, kNoSourcePosition);
   return factory()->NewExpressionStatement(
@@ -2021,7 +2013,6 @@ Block* Parser::CreateForEachStatementTDZ(Block* init_block,
       // but visible to everything else.
       Declaration* tdz_decl = DeclareVariable(
           for_info.bound_names[i], VariableMode::kLet, kNoSourcePosition);
-      RETURN_IF_PARSE_ERROR;
       tdz_decl->proxy()->var()->set_initializer_position(position());
     }
   }
@@ -2259,7 +2250,6 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       Declaration* decl = DeclareVariable(
           for_info.bound_names[i], for_info.parsing_result.descriptor.mode,
           kNoSourcePosition);
-      RETURN_IF_PARSE_ERROR;
       inner_vars.Add(decl->proxy()->var(), zone());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
       Assignment* assignment = factory()->NewAssignment(
@@ -2420,11 +2410,9 @@ void Parser::AddArrowFunctionFormalParameters(
     for (size_t i = 0; i < nary->subsequent_length(); ++i) {
       AddArrowFunctionFormalParameters(parameters, next,
                                        nary->subsequent_op_position(i));
-      RETURN_IF_PARSE_ERROR_VOID;
       next = nary->subsequent(i);
     }
     AddArrowFunctionFormalParameters(parameters, next, end_pos);
-    RETURN_IF_PARSE_ERROR_VOID;
     return;
   }
 
@@ -2439,7 +2427,6 @@ void Parser::AddArrowFunctionFormalParameters(
     Expression* right = binop->right();
     int comma_pos = binop->position();
     AddArrowFunctionFormalParameters(parameters, left, comma_pos);
-    RETURN_IF_PARSE_ERROR_VOID;
     // LHS of comma expression should be unparenthesized.
     expr = right;
   }
@@ -2478,7 +2465,6 @@ void Parser::DeclareArrowFunctionFormalParameters(
   if (expr->IsEmptyParentheses()) return;
 
   AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos);
-  RETURN_IF_PARSE_ERROR_VOID;
 
   if (parameters->arity > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
@@ -2650,14 +2636,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       SkipFunction(function_name, kind, function_type, scope, &num_parameters,
                    &produced_preparsed_scope_data, is_lazy_top_level_function,
                    &eager_compile_hint);
-  RETURN_IF_PARSE_ERROR;
   if (!did_preparse_successfully) {
     should_post_parallel_task = false;
     body = ParseFunction(function_name, pos, kind, function_type, scope,
                          &num_parameters, &function_length,
                          &has_duplicate_parameters, &expected_property_count,
                          &suspend_count, arguments_for_wrapped_function);
-    RETURN_IF_PARSE_ERROR;
   }
 
   if (V8_UNLIKELY(FLAG_log_function_events)) {
@@ -2682,19 +2666,18 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
   }
 
+  RETURN_IF_PARSE_ERROR;
+
   // Validate function name. We can do this only after parsing the function,
   // since the function can declare itself strict.
   language_mode = scope->language_mode();
   CheckFunctionName(language_mode, function_name, function_name_validity,
                     function_name_location);
-  RETURN_IF_PARSE_ERROR;
 
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(scope->start_position(), scope->end_position());
-    RETURN_IF_PARSE_ERROR;
   }
   CheckConflictingVarDeclarations(scope);
-  RETURN_IF_PARSE_ERROR;
 
   FunctionLiteral::ParameterFlag duplicate_parameters =
       has_duplicate_parameters ? FunctionLiteral::kHasDuplicateParameters
@@ -2754,7 +2737,6 @@ bool Parser::SkipFunction(
     function_scope->set_end_position(end_position);
     scanner()->SeekForward(end_position - 1);
     Expect(Token::RBRACE);
-    RETURN_IF_PARSE_ERROR_VALUE(kLazyParsingComplete);
     SetLanguageMode(function_scope, language_mode);
     if (uses_super_property) {
       function_scope->RecordSuperPropertyUsage();
@@ -2805,7 +2787,6 @@ bool Parser::SkipFunction(
     PreParserLogger* logger = reusable_preparser()->logger();
     function_scope->set_end_position(logger->end());
     Expect(Token::RBRACE);
-    RETURN_IF_PARSE_ERROR_VALUE(kLazyParsingComplete);
     total_preparse_skipped_ +=
         function_scope->end_position() - function_scope->start_position();
     *num_parameters = logger->num_parameters();
@@ -2939,7 +2920,6 @@ Block* Parser::BuildParameterInitializationBlock(
     DeclarationParsingResult::Declaration decl(
         parameter->pattern, parameter->initializer_end_position, initial_value);
     DeclareAndInitializeVariables(param_block, &descriptor, &decl, nullptr);
-    RETURN_IF_PARSE_ERROR;
 
     if (param_block != init_block) {
       param_scope = param_scope->FinalizeBlockScope();
@@ -3120,7 +3100,6 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
   Variable* var =
       Declare(declaration, DeclarationDescriptor::NORMAL, VariableMode::kConst,
               Variable::DefaultInitializationFlag(VariableMode::kConst));
-  RETURN_IF_PARSE_ERROR;
   var->ForceContextAllocation();
   return var;
 }
@@ -3170,7 +3149,6 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     Variable* computed_name_var =
         CreateSyntheticContextVariable(ClassFieldVariableName(
             ast_value_factory(), class_info->computed_field_count));
-    RETURN_IF_PARSE_ERROR_VOID;
     property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
   }
@@ -3178,7 +3156,6 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
   if (kind == ClassLiteralProperty::FIELD && is_private) {
     Variable* private_field_name_var =
         CreateSyntheticContextVariable(property_name);
-    RETURN_IF_PARSE_ERROR_VOID;
     property->set_private_field_name_var(private_field_name_var);
     class_info->properties->Add(property, zone());
   }
