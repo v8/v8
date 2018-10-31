@@ -1847,10 +1847,10 @@ TF_BUILTIN(ArrayPrototypeFindIndex, ArrayBuiltinsAssembler) {
       MissingPropertyMode::kUseUndefined, ForEachDirection::kForward);
 }
 
-class ArrayPopulatorAssembler : public CodeStubAssembler {
+class ArrayPopulatorAssembler : public BaseBuiltinsFromDSLAssembler {
  public:
   explicit ArrayPopulatorAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+      : BaseBuiltinsFromDSLAssembler(state) {}
 
   TNode<Object> ConstructArrayLike(TNode<Context> context,
                                    TNode<Object> receiver) {
@@ -2008,8 +2008,8 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
     BIND(&loop);
     {
       // Loop while iterator is not done.
-      TNode<Object> next = CAST(iterator_assembler.IteratorStep(
-          context, iterator_record, &loop_done, fast_iterator_result_map));
+      TNode<Object> next = iterator_assembler.IteratorStep(
+          context, iterator_record, &loop_done, fast_iterator_result_map);
       TVARIABLE(Object, value,
                 CAST(iterator_assembler.IteratorValue(
                     context, next, fast_iterator_result_map)));

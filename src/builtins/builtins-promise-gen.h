@@ -5,16 +5,16 @@
 #ifndef V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 #define V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 
-#include "src/code-stub-assembler.h"
 #include "src/contexts.h"
 #include "src/objects/promise.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
 
 typedef compiler::CodeAssemblerState CodeAssemblerState;
 
-class PromiseBuiltinsAssembler : public CodeStubAssembler {
+class PromiseBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
  public:
   enum PromiseResolvingFunctionContextSlot {
     // The promise which resolve/reject callbacks fulfill.
@@ -70,7 +70,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   };
 
   explicit PromiseBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+      : BaseBuiltinsFromDSLAssembler(state) {}
   // These allocate and initialize a promise with pending state and
   // undefined fields.
   //

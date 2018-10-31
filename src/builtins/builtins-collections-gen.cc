@@ -11,6 +11,7 @@
 #include "src/heap/factory-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -18,10 +19,10 @@ namespace internal {
 template <class T>
 using TVariable = compiler::TypedCodeAssemblerVariable<T>;
 
-class BaseCollectionsAssembler : public CodeStubAssembler {
+class BaseCollectionsAssembler : public BaseBuiltinsFromDSLAssembler {
  public:
   explicit BaseCollectionsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+      : BaseBuiltinsFromDSLAssembler(state) {}
 
   virtual ~BaseCollectionsAssembler() = default;
 
@@ -328,8 +329,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
   Goto(&loop);
   BIND(&loop);
   {
-    TNode<Object> next = CAST(iterator_assembler.IteratorStep(
-        context, iterator, &exit, fast_iterator_result_map));
+    TNode<Object> next = iterator_assembler.IteratorStep(
+        context, iterator, &exit, fast_iterator_result_map);
     TNode<Object> next_value = CAST(iterator_assembler.IteratorValue(
         context, next, fast_iterator_result_map));
     AddConstructorEntry(variant, context, collection, add_func, next_value,

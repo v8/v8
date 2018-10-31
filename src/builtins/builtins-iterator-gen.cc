@@ -11,9 +11,12 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
+
+typedef BaseBuiltinsFromDSLAssembler::IteratorRecord IteratorRecord;
 
 using compiler::Node;
 
@@ -74,7 +77,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
   }
 }
 
-Node* IteratorBuiltinsAssembler::IteratorStep(
+TNode<Object> IteratorBuiltinsAssembler::IteratorStep(
     Node* context, const IteratorRecord& iterator, Label* if_done,
     Node* fast_iterator_result_map, Label* if_exception, Variable* exception) {
   DCHECK_NOT_NULL(if_done);
@@ -124,7 +127,7 @@ Node* IteratorBuiltinsAssembler::IteratorStep(
   }
 
   BIND(&return_result);
-  return result;
+  return UncheckedCast<Object>(result);
 }
 
 Node* IteratorBuiltinsAssembler::IteratorValue(Node* context, Node* result,
@@ -164,8 +167,8 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
   // Perform ES #sec-iteratorclose when an exception occurs. This simpler
   // algorithm does not include redundant steps which are never reachable from
   // the spec IteratorClose algorithm.
-  DCHECK_NOT_NULL(if_exception);
-  DCHECK_NOT_NULL(exception);
+  DCHECK((if_exception != nullptr && exception != nullptr) ||
+         IsExceptionHandlerActive());
   CSA_ASSERT(this, IsNotTheHole(exception->value()));
   CSA_ASSERT(this, IsJSReceiver(iterator.object));
 
@@ -216,7 +219,7 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
   BIND(&loop_start);
   {
     //  a. Set next to ? IteratorStep(iteratorRecord).
-    TNode<Object> next = CAST(IteratorStep(context, iterator_record, &done));
+    TNode<Object> next = IteratorStep(context, iterator_record, &done);
     //  b. If next is not false, then
     //   i. Let nextValue be ? IteratorValue(next).
     TNode<Object> next_value = CAST(IteratorValue(context, next));

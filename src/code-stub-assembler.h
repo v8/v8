@@ -93,17 +93,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V) \
   HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)
 
-// Returned from IteratorBuiltinsAssembler::GetIterator(). Struct is declared
-// here to simplify use in other generated builtins.
-struct IteratorRecord {
- public:
-  // iteratorRecord.[[Iterator]]
-  compiler::TNode<JSReceiver> object;
-
-  // iteratorRecord.[[NextMethod]]
-  compiler::TNode<Object> next;
-};
-
 #ifdef DEBUG
 #define CSA_CHECK(csa, x)                                        \
   (csa)->Check(                                                  \

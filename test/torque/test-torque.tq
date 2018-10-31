@@ -642,3 +642,29 @@ module test {
     }
   }
 }
+
+// Until we fully support namespaces, put the test for iterators in the
+// iterator module so that the macros and builtins are found.
+module iterator {
+  // This test doesn't actually test the functionality of iterators,
+  // it's only purpose is to make sure tha the CSA macros in the
+  // IteratorBuiltinsAssembler match the signatures provided in
+  // iterator.tq.
+  macro TestIterator(implicit context: Context)(o: Object, map: Map) {
+    try {
+      const t1: Object = GetIteratorMethod(o);
+      const t2: IteratorRecord = GetIterator(o);
+
+      const t3: Object = IteratorStep(t2) otherwise Fail;
+      const t4: Object = IteratorStep(t2, map) otherwise Fail;
+
+      const t5: Object = IteratorValue(t4);
+      const t6: Object = IteratorValue(t4, map);
+
+      IteratorCloseOnException(t2);
+
+      const t7: JSArray = IterableToList(t1, t1);
+    }
+    label Fail {}
+  }
+}
