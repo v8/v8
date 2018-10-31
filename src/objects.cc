@@ -17547,20 +17547,24 @@ FeedbackCell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
 }  // namespace
 
 MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
-    Handle<String> src, Handle<Context> native_context,
-    LanguageMode language_mode) {
+    Handle<CompilationCacheTable> table, Handle<String> src,
+    Handle<Context> native_context, LanguageMode language_mode) {
   // We use the empty function SFI as part of the key. Although the
   // empty_function is native context dependent, the SFI is de-duped on
   // snapshot builds by the PartialSnapshotCache, and so this does not prevent
   // reuse of scripts in the compilation cache across native contexts.
   Handle<SharedFunctionInfo> shared(native_context->empty_function()->shared(),
                                     native_context->GetIsolate());
+  Isolate* isolate = native_context->GetIsolate();
+  src = String::Flatten(isolate, src);
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
-  int entry = FindEntry(GetIsolate(), &key);
+  int entry = table->FindEntry(isolate, &key);
   if (entry == kNotFound) return MaybeHandle<SharedFunctionInfo>();
   int index = EntryToIndex(entry);
-  if (!get(index)->IsFixedArray()) return MaybeHandle<SharedFunctionInfo>();
-  Object* obj = get(index + 1);
+  if (!table->get(index)->IsFixedArray()) {
+    return MaybeHandle<SharedFunctionInfo>();
+  }
+  Object* obj = table->get(index + 1);
   if (obj->IsSharedFunctionInfo()) {
     return handle(SharedFunctionInfo::cast(obj), native_context->GetIsolate());
   }
@@ -17568,18 +17572,21 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
 }
 
 InfoCellPair CompilationCacheTable::LookupEval(
-    Handle<String> src, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> native_context, LanguageMode language_mode, int position) {
+    Handle<CompilationCacheTable> table, Handle<String> src,
+    Handle<SharedFunctionInfo> outer_info, Handle<Context> native_context,
+    LanguageMode language_mode, int position) {
   InfoCellPair empty_result;
+  Isolate* isolate = native_context->GetIsolate();
+  src = String::Flatten(isolate, src);
   StringSharedKey key(src, outer_info, language_mode, position);
-  int entry = FindEntry(GetIsolate(), &key);
+  int entry = table->FindEntry(isolate, &key);
   if (entry == kNotFound) return empty_result;
   int index = EntryToIndex(entry);
-  if (!get(index)->IsFixedArray()) return empty_result;
-  Object* obj = get(EntryToIndex(entry) + 1);
+  if (!table->get(index)->IsFixedArray()) return empty_result;
+  Object* obj = table->get(EntryToIndex(entry) + 1);
   if (obj->IsSharedFunctionInfo()) {
     FeedbackCell* feedback_cell =
-        SearchLiteralsMap(this, EntryToIndex(entry) + 2, *native_context);
+        SearchLiteralsMap(*table, EntryToIndex(entry) + 2, *native_context);
     return InfoCellPair(SharedFunctionInfo::cast(obj), feedback_cell);
   }
   return empty_result;
@@ -17606,6 +17613,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   // reuse of scripts in the compilation cache across native contexts.
   Handle<SharedFunctionInfo> shared(native_context->empty_function()->shared(),
                                     isolate);
+  src = String::Flatten(isolate, src);
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   Handle<Object> k = key.AsHandle(isolate);
   cache = EnsureCapacity(isolate, cache, 1);
@@ -17622,6 +17630,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
     int position) {
   Isolate* isolate = native_context->GetIsolate();
+  src = String::Flatten(isolate, src);
   StringSharedKey key(src, outer_info, value->language_mode(), position);
   {
     Handle<Object> k = key.AsHandle(isolate);
