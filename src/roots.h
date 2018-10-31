@@ -400,12 +400,8 @@ class RootsTable {
 
   RootsTable() : roots_{} {}
 
-  bool IsRootHandleLocation(Object** handle_location, RootIndex* index) const {
-    if (handle_location >= &roots_[kEntriesCount]) return false;
-    if (handle_location < &roots_[0]) return false;
-    *index = static_cast<RootIndex>(handle_location - &roots_[0]);
-    return true;
-  }
+  inline bool IsRootHandleLocation(Address* handle_location,
+                                   RootIndex* index) const;
 
   template <typename T>
   bool IsRootHandle(Handle<T> handle, RootIndex* index) const;

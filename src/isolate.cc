@@ -277,7 +277,10 @@ void Isolate::IterateDeferredHandles(RootVisitor* visitor) {
 
 
 #ifdef DEBUG
-bool Isolate::IsDeferredHandle(Object** handle) {
+bool Isolate::IsDeferredHandle(Address* handle) {
+  // Comparing unrelated pointers (not from the same array) is undefined
+  // behavior, so cast to Address before making arbitrary comparisons.
+  Address handle_as_address = reinterpret_cast<Address>(handle);
   // Each DeferredHandles instance keeps the handles to one job in the
   // concurrent recompilation queue, containing a list of blocks.  Each block
   // contains kHandleBlockSize handles except for the first block, which may
@@ -286,11 +289,14 @@ bool Isolate::IsDeferredHandle(Object** handle) {
   // belongs to one of the blocks.  If so, it is deferred.
   for (DeferredHandles* deferred = deferred_handles_head_; deferred != nullptr;
        deferred = deferred->next_) {
-    std::vector<Object**>* blocks = &deferred->blocks_;
+    std::vector<Address*>* blocks = &deferred->blocks_;
     for (size_t i = 0; i < blocks->size(); i++) {
-      Object** block_limit = (i == 0) ? deferred->first_block_limit_
+      Address* block_limit = (i == 0) ? deferred->first_block_limit_
                                       : blocks->at(i) + kHandleBlockSize;
-      if (blocks->at(i) <= handle && handle < block_limit) return true;
+      if (reinterpret_cast<Address>(blocks->at(i)) <= handle_as_address &&
+          handle_as_address < reinterpret_cast<Address>(block_limit)) {
+        return true;
+      }
     }
   }
   return false;
