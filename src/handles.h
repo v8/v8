@@ -35,8 +35,6 @@ class ObjectPtr;
 // Base class for Handle instantiations.  Don't use directly.
 class HandleBase {
  public:
-  V8_INLINE explicit HandleBase(Object** location)
-      : location_(reinterpret_cast<Address*>(location)) {}
   V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
   V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
 
@@ -103,17 +101,19 @@ class HandleBase {
 template <typename T>
 class Handle final : public HandleBase {
  public:
-  V8_INLINE explicit Handle(T** location = nullptr)
-      : HandleBase(reinterpret_cast<Object**>(location)) {
+  V8_INLINE explicit Handle(T** location)
+      : HandleBase(reinterpret_cast<Address*>(location)) {
     // Type check:
     static_assert(std::is_convertible<T*, Object*>::value,
                   "static type violation");
   }
-  V8_INLINE explicit Handle(Address* location) : HandleBase(location) {
+  V8_INLINE explicit Handle(Address* location = nullptr)
+      : HandleBase(location) {
     // Type check:
     static_assert(std::is_convertible<T*, Object*>::value ||
                       std::is_convertible<T, ObjectPtr>::value,
                   "static type violation");
+    // TODO(jkummerow): Runtime type check here as a SLOW_DCHECK?
   }
 
   // Here and below: for object types T that still derive from Object,
@@ -264,20 +264,19 @@ class HandleScope {
   void operator delete(void* size_t);
 
   Isolate* isolate_;
-  Object** prev_next_;
-  Object** prev_limit_;
+  Address* prev_next_;
+  Address* prev_limit_;
 
   // Close the handle scope resetting limits to a previous state.
-  static inline void CloseScope(Isolate* isolate,
-                                Object** prev_next,
-                                Object** prev_limit);
+  static inline void CloseScope(Isolate* isolate, Address* prev_next,
+                                Address* prev_limit);
 
   // Extend the handle scope making room for more handles.
-  V8_EXPORT_PRIVATE static Object** Extend(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Address* Extend(Isolate* isolate);
 
 #ifdef ENABLE_HANDLE_ZAPPING
   // Zaps the handles in the half-open interval [start, end).
-  V8_EXPORT_PRIVATE static void ZapRange(Object** start, Object** end);
+  V8_EXPORT_PRIVATE static void ZapRange(Address* start, Address* end);
 #endif
 
   friend class v8::HandleScope;
@@ -351,8 +350,8 @@ class V8_EXPORT_PRIVATE DeferredHandleScope final {
   ~DeferredHandleScope();
 
  private:
-  Object** prev_limit_;
-  Object** prev_next_;
+  Address* prev_limit_;
+  Address* prev_next_;
   HandleScopeImplementer* impl_;
 
 #ifdef DEBUG
@@ -376,15 +375,15 @@ class SealHandleScope final {
   inline ~SealHandleScope();
  private:
   Isolate* isolate_;
-  Object** prev_limit_;
+  Address* prev_limit_;
   int prev_sealed_level_;
 #endif
 };
 
 
 struct HandleScopeData final {
-  Object** next;
-  Object** limit;
+  Address* next;
+  Address* limit;
   int level;
   int sealed_level;
   CanonicalHandleScope* canonical_scope;

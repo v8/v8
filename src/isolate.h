@@ -1336,7 +1336,7 @@ class Isolate final : private HiddenFactory {
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
 
 #ifdef DEBUG
-  bool IsDeferredHandle(Object** location);
+  bool IsDeferredHandle(Address* location);
 #endif  // DEBUG
 
   bool concurrent_recompilation_enabled() {
