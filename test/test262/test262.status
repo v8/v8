@@ -623,6 +623,12 @@
   'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long': [FAIL],
   'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow': [FAIL],
 
+  # await tests that require flags
+  'language/expressions/await/async-generator-interleaved': ['--harmony-await-optimization'],
+  'language/expressions/await/await-monkey-patched-promise': ['--harmony-await-optimization'],
+  'language/expressions/await/for-await-of-interleaved': ['--harmony-await-optimization'],
+  'language/expressions/await/async-await-interleaved': ['--harmony-await-optimization'],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -650,12 +656,6 @@
   'intl402/Locale/constructor-options-throwing-getters': [FAIL],
   'intl402/NumberFormat/prototype/format/format-fraction-digits-precision': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits-precision': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8387
-  'language/expressions/await/async-generator-interleaved': [FAIL],
-  'language/expressions/await/await-monkey-patched-promise': [FAIL],
-  'language/expressions/await/for-await-of-interleaved': [FAIL],
-  'language/expressions/await/async-await-interleaved': [FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
