@@ -39,6 +39,7 @@ enum class ParseResultHolderBase::TypeId {
   kDeclarationPtr,
   kTypeExpressionPtr,
   kLabelBlockPtr,
+  kOptionalLabelBlockPtr,
   kNameAndTypeExpression,
   kStdVectorOfNameAndTypeExpression,
   kIncrementDecrementOperator,
@@ -81,6 +82,10 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<LabelBlock*>::id =
     ParseResultTypeId::kLabelBlockPtr;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<LabelBlock*>>::id =
+        ParseResultTypeId::kOptionalLabelBlockPtr;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Expression*>::id =
     ParseResultTypeId::kExpressionPtr;
@@ -235,7 +240,7 @@ Expression* MakeCall(const std::string& callee, bool is_operator,
   Expression* result = MakeNode<CallExpression>(
       callee, false, generic_arguments, arguments, labels);
   for (auto* label : temp_labels) {
-    result = MakeNode<TryLabelExpression>(result, label);
+    result = MakeNode<TryLabelExpression>(false, result, label);
   }
   return result;
 }
@@ -671,7 +676,7 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
       BlockStatement* next_block = MakeNode<BlockStatement>();
       current_block->statements.push_back(
           MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
-              MakeNode<StatementExpression>(case_block),
+              false, MakeNode<StatementExpression>(case_block),
               MakeNode<LabelBlock>("_NextCase", ParameterList::Empty(),
                                    next_block))));
       current_block = next_block;
@@ -772,9 +777,14 @@ base::Optional<ParseResult> MakeTryLabelExpression(
   CheckNotDeferredStatement(try_block);
   Statement* result = try_block;
   auto label_blocks = child_results->NextAs<std::vector<LabelBlock*>>();
+  auto catch_block = child_results->NextAs<base::Optional<LabelBlock*>>();
   for (auto block : label_blocks) {
     result = MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
-        MakeNode<StatementExpression>(result), block));
+        false, MakeNode<StatementExpression>(result), block));
+  }
+  if (catch_block) {
+    result = MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
+        true, MakeNode<StatementExpression>(result), *catch_block));
   }
   return ParseResult{result};
 }
@@ -815,6 +825,21 @@ base::Optional<ParseResult> MakeLabelBlock(ParseResultIterator* child_results) {
   auto body = child_results->NextAs<Statement*>();
   LabelBlock* result =
       MakeNode<LabelBlock>(std::move(label), std::move(parameters), body);
+  return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
+  auto variable = child_results->NextAs<std::string>();
+  auto body = child_results->NextAs<Statement*>();
+  if (!IsLowerCamelCase(variable)) {
+    NamingConventionError("Exception", variable, "lowerCamelCase");
+  }
+  ParameterList parameters;
+  parameters.names.push_back(variable);
+  parameters.types.push_back(MakeNode<BasicTypeExpression>(false, "Object"));
+  parameters.has_varargs = false;
+  LabelBlock* result =
+      MakeNode<LabelBlock>("_catch", std::move(parameters), body);
   return ParseResult{result};
 }
 
@@ -1279,6 +1304,10 @@ struct TorqueGrammar : Grammar {
             TryOrDefault<ParameterList>(&parameterListNoVararg), &block},
            MakeLabelBlock)};
 
+  Symbol catchBlock = {
+      Rule({Token("catch"), Token("("), &identifier, Token(")"), &block},
+           MakeCatchBlock)};
+
   // Result: ExpressionWithSource
   Symbol expressionWithSource = {Rule({expression}, MakeExpressionWithSource)};
 
@@ -1329,7 +1358,8 @@ struct TorqueGrammar : Grammar {
               Token("}"),
           },
           MakeTypeswitchStatement),
-      Rule({Token("try"), &block, NonemptyList<LabelBlock*>(&labelBlock)},
+      Rule({Token("try"), &block, List<LabelBlock*>(&labelBlock),
+            Optional<LabelBlock*>(&catchBlock)},
            MakeTryLabelExpression),
       Rule({OneOf({"assert", "check"}), Token("("), &expressionWithSource,
             Token(")"), Token(";")},

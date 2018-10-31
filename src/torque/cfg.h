@@ -139,9 +139,33 @@ class CfgAssembler {
   void PrintCurrentStack(std::ostream& s) { s << "stack: " << current_stack_; }
 
  private:
+  friend class CfgAssemblerScopedTemporaryBlock;
   Stack<const Type*> current_stack_;
   ControlFlowGraph cfg_;
   Block* current_block_ = cfg_.start();
+};
+
+class CfgAssemblerScopedTemporaryBlock {
+ public:
+  CfgAssemblerScopedTemporaryBlock(CfgAssembler* assembler, Block* block)
+      : assembler_(assembler), saved_block_(block) {
+    saved_stack_ = block->InputTypes();
+    DCHECK(!assembler->CurrentBlockIsComplete());
+    std::swap(saved_block_, assembler->current_block_);
+    std::swap(saved_stack_, assembler->current_stack_);
+    assembler->cfg_.PlaceBlock(block);
+  }
+
+  ~CfgAssemblerScopedTemporaryBlock() {
+    DCHECK(assembler_->CurrentBlockIsComplete());
+    std::swap(saved_block_, assembler_->current_block_);
+    std::swap(saved_stack_, assembler_->current_stack_);
+  }
+
+ private:
+  CfgAssembler* assembler_;
+  Stack<const Type*> saved_stack_;
+  Block* saved_block_;
 };
 
 }  // namespace torque

@@ -190,11 +190,18 @@ struct ModuleConstantInstruction : InstructionBase {
 struct CallCsaMacroInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   CallCsaMacroInstruction(Macro* macro,
-                          std::vector<std::string> constexpr_arguments)
-      : macro(macro), constexpr_arguments(constexpr_arguments) {}
+                          std::vector<std::string> constexpr_arguments,
+                          base::Optional<Block*> catch_block)
+      : macro(macro),
+        constexpr_arguments(constexpr_arguments),
+        catch_block(catch_block) {}
+  void AppendSuccessorBlocks(std::vector<Block*>* block_list) const override {
+    if (catch_block) block_list->push_back(*catch_block);
+  }
 
   Macro* macro;
   std::vector<std::string> constexpr_arguments;
+  base::Optional<Block*> catch_block;
 };
 
 struct CallCsaMacroAndBranchInstruction : InstructionBase {
@@ -202,13 +209,16 @@ struct CallCsaMacroAndBranchInstruction : InstructionBase {
   CallCsaMacroAndBranchInstruction(Macro* macro,
                                    std::vector<std::string> constexpr_arguments,
                                    base::Optional<Block*> return_continuation,
-                                   std::vector<Block*> label_blocks)
+                                   std::vector<Block*> label_blocks,
+                                   base::Optional<Block*> catch_block)
       : macro(macro),
         constexpr_arguments(constexpr_arguments),
         return_continuation(return_continuation),
-        label_blocks(label_blocks) {}
+        label_blocks(label_blocks),
+        catch_block(catch_block) {}
   bool IsBlockTerminator() const override { return true; }
   void AppendSuccessorBlocks(std::vector<Block*>* block_list) const override {
+    if (catch_block) block_list->push_back(*catch_block);
     if (return_continuation) block_list->push_back(*return_continuation);
     for (Block* block : label_blocks) block_list->push_back(block);
   }
@@ -217,17 +227,26 @@ struct CallCsaMacroAndBranchInstruction : InstructionBase {
   std::vector<std::string> constexpr_arguments;
   base::Optional<Block*> return_continuation;
   std::vector<Block*> label_blocks;
+  base::Optional<Block*> catch_block;
 };
 
 struct CallBuiltinInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   bool IsBlockTerminator() const override { return is_tailcall; }
-  CallBuiltinInstruction(bool is_tailcall, Builtin* builtin, size_t argc)
-      : is_tailcall(is_tailcall), builtin(builtin), argc(argc) {}
+  CallBuiltinInstruction(bool is_tailcall, Builtin* builtin, size_t argc,
+                         base::Optional<Block*> catch_block)
+      : is_tailcall(is_tailcall),
+        builtin(builtin),
+        argc(argc),
+        catch_block(catch_block) {}
+  void AppendSuccessorBlocks(std::vector<Block*>* block_list) const override {
+    if (catch_block) block_list->push_back(*catch_block);
+  }
 
   bool is_tailcall;
   Builtin* builtin;
   size_t argc;
+  base::Optional<Block*> catch_block;
 };
 
 struct CallBuiltinPointerInstruction : InstructionBase {
@@ -249,14 +268,19 @@ struct CallRuntimeInstruction : InstructionBase {
   bool IsBlockTerminator() const override;
 
   CallRuntimeInstruction(bool is_tailcall, RuntimeFunction* runtime_function,
-                         size_t argc)
+                         size_t argc, base::Optional<Block*> catch_block)
       : is_tailcall(is_tailcall),
         runtime_function(runtime_function),
-        argc(argc) {}
+        argc(argc),
+        catch_block(catch_block) {}
+  void AppendSuccessorBlocks(std::vector<Block*>* block_list) const override {
+    if (catch_block) block_list->push_back(*catch_block);
+  }
 
   bool is_tailcall;
   RuntimeFunction* runtime_function;
   size_t argc;
+  base::Optional<Block*> catch_block;
 };
 
 struct BranchInstruction : InstructionBase {
