@@ -647,13 +647,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Number> BitwiseOp(Node* left32, Node* right32, Operation bitwise_op);
 
   // Allocate an object of the given size.
-  TNode<Object> AllocateInNewSpace(TNode<IntPtrT> size,
-                                   AllocationFlags flags = kNone);
-  TNode<Object> AllocateInNewSpace(int size, AllocationFlags flags = kNone);
-  TNode<Object> Allocate(TNode<IntPtrT> size, AllocationFlags flags = kNone);
-  TNode<Object> Allocate(int size, AllocationFlags flags = kNone);
-  TNode<Object> InnerAllocate(TNode<Object> previous, int offset);
-  TNode<Object> InnerAllocate(TNode<Object> previous, TNode<IntPtrT> offset);
+  TNode<HeapObject> AllocateInNewSpace(TNode<IntPtrT> size,
+                                       AllocationFlags flags = kNone);
+  TNode<HeapObject> AllocateInNewSpace(int size, AllocationFlags flags = kNone);
+  TNode<HeapObject> Allocate(TNode<IntPtrT> size,
+                             AllocationFlags flags = kNone);
+  TNode<HeapObject> Allocate(int size, AllocationFlags flags = kNone);
+  TNode<HeapObject> InnerAllocate(TNode<HeapObject> previous, int offset);
+  TNode<HeapObject> InnerAllocate(TNode<HeapObject> previous,
+                                  TNode<IntPtrT> offset);
 
   TNode<BoolT> IsRegularHeapObjectSize(TNode<IntPtrT> size);
 
@@ -3197,17 +3199,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void HandleBreakOnNode();
 
-  TNode<Object> AllocateRawDoubleAligned(TNode<IntPtrT> size_in_bytes,
+  TNode<HeapObject> AllocateRawDoubleAligned(TNode<IntPtrT> size_in_bytes,
+                                             AllocationFlags flags,
+                                             TNode<RawPtrT> top_address,
+                                             TNode<RawPtrT> limit_address);
+  TNode<HeapObject> AllocateRawUnaligned(TNode<IntPtrT> size_in_bytes,
                                          AllocationFlags flags,
                                          TNode<RawPtrT> top_address,
                                          TNode<RawPtrT> limit_address);
-  TNode<Object> AllocateRawUnaligned(TNode<IntPtrT> size_in_bytes,
-                                     AllocationFlags flags,
-                                     TNode<RawPtrT> top_address,
-                                     TNode<RawPtrT> limit_address);
-  TNode<Object> AllocateRaw(TNode<IntPtrT> size_in_bytes, AllocationFlags flags,
-                            TNode<RawPtrT> top_address,
-                            TNode<RawPtrT> limit_address);
+  TNode<HeapObject> AllocateRaw(TNode<IntPtrT> size_in_bytes,
+                                AllocationFlags flags,
+                                TNode<RawPtrT> top_address,
+                                TNode<RawPtrT> limit_address);
 
   // Allocate and return a JSArray of given total size in bytes with header
   // fields initialized.

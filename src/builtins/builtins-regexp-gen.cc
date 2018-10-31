@@ -58,8 +58,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
 
   // The folded allocation.
 
-  TNode<Object> result = Allocate(total_size);
-  TNode<Object> elements = InnerAllocate(result, kElementsOffset);
+  TNode<HeapObject> result = Allocate(total_size);
+  TNode<HeapObject> elements = InnerAllocate(result, kElementsOffset);
 
   // Initialize the JSRegExpResult.
 
