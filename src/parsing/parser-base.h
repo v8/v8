@@ -692,7 +692,7 @@ class ParserBase {
 
   void Expect(Token::Value token) {
     Token::Value next = Next();
-    if (next != token) {
+    if (V8_UNLIKELY(next != token)) {
       ReportUnexpectedToken(next);
     }
   }
@@ -701,12 +701,12 @@ class ParserBase {
     // Check for automatic semicolon insertion according to
     // the rules given in ECMA-262, section 7.9, page 21.
     Token::Value tok = peek();
-    if (tok == Token::SEMICOLON) {
+    if (V8_LIKELY(tok == Token::SEMICOLON)) {
       Next();
       return;
     }
-    if (scanner()->HasLineTerminatorBeforeNext() ||
-        Token::IsAutoSemicolon(tok)) {
+    if (V8_LIKELY(scanner()->HasLineTerminatorBeforeNext() ||
+                  Token::IsAutoSemicolon(tok))) {
       return;
     }
 
@@ -748,7 +748,7 @@ class ParserBase {
   void ExpectContextualKeyword(Token::Value token) {
     DCHECK(Token::IsContextualKeyword(token));
     Expect(Token::IDENTIFIER);
-    if (scanner()->current_contextual_token() != token) {
+    if (V8_UNLIKELY(scanner()->current_contextual_token() != token)) {
       ReportUnexpectedToken(scanner()->current_token());
     }
   }
@@ -858,31 +858,32 @@ class ParserBase {
   }
 
   // Report syntax errors.
-  void ReportMessage(MessageTemplate message) {
+  V8_NOINLINE void ReportMessage(MessageTemplate message) {
     Scanner::Location source_location = scanner()->location();
     impl()->ReportMessageAt(source_location, message,
                             static_cast<const char*>(nullptr), kSyntaxError);
   }
 
   template <typename T>
-  void ReportMessage(MessageTemplate message, T arg,
-                     ParseErrorType error_type = kSyntaxError) {
+  V8_NOINLINE void ReportMessage(MessageTemplate message, T arg,
+                                 ParseErrorType error_type = kSyntaxError) {
     Scanner::Location source_location = scanner()->location();
     impl()->ReportMessageAt(source_location, message, arg, error_type);
   }
 
-  void ReportMessageAt(Scanner::Location location, MessageTemplate message,
-                       ParseErrorType error_type) {
+  V8_NOINLINE void ReportMessageAt(Scanner::Location location,
+                                   MessageTemplate message,
+                                   ParseErrorType error_type) {
     impl()->ReportMessageAt(location, message,
                             static_cast<const char*>(nullptr), error_type);
   }
 
-  void ReportUnexpectedToken(Token::Value token);
-  void ReportUnexpectedTokenAt(
+  V8_NOINLINE void ReportUnexpectedToken(Token::Value token);
+  V8_NOINLINE void ReportUnexpectedTokenAt(
       Scanner::Location location, Token::Value token,
       MessageTemplate message = MessageTemplate::kUnexpectedToken);
 
-  void ReportClassifierError(
+  V8_NOINLINE void ReportClassifierError(
       const typename ExpressionClassifier::Error& error) {
     if (classifier()->does_error_reporting()) {
       impl()->ReportMessageAt(error.location, error.message(), error.arg);
@@ -3474,7 +3475,7 @@ void ParserBase<Impl>::ExpectMetaProperty(Token::Value property_name,
                                           const char* full_name, int pos) {
   Consume(Token::PERIOD);
   ExpectContextualKeyword(property_name);
-  if (scanner()->literal_contains_escapes()) {
+  if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
     impl()->ReportMessageAt(Scanner::Location(pos, end_position()),
                             MessageTemplate::kInvalidEscapedMetaProperty,
                             full_name);
