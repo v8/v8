@@ -153,7 +153,8 @@ void Parser::GetUnexpectedTokenMessage(Token::Value token,
   }
 
 #define RETURN_IF_PARSE_ERROR RETURN_IF_PARSE_ERROR_VALUE(nullptr)
-#define RETURN_IF_PARSE_ERROR_VOID RETURN_IF_PARSE_ERROR_VALUE(this->Void())
+#define RETURN_IF_PARSE_ERROR_VOID \
+  if (scanner()->has_parser_error()) return;
 
 // ----------------------------------------------------------------------------
 // Implementation of Parser
@@ -2925,7 +2926,6 @@ Block* Parser::BuildParameterInitializationBlock(
       param_scope = param_scope->FinalizeBlockScope();
       if (param_scope != nullptr) {
         CheckConflictingVarDeclarations(param_scope);
-        RETURN_IF_PARSE_ERROR;
       }
       init_block->statements()->Add(param_block, zone());
     }
@@ -3031,7 +3031,6 @@ ZonePtrList<Statement>* Parser::ParseFunction(
     // For a regular function, the function arguments are parsed from source.
     DCHECK_NULL(arguments_for_wrapped_function);
     ParseFormalParameterList(&formals);
-    RETURN_IF_PARSE_ERROR;
     if (expected_parameters_end_pos != kNoSourcePosition) {
       // Check for '(' or ')' shenanigans in the parameter string for dynamic
       // functions.
@@ -3048,14 +3047,12 @@ ZonePtrList<Statement>* Parser::ParseFunction(
       }
     }
     Expect(Token::RPAREN);
-    RETURN_IF_PARSE_ERROR;
     int formals_end_position = scanner()->location().end_pos;
 
     CheckArityRestrictions(formals.arity, kind, formals.has_rest,
                            function_scope->start_position(),
                            formals_end_position);
     Expect(Token::LBRACE);
-    RETURN_IF_PARSE_ERROR;
   }
   *num_parameters = formals.num_parameters();
   *function_length = formals.function_length;
@@ -3609,6 +3606,7 @@ void Parser::QueueDestructuringAssignmentForRewriting(
 void Parser::SetFunctionNameFromPropertyName(LiteralProperty* property,
                                              const AstRawString* name,
                                              const AstRawString* prefix) {
+  if (has_error()) return;
   // Ensure that the function we are going to create has shared name iff
   // we are not going to set it later.
   if (property->NeedsSetFunctionName()) {
@@ -3634,7 +3632,7 @@ void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
   // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]
   // of an object literal.
   // See ES #sec-__proto__-property-names-in-object-initializers.
-  if (property->IsPrototype()) return;
+  if (property->IsPrototype() || has_error()) return;
 
   DCHECK(!property->value()->IsAnonymousFunctionDefinition() ||
          property->kind() == ObjectLiteralProperty::COMPUTED);
@@ -3645,7 +3643,7 @@ void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
 
 void Parser::SetFunctionNameFromIdentifierRef(Expression* value,
                                               Expression* identifier) {
-  if (!identifier->IsVariableProxy()) return;
+  if (has_error() || !identifier->IsVariableProxy()) return;
   SetFunctionName(value, identifier->AsVariableProxy()->raw_name());
 }
 

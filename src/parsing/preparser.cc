@@ -392,7 +392,8 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
 PreParserExpression PreParser::ExpressionFromIdentifier(
     const PreParserIdentifier& name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;
-  DCHECK_NOT_NULL(name.string_);
+  DCHECK_EQ(name.string_ == nullptr, has_error());
+  if (name.string_ == nullptr) return PreParserExpression::Default();
   proxy = scope()->NewUnresolved(factory()->ast_node_factory(), name.string_,
                                  start_position, NORMAL_VARIABLE);
   return PreParserExpression::FromIdentifier(name, proxy, zone());
