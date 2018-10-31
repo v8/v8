@@ -2548,6 +2548,57 @@ TEST(MultipleProfilers) {
   profiler2->StopProfiling("2");
 }
 
+void ProfileSomeCode(v8::Isolate* isolate) {
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope scope(isolate);
+  LocalContext context(isolate);
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(isolate);
+
+  v8::Local<v8::String> profile_name = v8_str("1");
+  profiler->StartProfiling(profile_name);
+  const char* source = R"(
+      function foo() {
+        var s = {};
+        for (var i = 0; i < 1e4; ++i) {
+          for (var j = 0; j < 100; j++) {
+            s['item' + j] = 'bar';
+          }
+        }
+      }
+      foo();
+    )";
+
+  CompileRun(source);
+  profiler->StopProfiling(profile_name);
+  profiler->Dispose();
+}
+
+class IsolateThread : public v8::base::Thread {
+ public:
+  IsolateThread() : Thread(Options("IsolateThread")) {}
+
+  void Run() override {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    ProfileSomeCode(isolate);
+    isolate->Dispose();
+  }
+};
+
+// Checking for crashes and TSAN issues with multiple isolates profiling.
+TEST(MultipleIsolates) {
+  IsolateThread thread1;
+  IsolateThread thread2;
+
+  thread1.Start();
+  thread2.Start();
+
+  thread1.Join();
+  thread2.Join();
+}
+
 }  // namespace test_cpu_profiler
 }  // namespace internal
 }  // namespace v8
