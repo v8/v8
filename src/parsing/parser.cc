@@ -1211,6 +1211,7 @@ Statement* Parser::ParseExportDefault() {
       // no way of writing to it.
       Declaration* decl =
           DeclareVariable(local_name, VariableMode::kConst, pos);
+      RETURN_IF_PARSE_ERROR;
       decl->proxy()->var()->set_initializer_position(position());
 
       Assignment* assignment = factory()->NewAssignment(
