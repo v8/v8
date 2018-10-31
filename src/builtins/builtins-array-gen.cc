@@ -1906,46 +1906,6 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
     BIND(&done);
     return array.value();
   }
-
-  void GenerateSetLength(TNode<Context> context, TNode<Object> array,
-                         TNode<Number> length) {
-    Label fast(this), runtime(this), done(this);
-    // There's no need to set the length, if
-    // 1) the array is a fast JS array and
-    // 2) the new length is equal to the old length.
-    // as the set is not observable. Otherwise fall back to the run-time.
-
-    // 1) Check that the array has fast elements.
-    // TODO(delphick): Consider changing this since it does an an unnecessary
-    // check for SMIs.
-    // TODO(delphick): Also we could hoist this to after the array construction
-    // and copy the args into array in the same way as the Array constructor.
-    BranchIfFastJSArray(array, context, &fast, &runtime);
-
-    BIND(&fast);
-    {
-      TNode<JSArray> fast_array = CAST(array);
-
-      TNode<Smi> length_smi = CAST(length);
-      TNode<Smi> old_length = LoadFastJSArrayLength(fast_array);
-      CSA_ASSERT(this, TaggedIsPositiveSmi(old_length));
-
-      // 2) If the created array's length matches the required length, then
-      //    there's nothing else to do. Otherwise use the runtime to set the
-      //    property as that will insert holes into excess elements or shrink
-      //    the backing store as appropriate.
-      Branch(SmiNotEqual(length_smi, old_length), &runtime, &done);
-    }
-
-    BIND(&runtime);
-    {
-      SetPropertyStrict(context, array,
-                        CodeStubAssembler::LengthStringConstant(), length);
-      Goto(&done);
-    }
-
-    BIND(&done);
-  }
 };
 
 // ES #sec-array.from
@@ -2158,7 +2118,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
   BIND(&finished);
 
   // Finally set the length on the output and return it.
-  GenerateSetLength(context, array.value(), length.value());
+  SetPropertyLength(context, array.value(), length.value());
   args.PopAndReturn(array.value());
 }
 

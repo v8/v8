@@ -46,7 +46,7 @@ module array {
     }
 
     // 8. Perform ? Set(A, "length", len, true).
-    SetProperty(a, kLengthString, len);
+    SetPropertyLength(a, len);
 
     // 9. Return A.
     return a;

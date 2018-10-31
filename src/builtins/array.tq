@@ -66,4 +66,6 @@ module array {
       StoreArrayHole(newElements, to);
     }
   }
+
+  extern macro SetPropertyLength(implicit context: Context)(Object, Number);
 }
