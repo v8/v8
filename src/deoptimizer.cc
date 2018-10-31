@@ -1173,7 +1173,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
   BailoutId bailout_id = translated_frame->node_id();
   unsigned height = translated_frame->height();
-  unsigned height_in_bytes = height * kPointerSize;
+  unsigned parameter_count = height - 1;  // Exclude the context.
+  unsigned height_in_bytes = parameter_count * kPointerSize;
 
   // If the construct frame appears to be topmost we should ensure that the
   // value of result register is preserved during continuation execution.
@@ -1185,7 +1186,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
   }
 
-  int parameter_count = height;
   if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
@@ -1227,7 +1227,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator receiver_iterator = value_iterator;
 
   // Compute the incoming parameter translation.
-  for (int i = 0; i < parameter_count; ++i, ++value_iterator) {
+  for (unsigned i = 0; i < parameter_count; ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
   }
 
@@ -1259,13 +1259,10 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   intptr_t marker = StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
   frame_writer.PushRawValue(marker, "context (construct stub sentinel)\n");
 
-  // The context can be gotten from the previous frame.
-  Object* context =
-      reinterpret_cast<Object*>(output_[frame_index - 1]->GetContext());
-  frame_writer.PushRawObject(context, "context\n");
+  frame_writer.PushTranslatedValue(value_iterator++, "context\n");
 
   // Number of incoming arguments.
-  frame_writer.PushRawObject(Smi::FromInt(height - 1), "argc\n");
+  frame_writer.PushRawObject(Smi::FromInt(parameter_count - 1), "argc\n");
 
   // The constructor function was mentioned explicitly in the
   // CONSTRUCT_STUB_FRAME.

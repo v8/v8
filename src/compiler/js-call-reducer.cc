@@ -5515,7 +5515,7 @@ Reduction JSCallReducer::ReduceAsyncFunctionPromiseRelease(Node* node) {
 Node* JSCallReducer::CreateArtificialFrameState(
     Node* node, Node* outer_frame_state, int parameter_count,
     BailoutId bailout_id, FrameStateType frame_state_type,
-    Handle<SharedFunctionInfo> shared) {
+    Handle<SharedFunctionInfo> shared, Node* context) {
   const FrameStateFunctionInfo* state_info =
       common()->CreateFrameStateFunctionInfo(frame_state_type,
                                              parameter_count + 1, 0, shared);
@@ -5533,9 +5533,11 @@ Node* JSCallReducer::CreateArtificialFrameState(
       static_cast<int>(params.size()), SparseInputMask::Dense());
   Node* params_node = graph()->NewNode(
       op_param, static_cast<int>(params.size()), &params.front());
-  return graph()->NewNode(op, params_node, node0, node0,
-                          jsgraph()->UndefinedConstant(), node->InputAt(0),
-                          outer_frame_state);
+  if (!context) {
+    context = jsgraph()->UndefinedConstant();
+  }
+  return graph()->NewNode(op, params_node, node0, node0, context,
+                          node->InputAt(0), outer_frame_state);
 }
 
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
@@ -5572,7 +5574,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   DCHECK_EQ(1, promise_shared->internal_formal_parameter_count());
   Node* constructor_frame_state = CreateArtificialFrameState(
       node, outer_frame_state, 1, BailoutId::ConstructStubInvoke(),
-      FrameStateType::kConstructStub, promise_shared);
+      FrameStateType::kConstructStub, promise_shared, context);
 
   // The deopt continuation of this frame state is never called; the frame state
   // is only necessary to obtain the right stack trace.
@@ -6142,7 +6144,7 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   // reconstruct the proper frame when deoptimizing within the constructor.
   frame_state = CreateArtificialFrameState(
       node, frame_state, arity, BailoutId::ConstructStubInvoke(),
-      FrameStateType::kConstructStub, shared);
+      FrameStateType::kConstructStub, shared, context);
 
   // This continuation just returns the newly created JSTypedArray. We
   // pass the_hole as the receiver, just like the builtin construct stub
