@@ -49,8 +49,6 @@ module array {
   StoreElement<FastPackedDoubleElements, float64>(
       elements: FixedArrayBase, index: Smi, value: float64) {
     const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-
-    assert(value == Float64SilenceNaN(value));
     StoreFixedDoubleArrayElementWithSmiIndex(elems, index, value);
   }
 
