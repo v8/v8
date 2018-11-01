@@ -150,32 +150,24 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
 
   // 7. Let t be GetOption(options, "type", "string", «"conjunction",
   //    "disjunction", "unit"», "conjunction").
-  std::unique_ptr<char[]> type_str = nullptr;
-  std::vector<const char*> type_values = {"conjunction", "disjunction", "unit"};
-  Maybe<bool> maybe_found_type = Intl::GetStringOption(
-      isolate, options, "type", type_values, "Intl.ListFormat", &type_str);
-  Type type_enum = Type::CONJUNCTION;
-  MAYBE_RETURN(maybe_found_type, MaybeHandle<JSListFormat>());
-  if (maybe_found_type.FromJust()) {
-    DCHECK_NOT_NULL(type_str.get());
-    type_enum = get_type(type_str.get());
-  }
+  Maybe<Type> maybe_type = Intl::GetStringOption<Type>(
+      isolate, options, "type", "Intl.ListFormat",
+      {"conjunction", "disjunction", "unit"},
+      {Type::CONJUNCTION, Type::DISJUNCTION, Type::UNIT}, Type::CONJUNCTION);
+  MAYBE_RETURN(maybe_type, MaybeHandle<JSListFormat>());
+  Type type_enum = maybe_type.FromJust();
 
   // 8. Set listFormat.[[Type]] to t.
   list_format->set_type(type_enum);
 
   // 9. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
-  std::unique_ptr<char[]> style_str = nullptr;
-  std::vector<const char*> style_values = {"long", "short", "narrow"};
-  Maybe<bool> maybe_found_style = Intl::GetStringOption(
-      isolate, options, "style", style_values, "Intl.ListFormat", &style_str);
-  Style style_enum = Style::LONG;
-  MAYBE_RETURN(maybe_found_style, MaybeHandle<JSListFormat>());
-  if (maybe_found_style.FromJust()) {
-    DCHECK_NOT_NULL(style_str.get());
-    style_enum = get_style(style_str.get());
-  }
+  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+      isolate, options, "style", "Intl.ListFormat", {"long", "short", "narrow"},
+      {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
+  MAYBE_RETURN(maybe_style, MaybeHandle<JSListFormat>());
+  Style style_enum = maybe_style.FromJust();
+
   // 10. Set listFormat.[[Style]] to s.
   list_format->set_style(style_enum);
 

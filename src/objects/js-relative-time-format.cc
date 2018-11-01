@@ -108,34 +108,23 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
 
   // 12. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
-  std::unique_ptr<char[]> style_str = nullptr;
-  std::vector<const char*> style_values = {"long", "short", "narrow"};
-  Maybe<bool> maybe_found_style =
-      Intl::GetStringOption(isolate, options, "style", style_values,
-                            "Intl.RelativeTimeFormat", &style_str);
-  Style style_enum = Style::LONG;
-  MAYBE_RETURN(maybe_found_style, MaybeHandle<JSRelativeTimeFormat>());
-  if (maybe_found_style.FromJust()) {
-    DCHECK_NOT_NULL(style_str.get());
-    style_enum = getStyle(style_str.get());
-  }
+  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+      isolate, options, "style", "Intl.RelativeTimeFormat",
+      {"long", "short", "narrow"}, {Style::LONG, Style::SHORT, Style::NARROW},
+      Style::LONG);
+  MAYBE_RETURN(maybe_style, MaybeHandle<JSRelativeTimeFormat>());
+  Style style_enum = maybe_style.FromJust();
 
   // 13. Set relativeTimeFormat.[[Style]] to s.
   relative_time_format_holder->set_style(style_enum);
 
   // 14. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
-  std::unique_ptr<char[]> numeric_str = nullptr;
-  std::vector<const char*> numeric_values = {"always", "auto"};
-  Maybe<bool> maybe_found_numeric =
-      Intl::GetStringOption(isolate, options, "numeric", numeric_values,
-                            "Intl.RelativeTimeFormat", &numeric_str);
-  Numeric numeric_enum = Numeric::ALWAYS;
-  MAYBE_RETURN(maybe_found_numeric, MaybeHandle<JSRelativeTimeFormat>());
-  if (maybe_found_numeric.FromJust()) {
-    DCHECK_NOT_NULL(numeric_str.get());
-    numeric_enum = getNumeric(numeric_str.get());
-  }
+  Maybe<Numeric> maybe_numeric = Intl::GetStringOption<Numeric>(
+      isolate, options, "numeric", "Intl.RelativeTimeFormat",
+      {"always", "auto"}, {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
+  MAYBE_RETURN(maybe_numeric, MaybeHandle<JSRelativeTimeFormat>());
+  Numeric numeric_enum = maybe_numeric.FromJust();
 
   // 15. Set relativeTimeFormat.[[Numeric]] to numeric.
   relative_time_format_holder->set_numeric(numeric_enum);

@@ -785,16 +785,17 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
 
   // 7. Let hourCycle be ? GetOption(options, "hourCycle", "string", « "h11",
   // "h12", "h23", "h24" », undefined).
-  const std::vector<const char*> hour_cycle_values{"h11", "h12", "h23", "h24"};
-  std::unique_ptr<char[]> hour_cycle = nullptr;
-  Maybe<bool> maybe_hour_cycle =
-      Intl::GetStringOption(isolate, options, "hourCycle", hour_cycle_values,
-                            "Intl.DateTimeFormat", &hour_cycle);
-  MAYBE_RETURN(maybe_hour_cycle, Handle<JSDateTimeFormat>());
+  Maybe<Intl::HourCycle> maybe_hour_cycle =
+      Intl::GetHourCycle(isolate, options, "Intl.DateTimeFormat");
+  MAYBE_RETURN(maybe_hour_cycle, MaybeHandle<JSDateTimeFormat>());
+  // TODO(ftang): uncomment the following line and handle hour_cycle.
+  // Intl::HourCycle hour_cycle = maybe_hour_cycle.FromJust();
+
   // 8. If hour12 is not undefined, then
   if (maybe_get_hour12.FromJust()) {
     // a. Let hourCycle be null.
-    hour_cycle = nullptr;
+    // TODO(ftang): uncomment the following line and handle hour_cycle.
+    // hour_cycle = Intl::HourCycle::kUndefined;
   }
   // 9. Set opt.[[hc]] to hourCycle.
   // TODO(ftang): change behavior based on hour_cycle.
@@ -838,20 +839,20 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
     }
   }
 
+  enum FormatMatcherOption { kBestFit, kBasic };
   // We implement only best fit algorithm, but still need to check
   // if the formatMatcher values are in range.
   // 25. Let matcher be ? GetOption(options, "formatMatcher", "string",
   //     «  "basic", "best fit" », "best fit").
-  Handle<JSReceiver> options_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
-                             Object::ToObject(isolate, options),
-                             JSDateTimeFormat);
-  std::unique_ptr<char[]> matcher_str = nullptr;
-  std::vector<const char*> matcher_values = {"basic", "best fit"};
-  Maybe<bool> maybe_found_matcher = Intl::GetStringOption(
-      isolate, options_obj, "formatMatcher", matcher_values,
-      "Intl.DateTimeFormat", &matcher_str);
-  MAYBE_RETURN(maybe_found_matcher, Handle<JSDateTimeFormat>());
+  Maybe<FormatMatcherOption> maybe_format_matcher =
+      Intl::GetStringOption<FormatMatcherOption>(
+          isolate, options, "formatMatcher", "Intl.DateTimeFormat",
+          {"best fit", "basic"},
+          {FormatMatcherOption::kBestFit, FormatMatcherOption::kBasic},
+          FormatMatcherOption::kBestFit);
+  MAYBE_RETURN(maybe_format_matcher, MaybeHandle<JSDateTimeFormat>());
+  // TODO(ftang): uncomment the following line and handle format_matcher.
+  // FormatMatcherOption format_matcher = maybe_format_matcher.FromJust();
 
   std::unique_ptr<icu::SimpleDateFormat> date_format(
       CreateICUDateFormat(isolate, icu_locale, skeleton));

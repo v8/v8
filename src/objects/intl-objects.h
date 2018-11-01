@@ -81,6 +81,32 @@ class Intl {
       std::vector<const char*> values, const char* service,
       std::unique_ptr<char[]>* result);
 
+  // A helper template to get string from option into a enum.
+  // The enum in the enum_values is the corresponding value to the strings
+  // in the str_values. If the option does not contains name,
+  // default_value will be return.
+  template <typename T>
+  V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
+      Isolate* isolate, Handle<JSReceiver> options, const char* name,
+      const char* method, const std::vector<const char*>& str_values,
+      const std::vector<T>& enum_values, T default_value) {
+    DCHECK_EQ(str_values.size(), enum_values.size());
+    std::unique_ptr<char[]> cstr;
+    Maybe<bool> found = Intl::GetStringOption(isolate, options, name,
+                                              str_values, method, &cstr);
+    MAYBE_RETURN(found, Nothing<T>());
+    if (found.FromJust()) {
+      DCHECK_NOT_NULL(cstr.get());
+      for (size_t i = 0; i < str_values.size(); i++) {
+        if (strcmp(cstr.get(), str_values[i]) == 0) {
+          return Just(enum_values[i]);
+        }
+      }
+      UNREACHABLE();
+    }
+    return Just(default_value);
+  }
+
   // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
   // ecma402/#sec-getoption
   //
@@ -189,7 +215,26 @@ class Intl {
       Isolate* isolate, Handle<String> service, Handle<Object> locales,
       Handle<Object> options, Handle<Object> internal_options);
 
-  enum MatcherOption { kBestFit, kLookup };
+  // enum for "caseFirst" option: shared by Intl.Locale and Intl.Collator.
+  enum class CaseFirst { kUpper, kLower, kFalse, kUndefined };
+
+  // Shared function to read the "caseFirst" option.
+  V8_WARN_UNUSED_RESULT static Maybe<CaseFirst> GetCaseFirst(
+      Isolate* isolate, Handle<JSReceiver> options, const char* method);
+
+  // enum for "hourCycle" option: shared by Intl.Locale and Intl.DateTimeFormat.
+  enum class HourCycle { kH11, kH12, kH23, kH24, kUndefined };
+
+  // Shared function to read the "hourCycle" option.
+  V8_WARN_UNUSED_RESULT static Maybe<HourCycle> GetHourCycle(
+      Isolate* isolate, Handle<JSReceiver> options, const char* method);
+
+  // enum for "localeMatcher" option: shared by many Intl objects.
+  enum class MatcherOption { kBestFit, kLookup };
+
+  // Shared function to read the "localeMatcher" option.
+  V8_WARN_UNUSED_RESULT static Maybe<MatcherOption> GetLocaleMatcher(
+      Isolate* isolate, Handle<JSReceiver> options, const char* method);
 
   struct ResolvedLocale {
     std::string locale;
@@ -201,10 +246,6 @@ class Intl {
       Isolate* isolate, const std::set<std::string>& available_locales,
       const std::vector<std::string>& requested_locales, MatcherOption options,
       const std::set<std::string>& relevant_extension_keys);
-
-  // Shared function to read the "localeMatcher" option.
-  V8_WARN_UNUSED_RESULT static Maybe<MatcherOption> GetLocaleMatcher(
-      Isolate* isolate, Handle<JSReceiver> options, const char* method);
 
   // Utility function to set text to BreakIterator.
   static Managed<icu::UnicodeString>* SetTextToBreakIterator(

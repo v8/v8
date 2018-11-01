@@ -1954,21 +1954,33 @@ base::TimezoneCache* Intl::CreateTimeZoneCache() {
                                 : base::OS::CreateTimezoneCache();
 }
 
+Maybe<Intl::CaseFirst> Intl::GetCaseFirst(Isolate* isolate,
+                                          Handle<JSReceiver> options,
+                                          const char* method) {
+  return Intl::GetStringOption<Intl::CaseFirst>(
+      isolate, options, "caseFirst", method, {"upper", "lower", "false"},
+      {Intl::CaseFirst::kUpper, Intl::CaseFirst::kLower,
+       Intl::CaseFirst::kFalse},
+      Intl::CaseFirst::kUndefined);
+}
+
+Maybe<Intl::HourCycle> Intl::GetHourCycle(Isolate* isolate,
+                                          Handle<JSReceiver> options,
+                                          const char* method) {
+  return Intl::GetStringOption<Intl::HourCycle>(
+      isolate, options, "hourCycle", method, {"h11", "h12", "h23", "h24"},
+      {Intl::HourCycle::kH11, Intl::HourCycle::kH12, Intl::HourCycle::kH23,
+       Intl::HourCycle::kH24},
+      Intl::HourCycle::kUndefined);
+}
+
 Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
                                                   Handle<JSReceiver> options,
                                                   const char* method) {
-  const std::vector<const char*> values = {"lookup", "best fit"};
-  std::unique_ptr<char[]> matcher_str = nullptr;
-  Maybe<bool> found_matcher = Intl::GetStringOption(
-      isolate, options, "localeMatcher", values, method, &matcher_str);
-  MAYBE_RETURN(found_matcher, Nothing<Intl::MatcherOption>());
-  if (found_matcher.FromJust()) {
-    DCHECK_NOT_NULL(matcher_str.get());
-    if (strcmp(matcher_str.get(), "lookup") == 0) {
-      return Just(Intl::MatcherOption::kLookup);
-    }
-  }
-  return Just(Intl::MatcherOption::kBestFit);
+  return Intl::GetStringOption<Intl::MatcherOption>(
+      isolate, options, "localeMatcher", method, {"best fit", "lookup"},
+      {Intl::MatcherOption::kLookup, Intl::MatcherOption::kBestFit},
+      Intl::MatcherOption::kLookup);
 }
 
 }  // namespace internal

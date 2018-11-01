@@ -27,6 +27,20 @@ namespace internal {
 
 namespace {
 
+UNumberFormatStyle ToNumberFormatStyle(
+    JSNumberFormat::CurrencyDisplay currency_display) {
+  switch (currency_display) {
+    case JSNumberFormat::CurrencyDisplay::SYMBOL:
+      return UNUM_CURRENCY;
+    case JSNumberFormat::CurrencyDisplay::CODE:
+      return UNUM_CURRENCY_ISO;
+    case JSNumberFormat::CurrencyDisplay::NAME:
+      return UNUM_CURRENCY_PLURAL;
+    case JSNumberFormat::CurrencyDisplay::COUNT:
+      UNREACHABLE();
+  }
+}
+
 // ecma-402/#sec-currencydigits
 // The currency is expected to an all upper case string value.
 int CurrencyDigits(const icu::UnicodeString& currency) {
@@ -277,21 +291,11 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   // 12. Let style be ? GetOption(options, "style", "string",  « "decimal",
   // "percent", "currency" », "decimal").
   const char* service = "Intl.NumberFormat";
-  std::unique_ptr<char[]> style_cstr;
-  const std::vector<const char*> style_values = {"decimal", "percent",
-                                                 "currency"};
-  Maybe<bool> found_style = Intl::GetStringOption(
-      isolate, options, "style", style_values, service, &style_cstr);
-  MAYBE_RETURN(found_style, MaybeHandle<JSNumberFormat>());
-  Style style = Style::DECIMAL;
-  if (found_style.FromJust()) {
-    DCHECK_NOT_NULL(style_cstr.get());
-    if (strcmp(style_cstr.get(), "percent") == 0) {
-      style = Style::PERCENT;
-    } else if (strcmp(style_cstr.get(), "currency") == 0) {
-      style = Style::CURRENCY;
-    }
-  }
+  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+      isolate, options, "style", service, {"decimal", "percent", "currency"},
+      {Style::DECIMAL, Style::PERCENT, Style::CURRENCY}, Style::DECIMAL);
+  MAYBE_RETURN(maybe_style, MaybeHandle<JSNumberFormat>());
+  Style style = maybe_style.FromJust();
 
   // 13. Set numberFormat.[[Style]] to style.
   number_format->set_style(style);
@@ -340,26 +344,16 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
 
   // 18. Let currencyDisplay be ? GetOption(options, "currencyDisplay",
   // "string", « "code",  "symbol", "name" », "symbol").
-  std::unique_ptr<char[]> currency_display_cstr;
-  const std::vector<const char*> currency_display_values = {"code", "name",
-                                                            "symbol"};
-  Maybe<bool> found_currency_display = Intl::GetStringOption(
-      isolate, options, "currencyDisplay", currency_display_values, service,
-      &currency_display_cstr);
-  MAYBE_RETURN(found_currency_display, MaybeHandle<JSNumberFormat>());
-  CurrencyDisplay currency_display = CurrencyDisplay::SYMBOL;
-  UNumberFormatStyle format_style = UNUM_CURRENCY;
-
-  if (found_currency_display.FromJust()) {
-    DCHECK_NOT_NULL(currency_display_cstr.get());
-    if (strcmp(currency_display_cstr.get(), "code") == 0) {
-      currency_display = CurrencyDisplay::CODE;
-      format_style = UNUM_CURRENCY_ISO;
-    } else if (strcmp(currency_display_cstr.get(), "name") == 0) {
-      currency_display = CurrencyDisplay::NAME;
-      format_style = UNUM_CURRENCY_PLURAL;
-    }
-  }
+  Maybe<CurrencyDisplay> maybe_currencyDisplay =
+      Intl::GetStringOption<CurrencyDisplay>(
+          isolate, options, "currencyDisplay", service,
+          {"code", "symbol", "name"},
+          {CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL,
+           CurrencyDisplay::NAME},
+          CurrencyDisplay::SYMBOL);
+  MAYBE_RETURN(maybe_currencyDisplay, MaybeHandle<JSNumberFormat>());
+  CurrencyDisplay currency_display = maybe_currencyDisplay.FromJust();
+  UNumberFormatStyle format_style = ToNumberFormatStyle(currency_display);
 
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberFormat> icu_number_format;
