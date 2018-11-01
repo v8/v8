@@ -17,6 +17,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots.h"
 #include "src/utils.h"
 
@@ -459,16 +460,13 @@ static void TraceTopFrame(Isolate* isolate) {
 static void SortIndices(
     Isolate* isolate, Handle<FixedArray> indices, uint32_t sort_size,
     WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER) {
-  // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
+  // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
-  base::AtomicElement<Object*>* start =
-      reinterpret_cast<base::AtomicElement<Object*>*>(
-          indices->GetFirstElementAddress().address());
+  AtomicSlot start(indices->GetFirstElementAddress());
   std::sort(start, start + sort_size,
-            [isolate](const base::AtomicElement<Object*>& elementA,
-                      const base::AtomicElement<Object*>& elementB) {
-              const Object* a = elementA.value();
-              const Object* b = elementB.value();
+            [isolate](Address elementA, Address elementB) {
+              const Object* a = reinterpret_cast<Object*>(elementA);
+              const Object* b = reinterpret_cast<Object*>(elementB);
               if (a->IsSmi() || !a->IsUndefined(isolate)) {
                 if (!b->IsSmi() && b->IsUndefined(isolate)) {
                   return true;

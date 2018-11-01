@@ -89,6 +89,7 @@
 #include "src/objects/microtask-queue-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/slots-atomic-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/parsing/preparsed-scope-data.h"
 #include "src/property-descriptor.h"
@@ -17938,10 +17939,9 @@ int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
 template <typename Dictionary>
 struct EnumIndexComparator {
   explicit EnumIndexComparator(Dictionary* dict) : dict(dict) {}
-  bool operator()(const base::AtomicElement<Smi*>& a,
-                  const base::AtomicElement<Smi*>& b) {
-    PropertyDetails da(dict->DetailsAt(a.value()->value()));
-    PropertyDetails db(dict->DetailsAt(b.value()->value()));
+  bool operator()(Address a, Address b) {
+    PropertyDetails da(dict->DetailsAt(reinterpret_cast<Smi*>(a)->value()));
+    PropertyDetails db(dict->DetailsAt(reinterpret_cast<Smi*>(b)->value()));
     return da.dictionary_index() < db.dictionary_index();
   }
   Dictionary* dict;
@@ -17984,11 +17984,9 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
   Derived* raw_dictionary = *dictionary;
   FixedArray* raw_storage = *storage;
   EnumIndexComparator<Derived> cmp(raw_dictionary);
-  // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
+  // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
-  base::AtomicElement<Smi*>* start =
-      reinterpret_cast<base::AtomicElement<Smi*>*>(
-          storage->GetFirstElementAddress().address());
+  AtomicSlot start(storage->GetFirstElementAddress());
   std::sort(start, start + length, cmp);
   for (int i = 0; i < length; i++) {
     int index = Smi::ToInt(raw_storage->get(i));
@@ -18016,11 +18014,9 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
     DCHECK_EQ(array_size, length);
 
     EnumIndexComparator<Derived> cmp(raw_dictionary);
-    // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
+    // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
     // store operations that are safe for concurrent marking.
-    base::AtomicElement<Smi*>* start =
-        reinterpret_cast<base::AtomicElement<Smi*>*>(
-            array->GetFirstElementAddress().address());
+    AtomicSlot start(array->GetFirstElementAddress());
     std::sort(start, start + array_size, cmp);
   }
   return FixedArray::ShrinkOrEmpty(isolate, array, array_size);
@@ -18058,11 +18054,9 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
     }
 
     EnumIndexComparator<Derived> cmp(raw_dictionary);
-    // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
+    // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
     // store operations that are safe for concurrent marking.
-    base::AtomicElement<Smi*>* start =
-        reinterpret_cast<base::AtomicElement<Smi*>*>(
-            array->GetFirstElementAddress().address());
+    AtomicSlot start(array->GetFirstElementAddress());
     std::sort(start, start + array_size, cmp);
   }
 

@@ -13,9 +13,23 @@ namespace internal {
 template <typename Subclass>
 class SlotBase {
  public:
-  Subclass& operator++() {
+  Subclass& operator++() {  // Prefix increment.
     ptr_ += kPointerSize;
     return *static_cast<Subclass*>(this);
+  }
+  Subclass operator++(int) {  // Postfix increment.
+    Subclass result = *static_cast<Subclass*>(this);
+    ptr_ += kPointerSize;
+    return result;
+  }
+  Subclass& operator--() {  // Prefix decrement.
+    ptr_ -= kPointerSize;
+    return *static_cast<Subclass*>(this);
+  }
+  Subclass operator--(int) {  // Postfix decrement.
+    Subclass result = *static_cast<Subclass*>(this);
+    ptr_ -= kPointerSize;
+    return result;
   }
 
   bool operator<(const SlotBase& other) const { return ptr_ < other.ptr_; }
@@ -30,8 +44,16 @@ class SlotBase {
   }
   Subclass operator-(int i) const { return Subclass(ptr_ - i * kPointerSize); }
   Subclass operator+(int i) const { return Subclass(ptr_ + i * kPointerSize); }
+  friend Subclass operator+(int i, const Subclass& slot) {
+    return Subclass(slot.ptr_ + i * kPointerSize);
+  }
   Subclass& operator+=(int i) {
     ptr_ += i * kPointerSize;
+    return *static_cast<Subclass*>(this);
+  }
+  Subclass operator-(int i) { return Subclass(ptr_ - i * kPointerSize); }
+  Subclass& operator-=(int i) {
+    ptr_ -= i * kPointerSize;
     return *static_cast<Subclass*>(this);
   }
 
