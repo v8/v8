@@ -154,44 +154,6 @@ const std::vector<PatternData> GetPatternData(HourOption option) {
   }
 }
 
-void SetPropertyFromPattern(Isolate* isolate, const std::string& pattern,
-                            Handle<JSObject> options) {
-  Factory* factory = isolate->factory();
-  const std::vector<PatternItem> items = GetPatternItems();
-  for (const auto& item : items) {
-    for (const auto& pair : item.pairs) {
-      if (pattern.find(pair.pattern) != std::string::npos) {
-        // After we find the first pair in the item which matching the pattern,
-        // we set the property and look for the next item in kPatternItems.
-        CHECK(JSReceiver::CreateDataProperty(
-                  isolate, options,
-                  factory->NewStringFromAsciiChecked(item.property.c_str()),
-                  factory->NewStringFromAsciiChecked(pair.value.c_str()),
-                  kDontThrow)
-                  .FromJust());
-        break;
-      }
-    }
-  }
-  // hour12
-  // b. If p is "hour12", then
-  //  i. Let hc be dtf.[[HourCycle]].
-  //  ii. If hc is "h11" or "h12", let v be true.
-  //  iii. Else if, hc is "h23" or "h24", let v be false.
-  //  iv. Else, let v be undefined.
-  if (pattern.find('h') != std::string::npos) {
-    CHECK(JSReceiver::CreateDataProperty(isolate, options,
-                                         factory->hour12_string(),
-                                         factory->true_value(), kDontThrow)
-              .FromJust());
-  } else if (pattern.find('H') != std::string::npos) {
-    CHECK(JSReceiver::CreateDataProperty(isolate, options,
-                                         factory->hour12_string(),
-                                         factory->false_value(), kDontThrow)
-              .FromJust());
-  }
-}
-
 std::string GetGMTTzID(Isolate* isolate, const std::string& input) {
   std::string ret = "Etc/GMT";
   switch (input.length()) {
@@ -289,26 +251,21 @@ std::string JSDateTimeFormat::CanonicalizeTimeZoneID(Isolate* isolate,
   return ToTitleCaseTimezoneLocation(isolate, input);
 }
 
+// ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions
 MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format) {
   Factory* factory = isolate->factory();
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
-  // 5. For each row of Table 6, except the header row, in any order, do
-  // a. Let p be the Property value of the current row.
   Handle<Object> resolved_obj;
 
-  // locale
   UErrorCode status = U_ZERO_ERROR;
   char language[ULOC_FULLNAME_CAPACITY];
   uloc_toLanguageTag(date_time_format->icu_locale()->raw()->getName(), language,
                      ULOC_FULLNAME_CAPACITY, FALSE, &status);
   CHECK(U_SUCCESS(status));
   Handle<String> locale = factory->NewStringFromAsciiChecked(language);
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->locale_string(), locale, kDontThrow)
-            .FromJust());
 
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format()->raw();
@@ -328,36 +285,15 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   } else if (calendar_str == "ethiopic-amete-alem") {
     calendar_str = "ethioaa";
   }
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->calendar_string(),
-            factory->NewStringFromAsciiChecked(calendar_str.c_str()),
-            kDontThrow)
-            .FromJust());
 
-  // Ugly hack. ICU doesn't expose numbering system in any way, so we have
-  // to assume that for given locale NumberingSystem constructor produces the
-  // same digits as NumberFormat/Calendar would.
-  // Tracked by https://unicode-org.atlassian.net/browse/ICU-13431
-  std::unique_ptr<icu::NumberingSystem> numbering_system(
-      icu::NumberingSystem::createInstance(
-          *(date_time_format->icu_locale()->raw()), status));
-  if (U_SUCCESS(status)) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->numberingSystem_string(),
-              factory->NewStringFromAsciiChecked(numbering_system->getName()),
-              kDontThrow)
-              .FromJust());
-  }
-
-  // timezone
   const icu::TimeZone& tz = calendar->getTimeZone();
   icu::UnicodeString time_zone;
   tz.getID(time_zone);
   status = U_ZERO_ERROR;
   icu::UnicodeString canonical_time_zone;
   icu::TimeZone::getCanonicalID(time_zone, canonical_time_zone, status);
+  Handle<Object> timezone_value;
   if (U_SUCCESS(status)) {
-    Handle<String> timezone_value;
     // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
     // a separate timezone ID from Etc/GMT even though they're still the same
     // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
@@ -372,23 +308,115 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
                                  Intl::ToString(isolate, canonical_time_zone),
                                  JSObject);
     }
-    CHECK(JSReceiver::CreateDataProperty(isolate, options,
-                                         factory->timeZone_string(),
-                                         timezone_value, kDontThrow)
-              .FromJust());
   } else {
     // Somehow on Windows we will reach here.
-    CHECK(JSReceiver::CreateDataProperty(isolate, options,
-                                         factory->timeZone_string(),
-                                         factory->undefined_value(), kDontThrow)
-              .FromJust());
+    timezone_value = factory->undefined_value();
   }
+
+  // Ugly hack. ICU doesn't expose numbering system in any way, so we have
+  // to assume that for given locale NumberingSystem constructor produces the
+  // same digits as NumberFormat/Calendar would.
+  // Tracked by https://unicode-org.atlassian.net/browse/ICU-13431
+  std::string numbering_system =
+      Intl::GetNumberingSystem(*(date_time_format->icu_locale()->raw()));
 
   icu::UnicodeString pattern_unicode;
   icu_simple_date_format->toPattern(pattern_unicode);
   std::string pattern;
   pattern_unicode.toUTF8String(pattern);
-  SetPropertyFromPattern(isolate, pattern, options);
+
+  // 5. For each row of Table 6, except the header row, in table order, do
+  // Table 6: Resolved Options of DateTimeFormat Instances
+  //  Internal Slot          Property
+  //    [[Locale]]           "locale"
+  //    [[Calendar]]         "calendar"
+  //    [[NumberingSystem]]  "numberingSystem"
+  //    [[TimeZone]]         "timeZone"
+  //    [[HourCycle]]        "hourCycle"
+  //                         "hour12"
+  //    [[Weekday]]          "weekday"
+  //    [[Era]]              "era"
+  //    [[Year]]             "year"
+  //    [[Month]]            "month"
+  //    [[Day]]              "day"
+  //    [[Hour]]             "hour"
+  //    [[Minute]]           "minute"
+  //    [[Second]]           "second"
+  //    [[TimeZoneName]]     "timeZoneName"
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->locale_string(), locale, kDontThrow)
+            .FromJust());
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->calendar_string(),
+            factory->NewStringFromAsciiChecked(calendar_str.c_str()),
+            kDontThrow)
+            .FromJust());
+  if (!numbering_system.empty()) {
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->numberingSystem_string(),
+              factory->NewStringFromAsciiChecked(numbering_system.c_str()),
+              kDontThrow)
+              .FromJust());
+  }
+  CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                       factory->timeZone_string(),
+                                       timezone_value, kDontThrow)
+            .FromJust());
+  if (pattern.find('h') != std::string::npos) {
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->hourCycle_string(),
+                                         factory->h11_string(), kDontThrow)
+              .FromJust());
+  } else if (pattern.find('H') != std::string::npos) {
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->hourCycle_string(),
+                                         factory->h12_string(), kDontThrow)
+              .FromJust());
+  } else if (pattern.find('k') != std::string::npos) {
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->hourCycle_string(),
+                                         factory->h23_string(), kDontThrow)
+              .FromJust());
+  } else if (pattern.find('K') != std::string::npos) {
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->hourCycle_string(),
+                                         factory->h24_string(), kDontThrow)
+              .FromJust());
+  }
+  // b. If p is "hour12", then
+  //  i. Let hc be dtf.[[HourCycle]].
+  //  ii. If hc is "h11" or "h12", let v be true.
+  //  iii. Else if, hc is "h23" or "h24", let v be false.
+  //  iv. Else, let v be undefined.
+  if (pattern.find('h') != std::string::npos) {
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->hour12_string(),
+                                         factory->true_value(), kDontThrow)
+              .FromJust());
+  } else if (pattern.find('H') != std::string::npos) {
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->hour12_string(),
+                                         factory->false_value(), kDontThrow)
+              .FromJust());
+  }
+
+  const std::vector<PatternItem> items = GetPatternItems();
+  for (const auto& item : items) {
+    for (const auto& pair : item.pairs) {
+      if (pattern.find(pair.pattern) != std::string::npos) {
+        // After we find the first pair in the item which matching the pattern,
+        // we set the property and look for the next item in kPatternItems.
+        CHECK(JSReceiver::CreateDataProperty(
+                  isolate, options,
+                  factory->NewStringFromAsciiChecked(item.property.c_str()),
+                  factory->NewStringFromAsciiChecked(pair.value.c_str()),
+                  kDontThrow)
+                  .FromJust());
+        break;
+      }
+    }
+  }
+
   return options;
 }
 
