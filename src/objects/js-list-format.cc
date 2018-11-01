@@ -19,7 +19,10 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/managed.h"
+#include "unicode/fieldpos.h"
+#include "unicode/fpositer.h"
 #include "unicode/listformatter.h"
+#include "unicode/ulistformatter.h"
 
 namespace v8 {
 namespace internal {
@@ -118,9 +121,9 @@ JSListFormat::Type get_type(const char* str) {
 }
 
 MaybeHandle<JSListFormat> JSListFormat::Initialize(
-    Isolate* isolate, Handle<JSListFormat> list_format_holder,
-    Handle<Object> locales, Handle<Object> input_options) {
-  list_format_holder->set_flags(0);
+    Isolate* isolate, Handle<JSListFormat> list_format, Handle<Object> locales,
+    Handle<Object> input_options) {
+  list_format->set_flags(0);
 
   Handle<JSReceiver> options;
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -159,7 +162,7 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   }
 
   // 8. Set listFormat.[[Type]] to t.
-  list_format_holder->set_type(type_enum);
+  list_format->set_type(type_enum);
 
   // 9. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
@@ -174,7 +177,7 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
     style_enum = get_style(style_str.get());
   }
   // 10. Set listFormat.[[Style]] to s.
-  list_format_holder->set_style(style_enum);
+  list_format->set_style(style_enum);
 
   // 12. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
@@ -200,7 +203,7 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   // 24. Set listFormat.[[Locale]] to r.[[Locale]].
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
-  list_format_holder->set_locale(*locale_str);
+  list_format->set_locale(*locale_str);
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
@@ -215,13 +218,13 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   Handle<Managed<icu::ListFormatter>> managed_formatter =
       Managed<icu::ListFormatter>::FromRawPtr(isolate, 0, formatter);
 
-  list_format_holder->set_icu_formatter(*managed_formatter);
-  return list_format_holder;
+  list_format->set_icu_formatter(*managed_formatter);
+  return list_format;
 }
 
 // ecma402 #sec-intl.pluralrules.prototype.resolvedoptions
-Handle<JSObject> JSListFormat::ResolvedOptions(
-    Isolate* isolate, Handle<JSListFormat> format_holder) {
+Handle<JSObject> JSListFormat::ResolvedOptions(Isolate* isolate,
+                                               Handle<JSListFormat> format) {
   Factory* factory = isolate->factory();
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
@@ -232,13 +235,13 @@ Handle<JSObject> JSListFormat::ResolvedOptions(
   //  [[Locale]]       "locale"
   //  [[Type]]         "type"
   //  [[Style]]        "style"
-  Handle<String> locale(format_holder->locale(), isolate);
+  Handle<String> locale(format->locale(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(isolate, result, factory->type_string(),
-                        format_holder->TypeAsString(), NONE);
+                        format->TypeAsString(), NONE);
   JSObject::AddProperty(isolate, result, factory->style_string(),
-                        format_holder->StyleAsString(), NONE);
+                        format->StyleAsString(), NONE);
   // 6. Return options.
   return result;
 }
@@ -271,52 +274,76 @@ Handle<String> JSListFormat::TypeAsString() const {
 
 namespace {
 
-// TODO(ftang) remove the following hack after icu::ListFormat support
-// FieldPosition.
-// This is a temporary workaround until icu::ListFormat support FieldPosition
-// It is inefficient and won't work correctly on the edge case that the input
-// contains fraction of the list pattern.
-// For example the following under English will mark the "an" incorrectly
-// since the formatted is "a, b, and an".
-// listFormat.formatToParts(["a", "b", "an"])
-// https://ssl.icu-project.org/trac/ticket/13754
 MaybeHandle<JSArray> GenerateListFormatParts(
     Isolate* isolate, const icu::UnicodeString& formatted,
-    const icu::UnicodeString items[], int length) {
+    const std::vector<icu::FieldPosition>& positions) {
   Factory* factory = isolate->factory();
-  int estimate_size = length * 2 + 1;
-  Handle<JSArray> array = factory->NewJSArray(estimate_size);
+  Handle<JSArray> array =
+      factory->NewJSArray(static_cast<int>(positions.size()));
   int index = 0;
-  int last_pos = 0;
-  for (int i = 0; i < length; i++) {
-    int found = formatted.indexOf(items[i], last_pos);
-    DCHECK_GE(found, 0);
-    if (found > last_pos) {
-      Handle<String> substring;
+  int prev_item_end_index = 0;
+  Handle<String> substring;
+  for (const icu::FieldPosition pos : positions) {
+    CHECK(pos.getBeginIndex() >= prev_item_end_index);
+    CHECK(pos.getField() == ULISTFMT_ELEMENT_FIELD);
+    if (pos.getBeginIndex() != prev_item_end_index) {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, substring,
-          Intl::ToString(isolate, formatted, last_pos, found), JSArray);
+          Intl::ToString(isolate, formatted, prev_item_end_index,
+                         pos.getBeginIndex()),
+          JSArray);
       Intl::AddElement(isolate, array, index++, factory->literal_string(),
                        substring);
     }
-    last_pos = found + items[i].length();
-    Handle<String> substring;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, substring, Intl::ToString(isolate, formatted, found, last_pos),
+        isolate, substring,
+        Intl::ToString(isolate, formatted, pos.getBeginIndex(),
+                       pos.getEndIndex()),
         JSArray);
     Intl::AddElement(isolate, array, index++, factory->element_string(),
                      substring);
+    prev_item_end_index = pos.getEndIndex();
   }
-  if (last_pos < formatted.length()) {
-    Handle<String> substring;
+  if (prev_item_end_index != formatted.length()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,
-        Intl::ToString(isolate, formatted, last_pos, formatted.length()),
+        Intl::ToString(isolate, formatted, prev_item_end_index,
+                       formatted.length()),
         JSArray);
     Intl::AddElement(isolate, array, index++, factory->literal_string(),
                      substring);
   }
   return array;
+}
+
+// Get all the FieldPosition into a vector from FieldPositionIterator and return
+// them in output order.
+std::vector<icu::FieldPosition> GenerateFieldPosition(
+    icu::FieldPositionIterator iter) {
+  std::vector<icu::FieldPosition> positions;
+  icu::FieldPosition pos;
+  while (iter.next(pos)) {
+    // Only take the information of the ULISTFMT_ELEMENT_FIELD field.
+    if (pos.getField() == ULISTFMT_ELEMENT_FIELD) {
+      positions.push_back(pos);
+    }
+  }
+  // Because the format may reoder the items, ICU FieldPositionIterator
+  // keep the order for FieldPosition based on the order of the input items.
+  // But the formatToParts API in ECMA402 expects in formatted output order.
+  // Therefore we have to sort based on beginIndex of the FieldPosition.
+  // Example of such is in the "ur" (Urdu) locale with type: "unit", where the
+  // main text flows from right to left, the formatted list of unit should flow
+  // from left to right and therefore in the memory the formatted result will
+  // put the first item on the last in the result string according the current
+  // CLDR patterns.
+  // See 'listPattern' pattern in
+  // third_party/icu/source/data/locales/ur_IN.txt
+  std::sort(positions.begin(), positions.end(),
+            [](icu::FieldPosition a, icu::FieldPosition b) {
+              return a.getBeginIndex() < b.getBeginIndex();
+            });
+  return positions;
 }
 
 // Extract String from JSArray into array of UnicodeString
@@ -345,9 +372,8 @@ Maybe<bool> ToUnicodeStringArray(Isolate* isolate, Handle<JSArray> array,
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
           NewTypeError(MessageTemplate::kArrayItemNotType,
-                       factory->NewStringFromStaticChars("list"),
-                       factory->NewNumber(i),
-                       factory->NewStringFromStaticChars("String")),
+                       factory->list_string(), factory->NewNumber(i),
+                       factory->String_string()),
           Nothing<bool>());
     }
   }
@@ -360,16 +386,10 @@ Maybe<bool> ToUnicodeStringArray(Isolate* isolate, Handle<JSArray> array,
 
 }  // namespace
 
-Maybe<bool> FormatListCommon(Isolate* isolate,
-                             Handle<JSListFormat> format_holder,
-                             Handle<JSArray> list,
-                             icu::UnicodeString& formatted, uint32_t* length,
+Maybe<bool> FormatListCommon(Isolate* isolate, Handle<JSArray> list,
+                             uint32_t* length,
                              std::unique_ptr<icu::UnicodeString[]>& array) {
   DCHECK(!list->IsUndefined());
-
-  icu::ListFormatter* formatter = format_holder->icu_formatter()->raw();
-  CHECK_NOT_NULL(formatter);
-
   *length = list->GetElementsAccessor()->NumberOfElements(*list);
   array.reset(new icu::UnicodeString[*length]);
 
@@ -379,36 +399,32 @@ Maybe<bool> FormatListCommon(Isolate* isolate,
   MAYBE_RETURN(ToUnicodeStringArray(isolate, list, array.get(), *length),
                Nothing<bool>());
 
-  UErrorCode status = U_ZERO_ERROR;
-  formatter->format(array.get(), *length, formatted, status);
-  DCHECK(U_SUCCESS(status));
   return Just(true);
 }
 
 // ecma402 #sec-formatlist
 MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
-                                             Handle<JSListFormat> format_holder,
+                                             Handle<JSListFormat> format,
                                              Handle<JSArray> list) {
-  icu::UnicodeString formatted;
-  uint32_t length;
-  std::unique_ptr<icu::UnicodeString[]> array;
-  MAYBE_RETURN(
-      FormatListCommon(isolate, format_holder, list, formatted, &length, array),
-      Handle<String>());
-  return Intl::ToString(isolate, formatted);
-}
+  DCHECK(!list->IsUndefined());
+  uint32_t length = list->GetElementsAccessor()->NumberOfElements(*list);
+  std::unique_ptr<icu::UnicodeString[]> array(new icu::UnicodeString[length]);
 
-// ecma42 #sec-formatlisttoparts
-MaybeHandle<JSArray> JSListFormat::FormatListToParts(
-    Isolate* isolate, Handle<JSListFormat> format_holder,
-    Handle<JSArray> list) {
+  // ecma402 #sec-createpartsfromlist
+  // 2. If list contains any element value such that Type(value) is not String,
+  // throw a TypeError exception.
+  MAYBE_RETURN(ToUnicodeStringArray(isolate, list, array.get(), length),
+               Handle<String>());
+
+  icu::ListFormatter* formatter = format->icu_formatter()->raw();
+  CHECK_NOT_NULL(formatter);
+
+  UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString formatted;
-  uint32_t length;
-  std::unique_ptr<icu::UnicodeString[]> array;
-  MAYBE_RETURN(
-      FormatListCommon(isolate, format_holder, list, formatted, &length, array),
-      Handle<JSArray>());
-  return GenerateListFormatParts(isolate, formatted, array.get(), length);
+  formatter->format(array.get(), length, formatted, status);
+  DCHECK(U_SUCCESS(status));
+
+  return Intl::ToString(isolate, formatted);
 }
 
 std::set<std::string> JSListFormat::GetAvailableLocales() {
@@ -422,5 +438,30 @@ std::set<std::string> JSListFormat::GetAvailableLocales() {
   return Intl::BuildLocaleSet(icu_available_locales, num_locales);
 }
 
+// ecma42 #sec-formatlisttoparts
+MaybeHandle<JSArray> JSListFormat::FormatListToParts(
+    Isolate* isolate, Handle<JSListFormat> format, Handle<JSArray> list) {
+  DCHECK(!list->IsUndefined());
+  uint32_t length = list->GetElementsAccessor()->NumberOfElements(*list);
+  std::unique_ptr<icu::UnicodeString[]> array(new icu::UnicodeString[length]);
+
+  // ecma402 #sec-createpartsfromlist
+  // 2. If list contains any element value such that Type(value) is not String,
+  // throw a TypeError exception.
+  MAYBE_RETURN(ToUnicodeStringArray(isolate, list, array.get(), length),
+               Handle<JSArray>());
+
+  icu::ListFormatter* formatter = format->icu_formatter()->raw();
+  CHECK_NOT_NULL(formatter);
+
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString formatted;
+  icu::FieldPositionIterator iter;
+  formatter->format(array.get(), length, formatted, &iter, status);
+  DCHECK(U_SUCCESS(status));
+
+  std::vector<icu::FieldPosition> field_positions = GenerateFieldPosition(iter);
+  return GenerateListFormatParts(isolate, formatted, field_positions);
+}
 }  // namespace internal
 }  // namespace v8

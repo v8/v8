@@ -37,6 +37,7 @@
   V(_, kana_string, "kana")                                         \
   V(_, letter_string, "letter")                                     \
   V(_, lineBreakStyle_string, "lineBreakStyle")                     \
+  V(_, list_string, "list")                                         \
   V(_, literal_string, "literal")                                   \
   V(_, locale_string, "locale")                                     \
   V(_, localeWithExtension_string, "localeWithExtension")           \
