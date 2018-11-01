@@ -3632,6 +3632,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   debug_info->set_script(shared->script_or_debug_info());
   debug_info->set_original_bytecode_array(
       ReadOnlyRoots(heap).undefined_value());
+  debug_info->set_debug_bytecode_array(ReadOnlyRoots(heap).undefined_value());
   debug_info->set_break_points(ReadOnlyRoots(heap).empty_fixed_array());
 
   // Link debug info to function.

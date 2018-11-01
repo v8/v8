@@ -1205,6 +1205,7 @@ void Debug::PrepareFunctionForDebugExecution(
         handle(shared->GetBytecodeArray(), isolate_);
     Handle<BytecodeArray> debug_bytecode_array =
         isolate_->factory()->CopyBytecodeArray(original_bytecode_array);
+    debug_info->set_debug_bytecode_array(*debug_bytecode_array);
     shared->SetDebugBytecodeArray(*debug_bytecode_array);
     maybe_original_bytecode_array = original_bytecode_array;
   }

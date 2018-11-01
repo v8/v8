@@ -2184,6 +2184,7 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - shared: " << Brief(shared());
   os << "\n - script: " << Brief(script());
   os << "\n - original bytecode array: " << Brief(original_bytecode_array());
+  os << "\n - debug bytecode array: " << Brief(debug_bytecode_array());
   os << "\n - break_points: ";
   break_points()->FixedArrayPrint(os);
   os << "\n - coverage_info: " << Brief(coverage_info());
