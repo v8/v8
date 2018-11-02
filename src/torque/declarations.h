@@ -31,20 +31,20 @@ std::vector<T*> FilterDeclarables(const std::vector<Declarable*> list) {
 
 class Declarations {
  public:
-  static std::vector<Declarable*> TryLookup(const std::string& name) {
+  static std::vector<Declarable*> TryLookup(const QualifiedName& name) {
     return CurrentScope::Get()->Lookup(name);
   }
 
-  static std::vector<Declarable*> TryLookupShallow(const std::string& name) {
+  static std::vector<Declarable*> TryLookupShallow(const QualifiedName& name) {
     return CurrentScope::Get()->LookupShallow(name);
   }
 
   template <class T>
-  static std::vector<T*> TryLookup(const std::string& name) {
+  static std::vector<T*> TryLookup(const QualifiedName& name) {
     return FilterDeclarables<T>(TryLookup(name));
   }
 
-  static std::vector<Declarable*> Lookup(const std::string& name) {
+  static std::vector<Declarable*> Lookup(const QualifiedName& name) {
     std::vector<Declarable*> d = TryLookup(name);
     if (d.empty()) {
       std::stringstream s;
@@ -63,14 +63,14 @@ class Declarations {
   static Builtin* FindSomeInternalBuiltinWithType(
       const FunctionPointerType* type);
 
-  static Value* LookupValue(const std::string& name);
+  static Value* LookupValue(const QualifiedName& name);
 
   static Macro* TryLookupMacro(const std::string& name,
                                const TypeVector& types);
-  static base::Optional<Builtin*> TryLookupBuiltin(const std::string& name);
+  static base::Optional<Builtin*> TryLookupBuiltin(const QualifiedName& name);
 
   static std::vector<Generic*> LookupGeneric(const std::string& name);
-  static Generic* LookupUniqueGeneric(const std::string& name);
+  static Generic* LookupUniqueGeneric(const QualifiedName& name);
 
   static Module* DeclareModule(const std::string& name);
 

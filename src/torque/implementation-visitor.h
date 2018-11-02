@@ -368,7 +368,7 @@ class ImplementationVisitor : public FileVisitor {
   base::Optional<Binding<LocalLabel>*> TryLookupLabel(const std::string& name);
   Binding<LocalLabel>* LookupLabel(const std::string& name);
   Block* LookupSimpleLabel(const std::string& name);
-  Callable* LookupCall(const std::string& name, const Arguments& arguments,
+  Callable* LookupCall(const QualifiedName& name, const Arguments& arguments,
                        const TypeVector& specialization_types);
 
   const Type* GetCommonType(const Type* left, const Type* right);
@@ -378,10 +378,16 @@ class ImplementationVisitor : public FileVisitor {
   void GenerateAssignToLocation(const LocationReference& reference,
                                 const VisitResult& assignment_value);
 
-  VisitResult GenerateCall(const std::string& callable_name,
+  VisitResult GenerateCall(const QualifiedName& callable_name,
                            Arguments parameters,
                            const TypeVector& specialization_types = {},
                            bool tail_call = false);
+  VisitResult GenerateCall(std::string callable_name, Arguments parameters,
+                           const TypeVector& specialization_types = {},
+                           bool tail_call = false) {
+    return GenerateCall(QualifiedName(std::move(callable_name)),
+                        std::move(parameters), specialization_types, tail_call);
+  }
   VisitResult GeneratePointerCall(Expression* callee,
                                   const Arguments& parameters, bool tail_call);
 

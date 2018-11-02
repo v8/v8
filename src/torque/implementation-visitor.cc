@@ -1242,7 +1242,7 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
 
 namespace {
 
-void FailCallableLookup(const std::string& reason, const std::string& name,
+void FailCallableLookup(const std::string& reason, const QualifiedName& name,
                         const Arguments& arguments,
                         const std::vector<Signature>& candidates) {
   std::stringstream stream;
@@ -1302,7 +1302,7 @@ Block* ImplementationVisitor::LookupSimpleLabel(const std::string& name) {
 }
 
 Callable* ImplementationVisitor::LookupCall(
-    const std::string& name, const Arguments& arguments,
+    const QualifiedName& name, const Arguments& arguments,
     const TypeVector& specialization_types) {
   Callable* result = nullptr;
   TypeVector parameter_types(arguments.parameters.GetTypeVector());
@@ -1486,19 +1486,22 @@ LocationReference ImplementationVisitor::GetLocationReference(
 
 LocationReference ImplementationVisitor::GetLocationReference(
     IdentifierExpression* expr) {
-  if (base::Optional<Binding<LocalValue>*> value =
-          TryLookupLocalValue(expr->name)) {
-    if (expr->generic_arguments.size() != 0) {
-      ReportError("cannot have generic parameters on local name ", expr->name);
+  if (expr->namespace_qualification.empty()) {
+    if (base::Optional<Binding<LocalValue>*> value =
+            TryLookupLocalValue(expr->name)) {
+      if (expr->generic_arguments.size() != 0) {
+        ReportError("cannot have generic parameters on local name ",
+                    expr->name);
+      }
+      if ((*value)->is_const) {
+        return LocationReference::Temporary((*value)->value,
+                                            "constant value " + expr->name);
+      }
+      return LocationReference::VariableAccess((*value)->value);
     }
-    if ((*value)->is_const) {
-      return LocationReference::Temporary((*value)->value,
-                                          "constant value " + expr->name);
-    }
-    return LocationReference::VariableAccess((*value)->value);
   }
 
-  std::string name = expr->name;
+  QualifiedName name = QualifiedName(expr->namespace_qualification, expr->name);
   if (base::Optional<Builtin*> builtin = Declarations::TryLookupBuiltin(name)) {
     return LocationReference::Temporary(GetBuiltinCode(*builtin),
                                         "builtin " + expr->name);
@@ -1516,7 +1519,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
                   generic->name());
     }
   }
-  Value* value = Declarations::LookupValue(expr->name);
+  Value* value = Declarations::LookupValue(name);
   if (auto* constant = ModuleConstant::DynamicCast(value)) {
     if (constant->type()->IsConstexpr()) {
       return LocationReference::Temporary(
@@ -1620,7 +1623,7 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
 }
 
 VisitResult ImplementationVisitor::GenerateCall(
-    const std::string& callable_name, Arguments arguments,
+    const QualifiedName& callable_name, Arguments arguments,
     const TypeVector& specialization_types, bool is_tailcall) {
   Callable* callable =
       LookupCall(callable_name, arguments, specialization_types);
@@ -1647,8 +1650,8 @@ VisitResult ImplementationVisitor::GenerateCall(
     base::Optional<Binding<LocalValue>*> val =
         TryLookupLocalValue(implicit_name);
     if (!val) {
-      ReportError("implicit parameter '" + implicit_name +
-                  "' required for call to '" + callable_name +
+      ReportError("implicit parameter '", implicit_name,
+                  "' required for call to '", callable_name,
                   "' is not defined");
     }
     VisitResult converted = GenerateImplicitConvert(
@@ -1821,17 +1824,19 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
                                          bool is_tailcall) {
   StackScope scope(this);
   Arguments arguments;
-  std::string name = expr->callee.name;
+  QualifiedName name =
+      QualifiedName(expr->callee->namespace_qualification, expr->callee->name);
   TypeVector specialization_types =
-      GetTypeVector(expr->callee.generic_arguments);
+      GetTypeVector(expr->callee->generic_arguments);
   bool has_template_arguments = !specialization_types.empty();
   for (Expression* arg : expr->arguments)
     arguments.parameters.push_back(Visit(arg));
   arguments.labels = LabelsFromIdentifiers(expr->labels);
   VisitResult result;
-  if (!has_template_arguments && TryLookupLocalValue(expr->callee.name)) {
+  if (!has_template_arguments && name.namespace_qualification.empty() &&
+      TryLookupLocalValue(name.name)) {
     return scope.Yield(
-        GeneratePointerCall(&expr->callee, arguments, is_tailcall));
+        GeneratePointerCall(expr->callee, arguments, is_tailcall));
   } else {
     return scope.Yield(
         GenerateCall(name, arguments, specialization_types, is_tailcall));

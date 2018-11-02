@@ -13,6 +13,18 @@ namespace torque {
 
 DEFINE_CONTEXTUAL_VARIABLE(CurrentScope);
 
+std::ostream& operator<<(std::ostream& os, const QualifiedName& name) {
+  bool first = true;
+  for (const std::string& qualifier : name.namespace_qualification) {
+    if (!first) {
+      os << "::";
+    }
+    os << qualifier;
+    first = false;
+  }
+  return os << name.name;
+}
+
 std::ostream& operator<<(std::ostream& os, const Callable& m) {
   os << "callable " << m.ReadableName() << "(";
   if (m.signature().implicit_count != 0) {

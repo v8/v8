@@ -23,6 +23,20 @@ class Scope;
 
 DECLARE_CONTEXTUAL_VARIABLE(CurrentScope, Scope*);
 
+struct QualifiedName {
+  std::vector<std::string> namespace_qualification;
+  std::string name;
+
+  QualifiedName(std::vector<std::string> namespace_qualification,
+                std::string name)
+      : namespace_qualification(std::move(namespace_qualification)),
+        name(std::move(name)) {}
+  explicit QualifiedName(std::string name)
+      : QualifiedName({}, std::move(name)) {}
+
+  friend std::ostream& operator<<(std::ostream& os, const QualifiedName& name);
+};
+
 class Declarable {
  public:
   virtual ~Declarable() = default;
@@ -46,6 +60,7 @@ class Declarable {
   bool IsExternConstant() const { return kind() == kExternConstant; }
   bool IsModuleConstant() const { return kind() == kModuleConstant; }
   bool IsValue() const { return IsExternConstant() || IsModuleConstant(); }
+  bool IsScope() const { return IsModule() || IsCallable(); }
   bool IsCallable() const {
     return IsMacro() || IsBuiltin() || IsRuntimeFunction();
   }
@@ -85,18 +100,35 @@ class Declarable {
 
 class Scope : public Declarable {
  public:
+  DECLARE_DECLARABLE_BOILERPLATE(Scope, scope);
   explicit Scope(Declarable::Kind kind) : Declarable(kind) {}
 
-  const std::vector<Declarable*>& LookupShallow(const std::string& name) {
-    return declarations_[name];
+  std::vector<Declarable*> LookupShallow(const QualifiedName& name) {
+    if (name.namespace_qualification.empty()) return declarations_[name.name];
+    Scope* child = nullptr;
+    for (Declarable* declarable :
+         declarations_[name.namespace_qualification.front()]) {
+      if (Scope* scope = Scope::DynamicCast(declarable)) {
+        if (child != nullptr) {
+          ReportError("ambiguous reference to scope ",
+                      name.namespace_qualification.front());
+        }
+        child = scope;
+      }
+    }
+    if (child == nullptr) return {};
+    return child->LookupShallow(
+        QualifiedName({name.namespace_qualification.begin() + 1,
+                       name.namespace_qualification.end()},
+                      name.name));
   }
 
-  std::vector<Declarable*> Lookup(const std::string& name) {
+  std::vector<Declarable*> Lookup(const QualifiedName& name) {
     std::vector<Declarable*> result;
     if (ParentScope()) {
       result = ParentScope()->Lookup(name);
     }
-    for (Declarable* declarable : declarations_[name]) {
+    for (Declarable* declarable : LookupShallow(name)) {
       result.push_back(declarable);
     }
     return result;

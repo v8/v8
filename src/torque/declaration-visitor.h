@@ -29,8 +29,8 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(Declaration* decl);
 
   Module* GetOrCreateModule(const std::string& name) {
-    std::vector<Module*> existing_modules =
-        FilterDeclarables<Module>(Declarations::TryLookupShallow(name));
+    std::vector<Module*> existing_modules = FilterDeclarables<Module>(
+        Declarations::TryLookupShallow(QualifiedName(name)));
     if (existing_modules.empty()) {
       return Declarations::DeclareModule(name);
     }

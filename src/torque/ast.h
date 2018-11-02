@@ -186,28 +186,31 @@ class Ast {
 
 struct IdentifierExpression : LocationExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IdentifierExpression)
-  IdentifierExpression(SourcePosition pos, std::string name,
-                       std::vector<TypeExpression*> args = {})
+  IdentifierExpression(SourcePosition pos,
+                       std::vector<std::string> namespace_qualification,
+                       std::string name, std::vector<TypeExpression*> args = {})
       : LocationExpression(kKind, pos),
+        namespace_qualification(std::move(namespace_qualification)),
         name(std::move(name)),
         generic_arguments(std::move(args)) {}
+  IdentifierExpression(SourcePosition pos, std::string name,
+                       std::vector<TypeExpression*> args = {})
+      : IdentifierExpression(pos, {}, std::move(name), std::move(args)) {}
+  std::vector<std::string> namespace_qualification;
   std::string name;
   std::vector<TypeExpression*> generic_arguments;
 };
 
 struct CallExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(CallExpression)
-  CallExpression(SourcePosition pos, std::string callee, bool is_operator,
-                 std::vector<TypeExpression*> generic_arguments,
+  CallExpression(SourcePosition pos, IdentifierExpression* callee,
                  std::vector<Expression*> arguments,
                  std::vector<std::string> labels)
       : Expression(kKind, pos),
-        callee(pos, std::move(callee), std::move(generic_arguments)),
-        is_operator(is_operator),
+        callee(callee),
         arguments(std::move(arguments)),
         labels(std::move(labels)) {}
-  IdentifierExpression callee;
-  bool is_operator;
+  IdentifierExpression* callee;
   std::vector<Expression*> arguments;
   std::vector<std::string> labels;
 };

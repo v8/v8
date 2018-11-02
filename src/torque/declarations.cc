@@ -24,9 +24,8 @@ std::vector<T> EnsureNonempty(std::vector<T> list, const std::string& name,
   return std::move(list);
 }
 
-template <class T>
-T EnsureUnique(const std::vector<T>& list, const std::string& name,
-               const char* kind) {
+template <class T, class Name>
+T EnsureUnique(const std::vector<T>& list, const Name& name, const char* kind) {
   if (list.empty()) {
     ReportError("there is no ", kind, "named ", name);
   }
@@ -39,7 +38,7 @@ T EnsureUnique(const std::vector<T>& list, const std::string& name,
 template <class T>
 void CheckAlreadyDeclared(const std::string& name, const char* new_type) {
   std::vector<T*> declarations =
-      FilterDeclarables<T>(Declarations::TryLookupShallow(name));
+      FilterDeclarables<T>(Declarations::TryLookupShallow(QualifiedName(name)));
   if (!declarations.empty()) {
     Scope* scope = CurrentScope::Get();
     ReportError("cannot redeclare ", name, " (type ", new_type, scope, ")");
@@ -50,7 +49,8 @@ void CheckAlreadyDeclared(const std::string& name, const char* new_type) {
 
 std::vector<Declarable*> Declarations::LookupGlobalScope(
     const std::string& name) {
-  std::vector<Declarable*> d = GlobalContext::GetDefaultModule()->Lookup(name);
+  std::vector<Declarable*> d =
+      GlobalContext::GetDefaultModule()->Lookup(QualifiedName(name));
   if (d.empty()) {
     std::stringstream s;
     s << "cannot find \"" << name << "\" in global scope";
@@ -60,8 +60,8 @@ std::vector<Declarable*> Declarations::LookupGlobalScope(
 }
 
 const Type* Declarations::LookupType(const std::string& name) {
-  TypeAlias* declaration =
-      EnsureUnique(FilterDeclarables<TypeAlias>(Lookup(name)), name, "type");
+  TypeAlias* declaration = EnsureUnique(
+      FilterDeclarables<TypeAlias>(Lookup(QualifiedName(name))), name, "type");
   return declaration->type();
 }
 
@@ -105,13 +105,13 @@ Builtin* Declarations::FindSomeInternalBuiltinWithType(
   return nullptr;
 }
 
-Value* Declarations::LookupValue(const std::string& name) {
+Value* Declarations::LookupValue(const QualifiedName& name) {
   return EnsureUnique(FilterDeclarables<Value>(Lookup(name)), name, "value");
 }
 
 Macro* Declarations::TryLookupMacro(const std::string& name,
                                     const TypeVector& types) {
-  std::vector<Macro*> macros = TryLookup<Macro>(name);
+  std::vector<Macro*> macros = TryLookup<Macro>(QualifiedName(name));
   for (auto& m : macros) {
     auto signature_types = m->signature().GetExplicitTypes();
     if (signature_types == types && !m->signature().parameter_types.var_args) {
@@ -122,18 +122,18 @@ Macro* Declarations::TryLookupMacro(const std::string& name,
 }
 
 base::Optional<Builtin*> Declarations::TryLookupBuiltin(
-    const std::string& name) {
+    const QualifiedName& name) {
   std::vector<Builtin*> builtins = TryLookup<Builtin>(name);
   if (builtins.empty()) return base::nullopt;
-  return EnsureUnique(builtins, name, "builtin");
+  return EnsureUnique(builtins, name.name, "builtin");
 }
 
 std::vector<Generic*> Declarations::LookupGeneric(const std::string& name) {
-  return EnsureNonempty(FilterDeclarables<Generic>(Lookup(name)), name,
-                        "generic");
+  return EnsureNonempty(FilterDeclarables<Generic>(Lookup(QualifiedName(name))),
+                        name, "generic");
 }
 
-Generic* Declarations::LookupUniqueGeneric(const std::string& name) {
+Generic* Declarations::LookupUniqueGeneric(const QualifiedName& name) {
   return EnsureUnique(FilterDeclarables<Generic>(Lookup(name)), name,
                       "generic");
 }
