@@ -695,11 +695,6 @@
       {'name': 'mozilla'},
     ],
   },
-  'V8 Linux - presubmit': {
-    'tests': [
-      {'name': 'presubmit'},
-    ],
-  },
   'V8 Linux - shared': {
     'tests': [
       {'name': 'mozilla'},
@@ -1524,7 +1519,6 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'presubmit'},
       {'name': 'test262'},
       {'name': 'v8testing'},
     ],
@@ -1537,7 +1531,6 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'presubmit'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 3},
     ],
@@ -1550,7 +1543,6 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'presubmit'},
       {'name': 'test262'},
       {'name': 'v8testing'},
     ],
@@ -1563,7 +1555,6 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'presubmit'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 3},
     ],
