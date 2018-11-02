@@ -1433,7 +1433,6 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     // Unary math functions.
     case BuiltinFunctionId::kMathAbs:
     case BuiltinFunctionId::kMathExp:
-    case BuiltinFunctionId::kMathExpm1:
       return Type::Union(Type::PlainNumber(), Type::NaN(), t->zone());
     case BuiltinFunctionId::kMathAcos:
     case BuiltinFunctionId::kMathAcosh:
@@ -1443,6 +1442,7 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     case BuiltinFunctionId::kMathAtanh:
     case BuiltinFunctionId::kMathCbrt:
     case BuiltinFunctionId::kMathCos:
+    case BuiltinFunctionId::kMathExpm1:
     case BuiltinFunctionId::kMathFround:
     case BuiltinFunctionId::kMathLog:
     case BuiltinFunctionId::kMathLog1p:
