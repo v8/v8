@@ -235,6 +235,8 @@ class AstBigInt {
   F(this_function, ".this_function")            \
   F(throw, "throw")                             \
   F(undefined, "undefined")                     \
+  F(use_asm, "use asm")                         \
+  F(use_strict, "use strict")                   \
   F(value, "value")
 
 class AstStringConstants final {
