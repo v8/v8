@@ -856,7 +856,7 @@ BUILTIN(DatePrototypeToLocaleDateString) {
                    args.atOrUndefined(isolate, 2),           // options
                    JSDateTimeFormat::RequiredOption::kDate,  // required
                    JSDateTimeFormat::DefaultsOption::kDate,  // defaults
-                   "dateformatdate"));                       // service
+                   Intl::CacheType::kDateTimeFormatForDateToLocaleDateString));
 }
 
 // ecma402 #sup-date.prototype.tolocalestring
@@ -875,7 +875,7 @@ BUILTIN(DatePrototypeToLocaleString) {
                    args.atOrUndefined(isolate, 2),          // options
                    JSDateTimeFormat::RequiredOption::kAny,  // required
                    JSDateTimeFormat::DefaultsOption::kAll,  // defaults
-                   "dateformatall"));                       // service
+                   Intl::CacheType::kDateTimeFormatForDateToLocaleString));
 }
 
 // ecma402 #sup-date.prototype.tolocaletimestring
@@ -894,7 +894,7 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
                    args.atOrUndefined(isolate, 2),           // options
                    JSDateTimeFormat::RequiredOption::kTime,  // required
                    JSDateTimeFormat::DefaultsOption::kTime,  // defaults
-                   "dateformattime"));                       // service
+                   Intl::CacheType::kDateTimeFormatForDateToLocaleTimeString));
 }
 #endif  // V8_INTL_SUPPORT
 

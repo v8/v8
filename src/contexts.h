@@ -88,8 +88,6 @@ enum ContextLookupFlags {
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                 \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)         \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function) \
-  V(CACHED_OR_NEW_SERVICE_LOCALE_FUNCTION_INDEX, JSFunction,              \
-    cached_or_new_service)                                                \
   V(SET_ADD_INDEX, JSFunction, set_add)                                   \
   V(SET_DELETE_INDEX, JSFunction, set_delete)                             \
   V(SET_HAS_INDEX, JSFunction, set_has)                                   \
@@ -202,13 +200,14 @@ enum ContextLookupFlags {
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun)                        \
   V(INT8_ARRAY_FUN_INDEX, JSFunction, int8_array_fun)                          \
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function)        \
-  V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
+  V(INTL_COLLATOR_FUNCTION_INDEX, JSFunction, intl_collator_function)          \
   V(INTL_DATE_TIME_FORMAT_FUNCTION_INDEX, JSFunction,                          \
     intl_date_time_format_function)                                            \
   V(INTL_NUMBER_FORMAT_FUNCTION_INDEX, JSFunction,                             \
     intl_number_format_function)                                               \
   V(INTL_LOCALE_FUNCTION_INDEX, JSFunction, intl_locale_function)              \
   V(INTL_SEGMENT_ITERATOR_MAP_INDEX, Map, intl_segment_iterator_map)           \
+  V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
   V(JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX, Map,                               \
     js_array_packed_smi_elements_map)                                          \
   V(JS_ARRAY_HOLEY_SMI_ELEMENTS_MAP_INDEX, Map,                                \

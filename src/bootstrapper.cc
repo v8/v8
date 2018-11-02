@@ -3004,6 +3004,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate_, intl, "Collator", JS_INTL_COLLATOR_TYPE, JSCollator::kSize,
           0, factory->the_hole_value(), Builtins::kCollatorConstructor);
       collator_constructor->shared()->DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(isolate_, collator_constructor,
+                                       Context::INTL_COLLATOR_FUNCTION_INDEX);
 
       SimpleInstallFunction(isolate(), collator_constructor,
                             "supportedLocalesOf",

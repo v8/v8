@@ -389,21 +389,6 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
   return value;
 }
 
-MaybeHandle<JSObject> Intl::CachedOrNewService(
-    Isolate* isolate, Handle<String> service, Handle<Object> locales,
-    Handle<Object> options, Handle<Object> internal_options) {
-  Handle<Object> result;
-  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
-                                 isolate);
-  Handle<Object> args[] = {service, locales, options, internal_options};
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, isolate->cached_or_new_service(),
-                      undefined_value, arraysize(args), args),
-      JSArray);
-  return Handle<JSObject>::cast(result);
-}
-
 icu::Locale Intl::CreateICULocale(const std::string& bcp47_locale) {
   DisallowHeapAllocation no_gc;
 
@@ -1155,12 +1140,11 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
                                               Handle<String> string2,
                                               Handle<Object> locales,
                                               Handle<Object> options) {
-  Factory* factory = isolate->factory();
   Handle<JSObject> collator;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, collator,
-      CachedOrNewService(isolate, factory->NewStringFromStaticChars("collator"),
-                         locales, options, factory->undefined_value()),
+      CachedOrNew(isolate, Intl::CacheType::kCollatorForStringLocaleCompare,
+                  locales, options),
       Object);
   CHECK(collator->IsJSCollator());
   return Intl::CompareStrings(isolate, Handle<JSCollator>::cast(collator),
@@ -1194,14 +1178,13 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                                Handle<Object> num,
                                                Handle<Object> locales,
                                                Handle<Object> options) {
-  Factory* factory = isolate->factory();
   Handle<JSObject> number_format_holder;
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, number_format_holder,
-      CachedOrNewService(isolate,
-                         factory->NewStringFromStaticChars("numberformat"),
-                         locales, options, factory->undefined_value()),
+      CachedOrNew(isolate,
+                  Intl::CacheType::kNumberFormatForNumberToLocaleString,
+                  locales, options),
       String);
   DCHECK(number_format_holder->IsJSNumberFormat());
   Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>(
@@ -1981,6 +1964,46 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
       isolate, options, "localeMatcher", method, {"best fit", "lookup"},
       {Intl::MatcherOption::kLookup, Intl::MatcherOption::kBestFit},
       Intl::MatcherOption::kLookup);
+}
+
+template <typename T>
+MaybeHandle<JSObject> New(Isolate* isolate, Object* constructor_obj,
+                          Handle<Object> locales, Handle<Object> options) {
+  Handle<JSFunction> constructor =
+      Handle<JSFunction>(JSFunction::cast(constructor_obj), isolate);
+  Handle<JSObject> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(constructor, constructor, Handle<AllocationSite>::null()),
+      JSObject);
+  return T::Initialize(isolate, Handle<T>::cast(result), locales, options);
+}
+
+MaybeHandle<JSObject> Intl::CachedOrNew(Isolate* isolate,
+                                        Intl::CacheType cache_type,
+                                        Handle<Object> locales,
+                                        Handle<Object> options) {
+  // TODO(ftang): we may add cache mechanism here if both locales and locales
+  // are undefined.
+
+  Handle<Context> native_context =
+      Handle<Context>(isolate->context()->native_context(), isolate);
+
+  switch (cache_type) {
+    case Intl::CacheType::kCollatorForStringLocaleCompare:
+      return New<JSCollator>(isolate, native_context->intl_collator_function(),
+                             locales, options);
+    case Intl::CacheType::kNumberFormatForNumberToLocaleString:
+      return New<JSNumberFormat>(isolate,
+                                 native_context->intl_number_format_function(),
+                                 locales, options);
+    case Intl::CacheType::kDateTimeFormatForDateToLocaleString:
+    case Intl::CacheType::kDateTimeFormatForDateToLocaleDateString:
+    case Intl::CacheType::kDateTimeFormatForDateToLocaleTimeString:
+      return New<JSDateTimeFormat>(
+          isolate, native_context->intl_date_time_format_function(), locales,
+          options);
+  }
 }
 
 }  // namespace internal

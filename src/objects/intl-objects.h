@@ -264,6 +264,20 @@ class Intl {
   static const uint8_t* ToLatin1LowerTable();
 
   static String* ConvertOneByteToLower(String* src, String* dst);
+
+  enum class CacheType {
+    kCollatorForStringLocaleCompare,
+    kDateTimeFormatForDateToLocaleString,
+    kDateTimeFormatForDateToLocaleDateString,
+    kDateTimeFormatForDateToLocaleTimeString,
+    kNumberFormatForNumberToLocaleString
+  };
+  // Factory method to create DateTimeFormat, NumberFormat and Collator
+  // for Date.prototype.toLocale(String|DateString|TimeString),
+  // Number.toLocaleString, and String.prototype.localeCompare.
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> CachedOrNew(
+      Isolate* isolate, Intl::CacheType cache_type, Handle<Object> locales,
+      Handle<Object> options);
 };
 
 }  // namespace internal

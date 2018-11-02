@@ -473,7 +473,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
 MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
     Isolate* isolate, Handle<Object> date, Handle<Object> locales,
     Handle<Object> options, RequiredOption required, DefaultsOption defaults,
-    const char* service) {
+    Intl::CacheType cache_type) {
   Factory* factory = isolate->factory();
   // 1. Let x be ? thisTimeValue(this value);
   if (!date->IsJSDate()) {
@@ -499,9 +499,7 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   Handle<JSObject> object;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, object,
-      Intl::CachedOrNewService(isolate,
-                               factory->NewStringFromAsciiChecked(service),
-                               locales, options, internal_options),
+      Intl::CachedOrNew(isolate, cache_type, locales, internal_options),
       String);
 
   CHECK(object->IsJSDateTimeFormat());
