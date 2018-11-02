@@ -4104,6 +4104,8 @@ void Assembler::set_target_value_at(Address pc, uint32_t target,
     instr1 |= lui_offset;
     instr2 |= jic_offset;
 
+    instr_at_put(pc, instr1);
+    instr_at_put(pc + kInstrSize, instr2);
   } else {
     Instr instr3 = instr_at(pc + 2 * kInstrSize);
     // If we are using relative calls/jumps for builtins.
