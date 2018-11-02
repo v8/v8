@@ -1655,7 +1655,7 @@ int InterpretedFrame::position() const {
 
 int InterpretedFrame::LookupExceptionHandlerInTable(
     int* context_register, HandlerTable::CatchPrediction* prediction) {
-  HandlerTable table(GetBytecodeArray());
+  HandlerTable table(function()->shared()->GetBytecodeArray());
   return table.LookupRange(GetBytecodeOffset(), context_register, prediction);
 }
 
@@ -1723,7 +1723,8 @@ void InterpretedFrame::WriteInterpreterRegister(int register_index,
 
 void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  AbstractCode* abstract_code = AbstractCode::cast(GetBytecodeArray());
+  AbstractCode* abstract_code =
+      AbstractCode::cast(function()->shared()->GetBytecodeArray());
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), abstract_code, GetBytecodeOffset(),
       IsConstructor());

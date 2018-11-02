@@ -10,9 +10,8 @@
 namespace v8 {
 namespace internal {
 
-class BytecodeArray;
 class Isolate;
-class InterpretedFrame;
+class JavaScriptFrame;
 class JSFunction;
 enum class OptimizationReason : uint8_t;
 
@@ -24,16 +23,16 @@ class RuntimeProfiler {
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 
-  void AttemptOnStackReplacement(InterpretedFrame* frame,
+  void AttemptOnStackReplacement(JavaScriptFrame* frame,
                                  int nesting_levels = 1);
 
  private:
-  void MaybeOptimize(JSFunction* function, InterpretedFrame* frame);
+  void MaybeOptimize(JSFunction* function, JavaScriptFrame* frame);
   // Potentially attempts OSR from and returns whether no other
   // optimization attempts should be made.
-  bool MaybeOSR(JSFunction* function, InterpretedFrame* frame);
+  bool MaybeOSR(JSFunction* function, JavaScriptFrame* frame);
   OptimizationReason ShouldOptimize(JSFunction* function,
-                                    BytecodeArray* bytecode_array);
+                                    JavaScriptFrame* frame);
   void Optimize(JSFunction* function, OptimizationReason reason);
   void Baseline(JSFunction* function, OptimizationReason reason);
 
