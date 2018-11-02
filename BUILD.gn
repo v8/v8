@@ -3262,6 +3262,14 @@ v8_component("v8_libbase") {
     data_deps += [ "//build/win:runtime_libs" ]
   }
 
+  if (v8_current_cpu == "mips" || v8_current_cpu == "mips64") {
+    # Add runtime libs for mips.
+    data += [
+      "tools/mips_toolchain/sysroot/usr/lib/",
+      "tools/mips_toolchain/mips-mti-linux-gnu/lib",
+    ]
+  }
+
   if (is_tsan && !build_with_chromium) {
     data += [ "tools/sanitizers/tsan_suppressions.txt" ]
   }
