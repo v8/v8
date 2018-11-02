@@ -194,9 +194,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
-                         InitializationFlag init_flag = kCreatedInitialized,
-                         VariableKind kind = NORMAL_VARIABLE,
-                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
+                         InitializationFlag init_flag = kCreatedInitialized);
 
   Variable* DeclareVariable(Declaration* declaration, VariableMode mode,
                             InitializationFlag init,

@@ -444,14 +444,26 @@ inline NestedVariableDeclaration* VariableDeclaration::AsNested() {
 class FunctionDeclaration final : public Declaration {
  public:
   FunctionLiteral* fun() const { return fun_; }
+  bool declares_sloppy_block_function() const {
+    return DeclaresSloppyBlockFunction::decode(bit_field_);
+  }
 
  private:
   friend class AstNodeFactory;
 
-  FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun, int pos)
-      : Declaration(proxy, pos, kFunctionDeclaration), fun_(fun) {}
+  class DeclaresSloppyBlockFunction
+      : public BitField<bool, Declaration::kNextBitFieldIndex, 1> {};
+
+  FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun,
+                      bool declares_sloppy_block_function, int pos)
+      : Declaration(proxy, pos, kFunctionDeclaration), fun_(fun) {
+    bit_field_ = DeclaresSloppyBlockFunction::update(
+        bit_field_, declares_sloppy_block_function);
+  }
 
   FunctionLiteral* fun_;
+
+  static const uint8_t kNextBitFieldIndex = DeclaresSloppyBlockFunction::kNext;
 };
 
 
@@ -2883,8 +2895,11 @@ class AstNodeFactory final {
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
-                                              FunctionLiteral* fun, int pos) {
-    return new (zone_) FunctionDeclaration(proxy, fun, pos);
+                                              FunctionLiteral* fun,
+                                              bool is_sloppy_block_function,
+                                              int pos) {
+    return new (zone_)
+        FunctionDeclaration(proxy, fun, is_sloppy_block_function, pos);
   }
 
   Block* NewBlock(int capacity, bool ignore_completion_value,

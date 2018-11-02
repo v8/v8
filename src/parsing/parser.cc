@@ -1441,8 +1441,8 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
                                    ZonePtrList<const AstRawString>* names) {
   VariableProxy* proxy =
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE, pos);
-  Declaration* declaration =
-      factory()->NewFunctionDeclaration(proxy, function, pos);
+  Declaration* declaration = factory()->NewFunctionDeclaration(
+      proxy, function, is_sloppy_block_function, pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode,
           kCreatedInitialized);
   if (names) names->Add(variable_name, zone());
