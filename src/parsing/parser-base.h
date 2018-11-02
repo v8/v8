@@ -4589,16 +4589,25 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
 
   DCHECK(!impl()->IsNull(body));
 
-  while (peek() == Token::STRING && (scanner()->HasLineTerminatorAfterNext() ||
-                                     Token::IsAutoSemicolon(PeekAhead()))) {
-    const AstRawString* symbol = scanner()->NextSymbol(ast_value_factory_);
+  while (peek() == Token::STRING) {
+    bool use_strict = false;
+    bool use_asm = false;
+
     Scanner::Location token_loc = scanner()->peek_location();
-    // The length of the token is used to distinguish between strings literals
-    // that evaluate equal to directives but contain either escape sequences
-    // (e.g., "use \x73trict") or line continuations (e.g., "use \(newline)
-    // strict").
-    if (symbol == ast_value_factory()->use_strict_string() &&
-        token_loc.end_pos - token_loc.beg_pos == sizeof("use strict") + 1) {
+
+    if (scanner()->NextLiteralEquals("use strict")) {
+      use_strict = true;
+    } else if (scanner()->NextLiteralEquals("use asm")) {
+      use_asm = true;
+    }
+
+    StatementT stat = ParseStatementListItem();
+    body->Add(stat, zone_);
+    may_abort = false;
+
+    if (!impl()->IsStringLiteral(stat)) break;
+
+    if (use_strict) {
       // Directive "use strict" (ES5 14.1).
       RaiseLanguageMode(LanguageMode::kStrict);
       if (!scope()->HasSimpleParameters()) {
@@ -4610,8 +4619,7 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
                                 "use strict");
         return kLazyParsingComplete;
       }
-    } else if (symbol == ast_value_factory()->use_asm_string() &&
-               token_loc.end_pos - token_loc.beg_pos == sizeof("use asm") + 1) {
+    } else if (use_asm) {
       // Directive "use asm".
       impl()->SetAsmModule();
     } else {
@@ -4620,9 +4628,6 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
       // as appropriate. Ditto usages below.
       RaiseLanguageMode(LanguageMode::kSloppy);
     }
-    StatementT stat = ParseStatementListItem();
-    body->Add(stat, zone());
-    may_abort = false;
   }
 
   // Allocate a target stack to use for this set of source elements. This way,

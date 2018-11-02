@@ -260,9 +260,8 @@ class Scanner {
     Location(int b, int e) : beg_pos(b), end_pos(e) { }
     Location() : beg_pos(0), end_pos(0) { }
 
-    bool IsValid() const {
-      return beg_pos >= 0 && end_pos >= beg_pos;
-    }
+    int length() const { return end_pos - beg_pos; }
+    bool IsValid() const { return beg_pos >= 0 && end_pos >= beg_pos; }
 
     static Location invalid() { return Location(-1, -1); }
 
@@ -364,6 +363,20 @@ class Scanner {
   bool IsLet() const {
     return CurrentMatches(Token::LET) ||
            CurrentMatchesContextualEscaped(Token::LET);
+  }
+
+  template <size_t N>
+  bool NextLiteralEquals(const char (&s)[N]) {
+    DCHECK_EQ(Token::STRING, peek());
+    // The length of the token is used to make sure the literal equals without
+    // taking escape sequences (e.g., "use \x73trict") or line continuations
+    // (e.g., "use \(newline) strict") into account.
+    if (!is_next_literal_one_byte()) return false;
+    if (peek_location().length() != N + 1) return false;
+
+    Vector<const uint8_t> next = next_literal_one_byte_string();
+    const char* chars = reinterpret_cast<const char*>(next.start());
+    return next.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
 
   UnicodeCache* unicode_cache() const { return unicode_cache_; }
