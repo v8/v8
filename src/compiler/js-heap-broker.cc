@@ -271,6 +271,19 @@ void JSTypedArrayData::Serialize(JSHeapBroker* broker) {
   }
 }
 
+class JSDataViewData : public JSObjectData {
+ public:
+  JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
+                 Handle<JSDataView> object);
+
+  size_t byte_length() const { return byte_length_; }
+  size_t byte_offset() const { return byte_offset_; }
+
+ private:
+  size_t const byte_length_;
+  size_t const byte_offset_;
+};
+
 class JSBoundFunctionData : public JSObjectData {
  public:
   JSBoundFunctionData(JSHeapBroker* broker, ObjectData** storage,
@@ -905,6 +918,12 @@ class FixedArrayData : public FixedArrayBaseData {
   bool serialized_contents_ = false;
   ZoneVector<ObjectData*> contents_;
 };
+
+JSDataViewData::JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
+                               Handle<JSDataView> object)
+    : JSObjectData(broker, storage, object),
+      byte_length_(object->byte_length()),
+      byte_offset_(object->byte_offset()) {}
 
 JSBoundFunctionData::JSBoundFunctionData(JSHeapBroker* broker,
                                          ObjectData** storage,
@@ -2107,6 +2126,9 @@ BIMODAL_ACCESSOR(JSArray, Object, length)
 BIMODAL_ACCESSOR(JSBoundFunction, Object, bound_target_function)
 BIMODAL_ACCESSOR(JSBoundFunction, Object, bound_this)
 BIMODAL_ACCESSOR(JSBoundFunction, FixedArray, bound_arguments)
+
+BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
+BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_offset)
 
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)

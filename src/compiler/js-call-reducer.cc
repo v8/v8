@@ -6107,8 +6107,9 @@ Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   DCHECK_NE(0, receiver_maps.size());
 
   // Only reduce when all {receiver_maps} are JSReceiver maps.
-  for (Handle<Map> receiver_map : receiver_maps) {
-    if (!receiver_map->IsJSReceiverMap()) return NoChange();
+  for (Handle<Map> map : receiver_maps) {
+    MapRef receiver_map(broker(), map);
+    if (!receiver_map.IsJSReceiverMap()) return NoChange();
   }
 
   // Morph the {node} into a JSPromiseResolve operation.
@@ -6813,18 +6814,18 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     if (m.HasValue()) {
       // We only deal with DataViews here whose [[ByteLength]] is at least
       // {element_size}, as for all other DataViews it'll be out-of-bounds.
-      Handle<JSDataView> dataview = Handle<JSDataView>::cast(m.Value());
-      if (dataview->byte_length() < element_size) return NoChange();
+      JSDataViewRef dataview = m.Ref(broker()).AsJSDataView();
+      if (dataview.byte_length() < element_size) return NoChange();
 
       // Check that the {offset} is within range of the {byte_length}.
       Node* byte_length =
-          jsgraph()->Constant(dataview->byte_length() - (element_size - 1));
+          jsgraph()->Constant(dataview.byte_length() - (element_size - 1));
       offset = effect =
           graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
                            byte_length, effect, control);
 
       // Load the [[ByteOffset]] from the {dataview}.
-      byte_offset = jsgraph()->Constant(dataview->byte_offset());
+      byte_offset = jsgraph()->Constant(dataview.byte_offset());
     } else {
       // We only deal with DataViews here that have Smi [[ByteLength]]s.
       Node* byte_length = effect =
@@ -7060,7 +7061,8 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   }
 
   for (auto map : regexp_maps) {
-    if (map->instance_type() != JS_REGEXP_TYPE) return NoChange();
+    MapRef receiver_map(broker(), map);
+    if (receiver_map.instance_type() != JS_REGEXP_TYPE) return NoChange();
   }
 
   // Compute property access info for "exec" on {resolution}.

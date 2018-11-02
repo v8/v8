@@ -21,6 +21,7 @@ class BytecodeArray;
 class FixedDoubleArray;
 class InternalizedString;
 class JSBoundFunction;
+class JSDataView;
 class JSGlobalProxy;
 class JSRegExp;
 class JSTypedArray;
@@ -45,6 +46,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of JSObject */       \
   V(JSArray)                       \
   V(JSBoundFunction)               \
+  V(JSDataView)                    \
   V(JSFunction)                    \
   V(JSGlobalProxy)                 \
   V(JSRegExp)                      \
@@ -196,6 +198,15 @@ class JSObjectRef : public HeapObjectRef {
 
   void SerializeObjectCreateMap();
   base::Optional<MapRef> GetObjectCreateMap() const;
+};
+
+class JSDataViewRef : public JSObjectRef {
+ public:
+  using JSObjectRef::JSObjectRef;
+  Handle<JSDataView> object() const;
+
+  size_t byte_length() const;
+  size_t byte_offset() const;
 };
 
 class JSBoundFunctionRef : public JSObjectRef {
