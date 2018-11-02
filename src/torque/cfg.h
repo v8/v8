@@ -133,6 +133,7 @@ class CfgAssembler {
   void Poke(StackRange destination, StackRange origin,
             base::Optional<const Type*> type);
   void Print(std::string s);
+  void AssertionFailure(std::string message);
   void Unreachable();
   void DebugBreak();
 

@@ -116,27 +116,9 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
   branch(&ok, &not_ok);
 
   BIND(&not_ok);
-  DCHECK_NOT_NULL(message);
-  char chars[1024];
-  Vector<char> buffer(chars);
-  if (file != nullptr) {
-    SNPrintF(buffer, "CSA_ASSERT failed: %s [%s:%d]\n", message, file, line);
-  } else {
-    SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
-  }
-  Node* message_node = StringConstant(&(buffer[0]));
-
-#ifdef DEBUG
-  // Only print the extra nodes in debug builds.
-  MaybePrintNodeWithName(this, extra_node1, extra_node1_name);
-  MaybePrintNodeWithName(this, extra_node2, extra_node2_name);
-  MaybePrintNodeWithName(this, extra_node3, extra_node3_name);
-  MaybePrintNodeWithName(this, extra_node4, extra_node4_name);
-  MaybePrintNodeWithName(this, extra_node5, extra_node5_name);
-#endif
-
-  DebugAbort(message_node);
-  Unreachable();
+  FailAssert(message, file, line, extra_node1, extra_node1_name, extra_node2,
+             extra_node2_name, extra_node3, extra_node3_name, extra_node4,
+             extra_node4_name, extra_node5, extra_node5_name);
 
   BIND(&ok);
   Comment("] Assert");
@@ -166,6 +148,36 @@ void CodeStubAssembler::FastCheck(TNode<BoolT> condition) {
   DebugBreak();
   Goto(&ok);
   BIND(&ok);
+}
+
+void CodeStubAssembler::FailAssert(
+    const char* message, const char* file, int line, Node* extra_node1,
+    const char* extra_node1_name, Node* extra_node2,
+    const char* extra_node2_name, Node* extra_node3,
+    const char* extra_node3_name, Node* extra_node4,
+    const char* extra_node4_name, Node* extra_node5,
+    const char* extra_node5_name) {
+  DCHECK_NOT_NULL(message);
+  char chars[1024];
+  Vector<char> buffer(chars);
+  if (file != nullptr) {
+    SNPrintF(buffer, "CSA_ASSERT failed: %s [%s:%d]\n", message, file, line);
+  } else {
+    SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
+  }
+  Node* message_node = StringConstant(&(buffer[0]));
+
+#ifdef DEBUG
+  // Only print the extra nodes in debug builds.
+  MaybePrintNodeWithName(this, extra_node1, extra_node1_name);
+  MaybePrintNodeWithName(this, extra_node2, extra_node2_name);
+  MaybePrintNodeWithName(this, extra_node3, extra_node3_name);
+  MaybePrintNodeWithName(this, extra_node4, extra_node4_name);
+  MaybePrintNodeWithName(this, extra_node5, extra_node5_name);
+#endif
+
+  DebugAbort(message_node);
+  Unreachable();
 }
 
 Node* CodeStubAssembler::SelectImpl(TNode<BoolT> condition,

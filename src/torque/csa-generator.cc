@@ -523,12 +523,24 @@ void CSAGenerator::EmitInstruction(
   out_ << "    Print(" << StringLiteralQuote(instruction.message) << ");\n";
 }
 
-void CSAGenerator::EmitInstruction(const DebugBreakInstruction& instruction,
+void CSAGenerator::EmitInstruction(const AbortInstruction& instruction,
                                    Stack<std::string>* stack) {
-  if (instruction.never_continues) {
-    out_ << "    Unreachable();\n";
-  } else {
-    out_ << "    DebugBreak();\n";
+  switch (instruction.kind) {
+    case AbortInstruction::Kind::kUnreachable:
+      DCHECK(instruction.message.empty());
+      out_ << "    Unreachable();\n";
+      break;
+    case AbortInstruction::Kind::kDebugBreak:
+      DCHECK(instruction.message.empty());
+      out_ << "    DebugBreak();\n";
+      break;
+    case AbortInstruction::Kind::kAssertionFailure: {
+      std::string file =
+          StringLiteralQuote(SourceFileMap::GetSource(instruction.pos.source));
+      out_ << "    FailAssert(" << StringLiteralQuote(instruction.message)
+           << ", " << file << ", " << instruction.pos.line + 1 << ");\n";
+      break;
+    }
   }
 }
 

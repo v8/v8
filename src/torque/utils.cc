@@ -49,7 +49,7 @@ std::string StringLiteralUnquote(const std::string& s) {
 std::string StringLiteralQuote(const std::string& s) {
   std::stringstream result;
   result << '"';
-  for (size_t i = 0; i < s.length() - 1; ++i) {
+  for (size_t i = 0; i < s.length(); ++i) {
     switch (s[i]) {
       case '\n':
         result << "\\n";

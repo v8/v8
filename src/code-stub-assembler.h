@@ -680,6 +680,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
              Node* extra_node3 = nullptr, const char* extra_node3_name = "",
              Node* extra_node4 = nullptr, const char* extra_node4_name = "",
              Node* extra_node5 = nullptr, const char* extra_node5_name = "");
+  void FailAssert(
+      const char* message = nullptr, const char* file = nullptr, int line = 0,
+      Node* extra_node1 = nullptr, const char* extra_node1_name = "",
+      Node* extra_node2 = nullptr, const char* extra_node2_name = "",
+      Node* extra_node3 = nullptr, const char* extra_node3_name = "",
+      Node* extra_node4 = nullptr, const char* extra_node4_name = "",
+      Node* extra_node5 = nullptr, const char* extra_node5_name = "");
+
   void FastCheck(TNode<BoolT> condition);
 
   // The following Call wrappers call an object according to the semantics that
@@ -3409,7 +3417,6 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 
   const Flags flags_;
 };
-
 
 DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
 

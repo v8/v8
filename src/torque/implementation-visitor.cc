@@ -881,7 +881,9 @@ const Type* ImplementationVisitor::Visit(DebugStatement* stmt) {
                                                   stmt->reason + "' at " +
                                                   PositionAsString(stmt->pos)});
 #endif
-  assembler().Emit(DebugBreakInstruction{stmt->never_continues});
+  assembler().Emit(AbortInstruction{stmt->never_continues
+                                        ? AbortInstruction::Kind::kUnreachable
+                                        : AbortInstruction::Kind::kDebugBreak});
   if (stmt->never_continues) {
     return TypeOracle::GetNeverType();
   } else {
@@ -927,10 +929,10 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
     GenerateExpressionBranch(stmt->expression, true_block, false_block);
 
     assembler().Bind(false_block);
-    assembler().Emit(PrintConstantStringInstruction{
-        "assert '" + FormatAssertSource(stmt->source) + "' failed at " +
-        PositionAsString(stmt->pos)});
-    assembler().Emit(DebugBreakInstruction{true});
+
+    assembler().Emit(AbortInstruction{
+        AbortInstruction::Kind::kAssertionFailure,
+        "Torque assert '" + FormatAssertSource(stmt->source) + "' failed"});
 
     assembler().Bind(true_block);
   }

@@ -256,8 +256,8 @@ void ReturnInstruction::TypeInstruction(Stack<const Type*>* stack,
 void PrintConstantStringInstruction::TypeInstruction(
     Stack<const Type*>* stack, ControlFlowGraph* cfg) const {}
 
-void DebugBreakInstruction::TypeInstruction(Stack<const Type*>* stack,
-                                            ControlFlowGraph* cfg) const {}
+void AbortInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                       ControlFlowGraph* cfg) const {}
 
 void UnsafeCastInstruction::TypeInstruction(Stack<const Type*>* stack,
                                             ControlFlowGraph* cfg) const {

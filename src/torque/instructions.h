@@ -41,7 +41,7 @@ class RuntimeFunction;
   V(GotoExternalInstruction)          \
   V(ReturnInstruction)                \
   V(PrintConstantStringInstruction)   \
-  V(DebugBreakInstruction)            \
+  V(AbortInstruction)                 \
   V(UnsafeCastInstruction)
 
 #define TORQUE_INSTRUCTION_BOILERPLATE()                                 \
@@ -355,13 +355,17 @@ struct PrintConstantStringInstruction : InstructionBase {
   std::string message;
 };
 
-struct DebugBreakInstruction : InstructionBase {
+struct AbortInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  bool IsBlockTerminator() const override { return never_continues; }
-  explicit DebugBreakInstruction(bool never_continues)
-      : never_continues(never_continues) {}
+  enum class Kind { kDebugBreak, kUnreachable, kAssertionFailure };
+  bool IsBlockTerminator() const override { return kind != Kind::kDebugBreak; }
+  explicit AbortInstruction(Kind kind, std::string message = "") : kind(kind) {
+    // The normal way to write this triggers a bug in Clang on Windows.
+    this->message = std::move(message);
+  }
 
-  bool never_continues;
+  Kind kind;
+  std::string message;
 };
 
 struct UnsafeCastInstruction : InstructionBase {

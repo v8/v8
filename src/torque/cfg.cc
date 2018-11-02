@@ -140,9 +140,18 @@ void CfgAssembler::Print(std::string s) {
   Emit(PrintConstantStringInstruction{std::move(s)});
 }
 
-void CfgAssembler::Unreachable() { Emit(DebugBreakInstruction{true}); }
+void CfgAssembler::AssertionFailure(std::string message) {
+  Emit(AbortInstruction{AbortInstruction::Kind::kAssertionFailure,
+                        std::move(message)});
+}
 
-void CfgAssembler::DebugBreak() { Emit(DebugBreakInstruction{false}); }
+void CfgAssembler::Unreachable() {
+  Emit(AbortInstruction{AbortInstruction::Kind::kUnreachable});
+}
+
+void CfgAssembler::DebugBreak() {
+  Emit(AbortInstruction{AbortInstruction::Kind::kDebugBreak});
+}
 
 }  // namespace torque
 }  // namespace internal
