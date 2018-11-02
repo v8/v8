@@ -400,6 +400,7 @@ class MapRef : public HeapObjectRef {
   bool IsPrimitiveMap() const;
   bool is_undetectable() const;
   bool is_callable() const;
+  bool has_hidden_prototype() const;
 
 #define DEF_TESTER(Type, ...) bool Is##Type##Map() const;
   INSTANCE_TYPE_CHECKERS(DEF_TESTER)

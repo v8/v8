@@ -2079,6 +2079,8 @@ BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map, Map::IsDictionaryMapBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
                    Map::NumberOfOwnDescriptorsBits)
+BIMODAL_ACCESSOR_B(Map, bit_field3, has_hidden_prototype,
+                   Map::HasHiddenPrototypeBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, has_prototype_slot, Map::HasPrototypeSlotBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, is_access_check_needed,
                    Map::IsAccessCheckNeededBit)

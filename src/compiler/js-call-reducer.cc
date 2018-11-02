@@ -577,15 +577,16 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(broker(), object, effect, &object_maps);
   if (result != NodeProperties::kNoReceiverMaps) {
-    Handle<Map> candidate_map = object_maps[0];
-    Handle<Object> candidate_prototype(candidate_map->prototype(), isolate());
+    MapRef candidate_map(broker(), object_maps[0]);
+    candidate_map.SerializePrototype();
+    ObjectRef candidate_prototype = candidate_map.prototype();
 
     // Check if we can constant-fold the {candidate_prototype}.
     for (size_t i = 0; i < object_maps.size(); ++i) {
-      Handle<Map> object_map = object_maps[i];
-      if (object_map->IsSpecialReceiverMap() ||
-          object_map->has_hidden_prototype() ||
-          object_map->prototype() != *candidate_prototype) {
+      MapRef object_map(broker(), object_maps[i]);
+      if (IsSpecialReceiverInstanceType(object_map.instance_type()) ||
+          object_map.has_hidden_prototype() ||
+          object_map.prototype().equals(candidate_prototype)) {
         // We exclude special receivers, like JSProxy or API objects that
         // might require access checks here; we also don't want to deal
         // with hidden prototypes at this point.
@@ -593,9 +594,9 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
       }
       // The above check also excludes maps for primitive values, which is
       // important because we are not applying [[ToObject]] here as expected.
-      DCHECK(!object_map->IsPrimitiveMap() && object_map->IsJSReceiverMap());
+      DCHECK(!object_map.IsPrimitiveMap() && object_map.IsJSReceiverMap());
       if (result == NodeProperties::kUnreliableReceiverMaps &&
-          !object_map->is_stable()) {
+          !object_map.is_stable()) {
         return NoChange();
       }
     }
@@ -3058,10 +3059,15 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   Node* frame_state = NodeProperties::GetFrameStateInput(arguments_list);
   FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int start_index = 0;
-  // Determine the formal parameter count;
-  Handle<SharedFunctionInfo> shared;
-  if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-  int formal_parameter_count = shared->internal_formal_parameter_count();
+
+  int formal_parameter_count;
+  {
+    Handle<SharedFunctionInfo> shared;
+    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+    formal_parameter_count = SharedFunctionInfoRef(broker(), shared)
+                                 .internal_formal_parameter_count();
+  }
+
   if (type == CreateArgumentsType::kMappedArguments) {
     // Mapped arguments (sloppy mode) that are aliased can only be handled
     // here if there's no side-effect between the {node} and the {arg_array}.
