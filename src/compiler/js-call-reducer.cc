@@ -3223,8 +3223,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   // Try to specialize JSCall {node}s with constant {target}s.
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
-    if (m.Ref(broker()).IsJSFunction()) {
-      JSFunctionRef function = m.Ref(broker()).AsJSFunction();
+    ObjectRef target_ref = m.Ref(broker());
+    if (target_ref.IsJSFunction()) {
+      JSFunctionRef function = target_ref.AsJSFunction();
       function.Serialize();
 
       // Don't inline cross native context.
@@ -3233,33 +3234,34 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       }
 
       return ReduceJSCall(node, function.shared().object());
-    } else if (m.Value()->IsJSBoundFunction()) {
-      Handle<JSBoundFunction> function =
-          Handle<JSBoundFunction>::cast(m.Value());
-      Handle<JSReceiver> bound_target_function(
-          function->bound_target_function(), isolate());
-      Handle<Object> bound_this(function->bound_this(), isolate());
-      Handle<FixedArray> bound_arguments(function->bound_arguments(),
-                                         isolate());
+    } else if (target_ref.IsJSBoundFunction()) {
+      JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
+      function.Serialize();
+
+      ObjectRef bound_this = function.bound_this();
       ConvertReceiverMode const convert_mode =
-          (bound_this->IsNullOrUndefined(isolate()))
+          bound_this.IsNullOrUndefined()
               ? ConvertReceiverMode::kNullOrUndefined
               : ConvertReceiverMode::kNotNullOrUndefined;
+
       // Patch {node} to use [[BoundTargetFunction]] and [[BoundThis]].
       NodeProperties::ReplaceValueInput(
-          node, jsgraph()->Constant(bound_target_function), 0);
+          node, jsgraph()->Constant(function.bound_target_function()), 0);
       NodeProperties::ReplaceValueInput(node, jsgraph()->Constant(bound_this),
                                         1);
+
       // Insert the [[BoundArguments]] for {node}.
-      for (int i = 0; i < bound_arguments->length(); ++i) {
-        node->InsertInput(
-            graph()->zone(), i + 2,
-            jsgraph()->Constant(handle(bound_arguments->get(i), isolate())));
+      FixedArrayRef bound_arguments = function.bound_arguments();
+      for (int i = 0; i < bound_arguments.length(); ++i) {
+        node->InsertInput(graph()->zone(), i + 2,
+                          jsgraph()->Constant(bound_arguments.get(i)));
         arity++;
       }
+
       NodeProperties::ChangeOp(
           node, javascript()->Call(arity, p.frequency(), VectorSlotPair(),
                                    convert_mode));
+
       // Try to further reduce the JSCall {node}.
       Reduction const reduction = ReduceJSCall(node);
       return reduction.Changed() ? reduction : Changed(node);
@@ -3818,8 +3820,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       return Changed(node);
     }
 
-    if (m.Ref(broker()).IsJSFunction()) {
-      JSFunctionRef function = m.Ref(broker()).AsJSFunction();
+    ObjectRef target_ref = m.Ref(broker());
+    if (target_ref.IsJSFunction()) {
+      JSFunctionRef function = target_ref.AsJSFunction();
       function.Serialize();
 
       // Do not reduce constructors with break points.
@@ -3876,13 +3879,12 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         default:
           break;
       }
-    } else if (m.Value()->IsJSBoundFunction()) {
-      Handle<JSBoundFunction> function =
-          Handle<JSBoundFunction>::cast(m.Value());
-      Handle<JSReceiver> bound_target_function(
-          function->bound_target_function(), isolate());
-      Handle<FixedArray> bound_arguments(function->bound_arguments(),
-                                         isolate());
+    } else if (target_ref.IsJSBoundFunction()) {
+      JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
+      function.Serialize();
+
+      ObjectRef bound_target_function = function.bound_target_function();
+      FixedArrayRef bound_arguments = function.bound_arguments();
 
       // Patch {node} to use [[BoundTargetFunction]].
       NodeProperties::ReplaceValueInput(
@@ -3900,10 +3902,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           arity + 1);
 
       // Insert the [[BoundArguments]] for {node}.
-      for (int i = 0; i < bound_arguments->length(); ++i) {
-        node->InsertInput(
-            graph()->zone(), i + 1,
-            jsgraph()->Constant(handle(bound_arguments->get(i), isolate())));
+      for (int i = 0; i < bound_arguments.length(); ++i) {
+        node->InsertInput(graph()->zone(), i + 1,
+                          jsgraph()->Constant(bound_arguments.get(i)));
         arity++;
       }
 
