@@ -28,30 +28,6 @@
 #include "src/runtime/runtime-utils.h"
 #include "src/utils.h"
 
-#include "unicode/brkiter.h"
-#include "unicode/calendar.h"
-#include "unicode/coll.h"
-#include "unicode/curramt.h"
-#include "unicode/datefmt.h"
-#include "unicode/dcfmtsym.h"
-#include "unicode/decimfmt.h"
-#include "unicode/dtfmtsym.h"
-#include "unicode/dtptngen.h"
-#include "unicode/locid.h"
-#include "unicode/numfmt.h"
-#include "unicode/numsys.h"
-#include "unicode/plurrule.h"
-#include "unicode/smpdtfmt.h"
-#include "unicode/timezone.h"
-#include "unicode/uchar.h"
-#include "unicode/ucol.h"
-#include "unicode/ucurr.h"
-#include "unicode/uloc.h"
-#include "unicode/unistr.h"
-#include "unicode/unum.h"
-#include "unicode/uversion.h"
-
-
 namespace v8 {
 namespace internal {
 

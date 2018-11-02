@@ -18,8 +18,6 @@
 #include "unicode/decimfmt.h"
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
-#include "unicode/strenum.h"
-#include "unicode/ucurr.h"
 #include "unicode/uloc.h"
 
 namespace v8 {

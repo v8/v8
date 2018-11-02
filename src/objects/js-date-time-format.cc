@@ -20,7 +20,6 @@
 #include "unicode/calendar.h"
 #include "unicode/dtptngen.h"
 #include "unicode/gregocal.h"
-#include "unicode/numsys.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/unistr.h"
 

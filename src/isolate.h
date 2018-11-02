@@ -36,16 +36,6 @@
 #include "src/thread-id.h"
 #include "src/unicode.h"
 
-#ifdef V8_INTL_SUPPORT
-#include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.
-// 'icu' does not work. Use U_ICU_NAMESPACE.
-namespace U_ICU_NAMESPACE {
-
-class RegexMatcher;
-
-}  // namespace U_ICU_NAMESPACE
-#endif  // V8_INTL_SUPPORT
-
 namespace v8 {
 
 namespace base {
@@ -1190,19 +1180,6 @@ class Isolate final : private HiddenFactory {
   }
 
 #ifdef V8_INTL_SUPPORT
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  icu::RegexMatcher* language_singleton_regexp_matcher() {
-    return language_singleton_regexp_matcher_;
-  }
-
-  icu::RegexMatcher* language_tag_regexp_matcher() {
-    return language_tag_regexp_matcher_;
-  }
-
-  icu::RegexMatcher* language_variant_regexp_matcher() {
-    return language_variant_regexp_matcher_;
-  }
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 
   const std::string& default_locale() { return default_locale_; }
 
@@ -1211,19 +1188,6 @@ class Isolate final : private HiddenFactory {
     default_locale_ = locale;
   }
 
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  void set_language_tag_regexp_matchers(
-      icu::RegexMatcher* language_singleton_regexp_matcher,
-      icu::RegexMatcher* language_tag_regexp_matcher,
-      icu::RegexMatcher* language_variant_regexp_matcher) {
-    DCHECK_NULL(language_singleton_regexp_matcher_);
-    DCHECK_NULL(language_tag_regexp_matcher_);
-    DCHECK_NULL(language_variant_regexp_matcher_);
-    language_singleton_regexp_matcher_ = language_singleton_regexp_matcher;
-    language_tag_regexp_matcher_ = language_tag_regexp_matcher;
-    language_variant_regexp_matcher_ = language_variant_regexp_matcher;
-  }
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 #endif  // V8_INTL_SUPPORT
 
   static const int kProtectorValid = 1;
@@ -1766,11 +1730,6 @@ class Isolate final : private HiddenFactory {
   double load_start_time_ms_ = 0;
 
 #ifdef V8_INTL_SUPPORT
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  icu::RegexMatcher* language_singleton_regexp_matcher_ = nullptr;
-  icu::RegexMatcher* language_tag_regexp_matcher_ = nullptr;
-  icu::RegexMatcher* language_variant_regexp_matcher_ = nullptr;
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   std::string default_locale_;
 #endif  // V8_INTL_SUPPORT
 

@@ -15,7 +15,6 @@
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
 #include "unicode/plurrule.h"
-#include "unicode/strenum.h"
 
 namespace v8 {
 namespace internal {

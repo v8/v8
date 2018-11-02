@@ -32,14 +32,8 @@
 #include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
-#include "unicode/regex.h"
-#include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
-#include "unicode/ucol.h"
-#include "unicode/ures.h"
 #include "unicode/ustring.h"
-#include "unicode/uvernum.h"
-#include "unicode/uversion.h"
 
 namespace v8 {
 namespace internal {
@@ -573,124 +567,6 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
   return receiver;
 }
 
-namespace {
-
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-// Define general regexp macros.
-// Note "(?:" means the regexp group a non-capture group.
-#define REGEX_ALPHA "[a-z]"
-#define REGEX_DIGIT "[0-9]"
-#define REGEX_ALPHANUM "(?:" REGEX_ALPHA "|" REGEX_DIGIT ")"
-
-void BuildLanguageTagRegexps(Isolate* isolate) {
-// Define the language tag regexp macros.
-// For info on BCP 47 see https://tools.ietf.org/html/bcp47 .
-// Because language tags are case insensitive per BCP 47 2.1.1 and regexp's
-// defined below will always be used after lowercasing the input, uppercase
-// ranges in BCP 47 2.1 are dropped and grandfathered tags are all lowercased.
-// clang-format off
-#define BCP47_REGULAR                                          \
-  "(?:art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|" \
-  "zh-min|zh-min-nan|zh-xiang)"
-#define BCP47_IRREGULAR                                  \
-  "(?:en-gb-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|" \
-  "i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|"  \
-  "i-tsu|sgn-be-fr|sgn-be-nl|sgn-ch-de)"
-#define BCP47_GRANDFATHERED "(?:" BCP47_IRREGULAR "|" BCP47_REGULAR ")"
-#define BCP47_PRIVATE_USE "(?:x(?:-" REGEX_ALPHANUM "{1,8})+)"
-
-#define BCP47_SINGLETON "(?:" REGEX_DIGIT "|" "[a-wy-z])"
-
-#define BCP47_EXTENSION "(?:" BCP47_SINGLETON "(?:-" REGEX_ALPHANUM "{2,8})+)"
-#define BCP47_VARIANT  \
-  "(?:" REGEX_ALPHANUM "{5,8}" "|" "(?:" REGEX_DIGIT REGEX_ALPHANUM "{3}))"
-
-#define BCP47_REGION "(?:" REGEX_ALPHA "{2}" "|" REGEX_DIGIT "{3})"
-#define BCP47_SCRIPT "(?:" REGEX_ALPHA "{4})"
-#define BCP47_EXT_LANG "(?:" REGEX_ALPHA "{3}(?:-" REGEX_ALPHA "{3}){0,2})"
-#define BCP47_LANGUAGE "(?:" REGEX_ALPHA "{2,3}(?:-" BCP47_EXT_LANG ")?" \
-  "|" REGEX_ALPHA "{4}" "|" REGEX_ALPHA "{5,8})"
-#define BCP47_LANG_TAG         \
-  BCP47_LANGUAGE               \
-  "(?:-" BCP47_SCRIPT ")?"     \
-  "(?:-" BCP47_REGION ")?"     \
-  "(?:-" BCP47_VARIANT ")*"    \
-  "(?:-" BCP47_EXTENSION ")*"  \
-  "(?:-" BCP47_PRIVATE_USE ")?"
-  // clang-format on
-
-  constexpr char kLanguageTagSingletonRegexp[] = "^" BCP47_SINGLETON "$";
-  constexpr char kLanguageTagVariantRegexp[] = "^" BCP47_VARIANT "$";
-  constexpr char kLanguageTagRegexp[] =
-      "^(?:" BCP47_LANG_TAG "|" BCP47_PRIVATE_USE "|" BCP47_GRANDFATHERED ")$";
-
-  UErrorCode status = U_ZERO_ERROR;
-  icu::RegexMatcher* language_singleton_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString(kLanguageTagSingletonRegexp, -1, US_INV), 0, status);
-  icu::RegexMatcher* language_tag_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString(kLanguageTagRegexp, -1, US_INV), 0, status);
-  icu::RegexMatcher* language_variant_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString(kLanguageTagVariantRegexp, -1, US_INV), 0, status);
-  CHECK(U_SUCCESS(status));
-
-  isolate->set_language_tag_regexp_matchers(language_singleton_regexp_matcher,
-                                            language_tag_regexp_matcher,
-                                            language_variant_regexp_matcher);
-// Undefine the language tag regexp macros.
-#undef BCP47_EXTENSION
-#undef BCP47_EXT_LANG
-#undef BCP47_GRANDFATHERED
-#undef BCP47_IRREGULAR
-#undef BCP47_LANG_TAG
-#undef BCP47_LANGUAGE
-#undef BCP47_PRIVATE_USE
-#undef BCP47_REGION
-#undef BCP47_REGULAR
-#undef BCP47_SCRIPT
-#undef BCP47_SINGLETON
-#undef BCP47_VARIANT
-}
-
-// Undefine the general regexp macros.
-#undef REGEX_ALPHA
-#undef REGEX_DIGIT
-#undef REGEX_ALPHANUM
-
-icu::RegexMatcher* GetLanguageSingletonRegexMatcher(Isolate* isolate) {
-  icu::RegexMatcher* language_singleton_regexp_matcher =
-      isolate->language_singleton_regexp_matcher();
-  if (language_singleton_regexp_matcher == nullptr) {
-    BuildLanguageTagRegexps(isolate);
-    language_singleton_regexp_matcher =
-        isolate->language_singleton_regexp_matcher();
-  }
-  return language_singleton_regexp_matcher;
-}
-
-icu::RegexMatcher* GetLanguageTagRegexMatcher(Isolate* isolate) {
-  icu::RegexMatcher* language_tag_regexp_matcher =
-      isolate->language_tag_regexp_matcher();
-  if (language_tag_regexp_matcher == nullptr) {
-    BuildLanguageTagRegexps(isolate);
-    language_tag_regexp_matcher = isolate->language_tag_regexp_matcher();
-  }
-  return language_tag_regexp_matcher;
-}
-
-icu::RegexMatcher* GetLanguageVariantRegexMatcher(Isolate* isolate) {
-  icu::RegexMatcher* language_variant_regexp_matcher =
-      isolate->language_variant_regexp_matcher();
-  if (language_variant_regexp_matcher == nullptr) {
-    BuildLanguageTagRegexps(isolate);
-    language_variant_regexp_matcher =
-        isolate->language_variant_regexp_matcher();
-  }
-  return language_variant_regexp_matcher;
-}
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-
-}  // anonymous namespace
-
 Maybe<bool> Intl::GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
                                   const char* property,
                                   std::vector<const char*> values,
@@ -776,111 +652,6 @@ char AsciiToLower(char c) {
   return c | (1 << 5);
 }
 
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-/**
- * Check the structural Validity of the language tag per ECMA 402 6.2.2:
- *   - Well-formed per RFC 5646 2.1
- *   - There are no duplicate variant subtags
- *   - There are no duplicate singleton (extension) subtags
- *
- * One extra-check is done (from RFC 5646 2.2.9): the tag is compared
- * against the list of grandfathered tags. However, subtags for
- * primary/extended language, script, region, variant are not checked
- * against the IANA language subtag registry.
- *
- * ICU 62 or earlier is too permissible and lets invalid tags, like
- * hant-cmn-cn, through.
- *
- * Returns false if the language tag is invalid.
- */
-bool IsStructurallyValidLanguageTag(Isolate* isolate,
-                                    const std::string& locale_in) {
-  if (!String::IsAscii(locale_in.c_str(),
-                       static_cast<int>(locale_in.length()))) {
-    return false;
-  }
-  std::string locale(locale_in);
-  icu::RegexMatcher* language_tag_regexp_matcher =
-      GetLanguageTagRegexMatcher(isolate);
-
-  // Check if it's well-formed, including grandfathered tags.
-  icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
-  // Note: icu::RegexMatcher::reset does not make a copy of the input string
-  // so cannot use a temp value; ie: cannot create it as a call parameter.
-  language_tag_regexp_matcher->reset(locale_uni);
-  UErrorCode status = U_ZERO_ERROR;
-  bool is_valid_lang_tag = language_tag_regexp_matcher->matches(status);
-  if (!is_valid_lang_tag || V8_UNLIKELY(U_FAILURE(status))) {
-    return false;
-  }
-
-  // Just return if it's a x- form. It's all private.
-  if (locale.find("x-") == 0) {
-    return true;
-  }
-
-  // Check if there are any duplicate variants or singletons (extensions).
-
-  // Remove private use section.
-  locale = locale.substr(0, locale.find("-x-"));
-
-  // Skip language since it can match variant regex, so we start from 1.
-  // We are matching i-klingon here, but that's ok, since i-klingon-klingon
-  // is not valid and would fail LANGUAGE_TAG_RE test.
-  size_t pos = 0;
-  std::vector<std::string> parts;
-  while ((pos = locale.find('-')) != std::string::npos) {
-    std::string token = locale.substr(0, pos);
-    parts.push_back(token);
-    locale = locale.substr(pos + 1);
-  }
-  if (locale.length() != 0) {
-    parts.push_back(locale);
-  }
-
-  icu::RegexMatcher* language_variant_regexp_matcher =
-      GetLanguageVariantRegexMatcher(isolate);
-
-  icu::RegexMatcher* language_singleton_regexp_matcher =
-      GetLanguageSingletonRegexMatcher(isolate);
-
-  std::vector<std::string> variants;
-  std::vector<std::string> extensions;
-  for (auto it = parts.begin() + 1; it != parts.end(); it++) {
-    icu::UnicodeString part(it->data(), -1, US_INV);
-    language_variant_regexp_matcher->reset(part);
-    bool is_language_variant = language_variant_regexp_matcher->matches(status);
-    if (V8_UNLIKELY(U_FAILURE(status))) {
-      return false;
-    }
-    if (is_language_variant && extensions.size() == 0) {
-      if (std::find(variants.begin(), variants.end(), *it) == variants.end()) {
-        variants.push_back(*it);
-      } else {
-        return false;
-      }
-    }
-
-    language_singleton_regexp_matcher->reset(part);
-    bool is_language_singleton =
-        language_singleton_regexp_matcher->matches(status);
-    if (V8_UNLIKELY(U_FAILURE(status))) {
-      return false;
-    }
-    if (is_language_singleton) {
-      if (std::find(extensions.begin(), extensions.end(), *it) ==
-          extensions.end()) {
-        extensions.push_back(*it);
-      } else {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-#endif  // USE_CHROMIUM_ICU == 0 || U_ICU_VERSION_MAJOR_NUM < 63
-
 bool IsLowerAscii(char c) { return c >= 'a' && c < 'z'; }
 
 bool IsTwoLetterLanguage(const std::string& locale) {
@@ -953,15 +724,6 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   // the input before any more check.
   std::transform(locale.begin(), locale.end(), locale.begin(), AsciiToLower);
 
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  if (!IsStructurallyValidLanguageTag(isolate, locale)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
-        Nothing<std::string>());
-  }
-#endif
-
   // ICU maps a few grandfathered tags to what looks like a regular language
   // tag even though IANA language tag registry does not have a preferred
   // entry map for them. Return them as they're with lowercasing.
@@ -986,9 +748,7 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   uloc_forLanguageTag(locale.c_str(), icu_result, ULOC_FULLNAME_CAPACITY,
                       &parsed_length, &error);
   if (U_FAILURE(error) ||
-#if USE_CHROMIUM_ICU == 1 || U_ICU_VERSION_MAJOR_NUM >= 63
       static_cast<size_t>(parsed_length) < locale.length() ||
-#endif
       error == U_STRING_NOT_TERMINATED_WARNING) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,

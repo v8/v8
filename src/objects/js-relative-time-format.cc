@@ -21,7 +21,6 @@
 #include "unicode/datefmt.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
-#include "unicode/uvernum.h"  // for U_ICU_VERSION_MAJOR_NUM
 
 namespace v8 {
 namespace internal {
@@ -368,19 +367,12 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString formatted;
 
-#if USE_CHROMIUM_ICU != 1 && U_ICU_VERSION_MAJOR_NUM < 63
-  if (unit_enum != UDAT_REL_UNIT_QUARTER) {  // ICU did not implement
-                                             // UDAT_REL_UNIT_QUARTER < 63
-#endif  // USE_CHROMIUM_ICU != 1 && U_ICU_VERSION_MAJOR_NUM < 63
-    if (format_holder->numeric() == JSRelativeTimeFormat::Numeric::ALWAYS) {
-      formatter->formatNumeric(number, unit_enum, formatted, status);
-    } else {
-      DCHECK_EQ(JSRelativeTimeFormat::Numeric::AUTO, format_holder->numeric());
-      formatter->format(number, unit_enum, formatted, status);
-    }
-#if USE_CHROMIUM_ICU != 1 && U_ICU_VERSION_MAJOR_NUM < 63
+  if (format_holder->numeric() == JSRelativeTimeFormat::Numeric::ALWAYS) {
+    formatter->formatNumeric(number, unit_enum, formatted, status);
+  } else {
+    DCHECK_EQ(JSRelativeTimeFormat::Numeric::AUTO, format_holder->numeric());
+    formatter->format(number, unit_enum, formatted, status);
   }
-#endif  // USE_CHROMIUM_ICU != 1 && U_ICU_VERSION_MAJOR_NUM < 63
 
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), Object);

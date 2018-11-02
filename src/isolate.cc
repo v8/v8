@@ -69,9 +69,6 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
-#ifdef V8_INTL_SUPPORT
-#include "unicode/regex.h"
-#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -2887,19 +2884,6 @@ Isolate::~Isolate() {
 
   delete date_cache_;
   date_cache_ = nullptr;
-
-#ifdef V8_INTL_SUPPORT
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  delete language_singleton_regexp_matcher_;
-  language_singleton_regexp_matcher_ = nullptr;
-
-  delete language_tag_regexp_matcher_;
-  language_tag_regexp_matcher_ = nullptr;
-
-  delete language_variant_regexp_matcher_;
-  language_variant_regexp_matcher_ = nullptr;
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-#endif  // V8_INTL_SUPPORT
 
   delete regexp_stack_;
   regexp_stack_ = nullptr;
