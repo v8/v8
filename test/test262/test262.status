@@ -607,14 +607,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8099
   'intl402/NumberFormat/prototype/format/format-negative-numbers': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8382
-  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-numeric-auto': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-numeric-always': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-style-short': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow': [FAIL],
-
   # await tests that require flags
   'language/expressions/await/async-generator-interleaved': ['--harmony-await-optimization'],
   'language/expressions/await/await-monkey-patched-promise': ['--harmony-await-optimization'],
@@ -628,9 +620,6 @@
   # incompatibilities if the test cases turn out to be broken or ambiguous.
   # Some of these are related to v8:4361 in being visible side effects from Intl.
   'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle': [FAIL],
-
-  # TODO(jshin): Started failing after ICU 63.1 update.
-  'intl402/Segmenter/prototype/segment/segment-line-following-modes': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
