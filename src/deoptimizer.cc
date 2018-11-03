@@ -136,8 +136,8 @@ DeoptimizerData::DeoptimizerData(Heap* heap) : heap_(heap), current_(nullptr) {
   }
   Code** start = &deopt_entry_code_[0];
   Code** end = &deopt_entry_code_[DeoptimizerData::kLastDeoptimizeKind + 1];
-  heap_->RegisterStrongRoots(reinterpret_cast<Object**>(start),
-                             reinterpret_cast<Object**>(end));
+  heap_->RegisterStrongRoots(ObjectSlot(reinterpret_cast<Address>(start)),
+                             ObjectSlot(reinterpret_cast<Address>(end)));
 }
 
 
@@ -146,7 +146,7 @@ DeoptimizerData::~DeoptimizerData() {
     deopt_entry_code_[i] = nullptr;
   }
   Code** start = &deopt_entry_code_[0];
-  heap_->UnregisterStrongRoots(reinterpret_cast<Object**>(start));
+  heap_->UnregisterStrongRoots(ObjectSlot(reinterpret_cast<Address>(start)));
 }
 
 Code* DeoptimizerData::deopt_entry_code(DeoptimizeKind kind) {

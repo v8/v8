@@ -658,8 +658,8 @@ class Heap {
   // snapshot blob, we need to reset it before serializing.
   void ClearStackLimits();
 
-  void RegisterStrongRoots(Object** start, Object** end);
-  void UnregisterStrongRoots(Object** start);
+  void RegisterStrongRoots(ObjectSlot start, ObjectSlot end);
+  void UnregisterStrongRoots(ObjectSlot start);
 
   void SetBuiltinsConstantsTable(FixedArray* cache);
 

@@ -111,8 +111,8 @@ Heap::GCCallbackTuple& Heap::GCCallbackTuple::operator=(
     const Heap::GCCallbackTuple& other) = default;
 
 struct Heap::StrongRootsList {
-  Object** start;
-  Object** end;
+  ObjectSlot start;
+  ObjectSlot end;
   StrongRootsList* next;
 };
 
@@ -3856,8 +3856,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
 
   // Iterate over other strong roots (currently only identity maps).
   for (StrongRootsList* list = strong_roots_list_; list; list = list->next) {
-    v->VisitRootPointers(Root::kStrongRoots, nullptr, ObjectSlot(list->start),
-                         ObjectSlot(list->end));
+    v->VisitRootPointers(Root::kStrongRoots, nullptr, list->start, list->end);
   }
   v->Synchronize(VisitorSynchronization::kStrongRoots);
 
@@ -4538,7 +4537,7 @@ void Heap::TracePossibleWrapper(JSObject* js_object) {
 void Heap::RegisterExternallyReferencedObject(Address* location) {
   // The embedder is not aware of whether numbers are materialized as heap
   // objects are just passed around as Smis.
-  Object* object = *reinterpret_cast<Object**>(location);
+  ObjectPtr object(*location);
   if (!object->IsHeapObject()) return;
   HeapObject* heap_object = HeapObject::cast(object);
   DCHECK(Contains(heap_object));
@@ -5218,7 +5217,7 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
 }
 
-void Heap::RegisterStrongRoots(Object** start, Object** end) {
+void Heap::RegisterStrongRoots(ObjectSlot start, ObjectSlot end) {
   StrongRootsList* list = new StrongRootsList();
   list->next = strong_roots_list_;
   list->start = start;
@@ -5226,8 +5225,7 @@ void Heap::RegisterStrongRoots(Object** start, Object** end) {
   strong_roots_list_ = list;
 }
 
-
-void Heap::UnregisterStrongRoots(Object** start) {
+void Heap::UnregisterStrongRoots(ObjectSlot start) {
   StrongRootsList* prev = nullptr;
   StrongRootsList* list = strong_roots_list_;
   while (list != nullptr) {
