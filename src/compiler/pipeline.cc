@@ -883,7 +883,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
 
 PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
-  if (compilation_info()->shared_info()->GetBytecodeArray()->length() >
+  if (compilation_info()->bytecode_array()->length() >
       kMaxBytecodeSizeForTurbofan) {
     return AbortOptimization(BailoutReason::kFunctionTooBig);
   }
@@ -1024,7 +1024,7 @@ struct GraphBuilderPhase {
     }
     CallFrequency frequency = CallFrequency(1.0f);
     BytecodeGraphBuilder graph_builder(
-        temp_zone, data->info()->shared_info(),
+        temp_zone, data->info()->bytecode_array(), data->info()->shared_info(),
         handle(data->info()->closure()->feedback_vector(), data->isolate()),
         data->info()->osr_offset(), data->jsgraph(), frequency,
         data->source_positions(), data->native_context(),

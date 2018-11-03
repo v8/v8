@@ -18,6 +18,8 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
     Handle<JSFunction> closure)
     : OptimizedCompilationInfo(Code::OPTIMIZED_FUNCTION, zone) {
+  DCHECK(shared->is_compiled());
+  bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
   shared_info_ = shared;
   closure_ = closure;
   optimization_id_ = isolate->NextOptimizationId();
@@ -106,6 +108,9 @@ void OptimizedCompilationInfo::set_deferred_handles(
 void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
   if (!shared_info_.is_null()) {
     shared_info_ = Handle<SharedFunctionInfo>(*shared_info_, isolate);
+  }
+  if (!bytecode_array_.is_null()) {
+    bytecode_array_ = Handle<BytecodeArray>(*bytecode_array_, isolate);
   }
   if (!closure_.is_null()) {
     closure_ = Handle<JSFunction>(*closure_, isolate);

@@ -68,6 +68,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool is_osr() const { return !osr_offset_.IsNone(); }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   bool has_shared_info() const { return !shared_info().is_null(); }
+  Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
+  bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
   Code::Kind code_kind() const { return code_kind_; }
@@ -277,6 +279,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Code::Kind code_kind_;
   uint32_t stub_key_ = 0;
   int32_t builtin_index_ = -1;
+
+  // We retain a reference the bytecode array specifically to ensure it doesn't
+  // get flushed while we are optimizing the code.
+  Handle<BytecodeArray> bytecode_array_;
 
   Handle<SharedFunctionInfo> shared_info_;
 

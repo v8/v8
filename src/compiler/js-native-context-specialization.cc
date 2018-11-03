@@ -232,6 +232,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
   // extracted from the top-most frame in {frame_state}.
   Handle<SharedFunctionInfo> shared =
       FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked();
+  DCHECK(shared->is_compiled());
   int register_count = shared->internal_formal_parameter_count() +
                        shared->GetBytecodeArray()->register_count();
   Node* value = effect =

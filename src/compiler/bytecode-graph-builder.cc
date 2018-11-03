@@ -515,7 +515,8 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 }
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
-    Zone* local_zone, Handle<SharedFunctionInfo> shared_info,
+    Zone* local_zone, Handle<BytecodeArray> bytecode_array,
+    Handle<SharedFunctionInfo> shared_info,
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency& invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
@@ -524,14 +525,13 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
-      bytecode_array_(
-          handle(shared_info->GetBytecodeArray(), jsgraph->isolate())),
+      bytecode_array_(bytecode_array),
       feedback_vector_(feedback_vector),
       type_hint_lowering_(jsgraph, feedback_vector, flags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
-          bytecode_array()->parameter_count(),
-          bytecode_array()->register_count(), shared_info)),
+          bytecode_array->parameter_count(), bytecode_array->register_count(),
+          shared_info)),
       bytecode_iterator_(nullptr),
       bytecode_analysis_(nullptr),
       environment_(nullptr),
