@@ -16,6 +16,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -75,7 +76,7 @@ Handle<Code> BuildPlaceholder(Isolate* isolate, int32_t builtin_index) {
     FrameScope scope(&masm, StackFrame::NONE);
     // The contents of placeholder don't matter, as long as they don't create
     // embedded constants or external references.
-    masm.Move(kJavaScriptCallCodeStartRegister, Smi::kZero);
+    masm.Move(kJavaScriptCallCodeStartRegister, Smi::zero());
     masm.Call(kJavaScriptCallCodeStartRegister);
   }
   CodeDesc desc;

@@ -15,6 +15,7 @@
 #include "src/message-template.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -146,9 +147,9 @@ inline void SetHomeObject(Isolate* isolate, JSFunction* method,
 //    shared name.
 template <typename Dictionary>
 MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
-    Isolate* isolate, Arguments& args, Smi* index, Handle<JSObject> home_object,
+    Isolate* isolate, Arguments& args, Smi index, Handle<JSObject> home_object,
     Handle<String> name_prefix, Handle<Object> key) {
-  int int_index = Smi::ToInt(index);
+  int int_index = index.value();
 
   // Class constructor and prototype values do not require post processing.
   if (int_index < ClassBoilerplate::kFirstDynamicArgumentIndex) {

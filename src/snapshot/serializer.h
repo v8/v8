@@ -200,7 +200,7 @@ class Serializer : public SerializerDeserializer {
 
   void PutRoot(RootIndex root_index, HeapObject* object, HowToCode how,
                WhereToPoint where, int skip);
-  void PutSmi(Smi* smi);
+  void PutSmi(Smi smi);
   void PutBackReference(HeapObject* object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference,
                             HowToCode how_to_code, WhereToPoint where_to_point);
@@ -352,7 +352,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   Serializer* serializer_;
   HeapObject* object_;
   SnapshotByteSink* sink_;
-  std::map<void*, Smi*> backing_stores;
   int reference_representation_;
   int bytes_processed_so_far_;
 };

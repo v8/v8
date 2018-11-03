@@ -826,24 +826,24 @@ class DeoptimizationData : public FixedArray {
 
 // Simple element accessors.
 #define DECL_ELEMENT_ACCESSORS(name, type) \
-  inline type* name();                     \
-  inline void Set##name(type* value);
+  inline type name();                      \
+  inline void Set##name(type value);
 
-  DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
+  DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray*)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
-  DECL_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
+  DECL_ELEMENT_ACCESSORS(LiteralArray, FixedArray*)
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
-  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
-  DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
+  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object*)
+  DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>*)
 
 #undef DECL_ELEMENT_ACCESSORS
 
 // Accessors for elements of the ith deoptimization entry.
 #define DECL_ENTRY_ACCESSORS(name, type) \
-  inline type* name(int i);              \
-  inline void Set##name(int i, type* value);
+  inline type name(int i);               \
+  inline void Set##name(int i, type value);
 
   DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
   DECL_ENTRY_ACCESSORS(TranslationIndex, Smi)

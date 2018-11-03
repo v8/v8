@@ -230,7 +230,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Push(Register src);
   void Push(Operand src);
   void Push(Immediate value);
-  void Push(Smi* smi);
+  void Push(Smi smi);
   void Push(Handle<HeapObject> source);
 
   // Before calling a C-function from generated code, align arguments on stack.
@@ -326,9 +326,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     j(less, dest);
   }
 
-  void Move(Register dst, Smi* source);
+  void Move(Register dst, Smi source);
 
-  void Move(Operand dst, Smi* source) {
+  void Move(Operand dst, Smi source) {
     Register constant = GetSmiConstant(source);
     movp(dst, constant);
   }
@@ -519,7 +519,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.
-  Register GetSmiConstant(Smi* value);
+  Register GetSmiConstant(Smi value);
 
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
@@ -669,10 +669,10 @@ class MacroAssembler : public TurboAssembler {
   // Simple comparison of smis.  Both sides must be known smis to use these,
   // otherwise use Cmp.
   void SmiCompare(Register smi1, Register smi2);
-  void SmiCompare(Register dst, Smi* src);
+  void SmiCompare(Register dst, Smi src);
   void SmiCompare(Register dst, Operand src);
   void SmiCompare(Operand dst, Register src);
-  void SmiCompare(Operand dst, Smi* src);
+  void SmiCompare(Operand dst, Smi src);
 
   // Functions performing a check on a known or potential smi. Returns
   // a condition that is satisfied if the check is successful.
@@ -696,7 +696,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Add an integer constant to a tagged smi, giving a tagged smi as result.
   // No overflow testing on the result is done.
-  void SmiAddConstant(Operand dst, Smi* constant);
+  void SmiAddConstant(Operand dst, Smi constant);
 
   // Specialized operations
 
@@ -719,8 +719,8 @@ class MacroAssembler : public TurboAssembler {
 
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(Operand dst, Handle<Object> source);
-  void Cmp(Register dst, Smi* src);
-  void Cmp(Operand dst, Smi* src);
+  void Cmp(Register dst, Smi src);
+  void Cmp(Operand dst, Smi src);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the rsp register.

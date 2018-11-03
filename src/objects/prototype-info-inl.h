@@ -50,8 +50,8 @@ void PrototypeUsers::MarkSlotEmpty(WeakArrayList* array, int index) {
   set_empty_slot_index(array, index);
 }
 
-Smi* PrototypeUsers::empty_slot_index(WeakArrayList* array) {
-  return array->Get(kEmptySlotIndex)->cast<Smi>();
+Smi PrototypeUsers::empty_slot_index(WeakArrayList* array) {
+  return array->Get(kEmptySlotIndex).ToSmi();
 }
 
 void PrototypeUsers::set_empty_slot_index(WeakArrayList* array, int index) {

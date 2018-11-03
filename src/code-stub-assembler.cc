@@ -221,8 +221,8 @@ TNode<Oddball> CodeStubAssembler::SelectBooleanConstant(
 }
 
 TNode<Smi> CodeStubAssembler::SelectSmiConstant(SloppyTNode<BoolT> condition,
-                                                Smi* true_value,
-                                                Smi* false_value) {
+                                                Smi true_value,
+                                                Smi false_value) {
   return SelectConstant<Smi>(condition, SmiConstant(true_value),
                              SmiConstant(false_value));
 }
@@ -277,14 +277,14 @@ Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
 bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(Node* test,
                                                   ParameterMode mode) {
   int32_t constant_test;
-  Smi* smi_test;
+  Smi smi_test;
   if (mode == INTPTR_PARAMETERS) {
     if (ToInt32Constant(test, constant_test) && constant_test == 0) {
       return true;
     }
   } else {
     DCHECK_EQ(mode, SMI_PARAMETERS);
-    if (ToSmiConstant(test, smi_test) && smi_test->value() == 0) {
+    if (ToSmiConstant(test, &smi_test) && smi_test->value() == 0) {
       return true;
     }
   }
@@ -302,8 +302,8 @@ bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(Node* maybe_constant,
     }
   } else {
     DCHECK_EQ(mode, SMI_PARAMETERS);
-    Smi* smi_constant;
-    if (ToSmiConstant(maybe_constant, smi_constant)) {
+    Smi smi_constant;
+    if (ToSmiConstant(maybe_constant, &smi_constant)) {
       *value = Smi::ToInt(smi_constant);
       return true;
     }
@@ -1990,8 +1990,8 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
   DCHECK_EQ(0, additional_offset % kPointerSize);
   if (parameter_mode == ParameterMode::SMI_PARAMETERS) {
     TNode<Smi> effective_index;
-    Smi* constant_index;
-    bool index_is_constant = ToSmiConstant(index, constant_index);
+    Smi constant_index;
+    bool index_is_constant = ToSmiConstant(index, &constant_index);
     if (index_is_constant) {
       effective_index = SmiConstant(Smi::ToInt(constant_index) +
                                     additional_offset / kPointerSize);
@@ -9763,8 +9763,8 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
   bool constant_index = false;
   if (mode == SMI_PARAMETERS) {
     element_size_shift -= kSmiShiftBits;
-    Smi* smi_index;
-    constant_index = ToSmiConstant(index_node, smi_index);
+    Smi smi_index;
+    constant_index = ToSmiConstant(index_node, &smi_index);
     if (constant_index) index = smi_index->value();
     index_node = BitcastTaggedToWord(index_node);
   } else {

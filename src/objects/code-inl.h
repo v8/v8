@@ -12,6 +12,7 @@
 #include "src/objects/dictionary.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/smi-inl.h"
 #include "src/v8memory.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -146,7 +147,7 @@ void DependentCode::set_next_link(DependentCode* next) {
   Set(kNextLinkIndex, HeapObjectReference::Strong(next));
 }
 
-int DependentCode::flags() { return Smi::ToInt(Get(kFlagsIndex)->cast<Smi>()); }
+int DependentCode::flags() { return Smi::ToInt(Get(kFlagsIndex)->ToSmi()); }
 
 void DependentCode::set_flags(int flags) {
   Set(kFlagsIndex, MaybeObject::FromObject(Smi::FromInt(flags)));

@@ -43,6 +43,7 @@
 
 #include "src/assembler.h"
 #include "src/label.h"
+#include "src/objects/smi.h"
 #include "src/x64/constants-x64.h"
 #include "src/x64/sse-instr.h"
 
@@ -283,8 +284,8 @@ class Immediate {
   explicit constexpr Immediate(int32_t value) : value_(value) {}
   explicit constexpr Immediate(int32_t value, RelocInfo::Mode rmode)
       : value_(value), rmode_(rmode) {}
-  explicit Immediate(Smi* value)
-      : value_(static_cast<int32_t>(reinterpret_cast<intptr_t>(value))) {
+  explicit Immediate(Smi value)
+      : value_(static_cast<int32_t>(static_cast<intptr_t>(value.ptr()))) {
     DCHECK(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
   }
 

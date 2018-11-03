@@ -10,6 +10,7 @@
 #include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/smi.h"
 #include "src/string-builder-inl.h"
 #include "src/utils.h"
 
@@ -65,7 +66,7 @@ class JsonStringifier {
   V8_INLINE void SerializeDeferredKey(bool deferred_comma,
                                       Handle<Object> deferred_key);
 
-  Result SerializeSmi(Smi* object);
+  Result SerializeSmi(Smi object);
 
   Result SerializeDouble(double number);
   V8_INLINE Result SerializeHeapNumber(Handle<HeapNumber> object) {
@@ -494,7 +495,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSValue(
   return SUCCESS;
 }
 
-JsonStringifier::Result JsonStringifier::SerializeSmi(Smi* object) {
+JsonStringifier::Result JsonStringifier::SerializeSmi(Smi object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   Vector<char> buffer(chars, kBufferSize);

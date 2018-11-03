@@ -126,15 +126,15 @@ bool Context::HasSameSecurityTokenAs(Context* that) const {
 }
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  void Context::set_##name(type* value) {                 \
+  void Context::set_##name(type##ArgType value) {         \
     DCHECK(IsNativeContext());                            \
     set(index, value);                                    \
   }                                                       \
-  bool Context::is_##name(type* value) const {            \
+  bool Context::is_##name(type##ArgType value) const {    \
     DCHECK(IsNativeContext());                            \
     return type::cast(get(index)) == value;               \
   }                                                       \
-  type* Context::name() const {                           \
+  type##ArgType Context::name() const {                   \
     DCHECK(IsNativeContext());                            \
     return type::cast(get(index));                        \
   }

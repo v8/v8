@@ -16,6 +16,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/smi.h"
 #include "src/prototype.h"
 
 namespace v8 {
@@ -409,7 +410,7 @@ V8_WARN_UNUSED_RESULT Object* GenericArrayPop(Isolate* isolate,
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetProperty(
                      isolate, receiver, isolate->factory()->length_string(),
-                     Handle<Smi>(Smi::kZero, isolate), LanguageMode::kStrict));
+                     Handle<Smi>(Smi::zero(), isolate), LanguageMode::kStrict));
 
     // b. Return undefined.
     return ReadOnlyRoots(isolate).undefined_value();

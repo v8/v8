@@ -31,7 +31,7 @@ Handle<T> Handle<T>::New(T object, Isolate* isolate) {
 template <typename T>
 template <typename S>
 const Handle<T> Handle<T>::cast(Handle<S> that) {
-  T::cast(*reinterpret_cast<T**>(that.location()));
+  T::cast(*reinterpret_cast<Object**>(that.location()));
   return Handle<T>(that.location_);
 }
 

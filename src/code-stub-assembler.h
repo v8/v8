@@ -14,6 +14,7 @@
 #include "src/objects.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
+#include "src/objects/smi.h"
 #include "src/roots.h"
 
 namespace v8 {
@@ -741,13 +742,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<IntPtrT> SelectIntPtrConstant(SloppyTNode<BoolT> condition,
                                       int true_value, int false_value);
   TNode<Oddball> SelectBooleanConstant(SloppyTNode<BoolT> condition);
-  TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, Smi* true_value,
-                               Smi* false_value);
+  TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, Smi true_value,
+                               Smi false_value);
   TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, int true_value,
-                               Smi* false_value) {
+                               Smi false_value) {
     return SelectSmiConstant(condition, Smi::FromInt(true_value), false_value);
   }
-  TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, Smi* true_value,
+  TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, Smi true_value,
                                int false_value) {
     return SelectSmiConstant(condition, true_value, Smi::FromInt(false_value));
   }

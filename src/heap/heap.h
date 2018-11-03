@@ -23,6 +23,7 @@
 #include "src/heap-symbols.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/smi.h"
 #include "src/objects/string-table.h"
 #include "src/visitors.h"
 

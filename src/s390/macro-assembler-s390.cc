@@ -17,6 +17,7 @@
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/instruction-stream.h"
+#include "src/objects/smi.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/snapshot.h"
@@ -293,7 +294,7 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
   push(r0);
 }
 
-void TurboAssembler::Push(Smi* smi) {
+void TurboAssembler::Push(Smi smi) {
   mov(r0, Operand(smi));
   push(r0);
 }
@@ -3495,8 +3496,8 @@ void TurboAssembler::LoadIntLiteral(Register dst, int value) {
   Load(dst, Operand(value));
 }
 
-void TurboAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
-  intptr_t value = reinterpret_cast<intptr_t>(smi);
+void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
+  intptr_t value = static_cast<intptr_t>(smi.ptr());
 #if V8_TARGET_ARCH_S390X
   DCHECK_EQ(value & 0xFFFFFFFF, 0);
   // The smi value is loaded in upper 32-bits.  Lower 32-bit are zeros.
@@ -3537,10 +3538,10 @@ void TurboAssembler::LoadFloat32Literal(DoubleRegister result, float value,
   LoadDoubleLiteral(result, int_val, scratch);
 }
 
-void TurboAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch) {
+void TurboAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch) {
 #if V8_TARGET_ARCH_S390X
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    cih(src1, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+    cih(src1, Operand(static_cast<intptr_t>(smi.ptr()) >> 32));
   } else {
     LoadSmiLiteral(scratch, smi);
     cgr(src1, scratch);
@@ -3551,11 +3552,11 @@ void TurboAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch) {
 #endif
 }
 
-void TurboAssembler::CmpLogicalSmiLiteral(Register src1, Smi* smi,
+void TurboAssembler::CmpLogicalSmiLiteral(Register src1, Smi smi,
                                           Register scratch) {
 #if V8_TARGET_ARCH_S390X
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    clih(src1, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+    clih(src1, Operand(static_cast<intptr_t>(smi.ptr()) >> 32));
   } else {
     LoadSmiLiteral(scratch, smi);
     clgr(src1, scratch);
@@ -3566,12 +3567,12 @@ void TurboAssembler::CmpLogicalSmiLiteral(Register src1, Smi* smi,
 #endif
 }
 
-void TurboAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
+void TurboAssembler::AddSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_S390X
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     if (dst != src) LoadRR(dst, src);
-    aih(dst, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+    aih(dst, Operand(static_cast<intptr_t>(smi.ptr()) >> 32));
   } else {
     LoadSmiLiteral(scratch, smi);
     AddP(dst, src, scratch);
@@ -3581,29 +3582,29 @@ void TurboAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
 #endif
 }
 
-void TurboAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
+void TurboAssembler::SubSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_S390X
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     if (dst != src) LoadRR(dst, src);
-    aih(dst, Operand((-reinterpret_cast<intptr_t>(smi)) >> 32));
+    aih(dst, Operand((-static_cast<intptr_t>(smi.ptr())) >> 32));
   } else {
     LoadSmiLiteral(scratch, smi);
     SubP(dst, src, scratch);
   }
 #else
-  AddP(dst, src, Operand(-(reinterpret_cast<intptr_t>(smi))));
+  AddP(dst, src, Operand(-(static_cast<intptr_t>(smi.ptr()))));
 #endif
 }
 
-void TurboAssembler::AndSmiLiteral(Register dst, Register src, Smi* smi) {
+void TurboAssembler::AndSmiLiteral(Register dst, Register src, Smi smi) {
   if (dst != src) LoadRR(dst, src);
 #if V8_TARGET_ARCH_S390X
   DCHECK_EQ(reinterpret_cast<intptr_t>(smi) & 0xFFFFFFFF, 0);
-  int value = static_cast<int>(reinterpret_cast<intptr_t>(smi) >> 32);
+  int value = static_cast<int>(static_cast<intptr_t>(smi.ptr()) >> 32);
   nihf(dst, Operand(value));
 #else
-  nilf(dst, Operand(reinterpret_cast<int>(smi)));
+  nilf(dst, Operand(static_cast<intptr_t>(smi.ptr())));
 #endif
 }
 

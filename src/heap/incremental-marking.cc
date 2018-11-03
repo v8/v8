@@ -501,7 +501,7 @@ void IncrementalMarking::RetainMaps() {
     if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
       continue;
     }
-    int age = Smi::ToInt(retained_maps->Get(i + 1)->cast<Smi>());
+    int age = retained_maps->Get(i + 1).ToSmi().value();
     int new_age;
     Map* map = Map::cast(map_heap_object);
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&

@@ -12,6 +12,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/smi.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 
@@ -229,9 +230,11 @@ void Serializer::PutRoot(RootIndex root, HeapObject* object,
   }
 }
 
-void Serializer::PutSmi(Smi* smi) {
+void Serializer::PutSmi(Smi smi) {
   sink_.Put(kOnePointerRawData, "Smi");
-  byte* bytes = reinterpret_cast<byte*>(&smi);
+  Address raw_value = smi.ptr();
+  byte bytes[kPointerSize];
+  memcpy(bytes, &raw_value, kPointerSize);
   for (int i = 0; i < kPointerSize; i++) sink_.Put(bytes[i], "Byte");
 }
 

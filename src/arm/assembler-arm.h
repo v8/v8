@@ -402,7 +402,7 @@ class Operand {
   V8_INLINE static Operand Zero();
   V8_INLINE explicit Operand(const ExternalReference& f);
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi* value);
+  V8_INLINE explicit Operand(Smi value);
 
   // rm
   V8_INLINE explicit Operand(Register rm);

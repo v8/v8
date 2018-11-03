@@ -13,6 +13,7 @@
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/smi.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -444,7 +445,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
         int parameter = scope_info->ContextLocalParameterNumber(i);
         if (parameter >= mapped_count) continue;
         arguments->set_the_hole(parameter);
-        Smi* slot = Smi::FromInt(Context::MIN_CONTEXT_SLOTS + i);
+        Smi slot = Smi::FromInt(Context::MIN_CONTEXT_SLOTS + i);
         parameter_map->set(parameter + 2, slot);
       }
     } else {

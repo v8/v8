@@ -15,6 +15,7 @@
 #include "src/frames.h"
 #include "src/lsan.h"
 #include "src/macro-assembler-inl.h"
+#include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"
 #include "src/string-constants.h"
 
@@ -1159,7 +1160,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
           // When pointers are 4 bytes, we can use int32 constants to represent
           // Smis.
           DCHECK_EQ(4, kPointerSize);
-          Smi* smi = reinterpret_cast<Smi*>(constant.ToInt32());
+          Smi smi(static_cast<Address>(constant.ToInt32()));
           DCHECK(smi->IsSmi());
           literal = DeoptimizationLiteral(smi->value());
         } else if (type.representation() == MachineRepresentation::kBit) {
@@ -1194,7 +1195,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
           // When pointers are 8 bytes, we can use int64 constants to represent
           // Smis.
           DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
-          Smi* smi = reinterpret_cast<Smi*>(constant.ToInt64());
+          Smi smi(static_cast<Address>(constant.ToInt64()));
           DCHECK(smi->IsSmi());
           literal = DeoptimizationLiteral(smi->value());
         }

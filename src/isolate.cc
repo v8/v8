@@ -49,6 +49,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/prototype.h"
@@ -4262,7 +4263,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (length == 0) return;
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
-    int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
+    int mark_sweeps = detached_contexts->Get(i).ToSmi().value();
     MaybeObject context = detached_contexts->Get(i + 1);
     DCHECK(context->IsWeakOrCleared());
     if (!context->IsCleared()) {
@@ -4274,7 +4275,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
   detached_contexts->set_length(new_length);
   while (new_length < length) {
-    detached_contexts->Set(new_length, MaybeObject::FromSmi(Smi::kZero));
+    detached_contexts->Set(new_length, MaybeObject::FromSmi(Smi::zero()));
     ++new_length;
   }
 
@@ -4282,7 +4283,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
-      int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
+      int mark_sweeps = detached_contexts->Get(i).ToSmi().value();
       MaybeObject context = detached_contexts->Get(i + 1);
       DCHECK(context->IsWeakOrCleared());
       if (mark_sweeps > 3) {

@@ -304,7 +304,7 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
   push(r0);
 }
 
-void TurboAssembler::Push(Smi* smi) {
+void TurboAssembler::Push(Smi smi) {
   mov(r0, Operand(smi));
   push(r0);
 }
@@ -2080,7 +2080,7 @@ void TurboAssembler::LoadIntLiteral(Register dst, int value) {
   mov(dst, Operand(value));
 }
 
-void TurboAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
+void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
   mov(dst, Operand(smi));
 }
 
@@ -2447,8 +2447,7 @@ void MacroAssembler::Xor(Register ra, Register rs, const Operand& rb,
   }
 }
 
-
-void MacroAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch,
+void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
                                    CRegister cr) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);
@@ -2458,8 +2457,7 @@ void MacroAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch,
 #endif
 }
 
-
-void MacroAssembler::CmplSmiLiteral(Register src1, Smi* smi, Register scratch,
+void MacroAssembler::CmplSmiLiteral(Register src1, Smi smi, Register scratch,
                                     CRegister cr) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);
@@ -2469,8 +2467,7 @@ void MacroAssembler::CmplSmiLiteral(Register src1, Smi* smi, Register scratch,
 #endif
 }
 
-
-void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
+void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);
@@ -2480,8 +2477,7 @@ void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
 #endif
 }
 
-
-void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
+void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);
@@ -2491,8 +2487,7 @@ void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
 #endif
 }
 
-
-void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi* smi,
+void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch, RCBit rc) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);

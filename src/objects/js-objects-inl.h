@@ -14,6 +14,7 @@
 #include "src/objects/property-array-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi-inl.h"
 #include "src/prototype.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -277,7 +278,7 @@ void JSObject::SetEmbedderField(int index, Object* value) {
   WRITE_BARRIER(this, offset, value);
 }
 
-void JSObject::SetEmbedderField(int index, Smi* value) {
+void JSObject::SetEmbedderField(int index, Smi value) {
   DCHECK(index < GetEmbedderFieldCount() && index >= 0);
   // Internal objects do follow immediately after the header, whereas in-object
   // properties are at the end of the object. Therefore there is no need

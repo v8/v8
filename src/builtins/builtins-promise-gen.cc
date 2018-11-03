@@ -12,6 +12,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-promise.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -38,12 +39,12 @@ Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
 void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
   STATIC_ASSERT(v8::Promise::kPending == 0);
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kReactionsOrResultOffset,
-                                 SmiConstant(Smi::kZero));
+                                 SmiConstant(Smi::zero()));
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
-                                 SmiConstant(Smi::kZero));
+                                 SmiConstant(Smi::zero()));
   for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
     int offset = JSPromise::kSize + i * kPointerSize;
-    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::kZero));
+    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::zero()));
   }
 }
 
@@ -470,7 +471,7 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
   {
     VARIABLE(var_current, MachineRepresentation::kTagged, reactions);
     VARIABLE(var_reversed, MachineRepresentation::kTagged,
-             SmiConstant(Smi::kZero));
+             SmiConstant(Smi::zero()));
 
     Label loop(this, {&var_current, &var_reversed}), done_loop(this);
     Goto(&loop);

@@ -10,12 +10,12 @@
 #include "src/globals.h"
 #include "src/objects.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
 
 class HeapObject;
-class Smi;
 class StringStream;
 
 // A MaybeObject is either a SMI, a strong reference to a HeapObject, a weak
@@ -36,7 +36,8 @@ class MaybeObject {
   const MaybeObject* operator->() const { return this; }
 
   bool IsSmi() const { return HAS_SMI_TAG(ptr_); }
-  inline bool ToSmi(Smi** value);
+  inline bool ToSmi(Smi* value);
+  inline Smi ToSmi() const;
 
   bool IsCleared() const { return ptr_ == kClearedWeakHeapObject; }
 
@@ -83,7 +84,7 @@ class MaybeObject {
     return T::cast(reinterpret_cast<Object*>(ptr_));
   }
 
-  static MaybeObject FromSmi(Smi* smi) {
+  static MaybeObject FromSmi(Smi smi) {
     DCHECK(HAS_SMI_TAG(smi->ptr()));
     return MaybeObject(smi->ptr());
   }

@@ -32,6 +32,7 @@
 #include "src/heap/factory-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/smi.h"
 #include "src/unicode-cache.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
@@ -416,7 +417,7 @@ TEST(NoHandlesForTryNumberToSize) {
   size_t result = 0;
   {
     SealHandleScope no_handles(isolate);
-    Smi* smi = Smi::FromInt(1);
+    Smi smi = Smi::FromInt(1);
     CHECK(TryNumberToSize(smi, &result));
     CHECK_EQ(result, 1u);
   }

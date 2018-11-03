@@ -103,7 +103,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Push(Register src) { push(src); }
 
   void Push(Handle<HeapObject> handle);
-  void Push(Smi* smi);
+  void Push(Smi smi);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
@@ -449,7 +449,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                    SwVfpRegister src_lane, int lane);
 
   // Register move. May do nothing if the registers are identical.
-  void Move(Register dst, Smi* smi);
+  void Move(Register dst, Smi smi);
   void Move(Register dst, Handle<HeapObject> value);
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);

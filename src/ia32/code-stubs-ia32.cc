@@ -458,7 +458,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ PushRoot(RootIndex::kUndefinedValue);
   __ Push(Immediate(ExternalReference::isolate_address(isolate())));
   __ push(holder);
-  __ push(Immediate(Smi::kZero));  // should_throw_on_error -> false
+  __ push(Immediate(Smi::zero()));  // should_throw_on_error -> false
   __ push(FieldOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);  // Restore return address.
 

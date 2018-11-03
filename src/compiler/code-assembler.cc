@@ -21,6 +21,7 @@
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/utils.h"
 #include "src/zone/zone.h"
 
@@ -275,9 +276,9 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
   }
 }
 
-TNode<Smi> CodeAssembler::SmiConstant(Smi* value) {
-  return UncheckedCast<Smi>(
-      BitcastWordToTaggedSigned(IntPtrConstant(bit_cast<intptr_t>(value))));
+TNode<Smi> CodeAssembler::SmiConstant(Smi value) {
+  return UncheckedCast<Smi>(BitcastWordToTaggedSigned(
+      IntPtrConstant(static_cast<intptr_t>(value.ptr()))));
 }
 
 TNode<Smi> CodeAssembler::SmiConstant(int value) {
@@ -342,7 +343,7 @@ bool CodeAssembler::ToInt64Constant(Node* node, int64_t& out_value) {
   return m.HasValue();
 }
 
-bool CodeAssembler::ToSmiConstant(Node* node, Smi*& out_value) {
+bool CodeAssembler::ToSmiConstant(Node* node, Smi* out_value) {
   if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned) {
     node = node->InputAt(0);
   }
@@ -351,7 +352,7 @@ bool CodeAssembler::ToSmiConstant(Node* node, Smi*& out_value) {
     intptr_t value = m.Value();
     // Make sure that the value is actually a smi
     CHECK_EQ(0, value & ((static_cast<intptr_t>(1) << kSmiShiftSize) - 1));
-    out_value = Smi::cast(bit_cast<Object*>(value));
+    *out_value = Smi(static_cast<Address>(value));
     return true;
   }
   return false;
@@ -1852,19 +1853,20 @@ void CodeAssemblerState::PopExceptionHandler() {
 
 }  // namespace compiler
 
-Smi* CheckObjectType(Object* value, Smi* type, String* location) {
+Address CheckObjectType(Object* value, Address raw_type, String* location) {
 #ifdef DEBUG
+  Smi type(raw_type);
   const char* expected;
   switch (static_cast<ObjectType>(type->value())) {
-#define TYPE_CASE(Name)                            \
-  case ObjectType::k##Name:                        \
-    if (value->Is##Name()) return Smi::FromInt(0); \
-    expected = #Name;                              \
+#define TYPE_CASE(Name)                                  \
+  case ObjectType::k##Name:                              \
+    if (value->Is##Name()) return Smi::FromInt(0).ptr(); \
+    expected = #Name;                                    \
     break;
-#define TYPE_STRUCT_CASE(NAME, Name, name)         \
-  case ObjectType::k##Name:                        \
-    if (value->Is##Name()) return Smi::FromInt(0); \
-    expected = #Name;                              \
+#define TYPE_STRUCT_CASE(NAME, Name, name)               \
+  case ObjectType::k##Name:                              \
+    if (value->Is##Name()) return Smi::FromInt(0).ptr(); \
+    expected = #Name;                                    \
     break;
 
     TYPE_CASE(Object)

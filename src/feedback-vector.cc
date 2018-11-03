@@ -532,7 +532,7 @@ bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
     changed = true;
   }
 
-  Smi* extra = Smi::FromInt(static_cast<int>(property_type));
+  Smi extra = Smi::FromInt(static_cast<int>(property_type));
   if (changed || GetFeedbackExtra() != MaybeObject::FromSmi(extra)) {
     SetFeedbackExtra(extra, SKIP_WRITE_BARRIER);
     changed = true;
@@ -1125,19 +1125,19 @@ IcCheckType FeedbackNexus::GetKeyType() const {
 
 BinaryOperationHint FeedbackNexus::GetBinaryOperationFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kBinaryOp);
-  int feedback = Smi::ToInt(GetFeedback()->cast<Smi>());
+  int feedback = GetFeedback().ToSmi().value();
   return BinaryOperationHintFromFeedback(feedback);
 }
 
 CompareOperationHint FeedbackNexus::GetCompareOperationFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kCompareOp);
-  int feedback = Smi::ToInt(GetFeedback()->cast<Smi>());
+  int feedback = GetFeedback().ToSmi().value();
   return CompareOperationHintFromFeedback(feedback);
 }
 
 ForInHint FeedbackNexus::GetForInFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kForIn);
-  int feedback = Smi::ToInt(GetFeedback()->cast<Smi>());
+  int feedback = GetFeedback().ToSmi().value();
   return ForInHintFromFeedback(feedback);
 }
 

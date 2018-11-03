@@ -15,6 +15,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/macro-assembler-ia32.h"
+#include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
@@ -4242,7 +4243,7 @@ void CodeGenerator::AssembleConstructFrame() {
       }
       __ mov(ecx, FieldOperand(kWasmInstanceRegister,
                                WasmInstanceObject::kCEntryStubOffset));
-      __ Move(esi, Smi::kZero);
+      __ Move(esi, Smi::zero());
       __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, ecx);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple, 0,

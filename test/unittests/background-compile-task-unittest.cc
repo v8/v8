@@ -13,6 +13,7 @@
 #include "src/compiler.h"
 #include "src/flags.h"
 #include "src/isolate-inl.h"
+#include "src/objects/smi.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparsed-scope-data.h"
@@ -134,7 +135,7 @@ TEST_F(BackgroundCompileTaskTest, CompileAndRun) {
       task.get(), shared, isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
 
-  Smi* value = Smi::cast(*RunJS("f(100);"));
+  Smi value = Smi::cast(*RunJS("f(100);"));
   ASSERT_TRUE(value == Smi::FromInt(160));
 }
 

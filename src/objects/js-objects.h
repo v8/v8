@@ -228,8 +228,8 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
-  static Smi* CreateIdentityHash(Isolate* isolate, JSReceiver* key);
-  Smi* GetOrCreateIdentityHash(Isolate* isolate);
+  static Smi CreateIdentityHash(Isolate* isolate, JSReceiver* key);
+  Smi GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
   // JSReceiver::kHashMask.
@@ -552,7 +552,7 @@ class JSObject : public JSReceiver {
   inline int GetEmbedderFieldOffset(int index);
   inline Object* GetEmbedderField(int index);
   inline void SetEmbedderField(int index, Object* value);
-  inline void SetEmbedderField(int index, Smi* value);
+  inline void SetEmbedderField(int index, Smi value);
 
   // Returns true when the object is potentially a wrapper that gets special
   // garbage collection treatment.
@@ -1221,7 +1221,7 @@ class JSDate : public JSObject {
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.
-  static Object* GetField(Object* date, Smi* index);
+  static Object* GetField(Object* date, Smi index);
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 

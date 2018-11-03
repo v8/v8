@@ -17,6 +17,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {
@@ -1692,7 +1693,7 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
   FeedbackNexus nexus(feedback_vector(), slot);
 
   Handle<JSArray> cached_value;
-  if (nexus.GetFeedback() == MaybeObject::FromSmi(Smi::kZero)) {
+  if (nexus.GetFeedback() == MaybeObject::FromSmi(Smi::zero())) {
     // It's not observable when the template object is created, so we
     // can just create it eagerly during graph building and bake in
     // the JSArray constant here.

@@ -763,15 +763,18 @@ ExternalReference ExternalReference::orderedhashmap_gethash_raw() {
 }
 
 ExternalReference ExternalReference::get_or_create_hash_raw() {
-  typedef Smi* (*GetOrCreateHash)(Isolate * isolate, Object * key);
+  typedef Address (*GetOrCreateHash)(Isolate * isolate, Object * key);
   GetOrCreateHash f = Object::GetOrCreateHash;
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
+static Address JSReceiverCreateIdentityHash(Isolate* isolate, JSReceiver* key) {
+  return JSReceiver::CreateIdentityHash(isolate, key).ptr();
+}
+
 ExternalReference ExternalReference::jsreceiver_create_identity_hash() {
-  typedef Smi* (*CreateIdentityHash)(Isolate * isolate, JSReceiver * key);
-  CreateIdentityHash f = JSReceiver::CreateIdentityHash;
-  return ExternalReference(Redirect(FUNCTION_ADDR(f)));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(JSReceiverCreateIdentityHash)));
 }
 
 static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {

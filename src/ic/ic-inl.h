@@ -71,7 +71,7 @@ bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
 bool IC::vector_needs_update() {
   return (!vector_set_ &&
           (state() != MEGAMORPHIC ||
-           Smi::ToInt(nexus()->GetFeedbackExtra()->cast<Smi>()) != ELEMENT));
+           nexus()->GetFeedbackExtra().ToSmi().value() != ELEMENT));
 }
 
 }  // namespace internal

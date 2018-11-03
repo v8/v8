@@ -8,6 +8,7 @@
 #include "src/maybe-handles.h"
 #include "src/objects.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -125,7 +126,7 @@ class FixedArray : public FixedArrayBase {
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-  inline void set(int index, Smi* value);
+  inline void set(int index, Smi value);
   // Setter with explicit barrier mode.
   inline void set(int index, Object* value, WriteBarrierMode mode);
 

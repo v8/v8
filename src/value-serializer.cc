@@ -20,6 +20,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
+#include "src/objects/smi.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/transitions.h"
 #include "src/wasm/wasm-engine.h"
@@ -418,7 +419,7 @@ void ValueSerializer::WriteOddball(Oddball* oddball) {
   WriteTag(tag);
 }
 
-void ValueSerializer::WriteSmi(Smi* smi) {
+void ValueSerializer::WriteSmi(Smi smi) {
   static_assert(kSmiValueSize <= 32, "Expected SMI <= 32 bits.");
   WriteTag(SerializationTag::kInt32);
   WriteZigZag<int32_t>(smi->value());

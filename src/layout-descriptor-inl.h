@@ -8,11 +8,12 @@
 #include "src/layout-descriptor.h"
 #include "src/objects-inl.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
 
-LayoutDescriptor* LayoutDescriptor::FromSmi(Smi* smi) {
+LayoutDescriptor* LayoutDescriptor::FromSmi(Smi smi) {
   return LayoutDescriptor::cast(smi);
 }
 
@@ -20,7 +21,7 @@ LayoutDescriptor* LayoutDescriptor::FromSmi(Smi* smi) {
 Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
   if (length <= kBitsInSmiLayout) {
     // The whole bit vector fits into a smi.
-    return handle(LayoutDescriptor::FromSmi(Smi::kZero), isolate);
+    return handle(LayoutDescriptor::FromSmi(Smi::zero()), isolate);
   }
   int backing_store_length = GetSlowModeBackingStoreLength(length);
   Handle<LayoutDescriptor> result = Handle<LayoutDescriptor>::cast(
@@ -42,7 +43,7 @@ bool LayoutDescriptor::InobjectUnboxedField(int inobject_properties,
 
 
 LayoutDescriptor* LayoutDescriptor::FastPointerLayout() {
-  return LayoutDescriptor::FromSmi(Smi::kZero);
+  return LayoutDescriptor::FromSmi(Smi::zero());
 }
 
 

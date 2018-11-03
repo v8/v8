@@ -11,6 +11,7 @@
 #include "src/compiler/linkage.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"
 
 #include "test/cctest/cctest.h"
@@ -539,8 +540,8 @@ class TestEnvironment : public HandleAndZoneScope {
     // differentiate between a pointer to a HeapNumber and a integer. For this
     // reason, we make sure all integers are Smis, including constants.
     for (int i = 0; i < kSmiConstantCount; i++) {
-      intptr_t smi_value = reinterpret_cast<intptr_t>(
-          Smi::FromInt(rng_->NextInt(Smi::kMaxValue)));
+      intptr_t smi_value = static_cast<intptr_t>(
+          Smi::FromInt(rng_->NextInt(Smi::kMaxValue)).ptr());
       Constant constant = kPointerSize == 8
                               ? Constant(static_cast<int64_t>(smi_value))
                               : Constant(static_cast<int32_t>(smi_value));
@@ -733,15 +734,13 @@ class TestEnvironment : public HandleAndZoneScope {
         switch (constant.type()) {
           case Constant::kInt32:
             constant_value =
-                Handle<Smi>(reinterpret_cast<Smi*>(
-                                static_cast<intptr_t>(constant.ToInt32())),
+                Handle<Smi>(Smi(static_cast<Address>(
+                                static_cast<intptr_t>(constant.ToInt32()))),
                             main_isolate());
             break;
           case Constant::kInt64:
-            constant_value =
-                Handle<Smi>(reinterpret_cast<Smi*>(
-                                static_cast<intptr_t>(constant.ToInt64())),
-                            main_isolate());
+            constant_value = Handle<Smi>(
+                Smi(static_cast<Address>(constant.ToInt64())), main_isolate());
             break;
           case Constant::kFloat32:
             constant_value = main_isolate()->factory()->NewHeapNumber(
@@ -824,7 +823,7 @@ class TestEnvironment : public HandleAndZoneScope {
           Handle<Smi> expected_lane =
               FixedArray::cast(*expected)->GetValueChecked<Smi>(main_isolate(),
                                                                 lane);
-          if (!actual_lane->StrictEquals(*expected_lane)) {
+          if (*actual_lane != *expected_lane) {
             return false;
           }
         }

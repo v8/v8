@@ -29,6 +29,7 @@
 #include "src/objects/promise.h"
 #include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/smi.h"
 #include "src/objects/stack-frame-info.h"
 #include "src/objects/string.h"
 #include "src/regexp/jsregexp.h"
@@ -151,7 +152,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
 void Heap::FinalizePartialMap(Map* map) {
   ReadOnlyRoots roots(this);
   map->set_dependent_code(DependentCode::cast(roots.empty_weak_fixed_array()));
-  map->set_raw_transitions(MaybeObject::FromSmi(Smi::kZero));
+  map->set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map->set_instance_descriptors(roots.empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
     map->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
@@ -426,7 +427,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell);
     {
       // The invalid_prototype_validity_cell is needed for JSObject maps.
-      Smi* value = Smi::FromInt(Map::kPrototypeChainInvalid);
+      Smi value = Smi::FromInt(Map::kPrototypeChainInvalid);
       AllocationResult alloc = AllocateRaw(Cell::kSize, OLD_SPACE);
       if (!alloc.To(&obj)) return false;
       obj->set_map_after_allocation(roots.cell_map(), SKIP_WRITE_BARRIER);
@@ -795,7 +796,7 @@ void Heap::CreateInitialObjects() {
   // Handling of script id generation is in Heap::NextScriptId().
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
   set_last_debugging_id(Smi::FromInt(DebugInfo::kNoDebuggingId));
-  set_next_template_serial_number(Smi::kZero);
+  set_next_template_serial_number(Smi::zero());
 
   // Allocate the empty OrderedHashMap.
   Handle<FixedArray> empty_ordered_hash_map = factory->NewFixedArray(

@@ -9,6 +9,7 @@
 #include "src/objects.h"
 #include "src/objects/builtin-function-id.h"
 #include "src/objects/script.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -174,7 +175,7 @@ class InterpreterData : public Struct {
 // shared by multiple instances of the function.
 class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  static constexpr Object* const kNoSharedNameSentinel = Smi::kZero;
+  static constexpr ObjectPtr const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
   inline String* Name() const;

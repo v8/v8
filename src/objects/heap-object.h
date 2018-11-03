@@ -20,8 +20,8 @@ namespace internal {
 // For a design overview, see https://goo.gl/Ph4CGz.
 class ObjectPtr {
  public:
-  ObjectPtr() : ptr_(kNullAddress) {}
-  explicit ObjectPtr(Address ptr) : ptr_(ptr) {}
+  constexpr ObjectPtr() : ptr_(kNullAddress) {}
+  explicit constexpr ObjectPtr(Address ptr) : ptr_(ptr) {}
 
   // Enable incremental transition.
   operator Object*() const { return reinterpret_cast<Object*>(ptr()); }
@@ -34,7 +34,7 @@ class ObjectPtr {
   }
 
   // Returns the tagged "(heap) object pointer" representation of this object.
-  Address ptr() const { return ptr_; }
+  constexpr Address ptr() const { return ptr_; }
 
   ObjectPtr* operator->() { return this; }
   const ObjectPtr* operator->() const { return this; }

@@ -13,12 +13,17 @@
 namespace v8 {
 namespace internal {
 
-bool MaybeObject::ToSmi(Smi** value) {
+bool MaybeObject::ToSmi(Smi* value) {
   if (HAS_SMI_TAG(ptr_)) {
-    *value = Smi::cast(reinterpret_cast<Object*>(ptr_));
+    *value = Smi::cast(ObjectPtr(ptr_));
     return true;
   }
   return false;
+}
+
+Smi MaybeObject::ToSmi() const {
+  DCHECK(HAS_SMI_TAG(ptr_));
+  return Smi::cast(ObjectPtr(ptr_));
 }
 
 bool MaybeObject::IsStrongOrWeak() const {

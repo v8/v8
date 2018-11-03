@@ -15,6 +15,7 @@
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/unicode-cache.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/interpreter/interpreter-tester.h"
@@ -423,8 +424,7 @@ TEST(InterpreterBinaryOpsBigInt) {
         CHECK(return_value->IsBigInt());
         MaybeObject feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(BinaryOperationFeedback::kBigInt,
-                 feedback->cast<Smi>()->value());
+        CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback->ToSmi().value());
       }
     }
   }
@@ -544,7 +544,7 @@ TEST(InterpreterStringAdd) {
 
     MaybeObject feedback = callable.vector()->Get(slot);
     CHECK(feedback->IsSmi());
-    CHECK_EQ(test_cases[i].expected_feedback, feedback->cast<Smi>()->value());
+    CHECK_EQ(test_cases[i].expected_feedback, feedback->ToSmi().value());
   }
 }
 
@@ -749,7 +749,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
-    CHECK_EQ(test_case.feedback, feedback0->cast<Smi>()->value());
+    CHECK_EQ(test_case.feedback, feedback0->ToSmi().value());
     CHECK(Object::Equals(isolate, test_case.result, return_val).ToChecked());
   }
 }
@@ -794,7 +794,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
        isolate->factory()->NewHeapNumber(3.1415 - 2.0),
        BinaryOperationFeedback::kNumber},
       {Token::Value::SUB, LiteralForTest(ast_factory.GetOneByteString("2")), 2,
-       Handle<Smi>(Smi::kZero, isolate), BinaryOperationFeedback::kAny},
+       Handle<Smi>(Smi::zero(), isolate), BinaryOperationFeedback::kAny},
       // BIT_OR
       {Token::Value::BIT_OR, LiteralForTest(4), 1,
        Handle<Smi>(Smi::FromInt(5), isolate),
@@ -811,7 +811,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
       {Token::Value::BIT_AND, LiteralForTest(3.1415), 2,
        Handle<Smi>(Smi::FromInt(2), isolate), BinaryOperationFeedback::kNumber},
       {Token::Value::BIT_AND, LiteralForTest(ast_factory.GetOneByteString("2")),
-       1, Handle<Smi>(Smi::kZero, isolate), BinaryOperationFeedback::kAny},
+       1, Handle<Smi>(Smi::zero(), isolate), BinaryOperationFeedback::kAny},
       // SHL
       {Token::Value::SHL, LiteralForTest(3), 1,
        Handle<Smi>(Smi::FromInt(6), isolate),
@@ -826,7 +826,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
        Handle<Smi>(Smi::FromInt(1), isolate),
        BinaryOperationFeedback::kSignedSmall},
       {Token::Value::SAR, LiteralForTest(3.1415), 2,
-       Handle<Smi>(Smi::kZero, isolate), BinaryOperationFeedback::kNumber},
+       Handle<Smi>(Smi::zero(), isolate), BinaryOperationFeedback::kNumber},
       {Token::Value::SAR, LiteralForTest(ast_factory.GetOneByteString("2")), 1,
        Handle<Smi>(Smi::FromInt(1), isolate), BinaryOperationFeedback::kAny}};
 
@@ -855,7 +855,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
-    CHECK_EQ(test_case.feedback, feedback0->cast<Smi>()->value());
+    CHECK_EQ(test_case.feedback, feedback0->ToSmi().value());
     CHECK(Object::Equals(isolate, test_case.result, return_val).ToChecked());
   }
 }
@@ -926,24 +926,23 @@ TEST(InterpreterUnaryOpFeedback) {
     USE(return_val);
     MaybeObject feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
-             feedback0->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0->ToSmi().value());
 
     MaybeObject feedback1 = callable.vector()->Get(slot1);
     CHECK(feedback1->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi().value());
 
     MaybeObject feedback2 = callable.vector()->Get(slot2);
     CHECK(feedback2->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2->ToSmi().value());
 
     MaybeObject feedback3 = callable.vector()->Get(slot3);
     CHECK(feedback3->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3->ToSmi().value());
 
     MaybeObject feedback4 = callable.vector()->Get(slot4);
     CHECK(feedback4->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4->ToSmi().value());
   }
 }
 
@@ -988,16 +987,15 @@ TEST(InterpreterBitwiseTypeFeedback) {
     USE(return_val);
     MaybeObject feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
-             feedback0->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0->ToSmi().value());
 
     MaybeObject feedback1 = callable.vector()->Get(slot1);
     CHECK(feedback1->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi().value());
 
     MaybeObject feedback2 = callable.vector()->Get(slot2);
     CHECK(feedback2->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2->ToSmi().value());
   }
 }
 
@@ -1519,7 +1517,7 @@ TEST(InterpreterJumps) {
   Register reg(0), scratch(1);
   BytecodeLabel label[3];
 
-  builder.LoadLiteral(Smi::kZero)
+  builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
       .Jump(&label[1]);
   SetRegister(builder, reg, 1024, scratch).Bind(&label[0]);
@@ -1559,7 +1557,7 @@ TEST(InterpreterConditionalJumps) {
   BytecodeLabel label[2];
   BytecodeLabel done, done1;
 
-  builder.LoadLiteral(Smi::kZero)
+  builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &label[0]);
@@ -1609,7 +1607,7 @@ TEST(InterpreterConditionalJumps2) {
   BytecodeLabel label[2];
   BytecodeLabel done, done1;
 
-  builder.LoadLiteral(Smi::kZero)
+  builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &label[0]);
@@ -1654,7 +1652,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   Register reg(0), scratch(256);
   BytecodeLabel done, fake;
 
-  builder.LoadLiteral(Smi::kZero);
+  builder.LoadLiteral(Smi::zero());
   builder.StoreAccumulatorInRegister(reg);
   // Consume all 8-bit operands
   for (int i = 1; i <= 256; i++) {
@@ -1667,7 +1665,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   // Emit more than 16-bit immediate operands worth of code to jump over.
   builder.Bind(&fake);
   for (int i = 0; i < 6600; i++) {
-    builder.LoadLiteral(Smi::kZero);  // 1-byte
+    builder.LoadLiteral(Smi::zero());  // 1-byte
     builder.BinaryOperation(Token::Value::ADD, scratch,
                             GetIndex(slot));              // 6-bytes
     builder.StoreAccumulatorInRegister(scratch);          // 4-bytes
@@ -1709,7 +1707,7 @@ TEST(InterpreterJumpWith32BitOperand) {
   Register reg(0);
   BytecodeLabel done;
 
-  builder.LoadLiteral(Smi::kZero);
+  builder.LoadLiteral(Smi::zero());
   builder.StoreAccumulatorInRegister(reg);
   // Consume all 16-bit constant pool entries. Make sure to use doubles so that
   // the jump can't re-use an integer.
@@ -1717,7 +1715,7 @@ TEST(InterpreterJumpWith32BitOperand) {
     builder.LoadLiteral(i + 0.5);
   }
   builder.Jump(&done);
-  builder.LoadLiteral(Smi::kZero);
+  builder.LoadLiteral(Smi::zero());
   builder.Bind(&done);
   builder.Return();
 
@@ -1819,7 +1817,7 @@ TEST(InterpreterSmiComparisons) {
         MaybeObject feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
         CHECK_EQ(CompareOperationFeedback::kSignedSmall,
-                 feedback->cast<Smi>()->value());
+                 feedback->ToSmi().value());
       }
     }
   }
@@ -1867,8 +1865,7 @@ TEST(InterpreterHeapNumberComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         MaybeObject feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kNumber,
-                 feedback->cast<Smi>()->value());
+        CHECK_EQ(CompareOperationFeedback::kNumber, feedback->ToSmi().value());
       }
     }
   }
@@ -1910,8 +1907,7 @@ TEST(InterpreterBigIntComparisons) {
         CHECK(return_value->IsBoolean());
         MaybeObject feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kBigInt,
-                 feedback->cast<Smi>()->value());
+        CHECK_EQ(CompareOperationFeedback::kBigInt, feedback->ToSmi().value());
       }
     }
   }
@@ -1962,7 +1958,7 @@ TEST(InterpreterStringComparisons) {
             Token::IsOrderedRelationalCompareOp(comparison)
                 ? CompareOperationFeedback::kString
                 : CompareOperationFeedback::kInternalizedString;
-        CHECK_EQ(expected_feedback, feedback->cast<Smi>()->value());
+        CHECK_EQ(expected_feedback, feedback->ToSmi().value());
       }
     }
   }
@@ -2074,8 +2070,7 @@ TEST(InterpreterMixedComparisons) {
             MaybeObject feedback = callable.vector()->Get(slot);
             CHECK(feedback->IsSmi());
             // Comparison with a number and string collects kAny feedback.
-            CHECK_EQ(CompareOperationFeedback::kAny,
-                     feedback->cast<Smi>()->value());
+            CHECK_EQ(CompareOperationFeedback::kAny, feedback->ToSmi().value());
           }
         }
       }

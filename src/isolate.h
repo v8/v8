@@ -947,7 +947,7 @@ class Isolate final : private HiddenFactory {
 
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name) \
   inline Handle<type> name();                            \
-  inline bool is_##name(type* value);
+  inline bool is_##name(type##ArgType value);
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 

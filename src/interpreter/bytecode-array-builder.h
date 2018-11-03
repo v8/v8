@@ -70,7 +70,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadConstantPoolEntry(size_t entry);
-  BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
+  BytecodeArrayBuilder& LoadLiteral(Smi value);
   BytecodeArrayBuilder& LoadLiteral(double value);
   BytecodeArrayBuilder& LoadLiteral(const AstRawString* raw_string);
   BytecodeArrayBuilder& LoadLiteral(const Scope* scope);
@@ -349,7 +349,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                         int feedback_slot);
   // Same as above, but lhs in the accumulator and rhs in |literal|.
   BytecodeArrayBuilder& BinaryOperationSmiLiteral(Token::Value binop,
-                                                  Smi* literal,
+                                                  Smi literal,
                                                   int feedback_slot);
 
   // Unary and Count Operators (value stored in accumulator).

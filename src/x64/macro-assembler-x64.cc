@@ -19,6 +19,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/instruction-stream.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/register-configuration.h"
 #include "src/snapshot/snapshot.h"
 #include "src/string-constants.h"
@@ -337,8 +338,8 @@ void TurboAssembler::CallRecordWriteStub(
     xchgq(slot_parameter, object_parameter);
   }
 
-  Smi* smi_rsa = Smi::FromEnum(remembered_set_action);
-  Smi* smi_fm = Smi::FromEnum(fp_mode);
+  Smi smi_rsa = Smi::FromEnum(remembered_set_action);
+  Smi smi_fm = Smi::FromEnum(fp_mode);
   Move(remembered_set_parameter, smi_rsa);
   if (smi_rsa != smi_fm) {
     Move(fp_mode_parameter, smi_fm);
@@ -1026,7 +1027,7 @@ void TurboAssembler::Set(Operand dst, intptr_t x) {
 // ----------------------------------------------------------------------------
 // Smi tagging, untagging and tag detection.
 
-Register TurboAssembler::GetSmiConstant(Smi* source) {
+Register TurboAssembler::GetSmiConstant(Smi source) {
   STATIC_ASSERT(kSmiTag == 0);
   int value = source->value();
   if (value == 0) {
@@ -1037,13 +1038,13 @@ Register TurboAssembler::GetSmiConstant(Smi* source) {
   return kScratchRegister;
 }
 
-void TurboAssembler::Move(Register dst, Smi* source) {
+void TurboAssembler::Move(Register dst, Smi source) {
   STATIC_ASSERT(kSmiTag == 0);
   int value = source->value();
   if (value == 0) {
     xorl(dst, dst);
   } else {
-    Move(dst, reinterpret_cast<Address>(source), RelocInfo::NONE);
+    Move(dst, source.ptr(), RelocInfo::NONE);
   }
 }
 
@@ -1093,14 +1094,12 @@ void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
   cmpp(smi1, smi2);
 }
 
-
-void MacroAssembler::SmiCompare(Register dst, Smi* src) {
+void MacroAssembler::SmiCompare(Register dst, Smi src) {
   AssertSmi(dst);
   Cmp(dst, src);
 }
 
-
-void MacroAssembler::Cmp(Register dst, Smi* src) {
+void MacroAssembler::Cmp(Register dst, Smi src) {
   DCHECK_NE(dst, kScratchRegister);
   if (src->value() == 0) {
     testp(dst, dst);
@@ -1122,7 +1121,7 @@ void MacroAssembler::SmiCompare(Operand dst, Register src) {
   cmpp(dst, src);
 }
 
-void MacroAssembler::SmiCompare(Operand dst, Smi* src) {
+void MacroAssembler::SmiCompare(Operand dst, Smi src) {
   AssertSmi(dst);
   if (SmiValuesAre32Bits()) {
     cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
@@ -1132,7 +1131,7 @@ void MacroAssembler::SmiCompare(Operand dst, Smi* src) {
   }
 }
 
-void MacroAssembler::Cmp(Operand dst, Smi* src) {
+void MacroAssembler::Cmp(Operand dst, Smi src) {
   // The Operand cannot use the smi register.
   Register smi_reg = GetSmiConstant(src);
   DCHECK(!dst.AddressUsesRegister(smi_reg));
@@ -1171,7 +1170,7 @@ void MacroAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
   j(NegateCondition(smi), on_not_smi, near_jump);
 }
 
-void MacroAssembler::SmiAddConstant(Operand dst, Smi* constant) {
+void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
   if (constant->value() != 0) {
     if (SmiValuesAre32Bits()) {
       addl(Operand(dst, kSmiShift / kBitsPerByte),
@@ -1228,8 +1227,8 @@ SmiIndex MacroAssembler::SmiToIndex(Register dst,
   }
 }
 
-void TurboAssembler::Push(Smi* source) {
-  intptr_t smi = reinterpret_cast<intptr_t>(source);
+void TurboAssembler::Push(Smi source) {
+  intptr_t smi = static_cast<intptr_t>(source.ptr());
   if (is_int32(smi)) {
     Push(Immediate(static_cast<int32_t>(smi)));
     return;

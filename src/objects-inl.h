@@ -38,6 +38,7 @@
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/smi-inl.h"
 #include "src/objects/template-objects.h"
 #include "src/objects/templates.h"
 #include "src/property-details.h"
@@ -53,12 +54,9 @@
 namespace v8 {
 namespace internal {
 
-PropertyDetails::PropertyDetails(Smi* smi) {
-  value_ = smi->value();
-}
+PropertyDetails::PropertyDetails(Smi smi) { value_ = smi->value(); }
 
-
-Smi* PropertyDetails::AsSmi() const {
+Smi PropertyDetails::AsSmi() const {
   // Ensure the upper 2 bits have the same value by sign extending it. This is
   // necessary to be able to use the 31st bit of the property details.
   int value = value_ << 1;
@@ -452,9 +450,8 @@ STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 
 double Object::Number() const {
   DCHECK(IsNumber());
-  return IsSmi()
-             ? static_cast<double>(reinterpret_cast<const Smi*>(this)->value())
-             : reinterpret_cast<const HeapNumber*>(this)->value();
+  return IsSmi() ? static_cast<double>(Smi(this->ptr())->value())
+                 : reinterpret_cast<const HeapNumber*>(this)->value();
 }
 
 bool Object::IsNaN() const {
@@ -501,7 +498,6 @@ CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SimpleNumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)
-CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
@@ -740,8 +736,6 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject* obj,
                                               int byte_offset) {
   return MaybeObjectSlot(FIELD_ADDR(obj, byte_offset));
 }
-
-int Smi::ToInt(const Object* object) { return Smi::cast(object)->value(); }
 
 MapWord MapWord::FromMap(const Map* map) {
   return MapWord(reinterpret_cast<uintptr_t>(map));
@@ -1099,7 +1093,7 @@ ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
 ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
 
 int DescriptorArray::number_of_descriptors() const {
-  return Smi::ToInt(get(kDescriptorLengthIndex)->cast<Smi>());
+  return Smi::ToInt(get(kDescriptorLengthIndex).ToSmi());
 }
 
 int DescriptorArray::number_of_descriptors_storage() const {
@@ -1326,7 +1320,7 @@ MaybeObject DescriptorArray::GetValue(int descriptor_number) {
 PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   MaybeObject details = get(ToDetailsIndex(descriptor_number));
-  return PropertyDetails(details->cast<Smi>());
+  return PropertyDetails(details->ToSmi());
 }
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
@@ -1444,11 +1438,11 @@ void NumberDictionary::set_requires_slow_elements() {
 }
 
 DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrBytecodeOffset, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrPcOffset, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(OptimizationId, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)

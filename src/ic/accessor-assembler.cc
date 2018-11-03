@@ -14,6 +14,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
 #include "src/objects/module.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -3516,7 +3517,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
     Label did_set_proto_if_needed(this);
     TNode<BoolT> is_null_proto = SmiNotEqual(
         SmiAnd(flags, SmiConstant(ObjectLiteral::kHasNullPrototype)),
-        SmiConstant(Smi::kZero));
+        SmiConstant(Smi::zero()));
     GotoIfNot(is_null_proto, &did_set_proto_if_needed);
 
     CallRuntime(Runtime::kInternalSetPrototype, context, result,

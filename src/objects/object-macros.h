@@ -20,15 +20,15 @@
 // definition.
 #define OBJECT_CONSTRUCTORS(Type)                 \
  public:                                          \
-  Type();                                         \
+  inline constexpr Type();                        \
   Type* operator->() { return this; }             \
   const Type* operator->() const { return this; } \
                                                   \
  protected:                                       \
-  explicit Type(Address ptr);
+  explicit inline Type(Address ptr);
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
-  inline Type::Type() : Super() {}            \
+  inline constexpr Type::Type() : Super() {}  \
   inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type()); }
 
 #define DECL_PRIMITIVE_ACCESSORS(name, type) \
@@ -272,7 +272,7 @@
 #define RELEASE_WRITE_FIELD(p, offset, value)                     \
   base::Release_Store(                                            \
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      reinterpret_cast<base::AtomicWord>(value));
+      static_cast<base::AtomicWord>((value)->ptr()));
 
 #define RELAXED_WRITE_FIELD(p, offset, value)                     \
   base::Relaxed_Store(                                            \
@@ -435,10 +435,16 @@
     set(k##name##Index, value);                                                \
   }
 
+// Replacement for the above, temporarily separate for incremental transition.
+// TODO(3770): Eliminate the duplication.
+#define DEFINE_DEOPT_ELEMENT_ACCESSORS2(name, type)                           \
+  type DeoptimizationData::name() { return type::cast(get(k##name##Index)); } \
+  void DeoptimizationData::Set##name(type value) { set(k##name##Index, value); }
+
 #define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                \
-  type* DeoptimizationData::name(int i) {                       \
+  type DeoptimizationData::name(int i) {                        \
     return type::cast(get(IndexForEntry(i) + k##name##Offset)); \
   }                                                             \
-  void DeoptimizationData::Set##name(int i, type* value) {      \
+  void DeoptimizationData::Set##name(int i, type value) {       \
     set(IndexForEntry(i) + k##name##Offset, value);             \
   }

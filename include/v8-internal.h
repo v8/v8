@@ -45,27 +45,14 @@ const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
 template <size_t tagged_ptr_size>
 struct SmiTagging;
 
-template <int kSmiShiftSize>
-V8_INLINE internal::Address IntToSmi(int value) {
-  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-  uintptr_t tagged_value =
-      (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
-  return static_cast<internal::Address>(tagged_value);
-}
-
 // Smi constants for systems where tagged pointer is a 32-bit value.
 template <>
 struct SmiTagging<4> {
   enum { kSmiShiftSize = 0, kSmiValueSize = 31 };
-  static int SmiShiftSize() { return kSmiShiftSize; }
-  static int SmiValueSize() { return kSmiValueSize; }
   V8_INLINE static int SmiToInt(const internal::Address value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Shift down (requires >> to be sign extending).
     return static_cast<int>(static_cast<intptr_t>(value)) >> shift_bits;
-  }
-  V8_INLINE static internal::Address IntToSmi(int value) {
-    return internal::IntToSmi<kSmiShiftSize>(value);
   }
   V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
     // To be representable as an tagged small integer, the two
@@ -87,15 +74,10 @@ struct SmiTagging<4> {
 template <>
 struct SmiTagging<8> {
   enum { kSmiShiftSize = 31, kSmiValueSize = 32 };
-  static int SmiShiftSize() { return kSmiShiftSize; }
-  static int SmiValueSize() { return kSmiValueSize; }
   V8_INLINE static int SmiToInt(const internal::Address value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Shift down and throw away top 32 bits.
     return static_cast<int>(static_cast<intptr_t>(value) >> shift_bits);
-  }
-  V8_INLINE static internal::Address IntToSmi(int value) {
-    return internal::IntToSmi<kSmiShiftSize>(value);
   }
   V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
     // To be representable as a long smi, the value must be a 32-bit integer.
@@ -118,6 +100,11 @@ const int kSmiMinValue = (static_cast<unsigned int>(-1)) << (kSmiValueSize - 1);
 const int kSmiMaxValue = -(kSmiMinValue + 1);
 constexpr bool SmiValuesAre31Bits() { return kSmiValueSize == 31; }
 constexpr bool SmiValuesAre32Bits() { return kSmiValueSize == 32; }
+
+V8_INLINE static constexpr internal::Address IntToSmi(int value) {
+  return (static_cast<Address>(value) << (kSmiTagSize + kSmiShiftSize)) |
+         kSmiTag;
+}
 
 /**
  * This class exports constants and functionality from within v8 that
@@ -201,8 +188,8 @@ class Internals {
     return PlatformSmiTagging::SmiToInt(value);
   }
 
-  V8_INLINE static internal::Address IntToSmi(int value) {
-    return PlatformSmiTagging::IntToSmi(value);
+  V8_INLINE static constexpr internal::Address IntToSmi(int value) {
+    return internal::IntToSmi(value);
   }
 
   V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {

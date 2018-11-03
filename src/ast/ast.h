@@ -16,6 +16,7 @@
 #include "src/isolate.h"
 #include "src/label.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/smi.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
 
@@ -1069,7 +1070,7 @@ class Literal final : public Expression {
     return string_;
   }
 
-  Smi* AsSmiLiteral() const {
+  Smi AsSmiLiteral() const {
     DCHECK_EQ(kSmi, type());
     return Smi::FromInt(smi_);
   }
@@ -1890,7 +1891,7 @@ class BinaryOperation final : public Expression {
 
   // Returns true if one side is a Smi literal, returning the other side's
   // sub-expression in |subexpr| and the literal Smi in |literal|.
-  bool IsSmiLiteralOperation(Expression** subexpr, Smi** literal);
+  bool IsSmiLiteralOperation(Expression** subexpr, Smi* literal);
 
  private:
   friend class AstNodeFactory;

@@ -107,7 +107,7 @@ class LayoutDescriptor : public ByteArray {
   V8_INLINE void set_layout_word(int index, uint32_t value);
 
   V8_INLINE static Handle<LayoutDescriptor> New(Isolate* isolate, int length);
-  V8_INLINE static LayoutDescriptor* FromSmi(Smi* smi);
+  V8_INLINE static LayoutDescriptor* FromSmi(Smi smi);
 
   V8_INLINE static bool InobjectUnboxedField(int inobject_properties,
                                              PropertyDetails details);

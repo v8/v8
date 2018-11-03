@@ -18,6 +18,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
 #include "src/unoptimized-compilation-info.h"
@@ -1644,7 +1645,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Set up loop counter
   Register index = register_allocator()->NewRegister();
-  builder()->LoadLiteral(Smi::kZero);
+  builder()->LoadLiteral(Smi::zero());
   builder()->StoreAccumulatorInRegister(index);
 
   // The loop
@@ -4237,7 +4238,7 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
   Expression* subexpr;
-  Smi* literal;
+  Smi literal;
   if (expr->IsSmiLiteralOperation(&subexpr, &literal)) {
     TypeHint type_hint = VisitForAccumulatorValue(subexpr);
     builder()->SetExpressionPosition(expr);

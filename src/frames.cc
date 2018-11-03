@@ -12,6 +12,7 @@
 #include "src/frames-inl.h"
 #include "src/ic/ic-stats.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
@@ -1236,7 +1237,7 @@ int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
 intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
   Address height_slot =
       fp() + BuiltinContinuationFrameConstants::kFrameSPtoFPDeltaAtDeoptimize;
-  intptr_t height = Smi::ToInt(*reinterpret_cast<Smi**>(height_slot));
+  intptr_t height = Smi::ToInt(Smi(Memory<Address>(height_slot)));
   return height;
 }
 

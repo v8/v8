@@ -21,6 +21,7 @@
 
 #include "src/double.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -980,7 +981,7 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
 }
 
 Handle<Object> BigInt::ToNumber(Isolate* isolate, Handle<BigInt> x) {
-  if (x->is_zero()) return Handle<Smi>(Smi::kZero, isolate);
+  if (x->is_zero()) return Handle<Smi>(Smi::zero(), isolate);
   if (x->length() == 1 && x->digit(0) < Smi::kMaxValue) {
     int value = static_cast<int>(x->digit(0));
     if (x->sign()) value = -value;

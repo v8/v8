@@ -819,7 +819,7 @@ class V8_EXPORT_PRIVATE Factory {
 #undef DECLARE_ERROR
 
   Handle<String> NumberToString(Handle<Object> number, bool check_cache = true);
-  Handle<String> NumberToString(Smi* number, bool check_cache = true);
+  Handle<String> NumberToString(Smi number, bool check_cache = true);
 
   inline Handle<String> Uint32ToString(uint32_t value, bool check_cache = true);
 

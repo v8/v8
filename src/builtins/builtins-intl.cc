@@ -27,6 +27,7 @@
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
+#include "src/objects/smi.h"
 #include "src/property-descriptor.h"
 
 #include "unicode/brkiter.h"
@@ -406,7 +407,7 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 
   // Spec treats -0 as 0.
   if (number_obj->IsMinusZero()) {
-    number_obj = Handle<Smi>(Smi::kZero, isolate);
+    number_obj = Handle<Smi>(Smi::zero(), isolate);
   }
 
   double number = number_obj->Number();

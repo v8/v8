@@ -101,7 +101,7 @@ class PrototypeUsers : public WeakArrayList {
   static const int kNoEmptySlotsMarker = 0;
 
  private:
-  static inline Smi* empty_slot_index(WeakArrayList* array);
+  static inline Smi empty_slot_index(WeakArrayList* array);
   static inline void set_empty_slot_index(WeakArrayList* array, int index);
 
   static void IsSlotEmpty(WeakArrayList* array, int index);

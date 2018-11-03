@@ -639,9 +639,12 @@ class DependentCode;
 class ElementsAccessor;
 class EnumCache;
 class FixedArrayBase;
-class PropertyArray;
+class FixedDoubleArray;
 class FunctionLiteral;
 class FunctionTemplateInfo;
+class JSGlobalProxy;
+class JSPromise;
+class JSProxy;
 class KeyAccumulator;
 class LayoutDescriptor;
 class LookupIterator;
@@ -654,12 +657,16 @@ class ObjectHashTable;
 class ObjectTemplateInfo;
 class ObjectVisitor;
 class PreParsedScopeData;
+class PropertyArray;
 class PropertyCell;
 class PropertyDescriptor;
+class RegExpMatchInfo;
 class RootVisitor;
 class SafepointEntry;
+class ScriptContextTable;
 class SharedFunctionInfo;
 class StringStream;
+class Symbol;
 class FeedbackCell;
 class FeedbackMetadata;
 class FeedbackVector;
@@ -667,6 +674,8 @@ class UncompiledData;
 class TemplateInfo;
 class TransitionArray;
 class TemplateList;
+class WasmInstanceObject;
+class WasmMemoryObject;
 template <typename T>
 class ZoneForwardList;
 
@@ -1050,6 +1059,32 @@ STRUCT_LIST(STRUCT_IS_TYPE_FUNCTION_DECL)
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };
 
+// TODO(3770): Get rid of this indirection when the migration is complete.
+typedef AbstractCode* AbstractCodeArgType;
+typedef ByteArray* ByteArrayArgType;
+typedef FixedArray* FixedArrayArgType;
+typedef FixedDoubleArray* FixedDoubleArrayArgType;
+typedef Foreign* ForeignArgType;
+typedef HeapObject* HeapObjectArgType;
+typedef JSArray* JSArrayArgType;
+typedef JSFunction* JSFunctionArgType;
+typedef JSGlobalProxy* JSGlobalProxyArgType;
+typedef JSObject* JSObjectArgType;
+typedef JSPromise* JSPromiseArgType;
+typedef JSProxy* JSProxyArgType;
+typedef Map* MapArgType;
+typedef Object* ObjectArgType;
+typedef RegExpMatchInfo* RegExpMatchInfoArgType;
+typedef ScriptContextTable* ScriptContextTableArgType;
+typedef SharedFunctionInfo* SharedFunctionInfoArgType;
+typedef SimpleNumberDictionary* SimpleNumberDictionaryArgType;
+typedef Smi SmiArgType;
+typedef String* StringArgType;
+typedef Symbol* SymbolArgType;
+typedef TemplateList* TemplateListArgType;
+typedef WasmInstanceObject* WasmInstanceObjectArgType;
+typedef WasmMemoryObject* WasmMemoryObjectArgType;
+
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
 // Object does not use any virtual functions to avoid the
@@ -1352,8 +1387,9 @@ class Object {
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
   // exists.
-  Smi* GetOrCreateHash(Isolate* isolate);
-  static Smi* GetOrCreateHash(Isolate* isolate, Object* key);
+  Smi GetOrCreateHash(Isolate* isolate);
+  // Returns a tagged Smi as a raw Address for ExternalReference usage.
+  static Address GetOrCreateHash(Isolate* isolate, Object* key);
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
@@ -1482,74 +1518,6 @@ struct Brief {
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Brief& v);
-
-// Smi represents integer Numbers that can be stored in 31 bits.
-// Smis are immediate which means they are NOT allocated in the heap.
-// The this pointer has the following format: [31 bit signed int] 0
-// For long smis it has the following format:
-//     [32 bit signed int] [31 bits zero padding] 0
-// Smi stands for small integer.
-class Smi: public Object {
- public:
-  // Returns the integer value.
-  inline int value() const {
-    return Internals::SmiValue(reinterpret_cast<Address>(this));
-  }
-  inline Smi* ToUint32Smi() {
-    if (value() <= 0) return Smi::kZero;
-    return Smi::FromInt(static_cast<uint32_t>(value()));
-  }
-
-  // Convert a Smi object to an int.
-  static inline int ToInt(const Object* object);
-
-  // Convert a value to a Smi object.
-  static inline Smi* FromInt(int value) {
-    DCHECK(Smi::IsValid(value));
-    return reinterpret_cast<Smi*>(Internals::IntToSmi(value));
-  }
-
-  static inline Smi* FromIntptr(intptr_t value) {
-    DCHECK(Smi::IsValid(value));
-    int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-    return reinterpret_cast<Smi*>((value << smi_shift_bits) | kSmiTag);
-  }
-
-  template <typename E,
-            typename = typename std::enable_if<std::is_enum<E>::value>::type>
-  static inline Smi* FromEnum(E value) {
-    STATIC_ASSERT(sizeof(E) <= sizeof(int));
-    return FromInt(static_cast<int>(value));
-  }
-
-  // Returns whether value can be represented in a Smi.
-  static inline bool IsValid(intptr_t value) {
-    bool result = Internals::IsValidSmi(value);
-    DCHECK_EQ(result, value >= kMinValue && value <= kMaxValue);
-    return result;
-  }
-
-  // Compare two Smis x, y as if they were converted to strings and then
-  // compared lexicographically. Returns:
-  // -1 if x < y.
-  //  0 if x == y.
-  //  1 if x > y.
-  static Smi* LexicographicCompare(Isolate* isolate, Smi* x, Smi* y);
-
-  DECL_CAST(Smi)
-
-  // Dispatched behavior.
-  V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT
-  DECL_VERIFIER(Smi)
-
-  static constexpr Smi* const kZero = nullptr;
-  static const int kMinValue = kSmiMinValue;
-  static const int kMaxValue = kSmiMaxValue;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Smi);
-};
-
 
 // Heap objects typically have a map pointer in their first word.  However,
 // during GC other data (e.g. mark bits, forwarding addresses) is sometimes

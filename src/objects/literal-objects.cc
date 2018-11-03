@@ -11,6 +11,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -357,7 +358,7 @@ class ObjectDescriptor {
   void AddNamedProperty(Isolate* isolate, Handle<Name> name,
                         ClassBoilerplate::ValueKind value_kind,
                         int value_index) {
-    Smi* value = Smi::FromInt(value_index);
+    Smi value = Smi::FromInt(value_index);
     if (HasDictionaryProperties()) {
       UpdateNextEnumerationIndex(value_index);
       AddToDictionaryTemplate(isolate, properties_dictionary_template_, name,
@@ -372,7 +373,7 @@ class ObjectDescriptor {
   void AddIndexedProperty(Isolate* isolate, uint32_t element,
                           ClassBoilerplate::ValueKind value_kind,
                           int value_index) {
-    Smi* value = Smi::FromInt(value_index);
+    Smi value = Smi::FromInt(value_index);
     AddToDictionaryTemplate(isolate, elements_dictionary_template_, element,
                             value_index, value_kind, value);
   }

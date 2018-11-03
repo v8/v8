@@ -1571,7 +1571,7 @@ void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
   }
 }
 
-void TurboAssembler::Move(Register dst, Smi* src) { Mov(dst, src); }
+void TurboAssembler::Move(Register dst, Smi src) { Mov(dst, src); }
 
 void TurboAssembler::Swap(Register lhs, Register rhs) {
   DCHECK(lhs.IsSameSizeAndType(rhs));

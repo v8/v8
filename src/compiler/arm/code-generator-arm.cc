@@ -3096,7 +3096,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
       __ ldr(r2, FieldMemOperand(kWasmInstanceRegister,
                                  WasmInstanceObject::kCEntryStubOffset));
-      __ Move(cp, Smi::kZero);
+      __ Move(cp, Smi::zero());
       __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, r2);
       // We come from WebAssembly, there are no references for the GC.
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());

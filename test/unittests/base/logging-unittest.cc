@@ -6,6 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/objects.h"
+#include "src/objects/smi.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {

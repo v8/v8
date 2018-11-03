@@ -48,6 +48,7 @@
 #include "src/double.h"
 #include "src/external-reference.h"
 #include "src/label.h"
+#include "src/objects/smi.h"
 #include "src/ppc/constants-ppc.h"
 
 #if V8_HOST_ARCH_PPC && \
@@ -378,8 +379,8 @@ class Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi* value) : rmode_(RelocInfo::NONE) {
-    value_.immediate = reinterpret_cast<intptr_t>(value);
+  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NONE) {
+    value_.immediate = static_cast<intptr_t>(value.ptr());
   }
   // rm
   V8_INLINE explicit Operand(Register rm);

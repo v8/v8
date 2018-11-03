@@ -1667,7 +1667,7 @@ void PrototypeUsers::Verify(WeakArrayList* array) {
   while (empty_slot != kNoEmptySlotsMarker) {
     CHECK_GT(empty_slot, 0);
     CHECK_LT(empty_slot, array->length());
-    empty_slot = Smi::ToInt(array->Get(empty_slot)->cast<Smi>());
+    empty_slot = array->Get(empty_slot).ToSmi().value();
     ++empty_slots_count;
   }
 

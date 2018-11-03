@@ -184,6 +184,12 @@ struct MachineRepresentationOf<
 };
 template <class T>
 struct MachineRepresentationOf<
+    T, typename std::enable_if<std::is_base_of<ObjectPtr, T>::value>::type> {
+  static const MachineRepresentation value =
+      MachineTypeOf<T>::value.representation();
+};
+template <class T>
+struct MachineRepresentationOf<
     T, typename std::enable_if<std::is_base_of<MaybeObject, T>::value>::type> {
   static const MachineRepresentation value =
       MachineTypeOf<T>::value.representation();
@@ -197,6 +203,7 @@ struct is_valid_type_tag {
                             std::is_base_of<MaybeObject, T>::value ||
                             std::is_same<ExternalReference, T>::value;
   static const bool is_tagged = std::is_base_of<Object, T>::value ||
+                                std::is_base_of<ObjectPtr, T>::value ||
                                 std::is_base_of<MaybeObject, T>::value;
 };
 
@@ -299,7 +306,8 @@ HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
 
-Smi* CheckObjectType(Object* value, Smi* type, String* location);
+// {raw_type} must be a tagged Smi. The return value is also a tagged Smi.
+Address CheckObjectType(Object* value, Address raw_type, String* location);
 
 namespace compiler {
 
@@ -326,6 +334,11 @@ struct is_subtype {
   static const bool value = std::is_base_of<U, T>::value ||
                             (std::is_base_of<U, HeapObject>::value &&
                              std::is_base_of<HeapObjectPtr, T>::value);
+};
+// TODO(3770): Temporary; remove after migration.
+template <>
+struct is_subtype<Smi, Object> {
+  static const bool value = true;
 };
 template <class T1, class T2, class U>
 struct is_subtype<UnionT<T1, T2>, U> {
@@ -736,7 +749,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return Unsigned(IntPtrConstant(bit_cast<intptr_t>(value)));
   }
   TNode<Number> NumberConstant(double value);
-  TNode<Smi> SmiConstant(Smi* value);
+  TNode<Smi> SmiConstant(Smi value);
   TNode<Smi> SmiConstant(int value);
   template <typename E,
             typename = typename std::enable_if<std::is_enum<E>::value>::type>
@@ -764,9 +777,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return value ? Int32TrueConstant() : Int32FalseConstant();
   }
 
+  // TODO(jkummerow): The style guide wants pointers for output parameters.
+  // https://google.github.io/styleguide/cppguide.html#Output_Parameters
   bool ToInt32Constant(Node* node, int32_t& out_value);
   bool ToInt64Constant(Node* node, int64_t& out_value);
-  bool ToSmiConstant(Node* node, Smi*& out_value);
+  bool ToSmiConstant(Node* node, Smi* out_value);
   bool ToIntPtrConstant(Node* node, intptr_t& out_value);
 
   bool IsUndefinedConstant(TNode<Object> node);
@@ -917,10 +932,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         WordAnd(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
 
+  // TODO(3770): Drop ObjectPtr when the transition is done.
   template <class Left, class Right,
             class = typename std::enable_if<
-                std::is_base_of<Object, Left>::value &&
-                std::is_base_of<Object, Right>::value>::type>
+                (std::is_base_of<Object, Left>::value ||
+                 std::is_base_of<ObjectPtr, Left>::value) &&
+                (std::is_base_of<Object, Right>::value ||
+                 std::is_base_of<ObjectPtr, Right>::value)>::type>
   TNode<BoolT> WordEqual(TNode<Left> left, TNode<Right> right) {
     return WordEqual(ReinterpretCast<WordT>(left),
                      ReinterpretCast<WordT>(right));
@@ -935,8 +953,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
   template <class Left, class Right,
             class = typename std::enable_if<
-                std::is_base_of<Object, Left>::value &&
-                std::is_base_of<Object, Right>::value>::type>
+                (std::is_base_of<Object, Left>::value ||
+                 std::is_base_of<ObjectPtr, Left>::value) &&
+                (std::is_base_of<Object, Right>::value ||
+                 std::is_base_of<ObjectPtr, Right>::value)>::type>
   TNode<BoolT> WordNotEqual(TNode<Left> left, TNode<Right> right) {
     return WordNotEqual(ReinterpretCast<WordT>(left),
                         ReinterpretCast<WordT>(right));

@@ -291,19 +291,19 @@ class RootVisitor;
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
-  V(Smi*, stack_limit, StackLimit)                                             \
-  V(Smi*, real_stack_limit, RealStackLimit)                                    \
-  V(Smi*, last_script_id, LastScriptId)                                        \
-  V(Smi*, last_debugging_id, LastDebuggingId)                                  \
+  V(Smi, stack_limit, StackLimit)                                              \
+  V(Smi, real_stack_limit, RealStackLimit)                                     \
+  V(Smi, last_script_id, LastScriptId)                                         \
+  V(Smi, last_debugging_id, LastDebuggingId)                                   \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
-  V(Smi*, next_template_serial_number, NextTemplateSerialNumber)               \
-  V(Smi*, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)    \
-  V(Smi*, construct_stub_create_deopt_pc_offset,                               \
+  V(Smi, next_template_serial_number, NextTemplateSerialNumber)                \
+  V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
+  V(Smi, construct_stub_create_deopt_pc_offset,                                \
     ConstructStubCreateDeoptPCOffset)                                          \
-  V(Smi*, construct_stub_invoke_deopt_pc_offset,                               \
+  V(Smi, construct_stub_invoke_deopt_pc_offset,                                \
     ConstructStubInvokeDeoptPCOffset)                                          \
-  V(Smi*, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
+  V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
 
 // Adapts one INTERNALIZED_STRING_LIST_GENERATOR entry to
 // the ROOT_LIST-compatible entry

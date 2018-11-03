@@ -11,6 +11,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
@@ -3323,7 +3324,7 @@ void CodeGenerator::AssembleConstructFrame() {
       }
       __ movp(rcx, FieldOperand(kWasmInstanceRegister,
                                 WasmInstanceObject::kCEntryStubOffset));
-      __ Move(rsi, Smi::kZero);
+      __ Move(rsi, Smi::zero());
       __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, rcx);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple, 0,

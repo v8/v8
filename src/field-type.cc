@@ -6,6 +6,7 @@
 
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -15,12 +16,12 @@ namespace internal {
 FieldType* FieldType::None() {
   // Do not Smi::kZero here or for Any(), as that may translate
   // as `nullptr` which is not a valid value for `this`.
-  return reinterpret_cast<FieldType*>(Smi::FromInt(2));
+  return reinterpret_cast<FieldType*>(Smi::FromInt(2).ptr());
 }
 
 // static
 FieldType* FieldType::Any() {
-  return reinterpret_cast<FieldType*>(Smi::FromInt(1));
+  return reinterpret_cast<FieldType*>(Smi::FromInt(1).ptr());
 }
 
 // static

@@ -42,6 +42,7 @@
 #include "src/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -213,8 +214,8 @@ Operand::Operand(const ExternalReference& f)
   value_.immediate = static_cast<int32_t>(f.address());
 }
 
-Operand::Operand(Smi* value) : rmode_(RelocInfo::NONE) {
-  value_.immediate = reinterpret_cast<intptr_t>(value);
+Operand::Operand(Smi value) : rmode_(RelocInfo::NONE) {
+  value_.immediate = static_cast<intptr_t>(value.ptr());
 }
 
 Operand::Operand(Register rm) : rm_(rm), shift_op_(LSL), shift_imm_(0) {}

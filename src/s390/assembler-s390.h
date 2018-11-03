@@ -53,6 +53,7 @@
 #include "src/assembler.h"
 #include "src/external-reference.h"
 #include "src/label.h"
+#include "src/objects/smi.h"
 #include "src/s390/constants-s390.h"
 
 #define ABI_USES_FUNCTION_DESCRIPTORS 0
@@ -362,8 +363,8 @@ class Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi* value) : rmode_(RelocInfo::NONE) {
-    value_.immediate = reinterpret_cast<intptr_t>(value);
+  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NONE) {
+    value_.immediate = static_cast<intptr_t>(value.ptr());
   }
 
   // rm

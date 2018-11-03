@@ -11,6 +11,7 @@
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -26,7 +27,7 @@ TransitionArray* TransitionsAccessor::transitions() {
 CAST_ACCESSOR(TransitionArray)
 
 bool TransitionArray::HasPrototypeTransitions() {
-  return Get(kPrototypeTransitionsIndex) != MaybeObject::FromSmi(Smi::kZero);
+  return Get(kPrototypeTransitionsIndex) != MaybeObject::FromSmi(Smi::zero());
 }
 
 WeakFixedArray* TransitionArray::GetPrototypeTransitions() {
@@ -52,7 +53,7 @@ int TransitionArray::NumberOfPrototypeTransitions(
   if (proto_transitions->length() == 0) return 0;
   MaybeObject raw =
       proto_transitions->Get(kProtoTransitionNumberOfEntriesOffset);
-  return Smi::ToInt(raw->cast<Smi>());
+  return raw.ToSmi().value();
 }
 
 Name* TransitionArray::GetKey(int transition_number) {
@@ -174,7 +175,7 @@ int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
 
 int TransitionArray::number_of_transitions() const {
   if (length() < kFirstIndex) return 0;
-  return Smi::ToInt(Get(kTransitionLengthIndex)->cast<Smi>());
+  return Get(kTransitionLengthIndex).ToSmi().value();
 }
 
 int TransitionArray::CompareKeys(Name* key1, uint32_t hash1, PropertyKind kind1,

@@ -60,6 +60,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
@@ -1190,9 +1191,8 @@ static void* DecodeSmiToAligned(i::Object* value, const char* location) {
   return reinterpret_cast<void*>(value);
 }
 
-
-static i::Smi* EncodeAlignedAsSmi(void* value, const char* location) {
-  i::Smi* smi = reinterpret_cast<i::Smi*>(value);
+static i::Smi EncodeAlignedAsSmi(void* value, const char* location) {
+  i::Smi smi(reinterpret_cast<i::Address>(value));
   Utils::ApiCheck(smi->IsSmi(), location, "Pointer is not aligned");
   return smi;
 }
@@ -9133,7 +9133,7 @@ std::vector<int> debug::Script::LineEnds() const {
                                      isolate);
   std::vector<int> result(line_ends->length());
   for (int i = 0; i < line_ends->length(); ++i) {
-    i::Smi* line_end = i::Smi::cast(line_ends->get(i));
+    i::Smi line_end = i::Smi::cast(line_ends->get(i));
     result[i] = line_end->value();
   }
   return result;

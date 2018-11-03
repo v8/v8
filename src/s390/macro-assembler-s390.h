@@ -202,7 +202,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Call(Label* target);
 
   // Register move. May do nothing if the registers are identical.
-  void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
+  void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value);
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
@@ -552,7 +552,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push a handle.
   void Push(Handle<HeapObject> handle);
-  void Push(Smi* smi);
+  void Push(Smi smi);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -750,7 +750,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadIntLiteral(Register dst, int value);
 
   // load an SMI value <value> to GPR <dst>
-  void LoadSmiLiteral(Register dst, Smi* smi);
+  void LoadSmiLiteral(Register dst, Smi smi);
 
   // load a literal double value <value> to FPR <result>
   void LoadDoubleLiteral(DoubleRegister result, double value, Register scratch);
@@ -770,13 +770,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Register scratch = r0);
   void StoreByte(Register src, const MemOperand& mem, Register scratch = r0);
 
-  void AddSmiLiteral(Register dst, Register src, Smi* smi,
+  void AddSmiLiteral(Register dst, Register src, Smi smi,
                      Register scratch = r0);
-  void SubSmiLiteral(Register dst, Register src, Smi* smi,
+  void SubSmiLiteral(Register dst, Register src, Smi smi,
                      Register scratch = r0);
-  void CmpSmiLiteral(Register src1, Smi* smi, Register scratch);
-  void CmpLogicalSmiLiteral(Register src1, Smi* smi, Register scratch);
-  void AndSmiLiteral(Register dst, Register src, Smi* smi);
+  void CmpSmiLiteral(Register src1, Smi smi, Register scratch);
+  void CmpLogicalSmiLiteral(Register src1, Smi smi, Register scratch);
+  void AndSmiLiteral(Register dst, Register src, Smi smi);
 
   // Set new rounding mode RN to FPSCR
   void SetRoundingMode(FPRoundingMode RN);

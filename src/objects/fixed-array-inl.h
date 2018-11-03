@@ -84,10 +84,10 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return get(index)->IsTheHole(isolate);
 }
 
-void FixedArray::set(int index, Smi* value) {
+void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(index, this->length());
-  DCHECK(reinterpret_cast<Object*>(value)->IsSmi());
+  DCHECK(ObjectPtr(value).IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
 }

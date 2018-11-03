@@ -881,7 +881,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     if (nof_transitions > 0) {
       os << "\n - transitions #" << nof_transitions << ": ";
       HeapObject* heap_object;
-      Smi* smi;
+      Smi smi;
       if (raw_transitions()->ToSmi(&smi)) {
         os << Brief(smi);
       } else if (raw_transitions()->GetHeapObject(&heap_object)) {
@@ -2291,7 +2291,7 @@ void MaybeObject::Print() {
 }
 
 void MaybeObject::Print(std::ostream& os) {
-  Smi* smi;
+  Smi smi;
   HeapObject* heap_object;
   if (ToSmi(&smi)) {
     smi->SmiPrint(os);

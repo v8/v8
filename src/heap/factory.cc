@@ -1353,8 +1353,8 @@ Handle<NativeContext> Factory::NewNativeContext() {
   Handle<NativeContext> context = NewFixedArrayWithMap<NativeContext>(
       RootIndex::kNativeContextMap, Context::NATIVE_CONTEXT_SLOTS, TENURED);
   context->set_native_context(*context);
-  context->set_errors_thrown(Smi::kZero);
-  context->set_math_random_index(Smi::kZero);
+  context->set_errors_thrown(Smi::zero());
+  context->set_math_random_index(Smi::zero());
   context->set_serialized_objects(*empty_fixed_array());
   return context;
 }
@@ -1783,7 +1783,7 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
   Handle<PropertyCell> cell(PropertyCell::cast(result), isolate());
   cell->set_dependent_code(DependentCode::cast(*empty_weak_fixed_array()),
                            SKIP_WRITE_BARRIER);
-  cell->set_property_details(PropertyDetails(Smi::kZero));
+  cell->set_property_details(PropertyDetails(Smi::zero()));
   cell->set_name(*name);
   cell->set_value(*the_hole_value());
   return cell;
@@ -1859,7 +1859,7 @@ Map* Factory::InitializeMap(Map* map, InstanceType type, int instance_size,
   }
   map->set_dependent_code(DependentCode::cast(*empty_weak_fixed_array()),
                           SKIP_WRITE_BARRIER);
-  map->set_raw_transitions(MaybeObject::FromSmi(Smi::kZero));
+  map->set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map->SetInObjectUnusedPropertyFields(inobject_properties);
   map->set_instance_descriptors(*empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
@@ -3458,7 +3458,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
     // Set pointer fields.
     share->set_name_or_scope_info(
-        has_shared_name ? *shared_name
+        has_shared_name ? Object::cast(*shared_name)
                         : SharedFunctionInfo::kNoSharedNameSentinel);
     Handle<HeapObject> function_data;
     if (maybe_function_data.ToHandle(&function_data)) {
@@ -3515,7 +3515,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 }
 
 namespace {
-inline int NumberToStringCacheHash(Handle<FixedArray> cache, Smi* number) {
+inline int NumberToStringCacheHash(Handle<FixedArray> cache, Smi number) {
   int mask = (cache->length() >> 1) - 1;
   return number->value() & mask;
 }
@@ -3584,7 +3584,7 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
   return NumberToStringCacheSet(number, hash, string, check_cache);
 }
 
-Handle<String> Factory::NumberToString(Smi* number, bool check_cache) {
+Handle<String> Factory::NumberToString(Smi number, bool check_cache) {
   int hash = 0;
   if (check_cache) {
     hash = NumberToStringCacheHash(number_string_cache(), number);
@@ -3806,7 +3806,7 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
                                     JSRegExp::Type type, Handle<String> source,
                                     JSRegExp::Flags flags, int capture_count) {
   Handle<FixedArray> store = NewFixedArray(JSRegExp::kIrregexpDataSize);
-  Smi* uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
+  Smi uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
   store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
   store->set(JSRegExp::kSourceIndex, *source);
   store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));

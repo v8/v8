@@ -44,6 +44,7 @@
 #include "src/ia32/sse-instr.h"
 #include "src/isolate.h"
 #include "src/label.h"
+#include "src/objects/smi.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -218,8 +219,8 @@ class Immediate {
       : Immediate(ext.address(), RelocInfo::EXTERNAL_REFERENCE) {}
   inline explicit Immediate(Handle<HeapObject> handle)
       : Immediate(handle.address(), RelocInfo::EMBEDDED_OBJECT) {}
-  inline explicit Immediate(Smi* value)
-      : Immediate(reinterpret_cast<intptr_t>(value)) {}
+  inline explicit Immediate(Smi value)
+      : Immediate(static_cast<intptr_t>(value.ptr())) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Immediate EmbeddedCode(CodeStub* code);

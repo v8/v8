@@ -11,6 +11,7 @@
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/smi-inl.h"
 #include "src/string-hasher-inl.h"
 
 // Has to be the last include (doesn't have include guards):

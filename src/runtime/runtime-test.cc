@@ -16,6 +16,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
+#include "src/objects/smi.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
@@ -553,16 +554,8 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   if (maybe_object->IsCleared()) {
     os << "[weak cleared]";
   } else {
-    Object* object;
-    HeapObject* heap_object;
-    bool weak = false;
-    if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
-      weak = true;
-      object = heap_object;
-    } else {
-      // Strong reference or SMI.
-      object = maybe_object->cast<Object>();
-    }
+    Object* object = maybe_object.GetHeapObjectOrSmi();
+    bool weak = maybe_object.IsWeak();
 
 #ifdef DEBUG
     if (object->IsString() && isolate->context() != nullptr) {
@@ -1070,7 +1063,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   CONVERT_ARG_CHECKED(Smi, info_addr, 0);
 
   wasm::MemoryTracingInfo* info =
-      reinterpret_cast<wasm::MemoryTracingInfo*>(info_addr);
+      reinterpret_cast<wasm::MemoryTracingInfo*>(info_addr.ptr());
 
   // Find the caller wasm frame.
   StackTraceFrameIterator it(isolate);

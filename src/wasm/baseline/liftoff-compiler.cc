@@ -11,6 +11,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/macro-assembler-inl.h"
+#include "src/objects/smi.h"
 #include "src/tracing/trace-event.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -1473,8 +1474,9 @@ class LiftoffCompiler {
       stack_slots.Construct();
     }
 
-    // Set context to zero (Smi::kZero) for the runtime call.
-    __ TurboAssembler::Move(kContextRegister, Smi::kZero);
+    // Set context to "no context" for the runtime call.
+    __ TurboAssembler::Move(kContextRegister,
+                            Smi::FromInt(Context::kNoContext));
     Register centry = kJavaScriptCallCodeStartRegister;
     LOAD_INSTANCE_FIELD(centry, CEntryStub, kPointerSize);
     __ CallRuntimeWithCEntry(runtime_function, centry);

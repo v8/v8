@@ -44,6 +44,7 @@
 #include "src/external-reference.h"
 #include "src/label.h"
 #include "src/mips64/constants-mips64.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -408,9 +409,8 @@ class Operand {
   }
   V8_INLINE explicit Operand(const char* s);
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi* value)
-      : rm_(no_reg), rmode_(RelocInfo::NONE) {
-    value_.immediate = reinterpret_cast<intptr_t>(value);
+  V8_INLINE explicit Operand(Smi value) : rm_(no_reg), rmode_(RelocInfo::NONE) {
+    value_.immediate = static_cast<intptr_t>(value.ptr());
   }
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.

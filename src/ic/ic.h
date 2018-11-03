@@ -14,6 +14,7 @@
 #include "src/message-template.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {

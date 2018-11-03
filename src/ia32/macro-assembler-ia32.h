@@ -113,7 +113,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Move a constant into a destination using the most efficient encoding.
   void Move(Register dst, const Immediate& src);
-  void Move(Register dst, Smi* src) { Move(dst, Immediate(src)); }
+  void Move(Register dst, Smi src) { Move(dst, Immediate(src)); }
   void Move(Register dst, Handle<HeapObject> src);
   void Move(Register dst, Register src);
   void Move(Operand dst, const Immediate& src);
@@ -420,7 +420,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Push(Operand src) { push(src); }
   void Push(Immediate value);
   void Push(Handle<HeapObject> handle) { push(Immediate(handle)); }
-  void Push(Smi* smi) { Push(Immediate(smi)); }
+  void Push(Smi smi) { Push(Immediate(smi)); }
 
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
