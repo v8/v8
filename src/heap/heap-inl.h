@@ -503,8 +503,7 @@ bool Heap::ShouldBePromoted(Address old_address) {
 }
 
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
-  CopyWords(reinterpret_cast<Object**>(dst), reinterpret_cast<Object**>(src),
-            static_cast<size_t>(byte_size / kPointerSize));
+  CopyWords(dst, src, static_cast<size_t>(byte_size / kPointerSize));
 }
 
 template <Heap::FindMementoMode mode>

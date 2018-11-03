@@ -293,8 +293,7 @@ static void CopyDoubleToDoubleElements(FixedArrayBase* from_base,
   to_address += kDoubleSize * to_start;
   from_address += kDoubleSize * from_start;
   int words_per_double = (kDoubleSize / kPointerSize);
-  CopyWords(reinterpret_cast<Address*>(to_address),
-            reinterpret_cast<Address*>(from_address),
+  CopyWords(to_address, from_address,
             static_cast<size_t>(words_per_double * copy_size));
 }
 

@@ -1114,50 +1114,28 @@ int WriteAsCFile(const char* filename, const char* varname,
 // Memory
 
 // Copies words from |src| to |dst|. The data spans must not overlap.
-template <typename T>
-inline void CopyWords(T* dst, const T* src, size_t num_words) {
-  STATIC_ASSERT(sizeof(T) == kPointerSize);
-  DCHECK(Min(dst, const_cast<T*>(src)) + num_words <=
-         Max(dst, const_cast<T*>(src)));
+// |src| and |dst| must be kPointerSize-aligned.
+inline void CopyWords(Address dst, const Address src, size_t num_words) {
+  DCHECK(IsAligned(dst, kPointerSize));
+  DCHECK(IsAligned(src, kPointerSize));
+  DCHECK(Min(dst, src) + num_words * kPointerSize <= Max(dst, src));
   DCHECK_GT(num_words, 0);
 
   // Use block copying MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const size_t kBlockCopyLimit = 16;
 
+  Address* dst_ptr = reinterpret_cast<Address*>(dst);
+  Address* src_ptr = reinterpret_cast<Address*>(src);
   if (num_words < kBlockCopyLimit) {
     do {
       num_words--;
-      *dst++ = *src++;
+      *dst_ptr++ = *src_ptr++;
     } while (num_words > 0);
   } else {
-    MemCopy(dst, src, num_words * kPointerSize);
+    MemCopy(dst_ptr, src_ptr, num_words * kPointerSize);
   }
 }
-
-
-// Copies words from |src| to |dst|. No restrictions.
-template <typename T>
-inline void MoveWords(T* dst, const T* src, size_t num_words) {
-  STATIC_ASSERT(sizeof(T) == kPointerSize);
-  DCHECK_GT(num_words, 0);
-
-  // Use block copying MemCopy if the segment we're copying is
-  // enough to justify the extra call/setup overhead.
-  static const size_t kBlockCopyLimit = 16;
-
-  if (num_words < kBlockCopyLimit &&
-      ((dst < src) || (dst >= (src + num_words * kPointerSize)))) {
-    T* end = dst + num_words;
-    do {
-      num_words--;
-      *dst++ = *src++;
-    } while (num_words > 0);
-  } else {
-    MemMove(dst, src, num_words * kPointerSize);
-  }
-}
-
 
 // Copies data from |src| to |dst|.  The data spans must not overlap.
 template <typename T>
