@@ -222,6 +222,27 @@ module array {
     assert(IsValidPositiveSmi(buffer.totalStringLength));
     if (buffer.totalStringLength == 0) return kEmptyString;
 
+    // Fast path when there's only one buffer element.
+    if (buffer.index == 1) {
+      const fixedArray: FixedArray = buffer.fixedArray;
+      typeswitch (fixedArray[0]) {
+        // When the element is a string, just return it and completely avoid
+        // allocating another string.
+        case (str: String): {
+          return str;
+        }
+
+        // When the element is a smi, use StringRepeat to quickly build a memory
+        // efficient separator repeated string.
+        case (nofSeparators: Number): {
+          return StringRepeat(context, sep, nofSeparators);
+        }
+        case (obj: Object): {
+          unreachable;
+        }
+      }
+    }
+
     const length: uint32 = Convert<uint32>(Unsigned(buffer.totalStringLength));
     const r: String = buffer.isOneByte ? AllocateSeqOneByteString(length) :
                                          AllocateSeqTwoByteString(length);
