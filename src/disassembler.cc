@@ -132,12 +132,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
     RootIndex root_index =
         static_cast<RootIndex>(offset_in_roots_table / kPointerSize);
 
-    HeapStringAllocator allocator;
-    StringStream accumulator(&allocator);
-    isolate_->root(root_index)->ShortPrint(&accumulator);
-    std::unique_ptr<char[]> obj_name = accumulator.ToCString();
-
-    SNPrintF(v8_buffer_, "root (%s)", obj_name.get());
+    SNPrintF(v8_buffer_, "root (%s)", RootsTable::name(root_index));
     return v8_buffer_.start();
 
   } else if (static_cast<unsigned>(offset - kExtRefsTableStart) <
