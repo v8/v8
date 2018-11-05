@@ -63,9 +63,11 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
             outer_parse_info->zone(), script_scope, FUNCTION_SCOPE);
     function_scope->set_start_position(shared->StartPosition());
     function_scope->set_end_position(shared->EndPosition());
+    std::vector<void*> buffer;
+    ScopedPtrList<Statement> statements(&buffer);
     const FunctionLiteral* function_literal =
         ast_node_factory.NewFunctionLiteral(
-            function_name, function_scope, nullptr, -1, -1, -1,
+            function_name, function_scope, statements, -1, -1, -1,
             FunctionLiteral::kNoDuplicateParameters,
             FunctionLiteral::kAnonymousExpression,
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,

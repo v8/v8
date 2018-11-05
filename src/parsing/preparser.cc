@@ -82,8 +82,8 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   FunctionState top_scope(&function_state_, &scope_, scope);
   original_scope_ = scope_;
   int start_position = scanner()->peek_location().beg_pos;
-  PreParserStatementList body;
-  ParseStatementList(body, Token::EOS);
+  PreParserScopedStatementList body(pointer_buffer());
+  ParseStatementList(&body, Token::EOS);
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (is_strict(language_mode())) {
@@ -299,10 +299,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   Expect(Token::LBRACE);
 
   // Parse function body.
-  PreParserStatementList body;
+  PreParserScopedStatementList body(pointer_buffer());
   int pos = function_token_pos == kNoSourcePosition ? peek_position()
                                                     : function_token_pos;
-  ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
+  ParseFunctionBody(&body, function_name, pos, formals, kind, function_type,
                     FunctionBodyType::kBlock, true);
 
   // Parsing the body may change the language mode in our scope.
@@ -348,8 +348,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
 PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
     PreParserFormalParameters* formals, bool may_abort) {
-  PreParserStatementList body;
-  LazyParsingResult result = ParseStatementList(body, Token::RBRACE, may_abort);
+  PreParserScopedStatementList body(pointer_buffer());
+  LazyParsingResult result =
+      ParseStatementList(&body, Token::RBRACE, may_abort);
   if (result == kLazyParsingAborted) return result;
 
   // Position right after terminal '}'.

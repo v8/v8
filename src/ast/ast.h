@@ -316,6 +316,12 @@ class Block : public BreakableStatement {
   Scope* scope() const { return scope_; }
   void set_scope(Scope* scope) { scope_ = scope; }
 
+  void InitializeStatements(const ScopedPtrList<Statement>& statements,
+                            Zone* zone) {
+    DCHECK_EQ(0, statements_.length());
+    statements.CopyTo(&statements_, zone);
+  }
+
  private:
   friend class AstNodeFactory;
 
@@ -336,6 +342,9 @@ class Block : public BreakableStatement {
     bit_field_ |= IgnoreCompletionField::encode(ignore_completion_value) |
                   IsLabeledField::encode(labels != nullptr);
   }
+
+  Block(ZonePtrList<const AstRawString>* labels, bool ignore_completion_value)
+      : Block(nullptr, labels, 0, ignore_completion_value) {}
 };
 
 class LabeledBlock final : public Block {
@@ -350,6 +359,10 @@ class LabeledBlock final : public Block {
     DCHECK_NOT_NULL(labels);
     DCHECK_GT(labels->length(), 0);
   }
+
+  LabeledBlock(ZonePtrList<const AstRawString>* labels,
+               bool ignore_completion_value)
+      : LabeledBlock(nullptr, labels, 0, ignore_completion_value) {}
 
   ZonePtrList<const AstRawString>* labels_;
 };
@@ -2277,7 +2290,7 @@ class FunctionLiteral final : public Expression {
   const AstConsString* raw_name() const { return raw_name_; }
   void set_raw_name(const AstConsString* name) { raw_name_ = name; }
   DeclarationScope* scope() const { return scope_; }
-  ZonePtrList<Statement>* body() { return body_; }
+  ZonePtrList<Statement>* body() { return &body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
   int function_token_position() const { return function_token_position_; }
   int start_position() const;
@@ -2302,7 +2315,7 @@ class FunctionLiteral final : public Expression {
 
   int expected_property_count() {
     // Not valid for lazy functions.
-    DCHECK_NOT_NULL(body_);
+    DCHECK(ShouldEagerCompile());
     return expected_property_count_;
   }
   int parameter_count() { return parameter_count_; }
@@ -2342,7 +2355,7 @@ class FunctionLiteral final : public Expression {
 
   bool has_duplicate_parameters() const {
     // Not valid for lazy functions.
-    DCHECK_NOT_NULL(body_);
+    DCHECK(ShouldEagerCompile());
     return HasDuplicateParameters::decode(bit_field_);
   }
 
@@ -2403,7 +2416,7 @@ class FunctionLiteral final : public Expression {
 
   FunctionLiteral(
       Zone* zone, const AstRawString* name, AstValueFactory* ast_value_factory,
-      DeclarationScope* scope, ZonePtrList<Statement>* body,
+      DeclarationScope* scope, const ScopedPtrList<Statement>& body,
       int expected_property_count, int parameter_count, int function_length,
       FunctionType function_type, ParameterFlag has_duplicate_parameters,
       EagerCompileHint eager_compile_hint, int position, bool has_braces,
@@ -2418,7 +2431,7 @@ class FunctionLiteral final : public Expression {
         function_literal_id_(function_literal_id),
         raw_name_(name ? ast_value_factory->NewConsString(name) : nullptr),
         scope_(scope),
-        body_(body),
+        body_(0, nullptr),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
         produced_preparsed_scope_data_(produced_preparsed_scope_data) {
     bit_field_ |= FunctionTypeBits::encode(function_type) |
@@ -2429,7 +2442,7 @@ class FunctionLiteral final : public Expression {
                   RequiresInstanceFieldsInitializer::encode(false) |
                   HasBracesField::encode(has_braces) | IIFEBit::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
-    DCHECK_EQ(body == nullptr, expected_property_count < 0);
+    body.CopyTo(&body_, zone);
   }
 
   class FunctionTypeBits
@@ -2453,7 +2466,7 @@ class FunctionLiteral final : public Expression {
 
   const AstConsString* raw_name_;
   DeclarationScope* scope_;
-  ZonePtrList<Statement>* body_;
+  ZonePtrList<Statement> body_;
   const AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
   ProducedPreParsedScopeData* produced_preparsed_scope_data_;
@@ -2902,13 +2915,22 @@ class AstNodeFactory final {
         FunctionDeclaration(proxy, fun, is_sloppy_block_function, pos);
   }
 
-  Block* NewBlock(int capacity, bool ignore_completion_value,
-                  ZonePtrList<const AstRawString>* labels = nullptr) {
+  Block* NewBlock(int capacity, bool ignore_completion_value) {
+    return new (zone_) Block(zone_, nullptr, capacity, ignore_completion_value);
+  }
+
+  Block* NewBlock(bool ignore_completion_value,
+                  ZonePtrList<const AstRawString>* labels) {
     return labels != nullptr
-               ? new (zone_) LabeledBlock(zone_, labels, capacity,
-                                          ignore_completion_value)
-               : new (zone_)
-                     Block(zone_, labels, capacity, ignore_completion_value);
+               ? new (zone_) LabeledBlock(labels, ignore_completion_value)
+               : new (zone_) Block(labels, ignore_completion_value);
+  }
+
+  Block* NewBlock(bool ignore_completion_value,
+                  const ScopedPtrList<Statement>& statements) {
+    Block* result = NewBlock(ignore_completion_value, nullptr);
+    result->InitializeStatements(statements, zone_);
+    return result;
   }
 
 #define STATEMENT_WITH_LABELS(NodeType)                                \
@@ -3273,7 +3295,7 @@ class AstNodeFactory final {
 
   FunctionLiteral* NewFunctionLiteral(
       const AstRawString* name, DeclarationScope* scope,
-      ZonePtrList<Statement>* body, int expected_property_count,
+      const ScopedPtrList<Statement>& body, int expected_property_count,
       int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
@@ -3290,10 +3312,9 @@ class AstNodeFactory final {
   // Creates a FunctionLiteral representing a top-level script, the
   // result of an eval (top-level or otherwise), or the result of calling
   // the Function constructor.
-  FunctionLiteral* NewScriptOrEvalFunctionLiteral(DeclarationScope* scope,
-                                                  ZonePtrList<Statement>* body,
-                                                  int expected_property_count,
-                                                  int parameter_count) {
+  FunctionLiteral* NewScriptOrEvalFunctionLiteral(
+      DeclarationScope* scope, const ScopedPtrList<Statement>& body,
+      int expected_property_count, int parameter_count) {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
         body, expected_property_count, parameter_count, parameter_count,

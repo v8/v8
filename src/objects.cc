@@ -14194,19 +14194,16 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   // don't have the information yet. They're set later in
   // SetSharedFunctionFlagsFromLiteral (compiler.cc), when the function is
   // really parsed and compiled.
-  if (lit->body() != nullptr) {
+  if (lit->ShouldEagerCompile()) {
     shared_info->set_length(lit->function_length());
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
     shared_info->SetExpectedNofPropertiesFromEstimate(lit);
     DCHECK_NULL(lit->produced_preparsed_scope_data());
-    if (lit->ShouldEagerCompile()) {
-      // If we're about to eager compile, we'll have the function literal
-      // available, so there's no need to wastefully allocate an uncompiled
-      // data.
-      // TODO(leszeks): This should be explicitly passed as a parameter, rather
-      // than relying on a property of the literal.
-      needs_position_info = false;
-    }
+    // If we're about to eager compile, we'll have the function literal
+    // available, so there's no need to wastefully allocate an uncompiled data.
+    // TODO(leszeks): This should be explicitly passed as a parameter, rather
+    // than relying on a property of the literal.
+    needs_position_info = false;
   } else {
     // Set an invalid length for lazy functions. This way we can set the correct
     // value after compiling, but avoid overwriting values set manually by the

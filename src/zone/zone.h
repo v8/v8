@@ -327,9 +327,12 @@ class ScopedPtrList final {
   explicit ScopedPtrList(std::vector<void*>* buffer)
       : buffer_(*buffer), start_(buffer->size()), end_(buffer->size()) {}
 
-  ~ScopedPtrList() {
+  ~ScopedPtrList() { Rewind(); }
+
+  void Rewind() {
     DCHECK_EQ(buffer_.size(), end_);
     buffer_.resize(start_);
+    end_ = start_;
   }
 
   int length() const { return static_cast<int>(end_ - start_); }

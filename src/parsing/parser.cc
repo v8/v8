@@ -41,12 +41,11 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
-  ZonePtrList<Statement>* body = nullptr;
+  ScopedPtrList<Statement> body(pointer_buffer());
 
   {
     FunctionState function_state(&function_state_, &scope_, function_scope);
 
-    body = new (zone()) ZonePtrList<Statement>(call_super ? 2 : 1, zone());
     if (call_super) {
       // Create a SuperCallReference and handle in BytecodeGenerator.
       auto constructor_args_name = ast_value_factory()->empty_string();
@@ -56,14 +55,17 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
           constructor_args_name, VariableMode::kTemporary, is_optional, is_rest,
           ast_value_factory(), pos);
 
-      ScopedPtrList<Expression> args(pointer_buffer());
-      Spread* spread_args = factory()->NewSpread(
-          factory()->NewVariableProxy(constructor_args), pos, pos);
+      Expression* call;
+      {
+        ScopedPtrList<Expression> args(pointer_buffer());
+        Spread* spread_args = factory()->NewSpread(
+            factory()->NewVariableProxy(constructor_args), pos, pos);
 
-      args.Add(spread_args);
-      Expression* super_call_ref = NewSuperCallReference(pos);
-      Expression* call = factory()->NewCall(super_call_ref, args, pos);
-      body->Add(factory()->NewReturnStatement(call, pos), zone());
+        args.Add(spread_args);
+        Expression* super_call_ref = NewSuperCallReference(pos);
+        call = factory()->NewCall(super_call_ref, args, pos);
+      }
+      body.Add(factory()->NewReturnStatement(call, pos));
     }
 
     expected_property_count = function_state.expected_property_count();
@@ -566,8 +568,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     scope->set_start_position(0);
 
     FunctionState function_state(&function_state_, &scope_, scope);
-    ZonePtrList<Statement>* body =
-        new (zone()) ZonePtrList<Statement>(16, zone());
+    ScopedPtrList<Statement> body(pointer_buffer());
     int beg_pos = scanner()->location().beg_pos;
     if (parsing_module_) {
       DCHECK(info->is_module());
@@ -582,22 +583,21 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       PrepareGeneratorVariables();
       Expression* initial_yield =
           BuildInitialYield(kNoSourcePosition, kGeneratorFunction);
-      body->Add(
-          factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
-          zone());
+      body.Add(
+          factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
 
-      ParseModuleItemList(body);
+      ParseModuleItemList(&body);
       if (!module()->Validate(this->scope()->AsModuleScope(),
                               pending_error_handler(), zone())) {
         scanner()->set_parser_error();
       }
     } else if (info->is_wrapped_as_function()) {
-      ParseWrapped(isolate, info, body, scope, zone());
+      ParseWrapped(isolate, info, &body, scope, zone());
     } else {
       // Don't count the mode in the use counters--give the program a chance
       // to enable script-wide strict mode below.
       this->scope()->SetLanguageMode(info->language_mode());
-      ParseStatementList(body, Token::EOS);
+      ParseStatementList(&body, Token::EOS);
     }
 
     // The parser will peek but not consume EOS.  Our scope logically goes all
@@ -618,10 +618,11 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     CheckConflictingVarDeclarations(scope);
 
     if (info->parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
-      if (body->length() != 1 ||
-          !body->at(0)->IsExpressionStatement() ||
-          !body->at(0)->AsExpressionStatement()->
-              expression()->IsFunctionLiteral()) {
+      if (body.length() != 1 || !body.at(0)->IsExpressionStatement() ||
+          !body.at(0)
+               ->AsExpressionStatement()
+               ->expression()
+               ->IsFunctionLiteral()) {
         ReportMessage(MessageTemplate::kSingleFunctionLiteral);
       }
     }
@@ -659,7 +660,7 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
 }
 
 void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
-                          ZonePtrList<Statement>* body,
+                          ScopedPtrList<Statement>* body,
                           DeclarationScope* outer_scope, Zone* zone) {
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK(info->is_wrapped_as_function());
@@ -682,7 +683,7 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
 
   Statement* return_statement = factory()->NewReturnStatement(
       function_literal, kNoSourcePosition, kNoSourcePosition);
-  body->Add(return_statement, zone);
+  body->Add(return_statement);
 }
 
 FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
@@ -905,7 +906,7 @@ Statement* Parser::ParseModuleItem() {
   return ParseStatementListItem();
 }
 
-void Parser::ParseModuleItemList(ZonePtrList<Statement>* body) {
+void Parser::ParseModuleItemList(ScopedPtrList<Statement>* body) {
   // ecma262/#prod-Module
   // Module :
   //    ModuleBody?
@@ -919,7 +920,7 @@ void Parser::ParseModuleItemList(ZonePtrList<Statement>* body) {
     Statement* stat = ParseModuleItem();
     RETURN_IF_PARSE_ERROR_VOID;
     if (stat->IsEmptyStatement()) continue;
-    body->Add(stat, zone());
+    body->Add(stat);
   }
 }
 
@@ -1704,16 +1705,16 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
 }
 
 void Parser::ParseAndRewriteGeneratorFunctionBody(
-    int pos, FunctionKind kind, ZonePtrList<Statement>* body) {
+    int pos, FunctionKind kind, ScopedPtrList<Statement>* body) {
   // For ES6 Generators, we just prepend the initial yield.
   Expression* initial_yield = BuildInitialYield(pos, kind);
-  body->Add(factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
-            zone());
+  body->Add(
+      factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
   ParseStatementList(body, Token::RBRACE, !has_error());
 }
 
 void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
-    int pos, FunctionKind kind, ZonePtrList<Statement>* body) {
+    int pos, FunctionKind kind, ScopedPtrList<Statement>* body) {
   // For ES2017 Async Generators, we produce:
   //
   // try {
@@ -1736,53 +1737,69 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
   //   "done" iterator result object containing a Promise-unwrapped value.
   DCHECK(IsAsyncGeneratorFunction(kind));
 
-  Block* try_block = factory()->NewBlock(3, false);
-  Expression* initial_yield = BuildInitialYield(pos, kind);
-  try_block->statements()->Add(
-      factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
-      zone());
-  ParseStatementList(try_block->statements(), Token::RBRACE, !has_error());
+  Block* try_block;
+  {
+    ScopedPtrList<Statement> statements(pointer_buffer());
+    Expression* initial_yield = BuildInitialYield(pos, kind);
+    statements.Add(
+        factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
+    ParseStatementList(&statements, Token::RBRACE, !has_error());
 
-  // Don't create iterator result for async generators, as the resume methods
-  // will create it.
-  // TODO(leszeks): This will create another suspend point, which is unnecessary
-  // if there is already an unconditional return in the body.
-  Statement* final_return = BuildReturnStatement(
-      factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
-  try_block->statements()->Add(final_return, zone());
+    // Don't create iterator result for async generators, as the resume methods
+    // will create it.
+    // TODO(leszeks): This will create another suspend point, which is
+    // unnecessary if there is already an unconditional return in the body.
+    Statement* final_return = BuildReturnStatement(
+        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
+    statements.Add(final_return);
+
+    try_block = factory()->NewBlock(false, statements);
+  }
 
   // For AsyncGenerators, a top-level catch block will reject the Promise.
   Scope* catch_scope = NewHiddenCatchScope();
 
-  ScopedPtrList<Expression> reject_args(pointer_buffer());
-  reject_args.Add(factory()->NewVariableProxy(
-      function_state_->scope()->generator_object_var()));
-  reject_args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
+  Block* catch_block;
+  {
+    ScopedPtrList<Expression> reject_args(pointer_buffer());
+    reject_args.Add(factory()->NewVariableProxy(
+        function_state_->scope()->generator_object_var()));
+    reject_args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
 
-  Expression* reject_call = factory()->NewCallRuntime(
-      Runtime::kInlineAsyncGeneratorReject, reject_args, kNoSourcePosition);
-  Block* catch_block = IgnoreCompletion(
-      factory()->NewReturnStatement(reject_call, kNoSourcePosition));
+    Expression* reject_call = factory()->NewCallRuntime(
+        Runtime::kInlineAsyncGeneratorReject, reject_args, kNoSourcePosition);
+    catch_block = IgnoreCompletion(
+        factory()->NewReturnStatement(reject_call, kNoSourcePosition));
+  }
 
-  TryStatement* try_catch = factory()->NewTryCatchStatementForAsyncAwait(
-      try_block, catch_scope, catch_block, kNoSourcePosition);
+  {
+    ScopedPtrList<Statement> statements(pointer_buffer());
+    TryStatement* try_catch = factory()->NewTryCatchStatementForAsyncAwait(
+        try_block, catch_scope, catch_block, kNoSourcePosition);
+    statements.Add(try_catch);
+    try_block = factory()->NewBlock(false, statements);
+  }
 
-  try_block = factory()->NewBlock(1, false);
-  try_block->statements()->Add(try_catch, zone());
+  Expression* close_call;
+  {
+    ScopedPtrList<Expression> close_args(pointer_buffer());
+    VariableProxy* call_proxy = factory()->NewVariableProxy(
+        function_state_->scope()->generator_object_var());
+    close_args.Add(call_proxy);
+    close_call = factory()->NewCallRuntime(Runtime::kInlineGeneratorClose,
+                                           close_args, kNoSourcePosition);
+  }
 
-  Block* finally_block = factory()->NewBlock(1, false);
-  ScopedPtrList<Expression> close_args(pointer_buffer());
-  VariableProxy* call_proxy = factory()->NewVariableProxy(
-      function_state_->scope()->generator_object_var());
-  close_args.Add(call_proxy);
-  Expression* close_call = factory()->NewCallRuntime(
-      Runtime::kInlineGeneratorClose, close_args, kNoSourcePosition);
-  finally_block->statements()->Add(
-      factory()->NewExpressionStatement(close_call, kNoSourcePosition), zone());
+  Block* finally_block;
+  {
+    ScopedPtrList<Statement> statements(pointer_buffer());
+    statements.Add(
+        factory()->NewExpressionStatement(close_call, kNoSourcePosition));
+    finally_block = factory()->NewBlock(false, statements);
+  }
 
   body->Add(factory()->NewTryFinallyStatement(try_block, finally_block,
-                                              kNoSourcePosition),
-            zone());
+                                              kNoSourcePosition));
 }
 
 void Parser::DeclareFunctionNameVar(const AstRawString* function_name,
@@ -2578,7 +2595,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool should_preparse = (parse_lazily() && is_lazy_top_level_function) ||
                          should_preparse_inner || should_post_parallel_task;
 
-  ZonePtrList<Statement>* body = nullptr;
+  ScopedPtrList<Statement> body(pointer_buffer());
   int expected_property_count = -1;
   int suspend_count = -1;
   int num_parameters = -1;
@@ -2613,10 +2630,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                    &eager_compile_hint);
   if (!did_preparse_successfully) {
     should_post_parallel_task = false;
-    body = ParseFunction(function_name, pos, kind, function_type, scope,
-                         &num_parameters, &function_length,
-                         &has_duplicate_parameters, &expected_property_count,
-                         &suspend_count, arguments_for_wrapped_function);
+    ParseFunction(&body, function_name, pos, kind, function_type, scope,
+                  &num_parameters, &function_length, &has_duplicate_parameters,
+                  &expected_property_count, &suspend_count,
+                  arguments_for_wrapped_function);
   }
 
   if (V8_UNLIKELY(FLAG_log_function_events)) {
@@ -2961,9 +2978,9 @@ Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
                              Suspend::kOnExceptionThrow);
 }
 
-ZonePtrList<Statement>* Parser::ParseFunction(
-    const AstRawString* function_name, int pos, FunctionKind kind,
-    FunctionLiteral::FunctionType function_type,
+void Parser::ParseFunction(
+    ScopedPtrList<Statement>* body, const AstRawString* function_name, int pos,
+    FunctionKind kind, FunctionLiteral::FunctionType function_type,
     DeclarationScope* function_scope, int* num_parameters, int* function_length,
     bool* has_duplicate_parameters, int* expected_property_count,
     int* suspend_count,
@@ -3012,12 +3029,12 @@ ZonePtrList<Statement>* Parser::ParseFunction(
       if (position < expected_parameters_end_pos) {
         ReportMessageAt(Scanner::Location(position, position + 1),
                         MessageTemplate::kArgStringTerminatesParametersEarly);
-        return nullptr;
+        return;
       } else if (position > expected_parameters_end_pos) {
         ReportMessageAt(Scanner::Location(expected_parameters_end_pos - 2,
                                           expected_parameters_end_pos),
                         MessageTemplate::kUnexpectedEndOfArgString);
-        return nullptr;
+        return;
       }
     }
     Expect(Token::RPAREN);
@@ -3031,7 +3048,6 @@ ZonePtrList<Statement>* Parser::ParseFunction(
   *num_parameters = formals.num_parameters();
   *function_length = formals.function_length;
 
-  ZonePtrList<Statement>* body = new (zone()) ZonePtrList<Statement>(8, zone());
   ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
                     FunctionBodyType::kBlock, true);
 
@@ -3042,7 +3058,6 @@ ZonePtrList<Statement>* Parser::ParseFunction(
 
   *expected_property_count = function_state.expected_property_count();
   *suspend_count = function_state.suspend_count();
-  return body;
 }
 
 void Parser::DeclareClassVariable(const AstRawString* name,
@@ -3138,10 +3153,10 @@ FunctionLiteral* Parser::CreateInitializerFunction(
   DCHECK_EQ(scope->function_kind(),
             FunctionKind::kClassFieldsInitializerFunction);
   // function() { .. class fields initializer .. }
-  ZonePtrList<Statement>* statements = NewStatementList(1);
+  ScopedPtrList<Statement> statements(pointer_buffer());
   InitializeClassFieldsStatement* static_fields =
       factory()->NewInitializeClassFieldsStatement(fields, kNoSourcePosition);
-  statements->Add(static_fields, zone());
+  statements.Add(static_fields);
   return factory()->NewFunctionLiteral(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
@@ -3532,7 +3547,7 @@ Expression* Parser::ExpressionListToExpression(
 }
 
 // This method completes the desugaring of the body of async_function.
-void Parser::RewriteAsyncFunctionBody(ZonePtrList<Statement>* body,
+void Parser::RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body,
                                       Block* block, Expression* return_value) {
   // function async_function() {
   //   .generator_object = %_AsyncFunctionEnter();
@@ -3546,7 +3561,7 @@ void Parser::RewriteAsyncFunctionBody(ZonePtrList<Statement>* body,
                                return_value, return_value->position()),
                            zone());
   block = BuildRejectPromiseOnException(block);
-  body->Add(block, zone());
+  body->Add(block);
 }
 
 void Parser::RewriteDestructuringAssignments() {

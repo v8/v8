@@ -400,6 +400,7 @@ class PreParserStatementList {
 class PreParserScopedStatementList {
  public:
   explicit PreParserScopedStatementList(std::vector<void*>* buffer) {}
+  void Rewind() {}
   void Add(const PreParserStatement& element) {}
 };
 
@@ -452,6 +453,9 @@ class PreParserStatement {
   static PreParserStatement Jump() {
     return PreParserStatement(kJumpStatement);
   }
+
+  void InitializeStatements(const PreParserScopedStatementList& statements,
+                            Zone* zone) {}
 
   // Creates expression statement from expression.
   // Preserves being an unparenthesized string literal, possibly
@@ -665,7 +669,7 @@ class PreParserFactory {
   }
   PreParserExpression NewFunctionLiteral(
       const PreParserIdentifier& name, Scope* scope,
-      PreParserStatementList body, int expected_property_count,
+      const PreParserScopedStatementList& body, int expected_property_count,
       int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
@@ -687,9 +691,17 @@ class PreParserFactory {
 
   PreParserStatement EmptyStatement() { return PreParserStatement::Default(); }
 
-  PreParserStatement NewBlock(
-      int capacity, bool ignore_completion_value,
-      ZonePtrList<const AstRawString>* labels = nullptr) {
+  PreParserStatement NewBlock(int capacity, bool ignore_completion_value) {
+    return PreParserStatement::Default();
+  }
+
+  PreParserStatement NewBlock(bool ignore_completion_value,
+                              ZonePtrList<const AstRawString>* labels) {
+    return PreParserStatement::Default();
+  }
+
+  PreParserStatement NewBlock(bool ignore_completion_value,
+                              const PreParserScopedStatementList& list) {
     return PreParserStatement::Default();
   }
 
@@ -869,8 +881,7 @@ struct ParserTypes<PreParser> {
   typedef PreParserPropertyList ClassPropertyList;
   typedef PreParserFormalParameters FormalParameters;
   typedef PreParserStatement Statement;
-  typedef PreParserStatementList StatementList;
-  typedef PreParserScopedStatementList ScopedStatementList;
+  typedef PreParserScopedStatementList StatementList;
   typedef PreParserExpressionList ExpressionList;
   typedef PreParserExpressionList ObjectPropertyList;
   typedef PreParserStatement Block;
@@ -1044,7 +1055,7 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void PrepareGeneratorVariables() {}
   V8_INLINE void RewriteAsyncFunctionBody(
-      PreParserStatementList body, PreParserStatement block,
+      const PreParserScopedStatementList* body, PreParserStatement block,
       const PreParserExpression& return_value) {}
 
   void DeclareAndInitializeVariables(
@@ -1102,11 +1113,11 @@ class PreParser : public ParserBase<PreParser> {
                                            Scanner::Location* location,
                                            const char** arg) {}
   V8_INLINE void ParseAndRewriteGeneratorFunctionBody(
-      int pos, FunctionKind kind, PreParserStatementList body) {
+      int pos, FunctionKind kind, PreParserScopedStatementList* body) {
     ParseStatementList(body, Token::RBRACE);
   }
   V8_INLINE void ParseAndRewriteAsyncGeneratorFunctionBody(
-      int pos, FunctionKind kind, PreParserStatementList body) {
+      int pos, FunctionKind kind, PreParserScopedStatementList* body) {
     ParseStatementList(body, Token::RBRACE);
   }
   V8_INLINE void DeclareFunctionNameVar(

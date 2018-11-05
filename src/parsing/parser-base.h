@@ -210,7 +210,6 @@ class ParserBase {
   typedef typename Types::FormalParameters FormalParametersT;
   typedef typename Types::Statement StatementT;
   typedef typename Types::StatementList StatementListT;
-  typedef typename Types::ScopedStatementList ScopedStatementListT;
   typedef typename Types::ExpressionList ExpressionListT;
   typedef typename Types::Block BlockT;
   typedef typename Types::ForStatement ForStatementT;
@@ -1077,7 +1076,7 @@ class ParserBase {
   ExpressionT ParseArrowFunctionLiteral(bool accept_IN,
                                         const FormalParametersT& parameters,
                                         int rewritable_length);
-  void ParseAsyncFunctionBody(Scope* scope, StatementListT body);
+  void ParseAsyncFunctionBody(Scope* scope, StatementListT* body);
   ExpressionT ParseAsyncFunctionLiteral();
   ExpressionT ParseClassLiteral(IdentifierT name,
                                 Scanner::Location class_name_location,
@@ -1112,7 +1111,7 @@ class ParserBase {
   // Whether we're parsing a single-expression arrow function or something else.
   enum class FunctionBodyType { kExpression, kBlock };
   // Consumes the ending }.
-  void ParseFunctionBody(StatementListT result, IdentifierT function_name,
+  void ParseFunctionBody(StatementListT* result, IdentifierT function_name,
                          int pos, const FormalParametersT& parameters,
                          FunctionKind kind,
                          FunctionLiteral::FunctionType function_type,
@@ -1129,13 +1128,13 @@ class ParserBase {
   // by value. The method is expected to add the parsed statements to the
   // list. This works because in the case of the parser, StatementListT is
   // a pointer whereas the preparser does not really modify the body.
-  V8_INLINE void ParseStatementList(StatementListT body,
+  V8_INLINE void ParseStatementList(StatementListT* body,
                                     Token::Value end_token) {
     LazyParsingResult result = ParseStatementList(body, end_token, false);
     USE(result);
     DCHECK_EQ(result, kLazyParsingComplete);
   }
-  V8_INLINE LazyParsingResult ParseStatementList(StatementListT body,
+  V8_INLINE LazyParsingResult ParseStatementList(StatementListT* body,
                                                  Token::Value end_token,
                                                  bool may_abort);
   StatementT ParseStatementListItem();
@@ -3943,21 +3942,16 @@ ParserBase<Impl>::ParseAsyncFunctionDeclaration(
 
 template <typename Impl>
 void ParserBase<Impl>::ParseFunctionBody(
-    typename ParserBase<Impl>::StatementListT result, IdentifierT function_name,
+    typename ParserBase<Impl>::StatementListT* body, IdentifierT function_name,
     int pos, const FormalParametersT& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, FunctionBodyType body_type,
     bool accept_IN) {
   DeclarationScope* function_scope = scope()->AsDeclarationScope();
   DeclarationScope* inner_scope = function_scope;
-  BlockT inner_block = impl()->NullStatement();
 
-  StatementListT body = result;
   if (!parameters.is_simple) {
     inner_scope = NewVarblockScope();
     inner_scope->set_start_position(scanner()->location().beg_pos);
-    inner_block = factory()->NewBlock(8, true);
-    inner_block->set_scope(inner_scope);
-    body = inner_block->statements();
   }
 
   {
@@ -3976,8 +3970,7 @@ void ParserBase<Impl>::ParseFunctionBody(
         BlockT block = factory()->NewBlock(1, true);
         impl()->RewriteAsyncFunctionBody(body, block, expression);
       } else {
-        body->Add(BuildReturnStatement(expression, expression->position()),
-                  zone());
+        body->Add(BuildReturnStatement(expression, expression->position()));
       }
     } else {
       DCHECK(accept_IN);
@@ -4000,8 +3993,7 @@ void ParserBase<Impl>::ParseFunctionBody(
 
       if (IsDerivedConstructor(kind)) {
         body->Add(factory()->NewReturnStatement(impl()->ThisExpression(),
-                                                kNoSourcePosition),
-                  zone());
+                                                kNoSourcePosition));
       }
       Expect(closing_token);
     }
@@ -4020,6 +4012,9 @@ void ParserBase<Impl>::ParseFunctionBody(
                                  !IsConciseMethod(kind) &&
                                  !IsArrowFunction(kind);
   } else {
+    BlockT inner_block = factory()->NewBlock(true, *body);
+    inner_block->set_scope(inner_scope);
+    body->Rewind();
     DCHECK_NOT_NULL(inner_scope);
     DCHECK_EQ(function_scope, scope());
     DCHECK_EQ(function_scope, inner_scope->outer_scope());
@@ -4046,8 +4041,8 @@ void ParserBase<Impl>::ParseFunctionBody(
     }
     inner_scope = nullptr;
 
-    result->Add(init_block, zone());
-    result->Add(inner_block, zone());
+    body->Add(init_block);
+    body->Add(inner_block);
   }
 
   ValidateFormalParameters(language_mode(), allow_duplicate_parameters);
@@ -4139,7 +4134,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     return impl()->NullExpression();
   }
 
-  StatementListT body = impl()->NullStatementList();
   int expected_property_count = -1;
   int suspend_count = 0;
   int function_literal_id = GetNextFunctionLiteralId();
@@ -4155,6 +4149,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
   bool has_braces = true;
   ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr;
+  StatementListT body(pointer_buffer());
   {
     FunctionState function_state(&function_state_, &scope_,
                                  formal_parameters.scope);
@@ -4200,8 +4195,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           // In case we did not sucessfully preparse the function because of an
           // unidentified error we do a full reparse to return the error.
           Consume(Token::LBRACE);
-          body = impl()->NewStatementList(8);
-          ParseFunctionBody(body, impl()->NullIdentifier(), kNoSourcePosition,
+          ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                             formal_parameters, kind,
                             FunctionLiteral::kAnonymousExpression,
                             FunctionBodyType::kBlock, true);
@@ -4210,8 +4204,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         }
       } else {
         Consume(Token::LBRACE);
-        body = impl()->NewStatementList(8);
-        ParseFunctionBody(body, impl()->NullIdentifier(), kNoSourcePosition,
+        ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                           formal_parameters, kind,
                           FunctionLiteral::kAnonymousExpression,
                           FunctionBodyType::kBlock, true);
@@ -4220,8 +4213,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     } else {
       // Single-expression body
       has_braces = false;
-      body = impl()->NewStatementList(1);
-      ParseFunctionBody(body, impl()->NullIdentifier(), kNoSourcePosition,
+      ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                         formal_parameters, kind,
                         FunctionLiteral::kAnonymousExpression,
                         FunctionBodyType::kExpression, accept_IN);
@@ -4355,10 +4347,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
 template <typename Impl>
 void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope,
-                                              StatementListT body) {
-  BlockT block = factory()->NewBlock(8, true);
-
-  ParseStatementList(block->statements(), Token::RBRACE);
+                                              StatementListT* body) {
+  BlockT block = impl()->NullStatement();
+  {
+    StatementListT statements(pointer_buffer());
+    ParseStatementList(&statements, Token::RBRACE);
+    block = factory()->NewBlock(true, statements);
+  }
   impl()->RewriteAsyncFunctionBody(
       body, block, factory()->NewUndefinedLiteral(kNoSourcePosition));
   scope->set_end_position(end_position());
@@ -4583,12 +4578,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseDoExpression() {
 
 template <typename Impl>
 typename ParserBase<Impl>::LazyParsingResult
-ParserBase<Impl>::ParseStatementList(StatementListT body,
+ParserBase<Impl>::ParseStatementList(StatementListT* body,
                                      Token::Value end_token, bool may_abort) {
   // StatementList ::
   //   (StatementListItem)* <end_token>
-
-  DCHECK(!impl()->IsNull(body));
+  DCHECK_NOT_NULL(body);
 
   while (peek() == Token::STRING) {
     bool use_strict = false;
@@ -4603,7 +4597,7 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
     }
 
     StatementT stat = ParseStatementListItem();
-    body->Add(stat, zone_);
+    body->Add(stat);
     may_abort = false;
 
     RETURN_IF_PARSE_ERROR_CUSTOM(Return, kLazyParsingComplete);
@@ -4647,7 +4641,7 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
       // - over kLazyParseTrialLimit statements
       // - all starting with an identifier (i.e., no if, for, while, etc.)
       if (++count_statements > kLazyParseTrialLimit) return kLazyParsingAborted;
-      body->Add(stat, zone());
+      body->Add(stat);
     }
   }
 
@@ -4655,7 +4649,7 @@ ParserBase<Impl>::ParseStatementList(StatementListT body,
     StatementT stat = ParseStatementListItem();
     RETURN_IF_PARSE_ERROR_CUSTOM(Return, kLazyParsingComplete);
     if (stat->IsEmptyStatement()) continue;
-    body->Add(stat, zone());
+    body->Add(stat);
   }
 
   return kLazyParsingComplete;
@@ -4771,10 +4765,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       // just to wrap the entire try-statement in a statement block and
       // put the labels there.
       if (labels == nullptr) return ParseTryStatement();
-      BlockT result = factory()->NewBlock(1, false, labels);
+      StatementListT statements(pointer_buffer());
+      BlockT result = factory()->NewBlock(false, labels);
       typename Types::Target target(this, result);
       StatementT statement = ParseTryStatement();
-      result->statements()->Add(statement, zone());
+      statements.Add(statement);
+      result->InitializeStatements(statements, zone());
       return result;
     }
     case Token::WITH:
@@ -4817,8 +4813,8 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   // Block ::
   //   '{' StatementList '}'
 
-  // Construct block expecting 16 statements.
-  BlockT body = factory()->NewBlock(16, false, labels);
+  BlockT body = factory()->NewBlock(false, labels);
+  StatementListT statements(pointer_buffer());
 
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE);
@@ -4834,15 +4830,18 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
       StatementT stat = ParseStatementListItem();
       RETURN_IF_PARSE_ERROR_CUSTOM(NullStatement);
       if (stat->IsEmptyStatement()) continue;
-      body->statements()->Add(stat, zone());
+      statements.Add(stat);
     }
 
     Expect(Token::RBRACE);
     int end_pos = end_position();
     scope()->set_end_position(end_pos);
+
     impl()->RecordBlockSourceRange(body, end_pos);
     body->set_scope(scope()->FinalizeBlockScope());
   }
+
+  body->InitializeStatements(statements, zone_);
   return body;
 }
 
@@ -5267,7 +5266,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     while (peek() != Token::RBRACE) {
       // An empty label indicates the default case.
       ExpressionT label = impl()->NullExpression();
-      ScopedStatementListT statements(pointer_buffer());
+      StatementListT statements(pointer_buffer());
       SourceRange clause_range;
       {
         SourceRangeScope range_scope(scanner(), &clause_range);
@@ -5347,8 +5346,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
 
         {
           BlockState catch_block_state(&scope_, catch_info.scope);
-
-          catch_block = factory()->NewBlock(16, false);
+          StatementListT catch_statements(pointer_buffer());
 
           // Create a block scope to hold any lexical declarations created
           // as part of destructuring the catch parameter.
@@ -5372,14 +5370,15 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
             RETURN_IF_PARSE_ERROR;
             impl()->RewriteCatchPattern(&catch_info);
             if (!impl()->IsNull(catch_info.init_block)) {
-              catch_block->statements()->Add(catch_info.init_block, zone());
+              catch_statements.Add(catch_info.init_block);
             }
 
             catch_info.inner_block = ParseBlock(nullptr);
-            catch_block->statements()->Add(catch_info.inner_block, zone());
+            catch_statements.Add(catch_info.inner_block);
             RETURN_IF_PARSE_ERROR;
             impl()->ValidateCatchBlock(catch_info);
             scope()->set_end_position(end_position());
+            catch_block = factory()->NewBlock(false, catch_statements);
             catch_block->set_scope(scope()->FinalizeBlockScope());
           }
         }

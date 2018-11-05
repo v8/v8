@@ -134,8 +134,7 @@ struct ParserTypes<Parser> {
   typedef ZonePtrList<ClassLiteral::Property>* ClassPropertyList;
   typedef ParserFormalParameters FormalParameters;
   typedef v8::internal::Statement* Statement;
-  typedef ZonePtrList<v8::internal::Statement>* StatementList;
-  typedef ScopedPtrList<v8::internal::Statement> ScopedStatementList;
+  typedef ScopedPtrList<v8::internal::Statement> StatementList;
   typedef ScopedPtrList<v8::internal::Expression> ExpressionList;
   typedef ScopedPtrList<v8::internal::ObjectLiteralProperty> ObjectPropertyList;
   typedef v8::internal::Block* Block;
@@ -243,7 +242,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // We manually construct the AST and scopes for a top-level function and the
   // function wrapper.
   void ParseWrapped(Isolate* isolate, ParseInfo* info,
-                    ZonePtrList<Statement>* body, DeclarationScope* scope,
+                    ScopedPtrList<Statement>* body, DeclarationScope* scope,
                     Zone* zone);
 
   ZonePtrList<const AstRawString>* PrepareWrappedArguments(Isolate* isolate,
@@ -270,7 +269,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return reusable_preparser_;
   }
 
-  void ParseModuleItemList(ZonePtrList<Statement>* body);
+  void ParseModuleItemList(ScopedPtrList<Statement>* body);
   Statement* ParseModuleItem();
   const AstRawString* ParseModuleSpecifier();
   void ParseImportDeclaration();
@@ -315,9 +314,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void GetUnexpectedTokenMessage(Token::Value token, MessageTemplate* message,
                                  Scanner::Location* location, const char** arg);
   void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
-                                            ZonePtrList<Statement>* body);
-  void ParseAndRewriteAsyncGeneratorFunctionBody(int pos, FunctionKind kind,
-                                                 ZonePtrList<Statement>* body);
+                                            ScopedPtrList<Statement>* body);
+  void ParseAndRewriteAsyncGeneratorFunctionBody(
+      int pos, FunctionKind kind, ScopedPtrList<Statement>* body);
   void DeclareFunctionNameVar(const AstRawString* function_name,
                               FunctionLiteral::FunctionType function_type,
                               DeclarationScope* function_scope);
@@ -466,9 +465,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       const ParserFormalParameters& parameters);
   Block* BuildRejectPromiseOnException(Block* block);
 
-  ZonePtrList<Statement>* ParseFunction(
-      const AstRawString* function_name, int pos, FunctionKind kind,
-      FunctionLiteral::FunctionType function_type,
+  void ParseFunction(
+      ScopedPtrList<Statement>* body, const AstRawString* function_name,
+      int pos, FunctionKind kind, FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, int* num_parameters,
       int* function_length, bool* has_duplicate_parameters,
       int* expected_property_count, int* suspend_count,
@@ -567,7 +566,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                        IteratorType type);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
-  void RewriteAsyncFunctionBody(ZonePtrList<Statement>* body, Block* block,
+  void RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body, Block* block,
                                 Expression* return_value);
 
   void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,

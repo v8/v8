@@ -1445,7 +1445,6 @@ TEST(DiscardFunctionBody) {
     i::parsing::ParseProgram(&info, isolate);
     function = info.literal();
     CHECK_NOT_NULL(function);
-    CHECK_NOT_NULL(function->body());
     CHECK_EQ(1, function->body()->length());
     i::FunctionLiteral* inner =
         function->body()->first()->AsExpressionStatement()->expression()->
@@ -1461,7 +1460,7 @@ TEST(DiscardFunctionBody) {
       // TODO(conradw): This path won't be hit until the other test cases can be
       // uncommented.
       UNREACHABLE();
-      CHECK_NOT_NULL(inner->body());
+      CHECK(inner->ShouldEagerCompile());
       CHECK_GE(2, inner->body()->length());
       i::Expression* exp = inner->body()->at(1)->AsExpressionStatement()->
                            expression()->AsBinaryOperation()->right();
@@ -1475,7 +1474,7 @@ TEST(DiscardFunctionBody) {
               AsFunctionLiteral();
       }
     }
-    CHECK_NULL(fun->body());
+    CHECK(!fun->ShouldEagerCompile());
   }
 }
 
