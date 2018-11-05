@@ -5,13 +5,21 @@
 #ifndef V8_WASM_STREAMING_DECODER_H_
 #define V8_WASM_STREAMING_DECODER_H_
 
+#include <memory>
 #include <vector>
-#include "src/isolate.h"
-#include "src/wasm/module-decoder.h"
-#include "src/wasm/wasm-objects.h"
+
+#include "src/base/macros.h"
+#include "src/vector.h"
+#include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-result.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
+class WasmModuleObject;
+
 namespace wasm {
 
 // This class is an interface for the StreamingDecoder to start the processing
@@ -46,7 +54,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // empty array is passed.
   virtual void OnFinishedStream(OwnedVector<uint8_t> bytes) = 0;
   // Report an error detected in the StreamingDecoder.
-  virtual void OnError(DecodeResult result) = 0;
+  virtual void OnError(VoidResult result) = 0;
   // Report the abortion of the stream.
   virtual void OnAbort() = 0;
 
@@ -217,14 +225,14 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
     return section_buffers_.back().get();
   }
 
-  std::unique_ptr<DecodingState> Error(DecodeResult result) {
+  std::unique_ptr<DecodingState> Error(VoidResult result) {
     if (ok_) processor_->OnError(std::move(result));
     ok_ = false;
     return std::unique_ptr<DecodingState>(nullptr);
   }
 
   std::unique_ptr<DecodingState> Error(std::string message) {
-    return Error(DecodeResult::Error(module_offset_ - 1, std::move(message)));
+    return Error(VoidResult::Error(module_offset_ - 1, std::move(message)));
   }
 
   void ProcessModuleHeader() {
