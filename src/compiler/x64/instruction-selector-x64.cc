@@ -2655,7 +2655,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4ShrU)                \
   V(I16x8Shl)                 \
   V(I16x8ShrS)                \
-  V(I16x8ShrU)
+  V(I16x8ShrU)                \
+  V(I8x16Shl)                 \
+  V(I8x16ShrS)                \
+  V(I8x16ShrU)
 
 #define SIMD_ANYTRUE_LIST(V) \
   V(S1x4AnyTrue)             \
@@ -2777,8 +2780,9 @@ void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
 
 void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
   X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I32x4UConvertF32x4, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
@@ -2791,6 +2795,14 @@ void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64I8x16UConvertI16x8, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI8x16Mul(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kX64I8x16Mul, g.DefineSameAsFirst(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {

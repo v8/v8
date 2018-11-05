@@ -438,8 +438,6 @@ WASM_SIMD_TEST(F32x4ReplaceLane) {
   CHECK_EQ(1, r.Call(3.14159f, -1.5f));
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 // Tests both signed and unsigned conversion.
 WASM_SIMD_TEST(F32x4ConvertI32x4) {
   WasmRunner<int32_t, int32_t, float, float> r(execution_tier, lower_simd);
@@ -463,8 +461,6 @@ WASM_SIMD_TEST(F32x4ConvertI32x4) {
                        static_cast<float>(static_cast<uint32_t>(*i))));
   }
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 void RunF32x4UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode simd_op, FloatUnOp expected_op,
@@ -819,9 +815,6 @@ WASM_SIMD_TEST(I8x16ReplaceLane) {
   CHECK_EQ(1, r.Call(1, 2));
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
-
 int32_t ConvertToInt(double val, bool unsigned_integer) {
   if (std::isnan(val)) return 0;
   if (unsigned_integer) {
@@ -900,8 +893,6 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
     CHECK_EQ(1, r.Call(*i, unpacked_signed, unpacked_unsigned, 0));
   }
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 void RunI32x4UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode simd_op, Int32UnOp expected_op) {
@@ -1542,13 +1533,9 @@ WASM_SIMD_TEST(I8x16LeU) {
                         UnsignedLessEqual);
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST(I8x16Mul) {
   RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16Mul, Mul);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 void RunI8x16ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode simd_op, Int8ShiftOp expected_op) {
@@ -1566,8 +1553,6 @@ void RunI8x16ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST(I8x16Shl) {
   RunI8x16ShiftOpTest(execution_tier, lower_simd, kExprI8x16Shl,
                       LogicalShiftLeft);
@@ -1582,8 +1567,6 @@ WASM_SIMD_TEST(I8x16ShrU) {
   RunI8x16ShiftOpTest(execution_tier, lower_simd, kExprI8x16ShrU,
                       LogicalShiftRight);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 // Test Select by making a mask where the 0th and 3rd lanes are true and the
 // rest false, and comparing for non-equality with zero to convert to a boolean
