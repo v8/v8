@@ -234,7 +234,7 @@ class CompilationStateImpl {
 
   // The foreground task to log finished wasm code. Is {nullptr} if no such task
   // is currently scheduled.
-  LogCodesTask* log_codes_task_;
+  LogCodesTask* log_codes_task_ = nullptr;
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
