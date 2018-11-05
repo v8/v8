@@ -195,6 +195,44 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   __ Ret();
 }
 
+void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
+                                 Label* stack_overflow) {
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+
+  // Check the stack for overflow.
+  // We are not trying to catch interruptions (e.g. debug break and
+  // preemption) here, so the "real stack limit" is checked.
+  Label enough_stack_space;
+  __ LoadRoot(scratch, RootIndex::kRealStackLimit);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  __ Sub(scratch, sp, scratch);
+  // Check if the arguments will overflow the stack.
+  __ Cmp(scratch, Operand(num_args, LSL, kPointerSizeLog2));
+  __ B(le, stack_overflow);
+
+#if defined(V8_OS_WIN)
+  // Simulate _chkstk to extend stack guard page on Windows ARM64.
+  const int kPageSize = 4096;
+  Label chkstk, chkstk_done;
+  Register probe = temps.AcquireX();
+
+  __ Sub(scratch, sp, Operand(num_args, LSL, kPointerSizeLog2));
+  __ Mov(probe, sp);
+
+  // Loop start of stack probe.
+  __ Bind(&chkstk);
+  __ Sub(probe, probe, kPageSize);
+  __ Cmp(probe, scratch);
+  __ B(lo, &chkstk_done);
+  __ Ldrb(xzr, MemOperand(probe));
+  __ B(&chkstk);
+
+  __ Bind(&chkstk_done);
+#endif
+}
+
 }  // namespace
 
 // The construct stub for ES5 constructor functions and ES6 class constructors.
@@ -303,6 +341,19 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // slots for the arguments. If the number of arguments was odd, the last
     // argument will overwrite one of the receivers pushed above.
     __ Bic(x10, x12, 1);
+
+    // Check if we have enough stack space to push all arguments.
+    Label enough_stack_space, stack_overflow;
+    Generate_StackOverflowCheck(masm, x10, &stack_overflow);
+    __ B(&enough_stack_space);
+
+    __ Bind(&stack_overflow);
+    // Restore the context from the frame.
+    __ Ldr(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ Unreachable();
+
+    __ Bind(&enough_stack_space);
     __ Claim(x10);
 
     // Copy the arguments.
@@ -534,43 +585,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   }
 }
 
-static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                        Label* stack_overflow) {
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.AcquireX();
-
-  // Check the stack for overflow.
-  // We are not trying to catch interruptions (e.g. debug break and
-  // preemption) here, so the "real stack limit" is checked.
-  Label enough_stack_space;
-  __ LoadRoot(scratch, RootIndex::kRealStackLimit);
-  // Make scratch the space we have left. The stack might already be overflowed
-  // here which will cause scratch to become negative.
-  __ Sub(scratch, sp, scratch);
-  // Check if the arguments will overflow the stack.
-  __ Cmp(scratch, Operand(num_args, LSL, kPointerSizeLog2));
-  __ B(le, stack_overflow);
-
-#if defined(V8_OS_WIN)
-  // Simulate _chkstk to extend stack guard page on Windows ARM64.
-  const int kPageSize = 4096;
-  Label chkstk, chkstk_done;
-  Register probe = temps.AcquireX();
-
-  __ Sub(scratch, sp, Operand(num_args, LSL, kPointerSizeLog2));
-  __ Mov(probe, sp);
-
-  // Loop start of stack probe.
-  __ Bind(&chkstk);
-  __ Sub(probe, probe, kPageSize);
-  __ Cmp(probe, scratch);
-  __ B(lo, &chkstk_done);
-  __ Ldrb(xzr, MemOperand(probe));
-  __ B(&chkstk);
-
-  __ Bind(&chkstk_done);
-#endif
-}
 
 // Input:
 //   x0: new.target.

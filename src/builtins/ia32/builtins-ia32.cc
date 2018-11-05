@@ -138,6 +138,30 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   __ ret(0);
 }
 
+void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
+                                 Register scratch, Label* stack_overflow,
+                                 bool include_receiver = false) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  ExternalReference real_stack_limit =
+      ExternalReference::address_of_real_stack_limit(masm->isolate());
+  // Compute the space that is left as a negative number in scratch. If
+  // we already overflowed, this will be a positive number.
+  __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
+  __ sub(scratch, esp);
+  // Add the size of the arguments.
+  static_assert(kPointerSize == 4,
+                "The next instruction assumes kPointerSize == 4");
+  __ lea(scratch, Operand(scratch, num_args, times_4, 0));
+  if (include_receiver) {
+    __ add(scratch, Immediate(kPointerSize));
+  }
+  // See if we overflowed, i.e. scratch is positive.
+  __ cmp(scratch, Immediate(0));
+  __ j(greater, stack_overflow);  // Signed comparison.
+}
+
 }  // namespace
 
 // The construct stub for ES5 constructor functions and ES6 class constructors.
@@ -226,6 +250,21 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Set up pointer to last argument.
     __ lea(edi, Operand(ebp, StandardFrameConstants::kCallerSPOffset));
+
+    // Check if we have enough stack space to push all arguments.
+    // Argument count in eax. Clobbers ecx.
+    Label enough_stack_space, stack_overflow;
+    Generate_StackOverflowCheck(masm, eax, ecx, &stack_overflow);
+    __ jmp(&enough_stack_space);
+
+    __ bind(&stack_overflow);
+    // Restore context from the frame.
+    __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    // This should be unreachable.
+    __ int3();
+
+    __ bind(&enough_stack_space);
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
@@ -323,29 +362,6 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                        Register scratch, Label* stack_overflow,
-                                        bool include_receiver = false) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit(masm->isolate());
-  // Compute the space that is left as a negative number in scratch. If
-  // we already overflowed, this will be a positive number.
-  __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
-  __ sub(scratch, esp);
-  // Add the size of the arguments.
-  static_assert(kPointerSize == 4,
-                "The next instruction assumes kPointerSize == 4");
-  __ lea(scratch, Operand(scratch, num_args, times_4, 0));
-  if (include_receiver) {
-    __ add(scratch, Immediate(kPointerSize));
-  }
-  // See if we overflowed, i.e. scratch is positive.
-  __ cmp(scratch, Immediate(0));
-  __ j(greater, stack_overflow);  // Signed comparison.
-}
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
