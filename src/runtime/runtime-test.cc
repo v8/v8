@@ -240,8 +240,13 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
 
   ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
   if (args.length() == 2) {
-    CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
-    if (type->IsOneByteEqualTo(STATIC_CHAR_VECTOR("concurrent")) &&
+    // Ignore invalid inputs produced by fuzzers.
+    CONVERT_ARG_HANDLE_CHECKED(Object, type, 1);
+    if (!type->IsString()) {
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+    if (Handle<String>::cast(type)->IsOneByteEqualTo(
+            STATIC_CHAR_VECTOR("concurrent")) &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
