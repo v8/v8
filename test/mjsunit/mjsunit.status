@@ -86,7 +86,7 @@
 
   # Issue 488: this test sometimes times out.
   # TODO(arm): This seems to flush out a bug on arm with simulator.
-  'array-constructor': [PASS, SLOW, ['arch == arm and simulator == True', SKIP]],
+  'array-constructor': [PASS, SLOW, ['arch == arm and simulator_run == True', SKIP]],
 
   # Very slow test
   'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['mode == debug or arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],

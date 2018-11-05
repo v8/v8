@@ -635,7 +635,6 @@ class BaseTestRunner(object):
       self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
       self.build_config.mips_arch_variant)
 
-    # TODO(all): Combine "simulator" and "simulator_run".
     # TODO(machenbach): In GN we can derive simulator run from
     # target_arch != v8_target_arch in the dumped build config.
     return {
@@ -658,7 +657,6 @@ class BaseTestRunner(object):
       "novfp3": False,
       "predictable": self.build_config.predictable,
       "simd_mips": simd_mips,
-      "simulator": utils.UseSimulator(self.build_config.arch),
       "simulator_run": False,
       "system": self.target_os,
       "tsan": self.build_config.tsan,
