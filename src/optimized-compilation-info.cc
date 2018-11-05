@@ -77,8 +77,13 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       MarkAsSourcePositionsEnabled();
 #endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
       break;
-    default:
+    case Code::WASM_FUNCTION:
       SetFlag(kSwitchJumpTableEnabled);
+      if (FLAG_turbo_splitting) {
+        MarkAsSplittingEnabled();
+      }
+      break;
+    default:
       break;
   }
 }
