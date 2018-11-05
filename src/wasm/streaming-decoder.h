@@ -113,32 +113,27 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
                   Vector<const uint8_t> length_bytes)
         :  // ID + length + payload
           module_offset_(module_offset),
-          length_(1 + length_bytes.length() + payload_length),
-          bytes_(new uint8_t[length_]),
+          bytes_(OwnedVector<uint8_t>::New(1 + length_bytes.length() +
+                                           payload_length)),
           payload_offset_(1 + length_bytes.length()) {
-      bytes_[0] = id;
-      memcpy(bytes_.get() + 1, &length_bytes.first(), length_bytes.length());
+      bytes_.start()[0] = id;
+      memcpy(bytes_.start() + 1, &length_bytes.first(), length_bytes.length());
     }
 
     SectionCode section_code() const {
-      return static_cast<SectionCode>(bytes_[0]);
+      return static_cast<SectionCode>(bytes_.start()[0]);
     }
 
     uint32_t module_offset() const { return module_offset_; }
-    uint8_t* bytes() const { return bytes_.get(); }
-    size_t length() const { return length_; }
+    Vector<uint8_t> bytes() const { return bytes_.as_vector(); }
+    Vector<uint8_t> payload() const { return bytes() + payload_offset_; }
+    size_t length() const { return bytes_.size(); }
     size_t payload_offset() const { return payload_offset_; }
-    size_t payload_length() const { return length_ - payload_offset_; }
-    Vector<const uint8_t> payload() const {
-      return Vector<const uint8_t>(bytes() + payload_offset(),
-                                   payload_length());
-    }
 
    private:
-    uint32_t module_offset_;
-    size_t length_;
-    std::unique_ptr<uint8_t[]> bytes_;
-    size_t payload_offset_;
+    const uint32_t module_offset_;
+    const OwnedVector<uint8_t> bytes_;
+    const size_t payload_offset_;
   };
 
   // The decoding of a stream of wasm module bytes is organized in states. Each
@@ -179,16 +174,11 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
     // Returns the next state of the streaming decoding.
     virtual std::unique_ptr<DecodingState> Next(
         StreamingDecoder* streaming) = 0;
-    // The number of bytes to be received.
-    virtual size_t size() const = 0;
     // The buffer to store the received bytes.
-    virtual uint8_t* buffer() = 0;
+    virtual Vector<uint8_t> buffer() = 0;
     // The number of bytes which were already received.
     size_t offset() const { return offset_; }
     void set_offset(size_t value) { offset_ = value; }
-    // The number of bytes which are still needed.
-    size_t remaining() const { return size() - offset(); }
-    bool is_finished() const { return offset() == size(); }
     // A flag to indicate if finishing the streaming decoder is allowed without
     // error.
     virtual bool is_finishing_allowed() const { return false; }
@@ -237,10 +227,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   void ProcessModuleHeader() {
     if (!ok_) return;
-    if (!processor_->ProcessModuleHeader(
-            Vector<const uint8_t>(state_->buffer(),
-                                  static_cast<int>(state_->size())),
-            0)) {
+    if (!processor_->ProcessModuleHeader(state_->buffer(), 0)) {
       ok_ = false;
     }
   }
