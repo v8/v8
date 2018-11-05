@@ -774,6 +774,8 @@
   'regress/regress-91008': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
+  'wasm/atomics-stress': [PASS, SLOW],
+  'wasm/atomics64-stress': [PASS, SLOW],
 }],  # 'simulator_run and (arch == ppc or arch == ppc64 or arch == s390 or arch == s390x)'
 
 ##############################################################################
