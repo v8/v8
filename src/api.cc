@@ -8011,6 +8011,7 @@ v8::Local<v8::Context> Isolate::GetEnteredOrMicrotaskContext() {
     last = isolate->handle_scope_implementer()->LastEnteredContext();
   }
   if (last.is_null()) return Local<Context>();
+  DCHECK(last->IsNativeContext());
   return Utils::ToLocal(i::Handle<i::Context>::cast(last));
 }
 

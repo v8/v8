@@ -761,13 +761,15 @@ void InternalBuiltinsAssembler::SetCurrentContext(TNode<Context> context) {
 }
 
 void InternalBuiltinsAssembler::EnterMicrotaskContext(
-    TNode<Context> microtask_context) {
+    TNode<Context> native_context) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
   auto ref = ExternalReference::handle_scope_implementer_address(isolate());
   Node* const hsi = Load(MachineType::Pointer(), ExternalConstant(ref));
   StoreNoWriteBarrier(
       MachineType::PointerRepresentation(), hsi,
       IntPtrConstant(HandleScopeImplementerOffsets::kMicrotaskContext),
-      BitcastTaggedToWord(microtask_context));
+      BitcastTaggedToWord(native_context));
 
   // Load mirrored std::vector length from
   // HandleScopeImplementer::entered_contexts_count_
@@ -971,7 +973,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         TNode<Context> native_context = LoadNativeContext(microtask_context);
 
         CSA_ASSERT(this, IsNativeContext(native_context));
-        EnterMicrotaskContext(microtask_context);
+        EnterMicrotaskContext(native_context);
         SetCurrentContext(native_context);
 
         TNode<JSReceiver> callable = LoadObjectField<JSReceiver>(
@@ -1016,7 +1018,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             microtask, PromiseResolveThenableJobTask::kContextOffset);
         TNode<Context> native_context = LoadNativeContext(microtask_context);
         CSA_ASSERT(this, IsNativeContext(native_context));
-        EnterMicrotaskContext(microtask_context);
+        EnterMicrotaskContext(native_context);
         SetCurrentContext(native_context);
 
         Node* const promise_to_resolve = LoadObjectField(
@@ -1042,7 +1044,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             microtask, PromiseReactionJobTask::kContextOffset);
         TNode<Context> native_context = LoadNativeContext(microtask_context);
         CSA_ASSERT(this, IsNativeContext(native_context));
-        EnterMicrotaskContext(microtask_context);
+        EnterMicrotaskContext(native_context);
         SetCurrentContext(native_context);
 
         Node* const argument =
@@ -1077,7 +1079,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             microtask, PromiseReactionJobTask::kContextOffset);
         TNode<Context> native_context = LoadNativeContext(microtask_context);
         CSA_ASSERT(this, IsNativeContext(native_context));
-        EnterMicrotaskContext(microtask_context);
+        EnterMicrotaskContext(native_context);
         SetCurrentContext(native_context);
 
         Node* const argument =

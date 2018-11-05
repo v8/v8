@@ -28929,3 +28929,34 @@ TEST(TestGetEmbeddedCodeRange) {
     CHECK_EQ(0, builtins_range.length_in_bytes);
   }
 }
+
+TEST(MicrotaskContextShouldBeNativeContext) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  auto callback = [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::HandleScope scope(isolate);
+    i::Handle<i::Context> context =
+        v8::Utils::OpenHandle(*isolate->GetEnteredOrMicrotaskContext());
+
+    CHECK(context->IsNativeContext());
+    info.GetReturnValue().SetUndefined();
+  };
+
+  Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(callback);
+  Local<v8::Object> obj = desc->GetFunction(env.local())
+                              .ToLocalChecked()
+                              ->NewInstance(env.local())
+                              .ToLocalChecked();
+
+  CHECK(env->Global()->Set(env.local(), v8_str("callback"), obj).FromJust());
+  CompileRun(
+      "with({}){(async ()=>{"
+      "  await 42;"
+      "})().then(callback);}");
+
+  isolate->RunMicrotasks();
+}
