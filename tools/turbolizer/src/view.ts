@@ -20,13 +20,13 @@ export abstract class View {
   }
 
   show(data, rememberedSelection): void {
-    this.container.appendChild(this.divNode);
     this.initializeContent(data, rememberedSelection);
+    this.container.appendChild(this.divNode);
   }
 
   hide(): void {
-    this.deleteContent();
     this.container.removeChild(this.divNode);
+    this.deleteContent();
   }
 }
 
