@@ -2475,14 +2475,6 @@ void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
   GotoIf(TaggedIsSmi(object), if_false);
   GotoIfNot(IsString(CAST(object)), if_false);
 
-  // Bailout if the new array doesn't fit in new space.
-  const TNode<IntPtrT> length = LoadStringLengthAsWord(CAST(object));
-  // Since we don't have allocation site, base size does not include
-  // AllocationMemento::kSize.
-  GotoIfFixedArraySizeDoesntFitInNewSpace(
-      length, if_false, JSArray::kSize + FixedArray::kHeaderSize,
-      INTPTR_PARAMETERS);
-
   // Check that the String iterator hasn't been modified in a way that would
   // affect iteration.
   Node* protector_cell = LoadRoot(RootIndex::kStringIteratorProtector);
@@ -2500,9 +2492,9 @@ TNode<JSArray> StringBuiltinsAssembler::StringToList(TNode<Context> context,
 
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
-  // Allocate the array to new space, assuming that the new array will fit in.
   TNode<JSArray> array =
-      AllocateJSArray(kind, array_map, length, SmiTag(length));
+      AllocateJSArray(kind, array_map, length, SmiTag(length), nullptr,
+                      INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
   TNode<FixedArrayBase> elements = LoadElements(array);
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
