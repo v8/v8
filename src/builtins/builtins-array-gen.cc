@@ -1915,7 +1915,29 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
       UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  TNode<Object> items = args.GetOptionalArgumentValue(0);
+  TNode<Object> receiver = args.GetReceiver();
 
+  Label fast_iterate(this), normal_iterate(this);
+
+  // Use fast path if:
+  // * |items| is the only argument, and
+  // * the receiver is the Array function.
+  GotoIfNot(Word32Equal(argc, Int32Constant(1)), &normal_iterate);
+  TNode<Object> array_function = LoadContextElement(
+      LoadNativeContext(context), Context::ARRAY_FUNCTION_INDEX);
+  Branch(WordEqual(array_function, receiver), &fast_iterate, &normal_iterate);
+
+  BIND(&fast_iterate);
+  {
+    IteratorBuiltinsAssembler iterator_assembler(state());
+    TVARIABLE(Object, var_fast_result);
+    iterator_assembler.FastIterableToList(context, items, &var_fast_result,
+                                          &normal_iterate);
+    args.PopAndReturn(var_fast_result.value());
+  }
+
+  BIND(&normal_iterate);
   TNode<Object> map_function = args.GetOptionalArgumentValue(1);
 
   // If map_function is not undefined, then ensure it's callable else throw.
@@ -1934,7 +1956,6 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
   Label iterable(this), not_iterable(this), finished(this), if_exception(this);
 
   TNode<Object> this_arg = args.GetOptionalArgumentValue(2);
-  TNode<Object> items = args.GetOptionalArgumentValue(0);
   // The spec doesn't require ToObject to be called directly on the iterable
   // branch, but it's part of GetMethod that is in the spec.
   TNode<JSReceiver> array_like = ToObject_Inline(context, items);
@@ -1971,7 +1992,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
     }
 
     // Construct the output array with empty length.
-    array = ConstructArrayLike(context, args.GetReceiver());
+    array = ConstructArrayLike(context, receiver);
 
     // Actually get the iterator and throw if the iterator method does not yield
     // one.
@@ -2055,7 +2076,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
 
     // Construct an array using the receiver as constructor with the same length
     // as the input array.
-    array = ConstructArrayLike(context, args.GetReceiver(), length.value());
+    array = ConstructArrayLike(context, receiver, length.value());
 
     TVARIABLE(Number, index, SmiConstant(0));
 

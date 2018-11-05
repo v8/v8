@@ -45,3 +45,10 @@ const n = 130000;
   for (let i = 0; i < n; ++i) x.set(i, String(i));
   let a = [...x.keys()];
 }
+
+// Array.from
+{
+  let x = new Set();
+  for (let i = 0; i < n; ++i) x.add(i);
+  let a = Array.from(x);
+}
