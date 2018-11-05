@@ -4524,7 +4524,8 @@ ParserBase<Impl>::CheckAndRewriteReferenceExpression(ExpressionT expression,
 
 template <typename Impl>
 bool ParserBase<Impl>::IsValidReferenceExpression(ExpressionT expression) {
-  return IsAssignableIdentifier(expression) || expression->IsProperty();
+  return IsAssignableIdentifier(expression) ||
+         (expression->IsProperty() && classifier()->is_valid_expression());
 }
 
 template <typename Impl>
