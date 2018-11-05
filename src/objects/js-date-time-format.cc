@@ -798,13 +798,22 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   // 9. Set opt.[[hc]] to hourCycle.
   // TODO(ftang): change behavior based on hour_cycle.
 
+  // ecma402/#sec-intl.datetimeformat-internal-slots
+  // The value of the [[RelevantExtensionKeys]] internal slot is
+  // « "ca", "nu", "hc" ».
+  //
+  // TODO(ftang): Add "hc" to this list of keys:
+  // https://bugs.chromium.org/p/v8/issues/detail?id=7482
+  std::set<std::string> relevant_extension_keys = {"nu", "ca"};
+
   // 10. Let localeData be %DateTimeFormat%.[[LocaleData]].
   // 11. Let r be ResolveLocale( %DateTimeFormat%.[[AvailableLocales]],
   //     requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]],
   //     localeData).
-  Intl::ResolvedLocale r =
-      Intl::ResolveLocale(isolate, JSDateTimeFormat::GetAvailableLocales(),
-                          requested_locales, locale_matcher, {"nu"});
+  //
+  Intl::ResolvedLocale r = Intl::ResolveLocale(
+      isolate, JSDateTimeFormat::GetAvailableLocales(), requested_locales,
+      locale_matcher, relevant_extension_keys);
 
   // TODO(ftang): Make sure that "nu" key doesn't have "native",
   // "traditio" or "finance" values.

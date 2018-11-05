@@ -1445,8 +1445,8 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
 
   const std::string end = locale.substr(unicode_extension_end);
   parsed_locale.no_extensions_locale = beginning + end;
-  parsed_locale.extension =
-      locale.substr(unicode_extension_start, unicode_extension_end);
+  parsed_locale.extension = locale.substr(
+      unicode_extension_start, unicode_extension_end - unicode_extension_start);
   return parsed_locale;
 }
 
@@ -1630,13 +1630,13 @@ MaybeHandle<JSObject> Intl::SupportedLocalesOf(
 
 namespace {
 
-std::map<std::string, std::string> LookupUnicodeExtensions(
-    const icu::Locale& icu_locale, const std::set<std::string>& relevant_keys) {
+std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
+    icu::Locale* icu_locale, const std::set<std::string>& relevant_keys) {
   std::map<std::string, std::string> extensions;
 
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::StringEnumeration> keywords(
-      icu_locale.createKeywords(status));
+      icu_locale->createKeywords(status));
   if (U_FAILURE(status)) return extensions;
 
   if (!keywords) return extensions;
@@ -1654,7 +1654,7 @@ std::map<std::string, std::string> LookupUnicodeExtensions(
       continue;
     }
 
-    icu_locale.getKeywordValue(keyword, value, ULOC_FULLNAME_CAPACITY, status);
+    icu_locale->getKeywordValue(keyword, value, ULOC_FULLNAME_CAPACITY, status);
 
     // Ignore failures in ICU and skip to the next keyword.
     //
@@ -1666,11 +1666,14 @@ std::map<std::string, std::string> LookupUnicodeExtensions(
 
     const char* bcp47_key = uloc_toUnicodeLocaleKey(keyword);
 
-    // Ignore keywords that we don't recognize - spec allows that.
     if (bcp47_key && (relevant_keys.find(bcp47_key) != relevant_keys.end())) {
       const char* bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
       extensions.insert(
           std::pair<std::string, std::string>(bcp47_key, bcp47_value));
+    } else {
+      status = U_ZERO_ERROR;
+      icu_locale->setKeywordValue(keyword, nullptr, status);
+      CHECK(U_SUCCESS(status));
     }
   }
 
@@ -1751,11 +1754,17 @@ Intl::ResolvedLocale Intl::ResolveLocale(
 
   icu::Locale icu_locale = CreateICULocale(locale);
   std::map<std::string, std::string> extensions =
-      LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
+      LookupAndValidateUnicodeExtensions(&icu_locale, relevant_extension_keys);
+
+  char canonicalized_locale[ULOC_FULLNAME_CAPACITY];
+  UErrorCode status = U_ZERO_ERROR;
+  uloc_toLanguageTag(icu_locale.getName(), canonicalized_locale,
+                     ULOC_FULLNAME_CAPACITY, true, &status);
+  CHECK(U_SUCCESS(status));
 
   // TODO(gsathya): Remove privateuse subtags from extensions.
 
-  return Intl::ResolvedLocale{locale, icu_locale, extensions};
+  return Intl::ResolvedLocale{canonicalized_locale, icu_locale, extensions};
 }
 
 Managed<icu::UnicodeString>* Intl::SetTextToBreakIterator(
