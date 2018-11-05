@@ -748,6 +748,9 @@ macro UnsafeCast<A: type>(n: Number): A;
 UnsafeCast<HeapNumber>(n: Number): HeapNumber {
   return UnsafeCastNumberToHeapNumber(n);
 }
+UnsafeCast<Smi>(o: Number): Smi {
+  return UnsafeCastObjectToSmi(o);
+}
 macro UnsafeCast<A: type>(o: Object): A;
 UnsafeCast<Object>(o: Object): Object {
   return o;
@@ -821,7 +824,6 @@ macro BranchIfJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
   goto True;
 }
 
-macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A;
 UnsafeCast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
     JSArgumentsObjectWithLength {
   assert(BranchIfJSArgumentsObjectWithLength(o));

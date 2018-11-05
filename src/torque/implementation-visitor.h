@@ -199,14 +199,10 @@ bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
 
 class ImplementationVisitor : public FileVisitor {
  public:
-  explicit ImplementationVisitor(GlobalContext& global_context)
-      : FileVisitor(global_context) {}
-
-  void Visit(Ast* ast) { Visit(ast->default_module()); }
+  void GenerateBuiltinDefinitions(std::string& file_name);
 
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
-  void Visit(Declaration* decl);
 
   VisitResult Visit(StructExpression* decl);
 
@@ -229,33 +225,12 @@ class ImplementationVisitor : public FileVisitor {
     return scope.Yield(GenerateFetchFromLocation(GetLocationReference(expr)));
   }
 
-  void Visit(ModuleDeclaration* decl);
-  void Visit(DefaultModuleDeclaration* decl) {
-    Visit(implicit_cast<ModuleDeclaration*>(decl));
-  }
-  void Visit(ExplicitModuleDeclaration* decl) {
-    Visit(implicit_cast<ModuleDeclaration*>(decl));
-  }
-  void Visit(TypeDeclaration* decl) {}
-  void Visit(TypeAliasDeclaration* decl) {}
-  void Visit(ExternConstDeclaration* decl) {}
-  void Visit(StructDeclaration* decl);
-  void Visit(StandardDeclaration* decl);
-  void Visit(GenericDeclaration* decl) {}
-  void Visit(SpecializationDeclaration* decl);
-
-  void Visit(TorqueMacroDeclaration* decl, const Signature& signature,
-             Statement* body);
-  void Visit(TorqueBuiltinDeclaration* decl, const Signature& signature,
-             Statement* body);
-  void Visit(ExternalMacroDeclaration* decl, const Signature& signature,
-             Statement* body) {}
-  void Visit(ExternalBuiltinDeclaration* decl, const Signature& signature,
-             Statement* body) {}
-  void Visit(ExternalRuntimeDeclaration* decl, const Signature& signature,
-             Statement* body) {}
-  void Visit(CallableNode* decl, const Signature& signature, Statement* body);
-  void Visit(ConstDeclaration* decl);
+  void VisitAllDeclarables();
+  void Visit(Declarable* delarable);
+  void Visit(TypeAlias* decl);
+  void Visit(Macro* macro);
+  void Visit(Builtin* builtin);
+  void Visit(ModuleConstant* decl);
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
   const Type* Visit(TailCallStatement* stmt);
@@ -298,6 +273,7 @@ class ImplementationVisitor : public FileVisitor {
                               BindingsManager<LocalValue>);
   DECLARE_CONTEXTUAL_VARIABLE(LabelBindingsManager,
                               BindingsManager<LocalLabel>);
+  DECLARE_CONTEXTUAL_VARIABLE(CurrentCallable, Callable*);
 
   // A BindingsManagersScope has to be active for local bindings to be created.
   // Shadowing an existing BindingsManagersScope by creating a new one hides all
@@ -431,13 +407,6 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult GenerateImplicitConvert(const Type* destination_type,
                                       VisitResult source);
 
-  void Specialize(const SpecializationKey& key, CallableNode* callable,
-                  const CallableNodeSignature* signature,
-                  Statement* body) override {
-    Declarations::GenericScopeActivator scope(declarations(), key);
-    Visit(callable, MakeSignature(signature), body);
-  }
-
   StackRange GenerateLabelGoto(LocalLabel* label,
                                base::Optional<StackRange> arguments = {});
 
@@ -452,9 +421,9 @@ class ImplementationVisitor : public FileVisitor {
                                          size_t i);
   std::string ExternalParameterName(const std::string& name);
 
-  std::ostream& source_out() { return module_->source_stream(); }
+  std::ostream& source_out() { return CurrentModule()->source_stream(); }
 
-  std::ostream& header_out() { return module_->header_stream(); }
+  std::ostream& header_out() { return CurrentModule()->header_stream(); }
 
   CfgAssembler& assembler() { return *assembler_; }
 

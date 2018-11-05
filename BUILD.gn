@@ -3063,8 +3063,6 @@ v8_source_set("torque_base") {
     "src/torque/implementation-visitor.h",
     "src/torque/instructions.cc",
     "src/torque/instructions.h",
-    "src/torque/scope.cc",
-    "src/torque/scope.h",
     "src/torque/source-positions.cc",
     "src/torque/source-positions.h",
     "src/torque/torque-parser.cc",

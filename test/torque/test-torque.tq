@@ -203,8 +203,8 @@ module test {
     check(fptr2(c, Undefined) == Undefined);
   }
 
-  type SmiToSmi = builtin(Smi) => Smi;
-  macro TestTypeAlias(x: SmiToSmi): Code {
+  type ObjectToObject = builtin(Context, Object) => Object;
+  macro TestTypeAlias(x: ObjectToObject): Code {
     return x;
   }
 

@@ -348,13 +348,14 @@ void CSAGenerator::EmitInstruction(
   std::vector<std::string> function_and_arguments =
       stack->PopMany(1 + instruction.argc);
   std::vector<const Type*> result_types =
-      LowerType(instruction.example_builtin->signature().return_type);
+      LowerType(instruction.type->return_type());
   if (result_types.size() != 1) {
     ReportError("builtins must have exactly one result");
   }
   if (instruction.is_tailcall) {
-    out_ << "    Tail (Builtins::CallableFor(isolate(), Builtins::k"
-         << instruction.example_builtin->name() << ").descriptor(), ";
+    out_ << "    Tail (Builtins::CallableFor(isolate(), "
+            "ExampleBuiltinForTorqueFunctionPointerType("
+         << instruction.type->function_pointer_type_id() << ")).descriptor(), ";
     PrintCommaSeparatedList(out_, function_and_arguments);
     out_ << ");\n";
   } else {
@@ -362,8 +363,9 @@ void CSAGenerator::EmitInstruction(
     std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
     out_ << "    TNode<" << generated_type << "> " << stack->Top() << " = ";
     if (generated_type != "Object") out_ << "CAST(";
-    out_ << "CallStub(Builtins::CallableFor(isolate(), Builtins::k"
-         << instruction.example_builtin->name() << ").descriptor(), ";
+    out_ << "CallStub(Builtins::CallableFor(isolate(),"
+            "ExampleBuiltinForTorqueFunctionPointerType("
+         << instruction.type->function_pointer_type_id() << ")).descriptor(), ";
     PrintCommaSeparatedList(out_, function_and_arguments);
     out_ << ")";
     if (generated_type != "Object") out_ << ")";

@@ -63,8 +63,7 @@ namespace torque {
   V(SpecializationDeclaration)            \
   V(ExternConstDeclaration)               \
   V(StructDeclaration)                    \
-  V(DefaultModuleDeclaration)             \
-  V(ExplicitModuleDeclaration)            \
+  V(ModuleDeclaration)                    \
   V(ConstDeclaration)
 
 #define AST_CALLABLE_NODE_KIND_LIST(V) \
@@ -155,46 +154,23 @@ struct Statement : AstNode {
 class Module;
 
 struct ModuleDeclaration : Declaration {
-  ModuleDeclaration(AstNode::Kind kind, SourcePosition pos,
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(ModuleDeclaration)
+  ModuleDeclaration(SourcePosition pos, std::string name,
                     std::vector<Declaration*> declarations)
-      : Declaration(kind, pos),
-        module(nullptr),
-        declarations(std::move(declarations)) {}
-  virtual bool IsDefault() const = 0;
-  //  virtual std::string GetName() const = 0;
-  void SetModule(Module* m) { module = m; }
-  Module* GetModule() const { return module; }
-  Module* module;
+      : Declaration(kKind, pos),
+        declarations(std::move(declarations)),
+        name(name) {}
   std::vector<Declaration*> declarations;
-};
-
-struct DefaultModuleDeclaration : ModuleDeclaration {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(DefaultModuleDeclaration)
-  DefaultModuleDeclaration(SourcePosition pos,
-                           std::vector<Declaration*> declarations)
-      : ModuleDeclaration(kKind, pos, std::move(declarations)) {}
-  bool IsDefault() const override { return true; }
-};
-
-struct ExplicitModuleDeclaration : ModuleDeclaration {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(ExplicitModuleDeclaration)
-  ExplicitModuleDeclaration(SourcePosition pos, std::string name,
-                            std::vector<Declaration*> declarations)
-      : ModuleDeclaration(kKind, pos, std::move(declarations)),
-        name(std::move(name)) {}
-  bool IsDefault() const override { return false; }
   std::string name;
 };
 
 class Ast {
  public:
-  Ast() : default_module_{SourcePosition{CurrentSourceFile::Get(), 0, 0}, {}} {}
+  Ast() {}
 
-  std::vector<Declaration*>& declarations() {
-    return default_module_.declarations;
-  }
+  std::vector<Declaration*>& declarations() { return declarations_; }
   const std::vector<Declaration*>& declarations() const {
-    return default_module_.declarations;
+    return declarations_;
   }
   template <class T>
   T* AddNode(std::unique_ptr<T> node) {
@@ -202,10 +178,9 @@ class Ast {
     nodes_.push_back(std::move(node));
     return result;
   }
-  DefaultModuleDeclaration* default_module() { return &default_module_; }
 
  private:
-  DefaultModuleDeclaration default_module_;
+  std::vector<Declaration*> declarations_;
   std::vector<std::unique_ptr<AstNode>> nodes_;
 };
 
@@ -690,6 +665,7 @@ struct TorqueMacroDeclaration : MacroDeclaration {
 };
 
 struct BuiltinDeclaration : CallableNode {
+  DEFINE_AST_NODE_INNER_BOILERPLATE(BuiltinDeclaration)
   BuiltinDeclaration(AstNode::Kind kind, SourcePosition pos,
                      bool javascript_linkage, bool transitioning,
                      std::string name, ParameterList parameters,
@@ -747,10 +723,10 @@ struct ConstDeclaration : Declaration {
 struct StandardDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StandardDeclaration)
   StandardDeclaration(SourcePosition pos, CallableNode* callable,
-                      Statement* body)
+                      base::Optional<Statement*> body)
       : Declaration(kKind, pos), callable(callable), body(body) {}
   CallableNode* callable;
-  Statement* body;
+  base::Optional<Statement*> body;
 };
 
 struct GenericDeclaration : Declaration {

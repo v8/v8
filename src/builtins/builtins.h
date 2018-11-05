@@ -208,6 +208,9 @@ class Builtins {
   DISALLOW_COPY_AND_ASSIGN(Builtins);
 };
 
+Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(
+    size_t function_pointer_type_id);
+
 }  // namespace internal
 }  // namespace v8
 

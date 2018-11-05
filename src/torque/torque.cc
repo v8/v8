@@ -9,7 +9,6 @@
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/implementation-visitor.h"
-#include "src/torque/scope.h"
 #include "src/torque/torque-parser.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
@@ -51,31 +50,27 @@ int WrappedMain(int argc, const char** argv) {
     ParseTorque(file_content);
   }
 
-  GlobalContext global_context(std::move(CurrentAst::Get()));
-  if (verbose) global_context.SetVerbose();
-  TypeOracle::Scope type_oracle(global_context.declarations());
+  GlobalContext::Scope global_context(std::move(CurrentAst::Get()));
+  if (verbose) GlobalContext::SetVerbose();
+  TypeOracle::Scope type_oracle;
 
   if (output_directory.length() != 0) {
-    {
-      DeclarationVisitor visitor(global_context);
+    DeclarationVisitor().Visit(GlobalContext::Get().ast());
 
-      visitor.Visit(global_context.ast());
-
-      std::string output_header_path = output_directory;
-      output_header_path += "/builtin-definitions-from-dsl.h";
-      visitor.GenerateHeader(output_header_path);
+    ImplementationVisitor visitor;
+    for (Module* module : GlobalContext::Get().GetModules()) {
+      visitor.BeginModuleFile(module);
     }
 
-    ImplementationVisitor visitor(global_context);
-    for (auto& module : global_context.GetModules()) {
-      visitor.BeginModuleFile(module.second.get());
-    }
+    visitor.VisitAllDeclarables();
 
-    visitor.Visit(global_context.ast());
+    std::string output_header_path = output_directory;
+    output_header_path += "/builtin-definitions-from-dsl.h";
+    visitor.GenerateBuiltinDefinitions(output_header_path);
 
-    for (auto& module : global_context.GetModules()) {
-      visitor.EndModuleFile(module.second.get());
-      visitor.GenerateImplementation(output_directory, module.second.get());
+    for (Module* module : GlobalContext::Get().GetModules()) {
+      visitor.EndModuleFile(module);
+      visitor.GenerateImplementation(output_directory, module);
     }
   }
 

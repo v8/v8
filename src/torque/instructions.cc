@@ -190,9 +190,9 @@ void CallBuiltinPointerInstruction::TypeInstruction(
   if (argument_types != LowerParameterTypes(f->parameter_types())) {
     ReportError("wrong argument types");
   }
-  if (example_builtin->IsTransitioning()) {
-    InvalidateTransientTypes(stack);
-  }
+  // TODO(tebbi): Only invalidate transient types if the function pointer type
+  // is transitioning.
+  InvalidateTransientTypes(stack);
   stack->PushMany(LowerType(f->return_type()));
 }
 

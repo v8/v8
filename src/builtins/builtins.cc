@@ -372,5 +372,18 @@ bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
   return isolate->MayAccess(responsible_context, target_global_proxy);
 }
 
+Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(
+    size_t function_pointer_type_id) {
+  switch (function_pointer_type_id) {
+#define FUNCTION_POINTER_ID_CASE(id, name) \
+  case id:                                 \
+    return Builtins::k##name;
+    TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(FUNCTION_POINTER_ID_CASE)
+#undef FUNCTION_POINTER_ID_CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

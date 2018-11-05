@@ -11,12 +11,10 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+DEFINE_CONTEXTUAL_VARIABLE(CurrentScope);
+
 std::ostream& operator<<(std::ostream& os, const Callable& m) {
-  if (m.generic()) {
-    os << "callable " << (*m.generic())->name() << "(";
-  } else {
-    os << "callable " << m.name() << "(";
-  }
+  os << "callable " << m.name() << "(";
   if (m.signature().implicit_count != 0) {
     os << "implicit ";
     TypeVector implicit_parameter_types(

@@ -121,6 +121,14 @@ class Type : public TypeBase {
 
 using TypeVector = std::vector<const Type*>;
 
+inline size_t hash_value(const TypeVector& types) {
+  size_t hash = 0;
+  for (const Type* t : types) {
+    hash = base::hash_combine(hash, t);
+  }
+  return hash;
+}
+
 struct NameAndType {
   std::string name;
   const Type* type;
@@ -229,17 +237,20 @@ class FunctionPointerType final : public Type {
     return parameter_types_ == other.parameter_types_ &&
            return_type_ == other.return_type_;
   }
+  size_t function_pointer_type_id() const { return function_pointer_type_id_; }
 
  private:
   friend class TypeOracle;
   FunctionPointerType(const Type* parent, TypeVector parameter_types,
-                      const Type* return_type)
+                      const Type* return_type, size_t function_pointer_type_id)
       : Type(Kind::kFunctionPointerType, parent),
         parameter_types_(parameter_types),
-        return_type_(return_type) {}
+        return_type_(return_type),
+        function_pointer_type_id_(function_pointer_type_id) {}
 
   const TypeVector parameter_types_;
   const Type* const return_type_;
+  const size_t function_pointer_type_id_;
 };
 
 bool operator<(const Type& a, const Type& b);
@@ -460,9 +471,10 @@ std::ostream& operator<<(std::ostream& os, const ParameterTypes& parameters);
 enum class ParameterMode { kProcessImplicit, kIgnoreImplicit };
 
 struct Signature {
-  Signature(NameVector n, ParameterTypes p, size_t i, const Type* r,
-            LabelDeclarationVector l)
+  Signature(NameVector n, base::Optional<std::string> arguments_variable,
+            ParameterTypes p, size_t i, const Type* r, LabelDeclarationVector l)
       : parameter_names(std::move(n)),
+        arguments_variable(arguments_variable),
         parameter_types(std::move(p)),
         implicit_count(i),
         return_type(r),
@@ -470,6 +482,7 @@ struct Signature {
   Signature() : implicit_count(0), return_type(nullptr) {}
   const TypeVector& types() const { return parameter_types.types; }
   NameVector parameter_names;
+  base::Optional<std::string> arguments_variable;
   ParameterTypes parameter_types;
   size_t implicit_count;
   const Type* return_type;
