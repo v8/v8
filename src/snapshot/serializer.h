@@ -11,7 +11,7 @@
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/objects.h"
-#include "src/snapshot/default-serializer-allocator.h"
+#include "src/snapshot/serializer-allocator.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
@@ -265,7 +265,7 @@ class Serializer : public SerializerDeserializer {
 
   SerializerReferenceMap* reference_map() { return &reference_map_; }
   const RootIndexMap* root_index_map() const { return &root_index_map_; }
-  DefaultSerializerAllocator* allocator() { return &allocator_; }
+  SerializerAllocator* allocator() { return &allocator_; }
 
   SnapshotByteSink sink_;  // Used directly by subclasses.
 
@@ -278,7 +278,7 @@ class Serializer : public SerializerDeserializer {
   std::vector<byte> code_buffer_;
   std::vector<HeapObject*> deferred_objects_;  // To handle stack overflow.
   int recursion_depth_ = 0;
-  DefaultSerializerAllocator allocator_;
+  SerializerAllocator allocator_;
 
 #ifdef OBJECT_PRINT
   static const int kInstanceTypes = LAST_TYPE + 1;
@@ -290,7 +290,7 @@ class Serializer : public SerializerDeserializer {
   std::vector<HeapObject*> stack_;
 #endif  // DEBUG
 
-  friend class DefaultSerializerAllocator;
+  friend class SerializerAllocator;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };

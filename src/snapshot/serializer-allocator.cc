@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/snapshot/default-serializer-allocator.h"
+#include "src/snapshot/serializer-allocator.h"
 
 #include "src/heap/heap-inl.h"
 #include "src/snapshot/references.h"
@@ -12,14 +12,14 @@
 namespace v8 {
 namespace internal {
 
-DefaultSerializerAllocator::DefaultSerializerAllocator(Serializer* serializer)
+SerializerAllocator::SerializerAllocator(Serializer* serializer)
     : serializer_(serializer) {
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     pending_chunk_[i] = 0;
   }
 }
 
-void DefaultSerializerAllocator::UseCustomChunkSize(uint32_t chunk_size) {
+void SerializerAllocator::UseCustomChunkSize(uint32_t chunk_size) {
   custom_chunk_size_ = chunk_size;
 }
 
@@ -29,14 +29,14 @@ static uint32_t PageSizeOfSpace(int space) {
           static_cast<AllocationSpace>(space)));
 }
 
-uint32_t DefaultSerializerAllocator::TargetChunkSize(int space) {
+uint32_t SerializerAllocator::TargetChunkSize(int space) {
   if (custom_chunk_size_ == 0) return PageSizeOfSpace(space);
   DCHECK_LE(custom_chunk_size_, PageSizeOfSpace(space));
   return custom_chunk_size_;
 }
 
-SerializerReference DefaultSerializerAllocator::Allocate(AllocationSpace space,
-                                                         uint32_t size) {
+SerializerReference SerializerAllocator::Allocate(AllocationSpace space,
+                                                  uint32_t size) {
   DCHECK(space >= 0 && space < kNumberOfPreallocatedSpaces);
   DCHECK(size > 0 && size <= PageSizeOfSpace(space));
 
@@ -59,27 +59,26 @@ SerializerReference DefaultSerializerAllocator::Allocate(AllocationSpace space,
       space, static_cast<uint32_t>(completed_chunks_[space].size()), offset);
 }
 
-SerializerReference DefaultSerializerAllocator::AllocateMap() {
+SerializerReference SerializerAllocator::AllocateMap() {
   // Maps are allocated one-by-one when deserializing.
   return SerializerReference::MapReference(num_maps_++);
 }
 
-SerializerReference DefaultSerializerAllocator::AllocateLargeObject(
-    uint32_t size) {
+SerializerReference SerializerAllocator::AllocateLargeObject(uint32_t size) {
   // Large objects are allocated one-by-one when deserializing. We do not
   // have to keep track of multiple chunks.
   large_objects_total_size_ += size;
   return SerializerReference::LargeObjectReference(seen_large_objects_index_++);
 }
 
-SerializerReference DefaultSerializerAllocator::AllocateOffHeapBackingStore() {
+SerializerReference SerializerAllocator::AllocateOffHeapBackingStore() {
   DCHECK_NE(0, seen_backing_stores_index_);
   return SerializerReference::OffHeapBackingStoreReference(
       seen_backing_stores_index_++);
 }
 
 #ifdef DEBUG
-bool DefaultSerializerAllocator::BackReferenceIsAlreadyAllocated(
+bool SerializerAllocator::BackReferenceIsAlreadyAllocated(
     SerializerReference reference) const {
   DCHECK(reference.is_back_reference());
   AllocationSpace space = reference.space();
@@ -105,7 +104,7 @@ bool DefaultSerializerAllocator::BackReferenceIsAlreadyAllocated(
 #endif
 
 std::vector<SerializedData::Reservation>
-DefaultSerializerAllocator::EncodeReservations() const {
+SerializerAllocator::EncodeReservations() const {
   std::vector<SerializedData::Reservation> out;
 
   for (int i = FIRST_SPACE; i < kNumberOfPreallocatedSpaces; i++) {
@@ -130,7 +129,7 @@ DefaultSerializerAllocator::EncodeReservations() const {
   return out;
 }
 
-void DefaultSerializerAllocator::OutputStatistics() {
+void SerializerAllocator::OutputStatistics() {
   DCHECK(FLAG_serialization_statistics);
 
   PrintF("  Spaces (bytes):\n");

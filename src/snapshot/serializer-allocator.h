@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SNAPSHOT_DEFAULT_SERIALIZER_ALLOCATOR_H_
-#define V8_SNAPSHOT_DEFAULT_SERIALIZER_ALLOCATOR_H_
+#ifndef V8_SNAPSHOT_SERIALIZER_ALLOCATOR_H_
+#define V8_SNAPSHOT_SERIALIZER_ALLOCATOR_H_
 
 #include "src/snapshot/serializer-common.h"
 
@@ -12,9 +12,9 @@ namespace internal {
 
 class Serializer;
 
-class DefaultSerializerAllocator final {
+class SerializerAllocator final {
  public:
-  explicit DefaultSerializerAllocator(Serializer* serializer);
+  explicit SerializerAllocator(Serializer* serializer);
 
   SerializerReference Allocate(AllocationSpace space, uint32_t size);
   SerializerReference AllocateMap();
@@ -68,10 +68,10 @@ class DefaultSerializerAllocator final {
   // The current serializer.
   Serializer* const serializer_;
 
-  DISALLOW_COPY_AND_ASSIGN(DefaultSerializerAllocator)
+  DISALLOW_COPY_AND_ASSIGN(SerializerAllocator)
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SNAPSHOT_DEFAULT_SERIALIZER_ALLOCATOR_H_
+#endif  // V8_SNAPSHOT_SERIALIZER_ALLOCATOR_H_

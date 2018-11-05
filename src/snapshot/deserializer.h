@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "src/objects/js-array.h"
-#include "src/snapshot/default-deserializer-allocator.h"
+#include "src/snapshot/deserializer-allocator.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
@@ -88,7 +88,7 @@ class Deserializer : public SerializerDeserializer {
     return new_scripts_;
   }
 
-  DefaultDeserializerAllocator* allocator() { return &allocator_; }
+  DeserializerAllocator* allocator() { return &allocator_; }
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool can_rehash() const { return can_rehash_; }
 
@@ -148,7 +148,7 @@ class Deserializer : public SerializerDeserializer {
   std::vector<Handle<Script>> new_scripts_;
   std::vector<byte*> off_heap_backing_stores_;
 
-  DefaultDeserializerAllocator allocator_;
+  DeserializerAllocator allocator_;
   const bool deserializing_user_code_;
 
   // TODO(6593): generalize rehashing, and remove this flag.
@@ -160,7 +160,7 @@ class Deserializer : public SerializerDeserializer {
 #endif  // DEBUG
 
   // For source(), isolate(), and allocator().
-  friend class DefaultDeserializerAllocator;
+  friend class DeserializerAllocator;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };

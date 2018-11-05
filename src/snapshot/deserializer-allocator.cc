@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/snapshot/default-deserializer-allocator.h"
+#include "src/snapshot/deserializer-allocator.h"
 
 #include "src/heap/heap-inl.h"
 #include "src/snapshot/deserializer.h"
@@ -11,8 +11,7 @@
 namespace v8 {
 namespace internal {
 
-DefaultDeserializerAllocator::DefaultDeserializerAllocator(
-    Deserializer* deserializer)
+DeserializerAllocator::DeserializerAllocator(Deserializer* deserializer)
     : deserializer_(deserializer) {}
 
 // We know the space requirements before deserialization and can
@@ -26,8 +25,7 @@ DefaultDeserializerAllocator::DefaultDeserializerAllocator(
 // space allocation, we have to do an actual allocation when deserializing
 // each large object. Instead of tracking offset for back references, we
 // reference large objects by index.
-Address DefaultDeserializerAllocator::AllocateRaw(AllocationSpace space,
-                                                  int size) {
+Address DeserializerAllocator::AllocateRaw(AllocationSpace space, int size) {
   if (space == LO_SPACE) {
     AlwaysAllocateScope scope(isolate());
     LargeObjectSpace* lo_space = isolate()->heap()->lo_space();
@@ -57,8 +55,7 @@ Address DefaultDeserializerAllocator::AllocateRaw(AllocationSpace space,
   }
 }
 
-Address DefaultDeserializerAllocator::Allocate(AllocationSpace space,
-                                               int size) {
+Address DeserializerAllocator::Allocate(AllocationSpace space, int size) {
   Address address;
   HeapObject* obj;
 
@@ -82,7 +79,7 @@ Address DefaultDeserializerAllocator::Allocate(AllocationSpace space,
   }
 }
 
-void DefaultDeserializerAllocator::MoveToNextChunk(AllocationSpace space) {
+void DeserializerAllocator::MoveToNextChunk(AllocationSpace space) {
   DCHECK_LT(space, kNumberOfPreallocatedSpaces);
   uint32_t chunk_index = current_chunk_[space];
   const Heap::Reservation& reservation = reservations_[space];
@@ -94,19 +91,19 @@ void DefaultDeserializerAllocator::MoveToNextChunk(AllocationSpace space) {
   high_water_[space] = reservation[chunk_index].start;
 }
 
-HeapObject* DefaultDeserializerAllocator::GetMap(uint32_t index) {
+HeapObject* DeserializerAllocator::GetMap(uint32_t index) {
   DCHECK_LT(index, next_map_index_);
   return HeapObject::FromAddress(allocated_maps_[index]);
 }
 
-HeapObject* DefaultDeserializerAllocator::GetLargeObject(uint32_t index) {
+HeapObject* DeserializerAllocator::GetLargeObject(uint32_t index) {
   DCHECK_LT(index, deserialized_large_objects_.size());
   return deserialized_large_objects_[index];
 }
 
-HeapObject* DefaultDeserializerAllocator::GetObject(AllocationSpace space,
-                                                    uint32_t chunk_index,
-                                                    uint32_t chunk_offset) {
+HeapObject* DeserializerAllocator::GetObject(AllocationSpace space,
+                                             uint32_t chunk_index,
+                                             uint32_t chunk_offset) {
   DCHECK_LT(space, kNumberOfPreallocatedSpaces);
   DCHECK_LE(chunk_index, current_chunk_[space]);
   Address address = reservations_[space][chunk_index].start + chunk_offset;
@@ -119,7 +116,7 @@ HeapObject* DefaultDeserializerAllocator::GetObject(AllocationSpace space,
   return HeapObject::FromAddress(address);
 }
 
-void DefaultDeserializerAllocator::DecodeReservation(
+void DeserializerAllocator::DecodeReservation(
     const std::vector<SerializedData::Reservation>& res) {
   DCHECK_EQ(0, reservations_[FIRST_SPACE].size());
   int current_space = FIRST_SPACE;
@@ -132,7 +129,7 @@ void DefaultDeserializerAllocator::DecodeReservation(
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) current_chunk_[i] = 0;
 }
 
-bool DefaultDeserializerAllocator::ReserveSpace() {
+bool DeserializerAllocator::ReserveSpace() {
 #ifdef DEBUG
   for (int i = FIRST_SPACE; i < kNumberOfSpaces; ++i) {
     DCHECK_GT(reservations_[i].size(), 0);
@@ -148,7 +145,7 @@ bool DefaultDeserializerAllocator::ReserveSpace() {
   return true;
 }
 
-bool DefaultDeserializerAllocator::ReservationsAreFullyUsed() const {
+bool DeserializerAllocator::ReservationsAreFullyUsed() const {
   for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
     const uint32_t chunk_index = current_chunk_[space];
     if (reservations_[space].size() != chunk_index + 1) {
@@ -161,13 +158,12 @@ bool DefaultDeserializerAllocator::ReservationsAreFullyUsed() const {
   return (allocated_maps_.size() == next_map_index_);
 }
 
-void DefaultDeserializerAllocator::
-    RegisterDeserializedObjectsForBlackAllocation() {
+void DeserializerAllocator::RegisterDeserializedObjectsForBlackAllocation() {
   isolate()->heap()->RegisterDeserializedObjectsForBlackAllocation(
       reservations_, deserialized_large_objects_, allocated_maps_);
 }
 
-Isolate* DefaultDeserializerAllocator::isolate() const {
+Isolate* DeserializerAllocator::isolate() const {
   return deserializer_->isolate();
 }
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SNAPSHOT_DEFAULT_DESERIALIZER_ALLOCATOR_H_
-#define V8_SNAPSHOT_DEFAULT_DESERIALIZER_ALLOCATOR_H_
+#ifndef V8_SNAPSHOT_DESERIALIZER_ALLOCATOR_H_
+#define V8_SNAPSHOT_DESERIALIZER_ALLOCATOR_H_
 
 #include "src/globals.h"
 #include "src/heap/heap.h"
@@ -15,9 +15,9 @@ namespace internal {
 class Deserializer;
 class StartupDeserializer;
 
-class DefaultDeserializerAllocator final {
+class DeserializerAllocator final {
  public:
-  explicit DefaultDeserializerAllocator(Deserializer* deserializer);
+  explicit DeserializerAllocator(Deserializer* deserializer);
 
   // ------- Allocation Methods -------
   // Methods related to memory allocation during deserialization.
@@ -99,10 +99,10 @@ class DefaultDeserializerAllocator final {
   // The current deserializer.
   Deserializer* const deserializer_;
 
-  DISALLOW_COPY_AND_ASSIGN(DefaultDeserializerAllocator)
+  DISALLOW_COPY_AND_ASSIGN(DeserializerAllocator)
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SNAPSHOT_DEFAULT_DESERIALIZER_ALLOCATOR_H_
+#endif  // V8_SNAPSHOT_DESERIALIZER_ALLOCATOR_H_
