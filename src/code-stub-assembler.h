@@ -3110,7 +3110,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void SetPropertyLength(TNode<Context> context, TNode<Object> array,
                          TNode<Number> length);
 
- protected:
   // Implements DescriptorArray::Search().
   void DescriptorLookup(SloppyTNode<Name> unique_name,
                         SloppyTNode<DescriptorArray> descriptors,

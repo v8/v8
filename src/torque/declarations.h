@@ -85,16 +85,20 @@ class Declarations {
   static void DeclareStruct(const std::string& name,
                             const std::vector<NameAndType>& fields);
 
-  static Macro* CreateMacro(const std::string& name, const Signature& signature,
-                            bool transitioning,
+  static Macro* CreateMacro(std::string external_name,
+                            std::string readable_name,
+                            base::Optional<std::string> external_assembler_name,
+                            Signature signature, bool transitioning,
                             base::Optional<Statement*> body);
-  static Macro* DeclareMacro(const std::string& name,
-                             const Signature& signature, bool transitioning,
-                             base::Optional<Statement*> body,
-                             base::Optional<std::string> op = {});
+  static Macro* DeclareMacro(
+      const std::string& name,
+      base::Optional<std::string> external_assembler_name,
+      const Signature& signature, bool transitioning,
+      base::Optional<Statement*> body, base::Optional<std::string> op = {});
 
-  static Builtin* CreateBuiltin(const std::string& name, Builtin::Kind kind,
-                                const Signature& signature, bool transitioning,
+  static Builtin* CreateBuiltin(std::string external_name,
+                                std::string readable_name, Builtin::Kind kind,
+                                Signature signature, bool transitioning,
                                 base::Optional<Statement*> body);
   static Builtin* DeclareBuiltin(const std::string& name, Builtin::Kind kind,
                                  const Signature& signature, bool transitioning,

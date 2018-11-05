@@ -117,6 +117,9 @@ class Module : public Scope {
   explicit Module(const std::string& name)
       : Scope(Declarable::kModule), name_(name) {}
   const std::string& name() const { return name_; }
+  std::string ExternalName() const {
+    return CamelifyString(name()) + "BuiltinsFromDSLAssembler";
+  }
   std::ostream& source_stream() { return source_stream_; }
   std::ostream& header_stream() { return header_stream_; }
   std::string source() { return source_stream_.str(); }
@@ -167,6 +170,9 @@ class ModuleConstant : public Value {
 
   const std::string& constant_name() const { return constant_name_; }
   Expression* body() { return body_; }
+  std::string ExternalAssemblerName() const {
+    return Module::cast(ParentScope())->ExternalName();
+  }
 
  private:
   friend class Declarations;
@@ -195,7 +201,8 @@ class ExternConstant : public Value {
 class Callable : public Scope {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Callable, callable);
-  const std::string& name() const { return name_; }
+  const std::string& ExternalName() const { return external_name_; }
+  const std::string& ReadableName() const { return readable_name_; }
   const Signature& signature() const { return signature_; }
   const NameVector& parameter_names() const {
     return signature_.parameter_names;
@@ -210,12 +217,14 @@ class Callable : public Scope {
   bool IsExternal() const { return !body_.has_value(); }
 
  protected:
-  Callable(Declarable::Kind kind, const std::string& name,
-           const Signature& signature, bool transitioning,
+  Callable(Declarable::Kind kind, std::string external_name,
+           std::string readable_name, Signature signature, bool transitioning,
            base::Optional<Statement*> body)
       : Scope(kind),
-        name_(name),
-        signature_(signature),
+        external_name_(std::move(external_name)),
+
+        readable_name_(std::move(readable_name)),
+        signature_(std::move(signature)),
         transitioning_(transitioning),
         returns_(0),
         body_(body) {
@@ -223,7 +232,8 @@ class Callable : public Scope {
   }
 
  private:
-  std::string name_;
+  std::string external_name_;
+  std::string readable_name_;
   Signature signature_;
   bool transitioning_;
   size_t returns_;
@@ -234,15 +244,24 @@ class Macro : public Callable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Macro, macro);
 
+  const std::string& external_assembler_name() const {
+    return external_assembler_name_;
+  }
+
  private:
   friend class Declarations;
-  Macro(const std::string& name, const Signature& signature, bool transitioning,
-        base::Optional<Statement*> body)
-      : Callable(Declarable::kMacro, name, signature, transitioning, body) {
+  Macro(std::string external_name, std::string readable_name,
+        std::string external_assembler_name, const Signature& signature,
+        bool transitioning, base::Optional<Statement*> body)
+      : Callable(Declarable::kMacro, std::move(external_name),
+                 std::move(readable_name), signature, transitioning, body),
+        external_assembler_name_(std::move(external_assembler_name)) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for macros.");
     }
   }
+
+  std::string external_assembler_name_;
 };
 
 class Builtin : public Callable {
@@ -256,10 +275,11 @@ class Builtin : public Callable {
 
  private:
   friend class Declarations;
-  Builtin(const std::string& name, Builtin::Kind kind,
-          const Signature& signature, bool transitioning,
+  Builtin(std::string external_name, std::string readable_name,
+          Builtin::Kind kind, const Signature& signature, bool transitioning,
           base::Optional<Statement*> body)
-      : Callable(Declarable::kBuiltin, name, signature, transitioning, body),
+      : Callable(Declarable::kBuiltin, std::move(external_name),
+                 std::move(readable_name), signature, transitioning, body),
         kind_(kind) {}
 
   Kind kind_;
@@ -273,8 +293,8 @@ class RuntimeFunction : public Callable {
   friend class Declarations;
   RuntimeFunction(const std::string& name, const Signature& signature,
                   bool transitioning)
-      : Callable(Declarable::kRuntimeFunction, name, signature, transitioning,
-                 base::nullopt) {}
+      : Callable(Declarable::kRuntimeFunction, name, name, signature,
+                 transitioning, base::nullopt) {}
 };
 
 class Generic : public Declarable {

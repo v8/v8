@@ -14,7 +14,7 @@ namespace torque {
 DEFINE_CONTEXTUAL_VARIABLE(CurrentScope);
 
 std::ostream& operator<<(std::ostream& os, const Callable& m) {
-  os << "callable " << m.name() << "(";
+  os << "callable " << m.ReadableName() << "(";
   if (m.signature().implicit_count != 0) {
     os << "implicit ";
     TypeVector implicit_parameter_types(
@@ -35,14 +35,14 @@ std::ostream& operator<<(std::ostream& os, const Callable& m) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Builtin& b) {
-  os << "builtin " << *b.signature().return_type << " " << b.name()
+  os << "builtin " << *b.signature().return_type << " " << b.ReadableName()
      << b.signature().parameter_types;
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
-  os << "runtime function " << *b.signature().return_type << " " << b.name()
-     << b.signature().parameter_types;
+  os << "runtime function " << *b.signature().return_type << " "
+     << b.ReadableName() << b.signature().parameter_types;
   return os;
 }
 

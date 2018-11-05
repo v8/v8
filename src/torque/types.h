@@ -358,7 +358,7 @@ class StructType final : public Type {
   DECLARE_TYPE_BOILERPLATE(StructType);
   std::string ToExplicitString() const override;
   std::string MangledName() const override { return name_; }
-  std::string GetGeneratedTypeName() const override { return GetStructName(); }
+  std::string GetGeneratedTypeName() const override;
   std::string GetGeneratedTNodeTypeName() const override { UNREACHABLE(); }
   const Type* NonConstexprVersion() const override { return this; }
 

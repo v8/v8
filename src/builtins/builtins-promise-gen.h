@@ -5,6 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 #define V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 
+#include "src/code-stub-assembler.h"
 #include "src/contexts.h"
 #include "src/objects/promise.h"
 #include "torque-generated/builtins-base-from-dsl-gen.h"
@@ -14,7 +15,7 @@ namespace internal {
 
 typedef compiler::CodeAssemblerState CodeAssemblerState;
 
-class PromiseBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
+class PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
   enum PromiseResolvingFunctionContextSlot {
     // The promise which resolve/reject callbacks fulfill.
@@ -70,7 +71,7 @@ class PromiseBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   };
 
   explicit PromiseBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : BaseBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state) {}
   // These allocate and initialize a promise with pending state and
   // undefined fields.
   //
@@ -180,9 +181,10 @@ class PromiseBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
 
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
-  Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
-                          const IteratorRecord& record, Label* if_exception,
-                          Variable* var_exception);
+  Node* PerformPromiseAll(
+      Node* context, Node* constructor, Node* capability,
+      const BaseBuiltinsFromDSLAssembler::IteratorRecord& record,
+      Label* if_exception, Variable* var_exception);
 
   void SetForwardingHandlerIfTrue(Node* context, Node* condition,
                                   const NodeGenerator& object);

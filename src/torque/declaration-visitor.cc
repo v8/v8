@@ -35,8 +35,9 @@ void DeclarationVisitor::Visit(CallableNode* decl, const Signature& signature,
 }
 
 Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
-                                           const std::string& external_name,
-                                           const Signature& signature,
+                                           std::string external_name,
+                                           std::string readable_name,
+                                           Signature signature,
                                            base::Optional<Statement*> body) {
   const bool javascript = decl->javascript_linkage;
   const bool varargs = decl->signature->parameters.has_varargs;
@@ -80,8 +81,9 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
     ReportError(stream.str());
   }
 
-  return Declarations::CreateBuiltin(external_name, kind, signature,
-                                     decl->transitioning, body);
+  return Declarations::CreateBuiltin(
+      std::move(external_name), std::move(readable_name), kind,
+      std::move(signature), decl->transitioning, body);
 }
 
 void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
@@ -122,22 +124,22 @@ void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
               << " with signature ";
   }
 
-  Declarations::DeclareMacro(decl->name, signature, decl->transitioning, body,
-                             decl->op);
+  Declarations::DeclareMacro(decl->name, decl->external_assembler_name,
+                             signature, decl->transitioning, body, decl->op);
 }
 
 void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
                                const Signature& signature,
                                base::Optional<Statement*> body) {
-  Declarations::Declare(decl->name,
-                        CreateBuiltin(decl, decl->name, signature, body));
+  Declarations::Declare(
+      decl->name, CreateBuiltin(decl, decl->name, decl->name, signature, body));
 }
 
 void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
                                const Signature& signature,
                                base::Optional<Statement*> body) {
-  Declarations::DeclareMacro(decl->name, signature, decl->transitioning, body,
-                             decl->op);
+  Declarations::DeclareMacro(decl->name, base::nullopt, signature,
+                             decl->transitioning, body, decl->op);
 }
 
 void DeclarationVisitor::Visit(ConstDeclaration* decl) {
@@ -320,13 +322,24 @@ Callable* DeclarationVisitor::Specialize(
 
   std::string generated_name = Declarations::GetGeneratedCallableName(
       declaration->name, key.specialized_types);
+  std::stringstream readable_name;
+  readable_name << declaration->name << "<";
+  bool first = true;
+  for (const Type* t : key.specialized_types) {
+    if (!first) readable_name << ", ";
+    readable_name << *t;
+    first = false;
+  }
+  readable_name << ">";
   Callable* callable;
   if (MacroDeclaration::DynamicCast(declaration) != nullptr) {
-    callable = Declarations::CreateMacro(generated_name, type_signature,
+    callable = Declarations::CreateMacro(generated_name, readable_name.str(),
+                                         base::nullopt, type_signature,
                                          declaration->transitioning, body);
   } else {
     BuiltinDeclaration* builtin = BuiltinDeclaration::cast(declaration);
-    callable = CreateBuiltin(builtin, generated_name, type_signature, body);
+    callable = CreateBuiltin(builtin, generated_name, readable_name.str(),
+                             type_signature, body);
   }
   key.generic->AddSpecialization(key.specialized_types, callable);
   return callable;

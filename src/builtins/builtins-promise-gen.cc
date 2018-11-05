@@ -17,6 +17,7 @@ namespace v8 {
 namespace internal {
 
 using compiler::Node;
+using IteratorRecord = BaseBuiltinsFromDSLAssembler::IteratorRecord;
 
 Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
   Node* const native_context = LoadNativeContext(context);

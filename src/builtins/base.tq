@@ -901,10 +901,11 @@ extern macro IsArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 
-extern operator '.buffer' macro LoadTypedArrayBuffer(JSTypedArray):
-    JSArrayBuffer;
+extern operator '.buffer' macro
+TypedArrayBuiltinsAssembler::LoadTypedArrayBuffer(JSTypedArray): JSArrayBuffer;
 
-extern operator '.data_ptr' macro LoadDataPtr(JSTypedArray): RawPtr;
+extern operator '.data_ptr' macro TypedArrayBuiltinsAssembler::LoadDataPtr(
+    JSTypedArray): RawPtr;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):

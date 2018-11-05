@@ -49,13 +49,6 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
   std::ostream& source = module->source_stream();
   std::ostream& header = module->header_stream();
 
-  if (module == GlobalContext::GetDefaultModule()) {
-    source << "#include \"src/torque-assembler.h\"";
-  } else {
-    source << "#include \"src/builtins/builtins-" +
-                  DashifyString(module->name()) + "-gen.h\"";
-  }
-  source << "\n";
   source << "#include \"src/objects/arguments.h\"\n";
   source << "#include \"src/builtins/builtins-utils-gen.h\"\n";
   source << "#include \"src/builtins/builtins.h\"\n";
@@ -65,8 +58,15 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
   source << "#include \"src/objects.h\"\n";
   source << "#include \"src/objects/bigint.h\"\n";
 
-  source << "#include \"builtins-" + DashifyString(module->name()) +
-                "-from-dsl-gen.h\"\n\n";
+  for (Module* m : GlobalContext::Get().GetModules()) {
+    source << "#include \"torque-generated/builtins-" +
+                  DashifyString(m->name()) + "-from-dsl-gen.h\"\n";
+    if (m != GlobalContext::GetDefaultModule()) {
+      source << "#include \"src/builtins/builtins-" + DashifyString(m->name()) +
+                    "-gen.h\"\n";
+    }
+  }
+  source << "\n";
 
   source
       << "namespace v8 {\n"
@@ -84,24 +84,19 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
       std::string("V8_TORQUE_") + upper_name + "_FROM_DSL_BASE_H__";
   header << "#ifndef " << headerDefine << "\n";
   header << "#define " << headerDefine << "\n\n";
-  if (module == GlobalContext::GetDefaultModule()) {
     header << "#include \"src/torque-assembler.h\"";
-  } else {
-    header << "#include \"src/builtins/builtins-" +
-                  DashifyString(module->name()) + "-gen.h\"\n";
-  }
   header << "\n\n ";
 
   header << "namespace v8 {\n"
          << "namespace internal {\n"
          << "\n";
 
-  header << "class " << GetDSLAssemblerName(module) << ": public "
-         << GetBaseAssemblerName(module) << " {\n";
+  header << "class " << module->ExternalName()
+         << ": public TorqueAssembler {\n";
   header << " public:\n";
-  header << "  explicit " << GetDSLAssemblerName(module)
-         << "(compiler::CodeAssemblerState* state) : "
-         << GetBaseAssemblerName(module) << "(state) {}\n";
+  header
+      << "  explicit " << module->ExternalName()
+      << "(compiler::CodeAssemblerState* state) : TorqueAssembler(state) {}\n";
 
   header << "\n";
   header << "  using Node = compiler::Node;\n";
@@ -143,7 +138,7 @@ void ImplementationVisitor::Visit(ModuleConstant* decl) {
   header_out() << ";\n";
 
   GenerateFunctionDeclaration(source_out(),
-                              GetDSLAssemblerName(CurrentModule()) + "::", name,
+                              CurrentModule()->ExternalName() + "::", name,
                               signature, {});
   source_out() << " {\n";
 
@@ -220,7 +215,7 @@ void ImplementationVisitor::Visit(Macro* macro) {
   header_out() << ";\n";
 
   GenerateMacroFunctionDeclaration(
-      source_out(), GetDSLAssemblerName(CurrentModule()) + "::", macro);
+      source_out(), CurrentModule()->ExternalName() + "::", macro);
   source_out() << " {\n";
 
   Stack<std::string> lowered_parameters;
@@ -270,20 +265,20 @@ void ImplementationVisitor::Visit(Macro* macro) {
   if (result->IsNever()) {
     if (!macro->signature().return_type->IsNever() && !macro->HasReturns()) {
       std::stringstream s;
-      s << "macro " << macro->name()
+      s << "macro " << macro->ReadableName()
         << " that never returns must have return type never";
       ReportError(s.str());
     }
   } else {
     if (macro->signature().return_type->IsNever()) {
       std::stringstream s;
-      s << "macro " << macro->name()
+      s << "macro " << macro->ReadableName()
         << " has implicit return at end of its declartion but return type "
            "never";
       ReportError(s.str());
     } else if (!macro->signature().return_type->IsVoid()) {
       std::stringstream s;
-      s << "macro " << macro->name()
+      s << "macro " << macro->ReadableName()
         << " expects to return a value but doesn't on all paths";
       ReportError(s.str());
     }
@@ -341,10 +336,10 @@ std::string AddParameter(size_t i, Builtin* builtin,
 void ImplementationVisitor::Visit(Builtin* builtin) {
   if (builtin->IsExternal()) return;
   CurrentScope::Scope current_scope(builtin);
-  const std::string& name = builtin->name();
+  const std::string& name = builtin->ExternalName();
   const Signature& signature = builtin->signature();
   source_out() << "TF_BUILTIN(" << name << ", "
-               << GetDSLAssemblerName(CurrentModule()) << ") {\n";
+               << CurrentModule()->ExternalName() << ") {\n";
   CurrentCallable::Scope current_callable(builtin);
 
   Stack<const Type*> parameter_types;
@@ -672,7 +667,7 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
   const Type* type = TypeOracle::GetFunctionPointerType(
       builtin->signature().parameter_types.types,
       builtin->signature().return_type);
-  assembler().Emit(PushCodePointerInstruction{builtin->name(), type});
+  assembler().Emit(PushCodePointerInstruction{builtin->ExternalName(), type});
   return VisitResult(type, assembler().TopRange(1));
 }
 
@@ -1184,25 +1179,9 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir,
   ReplaceFileContentsIfDifferent(header_file_name, new_header);
 }
 
-std::string ImplementationVisitor::GetBaseAssemblerName(Module* module) {
-  if (module == GlobalContext::GetDefaultModule()) {
-    return "TorqueAssembler";
-  } else {
-    std::string assembler_name(CamelifyString(module->name()) +
-                               "BuiltinsAssembler");
-    return assembler_name;
-  }
-}
-
-std::string ImplementationVisitor::GetDSLAssemblerName(Module* module) {
-  std::string assembler_name(CamelifyString(module->name()) +
-                             "BuiltinsFromDSLAssembler");
-  return assembler_name;
-}
-
 void ImplementationVisitor::GenerateMacroFunctionDeclaration(
     std::ostream& o, const std::string& macro_prefix, Macro* macro) {
-  GenerateFunctionDeclaration(o, macro_prefix, macro->name(),
+  GenerateFunctionDeclaration(o, macro_prefix, macro->ExternalName(),
                               macro->signature(), macro->parameter_names());
 }
 
@@ -1218,7 +1197,7 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
   std::string return_type_name(signature.return_type->GetGeneratedTypeName());
   if (const StructType* struct_type =
           StructType::DynamicCast(signature.return_type)) {
-    o << GetDSLAssemblerName(struct_type->module()) << "::";
+    o << struct_type->module()->ExternalName() << "::";
   } else if (macro_prefix != "" && (return_type_name.length() > 5) &&
              (return_type_name.substr(0, 5) == "TNode")) {
     o << "compiler::";
@@ -1706,8 +1685,9 @@ VisitResult ImplementationVisitor::GenerateCall(
   size_t label_count = callable->signature().labels.size();
   if (label_count != arguments.labels.size()) {
     std::stringstream s;
-    s << "unexpected number of otherwise labels for " << callable->name()
-      << " (expected " << std::to_string(label_count) << " found "
+    s << "unexpected number of otherwise labels for "
+      << callable->ReadableName() << " (expected "
+      << std::to_string(label_count) << " found "
       << std::to_string(arguments.labels.size()) << ")";
     ReportError(s.str());
   }
@@ -1743,7 +1723,8 @@ VisitResult ImplementationVisitor::GenerateCall(
     if (return_type->IsConstexpr()) {
       DCHECK_EQ(0, arguments.labels.size());
       std::stringstream result;
-      result << "(" << macro->name() << "(";
+      result << "(" << macro->external_assembler_name() << "(state())."
+             << macro->ExternalName() << "(";
       bool first = true;
       for (VisitResult arg : arguments.parameters) {
         DCHECK(!arg.IsOnStack());
@@ -2054,9 +2035,9 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
     int firstParameterIndex = 1;
     bool declareParameters = true;
     if (builtin->IsStub()) {
-      new_contents_stream << "TFS(" << builtin->name();
+      new_contents_stream << "TFS(" << builtin->ExternalName();
     } else {
-      new_contents_stream << "TFJ(" << builtin->name();
+      new_contents_stream << "TFJ(" << builtin->ExternalName();
       if (builtin->IsVarArgsJavaScript()) {
         new_contents_stream
             << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
@@ -2097,7 +2078,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
       ReportError("unable to find any builtin with type \"", *type, "\"");
     }
     new_contents_stream << "  V(" << type->function_pointer_type_id() << ","
-                        << example_builtin->name() << ")\\\n";
+                        << example_builtin->ExternalName() << ")\\\n";
   }
   new_contents_stream << "\n";
 

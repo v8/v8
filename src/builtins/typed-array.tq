@@ -4,7 +4,7 @@
 
 module typed_array {
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
-  extern macro ValidateTypedArray(
+  extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
       Context, Object, constexpr string): JSTypedArray;
 
   extern macro LoadFixedTypedArrayElementAsTagged(

@@ -169,23 +169,30 @@ void Declarations::DeclareStruct(const std::string& name,
   DeclareType(name, new_type, false);
 }
 
-Macro* Declarations::CreateMacro(const std::string& name,
-                                 const Signature& signature, bool transitioning,
-                                 base::Optional<Statement*> body) {
-  return RegisterDeclarable(
-      std::unique_ptr<Macro>(new Macro(name, signature, transitioning, body)));
+Macro* Declarations::CreateMacro(
+    std::string external_name, std::string readable_name,
+    base::Optional<std::string> external_assembler_name, Signature signature,
+    bool transitioning, base::Optional<Statement*> body) {
+  if (!external_assembler_name) {
+    external_assembler_name = CurrentModule()->ExternalName();
+  }
+  return RegisterDeclarable(std::unique_ptr<Macro>(
+      new Macro(std::move(external_name), std::move(readable_name),
+                std::move(*external_assembler_name), std::move(signature),
+                transitioning, body)));
 }
 
-Macro* Declarations::DeclareMacro(const std::string& name,
-                                  const Signature& signature,
-                                  bool transitioning,
-                                  base::Optional<Statement*> body,
-                                  base::Optional<std::string> op) {
+Macro* Declarations::DeclareMacro(
+    const std::string& name,
+    base::Optional<std::string> external_assembler_name,
+    const Signature& signature, bool transitioning,
+    base::Optional<Statement*> body, base::Optional<std::string> op) {
   if (TryLookupMacro(name, signature.GetExplicitTypes())) {
     ReportError("cannot redeclare macro ", name,
                 " with identical explicit parameters");
   }
-  Macro* macro = CreateMacro(name, signature, transitioning, body);
+  Macro* macro = CreateMacro(name, name, std::move(external_assembler_name),
+                             signature, transitioning, body);
   Declare(name, macro);
   if (op) {
     if (TryLookupMacro(*op, signature.GetExplicitTypes())) {
@@ -197,13 +204,14 @@ Macro* Declarations::DeclareMacro(const std::string& name,
   return macro;
 }
 
-Builtin* Declarations::CreateBuiltin(const std::string& name,
-                                     Builtin::Kind kind,
-                                     const Signature& signature,
+Builtin* Declarations::CreateBuiltin(std::string external_name,
+                                     std::string readable_name,
+                                     Builtin::Kind kind, Signature signature,
                                      bool transitioning,
                                      base::Optional<Statement*> body) {
   return RegisterDeclarable(std::unique_ptr<Builtin>(
-      new Builtin(name, kind, signature, transitioning, body)));
+      new Builtin(std::move(external_name), std::move(readable_name), kind,
+                  std::move(signature), transitioning, body)));
 }
 
 Builtin* Declarations::DeclareBuiltin(const std::string& name,
@@ -212,8 +220,8 @@ Builtin* Declarations::DeclareBuiltin(const std::string& name,
                                       bool transitioning,
                                       base::Optional<Statement*> body) {
   CheckAlreadyDeclared<Builtin>(name, "builtin");
-  return Declare(name,
-                 CreateBuiltin(name, kind, signature, transitioning, body));
+  return Declare(
+      name, CreateBuiltin(name, name, kind, signature, transitioning, body));
 }
 
 RuntimeFunction* Declarations::DeclareRuntimeFunction(

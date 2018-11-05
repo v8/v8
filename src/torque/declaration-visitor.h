@@ -51,14 +51,14 @@ class DeclarationVisitor : public FileVisitor {
     Declarations::DeclareType(decl->name, type, true);
   }
 
-  Builtin* CreateBuiltin(BuiltinDeclaration* decl,
-                         const std::string& external_name,
-                         const Signature& signature,
+  Builtin* CreateBuiltin(BuiltinDeclaration* decl, std::string external_name,
+                         std::string readable_name, Signature signature,
                          base::Optional<Statement*> body);
   void Visit(ExternalBuiltinDeclaration* decl, const Signature& signature,
              base::Optional<Statement*> body) {
     Declarations::Declare(
-        decl->name, CreateBuiltin(decl, decl->name, signature, base::nullopt));
+        decl->name,
+        CreateBuiltin(decl, decl->name, decl->name, signature, base::nullopt));
   }
 
   void Visit(ExternalRuntimeDeclaration* decl, const Signature& sig,

@@ -644,13 +644,16 @@ struct MacroDeclaration : CallableNode {
 struct ExternalMacroDeclaration : MacroDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternalMacroDeclaration)
   ExternalMacroDeclaration(SourcePosition pos, bool transitioning,
+                           std::string external_assembler_name,
                            std::string name, base::Optional<std::string> op,
                            ParameterList parameters,
                            TypeExpression* return_type,
                            const LabelAndTypesVector& labels)
       : MacroDeclaration(kKind, pos, transitioning, std::move(name),
                          std::move(op), std::move(parameters), return_type,
-                         labels) {}
+                         labels),
+        external_assembler_name(std::move(external_assembler_name)) {}
+  std::string external_assembler_name;
 };
 
 struct TorqueMacroDeclaration : MacroDeclaration {

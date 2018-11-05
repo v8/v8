@@ -284,10 +284,6 @@ class ImplementationVisitor : public FileVisitor {
   };
 
  private:
-  std::string GetBaseAssemblerName(Module* module);
-
-  std::string GetDSLAssemblerName(Module* module);
-
   base::Optional<Block*> GetCatchBlock();
   void GenerateCatchBlock(base::Optional<Block*> catch_block);
 

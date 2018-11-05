@@ -7,10 +7,11 @@ module array {
 
   // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
   // string.
-  extern macro CallJSArrayArrayJoinConcatToSequentialString(
+  extern macro
+  ArrayBuiltinsAssembler::CallJSArrayArrayJoinConcatToSequentialString(
       FixedArray, intptr, String, String): String;
 
-  extern macro CallArrayJoin(
+  extern macro ArrayBuiltinsAssembler::CallArrayJoin(
       Context, constexpr bool, JSReceiver, String, Number, Object, Object):
       String
       labels IfException(Object);

@@ -353,6 +353,8 @@ base::Optional<ParseResult> MakeExternalMacro(
     ParseResultIterator* child_results) {
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
+  auto external_assembler_name =
+      child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
   LintGenericParameters(generic_parameters);
@@ -361,7 +363,9 @@ base::Optional<ParseResult> MakeExternalMacro(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   MacroDeclaration* macro = MakeNode<ExternalMacroDeclaration>(
-      transitioning, name, operator_name, args, return_type, labels);
+      transitioning,
+      external_assembler_name ? *external_assembler_name : "CodeStubAssembler",
+      name, operator_name, args, return_type, labels);
   Declaration* result;
   if (generic_parameters.empty()) {
     result = MakeNode<StandardDeclaration>(macro, base::nullopt);
@@ -1408,8 +1412,9 @@ struct TorqueGrammar : Grammar {
       Rule({Token("extern"), CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
-            Token("macro"), &identifier,
-            TryOrDefault<GenericParameters>(&genericParameters),
+            Token("macro"),
+            Optional<std::string>(Sequence({&identifier, Token("::")})),
+            &identifier, TryOrDefault<GenericParameters>(&genericParameters),
             &typeListMaybeVarArgs, &optionalReturnType, optionalLabelList,
             Token(";")},
            MakeExternalMacro),
