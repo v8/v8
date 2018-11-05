@@ -463,7 +463,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   MapRef map = is_constructor
                    ? native_context().bound_function_with_constructor_map()
                    : native_context().bound_function_without_constructor_map();
-  map.SerializePrototype();
   if (!map.prototype().equals(prototype)) return NoChange();
 
   // Make sure we can rely on the {receiver_maps}.
