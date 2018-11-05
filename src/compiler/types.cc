@@ -245,6 +245,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_WEAK_FACTORY_TYPE:
     case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
     case JS_WEAK_MAP_TYPE:
+    case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
     case WASM_EXCEPTION_TYPE:

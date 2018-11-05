@@ -537,7 +537,11 @@ namespace internal {
   T(MakeCellTargetMustBeObject,                                                \
     "WeakFactory.makeCell: target must be an object")                          \
   T(MakeCellTargetAndHoldingsMustNotBeSame,                                    \
-    "WeakFactory.makeCell: target and holdings must not be same")
+    "WeakFactory.makeCell: target and holdings must not be same")              \
+  T(MakeRefTargetMustBeObject,                                                 \
+    "WeakFactory.makeRef: target must be an object")                           \
+  T(MakeRefTargetAndHoldingsMustNotBeSame,                                     \
+    "WeakFactory.makeRef: target and holdings must not be same")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

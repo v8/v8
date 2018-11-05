@@ -120,7 +120,6 @@
   V(_, cell_value_string, "%cell_value")                              \
   V(_, char_at_string, "CharAt")                                      \
   V(_, character_string, "character")                                 \
-  V(_, clear_string, "clear")                                         \
   V(_, closure_string, "(closure)")                                   \
   V(_, code_string, "code")                                           \
   V(_, column_string, "column")                                       \
@@ -175,7 +174,6 @@
   V(_, globalThis_string, "globalThis")                               \
   V(_, groups_string, "groups")                                       \
   V(_, has_string, "has")                                             \
-  V(_, holdings_string, "holdings")                                   \
   V(_, ignoreCase_string, "ignoreCase")                               \
   V(_, illegal_access_string, "illegal access")                       \
   V(_, illegal_argument_string, "illegal argument")                   \
@@ -197,7 +195,6 @@
   V(_, line_string, "line")                                           \
   V(_, LinkError_string, "LinkError")                                 \
   V(_, long_string, "long")                                           \
-  V(_, makeCell_string, "makeCell")                                   \
   V(_, Map_string, "Map")                                             \
   V(_, MapIterator_string, "Map Iterator")                            \
   V(_, message_string, "message")                                     \
@@ -299,6 +296,7 @@
   V(_, WeakCell_string, "WeakCell")                                   \
   V(_, WeakFactory_string, "WeakFactory")                             \
   V(_, WeakMap_string, "WeakMap")                                     \
+  V(_, WeakRef_string, "WeakRef")                                     \
   V(_, WeakSet_string, "WeakSet")                                     \
   V(_, week_string, "week")                                           \
   V(_, will_handle_string, "willHandle")                              \

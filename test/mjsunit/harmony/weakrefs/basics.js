@@ -82,6 +82,8 @@
   assertThrows(() => wf.makeCell(false), TypeError, message);
   assertThrows(() => wf.makeCell("foo"), TypeError, message);
   assertThrows(() => wf.makeCell(Symbol()), TypeError, message);
+  assertThrows(() => wf.makeCell(null), TypeError, message);
+  assertThrows(() => wf.makeCell(undefined), TypeError, message);
 })();
 
 (function TestMakeCellWithProxy() {
@@ -98,7 +100,6 @@
   // SameValue(target, holdings) not ok
   assertThrows(() => wf.makeCell(obj, obj), TypeError,
                "WeakFactory.makeCell: target and holdings must not be same");
-  // target == holdings ok
   let holdings = {a: 1};
   let wc = wf.makeCell(obj, holdings);
 })();
@@ -126,4 +127,110 @@
   assertThrows(() => clear.call({}), TypeError);
   // Does not throw:
   clear.call(wc);
+})();
+
+(function TestMakeRef() {
+  let wf = new WeakFactory();
+  let wr = wf.makeRef({});
+  let wc = wf.makeCell({});
+  assertEquals(wr.toString(), "[object WeakRef]");
+  assertNotSame(wr.__proto__, Object.prototype);
+  assertSame(wr.__proto__.__proto__, wc.__proto__);
+  assertEquals(wr.holdings, undefined);
+
+  let deref_desc = Object.getOwnPropertyDescriptor(wr.__proto__, "deref");
+  assertEquals(true, deref_desc.configurable);
+  assertEquals(false, deref_desc.enumerable);
+  assertEquals("function", typeof deref_desc.value);
+})();
+
+(function TestMakeRefWithHoldings() {
+  let wf = new WeakFactory();
+  let obj = {a: 1};
+  let holdings = {b: 2};
+  let wr = wf.makeRef(obj, holdings);
+  assertSame(wr.holdings, holdings);
+})();
+
+(function TestMakeRefWithHoldingsSetHoldings() {
+  let wf = new WeakFactory();
+  let obj = {a: 1};
+  let holdings = {b: 2};
+  let wr = wf.makeRef(obj, holdings);
+  assertSame(wr.holdings, holdings);
+  wr.holdings = 5;
+  assertSame(wr.holdings, holdings);
+})();
+
+(function TestMakeRefWithHoldingsSetHoldingsStrict() {
+  "use strict";
+  let wf = new WeakFactory();
+  let obj = {a: 1};
+  let holdings = {b: 2};
+  let wr = wf.makeRef(obj, holdings);
+  assertSame(wr.holdings, holdings);
+  assertThrows(() => { wr.holdings = 5; }, TypeError);
+  assertSame(wr.holdings, holdings);
+})();
+
+(function TestMakeRefWithNonObject() {
+  let wf = new WeakFactory();
+  let message = "WeakFactory.makeRef: target must be an object";
+  assertThrows(() => wf.makeRef(), TypeError, message);
+  assertThrows(() => wf.makeRef(1), TypeError, message);
+  assertThrows(() => wf.makeRef(false), TypeError, message);
+  assertThrows(() => wf.makeRef("foo"), TypeError, message);
+  assertThrows(() => wf.makeRef(Symbol()), TypeError, message);
+  assertThrows(() => wf.makeRef(null), TypeError, message);
+  assertThrows(() => wf.makeRef(undefined), TypeError, message);
+})();
+
+(function TestMakeRefWithProxy() {
+  let handler = {};
+  let obj = {};
+  let proxy = new Proxy(obj, handler);
+  let wf = new WeakFactory();
+  let wr = wf.makeRef(proxy);
+})();
+
+(function TestMakeRefTargetAndHoldingsSameValue() {
+  let wf = new WeakFactory();
+  let obj = {a: 1};
+  // SameValue(target, holdings) not ok
+  assertThrows(() => wf.makeRef(obj, obj), TypeError,
+               "WeakFactory.makeRef: target and holdings must not be same");
+  let holdings = {a: 1};
+  let wr = wf.makeRef(obj, holdings);
+})();
+
+(function TestMakeRefWithoutWeakFactory() {
+  assertThrows(() => WeakFactory.prototype.makeRef.call({}, {}), TypeError);
+  // Does not throw:
+  let wf = new WeakFactory();
+  WeakFactory.prototype.makeRef.call(wf, {});
+})();
+
+(function TestDerefWithoutWeakRef() {
+  let wf = new WeakFactory();
+  let wc = wf.makeCell({});
+  let wr = wf.makeRef({});
+  let deref = Object.getOwnPropertyDescriptor(wr.__proto__, "deref").value;
+  assertThrows(() => deref.call({}), TypeError);
+  assertThrows(() => deref.call(wc), TypeError);
+  // Does not throw:
+  deref.call(wr);
+})();
+
+(function TestWeakRefClearAfterProtoChange() {
+  let wf = new WeakFactory();
+  let wc = wf.makeCell({});
+  let wr = wf.makeRef({});
+  // Does not throw:
+  wr.clear();
+  wr.__proto__ = {};
+  assertThrows(() => wr.clear(), TypeError);
+
+  let clear = Object.getOwnPropertyDescriptor(wc.__proto__, "clear").value;
+  // Does not throw:
+  clear.call(wr);
 })();

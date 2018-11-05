@@ -52,6 +52,7 @@ class JSWeakCollection;
 class JSWeakFactory;
 class JSWeakFactoryCleanupIterator;
 class JSWeakMap;
+class JSWeakRef;
 class JSWeakSet;
 class MaybeObject;
 class PromiseCapability;

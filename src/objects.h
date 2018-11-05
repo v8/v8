@@ -509,7 +509,8 @@ enum InstanceType : uint16_t {
   JS_SET_KEY_VALUE_ITERATOR_TYPE,
   JS_SET_VALUE_ITERATOR_TYPE,
   JS_STRING_ITERATOR_TYPE,
-  JS_WEAK_CELL_TYPE,
+  JS_WEAK_CELL_TYPE,  // FIRST_JS_WEAK_CELL_TYPE
+  JS_WEAK_REF_TYPE,   // LAST_JS_WEAK_CELL_TYPE
   JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE,
   JS_WEAK_FACTORY_TYPE,
   JS_WEAK_MAP_TYPE,
@@ -597,6 +598,9 @@ enum InstanceType : uint16_t {
 
   FIRST_MAP_ITERATOR_TYPE = JS_MAP_KEY_ITERATOR_TYPE,
   LAST_MAP_ITERATOR_TYPE = JS_MAP_VALUE_ITERATOR_TYPE,
+
+  FIRST_JS_WEAK_CELL_TYPE = JS_WEAK_CELL_TYPE,
+  LAST_JS_WEAK_CELL_TYPE = JS_WEAK_REF_TYPE,
 };
 
 STATIC_ASSERT((FIRST_NONSTRING_TYPE & kIsNotStringMask) != kStringTag);
@@ -778,6 +782,7 @@ class ZoneForwardList;
   V(JSTypedArray)                              \
   V(JSValue)                                   \
   V(JSWeakCell)                                \
+  V(JSWeakRef)                                 \
   V(JSWeakCollection)                          \
   V(JSWeakFactory)                             \
   V(JSWeakFactoryCleanupIterator)              \
@@ -935,10 +940,10 @@ class ZoneForwardList;
   V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                           \
   V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                   \
   V(JSValue, JS_VALUE_TYPE)                                              \
-  V(JSWeakCell, JS_WEAK_CELL_TYPE)                                       \
   V(JSWeakFactory, JS_WEAK_FACTORY_TYPE)                                 \
   V(JSWeakFactoryCleanupIterator, JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE) \
   V(JSWeakMap, JS_WEAK_MAP_TYPE)                                         \
+  V(JSWeakRef, JS_WEAK_REF_TYPE)                                         \
   V(JSWeakSet, JS_WEAK_SET_TYPE)                                         \
   V(LoadHandler, LOAD_HANDLER_TYPE)                                      \
   V(Map, MAP_TYPE)                                                       \
@@ -1006,6 +1011,7 @@ class ZoneForwardList;
   V(HashTable, FIRST_HASH_TABLE_TYPE, LAST_HASH_TABLE_TYPE)         \
   V(JSMapIterator, FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE) \
   V(JSSetIterator, FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE) \
+  V(JSWeakCell, FIRST_JS_WEAK_CELL_TYPE, LAST_JS_WEAK_CELL_TYPE)    \
   V(Microtask, FIRST_MICROTASK_TYPE, LAST_MICROTASK_TYPE)           \
   V(Name, FIRST_TYPE, LAST_NAME_TYPE)                               \
   V(String, FIRST_TYPE, FIRST_NONSTRING_TYPE - 1)                   \

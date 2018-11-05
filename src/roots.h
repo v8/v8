@@ -285,7 +285,9 @@ class RootVisitor;
   /* Support for async stack traces */                                      \
   V(HeapObject*, current_microtask, CurrentMicrotask)                       \
   /* JSWeakFactory objects which need cleanup */                            \
-  V(Object*, dirty_js_weak_factories, DirtyJSWeakFactories)
+  V(Object*, dirty_js_weak_factories, DirtyJSWeakFactories)                 \
+  /* KeepDuringJob set for JS WeakRefs */                                   \
+  V(HeapObject*, weak_refs_keep_during_job, WeakRefsKeepDuringJob)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \

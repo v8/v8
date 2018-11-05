@@ -4577,9 +4577,11 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     JSObject::AddProperty(isolate(), global, weak_factory_name,
                           weak_factory_fun, DONT_ENUM);
 
-    Handle<String> make_cell_name = factory->makeCell_string();
-    SimpleInstallFunction(isolate(), weak_factory_prototype, make_cell_name,
+    SimpleInstallFunction(isolate(), weak_factory_prototype, "makeCell",
                           Builtins::kWeakFactoryMakeCell, 2, false);
+
+    SimpleInstallFunction(isolate(), weak_factory_prototype, "makeRef",
+                          Builtins::kWeakFactoryMakeRef, 2, false);
   }
   {
     // Create %WeakCellPrototype%
@@ -4597,11 +4599,28 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     SimpleInstallGetter(isolate(), weak_cell_prototype,
-                        factory->holdings_string(),
+                        factory->InternalizeUtf8String("holdings"),
                         Builtins::kWeakCellHoldingsGetter, false);
-    Handle<String> clear_name = factory->clear_string();
-    SimpleInstallFunction(isolate(), weak_cell_prototype, clear_name,
+    SimpleInstallFunction(isolate(), weak_cell_prototype, "clear",
                           Builtins::kWeakCellClear, 0, false);
+
+    // Create %WeakRefPrototype%
+    Handle<Map> weak_ref_map =
+        factory->NewMap(JS_WEAK_REF_TYPE, JSWeakRef::kSize);
+    native_context()->set_js_weak_ref_map(*weak_ref_map);
+
+    Handle<JSObject> weak_ref_prototype =
+        factory->NewJSObject(isolate()->object_function(), TENURED);
+    Map::SetPrototype(isolate(), weak_ref_map, weak_ref_prototype);
+    JSObject::ForceSetPrototype(weak_ref_prototype, weak_cell_prototype);
+
+    JSObject::AddProperty(
+        isolate(), weak_ref_prototype, factory->to_string_tag_symbol(),
+        factory->WeakRef_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    SimpleInstallFunction(isolate(), weak_ref_prototype, "deref",
+                          Builtins::kWeakRefDeref, 0, false);
   }
 
   {

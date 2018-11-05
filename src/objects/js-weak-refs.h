@@ -101,6 +101,13 @@ class JSWeakCell : public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCell);
 };
 
+class JSWeakRef : public JSWeakCell {
+ public:
+  DECL_CAST(JSWeakRef)
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakRef);
+};
+
 class WeakFactoryCleanupJobTask : public Microtask {
  public:
   DECL_ACCESSORS(factory, JSWeakFactory)

@@ -3260,6 +3260,7 @@ VisitorId Map::GetVisitorId(Map* map) {
       return kVisitJSApiObject;
 
     case JS_WEAK_CELL_TYPE:
+    case JS_WEAK_REF_TYPE:
       return kVisitJSWeakCell;
 
     case FILLER_TYPE:

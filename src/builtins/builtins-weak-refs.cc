@@ -37,24 +37,25 @@ BUILTIN(WeakFactoryConstructor) {
 
 BUILTIN(WeakFactoryMakeCell) {
   HandleScope scope(isolate);
-  const char* method = "WeakFactory.makeCell";
+  const char* method_name = "WeakFactory.prototype.makeCell";
 
-  CHECK_RECEIVER(JSWeakFactory, weak_factory, method);
+  CHECK_RECEIVER(JSWeakFactory, weak_factory, method_name);
 
   Handle<Object> target = args.atOrUndefined(isolate, 1);
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kMakeCellTargetMustBeObject,
-                     isolate->factory()->NewStringFromAsciiChecked(method)));
+        isolate, NewTypeError(MessageTemplate::kMakeCellTargetMustBeObject,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
   }
   Handle<JSReceiver> target_receiver = Handle<JSReceiver>::cast(target);
   Handle<Object> holdings = args.atOrUndefined(isolate, 2);
   if (target->SameValue(*holdings)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
-        NewTypeError(MessageTemplate::kMakeCellTargetAndHoldingsMustNotBeSame,
-                     isolate->factory()->NewStringFromAsciiChecked(method)));
+        NewTypeError(
+            MessageTemplate::kMakeCellTargetAndHoldingsMustNotBeSame,
+            isolate->factory()->NewStringFromAsciiChecked(method_name)));
   }
 
   // TODO(marja): Realms.
@@ -72,6 +73,46 @@ BUILTIN(WeakFactoryMakeCell) {
   weak_cell->set_holdings(*holdings);
   weak_factory->AddWeakCell(*weak_cell);
   return *weak_cell;
+}
+
+BUILTIN(WeakFactoryMakeRef) {
+  HandleScope scope(isolate);
+  const char* method_name = "WeakFactory.prototype.makeRef";
+
+  CHECK_RECEIVER(JSWeakFactory, weak_factory, method_name);
+
+  Handle<Object> target = args.atOrUndefined(isolate, 1);
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kMakeRefTargetMustBeObject,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+  Handle<JSReceiver> target_receiver = Handle<JSReceiver>::cast(target);
+  Handle<Object> holdings = args.atOrUndefined(isolate, 2);
+  if (target->SameValue(*holdings)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(
+            MessageTemplate::kMakeRefTargetAndHoldingsMustNotBeSame,
+            isolate->factory()->NewStringFromAsciiChecked(method_name)));
+  }
+
+  // TODO(marja): Realms.
+
+  Handle<Map> weak_ref_map(isolate->native_context()->js_weak_ref_map(),
+                           isolate);
+
+  Handle<JSWeakRef> weak_ref =
+      Handle<JSWeakRef>::cast(isolate->factory()->NewJSObjectFromMap(
+          weak_ref_map, TENURED, Handle<AllocationSite>::null()));
+  weak_ref->set_target(*target_receiver);
+  weak_ref->set_holdings(*holdings);
+  weak_factory->AddWeakCell(*weak_ref);
+
+  isolate->heap()->AddKeepDuringJobTarget(target_receiver);
+
+  return *weak_ref;
 }
 
 BUILTIN(WeakFactoryCleanupIteratorNext) {
@@ -97,9 +138,24 @@ BUILTIN(WeakCellHoldingsGetter) {
 
 BUILTIN(WeakCellClear) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSWeakCell, weak_cell, "WeakCell.clear");
+  CHECK_RECEIVER(JSWeakCell, weak_cell, "WeakCell.prototype.clear");
   weak_cell->Clear(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+BUILTIN(WeakRefDeref) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSWeakRef, weak_ref, "WeakRef.prototype.deref");
+  if (weak_ref->target()->IsJSReceiver()) {
+    Handle<JSReceiver> target =
+        handle(JSReceiver::cast(weak_ref->target()), isolate);
+    // AddKeepDuringJobTarget might allocate and cause a GC, but it won't clear
+    // weak_ref since we hold a Handle to its target.
+    isolate->heap()->AddKeepDuringJobTarget(target);
+  } else {
+    DCHECK(weak_ref->target()->IsUndefined(isolate));
+  }
+  return weak_ref->target();
 }
 
 }  // namespace internal

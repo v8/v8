@@ -313,6 +313,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
           isolate);
       break;
     case JS_WEAK_CELL_TYPE:
+    case JS_WEAK_REF_TYPE:
       JSWeakCell::cast(this)->JSWeakCellVerify(isolate);
       break;
     case JS_WEAK_FACTORY_TYPE:

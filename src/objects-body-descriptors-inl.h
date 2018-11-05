@@ -860,6 +860,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_FUNCTION_TYPE:
       return Op::template apply<JSFunction::BodyDescriptor>(p1, p2, p3, p4);
     case JS_WEAK_CELL_TYPE:
+    case JS_WEAK_REF_TYPE:
       return Op::template apply<JSWeakCell::BodyDescriptor>(p1, p2, p3, p4);
     case ODDBALL_TYPE:
       return Op::template apply<Oddball::BodyDescriptor>(p1, p2, p3, p4);

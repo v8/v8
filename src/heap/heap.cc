@@ -5267,6 +5267,25 @@ void Heap::AddDirtyJSWeakFactory(
   // for the root pointing to the first JSWeakFactory.
 }
 
+void Heap::AddKeepDuringJobTarget(Handle<JSReceiver> target) {
+  DCHECK(FLAG_harmony_weak_refs);
+  DCHECK(weak_refs_keep_during_job()->IsUndefined() ||
+         weak_refs_keep_during_job()->IsOrderedHashSet());
+  Handle<OrderedHashSet> table;
+  if (weak_refs_keep_during_job()->IsUndefined(isolate())) {
+    table = isolate()->factory()->NewOrderedHashSet();
+  } else {
+    table =
+        handle(OrderedHashSet::cast(weak_refs_keep_during_job()), isolate());
+  }
+  table = OrderedHashSet::Add(isolate(), table, target);
+  set_weak_refs_keep_during_job(*table);
+}
+
+void Heap::ClearKeepDuringJobSet() {
+  set_weak_refs_keep_during_job(ReadOnlyRoots(isolate()).undefined_value());
+}
+
 size_t Heap::NumberOfTrackedHeapObjectTypes() {
   return ObjectStats::OBJECT_STATS_COUNT;
 }

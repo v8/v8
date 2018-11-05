@@ -3914,7 +3914,15 @@ void Isolate::FireCallCompletedCallback() {
       handle_scope_implementer()->microtasks_policy() ==
           v8::MicrotasksPolicy::kAuto;
 
-  if (run_microtasks) RunMicrotasks();
+  if (run_microtasks) {
+    RunMicrotasks();
+  } else {
+    // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
+    // set is still open (whether to clear it after every microtask or once
+    // during a microtask checkpoint). See also
+    // https://github.com/tc39/proposal-weakrefs/issues/39 .
+    heap()->ClearKeepDuringJobSet();
+  }
 
   if (call_completed_callbacks_.empty()) return;
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
@@ -4189,6 +4197,12 @@ void Isolate::RunMicrotasks() {
     CHECK_EQ(0, microtask_queue->queue()->length());
     is_running_microtasks_ = false;
   }
+  // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
+  // set is still open (whether to clear it after every microtask or once
+  // during a microtask checkpoint). See also
+  // https://github.com/tc39/proposal-weakrefs/issues/39 .
+  heap()->ClearKeepDuringJobSet();
+
   FireMicrotasksCompletedCallback();
 }
 

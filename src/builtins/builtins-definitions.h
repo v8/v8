@@ -1335,7 +1335,9 @@ namespace internal {
   CPP(WeakCellHoldingsGetter)                                                  \
   CPP(WeakFactoryCleanupIteratorNext)                                          \
   CPP(WeakFactoryConstructor)                                                  \
-  CPP(WeakFactoryMakeCell)
+  CPP(WeakFactoryMakeCell)                                                     \
+  CPP(WeakFactoryMakeRef)                                                      \
+  CPP(WeakRefDeref)
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \

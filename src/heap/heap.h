@@ -669,6 +669,9 @@ class Heap {
       std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
           gc_notify_updated_slot);
 
+  void AddKeepDuringJobTarget(Handle<JSReceiver> target);
+  void ClearKeepDuringJobSet();
+
   // ===========================================================================
   // Inline allocation. ========================================================
   // ===========================================================================

@@ -31,6 +31,8 @@ ACCESSORS(JSWeakCell, next, Object, kNextOffset)
 ACCESSORS(JSWeakCell, prev, Object, kPrevOffset)
 CAST_ACCESSOR(JSWeakCell)
 
+CAST_ACCESSOR(JSWeakRef)
+
 ACCESSORS(JSWeakFactoryCleanupIterator, factory, JSWeakFactory, kFactoryOffset)
 CAST_ACCESSOR(JSWeakFactoryCleanupIterator)
 

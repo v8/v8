@@ -285,6 +285,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       JSMapIterator::cast(this)->JSMapIteratorPrint(os);
       break;
     case JS_WEAK_CELL_TYPE:
+    case JS_WEAK_REF_TYPE:
       JSWeakCell::cast(this)->JSWeakCellPrint(os);
       break;
     case JS_WEAK_FACTORY_TYPE:
