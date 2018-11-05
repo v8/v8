@@ -325,12 +325,12 @@ module array {
   builtin CanUseSameAccessor<ElementsAccessor: type>(
       context: Context, receiver: JSReceiver, initialReceiverMap: Object,
       initialReceiverLength: Number): Boolean {
-    const a: JSArray = Cast<JSArray>(receiver) otherwise unreachable;
+    const a: JSArray = UnsafeCast<JSArray>(receiver);
     if (a.map != initialReceiverMap) return False;
 
     assert(TaggedIsSmi(initialReceiverLength));
     let originalLength: Smi = UnsafeCast<Smi>(initialReceiverLength);
-    if (a.length != originalLength) return False;
+    if (UnsafeCast<Smi>(a.length) != originalLength) return False;
 
     return True;
   }
