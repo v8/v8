@@ -536,17 +536,17 @@ module array {
     return result;
   }
 
-  transitioning macro CallMergeAt(context: Context, sortState: FixedArray, i: Smi)
+  transitioning macro CallMergeAt(
+      context: Context, sortState: FixedArray, i: Smi)
   labels Bailout {
     MergeAt(context, sortState, i);
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
   // Used for OOB asserts in Copy* builtins.
-  transitioning macro GetReceiverLengthProperty(implicit context: Context)(
-      sortState: FixedArray): Smi {
-    return Cast<Smi>(GetLengthProperty(GetReceiver(sortState)))
-        otherwise unreachable;
+  transitioning macro GetReceiverLengthFromSortState(implicit context: Context)(
+      sortState: FixedArray): Number {
+    return GetLengthProperty(GetReceiver(sortState));
   }
 
   transitioning macro CopyToTempArray(
@@ -556,7 +556,7 @@ module array {
   labels Bailout {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetReceiverLengthProperty(sortState) - length);
+    assert(srcPos <= GetReceiverLengthFromSortState(sortState) - length);
     assert(dstPos <= tempArray.length - length);
 
     let srcIdx: Smi = srcPos;
@@ -577,7 +577,7 @@ module array {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
     assert(srcPos <= tempArray.length - length);
-    assert(dstPos <= GetReceiverLengthProperty(sortState) - length);
+    assert(dstPos <= GetReceiverLengthFromSortState(sortState) - length);
 
     let store: StoreFn = GetStoreFn(sortState);
 
@@ -603,8 +603,8 @@ module array {
       srcPos: Smi, dstPos: Smi, length: Smi): Smi {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetReceiverLengthProperty(sortState) - length);
-    assert(dstPos <= GetReceiverLengthProperty(sortState) - length);
+    assert(srcPos <= GetReceiverLengthFromSortState(sortState) - length);
+    assert(dstPos <= GetReceiverLengthFromSortState(sortState) - length);
 
     try {
       let load: LoadFn = GetLoadFn(sortState);
@@ -1586,7 +1586,8 @@ module array {
 
   // Regardless of invariants, merge all runs on the stack until only one
   // remains. This is used at the end of the mergesort.
-  transitioning macro MergeForceCollapse(context: Context, sortState: FixedArray)
+  transitioning macro MergeForceCollapse(
+      context: Context, sortState: FixedArray)
   labels Bailout {
     let pendingRuns: FixedArray =
         UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]);
