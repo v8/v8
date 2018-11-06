@@ -4355,7 +4355,7 @@ class V8_EXPORT WasmCompiledModule : public Object {
 /**
  * The V8 interface for WebAssembly streaming compilation. When streaming
  * compilation is initiated, V8 passes a {WasmStreaming} object to the embedder
- * such that the embedder can pass the input butes for streaming compilation to
+ * such that the embedder can pass the input bytes for streaming compilation to
  * V8.
  */
 class V8_EXPORT WasmStreaming final {
