@@ -822,7 +822,7 @@ module array {
     assert(i >= 0);
     assert(i == stackSize - 2 || i == stackSize - 3);
 
-    const elements: HeapObject = ReloadElements(sortState);
+    let elements: HeapObject = ReloadElements(sortState);
     const load: LoadFn = GetLoadFn(sortState);
 
     const pendingRuns: FixedArray =
@@ -855,6 +855,7 @@ module array {
       const k: Smi = CallGallopRight(
           context, sortState, load, keyRight, baseA, lengthA, 0, False)
           otherwise Bailout;
+      elements = ReloadElements(sortState);
       assert(k >= 0);
 
       baseA = baseA + k;
@@ -870,6 +871,7 @@ module array {
       lengthB = CallGallopLeft(
           context, sortState, load, keyLeft, baseB, lengthB, lengthB - 1, False)
           otherwise Bailout;
+      elements = ReloadElements(sortState);
       assert(lengthB >= 0);
       if (lengthB == 0) return kSuccess;
 
@@ -887,6 +889,12 @@ module array {
     label Bailout {
       return Failure(sortState);
     }
+  }
+
+  macro LoadElementsOrTempArray(
+      useTempArray: Boolean, sortState: FixedArray): HeapObject {
+    return useTempArray == True ? GetTempArray(sortState) :
+                                  ReloadElements(sortState);
   }
 
   // Locates the proper position of key in a sorted array; if the array contains
@@ -912,25 +920,17 @@ module array {
     assert(length > 0 && base >= 0);
     assert(0 <= hint && hint < length);
 
-    // We cannot leave a pointer to elements on the stack (see comment at
-    // ReloadElements). For this reason we pass a flag whether to reload
-    // and which array to use.
-    let elements: HeapObject = useTempArray == True ? GetTempArray(sortState) :
-                                                      ReloadElements(sortState);
-
     let lastOfs: Smi = 0;
     let offset: Smi = 1;
 
     try {
-      const baseHintElement: Object =
-          CallLoad(context, sortState, load, elements, base + hint)
+      const baseHintElement: Object = CallLoad(
+          context, sortState, load,
+          LoadElementsOrTempArray(useTempArray, sortState), base + hint)
           otherwise Bailout;
       let order: Number =
           CallCompareFn(context, sortState, baseHintElement, key)
           otherwise Bailout;
-      if (useTempArray == False) {
-        elements = ReloadElements(sortState);
-      }
 
       if (order < 0) {
         // a[base + hint] < key: gallop right, until
@@ -939,14 +939,13 @@ module array {
         // a[base + length - 1] is highest.
         let maxOfs: Smi = length - hint;
         while (offset < maxOfs) {
-          const offsetElement: Object =
-              CallLoad(context, sortState, load, elements, base + hint + offset)
+          const offsetElement: Object = CallLoad(
+              context, sortState, load,
+              LoadElementsOrTempArray(useTempArray, sortState),
+              base + hint + offset)
               otherwise Bailout;
           order = CallCompareFn(context, sortState, offsetElement, key)
               otherwise Bailout;
-          if (useTempArray == False) {
-            elements = ReloadElements(sortState);
-          }
 
           // a[base + hint + offset] >= key? Break.
           if (order >= 0) break;
@@ -971,14 +970,13 @@ module array {
         // a[base + hint] is lowest.
         let maxOfs: Smi = hint + 1;
         while (offset < maxOfs) {
-          const offsetElement: Object =
-              CallLoad(context, sortState, load, elements, base + hint - offset)
+          const offsetElement: Object = CallLoad(
+              context, sortState, load,
+              LoadElementsOrTempArray(useTempArray, sortState),
+              base + hint - offset)
               otherwise Bailout;
           order = CallCompareFn(context, sortState, offsetElement, key)
               otherwise Bailout;
-          if (useTempArray == False) {
-            elements = ReloadElements(sortState);
-          }
 
           if (order < 0) break;
 
@@ -1007,14 +1005,12 @@ module array {
       while (lastOfs < offset) {
         const m: Smi = lastOfs + ((offset - lastOfs) >>> 1);
 
-        const baseMElement: Object =
-            CallLoad(context, sortState, load, elements, base + m)
+        const baseMElement: Object = CallLoad(
+            context, sortState, load,
+            LoadElementsOrTempArray(useTempArray, sortState), base + m)
             otherwise Bailout;
         order = CallCompareFn(context, sortState, baseMElement, key)
             otherwise Bailout;
-        if (useTempArray == False) {
-          elements = ReloadElements(sortState);
-        }
 
         if (order < 0) {
           lastOfs = m + 1;  // a[base + m] < key.
@@ -1047,25 +1043,17 @@ module array {
     assert(length > 0 && base >= 0);
     assert(0 <= hint && hint < length);
 
-    // We cannot leave a pointer to elements on the stack (see comment at
-    // ReloadElements). For this reason we pass a flag whether to reload
-    // and which array to use.
-    let elements: HeapObject = useTempArray == True ? GetTempArray(sortState) :
-                                                      ReloadElements(sortState);
-
     let lastOfs: Smi = 0;
     let offset: Smi = 1;
 
     try {
-      const baseHintElement: Object =
-          CallLoad(context, sortState, load, elements, base + hint)
+      const baseHintElement: Object = CallLoad(
+          context, sortState, load,
+          LoadElementsOrTempArray(useTempArray, sortState), base + hint)
           otherwise Bailout;
       let order: Number =
           CallCompareFn(context, sortState, key, baseHintElement)
           otherwise Bailout;
-      if (useTempArray == False) {
-        elements = ReloadElements(sortState);
-      }
 
       if (order < 0) {
         // key < a[base + hint]: gallop left, until
@@ -1074,14 +1062,13 @@ module array {
         // a[base + hint] is lowest.
         let maxOfs: Smi = hint + 1;
         while (offset < maxOfs) {
-          const offsetElement: Object =
-              CallLoad(context, sortState, load, elements, base + hint - offset)
+          const offsetElement: Object = CallLoad(
+              context, sortState, load,
+              LoadElementsOrTempArray(useTempArray, sortState),
+              base + hint - offset)
               otherwise Bailout;
           order = CallCompareFn(context, sortState, key, offsetElement)
               otherwise Bailout;
-          if (useTempArray == False) {
-            elements = ReloadElements(sortState);
-          }
 
           if (order >= 0) break;
 
@@ -1105,14 +1092,13 @@ module array {
         // a[base + length - 1] is highest.
         let maxOfs: Smi = length - hint;
         while (offset < maxOfs) {
-          const offsetElement: Object =
-              CallLoad(context, sortState, load, elements, base + hint + offset)
+          const offsetElement: Object = CallLoad(
+              context, sortState, load,
+              LoadElementsOrTempArray(useTempArray, sortState),
+              base + hint + offset)
               otherwise Bailout;
           order = CallCompareFn(context, sortState, key, offsetElement)
               otherwise Bailout;
-          if (useTempArray == False) {
-            elements = ReloadElements(sortState);
-          }
 
           // a[base + hint + ofs] <= key.
           if (order < 0) break;
@@ -1140,14 +1126,12 @@ module array {
       while (lastOfs < offset) {
         const m: Smi = lastOfs + ((offset - lastOfs) >>> 1);
 
-        const baseMElement: Object =
-            CallLoad(context, sortState, load, elements, base + m)
+        const baseMElement: Object = CallLoad(
+            context, sortState, load,
+            LoadElementsOrTempArray(useTempArray, sortState), base + m)
             otherwise Bailout;
         order = CallCompareFn(context, sortState, key, baseMElement)
             otherwise Bailout;
-        if (useTempArray == False) {
-          elements = ReloadElements(sortState);
-        }
 
         if (order < 0) {
           offset = m;  // key < a[base + m].
@@ -1284,6 +1268,7 @@ module array {
           nofWinsA = CallGallopRight(
               context, sortState, Load<TempArrayElements>, keyRight, cursorTemp,
               lengthA, 0, True) otherwise Bailout;
+          elements = ReloadElements(sortState);
           assert(nofWinsA >= 0);
 
           if (nofWinsA > 0) {
@@ -1309,6 +1294,7 @@ module array {
               context, sortState, load, tempArray[cursorTemp], cursorB, lengthB,
               0, False)
               otherwise Bailout;
+          elements = ReloadElements(sortState);
           assert(nofWinsB >= 0);
           if (nofWinsB > 0) {
             CallCopyWithinSortArray(
@@ -1457,6 +1443,7 @@ module array {
               context, sortState, load, tempArray[cursorTemp], baseA, lengthA,
               lengthA - 1, False)
               otherwise Bailout;
+          elements = ReloadElements(sortState);
           assert(k >= 0);
           nofWinsA = lengthA - k;
 
@@ -1482,6 +1469,7 @@ module array {
           k = CallGallopLeft(
               context, sortState, Load<TempArrayElements>, key, 0, lengthB,
               lengthB - 1, True) otherwise Bailout;
+          elements = ReloadElements(sortState);
           assert(k >= 0);
           nofWinsB = lengthB - k;
 
@@ -1785,3 +1773,4 @@ module array {
     return receiver;
   }
 }
+
