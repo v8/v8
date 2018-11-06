@@ -360,8 +360,7 @@ module array {
 
     const receiver: JSReceiver = GetReceiver(sortState);
     const initialReceiverMap: Object = sortState[kInitialReceiverMapIdx];
-    const initialReceiverLength: Number =
-        UnsafeCast<Number>(sortState[kInitialReceiverLengthIdx]);
+    const initialReceiverLength: Number = GetInitialReceiverLength(sortState);
     const canUseSameAccessorFn: CanUseSameAccessorFn =
         GetCanUseSameAccessorFn(sortState);
 
@@ -382,6 +381,10 @@ module array {
 
     const object: JSObject = UnsafeCast<JSObject>(receiver);
     return object.elements;
+  }
+
+  macro GetInitialReceiverLength(sortState: FixedArray): Number {
+    return UnsafeCast<Number>(sortState[kInitialReceiverLengthIdx]);
   }
 
   macro GetLoadFn(sortState: FixedArray): LoadFn {
@@ -543,12 +546,6 @@ module array {
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
-  // Used for OOB asserts in Copy* builtins.
-  transitioning macro GetReceiverLengthFromSortState(implicit context: Context)(
-      sortState: FixedArray): Number {
-    return GetLengthProperty(GetReceiver(sortState));
-  }
-
   transitioning macro CopyToTempArray(
       context: Context, sortState: FixedArray, load: LoadFn,
       srcElements: HeapObject, srcPos: Smi, tempArray: FixedArray, dstPos: Smi,
@@ -556,7 +553,7 @@ module array {
   labels Bailout {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetReceiverLengthFromSortState(sortState) - length);
+    assert(srcPos <= GetInitialReceiverLength(sortState) - length);
     assert(dstPos <= tempArray.length - length);
 
     let srcIdx: Smi = srcPos;
@@ -577,7 +574,7 @@ module array {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
     assert(srcPos <= tempArray.length - length);
-    assert(dstPos <= GetReceiverLengthFromSortState(sortState) - length);
+    assert(dstPos <= GetInitialReceiverLength(sortState) - length);
 
     let store: StoreFn = GetStoreFn(sortState);
 
@@ -603,8 +600,8 @@ module array {
       srcPos: Smi, dstPos: Smi, length: Smi): Smi {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetReceiverLengthFromSortState(sortState) - length);
-    assert(dstPos <= GetReceiverLengthFromSortState(sortState) - length);
+    assert(srcPos <= GetInitialReceiverLength(sortState) - length);
+    assert(dstPos <= GetInitialReceiverLength(sortState) - length);
 
     try {
       let load: LoadFn = GetLoadFn(sortState);
