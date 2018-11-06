@@ -169,7 +169,8 @@ void WasmCode::LogCode(Isolate* isolate) const {
                             {cname.get(), static_cast<size_t>(name_length)}));
   } else {
     EmbeddedVector<char, 32> generated_name;
-    SNPrintF(generated_name, "wasm-function[%d]", index());
+    int length = SNPrintF(generated_name, "wasm-function[%d]", index());
+    generated_name.Truncate(length);
     PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this,
                                      generated_name));
   }
