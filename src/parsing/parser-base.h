@@ -4528,6 +4528,7 @@ void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
                                                  int begin, int end) {
   if (!IsValidPattern(expression) && !expression->IsAssignment() &&
       !IsValidReferenceExpression(expression)) {
+    if (expression->IsProperty()) ValidateExpression();
     classifier()->RecordAssignmentPatternError(
         Scanner::Location(begin, end),
         MessageTemplate::kInvalidDestructuringTarget);
