@@ -1477,6 +1477,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Node* object, Node* map, Node* instance_size,
       int start_offset = JSObject::kHeaderSize);
 
+  TNode<BoolT> IsValidFastJSArrayCapacity(Node* capacity,
+                                          ParameterMode capacity_mode);
+
   // Allocate a JSArray without elements and initialize the header fields.
   TNode<JSArray> AllocateUninitializedJSArrayWithoutElements(
       TNode<Map> array_map, TNode<Smi> length, Node* allocation_site = nullptr);

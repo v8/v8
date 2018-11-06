@@ -897,8 +897,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     GotoIf(WordEqual(value, protector_invalid), &runtime);
 
     GotoIfNot(TaggedIsPositiveSmi(len), &runtime);
-    GotoIf(SmiAbove(CAST(len), SmiConstant(JSArray::kMaxFastArrayLength)),
-           &runtime);
+    GotoIfNot(
+        IsValidFastJSArrayCapacity(len, CodeStubAssembler::SMI_PARAMETERS),
+        &runtime);
 
     // We need to be conservative and start with holey because the builtins
     // that create output arrays aren't guaranteed to be called for every

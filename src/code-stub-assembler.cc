@@ -3856,6 +3856,13 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
                 kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 }
 
+TNode<BoolT> CodeStubAssembler::IsValidFastJSArrayCapacity(
+    Node* capacity, ParameterMode capacity_mode) {
+  return UncheckedCast<BoolT>(
+      UintPtrLessThanOrEqual(ParameterToIntPtr(capacity, capacity_mode),
+                             IntPtrConstant(JSArray::kMaxFastArrayLength)));
+}
+
 TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
     TNode<Map> array_map, TNode<Smi> length, Node* allocation_site) {
   Comment("begin allocation of JSArray without elements");
@@ -3878,11 +3885,6 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   Comment("begin allocation of JSArray with elements");
   CHECK_EQ(allocation_flags & ~kAllowLargeObjectAllocation, 0);
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
-  CSA_ASSERT(this, IntPtrOrSmiLessThanOrEqual(
-                       capacity,
-                       IntPtrOrSmiConstant(JSArray::kMaxFastArrayLength,
-                                           capacity_mode),
-                       capacity_mode));
 
   int base_size = JSArray::kSize;
   if (allocation_site != nullptr) base_size += AllocationMemento::kSize;
@@ -3907,6 +3909,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   if (allocation_flags & kAllowLargeObjectAllocation) {
     Label next(this);
     GotoIf(IsRegularHeapObjectSize(size), &next);
+
+    CSA_CHECK(this, IsValidFastJSArrayCapacity(capacity, capacity_mode));
 
     // Allocate and initialize the elements first.
     elements =
