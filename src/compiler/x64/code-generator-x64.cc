@@ -2683,37 +2683,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64I8x16Shl: {
-      XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      int8_t shift = i.InputInt8(1) & 0x7;
-      if (shift < 4) {
-        // For small shifts, doubling is faster.
-        for (int i = 0; i < shift; ++i) {
-          __ paddb(dst, dst);
-        }
-      } else {
-        // Mask off the unwanted bits before word-shifting.
-        __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-        __ psrlw(kScratchDoubleReg, 8 + shift);
-        __ packuswb(kScratchDoubleReg, kScratchDoubleReg);
-        __ pand(dst, kScratchDoubleReg);
-        __ psllw(dst, shift);
-      }
-      break;
-    }
-    case kX64I8x16ShrS: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t shift = i.InputInt8(1) & 0x7;
-      // Unpack the bytes into words, do arithmetic shifts, and repack.
-      __ punpckhbw(kScratchDoubleReg, src);
-      __ punpcklbw(dst, src);
-      __ psraw(kScratchDoubleReg, 8 + shift);
-      __ psraw(dst, 8 + shift);
-      __ packsswb(dst, kScratchDoubleReg);
-      break;
-    }
     case kX64I8x16Add: {
       __ paddb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
@@ -2728,39 +2697,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16SubSaturateS: {
       __ psubsb(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      break;
-    }
-    case kX64I8x16Mul: {
-      XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      XMMRegister right = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
-      // I16x8 view of I8x16
-      // left = AAaa AAaa ... AAaa AAaa
-      // right= BBbb BBbb ... BBbb BBbb
-      // t = 00AA 00AA ... 00AA 00AA
-      // s = 00BB 00BB ... 00BB 00BB
-      __ movaps(tmp, dst);
-      __ movaps(kScratchDoubleReg, right);
-      __ psrlw(tmp, 8);
-      __ psrlw(kScratchDoubleReg, 8);
-      // dst = left * 256
-      __ psllw(dst, 8);
-      // t = I16x8Mul(t, s)
-      //    => __PP __PP ...  __PP  __PP
-      __ pmullw(tmp, kScratchDoubleReg);
-      // dst = I16x8Mul(left * 256, right)
-      //    => pp__ pp__ ...  pp__  pp__
-      __ pmullw(dst, right);
-      // t = I16x8Shl(t, 8)
-      //    => PP00 PP00 ...  PP00  PP00
-      __ psllw(tmp, 8);
-      // dst = I16x8Shr(dst, 8)
-      //    => 00pp 00pp ...  00pp  00pp
-      __ psrlw(dst, 8);
-      // dst = I16x8Or(dst, t)
-      //    => PPpp PPpp ...  PPpp  PPpp
-      __ por(dst, tmp);
       break;
     }
     case kX64I8x16MinS: {
@@ -2804,18 +2740,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ psrlw(kScratchDoubleReg, 1);
       __ pminuw(dst, kScratchDoubleReg);
       __ pminuw(kScratchDoubleReg, i.InputSimd128Register(1));
-      __ packuswb(dst, kScratchDoubleReg);
-      break;
-    }
-    case kX64I8x16ShrU: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t shift = i.InputInt8(1) & 0x7;
-      // Unpack the bytes into words, do logical shifts, and repack.
-      __ punpckhbw(kScratchDoubleReg, src);
-      __ punpcklbw(dst, src);
-      __ psrlw(kScratchDoubleReg, 8 + shift);
-      __ psrlw(dst, 8 + shift);
       __ packuswb(dst, kScratchDoubleReg);
       break;
     }
