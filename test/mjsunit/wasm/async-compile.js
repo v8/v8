@@ -7,17 +7,18 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-function assertCompiles(buffer) {
-  return assertPromiseResult(
-      WebAssembly.compile(buffer),
-      module => assertTrue(module instanceof WebAssembly.Module),
-      ex => assertUnreachable());
+async function assertCompiles(buffer) {
+  var module = await WebAssembly.compile(buffer);
+  assertInstanceof(module, WebAssembly.Module);
 }
 
-function assertCompileError(buffer) {
-  return assertPromiseResult(
-      WebAssembly.compile(buffer), module => assertUnreachable(),
-      ex => assertTrue(ex instanceof WebAssembly.CompileError));
+async function assertCompileError(buffer) {
+  try {
+    await WebAssembly.compile(buffer);
+    assertUnreachable();
+  } catch (e) {
+    if (!(e instanceof WebAssembly.CompileError)) throw e;
+  }
 }
 
 assertPromiseResult(async function basicCompile() {
