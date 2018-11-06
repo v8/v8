@@ -396,7 +396,7 @@ text {
     dominant-baseline: text-before-edge;
 }
 
-.resizer-left {
+.resizer {
     position:absolute;
     width: 4px;
     height:100%;
@@ -404,35 +404,18 @@ text {
     cursor: pointer;
 }
 
-.resizer-left.snapped {
+.resizer.snapped {
     width: 12px;
 }
 
-.resizer-left:hover {
-    background: orange;
-}
-
-.resizer-left.dragged {
-    background: orange;
-}
-
-.resizer-right {
-    position:absolute;
-    width: 4px;
-    height:100%;
-    background: #a0a0a0;
-    cursor: pointer;
-}
-
-.resizer-right.snapped {
+.resizer.snapped:hover {
     width: 12px;
+    margin-left: 0px;
 }
 
-.resizer-right:hover {
-    background: orange;
-}
-
-.resizer-right.dragged {
+.resizer:hover, .resizer.dragged {
+    width: 10px;
+    margin-left: -4px;
     background: orange;
 }
 

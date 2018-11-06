@@ -123,8 +123,8 @@ class Resizer {
     resizer.left = document.getElementById(C.SOURCE_PANE_ID);
     resizer.middle = document.getElementById(C.INTERMEDIATE_PANE_ID);
     resizer.right = document.getElementById(C.GENERATED_PANE_ID);
-    resizer.resizer_left = d3.select('.resizer-left');
-    resizer.resizer_right = d3.select('.resizer-right');
+    resizer.resizer_left = d3.select('#resizer-left');
+    resizer.resizer_right = d3.select('#resizer-right');
     resizer.sep_left = resizer.client_width / 3;
     resizer.sep_right = resizer.client_width / 3 * 2;
     resizer.sep_left_snap = 0;
