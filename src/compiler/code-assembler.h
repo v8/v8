@@ -1389,6 +1389,10 @@ class CodeAssemblerVariable {
   friend class CodeAssemblerState;
   friend std::ostream& operator<<(std::ostream&, const Impl&);
   friend std::ostream& operator<<(std::ostream&, const CodeAssemblerVariable&);
+  struct ImplComparator {
+    bool operator()(const CodeAssemblerVariable::Impl* a,
+                    const CodeAssemblerVariable::Impl* b) const;
+  };
   Impl* impl_;
   CodeAssemblerState* state_;
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerVariable);
@@ -1478,10 +1482,14 @@ class CodeAssemblerLabel {
   RawMachineLabel* label_;
   // Map of variables that need to be merged to their phi nodes (or placeholders
   // for those phis).
-  std::map<CodeAssemblerVariable::Impl*, Node*> variable_phis_;
+  std::map<CodeAssemblerVariable::Impl*, Node*,
+           CodeAssemblerVariable::ImplComparator>
+      variable_phis_;
   // Map of variables to the list of value nodes that have been added from each
   // merge path in their order of merging.
-  std::map<CodeAssemblerVariable::Impl*, std::vector<Node*>> variable_merges_;
+  std::map<CodeAssemblerVariable::Impl*, std::vector<Node*>,
+           CodeAssemblerVariable::ImplComparator>
+      variable_merges_;
 };
 
 class CodeAssemblerParameterizedLabelBase {
@@ -1592,10 +1600,14 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   uint32_t stub_key_;
   int32_t builtin_index_;
   bool code_generated_;
-  ZoneSet<CodeAssemblerVariable::Impl*> variables_;
+  ZoneSet<CodeAssemblerVariable::Impl*, CodeAssemblerVariable::ImplComparator>
+      variables_;
   CodeAssemblerCallback call_prologue_;
   CodeAssemblerCallback call_epilogue_;
   std::vector<CodeAssemblerExceptionHandlerLabel*> exception_handler_labels_;
+  typedef uint32_t VariableId;
+  VariableId next_variable_id_ = 0;
+  VariableId NextVariableId() { return next_variable_id_++; }
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
 };

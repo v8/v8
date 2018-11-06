@@ -1545,13 +1545,14 @@ RawMachineAssembler* CodeAssembler::raw_assembler() const {
 // properly be verified.
 class CodeAssemblerVariable::Impl : public ZoneObject {
  public:
-  explicit Impl(MachineRepresentation rep)
+  explicit Impl(MachineRepresentation rep, CodeAssemblerState::VariableId id)
       :
 #if DEBUG
         debug_info_(AssemblerDebugInfo(nullptr, nullptr, -1)),
 #endif
         value_(nullptr),
-        rep_(rep) {
+        rep_(rep),
+        var_id_(id) {
   }
 
 #if DEBUG
@@ -1562,13 +1563,25 @@ class CodeAssemblerVariable::Impl : public ZoneObject {
 
   AssemblerDebugInfo debug_info_;
 #endif  // DEBUG
+  bool operator<(const CodeAssemblerVariable::Impl& other) const {
+    return var_id_ < other.var_id_;
+  }
   Node* value_;
   MachineRepresentation rep_;
+  CodeAssemblerState::VariableId var_id_;
 };
+
+bool CodeAssemblerVariable::ImplComparator::operator()(
+    const CodeAssemblerVariable::Impl* a,
+    const CodeAssemblerVariable::Impl* b) const {
+  return *a < *b;
+}
 
 CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
                                              MachineRepresentation rep)
-    : impl_(new (assembler->zone()) Impl(rep)), state_(assembler->state()) {
+    : impl_(new (assembler->zone())
+                Impl(rep, assembler->state()->NextVariableId())),
+      state_(assembler->state()) {
   state_->variables_.insert(impl_);
 }
 
@@ -1583,7 +1596,9 @@ CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
 CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
                                              AssemblerDebugInfo debug_info,
                                              MachineRepresentation rep)
-    : impl_(new (assembler->zone()) Impl(rep)), state_(assembler->state()) {
+    : impl_(new (assembler->zone())
+                Impl(rep, assembler->state()->NextVariableId())),
+      state_(assembler->state()) {
   impl_->set_debug_info(debug_info);
   state_->variables_.insert(impl_);
 }
