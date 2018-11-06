@@ -2412,21 +2412,19 @@ class AsyncCompileJob::CompileStep {
  public:
   virtual ~CompileStep() = default;
 
-  void Run(bool on_foreground) {
+  void Run(AsyncCompileJob* job, bool on_foreground) {
     if (on_foreground) {
-      HandleScope scope(job_->isolate_);
-      SaveContext saved_context(job_->isolate_);
-      job_->isolate_->set_context(*job_->native_context_);
-      RunInForeground();
+      HandleScope scope(job->isolate_);
+      SaveContext saved_context(job->isolate_);
+      job->isolate_->set_context(*job->native_context_);
+      RunInForeground(job);
     } else {
-      RunInBackground();
+      RunInBackground(job);
     }
   }
 
-  virtual void RunInForeground() { UNREACHABLE(); }
-  virtual void RunInBackground() { UNREACHABLE(); }
-
-  AsyncCompileJob* job_ = nullptr;
+  virtual void RunInForeground(AsyncCompileJob*) { UNREACHABLE(); }
+  virtual void RunInBackground(AsyncCompileJob*) { UNREACHABLE(); }
 };
 
 class AsyncCompileJob::CompileTask : public CancelableTask {
@@ -2448,7 +2446,7 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
   void RunInternal() final {
     if (!job_) return;
     if (on_foreground_) ResetPendingForegroundTask();
-    job_->step_->Run(on_foreground_);
+    job_->step_->Run(job_, on_foreground_);
     // After execution, reset {job_} such that we don't try to reset the pending
     // foreground task when the task is deleted.
     job_ = nullptr;
@@ -2525,7 +2523,6 @@ void AsyncCompileJob::DoAsync(Args&&... args) {
 template <typename Step, typename... Args>
 void AsyncCompileJob::NextStep(Args&&... args) {
   step_.reset(new Step(std::forward<Args>(args)...));
-  step_->job_ = this;
 }
 
 //==========================================================================
@@ -2535,7 +2532,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
  public:
   explicit DecodeModule(Counters* counters) : counters_(counters) {}
 
-  void RunInBackground() override {
+  void RunInBackground(AsyncCompileJob* job) override {
     ModuleResult result;
     {
       DisallowHandleAllocation no_handle;
@@ -2543,16 +2540,16 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       // Decode the module bytes.
       TRACE_COMPILE("(1) Decoding module...\n");
       result = DecodeWasmModule(
-          job_->enabled_features_, job_->wire_bytes_.start(),
-          job_->wire_bytes_.end(), false, kWasmOrigin, counters_,
-          job_->isolate()->wasm_engine()->allocator());
+          job->enabled_features_, job->wire_bytes_.start(),
+          job->wire_bytes_.end(), false, kWasmOrigin, counters_,
+          job->isolate()->wasm_engine()->allocator());
     }
     if (result.failed()) {
       // Decoding failure; reject the promise and clean up.
-      job_->DoSync<DecodeFail>(std::move(result));
+      job->DoSync<DecodeFail>(std::move(result));
     } else {
       // Decode passed.
-      job_->DoSync<PrepareAndStartCompile>(std::move(result).value(), true);
+      job->DoSync<PrepareAndStartCompile>(std::move(result).value(), true);
     }
   }
 
@@ -2569,12 +2566,12 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
 
  private:
   ModuleResult result_;
-  void RunInForeground() override {
+  void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(1b) Decoding failed.\n");
-    ErrorThrower thrower(job_->isolate_, "AsyncCompile");
+    ErrorThrower thrower(job->isolate_, "AsyncCompile");
     thrower.CompileFailed("Wasm decoding failed", result_);
     // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
-    return job_->AsyncCompileFailed(thrower.Reify());
+    return job->AsyncCompileFailed(thrower.Reify());
   }
 };
 
@@ -2591,32 +2588,27 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
   std::shared_ptr<const WasmModule> module_;
   bool start_compilation_;
 
-  void RunInForeground() override {
+  void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
 
     // Make sure all compilation tasks stopped running. Decoding (async step)
     // is done.
-    job_->background_task_manager_.CancelAndWait();
+    job->background_task_manager_.CancelAndWait();
 
-    job_->PrepareRuntimeObjects(module_);
+    job->PrepareRuntimeObjects(module_);
 
     size_t num_functions =
         module_->functions.size() - module_->num_imported_functions;
 
     if (num_functions == 0) {
       // Degenerate case of an empty module.
-      job_->FinishCompile(true);
+      job->FinishCompile(true);
       return;
     }
 
     CompilationStateImpl* compilation_state =
-        Impl(job_->native_module_->compilation_state());
+        Impl(job->native_module_->compilation_state());
     {
-      // Instance field {job_} cannot be captured by copy, therefore
-      // we need to add a local helper variable {job}. We want to
-      // capture the {job} pointer by copy, as it otherwise is dependent
-      // on the current step we are in.
-      AsyncCompileJob* job = job_;
       compilation_state->SetCallback(
           [job](CompilationEvent event, const VoidResult* error_result) {
             // Callback is called from a foreground thread.
@@ -2672,8 +2664,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       compilation_state->SetNumberOfFunctionsToCompile(
           module_->num_declared_functions);
       // Add compilation units and kick off compilation.
-      InitializeCompilationUnits(job_->native_module_,
-                                 job_->isolate()->wasm_engine());
+      InitializeCompilationUnits(job->native_module_,
+                                 job->isolate()->wasm_engine());
     }
   }
 };
@@ -2686,9 +2678,9 @@ class AsyncCompileJob::CompileFailed : public CompileStep {
   explicit CompileFailed(Handle<Object> error_reason)
       : error_reason_(error_reason) {}
 
-  void RunInForeground() override {
+  void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(4b) Compilation Failed...\n");
-    return job_->AsyncCompileFailed(error_reason_);
+    return job->AsyncCompileFailed(error_reason_);
   }
 
  private:
@@ -2701,13 +2693,13 @@ class AsyncCompileJob::CompileFailed : public CompileStep {
 class AsyncCompileJob::CompileWrappers : public CompileStep {
   // TODO(wasm): Compile all wrappers here, including the start function wrapper
   // and the wrappers for the function table elements.
-  void RunInForeground() override {
+  void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(5) Compile wrappers...\n");
     // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(job_->isolate_->heap());
+    CodeSpaceMemoryModificationScope modification_scope(job->isolate_->heap());
     // Compile JS->wasm wrappers for exported functions.
-    CompileJsToWasmWrappers(job_->isolate_, job_->module_object_);
-    job_->DoSync<FinishModule>();
+    CompileJsToWasmWrappers(job->isolate_, job->module_object_);
+    job->DoSync<FinishModule>();
   }
 };
 
@@ -2715,23 +2707,23 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
 // Step 6 (sync): Finish the module and resolve the promise.
 //==========================================================================
 class AsyncCompileJob::FinishModule : public CompileStep {
-  void RunInForeground() override {
+  void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(6) Finish module...\n");
-    job_->AsyncCompileSucceeded(job_->module_object_);
+    job->AsyncCompileSucceeded(job->module_object_);
 
-    size_t num_functions = job_->native_module_->num_functions() -
-                           job_->native_module_->num_imported_functions();
-    auto* compilation_state = Impl(job_->native_module_->compilation_state());
+    size_t num_functions = job->native_module_->num_functions() -
+                           job->native_module_->num_imported_functions();
+    auto* compilation_state = Impl(job->native_module_->compilation_state());
     if (compilation_state->compile_mode() == CompileMode::kRegular ||
         num_functions == 0) {
       // If we do not tier up, the async compile job is done here and
       // can be deleted.
-      job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
+      job->isolate_->wasm_engine()->RemoveCompileJob(job);
       return;
     }
     DCHECK_EQ(CompileMode::kTiering, compilation_state->compile_mode());
     if (!compilation_state->has_outstanding_units()) {
-      job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
+      job->isolate_->wasm_engine()->RemoveCompileJob(job);
     }
   }
 };
