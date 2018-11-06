@@ -2947,7 +2947,7 @@ Node* EffectControlLinearizer::LowerArgumentsFrame(Node* node) {
 
   Node* frame = __ LoadFramePointer();
   Node* parent_frame =
-      __ Load(MachineType::Pointer(), frame,
+      __ Load(MachineType::AnyTagged(), frame,
               __ IntPtrConstant(StandardFrameConstants::kCallerFPOffset));
   Node* parent_frame_type = __ Load(
       MachineType::AnyTagged(), parent_frame,
