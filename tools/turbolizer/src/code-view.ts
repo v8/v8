@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Source,SourceResolver,sourcePositionToStringKey} from "../src/source-resolver"
-import {SelectionBroker} from "../src/selection-broker"
-import {View} from "../src/view"
-import {MySelection} from "../src/selection"
-import {anyToString,ViewElements} from "../src/util"
+import { Source, SourceResolver, sourcePositionToStringKey } from "../src/source-resolver"
+import { SelectionBroker } from "../src/selection-broker"
+import { View } from "../src/view"
+import { MySelection } from "../src/selection"
+import { anyToString, ViewElements } from "../src/util"
 
 export enum CodeMode {
   MAIN_SOURCE = "main function",
@@ -220,10 +220,13 @@ export class CodeView extends View {
   insertSourcePositions(currentSpan, lineNumber, pos, end, adjust) {
     const view = this;
     const sps = this.sourceResolver.sourcePositionsInRange(this.source.sourceId, pos - adjust, end);
+    let offset = 0;
     for (const sourcePosition of sps) {
       this.sourceResolver.addAnyPositionToLine(lineNumber, sourcePosition);
-      const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.firstChild : currentSpan;
-      const replacementNode = textnode.splitText(Math.max(0, sourcePosition.scriptOffset - pos));
+      const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.lastChild : currentSpan;
+      const splitLength = Math.max(0, sourcePosition.scriptOffset - pos - offset);
+      offset += splitLength;
+      const replacementNode = textnode.splitText(splitLength);
       const span = document.createElement('span');
       span.setAttribute("scriptOffset", sourcePosition.scriptOffset);
       span.classList.add("source-position")
