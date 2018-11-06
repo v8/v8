@@ -89,6 +89,7 @@ deps = {
           'version': 'git_revision:bc125484b8513898f17bc2501ac5e95330f44a3b',
         },
       ],
+      'condition': 'host_cpu != "s390"',
       'dep_type': 'cipd',
   },
   'v8/test/wasm-js/data':
