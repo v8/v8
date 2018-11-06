@@ -1284,7 +1284,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   Move(r7, debug_hook_active);
   LoadByte(r7, MemOperand(r7), r0);
   extsb(r7, r7);
-  CmpSmiLiteral(r7, Smi::kZero, r0);
+  CmpSmiLiteral(r7, Smi::zero(), r0);
   beq(&skip_hook);
 
   {
@@ -1421,7 +1421,7 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
-  Push(Smi::kZero);  // Padding.
+  Push(Smi::zero());  // Padding.
 
   // Link the current handler as the next handler.
   // Preserve r3-r7.

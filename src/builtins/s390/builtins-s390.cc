@@ -375,7 +375,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
   __ Move(ip, debug_hook);
   __ LoadB(ip, MemOperand(ip));
-  __ CmpSmiLiteral(ip, Smi::kZero, r0);
+  __ CmpSmiLiteral(ip, Smi::zero(), r0);
   __ bne(&prepare_step_in_if_stepping);
 
   // Flood function if we need to continue stepping in the suspended generator.
@@ -1108,7 +1108,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   Label builtin_trampoline, trampoline_loaded;
   Smi interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::zero());
 
   // If the SFI function_data is an InterpreterData, get the trampoline stored
   // in it, otherwise get the trampoline from the builtins list.
@@ -1342,7 +1342,7 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 
   // If the code object is null, just return to the caller.
   Label skip;
-  __ CmpSmiLiteral(r2, Smi::kZero, r0);
+  __ CmpSmiLiteral(r2, Smi::zero(), r0);
   __ bne(&skip);
   __ Ret();
 
@@ -1602,7 +1602,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ StoreP(r6, MemOperand(sp, 2 * kPointerSize));
   __ StoreP(r3, MemOperand(sp, 1 * kPointerSize));
   __ StoreP(r2, MemOperand(sp, 0 * kPointerSize));
-  __ Push(Smi::kZero);  // Padding.
+  __ Push(Smi::zero());  // Padding.
   __ la(fp,
         MemOperand(sp, ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp));
 }
@@ -2303,7 +2303,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
                                  WasmInstanceObject::kCEntryStubOffset));
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
-    __ LoadSmiLiteral(cp, Smi::kZero);
+    __ LoadSmiLiteral(cp, Smi::zero());
     __ CallRuntimeWithCEntry(Runtime::kWasmCompileLazy, r4);
     // The entrypoint address is the return value.
     __ LoadRR(ip, r2);

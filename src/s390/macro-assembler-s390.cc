@@ -1496,7 +1496,7 @@ void MacroAssembler::PushStackHandler() {
   lay(sp, MemOperand(sp, -StackHandlerConstants::kSize));
 
   // Store padding.
-  mov(r0, Operand(Smi::kZero));
+  lghi(r0, Operand::Zero());
   StoreP(r0, MemOperand(sp));  // Padding.
 
   // Copy the old handler into the next handler slot.
