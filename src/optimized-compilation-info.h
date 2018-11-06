@@ -9,7 +9,6 @@
 
 #include "src/bailout-reason.h"
 #include "src/code-reference.h"
-#include "src/feedback-vector.h"
 #include "src/frames.h"
 #include "src/globals.h"
 #include "src/handles.h"
@@ -21,15 +20,11 @@
 namespace v8 {
 namespace internal {
 
-class CoverageInfo;
-class DeclarationScope;
 class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class JavaScriptFrame;
 class JSGlobalObject;
-class ParseInfo;
-class SourceRangeMap;
 class Zone;
 
 // OptimizedCompilationInfo encapsulates the information needed to compile
