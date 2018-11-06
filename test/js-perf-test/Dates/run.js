@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 load('../base.js');
-load('toNumber.js');
 load('toLocaleString.js');
 
 function PrintResult(name, result) {
   console.log(name);
-  console.log(name + '-Numbers(Score): ' + result);
+  console.log(name + '-Dates(Score): ' + result);
 }
 
 function PrintError(name, error) {
