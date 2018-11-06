@@ -176,6 +176,12 @@
 }],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
+['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'test-cpu-profiler/MultipleIsolates': [SKIP],
+}],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
 # TODO(ahaas): Port multiple return values to ARM, MIPS, S390 and PPC
 ['arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
   'test-multiple-return/*': [SKIP],
