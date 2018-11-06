@@ -280,12 +280,17 @@ void IteratorBuiltinsAssembler::FastIterableToList(
 
   BIND(&check_string);
   {
-    Label string_fast_call(this);
+    Label string_maybe_fast_call(this);
     StringBuiltinsAssembler string_assembler(state());
     string_assembler.BranchIfStringPrimitiveWithNoCustomIteration(
-        iterable, context, &string_fast_call, &check_map);
+        iterable, context, &string_maybe_fast_call, &check_map);
 
-    BIND(&string_fast_call);
+    BIND(&string_maybe_fast_call);
+    TNode<IntPtrT> const length = LoadStringLengthAsWord(CAST(iterable));
+    // Use string length as conservative approximation of number of codepoints.
+    GotoIf(
+        IntPtrGreaterThan(length, IntPtrConstant(JSArray::kMaxFastArrayLength)),
+        slow);
     *var_result = CallBuiltin(Builtins::kStringToList, context, iterable);
     Goto(&done);
   }
