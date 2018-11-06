@@ -61,7 +61,7 @@ Object* MapUpdater::GetValue(int descriptor) const {
   return old_descriptors_->GetStrongValue(descriptor);
 }
 
-FieldType* MapUpdater::GetFieldType(int descriptor) const {
+FieldType MapUpdater::GetFieldType(int descriptor) const {
   DCHECK_LE(0, descriptor);
   if (descriptor == modified_descriptor_) {
     DCHECK_EQ(kField, new_location_);
@@ -284,7 +284,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     DCHECK_EQ(kData, old_details.kind());
     DCHECK_EQ(kData, new_kind_);
     DCHECK_EQ(kField, new_location_);
-    FieldType* old_field_type =
+    FieldType old_field_type =
         old_descriptors_->GetFieldType(modified_descriptor_);
     if (!new_field_type_->NowIs(old_field_type)) {
       return CopyGeneralizeAllFields("GenAll_RootModification5");
@@ -628,7 +628,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     if (!details.representation().Equals(next_details.representation())) break;
 
     if (next_details.location() == kField) {
-      FieldType* next_field_type = next_descriptors->GetFieldType(i);
+      FieldType next_field_type = next_descriptors->GetFieldType(i);
       if (!descriptors->GetFieldType(i)->NowIs(next_field_type)) {
         break;
       }

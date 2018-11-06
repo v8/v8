@@ -574,7 +574,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         if (value->IsUninitialized(isolate)) continue;
         if (r.IsSmi()) DCHECK(value->IsSmi());
         if (r.IsHeapObject()) DCHECK(value->IsHeapObject());
-        FieldType* field_type = descriptors->GetFieldType(i);
+        FieldType field_type = descriptors->GetFieldType(i);
         bool type_is_none = field_type->IsNone();
         bool type_is_any = field_type->IsAny();
         if (r.IsNone()) {

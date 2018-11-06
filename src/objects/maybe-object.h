@@ -78,10 +78,19 @@ class MaybeObject {
   inline Object* GetHeapObjectOrSmi() const;
 
   inline bool IsObject() const;
-  template <typename T>
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<Object, T>::value>::type>
   T* cast() const {
     DCHECK(!HasWeakHeapObjectTag(ptr_));
     return T::cast(reinterpret_cast<Object*>(ptr_));
+  }
+  // Replacement for the above, temporarily separate for incremental transition.
+  // TODO(3770): Get rid of the duplication.
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<ObjectPtr, T>::value>::type>
+  T cast() const {
+    DCHECK(!HasWeakHeapObjectTag(ptr_));
+    return T::cast(ObjectPtr(ptr_));
   }
 
   static MaybeObject FromSmi(Smi smi) {
@@ -92,6 +101,11 @@ class MaybeObject {
   static MaybeObject FromObject(Object* object) {
     DCHECK(!HasWeakHeapObjectTag(object));
     return MaybeObject(object->ptr());
+  }
+
+  static MaybeObject FromObject(ObjectPtr object) {
+    DCHECK(!HasWeakHeapObjectTag(object.ptr()));
+    return MaybeObject(object.ptr());
   }
 
   static inline MaybeObject MakeWeak(MaybeObject object);

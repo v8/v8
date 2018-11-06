@@ -481,7 +481,7 @@ class Map : public HeapObject {
   // by just updating current map.
   static inline bool IsInplaceGeneralizableField(PropertyConstness constness,
                                                  Representation representation,
-                                                 FieldType* field_type);
+                                                 FieldType field_type);
 
   // Generalizes constness, representation and field_type if objects with given
   // instance type can have fast elements that can be transitioned by stubs or
@@ -653,7 +653,7 @@ class Map : public HeapObject {
 
   static MaybeObjectHandle WrapFieldType(Isolate* isolate,
                                          Handle<FieldType> type);
-  static FieldType* UnwrapFieldType(MaybeObject wrapped_type);
+  static FieldType UnwrapFieldType(MaybeObject wrapped_type);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithField(
       Isolate* isolate, Handle<Map> map, Handle<Name> name,

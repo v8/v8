@@ -79,7 +79,7 @@ class DescriptorArray : public WeakFixedArray {
   inline MaybeObjectSlot GetDescriptorEndSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
-  inline FieldType* GetFieldType(int descriptor_number);
+  inline FieldType GetFieldType(int descriptor_number);
 
   inline Name* GetSortedKey(int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);

@@ -2378,7 +2378,7 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os, int descriptor,
   os << " @ ";
   switch (details.location()) {
     case kField: {
-      FieldType* field_type = GetFieldType(descriptor);
+      FieldType field_type = GetFieldType(descriptor);
       field_type->PrintTo(os);
       break;
     }

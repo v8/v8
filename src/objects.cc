@@ -3993,7 +3993,7 @@ MaybeObjectHandle Map::WrapFieldType(Isolate* isolate, Handle<FieldType> type) {
 }
 
 // static
-FieldType* Map::UnwrapFieldType(MaybeObject wrapped_type) {
+FieldType Map::UnwrapFieldType(MaybeObject wrapped_type) {
   if (wrapped_type->IsCleared()) {
     return FieldType::None();
   }
@@ -4810,7 +4810,7 @@ void Map::UpdateFieldType(Isolate* isolate, int descriptor, Handle<Name> name,
   }
 }
 
-bool FieldTypeIsCleared(Representation rep, FieldType* type) {
+bool FieldTypeIsCleared(Representation rep, FieldType type) {
   return type->IsNone() && rep.IsHeapObject();
 }
 
@@ -4980,7 +4980,7 @@ Map* Map::TryReplayPropertyTransitions(Isolate* isolate, Map* old_map) {
     }
     if (new_details.location() == kField) {
       if (new_details.kind() == kData) {
-        FieldType* new_type = new_descriptors->GetFieldType(i);
+        FieldType new_type = new_descriptors->GetFieldType(i);
         // Cleared field types need special treatment. They represent lost
         // knowledge, so we must first generalize the new_type to "Any".
         if (FieldTypeIsCleared(new_details.representation(), new_type)) {
@@ -4988,7 +4988,7 @@ Map* Map::TryReplayPropertyTransitions(Isolate* isolate, Map* old_map) {
         }
         DCHECK_EQ(kData, old_details.kind());
         if (old_details.location() == kField) {
-          FieldType* old_type = old_descriptors->GetFieldType(i);
+          FieldType old_type = old_descriptors->GetFieldType(i);
           if (FieldTypeIsCleared(old_details.representation(), old_type) ||
               !old_type->NowIs(new_type)) {
             return nullptr;
@@ -5005,7 +5005,7 @@ Map* Map::TryReplayPropertyTransitions(Isolate* isolate, Map* old_map) {
       } else {
         DCHECK_EQ(kAccessor, new_details.kind());
 #ifdef DEBUG
-        FieldType* new_type = new_descriptors->GetFieldType(i);
+        FieldType new_type = new_descriptors->GetFieldType(i);
         DCHECK(new_type->IsAny());
 #endif
         UNREACHABLE();

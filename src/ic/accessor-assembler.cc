@@ -1063,8 +1063,8 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
     GotoIf(TaggedIsSmi(value), bailout);
     TNode<MaybeObject> field_type = LoadFieldTypeByKeyIndex(
         descriptors, UncheckedCast<IntPtrT>(name_index));
-    intptr_t kNoneType = reinterpret_cast<intptr_t>(FieldType::None());
-    intptr_t kAnyType = reinterpret_cast<intptr_t>(FieldType::Any());
+    const Address kNoneType = FieldType::None().ptr();
+    const Address kAnyType = FieldType::Any().ptr();
     DCHECK_NE(kNoneType, kClearedWeakHeapObject);
     DCHECK_NE(kAnyType, kClearedWeakHeapObject);
     // FieldType::None can't hold any value.

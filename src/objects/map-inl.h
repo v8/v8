@@ -89,7 +89,7 @@ InterceptorInfo* Map::GetIndexedInterceptor() {
 
 bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
                                       Representation representation,
-                                      FieldType* field_type) {
+                                      FieldType field_type) {
   if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
       (constness == PropertyConstness::kConst)) {
     // VariableMode::kConst -> PropertyConstness::kMutable field generalization

@@ -32,16 +32,14 @@ TEST(TransitionArray_SimpleFieldTransitions) {
 
   Handle<Map> map0 = Map::Create(isolate, 0);
   Handle<Map> map1 =
-      Map::CopyWithField(isolate, map0, name1,
-                         handle(FieldType::Any(), isolate), attributes,
-                         PropertyConstness::kMutable, Representation::Tagged(),
-                         OMIT_TRANSITION)
+      Map::CopyWithField(isolate, map0, name1, FieldType::Any(isolate),
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
   Handle<Map> map2 =
-      Map::CopyWithField(isolate, map0, name2,
-                         handle(FieldType::Any(), isolate), attributes,
-                         PropertyConstness::kMutable, Representation::Tagged(),
-                         OMIT_TRANSITION)
+      Map::CopyWithField(isolate, map0, name2, FieldType::Any(isolate),
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
   CHECK(map0->raw_transitions()->IsSmi());
@@ -91,16 +89,14 @@ TEST(TransitionArray_FullFieldTransitions) {
 
   Handle<Map> map0 = Map::Create(isolate, 0);
   Handle<Map> map1 =
-      Map::CopyWithField(isolate, map0, name1,
-                         handle(FieldType::Any(), isolate), attributes,
-                         PropertyConstness::kMutable, Representation::Tagged(),
-                         OMIT_TRANSITION)
+      Map::CopyWithField(isolate, map0, name1, FieldType::Any(isolate),
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
   Handle<Map> map2 =
-      Map::CopyWithField(isolate, map0, name2,
-                         handle(FieldType::Any(), isolate), attributes,
-                         PropertyConstness::kMutable, Representation::Tagged(),
-                         OMIT_TRANSITION)
+      Map::CopyWithField(isolate, map0, name2, FieldType::Any(isolate),
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
   CHECK(map0->raw_transitions()->IsSmi());
@@ -157,9 +153,8 @@ TEST(TransitionArray_DifferentFieldNames) {
     SNPrintF(buffer, "prop%d", i);
     Handle<String> name = factory->InternalizeUtf8String(buffer.start());
     Handle<Map> map =
-        Map::CopyWithField(isolate, map0, name,
-                           handle(FieldType::Any(), isolate), attributes,
-                           PropertyConstness::kMutable,
+        Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate),
+                           attributes, PropertyConstness::kMutable,
                            Representation::Tagged(), OMIT_TRANSITION)
             .ToHandleChecked();
     names[i] = name;
@@ -250,8 +245,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
     SNPrintF(buffer, "prop%d", i);
     Handle<String> name = factory->InternalizeUtf8String(buffer.start());
     Handle<Map> map =
-        Map::CopyWithField(isolate, map0, name,
-                           handle(FieldType::Any(), isolate), NONE,
+        Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate), NONE,
                            PropertyConstness::kMutable,
                            Representation::Tagged(), OMIT_TRANSITION)
             .ToHandleChecked();
@@ -271,9 +265,8 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
     PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
 
     Handle<Map> map =
-        Map::CopyWithField(isolate, map0, name,
-                           handle(FieldType::Any(), isolate), attributes,
-                           PropertyConstness::kMutable,
+        Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate),
+                           attributes, PropertyConstness::kMutable,
                            Representation::Tagged(), OMIT_TRANSITION)
             .ToHandleChecked();
     attr_maps[i] = map;

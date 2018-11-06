@@ -1328,7 +1328,7 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
   return GetDetails(descriptor_number).field_index();
 }
 
-FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
+FieldType DescriptorArray::GetFieldType(int descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
   MaybeObject wrapped_type = GetValue(descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
