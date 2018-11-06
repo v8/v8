@@ -1772,11 +1772,9 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       if (pattern_error) ArrowFormalParametersUnexpectedToken();
       Consume(Token::LPAREN);
       if (Check(Token::RPAREN)) {
-        // ()=>x.  The continuation that looks for the => is in
+        // ()=>x.  The continuation that consumes the => is in
         // ParseAssignmentExpression.
-        classifier()->RecordExpressionError(scanner()->location(),
-                                            MessageTemplate::kUnexpectedToken,
-                                            Token::String(Token::RPAREN));
+        if (peek() != Token::ARROW) ReportUnexpectedToken(Token::RPAREN);
         return factory()->NewEmptyParentheses(beg_pos);
       }
       // Heuristically try to detect immediately called functions before
