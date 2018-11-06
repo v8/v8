@@ -864,6 +864,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return UncheckedCast<Object>(
         LoadObjectField(object, offset, MachineType::AnyTagged()));
   }
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
+                         int>::type = 0>
+  TNode<T> LoadObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset) {
+    return UncheckedCast<T>(
+        LoadObjectField(object, offset, MachineTypeOf<T>::value));
+  }
   // Load a SMI field and untag it.
   TNode<IntPtrT> LoadAndUntagObjectField(SloppyTNode<HeapObject> object,
                                          int offset);
@@ -1231,6 +1238,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StoreObjectFieldNoWriteBarrier(
       Node* object, Node* offset, Node* value,
       MachineRepresentation rep = MachineRepresentation::kTagged);
+
+  template <class T = Object>
+  TNode<T> StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,
+                                          TNode<IntPtrT> offset,
+                                          TNode<T> value) {
+    return UncheckedCast<T>(StoreObjectFieldNoWriteBarrier(
+        object, offset, value, MachineRepresentationOf<T>::value));
+  }
+
   // Store the Map of an HeapObject.
   Node* StoreMap(Node* object, Node* map);
   Node* StoreMapNoWriteBarrier(Node* object, RootIndex map_root_index);
