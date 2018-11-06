@@ -3566,8 +3566,8 @@ void Parser::RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body,
 void Parser::RewriteDestructuringAssignments() {
   const auto& assignments =
       function_state_->destructuring_assignments_to_rewrite();
-  auto it = assignments.rbegin();
-  for (; it != assignments.rend(); ++it) {
+
+  for (auto it = assignments.rbegin(); it != assignments.rend(); ++it) {
     // Rewrite list in reverse, so that nested assignment patterns are rewritten
     // correctly.
     RewritableExpression* to_rewrite = *it;
