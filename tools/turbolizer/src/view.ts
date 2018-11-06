@@ -10,8 +10,8 @@ export abstract class View {
   abstract deleteContent(): void;
   abstract detachSelection(): Set<string>;
 
-  constructor(id) {
-    this.container = document.getElementById(id);
+  constructor(idOrContainer: string | HTMLElement) {
+    this.container = typeof idOrContainer == "string" ? document.getElementById(idOrContainer) : idOrContainer;
     this.divNode = this.createViewElement();
   }
 

@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 import * as C from "../src/constants"
-import {SourceResolver} from "../src/source-resolver"
-import {SelectionBroker} from "../src/selection-broker"
-import {DisassemblyView} from "../src/disassembly-view"
-import {GraphMultiView} from "../src/graphmultiview"
-import {CodeMode, CodeView} from "../src/code-view"
+import { SourceResolver } from "../src/source-resolver"
+import { SelectionBroker } from "../src/selection-broker"
+import { DisassemblyView } from "../src/disassembly-view"
+import { GraphMultiView } from "../src/graphmultiview"
+import { CodeMode, CodeView } from "../src/code-view"
 import * as d3 from "d3"
 
 class Snapper {
