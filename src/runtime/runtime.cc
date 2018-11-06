@@ -108,7 +108,7 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kAddPrivateField:
     case Runtime::kCopyDataProperties:
     case Runtime::kCreateDataProperty:
-    case Runtime::kCreatePrivateFieldSymbol:
+    case Runtime::kCreatePrivateNameSymbol:
     case Runtime::kReThrow:
     case Runtime::kThrow:
     case Runtime::kThrowApplyNonFunction:

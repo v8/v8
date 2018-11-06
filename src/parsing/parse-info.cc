@@ -67,8 +67,8 @@ void ParseInfo::SetFunctionInfo(T function) {
   set_language_mode(function->language_mode());
   set_function_kind(function->kind());
   set_declaration(function->is_declaration());
-  set_requires_instance_fields_initializer(
-      function->requires_instance_fields_initializer());
+  set_requires_instance_members_initializer(
+      function->requires_instance_members_initializer());
   set_toplevel(function->is_toplevel());
   set_wrapped_as_function(function->is_wrapped());
 }

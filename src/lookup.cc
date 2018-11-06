@@ -497,7 +497,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
 
-  // Property details can never change for private fields.
+  // Property details can never change for private properties.
   if (holder->IsJSProxy()) {
     DCHECK(name()->IsPrivate());
     return;
@@ -700,7 +700,7 @@ void LookupIterator::Delete() {
     ElementsAccessor* accessor = object->GetElementsAccessor();
     accessor->Delete(object, number_);
   } else {
-    DCHECK(!name()->IsPrivateField());
+    DCHECK(!name()->IsPrivateName());
     bool is_prototype_map = holder->map()->is_prototype_map();
     RuntimeCallTimerScope stats_scope(
         isolate_, is_prototype_map

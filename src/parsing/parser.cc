@@ -868,8 +868,8 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     }
 
     RETURN_IF_PARSE_ERROR;
-    result->set_requires_instance_fields_initializer(
-        info->requires_instance_fields_initializer());
+    result->set_requires_instance_members_initializer(
+        info->requires_instance_members_initializer());
   }
 
   // Make sure the target stack is empty.
@@ -3140,9 +3140,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
   }
 
   if (kind == ClassLiteralProperty::FIELD && is_private) {
-    Variable* private_field_name_var =
-        CreateSyntheticContextVariable(property_name);
-    property->set_private_field_name_var(private_field_name_var);
+    Variable* private_name_var = CreateSyntheticContextVariable(property_name);
+    property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());
   }
 }
@@ -3151,11 +3150,11 @@ FunctionLiteral* Parser::CreateInitializerFunction(
     const char* name, DeclarationScope* scope,
     ZonePtrList<ClassLiteral::Property>* fields) {
   DCHECK_EQ(scope->function_kind(),
-            FunctionKind::kClassFieldsInitializerFunction);
+            FunctionKind::kClassMembersInitializerFunction);
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
-  InitializeClassFieldsStatement* static_fields =
-      factory()->NewInitializeClassFieldsStatement(fields, kNoSourcePosition);
+  InitializeClassMembersStatement* static_fields =
+      factory()->NewInitializeClassMembersStatement(fields, kNoSourcePosition);
   statements.Add(static_fields);
   return factory()->NewFunctionLiteral(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
@@ -3200,18 +3199,18 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
         class_info->static_fields);
   }
 
-  FunctionLiteral* instance_fields_initializer_function = nullptr;
-  if (class_info->has_instance_class_fields) {
-    instance_fields_initializer_function = CreateInitializerFunction(
-        "<instance_fields_initializer>", class_info->instance_fields_scope,
+  FunctionLiteral* instance_members_initializer_function = nullptr;
+  if (class_info->has_instance_members) {
+    instance_members_initializer_function = CreateInitializerFunction(
+        "<instance_members_initializer>", class_info->instance_members_scope,
         class_info->instance_fields);
-    class_info->constructor->set_requires_instance_fields_initializer(true);
+    class_info->constructor->set_requires_instance_members_initializer(true);
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       block_scope, class_info->variable, class_info->extends,
       class_info->constructor, class_info->properties,
-      static_fields_initializer, instance_fields_initializer_function, pos,
+      static_fields_initializer, instance_members_initializer_function, pos,
       end_pos, class_info->has_name_static_property,
       class_info->has_static_computed_names, class_info->is_anonymous);
 
@@ -3240,7 +3239,7 @@ bool Parser::IsPropertyWithPrivateFieldKey(Expression* expression) {
   if (!property->key()->IsVariableProxy()) return false;
   VariableProxy* key = property->key()->AsVariableProxy();
 
-  return key->is_private_field();
+  return key->is_private_name();
 }
 
 void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {

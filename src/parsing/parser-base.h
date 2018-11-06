@@ -552,10 +552,10 @@ class ParserBase {
           has_name_static_property(false),
           has_static_computed_names(false),
           has_static_class_fields(false),
-          has_instance_class_fields(false),
+          has_instance_members(false),
           is_anonymous(false),
           static_fields_scope(nullptr),
-          instance_fields_scope(nullptr),
+          instance_members_scope(nullptr),
           computed_field_count(0) {}
     Variable* variable;
     ExpressionT extends;
@@ -568,10 +568,10 @@ class ParserBase {
     bool has_name_static_property;
     bool has_static_computed_names;
     bool has_static_class_fields;
-    bool has_instance_class_fields;
+    bool has_instance_members;
     bool is_anonymous;
     DeclarationScope* static_fields_scope;
-    DeclarationScope* instance_fields_scope;
+    DeclarationScope* instance_members_scope;
     int computed_field_count;
   };
 
@@ -1032,8 +1032,8 @@ class ParserBase {
       IdentifierT* property_name, bool has_extends, bool* is_computed_name,
       ClassLiteralProperty::Kind* property_kind, bool* is_static,
       bool* is_private);
-  ExpressionT ParseClassFieldInitializer(ClassInfo* class_info, int beg_pos,
-                                         bool is_static);
+  ExpressionT ParseMemberInitializer(ClassInfo* class_info, int beg_pos,
+                                     bool is_static);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ObjectLiteralChecker* checker, bool* is_computed_name,
       bool* is_rest_property);
@@ -1621,7 +1621,7 @@ ParserBase<Impl>::ParseIdentifierNameOrPrivateName() {
     name = impl()->GetSymbol();
     auto key_proxy =
         impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
-    key_proxy->set_is_private_field();
+    key_proxy->set_is_private_name();
     key = key_proxy;
   } else {
     name = ParseIdentifierName();
@@ -2211,8 +2211,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
         if (!*is_computed_name) {
           checker->CheckClassFieldName(*is_static);
         }
-        ExpressionT initializer = ParseClassFieldInitializer(
-            class_info, property_beg_pos, *is_static);
+        ExpressionT initializer =
+            ParseMemberInitializer(class_info, property_beg_pos, *is_static);
         ExpectSemicolon();
         ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
             name_expression, initializer, *property_kind, *is_static,
@@ -2306,16 +2306,15 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseClassFieldInitializer(ClassInfo* class_info, int beg_pos,
-                                             bool is_static) {
-  DeclarationScope* initializer_scope = is_static
-                                            ? class_info->static_fields_scope
-                                            : class_info->instance_fields_scope;
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
+    ClassInfo* class_info, int beg_pos, bool is_static) {
+  DeclarationScope* initializer_scope =
+      is_static ? class_info->static_fields_scope
+                : class_info->instance_members_scope;
 
   if (initializer_scope == nullptr) {
     initializer_scope =
-        NewFunctionScope(FunctionKind::kClassFieldsInitializerFunction);
+        NewFunctionScope(FunctionKind::kClassMembersInitializerFunction);
     // TODO(gsathya): Make scopes be non contiguous.
     initializer_scope->set_start_position(beg_pos);
     initializer_scope->SetLanguageMode(LanguageMode::kStrict);
@@ -2344,8 +2343,8 @@ ParserBase<Impl>::ParseClassFieldInitializer(ClassInfo* class_info, int beg_pos,
     class_info->static_fields_scope = initializer_scope;
     class_info->has_static_class_fields = true;
   } else {
-    class_info->instance_fields_scope = initializer_scope;
-    class_info->has_instance_class_fields = true;
+    class_info->instance_members_scope = initializer_scope;
+    class_info->has_instance_members = true;
   }
 
   return initializer;

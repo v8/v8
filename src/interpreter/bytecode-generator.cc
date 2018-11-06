@@ -1112,9 +1112,9 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // The derived constructor case is handled in VisitCallSuper.
   if (IsBaseConstructor(function_kind()) &&
-      info()->literal()->requires_instance_fields_initializer()) {
-    BuildInstanceFieldInitialization(Register::function_closure(),
-                                     builder()->Receiver());
+      info()->literal()->requires_instance_members_initializer()) {
+    BuildInstanceMemberInitialization(Register::function_closure(),
+                                      builder()->Receiver());
   }
 
   // Visit statements in the function body.
@@ -1903,10 +1903,10 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
 
       if (property->kind() == ClassLiteral::Property::FIELD) {
         if (property->is_private()) {
-          builder()->CallRuntime(Runtime::kCreatePrivateFieldSymbol);
-          DCHECK_NOT_NULL(property->private_field_name_var());
-          BuildVariableAssignment(property->private_field_name_var(),
-                                  Token::INIT, HoleCheckMode::kElided);
+          builder()->CallRuntime(Runtime::kCreatePrivateNameSymbol);
+          DCHECK_NOT_NULL(property->private_name_var());
+          BuildVariableAssignment(property->private_name_var(), Token::INIT,
+                                  HoleCheckMode::kElided);
         }
         // We don't compute field's value here, but instead do it in the
         // initializer function.
@@ -1931,12 +1931,12 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
                             HoleCheckMode::kElided);
   }
 
-  if (expr->instance_fields_initializer_function() != nullptr) {
+  if (expr->instance_members_initializer_function() != nullptr) {
     Register initializer =
-        VisitForRegisterValue(expr->instance_fields_initializer_function());
+        VisitForRegisterValue(expr->instance_members_initializer_function());
 
     if (FunctionLiteral::NeedsHomeObject(
-            expr->instance_fields_initializer_function())) {
+            expr->instance_members_initializer_function())) {
       FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
       builder()->LoadAccumulatorWithRegister(prototype).StoreHomeObjectProperty(
           initializer, feedback_index(slot), language_mode());
@@ -2004,8 +2004,8 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr, Register name) {
   }
 }
 
-void BytecodeGenerator::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* stmt) {
+void BytecodeGenerator::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* stmt) {
   RegisterList args = register_allocator()->NewRegisterList(3);
   Register constructor = args[0], key = args[1], value = args[2];
   builder()->MoveRegister(builder()->Receiver(), constructor);
@@ -2024,9 +2024,9 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
       builder()->StoreAccumulatorInRegister(key);
     } else if (property->kind() == ClassLiteral::Property::FIELD &&
                property->is_private()) {
-      Variable* private_field_name_var = property->private_field_name_var();
-      DCHECK_NOT_NULL(private_field_name_var);
-      BuildVariableLoad(private_field_name_var, HoleCheckMode::kElided);
+      Variable* private_name_var = property->private_name_var();
+      DCHECK_NOT_NULL(private_name_var);
+      BuildVariableLoad(private_name_var, HoleCheckMode::kElided);
       builder()->StoreAccumulatorInRegister(key);
     } else {
       BuildLoadPropertyKey(property, key);
@@ -2045,8 +2045,8 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
   }
 }
 
-void BytecodeGenerator::BuildInstanceFieldInitialization(Register constructor,
-                                                         Register instance) {
+void BytecodeGenerator::BuildInstanceMemberInitialization(Register constructor,
+                                                          Register instance) {
   RegisterList args = register_allocator()->NewRegisterList(1);
   Register initializer = register_allocator()->NewRegister();
 
@@ -3840,11 +3840,11 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   // TODO(gsathya): In the future, we could tag nested arrow functions
   // or eval with the correct bit so that we do the load conditionally
   // if required.
-  if (info()->literal()->requires_instance_fields_initializer() ||
+  if (info()->literal()->requires_instance_members_initializer() ||
       !IsDerivedConstructor(info()->literal()->kind())) {
     Register instance = register_allocator()->NewRegister();
     builder()->StoreAccumulatorInRegister(instance);
-    BuildInstanceFieldInitialization(this_function, instance);
+    BuildInstanceMemberInitialization(this_function, instance);
     builder()->LoadAccumulatorWithRegister(instance);
   }
 }

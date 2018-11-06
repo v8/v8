@@ -337,8 +337,8 @@ void Processor::VisitDebuggerStatement(DebuggerStatement* node) {
   replacement_ = node;
 }
 
-void Processor::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* node) {
+void Processor::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* node) {
   replacement_ = node;
 }
 

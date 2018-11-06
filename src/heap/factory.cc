@@ -1343,9 +1343,9 @@ Handle<Symbol> Factory::NewPrivateSymbol(PretenureFlag flag) {
   return symbol;
 }
 
-Handle<Symbol> Factory::NewPrivateFieldSymbol() {
+Handle<Symbol> Factory::NewPrivateNameSymbol() {
   Handle<Symbol> symbol = NewSymbol();
-  symbol->set_is_private_field();
+  symbol->set_is_private_name();
   return symbol;
 }
 

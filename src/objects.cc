@@ -5321,8 +5321,8 @@ Maybe<bool> Object::RedefineIncompatibleProperty(Isolate* isolate,
 
 Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   DCHECK_IMPLIES(it->GetReceiver()->IsJSProxy(),
-                 it->GetName()->IsPrivateField());
-  DCHECK_IMPLIES(!it->IsElement() && it->GetName()->IsPrivateField(),
+                 it->GetName()->IsPrivateName());
+  DCHECK_IMPLIES(!it->IsElement() && it->GetName()->IsPrivateName(),
                  it->state() == LookupIterator::DATA);
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
 
@@ -5385,7 +5385,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   // Private symbols should be installed on JSProxy using
   // JSProxy::SetPrivateSymbol.
   if (it->GetReceiver()->IsJSProxy() && it->GetName()->IsPrivate() &&
-      !it->GetName()->IsPrivateField()) {
+      !it->GetName()->IsPrivateName()) {
     RETURN_FAILURE(it->isolate(), should_throw,
                    NewTypeError(MessageTemplate::kProxyPrivate));
   }
@@ -5393,7 +5393,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   DCHECK_NE(LookupIterator::INTEGER_INDEXED_EXOTIC, it->state());
 
   Handle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
-  DCHECK_IMPLIES(receiver->IsJSProxy(), it->GetName()->IsPrivateField());
+  DCHECK_IMPLIES(receiver->IsJSProxy(), it->GetName()->IsPrivateName());
   DCHECK_IMPLIES(receiver->IsJSProxy(),
                  it->state() == LookupIterator::NOT_FOUND);
 
@@ -7763,7 +7763,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                        ShouldThrow should_throw) {
   STACK_CHECK(isolate, Nothing<bool>());
   if (key->IsSymbol() && Handle<Symbol>::cast(key)->IsPrivate()) {
-    DCHECK(!Handle<Symbol>::cast(key)->IsPrivateField());
+    DCHECK(!Handle<Symbol>::cast(key)->IsPrivateName());
     return JSProxy::SetPrivateSymbol(isolate, proxy, Handle<Symbol>::cast(key),
                                      desc, should_throw);
   }
@@ -7873,7 +7873,7 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
                                       Handle<Symbol> private_name,
                                       PropertyDescriptor* desc,
                                       ShouldThrow should_throw) {
-  DCHECK(!private_name->IsPrivateField());
+  DCHECK(!private_name->IsPrivateName());
   // Despite the generic name, this can only add private data properties.
   if (!PropertyDescriptor::IsDataDescriptor(desc) ||
       desc->ToAttributes() != DONT_ENUM) {
@@ -10189,7 +10189,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
     Name* key = src->GetKey(i);
     PropertyDetails details = src->GetDetails(i);
 
-    DCHECK(!key->IsPrivateField());
+    DCHECK(!key->IsPrivateName());
     DCHECK(details.IsEnumerable());
     DCHECK_EQ(details.kind(), kData);
 
@@ -14181,10 +14181,10 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
-  DCHECK_IMPLIES(lit->requires_instance_fields_initializer(),
+  DCHECK_IMPLIES(lit->requires_instance_members_initializer(),
                  IsClassConstructor(lit->kind()));
-  shared_info->set_requires_instance_fields_initializer(
-      lit->requires_instance_fields_initializer());
+  shared_info->set_requires_instance_members_initializer(
+      lit->requires_instance_members_initializer());
 
   shared_info->set_is_toplevel(is_toplevel);
   DCHECK(shared_info->outer_scope_info()->IsTheHole());

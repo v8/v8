@@ -90,9 +90,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_wrapped_as_function)
   FLAG_ACCESSOR(kAllowEvalCache, allow_eval_cache, set_allow_eval_cache)
   FLAG_ACCESSOR(kIsDeclaration, is_declaration, set_declaration)
-  FLAG_ACCESSOR(kRequiresInstanceFieldsInitializer,
-                requires_instance_fields_initializer,
-                set_requires_instance_fields_initializer);
+  FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
+                requires_instance_members_initializer,
+                set_requires_instance_members_initializer);
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -283,7 +283,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
     kAllowEvalCache = 1 << 15,
     kIsDeclaration = 1 << 16,
-    kRequiresInstanceFieldsInitializer = 1 << 17,
+    kRequiresInstanceMembersInitializer = 1 << 17,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

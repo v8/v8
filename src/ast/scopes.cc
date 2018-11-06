@@ -1502,9 +1502,9 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
     ResolveScopesThenForEachVariable(
         this, [=, &new_unresolved_list](VariableProxy* proxy) {
           // Don't copy unresolved references to the script scope, unless it's a
-          // reference to a private field. In that case keep it so we can fail
-          // later.
-          if (!outer_scope_->is_script_scope() || proxy->is_private_field()) {
+          // reference to a private name or method. In that case keep it so we
+          // can fail later.
+          if (!outer_scope_->is_script_scope() || proxy->is_private_name()) {
             VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
             new_unresolved_list.AddFront(copy);
           }
@@ -1801,7 +1801,7 @@ Variable* Scope::LookupRecursive(ParseInfo* info, VariableProxy* proxy,
     // declare them in the outer scope.
     if (!is_script_scope()) return nullptr;
 
-    if (proxy->is_private_field()) {
+    if (proxy->is_private_name()) {
       info->pending_error_handler()->ReportMessageAt(
           proxy->position(), proxy->position() + 1,
           MessageTemplate::kInvalidPrivateFieldAccess, proxy->raw_name(),
@@ -1878,7 +1878,7 @@ bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
   Variable* var = LookupRecursive(info, proxy, nullptr);
   if (var == nullptr) {
-    DCHECK(proxy->is_private_field());
+    DCHECK(proxy->is_private_name());
     return false;
   }
   ResolveTo(info, proxy, var);
@@ -1988,7 +1988,7 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
     for (VariableProxy* proxy : unresolved_list_) {
       Variable* var = outer_scope()->LookupRecursive(info, proxy, nullptr);
       if (var == nullptr) {
-        DCHECK(proxy->is_private_field());
+        DCHECK(proxy->is_private_name());
         return false;
       }
       if (!var->is_dynamic()) {

@@ -299,12 +299,12 @@ class PreParserExpression {
   // and PreParser.
   PreParserExpression* operator->() { return this; }
 
-  void set_is_private_field() {
+  void set_is_private_name() {
     if (variables_ != nullptr) {
       DCHECK(IsIdentifier());
       DCHECK(AsIdentifier().IsPrivateName());
       DCHECK_EQ(1, variables_->LengthForTest());
-      variables_->first()->set_is_private_field();
+      variables_->first()->set_is_private_name();
     }
   }
 
@@ -1233,7 +1233,7 @@ class PreParser : public ParserBase<PreParser> {
     if (class_info->has_static_class_fields) {
       GetNextFunctionLiteralId();
     }
-    if (class_info->has_instance_class_fields) {
+    if (class_info->has_instance_members) {
       GetNextFunctionLiteralId();
     }
     return PreParserExpression::Default();

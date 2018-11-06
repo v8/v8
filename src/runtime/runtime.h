@@ -433,7 +433,7 @@ namespace internal {
   F(StringTrim, 2, 1)
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F, I)    \
-  F(CreatePrivateFieldSymbol, 0, 1)        \
+  F(CreatePrivateNameSymbol, 0, 1)         \
   F(CreatePrivateSymbol, -1 /* <= 1 */, 1) \
   F(SymbolDescriptiveString, 1, 1)         \
   F(SymbolIsPrivate, 1, 1)

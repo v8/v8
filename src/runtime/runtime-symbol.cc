@@ -23,10 +23,10 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   return *symbol;
 }
 
-RUNTIME_FUNCTION(Runtime_CreatePrivateFieldSymbol) {
+RUNTIME_FUNCTION(Runtime_CreatePrivateNameSymbol) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  Handle<Symbol> symbol = isolate->factory()->NewPrivateFieldSymbol();
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol();
   return *symbol;
 }
 
