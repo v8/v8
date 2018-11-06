@@ -95,6 +95,15 @@ class AsyncCompileJob {
   class CompileWrappers;         // Step 5  (sync)
   class FinishModule;            // Step 6  (sync)
 
+  friend class AsyncStreamingProcessor;
+
+  // Decrements the number of outstanding finishers. The last caller of this
+  // function should finish the asynchronous compilation, see the comment on
+  // {outstanding_finishers_}.
+  V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
+    return outstanding_finishers_.fetch_sub(1) == 1;
+  }
+
   void PrepareRuntimeObjects(std::shared_ptr<const WasmModule>);
 
   void FinishCompile(bool compile_wrappers);
@@ -127,9 +136,7 @@ class AsyncCompileJob {
   template <typename Step, typename... Args>
   void NextStep(Args&&... args);
 
-  friend class AsyncStreamingProcessor;
-
-  Isolate* isolate_;
+  Isolate* const isolate_;
   const WasmFeatures enabled_features_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
@@ -138,7 +145,7 @@ class AsyncCompileJob {
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
   Handle<Context> native_context_;
-  std::shared_ptr<CompilationResultResolver> resolver_;
+  const std::shared_ptr<CompilationResultResolver> resolver_;
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
@@ -154,13 +161,6 @@ class AsyncCompileJob {
   // compilation can be finished.
   std::atomic<int32_t> outstanding_finishers_{1};
 
-  // Decrements the number of outstanding finishers. The last caller of this
-  // function should finish the asynchronous compilation, see the comment on
-  // {outstanding_finishers_}.
-  V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
-    return outstanding_finishers_.fetch_sub(1) == 1;
-  }
-
   // A reference to a pending foreground task, or {nullptr} if none is pending.
   CompileTask* pending_foreground_task_ = nullptr;
 
@@ -170,6 +170,7 @@ class AsyncCompileJob {
   // StreamingDecoder.
   std::shared_ptr<StreamingDecoder> stream_;
 };
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
