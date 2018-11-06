@@ -3208,6 +3208,13 @@ bool ShouldUseCallICFeedback(Node* node) {
   return true;
 }
 
+base::Optional<HeapObjectRef> GetHeapObjectFeedback(
+    JSHeapBroker* broker, const FeedbackNexus& nexus) {
+  HeapObject* object;
+  if (!nexus.GetFeedback()->GetHeapObject(&object)) return base::nullopt;
+  return HeapObjectRef(broker, handle(object, broker->isolate()));
+}
+
 }  // namespace
 
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
@@ -3326,31 +3333,28 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  HeapObject* heap_object;
-  if (nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object)) {
-    Handle<HeapObject> feedback(heap_object, isolate());
-    // Check if we want to use CallIC feedback here.
-    if (!ShouldUseCallICFeedback(target)) return NoChange();
+  base::Optional<HeapObjectRef> feedback =
+      GetHeapObjectFeedback(broker(), nexus);
+  if (feedback.has_value() && ShouldUseCallICFeedback(target) &&
+      feedback->map().is_callable()) {
+    Node* target_function = jsgraph()->Constant(*feedback);
 
-    if (feedback->IsCallable()) {
-      Node* target_function = jsgraph()->Constant(feedback);
+    // Check that the {target} is still the {target_function}.
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                   target_function);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check,
+        effect, control);
 
-      // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
-                                     target_function);
-      effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check,
-          effect, control);
+    // Specialize the JSCall node to the {target_function}.
+    NodeProperties::ReplaceValueInput(node, target_function, 0);
+    NodeProperties::ReplaceEffectInput(node, effect);
 
-      // Specialize the JSCall node to the {target_function}.
-      NodeProperties::ReplaceValueInput(node, target_function, 0);
-      NodeProperties::ReplaceEffectInput(node, effect);
-
-      // Try to further reduce the JSCall {node}.
-      Reduction const reduction = ReduceJSCall(node);
-      return reduction.Changed() ? reduction : Changed(node);
-    }
+    // Try to further reduce the JSCall {node}.
+    Reduction const reduction = ReduceJSCall(node);
+    return reduction.Changed() ? reduction : Changed(node);
   }
+
   return NoChange();
 }
 
@@ -3751,15 +3755,13 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       return NoChange();
     }
 
-    HeapObject* feedback_object;
-    if (nexus.GetFeedback()->GetHeapObjectIfStrong(&feedback_object) &&
-        feedback_object->IsAllocationSite()) {
+    base::Optional<HeapObjectRef> feedback =
+        GetHeapObjectFeedback(broker(), nexus);
+    if (feedback.has_value() && feedback->IsAllocationSite()) {
       // The feedback is an AllocationSite, which means we have called the
       // Array function and collected transition (and pretenuring) feedback
       // for the resulting arrays.  This has to be kept in sync with the
       // implementation in Ignition.
-      Handle<AllocationSite> site(AllocationSite::cast(feedback_object),
-                                  isolate());
 
       Node* array_function =
           jsgraph()->Constant(native_context().array_function());
@@ -3778,40 +3780,42 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
             node, NodeProperties::GetValueInput(node, i), i + 1);
       }
       NodeProperties::ReplaceValueInput(node, array_function, 1);
-      NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
+      NodeProperties::ChangeOp(
+          node, javascript()->CreateArray(
+                    arity, feedback->AsAllocationSite().object()));
       return Changed(node);
-    } else if (nexus.GetFeedback()->GetHeapObjectIfWeak(&feedback_object) &&
-               !HeapObjectMatcher(new_target).HasValue()) {
-      Handle<HeapObject> object(feedback_object, isolate());
-      if (object->IsConstructor()) {
-        Node* new_target_feedback = jsgraph()->Constant(object);
+    } else if (feedback.has_value() &&
+               !HeapObjectMatcher(new_target).HasValue() &&
+               feedback->map().is_constructor()) {
+      Node* new_target_feedback = jsgraph()->Constant(*feedback);
 
-        // Check that the {new_target} is still the {new_target_feedback}.
-        Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
-                                       new_target, new_target_feedback);
-        effect = graph()->NewNode(
-            simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check,
-            effect, control);
+      // Check that the {new_target} is still the {new_target_feedback}.
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), new_target,
+                                     new_target_feedback);
+      effect = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check,
+          effect, control);
 
-        // Specialize the JSConstruct node to the {new_target_feedback}.
-        NodeProperties::ReplaceValueInput(node, new_target_feedback, arity + 1);
-        NodeProperties::ReplaceEffectInput(node, effect);
-        if (target == new_target) {
-          NodeProperties::ReplaceValueInput(node, new_target_feedback, 0);
-        }
-
-        // Try to further reduce the JSConstruct {node}.
-        Reduction const reduction = ReduceJSConstruct(node);
-        return reduction.Changed() ? reduction : Changed(node);
+      // Specialize the JSConstruct node to the {new_target_feedback}.
+      NodeProperties::ReplaceValueInput(node, new_target_feedback, arity + 1);
+      NodeProperties::ReplaceEffectInput(node, effect);
+      if (target == new_target) {
+        NodeProperties::ReplaceValueInput(node, new_target_feedback, 0);
       }
+
+      // Try to further reduce the JSConstruct {node}.
+      Reduction const reduction = ReduceJSConstruct(node);
+      return reduction.Changed() ? reduction : Changed(node);
     }
   }
 
   // Try to specialize JSConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
+    HeapObjectRef target_ref = m.Ref(broker()).AsHeapObject();
+
     // Raise a TypeError if the {target} is not a constructor.
-    if (!m.Value()->IsConstructor()) {
+    if (!target_ref.map().is_constructor()) {
       NodeProperties::ReplaceValueInputs(node, target);
       NodeProperties::ChangeOp(node,
                                javascript()->CallRuntime(
@@ -3819,7 +3823,6 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       return Changed(node);
     }
 
-    ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
       function.Serialize();
@@ -3839,15 +3842,14 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       switch (builtin_id) {
         case Builtins::kArrayConstructor: {
           // TODO(bmeurer): Deal with Array subclasses here.
-          Handle<AllocationSite> site;
           // Turn the {node} into a {JSCreateArray} call.
           for (int i = arity; i > 0; --i) {
             NodeProperties::ReplaceValueInput(
                 node, NodeProperties::GetValueInput(node, i), i + 1);
           }
           NodeProperties::ReplaceValueInput(node, new_target, 1);
-          NodeProperties::ChangeOp(node,
-                                   javascript()->CreateArray(arity, site));
+          NodeProperties::ChangeOp(
+              node, javascript()->CreateArray(arity, Handle<AllocationSite>()));
           return Changed(node);
         }
         case Builtins::kObjectConstructor: {
@@ -4344,7 +4346,11 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
     return NoChange();
   }
 
-  if (!isolate()->IsNoElementsProtectorIntact()) return NoChange();
+  PropertyCellRef no_elements_protector(broker(),
+                                        factory()->no_elements_protector());
+  if (no_elements_protector.value().AsSmi() != Isolate::kProtectorValid) {
+    return NoChange();
+  }
 
   int const num_values = node->op()->ValueInputCount() - 2;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -4371,8 +4377,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   }
 
   // Install code dependencies on the {receiver} global array protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
+  dependencies()->DependOnProtector(no_elements_protector);
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4460,7 +4465,11 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
     return NoChange();
   }
 
-  if (!isolate()->IsNoElementsProtectorIntact()) return NoChange();
+  PropertyCellRef no_elements_protector(broker(),
+                                        factory()->no_elements_protector());
+  if (no_elements_protector.value().AsSmi() != Isolate::kProtectorValid) {
+    return NoChange();
+  }
 
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -4488,8 +4497,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   }
 
   // Install code dependencies on the {receiver} global array protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
+  dependencies()->DependOnProtector(no_elements_protector);
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4579,7 +4587,12 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
     return NoChange();
   }
 
-  if (!isolate()->IsNoElementsProtectorIntact()) return NoChange();
+  PropertyCellRef no_elements_protector(broker(),
+                                        factory()->no_elements_protector());
+  if (no_elements_protector.value().AsSmi() != Isolate::kProtectorValid) {
+    return NoChange();
+  }
+
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
@@ -4609,8 +4622,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   }
 
   // Install code dependencies on the {receiver} global array protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
+  dependencies()->DependOnProtector(no_elements_protector);
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4903,8 +4915,9 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, receiver_maps.size());
-  for (Handle<Map> receiver_map : receiver_maps) {
-    if (!receiver_map->IsJSReceiverMap()) return NoChange();
+  for (Handle<Map> map : receiver_maps) {
+    MapRef receiver_map(broker(), map);
+    if (!receiver_map.IsJSReceiverMap()) return NoChange();
   }
 
   // Morph the {node} into a JSCreateArrayIterator with the given {kind}.
@@ -4960,15 +4973,17 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   DCHECK_NE(0, iterated_object_maps.size());
 
   // Check that various {iterated_object_maps} have compatible elements kinds.
-  ElementsKind elements_kind = iterated_object_maps[0]->elements_kind();
+  ElementsKind elements_kind =
+      MapRef(broker(), iterated_object_maps[0]).elements_kind();
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     // TurboFan doesn't support loading from BigInt typed arrays yet.
     if (elements_kind == BIGUINT64_ELEMENTS ||
         elements_kind == BIGINT64_ELEMENTS) {
       return NoChange();
     }
-    for (Handle<Map> iterated_object_map : iterated_object_maps) {
-      if (iterated_object_map->elements_kind() != elements_kind) {
+    for (Handle<Map> map : iterated_object_maps) {
+      MapRef iterated_object_map(broker(), map);
+      if (iterated_object_map.elements_kind() != elements_kind) {
         return NoChange();
       }
     }
