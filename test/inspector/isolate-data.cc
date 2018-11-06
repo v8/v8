@@ -110,6 +110,10 @@ v8::Local<v8::Context> IsolateData::GetContext(int context_group_id) {
   return contexts_[context_group_id].Get(isolate_.get());
 }
 
+void IsolateData::ResetContextGroup(int context_group_id) {
+  inspector_->resetContextGroup(context_group_id);
+}
+
 int IsolateData::GetContextGroupId(v8::Local<v8::Context> context) {
   return static_cast<int>(
       reinterpret_cast<intptr_t>(

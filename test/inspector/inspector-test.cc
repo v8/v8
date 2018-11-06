@@ -312,6 +312,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
                v8::FunctionTemplate::New(isolate,
                                          &UtilsExtension::CreateContextGroup));
     utils->Set(
+        ToV8String(isolate, "resetContextGroup"),
+        v8::FunctionTemplate::New(isolate, &UtilsExtension::ResetContextGroup));
+    utils->Set(
         ToV8String(isolate, "connectSession"),
         v8::FunctionTemplate::New(isolate, &UtilsExtension::ConnectSession));
     utils->Set(
@@ -524,6 +527,18 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     });
     args.GetReturnValue().Set(
         v8::Int32::New(args.GetIsolate(), context_group_id));
+  }
+
+  static void ResetContextGroup(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsInt32()) {
+      fprintf(stderr, "Internal error: resetContextGroup(context_group_id).");
+      Exit();
+    }
+    int context_group_id = args[0].As<v8::Int32>()->Value();
+    RunSyncTask(backend_runner_, [&context_group_id](IsolateData* data) {
+      data->ResetContextGroup(context_group_id);
+    });
   }
 
   static void ConnectSession(const v8::FunctionCallbackInfo<v8::Value>& args) {
