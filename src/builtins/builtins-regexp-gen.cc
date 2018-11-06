@@ -927,42 +927,11 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
 
   Node* const initial_proto_initial_map =
       LoadContextElement(native_context, Context::REGEXP_PROTOTYPE_MAP_INDEX);
-  Node* const proto_map = LoadMap(LoadMapPrototype(map));
 
-  Node* const proto_has_initialmap =
-      WordEqual(proto_map, initial_proto_initial_map);
-
-  GotoIfNot(proto_has_initialmap, if_ismodified);
-
-  if (FLAG_track_constant_fields) {
-    // With constant field tracking, we need to make sure that the exec
-    // function in the prototype has not been tampered with. We do this by
-    // checking that the slot in the prototype's descriptor array is still
-    // marked as const.
-    TNode<DescriptorArray> descriptors = LoadMapDescriptors(proto_map);
-
-    const int index = JSRegExp::kExecFunctionDescriptorIndex;
-    // Assert the index is in-bounds.
-    CSA_ASSERT(this, SmiLessThan(SmiConstant(index),
-                                 LoadWeakFixedArrayLength(descriptors)));
-    // Assert that the name is correct. This essentially checks that
-    // the index corresponds to the insertion order in the bootstrapper.
-    CSA_ASSERT(this,
-               WordEqual(LoadWeakFixedArrayElement(
-                             descriptors, DescriptorArray::ToKeyIndex(index)),
-                         LoadRoot(RootIndex::kexec_string)));
-
-    TNode<Uint32T> details =
-        DescriptorArrayGetDetails(descriptors, Uint32Constant(index));
-
-    TNode<Uint32T> constness =
-        DecodeWord32<PropertyDetails::ConstnessField>(details);
-
-    GotoIfNot(
-        Word32Equal(constness,
-                    Int32Constant(static_cast<int>(PropertyConstness::kConst))),
-        if_ismodified);
-  }
+  GotoIfInitialPrototypePropertyModified(
+      CAST(map), CAST(initial_proto_initial_map),
+      JSRegExp::kExecFunctionDescriptorIndex, RootIndex::kexec_string,
+      if_ismodified);
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.

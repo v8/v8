@@ -103,13 +103,13 @@ class BaseCollectionsAssembler : public BaseBuiltinsFromDSLAssembler {
 
   // Checks whether {collection}'s initial add/set function has been modified
   // (depending on {variant}, loaded from {native_context}).
-  void CheckIfInitialAddFunctionModified(Variant variant,
-                                         TNode<Context> native_context,
-                                         TNode<Object> collection,
-                                         Label* if_modified);
+  void GotoIfInitialAddFunctionModified(Variant variant,
+                                        TNode<Context> native_context,
+                                        TNode<Object> collection,
+                                        Label* if_modified);
 
   // Gets root index for the name of the add/set function.
-  TNode<Object> GetAddFunctionName(Variant variant);
+  RootIndex GetAddFunctionNameIndex(Variant variant);
 
   // Retrieves the offset to access the backing table from the collection.
   int GetTableOffset(Variant variant);
@@ -189,8 +189,8 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     TNode<Object> table = AllocateTable(variant, context, at_least_space_for);
     StoreObjectField(collection, GetTableOffset(variant), table);
     GotoIf(IsNullOrUndefined(initial_entries), &exit);
-    CheckIfInitialAddFunctionModified(variant, native_context, collection,
-                                      &slow_loop);
+    GotoIfInitialAddFunctionModified(variant, native_context, collection,
+                                     &slow_loop);
     Branch(use_fast_loop.value(), &fast_loop, &slow_loop);
   }
   BIND(&fast_loop);
@@ -215,8 +215,8 @@ void BaseCollectionsAssembler::AddConstructorEntries(
       {
         // Check that add/set function has not been modified.
         Label if_not_modified(this), if_modified(this);
-        CheckIfInitialAddFunctionModified(variant, native_context, collection,
-                                          &if_modified);
+        GotoIfInitialAddFunctionModified(variant, native_context, collection,
+                                         &if_modified);
         Goto(&if_not_modified);
         BIND(&if_modified);
         Unreachable();
@@ -345,63 +345,28 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
   BIND(&exit);
 }
 
-TNode<Object> BaseCollectionsAssembler::GetAddFunctionName(Variant variant) {
+RootIndex BaseCollectionsAssembler::GetAddFunctionNameIndex(Variant variant) {
   switch (variant) {
     case kMap:
     case kWeakMap:
-      return LoadRoot(RootIndex::kset_string);
+      return RootIndex::kset_string;
     case kSet:
     case kWeakSet:
-      return LoadRoot(RootIndex::kadd_string);
+      return RootIndex::kadd_string;
   }
   UNREACHABLE();
 }
 
-void BaseCollectionsAssembler::CheckIfInitialAddFunctionModified(
+void BaseCollectionsAssembler::GotoIfInitialAddFunctionModified(
     Variant variant, TNode<Context> native_context, TNode<Object> collection,
     Label* if_modified) {
-  Label done(this);
-  TVARIABLE(BoolT, result, Int32FalseConstant());
-
-  TNode<Map> prototype_map =
-      LoadMap(LoadMapPrototype(LoadMap(CAST(collection))));
-  GotoIfNot(WordEqual(prototype_map,
-                      GetInitialCollectionPrototype(variant, native_context)),
-            if_modified);
-
-  if (FLAG_track_constant_fields) {
-    // With constant field tracking, we need to make sure that the add/set
-    // function in the prototype has not been tampered with. We do this by
-    // checking that the slot in the prototype's descriptor array is still
-    // marked as const.
-    TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
-
-    STATIC_ASSERT(JSCollection::kAddFunctionDescriptorIndex ==
-                  JSWeakCollection::kAddFunctionDescriptorIndex);
-    int index = JSCollection::kAddFunctionDescriptorIndex;
-
-    // Assert the index is in-bounds.
-    CSA_ASSERT(this, SmiLessThan(SmiConstant(index),
-                                 LoadWeakFixedArrayLength(descriptors)));
-    // Assert that the name is correct. This essentially checks that
-    // kAddFunctionDescriptorArrayIndex corresponds to the insertion order in
-    // the bootstrapper.
-    CSA_ASSERT(this,
-               WordEqual(LoadWeakFixedArrayElement(
-                             descriptors, DescriptorArray::ToKeyIndex(index)),
-                         GetAddFunctionName(variant)));
-
-    TNode<Uint32T> details =
-        DescriptorArrayGetDetails(descriptors, Uint32Constant(index));
-
-    TNode<Uint32T> constness =
-        DecodeWord32<PropertyDetails::ConstnessField>(details);
-
-    GotoIfNot(
-        Word32Equal(constness,
-                    Int32Constant(static_cast<int>(PropertyConstness::kConst))),
-        if_modified);
-  }
+  STATIC_ASSERT(JSCollection::kAddFunctionDescriptorIndex ==
+                JSWeakCollection::kAddFunctionDescriptorIndex);
+  GotoIfInitialPrototypePropertyModified(
+      LoadMap(CAST(collection)),
+      GetInitialCollectionPrototype(variant, native_context),
+      JSCollection::kAddFunctionDescriptorIndex,
+      GetAddFunctionNameIndex(variant), if_modified);
 }
 
 TNode<Object> BaseCollectionsAssembler::AllocateJSCollection(

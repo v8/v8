@@ -3130,6 +3130,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void SetPropertyLength(TNode<Context> context, TNode<Object> array,
                          TNode<Number> length);
 
+  // Checks that {object_map}'s prototype map is the {initial_prototype_map} and
+  // makes sure that the field with name at index {descriptor} is still
+  // constant. If it is not, go to label {if_modified}.
+  //
+  // To make the checks robust, the method also asserts that the descriptor has
+  // the right key, the caller must pass the root index of the key
+  // in {field_name_root_index}.
+  //
+  // This is useful for checking that given function has not been patched
+  // on the prototype.
+  void GotoIfInitialPrototypePropertyModified(TNode<Map> object_map,
+                                              TNode<Map> initial_prototype_map,
+                                              int descfriptor,
+                                              RootIndex field_name_root_index,
+                                              Label* if_modified);
+
   // Implements DescriptorArray::Search().
   void DescriptorLookup(SloppyTNode<Name> unique_name,
                         SloppyTNode<DescriptorArray> descriptors,

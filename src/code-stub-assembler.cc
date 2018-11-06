@@ -13531,5 +13531,42 @@ void CodeStubAssembler::SetPropertyLength(TNode<Context> context,
   BIND(&done);
 }
 
+void CodeStubAssembler::GotoIfInitialPrototypePropertyModified(
+    TNode<Map> object_map, TNode<Map> initial_prototype_map, int descriptor,
+    RootIndex field_name_root_index, Label* if_modified) {
+  TNode<Map> prototype_map = LoadMap(LoadMapPrototype(object_map));
+  GotoIfNot(WordEqual(prototype_map, initial_prototype_map), if_modified);
+
+  if (FLAG_track_constant_fields) {
+    // With constant field tracking, we need to make sure that the property
+    // in the prototype has not been tampered with. We do this by
+    // checking that the slot in the prototype's descriptor array is still
+    // marked as const.
+    TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
+
+    // Assert the index is in-bounds.
+    CSA_ASSERT(this, SmiLessThan(SmiConstant(descriptor),
+                                 LoadWeakFixedArrayLength(descriptors)));
+    // Assert that the name is correct. This essentially checks that
+    // the {descriptor} index corresponds to the insertion order in
+    // the bootstrapper.
+    CSA_ASSERT(this, WordEqual(LoadWeakFixedArrayElement(
+                                   descriptors,
+                                   DescriptorArray::ToKeyIndex(descriptor)),
+                               LoadRoot(field_name_root_index)));
+
+    TNode<Uint32T> details =
+        DescriptorArrayGetDetails(descriptors, Uint32Constant(descriptor));
+
+    TNode<Uint32T> constness =
+        DecodeWord32<PropertyDetails::ConstnessField>(details);
+
+    GotoIfNot(
+        Word32Equal(constness,
+                    Int32Constant(static_cast<int>(PropertyConstness::kConst))),
+        if_modified);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
