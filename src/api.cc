@@ -6844,17 +6844,6 @@ void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
   LOG_API(i_isolate, Date, DateTimeConfigurationChangeNotification);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i_isolate->date_cache()->ResetDateCache();
-  if (!i_isolate->eternal_handles()->Exists(
-          i::EternalHandles::DATE_CACHE_VERSION)) {
-    return;
-  }
-  i::Handle<i::FixedArray> date_cache_version =
-      i::Handle<i::FixedArray>::cast(i_isolate->eternal_handles()->GetSingleton(
-          i::EternalHandles::DATE_CACHE_VERSION));
-  DCHECK_EQ(1, date_cache_version->length());
-  CHECK(date_cache_version->get(0)->IsSmi());
-  date_cache_version->set(
-      0, i::Smi::FromInt(i::Smi::ToInt(date_cache_version->get(0)) + 1));
 }
 
 

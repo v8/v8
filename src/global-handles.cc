@@ -1079,12 +1079,7 @@ void GlobalHandles::Print() {
 
 void GlobalHandles::TearDown() {}
 
-EternalHandles::EternalHandles() : size_(0) {
-  for (unsigned i = 0; i < arraysize(singleton_handles_); i++) {
-    singleton_handles_[i] = kInvalidIndex;
-  }
-}
-
+EternalHandles::EternalHandles() : size_(0) {}
 
 EternalHandles::~EternalHandles() {
   for (Address* block : blocks_) delete[] block;
