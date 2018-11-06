@@ -3860,11 +3860,11 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   }
   v->Synchronize(VisitorSynchronization::kStrongRoots);
 
-  // Iterate over the partial snapshot cache unless serializing.
+  // Iterate over the partial snapshot cache unless serializing or
+  // deserializing.
   if (mode != VISIT_FOR_SERIALIZATION) {
     SerializerDeserializer::Iterate(isolate_, v);
-    // We don't do a v->Synchronize call here because the serializer and the
-    // deserializer are deliberately out of sync here.
+    v->Synchronize(VisitorSynchronization::kPartialSnapshotCache);
   }
 }
 
