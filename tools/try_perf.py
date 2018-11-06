@@ -24,6 +24,7 @@ BOTS = {
 # swarming bucket instead of internal Buildbot master.
 SWARMING_BOTS = [
   'v8_linux64_perf_try',
+  'v8_linux64_atom_perf_try',
   'v8_pixel2_perf_try',
   'v8_nokia1_perf_try',
 ]
