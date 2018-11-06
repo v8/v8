@@ -551,8 +551,10 @@ class JSObject : public JSReceiver {
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
   inline Object* GetEmbedderField(int index);
+  inline Address GetEmbedderFieldRaw(int index);
   inline void SetEmbedderField(int index, Object* value);
   inline void SetEmbedderField(int index, Smi value);
+  inline void SetEmbedderFieldRaw(int index, Address value);
 
   // Returns true when the object is potentially a wrapper that gets special
   // garbage collection treatment.

@@ -7058,6 +7058,10 @@ class V8_EXPORT EmbedderHeapTracer {
 /**
  * Callback and supporting data used in SnapshotCreator to implement embedder
  * logic to serialize internal fields.
+ * Internal fields that directly reference V8 objects are serialized without
+ * calling this callback. Internal fields that contain aligned pointers are
+ * serialized by this callback if it returns non-zero result. Otherwise it is
+ * serialized verbatim.
  */
 struct SerializeInternalFieldsCallback {
   typedef StartupData (*CallbackFunction)(Local<Object> holder, int index,

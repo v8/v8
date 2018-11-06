@@ -798,7 +798,14 @@ struct InternalFieldData {
 
 v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder, int index,
                                         void* data) {
-  CHECK_EQ(reinterpret_cast<void*>(2016), data);
+  if (data == reinterpret_cast<void*>(2000)) {
+    // Used for SnapshotCreatorTemplates test. We check that none of the fields
+    // have been cleared yet.
+    CHECK_NOT_NULL(holder->GetAlignedPointerFromInternalField(1));
+  } else {
+    CHECK_EQ(reinterpret_cast<void*>(2016), data);
+  }
+  if (index != 1) return {nullptr, 0};
   InternalFieldData* embedder_field = static_cast<InternalFieldData*>(
       holder->GetAlignedPointerFromInternalField(index));
   if (embedder_field == nullptr) return {nullptr, 0};
@@ -2879,8 +2886,8 @@ TEST(SnapshotCreatorTemplates) {
 
   {
     InternalFieldData* a1 = new InternalFieldData{11};
-    InternalFieldData* b0 = new InternalFieldData{20};
-    InternalFieldData* c0 = new InternalFieldData{30};
+    InternalFieldData* b1 = new InternalFieldData{20};
+    InternalFieldData* c1 = new InternalFieldData{30};
 
     v8::SnapshotCreator creator(original_external_references);
     v8::Isolate* isolate = creator.GetIsolate();
@@ -2916,19 +2923,23 @@ TEST(SnapshotCreatorTemplates) {
           v8::External::New(isolate, nullptr);
       v8::Local<v8::External> field_external =
           v8::External::New(isolate, &serialized_static_field);
+
       a->SetInternalField(0, b);
+      b->SetInternalField(0, c);
+
       a->SetAlignedPointerInInternalField(1, a1);
-      b->SetAlignedPointerInInternalField(0, b0);
-      b->SetInternalField(1, c);
-      c->SetAlignedPointerInInternalField(0, c0);
-      c->SetInternalField(1, null_external);
-      c->SetInternalField(2, field_external);
+      b->SetAlignedPointerInInternalField(1, b1);
+      c->SetAlignedPointerInInternalField(1, c1);
+
+      a->SetInternalField(2, null_external);
+      b->SetInternalField(2, field_external);
+      c->SetInternalField(2, v8_num(35));
       CHECK(context->Global()->Set(context, v8_str("a"), a).FromJust());
 
       CHECK_EQ(0u,
                creator.AddContext(context, v8::SerializeInternalFieldsCallback(
                                                SerializeInternalFields,
-                                               reinterpret_cast<void*>(2016))));
+                                               reinterpret_cast<void*>(2000))));
       CHECK_EQ(0u, creator.AddTemplate(callback));
       CHECK_EQ(1u, creator.AddTemplate(global_template));
     }
@@ -2936,8 +2947,8 @@ TEST(SnapshotCreatorTemplates) {
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
 
     delete a1;
-    delete b0;
-    delete c0;
+    delete b1;
+    delete c1;
   }
 
   {
@@ -2993,30 +3004,34 @@ TEST(SnapshotCreatorTemplates) {
                                       .ToLocalChecked();
         v8::Local<v8::Object> b =
             a->GetInternalField(0)->ToObject(context).ToLocalChecked();
+        v8::Local<v8::Object> c =
+            b->GetInternalField(0)->ToObject(context).ToLocalChecked();
+
         InternalFieldData* a1 = reinterpret_cast<InternalFieldData*>(
             a->GetAlignedPointerFromInternalField(1));
         v8::Local<v8::Value> a2 = a->GetInternalField(2);
 
-        InternalFieldData* b0 = reinterpret_cast<InternalFieldData*>(
-            b->GetAlignedPointerFromInternalField(0));
-        v8::Local<v8::Object> c =
-            b->GetInternalField(1)->ToObject(context).ToLocalChecked();
+        InternalFieldData* b1 = reinterpret_cast<InternalFieldData*>(
+            b->GetAlignedPointerFromInternalField(1));
         v8::Local<v8::Value> b2 = b->GetInternalField(2);
 
-        InternalFieldData* c0 = reinterpret_cast<InternalFieldData*>(
-            c->GetAlignedPointerFromInternalField(0));
-        v8::Local<v8::Value> c1 = c->GetInternalField(1);
+        v8::Local<v8::Value> c0 = c->GetInternalField(0);
+        InternalFieldData* c1 = reinterpret_cast<InternalFieldData*>(
+            c->GetAlignedPointerFromInternalField(1));
         v8::Local<v8::Value> c2 = c->GetInternalField(2);
 
+        CHECK(c0->IsUndefined());
+
         CHECK_EQ(11u, a1->data);
-        CHECK(a2->IsUndefined());
-        CHECK_EQ(20u, b0->data);
-        CHECK(b2->IsUndefined());
-        CHECK_EQ(30u, c0->data);
-        CHECK(c1->IsExternal());
-        CHECK_NULL(v8::Local<v8::External>::Cast(c1)->Value());
+        CHECK_EQ(20u, b1->data);
+        CHECK_EQ(30u, c1->data);
+
+        CHECK(a2->IsExternal());
+        CHECK_NULL(v8::Local<v8::External>::Cast(a2)->Value());
+        CHECK(b2->IsExternal());
         CHECK_EQ(static_cast<void*>(&serialized_static_field),
-                 v8::Local<v8::External>::Cast(c2)->Value());
+                 v8::Local<v8::External>::Cast(b2)->Value());
+        CHECK(c2->IsInt32() && c2->Int32Value(context).FromJust() == 35);
 
         // Accessing out of bound returns empty MaybeHandle.
         CHECK(v8::ObjectTemplate::FromSnapshot(isolate, 2).IsEmpty());

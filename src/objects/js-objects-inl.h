@@ -268,6 +268,10 @@ Object* JSObject::GetEmbedderField(int index) {
   return READ_FIELD(this, GetHeaderSize() + (kPointerSize * index));
 }
 
+Address JSObject::GetEmbedderFieldRaw(int index) {
+  return GetEmbedderField(index)->ptr();
+}
+
 void JSObject::SetEmbedderField(int index, Object* value) {
   DCHECK(index < GetEmbedderFieldCount() && index >= 0);
   // Internal objects do follow immediately after the header, whereas in-object
@@ -279,12 +283,18 @@ void JSObject::SetEmbedderField(int index, Object* value) {
 }
 
 void JSObject::SetEmbedderField(int index, Smi value) {
+  SetEmbedderFieldRaw(index, value->ptr());
+}
+
+void JSObject::SetEmbedderFieldRaw(int index, Address value) {
   DCHECK(index < GetEmbedderFieldCount() && index >= 0);
   // Internal objects do follow immediately after the header, whereas in-object
   // properties are at the end of the object. Therefore there is no need
   // to adjust the index here.
   int offset = GetHeaderSize() + (kPointerSize * index);
-  WRITE_FIELD(this, offset, value);
+  Address field_addr = FIELD_ADDR(this, offset);
+  base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(field_addr),
+                      static_cast<base::AtomicWord>(value));
 }
 
 bool JSObject::IsUnboxedDoubleField(FieldIndex index) {
