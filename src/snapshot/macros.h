@@ -47,6 +47,34 @@
 #define V8_ASM_BALIGN32 ".balign 32\n"
 #define V8_ASM_LABEL(NAME) V8_ASM_MANGLE_LABEL NAME ":\n"
 
+#if defined(V8_OS_WIN)
+// The directives for inserting debugging information on Windows come
+// from the PE (Portable Executable) and COFF (Common Object File Format)
+// standards. Documented here:
+// https://docs.microsoft.com/en-us/windows/desktop/debug/pe-format
+
+#define V8_ASM_TYPE(NAME)                            \
+  /* .scl 2 means StorageClass external. */          \
+  /* .type 32 means Type Representation Function. */ \
+  ".def " V8_ASM_MANGLE_LABEL NAME "; .scl 2; .type 32; .endef;\n"
+
+#elif defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
+
+// ELF format binaries on ARM use ".type <function name>, %function"
+// to create a DWARF subprogram entry.
+#define V8_ASM_TYPE(NAME) ".type " V8_ASM_MANGLE_LABEL NAME ", %function\n"
+
+#else
+
+// Other ELF Format binaries use ".type <function name>, @function"
+// to create a DWARF subprogram entry.
+#define V8_ASM_TYPE(NAME) ".type " V8_ASM_MANGLE_LABEL NAME ", @function\n"
+#endif  // !V8_OS_WIN
+
+#define V8_ASM_DECLARE_FUNCTION(NAME) \
+  V8_ASM_LABEL(NAME)                  \
+  V8_ASM_TYPE(NAME)
+
 // clang-format off
 #if defined(V8_OS_AIX)
 

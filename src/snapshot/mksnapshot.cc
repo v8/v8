@@ -190,10 +190,10 @@ class SnapshotWriter {
       // stream.
       if (is_default_variant) {
         // Create nicer symbol names for the default mode.
-        fprintf(fp, "__asm__(V8_ASM_LABEL(\"Builtins_%s\"));\n",
+        fprintf(fp, "__asm__(V8_ASM_DECLARE_FUNCTION(\"Builtins_%s\"));\n",
                 i::Builtins::name(i));
       } else {
-        fprintf(fp, "__asm__(V8_ASM_LABEL(\"%s_Builtins_%s\"));\n",
+        fprintf(fp, "__asm__(V8_ASM_DECLARE_FUNCTION(\"%s_Builtins_%s\"));\n",
                 embedded_variant, i::Builtins::name(i));
       }
 
