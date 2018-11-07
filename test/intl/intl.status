@@ -63,4 +63,16 @@
   'regress-8413-weekday': [FAIL],
   'regress-8413-year': [FAIL],
 }],  # 'system == android'
+['tsan', {
+  # Run for too long under some tsan configs.
+  'regress-8413-day': [PASS, NO_VARIANTS],
+  'regress-8413-era': [PASS, NO_VARIANTS],
+  'regress-8413-hour': [PASS, NO_VARIANTS],
+  'regress-8413-minute': [PASS, NO_VARIANTS],
+  'regress-8413-month': [PASS, NO_VARIANTS],
+  'regress-8413-second': [PASS, NO_VARIANTS],
+  'regress-8413-timeZoneName': [PASS, NO_VARIANTS],
+  'regress-8413-weekday': [PASS, NO_VARIANTS],
+  'regress-8413-year': [PASS, NO_VARIANTS],
+}],  # 'tsan'
 ]
