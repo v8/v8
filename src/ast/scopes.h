@@ -592,8 +592,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // scope, and stopping when reaching the outer_scope_end scope. If the code is
   // executed because of a call to 'eval', the context parameter should be set
   // to the calling context of 'eval'.
-  Variable* LookupRecursive(ParseInfo* info, VariableProxy* proxy,
-                            Scope* outer_scope_end);
+  static Variable* Lookup(ParseInfo* info, VariableProxy* proxy, Scope* scope,
+                          Scope* outer_scope_end,
+                          bool force_context_allocation = false);
+  static Variable* LookupWith(ParseInfo* info, VariableProxy* proxy,
+                              Scope* scope, Scope* outer_scope_end,
+                              bool force_context_allocation);
+  static Variable* LookupSloppyEval(ParseInfo* info, VariableProxy* proxy,
+                                    Scope* scope, Scope* outer_scope_end,
+                                    bool force_context_allocation);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
   V8_WARN_UNUSED_RESULT bool ResolveVariable(ParseInfo* info,
                                              VariableProxy* proxy);
