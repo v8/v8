@@ -62,7 +62,12 @@ const std::vector<PatternItem> GetPatternItems() {
       "narrow", "long", "short", "2-digit", "numeric"};
   const std::vector<PatternItem> kPatternItems = {
       PatternItem("weekday",
-                  {{"EEEEE", "narrow"}, {"EEEE", "long"}, {"EEE", "short"}},
+                  {{"EEEEE", "narrow"},
+                   {"EEEE", "long"},
+                   {"EEE", "short"},
+                   {"ccccc", "narrow"},
+                   {"cccc", "long"},
+                   {"ccc", "short"}},
                   kNarrowLongShort),
       PatternItem("era",
                   {{"GGGGG", "narrow"}, {"GGGG", "long"}, {"GGG", "short"}},
