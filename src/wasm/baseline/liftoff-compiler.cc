@@ -234,33 +234,6 @@ class LiftoffCompiler {
     }
   }
 
-  void CollectReservedRegsForParameters(uint32_t input_idx_start,
-                                        uint32_t num_params,
-                                        LiftoffRegList& param_regs) {
-    uint32_t input_idx = input_idx_start;
-    for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
-      ValueType type = __ local_type(param_idx);
-      const int num_lowered_params = 1 + needs_reg_pair(type);
-      RegClass rc = num_lowered_params == 1 ? reg_class_for(type) : kGpReg;
-
-      for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
-        compiler::LinkageLocation param_loc =
-            descriptor_->GetInputLocation(input_idx + pair_idx);
-        if (param_loc.IsRegister()) {
-          DCHECK(!param_loc.IsAnyRegister());
-          int reg_code = param_loc.AsRegister();
-          RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
-                                            : kLiftoffAssemblerFpCacheRegs;
-          if (cache_regs & (1ULL << reg_code)) {
-            LiftoffRegister in_reg = LiftoffRegister::from_code(rc, reg_code);
-            param_regs.set(in_reg);
-          }
-        }
-      }
-      input_idx += num_lowered_params;
-    }
-  }
-
   // Returns the number of inputs processed (1 or 2).
   uint32_t ProcessParameter(ValueType type, uint32_t input_idx) {
     const int num_lowered_params = 1 + needs_reg_pair(type);
