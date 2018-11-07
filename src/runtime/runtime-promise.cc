@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/runtime/runtime-utils.h"
 

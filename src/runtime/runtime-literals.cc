@@ -7,6 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/isolate-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/runtime/runtime-utils.h"

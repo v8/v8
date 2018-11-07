@@ -1572,8 +1572,6 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  DCHECK(args[1]->IsString());
-
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, recv, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, string, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, limit_obj, 2);

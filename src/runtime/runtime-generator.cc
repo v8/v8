@@ -126,8 +126,7 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
   DisallowHeapAllocation no_allocation_scope;
   DCHECK_EQ(1, args.length());
-  DCHECK(args[0]->IsJSAsyncGeneratorObject());
-  JSAsyncGeneratorObject* generator = JSAsyncGeneratorObject::cast(args[0]);
+  CONVERT_ARG_CHECKED(JSAsyncGeneratorObject, generator, 0);
 
   int state = generator->continuation();
   DCHECK_NE(state, JSAsyncGeneratorObject::kGeneratorExecuting);

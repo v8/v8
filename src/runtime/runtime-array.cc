@@ -560,7 +560,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   DCHECK_LE(3, args.length());
   int const argc = args.length() - 3;
   // TODO(bmeurer): Remove this Arguments nonsense.
-  Arguments argv(argc, args.arguments() - 1);
+  Arguments argv(argc, args.address_of_arg_at(1));
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, argc + 1);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, type_info, argc + 2);
@@ -740,7 +740,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   // Let O be ? ToObject(this value).
   Handle<JSReceiver> object;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, object, Object::ToObject(isolate, handle(args[0], isolate)));
+      isolate, object,
+      Object::ToObject(isolate, Handle<Object>(args[0], isolate)));
 
   // Let len be ? ToLength(? Get(O, "length")).
   int64_t len;

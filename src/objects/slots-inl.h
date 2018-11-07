@@ -8,10 +8,15 @@
 #include "src/objects/slots.h"
 
 #include "src/base/atomic-utils.h"
+#include "src/objects.h"
 #include "src/objects/maybe-object.h"
 
 namespace v8 {
 namespace internal {
+
+void ObjectSlot::store(Object* value) {
+  *reinterpret_cast<Address*>(address()) = value->ptr();
+}
 
 Object* ObjectSlot::Relaxed_Load() const {
   Address object_ptr = base::AsAtomicWord::Relaxed_Load(location());

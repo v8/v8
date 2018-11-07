@@ -23,6 +23,42 @@ OBJECT_TYPE_LIST(TYPE_CHECK_FORWARDER)
 HEAP_OBJECT_TYPE_LIST(TYPE_CHECK_FORWARDER)
 #undef TYPE_CHECK_FORWARDER
 
+#define TYPE_CHECK_FORWARDER(NAME, Name, name)           \
+  bool ObjectPtr::Is##Name() const {                     \
+    return reinterpret_cast<Object*>(ptr())->Is##Name(); \
+  }
+STRUCT_LIST(TYPE_CHECK_FORWARDER)
+#undef TYPE_CHECK_FORWARDER
+
+#define TYPE_CHECK_FORWARDER(Type, Value)                       \
+  bool ObjectPtr::Is##Type(Isolate* isolate) const {            \
+    return reinterpret_cast<Object*>(ptr())->Is##Type(isolate); \
+  }                                                             \
+  bool ObjectPtr::Is##Type(ReadOnlyRoots roots) const {         \
+    return reinterpret_cast<Object*>(ptr())->Is##Type(roots);   \
+  }                                                             \
+  bool ObjectPtr::Is##Type() const {                            \
+    return reinterpret_cast<Object*>(ptr())->Is##Type();        \
+  }
+ODDBALL_LIST(TYPE_CHECK_FORWARDER)
+#undef TYPE_CHECK_FORWARDER
+
+double ObjectPtr::Number() const {
+  return reinterpret_cast<Object*>(ptr())->Number();
+}
+
+bool ObjectPtr::ToInt32(int32_t* value) const {
+  return reinterpret_cast<Object*>(ptr())->ToInt32(value);
+}
+
+bool ObjectPtr::ToUint32(uint32_t* value) const {
+  return reinterpret_cast<Object*>(ptr())->ToUint32(value);
+}
+
+void ObjectPtr::ShortPrint(FILE* out) {
+  return reinterpret_cast<Object*>(ptr())->ShortPrint(out);
+}
+
 OBJECT_CONSTRUCTORS_IMPL(HeapObjectPtr, ObjectPtr)
 
 #define TYPE_CHECK_FORWARDER(Type)                           \

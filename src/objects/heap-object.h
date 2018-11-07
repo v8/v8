@@ -43,12 +43,28 @@ class ObjectPtr {
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
+  STRUCT_LIST(DECL_STRUCT_PREDICATE)
+#undef DECL_STRUCT_PREDICATE
+#define IS_TYPE_FUNCTION_DECL(Type, Value)            \
+  V8_INLINE bool Is##Type(Isolate* isolate) const;    \
+  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
+  V8_INLINE bool Is##Type() const;
+  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+#undef IS_TYPE_FUNCTION_DECL
+
+  inline bool IsObject() const { return true; }
+  inline double Number() const;
+  inline bool ToInt32(int32_t* value) const;
+  inline bool ToUint32(uint32_t* value) const;
 
 #ifdef VERIFY_HEAP
   void ObjectVerify(Isolate* isolate) {
     reinterpret_cast<Object*>(ptr())->ObjectVerify(isolate);
   }
 #endif
+
+  inline void ShortPrint(FILE* out = stdout);
 
  private:
   Address ptr_;
