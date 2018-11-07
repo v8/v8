@@ -2155,6 +2155,8 @@ Handle<BigInt> BigInt::AsIntN(Isolate* isolate, uint64_t n, Handle<BigInt> x) {
                                                            false);
       }
     }
+    // Truncation is no-op if x == -2^(n-1).
+    if (x_length == needed_length && top_digit == compare_digit) return x;
     return MutableBigInt::TruncateToNBits(isolate, N, x);
   }
   return MutableBigInt::TruncateAndSubFromPowerOfTwo(isolate, N, x, false);
