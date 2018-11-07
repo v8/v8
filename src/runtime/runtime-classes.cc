@@ -294,8 +294,25 @@ bool AddDescriptorsByTemplate(
           : ShallowCopyDictionaryTemplate(isolate,
                                           elements_dictionary_template);
 
+  Handle<PropertyArray> property_array =
+      isolate->factory()->empty_property_array();
+  if (FLAG_track_constant_fields) {
+    // If we store constants in instances, count the number of properties
+    // that must be in the instance and create the property array to
+    // hold the constants.
+    int count = 0;
+    for (int i = 0; i < nof_descriptors; i++) {
+      PropertyDetails details = descriptors_template->GetDetails(i);
+      if (details.location() == kDescriptor && details.kind() == kData) {
+        count++;
+      }
+    }
+    property_array = isolate->factory()->NewPropertyArray(count);
+  }
+
   // Read values from |descriptors_template| and store possibly post-processed
   // values into "instantiated" |descriptors| array.
+  int field_index = 0;
   for (int i = 0; i < nof_descriptors; i++) {
     Object* value = descriptors_template->GetStrongValue(i);
     if (value->IsAccessorPair()) {
@@ -315,7 +332,6 @@ bool AddDescriptorsByTemplate(
         }
         details =
             details.CopyWithRepresentation(value->OptimalRepresentation());
-
       } else {
         DCHECK_EQ(kAccessor, details.kind());
         if (value->IsAccessorPair()) {
@@ -333,11 +349,24 @@ bool AddDescriptorsByTemplate(
         }
       }
     } else {
-      DCHECK_EQ(kField, details.location());
-      DCHECK(!details.representation().IsDouble());
+      UNREACHABLE();
     }
     DCHECK(value->FitsRepresentation(details.representation()));
-    descriptors->Set(i, name, MaybeObject::FromObject(value), details);
+    // With constant field tracking, we store the values in the instance.
+    if (FLAG_track_constant_fields && details.location() == kDescriptor &&
+        details.kind() == kData) {
+      details = PropertyDetails(details.kind(), details.attributes(), kField,
+                                PropertyConstness::kConst,
+                                details.representation(), field_index)
+                    .set_pointer(details.pointer());
+
+      property_array->set(field_index, value);
+      field_index++;
+      descriptors->Set(i, name, MaybeObject::FromObject(FieldType::Any()),
+                       details);
+    } else {
+      descriptors->Set(i, name, MaybeObject::FromObject(value), details);
+    }
   }
 
   map->InitializeDescriptors(*descriptors,
@@ -354,6 +383,9 @@ bool AddDescriptorsByTemplate(
   receiver->synchronized_set_map(*map);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
+  }
+  if (property_array->length() > 0) {
+    receiver->SetProperties(*property_array);
   }
   return true;
 }
@@ -438,9 +470,20 @@ Handle<JSObject> CreateClassPrototype(Isolate* isolate) {
 
   const int kInobjectFields = 0;
 
-  // Just use some JSObject map of certain size.
-  Handle<Map> map = factory->ObjectLiteralMapFromCache(
-      isolate->native_context(), kInobjectFields);
+  Handle<Map> map;
+  if (FLAG_track_constant_fields) {
+    // For constant tracking we want to avoid tha hassle of handling
+    // in-object properties, so create a map with no in-object
+    // properties.
+
+    // TODO(ishell) Support caching of zero in-object properties map
+    // by ObjectLiteralMapFromCache().
+    map = Map::Create(isolate, 0);
+  } else {
+    // Just use some JSObject map of certain size.
+    map = factory->ObjectLiteralMapFromCache(isolate->native_context(),
+                                             kInobjectFields);
+  }
 
   return factory->NewJSObjectFromMap(map);
 }
