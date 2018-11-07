@@ -99,13 +99,30 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
 }
 
 void Interpreter::IterateDispatchTable(RootVisitor* v) {
-  Heap* heap = isolate_->heap();
+  if (FLAG_embedded_builtins && !isolate_->serializer_enabled() &&
+      isolate_->embedded_blob() != nullptr) {
+// If builtins are embedded (and we're not generating a snapshot), then
+// every bytecode handler will be off-heap, so there's no point iterating
+// over them.
+#ifdef DEBUG
+    for (int i = 0; i < kDispatchTableSize; i++) {
+      Address code_entry = dispatch_table_[i];
+      CHECK(code_entry == kNullAddress ||
+            InstructionStream::PcIsOffHeap(isolate_, code_entry));
+    }
+#endif  // ENABLE_SLOW_DCHECKS
+    return;
+  }
+
   for (int i = 0; i < kDispatchTableSize; i++) {
     Address code_entry = dispatch_table_[i];
 
+    // Skip over off-heap bytecode handlers since they will never move.
+    if (InstructionStream::PcIsOffHeap(isolate_, code_entry)) continue;
+
     Object* code = code_entry == kNullAddress
                        ? nullptr
-                       : heap->GcSafeFindCodeForInnerPointer(code_entry);
+                       : Code::GetCodeFromTargetAddress(code_entry);
     Object* old_code = code;
     v->VisitRootPointer(Root::kDispatchTable, nullptr, ObjectSlot(&code));
     if (code != old_code) {

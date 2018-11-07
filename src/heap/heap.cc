@@ -3806,12 +3806,17 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   if (!isMinorGC) {
     IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
-    // Currently we iterate the dispatch table to update pointers to possibly
-    // moved Code objects for bytecode handlers.
-    // TODO(v8:6666): Remove iteration once builtins are embedded (and thus
-    // immovable) in every build configuration.
-    isolate_->interpreter()->IterateDispatchTable(v);
-    v->Synchronize(VisitorSynchronization::kDispatchTable);
+
+    // The dispatch table is set up directly from the builtins using
+    // IntitializeDispatchTable so there is no need to iterate to create it.
+    if (mode != VISIT_FOR_SERIALIZATION) {
+      // Currently we iterate the dispatch table to update pointers to possibly
+      // moved Code objects for bytecode handlers.
+      // TODO(v8:6666): Remove iteration once builtins are embedded (and thus
+      // immovable) in every build configuration.
+      isolate_->interpreter()->IterateDispatchTable(v);
+      v->Synchronize(VisitorSynchronization::kDispatchTable);
+    }
   }
 
   // Iterate over global handles.
