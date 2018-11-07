@@ -34,7 +34,7 @@
 ##############################################################################
 ['(arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
-  'runtime/console-messages-limits': [PASS, NO_VARIANTS],
+  'runtime/console-messages-limits': [PASS, NO_VARIANTS, ['mode == debug or dcheck_always_on', SKIP]],
 }],  # (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
