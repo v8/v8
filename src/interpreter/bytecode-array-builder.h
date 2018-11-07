@@ -521,6 +521,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   }
 
   bool RequiresImplicitReturn() const { return !return_seen_in_block_; }
+  bool RemainderOfBlockIsDead() const {
+    return bytecode_array_writer_.RemainderOfBlockIsDead();
+  }
 
   // Returns the raw operand value for the given register or register list.
   uint32_t GetInputRegisterOperand(Register reg);

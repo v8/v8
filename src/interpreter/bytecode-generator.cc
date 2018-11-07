@@ -1341,7 +1341,7 @@ void BytecodeGenerator::VisitStatements(
     RegisterAllocationScope allocation_scope(this);
     Statement* stmt = statements->at(i);
     Visit(stmt);
-    if (stmt->IsJump()) break;
+    if (builder()->RemainderOfBlockIsDead()) break;
   }
 }
 
