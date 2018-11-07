@@ -71,6 +71,9 @@ class PrototypePropertyDependency final
   void Install(const MaybeObjectHandle& code) override {
     SLOW_DCHECK(IsValid());
     Handle<JSFunction> function = function_.object();
+    // Note that EnsureHasInitialMap can invalidate other dependencies, whether
+    // installed already or not, because it may change the map of the prototype
+    // object.
     if (!function->has_initial_map()) JSFunction::EnsureHasInitialMap(function);
     Handle<Map> initial_map(function->initial_map(), function_.isolate());
     DependentCode::InstallDependency(function_.isolate(), code, initial_map,
@@ -382,7 +385,8 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 
   for (auto dep : dependencies_) {
     // Check each dependency's validity again right before installing it,
-    // because a GC can trigger invalidation for some dependency kinds.
+    // because a GC can trigger invalidation for some dependency kinds (e.g.,
+    // for PretenureModeDependency).
     if (!dep->IsValid()) {
       dependencies_.clear();
       return false;

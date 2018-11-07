@@ -226,7 +226,6 @@ CompilationJob::Status OptimizedCompilationJob::ExecuteJob() {
 
 CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
-  DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate);
 
   // Delegate to the underlying implementation.
