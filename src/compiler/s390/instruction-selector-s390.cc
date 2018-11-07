@@ -2737,6 +2737,14 @@ void InstructionSelector::VisitS1x16AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS1x16AllTrue(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI8x16Shl(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI8x16ShrS(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
