@@ -106,7 +106,7 @@ module array {
       return length;
     }
     label IfOverflow deferred {
-      ThrowRangeError(context, kInvalidStringLength);
+      ThrowInvalidStringLength(context);
     }
   }
 
@@ -203,7 +203,7 @@ module array {
     // Detect integer overflow
     // TODO(tebbi): Replace with overflow-checked multiplication.
     if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
-        ThrowRangeError(context, kInvalidStringLength);
+        ThrowInvalidStringLength(context);
       }
 
     const totalStringLength: intptr =
@@ -348,7 +348,7 @@ module array {
               return StringRepeat(context, sep, nofSeparators);
             }
             label IfNotSmi {
-              ThrowRangeError(context, kInvalidStringLength);
+              ThrowInvalidStringLength(context);
             }
           } else {
             loadJoinElements = LoadJoinElement<DictionaryElements>;
