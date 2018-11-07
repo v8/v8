@@ -148,6 +148,23 @@ class CompilationStateImpl {
                              error.str());
   }
 
+  std::shared_ptr<WireBytesStorage> GetSharedWireBytesStorage() const {
+    base::MutexGuard guard(&mutex_);
+    DCHECK_NOT_NULL(wire_bytes_storage_);
+    return wire_bytes_storage_;
+  }
+
+  void SetWireBytesStorage(
+      std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
+    base::MutexGuard guard(&mutex_);
+    wire_bytes_storage_ = wire_bytes_storage;
+  }
+
+  std::shared_ptr<WireBytesStorage> GetWireBytesStorage() {
+    base::MutexGuard guard(&mutex_);
+    return wire_bytes_storage_;
+  }
+
  private:
   struct CompilationError {
     uint32_t const func_index;
@@ -235,6 +252,11 @@ class CompilationStateImpl {
   // The foreground task to log finished wasm code. Is {nullptr} if no such task
   // is currently scheduled.
   LogCodesTask* log_codes_task_ = nullptr;
+
+  // Abstraction over the storage of the wire bytes. Held in a shared_ptr so
+  // that background compilation jobs can keep the storage alive while
+  // compiling.
+  std::shared_ptr<WireBytesStorage> wire_bytes_storage_;
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
@@ -419,6 +441,15 @@ void CompilationState::SetError(uint32_t func_index,
   Impl(this)->SetError(func_index, error_result);
 }
 
+void CompilationState::SetWireBytesStorage(
+    std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
+  Impl(this)->SetWireBytesStorage(std::move(wire_bytes_storage));
+}
+
+std::shared_ptr<WireBytesStorage> CompilationState::GetWireBytesStorage() {
+  return Impl(this)->GetWireBytesStorage();
+}
+
 CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
 // static
@@ -456,15 +487,15 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
   const uint8_t* module_start = native_module->wire_bytes().start();
 
   const WasmFunction* func = &native_module->module()->functions[func_index];
-  FunctionBody body{func->sig, func->code.offset(),
-                    module_start + func->code.offset(),
-                    module_start + func->code.end_offset()};
+  FunctionBody func_body{func->sig, func->code.offset(),
+                         module_start + func->code.offset(),
+                         module_start + func->code.end_offset()};
 
-  WasmCompilationUnit unit(isolate->wasm_engine(), native_module, body,
-                           func_index);
+  WasmCompilationUnit unit(isolate->wasm_engine(), native_module, func_index);
   CompilationEnv env = native_module->CreateCompilationEnv();
   unit.ExecuteCompilation(
-      &env, isolate->counters(),
+      &env, native_module->compilation_state()->GetWireBytesStorage(),
+      isolate->counters(),
       Impl(native_module->compilation_state())->detected_features());
 
   // If there is a pending error, something really went wrong. The module was
@@ -519,19 +550,17 @@ class CompilationUnitBuilder {
                                   WasmEngine* wasm_engine)
       : native_module_(native_module), wasm_engine_(wasm_engine) {}
 
-  void AddUnit(const WasmFunction* function, uint32_t buffer_offset,
-               Vector<const uint8_t> bytes) {
+  void AddUnit(uint32_t func_index) {
     switch (compilation_state()->compile_mode()) {
       case CompileMode::kTiering:
-        tiering_units_.emplace_back(CreateUnit(function, buffer_offset, bytes,
-                                               ExecutionTier::kOptimized));
-        baseline_units_.emplace_back(CreateUnit(function, buffer_offset, bytes,
-                                                ExecutionTier::kBaseline));
+        tiering_units_.emplace_back(
+            CreateUnit(func_index, ExecutionTier::kOptimized));
+        baseline_units_.emplace_back(
+            CreateUnit(func_index, ExecutionTier::kBaseline));
         return;
       case CompileMode::kRegular:
-        baseline_units_.emplace_back(
-            CreateUnit(function, buffer_offset, bytes,
-                       WasmCompilationUnit::GetDefaultExecutionTier()));
+        baseline_units_.emplace_back(CreateUnit(
+            func_index, WasmCompilationUnit::GetDefaultExecutionTier()));
         return;
     }
     UNREACHABLE();
@@ -550,14 +579,10 @@ class CompilationUnitBuilder {
   }
 
  private:
-  std::unique_ptr<WasmCompilationUnit> CreateUnit(const WasmFunction* function,
-                                                  uint32_t buffer_offset,
-                                                  Vector<const uint8_t> bytes,
+  std::unique_ptr<WasmCompilationUnit> CreateUnit(uint32_t func_index,
                                                   ExecutionTier mode) {
-    return base::make_unique<WasmCompilationUnit>(
-        wasm_engine_, native_module_,
-        FunctionBody{function->sig, buffer_offset, bytes.begin(), bytes.end()},
-        function->func_index, mode);
+    return base::make_unique<WasmCompilationUnit>(wasm_engine_, native_module_,
+                                                  func_index, mode);
   }
 
   CompilationStateImpl* compilation_state() const {
@@ -616,7 +641,8 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   // later as soon as Liftoff can compile any function. Then, we can directly
   // access {unit->mode()} within {ScheduleUnitForFinishing()}.
   ExecutionTier mode = unit->mode();
-  unit->ExecuteCompilation(env, counters, detected);
+  unit->ExecuteCompilation(env, compilation_state->GetSharedWireBytesStorage(),
+                           counters, detected);
   if (!unit->failed()) compilation_state->ScheduleCodeLogging(unit->result());
   compilation_state->ScheduleUnitForFinishing(std::move(unit), mode);
 
@@ -631,13 +657,7 @@ void InitializeCompilationUnits(NativeModule* native_module,
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
   for (uint32_t i = start; i < end; ++i) {
-    const WasmFunction* func = &module->functions[i];
-    uint32_t buffer_offset = func->code.offset();
-    Vector<const uint8_t> bytes(wire_bytes.start() + func->code.offset(),
-                                func->code.end_offset() - func->code.offset());
-
-    DCHECK_NOT_NULL(native_module);
-    builder.AddUnit(func, buffer_offset, bytes);
+    builder.AddUnit(i);
   }
   builder.Commit();
 }
@@ -2283,8 +2303,8 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   bool ProcessSection(SectionCode section_code, Vector<const uint8_t> bytes,
                       uint32_t offset) override;
 
-  bool ProcessCodeSectionHeader(size_t functions_count,
-                                uint32_t offset) override;
+  bool ProcessCodeSectionHeader(size_t functions_count, uint32_t offset,
+                                std::shared_ptr<WireBytesStorage>) override;
 
   bool ProcessFunctionBody(Vector<const uint8_t> bytes,
                            uint32_t offset) override;
@@ -2810,8 +2830,9 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
 }
 
 // Start the code section.
-bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
-                                                       uint32_t offset) {
+bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
+    size_t functions_count, uint32_t offset,
+    std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
   TRACE_STREAMING("Start the code section with %zu functions...\n",
                   functions_count);
   if (!decoder_.CheckFunctionsCount(static_cast<uint32_t>(functions_count),
@@ -2823,6 +2844,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
   // task.
   job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
       decoder_.shared_module(), false);
+  job_->native_module_->compilation_state()->SetWireBytesStorage(
+      std::move(wire_bytes_storage));
 
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
   compilation_state->SetNumberOfFunctionsToCompile(functions_count);
@@ -2844,8 +2867,7 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
       next_function_, static_cast<uint32_t>(bytes.length()), offset, false);
 
   uint32_t index = next_function_ + decoder_.module()->num_imported_functions;
-  const WasmFunction* func = &decoder_.module()->functions[index];
-  compilation_unit_builder_->AddUnit(func, offset, bytes);
+  compilation_unit_builder_->AddUnit(index);
   ++next_function_;
   // This method always succeeds. The return value is necessary to comply with
   // the StreamingProcessor interface.
@@ -2870,12 +2892,12 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   bool needs_finish = job_->DecrementAndCheckFinisherCount();
   if (job_->native_module_ == nullptr) {
     // We are processing a WebAssembly module without code section. Create the
-    // runtime objects now (would otherwise happen in {PrepareAndStartCompile}.
+    // runtime objects now (would otherwise happen in {PrepareAndStartCompile}).
     job_->PrepareRuntimeObjects(std::move(result).value());
     DCHECK(needs_finish);
   }
   job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
-  job_->native_module_->set_wire_bytes(std::move(bytes));
+  job_->native_module_->SetWireBytes(std::move(bytes));
   if (needs_finish) {
     HandleScope scope(job_->isolate_);
     SaveContext saved_context(job_->isolate_);
@@ -2916,8 +2938,7 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
   job_->native_module_ = job_->module_object_->native_module();
   auto owned_wire_bytes = OwnedVector<uint8_t>::Of(wire_bytes);
   job_->wire_bytes_ = ModuleWireBytes(owned_wire_bytes.as_vector());
-  job_->native_module_->set_wire_bytes(std::move(owned_wire_bytes));
-
+  job_->native_module_->SetWireBytes(std::move(owned_wire_bytes));
   job_->FinishCompile(false);
   return true;
 }

@@ -821,7 +821,7 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           const WasmFeatures& enabled,
                           const wasm::WasmModule* module,
                           compiler::WasmGraphBuilder* builder,
-                          WasmFeatures* detected, FunctionBody& body,
+                          WasmFeatures* detected, const FunctionBody& body,
                           compiler::NodeOriginTable* node_origins) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kValidate, WasmGraphBuildingInterface> decoder(

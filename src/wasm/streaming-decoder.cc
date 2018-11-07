@@ -389,7 +389,7 @@ StreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
     return base::make_unique<DecodeSectionID>(streaming->module_offset());
   }
 
-  streaming->StartCodeSection(value_);
+  streaming->StartCodeSection(value_, streaming->section_buffers_.back());
   if (!streaming->ok()) return nullptr;
   return base::make_unique<DecodeFunctionLength>(
       section_buffer_, section_buffer_->payload_offset() + bytes_consumed_,
@@ -442,6 +442,23 @@ StreamingDecoder::StreamingDecoder(
     : processor_(std::move(processor)),
       // A module always starts with a module header.
       state_(new DecodeModuleHeader()) {}
+
+StreamingDecoder::SectionBuffer* StreamingDecoder::CreateNewBuffer(
+    uint32_t module_offset, uint8_t section_id, size_t length,
+    Vector<const uint8_t> length_bytes) {
+  // Check the order of sections. Unknown sections can appear at any position.
+  if (section_id != kUnknownSectionCode) {
+    if (section_id < next_section_id_) {
+      Error("Unexpected section");
+      return nullptr;
+    }
+    next_section_id_ = section_id + 1;
+  }
+  section_buffers_.emplace_back(std::make_shared<SectionBuffer>(
+      module_offset, section_id, length, length_bytes));
+  return section_buffers_.back().get();
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

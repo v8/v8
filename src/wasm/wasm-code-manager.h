@@ -329,10 +329,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
   Vector<const byte> wire_bytes() const { return wire_bytes_.as_vector(); }
-  void set_wire_bytes(OwnedVector<const byte> wire_bytes) {
-    wire_bytes_ = std::move(wire_bytes);
-  }
   const WasmModule* module() const { return module_.get(); }
+
+  void SetWireBytes(OwnedVector<const byte> wire_bytes);
 
   WasmCode* Lookup(Address) const;
 

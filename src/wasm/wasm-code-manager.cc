@@ -746,6 +746,30 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
   return {reinterpret_cast<byte*>(code_space.begin()), code_space.size()};
 }
 
+namespace {
+class NativeModuleWireBytesStorage final : public WireBytesStorage {
+ public:
+  explicit NativeModuleWireBytesStorage(NativeModule* native_module)
+      : native_module_(native_module) {}
+
+  Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
+    return native_module_->wire_bytes().SubVector(ref.offset(),
+                                                  ref.end_offset());
+  }
+
+ private:
+  NativeModule* const native_module_;
+};
+}  // namespace
+
+void NativeModule::SetWireBytes(OwnedVector<const byte> wire_bytes) {
+  wire_bytes_ = std::move(wire_bytes);
+  if (!wire_bytes.is_empty()) {
+    compilation_state_->SetWireBytesStorage(
+        std::make_shared<NativeModuleWireBytesStorage>(this));
+  }
+}
+
 WasmCode* NativeModule::Lookup(Address pc) const {
   base::MutexGuard lock(&allocation_mutex_);
   if (owned_code_.empty()) return nullptr;

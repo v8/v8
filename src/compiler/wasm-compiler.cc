@@ -5211,21 +5211,21 @@ TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
 TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
 
 bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
-    wasm::CompilationEnv* env, wasm::WasmFeatures* detected, double* decode_ms,
-    MachineGraph* mcgraph, NodeOriginTable* node_origins,
-    SourcePositionTable* source_positions) {
+    wasm::CompilationEnv* env, const wasm::FunctionBody& func_body,
+    wasm::WasmFeatures* detected, double* decode_ms, MachineGraph* mcgraph,
+    NodeOriginTable* node_origins, SourcePositionTable* source_positions) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();
   }
 
   // Create a TF graph during decoding.
-  WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph,
-                           wasm_unit_->func_body_.sig, source_positions);
+  WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, func_body.sig,
+                           source_positions);
   wasm::VoidResult graph_construction_result = wasm::BuildTFGraph(
       wasm_unit_->wasm_engine_->allocator(),
       wasm_unit_->native_module_->enabled_features(), env->module, &builder,
-      detected, wasm_unit_->func_body_, node_origins);
+      detected, func_body, node_origins);
   if (graph_construction_result.failed()) {
     if (FLAG_trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "
@@ -5240,16 +5240,15 @@ bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
 
   if (builder.has_simd() &&
       (!CpuFeatures::SupportsWasmSimd128() || env->lower_simd)) {
-    SimdScalarLowering(
-        mcgraph,
-        CreateMachineSignature(mcgraph->zone(), wasm_unit_->func_body_.sig))
+    SimdScalarLowering(mcgraph,
+                       CreateMachineSignature(mcgraph->zone(), func_body.sig))
         .LowerGraph();
   }
 
   if (wasm_unit_->func_index_ >= FLAG_trace_wasm_ast_start &&
       wasm_unit_->func_index_ < FLAG_trace_wasm_ast_end) {
-    PrintRawWasmCode(wasm_unit_->wasm_engine_->allocator(),
-                     wasm_unit_->func_body_, env->module, wasm::kPrintLocals);
+    PrintRawWasmCode(wasm_unit_->wasm_engine_->allocator(), func_body,
+                     env->module, wasm::kPrintLocals);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
@@ -5273,8 +5272,8 @@ Vector<const char> GetDebugName(Zone* zone, int index) {
 }  // namespace
 
 void TurbofanWasmCompilationUnit::ExecuteCompilation(
-    wasm::CompilationEnv* env, Counters* counters,
-    wasm::WasmFeatures* detected) {
+    wasm::CompilationEnv* env, const wasm::FunctionBody& func_body,
+    Counters* counters, wasm::WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteTurbofanCompilation");
   double decode_ms = 0;
@@ -5305,7 +5304,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
                                       : nullptr;
   SourcePositionTable* source_positions =
       new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
-  if (!BuildGraphForWasmFunction(env, detected, &decode_ms, mcgraph,
+  if (!BuildGraphForWasmFunction(env, func_body, detected, &decode_ms, mcgraph,
                                  node_origins, source_positions)) {
     // Compilation failed.
     return;
@@ -5322,16 +5321,15 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
   }
 
   // Run the compiler pipeline to generate machine code.
-  auto call_descriptor =
-      GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
+  auto call_descriptor = GetWasmCallDescriptor(&zone, func_body.sig);
   if (mcgraph->machine()->Is32()) {
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
   std::unique_ptr<OptimizedCompilationJob> job(Pipeline::NewWasmCompilationJob(
       &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
-      source_positions, node_origins, wasm_unit_->func_body_,
-      wasm_unit_->native_module_, wasm_unit_->func_index_));
+      source_positions, node_origins, func_body, wasm_unit_->native_module_,
+      wasm_unit_->func_index_));
   if (job->ExecuteJob() == CompilationJob::SUCCEEDED) {
     wasm_unit_->SetResult(info.wasm_code(), counters);
   }
@@ -5340,9 +5338,8 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
     PrintF(
         "wasm-compilation phase 1 ok: %u bytes, %0.3f ms decode, %zu nodes, "
         "%0.3f ms pipeline\n",
-        static_cast<unsigned>(wasm_unit_->func_body_.end -
-                              wasm_unit_->func_body_.start),
-        decode_ms, node_count, pipeline_ms);
+        static_cast<unsigned>(func_body.end - func_body.start), decode_ms,
+        node_count, pipeline_ms);
   }
   // TODO(bradnelson): Improve histogram handling of size_t.
   counters->wasm_compile_function_peak_memory_bytes()->AddSample(

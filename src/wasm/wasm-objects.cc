@@ -185,7 +185,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
       isolate, enabled, native_memory_estimate,
       wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module));
-  native_module->set_wire_bytes(std::move(wire_bytes));
+  native_module->SetWireBytes(std::move(wire_bytes));
   native_module->SetRuntimeStubs(isolate);
 
   // Delegate to the shared {WasmModuleObject::New} allocator.

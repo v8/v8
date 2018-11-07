@@ -10,6 +10,7 @@
 
 #include "src/base/macros.h"
 #include "src/vector.h"
+#include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-result.h"
 
@@ -39,8 +40,8 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
 
   // Process the start of the code section. Returns true if the processing
   // finished successfully and the decoding should continue.
-  virtual bool ProcessCodeSectionHeader(size_t num_functions,
-                                        uint32_t offset) = 0;
+  virtual bool ProcessCodeSectionHeader(size_t num_functions, uint32_t offset,
+                                        std::shared_ptr<WireBytesStorage>) = 0;
 
   // Process a function body. Returns true if the processing finished
   // successfully and the decoding should continue.
@@ -104,7 +105,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // The SectionBuffer is the data object for the content of a single section.
   // It stores all bytes of the section (including section id and section
   // length), and the offset where the actual payload starts.
-  class SectionBuffer {
+  class SectionBuffer : public WireBytesStorage {
    public:
     // id: The section id.
     // payload_length: The length of the payload.
@@ -122,6 +123,13 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
     SectionCode section_code() const {
       return static_cast<SectionCode>(bytes_.start()[0]);
+    }
+
+    Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
+      DCHECK_LE(module_offset_, ref.offset());
+      uint32_t offset_in_code_buffer = ref.offset() - module_offset_;
+      return bytes().SubVector(offset_in_code_buffer,
+                               offset_in_code_buffer + ref.length());
     }
 
     uint32_t module_offset() const { return module_offset_; }
@@ -199,21 +207,9 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   class DecodeFunctionBody;
 
   // Creates a buffer for the next section of the module.
-  SectionBuffer* CreateNewBuffer(uint32_t module_offset, uint8_t id,
+  SectionBuffer* CreateNewBuffer(uint32_t module_offset, uint8_t section_id,
                                  size_t length,
-                                 Vector<const uint8_t> length_bytes) {
-    // Check the order of sections. Unknown sections can appear at any position.
-    if (id != kUnknownSectionCode) {
-      if (id < next_section_id_) {
-        Error("Unexpected section");
-        return nullptr;
-      }
-      next_section_id_ = id + 1;
-    }
-    section_buffers_.emplace_back(
-        new SectionBuffer(module_offset, id, length, length_bytes));
-    return section_buffers_.back().get();
-  }
+                                 Vector<const uint8_t> length_bytes);
 
   std::unique_ptr<DecodingState> Error(VoidResult result) {
     if (ok_) processor_->OnError(std::move(result));
@@ -242,12 +238,14 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
     }
   }
 
-  void StartCodeSection(size_t num_functions) {
+  void StartCodeSection(size_t num_functions,
+                        std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
     if (!ok_) return;
     // The offset passed to {ProcessCodeSectionHeader} is an error offset and
     // not the start offset of a buffer. Therefore we need the -1 here.
     if (!processor_->ProcessCodeSectionHeader(num_functions,
-                                              module_offset() - 1)) {
+                                              module_offset() - 1,
+                                              std::move(wire_bytes_storage))) {
       ok_ = false;
     }
   }
@@ -267,7 +265,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   std::unique_ptr<StreamingProcessor> processor_;
   bool ok_ = true;
   std::unique_ptr<DecodingState> state_;
-  std::vector<std::unique_ptr<SectionBuffer>> section_buffers_;
+  std::vector<std::shared_ptr<SectionBuffer>> section_buffers_;
   uint32_t module_offset_ = 0;
   size_t total_size_ = 0;
   uint8_t next_section_id_ = kFirstSectionInModule;

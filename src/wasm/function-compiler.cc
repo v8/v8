@@ -36,11 +36,9 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
 }
 
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
-                                         NativeModule* native_module,
-                                         FunctionBody body, int index,
+                                         NativeModule* native_module, int index,
                                          ExecutionTier mode)
     : wasm_engine_(wasm_engine),
-      func_body_(body),
       func_index_(index),
       native_module_(native_module),
       mode_(mode) {
@@ -62,14 +60,20 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 // {TurbofanWasmCompilationUnit} can be opaque in the header file.
 WasmCompilationUnit::~WasmCompilationUnit() = default;
 
-void WasmCompilationUnit::ExecuteCompilation(CompilationEnv* env,
-                                             Counters* counters,
-                                             WasmFeatures* detected) {
+void WasmCompilationUnit::ExecuteCompilation(
+    CompilationEnv* env, std::shared_ptr<WireBytesStorage> wire_bytes_storage,
+    Counters* counters, WasmFeatures* detected) {
   const WasmModule* module = native_module_->module();
+  DCHECK_EQ(module, env->module);
+
+  auto* func = &env->module->functions[func_index_];
+  Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
+  wasm::FunctionBody func_body{func->sig, func->code.offset(), code.start(),
+                               code.end()};
+
   auto size_histogram =
       SELECT_WASM_COUNTER(counters, module->origin, wasm, function_size_bytes);
-  size_histogram->AddSample(
-      static_cast<int>(func_body_.end - func_body_.start));
+  size_histogram->AddSample(static_cast<int>(func_body.end - func_body.start));
   auto timed_histogram = SELECT_WASM_COUNTER(counters, module->origin,
                                              wasm_compile, function_time);
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
@@ -81,12 +85,15 @@ void WasmCompilationUnit::ExecuteCompilation(CompilationEnv* env,
 
   switch (mode_) {
     case ExecutionTier::kBaseline:
-      if (liftoff_unit_->ExecuteCompilation(env, counters, detected)) break;
+      if (liftoff_unit_->ExecuteCompilation(env, func_body, counters,
+                                            detected)) {
+        break;
+      }
       // Otherwise, fall back to turbofan.
       SwitchMode(ExecutionTier::kOptimized);
       V8_FALLTHROUGH;
     case ExecutionTier::kOptimized:
-      turbofan_unit_->ExecuteCompilation(env, counters, detected);
+      turbofan_unit_->ExecuteCompilation(env, func_body, counters, detected);
       break;
     case ExecutionTier::kInterpreter:
       UNREACHABLE();  // TODO(titzer): compile interpreter entry stub.
@@ -126,10 +133,12 @@ bool WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset()};
 
-  WasmCompilationUnit unit(isolate->wasm_engine(), native_module, function_body,
+  WasmCompilationUnit unit(isolate->wasm_engine(), native_module,
                            function->func_index, mode);
   CompilationEnv env = native_module->CreateCompilationEnv();
-  unit.ExecuteCompilation(&env, isolate->counters(), detected);
+  unit.ExecuteCompilation(
+      &env, native_module->compilation_state()->GetWireBytesStorage(),
+      isolate->counters(), detected);
   return !unit.failed();
 }
 
