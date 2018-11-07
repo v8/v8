@@ -12,6 +12,10 @@
 namespace v8 {
 namespace internal {
 
+IsolateAllocationMode Isolate::isolate_allocation_mode() {
+  return isolate_allocator_->mode();
+}
+
 bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
   i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(obj);
   if (chunk->owner()->identity() == i::RO_SPACE) {

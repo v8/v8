@@ -1107,16 +1107,17 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
   }
 }
 
-template void MemoryAllocator::Free<MemoryAllocator::kFull>(MemoryChunk* chunk);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
+    MemoryAllocator::kFull>(MemoryChunk* chunk);
 
-template void MemoryAllocator::Free<MemoryAllocator::kAlreadyPooled>(
-    MemoryChunk* chunk);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
+    MemoryAllocator::kAlreadyPooled>(MemoryChunk* chunk);
 
-template void MemoryAllocator::Free<MemoryAllocator::kPreFreeAndQueue>(
-    MemoryChunk* chunk);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
+    MemoryAllocator::kPreFreeAndQueue>(MemoryChunk* chunk);
 
-template void MemoryAllocator::Free<MemoryAllocator::kPooledAndQueue>(
-    MemoryChunk* chunk);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
+    MemoryAllocator::kPooledAndQueue>(MemoryChunk* chunk);
 
 template <MemoryAllocator::AllocationMode alloc_mode, typename SpaceType>
 Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
@@ -1136,15 +1137,15 @@ Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
   return owner->InitializePage(chunk, executable);
 }
 
-template Page*
-MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
-    size_t size, PagedSpace* owner, Executability executable);
-template Page*
-MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
-    size_t size, SemiSpace* owner, Executability executable);
-template Page*
-MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
-    size_t size, SemiSpace* owner, Executability executable);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
+        size_t size, PagedSpace* owner, Executability executable);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
+        size_t size, SemiSpace* owner, Executability executable);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
+        size_t size, SemiSpace* owner, Executability executable);
 
 LargePage* MemoryAllocator::AllocateLargePage(size_t size,
                                               LargeObjectSpace* owner,

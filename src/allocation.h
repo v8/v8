@@ -86,6 +86,13 @@ void AlignedFree(void *ptr);
 // Returns platfrom page allocator instance. Guaranteed to be a valid pointer.
 V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
 
+// Sets the given page allocator as the platform page allocator and returns
+// the current one. This function *must* be used only for testing purposes.
+// It is not thread-safe and the testing infrastructure should ensure that
+// the tests do not modify the value simultaneously.
+V8_EXPORT_PRIVATE v8::PageAllocator* SetPlatformPageAllocatorForTesting(
+    v8::PageAllocator* page_allocator);
+
 // Gets the page granularity for AllocatePages and FreePages. Addresses returned
 // by AllocatePages and AllocatePage are aligned to this size.
 V8_EXPORT_PRIVATE size_t AllocatePageSize();

@@ -374,15 +374,15 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
 
 enum class IsolateAllocationMode {
   // Allocate Isolate in C++ heap using default new/delete operators.
-  kAllocateInCppHeap,
+  kInCppHeap,
 
   // Allocate Isolate in a committed region inside V8 heap reservation.
-  kAllocateInV8Heap,
+  kInV8Heap,
 
 #ifdef V8_COMPRESS_POINTERS
-  kDefault = kAllocateInV8Heap,
+  kDefault = kInV8Heap,
 #else
-  kDefault = kAllocateInCppHeap,
+  kDefault = kInCppHeap,
 #endif
 };
 

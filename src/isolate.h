@@ -573,6 +573,9 @@ class Isolate final : private HiddenFactory {
   // for legacy API reasons.
   static void Delete(Isolate* isolate);
 
+  // Returns allocation mode of this isolate.
+  V8_INLINE IsolateAllocationMode isolate_allocation_mode();
+
   // Page allocator that must be used for allocating V8 heap pages.
   v8::PageAllocator* page_allocator();
 

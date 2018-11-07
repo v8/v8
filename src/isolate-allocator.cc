@@ -12,7 +12,7 @@ namespace internal {
 
 IsolateAllocator::IsolateAllocator(IsolateAllocationMode mode) {
 #if V8_TARGET_ARCH_64_BIT
-  if (mode == IsolateAllocationMode::kAllocateInV8Heap) {
+  if (mode == IsolateAllocationMode::kInV8Heap) {
     Address heap_base = InitReservation();
     CommitPagesForIsolate(heap_base);
     return;
@@ -20,7 +20,7 @@ IsolateAllocator::IsolateAllocator(IsolateAllocationMode mode) {
 #endif  // V8_TARGET_ARCH_64_BIT
 
   // Allocate Isolate in C++ heap.
-  CHECK_EQ(mode, IsolateAllocationMode::kAllocateInCppHeap);
+  CHECK_EQ(mode, IsolateAllocationMode::kInCppHeap);
   page_allocator_ = GetPlatformPageAllocator();
   isolate_memory_ = ::operator new(sizeof(Isolate));
   DCHECK(!reservation_.IsReserved());

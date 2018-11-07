@@ -217,6 +217,7 @@ void Isolate::InitializeOncePerProcess() {
   base::Relaxed_Store(&isolate_key_created_, 1);
 #endif
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
+  init_memcopy_functions();
 }
 
 Address Isolate::get_address_from_id(IsolateAddressId id) {
@@ -2641,7 +2642,7 @@ Isolate* Isolate::New(IsolateAllocationMode mode) {
   // Construct Isolate object in the allocated memory.
   void* isolate_ptr = isolate_allocator->isolate_memory();
   Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
-  DCHECK_IMPLIES(mode == IsolateAllocationMode::kAllocateInV8Heap,
+  DCHECK_IMPLIES(mode == IsolateAllocationMode::kInV8Heap,
                  IsAligned(isolate->isolate_root(), size_t{4} * GB));
 
 #ifdef DEBUG
@@ -2718,8 +2719,6 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
 
   InitializeLoggingAndCounters();
   debug_ = new Debug(this);
-
-  init_memcopy_functions();
 
   if (FLAG_embedded_builtins) {
 #ifdef V8_MULTI_SNAPSHOTS
