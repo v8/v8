@@ -210,6 +210,9 @@ class PreParserExpression {
   }
 
   bool IsNull() const { return TypeField::decode(code_) == kNull; }
+  bool IsFailureExpression() const {
+    return TypeField::decode(code_) == kFailure;
+  }
 
   bool IsIdentifier() const {
     return TypeField::decode(code_) == kIdentifierExpression;

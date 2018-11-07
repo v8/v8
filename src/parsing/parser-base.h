@@ -1936,7 +1936,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
     values.Add(elem);
     if (peek() != Token::RBRACK) {
       Expect(Token::COMMA);
-      if (has_error()) return impl()->FailureExpression();
+      if (elem->IsFailureExpression()) return elem;
     }
   }
 
@@ -2527,7 +2527,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral() {
     bool is_rest_property = false;
     ObjectLiteralPropertyT property = ParseObjectPropertyDefinition(
         &checker, &is_computed_name, &is_rest_property);
-    if (has_error()) return impl()->FailureExpression();
+    if (impl()->IsNull(property)) return impl()->FailureExpression();
 
     if (is_computed_name) {
       has_computed_names = true;
@@ -4127,7 +4127,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // Validate parameter names. We can do this only after preparsing the
         // function, since the function can declare itself strict.
         ValidateFormalParameters(language_mode(), false);
-        if (has_error()) return impl()->FailureExpression();
 
         DCHECK_NULL(produced_preparsed_scope_data);
 
@@ -4541,10 +4540,10 @@ ParserBase<Impl>::ParseStatementList(StatementListT* body,
     }
 
     StatementT stat = ParseStatementListItem();
+    if (impl()->IsNull(stat)) return kLazyParsingComplete;
+
     body->Add(stat);
     may_abort = false;
-
-    if (has_error()) return kLazyParsingComplete;
 
     if (!impl()->IsStringLiteral(stat)) break;
 
@@ -4591,7 +4590,7 @@ ParserBase<Impl>::ParseStatementList(StatementListT* body,
 
   while (peek() != end_token) {
     StatementT stat = ParseStatementListItem();
-    if (has_error()) return kLazyParsingComplete;
+    if (impl()->IsNull(stat)) return kLazyParsingComplete;
     if (stat->IsEmptyStatement()) continue;
     body->Add(stat);
   }
@@ -4772,7 +4771,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 
     while (peek() != Token::RBRACE) {
       StatementT stat = ParseStatementListItem();
-      RETURN_IF_PARSE_ERROR;
+      if (impl()->IsNull(stat)) return body;
       if (stat->IsEmptyStatement()) continue;
       statements.Add(stat);
     }
@@ -4917,6 +4916,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
 
   // Parsed expression statement, followed by semicolon.
   ExpectSemicolon();
+  if (expr->IsFailureExpression()) return impl()->NullStatement();
   return factory()->NewExpressionStatement(expr, pos);
 }
 
@@ -5228,7 +5228,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
         while (peek() != Token::CASE && peek() != Token::DEFAULT &&
                peek() != Token::RBRACE) {
           StatementT stat = ParseStatementListItem();
-          RETURN_IF_PARSE_ERROR;
+          if (impl()->IsNull(stat)) return stat;
           if (stat->IsEmptyStatement()) continue;
           statements.Add(stat);
         }

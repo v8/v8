@@ -899,7 +899,7 @@ void Parser::ParseModuleItemList(ScopedPtrList<Statement>* body) {
   DCHECK(scope()->is_module_scope());
   while (peek() != Token::EOS) {
     Statement* stat = ParseModuleItem();
-    if (has_error()) return;
+    if (stat == nullptr) return;
     if (stat->IsEmptyStatement()) continue;
     body->Add(stat);
   }
@@ -955,8 +955,10 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
     }
     export_data->push_back({export_name, local_name, location});
     if (peek() == Token::RBRACE) break;
-    Expect(Token::COMMA);
-    if (has_error()) break;
+    if (V8_UNLIKELY(!Check(Token::COMMA))) {
+      ReportUnexpectedToken(Next());
+      break;
+    }
   }
 
   Expect(Token::RBRACE);
@@ -1176,13 +1178,13 @@ Statement* Parser::ParseExportDefault() {
     }
   }
 
-  if (has_error()) return nullptr;
-  DCHECK_EQ(local_names.length(), 1);
-  module()->AddExport(local_names.first(),
-                      ast_value_factory()->default_string(), default_loc,
-                      zone());
+  if (result != nullptr) {
+    DCHECK_EQ(local_names.length(), 1);
+    module()->AddExport(local_names.first(),
+                        ast_value_factory()->default_string(), default_loc,
+                        zone());
+  }
 
-  DCHECK_NOT_NULL(result);
   return result;
 }
 
@@ -1686,7 +1688,7 @@ void Parser::ParseAndRewriteGeneratorFunctionBody(
   Expression* initial_yield = BuildInitialYield(pos, kind);
   body->Add(
       factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
-  ParseStatementList(body, Token::RBRACE, !has_error());
+  ParseStatementList(body, Token::RBRACE);
 }
 
 void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
@@ -1719,7 +1721,7 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
     Expression* initial_yield = BuildInitialYield(pos, kind);
     statements.Add(
         factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
-    ParseStatementList(&statements, Token::RBRACE, !has_error());
+    ParseStatementList(&statements, Token::RBRACE);
 
     // Don't create iterator result for async generators, as the resume methods
     // will create it.
@@ -2587,9 +2589,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   scope->SetScopeName(function_name);
 #endif
 
-  if (!is_wrapped) {
-    Expect(Token::LPAREN);
-    if (has_error()) return nullptr;
+  if (!is_wrapped && V8_UNLIKELY(!Check(Token::LPAREN))) {
+    ReportUnexpectedToken(Next());
+    return nullptr;
   }
   scope->set_start_position(position());
 
