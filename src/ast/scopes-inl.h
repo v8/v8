@@ -32,7 +32,7 @@ void Scope::ResolveScopesThenForEachVariable(DeclarationScope* max_outer_scope,
     next = proxy->next_unresolved();
 
     DCHECK(!proxy->is_resolved());
-    Variable* var = Lookup(info, proxy, lookup, max_outer_scope->outer_scope());
+    Variable* var = Lookup(proxy, lookup, max_outer_scope->outer_scope());
     if (var == nullptr) {
       variable_proxy_stackvisitor(proxy);
     } else if (var != Scope::kDummyPreParserVariable &&

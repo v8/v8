@@ -1766,7 +1766,7 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
 }
 
 // static
-Variable* Scope::Lookup(ParseInfo* info, VariableProxy* proxy, Scope* scope,
+Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
                         Scope* outer_scope_end, bool force_context_allocation) {
   while (true) {
     DCHECK_NE(outer_scope_end, scope);
@@ -1798,12 +1798,12 @@ Variable* Scope::Lookup(ParseInfo* info, VariableProxy* proxy, Scope* scope,
 
     DCHECK(!scope->is_script_scope());
     if (V8_UNLIKELY(scope->is_with_scope())) {
-      return LookupWith(info, proxy, scope, outer_scope_end,
+      return LookupWith(proxy, scope, outer_scope_end,
                         force_context_allocation);
     }
     if (V8_UNLIKELY(scope->is_declaration_scope() &&
                     scope->AsDeclarationScope()->calls_sloppy_eval())) {
-      return LookupSloppyEval(info, proxy, scope, outer_scope_end,
+      return LookupSloppyEval(proxy, scope, outer_scope_end,
                               force_context_allocation);
     }
 
@@ -1815,14 +1815,7 @@ Variable* Scope::Lookup(ParseInfo* info, VariableProxy* proxy, Scope* scope,
   // declare them in the outer scope.
   // TODO(marja): Separate Lookup for preparsed scopes better.
   if (!scope->is_script_scope()) return nullptr;
-
-  if (V8_UNLIKELY(proxy->is_private_name())) {
-    info->pending_error_handler()->ReportMessageAt(
-        proxy->position(), proxy->position() + 1,
-        MessageTemplate::kInvalidPrivateFieldAccess, proxy->raw_name(),
-        kSyntaxError);
-    return nullptr;
-  }
+  if (V8_UNLIKELY(proxy->is_private_name())) return nullptr;
 
   // No binding has been found. Declare a variable on the global object.
   return scope->AsDeclarationScope()->DeclareDynamicGlobal(proxy->raw_name(),
@@ -1846,12 +1839,12 @@ bool CanBeShadowed(Scope* scope, Variable* var) {
 }
 };  // namespace
 
-Variable* Scope::LookupWith(ParseInfo* info, VariableProxy* proxy, Scope* scope,
+Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
                             Scope* outer_scope_end,
                             bool force_context_allocation) {
   DCHECK(scope->is_with_scope());
 
-  Variable* var = Lookup(info, proxy, scope->outer_scope_, outer_scope_end,
+  Variable* var = Lookup(proxy, scope->outer_scope_, outer_scope_end,
                          force_context_allocation);
   if (!CanBeShadowed(scope, var)) return var;
 
@@ -1870,13 +1863,13 @@ Variable* Scope::LookupWith(ParseInfo* info, VariableProxy* proxy, Scope* scope,
   return scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
 }
 
-Variable* Scope::LookupSloppyEval(ParseInfo* info, VariableProxy* proxy,
-                                  Scope* scope, Scope* outer_scope_end,
+Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
+                                  Scope* outer_scope_end,
                                   bool force_context_allocation) {
   DCHECK(scope->is_declaration_scope() &&
          scope->AsDeclarationScope()->calls_sloppy_eval());
 
-  Variable* var = Lookup(info, proxy, scope->outer_scope_, outer_scope_end,
+  Variable* var = Lookup(proxy, scope->outer_scope_, outer_scope_end,
                          force_context_allocation);
   if (!CanBeShadowed(scope, var)) return var;
 
@@ -1903,9 +1896,13 @@ Variable* Scope::LookupSloppyEval(ParseInfo* info, VariableProxy* proxy,
 bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(info->script_scope()->is_script_scope());
   DCHECK(!proxy->is_resolved());
-  Variable* var = Lookup(info, proxy, this, nullptr);
+  Variable* var = Lookup(proxy, this, nullptr);
   if (var == nullptr) {
     DCHECK(proxy->is_private_name());
+    info->pending_error_handler()->ReportMessageAt(
+        proxy->position(), proxy->position() + 1,
+        MessageTemplate::kInvalidPrivateFieldAccess, proxy->raw_name(),
+        kSyntaxError);
     return false;
   }
   ResolveTo(info, proxy, var);
@@ -2013,8 +2010,12 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {
     DCHECK_EQ(variables_.occupancy(), 0);
     for (VariableProxy* proxy : unresolved_list_) {
-      Variable* var = Lookup(info, proxy, outer_scope(), nullptr);
+      Variable* var = Lookup(proxy, outer_scope(), nullptr);
       if (var == nullptr) {
+        info->pending_error_handler()->ReportMessageAt(
+            proxy->position(), proxy->position() + 1,
+            MessageTemplate::kInvalidPrivateFieldAccess, proxy->raw_name(),
+            kSyntaxError);
         DCHECK(proxy->is_private_name());
         return false;
       }
