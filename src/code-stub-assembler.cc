@@ -3920,9 +3920,18 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
     CSA_CHECK(this, IsValidFastJSArrayCapacity(capacity, capacity_mode));
 
-    // Allocate and initialize the elements first.
+    // Allocate and initialize the elements first. Full initialization is needed
+    // because the upcoming JSArray allocation could trigger GC.
     elements =
         AllocateFixedArray(kind, capacity, capacity_mode, allocation_flags);
+
+    if (IsDoubleElementsKind(kind)) {
+      FillFixedDoubleArrayWithZero(CAST(elements.value()),
+                                   ParameterToIntPtr(capacity, capacity_mode));
+    } else {
+      FillFixedArrayWithSmiZero(CAST(elements.value()),
+                                ParameterToIntPtr(capacity, capacity_mode));
+    }
 
     // The JSArray and possibly allocation memento next. Note that
     // allocation_flags are *not* passed on here and the resulting JSArray will
