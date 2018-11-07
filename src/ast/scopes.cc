@@ -48,19 +48,20 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                VariableKind kind,
                                InitializationFlag initialization_flag,
                                MaybeAssignedFlag maybe_assigned_flag,
-                               bool* added) {
+                               base::ThreadedList<Variable>* variable_list) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
   Entry* p =
       ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
                                   ZoneAllocationPolicy(zone));
-  if (added) *added = p->value == nullptr;
   if (p->value == nullptr) {
     // The variable has not been declared yet -> insert it.
     DCHECK_EQ(name, p->key);
-    p->value = new (zone) Variable(scope, name, mode, kind, initialization_flag,
-                                   maybe_assigned_flag);
+    Variable* variable = new (zone) Variable(
+        scope, name, mode, kind, initialization_flag, maybe_assigned_flag);
+    if (variable_list) variable_list->Add(variable);
+    p->value = variable;
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -848,18 +849,6 @@ void DeclarationScope::AddLocal(Variable* var) {
   // Temporaries are only placed in ClosureScopes.
   DCHECK_EQ(GetClosureScope(), this);
   locals_.Add(var);
-}
-
-Variable* Scope::Declare(Zone* zone, const AstRawString* name,
-                         VariableMode mode, VariableKind kind,
-                         InitializationFlag initialization_flag,
-                         MaybeAssignedFlag maybe_assigned_flag) {
-  bool added;
-  Variable* var =
-      variables_.Declare(zone, this, name, mode, kind, initialization_flag,
-                         maybe_assigned_flag, &added);
-  if (added) locals_.Add(var);
-  return var;
 }
 
 void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {

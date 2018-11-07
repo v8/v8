@@ -37,7 +37,7 @@ class VariableMap: public ZoneHashMap {
       VariableKind kind = NORMAL_VARIABLE,
       InitializationFlag initialization_flag = kCreatedInitialized,
       MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-      bool* added = nullptr);
+      base::ThreadedList<Variable>* variable_list = nullptr);
 
   // Records that "name" exists (if not recorded yet) but doesn't create a
   // Variable. Useful for preparsing.
@@ -497,7 +497,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
       Zone* zone, const AstRawString* name, VariableMode mode,
       VariableKind kind = NORMAL_VARIABLE,
       InitializationFlag initialization_flag = kCreatedInitialized,
-      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
+      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned) {
+    return variables_.Declare(zone, this, name, mode, kind, initialization_flag,
+                              maybe_assigned_flag, &locals_);
+  }
 
   // This method should only be invoked on scopes created during parsing (i.e.,
   // not deserialized from a context). Also, since NeedsContext() is only
