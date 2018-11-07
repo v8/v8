@@ -2337,7 +2337,7 @@ void AccessorAssembler::TryProbeStubCacheTable(
   DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
                               stub_cache->key_reference(table).address());
   TNode<MaybeObject> handler = ReinterpretCast<MaybeObject>(
-      Load(MachineType::TaggedPointer(), key_base,
+      Load(MachineType::AnyTagged(), key_base,
            IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize))));
 
   // We found the handler.

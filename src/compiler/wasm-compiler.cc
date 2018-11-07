@@ -81,22 +81,33 @@ MachineType assert_size(int expected_size, MachineType type) {
 #define WASM_INSTANCE_OBJECT_OFFSET(name) \
   wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
 
-#define LOAD_INSTANCE_FIELD(name, type)                                      \
-  SetEffect(graph()->NewNode(                                                \
-      mcgraph()->machine()->Load(                                            \
-          assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type)),               \
-      instance_node_.get(),                                                  \
-      mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(name)), Effect(), \
-      Control()))
+#define LOAD_RAW(base_pointer, byte_offset, type)                             \
+  SetEffect(graph()->NewNode(mcgraph()->machine()->Load(type), base_pointer,  \
+                             mcgraph()->Int32Constant(byte_offset), Effect(), \
+                             Control()))
 
-#define LOAD_TAGGED_POINTER(base_pointer, byte_offset)                        \
-  SetEffect(graph()->NewNode(                                                 \
-      mcgraph()->machine()->Load(MachineType::TaggedPointer()), base_pointer, \
-      mcgraph()->Int32Constant(byte_offset), Effect(), Control()))
+#define LOAD_INSTANCE_FIELD(name, type)                             \
+  LOAD_RAW(instance_node_.get(), WASM_INSTANCE_OBJECT_OFFSET(name), \
+           assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type))
 
-#define LOAD_FIXED_ARRAY_SLOT(array_node, index) \
-  LOAD_TAGGED_POINTER(                           \
-      array_node, wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index))
+#define LOAD_TAGGED_POINTER(base_pointer, byte_offset) \
+  LOAD_RAW(base_pointer, byte_offset, MachineType::TaggedPointer())
+
+#define LOAD_TAGGED_ANY(base_pointer, byte_offset) \
+  LOAD_RAW(base_pointer, byte_offset, MachineType::AnyTagged())
+
+#define LOAD_FIXED_ARRAY_SLOT(array_node, index, type) \
+  LOAD_RAW(array_node,                                 \
+           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index), type)
+
+#define LOAD_FIXED_ARRAY_SLOT_SMI(array_node, index) \
+  LOAD_FIXED_ARRAY_SLOT(array_node, index, MachineType::TaggedSigned())
+
+#define LOAD_FIXED_ARRAY_SLOT_PTR(array_node, index) \
+  LOAD_FIXED_ARRAY_SLOT(array_node, index, MachineType::TaggedPointer())
+
+#define LOAD_FIXED_ARRAY_SLOT_ANY(array_node, index) \
+  LOAD_FIXED_ARRAY_SLOT(array_node, index, MachineType::AnyTagged())
 
 // This can be used to store tagged Smi values only.
 #define STORE_FIXED_ARRAY_SLOT_SMI(array_node, index, value)           \
@@ -2179,11 +2190,11 @@ Node* WasmGraphBuilder::BuildDecodeException32BitValue(Node* values_array,
                                                        uint32_t* index) {
   MachineOperatorBuilder* machine = mcgraph()->machine();
   Node* upper =
-      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT(values_array, *index));
+      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT_SMI(values_array, *index));
   (*index)++;
   upper = graph()->NewNode(machine->Word32Shl(), upper, Int32Constant(16));
   Node* lower =
-      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT(values_array, *index));
+      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT_SMI(values_array, *index));
   (*index)++;
   Node* value = graph()->NewNode(machine->Word32Or(), upper, lower);
   return value;
@@ -2223,7 +2234,7 @@ Node* WasmGraphBuilder::ExceptionTagEqual(Node* caught_tag,
 Node* WasmGraphBuilder::LoadExceptionTagFromTable(uint32_t exception_index) {
   Node* exceptions_table =
       LOAD_INSTANCE_FIELD(ExceptionsTable, MachineType::TaggedPointer());
-  Node* tag = LOAD_FIXED_ARRAY_SLOT(exceptions_table, exception_index);
+  Node* tag = LOAD_FIXED_ARRAY_SLOT_PTR(exceptions_table, exception_index);
   return tag;
 }
 
@@ -2259,7 +2270,7 @@ Node** WasmGraphBuilder::GetExceptionValues(
         break;
       }
       case wasm::kWasmAnyRef:
-        value = LOAD_FIXED_ARRAY_SLOT(values_array, index);
+        value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
         break;
       default:
@@ -2659,7 +2670,8 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
   // Load the imported function refs array from the instance.
   Node* imported_function_refs =
       LOAD_INSTANCE_FIELD(ImportedFunctionRefs, MachineType::TaggedPointer());
-  Node* ref_node = LOAD_FIXED_ARRAY_SLOT(imported_function_refs, func_index);
+  Node* ref_node =
+      LOAD_FIXED_ARRAY_SLOT_PTR(imported_function_refs, func_index);
 
   // Load the target from the imported_targets array at a known offset.
   Node* imported_targets =
@@ -4615,7 +4627,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[pos++] = callable_node;  // target callable.
         // Receiver.
         if (sloppy_receiver) {
-          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT(
+          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT_PTR(
               native_context, Context::GLOBAL_PROXY_INDEX);
           args[pos++] = global_proxy;
         } else {
@@ -4678,7 +4690,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
         // Receiver.
         if (sloppy_receiver) {
-          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT(
+          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT_PTR(
               native_context, Context::GLOBAL_PROXY_INDEX);
           args[pos++] = global_proxy;
         } else {
@@ -5539,9 +5551,14 @@ AssemblerOptions WasmAssemblerOptions() {
 #undef FATAL_UNSUPPORTED_OPCODE
 #undef WASM_INSTANCE_OBJECT_SIZE
 #undef WASM_INSTANCE_OBJECT_OFFSET
+#undef LOAD_RAW
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_TAGGED_POINTER
+#undef LOAD_TAGGED_ANY
 #undef LOAD_FIXED_ARRAY_SLOT
+#undef LOAD_FIXED_ARRAY_SLOT_SMI
+#undef LOAD_FIXED_ARRAY_SLOT_PTR
+#undef LOAD_FIXED_ARRAY_SLOT_ANY
 #undef STORE_FIXED_ARRAY_SLOT_SMI
 #undef STORE_FIXED_ARRAY_SLOT_ANY
 
