@@ -139,24 +139,6 @@ void Parser::GetUnexpectedTokenMessage(Token::Value token,
 }
 
 // ----------------------------------------------------------------------------
-// The RETURN_IF_PARSE_ERROR macro is a convenient macro to enforce error
-// handling for functions that may fail (by returning if there was an parser
-// error).
-//
-// Usage:
-//     foo = ParseFoo(); // may fail
-//     RETURN_IF_PARSE_ERROR
-//
-//     SAFE_USE(foo);
-
-#define RETURN_IF_PARSE_ERROR_VALUE(x) \
-  if (has_error()) return x;
-
-#define RETURN_IF_PARSE_ERROR RETURN_IF_PARSE_ERROR_VALUE(nullptr)
-#define RETURN_IF_PARSE_ERROR_VOID \
-  if (has_error()) return;
-
-// ----------------------------------------------------------------------------
 // Implementation of Parser
 
 bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
@@ -327,7 +309,7 @@ Expression* Parser::ImportMetaExpression(int pos) {
                                    pos);
 }
 
-Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
+Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
   switch (token) {
     case Token::NULL_LITERAL:
       return factory()->NewNullLiteral(pos);
@@ -354,7 +336,7 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
     default:
       DCHECK(false);
   }
-  return nullptr;
+  return FailureExpression();
 }
 
 Expression* Parser::NewV8Intrinsic(const AstRawString* name,
@@ -384,14 +366,14 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
         return args.at(0);
       } else {
         ReportMessage(MessageTemplate::kNotIsvar);
-        return nullptr;
+        return FailureExpression();
       }
     }
 
     // Check that the expected number of arguments are being passed.
     if (function->nargs != -1 && function->nargs != args.length()) {
       ReportMessage(MessageTemplate::kRuntimeWrongNumArgs);
-      return nullptr;
+      return FailureExpression();
     }
 
     return factory()->NewCallRuntime(function, args, pos);
@@ -403,7 +385,7 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
   // Check that the function is defined.
   if (context_index == Context::kNotFound) {
     ReportMessage(MessageTemplate::kNotDefined, name);
-    return nullptr;
+    return FailureExpression();
   }
 
   return factory()->NewCallRuntime(context_index, args, pos);
@@ -614,7 +596,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       // unchanged if the property already exists.
       InsertSloppyBlockFunctionVarBindings(scope);
     }
-    RETURN_IF_PARSE_ERROR;
     CheckConflictingVarDeclarations(scope);
 
     if (info->parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
@@ -639,7 +620,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   // Make sure the target stack is empty.
   DCHECK_NULL(target_stack_);
 
-  RETURN_IF_PARSE_ERROR;
+  if (has_error()) return nullptr;
   return result;
 }
 
@@ -867,7 +848,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
           arguments_for_wrapped_function);
     }
 
-    RETURN_IF_PARSE_ERROR;
+    if (has_error()) return nullptr;
     result->set_requires_instance_members_initializer(
         info->requires_instance_members_initializer());
   }
@@ -918,7 +899,7 @@ void Parser::ParseModuleItemList(ScopedPtrList<Statement>* body) {
   DCHECK(scope()->is_module_scope());
   while (peek() != Token::EOS) {
     Statement* stat = ParseModuleItem();
-    RETURN_IF_PARSE_ERROR_VOID;
+    if (has_error()) return;
     if (stat->IsEmptyStatement()) continue;
     body->Add(stat);
   }
@@ -975,7 +956,7 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
     export_data->push_back({export_name, local_name, location});
     if (peek() == Token::RBRACE) break;
     Expect(Token::COMMA);
-    RETURN_IF_PARSE_ERROR;
+    if (has_error()) break;
   }
 
   Expect(Token::RBRACE);
@@ -1018,7 +999,6 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
       return nullptr;
     }
 
-    RETURN_IF_PARSE_ERROR;
     DeclareVariable(local_name, VariableMode::kConst, kNeedsInitialization,
                     position());
 
@@ -1069,7 +1049,6 @@ void Parser::ParseImportDeclaration() {
   if (tok != Token::MUL && tok != Token::LBRACE) {
     import_default_binding = ParseIdentifier(kDontAllowRestrictedIdentifiers);
     import_default_binding_loc = scanner()->location();
-    RETURN_IF_PARSE_ERROR_VOID;
     DeclareVariable(import_default_binding, VariableMode::kConst,
                     kNeedsInitialization, pos);
   }
@@ -1086,7 +1065,6 @@ void Parser::ParseImportDeclaration() {
         module_namespace_binding =
             ParseIdentifier(kDontAllowRestrictedIdentifiers);
         module_namespace_binding_loc = scanner()->location();
-        RETURN_IF_PARSE_ERROR_VOID;
         DeclareVariable(module_namespace_binding, VariableMode::kConst,
                         kCreatedInitialized, pos);
         break;
@@ -1176,7 +1154,6 @@ Statement* Parser::ParseExportDefault() {
       ExpressionClassifier classifier(this);
       Expression* value = ParseAssignmentExpression(true);
       ValidateExpression();
-      RETURN_IF_PARSE_ERROR;
       SetFunctionName(value, ast_value_factory()->default_string());
 
       const AstRawString* local_name =
@@ -1199,7 +1176,7 @@ Statement* Parser::ParseExportDefault() {
     }
   }
 
-  RETURN_IF_PARSE_ERROR;
+  if (has_error()) return nullptr;
   DCHECK_EQ(local_names.length(), 1);
   module()->AddExport(local_names.first(),
                       ast_value_factory()->default_string(), default_loc,
@@ -1244,7 +1221,6 @@ void Parser::ParseExportStar() {
   Scanner::Location export_name_loc = scanner()->location();
   const AstRawString* local_name = NextInternalNamespaceExportName();
   Scanner::Location local_name_loc = Scanner::Location::invalid();
-  RETURN_IF_PARSE_ERROR_VOID;
   DeclareVariable(local_name, VariableMode::kConst, kCreatedInitialized, pos);
 
   ExpectContextualKeyword(Token::FROM);
@@ -1304,7 +1280,6 @@ Statement* Parser::ParseExportDeclaration() {
         return nullptr;
       }
       ExpectSemicolon();
-      RETURN_IF_PARSE_ERROR;
       if (module_specifier == nullptr) {
         for (const ExportClauseData& data : *export_data) {
           module()->AddExport(data.local_name, data.export_name, data.location,
@@ -1573,10 +1548,11 @@ Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
 }
 
 Expression* Parser::RewriteDoExpression(Block* body, int pos) {
+  if (has_error()) return FailureExpression();
   Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
   DoExpression* expr = factory()->NewDoExpression(body, result, pos);
   if (!Rewriter::Rewrite(this, GetClosureScope(), expr, ast_value_factory())) {
-    return nullptr;
+    return FailureExpression();
   }
   return expr;
 }
@@ -1977,7 +1953,6 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
               for_info->bound_names.Contains(name)) {
             ReportMessageAt(for_info->parsing_result.bindings_loc,
                             MessageTemplate::kVarRedeclaration, name);
-            return;
           }
         }
         catch_scope = catch_scope->outer_scope();
@@ -2614,7 +2589,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   if (!is_wrapped) {
     Expect(Token::LPAREN);
-    RETURN_IF_PARSE_ERROR;
+    if (has_error()) return nullptr;
   }
   scope->set_start_position(position());
 
@@ -2657,8 +2632,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           counters[parsing_on_main_thread_]);
     }
   }
-
-  RETURN_IF_PARSE_ERROR;
 
   // Validate function name. We can do this only after parsing the function,
   // since the function can declare itself strict.
@@ -3219,6 +3192,7 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
 }
 
 void Parser::CheckConflictingVarDeclarations(Scope* scope) {
+  if (has_error()) return;
   Declaration* decl = scope->CheckConflictingVarDeclarations();
   if (decl != nullptr) {
     // In ES6, conflicting variable bindings are early errors.
@@ -3631,7 +3605,7 @@ void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
 
 void Parser::SetFunctionNameFromIdentifierRef(Expression* value,
                                               Expression* identifier) {
-  if (has_error() || !identifier->IsVariableProxy()) return;
+  if (!identifier->IsVariableProxy()) return;
   SetFunctionName(value, identifier->AsVariableProxy()->raw_name());
 }
 
@@ -4102,8 +4076,5 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
   return final_loop;
 }
 
-#undef RETURN_IF_PARSE_ERROR_VOID
-#undef RETURN_IF_PARSE_ERROR
-#undef RETURN_IF_PARSE_ERROR_VALUE
 }  // namespace internal
 }  // namespace v8

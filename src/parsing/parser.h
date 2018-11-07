@@ -812,6 +812,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return nullptr;
   }
   V8_INLINE static std::nullptr_t NullStatement() { return nullptr; }
+  Expression* FailureExpression() { return factory()->FailureExpression(); }
 
   template <typename T>
   V8_INLINE static bool IsNull(T subject) {
@@ -851,7 +852,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* NewTargetExpression(int pos);
   Expression* ImportMetaExpression(int pos);
 
-  Literal* ExpressionFromLiteral(Token::Value token, int pos);
+  Expression* ExpressionFromLiteral(Token::Value token, int pos);
 
   V8_INLINE VariableProxy* ExpressionFromIdentifier(
       const AstRawString* name, int start_position,

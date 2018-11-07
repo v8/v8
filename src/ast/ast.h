@@ -109,6 +109,8 @@ namespace internal {
   V(Yield)                      \
   V(YieldStar)
 
+#define FAILURE_NODE_LIST(V) V(FailureExpression)
+
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
   STATEMENT_NODE_LIST(V)                        \
@@ -128,12 +130,16 @@ class Statement;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
+FAILURE_NODE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
 
 class AstNode: public ZoneObject {
  public:
 #define DECLARE_TYPE_ENUM(type) k##type,
-  enum NodeType : uint8_t { AST_NODE_LIST(DECLARE_TYPE_ENUM) };
+  enum NodeType : uint8_t {
+    AST_NODE_LIST(DECLARE_TYPE_ENUM) /* , */
+    FAILURE_NODE_LIST(DECLARE_TYPE_ENUM)
+  };
 #undef DECLARE_TYPE_ENUM
 
   void* operator new(size_t size, Zone* zone) { return zone->New(size); }
@@ -152,6 +158,7 @@ class AstNode: public ZoneObject {
   V8_INLINE type* As##type();        \
   V8_INLINE const type* As##type() const;
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+  FAILURE_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
   BreakableStatement* AsBreakableStatement();
@@ -247,6 +254,12 @@ class Expression : public AstNode {
   Expression(int pos, NodeType type) : AstNode(pos, type) {}
 
   static const uint8_t kNextBitFieldIndex = AstNode::kNextBitFieldIndex;
+};
+
+class FailureExpression : public Expression {
+ private:
+  friend class AstNodeFactory;
+  FailureExpression() : Expression(kNoSourcePosition, kFailureExpression) {}
 };
 
 // V8's notion of BreakableStatement does not correspond to the notion of
@@ -2837,9 +2850,14 @@ class AstVisitor {
   case AstNode::k##NodeType:                                            \
     return this->impl()->Visit##NodeType(static_cast<NodeType*>(node));
 
-#define GENERATE_AST_VISITOR_SWITCH()  \
-  switch (node->node_type()) {         \
-    AST_NODE_LIST(GENERATE_VISIT_CASE) \
+#define GENERATE_FAILURE_CASE(NodeType) \
+  case AstNode::k##NodeType:            \
+    UNREACHABLE();
+
+#define GENERATE_AST_VISITOR_SWITCH()        \
+  switch (node->node_type()) {               \
+    AST_NODE_LIST(GENERATE_VISIT_CASE)       \
+    FAILURE_NODE_LIST(GENERATE_FAILURE_CASE) \
   }
 
 #define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()               \
@@ -2894,7 +2912,8 @@ class AstNodeFactory final {
   AstNodeFactory(AstValueFactory* ast_value_factory, Zone* zone)
       : zone_(zone),
         ast_value_factory_(ast_value_factory),
-        empty_statement_(new (zone) class EmptyStatement()) {}
+        empty_statement_(new (zone) class EmptyStatement()),
+        failure_expression_(new (zone) class FailureExpression()) {}
 
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
 
@@ -3049,6 +3068,10 @@ class AstNodeFactory final {
 
   class EmptyStatement* EmptyStatement() {
     return empty_statement_;
+  }
+
+  class FailureExpression* FailureExpression() {
+    return failure_expression_;
   }
 
   SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement() {
@@ -3422,6 +3445,7 @@ class AstNodeFactory final {
   Zone* zone_;
   AstValueFactory* ast_value_factory_;
   class EmptyStatement* empty_statement_;
+  class FailureExpression* failure_expression_;
 };
 
 
@@ -3463,6 +3487,7 @@ class AstNodeFactory final {
                                     : nullptr;                               \
   }
 AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+FAILURE_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
 }  // namespace internal

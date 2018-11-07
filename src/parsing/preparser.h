@@ -95,6 +95,9 @@ class PreParserExpression {
       : code_(TypeField::encode(kNull)), variables_(nullptr) {}
 
   static PreParserExpression Null() { return PreParserExpression(); }
+  static PreParserExpression Failure() {
+    return PreParserExpression(TypeField::encode(kFailure));
+  }
 
   static PreParserExpression Default(
       VariableZoneThreadedListType* variables = nullptr) {
@@ -320,6 +323,7 @@ class PreParserExpression {
  private:
   enum Type {
     kNull,
+    kFailure,
     kExpression,
     kIdentifierExpression,
     kStringLiteralExpression,
@@ -1502,6 +1506,9 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE static PreParserExpression NullExpression() {
     return PreParserExpression::Null();
+  }
+  V8_INLINE static PreParserExpression FailureExpression() {
+    return PreParserExpression::Failure();
   }
   V8_INLINE static PreParserExpression NullLiteralProperty() {
     return PreParserExpression::Null();

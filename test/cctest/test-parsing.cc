@@ -1838,6 +1838,7 @@ void RunParserSyncTest(
                                context_data[i][0],
                                statement_data[j],
                                context_data[i][1]);
+      PrintF("%s\n", program.start());
       CHECK_EQ(length, kProgramSize);
       TestParserSync(program.start(), flags, flags_len, result,
                      always_true_flags, always_true_len, always_false_flags,

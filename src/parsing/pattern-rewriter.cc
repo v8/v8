@@ -74,6 +74,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   }
 
   Expression* Rewrite(Assignment* assign) {
+    if (parser_->has_error()) return parser_->FailureExpression();
     DCHECK_EQ(Token::ASSIGN, assign->op());
 
     int pos = assign->position();

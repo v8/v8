@@ -1446,6 +1446,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
     zone_ = ast_value_factory->zone();
     variables_.Reset(ZoneAllocationPolicy(zone_));
     if (!IsArrowFunction(function_kind_)) {
+      has_simple_parameters_ = true;
       DeclareDefaultFunctionVariables(ast_value_factory);
     }
   } else {
