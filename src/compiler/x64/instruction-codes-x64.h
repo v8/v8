@@ -230,10 +230,13 @@ namespace compiler {
   V(X64I8x16ReplaceLane)                  \
   V(X64I8x16SConvertI16x8)                \
   V(X64I8x16Neg)                          \
+  V(X64I8x16Shl)                          \
+  V(X64I8x16ShrS)                         \
   V(X64I8x16Add)                          \
   V(X64I8x16AddSaturateS)                 \
   V(X64I8x16Sub)                          \
   V(X64I8x16SubSaturateS)                 \
+  V(X64I8x16Mul)                          \
   V(X64I8x16MinS)                         \
   V(X64I8x16MaxS)                         \
   V(X64I8x16Eq)                           \
@@ -243,16 +246,17 @@ namespace compiler {
   V(X64I8x16UConvertI16x8)                \
   V(X64I8x16AddSaturateU)                 \
   V(X64I8x16SubSaturateU)                 \
+  V(X64I8x16ShrU)                         \
   V(X64I8x16MinU)                         \
   V(X64I8x16MaxU)                         \
   V(X64I8x16GtU)                          \
   V(X64I8x16GeU)                          \
+  V(X64S128Zero)                          \
+  V(X64S128Not)                           \
   V(X64S128And)                           \
   V(X64S128Or)                            \
   V(X64S128Xor)                           \
-  V(X64S128Not)                           \
   V(X64S128Select)                        \
-  V(X64S128Zero)                          \
   V(X64S1x4AnyTrue)                       \
   V(X64S1x4AllTrue)                       \
   V(X64S1x8AnyTrue)                       \
