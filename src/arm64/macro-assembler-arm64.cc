@@ -2575,7 +2575,8 @@ void MacroAssembler::LoadGlobalProxy(Register dst) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  CompareAndBranch(in, Operand(kClearedWeakHeapObject), eq, target_if_cleared);
+  CompareAndBranch(in.W(), Operand(kClearedWeakHeapObjectLower32), eq,
+                   target_if_cleared);
 
   and_(out, in, Operand(~kWeakHeapObjectMask));
 }

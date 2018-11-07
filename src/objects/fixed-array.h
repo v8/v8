@@ -324,7 +324,7 @@ class WeakFixedArray : public HeapObject {
 // capacity() returns the allocated size. The number of elements is stored at
 // kLengthOffset and is updated with every insertion. The array grows
 // dynamically with O(1) amortized insertion.
-class WeakArrayList : public HeapObject {
+class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
  public:
   DECL_CAST(WeakArrayList)
   DECL_VERIFIER(WeakArrayList)

@@ -2064,7 +2064,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
 }
 
 void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
-  cmpp(in_out, Immediate(kClearedWeakHeapObject));
+  cmpl(in_out, Immediate(kClearedWeakHeapObjectLower32));
   j(equal, target_if_cleared);
 
   andp(in_out, Immediate(~static_cast<int32_t>(kWeakHeapObjectMask)));

@@ -1710,7 +1710,7 @@ void TurboAssembler::Popcnt(Register dst, Operand src) {
 }
 
 void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
-  cmp(in_out, Immediate(kClearedWeakHeapObject));
+  cmp(in_out, Immediate(kClearedWeakHeapObjectLower32));
   j(equal, target_if_cleared);
 
   and_(in_out, Immediate(~kWeakHeapObjectMask));

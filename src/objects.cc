@@ -10460,13 +10460,15 @@ int WeakArrayList::CountLiveWeakReferences() const {
 bool WeakArrayList::RemoveOne(const MaybeObjectHandle& value) {
   if (length() == 0) return false;
   // Optimize for the most recently added element to be removed again.
+  MaybeObject cleared_weak_ref =
+      HeapObjectReference::ClearedValue(GetIsolate());
   int last_index = length() - 1;
   for (int i = last_index; i >= 0; --i) {
     if (Get(i) == *value) {
       // Move the last element into the this slot (or no-op, if this is the
       // last slot).
       Set(i, Get(last_index));
-      Set(last_index, HeapObjectReference::ClearedValue());
+      Set(last_index, cleared_weak_ref);
       set_length(last_index);
       return true;
     }

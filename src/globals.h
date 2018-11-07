@@ -441,7 +441,20 @@ constexpr intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 constexpr intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
 const Address kWeakHeapObjectMask = 1 << 1;
-const Address kClearedWeakHeapObject = 3;
+
+// The lower 32 bits of the cleared weak reference value is always equal to
+// the |kClearedWeakHeapObjectLower32| constant but on 64-bit architectures
+// the value of the upper 32 bits part may be
+// 1) zero when pointer compression is disabled,
+// 2) upper 32 bits of the isolate root value when pointer compression is
+//    enabled.
+// This is necessary to make pointer decompression computation also suitable
+// for cleared weak reference.
+// Note, that real heap objects can't have lower 32 bits equal to 3 because
+// this offset belongs to page header. So, in either case it's enough to
+// compare only the lower 32 bits of a MaybeObject value in order to figure
+// out if it's a cleared reference or not.
+const uint32_t kClearedWeakHeapObjectLower32 = 3;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a failure.

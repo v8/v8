@@ -237,7 +237,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
-        vector->set(index, HeapObjectReference::ClearedValue(),
+        vector->set(index, HeapObjectReference::ClearedValue(isolate),
                     SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kForIn:
@@ -414,7 +414,8 @@ void FeedbackNexus::ConfigureUninitialized() {
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
-      SetFeedback(HeapObjectReference::ClearedValue(), SKIP_WRITE_BARRIER);
+      SetFeedback(HeapObjectReference::ClearedValue(isolate),
+                  SKIP_WRITE_BARRIER);
       SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
                        SKIP_WRITE_BARRIER);
       break;
@@ -514,7 +515,7 @@ bool FeedbackNexus::ConfigureMegamorphic() {
       MaybeObject::FromObject(*FeedbackVector::MegamorphicSentinel(isolate));
   if (GetFeedback() != sentinel) {
     SetFeedback(sentinel, SKIP_WRITE_BARRIER);
-    SetFeedbackExtra(HeapObjectReference::ClearedValue());
+    SetFeedbackExtra(HeapObjectReference::ClearedValue(isolate));
     return true;
   }
 
@@ -737,7 +738,7 @@ bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
 void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK(IC::IsHandler(*handler));
-  SetFeedback(HeapObjectReference::ClearedValue());
+  SetFeedback(HeapObjectReference::ClearedValue(GetIsolate()));
   SetFeedbackExtra(*handler);
 }
 
@@ -769,7 +770,7 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
         array->Set(1, GetFeedbackExtra());
         array->Set(2, HeapObjectReference::Weak(*source_map));
         array->Set(3, MaybeObject::FromObject(*result_map));
-        SetFeedbackExtra(HeapObjectReference::ClearedValue());
+        SetFeedbackExtra(HeapObjectReference::ClearedValue(isolate));
       }
       break;
     case POLYMORPHIC: {
@@ -792,7 +793,7 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
           MaybeObject sentinel = MaybeObject::FromObject(
               *FeedbackVector::MegamorphicSentinel(isolate));
           SetFeedback(sentinel, SKIP_WRITE_BARRIER);
-          SetFeedbackExtra(HeapObjectReference::ClearedValue());
+          SetFeedbackExtra(HeapObjectReference::ClearedValue(isolate));
           break;
         }
 

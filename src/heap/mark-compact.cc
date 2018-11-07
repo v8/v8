@@ -2077,6 +2077,8 @@ void MarkCompactCollector::ClearWeakCollections() {
 void MarkCompactCollector::ClearWeakReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
   std::pair<HeapObject*, HeapObjectSlot> slot;
+  HeapObjectReference cleared_weak_ref =
+      HeapObjectReference::ClearedValue(isolate());
   while (weak_objects_.weak_references.Pop(kMainThread, &slot)) {
     HeapObject* value;
     HeapObjectSlot location = slot.second;
@@ -2090,7 +2092,7 @@ void MarkCompactCollector::ClearWeakReferences() {
           // The map is non-live.
           ClearPotentialSimpleMapTransition(Map::cast(value));
         }
-        location.store(HeapObjectReference::ClearedValue());
+        location.store(cleared_weak_ref);
       }
     }
   }

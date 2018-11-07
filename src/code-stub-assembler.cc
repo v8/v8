@@ -571,9 +571,6 @@ TNode<Smi> CodeStubAssembler::SmiFromInt32(SloppyTNode<Int32T> value) {
   TNode<IntPtrT> value_intptr = ChangeInt32ToIntPtr(value);
   TNode<Smi> smi =
       BitcastWordToTaggedSigned(WordShl(value_intptr, SmiShiftBitsConstant()));
-#if V8_COMPRESS_POINTERS
-  CSA_ASSERT(this, IsValidSmi(smi));
-#endif
   return smi;
 }
 
@@ -596,16 +593,10 @@ TNode<Smi> CodeStubAssembler::SmiTag(SloppyTNode<IntPtrT> value) {
   }
   TNode<Smi> smi =
       BitcastWordToTaggedSigned(WordShl(value, SmiShiftBitsConstant()));
-#if V8_COMPRESS_POINTERS
-  CSA_ASSERT(this, IsValidSmi(smi));
-#endif
   return smi;
 }
 
 TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
-#if V8_COMPRESS_POINTERS
-  CSA_ASSERT(this, IsValidSmi(value));
-#endif
   intptr_t constant_value;
   if (ToIntPtrConstant(value, constant_value)) {
     return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
@@ -1854,14 +1845,12 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
 
   GotoIf(TaggedIsSmi(maybe_object), &inner_if_smi);
 
-  GotoIf(WordEqual(BitcastMaybeObjectToWord(maybe_object),
-                   IntPtrConstant(static_cast<intptr_t>(
-                       HeapObjectReference::ClearedValue().ptr()))),
-         if_cleared);
+  GotoIf(IsCleared(maybe_object), if_cleared);
 
-  GotoIf(WordEqual(WordAnd(BitcastMaybeObjectToWord(maybe_object),
-                           IntPtrConstant(kHeapObjectTagMask)),
-                   IntPtrConstant(kHeapObjectTag)),
+  GotoIf(Word32Equal(Word32And(TruncateIntPtrToInt32(
+                                   BitcastMaybeObjectToWord(maybe_object)),
+                               Int32Constant(kHeapObjectTagMask)),
+                     Int32Constant(kHeapObjectTag)),
          &inner_if_strong);
 
   *extracted =
@@ -1891,19 +1880,20 @@ TNode<HeapObject> CodeStubAssembler::GetHeapObjectIfStrong(
 }
 
 TNode<BoolT> CodeStubAssembler::IsWeakOrCleared(TNode<MaybeObject> value) {
-  return WordEqual(WordAnd(BitcastMaybeObjectToWord(value),
-                           IntPtrConstant(kHeapObjectTagMask)),
-                   IntPtrConstant(kWeakHeapObjectTag));
+  return Word32Equal(
+      Word32And(TruncateIntPtrToInt32(BitcastMaybeObjectToWord(value)),
+                Int32Constant(kHeapObjectTagMask)),
+      Int32Constant(kWeakHeapObjectTag));
 }
 
 TNode<BoolT> CodeStubAssembler::IsCleared(TNode<MaybeObject> value) {
-  return WordEqual(BitcastMaybeObjectToWord(value),
-                   IntPtrConstant(kClearedWeakHeapObject));
+  return Word32Equal(TruncateIntPtrToInt32(BitcastMaybeObjectToWord(value)),
+                     Int32Constant(kClearedWeakHeapObjectLower32));
 }
 
 TNode<BoolT> CodeStubAssembler::IsNotCleared(TNode<MaybeObject> value) {
-  return WordNotEqual(BitcastMaybeObjectToWord(value),
-                      IntPtrConstant(kClearedWeakHeapObject));
+  return Word32NotEqual(TruncateIntPtrToInt32(BitcastMaybeObjectToWord(value)),
+                        Int32Constant(kClearedWeakHeapObjectLower32));
 }
 
 TNode<HeapObject> CodeStubAssembler::GetHeapObjectAssumeWeak(

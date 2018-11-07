@@ -109,6 +109,23 @@ MaybeObject MaybeObject::MakeWeak(MaybeObject object) {
   return MaybeObject(object.ptr_ | kWeakHeapObjectMask);
 }
 
+// static
+HeapObjectReference HeapObjectReference::ClearedValue(Isolate* isolate) {
+  // Construct cleared weak ref value.
+  Address raw_value = kClearedWeakHeapObjectLower32;
+#ifdef V8_COMPRESS_POINTERS
+  // This is necessary to make pointer decompression computation also
+  // suitable for cleared weak references.
+  Address isolate_root = isolate->isolate_root();
+  raw_value |= isolate_root;
+  DCHECK_EQ(raw_value & (~static_cast<Address>(kClearedWeakHeapObjectLower32)),
+            isolate_root);
+#endif
+  // The rest of the code will check only the lower 32-bits.
+  DCHECK_EQ(kClearedWeakHeapObjectLower32, static_cast<uint32_t>(raw_value));
+  return HeapObjectReference(raw_value);
+}
+
 void HeapObjectReference::Update(HeapObjectSlot slot, HeapObject* value) {
   Address old_value = (*slot).ptr();
   DCHECK(!HAS_SMI_TAG(old_value));

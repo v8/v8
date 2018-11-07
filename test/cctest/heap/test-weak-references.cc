@@ -172,7 +172,8 @@ TEST(WeakReferencesOldToCleared) {
   Handle<FeedbackVector> fv =
       CreateFeedbackVectorForTest(CcTest::isolate(), factory, TENURED);
   CHECK(heap->InOldSpace(*fv));
-  fv->set_optimized_code_weak_or_smi(HeapObjectReference::ClearedValue());
+  fv->set_optimized_code_weak_or_smi(
+      HeapObjectReference::ClearedValue(isolate));
 
   CcTest::CollectAllGarbage();
   CHECK(fv->optimized_code_weak_or_smi()->IsCleared());
@@ -293,7 +294,8 @@ TEST(ObjectWithClearedWeakReferencePromoted) {
       CreateFeedbackVectorForTest(CcTest::isolate(), factory);
   CHECK(Heap::InNewSpace(*fv));
 
-  fv->set_optimized_code_weak_or_smi(HeapObjectReference::ClearedValue());
+  fv->set_optimized_code_weak_or_smi(
+      HeapObjectReference::ClearedValue(isolate));
 
   CcTest::CollectGarbage(NEW_SPACE);
   CHECK(Heap::InNewSpace(*fv));

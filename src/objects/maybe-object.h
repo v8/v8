@@ -16,6 +16,7 @@ namespace v8 {
 namespace internal {
 
 class HeapObject;
+class Isolate;
 class StringStream;
 
 // A MaybeObject is either a SMI, a strong reference to a HeapObject, a weak
@@ -39,7 +40,9 @@ class MaybeObject {
   inline bool ToSmi(Smi* value);
   inline Smi ToSmi() const;
 
-  bool IsCleared() const { return ptr_ == kClearedWeakHeapObject; }
+  bool IsCleared() const {
+    return static_cast<uint32_t>(ptr_) == kClearedWeakHeapObjectLower32;
+  }
 
   inline bool IsStrongOrWeak() const;
   inline bool IsStrong() const;
@@ -153,11 +156,9 @@ class HeapObjectReference : public MaybeObject {
     return HeapObjectReference(object->ptr() | kWeakHeapObjectMask);
   }
 
-  static HeapObjectReference ClearedValue() {
-    return HeapObjectReference(kClearedWeakHeapObject);
-  }
+  V8_INLINE static HeapObjectReference ClearedValue(Isolate* isolate);
 
-  static inline void Update(HeapObjectSlot slot, HeapObject* value);
+  V8_INLINE static void Update(HeapObjectSlot slot, HeapObject* value);
 };
 
 }  // namespace internal
