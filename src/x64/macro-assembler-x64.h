@@ -512,6 +512,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void ResetSpeculationPoisonRegister();
 
+  // ---------------------------------------------------------------------------
+  // Pointer compresstion Support
+
+  // TODO(ishell): remove |scratch_for_debug| once pointer compression works.
+  void DecompressTaggedSigned(Register destination, Operand field_operand,
+                              Register scratch_for_debug);
+  void DecompressTaggedPointer(Register destination, Operand field_operand,
+                               Register scratch_for_debug);
+  void DecompressAnyTagged(Register destination, Operand field_operand,
+                           Register scratch, Register scratch_for_debug);
+
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
   int smi_count = 0;
@@ -583,9 +594,8 @@ class MacroAssembler : public TurboAssembler {
     j(not_equal, if_not_equal, if_not_equal_distance);
   }
 
-
-// ---------------------------------------------------------------------------
-// GC Support
+  // ---------------------------------------------------------------------------
+  // GC Support
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being

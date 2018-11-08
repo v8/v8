@@ -278,6 +278,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
         return kHasSideEffect;
       }
 
+    case kX64MovqDecompressTaggedSigned:
+    case kX64MovqDecompressTaggedPointer:
+    case kX64MovqDecompressAnyTagged:
     case kX64Movq:
     case kX64Movsd:
     case kX64Movss:

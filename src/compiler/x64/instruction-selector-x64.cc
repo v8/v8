@@ -234,9 +234,18 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kWord32:
       opcode = kX64Movl;
       break;
+#ifdef V8_COMPRESS_POINTERS
+    case MachineRepresentation::kTaggedSigned:
+      return kX64MovqDecompressTaggedSigned;
+    case MachineRepresentation::kTaggedPointer:
+      return kX64MovqDecompressTaggedPointer;
+    case MachineRepresentation::kTagged:
+      return kX64MovqDecompressAnyTagged;
+#else
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:  // Fall through.
+#endif
     case MachineRepresentation::kWord64:
       opcode = kX64Movq;
       break;
@@ -309,6 +318,21 @@ void InstructionSelector::VisitLoad(Node* node) {
   X64OperandGenerator g(this);
 
   ArchOpcode opcode = GetLoadOpcode(load_rep);
+  size_t temp_count = 0;
+  InstructionOperand temps[2];
+#ifdef V8_COMPRESS_POINTERS
+  if (opcode == kX64MovqDecompressAnyTagged) {
+    temps[temp_count++] = g.TempRegister();
+  }
+#ifdef DEBUG
+  if (opcode == kX64MovqDecompressTaggedSigned ||
+      opcode == kX64MovqDecompressTaggedPointer ||
+      opcode == kX64MovqDecompressAnyTagged) {
+    temps[temp_count++] = g.TempRegister();
+  }
+#endif  // DEBUG
+#endif  // V8_COMPRESS_POINTERS
+  DCHECK_LE(temp_count, arraysize(temps));
   InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand inputs[3];
   size_t input_count = 0;
@@ -321,7 +345,7 @@ void InstructionSelector::VisitLoad(Node* node) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
     code |= MiscField::encode(kMemoryAccessPoisoned);
   }
-  Emit(code, 1, outputs, input_count, inputs);
+  Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
 }
 
 void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }

@@ -224,6 +224,82 @@ void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
   cmpp(with, kScratchRegister);
 }
 
+void TurboAssembler::DecompressTaggedSigned(Register destination,
+                                            Operand field_operand,
+                                            Register scratch_for_debug) {
+  RecordComment("[ DecompressTaggedSigned");
+  if (DEBUG_BOOL && scratch_for_debug.is_valid()) {
+    Register expected_value = scratch_for_debug;
+    movq(expected_value, field_operand);
+    movsxlq(destination, expected_value);
+    Label check_passed;
+    cmpq(destination, expected_value);
+    j(equal, &check_passed);
+    RecordComment("DecompressTaggedSigned failed");
+    int3();
+    bind(&check_passed);
+  } else {
+    movsxlq(destination, field_operand);
+  }
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(Register destination,
+                                             Operand field_operand,
+                                             Register scratch_for_debug) {
+  RecordComment("[ DecompressTaggedPointer");
+  if (DEBUG_BOOL && scratch_for_debug.is_valid()) {
+    Register expected_value = scratch_for_debug;
+    movq(expected_value, field_operand);
+    movsxlq(destination, expected_value);
+    addq(destination, kRootRegister);
+    Label check_passed;
+    cmpq(destination, expected_value);
+    j(equal, &check_passed);
+    RecordComment("DecompressTaggedPointer failed");
+    int3();
+    bind(&check_passed);
+  } else {
+    movsxlq(destination, field_operand);
+    addq(destination, kRootRegister);
+  }
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressAnyTagged(Register destination,
+                                         Operand field_operand,
+                                         Register scratch,
+                                         Register scratch_for_debug) {
+  RecordComment("[ DecompressAnyTagged");
+  Register expected_value = scratch_for_debug;
+  if (DEBUG_BOOL && expected_value.is_valid()) {
+    movq(expected_value, field_operand);
+    movsxlq(destination, expected_value);
+  } else {
+    movsxlq(destination, field_operand);
+  }
+  // Branchlessly compute |masked_root|:
+  // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
+  STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
+  Register masked_root = scratch;
+  movl(masked_root, destination);
+  andl(masked_root, Immediate(kSmiTagMask));
+  negq(masked_root);
+  andq(masked_root, kRootRegister);
+  // Now this add operation will either leave the value unchanged if it is a smi
+  // or add the isolate root if it is a heap object.
+  addq(destination, masked_root);
+  if (DEBUG_BOOL && expected_value.is_valid()) {
+    Label check_passed;
+    cmpq(destination, expected_value);
+    j(equal, &check_passed);
+    RecordComment("Decompression failed: Tagged");
+    int3();
+    bind(&check_passed);
+  }
+  RecordComment("]");
+}
+
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register dst,
                                       SaveFPRegsMode save_fp,

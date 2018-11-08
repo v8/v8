@@ -1882,6 +1882,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_MOVX(movsxlq);
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
+    case kX64MovqDecompressTaggedSigned: {
+      CHECK(instr->HasOutput());
+      __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand(),
+                                DEBUG_BOOL ? i.TempRegister(0) : no_reg);
+      break;
+    }
+    case kX64MovqDecompressTaggedPointer: {
+      CHECK(instr->HasOutput());
+      __ DecompressTaggedPointer(i.OutputRegister(), i.MemoryOperand(),
+                                 DEBUG_BOOL ? i.TempRegister(0) : no_reg);
+      break;
+    }
+    case kX64MovqDecompressAnyTagged: {
+      CHECK(instr->HasOutput());
+      __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand(),
+                             i.TempRegister(0),
+                             DEBUG_BOOL ? i.TempRegister(1) : no_reg);
+      break;
+    }
     case kX64Movq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       if (instr->HasOutput()) {
