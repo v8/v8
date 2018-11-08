@@ -47,8 +47,7 @@ void CancelableTaskManager::RemoveFinishedTask(CancelableTaskManager::Id id) {
   cancelable_tasks_barrier_.NotifyOne();
 }
 
-CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbort(
-    CancelableTaskManager::Id id) {
+TryAbortResult CancelableTaskManager::TryAbort(CancelableTaskManager::Id id) {
   base::MutexGuard guard(&mutex_);
   auto entry = cancelable_tasks_.find(id);
   if (entry != cancelable_tasks_.end()) {
@@ -57,12 +56,12 @@ CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbort(
       // Cannot call RemoveFinishedTask here because of recursive locking.
       cancelable_tasks_.erase(entry);
       cancelable_tasks_barrier_.NotifyOne();
-      return kTaskAborted;
+      return TryAbortResult::kTaskAborted;
     } else {
-      return kTaskRunning;
+      return TryAbortResult::kTaskRunning;
     }
   }
-  return kTaskRemoved;
+  return TryAbortResult::kTaskRemoved;
 }
 
 void CancelableTaskManager::CancelAndWait() {
@@ -91,12 +90,12 @@ void CancelableTaskManager::CancelAndWait() {
   }
 }
 
-CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbortAll() {
+TryAbortResult CancelableTaskManager::TryAbortAll() {
   // Clean up all cancelable fore- and background tasks. Tasks are canceled on
   // the way if possible, i.e., if they have not started yet.
   base::MutexGuard guard(&mutex_);
 
-  if (cancelable_tasks_.empty()) return kTaskRemoved;
+  if (cancelable_tasks_.empty()) return TryAbortResult::kTaskRemoved;
 
   for (auto it = cancelable_tasks_.begin(); it != cancelable_tasks_.end();) {
     if (it->second->Cancel()) {
@@ -106,7 +105,8 @@ CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbortAll() {
     }
   }
 
-  return cancelable_tasks_.empty() ? kTaskAborted : kTaskRunning;
+  return cancelable_tasks_.empty() ? TryAbortResult::kTaskAborted
+                                   : TryAbortResult::kTaskRunning;
 }
 
 CancelableTask::CancelableTask(Isolate* isolate)

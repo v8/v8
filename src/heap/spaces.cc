@@ -291,7 +291,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
 void MemoryAllocator::Unmapper::CancelAndWaitForPendingTasks() {
   for (int i = 0; i < pending_unmapping_tasks_; i++) {
     if (heap_->isolate()->cancelable_task_manager()->TryAbort(task_ids_[i]) !=
-        CancelableTaskManager::kTaskAborted) {
+        TryAbortResult::kTaskAborted) {
       pending_unmapping_tasks_semaphore_.Wait();
     }
   }

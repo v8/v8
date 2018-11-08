@@ -19,6 +19,13 @@ namespace internal {
 class Cancelable;
 class Isolate;
 
+// The possible outcomes of trying to abort a job are:
+// (1) The task is already finished running or was canceled before and
+//     thus has been removed from the manager.
+// (2) The task is currently running and cannot be canceled anymore.
+// (3) The task is not yet running (or finished) so it is canceled and
+//     removed.
+enum class TryAbortResult { kTaskRemoved, kTaskRunning, kTaskAborted };
 
 // Keeps track of cancelable tasks. It is possible to register and remove tasks
 // from any fore- and background task/thread.
@@ -33,14 +40,7 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   // Must not be called after CancelAndWait.
   Id Register(Cancelable* task);
 
-  // Try to abort running a task identified by {id}. The possible outcomes are:
-  // (1) The task is already finished running or was canceled before and
-  //     thus has been removed from the manager.
-  // (2) The task is currently running and cannot be canceled anymore.
-  // (3) The task is not yet running (or finished) so it is canceled and
-  //     removed.
-  //
-  enum TryAbortResult { kTaskRemoved, kTaskRunning, kTaskAborted };
+  // Try to abort running a task identified by {id}.
   TryAbortResult TryAbort(Id id);
 
   // Tries to cancel all remaining registered tasks. The return value indicates

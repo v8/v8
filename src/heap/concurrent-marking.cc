@@ -743,7 +743,7 @@ bool ConcurrentMarking::Stop(StopRequest stop_request) {
     for (int i = 1; i <= task_count_; i++) {
       if (is_pending_[i]) {
         if (task_manager->TryAbort(cancelable_id_[i]) ==
-            CancelableTaskManager::kTaskAborted) {
+            TryAbortResult::kTaskAborted) {
           is_pending_[i] = false;
           --pending_task_count_;
         } else if (stop_request == StopRequest::PREEMPT_TASKS) {

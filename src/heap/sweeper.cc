@@ -211,7 +211,7 @@ void Sweeper::AbortAndWaitForTasks() {
 
   for (int i = 0; i < num_tasks_; i++) {
     if (heap_->isolate()->cancelable_task_manager()->TryAbort(task_ids_[i]) !=
-        CancelableTaskManager::kTaskAborted) {
+        TryAbortResult::kTaskAborted) {
       pending_sweeper_tasks_semaphore_.Wait();
     } else {
       // Aborted case.
@@ -524,7 +524,7 @@ void Sweeper::EnsureIterabilityCompleted() {
 
   if (FLAG_concurrent_sweeping && iterability_task_started_) {
     if (heap_->isolate()->cancelable_task_manager()->TryAbort(
-            iterability_task_id_) != CancelableTaskManager::kTaskAborted) {
+            iterability_task_id_) != TryAbortResult::kTaskAborted) {
       iterability_task_semaphore_.Wait();
     }
     iterability_task_started_ = false;
