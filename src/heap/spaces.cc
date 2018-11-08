@@ -2243,8 +2243,10 @@ void NewSpace::UpdateLinearAllocationArea() {
   Address new_top = to_space_.page_low();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(new_top, to_space_.page_high());
-  original_top_ = top();
-  original_limit_ = limit();
+  // The order of the following two stores is important.
+  // See the corresponding loads in ConcurrentMarking::Run.
+  original_limit_.store(limit(), std::memory_order_relaxed);
+  original_top_.store(top(), std::memory_order_release);
   StartNextInlineAllocationStep();
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }

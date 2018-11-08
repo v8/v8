@@ -2686,13 +2686,17 @@ class NewSpace : public SpaceWithLinearArea {
   }
 
   void ResetOriginalTop() {
-    DCHECK_GE(top(), original_top());
-    DCHECK_LE(top(), original_limit());
-    original_top_ = top();
+    DCHECK_GE(top(), original_top_);
+    DCHECK_LE(top(), original_limit_);
+    original_top_.store(top(), std::memory_order_release);
   }
 
-  Address original_top() { return original_top_; }
-  Address original_limit() { return original_limit_; }
+  Address original_top_acquire() {
+    return original_top_.load(std::memory_order_acquire);
+  }
+  Address original_limit_relaxed() {
+    return original_limit_.load(std::memory_order_relaxed);
+  }
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.

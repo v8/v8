@@ -615,8 +615,9 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
           break;
         }
         objects_processed++;
-        Address new_space_top = heap_->new_space()->original_top();
-        Address new_space_limit = heap_->new_space()->original_limit();
+        // The order of the two loads is important.
+        Address new_space_top = heap_->new_space()->original_top_acquire();
+        Address new_space_limit = heap_->new_space()->original_limit_relaxed();
         Address addr = object->address();
         if (new_space_top <= addr && addr < new_space_limit) {
           on_hold_->Push(task_id, object);
