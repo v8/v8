@@ -1000,6 +1000,7 @@ class ParserBase {
   // "CoverParenthesizedExpressionAndArrowParameterList" in the ES 2017
   // specification).
   ExpressionT ParseExpressionCoverGrammar(bool accept_IN);
+  ExpressionT ParseArrowFormalsWithRest(ExpressionListT* list);
 
   ExpressionT ParseArrayLiteral();
 
@@ -1833,39 +1834,22 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN) {
   //   Expression ',' AssignmentExpression
 
   ExpressionListT list(pointer_buffer());
-  ExpressionT right;
+  ExpressionT expression;
   while (true) {
     ExpressionClassifier binding_classifier(this);
-    if (Check(Token::ELLIPSIS)) {
-      // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
-      // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
-      // valid expression.
-      classifier()->RecordExpressionError(scanner()->location(),
-                                          MessageTemplate::kUnexpectedToken,
-                                          Token::String(Token::ELLIPSIS));
-      int ellipsis_pos = position();
-      int pattern_pos = peek_position();
-      ExpressionT pattern = ParseBindingPattern();
-      if (peek() == Token::ASSIGN) {
-        ReportMessage(MessageTemplate::kRestDefaultInitializer);
-        return impl()->FailureExpression();
-      }
-      right = factory()->NewSpread(pattern, ellipsis_pos, pattern_pos);
-    } else {
-      right = ParseAssignmentExpression(accept_IN);
+    if (V8_UNLIKELY(peek() == Token::ELLIPSIS)) {
+      return ParseArrowFormalsWithRest(&list);
     }
+    expression = ParseAssignmentExpression(accept_IN);
     // No need to accumulate binding pattern-related errors, since
     // an Expression can't be a binding pattern anyway.
     AccumulateNonBindingPatternErrors();
-    if (!impl()->IsIdentifier(right)) classifier()->RecordNonSimpleParameter();
-    list.Add(right);
+    if (!impl()->IsIdentifier(expression)) {
+      classifier()->RecordNonSimpleParameter();
+    }
+    list.Add(expression);
 
     if (!Check(Token::COMMA)) break;
-
-    if (right->IsSpread()) {
-      classifier()->RecordArrowFormalParametersError(
-          scanner()->location(), MessageTemplate::kParamAfterRest);
-    }
 
     if (peek() == Token::RPAREN && PeekAhead() == Token::ARROW) {
       // a trailing comma is allowed at the end of an arrow parameter list
@@ -1884,8 +1868,45 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN) {
   // callers of this function care about the type of the result if there was
   // only a single assignment expression. The preparser would lose this
   // information otherwise.
-  if (list.length() == 1) return right;
+  if (list.length() == 1) return expression;
   return impl()->ExpressionListToExpression(list);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseArrowFormalsWithRest(
+    typename ParserBase<Impl>::ExpressionListT* list) {
+  Consume(Token::ELLIPSIS);
+
+  Scanner::Location ellipsis = scanner()->location();
+  int pattern_pos = peek_position();
+  ExpressionT pattern = ParseBindingPattern();
+
+  AccumulateNonBindingPatternErrors();
+  classifier()->RecordNonSimpleParameter();
+
+  if (V8_UNLIKELY(peek() == Token::ASSIGN)) {
+    ReportMessage(MessageTemplate::kRestDefaultInitializer);
+    return impl()->FailureExpression();
+  }
+
+  ExpressionT spread =
+      factory()->NewSpread(pattern, ellipsis.beg_pos, pattern_pos);
+  if (V8_UNLIKELY(peek() == Token::COMMA)) {
+    ReportMessage(MessageTemplate::kParamAfterRest);
+    return impl()->FailureExpression();
+  }
+
+  // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
+  // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
+  // valid expression.
+  if (peek() != Token::RPAREN || PeekAhead() != Token::ARROW) {
+    ReportUnexpectedTokenAt(ellipsis, Token::ELLIPSIS);
+    return impl()->FailureExpression();
+  }
+
+  list->Add(spread);
+  return impl()->ExpressionListToExpression(*list);
 }
 
 template <typename Impl>
