@@ -4153,6 +4153,11 @@ class V8_EXPORT Promise : public Object {
    */
   PromiseState State();
 
+  /**
+   * Marks this promise as handled to avoid reporting unhandled rejections.
+   */
+  void MarkAsHandled();
+
   V8_INLINE static Promise* Cast(Value* obj);
 
   static const int kEmbedderFieldCount = V8_PROMISE_INTERNAL_FIELD_COUNT;

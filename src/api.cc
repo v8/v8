@@ -7272,6 +7272,11 @@ Promise::PromiseState Promise::State() {
   return static_cast<PromiseState>(js_promise->status());
 }
 
+void Promise::MarkAsHandled() {
+  i::Handle<i::JSPromise> js_promise = Utils::OpenHandle(this);
+  js_promise->set_has_handler(true);
+}
+
 Local<Value> Proxy::GetTarget() {
   i::Handle<i::JSProxy> self = Utils::OpenHandle(this);
   i::Handle<i::Object> target(self->target(), self->GetIsolate());
