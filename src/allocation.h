@@ -167,7 +167,7 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
 
   // Reserves virtual memory containing an area of the given size that is
   // aligned per |alignment| rounded up to the |page_allocator|'s allocate page
-  // size.
+  // size. The |size| must be aligned with |page_allocator|'s commit page size.
   // This may not be at the position returned by address().
   VirtualMemory(v8::PageAllocator* page_allocator, size_t size, void* hint,
                 size_t alignment = 1);
@@ -177,6 +177,8 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   VirtualMemory(v8::PageAllocator* page_allocator, Address address, size_t size)
       : page_allocator_(page_allocator), region_(address, size) {
     DCHECK_NOT_NULL(page_allocator);
+    DCHECK(IsAligned(address, page_allocator->AllocatePageSize()));
+    DCHECK(IsAligned(size, page_allocator->CommitPageSize()));
   }
 
   // Releases the reserved memory, if any, controlled by this VirtualMemory
