@@ -1745,16 +1745,9 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       return ParseObjectLiteral();
 
     case Token::LPAREN: {
-      // Arrow function formal parameters are either a single identifier or a
-      // list of BindingPattern productions enclosed in parentheses.
-      // Parentheses are not valid on the LHS of a BindingPattern, so we use
-      // the is_valid_binding_pattern() check to detect multiple levels of
-      // parenthesization.
-      bool pattern_error = !classifier()->is_valid_binding_pattern();
       classifier()->RecordPatternError(scanner()->peek_location(),
                                        MessageTemplate::kUnexpectedToken,
                                        Token::String(Token::LPAREN));
-      if (pattern_error) ArrowFormalParametersUnexpectedToken();
       Consume(Token::LPAREN);
       if (Check(Token::RPAREN)) {
         // ()=>x.  The continuation that consumes the => is in
@@ -1770,6 +1763,9 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       }
       ExpressionT expr = ParseExpressionCoverGrammar(true);
       Expect(Token::RPAREN);
+      // Parenthesized parameters have to be followed immediately by an arrow to
+      // be valid.
+      if (peek() != Token::ARROW) ArrowFormalParametersUnexpectedToken();
       return expr;
     }
 
@@ -2856,7 +2852,6 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
                                                bool accept_IN, int pos) {
   SourceRange then_range, else_range;
   BindingPatternUnexpectedToken();
-  ArrowFormalParametersUnexpectedToken();
 
   ExpressionClassifier classifier(this);
 
@@ -2888,7 +2883,6 @@ ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
                                           bool accept_IN) {
   if (!accept_IN && peek() == Token::IN) return x;
   BindingPatternUnexpectedToken();
-  ArrowFormalParametersUnexpectedToken();
   do {
     // prec1 >= 4
     while (Token::Precedence(peek()) == prec1) {
@@ -2955,7 +2949,6 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseUnaryOpExpression() {
   BindingPatternUnexpectedToken();
-  ArrowFormalParametersUnexpectedToken();
 
   Token::Value op = Next();
   int pos = position();
@@ -2995,7 +2988,6 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParsePrefixExpression() {
   BindingPatternUnexpectedToken();
-  ArrowFormalParametersUnexpectedToken();
   Token::Value op = Next();
   int beg_pos = peek_position();
 
@@ -3069,7 +3061,6 @@ ParserBase<Impl>::ParsePostfixExpression() {
   ExpressionT expression = ParseLeftHandSideExpression();
   if (!scanner()->HasLineTerminatorBeforeNext() && Token::IsCountOp(peek())) {
     BindingPatternUnexpectedToken();
-    ArrowFormalParametersUnexpectedToken();
 
     expression = CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, end_position(),
@@ -3106,7 +3097,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
   do {
     switch (peek()) {
       case Token::LBRACK: {
-        ArrowFormalParametersUnexpectedToken();
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = ParseExpressionCoverGrammar(true);
@@ -3191,7 +3181,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       }
 
       case Token::PERIOD: {
-        ArrowFormalParametersUnexpectedToken();
         Consume(Token::PERIOD);
         int pos = position();
         ExpressionT key = ParseIdentifierNameOrPrivateName();
@@ -3202,7 +3191,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       default:
         DCHECK(peek() == Token::TEMPLATE_SPAN ||
                peek() == Token::TEMPLATE_TAIL);
-        ArrowFormalParametersUnexpectedToken();
         result = ParseTemplateLiteral(result, position(), true);
         break;
     }
@@ -3233,7 +3221,6 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   // new new foo() means new (new foo())
   // new new foo().bar().baz means (new (new foo()).bar()).baz
   BindingPatternUnexpectedToken();
-  ArrowFormalParametersUnexpectedToken();
   Consume(Token::NEW);
   int new_pos = position();
   ExpressionT result;
@@ -3286,7 +3273,6 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseFunctionExpression() {
   BindingPatternUnexpectedToken();
-  ArrowFormalParametersUnexpectedToken();
 
   Consume(Token::FUNCTION);
   int function_token_position = position();
@@ -3450,7 +3436,6 @@ typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
   DCHECK(Token::IsProperty(peek()));
   BindingPatternUnexpectedToken();
-  ArrowFormalParametersUnexpectedToken();
   // Parses this part of MemberExpression:
   // ('[' Expression ']' | '.' Identifier | TemplateLiteral)*
   do {
