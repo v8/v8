@@ -906,9 +906,9 @@ TEST(DeepEagerCompilationPeakMemory) {
   CHECK_LE(peak_mem_1, peak_mem_2);
   CHECK_EQ(peak_mem_2, peak_mem_3);
   CHECK_LE(peak_mem_3, peak_mem_4);
-  // Check that eager compilation does not cause significantly higher (+25%)
+  // Check that eager compilation does not cause significantly higher (+100%)
   // peak memory than lazy compilation.
-  CHECK_LE(peak_mem_4 - peak_mem_3, peak_mem_3 / 4);
+  CHECK_LE(peak_mem_4 - peak_mem_3, peak_mem_3);
 }
 
 }  // namespace internal
