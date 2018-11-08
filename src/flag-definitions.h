@@ -216,7 +216,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                        \
   HARMONY_STAGED_BASE(V)                         \
-  V(harmony_intl_list_format, "Intl.ListFormat") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -238,8 +237,9 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_static_fields, "harmony static fields in class literals")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V) \
-  HARMONY_SHIPPING_BASE(V)  \
+#define HARMONY_SHIPPING(V)                      \
+  HARMONY_SHIPPING_BASE(V)                       \
+  V(harmony_intl_list_format, "Intl.ListFormat") \
   V(harmony_intl_relative_time_format, "Intl.RelativeTimeFormat")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
