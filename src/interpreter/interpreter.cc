@@ -30,9 +30,10 @@ namespace interpreter {
 
 class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
  public:
-  InterpreterCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
-                            AccountingAllocator* allocator,
-                            ZoneVector<FunctionLiteral*>* eager_inner_literals);
+  InterpreterCompilationJob(
+      ParseInfo* parse_info, FunctionLiteral* literal,
+      AccountingAllocator* allocator,
+      std::vector<FunctionLiteral*>* eager_inner_literals);
 
  protected:
   Status ExecuteJobImpl() final;
@@ -169,7 +170,7 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
 InterpreterCompilationJob::InterpreterCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator,
-    ZoneVector<FunctionLiteral*>* eager_inner_literals)
+    std::vector<FunctionLiteral*>* eager_inner_literals)
     : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
                                 &compilation_info_),
       zone_(allocator, ZONE_NAME),
@@ -229,7 +230,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 UnoptimizedCompilationJob* Interpreter::NewCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator,
-    ZoneVector<FunctionLiteral*>* eager_inner_literals) {
+    std::vector<FunctionLiteral*>* eager_inner_literals) {
   return new InterpreterCompilationJob(parse_info, literal, allocator,
                                        eager_inner_literals);
 }

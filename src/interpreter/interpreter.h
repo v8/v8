@@ -46,7 +46,7 @@ class Interpreter {
   static UnoptimizedCompilationJob* NewCompilationJob(
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator,
-      ZoneVector<FunctionLiteral*>* eager_inner_literals);
+      std::vector<FunctionLiteral*>* eager_inner_literals);
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.

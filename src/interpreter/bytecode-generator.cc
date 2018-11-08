@@ -873,7 +873,7 @@ class BytecodeGenerator::IteratorRecord final {
 
 static bool IsInEagerLiterals(
     FunctionLiteral* literal,
-    const ZoneVector<FunctionLiteral*>& eager_literals) {
+    const std::vector<FunctionLiteral*>& eager_literals) {
   for (FunctionLiteral* eager_literal : eager_literals) {
     if (literal == eager_literal) return true;
   }
@@ -885,7 +885,7 @@ static bool IsInEagerLiterals(
 BytecodeGenerator::BytecodeGenerator(
     UnoptimizedCompilationInfo* info,
     const AstStringConstants* ast_string_constants,
-    ZoneVector<FunctionLiteral*>* eager_inner_literals)
+    std::vector<FunctionLiteral*>* eager_inner_literals)
     : zone_(info->zone()),
       builder_(zone(), info->num_parameters_including_this(),
                info->scope()->num_stack_slots(), info->feedback_vector_spec(),
