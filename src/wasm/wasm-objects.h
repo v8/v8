@@ -391,7 +391,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
   DECL_ACCESSORS(undefined_value, Oddball)
   DECL_ACCESSORS(null_value, Oddball)
-  DECL_ACCESSORS(centry_stub, Code)
+  DECL_ACCESSORS2(centry_stub, Code)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(memory_mask, size_t)
@@ -521,7 +521,7 @@ class WasmExportedFunction : public JSFunction {
 // see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
 class WasmExportedFunctionData : public Struct {
  public:
-  DECL_ACCESSORS(wrapper_code, Code);
+  DECL_ACCESSORS2(wrapper_code, Code);
   DECL_ACCESSORS(instance, WasmInstanceObject)
   DECL_INT_ACCESSORS(jump_table_offset);
   DECL_INT_ACCESSORS(function_index);

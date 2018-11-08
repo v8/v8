@@ -610,9 +610,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
       FeedbackVector* feedback_vector = function->feedback_vector();
       feedback_vector->EvictOptimizedCodeMarkedForDeoptimization(
           function->shared(), "GetCodeFromOptimizedCodeCache");
-      Code* code = feedback_vector->optimized_code();
+      Code code = feedback_vector->optimized_code();
 
-      if (code != nullptr) {
+      if (!code.is_null()) {
         // Caching of optimized code enabled and optimized code found.
         DCHECK(!code->marked_for_deoptimization());
         DCHECK(function->shared()->is_compiled());
@@ -2028,8 +2028,8 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
   if (shared->is_compiled() && !shared->HasAsmWasmData()) {
     JSFunction::EnsureFeedbackVector(function);
 
-    Code* code = function->feedback_vector()->optimized_code();
-    if (code != nullptr) {
+    Code code = function->feedback_vector()->optimized_code();
+    if (!code.is_null()) {
       // Caching of optimized code enabled and optimized code found.
       DCHECK(!code->marked_for_deoptimization());
       DCHECK(function->shared()->is_compiled());

@@ -23,7 +23,7 @@ namespace internal {
 
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(BytecodeArray)
-CAST_ACCESSOR(Code)
+CAST_ACCESSOR2(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
@@ -133,7 +133,7 @@ AbstractCode::Kind AbstractCode::kind() {
   }
 }
 
-Code* AbstractCode::GetCode() { return Code::cast(this); }
+Code AbstractCode::GetCode() { return Code::cast(this); }
 
 BytecodeArray* AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(this);
@@ -179,6 +179,9 @@ void DependentCode::clear_at(int i) {
 void DependentCode::copy(int from, int to) {
   Set(kCodesStartIndex + to, Get(kCodesStartIndex + from));
 }
+
+OBJECT_CONSTRUCTORS_IMPL(Code, HeapObjectPtr)
+NEVER_READ_ONLY_SPACE_IMPL(Code)
 
 INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
@@ -547,7 +550,7 @@ Address Code::constant_pool() const {
   return kNullAddress;
 }
 
-Code* Code::GetCodeFromTargetAddress(Address address) {
+Code Code::GetCodeFromTargetAddress(Address address) {
   {
     // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass
     // in the current isolate.
@@ -557,12 +560,9 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
   }
 
   HeapObject* code = HeapObject::FromAddress(address - Code::kHeaderSize);
-  // GetCodeFromTargetAddress might be called when marking objects during mark
-  // sweep. reinterpret_cast is therefore used instead of the more appropriate
-  // Code::cast. Code::cast does not work when the object's map is
-  // marked.
-  Code* result = reinterpret_cast<Code*>(code);
-  return result;
+  // Unchecked cast because we can't rely on the map currently
+  // not being a forwarding pointer.
+  return Code::unchecked_cast(code);
 }
 
 Object* Code::GetObjectFromCodeEntry(Address code_entry) {

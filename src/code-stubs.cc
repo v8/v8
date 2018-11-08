@@ -68,8 +68,7 @@ void CodeStubDescriptor::Initialize(Register stack_parameter_count,
   stack_parameter_count_ = stack_parameter_count;
 }
 
-
-bool CodeStub::FindCodeInCache(Code** code_out) {
+bool CodeStub::FindCodeInCache(Code* code_out) {
   SimpleNumberDictionary* stubs = isolate()->heap()->code_stubs();
   int index = stubs->FindEntry(isolate(), GetKey());
   if (index != SimpleNumberDictionary::kNotFound) {
@@ -138,7 +137,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 
 Handle<Code> CodeStub::GetCode() {
   Heap* heap = isolate()->heap();
-  Code* code;
+  Code code;
   if (FindCodeInCache(&code)) {
     DCHECK(code->is_stub());
     return handle(code, isolate_);
@@ -172,12 +171,11 @@ Handle<Code> CodeStub::GetCode() {
     code = *new_object;
   }
 
-  Activate(code);
   DCHECK(!NeedsImmovableCode() || Heap::IsImmovable(code));
   return Handle<Code>(code, isolate());
 }
 
-CodeStub::Major CodeStub::GetMajorKey(const Code* code_stub) {
+CodeStub::Major CodeStub::GetMajorKey(const Code code_stub) {
   return MajorKeyFromKey(code_stub->stub_key());
 }
 

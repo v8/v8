@@ -115,11 +115,11 @@ void FeedbackVector::increment_deopt_count() {
   }
 }
 
-Code* FeedbackVector::optimized_code() const {
+Code FeedbackVector::optimized_code() const {
   MaybeObject slot = optimized_code_weak_or_smi();
   DCHECK(slot->IsSmi() || slot->IsWeakOrCleared());
   HeapObject* heap_object;
-  return slot->GetHeapObject(&heap_object) ? Code::cast(heap_object) : nullptr;
+  return slot->GetHeapObject(&heap_object) ? Code::cast(heap_object) : Code();
 }
 
 OptimizationMarker FeedbackVector::optimization_marker() const {
@@ -130,7 +130,7 @@ OptimizationMarker FeedbackVector::optimization_marker() const {
 }
 
 bool FeedbackVector::has_optimized_code() const {
-  return optimized_code() != nullptr;
+  return !optimized_code().is_null();
 }
 
 bool FeedbackVector::has_optimization_marker() const {

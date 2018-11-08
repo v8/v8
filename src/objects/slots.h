@@ -10,6 +10,8 @@
 namespace v8 {
 namespace internal {
 
+class ObjectPtr;
+
 template <typename Subclass>
 class SlotBase {
  public:
@@ -85,6 +87,7 @@ class ObjectSlot : public SlotBase<ObjectSlot> {
   explicit ObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit ObjectSlot(Address* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  inline explicit ObjectSlot(ObjectPtr* object);
   explicit ObjectSlot(Object const* const* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>

@@ -808,8 +808,16 @@ ExternalReference ExternalReference::try_internalize_string_function() {
       Redirect(FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
 }
 
+static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,
+                                           Address smi_y) {
+  Smi x(smi_x);
+  Smi y(smi_y);
+  return Smi::LexicographicCompare(isolate, x, y);
+}
+
 ExternalReference ExternalReference::smi_lexicographic_compare_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(Smi::LexicographicCompare)));
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(LexicographicCompareWrapper)));
 }
 
 ExternalReference ExternalReference::check_object_type() {

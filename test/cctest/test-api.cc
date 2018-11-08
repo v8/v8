@@ -14668,9 +14668,9 @@ void SetFunctionEntryHookTest::OnJitEvent(const v8::JitCodeEvent* event) {
 void SetFunctionEntryHookTest::OnEntryHook(
     uintptr_t function, uintptr_t return_addr_location) {
   // Get the function's code object.
-  i::Code* function_code =
+  i::Code function_code =
       i::Code::GetCodeFromTargetAddress(static_cast<i::Address>(function));
-  CHECK_NOT_NULL(function_code);
+  CHECK(!function_code.is_null());
 
   // Then try and look up the caller's code object.
   i::Address caller = *reinterpret_cast<i::Address*>(return_addr_location);
@@ -28959,7 +28959,7 @@ TEST(TestGetEmbeddedCodeRange) {
   if (i::FLAG_embedded_builtins) {
     for (int id = 0; id < i::Builtins::builtin_count; id++) {
       if (!i::Builtins::IsIsolateIndependent(id)) continue;
-      i::Code* builtin = i_isolate->builtins()->builtin(id);
+      i::Code builtin = i_isolate->builtins()->builtin(id);
       i::Address start = builtin->InstructionStart();
       i::Address end = start + builtin->InstructionSize();
 

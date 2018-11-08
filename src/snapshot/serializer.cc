@@ -303,7 +303,7 @@ void Serializer::InitializeCodeAddressMap() {
   code_address_map_ = new CodeAddressMap(isolate_);
 }
 
-Code* Serializer::CopyCode(Code* code) {
+Code Serializer::CopyCode(Code code) {
   code_buffer_.clear();  // Clear buffer without deleting backing store.
   int size = code->CodeSize();
   code_buffer_.insert(code_buffer_.end(),
@@ -715,7 +715,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
   }
 }
 
-void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code* host,
+void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
                                                         RelocInfo* rinfo) {
   int skip = SkipTo(rinfo->target_address_address());
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -740,7 +740,7 @@ void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
   bytes_processed_so_far_ += kPointerSize;
 }
 
-void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
+void Serializer::ObjectSerializer::VisitExternalReference(Code host,
                                                           RelocInfo* rinfo) {
   int skip = SkipTo(rinfo->target_address_address());
   Address target = rinfo->target_external_reference();
@@ -759,7 +759,7 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitInternalReference(Code* host,
+void Serializer::ObjectSerializer::VisitInternalReference(Code host,
                                                           RelocInfo* rinfo) {
   // We do not use skip from last patched pc to find the pc to patch, since
   // target_address_address may not return addresses in ascending order when
@@ -782,7 +782,7 @@ void Serializer::ObjectSerializer::VisitInternalReference(Code* host,
   sink_->PutInt(target_offset, "internal ref value");
 }
 
-void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
+void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
                                                      RelocInfo* rinfo) {
   int skip = SkipTo(rinfo->target_address_address());
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -795,7 +795,7 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitOffHeapTarget(Code* host,
+void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
   DCHECK(FLAG_embedded_builtins);
   {
@@ -803,8 +803,8 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(Code* host,
     CHECK(Builtins::IsIsolateIndependentBuiltin(host));
     Address addr = rinfo->target_off_heap_target();
     CHECK_NE(kNullAddress, addr);
-    CHECK_NOT_NULL(
-        InstructionStream::TryLookupCode(serializer_->isolate(), addr));
+    CHECK(!InstructionStream::TryLookupCode(serializer_->isolate(), addr)
+               .is_null());
   }
 
   int skip = SkipTo(rinfo->target_address_address());
@@ -852,10 +852,10 @@ void Serializer::ObjectSerializer::VisitRelocInfo(RelocIterator* it) {
   }
 }
 
-void Serializer::ObjectSerializer::VisitCodeTarget(Code* host,
+void Serializer::ObjectSerializer::VisitCodeTarget(Code host,
                                                    RelocInfo* rinfo) {
   int skip = SkipTo(rinfo->target_address_address());
-  Code* object = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  Code object = Code::GetCodeFromTargetAddress(rinfo->target_address());
   serializer_->SerializeObject(object, kFromCode, kInnerPointer, skip);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
@@ -920,7 +920,7 @@ int Serializer::ObjectSerializer::SkipTo(Address to) {
 
 void Serializer::ObjectSerializer::OutputCode(int size) {
   DCHECK_EQ(kPointerSize, bytes_processed_so_far_);
-  Code* code = Code::cast(object_);
+  Code code = Code::cast(object_);
   // To make snapshots reproducible, we make a copy of the code object
   // and wipe all pointers in the copy, which we then serialize.
   code = serializer_->CopyCode(code);

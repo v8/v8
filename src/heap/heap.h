@@ -318,20 +318,20 @@ class Heap {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
-  V8_EXPORT_PRIVATE static void WriteBarrierForCodeSlow(Code* host);
+  V8_EXPORT_PRIVATE static void WriteBarrierForCodeSlow(Code host);
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject* object,
                                                         Address slot,
                                                         HeapObject* value);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForElementsSlow(
       Heap* heap, FixedArray* array, int offset, int length);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
-      Code* host, RelocInfo* rinfo, HeapObject* value);
+      Code host, RelocInfo* rinfo, HeapObject* value);
   V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject* object,
                                                    Address slot,
                                                    HeapObject* value);
   V8_EXPORT_PRIVATE static void MarkingBarrierForElementsSlow(
       Heap* heap, HeapObject* object);
-  V8_EXPORT_PRIVATE static void MarkingBarrierForCodeSlow(Code* host,
+  V8_EXPORT_PRIVATE static void MarkingBarrierForCodeSlow(Code host,
                                                           RelocInfo* rinfo,
                                                           HeapObject* value);
   V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject* object);
@@ -729,9 +729,9 @@ class Heap {
   // Builtins. =================================================================
   // ===========================================================================
 
-  Code* builtin(int index);
+  Code builtin(int index);
   Address builtin_address(int index);
-  void set_builtin(int index, HeapObject* builtin);
+  void set_builtin(int index, Code builtin);
 
   // ===========================================================================
   // Iterators. ================================================================
@@ -844,11 +844,11 @@ class Heap {
 
   // Invalidates references in the given {code} object that are directly
   // embedded within the instruction stream. Mutates write-protected code.
-  void InvalidateCodeEmbeddedObjects(Code* code);
+  void InvalidateCodeEmbeddedObjects(Code code);
 
   // Invalidates references in the given {code} object that are referenced
   // transitively from the deoptimization data. Mutates write-protected code.
-  void InvalidateCodeDeoptimizationData(Code* code);
+  void InvalidateCodeDeoptimizationData(Code code);
 
   void DeoptMarkedAllocationSites();
 
@@ -1216,13 +1216,12 @@ class Heap {
   // Stack frame support. ======================================================
   // ===========================================================================
 
-  // Returns the Code object for a given interior pointer. Returns nullptr if
-  // {inner_pointer} is not contained within a Code object.
-  Code* GcSafeFindCodeForInnerPointer(Address inner_pointer);
+  // Returns the Code object for a given interior pointer.
+  Code GcSafeFindCodeForInnerPointer(Address inner_pointer);
 
   // Returns true if {addr} is contained within {code} and false otherwise.
   // Mostly useful for debugging.
-  bool GcSafeCodeContains(HeapObject* code, Address addr);
+  bool GcSafeCodeContains(Code code, Address addr);
 
 // =============================================================================
 #ifdef VERIFY_HEAP

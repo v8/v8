@@ -156,7 +156,7 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
 class InterpreterData : public Struct {
  public:
   DECL_ACCESSORS(bytecode_array, BytecodeArray)
-  DECL_ACCESSORS(interpreter_trampoline, Code)
+  DECL_ACCESSORS2(interpreter_trampoline, Code)
 
   static const int kBytecodeArrayOffset = Struct::kHeaderSize;
   static const int kInterpreterTrampolineOffset =
@@ -182,7 +182,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline void SetName(String* name);
 
   // Get the code object which represents the execution of this function.
-  Code* GetCode() const;
+  Code GetCode() const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -296,7 +296,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline bool HasBytecodeArray() const;
   inline BytecodeArray* GetBytecodeArray() const;
   inline void set_bytecode_array(BytecodeArray* bytecode);
-  inline Code* InterpreterTrampoline() const;
+  inline Code InterpreterTrampoline() const;
   inline bool HasInterpreterData() const;
   inline InterpreterData* interpreter_data() const;
   inline void set_interpreter_data(InterpreterData* interpreter_data);

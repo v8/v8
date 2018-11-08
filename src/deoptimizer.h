@@ -412,7 +412,7 @@ class Deoptimizer : public Malloced {
     static const int kNoDeoptId = -1;
   };
 
-  static DeoptInfo GetDeoptInfo(Code* code, Address from);
+  static DeoptInfo GetDeoptInfo(Code code, Address from);
 
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
                                                     BailoutId node_id);
@@ -464,7 +464,7 @@ class Deoptimizer : public Malloced {
   // again and any activations of the optimized code will get deoptimized when
   // execution returns. If {code} is specified then the given code is targeted
   // instead of the function code (e.g. OSR code not installed on function).
-  static void DeoptimizeFunction(JSFunction* function, Code* code = nullptr);
+  static void DeoptimizeFunction(JSFunction* function, Code code = Code());
 
   // Deoptimize all code in the given isolate.
   static void DeoptimizeAll(Isolate* isolate);
@@ -544,7 +544,7 @@ class Deoptimizer : public Malloced {
 
   Deoptimizer(Isolate* isolate, JSFunction* function, DeoptimizeKind kind,
               unsigned bailout_id, Address from, int fp_to_sp_delta);
-  Code* FindOptimizedCode();
+  Code FindOptimizedCode();
   void PrintFunctionName();
   void DeleteFrameDescriptions();
 
@@ -581,7 +581,7 @@ class Deoptimizer : public Malloced {
   static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo* shared);
 
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo* shared);
-  static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
+  static unsigned ComputeOutgoingArgumentSize(Code code, unsigned bailout_id);
 
   static void GenerateDeoptimizationEntries(MacroAssembler* masm, int count,
                                             DeoptimizeKind kind);
@@ -599,11 +599,11 @@ class Deoptimizer : public Malloced {
   // Searches the list of known deoptimizing code for a Code object
   // containing the given address (which is supposedly faster than
   // searching all code objects).
-  Code* FindDeoptimizingCode(Address addr);
+  Code FindDeoptimizingCode(Address addr);
 
   Isolate* isolate_;
   JSFunction* function_;
-  Code* compiled_code_;
+  Code compiled_code_;
   unsigned bailout_id_;
   DeoptimizeKind deopt_kind_;
   Address from_;
@@ -858,9 +858,9 @@ class DeoptimizerData {
   Heap* heap_;
   static const int kLastDeoptimizeKind =
       static_cast<int>(DeoptimizeKind::kLastDeoptimizeKind);
-  Code* deopt_entry_code_[kLastDeoptimizeKind + 1];
-  Code* deopt_entry_code(DeoptimizeKind kind);
-  void set_deopt_entry_code(DeoptimizeKind kind, Code* code);
+  Code deopt_entry_code_[kLastDeoptimizeKind + 1];
+  Code deopt_entry_code(DeoptimizeKind kind);
+  void set_deopt_entry_code(DeoptimizeKind kind, Code code);
 
   Deoptimizer* current_;
 

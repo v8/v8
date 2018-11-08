@@ -522,8 +522,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         // from code entry.
         int pc_offset = source_.GetInt();
         int target_offset = source_.GetInt();
-        Code* code =
-            Code::cast(HeapObject::FromAddress(current_object_address));
+        Code code = Code::cast(HeapObject::FromAddress(current_object_address));
         DCHECK(0 <= pc_offset && pc_offset <= code->raw_instruction_size());
         DCHECK(0 <= target_offset &&
                target_offset <= code->raw_instruction_size());

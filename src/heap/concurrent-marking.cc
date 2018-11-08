@@ -293,7 +293,7 @@ class ConcurrentMarkingVisitor final
   // Code object ===============================================================
   // ===========================================================================
 
-  int VisitCode(Map* map, Code* object) {
+  int VisitCode(Map* map, Code object) {
     bailout_.Push(object);
     return 0;
   }

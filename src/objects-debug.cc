@@ -1161,7 +1161,7 @@ void Code::CodeVerify(Isolate* isolate) {
   relocation_info()->ObjectVerify(isolate);
   Address last_gc_pc = kNullAddress;
 
-  for (RelocIterator it(this); !it.done(); it.next()) {
+  for (RelocIterator it(*this); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
     // Ensure that GC will not iterate twice over the same pointer.
     if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
@@ -2268,7 +2268,7 @@ bool CanLeak(Object* obj, Isolate* isolate) {
 void Code::VerifyEmbeddedObjects(Isolate* isolate, VerifyMode mode) {
   if (kind() == OPTIMIZED_FUNCTION) return;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+  for (RelocIterator it(*this, mask); !it.done(); it.next()) {
     Object* target = it.rinfo()->target_object();
     DCHECK(!CanLeak(target, isolate));
   }

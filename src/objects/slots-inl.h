@@ -9,10 +9,14 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/objects.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/maybe-object.h"
 
 namespace v8 {
 namespace internal {
+
+ObjectSlot::ObjectSlot(ObjectPtr* object)
+    : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
 void ObjectSlot::store(Object* value) {
   *reinterpret_cast<Address*>(address()) = value->ptr();

@@ -3649,7 +3649,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
                 DependentCode::kAllocationSiteTenuringChangedGroup);
       CHECK_EQ(1, dependency->count());
       CHECK(dependency->object_at(0)->IsWeak());
-      Code* function_bar =
+      Code function_bar =
           Code::cast(dependency->object_at(0)->GetHeapObjectAssumeWeak());
       CHECK_EQ(bar_handle->code(), function_bar);
       dependency = dependency->next_link();
@@ -3981,8 +3981,7 @@ static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
   return fun;
 }
 
-
-static int GetCodeChainLength(Code* code) {
+static int GetCodeChainLength(Code code) {
   int result = 0;
   while (code->next_code_link()->IsCode()) {
     result++;

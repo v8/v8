@@ -60,7 +60,7 @@ class CodeSerializer : public Serializer {
   CodeSerializer(Isolate* isolate, uint32_t source_hash);
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
-  virtual void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
+  virtual void SerializeCodeObject(Code code_object, HowToCode how_to_code,
                                    WhereToPoint where_to_point) {
     UNREACHABLE();
   }
@@ -73,7 +73,7 @@ class CodeSerializer : public Serializer {
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
-  void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
+  void SerializeCodeStub(Code code_stub, HowToCode how_to_code,
                          WhereToPoint where_to_point);
 
   bool SerializeReadOnlyObject(HeapObject* obj, HowToCode how_to_code,

@@ -283,7 +283,7 @@ class UpdateTypedSlotHelper {
     SlotCallbackResult result = callback(MaybeObjectSlot(&code));
     DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
-      Memory<Address>(entry_address) = reinterpret_cast<Code*>(code)->entry();
+      Memory<Address>(entry_address) = Code::cast(code)->entry();
     }
     return result;
   }
@@ -294,7 +294,7 @@ class UpdateTypedSlotHelper {
   static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
                                              Callback callback) {
     DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-    Code* old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Code old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Object* new_target = old_target;
     SlotCallbackResult result = callback(MaybeObjectSlot(&new_target));
     DCHECK(!HasWeakHeapObjectTag(new_target));
@@ -328,14 +328,14 @@ class UpdateTypedSlotHelper {
                                             Address addr, Callback callback) {
     switch (slot_type) {
       case CODE_TARGET_SLOT: {
-        RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, nullptr);
+        RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, Code());
         return UpdateCodeTarget(&rinfo, callback);
       }
       case CODE_ENTRY_SLOT: {
         return UpdateCodeEntry(addr, callback);
       }
       case EMBEDDED_OBJECT_SLOT: {
-        RelocInfo rinfo(addr, RelocInfo::EMBEDDED_OBJECT, 0, nullptr);
+        RelocInfo rinfo(addr, RelocInfo::EMBEDDED_OBJECT, 0, Code());
         return UpdateEmbeddedPointer(heap, &rinfo, callback);
       }
       case OBJECT_SLOT: {

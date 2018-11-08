@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/code.h"
 
 namespace v8 {
 namespace internal {
@@ -101,7 +102,7 @@ class RelocInfo {
 
   RelocInfo() = default;
 
-  RelocInfo(Address pc, Mode rmode, intptr_t data, Code* host,
+  RelocInfo(Address pc, Mode rmode, intptr_t data, Code host,
             Address constant_pool = kNullAddress)
       : pc_(pc),
         rmode_(rmode),
@@ -183,7 +184,7 @@ class RelocInfo {
   Address pc() const { return pc_; }
   Mode rmode() const { return rmode_; }
   intptr_t data() const { return data_; }
-  Code* host() const { return host_; }
+  Code host() const { return host_; }
   Address constant_pool() const { return constant_pool_; }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
@@ -293,7 +294,7 @@ class RelocInfo {
   // Check whether the given code contains relocation information that
   // either is position-relative or movable by the garbage collector.
   static bool RequiresRelocationAfterCodegen(const CodeDesc& desc);
-  static bool RequiresRelocation(Code* code);
+  static bool RequiresRelocation(Code code);
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing
@@ -322,7 +323,7 @@ class RelocInfo {
   Address pc_;
   Mode rmode_;
   intptr_t data_ = 0;
-  Code* host_;
+  Code host_;
   Address constant_pool_ = kNullAddress;
   friend class RelocIterator;
 };
@@ -380,9 +381,8 @@ class RelocIterator : public Malloced {
   // the beginning of the reloc info.
   // Relocation information with mode k is included in the
   // iteration iff bit k of mode_mask is set.
-  explicit RelocIterator(Code* code, int mode_mask = -1);
-  explicit RelocIterator(EmbeddedData* embedded_data, Code* code,
-                         int mode_mask);
+  explicit RelocIterator(Code code, int mode_mask = -1);
+  explicit RelocIterator(EmbeddedData* embedded_data, Code code, int mode_mask);
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
   explicit RelocIterator(const CodeReference code_reference,
                          int mode_mask = -1);
@@ -402,7 +402,7 @@ class RelocIterator : public Malloced {
   }
 
  private:
-  RelocIterator(Code* host, Address pc, Address constant_pool, const byte* pos,
+  RelocIterator(Code host, Address pc, Address constant_pool, const byte* pos,
                 const byte* end, int mode_mask);
 
   // Advance* moves the position before/after reading.

@@ -22,7 +22,7 @@ class InstructionStream final : public AllStatic {
   static bool PcIsOffHeap(Isolate* isolate, Address pc);
 
   // Returns the corresponding Code object if it exists, and nullptr otherwise.
-  static Code* TryLookupCode(Isolate* isolate, Address address);
+  static Code TryLookupCode(Isolate* isolate, Address address);
 
   // During snapshot creation, we first create an executable off-heap area
   // containing all off-heap code. The area is guaranteed to be contiguous.

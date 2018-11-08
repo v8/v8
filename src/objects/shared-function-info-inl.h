@@ -75,8 +75,8 @@ ACCESSORS(UncompiledDataWithPreParsedScope, pre_parsed_scope_data,
 
 CAST_ACCESSOR(InterpreterData)
 ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
-ACCESSORS(InterpreterData, interpreter_trampoline, Code,
-          kInterpreterTrampolineOffset)
+ACCESSORS2(InterpreterData, interpreter_trampoline, Code,
+           kInterpreterTrampolineOffset)
 
 CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
@@ -435,7 +435,7 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
   set_function_data(bytecode);
 }
 
-Code* SharedFunctionInfo::InterpreterTrampoline() const {
+Code SharedFunctionInfo::InterpreterTrampoline() const {
   DCHECK(HasInterpreterData());
   return interpreter_data()->interpreter_trampoline();
 }

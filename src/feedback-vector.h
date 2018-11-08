@@ -182,7 +182,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
   inline void clear_invocation_count();
   inline void increment_deopt_count();
 
-  inline Code* optimized_code() const;
+  inline Code optimized_code() const;
   inline OptimizationMarker optimization_marker() const;
   inline bool has_optimized_code() const;
   inline bool has_optimization_marker() const;

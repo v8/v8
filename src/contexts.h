@@ -549,7 +549,7 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
 
   // The native context also stores a list of all optimized code and a
   // list of all deoptimized code, which are needed by the deoptimizer.
-  void AddOptimizedCode(Code* code);
+  void AddOptimizedCode(Code code);
   void SetOptimizedCodeListHead(Object* head);
   Object* OptimizedCodeListHead();
   void SetDeoptimizedCodeListHead(Object* head);

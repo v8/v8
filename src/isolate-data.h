@@ -92,7 +92,7 @@ class IsolateData final {
     return &external_reference_table_;
   }
 
-  Object** builtins() { return &builtins_[0]; }
+  Address* builtins() { return builtins_; }
 
   // For root register verification.
   // TODO(v8:6666): Remove once the root register is fully supported on ia32.
@@ -140,7 +140,8 @@ class IsolateData final {
 
   ExternalReferenceTable external_reference_table_;
 
-  Object* builtins_[Builtins::builtin_count] = {};
+  // The entries in this array are tagged pointers to Code objects.
+  Address builtins_[Builtins::builtin_count] = {};
 
   // For root register verification.
   // TODO(v8:6666): Remove once the root register is fully supported on ia32.

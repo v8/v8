@@ -1001,7 +1001,7 @@ class Isolate final : private HiddenFactory {
     return isolate_data()->external_reference_table();
   }
 
-  V8_INLINE Object** builtins_table() { return isolate_data_.builtins(); }
+  V8_INLINE Address* builtins_table() { return isolate_data_.builtins(); }
 
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
@@ -1352,7 +1352,7 @@ class Isolate final : private HiddenFactory {
   int GenerateIdentityHash(uint32_t mask);
 
   // Given an address occupied by a live code object, return that object.
-  Code* FindCodeObject(Address a);
+  Code FindCodeObject(Address a);
 
   int NextOptimizationId() {
     int id = next_optimization_id_++;

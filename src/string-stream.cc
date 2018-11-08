@@ -413,7 +413,7 @@ void StringStream::PrintSecurityTokenIfChanged(JSFunction* fun) {
 }
 
 void StringStream::PrintFunction(JSFunction* fun, Object* receiver,
-                                 Code** code) {
+                                 Code* code) {
   PrintPrototype(fun, receiver);
   *code = fun->code();
 }

@@ -3625,7 +3625,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
     case CODE_TYPE: {
-      Code* code = Code::cast(this);
+      Code code = Code::cast(this);
       os << "<Code " << Code::Kind2String(code->kind());
       if (code->is_stub()) {
         os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
@@ -13769,7 +13769,7 @@ Script* Script::Iterator::Next() {
   return nullptr;
 }
 
-Code* SharedFunctionInfo::GetCode() const {
+Code SharedFunctionInfo::GetCode() const {
   // ======
   // NOTE: This chain of checks MUST be kept in sync with the equivalent CSA
   // GetSharedFunctionInfoCode method in code-stub-assembler.cc.
@@ -13802,7 +13802,7 @@ Code* SharedFunctionInfo::GetCode() const {
     DCHECK(HasWasmExportedFunctionData());
     return wasm_exported_function_data()->wrapper_code();
   } else if (data->IsInterpreterData()) {
-    Code* code = InterpreterTrampoline();
+    Code code = InterpreterTrampoline();
     DCHECK(code->IsCode());
     DCHECK(code->is_interpreter_trampoline_builtin());
     return code;
@@ -14369,7 +14369,7 @@ void Map::StartInobjectSlackTracking() {
   set_construction_counter(Map::kSlackTrackingCounterStart);
 }
 
-void ObjectVisitor::VisitCodeTarget(Code* host, RelocInfo* rinfo) {
+void ObjectVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   Object* old_pointer = Code::GetCodeFromTargetAddress(rinfo->target_address());
   Object* new_pointer = old_pointer;
@@ -14377,7 +14377,7 @@ void ObjectVisitor::VisitCodeTarget(Code* host, RelocInfo* rinfo) {
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
-void ObjectVisitor::VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) {
+void ObjectVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   Object* old_pointer = rinfo->target_object();
   Object* new_pointer = old_pointer;
@@ -14394,7 +14394,7 @@ void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {
 void Code::InvalidateEmbeddedObjects(Heap* heap) {
   HeapObject* undefined = ReadOnlyRoots(heap).undefined_value();
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
+  for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       it.rinfo()->set_target_object(heap, undefined, SKIP_WRITE_BARRIER);
@@ -14404,7 +14404,7 @@ void Code::InvalidateEmbeddedObjects(Heap* heap) {
 
 
 void Code::Relocate(intptr_t delta) {
-  for (RelocIterator it(this, RelocInfo::kApplyMask); !it.done(); it.next()) {
+  for (RelocIterator it(*this, RelocInfo::kApplyMask); !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
   Assembler::FlushICache(raw_instruction_start(), raw_instruction_size());
@@ -14435,7 +14435,7 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   Assembler* origin = desc.origin;
   AllowDeferredHandleDereference embedding_raw_address;
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
-  for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
+  for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
@@ -14445,7 +14445,7 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
       // Rewrite code handles to direct pointers to the first instruction in the
       // code object.
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
-      Code* code = Code::cast(*p);
+      Code code = Code::cast(*p);
       it.rinfo()->set_target_address(code->raw_instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsRuntimeEntry(mode)) {
@@ -14462,7 +14462,7 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
 
 
 SafepointEntry Code::GetSafepointEntry(Address pc) {
-  SafepointTable table(this);
+  SafepointTable table(*this);
   return table.FindEntry(pc);
 }
 
@@ -14523,7 +14523,7 @@ void AbstractCode::SetStackFrameCache(Handle<AbstractCode> abstract_code,
 
 namespace {
 template <typename Code>
-void DropStackFrameCacheCommon(Code* code) {
+void DropStackFrameCacheCommon(Code code) {
   i::Object* maybe_table = code->source_position_table();
   if (maybe_table->IsByteArray()) return;
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
@@ -14582,12 +14582,12 @@ void JSFunction::ClearTypeFeedbackInfo() {
 }
 
 void Code::PrintDeoptLocation(FILE* out, const char* str, Address pc) {
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, pc);
+  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*this, pc);
   class SourcePosition pos = info.position;
   if (info.deopt_reason != DeoptimizeReason::kUnknown || pos.IsKnown()) {
     PrintF(out, "%s", str);
     OFStream outstr(out);
-    pos.Print(outstr, this);
+    pos.Print(outstr, *this);
     PrintF(out, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
   }
 }
@@ -14650,7 +14650,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
 
   bool is_process_independent = true;
-  for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
+  for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||  \
     defined(V8_TARGET_ARCH_IA32)
@@ -14662,7 +14662,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       Address target_address = it.rinfo()->target_address();
       if (InstructionStream::PcIsOffHeap(isolate, target_address)) continue;
 
-      Code* target = Code::GetCodeFromTargetAddress(target_address);
+      Code target = Code::GetCodeFromTargetAddress(target_address);
       CHECK(target->IsCode());
       if (Builtins::IsIsolateIndependentBuiltin(target)) continue;
     }
@@ -14693,15 +14693,14 @@ Code::OptimizedCodeIterator::OptimizedCodeIterator(Isolate* isolate) {
   isolate_ = isolate;
   Object* list = isolate->heap()->native_contexts_list();
   next_context_ = list->IsUndefined(isolate_) ? nullptr : Context::cast(list);
-  current_code_ = nullptr;
 }
 
-Code* Code::OptimizedCodeIterator::Next() {
+Code Code::OptimizedCodeIterator::Next() {
   do {
     Object* next;
-    if (current_code_ != nullptr) {
+    if (!current_code_.is_null()) {
       // Get next code in the linked list.
-      next = Code::cast(current_code_)->next_code_link();
+      next = current_code_->next_code_link();
     } else if (next_context_ != nullptr) {
       // Linked list of code exhausted. Get list of next context.
       next = next_context_->OptimizedCodeListHead();
@@ -14711,13 +14710,12 @@ Code* Code::OptimizedCodeIterator::Next() {
                           : Context::cast(next_context);
     } else {
       // Exhausted contexts.
-      return nullptr;
+      return Code();
     }
-    current_code_ = next->IsUndefined(isolate_) ? nullptr : Code::cast(next);
-  } while (current_code_ == nullptr);
-  Code* code = Code::cast(current_code_);
-  DCHECK_EQ(Code::OPTIMIZED_FUNCTION, code->kind());
-  return code;
+    current_code_ = next->IsUndefined(isolate_) ? Code() : Code::cast(next);
+  } while (current_code_.is_null());
+  DCHECK_EQ(Code::OPTIMIZED_FUNCTION, current_code_->kind());
+  return current_code_;
 }
 
 #ifdef ENABLE_DISASSEMBLER
@@ -14964,9 +14962,9 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
 
 const char* Code::GetName(Isolate* isolate) const {
   if (is_stub()) {
-    return CodeStub::MajorName(CodeStub::GetMajorKey(this));
+    return CodeStub::MajorName(CodeStub::GetMajorKey(*this));
   } else if (kind() == BYTECODE_HANDLER) {
-    return isolate->interpreter()->LookupNameOfBytecodeHandler(this);
+    return isolate->interpreter()->LookupNameOfBytecodeHandler(*this);
   } else {
     // There are some handlers and ICs that we can also find names for with
     // Builtins::Lookup.
@@ -14991,7 +14989,7 @@ void Code::PrintBuiltinCode(Isolate* isolate, const char* name) {
 
 namespace {
 
-inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code* code,
+inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
                                  Address begin, size_t size,
                                  Address current_pc) {
   Address end = begin + size;
@@ -15011,7 +15009,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   Isolate* isolate = GetIsolate();
   os << "kind = " << Kind2String(kind()) << "\n";
   if (is_stub()) {
-    const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(this));
+    const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(*this));
     os << "major_key = " << (n == nullptr ? "null" : n) << "\n";
     os << "minor_key = " << CodeStub::MinorKeyFromKey(this->stub_key()) << "\n";
   }
@@ -15030,7 +15028,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   if (is_off_heap_trampoline()) {
     int trampoline_size = raw_instruction_size();
     os << "Trampoline (size = " << trampoline_size << ")\n";
-    DisassembleCodeRange(isolate, os, this, raw_instruction_start(),
+    DisassembleCodeRange(isolate, os, *this, raw_instruction_start(),
                          trampoline_size, current_pc);
     os << "\n";
   }
@@ -15046,7 +15044,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
     int code_size =
         Min(handler_offset, Min(safepoint_offset, constant_pool_offset));
     os << "Instructions (size = " << code_size << ")\n";
-    DisassembleCodeRange(isolate, os, this, InstructionStart(), code_size,
+    DisassembleCodeRange(isolate, os, *this, InstructionStart(), code_size,
                          current_pc);
 
     if (constant_pool_offset < size) {
@@ -15083,7 +15081,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   os << "\n";
 
   if (has_safepoint_info()) {
-    SafepointTable table(this);
+    SafepointTable table(*this);
     os << "Safepoints (size = " << table.size() << ")\n";
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
@@ -15110,7 +15108,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   }
 
   if (handler_table_offset() > 0) {
-    HandlerTable table(this);
+    HandlerTable table(*this);
     os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
     if (kind() == OPTIMIZED_FUNCTION) {
       table.HandlerTableReturnPrint(os);
@@ -15119,7 +15117,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   }
 
   os << "RelocInfo (size = " << relocation_size() << ")\n";
-  for (RelocIterator it(this); !it.done(); it.next()) {
+  for (RelocIterator it(*this); !it.done(); it.next()) {
     it.rinfo()->Print(isolate, os);
   }
   os << "\n";
@@ -15375,7 +15373,7 @@ bool DependentCode::MarkCodeForDeoptimization(
   for (int i = 0; i < count; i++) {
     MaybeObject obj = object_at(i);
     if (obj->IsCleared()) continue;
-    Code* code = Code::cast(obj->GetHeapObjectAssumeWeak());
+    Code code = Code::cast(obj->GetHeapObjectAssumeWeak());
     if (!code->marked_for_deoptimization()) {
       code->SetMarkedForDeoptimization(DependencyGroupName(group));
       marked = true;
@@ -18406,7 +18404,8 @@ double JSDate::CurrentTimeValue(Isolate* isolate) {
 
 
 // static
-Object* JSDate::GetField(Object* object, Smi index) {
+Object* JSDate::GetField(Object* object, Address smi_index) {
+  Smi index(smi_index);
   return JSDate::cast(object)->DoGetField(
       static_cast<FieldIndex>(index->value()));
 }

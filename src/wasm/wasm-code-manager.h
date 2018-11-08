@@ -362,7 +362,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Primitive for adding code to the native module. All code added to a native
   // module is owned by that module. Various callers get to decide on how the
-  // code is obtained (CodeDesc vs, as a point in time, Code*), the kind,
+  // code is obtained (CodeDesc vs, as a point in time, Code), the kind,
   // whether it has an index or is anonymous, etc.
   WasmCode* AddOwnedCode(uint32_t index, Vector<const byte> instructions,
                          uint32_t stack_slots, size_t safepoint_table_offset,

@@ -59,6 +59,12 @@ void ObjectPtr::ShortPrint(FILE* out) {
   return reinterpret_cast<Object*>(ptr())->ShortPrint(out);
 }
 
+void ObjectPtr::Print() { reinterpret_cast<Object*>(ptr())->Print(); }
+
+void ObjectPtr::Print(std::ostream& os) {
+  reinterpret_cast<Object*>(ptr())->Print(os);
+}
+
 OBJECT_CONSTRUCTORS_IMPL(HeapObjectPtr, ObjectPtr)
 
 #define TYPE_CHECK_FORWARDER(Type)                           \
@@ -84,8 +90,34 @@ WriteBarrierMode HeapObjectPtr::GetWriteBarrierMode(
   return UPDATE_WRITE_BARRIER;
 }
 
+ReadOnlyRoots HeapObjectPtr::GetReadOnlyRoots() const {
+  // TODO(v8:7464): When RO_SPACE is embedded, this will access a global
+  // variable instead.
+  return ReadOnlyRoots(MemoryChunk::FromHeapObject(*this)->heap());
+}
+
+int HeapObjectPtr::Size() const {
+  return reinterpret_cast<HeapObject*>(ptr())->Size();
+}
+int HeapObjectPtr::SizeFromMap(Map* map) const {
+  return reinterpret_cast<HeapObject*>(ptr())->SizeFromMap(map);
+}
+
 ObjectSlot HeapObjectPtr::RawField(int byte_offset) const {
   return ObjectSlot(FIELD_ADDR(this, byte_offset));
+}
+
+Heap* NeverReadOnlySpaceObjectPtr::GetHeap(const HeapObjectPtr object) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(object.ptr());
+  // Make sure we are not accessing an object in RO space.
+  SLOW_DCHECK(chunk->owner()->identity() != RO_SPACE);
+  Heap* heap = chunk->heap();
+  SLOW_DCHECK(heap != nullptr);
+  return heap;
+}
+
+Isolate* NeverReadOnlySpaceObjectPtr::GetIsolate(const HeapObjectPtr object) {
+  return GetHeap(object)->isolate();
 }
 
 }  // namespace internal

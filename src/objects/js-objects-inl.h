@@ -519,15 +519,15 @@ AbstractCode* JSFunction::abstract_code() {
   }
 }
 
-Code* JSFunction::code() { return Code::cast(READ_FIELD(this, kCodeOffset)); }
+Code JSFunction::code() { return Code::cast(READ_FIELD(this, kCodeOffset)); }
 
-void JSFunction::set_code(Code* value) {
+void JSFunction::set_code(Code value) {
   DCHECK(!Heap::InNewSpace(value));
   WRITE_FIELD(this, kCodeOffset, value);
   MarkingBarrier(this, HeapObject::RawField(this, kCodeOffset), value);
 }
 
-void JSFunction::set_code_no_write_barrier(Code* value) {
+void JSFunction::set_code_no_write_barrier(Code value) {
   DCHECK(!Heap::InNewSpace(value));
   WRITE_FIELD(this, kCodeOffset, value);
 }

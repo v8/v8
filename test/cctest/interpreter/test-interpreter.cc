@@ -5003,7 +5003,7 @@ TEST(InterpreterWithNativeStack) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
 
   CHECK(f->shared()->HasBytecodeArray());
-  i::Code* code = f->shared()->GetCode();
+  i::Code code = f->shared()->GetCode();
   i::Handle<i::Code> interpreter_entry_trampoline =
       BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
 
@@ -5019,24 +5019,24 @@ TEST(InterpreterGetBytecodeHandler) {
   Interpreter* interpreter = isolate->interpreter();
 
   // Test that single-width bytecode handlers deserializer correctly.
-  Code* wide_handler =
+  Code wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kSingle);
 
   CHECK_EQ(wide_handler->builtin_index(), Builtins::kWideHandler);
 
-  Code* add_handler =
+  Code add_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kSingle);
 
   CHECK_EQ(add_handler->builtin_index(), Builtins::kAddHandler);
 
   // Test that double-width bytecode handlers deserializer correctly, including
   // an illegal bytecode handler since there is no Wide.Wide handler.
-  Code* wide_wide_handler =
+  Code wide_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kDouble);
 
   CHECK_EQ(wide_wide_handler->builtin_index(), Builtins::kIllegalHandler);
 
-  Code* add_wide_handler =
+  Code add_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kDouble);
 
   CHECK_EQ(add_wide_handler->builtin_index(), Builtins::kAddWideHandler);

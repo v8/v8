@@ -244,7 +244,7 @@ class Serializer : public SerializerDeserializer {
   // of the serializer.  Initialize it on demand.
   void InitializeCodeAddressMap();
 
-  Code* CopyCode(Code* code);
+  Code CopyCode(Code code);
 
   void QueueDeferredObject(HeapObject* obj) {
     DCHECK(reference_map_.LookupReference(obj).is_back_reference());
@@ -324,13 +324,13 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                      ObjectSlot end) override;
   void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
-  void VisitEmbeddedPointer(Code* host, RelocInfo* target) override;
+  void VisitEmbeddedPointer(Code host, RelocInfo* target) override;
   void VisitExternalReference(Foreign* host, Address* p) override;
-  void VisitExternalReference(Code* host, RelocInfo* rinfo) override;
-  void VisitInternalReference(Code* host, RelocInfo* rinfo) override;
-  void VisitCodeTarget(Code* host, RelocInfo* target) override;
-  void VisitRuntimeEntry(Code* host, RelocInfo* reloc) override;
-  void VisitOffHeapTarget(Code* host, RelocInfo* target) override;
+  void VisitExternalReference(Code host, RelocInfo* rinfo) override;
+  void VisitInternalReference(Code host, RelocInfo* rinfo) override;
+  void VisitCodeTarget(Code host, RelocInfo* target) override;
+  void VisitRuntimeEntry(Code host, RelocInfo* reloc) override;
+  void VisitOffHeapTarget(Code host, RelocInfo* target) override;
   // Relocation info needs to be visited sorted by target_address_address.
   void VisitRelocInfo(RelocIterator* it) override;
 

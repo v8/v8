@@ -161,16 +161,20 @@ struct MachineTypeOf<Smi> {
   static constexpr MachineType value = MachineType::TaggedSigned();
 };
 template <class HeapObjectSubtype>
-struct MachineTypeOf<HeapObjectSubtype,
-                     typename std::enable_if<std::is_base_of<
-                         HeapObject, HeapObjectSubtype>::value>::type> {
+struct MachineTypeOf<
+    HeapObjectSubtype,
+    typename std::enable_if<
+        std::is_base_of<HeapObject, HeapObjectSubtype>::value ||
+        std::is_base_of<HeapObjectPtr, HeapObjectSubtype>::value>::type> {
   static constexpr MachineType value = MachineType::TaggedPointer();
 };
 
 template <class HeapObjectSubtype>
 constexpr MachineType MachineTypeOf<
-    HeapObjectSubtype, typename std::enable_if<std::is_base_of<
-                           HeapObject, HeapObjectSubtype>::value>::type>::value;
+    HeapObjectSubtype,
+    typename std::enable_if<
+        std::is_base_of<HeapObject, HeapObjectSubtype>::value ||
+        std::is_base_of<HeapObjectPtr, HeapObjectSubtype>::value>::type>::value;
 
 template <class Type, class Enable = void>
 struct MachineRepresentationOf {

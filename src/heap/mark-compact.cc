@@ -203,7 +203,7 @@ class FullMarkingVerifier : public MarkingVerifier {
     }
   }
 
-  void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     if (!host->IsWeakObject(rinfo->target_object())) {
       Object* p = rinfo->target_object();
@@ -1066,17 +1066,17 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
     }
   }
 
-  inline void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
+  inline void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-    Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
     DCHECK(!Heap::InNewSpace(target));
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
-  inline void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
+  inline void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     HeapObject* object = HeapObject::cast(rinfo->target_object());
@@ -1085,10 +1085,10 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
   }
 
   // Entries that are skipped for recording.
-  inline void VisitExternalReference(Code* host, RelocInfo* rinfo) final {}
+  inline void VisitExternalReference(Code host, RelocInfo* rinfo) final {}
   inline void VisitExternalReference(Foreign* host, Address* p) final {}
-  inline void VisitRuntimeEntry(Code* host, RelocInfo* rinfo) final {}
-  inline void VisitInternalReference(Code* host, RelocInfo* rinfo) final {}
+  inline void VisitRuntimeEntry(Code host, RelocInfo* rinfo) final {}
+  inline void VisitInternalReference(Code host, RelocInfo* rinfo) final {}
 
  protected:
   inline virtual void RecordMigratedSlot(HeapObject* host, MaybeObject value,
@@ -1683,7 +1683,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
       return;
     }
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
-      Code* code = it.frame()->LookupCode();
+      Code code = it.frame()->LookupCode();
       if (!code->CanDeoptAt(it.frame()->pc())) {
         Code::BodyDescriptor::IterateBody(code->map(), code, visitor);
       }
@@ -1885,11 +1885,11 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 }
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
-  std::pair<HeapObject*, Code*> weak_object_in_code;
+  std::pair<HeapObject*, Code> weak_object_in_code;
   while (weak_objects_.weak_objects_in_code.Pop(kMainThread,
                                                 &weak_object_in_code)) {
     HeapObject* object = weak_object_in_code.first;
-    Code* code = weak_object_in_code.second;
+    Code code = weak_object_in_code.second;
     if (!non_atomic_marking_state()->IsBlackOrGrey(object) &&
         !code->marked_for_deoptimization()) {
       code->SetMarkedForDeoptimization("weak objects");
@@ -2154,12 +2154,12 @@ bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {
   return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
 }
 
-void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
+void MarkCompactCollector::RecordRelocSlot(Code host, RelocInfo* rinfo,
                                            Object* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
-  Page* source_page = Page::FromAddress(reinterpret_cast<Address>(host));
+  Page* source_page = Page::FromAddress(host.ptr());
   if (target_page->IsEvacuationCandidate() &&
-      (rinfo->host() == nullptr ||
+      (rinfo->host().is_null() ||
        !source_page->ShouldSkipEvacuationSlotRecording())) {
     RelocInfo::Mode rmode = rinfo->rmode();
     Address addr = rinfo->pc();
@@ -2173,8 +2173,8 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
         slot_type = OBJECT_SLOT;
       }
     }
-    RememberedSet<OLD_TO_OLD>::InsertTyped(
-        source_page, reinterpret_cast<Address>(host), slot_type, addr);
+    RememberedSet<OLD_TO_OLD>::InsertTyped(source_page, host.ptr(), slot_type,
+                                           addr);
   }
 }
 
@@ -2272,12 +2272,12 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
     for (ObjectSlot p = start; p < end; ++p) UpdateStrongSlotInternal(p);
   }
 
-  void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     UpdateTypedSlotHelper::UpdateEmbeddedPointer(
         heap_, rinfo, UpdateStrongMaybeObjectSlotInternal);
   }
 
-  void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     UpdateTypedSlotHelper::UpdateCodeTarget(
         rinfo, UpdateStrongMaybeObjectSlotInternal);
   }
@@ -2689,7 +2689,7 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
 };
 
 // Return true if the given code is deoptimized or will be deoptimized.
-bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
+bool MarkCompactCollector::WillBeDeoptimized(Code code) {
   return code->is_optimized_code() && code->marked_for_deoptimization();
 }
 
@@ -3717,8 +3717,8 @@ class YoungGenerationRecordMigratedSlotVisitor final
       MarkCompactCollector* collector)
       : RecordMigratedSlotVisitor(collector) {}
 
-  void VisitCodeTarget(Code* host, RelocInfo* rinfo) final { UNREACHABLE(); }
-  void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final {
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) final { UNREACHABLE(); }
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
     UNREACHABLE();
   }
 

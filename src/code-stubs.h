@@ -108,7 +108,7 @@ class CodeStub : public ZoneObject {
   }
 
   // Gets the major key from a code object that is a code stub or binary op IC.
-  static Major GetMajorKey(const Code* code_stub);
+  static Major GetMajorKey(const Code code_stub);
 
   static uint32_t NoCacheKey() { return MajorKeyBits::encode(NoCache); }
 
@@ -128,7 +128,7 @@ class CodeStub : public ZoneObject {
   virtual bool SometimesSetsUpAFrame() { return true; }
 
   // Lookup the code in the (possibly custom) cache.
-  bool FindCodeInCache(Code** code_out);
+  bool FindCodeInCache(Code* code_out);
 
   virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() const = 0;
 
@@ -188,10 +188,6 @@ class CodeStub : public ZoneObject {
   // Perform bookkeeping required after code generation when stub code is
   // initially generated.
   void RecordCodeGeneration(Handle<Code> code);
-
-  // Activate newly generated stub. Is called after
-  // registering stub in the stub cache.
-  virtual void Activate(Code* code) { }
 
   // We use this dispatch to statically instantiate the correct code stub for
   // the given stub key and call the passed function with that code stub.

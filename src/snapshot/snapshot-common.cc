@@ -197,7 +197,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
 }
 
 namespace {
-bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code* code) {
+bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code code) {
   DCHECK(Builtins::IsIsolateIndependent(code->builtin_index()));
   switch (Builtins::KindOf(code->builtin_index())) {
     case Builtins::CPP:
@@ -241,7 +241,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   for (int i = 0; i < Builtins::builtin_count; i++) {
     if (!Builtins::IsIsolateIndependent(i)) continue;
 
-    Code* code = isolate->builtins()->builtin(i);
+    Code code = isolate->builtins()->builtin(i);
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
@@ -257,7 +257,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
 
       RelocInfo* rinfo = on_heap_it.rinfo();
       DCHECK_EQ(rinfo->rmode(), off_heap_it.rinfo()->rmode());
-      Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+      Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
       CHECK(Builtins::IsIsolateIndependentBuiltin(target));
 
       // Do not emit write-barrier for off-heap writes.
@@ -290,7 +290,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   bool saw_unsafe_builtin = false;
   uint32_t raw_data_size = 0;
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    Code* code = builtins->builtin(i);
+    Code code = builtins->builtin(i);
 
     if (Builtins::IsIsolateIndependent(i)) {
       // Sanity-check that the given builtin is isolate-independent and does not
@@ -348,7 +348,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   // Write the raw data section.
   for (int i = 0; i < Builtins::builtin_count; i++) {
     if (!Builtins::IsIsolateIndependent(i)) continue;
-    Code* code = builtins->builtin(i);
+    Code code = builtins->builtin(i);
     uint32_t offset = metadata[i].instructions_offset;
     uint8_t* dst = raw_data_start + offset;
     DCHECK_LE(RawDataOffset() + offset + code->raw_instruction_size(),

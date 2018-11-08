@@ -817,14 +817,14 @@ void Heap::ProcessPretenuringFeedback() {
   }
 }
 
-void Heap::InvalidateCodeEmbeddedObjects(Code* code) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());
+void Heap::InvalidateCodeEmbeddedObjects(Code code) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(code->ptr());
   CodePageMemoryModificationScope modification_scope(chunk);
   code->InvalidateEmbeddedObjects(this);
 }
 
-void Heap::InvalidateCodeDeoptimizationData(Code* code) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());
+void Heap::InvalidateCodeDeoptimizationData(Code code) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(code->ptr());
   CodePageMemoryModificationScope modification_scope(chunk);
   code->set_deoptimization_data(ReadOnlyRoots(this).empty_fixed_array());
 }
@@ -3532,6 +3532,11 @@ class SlotVerifyingVisitor : public ObjectVisitor {
       : untyped_(untyped), typed_(typed) {}
 
   virtual bool ShouldHaveBeenRecorded(HeapObject* host, MaybeObject target) = 0;
+  // TODO(3770): Drop this after the migration.
+  bool ShouldHaveBeenRecorded(Code host, MaybeObject target) {
+    return ShouldHaveBeenRecorded(reinterpret_cast<HeapObject*>(host.ptr()),
+                                  target);
+  }
 
   void VisitPointers(HeapObject* host, ObjectSlot start,
                      ObjectSlot end) override {
@@ -3552,7 +3557,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(
@@ -3562,7 +3567,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     Object* target = rinfo->target_object();
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(InTypedSet(EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
@@ -3672,11 +3677,9 @@ void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #endif
 }
 
-Code* Heap::builtin(int index) {
+Code Heap::builtin(int index) {
   DCHECK(Builtins::IsBuiltinId(index));
-  // Code::cast cannot be used here since we access builtins
-  // during the marking phase of mark sweep. See IC::Clear.
-  return reinterpret_cast<Code*>(isolate()->builtins_table()[index]);
+  return Code::cast(ObjectPtr(isolate()->builtins_table()[index]));
 }
 
 Address Heap::builtin_address(int index) {
@@ -3684,12 +3687,12 @@ Address Heap::builtin_address(int index) {
   return reinterpret_cast<Address>(&isolate()->builtins_table()[index]);
 }
 
-void Heap::set_builtin(int index, HeapObject* builtin) {
+void Heap::set_builtin(int index, Code builtin) {
   DCHECK(Builtins::IsBuiltinId(index));
-  DCHECK(Internals::HasHeapObjectTag(reinterpret_cast<Address>(builtin)));
+  DCHECK(Internals::HasHeapObjectTag(builtin.ptr()));
   // The given builtin may be completely uninitialized thus we cannot check its
   // type here.
-  isolate()->builtins_table()[index] = builtin;
+  isolate()->builtins_table()[index] = builtin.ptr();
 }
 
 void Heap::IterateRoots(RootVisitor* v, VisitMode mode) {
@@ -5478,16 +5481,16 @@ int GcSafeSizeOfCodeSpaceObject(HeapObject* object) {
   return object->SizeFromMap(GcSafeMapOfCodeSpaceObject(object));
 }
 
-Code* GcSafeCastToCode(Heap* heap, HeapObject* object, Address inner_pointer) {
-  Code* code = reinterpret_cast<Code*>(object);
-  DCHECK_NOT_NULL(code);
+Code GcSafeCastToCode(Heap* heap, HeapObject* object, Address inner_pointer) {
+  Code code = Code::unchecked_cast(object);
+  DCHECK(!code.is_null());
   DCHECK(heap->GcSafeCodeContains(code, inner_pointer));
   return code;
 }
 
 }  // namespace
 
-bool Heap::GcSafeCodeContains(HeapObject* code, Address addr) {
+bool Heap::GcSafeCodeContains(Code code, Address addr) {
   Map* map = GcSafeMapOfCodeSpaceObject(code);
   DCHECK(map == ReadOnlyRoots(this).code_map());
   if (InstructionStream::TryLookupCode(isolate(), addr) == code) return true;
@@ -5496,9 +5499,9 @@ bool Heap::GcSafeCodeContains(HeapObject* code, Address addr) {
   return start <= addr && addr < end;
 }
 
-Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
-  Code* code = InstructionStream::TryLookupCode(isolate(), inner_pointer);
-  if (code != nullptr) return code;
+Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
+  Code code = InstructionStream::TryLookupCode(isolate(), inner_pointer);
+  if (!code.is_null()) return code;
 
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = lo_space()->FindPage(inner_pointer);
@@ -5527,13 +5530,14 @@ Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
     HeapObject* obj = HeapObject::FromAddress(addr);
     int obj_size = GcSafeSizeOfCodeSpaceObject(obj);
     Address next_addr = addr + obj_size;
-    if (next_addr > inner_pointer)
+    if (next_addr > inner_pointer) {
       return GcSafeCastToCode(this, obj, inner_pointer);
+    }
     addr = next_addr;
   }
 }
 
-void Heap::WriteBarrierForCodeSlow(Code* code) {
+void Heap::WriteBarrierForCodeSlow(Code code) {
   for (RelocIterator it(code, RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
        !it.done(); it.next()) {
     GenerationalBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
@@ -5556,10 +5560,10 @@ void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray* array,
   }
 }
 
-void Heap::GenerationalBarrierForCodeSlow(Code* host, RelocInfo* rinfo,
+void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                           HeapObject* object) {
   DCHECK(InNewSpace(object));
-  Page* source_page = Page::FromAddress(reinterpret_cast<Address>(host));
+  Page* source_page = Page::FromAddress(host.ptr());
   RelocInfo::Mode rmode = rinfo->rmode();
   Address addr = rinfo->pc();
   SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
@@ -5572,8 +5576,8 @@ void Heap::GenerationalBarrierForCodeSlow(Code* host, RelocInfo* rinfo,
       slot_type = OBJECT_SLOT;
     }
   }
-  RememberedSet<OLD_TO_NEW>::InsertTyped(
-      source_page, reinterpret_cast<Address>(host), slot_type, addr);
+  RememberedSet<OLD_TO_NEW>::InsertTyped(source_page, host.ptr(), slot_type,
+                                         addr);
 }
 
 void Heap::MarkingBarrierSlow(HeapObject* object, Address slot,
@@ -5590,7 +5594,7 @@ void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject* object) {
   }
 }
 
-void Heap::MarkingBarrierForCodeSlow(Code* host, RelocInfo* rinfo,
+void Heap::MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                      HeapObject* object) {
   Heap* heap = Heap::FromWritableHeapObject(host);
   DCHECK(heap->incremental_marking()->IsMarking());

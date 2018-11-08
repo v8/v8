@@ -441,7 +441,7 @@ struct WeakObjects {
   // TODO(marja): For old space, we only need the slot, not the host
   // object. Optimize this by adding a different storage for old space.
   Worklist<std::pair<HeapObject*, HeapObjectSlot>, 64> weak_references;
-  Worklist<std::pair<HeapObject*, Code*>, 64> weak_objects_in_code;
+  Worklist<std::pair<HeapObject*, Code>, 64> weak_objects_in_code;
 
   Worklist<JSWeakCell*, 64> js_weak_cells;
 };
@@ -624,7 +624,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   static bool IsOnEvacuationCandidate(MaybeObject obj);
 
-  void RecordRelocSlot(Code* host, RelocInfo* rinfo, Object* target);
+  void RecordRelocSlot(Code host, RelocInfo* rinfo, Object* target);
   V8_INLINE static void RecordSlot(HeapObject* object, ObjectSlot slot,
                                    HeapObject* target);
   V8_INLINE static void RecordSlot(HeapObject* object, HeapObjectSlot slot,
@@ -669,7 +669,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     weak_objects_.weak_references.Push(kMainThread, std::make_pair(host, slot));
   }
 
-  void AddWeakObjectInCode(HeapObject* object, Code* code) {
+  void AddWeakObjectInCode(HeapObject* object, Code code) {
     weak_objects_.weak_objects_in_code.Push(kMainThread,
                                             std::make_pair(object, code));
   }
@@ -715,7 +715,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
 
-  bool WillBeDeoptimized(Code* code);
+  bool WillBeDeoptimized(Code code);
 
   void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
@@ -940,8 +940,8 @@ class MarkingVisitor final
                                ObjectSlot end) final;
   V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final;
-  V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
 
   // Weak list pointers should be ignored during marking. The lists are
   // reconstructed after GC.

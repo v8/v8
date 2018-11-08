@@ -132,46 +132,39 @@ class FrameWriter {
 };
 
 DeoptimizerData::DeoptimizerData(Heap* heap) : heap_(heap), current_(nullptr) {
-  for (int i = 0; i <= DeoptimizerData::kLastDeoptimizeKind; ++i) {
-    deopt_entry_code_[i] = nullptr;
-  }
-  Code** start = &deopt_entry_code_[0];
-  Code** end = &deopt_entry_code_[DeoptimizerData::kLastDeoptimizeKind + 1];
-  heap_->RegisterStrongRoots(ObjectSlot(reinterpret_cast<Address>(start)),
-                             ObjectSlot(reinterpret_cast<Address>(end)));
+  Code* start = &deopt_entry_code_[0];
+  Code* end = &deopt_entry_code_[DeoptimizerData::kLastDeoptimizeKind + 1];
+  heap_->RegisterStrongRoots(ObjectSlot(start), ObjectSlot(end));
 }
 
 
 DeoptimizerData::~DeoptimizerData() {
-  for (int i = 0; i <= DeoptimizerData::kLastDeoptimizeKind; ++i) {
-    deopt_entry_code_[i] = nullptr;
-  }
-  Code** start = &deopt_entry_code_[0];
-  heap_->UnregisterStrongRoots(ObjectSlot(reinterpret_cast<Address>(start)));
+  Code* start = &deopt_entry_code_[0];
+  heap_->UnregisterStrongRoots(ObjectSlot(start));
 }
 
-Code* DeoptimizerData::deopt_entry_code(DeoptimizeKind kind) {
+Code DeoptimizerData::deopt_entry_code(DeoptimizeKind kind) {
   return deopt_entry_code_[static_cast<int>(kind)];
 }
 
-void DeoptimizerData::set_deopt_entry_code(DeoptimizeKind kind, Code* code) {
+void DeoptimizerData::set_deopt_entry_code(DeoptimizeKind kind, Code code) {
   deopt_entry_code_[static_cast<int>(kind)] = code;
 }
 
-Code* Deoptimizer::FindDeoptimizingCode(Address addr) {
+Code Deoptimizer::FindDeoptimizingCode(Address addr) {
   if (function_->IsHeapObject()) {
     // Search all deoptimizing code in the native context of the function.
     Isolate* isolate = isolate_;
     Context* native_context = function_->context()->native_context();
     Object* element = native_context->DeoptimizedCodeListHead();
     while (!element->IsUndefined(isolate)) {
-      Code* code = Code::cast(element);
+      Code code = Code::cast(element);
       CHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
       if (code->contains(addr)) return code;
       element = code->next_code_link();
     }
   }
-  return nullptr;
+  return Code();
 }
 
 
@@ -241,8 +234,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm, int count,
 namespace {
 class ActivationsFinder : public ThreadVisitor {
  public:
-  explicit ActivationsFinder(std::set<Code*>* codes,
-                             Code* topmost_optimized_code,
+  explicit ActivationsFinder(std::set<Code>* codes, Code topmost_optimized_code,
                              bool safe_to_deopt_topmost_optimized_code)
       : codes_(codes) {
 #ifdef DEBUG
@@ -257,7 +249,7 @@ class ActivationsFinder : public ThreadVisitor {
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       if (it.frame()->type() == StackFrame::OPTIMIZED) {
-        Code* code = it.frame()->LookupCode();
+        Code code = it.frame()->LookupCode();
         if (code->kind() == Code::OPTIMIZED_FUNCTION &&
             code->marked_for_deoptimization()) {
           codes_->erase(code);
@@ -273,10 +265,10 @@ class ActivationsFinder : public ThreadVisitor {
   }
 
  private:
-  std::set<Code*>* codes_;
+  std::set<Code>* codes_;
 
 #ifdef DEBUG
-  Code* topmost_;
+  Code topmost_;
   bool safe_to_deopt_;
 #endif
 };
@@ -288,7 +280,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   DisallowHeapAllocation no_allocation;
 
   Isolate* isolate = context->GetHeap()->isolate();
-  Code* topmost_optimized_code = nullptr;
+  Code topmost_optimized_code;
   bool safe_to_deopt_topmost_optimized_code = false;
 #ifdef DEBUG
   // Make sure all activations of optimized code can deopt at their current PC.
@@ -298,7 +290,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
        !it.done(); it.Advance()) {
     StackFrame::Type type = it.frame()->type();
     if (type == StackFrame::OPTIMIZED) {
-      Code* code = it.frame()->LookupCode();
+      Code code = it.frame()->LookupCode();
       JSFunction* function =
           static_cast<OptimizedFrame*>(it.frame())->function();
       if (FLAG_trace_deopt) {
@@ -315,9 +307,9 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       bool safe_if_deopt_triggered =
           deopt_index != Safepoint::kNoDeoptimizationIndex;
       bool is_builtin_code = code->kind() == Code::BUILTIN;
-      DCHECK(topmost_optimized_code == nullptr || safe_if_deopt_triggered ||
+      DCHECK(topmost_optimized_code.is_null() || safe_if_deopt_triggered ||
              is_builtin_code);
-      if (topmost_optimized_code == nullptr) {
+      if (topmost_optimized_code.is_null()) {
         topmost_optimized_code = code;
         safe_to_deopt_topmost_optimized_code = safe_if_deopt_triggered;
       }
@@ -327,14 +319,14 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 
   // We will use this set to mark those Code objects that are marked for
   // deoptimization and have not been found in stack frames.
-  std::set<Code*> codes;
+  std::set<Code> codes;
 
   // Move marked code from the optimized code list to the deoptimized code list.
   // Walk over all optimized code objects in this native context.
-  Code* prev = nullptr;
+  Code prev;
   Object* element = context->OptimizedCodeListHead();
   while (!element->IsUndefined(isolate)) {
-    Code* code = Code::cast(element);
+    Code code = Code::cast(element);
     CHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
     Object* next = code->next_code_link();
 
@@ -343,7 +335,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       isolate->heap()->InvalidateCodeEmbeddedObjects(code);
       codes.insert(code);
 
-      if (prev != nullptr) {
+      if (!prev.is_null()) {
         // Skip this code in the optimized code list.
         prev->set_next_code_link(next);
       } else {
@@ -373,7 +365,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   // If there's no activation of a code in any stack then we can remove its
   // deoptimization data. We do this to ensure that code objects that are
   // unlinked don't transitively keep objects alive unnecessarily.
-  for (Code* code : codes) {
+  for (Code code : codes) {
     isolate->heap()->InvalidateCodeDeoptimizationData(code);
   }
 }
@@ -424,20 +416,20 @@ void Deoptimizer::MarkAllCodeForContext(Context* context) {
   Object* element = context->OptimizedCodeListHead();
   Isolate* isolate = context->GetIsolate();
   while (!element->IsUndefined(isolate)) {
-    Code* code = Code::cast(element);
+    Code code = Code::cast(element);
     CHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
     code->set_marked_for_deoptimization(true);
     element = code->next_code_link();
   }
 }
 
-void Deoptimizer::DeoptimizeFunction(JSFunction* function, Code* code) {
+void Deoptimizer::DeoptimizeFunction(JSFunction* function, Code code) {
   Isolate* isolate = function->GetIsolate();
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  if (code == nullptr) code = function->code();
+  if (code.is_null()) code = function->code();
 
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     // Mark the code for deoptimization and unlink any functions that also
@@ -539,11 +531,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   input_ = new (size) FrameDescription(size, parameter_count);
 }
 
-Code* Deoptimizer::FindOptimizedCode() {
-  Code* compiled_code = FindDeoptimizingCode(from_);
-  return (compiled_code == nullptr)
-             ? static_cast<Code*>(isolate_->FindCodeObject(from_))
-             : compiled_code;
+Code Deoptimizer::FindOptimizedCode() {
+  Code compiled_code = FindDeoptimizingCode(from_);
+  return !compiled_code.is_null() ? compiled_code
+                                  : isolate_->FindCodeObject(from_);
 }
 
 
@@ -592,8 +583,8 @@ Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate, int id,
   if (id >= kMaxNumberOfEntries) return kNullAddress;
   DeoptimizerData* data = isolate->deoptimizer_data();
   CHECK_LE(kind, DeoptimizerData::kLastDeoptimizeKind);
-  CHECK_NOT_NULL(data->deopt_entry_code(kind));
-  Code* code = data->deopt_entry_code(kind);
+  CHECK(!data->deopt_entry_code(kind).is_null());
+  Code code = data->deopt_entry_code(kind);
   return code->raw_instruction_start() + (id * table_entry_size_);
 }
 
@@ -602,7 +593,7 @@ int Deoptimizer::GetDeoptimizationId(Isolate* isolate, Address addr,
   DeoptimizerData* data = isolate->deoptimizer_data();
   CHECK_LE(kind, DeoptimizerData::kLastDeoptimizeKind);
   DCHECK(IsInDeoptimizationTable(isolate, addr, kind));
-  Code* code = data->deopt_entry_code(kind);
+  Code code = data->deopt_entry_code(kind);
   Address start = code->raw_instruction_start();
   DCHECK_EQ(0,
             static_cast<int>(addr - start) % table_entry_size_);
@@ -613,8 +604,8 @@ bool Deoptimizer::IsInDeoptimizationTable(Isolate* isolate, Address addr,
                                           DeoptimizeKind type) {
   DeoptimizerData* data = isolate->deoptimizer_data();
   CHECK_LE(type, DeoptimizerData::kLastDeoptimizeKind);
-  Code* code = data->deopt_entry_code(type);
-  if (code == nullptr) return false;
+  Code code = data->deopt_entry_code(type);
+  if (code.is_null()) return false;
   Address start = code->raw_instruction_start();
   return ((table_entry_size_ == 0 && addr == start) ||
           (addr >= start &&
@@ -646,7 +637,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
     Context* native_context = Context::cast(context);
     Object* element = native_context->DeoptimizedCodeListHead();
     while (!element->IsUndefined(isolate)) {
-      Code* code = Code::cast(element);
+      Code code = Code::cast(element);
       DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
       if (!code->marked_for_deoptimization()) {
         length++;
@@ -1029,7 +1020,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // bailout handlers also advance the bytecode offset before dispatch, hence
   // simulating what normal handlers do upon completion of the operation.
   Builtins* builtins = isolate_->builtins();
-  Code* dispatch_builtin =
+  Code dispatch_builtin =
       (!is_topmost || (deopt_kind_ == DeoptimizeKind::kLazy)) &&
               !goto_catch_handler
           ? builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance)
@@ -1057,7 +1048,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
     // Set the continuation for the topmost frame.
-    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
+    Code continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation->InstructionStart()));
   }
@@ -1152,7 +1143,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   DCHECK_EQ(0, frame_writer.top_offset());
 
   Builtins* builtins = isolate_->builtins();
-  Code* adaptor_trampoline =
+  Code adaptor_trampoline =
       builtins->builtin(Builtins::kArgumentsAdaptorTrampoline);
   intptr_t pc_value = static_cast<intptr_t>(
       adaptor_trampoline->InstructionStart() +
@@ -1175,7 +1166,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   CHECK(!is_topmost || deopt_kind_ == DeoptimizeKind::kLazy);
 
   Builtins* builtins = isolate_->builtins();
-  Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
+  Code construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
   BailoutId bailout_id = translated_frame->node_id();
   unsigned height = translated_frame->height();
   unsigned parameter_count = height - 1;  // Exclude the context.
@@ -1334,7 +1325,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   if (is_topmost) {
     Builtins* builtins = isolate_->builtins();
     DCHECK_EQ(DeoptimizeKind::kLazy, deopt_kind_);
-    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
+    Code continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation->InstructionStart()));
   }
@@ -1466,7 +1457,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   BailoutId bailout_id = translated_frame->node_id();
   Builtins::Name builtin_name = Builtins::GetBuiltinFromBailoutId(bailout_id);
-  Code* builtin = isolate()->builtins()->builtin(builtin_name);
+  Code builtin = isolate()->builtins()->builtin(builtin_name);
   Callable continuation_callable =
       Builtins::CallableFor(isolate(), builtin_name);
   CallInterfaceDescriptor continuation_descriptor =
@@ -1725,12 +1716,12 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   Register fp_reg = JavaScriptFrame::fp_register();
   output_frame->SetRegister(fp_reg.code(), fp_value);
 
-  Code* continue_to_builtin = isolate()->builtins()->builtin(
+  Code continue_to_builtin = isolate()->builtins()->builtin(
       TrampolineForBuiltinContinuation(mode, must_handle_result));
   output_frame->SetPc(
       static_cast<intptr_t>(continue_to_builtin->InstructionStart()));
 
-  Code* continuation =
+  Code continuation =
       isolate()->builtins()->builtin(Builtins::kNotifyDeoptimized);
   output_frame->SetContinuation(
       static_cast<intptr_t>(continuation->InstructionStart()));
@@ -1824,7 +1815,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   CHECK(kind == DeoptimizeKind::kEager || kind == DeoptimizeKind::kSoft ||
         kind == DeoptimizeKind::kLazy);
   DeoptimizerData* data = isolate->deoptimizer_data();
-  if (data->deopt_entry_code(kind) != nullptr) return;
+  if (!data->deopt_entry_code(kind).is_null()) return;
 
   MacroAssembler masm(isolate, nullptr, 16 * KB, CodeObjectRequired::kYes);
   masm.set_emit_debug_code(false);
@@ -1840,7 +1831,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
       MaybeHandle<ByteArray>(), MaybeHandle<DeoptimizationData>(), kImmovable);
   CHECK(Heap::IsImmovable(*code));
 
-  CHECK_NULL(data->deopt_entry_code(kind));
+  CHECK(data->deopt_entry_code(kind).is_null());
   data->set_deopt_entry_code(kind, *code);
 }
 
@@ -2288,8 +2279,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
   CHECK(stack_it == frame_it->end());
 }
 
-
-Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
+Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
   CHECK(code->InstructionStart() <= pc && pc <= code->InstructionEnd());
   SourcePosition last_position = SourcePosition::Unknown();
   DeoptimizeReason last_reason = DeoptimizeReason::kUnknown;

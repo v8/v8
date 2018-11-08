@@ -923,9 +923,9 @@ class JSFunction : public JSObject {
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
-  inline Code* code();
-  inline void set_code(Code* code);
-  inline void set_code_no_write_barrier(Code* code);
+  inline Code code();
+  inline void set_code(Code code);
+  inline void set_code_no_write_barrier(Code code);
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -1223,7 +1223,8 @@ class JSDate : public JSObject {
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.
-  static Object* GetField(Object* date, Smi index);
+  // {smi_index} is a raw Address because this is called via ExternalReference.
+  static Object* GetField(Object* date, Address smi_index);
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 

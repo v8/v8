@@ -75,16 +75,15 @@ int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
 
 }  // namespace
 
-Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
-                                      OperandScale operand_scale) {
+Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
+                                     OperandScale operand_scale) {
   int builtin_index = BuiltinIndexFromBytecode(bytecode, operand_scale);
   Builtins* builtins = isolate_->builtins();
   return builtins->builtin(builtin_index);
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
-                                     OperandScale operand_scale,
-                                     Code* handler) {
+                                     OperandScale operand_scale, Code handler) {
   DCHECK(handler->kind() == Code::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
   dispatch_table_[index] = handler->InstructionStart();
@@ -117,17 +116,19 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
 
   for (int i = 0; i < kDispatchTableSize; i++) {
     Address code_entry = dispatch_table_[i];
-
     // Skip over off-heap bytecode handlers since they will never move.
     if (InstructionStream::PcIsOffHeap(isolate_, code_entry)) continue;
 
-    Object* code = code_entry == kNullAddress
-                       ? nullptr
-                       : Code::GetCodeFromTargetAddress(code_entry);
-    Object* old_code = code;
+    // TODO(jkummerow): Would it hurt to simply do:
+    // if (code_entry == kNullAddress) continue;
+    Code code;
+    if (code_entry != kNullAddress) {
+      code = Code::GetCodeFromTargetAddress(code_entry);
+    }
+    Code old_code = code;
     v->VisitRootPointer(Root::kDispatchTable, nullptr, ObjectSlot(&code));
     if (code != old_code) {
-      dispatch_table_[i] = reinterpret_cast<Code*>(code)->entry();
+      dispatch_table_[i] = code->entry();
     }
   }
 }
@@ -252,11 +253,11 @@ void Interpreter::ForEachBytecode(
 
 void Interpreter::InitializeDispatchTable() {
   Builtins* builtins = isolate_->builtins();
-  Code* illegal = builtins->builtin(Builtins::kIllegalHandler);
+  Code illegal = builtins->builtin(Builtins::kIllegalHandler);
   int builtin_id = Builtins::kFirstBytecodeHandler;
   ForEachBytecode([=, &builtin_id](Bytecode bytecode,
                                    OperandScale operand_scale) {
-    Code* handler = illegal;
+    Code handler = illegal;
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
 #ifdef DEBUG
       std::string builtin_name(Builtins::name(builtin_id));
@@ -285,7 +286,7 @@ bool Interpreter::IsDispatchTableInitialized() const {
   return dispatch_table_[0] != kNullAddress;
 }
 
-const char* Interpreter::LookupNameOfBytecodeHandler(const Code* code) {
+const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
 #ifdef ENABLE_DISASSEMBLER
 #define RETURN_NAME(Name, ...)                                 \
   if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == \

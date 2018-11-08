@@ -700,18 +700,6 @@ struct CodeDesc {
   Assembler* origin;
 };
 
-
-// Callback function used for checking constraints when copying/relocating
-// objects. Returns true if an object can be copied/relocated from its
-// old_addr to a new_addr.
-typedef bool (*ConstraintCallback)(Address new_addr, Address old_addr);
-
-
-// Callback function on inline caches, used for iterating over inline caches
-// in compiled code.
-typedef void (*InlineCacheCallback)(Code* code, Address ic);
-
-
 // State for inline cache call sites. Aliased as IC::State.
 enum InlineCacheState {
   // Has never been executed.

@@ -444,7 +444,7 @@ static void TraceTopFrame(Isolate* isolate) {
   }
   StackFrame* raw_frame = it.frame();
   if (raw_frame->is_internal()) {
-    Code* current_code_object =
+    Code current_code_object =
         isolate->heap()->GcSafeFindCodeForInnerPointer(raw_frame->pc());
     if (current_code_object->builtin_index() ==
         Builtins::kFunctionPrototypeApply) {

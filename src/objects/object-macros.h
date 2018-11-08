@@ -18,9 +18,9 @@
 
 // Since this changes visibility, it should always be last in a class
 // definition.
-#define OBJECT_CONSTRUCTORS(Type)                 \
+#define OBJECT_CONSTRUCTORS(Type, Super)          \
  public:                                          \
-  inline constexpr Type();                        \
+  constexpr Type() : Super() {}                   \
   Type* operator->() { return this; }             \
   const Type* operator->() const { return this; } \
                                                   \
@@ -28,8 +28,19 @@
   explicit inline Type(Address ptr);
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
-  inline constexpr Type::Type() : Super() {}  \
   inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type()); }
+
+#define NEVER_READ_ONLY_SPACE   \
+  inline Heap* GetHeap() const; \
+  inline Isolate* GetIsolate() const;
+
+#define NEVER_READ_ONLY_SPACE_IMPL(Type)                   \
+  Heap* Type::GetHeap() const {                            \
+    return NeverReadOnlySpaceObjectPtr::GetHeap(*this);    \
+  }                                                        \
+  Isolate* Type::GetIsolate() const {                      \
+    return NeverReadOnlySpaceObjectPtr::GetIsolate(*this); \
+  }
 
 #define DECL_PRIMITIVE_ACCESSORS(name, type) \
   inline type name() const;                  \
@@ -71,7 +82,8 @@
 #define DECL_CAST2(Type)                                  \
   V8_INLINE static Type cast(Object* object);             \
   V8_INLINE static const Type cast(const Object* object); \
-  V8_INLINE static Type cast(ObjectPtr object);
+  V8_INLINE static Type cast(ObjectPtr object);           \
+  V8_INLINE static Type unchecked_cast(const Object* object);
 
 #define CAST_ACCESSOR(type)                       \
   type* type::cast(Object* object) {              \
@@ -88,7 +100,10 @@
 #define CAST_ACCESSOR2(Type)                                                  \
   Type Type::cast(Object* object) { return Type(object->ptr()); }             \
   const Type Type::cast(const Object* object) { return Type(object->ptr()); } \
-  Type Type::cast(ObjectPtr object) { return Type(object.ptr()); }
+  Type Type::cast(ObjectPtr object) { return Type(object.ptr()); }            \
+  Type Type::unchecked_cast(const Object* object) {                           \
+    return bit_cast<Type>(ObjectPtr(object->ptr()));                          \
+  }
 
 #define INT_ACCESSORS(holder, name, offset)                         \
   int holder::name() const { return READ_INT_FIELD(this, offset); } \
@@ -133,6 +148,16 @@
 
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
+
+// Replacement for the above, temporarily separate to allow incremental
+// transition.
+// TODO(3770): Get rid of the duplication when the migration is complete.
+#define ACCESSORS2(holder, name, type, offset)                               \
+  type holder::name() const { return type::cast(READ_FIELD(this, offset)); } \
+  void holder::set_##name(type value, WriteBarrierMode mode) {               \
+    WRITE_FIELD(this, offset, value);                                        \
+    CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);                    \
+  }
 
 #define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,   \
                                         get_condition, set_condition) \

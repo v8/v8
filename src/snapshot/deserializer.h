@@ -72,7 +72,7 @@ class Deserializer : public SerializerDeserializer {
   const std::vector<AllocationSite*>& new_allocation_sites() const {
     return new_allocation_sites_;
   }
-  const std::vector<Code*>& new_code_objects() const {
+  const std::vector<Code>& new_code_objects() const {
     return new_code_objects_;
   }
   const std::vector<AccessorInfo*>& accessor_infos() const {
@@ -141,7 +141,7 @@ class Deserializer : public SerializerDeserializer {
   ExternalReferenceTable* external_reference_table_;
 
   std::vector<AllocationSite*> new_allocation_sites_;
-  std::vector<Code*> new_code_objects_;
+  std::vector<Code> new_code_objects_;
   std::vector<AccessorInfo*> accessor_infos_;
   std::vector<CallHandlerInfo*> call_handler_infos_;
   std::vector<Handle<String>> new_internalized_strings_;

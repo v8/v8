@@ -792,7 +792,7 @@ class ContextInitializer {
   v8::Local<v8::Context> env_;
 };
 
-static ArchRegExpMacroAssembler::Result Execute(Code* code, String* input,
+static ArchRegExpMacroAssembler::Result Execute(Code code, String* input,
                                                 int start_offset,
                                                 Address input_start,
                                                 Address input_end,

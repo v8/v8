@@ -87,8 +87,8 @@ void Builtins::TearDown() { initialized_ = false; }
 const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
   if (FLAG_embedded_builtins) {
-    Code* maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
-    if (maybe_builtin != nullptr) return name(maybe_builtin->builtin_index());
+    Code maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
+    if (!maybe_builtin.is_null()) return name(maybe_builtin->builtin_index());
   }
 
   // May be called during initialization (disassembler).
@@ -134,16 +134,16 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   UNREACHABLE();
 }
 
-void Builtins::set_builtin(int index, HeapObject* builtin) {
+void Builtins::set_builtin(int index, Code builtin) {
   isolate_->heap()->set_builtin(index, builtin);
 }
 
-Code* Builtins::builtin(int index) { return isolate_->heap()->builtin(index); }
+Code Builtins::builtin(int index) { return isolate_->heap()->builtin(index); }
 
 Handle<Code> Builtins::builtin_handle(int index) {
   DCHECK(IsBuiltinId(index));
   return Handle<Code>(
-      reinterpret_cast<Code**>(isolate_->heap()->builtin_address(index)));
+      reinterpret_cast<Address*>(isolate_->heap()->builtin_address(index)));
 }
 
 // static
@@ -192,7 +192,7 @@ Address Builtins::CppEntryOf(int index) {
 }
 
 // static
-bool Builtins::IsBuiltin(const Code* code) {
+bool Builtins::IsBuiltin(const Code code) {
   return Builtins::IsBuiltinId(code->builtin_index());
 }
 
@@ -210,7 +210,7 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
 }
 
 // static
-bool Builtins::IsIsolateIndependentBuiltin(const Code* code) {
+bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
   if (FLAG_embedded_builtins) {
     const int builtin_index = code->builtin_index();
     return Builtins::IsBuiltinId(builtin_index) &&

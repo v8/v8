@@ -1108,11 +1108,11 @@ void V8HeapExplorer::ExtractAccessorPairReferences(HeapEntry* entry,
                        AccessorPair::kSetterOffset);
 }
 
-void V8HeapExplorer::TagBuiltinCodeObject(Code* code, const char* name) {
+void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
   TagObject(code, names_->GetFormatted("(%s builtin)", name));
 }
 
-void V8HeapExplorer::TagCodeObject(Code* code) {
+void V8HeapExplorer::TagCodeObject(Code code) {
   if (code->kind() == Code::STUB) {
     TagObject(code, names_->GetFormatted(
                         "(%s code)",
@@ -1120,7 +1120,7 @@ void V8HeapExplorer::TagCodeObject(Code* code) {
   }
 }
 
-void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code* code) {
+void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
   TagCodeObject(code);
   TagObject(code->relocation_info(), "(code relocation info)");
   SetInternalReference(entry, "relocation_info", code->relocation_info(),

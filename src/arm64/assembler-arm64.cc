@@ -4790,7 +4790,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
   if (!ShouldRecordRelocInfo(rmode)) return;
 
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
 
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
   reloc_info_writer.Write(&rinfo);
@@ -4893,7 +4893,7 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
   RelocInfo rinfo(reinterpret_cast<Address>(buffer_) + location_offset,
-                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), nullptr);
+                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), Code());
   reloc_info_writer.Write(&rinfo);
 }
 

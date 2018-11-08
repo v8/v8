@@ -1580,7 +1580,7 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
 }
 
 void Code::CodePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "Code");
+  PrintHeader(os, "Code");
   os << "\n";
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_use_verbose_printer) {
@@ -2564,7 +2564,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
     return;
   }
 
-  i::Code* code = isolate->FindCodeObject(address);
+  i::Code code = isolate->FindCodeObject(address);
   if (!code->IsCode()) {
     i::PrintF("No code object found containing %p\n", object);
     return;

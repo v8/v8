@@ -1473,7 +1473,7 @@ Object* Isolate::UnwindAndFindHandler() {
         thread_local_top()->handler_ = handler->next()->address();
 
         // Gather information from the handler.
-        Code* code = frame->LookupCode();
+        Code code = frame->LookupCode();
         HandlerTable table(code);
         return FoundHandler(nullptr, code->InstructionStart(),
                             table.LookupReturn(0), code->constant_pool(),
@@ -1524,7 +1524,7 @@ Object* Isolate::UnwindAndFindHandler() {
                             stack_slots * kPointerSize;
 
         // Gather information from the frame.
-        Code* code = frame->LookupCode();
+        Code code = frame->LookupCode();
 
         // TODO(bmeurer): Turbofanned BUILTIN frames appear as OPTIMIZED,
         // but do not have a code kind of OPTIMIZED_FUNCTION.
@@ -1545,7 +1545,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // Some stubs are able to handle exceptions.
         if (!catchable_by_js) break;
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
-        Code* code = stub_frame->LookupCode();
+        Code code = stub_frame->LookupCode();
         if (!code->IsCode() || code->kind() != Code::BUILTIN ||
             !code->handler_table_offset() || !code->is_turbofanned()) {
           break;
@@ -1592,7 +1592,7 @@ Object* Isolate::UnwindAndFindHandler() {
             Context::cast(js_frame->ReadInterpreterRegister(context_reg));
         js_frame->PatchBytecodeOffset(static_cast<int>(offset));
 
-        Code* code =
+        Code code =
             builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
         return FoundHandler(context, code->InstructionStart(), 0,
                             code->constant_pool(), return_sp, frame->fp());
@@ -1626,7 +1626,7 @@ Object* Isolate::UnwindAndFindHandler() {
 
         // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
-        Code* code = js_frame->LookupCode();
+        Code code = js_frame->LookupCode();
         return FoundHandler(nullptr, code->InstructionStart(), 0,
                             code->constant_pool(), return_sp, frame->fp());
       } break;
@@ -2328,7 +2328,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
     if (frame->is_java_script()) {
       catch_prediction = PredictException(JavaScriptFrame::cast(frame));
     } else if (frame->type() == StackFrame::STUB) {
-      Code* code = frame->LookupCode();
+      Code code = frame->LookupCode();
       if (!code->IsCode() || code->kind() != Code::BUILTIN ||
           !code->handler_table_offset() || !code->is_turbofanned()) {
         continue;
@@ -3005,7 +3005,7 @@ void PrintBuiltinSizes(Isolate* isolate) {
   for (int i = 0; i < Builtins::builtin_count; i++) {
     const char* name = builtins->name(i);
     const char* kind = Builtins::KindNameOf(i);
-    Code* code = builtins->builtin(i);
+    Code code = builtins->builtin(i);
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, name, code->InstructionSize());
   }
 }
@@ -3801,7 +3801,7 @@ int Isolate::GenerateIdentityHash(uint32_t mask) {
   return hash != 0 ? hash : 1;
 }
 
-Code* Isolate::FindCodeObject(Address a) {
+Code Isolate::FindCodeObject(Address a) {
   return heap()->GcSafeFindCodeForInnerPointer(a);
 }
 

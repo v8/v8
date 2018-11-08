@@ -1576,7 +1576,7 @@ int HeapObject::SizeFromMap(Map* map) const {
         reinterpret_cast<const PreParsedScopeData*>(this)->length());
   }
   DCHECK(instance_type == CODE_TYPE);
-  return reinterpret_cast<const Code*>(this)->CodeSize();
+  return Code::unchecked_cast(this)->CodeSize();
 }
 
 

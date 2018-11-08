@@ -582,7 +582,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
-    return reinterpret_cast<Code*>(object)->CodeSize();
+    return Code::unchecked_cast(object)->CodeSize();
   }
 };
 

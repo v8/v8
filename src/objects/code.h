@@ -8,6 +8,7 @@
 #include "src/handler-table.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -25,8 +26,9 @@ class Register;
 }
 
 // Code describes objects with on-the-fly generated machine code.
-class Code : public HeapObject, public NeverReadOnlySpaceObject {
+class Code : public HeapObjectPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
   typedef uint32_t Flags;
@@ -212,7 +214,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
                                bool is_off_heap_trampoline);
 
   // Convert a target address into a code object.
-  static inline Code* GetCodeFromTargetAddress(Address address);
+  static inline Code GetCodeFromTargetAddress(Address address);
 
   // Convert an entry address into an object.
   static inline Object* GetObjectFromEntryAddress(Address location_of_address);
@@ -327,7 +329,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // the layout of the code object into account.
   inline int ExecutableSize() const;
 
-  DECL_CAST(Code)
+  DECL_CAST2(Code)
 
   // Dispatched behavior.
   inline int CodeSize() const;
@@ -359,19 +361,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // Return true if the function is inlined in the code.
   bool Inlines(SharedFunctionInfo* sfi);
 
-  class OptimizedCodeIterator {
-   public:
-    explicit OptimizedCodeIterator(Isolate* isolate);
-    Code* Next();
-
-   private:
-    Context* next_context_;
-    Code* current_code_;
-    Isolate* isolate_;
-
-    DISALLOW_HEAP_ALLOCATION(no_gc);
-    DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator)
-  };
+  class OptimizedCodeIterator;
 
   static const int kConstantPoolSize =
       FLAG_enable_embedded_constant_pool ? kIntSize : 0;
@@ -449,7 +439,21 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   bool is_promise_rejection() const;
   bool is_exception_caught() const;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
+  OBJECT_CONSTRUCTORS(Code, HeapObjectPtr);
+};
+
+class Code::OptimizedCodeIterator {
+ public:
+  explicit OptimizedCodeIterator(Isolate* isolate);
+  Code Next();
+
+ private:
+  Context* next_context_;
+  Code current_code_;
+  Isolate* isolate_;
+
+  DISALLOW_HEAP_ALLOCATION(no_gc);
+  DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator)
 };
 
 // CodeDataContainer is a container for all mutable fields associated with its
@@ -552,7 +556,7 @@ class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
   inline int ExecutableSize();
 
   DECL_CAST(AbstractCode)
-  inline Code* GetCode();
+  inline Code GetCode();
   inline BytecodeArray* GetBytecodeArray();
 
   // Max loop nesting marker used to postpose OSR. We don't take loop

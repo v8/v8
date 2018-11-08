@@ -32,6 +32,10 @@ class ObjectPtr {
   bool operator!=(const ObjectPtr other) const {
     return this->ptr() != other.ptr();
   }
+  // Usage in std::set requires operator<.
+  bool operator<(const ObjectPtr other) const {
+    return this->ptr() < other.ptr();
+  }
 
   // Returns the tagged "(heap) object pointer" representation of this object.
   constexpr Address ptr() const { return ptr_; }
@@ -65,8 +69,11 @@ class ObjectPtr {
 #endif
 
   inline void ShortPrint(FILE* out = stdout);
+  inline void Print();
+  inline void Print(std::ostream& os);
 
  private:
+  friend class ObjectSlot;
   Address ptr_;
 };
 
@@ -86,8 +93,12 @@ class HeapObjectPtr : public ObjectPtr {
     return reinterpret_cast<const HeapObject*>(ptr());
   }
 
+  bool is_null() const { return ptr() == kNullAddress; }
+
   bool IsHeapObject() const { return true; }
   bool IsHeapObjectPtr() const { return true; }
+
+  inline ReadOnlyRoots GetReadOnlyRoots() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
@@ -95,6 +106,9 @@ class HeapObjectPtr : public ObjectPtr {
 
   // Untagged aligned address.
   inline Address address() const { return ptr() - kHeapObjectTag; }
+
+  inline int Size() const;
+  inline int SizeFromMap(Map* map) const;
 
   inline ObjectSlot RawField(int byte_offset) const;
 
@@ -104,7 +118,22 @@ class HeapObjectPtr : public ObjectPtr {
 
   static const int kMapOffset = HeapObject::kMapOffset;
 
-  OBJECT_CONSTRUCTORS(HeapObjectPtr)
+  OBJECT_CONSTRUCTORS(HeapObjectPtr, ObjectPtr)
+};
+
+// Replacement for NeverReadOnlySpaceObject, temporarily separate for
+// incremental transition.
+// Helper class for objects that can never be in RO space.
+// TODO(leszeks): Add checks in the factory that we never allocate these objects
+// in RO space.
+// TODO(3770): Get rid of the duplication.
+class NeverReadOnlySpaceObjectPtr {
+ public:
+  // The Heap the object was allocated in. Used also to access Isolate.
+  static inline Heap* GetHeap(const HeapObjectPtr object);
+
+  // Convenience method to get current isolate.
+  static inline Isolate* GetIsolate(const HeapObjectPtr object);
 };
 
 }  // namespace internal

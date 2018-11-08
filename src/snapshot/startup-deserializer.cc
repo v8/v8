@@ -98,7 +98,7 @@ void StartupDeserializer::PrintDisassembledCodeObjects() {
     for (HeapObject* obj = iterator.next(); obj != nullptr;
          obj = iterator.next()) {
       if (obj->IsCode()) {
-        Code* code = Code::cast(obj);
+        Code code = Code::cast(obj);
         // Printing of builtins and bytecode handlers is handled during their
         // deserialization.
         if (code->kind() != Code::BUILTIN &&

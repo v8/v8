@@ -106,16 +106,17 @@ void IncrementalMarking::RecordWriteSlow(HeapObject* obj, HeapObjectSlot slot,
 }
 
 int IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
-                                            MaybeObjectSlot slot,
+                                            Address slot_address,
                                             Isolate* isolate) {
   DCHECK(obj->IsHeapObject());
+  MaybeObjectSlot slot(slot_address);
   isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(obj, slot,
                                                                *slot);
   // Called by RecordWriteCodeStubAssembler, which doesnt accept void type
   return 0;
 }
 
-void IncrementalMarking::RecordWriteIntoCode(Code* host, RelocInfo* rinfo,
+void IncrementalMarking::RecordWriteIntoCode(Code host, RelocInfo* rinfo,
                                              HeapObject* value) {
   DCHECK(IsMarking());
   if (BaseRecordWrite(host, value)) {
@@ -671,8 +672,8 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         return false;
       });
   weak_objects_->weak_objects_in_code.Update(
-      [](std::pair<HeapObject*, Code*> slot_in,
-         std::pair<HeapObject*, Code*>* slot_out) -> bool {
+      [](std::pair<HeapObject*, Code> slot_in,
+         std::pair<HeapObject*, Code>* slot_out) -> bool {
         HeapObject* heap_obj = slot_in.first;
         HeapObject* forwarded = ForwardingAddress(heap_obj);
 

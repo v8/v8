@@ -50,17 +50,17 @@ class Interpreter {
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.
-  Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
+  Code GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
 
   // Set the bytecode handler for |bytecode| and |operand_scale|.
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
-                          Code* handler);
+                          Code handler);
 
   // GC support.
   void IterateDispatchTable(RootVisitor* v);
 
   // Disassembler support (only useful with ENABLE_DISASSEMBLER defined).
-  const char* LookupNameOfBytecodeHandler(const Code* code);
+  const char* LookupNameOfBytecodeHandler(const Code code);
 
   V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
 
