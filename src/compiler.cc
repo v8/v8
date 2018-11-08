@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <queue>
 
 #include "src/api-inl.h"
 #include "src/asmjs/asm-js.h"
@@ -497,6 +498,73 @@ std::unique_ptr<UnoptimizedCompilationJob> GenerateUnoptimizedCode(
   return outer_function_job;
 }
 
+MaybeHandle<SharedFunctionInfo> GenerateUnoptimizedCodeForToplevel(
+    Isolate* isolate, ParseInfo* parse_info, AccountingAllocator* allocator) {
+  EnsureSharedFunctionInfosArrayOnScript(parse_info, isolate);
+  parse_info->ast_value_factory()->Internalize(isolate);
+
+  if (!Compiler::Analyze(parse_info)) return MaybeHandle<SharedFunctionInfo>();
+  DeclarationScope::AllocateScopeInfos(parse_info, isolate);
+
+  // Prepare and execute compilation of the outer-most function.
+  // Create the SharedFunctionInfo and add it to the script's list.
+  Handle<Script> script = parse_info->script();
+  Handle<SharedFunctionInfo> top_level =
+      isolate->factory()->NewSharedFunctionInfoForLiteral(parse_info->literal(),
+                                                          script, true);
+
+  std::queue<FunctionLiteral*> queue;
+  queue.push(parse_info->literal());
+
+  while (!queue.empty()) {
+    FunctionLiteral* literal = queue.front();
+    queue.pop();
+    Handle<SharedFunctionInfo> shared_info =
+        Compiler::GetSharedFunctionInfo(literal, script, isolate);
+    // TODO(rmcilroy): Fix this and DCHECK !is_compiled() once Full-Codegen dies
+    if (shared_info->is_compiled()) continue;
+    if (UseAsmWasm(literal, parse_info->is_asm_wasm_broken())) {
+      std::unique_ptr<UnoptimizedCompilationJob> asm_job(
+          AsmJs::NewCompilationJob(parse_info, literal, allocator));
+      if (asm_job->ExecuteJob() == CompilationJob::SUCCEEDED &&
+          FinalizeUnoptimizedCompilationJob(asm_job.get(), shared_info,
+                                            isolate) ==
+              CompilationJob::SUCCEEDED) {
+        continue;
+      }
+      // asm.js validation failed, fall through to standard unoptimized compile.
+      // Note: we rely on the fact that AsmJs jobs have done all validation in
+      // the PrepareJob and ExecuteJob phases and can't fail in FinalizeJob with
+      // with a validation error or another error that could be solve by falling
+      // through to standard unoptimized compile.
+    }
+
+    ZoneVector<FunctionLiteral*> eager_inner_literals(0, parse_info->zone());
+    {
+      std::unique_ptr<UnoptimizedCompilationJob> job(
+          interpreter::Interpreter::NewCompilationJob(
+              parse_info, literal, allocator, &eager_inner_literals));
+
+      if (job->ExecuteJob() == CompilationJob::FAILED ||
+          FinalizeUnoptimizedCompilationJob(job.get(), shared_info, isolate) ==
+              CompilationJob::FAILED) {
+        return MaybeHandle<SharedFunctionInfo>();
+      }
+    }
+
+    // Add eagerly compiled inner literals to the queue. The compilation order
+    // is not important, so breadth-first traversal is not a requirement.
+    for (FunctionLiteral* inner_literal : eager_inner_literals) {
+      queue.push(inner_literal);
+    }
+  }
+
+  // Character stream shouldn't be used again.
+  parse_info->ResetCharacterStream();
+
+  return top_level;
+}
+
 bool FinalizeUnoptimizedCode(
     ParseInfo* parse_info, Isolate* isolate,
     Handle<SharedFunctionInfo> shared_info,
@@ -791,12 +859,32 @@ bool FailWithPendingException(Isolate* isolate, ParseInfo* parse_info,
   return false;
 }
 
+void FinalizeScriptCompilation(Isolate* isolate, ParseInfo* parse_info) {
+  Handle<Script> script = parse_info->script();
+  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
+
+  // Register any pending parallel tasks with the associated SFI.
+  if (parse_info->parallel_tasks()) {
+    CompilerDispatcher* dispatcher = parse_info->parallel_tasks()->dispatcher();
+    for (auto& it : *parse_info->parallel_tasks()) {
+      FunctionLiteral* literal = it.first;
+      CompilerDispatcher::JobId job_id = it.second;
+      MaybeHandle<SharedFunctionInfo> maybe_shared_for_task =
+          script->FindSharedFunctionInfo(isolate, literal);
+      Handle<SharedFunctionInfo> shared_for_task;
+      if (maybe_shared_for_task.ToHandle(&shared_for_task)) {
+        dispatcher->RegisterSharedFunctionInfo(job_id, *shared_for_task);
+      } else {
+        dispatcher->AbortJob(job_id);
+      }
+    }
+  }
+}
+
 MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
     ParseInfo* parse_info, Isolate* isolate,
     UnoptimizedCompilationJob* outer_function_job,
     UnoptimizedCompilationJobList* inner_function_jobs) {
-  Handle<Script> script = parse_info->script();
-
   // Internalize ast values onto the heap.
   parse_info->ast_value_factory()->Internalize(isolate);
 
@@ -817,26 +905,7 @@ MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  if (!script.is_null()) {
-    script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-  }
-
-  // Register any pending parallel tasks with the associated SFI.
-  if (parse_info->parallel_tasks()) {
-    CompilerDispatcher* dispatcher = parse_info->parallel_tasks()->dispatcher();
-    for (auto& it : *parse_info->parallel_tasks()) {
-      FunctionLiteral* literal = it.first;
-      CompilerDispatcher::JobId job_id = it.second;
-      MaybeHandle<SharedFunctionInfo> maybe_shared_for_task =
-          script->FindSharedFunctionInfo(isolate, literal);
-      Handle<SharedFunctionInfo> shared_for_task;
-      if (maybe_shared_for_task.ToHandle(&shared_for_task)) {
-        dispatcher->RegisterSharedFunctionInfo(job_id, *shared_for_task);
-      } else {
-        dispatcher->AbortJob(job_id);
-      }
-    }
-  }
+  FinalizeScriptCompilation(isolate, parse_info);
 
   return shared_info;
 }
@@ -868,18 +937,17 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
                parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
 
   // Generate the unoptimized bytecode or asm-js data.
-  UnoptimizedCompilationJobList inner_function_jobs;
-  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job(
-      GenerateUnoptimizedCode(parse_info, isolate->allocator(),
-                              &inner_function_jobs));
-  if (!outer_function_job) {
+  MaybeHandle<SharedFunctionInfo> shared_info =
+      GenerateUnoptimizedCodeForToplevel(isolate, parse_info,
+                                         isolate->allocator());
+  if (shared_info.is_null()) {
     FailWithPendingException(isolate, parse_info,
                              Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  return FinalizeTopLevel(parse_info, isolate, outer_function_job.get(),
-                          &inner_function_jobs);
+  FinalizeScriptCompilation(isolate, parse_info);
+  return shared_info;
 }
 
 std::unique_ptr<UnoptimizedCompilationJob> CompileOnBackgroundThread(
@@ -1875,10 +1943,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   // If we found an existing shared function info, return it.
   Handle<SharedFunctionInfo> existing;
-  if (maybe_existing.ToHandle(&existing)) {
-    DCHECK(!existing->is_toplevel());
-    return existing;
-  }
+  if (maybe_existing.ToHandle(&existing)) return existing;
 
   // Allocate a shared function info object which will be compiled lazily.
   Handle<SharedFunctionInfo> result =
