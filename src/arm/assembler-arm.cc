@@ -5394,6 +5394,13 @@ PatchingAssembler::~PatchingAssembler() {
 
 void PatchingAssembler::Emit(Address addr) { emit(static_cast<Instr>(addr)); }
 
+void PatchingAssembler::PadWithNops() {
+  DCHECK_LE(pc_, buffer_ + buffer_size_ - kGap);
+  while (pc_ < buffer_ + buffer_size_ - kGap) {
+    nop();
+  }
+}
+
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
     : assembler_(assembler),
       old_available_(*assembler->GetScratchRegisterList()),

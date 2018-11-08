@@ -625,6 +625,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~Assembler();
 
+  virtual void AbortedCodeGeneration() {
+    pending_32_bit_constants_.clear();
+    pending_64_bit_constants_.clear();
+  }
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
@@ -1700,6 +1705,7 @@ class PatchingAssembler : public Assembler {
   ~PatchingAssembler();
 
   void Emit(Address addr);
+  void PadWithNops();
 };
 
 // This scope utility allows scratch registers to be managed safely. The

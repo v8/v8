@@ -104,8 +104,15 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
                            : call_desc;
 }
 
-constexpr ValueType kTypesArr_ilfd[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64};
-constexpr Vector<const ValueType> kTypes_ilfd = ArrayVector(kTypesArr_ilfd);
+// TODO(arm): Add support for F32 registers. Fix arm32 FP registers alias.
+#if V8_TARGET_ARCH_ARM
+constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF64};
+#else
+constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF32,
+                                            kWasmF64};
+#endif
+constexpr Vector<const ValueType> kSupportedTypes =
+    ArrayVector(kSupportedTypesArr);
 
 class LiftoffCompiler {
  public:
@@ -293,7 +300,8 @@ class LiftoffCompiler {
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      if (!CheckSupportedType(decoder, kTypes_ilfd, __ local_type(i), "param"))
+      if (!CheckSupportedType(decoder, kSupportedTypes, __ local_type(i),
+                              "param"))
         return;
     }
 
@@ -1161,7 +1169,7 @@ class LiftoffCompiler {
   void GetGlobal(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
     const auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
+    if (!CheckSupportedType(decoder, kSupportedTypes, global->type, "global"))
       return;
     LiftoffRegList pinned;
     uint32_t offset = 0;
@@ -1176,7 +1184,7 @@ class LiftoffCompiler {
   void SetGlobal(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate<validate>& imm) {
     auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
+    if (!CheckSupportedType(decoder, kSupportedTypes, global->type, "global"))
       return;
     LiftoffRegList pinned;
     uint32_t offset = 0;
@@ -1483,7 +1491,8 @@ class LiftoffCompiler {
                const MemoryAccessImmediate<validate>& imm,
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "load")) return;
+    if (!CheckSupportedType(decoder, kSupportedTypes, value_type, "load"))
+      return;
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister()).gp();
     if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned)) {
@@ -1515,7 +1524,8 @@ class LiftoffCompiler {
                 const MemoryAccessImmediate<validate>& imm,
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "store")) return;
+    if (!CheckSupportedType(decoder, kSupportedTypes, value_type, "store"))
+      return;
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     Register index = pinned.set(__ PopToRegister(pinned)).gp();
@@ -1588,7 +1598,7 @@ class LiftoffCompiler {
     if (imm.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
     if (imm.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_ilfd, imm.sig->GetReturn(0),
+        !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
                             "return"))
       return;
 
@@ -1653,7 +1663,7 @@ class LiftoffCompiler {
       return unsupported(decoder, "multi-return");
     }
     if (imm.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_ilfd, imm.sig->GetReturn(0),
+        !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
                             "return")) {
       return;
     }
