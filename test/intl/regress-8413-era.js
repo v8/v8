@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// "ar-SA" has problem on Android, split it to regress-8432.js
 // All the known locales egrep by
 // find third_party/icu/source/data/locales/*.txt|cut -d: -f 1| \
 //     sort -u|cut -d/ -f6|cut -d. -f1|tr "_" "-"
@@ -9,7 +10,7 @@ let locales = [
   "af-NA", "af", "af-ZA", "agq-CM", "agq", "ak-GH", "ak", "am-ET", "am", "an",
   "ar-001", "ar-AE", "ar-BH", "ar-DJ", "ar-DZ", "ar-EG", "ar-EH", "ar-ER",
   "ar-IL", "ar-IQ", "ar-JO", "ar-KM", "ar-KW", "ar-LB", "ar-LY", "ar-MA",
-  "ar-MR", "ar-OM", "ar-PS", "ar-QA", "ar-SA", "ar-SD", "ar-SO", "ar-SS",
+  "ar-MR", "ar-OM", "ar-PS", "ar-QA", /* "ar-SA", */ "ar-SD", "ar-SO", "ar-SS",
   "ars", "ar-SY", "ar-TD", "ar-TN", "ar", "ar-YE", "asa", "asa-TZ", "as-IN",
   "ast-ES", "ast", "as", "az-AZ", "az-Cyrl-AZ", "az-Cyrl", "az-Latn-AZ",
   "az-Latn", "az", "bas-CM", "bas", "be-BY", "bem", "bem-ZM", "be", "bez",

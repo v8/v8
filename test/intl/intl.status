@@ -52,16 +52,9 @@
   'relative-time-format/default-locale-fr-CA': [FAIL],
   'relative-time-format/default-locale-pt-BR': [FAIL],
 
-  # These tests use some locales which are unsupported on Android.
-  'regress-8413-day': [FAIL],
-  'regress-8413-era': [FAIL],
-  'regress-8413-hour': [FAIL],
-  'regress-8413-minute': [FAIL],
-  'regress-8413-month': [FAIL],
-  'regress-8413-second': [FAIL],
-  'regress-8413-timeZoneName': [FAIL],
-  'regress-8413-weekday': [FAIL],
-  'regress-8413-year': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8432
+  'regress-8432': [FAIL],
+
 }],  # 'system == android'
 ['tsan', {
   # Run for too long under some tsan configs.
