@@ -401,7 +401,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   }
   Handle<Map> receiver_map(receiver->map(), isolate());
 
-  // Compute property access info for @@hasInstance on {receiver}.
+  // Compute property access info for @@hasInstance on the constructor.
   PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(
       broker(), dependencies(), native_context().object(), graph()->zone());
@@ -410,39 +410,37 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
           &access_info)) {
     return NoChange();
   }
+  DCHECK_EQ(access_info.receiver_maps().size(), 1);
+  DCHECK_EQ(access_info.receiver_maps()[0].address(), receiver_map.address());
 
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
   if (access_info.IsNotFound()) {
     // If there's no @@hasInstance handler, the OrdinaryHasInstance operation
-    // takes over, but that requires the {receiver} to be callable.
-    if (receiver->IsCallable()) {
-      // Determine actual holder and perform prototype chain checks.
-      Handle<JSObject> holder;
-      if (access_info.holder().ToHandle(&holder)) {
-        dependencies()->DependOnStablePrototypeChains(
-            broker(), access_info.receiver_maps(),
-            JSObjectRef(broker(), holder));
-      }
+    // takes over, but that requires the constructor to be callable.
+    if (!receiver_map->is_callable()) return NoChange();
 
-      // Check that {constructor} is actually {receiver}.
-      constructor = access_builder.BuildCheckValue(constructor, &effect,
-                                                   control, receiver);
-
-      // Monomorphic property access.
-      access_builder.BuildCheckMaps(constructor, &effect, control,
-                                    access_info.receiver_maps());
-
-      // Lower to OrdinaryHasInstance(C, O).
-      NodeProperties::ReplaceValueInput(node, constructor, 0);
-      NodeProperties::ReplaceValueInput(node, object, 1);
-      NodeProperties::ReplaceEffectInput(node, effect);
-      NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
-      Reduction const reduction = ReduceJSOrdinaryHasInstance(node);
-      return reduction.Changed() ? reduction : Changed(node);
+    // Determine actual holder and perform prototype chain checks.
+    Handle<JSObject> holder;
+    if (access_info.holder().ToHandle(&holder)) {
+      dependencies()->DependOnStablePrototypeChains(
+          broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
     }
-  } else if (access_info.IsDataConstant() ||
-             access_info.IsDataConstantField()) {
+
+    // Monomorphic property access.
+    access_builder.BuildCheckMaps(constructor, &effect, control,
+                                  access_info.receiver_maps());
+
+    // Lower to OrdinaryHasInstance(C, O).
+    NodeProperties::ReplaceValueInput(node, constructor, 0);
+    NodeProperties::ReplaceValueInput(node, object, 1);
+    NodeProperties::ReplaceEffectInput(node, effect);
+    NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
+    Reduction const reduction = ReduceJSOrdinaryHasInstance(node);
+    return reduction.Changed() ? reduction : Changed(node);
+  }
+
+  if (access_info.IsDataConstant() || access_info.IsDataConstantField()) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
