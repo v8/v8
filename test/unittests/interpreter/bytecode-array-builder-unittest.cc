@@ -180,7 +180,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit literal creation operations.
   builder.CreateRegExpLiteral(ast_factory.GetOneByteString("a"), 0, 0);
   builder.CreateArrayLiteral(0, 0, 0);
-  builder.CreateObjectLiteral(0, 0, 0, reg);
+  builder.CreateObjectLiteral(0, 0, 0);
 
   // Emit tagged template operations.
   builder.GetTemplateObject(0, 0);
@@ -381,7 +381,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArrayLiteral(0, 0, 0)
       .CreateEmptyArrayLiteral(0)
       .CreateArrayFromIterable()
-      .CreateObjectLiteral(0, 0, 0, reg)
+      .CreateObjectLiteral(0, 0, 0)
       .CreateEmptyObjectLiteral()
       .CloneObject(reg, 0, 0);
 

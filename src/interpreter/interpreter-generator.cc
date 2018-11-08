@@ -2459,7 +2459,7 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
     ConstructorBuiltinsAssembler constructor_assembler(state());
     Node* result = constructor_assembler.EmitCreateShallowObjectLiteral(
         feedback_vector, slot_id, &if_not_fast_clone);
-    StoreRegisterAtOperandIndex(result, 3);
+    SetAccumulator(result);
     Dispatch();
   }
 
@@ -2477,7 +2477,7 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
     Node* result =
         CallRuntime(Runtime::kCreateObjectLiteral, context, feedback_vector,
                     SmiTag(slot_id), object_boilerplate_description, flags);
-    StoreRegisterAtOperandIndex(result, 3);
+    SetAccumulator(result);
     // TODO(klaasb) build a single dispatch once the call is inlined
     Dispatch();
   }

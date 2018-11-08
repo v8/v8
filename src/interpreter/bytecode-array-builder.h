@@ -246,8 +246,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& CreateEmptyArrayLiteral(int literal_index);
   BytecodeArrayBuilder& CreateArrayFromIterable();
   BytecodeArrayBuilder& CreateObjectLiteral(size_t constant_properties_entry,
-                                            int literal_index, int flags,
-                                            Register output);
+                                            int literal_index, int flags);
   BytecodeArrayBuilder& CreateEmptyObjectLiteral();
   BytecodeArrayBuilder& CloneObject(Register source, int flags,
                                     int feedback_slot);

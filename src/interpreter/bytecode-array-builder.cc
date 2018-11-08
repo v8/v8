@@ -994,10 +994,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayFromIterable() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
-    size_t constant_properties_entry, int literal_index, int flags,
-    Register output) {
-  OutputCreateObjectLiteral(constant_properties_entry, literal_index, flags,
-                            output);
+    size_t constant_properties_entry, int literal_index, int flags) {
+  OutputCreateObjectLiteral(constant_properties_entry, literal_index, flags);
   return *this;
 }
 

@@ -2163,7 +2163,9 @@ void BytecodeGenerator::BuildCreateObjectLiteral(Register literal,
     // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
     // optimizations.
     int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
-    builder()->CreateObjectLiteral(entry, literal_index, flags, literal);
+    builder()
+        ->CreateObjectLiteral(entry, literal_index, flags)
+        .StoreAccumulatorInRegister(literal);
   }
 }
 

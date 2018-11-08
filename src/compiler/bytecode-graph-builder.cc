@@ -1662,8 +1662,7 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   int number_of_properties = constant_properties->size();
   Node* literal = NewNode(javascript()->CreateLiteralObject(
       constant_properties, pair, literal_flags, number_of_properties));
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(3),
-                              literal, Environment::kAttachFrameState);
+  environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitCreateEmptyObjectLiteral() {
