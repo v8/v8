@@ -69,6 +69,9 @@ def _trigger_bots(bucket, bots, options):
   cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
   if options.extra_flags:
     cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
+  if options.verbose:
+    cmd.append('-vv')
+    print 'Running %s' % ' '.join(cmd)
   subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
 
 def main():
@@ -80,6 +83,8 @@ def main():
                       help='Revision (use full hash!) to use for the try job; '
                            'default: the revision will be determined by the '
                            'try server; see its waterfall for more info')
+  parser.add_argument('-v', '--verbose', action='store_true',
+                      help='Print debug information')
   for option in sorted(BOTS):
     parser.add_argument(
         option, dest='bots', action='append_const', const=BOTS[option],
