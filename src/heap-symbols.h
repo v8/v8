@@ -40,7 +40,6 @@
   V(_, list_string, "list")                                         \
   V(_, literal_string, "literal")                                   \
   V(_, locale_string, "locale")                                     \
-  V(_, localeWithExtension_string, "localeWithExtension")           \
   V(_, loose_string, "loose")                                       \
   V(_, lower_string, "lower")                                       \
   V(_, maximumFractionDigits_string, "maximumFractionDigits")       \
@@ -117,8 +116,6 @@
   V(_, call_string, "call")                                           \
   V(_, callee_string, "callee")                                       \
   V(_, caller_string, "caller")                                       \
-  V(_, cell_value_string, "%cell_value")                              \
-  V(_, char_at_string, "CharAt")                                      \
   V(_, character_string, "character")                                 \
   V(_, closure_string, "(closure)")                                   \
   V(_, code_string, "code")                                           \
@@ -134,7 +131,6 @@
   V(_, default_string, "default")                                     \
   V(_, defineProperty_string, "defineProperty")                       \
   V(_, deleteProperty_string, "deleteProperty")                       \
-  V(_, did_handle_string, "didHandle")                                \
   V(_, disjunction_string, "disjunction")                             \
   V(_, display_name_string, "displayName")                            \
   V(_, done_string, "done")                                           \
@@ -147,7 +143,6 @@
   V(_, dot_string, ".")                                               \
   V(_, dot_switch_tag_string, ".switch_tag")                          \
   V(_, dotAll_string, "dotAll")                                       \
-  V(_, enqueue_string, "enqueue")                                     \
   V(_, entries_string, "entries")                                     \
   V(_, enumerable_string, "enumerable")                               \
   V(_, element_string, "element")                                     \
@@ -186,8 +181,6 @@
   V(_, Int8Array_string, "Int8Array")                                 \
   V(_, isExtensible_string, "isExtensible")                           \
   V(_, isView_string, "isView")                                       \
-  V(_, KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
-  V(_, KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
   V(_, keys_string, "keys")                                           \
   V(_, lastIndex_string, "lastIndex")                                 \
   V(_, length_string, "length")                                       \
@@ -199,7 +192,6 @@
   V(_, MapIterator_string, "Map Iterator")                            \
   V(_, message_string, "message")                                     \
   V(_, minus_Infinity_string, "-Infinity")                            \
-  V(_, minus_zero_string, "-0")                                       \
   V(_, Module_string, "Module")                                       \
   V(_, multiline_string, "multiline")                                 \
   V(_, name_string, "name")                                           \
@@ -229,7 +221,6 @@
   V(_, preventExtensions_string, "preventExtensions")                 \
   V(_, Promise_string, "Promise")                                     \
   V(_, promise_string, "promise")                                     \
-  V(_, PromiseResolveThenableJob_string, "PromiseResolveThenableJob") \
   V(_, proto_string, "__proto__")                                     \
   V(_, prototype_string, "prototype")                                 \
   V(_, proxy_string, "proxy")                                         \
@@ -237,13 +228,11 @@
   V(_, query_colon_string, "(?:)")                                    \
   V(_, RangeError_string, "RangeError")                               \
   V(_, raw_string, "raw")                                             \
-  V(_, ReconfigureToDataProperty_string, "ReconfigureToDataProperty") \
   V(_, ReferenceError_string, "ReferenceError")                       \
   V(_, ReflectGet_string, "Reflect.get")                              \
   V(_, ReflectHas_string, "Reflect.has")                              \
   V(_, RegExp_string, "RegExp")                                       \
   V(_, regexp_to_string, "[object RegExp]")                           \
-  V(_, reject_string, "reject")                                       \
   V(_, resolve_string, "resolve")                                     \
   V(_, return_string, "return")                                       \
   V(_, revoke_string, "revoke")                                       \
@@ -288,8 +277,6 @@
   V(_, undefined_to_string, "[object Undefined]")                     \
   V(_, unicode_string, "unicode")                                     \
   V(_, URIError_string, "URIError")                                   \
-  V(_, use_asm_string, "use asm")                                     \
-  V(_, use_strict_string, "use strict")                               \
   V(_, value_string, "value")                                         \
   V(_, valueOf_string, "valueOf")                                     \
   V(_, values_string, "values")                                       \
@@ -299,7 +286,6 @@
   V(_, WeakRef_string, "WeakRef")                                     \
   V(_, WeakSet_string, "WeakSet")                                     \
   V(_, week_string, "week")                                           \
-  V(_, will_handle_string, "willHandle")                              \
   V(_, word_string, "word")                                           \
   V(_, writable_string, "writable")                                   \
   V(_, zero_string, "0")
@@ -325,11 +311,9 @@
   V(_, nonextensible_symbol)                \
   V(_, not_mapped_symbol)                   \
   V(_, premonomorphic_symbol)               \
-  V(_, promise_async_stack_id_symbol)       \
   V(_, promise_debug_marker_symbol)         \
   V(_, promise_forwarding_handler_symbol)   \
   V(_, promise_handled_by_symbol)           \
-  V(_, promise_async_id_symbol)             \
   V(_, sealed_symbol)                       \
   V(_, stack_trace_symbol)                  \
   V(_, strict_function_transition_symbol)   \
