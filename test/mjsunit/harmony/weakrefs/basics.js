@@ -5,7 +5,7 @@
 // Flags: --harmony-weak-refs
 
 (function TestConstructWeakFactory() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   assertEquals(wf.toString(), "[object WeakFactory]");
   assertNotSame(wf.__proto__, Object.prototype);
   assertSame(wf.__proto__.__proto__, Object.prototype);
@@ -15,7 +15,7 @@
   let caught = false;
   let message = "";
   try {
-    let f = WeakFactory();
+    let f = WeakFactory(() => {});
   } catch (e) {
     message = e.message;
     caught = true;
@@ -25,8 +25,30 @@
   }
 })();
 
+(function TestConstructWeakFactoryCleanupNotCallable() {
+  let message = "WeakFactory: cleanup must be callable";
+  assertThrows(() => { let wf = new WeakFactory(); }, TypeError, message);
+  assertThrows(() => { let wf = new WeakFactory(1); }, TypeError, message);
+  assertThrows(() => { let wf = new WeakFactory(null); }, TypeError, message);
+})();
+
+(function TestConstructWeakFactoryWithCallableProxyAsCleanup() {
+  let handler = {};
+  let obj = () => {};
+  let proxy = new Proxy(obj, handler);
+  let wf = new WeakFactory(proxy);
+})();
+
+(function TestConstructWeakFactoryWithNonCallableProxyAsCleanup() {
+  let message = "WeakFactory: cleanup must be callable";
+  let handler = {};
+  let obj = {};
+  let proxy = new Proxy(obj, handler);
+  assertThrows(() => { let wf = new WeakFactory(proxy); }, TypeError, message);
+})();
+
 (function TestMakeCell() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let wc = wf.makeCell({});
   assertEquals(wc.toString(), "[object WeakCell]");
   assertNotSame(wc.__proto__, Object.prototype);
@@ -46,7 +68,7 @@
 })();
 
 (function TestMakeCellWithHoldings() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let obj = {a: 1};
   let holdings = {b: 2};
   let wc = wf.makeCell(obj, holdings);
@@ -54,7 +76,7 @@
 })();
 
 (function TestMakeCellWithHoldingsSetHoldings() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let obj = {a: 1};
   let holdings = {b: 2};
   let wc = wf.makeCell(obj, holdings);
@@ -65,7 +87,7 @@
 
 (function TestMakeCellWithHoldingsSetHoldingsStrict() {
   "use strict";
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let obj = {a: 1};
   let holdings = {b: 2};
   let wc = wf.makeCell(obj, holdings);
@@ -75,8 +97,8 @@
 })();
 
 (function TestMakeCellWithNonObject() {
-  let wf = new WeakFactory();
-  let message = "WeakFactory.makeCell: target must be an object";
+  let wf = new WeakFactory(() => {});
+  let message = "WeakFactory.prototype.makeCell: target must be an object";
   assertThrows(() => wf.makeCell(), TypeError, message);
   assertThrows(() => wf.makeCell(1), TypeError, message);
   assertThrows(() => wf.makeCell(false), TypeError, message);
@@ -90,16 +112,16 @@
   let handler = {};
   let obj = {};
   let proxy = new Proxy(obj, handler);
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let wc = wf.makeCell(proxy);
 })();
 
 (function TestMakeCellTargetAndHoldingsSameValue() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let obj = {a: 1};
   // SameValue(target, holdings) not ok
   assertThrows(() => wf.makeCell(obj, obj), TypeError,
-               "WeakFactory.makeCell: target and holdings must not be same");
+               "WeakFactory.prototype.makeCell: target and holdings must not be same");
   let holdings = {a: 1};
   let wc = wf.makeCell(obj, holdings);
 })();
@@ -107,12 +129,12 @@
 (function TestMakeCellWithoutWeakFactory() {
   assertThrows(() => WeakFactory.prototype.makeCell.call({}, {}), TypeError);
   // Does not throw:
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   WeakFactory.prototype.makeCell.call(wf, {});
 })();
 
 (function TestHoldingsWithoutWeakCell() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let wc = wf.makeCell({});
   let holdings_getter = Object.getOwnPropertyDescriptor(wc.__proto__, "holdings").get;
   assertThrows(() => holdings_getter.call({}), TypeError);
@@ -121,7 +143,7 @@
 })();
 
 (function TestClearWithoutWeakCell() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let wc = wf.makeCell({});
   let clear = Object.getOwnPropertyDescriptor(wc.__proto__, "clear").value;
   assertThrows(() => clear.call({}), TypeError);
@@ -130,7 +152,7 @@
 })();
 
 (function TestMakeRef() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let wr = wf.makeRef({});
   let wc = wf.makeCell({});
   assertEquals(wr.toString(), "[object WeakRef]");
@@ -145,7 +167,7 @@
 })();
 
 (function TestMakeRefWithHoldings() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let obj = {a: 1};
   let holdings = {b: 2};
   let wr = wf.makeRef(obj, holdings);
@@ -153,7 +175,7 @@
 })();
 
 (function TestMakeRefWithHoldingsSetHoldings() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let obj = {a: 1};
   let holdings = {b: 2};
   let wr = wf.makeRef(obj, holdings);
@@ -164,7 +186,7 @@
 
 (function TestMakeRefWithHoldingsSetHoldingsStrict() {
   "use strict";
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let obj = {a: 1};
   let holdings = {b: 2};
   let wr = wf.makeRef(obj, holdings);
@@ -174,8 +196,8 @@
 })();
 
 (function TestMakeRefWithNonObject() {
-  let wf = new WeakFactory();
-  let message = "WeakFactory.makeRef: target must be an object";
+  let wf = new WeakFactory(() => {});
+  let message = "WeakFactory.prototype.makeRef: target must be an object";
   assertThrows(() => wf.makeRef(), TypeError, message);
   assertThrows(() => wf.makeRef(1), TypeError, message);
   assertThrows(() => wf.makeRef(false), TypeError, message);
@@ -189,16 +211,16 @@
   let handler = {};
   let obj = {};
   let proxy = new Proxy(obj, handler);
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let wr = wf.makeRef(proxy);
 })();
 
 (function TestMakeRefTargetAndHoldingsSameValue() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let obj = {a: 1};
   // SameValue(target, holdings) not ok
   assertThrows(() => wf.makeRef(obj, obj), TypeError,
-               "WeakFactory.makeRef: target and holdings must not be same");
+               "WeakFactory.prototype.makeRef: target and holdings must not be same");
   let holdings = {a: 1};
   let wr = wf.makeRef(obj, holdings);
 })();
@@ -206,12 +228,12 @@
 (function TestMakeRefWithoutWeakFactory() {
   assertThrows(() => WeakFactory.prototype.makeRef.call({}, {}), TypeError);
   // Does not throw:
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   WeakFactory.prototype.makeRef.call(wf, {});
 })();
 
 (function TestDerefWithoutWeakRef() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let wc = wf.makeCell({});
   let wr = wf.makeRef({});
   let deref = Object.getOwnPropertyDescriptor(wr.__proto__, "deref").value;
@@ -222,7 +244,7 @@
 })();
 
 (function TestWeakRefClearAfterProtoChange() {
-  let wf = new WeakFactory();
+  let wf = new WeakFactory(() => {});
   let wc = wf.makeCell({});
   let wr = wf.makeRef({});
   // Does not throw:

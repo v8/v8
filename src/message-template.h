@@ -534,14 +534,15 @@ namespace internal {
   T(TraceEventPhaseError, "Trace event phase must be a number.")               \
   T(TraceEventIDError, "Trace event id must be a number.")                     \
   /* Weak refs */                                                              \
-  T(MakeCellTargetMustBeObject,                                                \
-    "WeakFactory.makeCell: target must be an object")                          \
-  T(MakeCellTargetAndHoldingsMustNotBeSame,                                    \
-    "WeakFactory.makeCell: target and holdings must not be same")              \
-  T(MakeRefTargetMustBeObject,                                                 \
-    "WeakFactory.makeRef: target must be an object")                           \
-  T(MakeRefTargetAndHoldingsMustNotBeSame,                                     \
-    "WeakFactory.makeRef: target and holdings must not be same")
+  T(WeakRefsCleanupMustBeCallable, "WeakFactory: cleanup must be callable")    \
+  T(WeakRefsMakeCellTargetMustBeObject,                                        \
+    "WeakFactory.prototype.makeCell: target must be an object")                \
+  T(WeakRefsMakeCellTargetAndHoldingsMustNotBeSame,                            \
+    "WeakFactory.prototype.makeCell: target and holdings must not be same")    \
+  T(WeakRefsMakeRefTargetMustBeObject,                                         \
+    "WeakFactory.prototype.makeRef: target must be an object")                 \
+  T(WeakRefsMakeRefTargetAndHoldingsMustNotBeSame,                             \
+    "WeakFactory.prototype.makeRef: target and holdings must not be same")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

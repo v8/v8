@@ -20,13 +20,16 @@ BUILTIN(WeakFactoryConstructor) {
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   Handle<Object> cleanup = args.atOrUndefined(isolate, 1);
 
+  if (!cleanup->IsCallable()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable));
+  }
+
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
 
-  // TODO(marja): (spec) here we could return an error if cleanup is not a
-  // function, if the spec said so.
   Handle<JSWeakFactory> weak_factory = Handle<JSWeakFactory>::cast(result);
   weak_factory->set_native_context(*isolate->native_context());
   weak_factory->set_cleanup(*cleanup);
@@ -44,9 +47,8 @@ BUILTIN(WeakFactoryMakeCell) {
   Handle<Object> target = args.atOrUndefined(isolate, 1);
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kMakeCellTargetMustBeObject,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  method_name)));
+        isolate,
+        NewTypeError(MessageTemplate::kWeakRefsMakeCellTargetMustBeObject));
   }
   Handle<JSReceiver> target_receiver = Handle<JSReceiver>::cast(target);
   Handle<Object> holdings = args.atOrUndefined(isolate, 2);
@@ -54,8 +56,7 @@ BUILTIN(WeakFactoryMakeCell) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(
-            MessageTemplate::kMakeCellTargetAndHoldingsMustNotBeSame,
-            isolate->factory()->NewStringFromAsciiChecked(method_name)));
+            MessageTemplate::kWeakRefsMakeCellTargetAndHoldingsMustNotBeSame));
   }
 
   // TODO(marja): Realms.
@@ -84,9 +85,8 @@ BUILTIN(WeakFactoryMakeRef) {
   Handle<Object> target = args.atOrUndefined(isolate, 1);
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kMakeRefTargetMustBeObject,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  method_name)));
+        isolate,
+        NewTypeError(MessageTemplate::kWeakRefsMakeRefTargetMustBeObject));
   }
   Handle<JSReceiver> target_receiver = Handle<JSReceiver>::cast(target);
   Handle<Object> holdings = args.atOrUndefined(isolate, 2);
@@ -94,8 +94,7 @@ BUILTIN(WeakFactoryMakeRef) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(
-            MessageTemplate::kMakeRefTargetAndHoldingsMustNotBeSame,
-            isolate->factory()->NewStringFromAsciiChecked(method_name)));
+            MessageTemplate::kWeakRefsMakeRefTargetAndHoldingsMustNotBeSame));
   }
 
   // TODO(marja): Realms.
