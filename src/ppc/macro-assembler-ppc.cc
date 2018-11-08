@@ -1567,13 +1567,17 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
 
 void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
+  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
+    stub->set_isolate(isolate());
+    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+  } else {
+    // Block constant pool for the call instruction sequence.
+    ConstantPoolUnavailableScope constant_pool_unavailable(this);
 
-  // Block constant pool for the call instruction sequence.
-  ConstantPoolUnavailableScope constant_pool_unavailable(this);
-
-  mov(ip, Operand::EmbeddedCode(stub));
-  mtctr(ip);
-  bctrl();
+    mov(ip, Operand::EmbeddedCode(stub));
+    mtctr(ip);
+    bctrl();
+  }
 }
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
