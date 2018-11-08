@@ -2661,7 +2661,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN) {
 
   ExpressionT expression = ParseConditionalExpression(accept_IN);
 
-  if (peek() == Token::ARROW) {
+  if (V8_UNLIKELY(peek() == Token::ARROW)) {
     Scanner::Location arrow_loc = scanner()->peek_location();
     ValidateArrowFormalParameters(expression, parenthesized_formals, is_async);
     // This reads strangely, but is correct: it checks whether any
@@ -2702,37 +2702,32 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN) {
     return expression;
   }
 
-  // "expression" was not itself an arrow function parameter list, but it might
-  // form part of one.  Propagate speculative formal parameter error locations
-  // (including those for binding patterns, since formal parameters can
-  // themselves contain binding patterns).
-  unsigned productions = ExpressionClassifier::AllProductions &
-                         ~ExpressionClassifier::ArrowFormalParametersProduction;
+  Token::Value op = peek();
 
-  // Parenthesized identifiers and property references are allowed as part
-  // of a larger assignment pattern, even though parenthesized patterns
-  // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
-  // assignment pattern errors if the parsed expression is more complex.
-  if (IsValidReferenceExpression(expression)) {
-    productions &= ~ExpressionClassifier::AssignmentPatternProduction;
-  }
-
-  const bool is_destructuring_assignment =
+  bool is_destructuring_assignment =
       IsValidPattern(expression) && peek() == Token::ASSIGN;
   if (is_destructuring_assignment) {
+    ValidateAssignmentPattern();
+
     // This is definitely not an expression so don't accumulate
     // expression-related errors.
-    productions &= ~ExpressionClassifier::ExpressionProduction;
-    ValidateAssignmentPattern();
-  }
-
-  Accumulate(productions);
-  Token::Value op = peek();
-  if (!Token::IsAssignmentOp(op)) return expression;
-
-  if (is_destructuring_assignment) {
+    Accumulate(~ExpressionClassifier::ExpressionProduction);
+    if (!Token::IsAssignmentOp(op)) return expression;
     impl()->MarkPatternAsAssigned(expression);
+
   } else {
+    if (IsValidReferenceExpression(expression)) {
+      // Parenthesized identifiers and property references are allowed as part
+      // of a larger assignment pattern, even though parenthesized patterns
+      // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
+      // assignment pattern errors if the parsed expression is more complex.
+      Accumulate(~ExpressionClassifier::AssignmentPatternProduction);
+    } else {
+      Accumulate(ExpressionClassifier::AllProductions);
+    }
+
+    if (!Token::IsAssignmentOp(op)) return expression;
+
     expression = CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, end_position(),
         MessageTemplate::kInvalidLhsInAssignment);
