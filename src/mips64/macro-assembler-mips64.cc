@@ -4990,7 +4990,7 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  Branch(target_if_cleared, eq, in.W(), Operand(kClearedWeakHeapObjectLower32));
+  Branch(target_if_cleared, eq, in, Operand(kClearedWeakHeapObjectLower32));
 
   And(out, in, Operand(~kWeakHeapObjectMask));
 }
