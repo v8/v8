@@ -68,6 +68,8 @@ enum class CompileMode : uint8_t { kRegular, kTiering };
 // It's public interface {CompilationState} lives in compilation-environment.h.
 class CompilationStateImpl {
  public:
+  using callback_t = std::function<void(CompilationEvent, const VoidResult*)>;
+
   CompilationStateImpl(internal::Isolate*, NativeModule*);
   ~CompilationStateImpl();
 
@@ -82,8 +84,7 @@ class CompilationStateImpl {
 
   // Set the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run.
-  void SetCallback(
-      std::function<void(CompilationEvent, const VoidResult*)> callback);
+  void SetCallback(callback_t callback);
 
   // Inserts new functions to compile and kicks off compilation.
   void AddCompilationUnits(
@@ -262,7 +263,7 @@ class CompilationStateImpl {
   //////////////////////////////////////////////////////////////////////////////
 
   // Callback function to be called on compilation events.
-  std::function<void(CompilationEvent, const VoidResult*)> callback_;
+  callback_t callback_;
 
   CancelableTaskManager background_task_manager_;
   CancelableTaskManager foreground_task_manager_;
@@ -2980,8 +2981,7 @@ void CompilationStateImpl::SetNumberOfFunctionsToCompile(size_t num_functions) {
   }
 }
 
-void CompilationStateImpl::SetCallback(
-    std::function<void(CompilationEvent, const VoidResult*)> callback) {
+void CompilationStateImpl::SetCallback(callback_t callback) {
   DCHECK_NULL(callback_);
   callback_ = std::move(callback);
 }
