@@ -440,11 +440,11 @@ text {
 .source-position .marker {
     content: "";
     display: inline-block;
-    position: relative;
     bottom: -1ex;
     width: 0px;
     margin-left: -4px;
     margin-right: -4px;
+    margin-bottom: -1ex;
     border-width: 5px;
     border-style: solid;
     border-color: transparent transparent #555 transparent;
