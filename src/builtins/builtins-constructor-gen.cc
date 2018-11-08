@@ -526,8 +526,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     Label continue_with_write_barrier(this), done_init(this);
     TVARIABLE(IntPtrT, offset, IntPtrConstant(JSObject::kHeaderSize));
     // Mutable heap numbers only occur on 32-bit platforms.
-    bool may_use_mutable_heap_numbers =
-        FLAG_track_double_fields && !FLAG_unbox_double_fields;
+    bool may_use_mutable_heap_numbers = !FLAG_unbox_double_fields;
     {
       Comment("Copy in-object properties fast");
       Label continue_fast(this, &offset);
