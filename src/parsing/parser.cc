@@ -3511,12 +3511,12 @@ Expression* Parser::ExpressionListToExpression(
   if (args.length() == 1) return expr;
   if (args.length() == 2) {
     return factory()->NewBinaryOperation(Token::COMMA, expr, args.at(1),
-                                         expr->position());
+                                         args.at(1)->position());
   }
   NaryOperation* result =
       factory()->NewNaryOperation(Token::COMMA, expr, args.length() - 1);
   for (int i = 1; i < args.length(); i++) {
-    result->AddSubsequent(args.at(i), expr->position());
+    result->AddSubsequent(args.at(i), args.at(i)->position());
   }
   return result;
 }
