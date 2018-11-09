@@ -14,17 +14,17 @@ namespace internal {
 // Unicode character predicates as defined by ECMA-262, 3rd,
 // used for lexical analysis.
 
-inline int AsciiAlphaToLower(uc32 c);
-inline bool IsCarriageReturn(uc32 c);
-inline bool IsLineFeed(uc32 c);
-inline bool IsAsciiIdentifier(uc32 c);
-inline bool IsAlphaNumeric(uc32 c);
-inline bool IsDecimalDigit(uc32 c);
-inline bool IsHexDigit(uc32 c);
-inline bool IsOctalDigit(uc32 c);
-inline bool IsBinaryDigit(uc32 c);
-inline bool IsRegExpWord(uc32 c);
-inline bool IsRegExpNewline(uc32 c);
+inline constexpr int AsciiAlphaToLower(uc32 c);
+inline constexpr bool IsCarriageReturn(uc32 c);
+inline constexpr bool IsLineFeed(uc32 c);
+inline constexpr bool IsAsciiIdentifier(uc32 c);
+inline constexpr bool IsAlphaNumeric(uc32 c);
+inline constexpr bool IsDecimalDigit(uc32 c);
+inline constexpr bool IsHexDigit(uc32 c);
+inline constexpr bool IsOctalDigit(uc32 c);
+inline constexpr bool IsBinaryDigit(uc32 c);
+inline constexpr bool IsRegExpWord(uc32 c);
+inline constexpr bool IsRegExpNewline(uc32 c);
 
 // ES#sec-names-and-keywords
 // This includes '_', '$' and '\', and ID_Start according to

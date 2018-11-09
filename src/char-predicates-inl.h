@@ -14,63 +14,53 @@ namespace internal {
 // If c is in 'A'-'Z' or 'a'-'z', return its lower-case.
 // Else, return something outside of 'A'-'Z' and 'a'-'z'.
 // Note: it ignores LOCALE.
-inline int AsciiAlphaToLower(uc32 c) {
-  return c | 0x20;
-}
+inline constexpr int AsciiAlphaToLower(uc32 c) { return c | 0x20; }
 
-inline bool IsCarriageReturn(uc32 c) {
-  return c == 0x000D;
-}
+inline constexpr bool IsCarriageReturn(uc32 c) { return c == 0x000D; }
 
-inline bool IsLineFeed(uc32 c) {
-  return c == 0x000A;
-}
+inline constexpr bool IsLineFeed(uc32 c) { return c == 0x000A; }
 
-inline bool IsAsciiIdentifier(uc32 c) {
+inline constexpr bool IsAsciiIdentifier(uc32 c) {
   return IsAlphaNumeric(c) || c == '$' || c == '_';
 }
 
-inline bool IsAlphaNumeric(uc32 c) {
+inline constexpr bool IsAlphaNumeric(uc32 c) {
   return IsInRange(AsciiAlphaToLower(c), 'a', 'z') || IsDecimalDigit(c);
 }
 
-inline bool IsDecimalDigit(uc32 c) {
+inline constexpr bool IsDecimalDigit(uc32 c) {
   // ECMA-262, 3rd, 7.8.3 (p 16)
   return IsInRange(c, '0', '9');
 }
 
-inline bool IsHexDigit(uc32 c) {
+inline constexpr bool IsHexDigit(uc32 c) {
   // ECMA-262, 3rd, 7.6 (p 15)
   return IsDecimalDigit(c) || IsInRange(AsciiAlphaToLower(c), 'a', 'f');
 }
 
-inline bool IsOctalDigit(uc32 c) {
+inline constexpr bool IsOctalDigit(uc32 c) {
   // ECMA-262, 6th, 7.8.3
   return IsInRange(c, '0', '7');
 }
 
-inline bool IsNonOctalDecimalDigit(uc32 c) { return IsInRange(c, '8', '9'); }
+inline constexpr bool IsNonOctalDecimalDigit(uc32 c) {
+  return IsInRange(c, '8', '9');
+}
 
-inline bool IsBinaryDigit(uc32 c) {
+inline constexpr bool IsBinaryDigit(uc32 c) {
   // ECMA-262, 6th, 7.8.3
   return c == '0' || c == '1';
 }
 
-inline bool IsRegExpWord(uc16 c) {
+inline constexpr bool IsRegExpWord(uc16 c) {
   return IsInRange(AsciiAlphaToLower(c), 'a', 'z')
       || IsDecimalDigit(c)
       || (c == '_');
 }
 
-
-inline bool IsRegExpNewline(uc16 c) {
-  switch (c) {
-    //   CR           LF           LS           PS
-    case 0x000A: case 0x000D: case 0x2028: case 0x2029:
-      return false;
-    default:
-      return true;
-  }
+inline constexpr bool IsRegExpNewline(uc16 c) {
+  //          CR             LF             LS             PS
+  return c != 0x000A && c != 0x000D && c != 0x2028 && c != 0x2029;
 }
 
 

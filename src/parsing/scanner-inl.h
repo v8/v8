@@ -288,56 +288,106 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeyword() {
   return ScanIdentifierOrKeywordInner(&literal);
 }
 
+// Character flags for the fast path of scanning a keyword or identifier token.
+enum class ScanFlags : uint8_t {
+  kTerminatesLiteral = 1 << 0,
+  // "Cannot" rather than "can" so that this flag can be ORed together across
+  // multiple characters.
+  kCannotBeKeyword = 1 << 1,
+  kNeedsSlowPath = 1 << 2,
+};
+constexpr uint8_t GetScanFlags(char c) {
+  return
+      // Keywords are all lowercase and only contain letters and '_'.
+      // Note that non-identifier characters do not set this flag, so
+      // that it plays well with kTerminatesLiteral
+      // TODO(leszeks): We could probably get an even tighter measure
+      // here if not all letters are present in keywords.
+      (IsAsciiIdentifier(c) && !IsInRange(c, 'a', 'z') && c != '_'
+           ? static_cast<uint8_t>(ScanFlags::kCannotBeKeyword)
+           : 0) |
+      // Anything that isn't an identifier character will terminate the
+      // literal, or at least terminates the literal fast path processing
+      // (like an escape).
+      (!IsAsciiIdentifier(c)
+           ? static_cast<uint8_t>(ScanFlags::kTerminatesLiteral)
+           : 0) |
+      // Escapes are processed on the slow path.
+      (c == '\\' ? static_cast<uint8_t>(ScanFlags::kNeedsSlowPath) : 0);
+}
+inline bool TerminatesLiteral(uint8_t scan_flags) {
+  return (scan_flags & static_cast<uint8_t>(ScanFlags::kTerminatesLiteral));
+}
+inline bool CanBeKeyword(uint8_t scan_flags) {
+  return !(scan_flags & static_cast<uint8_t>(ScanFlags::kCannotBeKeyword));
+}
+inline bool NeedsSlowPath(uint8_t scan_flags) {
+  return (scan_flags & static_cast<uint8_t>(ScanFlags::kNeedsSlowPath));
+}
+// Table of precomputed scan flags for the 128 ASCII characters, for branchless
+// flag calculation during the scan.
+static constexpr const uint8_t character_scan_flags[128] = {
+#define CALL_GET_SCAN_FLAGS(N) GetScanFlags(N),
+    INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
+#undef CALL_GET_SCAN_FLAGS
+};
+
 V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner(
     LiteralScope* literal) {
   DCHECK(unicode_cache_->IsIdentifierStart(c0_));
   bool escaped = false;
-  if (IsInRange(c0_, 'a', 'z') || c0_ == '_') {
-    do {
+
+  STATIC_ASSERT(arraysize(character_scan_flags) == kMaxAscii + 1);
+  if (V8_LIKELY(static_cast<uint32_t>(c0_) <= kMaxAscii)) {
+    if (V8_LIKELY(c0_ != '\\')) {
+      uint8_t scan_flags = character_scan_flags[c0_];
+      DCHECK(!TerminatesLiteral(scan_flags));
       AddLiteralChar(static_cast<char>(c0_));
-      Advance();
-    } while (IsInRange(c0_, 'a', 'z') || c0_ == '_');
+      AdvanceUntil([this, &scan_flags](uc32 c0) {
+        if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
+          // A non-ascii character means we need to drop through to the slow
+          // path.
+          // TODO(leszeks): This would be most efficient as a goto to the slow
+          // path, check codegen and maybe use a bool instead.
+          scan_flags |= static_cast<uint8_t>(ScanFlags::kNeedsSlowPath);
+          return true;
+        }
+        uint8_t char_flags = character_scan_flags[c0];
+        scan_flags |= char_flags;
+        if (TerminatesLiteral(char_flags)) {
+          return true;
+        } else {
+          AddLiteralChar(static_cast<char>(c0));
+          return false;
+        }
+      });
 
-    if (IsDecimalDigit(c0_) || IsInRange(c0_, 'A', 'Z') || c0_ == '$') {
-      // Identifier starting with lowercase or _.
-      do {
-        AddLiteralChar(static_cast<char>(c0_));
-        Advance();
-      } while (IsAsciiIdentifier(c0_));
-
-      if (c0_ <= kMaxAscii && c0_ != '\\') {
-        literal->Complete();
-        return Token::IDENTIFIER;
+      if (V8_LIKELY(!NeedsSlowPath(scan_flags))) {
+        if (CanBeKeyword(scan_flags)) {
+          // Could be a keyword or identifier.
+          Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
+          Token::Value token =
+              KeywordOrIdentifierToken(chars.start(), chars.length());
+          if (token == Token::IDENTIFIER ||
+              token == Token::FUTURE_STRICT_RESERVED_WORD ||
+              Token::IsContextualKeyword(token))
+            literal->Complete();
+          return token;
+        } else {
+          literal->Complete();
+          return Token::IDENTIFIER;
+        }
       }
-    } else if (c0_ <= kMaxAscii && c0_ != '\\') {
-      // Only a-z+ or _: could be a keyword or identifier.
-      Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
-      Token::Value token =
-          KeywordOrIdentifierToken(chars.start(), chars.length());
-      if (token == Token::IDENTIFIER ||
-          token == Token::FUTURE_STRICT_RESERVED_WORD ||
-          Token::IsContextualKeyword(token))
-        literal->Complete();
-      return token;
+    } else {
+      // Special case for escapes at the start of an identifier.
+      escaped = true;
+      uc32 c = ScanIdentifierUnicodeEscape();
+      DCHECK(!unicode_cache_->IsIdentifierStart(-1));
+      if (c == '\\' || !unicode_cache_->IsIdentifierStart(c)) {
+        return Token::ILLEGAL;
+      }
+      AddLiteralChar(c);
     }
-  } else if (IsInRange(c0_, 'A', 'Z') || c0_ == '$') {
-    do {
-      AddLiteralChar(static_cast<char>(c0_));
-      Advance();
-    } while (IsAsciiIdentifier(c0_));
-
-    if (c0_ <= kMaxAscii && c0_ != '\\') {
-      literal->Complete();
-      return Token::IDENTIFIER;
-    }
-  } else if (c0_ == '\\') {
-    escaped = true;
-    uc32 c = ScanIdentifierUnicodeEscape();
-    DCHECK(!unicode_cache_->IsIdentifierStart(-1));
-    if (c == '\\' || !unicode_cache_->IsIdentifierStart(c)) {
-      return Token::ILLEGAL;
-    }
-    AddLiteralChar(c);
   }
 
   return ScanIdentifierOrKeywordInnerSlow(literal, escaped);
