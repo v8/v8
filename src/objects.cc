@@ -12831,6 +12831,9 @@ void InvalidatePrototypeChainsInternal(Map* map) {
   Object* maybe_proto_info = map->prototype_info();
   if (!maybe_proto_info->IsPrototypeInfo()) return;
   PrototypeInfo* proto_info = PrototypeInfo::cast(maybe_proto_info);
+  if (!proto_info->prototype_users()->IsWeakArrayList()) {
+    return;
+  }
   WeakArrayList* prototype_users =
       WeakArrayList::cast(proto_info->prototype_users());
   // For now, only maps register themselves as users.
