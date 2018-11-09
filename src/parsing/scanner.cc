@@ -548,6 +548,7 @@ Token::Value Scanner::ScanString() {
 
   LiteralScope literal(this);
   while (true) {
+    if (V8_UNLIKELY(c0_ == kEndOfInput)) return Token::ILLEGAL;
     if ((V8_UNLIKELY(static_cast<uint32_t>(c0_) >= kMaxAscii) &&
          !unibrow::IsStringLiteralLineTerminator(c0_)) ||
         !MayTerminateString(character_scan_flags[c0_])) {
