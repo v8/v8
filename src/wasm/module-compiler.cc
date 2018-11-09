@@ -940,6 +940,8 @@ class BackgroundCompileTask : public CancelableTask {
 
   void RunInternal() override {
     TRACE_COMPILE("(3b) Compiling...\n");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+                 "BackgroundCompileTask::RunInternal");
     // The number of currently running background tasks is reduced in
     // {OnBackgroundTaskStopped}.
     CompilationEnv env = native_module_->CreateCompilationEnv();
@@ -2561,6 +2563,8 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       DisallowHeapAllocation no_allocation;
       // Decode the module bytes.
       TRACE_COMPILE("(1) Decoding module...\n");
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+                   "AsyncCompileJob::DecodeModule");
       result = DecodeWasmModule(
           job->enabled_features_, job->wire_bytes_.start(),
           job->wire_bytes_.end(), false, kWasmOrigin, counters_,
