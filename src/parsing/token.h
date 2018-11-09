@@ -326,16 +326,16 @@ class Token {
 
   // Returns the precedence > 0 for binary and compare
   // operators; returns 0 otherwise.
-  static int Precedence(Value token) {
+  static int Precedence(Value token, bool accept_IN) {
     DCHECK_GT(NUM_TOKENS, token);  // token is unsigned
-    return precedence_[token];
+    return precedence_[accept_IN][token];
   }
 
  private:
   static const char* const name_[NUM_TOKENS];
   static const char* const string_[NUM_TOKENS];
   static const uint8_t string_length_[NUM_TOKENS];
-  static const int8_t precedence_[NUM_TOKENS];
+  static const int8_t precedence_[2][NUM_TOKENS];
   static const char token_type[NUM_TOKENS];
 };
 

@@ -812,14 +812,11 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         SkipFunctionLiterals(info->function_literal_id() - 1);
       }
 
-      // Pass `accept_IN=true` to ParseArrowFunctionLiteral --- This should
-      // not be observable, or else the preparser would have failed.
-      const bool accept_IN = true;
       // Any destructuring assignments in the current FunctionState
       // actually belong to the arrow function itself.
       const int rewritable_length = 0;
       Expression* expression =
-          ParseArrowFunctionLiteral(accept_IN, formals, rewritable_length);
+          ParseArrowFunctionLiteral(formals, rewritable_length);
       // Scanning must end at the same position that was recorded
       // previously. If not, parsing has been interrupted due to a stack
       // overflow, at which point the partially parsed arrow function
@@ -1153,7 +1150,8 @@ Statement* Parser::ParseExportDefault() {
     default: {
       int pos = position();
       ExpressionClassifier classifier(this);
-      Expression* value = ParseAssignmentExpression(true);
+      AcceptINScope scope(this, true);
+      Expression* value = ParseAssignmentExpression();
       ValidateExpression();
       SetFunctionName(value, ast_value_factory()->default_string());
 
@@ -3012,8 +3010,9 @@ void Parser::ParseFunction(
   *num_parameters = formals.num_parameters();
   *function_length = formals.function_length;
 
+  AcceptINScope scope(this, true);
   ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
-                    FunctionBodyType::kBlock, true);
+                    FunctionBodyType::kBlock);
 
   RewriteDestructuringAssignments();
 
