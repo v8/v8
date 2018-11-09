@@ -29,9 +29,6 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8414
-  'regress-8414': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
