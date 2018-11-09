@@ -5,10 +5,10 @@
 #ifndef V8_CANCELABLE_TASK_H_
 #define V8_CANCELABLE_TASK_H_
 
-#include <atomic>
 #include <unordered_map>
 
 #include "include/v8-platform.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/globals.h"
@@ -86,9 +86,7 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
 
 class V8_EXPORT_PRIVATE Cancelable {
  public:
-  explicit Cancelable(CancelableTaskManager* parent)
-      : parent_(parent), id_(parent->Register(this)) {}
-
+  explicit Cancelable(CancelableTaskManager* parent);
   virtual ~Cancelable();
 
   // Never invoke after handing over the task to the platform! The reason is
@@ -99,48 +97,42 @@ class V8_EXPORT_PRIVATE Cancelable {
   CancelableTaskManager::Id id() { return id_; }
 
  protected:
+  bool TryRun() { return status_.TrySetValue(kWaiting, kRunning); }
+  bool IsRunning() { return status_.Value() == kRunning; }
+  intptr_t CancelAttempts() { return cancel_counter_; }
+
+ private:
   // Identifies the state a cancelable task is in:
   // |kWaiting|: The task is scheduled and waiting to be executed. {TryRun} will
   //   succeed.
   // |kCanceled|: The task has been canceled. {TryRun} will fail.
   // |kRunning|: The task is currently running and cannot be canceled anymore.
-  enum Status { kWaiting, kCanceled, kRunning };
-
-  bool TryRun(Status* previous = nullptr) {
-    return CompareExchangeStatus(kWaiting, kRunning, previous);
-  }
-  intptr_t CancelAttempts() { return cancel_counter_; }
-
- private:
-  friend class CancelableTaskManager;
+  enum Status {
+    kWaiting,
+    kCanceled,
+    kRunning,
+  };
 
   // Use {CancelableTaskManager} to abort a task that has not yet been
   // executed.
   bool Cancel() {
-    if (CompareExchangeStatus(kWaiting, kCanceled)) {
+    if (status_.TrySetValue(kWaiting, kCanceled)) {
       return true;
     }
     cancel_counter_++;
     return false;
   }
 
-  bool CompareExchangeStatus(Status expected, Status desired,
-                             Status* previous = nullptr) {
-    // {compare_exchange_strong} updates {expected}.
-    bool success = status_.compare_exchange_strong(expected, desired,
-                                                   std::memory_order_relaxed);
-    if (previous) *previous = expected;
-    return success;
-  }
-
-  CancelableTaskManager* const parent_;
-  std::atomic<Status> status_{kWaiting};
-  const CancelableTaskManager::Id id_;
+  CancelableTaskManager* parent_;
+  base::AtomicValue<Status> status_;
+  CancelableTaskManager::Id id_;
 
   // The counter is incremented for failing tries to cancel a task. This can be
   // used by the task itself as an indication how often external entities tried
   // to abort it.
-  std::atomic<intptr_t> cancel_counter_{0};
+  std::atomic<intptr_t> cancel_counter_;
+
+  friend class CancelableTaskManager;
 
   DISALLOW_COPY_AND_ASSIGN(Cancelable);
 };
