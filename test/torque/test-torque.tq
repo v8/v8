@@ -662,9 +662,9 @@ module test {
       const t5: Object = iterator::IteratorValue(t4);
       const t6: Object = iterator::IteratorValue(t4, map);
 
-      iterator::IteratorCloseOnException(t2);
-
       const t7: JSArray = iterator::IterableToList(t1, t1);
+
+      iterator::IteratorCloseOnException(t2, t5);
     }
     label Fail {}
   }

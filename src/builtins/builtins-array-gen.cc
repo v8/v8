@@ -2065,7 +2065,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
       // Close the iterator, rethrowing either the passed exception or
       // exceptions thrown during the close.
       iterator_assembler.IteratorCloseOnException(context, iterator_record,
-                                                  &var_exception);
+                                                  var_exception.value());
     }
   }
 

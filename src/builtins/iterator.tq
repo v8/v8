@@ -21,7 +21,7 @@ module iterator {
       implicit context: Context)(Object, Map): Object;
 
   extern macro IteratorBuiltinsAssembler::IteratorCloseOnException(
-      implicit context: Context)(IteratorRecord);
+      implicit context: Context)(IteratorRecord, Object): never;
 
   extern macro IteratorBuiltinsAssembler::IterableToList(
       implicit context: Context)(Object, Object): JSArray;

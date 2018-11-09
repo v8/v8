@@ -61,11 +61,11 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   void IteratorCloseOnException(
       Node* context,
       const BaseBuiltinsFromDSLAssembler::IteratorRecord& iterator,
-      Label* if_exception = nullptr, Variable* exception = nullptr);
+      Label* if_exception, Variable* exception);
   void IteratorCloseOnException(
       Node* context,
       const BaseBuiltinsFromDSLAssembler::IteratorRecord& iterator,
-      Variable* exception);
+      TNode<Object> exception);
 
   // #sec-iterabletolist
   // Build a JSArray by iterating over {iterable} using {iterator_fn},

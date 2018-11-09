@@ -167,8 +167,7 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
   // Perform ES #sec-iteratorclose when an exception occurs. This simpler
   // algorithm does not include redundant steps which are never reachable from
   // the spec IteratorClose algorithm.
-  DCHECK((if_exception != nullptr && exception != nullptr) ||
-         IsExceptionHandlerActive());
+  DCHECK((if_exception != nullptr && exception != nullptr));
   CSA_ASSERT(this, IsNotTheHole(exception->value()));
   CSA_ASSERT(this, IsJSReceiver(iterator.object));
 
@@ -193,12 +192,13 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
 }
 
 void IteratorBuiltinsAssembler::IteratorCloseOnException(
-    Node* context, const IteratorRecord& iterator, Variable* exception) {
+    Node* context, const IteratorRecord& iterator, TNode<Object> exception) {
   Label rethrow(this, Label::kDeferred);
-  IteratorCloseOnException(context, iterator, &rethrow, exception);
+  TVARIABLE(Object, exception_variable, exception);
+  IteratorCloseOnException(context, iterator, &rethrow, &exception_variable);
 
   BIND(&rethrow);
-  CallRuntime(Runtime::kReThrow, context, exception->value());
+  CallRuntime(Runtime::kReThrow, context, exception);
   Unreachable();
 }
 
