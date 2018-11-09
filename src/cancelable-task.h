@@ -165,33 +165,6 @@ class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
   DISALLOW_COPY_AND_ASSIGN(CancelableTask);
 };
 
-// TODO(clemensh): Use std::function and move implementation to cc file.
-template <typename Func>
-class CancelableLambdaTask final : public CancelableTask {
- public:
-  CancelableLambdaTask(Isolate* isolate, Func func)
-      : CancelableTask(isolate), func_(std::move(func)) {}
-  CancelableLambdaTask(CancelableTaskManager* manager, Func func)
-      : CancelableTask(manager), func_(std::move(func)) {}
-  void RunInternal() final { func_(); }
-
- private:
-  Func func_;
-};
-
-template <typename Func>
-std::unique_ptr<CancelableTask> MakeCancelableLambdaTask(Isolate* isolate,
-                                                         Func func) {
-  return std::unique_ptr<CancelableTask>(
-      new CancelableLambdaTask<Func>(isolate, std::move(func)));
-}
-template <typename Func>
-std::unique_ptr<CancelableTask> MakeCancelableLambdaTask(
-    CancelableTaskManager* manager, Func func) {
-  return std::unique_ptr<CancelableTask>(
-      new CancelableLambdaTask<Func>(manager, std::move(func)));
-}
-
 // Multiple inheritance can be used because IdleTask is a pure interface.
 class CancelableIdleTask : public Cancelable, public IdleTask {
  public:
@@ -210,34 +183,6 @@ class CancelableIdleTask : public Cancelable, public IdleTask {
  private:
   DISALLOW_COPY_AND_ASSIGN(CancelableIdleTask);
 };
-
-template <typename Func>
-class CancelableIdleLambdaTask final : public CancelableIdleTask {
- public:
-  CancelableIdleLambdaTask(Isolate* isolate, Func func)
-      : CancelableIdleTask(isolate), func_(std::move(func)) {}
-  CancelableIdleLambdaTask(CancelableTaskManager* manager, Func func)
-      : CancelableIdleTask(manager), func_(std::move(func)) {}
-  void RunInternal(double deadline_in_seconds) final {
-    func_(deadline_in_seconds);
-  }
-
- private:
-  Func func_;
-};
-
-template <typename Func>
-std::unique_ptr<CancelableIdleTask> MakeCancelableIdleLambdaTask(
-    Isolate* isolate, Func func) {
-  return std::unique_ptr<CancelableIdleTask>(
-      new CancelableIdleLambdaTask<Func>(isolate, std::move(func)));
-}
-template <typename Func>
-std::unique_ptr<CancelableIdleTask> MakeCancelableIdleLambdaTask(
-    CancelableTaskManager* manager, Func func) {
-  return std::unique_ptr<CancelableIdleTask>(
-      new CancelableIdleLambdaTask<Func>(manager, std::move(func)));
-}
 
 }  // namespace internal
 }  // namespace v8

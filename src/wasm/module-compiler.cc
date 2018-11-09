@@ -13,6 +13,7 @@
 #include "src/counters.h"
 #include "src/identity-map.h"
 #include "src/property-descriptor.h"
+#include "src/task-utils.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-decoder.h"
@@ -3185,7 +3186,7 @@ void CompilationStateImpl::SetError(uint32_t func_index,
   // Schedule a foreground task to call the callback and notify users about the
   // compile error.
   foreground_task_runner_->PostTask(
-      MakeCancelableLambdaTask(&foreground_task_manager_, [this] {
+      MakeCancelableTask(&foreground_task_manager_, [this] {
         VoidResult error_result = GetCompileError();
         NotifyOnEvent(CompilationEvent::kFailedCompilation, &error_result);
       }));

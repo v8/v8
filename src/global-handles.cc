@@ -8,6 +8,7 @@
 #include "src/cancelable-task.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
+#include "src/task-utils.h"
 #include "src/v8.h"
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"
@@ -861,7 +862,7 @@ int GlobalHandles::DispatchPendingPhantomCallbacks(
       second_pass_callbacks_task_posted_ = true;
       auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
           reinterpret_cast<v8::Isolate*>(isolate()));
-      taskrunner->PostTask(MakeCancelableLambdaTask(
+      taskrunner->PostTask(MakeCancelableTask(
           isolate(), [this] { InvokeSecondPassPhantomCallbacksFromTask(); }));
     }
   }
