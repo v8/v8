@@ -655,6 +655,7 @@ class BaseTestRunner(object):
       "no_i18n": self.build_config.no_i18n,
       "no_snap": self.build_config.no_snap,
       "novfp3": False,
+      "optimize_for_size": "--optimize-for-size" in options.extra_flags,
       "predictable": self.build_config.predictable,
       "simd_mips": simd_mips,
       "simulator_run": False,

@@ -388,6 +388,12 @@
 }],  # 'system == android'
 
 ##############################################################################
+['system != android and arch in [arm, arm64] and not simulator_run', {
+  # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
+  'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug or dcheck_always_on) and optimize_for_size', SKIP]],
+}],  # 'system != android and arch in [arm, arm64] and not simulator_run'
+
+##############################################################################
 ['system == aix and arch == ppc64', {
 
   # BUG 2857
