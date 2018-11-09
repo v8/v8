@@ -10,18 +10,12 @@
 namespace v8 {
 namespace internal {
 
-
-Cancelable::Cancelable(CancelableTaskManager* parent)
-    : parent_(parent), status_(kWaiting), id_(0), cancel_counter_(0) {
-  id_ = parent->Register(this);
-}
-
-
 Cancelable::~Cancelable() {
   // The following check is needed to avoid calling an already terminated
   // manager object. This happens when the manager cancels all pending tasks
   // in {CancelAndWait} only before destroying the manager object.
-  if (TryRun() || IsRunning()) {
+  Status previous;
+  if (TryRun(&previous) || previous == kRunning) {
     parent_->RemoveFinishedTask(id_);
   }
 }
