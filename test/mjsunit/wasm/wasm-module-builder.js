@@ -74,7 +74,8 @@ class Binary extends Array {
     // Emit section length.
     this.emit_u32v(section.length);
     // Copy the temporary buffer.
-    this.push(...section);
+    // Avoid spread because {section} can be huge.
+    for (let b of section) this.push(b);
   }
 }
 
@@ -209,7 +210,10 @@ class WasmModuleBuilder {
     name = this.stringToBytes(name);
     var length = new Binary();
     length.emit_u32v(name.length + bytes.length);
-    this.explicit.push([0, ...length, ...name, ...bytes]);
+    var section = [0, ...length, ...name];
+    // Avoid spread because {bytes} can be huge.
+    for (var b of bytes) section.push(b);
+    this.explicit.push(section);
   }
 
   addType(type) {
