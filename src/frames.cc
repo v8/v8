@@ -15,6 +15,7 @@
 #include "src/objects/smi.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
+#include "src/snapshot/snapshot.h"
 #include "src/string-stream.h"
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"
@@ -2130,12 +2131,24 @@ void InternalFrame::Iterate(RootVisitor* v) const {
 
 // -------------------------------------------------------------------------
 
+namespace {
+
+uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
+  if (InstructionStream::PcIsOffHeap(isolate, address)) {
+    // Ensure that we get predictable hashes for addresses in embedded code.
+    return EmbeddedData::FromBlob(isolate).AddressForHashing(address);
+  }
+  return ObjectAddressForHashing(reinterpret_cast<void*>(address));
+}
+
+}  // namespace
+
 InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
     InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   isolate_->counters()->pc_to_code()->Increment();
   DCHECK(base::bits::IsPowerOfTwo(kInnerPointerToCodeCacheSize));
-  uint32_t hash = ComputeUnseededHash(
-      ObjectAddressForHashing(reinterpret_cast<void*>(inner_pointer)));
+  uint32_t hash =
+      ComputeUnseededHash(PcAddressForHashing(isolate_, inner_pointer));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   InnerPointerToCodeCacheEntry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {

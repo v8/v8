@@ -375,14 +375,6 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   return d;
 }
 
-EmbeddedData EmbeddedData::FromBlob() {
-  const uint8_t* data = Isolate::CurrentEmbeddedBlob();
-  uint32_t size = Isolate::CurrentEmbeddedBlobSize();
-  DCHECK_NOT_NULL(data);
-  DCHECK_LT(0, size);
-  return {data, size};
-}
-
 Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
   const struct Metadata* metadata = Metadata();

@@ -53,7 +53,16 @@ class SnapshotData : public SerializedData {
 class EmbeddedData final {
  public:
   static EmbeddedData FromIsolate(Isolate* isolate);
-  static EmbeddedData FromBlob();
+
+  static EmbeddedData FromBlob() {
+    return EmbeddedData(Isolate::CurrentEmbeddedBlob(),
+                        Isolate::CurrentEmbeddedBlobSize());
+  }
+
+  static EmbeddedData FromBlob(Isolate* isolate) {
+    return EmbeddedData(isolate->embedded_blob(),
+                        isolate->embedded_blob_size());
+  }
 
   const uint8_t* data() const { return data_; }
   uint32_t size() const { return size_; }
@@ -64,6 +73,12 @@ class EmbeddedData final {
   uint32_t InstructionSizeOfBuiltin(int i) const;
 
   bool ContainsBuiltin(int i) const { return InstructionSizeOfBuiltin(i) > 0; }
+
+  uint32_t AddressForHashing(Address addr) {
+    Address start = reinterpret_cast<Address>(data_);
+    DCHECK(IsInRange(addr, start, start + size_));
+    return static_cast<uint32_t>(addr - start);
+  }
 
   // Padded with kCodeAlignment.
   uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
@@ -106,7 +121,11 @@ class EmbeddedData final {
   }
 
  private:
-  EmbeddedData(const uint8_t* data, uint32_t size) : data_(data), size_(size) {}
+  explicit EmbeddedData(const uint8_t* data, uint32_t size)
+      : data_(data), size_(size) {
+    DCHECK_NOT_NULL(data);
+    DCHECK_LT(0, size);
+  }
 
   const Metadata* Metadata() const {
     return reinterpret_cast<const struct Metadata*>(data_ + MetadataOffset());

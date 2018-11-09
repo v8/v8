@@ -15,7 +15,7 @@ namespace internal {
 bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
   if (FLAG_embedded_builtins) {
     const Address start = reinterpret_cast<Address>(isolate->embedded_blob());
-    return start <= pc && pc < start + isolate->embedded_blob_size();
+    return IsInRange(pc, start, start + isolate->embedded_blob_size());
   } else {
     return false;
   }
