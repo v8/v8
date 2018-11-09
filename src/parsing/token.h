@@ -76,7 +76,6 @@ namespace internal {
   T(CONDITIONAL, "?", 3)                                           \
   T(INC, "++", 0)                                                  \
   T(DEC, "--", 0)                                                  \
-  T(ARROW, "=>", 0)                                                \
   /* BEGIN AutoSemicolon */                                        \
   T(SEMICOLON, ";", 0)                                             \
   T(RBRACE, "}", 0)                                                \
@@ -84,12 +83,16 @@ namespace internal {
   T(EOS, "EOS", 0)                                                 \
   /* END AutoSemicolon */                                          \
                                                                    \
-  /* Assignment operators. */                                      \
+  /* BEGIN ArrowOrAssignmentOp */                                  \
+  T(ARROW, "=>", 0)                                                \
+  /* BEGIN AssignmentOp */                                         \
   /* IsAssignmentOp() relies on this block of enum values being */ \
   /* contiguous and sorted in the same order! */                   \
   T(INIT, "=init", 2) /* AST-use only. */                          \
   T(ASSIGN, "=", 2)                                                \
   BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_ASSIGN_TOKEN)               \
+  /* END AssignmentOp */                                           \
+  /* END ArrowOrAssignmentOp */                                    \
                                                                    \
   /* Binary operators sorted by precedence. */                     \
   /* IsBinaryOp() relies on this block of enum values */           \
@@ -269,9 +272,14 @@ class Token {
     return IsInRange(token, TEMPLATE_SPAN, LPAREN);
   }
 
+  static bool IsArrowOrAssignmentOp(Value token) {
+    return IsInRange(token, ARROW, ASSIGN_EXP);
+  }
+
   static bool IsAssignmentOp(Value token) {
     return IsInRange(token, INIT, ASSIGN_EXP);
   }
+
   static bool IsGetOrSet(Value op) { return IsInRange(op, GET, SET); }
 
   static bool IsBinaryOp(Value op) { return IsInRange(op, COMMA, EXP); }

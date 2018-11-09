@@ -227,6 +227,7 @@ TEST(IsLiteralToken) {
     CHECK_EQ(TokenIsLiteral(token), Token::IsLiteral(token));
   }
 }
+
 bool TokenIsAssignmentOp(Token::Value token) {
   switch (token) {
     case Token::INIT:
@@ -244,6 +245,18 @@ TEST(AssignmentOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsAssignmentOp(token), Token::IsAssignmentOp(token));
+  }
+}
+
+bool TokenIsArrowOrAssignmentOp(Token::Value token) {
+  return token == Token::ARROW || TokenIsAssignmentOp(token);
+}
+
+TEST(ArrowOrAssignmentOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsArrowOrAssignmentOp(token),
+             Token::IsArrowOrAssignmentOp(token));
   }
 }
 

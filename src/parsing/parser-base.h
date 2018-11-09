@@ -2661,7 +2661,23 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN) {
 
   ExpressionT expression = ParseConditionalExpression(accept_IN);
 
-  if (V8_UNLIKELY(peek() == Token::ARROW)) {
+  Token::Value op = peek();
+
+  if (!Token::IsArrowOrAssignmentOp(op)) {
+    if (IsValidReferenceExpression(expression)) {
+      // Parenthesized identifiers and property references are allowed as part
+      // of a larger assignment pattern, even though parenthesized patterns
+      // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
+      // assignment pattern errors if the parsed expression is more complex.
+      Accumulate(~ExpressionClassifier::AssignmentPatternProduction);
+    } else {
+      Accumulate(ExpressionClassifier::AllProductions);
+    }
+    return expression;
+  }
+
+  // Arrow functions.
+  if (V8_UNLIKELY(op == Token::ARROW)) {
     Scanner::Location arrow_loc = scanner()->peek_location();
     ValidateArrowFormalParameters(expression, parenthesized_formals, is_async);
     // This reads strangely, but is correct: it checks whether any
@@ -2702,45 +2718,42 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN) {
     return expression;
   }
 
-  Token::Value op = peek();
-
-  bool is_destructuring_assignment =
-      IsValidPattern(expression) && peek() == Token::ASSIGN;
-  if (is_destructuring_assignment) {
+  // Destructuring assignmment.
+  if (V8_UNLIKELY(IsValidPattern(expression) && op == Token::ASSIGN)) {
     ValidateAssignmentPattern();
 
     // This is definitely not an expression so don't accumulate
     // expression-related errors.
     Accumulate(~ExpressionClassifier::ExpressionProduction);
-    if (!Token::IsAssignmentOp(op)) return expression;
     impl()->MarkPatternAsAssigned(expression);
 
-  } else {
-    if (IsValidReferenceExpression(expression)) {
-      // Parenthesized identifiers and property references are allowed as part
-      // of a larger assignment pattern, even though parenthesized patterns
-      // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
-      // assignment pattern errors if the parsed expression is more complex.
-      Accumulate(~ExpressionClassifier::AssignmentPatternProduction);
-    } else {
-      Accumulate(ExpressionClassifier::AllProductions);
-    }
+    Consume(op);
+    int pos = position();
 
-    if (!Token::IsAssignmentOp(op)) return expression;
+    ExpressionClassifier rhs_classifier(this);
 
-    expression = CheckAndRewriteReferenceExpression(
-        expression, lhs_beg_pos, end_position(),
-        MessageTemplate::kInvalidLhsInAssignment);
-    impl()->MarkExpressionAsAssigned(expression);
+    ExpressionT right = ParseAssignmentExpression(accept_IN);
+    ValidateExpression();
+    AccumulateFormalParameterContainmentErrors();
+
+    ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
+
+    auto rewritable = factory()->NewRewritableExpression(result, scope());
+    impl()->QueueDestructuringAssignmentForRewriting(rewritable);
+    return rewritable;
   }
+
+  // This is definitely not an assignment pattern, so don't accumulate
+  // assignment pattern-related errors.
+  Accumulate(~ExpressionClassifier::AssignmentPatternProduction);
+
+  expression = CheckAndRewriteReferenceExpression(
+      expression, lhs_beg_pos, end_position(),
+      MessageTemplate::kInvalidLhsInAssignment);
+  impl()->MarkExpressionAsAssigned(expression);
 
   Consume(op);
-  if (op != Token::ASSIGN) {
-    classifier()->RecordPatternError(scanner()->location(),
-                                     MessageTemplate::kUnexpectedToken,
-                                     Token::String(op));
-  }
-  int pos = position();
+  Scanner::Location op_location = scanner()->location();
 
   ExpressionClassifier rhs_classifier(this);
 
@@ -2748,40 +2761,32 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN) {
   ValidateExpression();
   AccumulateFormalParameterContainmentErrors();
 
-  // We try to estimate the set of properties set by constructors. We define a
-  // new property whenever there is an assignment to a property of 'this'. We
-  // should probably only add properties if we haven't seen them
-  // before. Otherwise we'll probably overestimate the number of properties.
-  if (op == Token::ASSIGN && impl()->IsThisProperty(expression)) {
-    function_state_->AddProperty();
-  }
+  if (op == Token::ASSIGN) {
+    // We try to estimate the set of properties set by constructors. We define a
+    // new property whenever there is an assignment to a property of 'this'. We
+    // should probably only add properties if we haven't seen them before.
+    // Otherwise we'll probably overestimate the number of properties.
+    if (impl()->IsThisProperty(expression)) function_state_->AddProperty();
 
-  impl()->CheckAssigningFunctionLiteralToProperty(expression, right);
+    impl()->CheckAssigningFunctionLiteralToProperty(expression, right);
 
-  // Check if the right hand side is a call to avoid inferring a
-  // name if we're dealing with "a = function(){...}();"-like
-  // expression.
-  if (op == Token::ASSIGN && !right->IsCall() && !right->IsCallNew()) {
-    fni_.Infer();
+    // Check if the right hand side is a call to avoid inferring a
+    // name if we're dealing with "a = function(){...}();"-like
+    // expression.
+    if (right->IsCall() || right->IsCallNew()) {
+      fni_.RemoveLastFunction();
+    } else {
+      fni_.Infer();
+    }
+
+    impl()->SetFunctionNameFromIdentifierRef(right, expression);
   } else {
+    classifier()->RecordPatternError(
+        op_location, MessageTemplate::kUnexpectedToken, Token::String(op));
     fni_.RemoveLastFunction();
   }
 
-  if (op == Token::ASSIGN) {
-    impl()->SetFunctionNameFromIdentifierRef(right, expression);
-  }
-
-  DCHECK_NE(op, Token::INIT);
-  ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
-
-  if (is_destructuring_assignment) {
-    DCHECK_NE(op, Token::ASSIGN_EXP);
-    auto rewritable = factory()->NewRewritableExpression(result, scope());
-    impl()->QueueDestructuringAssignmentForRewriting(rewritable);
-    result = rewritable;
-  }
-
-  return result;
+  return factory()->NewAssignment(op, expression, right, op_location.beg_pos);
 }
 
 template <typename Impl>
