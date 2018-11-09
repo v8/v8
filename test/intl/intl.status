@@ -52,6 +52,8 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8432
   'regress-8432': [FAIL],
 
+  # https://crbug.com/v8/8414
+  'regress-8414': [FAIL],
 }],  # 'system == android'
 ['tsan', {
   # Run for too long under some tsan configs.
