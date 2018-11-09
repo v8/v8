@@ -257,7 +257,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
           parsing_module_, parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
-      SET_ALLOW(harmony_do_expressions);
       SET_ALLOW(harmony_public_fields);
       SET_ALLOW(harmony_static_fields);
       SET_ALLOW(harmony_dynamic_import);
@@ -386,8 +385,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Statement* DesugarLexicalBindingsInForStatement(
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
       Statement* body, Scope* inner_scope, const ForInfo& for_info);
-
-  Expression* RewriteDoExpression(Block* body, int pos);
 
   FunctionLiteral* ParseFunctionLiteral(
       const AstRawString* name, Scanner::Location function_name_location,

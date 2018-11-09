@@ -446,7 +446,6 @@ void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
     printer.set_test_function_name(options.test_function_name());
   }
 
-  if (options.do_expressions()) i::FLAG_harmony_do_expressions = true;
   if (options.public_fields()) i::FLAG_harmony_public_fields = true;
   if (options.private_fields()) i::FLAG_harmony_private_fields = true;
   if (options.static_fields()) i::FLAG_harmony_static_fields = true;
@@ -457,7 +456,6 @@ void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
     printer.PrintExpectation(stream, snippet);
   }
 
-  i::FLAG_harmony_do_expressions = false;
   i::FLAG_harmony_public_fields = false;
   i::FLAG_harmony_private_fields = false;
   i::FLAG_harmony_static_fields = false;
@@ -509,7 +507,6 @@ void PrintUsage(const char* exec_path) {
          "  --test-function-name=foo  "
          "Specify the name of the test function.\n"
          "  --top-level   Process top level code, not the top-level function.\n"
-         "  --do-expressions  Enable harmony_do_expressions flag.\n"
          "  --public-fields  Enable harmony_public_fields flag.\n"
          "  --private-fields  Enable harmony_private_fields flag.\n"
          "  --static-fields  Enable harmony_static_fields flag.\n"

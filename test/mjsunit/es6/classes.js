@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-do-expressions
+// Flags: --allow-natives-syntax
 
 (function TestBasics() {
   var C = class C {}
@@ -1037,31 +1037,6 @@ function testClassRestrictedProperties(C) {
 
 
 (function testReturnFromClassLiteral() {
-
-  function usingDoExpressionInBody() {
-    let x = 42;
-    let dummy = function() {x};
-    try {
-      class C {
-        dummy() {C}
-        [do {return}]() {}
-      };
-    } finally {
-      return x;
-    }
-  }
-  assertEquals(42, usingDoExpressionInBody());
-
-  function usingDoExpressionInExtends() {
-    let x = 42;
-    let dummy = function() {x};
-    try {
-      class C extends (do {return}) { dummy() {C} };
-    } finally {
-      return x;
-    }
-  }
-  assertEquals(42, usingDoExpressionInExtends());
 
   function usingYieldInBody() {
     function* foo() {

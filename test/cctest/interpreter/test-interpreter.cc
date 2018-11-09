@@ -4630,37 +4630,6 @@ TEST(InterpreterWideParametersSummation) {
   }
 }
 
-TEST(InterpreterDoExpression) {
-  bool old_flag = FLAG_harmony_do_expressions;
-  FLAG_harmony_do_expressions = true;
-
-  HandleAndZoneScope handles;
-  Isolate* isolate = handles.main_isolate();
-  Factory* factory = isolate->factory();
-
-  std::pair<const char*, Handle<Object>> do_expr[] = {
-      {"var a = do {}; return a;", factory->undefined_value()},
-      {"var a = do { var x = 100; }; return a;", factory->undefined_value()},
-      {"var a = do { var x = 100; }; return a;", factory->undefined_value()},
-      {"var a = do { var x = 100; x++; }; return a;",
-       handle(Smi::FromInt(100), isolate)},
-      {"var i = 0; for (; i < 5;) { i = do { if (i == 3) { break; }; i + 1; }};"
-       "return i;",
-       handle(Smi::FromInt(3), isolate)},
-  };
-
-  for (size_t i = 0; i < arraysize(do_expr); i++) {
-    std::string source(InterpreterTester::SourceForBody(do_expr[i].first));
-    InterpreterTester tester(isolate, source.c_str());
-    auto callable = tester.GetCallable<>();
-
-    Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*do_expr[i].second));
-  }
-
-  FLAG_harmony_do_expressions = old_flag;
-}
-
 TEST(InterpreterWithStatement) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();

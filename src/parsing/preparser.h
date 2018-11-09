@@ -1146,11 +1146,6 @@ class PreParser : public ParserBase<PreParser> {
                            function_scope);
   }
 
-  V8_INLINE PreParserExpression RewriteDoExpression(PreParserStatement body,
-                                                    int pos) {
-    return PreParserExpression::Default();
-  }
-
   // TODO(nikolaos): The preparser currently does not keep track of labels
   // and targets.
   V8_INLINE PreParserStatement

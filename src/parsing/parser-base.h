@@ -241,7 +241,6 @@ class ParserBase {
         function_literal_id_(0),
         script_id_(script_id),
         allow_natives_(false),
-        allow_harmony_do_expressions_(false),
         allow_harmony_public_fields_(false),
         allow_harmony_static_fields_(false),
         allow_harmony_dynamic_import_(false),
@@ -256,7 +255,6 @@ class ParserBase {
   void set_allow_##name(bool allow) { allow_##name##_ = allow; }
 
   ALLOW_ACCESSORS(natives);
-  ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_public_fields);
   ALLOW_ACCESSORS(harmony_static_fields);
   ALLOW_ACCESSORS(harmony_dynamic_import);
@@ -1146,8 +1144,6 @@ class ParserBase {
   // Magical syntax support.
   ExpressionT ParseV8Intrinsic();
 
-  ExpressionT ParseDoExpression();
-
   StatementT ParseDebuggerStatement();
 
   StatementT ParseExpressionOrLabelledStatement(
@@ -1446,7 +1442,6 @@ class ParserBase {
   int script_id_;
 
   bool allow_natives_;
-  bool allow_harmony_do_expressions_;
   bool allow_harmony_public_fields_;
   bool allow_harmony_static_fields_;
   bool allow_harmony_dynamic_import_;
@@ -1800,13 +1795,6 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       if (allow_natives() || extension_ != nullptr) {
         BindingPatternUnexpectedToken();
         return ParseV8Intrinsic();
-      }
-      break;
-
-    case Token::DO:
-      if (allow_harmony_do_expressions()) {
-        BindingPatternUnexpectedToken();
-        return ParseDoExpression();
       }
       break;
 
@@ -4513,17 +4501,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic() {
   }
 
   return impl()->NewV8Intrinsic(name, args, pos);
-}
-
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseDoExpression() {
-  // AssignmentExpression ::
-  //     do '{' StatementList '}'
-
-  int pos = peek_position();
-  Consume(Token::DO);
-  BlockT block = ParseBlock(nullptr);
-  return impl()->RewriteDoExpression(block, pos);
 }
 
 template <typename Impl>

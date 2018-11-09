@@ -431,7 +431,6 @@ Parser::Parser(ParseInfo* info)
   allow_lazy_ = FLAG_lazy && info->allow_lazy_parsing() && !info->is_native() &&
                 info->extension() == nullptr && can_compile_lazily;
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
-  set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_public_fields(FLAG_harmony_public_fields);
   set_allow_harmony_static_fields(FLAG_harmony_static_fields);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
@@ -1547,16 +1546,6 @@ Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
                                   factory()->NewVariableProxy(temp), pos);
   }
   return return_value;
-}
-
-Expression* Parser::RewriteDoExpression(Block* body, int pos) {
-  if (has_error()) return FailureExpression();
-  Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
-  DoExpression* expr = factory()->NewDoExpression(body, result, pos);
-  if (!Rewriter::Rewrite(this, GetClosureScope(), expr, ast_value_factory())) {
-    return FailureExpression();
-  }
-  return expr;
 }
 
 Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,

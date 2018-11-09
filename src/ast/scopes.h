@@ -122,8 +122,19 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   class Snapshot final {
    public:
-    explicit Snapshot(Scope* scope);
-    ~Snapshot();
+    explicit Snapshot(Scope* scope)
+        : outer_scope_and_calls_eval_(scope, scope->scope_calls_eval_),
+          top_inner_scope_(scope->inner_scope_),
+          top_unresolved_(scope->unresolved_list_.first()) {
+      // Reset in order to record eval calls during this Snapshot's lifetime.
+      outer_scope_and_calls_eval_.GetPointer()->scope_calls_eval_ = false;
+    }
+    ~Snapshot() {
+      // Restore previous calls_eval bit if needed.
+      if (outer_scope_and_calls_eval_.GetPayload()) {
+        outer_scope_and_calls_eval_->scope_calls_eval_ = true;
+      }
+    }
 
     void Reparent(DeclarationScope* new_parent) const;
 
@@ -131,8 +142,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     PointerWithPayload<Scope, bool, 1> outer_scope_and_calls_eval_;
     Scope* top_inner_scope_;
     VariableProxy* top_unresolved_;
-    base::ThreadedList<Variable>::Iterator top_local_;
-    base::ThreadedList<Declaration>::Iterator top_decl_;
   };
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };

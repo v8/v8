@@ -150,23 +150,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
   outer_scope_->AddInnerScope(this);
 }
 
-Scope::Snapshot::Snapshot(Scope* scope)
-    : outer_scope_and_calls_eval_(scope, scope->scope_calls_eval_),
-      top_inner_scope_(scope->inner_scope_),
-      top_unresolved_(scope->unresolved_list_.first()),
-      top_local_(scope->GetClosureScope()->locals_.end()),
-      top_decl_(scope->GetClosureScope()->decls_.end()) {
-  // Reset in order to record eval calls during this Snapshot's lifetime.
-  outer_scope_and_calls_eval_.GetPointer()->scope_calls_eval_ = false;
-}
-
-Scope::Snapshot::~Snapshot() {
-  // Restore previous calls_eval bit if needed.
-  if (outer_scope_and_calls_eval_.GetPayload()) {
-    outer_scope_and_calls_eval_->scope_calls_eval_ = true;
-  }
-}
-
 DeclarationScope::DeclarationScope(Zone* zone,
                                    AstValueFactory* ast_value_factory)
     : Scope(zone), function_kind_(kNormalFunction), params_(4, zone) {
@@ -896,27 +879,6 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
     new_parent->unresolved_list_ = std::move(outer_scope_->unresolved_list_);
     outer_scope_->unresolved_list_.ReinitializeHead(top_unresolved_);
   }
-
-  // TODO(verwaest): This currently only moves do-expression declared variables
-  // in default arguments that weren't already previously declared with the same
-  // name in the closure-scope. See
-  // test/mjsunit/harmony/default-parameter-do-expression.js.
-  DeclarationScope* outer_closure = outer_scope_->GetClosureScope();
-
-  new_parent->locals_.MoveTail(outer_closure->locals(), top_local_);
-  for (Variable* local : new_parent->locals_) {
-    DCHECK(local->mode() == VariableMode::kTemporary ||
-           local->mode() == VariableMode::kVar);
-    DCHECK_EQ(local->scope(), local->scope()->GetClosureScope());
-    DCHECK_NE(local->scope(), new_parent);
-    local->set_scope(new_parent);
-    if (local->mode() == VariableMode::kVar) {
-      outer_closure->variables_.Remove(local);
-      new_parent->variables_.Add(new_parent->zone(), local);
-    }
-  }
-  outer_closure->locals_.Rewind(top_local_);
-  outer_closure->decls_.Rewind(top_decl_);
 
   // Move eval calls since Snapshot's creation into new_parent.
   if (outer_scope_->scope_calls_eval_) {

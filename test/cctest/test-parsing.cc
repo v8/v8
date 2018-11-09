@@ -1510,7 +1510,6 @@ enum ParserFlag {
   kAllowHarmonyStaticFields,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
-  kAllowHarmonyDoExpressions,
   kAllowHarmonyNumericSeparator
 };
 
@@ -1527,7 +1526,6 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_static_fields = flags.Contains(kAllowHarmonyStaticFields);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
-  i::FLAG_harmony_do_expressions = flags.Contains(kAllowHarmonyDoExpressions);
   i::FLAG_harmony_numeric_separator =
       flags.Contains(kAllowHarmonyNumericSeparator);
 }
@@ -1544,8 +1542,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
       flags.Contains(kAllowHarmonyImportMeta));
-  parser->set_allow_harmony_do_expressions(
-      flags.Contains(kAllowHarmonyDoExpressions));
   parser->set_allow_harmony_numeric_separator(
       flags.Contains(kAllowHarmonyNumericSeparator));
 }
@@ -2689,29 +2685,6 @@ TEST(OptionalCatchBinding) {
   // clang-format on
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
-}
-
-TEST(OptionalCatchBindingInDoExpression) {
-  // This is an edge case no otherwise hit: a catch scope in a parameter
-  // expression which needs its own scope.
-  // clang-format off
-  const char* context_data[][2] = {
-    {"((x = (eval(''), do {", "}))=>{})()"},
-    { nullptr, nullptr }
-  };
-
-  const char* statement_data[] = {
-    "try { } catch { }",
-    "try { } catch { } finally { }",
-    "try { let e; } catch { let e; }",
-    "try { let e; } catch { let e; } finally { let e; }",
-    nullptr
-  };
-  // clang-format on
-
-  static const ParserFlag do_and_catch_flags[] = {kAllowHarmonyDoExpressions};
-  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0,
-                    do_and_catch_flags, arraysize(do_and_catch_flags));
 }
 
 TEST(ErrorsRegexpLiteral) {

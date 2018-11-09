@@ -4385,7 +4385,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 #define EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(id) \
   void Genesis::InitializeGlobal_##id() {}
 
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_namespace_exports)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_public_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_fields)
