@@ -1062,6 +1062,9 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   PipelineData* data = &data_;
   data->BeginPhaseKind("wasm optimization");
   const bool is_asm_js = native_module_->module()->origin == wasm::kAsmJsOrigin;
+  if (FLAG_turbo_splitting && !is_asm_js) {
+    data->info()->MarkAsSplittingEnabled();
+  }
   if (FLAG_wasm_opt || is_asm_js) {
     PipelineRunScope scope(data, "wasm full optimization");
     GraphReducer graph_reducer(scope.zone(), data->graph(),

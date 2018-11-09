@@ -79,9 +79,6 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       break;
     case Code::WASM_FUNCTION:
       SetFlag(kSwitchJumpTableEnabled);
-      if (FLAG_turbo_splitting) {
-        MarkAsSplittingEnabled();
-      }
       break;
     default:
       break;
