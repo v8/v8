@@ -109,20 +109,13 @@ class V8_EXPORT_PRIVATE Cancelable {
   bool TryRun(Status* previous = nullptr) {
     return CompareExchangeStatus(kWaiting, kRunning, previous);
   }
-  intptr_t CancelAttempts() { return cancel_counter_; }
 
  private:
   friend class CancelableTaskManager;
 
   // Use {CancelableTaskManager} to abort a task that has not yet been
   // executed.
-  bool Cancel() {
-    if (CompareExchangeStatus(kWaiting, kCanceled)) {
-      return true;
-    }
-    cancel_counter_++;
-    return false;
-  }
+  bool Cancel() { return CompareExchangeStatus(kWaiting, kCanceled); }
 
   bool CompareExchangeStatus(Status expected, Status desired,
                              Status* previous = nullptr) {
@@ -136,11 +129,6 @@ class V8_EXPORT_PRIVATE Cancelable {
   CancelableTaskManager* const parent_;
   std::atomic<Status> status_{kWaiting};
   const CancelableTaskManager::Id id_;
-
-  // The counter is incremented for failing tries to cancel a task. This can be
-  // used by the task itself as an indication how often external entities tried
-  // to abort it.
-  std::atomic<intptr_t> cancel_counter_{0};
 
   DISALLOW_COPY_AND_ASSIGN(Cancelable);
 };
