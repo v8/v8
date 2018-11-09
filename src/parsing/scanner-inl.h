@@ -294,7 +294,8 @@ enum class ScanFlags : uint8_t {
   // "Cannot" rather than "can" so that this flag can be ORed together across
   // multiple characters.
   kCannotBeKeyword = 1 << 1,
-  kNeedsSlowPath = 1 << 2,
+  kStringTerminator = 1 << 2,
+  kNeedsSlowPath = 1 << 3,
 };
 constexpr uint8_t GetScanFlags(char c) {
   return
@@ -312,6 +313,10 @@ constexpr uint8_t GetScanFlags(char c) {
       (!IsAsciiIdentifier(c)
            ? static_cast<uint8_t>(ScanFlags::kTerminatesLiteral)
            : 0) |
+      // Possible string termination characters.
+      ((c == '\'' || c == '"' || c == '\n' || c == '\r' || c == '\\')
+           ? static_cast<uint8_t>(ScanFlags::kStringTerminator)
+           : 0) |
       // Escapes are processed on the slow path.
       (c == '\\' ? static_cast<uint8_t>(ScanFlags::kNeedsSlowPath) : 0);
 }
@@ -323,6 +328,9 @@ inline bool CanBeKeyword(uint8_t scan_flags) {
 }
 inline bool NeedsSlowPath(uint8_t scan_flags) {
   return (scan_flags & static_cast<uint8_t>(ScanFlags::kNeedsSlowPath));
+}
+inline bool MayTerminateString(uint8_t scan_flags) {
+  return (scan_flags & static_cast<uint8_t>(ScanFlags::kStringTerminator));
 }
 // Table of precomputed scan flags for the 128 ASCII characters, for branchless
 // flag calculation during the scan.

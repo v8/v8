@@ -548,22 +548,43 @@ Token::Value Scanner::ScanString() {
 
   LiteralScope literal(this);
   while (true) {
+    if ((V8_UNLIKELY(static_cast<uint32_t>(c0_) >= kMaxAscii) &&
+         !unibrow::IsStringLiteralLineTerminator(c0_)) ||
+        !MayTerminateString(character_scan_flags[c0_])) {
+      AddLiteralChar(c0_);
+      AdvanceUntil([this](uc32 c0) {
+        if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
+          if (V8_UNLIKELY(unibrow::IsStringLiteralLineTerminator(c0))) {
+            return true;
+          }
+          AddLiteralChar(c0);
+          return false;
+        }
+        uint8_t char_flags = character_scan_flags[c0];
+        if (MayTerminateString(char_flags)) return true;
+        AddLiteralChar(c0);
+        return false;
+      });
+    }
     if (c0_ == quote) {
       literal.Complete();
       Advance();
       return Token::STRING;
     }
-    if (c0_ == kEndOfInput || unibrow::IsStringLiteralLineTerminator(c0_)) {
-      return Token::ILLEGAL;
-    }
     if (c0_ == '\\') {
       Advance();
       // TODO(verwaest): Check whether we can remove the additional check.
-      if (c0_ == kEndOfInput || !ScanEscape<false>()) {
+      if (V8_UNLIKELY(c0_ == kEndOfInput || !ScanEscape<false>())) {
         return Token::ILLEGAL;
       }
       continue;
     }
+    if (V8_UNLIKELY(c0_ == kEndOfInput ||
+                    unibrow::IsStringLiteralLineTerminator(c0_))) {
+      return Token::ILLEGAL;
+    }
+    DCHECK_NE(quote, c0_);
+    DCHECK((c0_ == '\'' || c0_ == '"'));
     AddLiteralCharAdvance();
   }
 }
