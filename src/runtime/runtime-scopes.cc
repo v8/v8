@@ -474,11 +474,13 @@ class HandleArguments {
 
 class ParameterArguments {
  public:
-  explicit ParameterArguments(Object** parameters) : parameters_(parameters) {}
-  Object*& operator[](int index) { return *(parameters_ - index - 1); }
+  explicit ParameterArguments(Address parameters) : parameters_(parameters) {}
+  Object* operator[](int index) {
+    return *ObjectSlot(parameters_ - (index + 1) * kPointerSize);
+  }
 
  private:
-  Object** parameters_;
+  Address parameters_;
 };
 
 }  // namespace
@@ -573,8 +575,8 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
     fp = adaptor_frame->fp();
   }
 
-  Object** parameters = reinterpret_cast<Object**>(
-      fp + argc * kPointerSize + StandardFrameConstants::kCallerSPOffset);
+  Address parameters =
+      fp + argc * kPointerSize + StandardFrameConstants::kCallerSPOffset;
   ParameterArguments argument_getter(parameters);
   return *NewSloppyArguments(isolate, callee, argument_getter, argc);
 }
