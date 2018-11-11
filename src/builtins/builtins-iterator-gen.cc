@@ -198,7 +198,7 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
   IteratorCloseOnException(context, iterator, &rethrow, &exception_variable);
 
   BIND(&rethrow);
-  CallRuntime(Runtime::kReThrow, context, exception);
+  CallRuntime(Runtime::kReThrow, context, exception_variable.value());
   Unreachable();
 }
 
