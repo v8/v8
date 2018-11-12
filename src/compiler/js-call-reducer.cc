@@ -583,6 +583,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
     // Check if we can constant-fold the {candidate_prototype}.
     for (size_t i = 0; i < object_maps.size(); ++i) {
       MapRef object_map(broker(), object_maps[i]);
+      object_map.SerializePrototype();
       if (IsSpecialReceiverInstanceType(object_map.instance_type()) ||
           object_map.has_hidden_prototype() ||
           !object_map.prototype().equals(candidate_prototype)) {
