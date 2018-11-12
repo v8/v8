@@ -3323,8 +3323,11 @@ group("v8_clusterfuzz") {
 }
 
 group("v8_archive") {
+  testonly = true
+
   deps = [
     ":d8",
+    "test/cctest:cctest",
   ]
 }
 
