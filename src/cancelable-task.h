@@ -121,7 +121,8 @@ class V8_EXPORT_PRIVATE Cancelable {
                              Status* previous = nullptr) {
     // {compare_exchange_strong} updates {expected}.
     bool success = status_.compare_exchange_strong(expected, desired,
-                                                   std::memory_order_acq_rel);
+                                                   std::memory_order_acq_rel,
+                                                   std::memory_order_acquire);
     if (previous) *previous = expected;
     return success;
   }
