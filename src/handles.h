@@ -186,14 +186,14 @@ class Handle final : public HandleBase {
   bool equals(Handle<T> other) const { return address() == other.address(); }
 
   // Provide function object for location equality comparison.
-  struct equal_to : public std::binary_function<Handle<T>, Handle<T>, bool> {
+  struct equal_to {
     V8_INLINE bool operator()(Handle<T> lhs, Handle<T> rhs) const {
       return lhs.equals(rhs);
     }
   };
 
   // Provide function object for location hashing.
-  struct hash : public std::unary_function<Handle<T>, size_t> {
+  struct hash {
     V8_INLINE size_t operator()(Handle<T> const& handle) const {
       return base::hash<Address>()(handle.address());
     }
