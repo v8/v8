@@ -3108,6 +3108,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
+    case ORDERED_NAME_DICTIONARY_TYPE:
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
@@ -3483,6 +3484,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case ORDERED_HASH_SET_TYPE:
       os << "<OrderedHashSet[" << FixedArray::cast(this)->length() << "]>";
       break;
+    case ORDERED_NAME_DICTIONARY_TYPE:
+      os << "<OrderedNameDictionary[" << FixedArray::cast(this)->length()
+         << "]>";
+      break;
     case NAME_DICTIONARY_TYPE:
       os << "<NameDictionary[" << FixedArray::cast(this)->length() << "]>";
       break;
@@ -3826,6 +3831,7 @@ bool HeapObject::CanBeRehashed() const {
   switch (map()->instance_type()) {
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
+    case ORDERED_NAME_DICTIONARY_TYPE:
       // TODO(yangguo): actually support rehashing OrderedHash{Map,Set}.
       return false;
     case NAME_DICTIONARY_TYPE:
@@ -13185,6 +13191,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
+    case ORDERED_NAME_DICTIONARY_TYPE:
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:

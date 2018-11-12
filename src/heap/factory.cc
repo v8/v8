@@ -555,6 +555,11 @@ Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
   return OrderedHashMap::Allocate(isolate(), OrderedHashMap::kMinCapacity);
 }
 
+Handle<OrderedNameDictionary> Factory::NewOrderedNameDictionary() {
+  return OrderedNameDictionary::Allocate(isolate(),
+                                         OrderedNameDictionary::kMinCapacity);
+}
+
 Handle<AccessorPair> Factory::NewAccessorPair() {
   Handle<AccessorPair> accessors =
       Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE, TENURED));

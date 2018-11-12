@@ -83,7 +83,8 @@ template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
                                                   Derived* table, Object* key) {
   DCHECK((entrysize == 1 && table->IsOrderedHashSet()) ||
-         (entrysize == 2 && table->IsOrderedHashMap()));
+         (entrysize == 2 && table->IsOrderedHashMap()) ||
+         (entrysize == 3 && table->IsOrderedNameDictionary()));
   DisallowHeapAllocation no_gc;
   int entry = table->FindEntry(isolate, key);
   return entry != kNotFound;
@@ -265,6 +266,51 @@ Handle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   return table;
 }
 
+Handle<OrderedNameDictionary> OrderedNameDictionary::Add(
+    Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
+    Handle<Object> value, PropertyDetails details) {
+  int hash = key->Hash();
+
+#ifdef DEBUG
+  // Walk the chain of the bucket and try finding the key.
+  {
+    DisallowHeapAllocation no_gc;
+    int entry = table->HashToEntry(hash);
+    Object* raw_key = *key;
+    while (entry != kNotFound) {
+      Object* candidate_key = table->KeyAt(entry);
+
+      // Key should not exist already!
+      CHECK(!candidate_key->SameValueZero(raw_key));
+
+      entry = table->NextChainEntry(entry);
+    }
+  }
+#endif
+
+  table = OrderedNameDictionary::EnsureGrowable(isolate, table);
+  // Read the existing bucket values.
+  int bucket = table->HashToBucket(hash);
+  int previous_entry = table->HashToEntry(hash);
+  int nof = table->NumberOfElements();
+  // Insert a new entry at the end,
+  int new_entry = nof + table->NumberOfDeletedElements();
+  int new_index = table->EntryToIndex(new_entry);
+  table->set(new_index, *key);
+  table->set(new_index + kValueOffset, *value);
+
+  // TODO(gsathya): Optimize how PropertyDetails are stored in this
+  // dictionary to save memory (by reusing padding?) and performance
+  // (by not doing the Smi conversion).
+  table->set(new_index + kPropertyDetailsOffset, details.AsSmi());
+
+  table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
+  // and point the bucket to the new entry.
+  table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+  table->SetNumberOfElements(nof + 1);
+  return table;
+}
+
 template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 
@@ -306,6 +352,18 @@ template bool OrderedHashTable<OrderedHashMap, 2>::HasKey(Isolate* isolate,
 template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
                                                           OrderedHashMap* table,
                                                           Object* key);
+
+template Handle<OrderedNameDictionary>
+OrderedHashTable<OrderedNameDictionary, 3>::Allocate(Isolate* isolate,
+                                                     int capacity,
+                                                     PretenureFlag pretenure);
+
+template bool OrderedHashTable<OrderedNameDictionary, 3>::HasKey(
+    Isolate* isolate, OrderedNameDictionary* table, Object* key);
+
+template Handle<OrderedNameDictionary>
+OrderedHashTable<OrderedNameDictionary, 3>::EnsureGrowable(
+    Isolate* isolate, Handle<OrderedNameDictionary> table);
 
 template <>
 Handle<SmallOrderedHashSet>

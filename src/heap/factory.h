@@ -177,6 +177,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
+  Handle<OrderedNameDictionary> NewOrderedNameDictionary();
 
   Handle<SmallOrderedHashSet> NewSmallOrderedHashSet(
       int capacity = SmallOrderedHashSet::kMinCapacity,

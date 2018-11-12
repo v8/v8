@@ -614,6 +614,24 @@ class OrderedHashSetHandler
       Isolate* isolate, Handle<SmallOrderedHashSet> table);
 };
 
+class OrderedNameDictionary
+    : public OrderedHashTable<OrderedNameDictionary, 3> {
+ public:
+  DECL_CAST(OrderedNameDictionary)
+
+  static Handle<OrderedNameDictionary> Add(Isolate* isolate,
+                                           Handle<OrderedNameDictionary> table,
+                                           Handle<Name> key,
+                                           Handle<Object> value,
+                                           PropertyDetails details);
+
+  static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
+  static inline RootIndex GetMapRootIndex();
+
+  static const int kValueOffset = 1;
+  static const int kPropertyDetailsOffset = 2;
+};
+
 class JSCollectionIterator : public JSObject {
  public:
   // [table]: the backing hash table mapping keys to values.

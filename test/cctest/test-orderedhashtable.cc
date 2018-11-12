@@ -1271,6 +1271,37 @@ TEST(OrderedHashMapHandlerInsertion) {
   CHECK(OrderedHashMap::Is(map));
 }
 
+TEST(OrderedNameDictionaryInsertion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Verify(isolate, dict);
+  CHECK_EQ(2, dict->NumberOfBuckets());
+  CHECK_EQ(0, dict->NumberOfElements());
+
+  Handle<String> key1 = factory->NewStringFromAsciiChecked("foo");
+  Handle<String> value = factory->NewStringFromAsciiChecked("foo");
+  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+  PropertyDetails details = PropertyDetails::Empty();
+  dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details);
+  Verify(isolate, dict);
+  CHECK_EQ(2, dict->NumberOfBuckets());
+  CHECK_EQ(1, dict->NumberOfElements());
+  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+
+  Handle<Symbol> key2 = factory->NewSymbol();
+  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+  dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details);
+  Verify(isolate, dict);
+  CHECK_EQ(2, dict->NumberOfBuckets());
+  CHECK_EQ(2, dict->NumberOfElements());
+  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+}
+
 }  // namespace test_orderedhashtable
 }  // namespace internal
 }  // namespace v8

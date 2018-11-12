@@ -427,6 +427,7 @@ enum InstanceType : uint16_t {
   HASH_TABLE_TYPE,        // FIRST_HASH_TABLE_TYPE
   ORDERED_HASH_MAP_TYPE,  // FIRST_DICTIONARY_TYPE
   ORDERED_HASH_SET_TYPE,
+  ORDERED_NAME_DICTIONARY_TYPE,
   NAME_DICTIONARY_TYPE,
   GLOBAL_DICTIONARY_TYPE,
   NUMBER_DICTIONARY_TYPE,
@@ -815,6 +816,7 @@ class ZoneForwardList;
   V(Oddball)                                   \
   V(OrderedHashMap)                            \
   V(OrderedHashSet)                            \
+  V(OrderedNameDictionary)                     \
   V(PreParsedScopeData)                        \
   V(PromiseReactionJobTask)                    \
   V(PropertyArray)                             \
@@ -964,6 +966,7 @@ class ZoneForwardList;
   V(Oddball, ODDBALL_TYPE)                                               \
   V(OrderedHashMap, ORDERED_HASH_MAP_TYPE)                               \
   V(OrderedHashSet, ORDERED_HASH_SET_TYPE)                               \
+  V(OrderedNameDictionary, ORDERED_NAME_DICTIONARY_TYPE)                 \
   V(PreParsedScopeData, PRE_PARSED_SCOPE_DATA_TYPE)                      \
   V(PropertyArray, PROPERTY_ARRAY_TYPE)                                  \
   V(PropertyCell, PROPERTY_CELL_TYPE)                                    \

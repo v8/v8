@@ -131,6 +131,7 @@ namespace internal {
   V(HASH_TABLE_TYPE)                                               \
   V(ORDERED_HASH_MAP_TYPE)                                         \
   V(ORDERED_HASH_SET_TYPE)                                         \
+  V(ORDERED_NAME_DICTIONARY_TYPE)                                  \
   V(NAME_DICTIONARY_TYPE)                                          \
   V(GLOBAL_DICTIONARY_TYPE)                                        \
   V(NUMBER_DICTIONARY_TYPE)                                        \
