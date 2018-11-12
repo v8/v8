@@ -387,6 +387,12 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
   return PreParserStatement::Default();
 }
 
+bool PreParser::IdentifierEquals(const PreParserIdentifier& identifier,
+                                 const AstRawString* other) {
+  DCHECK_EQ(identifier.string_ == nullptr, has_error());
+  return identifier.string_ == other;
+}
+
 PreParserExpression PreParser::ExpressionFromIdentifier(
     const PreParserIdentifier& name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;

@@ -321,7 +321,6 @@ class ParserBase {
   };
 
   class ClassLiteralChecker;
-  class ObjectLiteralChecker;
 
   // ---------------------------------------------------------------------------
   // BlockState and FunctionState implement the parser's scope stack.
@@ -1018,9 +1017,9 @@ class ParserBase {
       bool* is_private);
   ExpressionT ParseMemberInitializer(ClassInfo* class_info, int beg_pos,
                                      bool is_static);
-  ObjectLiteralPropertyT ParseObjectPropertyDefinition(
-      ObjectLiteralChecker* checker, bool* is_computed_name,
-      bool* is_rest_property);
+  ObjectLiteralPropertyT ParseObjectPropertyDefinition(bool* has_seen_proto,
+                                                       bool* is_computed_name,
+                                                       bool* is_rest_property);
   void ParseArguments(ExpressionListT* args, bool* has_spread,
                       bool maybe_arrow);
   void ParseArguments(ExpressionListT* args, bool* has_spread) {
@@ -1312,27 +1311,6 @@ class ParserBase {
     }
     return factory()->NewReturnStatement(expr, pos, end_pos);
   }
-
-  // Validation per ES6 object literals.
-  class ObjectLiteralChecker {
-   public:
-    explicit ObjectLiteralChecker(ParserBase* parser)
-        : parser_(parser), has_seen_proto_(false) {}
-
-    void CheckDuplicateProto(Token::Value property);
-
-   private:
-    bool IsProto() const {
-      return this->scanner()->CurrentMatchesContextualEscaped(
-          Token::PROTO_UNDERSCORED);
-    }
-
-    ParserBase* parser() const { return parser_; }
-    Scanner* scanner() const { return parser_->scanner(); }
-
-    ParserBase* parser_;
-    bool has_seen_proto_;
-  };
 
   // Validation per ES6 class literals.
   class ClassLiteralChecker {
@@ -2354,7 +2332,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
 
 template <typename Impl>
 typename ParserBase<Impl>::ObjectLiteralPropertyT
-ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
+ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
                                                 bool* is_computed_name,
                                                 bool* is_rest_property) {
   ParseFunctionFlags function_flags = ParseFunctionFlag::kIsNormal;
@@ -2389,8 +2367,14 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
     case ParsePropertyKind::kValue: {
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
-      if (!*is_computed_name) {
-        checker->CheckDuplicateProto(name_token);
+      if (!*is_computed_name &&
+          (name_token == Token::IDENTIFIER || name_token == Token::STRING) &&
+          impl()->IdentifierEquals(name, ast_value_factory()->proto_string())) {
+        if (*has_seen_proto) {
+          classifier()->RecordExpressionError(scanner()->location(),
+                                              MessageTemplate::kDuplicateProto);
+        }
+        *has_seen_proto = true;
       }
       Consume(Token::COLON);
       int beg_pos = peek_position();
@@ -2544,7 +2528,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral() {
 
   bool has_computed_names = false;
   bool has_rest_property = false;
-  ObjectLiteralChecker checker(this);
+  bool has_seen_proto = false;
 
   Consume(Token::LBRACE);
 
@@ -2554,7 +2538,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral() {
     bool is_computed_name = false;
     bool is_rest_property = false;
     ObjectLiteralPropertyT property = ParseObjectPropertyDefinition(
-        &checker, &is_computed_name, &is_rest_property);
+        &has_seen_proto, &is_computed_name, &is_rest_property);
     if (impl()->IsNull(property)) return impl()->FailureExpression();
 
     if (is_computed_name) {
@@ -5858,21 +5842,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   }
   DCHECK_NULL(for_scope);
   return final_loop;
-}
-
-template <typename Impl>
-void ParserBase<Impl>::ObjectLiteralChecker::CheckDuplicateProto(
-    Token::Value property) {
-  if (property == Token::SMI || property == Token::NUMBER) return;
-
-  if (IsProto()) {
-    if (has_seen_proto_) {
-      this->parser()->classifier()->RecordExpressionError(
-          this->scanner()->location(), MessageTemplate::kDuplicateProto);
-      return;
-    }
-    has_seen_proto_ = true;
-  }
 }
 
 template <typename Impl>

@@ -329,6 +329,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       const char* name, DeclarationScope* scope,
       ZonePtrList<ClassLiteral::Property>* fields);
 
+  bool IdentifierEquals(const AstRawString* identifier,
+                        const AstRawString* other) {
+    return identifier == other;
+  }
+
   Statement* DeclareClass(const AstRawString* variable_name, Expression* value,
                           ZonePtrList<const AstRawString>* names,
                           int class_token_pos, int end_pos);

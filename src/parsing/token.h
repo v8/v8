@@ -204,7 +204,6 @@ namespace internal {
   C(AS, "as", 0)                                                   \
   C(FROM, "from", 0)                                               \
   C(NAME, "name", 0)                                               \
-  C(PROTO_UNDERSCORED, "__proto__", 0)                             \
   C(CONSTRUCTOR, "constructor", 0)                                 \
   C(PRIVATE_CONSTRUCTOR, "#constructor", 0)                        \
   C(PROTOTYPE, "prototype", 0)                                     \

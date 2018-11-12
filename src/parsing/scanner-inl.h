@@ -234,8 +234,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("with", Token::WITH)                              \
   KEYWORD_GROUP('y')                                        \
   KEYWORD("yield", Token::YIELD)                            \
-  KEYWORD_GROUP('_')                                        \
-  KEYWORD("__proto__", Token::PROTO_UNDERSCORED)            \
   KEYWORD_GROUP('#')                                        \
   KEYWORD("#constructor", Token::PRIVATE_CONSTRUCTOR)
 
@@ -299,12 +297,12 @@ enum class ScanFlags : uint8_t {
 };
 constexpr uint8_t GetScanFlags(char c) {
   return
-      // Keywords are all lowercase and only contain letters and '_'.
+      // Keywords are all lowercase and only contain letters.
       // Note that non-identifier characters do not set this flag, so
       // that it plays well with kTerminatesLiteral
       // TODO(leszeks): We could probably get an even tighter measure
       // here if not all letters are present in keywords.
-      (IsAsciiIdentifier(c) && !IsInRange(c, 'a', 'z') && c != '_'
+      (IsAsciiIdentifier(c) && !IsInRange(c, 'a', 'z')
            ? static_cast<uint8_t>(ScanFlags::kCannotBeKeyword)
            : 0) |
       // Anything that isn't an identifier character will terminate the

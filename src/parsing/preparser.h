@@ -1146,6 +1146,9 @@ class PreParser : public ParserBase<PreParser> {
                            function_scope);
   }
 
+  bool IdentifierEquals(const PreParserIdentifier& identifier,
+                        const AstRawString* other);
+
   // TODO(nikolaos): The preparser currently does not keep track of labels
   // and targets.
   V8_INLINE PreParserStatement
