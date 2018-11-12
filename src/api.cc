@@ -10556,6 +10556,7 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
   DetachableVector<Context*>* context_lists[2] = {&saved_contexts_,
                                                   &entered_contexts_};
   for (unsigned i = 0; i < arraysize(context_lists); i++) {
+    context_lists[i]->shrink_to_fit();
     if (context_lists[i]->empty()) continue;
     ObjectSlot start(reinterpret_cast<Address>(&context_lists[i]->front()));
     v->VisitRootPointers(Root::kHandleScope, nullptr, start,
