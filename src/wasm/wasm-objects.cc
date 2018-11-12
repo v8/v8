@@ -179,18 +179,17 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
   // Create a new {NativeModule} first.
-  size_t native_memory_estimate =
-      isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
-          shared_module.get());
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(shared_module.get());
   auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
-      isolate, enabled, native_memory_estimate,
+      isolate, enabled, code_size_estimate,
       wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module));
   native_module->SetWireBytes(std::move(wire_bytes));
   native_module->SetRuntimeStubs(isolate);
 
   // Delegate to the shared {WasmModuleObject::New} allocator.
   Handle<WasmModuleObject> module_object =
-      New(isolate, std::move(native_module), script);
+      New(isolate, std::move(native_module), script, code_size_estimate);
   if (!asm_js_offset_table.is_null()) {
     module_object->set_asm_js_offset_table(*asm_js_offset_table);
   }
@@ -200,19 +199,17 @@ Handle<WasmModuleObject> WasmModuleObject::New(
 // static
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    Handle<Script> script) {
-  int export_wrapper_size =
-      static_cast<int>(native_module->module()->num_exported_functions);
+    Handle<Script> script, size_t code_size_estimate) {
+  const WasmModule* module = native_module->module();
+  int export_wrapper_size = static_cast<int>(module->num_exported_functions);
   Handle<FixedArray> export_wrappers =
       isolate->factory()->NewFixedArray(export_wrapper_size, TENURED);
 
   // Use the given shared {NativeModule}, but increase its reference count by
   // allocating a new {Managed<T>} that the {WasmModuleObject} references.
-  size_t native_memory_estimate =
-      isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
-          native_module->module());
   size_t memory_estimate =
-      EstimateWasmModuleSize(native_module->module()) + native_memory_estimate;
+      code_size_estimate +
+      wasm::WasmCodeManager::EstimateNativeModuleNonCodeSize(module);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
                                                  std::move(native_module));

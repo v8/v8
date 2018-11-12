@@ -931,25 +931,37 @@ void WasmCodeManager::InstallSamplingGCCallback(Isolate* isolate) {
 }
 
 // static
-size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
+size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
   constexpr size_t kCodeSizeMultiplier = 4;
-  constexpr size_t kImportSize = 32 * kPointerSize;
+  constexpr size_t kCodeOverhead = 32;     // for prologue, stack check, ...
+  constexpr size_t kStaticCodeSize = 512;  // runtime stubs, ...
+  constexpr size_t kImportSize = 64 * kPointerSize;
+
+  size_t estimate = kStaticCodeSize;
+  for (auto& function : module->functions) {
+    estimate += kCodeOverhead + kCodeSizeMultiplier * function.code.length();
+  }
+  estimate +=
+      JumpTableAssembler::SizeForNumberOfSlots(module->num_declared_functions);
+  estimate += kImportSize * module->num_imported_functions;
+
+  return estimate;
+}
+
+// static
+size_t WasmCodeManager::EstimateNativeModuleNonCodeSize(
+    const WasmModule* module) {
+  size_t wasm_module_estimate = EstimateStoredSize(module);
 
   uint32_t num_wasm_functions = module->num_declared_functions;
 
-  size_t estimate =
-      AllocatePageSize() /* TODO(titzer): 1 page spot bonus */ +
-      sizeof(NativeModule) +
-      (sizeof(WasmCode*) * num_wasm_functions /* code table size */) +
-      (sizeof(WasmCode) * num_wasm_functions /* code object size */) +
-      (kImportSize * module->num_imported_functions /* import size */) +
-      (JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
+  // TODO(wasm): Include wire bytes size.
+  size_t native_module_estimate =
+      sizeof(NativeModule) +                     /* NativeModule struct */
+      (sizeof(WasmCode*) * num_wasm_functions) + /* code table size */
+      (sizeof(WasmCode) * num_wasm_functions);   /* code object size */
 
-  for (auto& function : module->functions) {
-    estimate += kCodeSizeMultiplier * function.code.length();
-  }
-
-  return estimate;
+  return wasm_module_estimate + native_module_estimate;
 }
 
 bool WasmCodeManager::ShouldForceCriticalMemoryPressureNotification() {

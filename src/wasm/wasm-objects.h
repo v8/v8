@@ -145,7 +145,7 @@ class WasmModuleObject : public JSObject {
   // reference counted and might be shared between multiple Isolates.
   static Handle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      Handle<Script> script);
+      Handle<Script> script, size_t code_size_estimate);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.

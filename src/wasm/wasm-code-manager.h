@@ -330,6 +330,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
   Vector<const byte> wire_bytes() const { return wire_bytes_.as_vector(); }
   const WasmModule* module() const { return module_.get(); }
+  size_t committed_code_space() const { return committed_code_space_.load(); }
 
   void SetWireBytes(OwnedVector<const byte> wire_bytes);
 
@@ -492,7 +493,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // using sampling based on regular intervals independent of the GC.
   static void InstallSamplingGCCallback(Isolate* isolate);
 
-  static size_t EstimateNativeModuleSize(const WasmModule* module);
+  static size_t EstimateNativeModuleCodeSize(const WasmModule* module);
+  static size_t EstimateNativeModuleNonCodeSize(const WasmModule* module);
 
  private:
   friend class NativeModule;

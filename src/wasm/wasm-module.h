@@ -174,14 +174,14 @@ struct V8_EXPORT_PRIVATE WasmModule {
       function_names;
   std::string source_map_url;
 
-  explicit WasmModule(std::unique_ptr<Zone> owned = nullptr);
+  explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
 
   WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
                                   uint32_t function_index) const;
   void AddFunctionNameForTesting(int function_index, WireBytesRef name);
 };
 
-size_t EstimateWasmModuleSize(const WasmModule* module);
+size_t EstimateStoredSize(const WasmModule* module);
 
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
