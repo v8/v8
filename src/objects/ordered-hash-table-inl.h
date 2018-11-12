@@ -65,13 +65,35 @@ inline PropertyDetails OrderedNameDictionary::DetailsAt(int entry) {
       Smi::cast(get(EntryToIndex(entry) + kPropertyDetailsOffset)));
 }
 
-// Set the details for entry.
 inline void OrderedNameDictionary::DetailsAtPut(int entry,
                                                 PropertyDetails value) {
   DCHECK_NE(entry, kNotFound);
   DCHECK_LT(entry, this->UsedCapacity());
   // TODO(gsathya): Optimize the cast away.
   this->set(EntryToIndex(entry) + kPropertyDetailsOffset, value.AsSmi());
+}
+
+inline Object* SmallOrderedNameDictionary::ValueAt(int entry) {
+  return this->GetDataEntry(entry, kValueIndex);
+}
+
+// Set the value for entry.
+inline void SmallOrderedNameDictionary::ValueAtPut(int entry, Object* value) {
+  this->SetDataEntry(entry, kValueIndex, value);
+}
+
+// Returns the property details for the property at entry.
+inline PropertyDetails SmallOrderedNameDictionary::DetailsAt(int entry) {
+  // TODO(gsathya): Optimize the cast away. And store this in the data table.
+  return PropertyDetails(
+      Smi::cast(this->GetDataEntry(entry, kPropertyDetailsIndex)));
+}
+
+// Set the details for entry.
+inline void SmallOrderedNameDictionary::DetailsAtPut(int entry,
+                                                     PropertyDetails value) {
+  // TODO(gsathya): Optimize the cast away. And store this in the data table.
+  this->SetDataEntry(entry, kPropertyDetailsIndex, value.AsSmi());
 }
 
 inline bool OrderedHashSet::Is(Handle<HeapObject> table) {

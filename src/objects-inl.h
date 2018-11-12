@@ -1613,6 +1613,7 @@ void Foreign::set_foreign_address(Address value) {
 template <class Derived>
 void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
                                                   Object* value) {
+  DCHECK_NE(kNotFound, entry);
   Address entry_offset = GetDataEntryOffset(entry, relative_index);
   RELAXED_WRITE_FIELD(this, entry_offset, value);
   WRITE_BARRIER(this, static_cast<int>(entry_offset), value);

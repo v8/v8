@@ -613,6 +613,18 @@ class SmallOrderedNameDictionary
 
   DECL_PRINTER(SmallOrderedNameDictionary)
 
+  // Returns the value for entry.
+  inline Object* ValueAt(int entry);
+
+  // Set the value for entry.
+  inline void ValueAtPut(int entry, Object* value);
+
+  // Returns the property details for the property at entry.
+  inline PropertyDetails DetailsAt(int entry);
+
+  // Set the details for entry.
+  inline void DetailsAtPut(int entry, PropertyDetails value);
+
   static const int kKeyIndex = 0;
   static const int kValueIndex = 1;
   static const int kPropertyDetailsIndex = 2;
