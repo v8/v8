@@ -588,16 +588,17 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
   return token;
 }
 
-void Scanner::Scan() {
-  TokenDesc& next_desc = next();
-  next_desc.literal_chars.Drop();
-  next_desc.raw_literal_chars.Drop();
-  next_desc.contextual_token = Token::UNINITIALIZED;
-  next_desc.invalid_template_escape_message = MessageTemplate::kNone;
+void Scanner::Scan(TokenDesc* next_desc) {
+  DCHECK_EQ(next_desc, &next());
 
-  next_desc.token = ScanSingleToken();
-  DCHECK_IMPLIES(has_parser_error(), next_desc.token == Token::ILLEGAL);
-  next_desc.location.end_pos = source_pos();
+  next_desc->literal_chars.Drop();
+  next_desc->raw_literal_chars.Drop();
+  next_desc->contextual_token = Token::UNINITIALIZED;
+  next_desc->invalid_template_escape_message = MessageTemplate::kNone;
+
+  next_desc->token = ScanSingleToken();
+  DCHECK_IMPLIES(has_parser_error(), next_desc->token == Token::ILLEGAL);
+  next_desc->location.end_pos = source_pos();
 
 #ifdef DEBUG
   SanityCheckTokenDesc(current());
@@ -605,6 +606,8 @@ void Scanner::Scan() {
   SanityCheckTokenDesc(next_next());
 #endif
 }
+
+void Scanner::Scan() { Scan(next_); }
 
 }  // namespace internal
 }  // namespace v8

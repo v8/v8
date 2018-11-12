@@ -245,8 +245,10 @@ Token::Value Scanner::Next() {
   // current_ as next_ and scan into it, leaving next_next_ uninitialized.
   if (V8_LIKELY(next_next().token == Token::UNINITIALIZED)) {
     next_ = previous;
-    next().after_line_terminator = false;
-    Scan();
+    // User 'previous' instead of 'next_' because for some reason the compiler
+    // thinks 'next_' could be modified before the entry into Scan.
+    previous->after_line_terminator = false;
+    Scan(previous);
   } else {
     next_ = next_next_;
     next_next_ = previous;

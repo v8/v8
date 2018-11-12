@@ -762,6 +762,11 @@ class Scanner {
   // Scans a single JavaScript token.
   V8_INLINE Token::Value ScanSingleToken();
   V8_INLINE void Scan();
+  // Performance hack: pass through a pre-calculated "next()" value to avoid
+  // having to re-calculate it in Scan. You'd think the compiler would be able
+  // to hoist the next() calculation out of the inlined Scan method, but seems
+  // that pointer aliasing analysis fails show that this is safe.
+  V8_INLINE void Scan(TokenDesc* next_desc);
 
   V8_INLINE Token::Value SkipWhiteSpace();
   Token::Value SkipSingleHTMLComment();
