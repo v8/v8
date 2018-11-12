@@ -378,22 +378,6 @@ Maybe<bool> ToUnicodeStringArray(Isolate* isolate, Handle<JSArray> array,
 
 }  // namespace
 
-Maybe<bool> FormatListCommon(Isolate* isolate, Handle<JSArray> list,
-                             uint32_t* length,
-                             std::unique_ptr<icu::UnicodeString[]>& array) {
-  DCHECK(!list->IsUndefined());
-  *length = list->GetElementsAccessor()->NumberOfElements(*list);
-  array.reset(new icu::UnicodeString[*length]);
-
-  // ecma402 #sec-createpartsfromlist
-  // 2. If list contains any element value such that Type(value) is not String,
-  // throw a TypeError exception.
-  MAYBE_RETURN(ToUnicodeStringArray(isolate, list, array.get(), *length),
-               Nothing<bool>());
-
-  return Just(true);
-}
-
 // ecma402 #sec-formatlist
 MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
                                              Handle<JSListFormat> format,
