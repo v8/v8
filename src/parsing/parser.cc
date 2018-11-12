@@ -796,6 +796,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
       }
 
       if (GetLastFunctionLiteralId() != info->function_literal_id() - 1) {
+        if (has_error()) return nullptr;
         // If there were FunctionLiterals in the parameters, we need to
         // renumber them to shift down so the next function literal id for
         // the arrow function is the one requested.
