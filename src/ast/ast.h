@@ -3084,6 +3084,7 @@ class AstNodeFactory final {
   }
 
   Literal* NewStringLiteral(const AstRawString* string, int pos) {
+    DCHECK_NOT_NULL(string);
     return new (zone_) Literal(string, pos);
   }
 

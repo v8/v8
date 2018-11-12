@@ -782,7 +782,7 @@ class ParserBase {
       impl()->ReportMessageAt(scanner()->invalid_template_escape_location(),
                               scanner()->invalid_template_escape_message());
     }
-    return false;
+    return should_throw;
   }
 
   void CheckDestructuringElement(ExpressionT element, int beg_pos, int end_pos);
