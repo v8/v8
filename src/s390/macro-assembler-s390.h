@@ -769,14 +769,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreHalfWord(Register src, const MemOperand& mem,
                      Register scratch = r0);
   void StoreByte(Register src, const MemOperand& mem, Register scratch = r0);
-
-  void AddSmiLiteral(Register dst, Register src, Smi smi,
-                     Register scratch = r0);
-  void SubSmiLiteral(Register dst, Register src, Smi smi,
-                     Register scratch = r0);
   void CmpSmiLiteral(Register src1, Smi smi, Register scratch);
-  void CmpLogicalSmiLiteral(Register src1, Smi smi, Register scratch);
-  void AndSmiLiteral(Register dst, Register src, Smi smi);
 
   // Set new rounding mode RN to FPSCR
   void SetRoundingMode(FPRoundingMode RN);

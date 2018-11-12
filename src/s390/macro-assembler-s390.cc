@@ -3557,62 +3557,6 @@ void TurboAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch) {
 #endif
 }
 
-void TurboAssembler::CmpLogicalSmiLiteral(Register src1, Smi smi,
-                                          Register scratch) {
-#if V8_TARGET_ARCH_S390X
-  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    clih(src1, Operand(static_cast<intptr_t>(smi.ptr()) >> 32));
-  } else {
-    LoadSmiLiteral(scratch, smi);
-    clgr(src1, scratch);
-  }
-#else
-  // CLFI takes 32-bit immediate
-  clfi(src1, Operand(smi));
-#endif
-}
-
-void TurboAssembler::AddSmiLiteral(Register dst, Register src, Smi smi,
-                                   Register scratch) {
-#if V8_TARGET_ARCH_S390X
-  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    if (dst != src) LoadRR(dst, src);
-    aih(dst, Operand(static_cast<intptr_t>(smi.ptr()) >> 32));
-  } else {
-    LoadSmiLiteral(scratch, smi);
-    AddP(dst, src, scratch);
-  }
-#else
-  AddP(dst, src, Operand(reinterpret_cast<intptr_t>(smi)));
-#endif
-}
-
-void TurboAssembler::SubSmiLiteral(Register dst, Register src, Smi smi,
-                                   Register scratch) {
-#if V8_TARGET_ARCH_S390X
-  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    if (dst != src) LoadRR(dst, src);
-    aih(dst, Operand((-static_cast<intptr_t>(smi.ptr())) >> 32));
-  } else {
-    LoadSmiLiteral(scratch, smi);
-    SubP(dst, src, scratch);
-  }
-#else
-  AddP(dst, src, Operand(-(static_cast<intptr_t>(smi.ptr()))));
-#endif
-}
-
-void TurboAssembler::AndSmiLiteral(Register dst, Register src, Smi smi) {
-  if (dst != src) LoadRR(dst, src);
-#if V8_TARGET_ARCH_S390X
-  DCHECK_EQ(reinterpret_cast<intptr_t>(smi) & 0xFFFFFFFF, 0);
-  int value = static_cast<int>(static_cast<intptr_t>(smi.ptr()) >> 32);
-  nihf(dst, Operand(value));
-#else
-  nilf(dst, Operand(static_cast<intptr_t>(smi.ptr())));
-#endif
-}
-
 // Load a "pointer" sized value from the memory location
 void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
                            Register scratch) {
