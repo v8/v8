@@ -4,7 +4,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/compiler/pipeline.h"
-#include "test/unittests/compiler/instruction-sequence-unittest.h"
+#include "test/unittests/compiler/backend/instruction-sequence-unittest.h"
 
 namespace v8 {
 namespace internal {

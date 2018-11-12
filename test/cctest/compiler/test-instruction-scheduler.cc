@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/instruction-scheduler.h"
-#include "src/compiler/instruction-selector-impl.h"
-#include "src/compiler/instruction.h"
+#include "src/compiler/backend/instruction-scheduler.h"
+#include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/backend/instruction.h"
 
 #include "test/cctest/cctest.h"
 

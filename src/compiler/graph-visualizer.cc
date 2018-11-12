@@ -10,6 +10,7 @@
 
 #include "src/code-stubs.h"
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-origin-table.h"
@@ -18,7 +19,6 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/interpreter/bytecodes.h"
