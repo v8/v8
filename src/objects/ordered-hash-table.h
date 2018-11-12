@@ -601,6 +601,18 @@ class OrderedNameDictionary
                                            Handle<Object> value,
                                            PropertyDetails details);
 
+  // Returns the value for entry.
+  inline Object* ValueAt(int entry);
+
+  // Set the value for entry.
+  inline void ValueAtPut(int entry, Object* value);
+
+  // Returns the property details for the property at entry.
+  inline PropertyDetails DetailsAt(int entry);
+
+  // Set the details for entry.
+  inline void DetailsAtPut(int entry, PropertyDetails value);
+
   static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
 

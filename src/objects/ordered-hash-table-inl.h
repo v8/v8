@@ -34,8 +34,40 @@ RootIndex SmallOrderedHashSet::GetMapRootIndex() {
 }
 
 inline Object* OrderedHashMap::ValueAt(int entry) {
-  DCHECK_LT(entry, this->UsedCapacity());
+  DCHECK_NE(entry, kNotFound);
+  DCHECK_LT(entry, UsedCapacity());
   return get(EntryToIndex(entry) + kValueOffset);
+}
+
+inline Object* OrderedNameDictionary::ValueAt(int entry) {
+  DCHECK_NE(entry, kNotFound);
+  DCHECK_LT(entry, UsedCapacity());
+  return get(EntryToIndex(entry) + kValueOffset);
+}
+
+// Set the value for entry.
+inline void OrderedNameDictionary::ValueAtPut(int entry, Object* value) {
+  DCHECK_NE(entry, kNotFound);
+  DCHECK_LT(entry, UsedCapacity());
+  this->set(EntryToIndex(entry) + kValueOffset, value);
+}
+
+// Returns the property details for the property at entry.
+inline PropertyDetails OrderedNameDictionary::DetailsAt(int entry) {
+  DCHECK_NE(entry, kNotFound);
+  DCHECK_LT(entry, this->UsedCapacity());
+  // TODO(gsathya): Optimize the cast away.
+  return PropertyDetails(
+      Smi::cast(get(EntryToIndex(entry) + kPropertyDetailsOffset)));
+}
+
+// Set the details for entry.
+inline void OrderedNameDictionary::DetailsAtPut(int entry,
+                                                PropertyDetails value) {
+  DCHECK_NE(entry, kNotFound);
+  DCHECK_LT(entry, this->UsedCapacity());
+  // TODO(gsathya): Optimize the cast away.
+  this->set(EntryToIndex(entry) + kPropertyDetailsOffset, value.AsSmi());
 }
 
 inline bool OrderedHashSet::Is(Handle<HeapObject> table) {
