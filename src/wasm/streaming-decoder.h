@@ -80,11 +80,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   // Notify the StreamingDecoder that compilation ended and the
   // StreamingProcessor should not be called anymore.
-  void NotifyCompilationEnded() {
-    // We set {ok_} to false to turn all future calls to the StreamingDecoder
-    // into no-ops.
-    ok_ = false;
-  }
+  void NotifyCompilationEnded() { Fail(); }
 
   // Caching support.
   // Sets the callback that is called after the module is fully compiled.
@@ -212,8 +208,8 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
                                  Vector<const uint8_t> length_bytes);
 
   std::unique_ptr<DecodingState> Error(VoidResult result) {
-    if (ok_) processor_->OnError(std::move(result));
-    ok_ = false;
+    if (ok()) processor_->OnError(std::move(result));
+    Fail();
     return std::unique_ptr<DecodingState>(nullptr);
   }
 
@@ -222,48 +218,52 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   }
 
   void ProcessModuleHeader() {
-    if (!ok_) return;
-    if (!processor_->ProcessModuleHeader(state_->buffer(), 0)) {
-      ok_ = false;
-    }
+    if (!ok()) return;
+    if (!processor_->ProcessModuleHeader(state_->buffer(), 0)) Fail();
   }
 
   void ProcessSection(SectionBuffer* buffer) {
-    if (!ok_) return;
+    if (!ok()) return;
     if (!processor_->ProcessSection(
             buffer->section_code(), buffer->payload(),
             buffer->module_offset() +
                 static_cast<uint32_t>(buffer->payload_offset()))) {
-      ok_ = false;
+      Fail();
     }
   }
 
   void StartCodeSection(size_t num_functions,
                         std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
-    if (!ok_) return;
+    if (!ok()) return;
     // The offset passed to {ProcessCodeSectionHeader} is an error offset and
     // not the start offset of a buffer. Therefore we need the -1 here.
     if (!processor_->ProcessCodeSectionHeader(num_functions,
                                               module_offset() - 1,
                                               std::move(wire_bytes_storage))) {
-      ok_ = false;
+      Fail();
     }
   }
 
   void ProcessFunctionBody(Vector<const uint8_t> bytes,
                            uint32_t module_offset) {
-    if (!ok_) return;
-    if (!processor_->ProcessFunctionBody(bytes, module_offset)) ok_ = false;
+    if (!ok()) return;
+    if (!processor_->ProcessFunctionBody(bytes, module_offset)) Fail();
   }
 
-  bool ok() const { return ok_; }
+  void Fail() {
+    // We reset the {processor_} field to represent failure. This also ensures
+    // that we do not accidentally call further methods on the processor after
+    // failure.
+    processor_.reset();
+  }
+
+  bool ok() const { return processor_ != nullptr; }
 
   uint32_t module_offset() const { return module_offset_; }
 
   bool deserializing() const { return !compiled_module_bytes_.is_empty(); }
 
   std::unique_ptr<StreamingProcessor> processor_;
-  bool ok_ = true;
   std::unique_ptr<DecodingState> state_;
   std::vector<std::shared_ptr<SectionBuffer>> section_buffers_;
   uint32_t module_offset_ = 0;

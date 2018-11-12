@@ -62,6 +62,9 @@ size_t StreamingDecoder::DecodingState::ReadBytes(StreamingDecoder* streaming,
 }
 
 void StreamingDecoder::Finish() {
+  TRACE_STREAMING("Finish\n");
+  if (!ok()) return;
+
   if (deserializing()) {
     Vector<const uint8_t> wire_bytes(wire_bytes_for_deserializing_.data(),
                                      wire_bytes_for_deserializing_.size());
@@ -73,11 +76,6 @@ void StreamingDecoder::Finish() {
     DCHECK(!deserializing());
     OnBytesReceived(wire_bytes);
     // The decoder has received all wire bytes; fall through and finish.
-  }
-
-  TRACE_STREAMING("Finish\n");
-  if (!ok()) {
-    return;
   }
 
   if (!state_->is_finishing_allowed()) {
@@ -105,10 +103,9 @@ void StreamingDecoder::Finish() {
 
 void StreamingDecoder::Abort() {
   TRACE_STREAMING("Abort\n");
-  if (ok()) {
-    ok_ = false;
-    processor_->OnAbort();
-  }
+  if (!ok()) return;  // Failed already.
+  processor_->OnAbort();
+  Fail();
 }
 
 void StreamingDecoder::SetModuleCompiledCallback(
