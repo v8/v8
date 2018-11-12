@@ -183,7 +183,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     }
     os << ", " << (module->mem_export ? "true" : "false");
     if (module->has_shared_memory) {
-      os << ", shared";
+      os << ", true";
     }
     os << ");\n";
   }
