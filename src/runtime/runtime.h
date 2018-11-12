@@ -47,7 +47,6 @@ namespace internal {
   F(GrowArrayElements, 2, 1)              \
   F(HasComplexElements, 1, 1)             \
   I(IsArray, 1, 1)                        \
-  F(MoveArrayContents, 2, 1)              \
   F(NewArray, -1 /* >= 3 */, 1)           \
   F(NormalizeElements, 1, 1)              \
   F(PrepareElementsForSort, 2, 1)         \
@@ -224,7 +223,6 @@ namespace internal {
   F(IncrementUseCounter, 1, 1)                     \
   F(InstallToContext, 1, 1)                        \
   F(Interrupt, 0, 1)                               \
-  F(IS_VAR, 1, 1)                                  \
   F(NewReferenceError, 2, 1)                       \
   F(NewSyntaxError, 2, 1)                          \
   F(NewTypeError, 2, 1)                            \
@@ -354,7 +352,6 @@ namespace internal {
   F(AwaitPromisesInitOld, 5, 1)          \
   F(PromiseMarkAsHandled, 1, 1)          \
   F(PromiseRejectEventFromStack, 2, 1)   \
-  F(PromiseResult, 1, 1)                 \
   F(PromiseRevokeReject, 1, 1)           \
   F(PromiseStatus, 1, 1)                 \
   F(RejectPromise, 3, 1)                 \
@@ -508,8 +505,6 @@ namespace internal {
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \
   F(ArraySpeciesProtector, 0, 1)              \
-  F(TypedArraySpeciesProtector, 0, 1)         \
-  F(PromiseSpeciesProtector, 0, 1)            \
   F(MapIteratorProtector, 0, 1)               \
   F(SetIteratorProtector, 0, 1)               \
   F(StringIteratorProtector, 0, 1)            \
@@ -569,8 +564,7 @@ namespace internal {
   F(StoreIC_Miss, 5, 1)                      \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
   F(StorePropertyWithInterceptor, 5, 1)      \
-  F(CloneObjectIC_Miss, 4, 1)                \
-  F(CloneObjectIC_Slow, 2, 1)
+  F(CloneObjectIC_Miss, 4, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, I) \
   FOR_EACH_INTRINSIC_ARRAY(F, I)                    \

@@ -312,10 +312,6 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   return *result;
 }
 
-RUNTIME_FUNCTION(Runtime_IS_VAR) {
-  UNREACHABLE();  // implemented as macro in the parser
-}
-
 namespace {
 
 bool ComputeLocation(Isolate* isolate, MessageLocation* target) {

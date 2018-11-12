@@ -404,29 +404,6 @@ RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
   return RemoveArrayHoles(isolate, object, length);
 }
 
-// Move contents of argument 0 (an array) to argument 1 (an array)
-RUNTIME_FUNCTION(Runtime_MoveArrayContents) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, from, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, to, 1);
-  JSObject::ValidateElements(*from);
-  JSObject::ValidateElements(*to);
-
-  Handle<FixedArrayBase> new_elements(from->elements(), isolate);
-  ElementsKind from_kind = from->GetElementsKind();
-  Handle<Map> new_map = JSObject::GetElementsTransitionMap(to, from_kind);
-  JSObject::SetMapAndElements(to, new_map, new_elements);
-  to->set_length(from->length());
-
-  from->initialize_elements();
-  from->set_length(Smi::kZero);
-
-  JSObject::ValidateElements(*to);
-  return *to;
-}
-
-
 // How many elements does this object/array have?
 RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
   DisallowHeapAllocation no_gc;

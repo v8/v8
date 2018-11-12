@@ -107,13 +107,6 @@ RUNTIME_FUNCTION(Runtime_PromiseStatus) {
   return Smi::FromInt(promise->status());
 }
 
-RUNTIME_FUNCTION(Runtime_PromiseResult) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  return promise->result();
-}
-
 RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

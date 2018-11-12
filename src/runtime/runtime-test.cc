@@ -928,20 +928,6 @@ RUNTIME_FUNCTION(Runtime_ArraySpeciesProtector) {
   return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
 }
 
-RUNTIME_FUNCTION(Runtime_TypedArraySpeciesProtector) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(
-      isolate->IsTypedArraySpeciesLookupChainIntact());
-}
-
-RUNTIME_FUNCTION(Runtime_PromiseSpeciesProtector) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(
-      isolate->IsPromiseSpeciesLookupChainIntact());
-}
-
 RUNTIME_FUNCTION(Runtime_MapIteratorProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());

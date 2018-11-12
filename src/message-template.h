@@ -411,7 +411,6 @@ namespace internal {
     "More than one default clause in switch statement")                        \
   T(NewlineAfterThrow, "Illegal newline after throw")                          \
   T(NoCatchOrFinally, "Missing catch or finally after try")                    \
-  T(NotIsvar, "builtin %%IS_VAR: not a variable")                              \
   T(ParamAfterRest, "Rest parameter must be last formal parameter")            \
   T(FlattenPastSafeLength,                                                     \
     "Flattening % elements on an array-like of length % "                      \

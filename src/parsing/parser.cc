@@ -356,19 +356,6 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
     // Check for possible name clash.
     DCHECK_EQ(Context::kNotFound,
               Context::IntrinsicIndexForName(name->raw_data(), name->length()));
-    // Check for built-in IS_VAR macro.
-    if (function->function_id == Runtime::kIS_VAR) {
-      DCHECK_EQ(Runtime::RUNTIME, function->intrinsic_type);
-      // %IS_VAR(x) evaluates to x if x is a variable,
-      // leads to a parse error otherwise.  Could be implemented as an
-      // inline function %_IS_VAR(x) to eliminate this special case.
-      if (args.length() == 1 && args.at(0)->AsVariableProxy() != nullptr) {
-        return args.at(0);
-      } else {
-        ReportMessage(MessageTemplate::kNotIsvar);
-        return FailureExpression();
-      }
-    }
 
     // Check that the expected number of arguments are being passed.
     if (function->nargs != -1 && function->nargs != args.length()) {
