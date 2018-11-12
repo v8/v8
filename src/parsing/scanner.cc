@@ -58,7 +58,7 @@ class Scanner::ErrorState {
 // Scanner::LiteralBuffer
 
 Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
-  DCHECK(is_used_);
+  DCHECK(is_used());
   if (is_one_byte()) {
     return isolate->factory()->InternalizeOneByteString(one_byte_literal());
   }
@@ -79,7 +79,7 @@ void Scanner::LiteralBuffer::ExpandBuffer() {
 }
 
 void Scanner::LiteralBuffer::ConvertToTwoByte() {
-  DCHECK(is_one_byte_);
+  DCHECK(is_one_byte());
   Vector<byte> new_store;
   int new_content_size = position_ * kUC16Size;
   if (new_content_size >= backing_store_.length()) {
@@ -99,11 +99,11 @@ void Scanner::LiteralBuffer::ConvertToTwoByte() {
     backing_store_ = new_store;
   }
   position_ = new_content_size;
-  is_one_byte_ = false;
+  flags_ = IsOneByte::update(flags_, false);
 }
 
 void Scanner::LiteralBuffer::AddTwoByteChar(uc32 code_unit) {
-  DCHECK(!is_one_byte_);
+  DCHECK(!is_one_byte());
   if (position_ >= backing_store_.length()) ExpandBuffer();
   if (code_unit <=
       static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {

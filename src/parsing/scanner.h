@@ -453,19 +453,21 @@ class Scanner {
   class LiteralBuffer {
    public:
     LiteralBuffer()
-        : backing_store_(), position_(0), is_one_byte_(true), is_used_(false) {}
+        : backing_store_(),
+          position_(0),
+          flags_(IsOneByte::encode(true) | IsUsedByte::encode(false)) {}
 
     ~LiteralBuffer() { backing_store_.Dispose(); }
 
     V8_INLINE void AddChar(char code_unit) {
-      DCHECK(is_used_);
+      DCHECK(is_used());
       DCHECK(IsValidAscii(code_unit));
       AddOneByteChar(static_cast<byte>(code_unit));
     }
 
     V8_INLINE void AddChar(uc32 code_unit) {
-      DCHECK(is_used_);
-      if (is_one_byte_) {
+      DCHECK(is_used());
+      if (is_one_byte()) {
         if (code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
           AddOneByteChar(static_cast<byte>(code_unit));
           return;
@@ -475,17 +477,17 @@ class Scanner {
       AddTwoByteChar(code_unit);
     }
 
-    bool is_one_byte() const { return is_one_byte_; }
+    bool is_one_byte() const { return IsOneByte::decode(flags_); }
 
     bool Equals(Vector<const char> keyword) const {
-      DCHECK(is_used_);
+      DCHECK(is_used());
       return is_one_byte() && keyword.length() == position_ &&
              (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
     }
 
     Vector<const uint16_t> two_byte_literal() const {
-      DCHECK(!is_one_byte_);
-      DCHECK(is_used_);
+      DCHECK(!is_one_byte());
+      DCHECK(is_used());
       DCHECK_EQ(position_ & 0x1, 0);
       return Vector<const uint16_t>(
           reinterpret_cast<const uint16_t*>(backing_store_.start()),
@@ -493,26 +495,25 @@ class Scanner {
     }
 
     Vector<const uint8_t> one_byte_literal() const {
-      DCHECK(is_one_byte_);
-      DCHECK(is_used_);
+      DCHECK(is_one_byte());
+      DCHECK(is_used());
       return Vector<const uint8_t>(
           reinterpret_cast<const uint8_t*>(backing_store_.start()), position_);
     }
 
-    int length() const { return is_one_byte_ ? position_ : (position_ >> 1); }
+    int length() const { return is_one_byte() ? position_ : (position_ >> 1); }
 
     void Start() {
-      DCHECK(!is_used_);
+      DCHECK(!is_used());
       DCHECK_EQ(0, position_);
-      is_used_ = true;
+      flags_ = IsUsedByte::update(flags_, true);
     }
 
-    bool is_used() const { return is_used_; }
+    bool is_used() const { return IsUsedByte::decode(flags_); }
 
     void Drop() {
-      is_used_ = false;
       position_ = 0;
-      is_one_byte_ = true;
+      flags_ = IsOneByte::encode(true) | IsUsedByte::encode(false);
     }
 
     Handle<String> Internalize(Isolate* isolate) const;
@@ -532,7 +533,7 @@ class Scanner {
     }
 
     V8_INLINE void AddOneByteChar(byte one_byte_char) {
-      DCHECK(is_one_byte_);
+      DCHECK(is_one_byte());
       if (position_ >= backing_store_.length()) ExpandBuffer();
       backing_store_[position_] = one_byte_char;
       position_ += kOneByteSize;
@@ -545,8 +546,11 @@ class Scanner {
 
     Vector<byte> backing_store_;
     int position_;
-    bool is_one_byte_ : 1;
-    bool is_used_ : 1;
+    uint8_t flags_;
+
+    // Flags
+    typedef BitField8<bool, 0, 1> IsOneByte;
+    typedef BitField8<bool, 1, 2> IsUsedByte;
 
     DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
   };
