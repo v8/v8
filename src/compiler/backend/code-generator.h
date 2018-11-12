@@ -354,7 +354,6 @@ class CodeGenerator final : public GapResolver::Assembler {
                                      InstructionOperandIterator* iter);
   void TranslateFrameStateDescriptorOperands(FrameStateDescriptor* desc,
                                              InstructionOperandIterator* iter,
-                                             OutputFrameStateCombine combine,
                                              Translation* translation);
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op, MachineType type);

@@ -964,30 +964,12 @@ void CodeGenerator::TranslateStateValueDescriptor(
 
 void CodeGenerator::TranslateFrameStateDescriptorOperands(
     FrameStateDescriptor* desc, InstructionOperandIterator* iter,
-    OutputFrameStateCombine combine, Translation* translation) {
+    Translation* translation) {
   size_t index = 0;
   StateValueList* values = desc->GetStateValueDescriptors();
   for (StateValueList::iterator it = values->begin(); it != values->end();
        ++it, ++index) {
-    StateValueDescriptor* value_desc = (*it).desc;
-    if (!combine.IsOutputIgnored()) {
-      // The result of the call should be placed at position
-      // [index_from_top] in the stack (overwriting whatever was
-      // previously there).
-      size_t index_from_top = desc->GetSize() - 1 - combine.GetOffsetToPokeAt();
-      if (index >= index_from_top &&
-          index < index_from_top + iter->instruction()->OutputCount()) {
-        DCHECK_NOT_NULL(translation);
-        AddTranslationForOperand(
-            translation, iter->instruction(),
-            iter->instruction()->OutputAt(index - index_from_top),
-            MachineType::AnyTagged());
-        // Skip the instruction operands.
-        TranslateStateValueDescriptor(value_desc, (*it).nested, nullptr, iter);
-        continue;
-      }
-    }
-    TranslateStateValueDescriptor(value_desc, (*it).nested, translation, iter);
+    TranslateStateValueDescriptor((*it).desc, (*it).nested, translation, iter);
   }
   DCHECK_EQ(desc->GetSize(), index);
 }
@@ -998,8 +980,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
   // Outer-most state must be added to translation first.
   if (descriptor->outer_state() != nullptr) {
     BuildTranslationForFrameStateDescriptor(descriptor->outer_state(), iter,
-                                            translation,
-                                            OutputFrameStateCombine::Ignore());
+                                            translation, state_combine);
   }
 
   Handle<SharedFunctionInfo> shared_info;
@@ -1013,11 +994,19 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       DefineDeoptimizationLiteral(DeoptimizationLiteral(shared_info));
 
   switch (descriptor->type()) {
-    case FrameStateType::kInterpretedFunction:
+    case FrameStateType::kInterpretedFunction: {
+      int return_offset = 0;
+      int return_count = 0;
+      if (!state_combine.IsOutputIgnored()) {
+        return_offset = static_cast<int>(state_combine.GetOffsetToPokeAt());
+        return_count = static_cast<int>(iter->instruction()->OutputCount());
+      }
       translation->BeginInterpretedFrame(
           descriptor->bailout_id(), shared_info_id,
-          static_cast<unsigned int>(descriptor->locals_count() + 1));
+          static_cast<unsigned int>(descriptor->locals_count() + 1),
+          return_offset, return_count);
       break;
+    }
     case FrameStateType::kArgumentsAdaptor:
       translation->BeginArgumentsAdaptorFrame(
           shared_info_id,
@@ -1055,8 +1044,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     }
   }
 
-  TranslateFrameStateDescriptorOperands(descriptor, iter, state_combine,
-                                        translation);
+  TranslateFrameStateDescriptorOperands(descriptor, iter, translation);
 }
 
 int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,

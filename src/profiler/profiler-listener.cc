@@ -226,6 +226,8 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
       it.Next();  // Skip ast_id
       int shared_info_id = it.Next();
       it.Next();  // Skip height
+      it.Next();  // Skip return value offset
+      it.Next();  // Skip return value count
       SharedFunctionInfo* shared_info = SharedFunctionInfo::cast(
           deopt_input_data->LiteralArray()->get(shared_info_id));
       if (!depth++) continue;  // Skip the current function itself.

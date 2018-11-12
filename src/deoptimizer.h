@@ -170,6 +170,8 @@ class TranslatedFrame {
   BailoutId node_id() const { return node_id_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   int height() const { return height_; }
+  int return_value_offset() const { return return_value_offset_; }
+  int return_value_count() const { return return_value_count_; }
 
   SharedFunctionInfo* raw_shared_info() const {
     CHECK_NOT_NULL(raw_shared_info_);
@@ -185,8 +187,8 @@ class TranslatedFrame {
     }
 
     iterator operator++(int) {
+      iterator original(position_, input_index_);
       ++input_index_;
-      iterator original(position_);
       AdvanceIterator(&position_);
       return original;
     }
@@ -207,8 +209,9 @@ class TranslatedFrame {
    private:
     friend TranslatedFrame;
 
-    explicit iterator(std::deque<TranslatedValue>::iterator position)
-        : position_(position), input_index_(0) {}
+    explicit iterator(std::deque<TranslatedValue>::iterator position,
+                      int input_index = 0)
+        : position_(position), input_index_(input_index) {}
 
     std::deque<TranslatedValue>::iterator position_;
     int input_index_;
@@ -229,7 +232,8 @@ class TranslatedFrame {
   // Constructor static methods.
   static TranslatedFrame InterpretedFrame(BailoutId bytecode_offset,
                                           SharedFunctionInfo* shared_info,
-                                          int height);
+                                          int height, int return_value_offset,
+                                          int return_value_count);
   static TranslatedFrame AccessorFrame(Kind kind,
                                        SharedFunctionInfo* shared_info);
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
@@ -250,11 +254,14 @@ class TranslatedFrame {
   static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
 
   TranslatedFrame(Kind kind, SharedFunctionInfo* shared_info = nullptr,
-                  int height = 0)
+                  int height = 0, int return_value_offset = 0,
+                  int return_value_count = 0)
       : kind_(kind),
         node_id_(BailoutId::None()),
         raw_shared_info_(shared_info),
-        height_(height) {}
+        height_(height),
+        return_value_offset_(return_value_offset),
+        return_value_count_(return_value_count) {}
 
   void Add(const TranslatedValue& value) { values_.push_back(value); }
   TranslatedValue* ValueAt(int index) { return &(values_[index]); }
@@ -265,6 +272,8 @@ class TranslatedFrame {
   SharedFunctionInfo* raw_shared_info_;
   Handle<SharedFunctionInfo> shared_info_;
   int height_;
+  int return_value_offset_;
+  int return_value_count_;
 
   typedef std::deque<TranslatedValue> ValuesContainer;
 
@@ -950,7 +959,8 @@ class Translation {
 
   // Commands.
   void BeginInterpretedFrame(BailoutId bytecode_offset, int literal_id,
-                             unsigned height);
+                             unsigned height, int return_value_offset,
+                             int return_value_count);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
   void BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
                                unsigned height);

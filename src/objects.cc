@@ -14790,10 +14790,13 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           int bytecode_offset = iterator.Next();
           int shared_info_id = iterator.Next();
           unsigned height = iterator.Next();
+          int return_value_offset = iterator.Next();
+          int return_value_count = iterator.Next();
           Object* shared_info = LiteralArray()->get(shared_info_id);
           os << "{bytecode_offset=" << bytecode_offset << ", function="
              << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
-             << ", height=" << height << "}";
+             << ", height=" << height << ", retval=@" << return_value_offset
+             << "(#" << return_value_count << ")}";
           break;
         }
 

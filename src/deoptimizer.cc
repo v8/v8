@@ -953,10 +953,10 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // Read the context from the translations.
   Object* context = context_pos->GetRawValue();
   output_frame->SetContext(reinterpret_cast<intptr_t>(context));
-  frame_writer.PushTranslatedValue(context_pos, "context\n");
+  frame_writer.PushTranslatedValue(context_pos, "context");
 
   // The function was mentioned explicitly in the BEGIN_FRAME.
-  frame_writer.PushTranslatedValue(function_iterator, "function\n");
+  frame_writer.PushTranslatedValue(function_iterator, "function");
 
   // Set the bytecode array pointer.
   Object* bytecode_array = shared->HasBreakInfo()
@@ -975,8 +975,35 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
 
   // Translate the rest of the interpreter registers in the frame.
+  // The return_value_offset is counted from the top. Here, we compute the
+  // register index (counted from the start).
+  int return_value_first_reg =
+      register_count - translated_frame->return_value_offset();
+  int return_value_count = translated_frame->return_value_count();
   for (int i = 0; i < register_count; ++i, ++value_iterator) {
-    frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
+    // Ensure we write the return value if we have one and we are returning
+    // normally to a lazy deopt point.
+    if (is_topmost && !goto_catch_handler &&
+        deopt_kind_ == DeoptimizeKind::kLazy && i >= return_value_first_reg &&
+        i < return_value_first_reg + return_value_count) {
+      int return_index = i - return_value_first_reg;
+      if (return_index == 0) {
+        frame_writer.PushRawValue(input_->GetRegister(kReturnRegister0.code()),
+                                  "return value 0\n");
+        // We do not handle the situation when one return value should go into
+        // the accumulator and another one into an ordinary register. Since
+        // the interpreter should never create such situation, just assert
+        // this does not happen.
+        CHECK_LE(return_value_first_reg + return_value_count, register_count);
+      } else {
+        CHECK_EQ(return_index, 1);
+        frame_writer.PushRawValue(input_->GetRegister(kReturnRegister1.code()),
+                                  "return value 1\n");
+      }
+    } else {
+      // This is not return value, just write the value from the translations.
+      frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
+    }
   }
 
   int register_slots_written = register_count;
@@ -1003,10 +1030,20 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
           input_->GetRegister(kInterpreterAccumulatorRegister.code());
       frame_writer.PushRawObject(reinterpret_cast<Object*>(accumulator_value),
                                  "accumulator\n");
-      ++value_iterator;  // Skip the accumulator.
     } else {
-      frame_writer.PushTranslatedValue(value_iterator++, "accumulator");
+      // If we are lazily deoptimizing make sure we store the deopt
+      // return value into the appropriate slot.
+      if (deopt_kind_ == DeoptimizeKind::kLazy &&
+          translated_frame->return_value_offset() == 0 &&
+          translated_frame->return_value_count() > 0) {
+        CHECK_EQ(translated_frame->return_value_count(), 1);
+        frame_writer.PushRawValue(input_->GetRegister(kReturnRegister0.code()),
+                                  "return value 0\n");
+      } else {
+        frame_writer.PushTranslatedValue(value_iterator, "accumulator");
+      }
     }
+    ++value_iterator;  // Move over the accumulator.
   } else {
     // For non-topmost frames, skip the accumulator translation. For those
     // frames, the return value from the callee will become the accumulator.
@@ -1255,7 +1292,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   intptr_t marker = StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
   frame_writer.PushRawValue(marker, "context (construct stub sentinel)\n");
 
-  frame_writer.PushTranslatedValue(value_iterator++, "context\n");
+  frame_writer.PushTranslatedValue(value_iterator++, "context");
 
   // Number of incoming arguments.
   frame_writer.PushRawObject(Smi::FromInt(parameter_count - 1), "argc\n");
@@ -1958,11 +1995,15 @@ void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
 }
 
 void Translation::BeginInterpretedFrame(BailoutId bytecode_offset,
-                                        int literal_id, unsigned height) {
+                                        int literal_id, unsigned height,
+                                        int return_value_offset,
+                                        int return_value_count) {
   buffer_->Add(INTERPRETED_FRAME);
   buffer_->Add(bytecode_offset.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
+  buffer_->Add(return_value_offset);
+  buffer_->Add(return_value_count);
 }
 
 void Translation::ArgumentsElements(CreateArgumentsType type) {
@@ -2106,12 +2147,13 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case UPDATE_FEEDBACK:
       return 2;
     case BEGIN:
-    case INTERPRETED_FRAME:
     case CONSTRUCT_STUB_FRAME:
     case BUILTIN_CONTINUATION_FRAME:
     case JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
       return 3;
+    case INTERPRETED_FRAME:
+      return 5;
   }
   FATAL("Unexpected translation type");
   return -1;
@@ -2659,10 +2701,11 @@ void TranslatedValue::Handlify() {
   }
 }
 
-
 TranslatedFrame TranslatedFrame::InterpretedFrame(
-    BailoutId bytecode_offset, SharedFunctionInfo* shared_info, int height) {
-  TranslatedFrame frame(kInterpretedFunction, shared_info, height);
+    BailoutId bytecode_offset, SharedFunctionInfo* shared_info, int height,
+    int return_value_offset, int return_value_count) {
+  TranslatedFrame frame(kInterpretedFunction, shared_info, height,
+                        return_value_offset, return_value_count);
   frame.node_id_ = bytecode_offset;
   return frame;
 }
@@ -2749,16 +2792,21 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       SharedFunctionInfo* shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
+      int return_value_offset = iterator->Next();
+      int return_value_count = iterator->Next();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading input frame %s", name.get());
         int arg_count = shared_info->internal_formal_parameter_count() + 1;
         PrintF(trace_file,
-               " => bytecode_offset=%d, args=%d, height=%d; inputs:\n",
-               bytecode_offset.ToInt(), arg_count, height);
+               " => bytecode_offset=%d, args=%d, height=%d, retval=%i(#%i); "
+               "inputs:\n",
+               bytecode_offset.ToInt(), arg_count, height, return_value_offset,
+               return_value_count);
       }
       return TranslatedFrame::InterpretedFrame(bytecode_offset, shared_info,
-                                               height);
+                                               height, return_value_offset,
+                                               return_value_count);
     }
 
     case Translation::ARGUMENTS_ADAPTOR_FRAME: {
