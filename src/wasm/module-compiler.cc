@@ -1257,6 +1257,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Check that indirect function table segments are within bounds.
   //--------------------------------------------------------------------------
   for (const WasmTableInit& table_init : module_->table_inits) {
+    if (!table_init.active) continue;
     DCHECK(table_init.table_index < table_instances_.size());
     uint32_t base = EvalUint32InitExpr(table_init.offset);
     size_t table_size = table_instances_[table_init.table_index].table_size;
@@ -1270,6 +1271,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Check that memory segments are within bounds.
   //--------------------------------------------------------------------------
   for (const WasmDataSegment& seg : module_->data_segments) {
+    if (!seg.active) continue;
     uint32_t base = EvalUint32InitExpr(seg.dest_addr);
     if (!in_bounds(base, seg.source.length(), instance->memory_size())) {
       thrower_->LinkError("data segment is out of bounds");
@@ -1449,6 +1451,8 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
     uint32_t source_size = segment.source.length();
     // Segments of size == 0 are just nops.
     if (source_size == 0) continue;
+    // Passive segments are not copied during instantiation.
+    if (!segment.active) continue;
     uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
     DCHECK(in_bounds(dest_offset, source_size, instance->memory_size()));
     byte* dest = instance->memory_start() + dest_offset;
@@ -2192,6 +2196,9 @@ void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   NativeModule* native_module = module_object_->native_module();
   for (auto& table_init : module_->table_inits) {
+    // Passive segments are not copied during instantiation.
+    if (!table_init.active) continue;
+
     uint32_t base = EvalUint32InitExpr(table_init.offset);
     uint32_t num_entries = static_cast<uint32_t>(table_init.entries.size());
     uint32_t index = table_init.table_index;

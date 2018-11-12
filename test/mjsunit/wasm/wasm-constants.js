@@ -77,6 +77,11 @@ let kWasmAnyFunctionTypeForm = 0x70;
 
 let kHasMaximumFlag = 1;
 
+// Segment flags
+let kActiveNoIndex = 0;
+let kPassive = 1;
+let kActiveWithIndex = 2;
+
 // Function declaration flags
 let kDeclFunctionName   = 0x01;
 let kDeclFunctionImport = 0x02;

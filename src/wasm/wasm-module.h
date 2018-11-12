@@ -84,8 +84,16 @@ struct WasmException {
 
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
+  // Construct an active segment.
+  explicit WasmDataSegment(WasmInitExpr dest_addr)
+      : dest_addr(dest_addr), active(true) {}
+
+  // Construct a passive segment, which has no dest_addr.
+  WasmDataSegment() : active(false) {}
+
   WasmInitExpr dest_addr;  // destination memory address of the data.
   WireBytesRef source;     // start offset in the module bytes.
+  bool active = true;      // true if copied automatically during instantiation.
 };
 
 // Static representation of a wasm indirect call table.
@@ -105,12 +113,17 @@ struct WasmTable {
 struct WasmTableInit {
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmTableInit);
 
+  // Construct an active segment.
   WasmTableInit(uint32_t table_index, WasmInitExpr offset)
-      : table_index(table_index), offset(offset) {}
+      : table_index(table_index), offset(offset), active(true) {}
+
+  // Construct a passive segment, which has no table index or offset.
+  WasmTableInit() : table_index(0), active(false) {}
 
   uint32_t table_index;
   WasmInitExpr offset;
   std::vector<uint32_t> entries;
+  bool active;  // true if copied automatically during instantiation.
 };
 
 // Static representation of a wasm import.
