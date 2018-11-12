@@ -1489,6 +1489,35 @@ TEST(SmallOrderedNameDictionaryInsertion) {
   CHECK(dict->HasKey(isolate, key2));
 }
 
+TEST(SmallOrderedNameDictionaryInsertionMax) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<SmallOrderedNameDictionary> dict =
+      factory->NewSmallOrderedNameDictionary();
+  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  PropertyDetails details = PropertyDetails::Empty();
+
+  char buf[10];
+  for (int i = 0; i < SmallOrderedNameDictionary::kMaxCapacity; i++) {
+    CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", i));
+    Handle<String> key = isolate->factory()->InternalizeUtf8String(buf);
+    dict = SmallOrderedNameDictionary::Add(isolate, dict, key, value, details)
+               .ToHandleChecked();
+    Verify(isolate, dict);
+  }
+
+  CHECK_EQ(SmallOrderedNameDictionary::kMaxCapacity /
+               SmallOrderedNameDictionary::kLoadFactor,
+           dict->NumberOfBuckets());
+  CHECK_EQ(SmallOrderedNameDictionary::kMaxCapacity, dict->NumberOfElements());
+
+  // This should overflow and fail.
+  CHECK(SmallOrderedNameDictionary::Add(isolate, dict, value, value, details)
+            .is_null());
+}
+
 TEST(SmallOrderedNameDictionaryFindEntry) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
