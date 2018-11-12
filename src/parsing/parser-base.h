@@ -1661,6 +1661,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBindingPattern() {
     IdentifierT name = ParseAndClassifyIdentifier();
     result = impl()->ExpressionFromIdentifier(name, beg_pos);
   } else {
+    CheckStackOverflow();
     classifier()->RecordNonSimpleParameter();
 
     if (token == Token::LBRACK) {
