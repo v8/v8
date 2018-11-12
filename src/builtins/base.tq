@@ -65,6 +65,8 @@ type NumberDictionary extends HeapObject
 type NativeContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
 const ARRAY_JOIN_STACK_INDEX: constexpr NativeContextSlot
     generates 'Context::ARRAY_JOIN_STACK_INDEX';
+const OBJECT_FUNCTION_INDEX: constexpr NativeContextSlot
+    generates 'Context::OBJECT_FUNCTION_INDEX';
 extern operator '[]' macro LoadContextElement(
     NativeContext, NativeContextSlot): Object;
 extern operator '[]=' macro StoreContextElement(
@@ -168,6 +170,10 @@ const kCalledNonCallable: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledNonCallable';
 const kCalledOnNullOrUndefined: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledOnNullOrUndefined';
+const kIteratorValueNotAnObject: constexpr MessageTemplate
+    generates 'MessageTemplate::kIteratorValueNotAnObject';
+const kNotIterable: constexpr MessageTemplate
+    generates 'MessageTemplate::kNotIterable';
 
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kStringMaxLength: constexpr int31 generates 'String::kMaxLength';
@@ -251,6 +257,8 @@ extern macro ToString_Inline(Context, Object): String;
 extern transitioning macro GetProperty(implicit context: Context)(
     Object, Object): Object;
 extern transitioning builtin SetProperty(implicit context: Context)(
+    Object, Object, Object);
+extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
     Object, Object, Object);
 extern transitioning builtin DeleteProperty(implicit context: Context)(
     Object, Object, LanguageMode);
@@ -806,6 +814,7 @@ UnsafeCast<String>(o: Object): String {
 // RawCasts should *never* be used anywhere in Torque code except for
 // in Torque-based UnsafeCast operators preceeded by an appropriate
 // type check().
+extern macro RawCastObjectToJSFunction(Object): JSFunction;
 extern macro RawCastObjectToJSArgumentsObjectWithLength(Object):
     JSArgumentsObjectWithLength;
 extern macro RawCastObjectToFastJSArray(Object): FastJSArray;
@@ -873,6 +882,38 @@ Cast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
     labels CastError {
   if (BranchIfFastJSArrayForCopy(o, context)) {
     return UnsafeCast<FastJSArrayForCopy>(o);
+  } else {
+    goto CastError;
+  }
+}
+
+UnsafeCast<JSFunction>(implicit context: Context)(o: Object): JSFunction {
+  assert(IsJSFunction(Cast<HeapObject>(o) otherwise unreachable));
+  return RawCastObjectToJSFunction(o);
+}
+
+Cast<JSFunction>(implicit context: Context)(o: Object): JSFunction
+    labels CastError {
+  if (IsJSFunction(Cast<HeapObject>(o) otherwise CastError)) {
+    return UnsafeCast<JSFunction>(o);
+  } else {
+    goto CastError;
+  }
+}
+
+Cast<Map>(o: Object): Map
+    labels CastError {
+  if (IsMap(Cast<HeapObject>(o) otherwise CastError)) {
+    return UnsafeCast<Map>(o);
+  } else {
+    goto CastError;
+  }
+}
+
+Cast<JSReceiver>(o: Object): JSReceiver
+    labels CastError {
+  if (IsJSReceiver(Cast<HeapObject>(o) otherwise CastError)) {
+    return UnsafeCast<JSReceiver>(o);
   } else {
     goto CastError;
   }
@@ -947,6 +988,9 @@ extern macro StoreFixedArrayElementSmi(
 
 extern operator '.instance_type' macro LoadMapInstanceType(Map): int32;
 
+extern operator '.prototype_or_initial_map' macro
+LoadJSFunctionPrototypeOrInitialMap(JSFunction): Object;
+
 extern macro LoadFixedDoubleArrayElement(FixedDoubleArray, Smi): float64;
 extern macro Float64SilenceNaN(float64): float64;
 
@@ -1011,6 +1055,8 @@ extern macro CopyFixedArrayElements(
 extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 
+extern macro AllocateJSObjectFromMap(Map): HeapObject;
+
 extern operator '[]=' macro StoreFixedDoubleArrayElementSmi(
     FixedDoubleArray, Smi, float64): void;
 
@@ -1019,6 +1065,11 @@ extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, intptr): float64
     labels IfHole;
 extern macro StoreFixedDoubleArrayHoleSmi(FixedDoubleArray, Smi): void;
+
+macro GetObjectFunction(implicit context: Context)(): JSFunction {
+  return UnsafeCast<JSFunction>(
+      LoadNativeContext(context)[OBJECT_FUNCTION_INDEX]);
+}
 
 extern transitioning macro Call(Context, Callable, Object): Object;
 extern transitioning macro Call(Context, Callable, Object, Object): Object;
@@ -1111,6 +1162,8 @@ extern macro TransitionElementsKind(JSObject, Map, ElementsKind, ElementsKind):
 
 extern macro IsCallable(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
+extern macro IsMap(HeapObject): bool;
+extern macro IsJSFunction(HeapObject): bool;
 extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;

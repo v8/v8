@@ -427,6 +427,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return TNode<JSArray>::UncheckedCast(p_o);
   }
 
+  TNode<JSFunction> RawCastObjectToJSFunction(TNode<Object> p_o) {
+    return TNode<JSFunction>::UncheckedCast(p_o);
+  }
+
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
@@ -1220,6 +1224,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   TNode<BytecodeArray> LoadSharedFunctionInfoBytecodeArray(
       SloppyTNode<SharedFunctionInfo> shared);
+
+  TNode<Object> LoadJSFunctionPrototypeOrInitialMap(
+      TNode<JSFunction> function) {
+    return LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
+  }
 
   void StoreObjectByteNoWriteBarrier(TNode<HeapObject> object, int offset,
                                      TNode<Word32T> value);
