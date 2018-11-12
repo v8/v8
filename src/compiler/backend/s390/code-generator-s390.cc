@@ -7,7 +7,7 @@
 #include "src/assembler-inl.h"
 #include "src/callable.h"
 #include "src/compiler/backend/gap-resolver.h"
-#include "src/compiler/code-generator-impl.h"
+#include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/optimized-compilation-info.h"
