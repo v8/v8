@@ -689,6 +689,42 @@ MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
   return Rehash(isolate, table, new_capacity);
 }
 
+template <class Derived>
+int SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate, Object* key) {
+  DisallowHeapAllocation no_gc;
+  Object* hash = key->GetHash();
+
+  if (hash->IsUndefined(isolate)) return kNotFound;
+  int entry = HashToFirstEntry(Smi::ToInt(hash));
+
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    if (candidate_key->SameValueZero(key)) return entry;
+    entry = GetNextEntry(entry);
+  }
+  return kNotFound;
+}
+
+template <>
+int SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(
+    Isolate* isolate, Object* key) {
+  DisallowHeapAllocation no_gc;
+  DCHECK(key->IsUniqueName());
+  Name* raw_key = Name::cast(key);
+
+  int entry = HashToFirstEntry(raw_key->Hash());
+
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    if (candidate_key == key) return entry;
+    entry = GetNextEntry(entry);
+  }
+
+  return kNotFound;
+}
+
 template bool SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(
     Isolate* isolate, Handle<Object> key);
 template Handle<SmallOrderedHashSet>

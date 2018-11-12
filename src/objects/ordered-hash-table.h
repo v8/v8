@@ -301,6 +301,8 @@ class SmallOrderedHashTable : public HeapObject {
   static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
                                 int new_capacity);
 
+  int FindEntry(Isolate* isolate, Object* key);
+
   // Iterates only fields in the DataTable.
   class BodyDescriptor;
 
@@ -451,22 +453,6 @@ class SmallOrderedHashTable : public HeapObject {
   void SetNumberOfDeletedElements(int num) {
     DCHECK_LE(static_cast<unsigned>(num), Capacity());
     setByte(kNumberOfDeletedElementsOffset, 0, num);
-  }
-
-  int FindEntry(Isolate* isolate, Object* key) {
-    DisallowHeapAllocation no_gc;
-    Object* hash = key->GetHash();
-
-    if (hash->IsUndefined(isolate)) return kNotFound;
-    int entry = HashToFirstEntry(Smi::ToInt(hash));
-
-    // Walk the chain in the bucket to find the key.
-    while (entry != kNotFound) {
-      Object* candidate_key = KeyAt(entry);
-      if (candidate_key->SameValueZero(key)) return entry;
-      entry = GetNextEntry(entry);
-    }
-    return kNotFound;
   }
 
   static const Offset kNumberOfElementsOffset = kHeaderSize;
