@@ -880,6 +880,17 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
     outer_scope_->unresolved_list_.ReinitializeHead(top_unresolved_);
   }
 
+  // Move temporaries allocated for complex parameter initializers.
+  DeclarationScope* outer_closure = outer_scope_->GetClosureScope();
+  new_parent->locals_.MoveTail(outer_closure->locals(), top_local_);
+  for (Variable* local : new_parent->locals_) {
+    DCHECK_EQ(VariableMode::kTemporary, local->mode());
+    DCHECK_EQ(local->scope(), local->scope()->GetClosureScope());
+    DCHECK_NE(local->scope(), new_parent);
+    local->set_scope(new_parent);
+  }
+  outer_closure->locals_.Rewind(top_local_);
+
   // Move eval calls since Snapshot's creation into new_parent.
   if (outer_scope_->scope_calls_eval_) {
     new_parent->scope_calls_eval_ = true;
