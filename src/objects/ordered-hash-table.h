@@ -113,6 +113,8 @@ class OrderedHashTable : public OrderedHashTableBase {
   // the key has been deleted. This does not shrink the table.
   static bool Delete(Isolate* isolate, Derived* table, Object* key);
 
+  int FindEntry(Isolate* isolate, Object* key);
+
   int NumberOfElements() const {
     return Smi::ToInt(get(kNumberOfElementsIndex));
   }
@@ -140,32 +142,6 @@ class OrderedHashTable : public OrderedHashTableBase {
     int bucket = HashToBucket(hash);
     Object* entry = this->get(kHashTableStartIndex + bucket);
     return Smi::ToInt(entry);
-  }
-
-  int KeyToFirstEntry(Isolate* isolate, Object* key) {
-    // This special cases for Smi, so that we avoid the HandleScope
-    // creation below.
-    if (key->IsSmi()) {
-      uint32_t hash = ComputeUnseededHash(Smi::ToInt(key));
-      return HashToEntry(hash & Smi::kMaxValue);
-    }
-    HandleScope scope(isolate);
-    Object* hash = key->GetHash();
-    // If the object does not have an identity hash, it was never used as a key
-    if (hash->IsUndefined(isolate)) return kNotFound;
-    return HashToEntry(Smi::ToInt(hash));
-  }
-
-  int FindEntry(Isolate* isolate, Object* key) {
-    int entry = KeyToFirstEntry(isolate, key);
-    // Walk the chain in the bucket to find the key.
-    while (entry != kNotFound) {
-      Object* candidate_key = KeyAt(entry);
-      if (candidate_key->SameValueZero(key)) break;
-      entry = NextChainEntry(entry);
-    }
-
-    return entry;
   }
 
   int NextChainEntry(int entry) {

@@ -1282,8 +1282,8 @@ TEST(OrderedNameDictionaryInsertion) {
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key1 = factory->NewStringFromAsciiChecked("foo");
-  Handle<String> value = factory->NewStringFromAsciiChecked("foo");
+  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  Handle<String> value = isolate->factory()->InternalizeUtf8String("foo");
   CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key1));
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details);
@@ -1300,6 +1300,46 @@ TEST(OrderedNameDictionaryInsertion) {
   CHECK_EQ(2, dict->NumberOfElements());
   CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
   CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+}
+
+TEST(OrderedNameDictionaryFindEntry) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Verify(isolate, dict);
+  CHECK_EQ(2, dict->NumberOfBuckets());
+  CHECK_EQ(0, dict->NumberOfElements());
+
+  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  Handle<String> value = isolate->factory()->InternalizeUtf8String("foo");
+  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+  PropertyDetails details = PropertyDetails::Empty();
+  dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details);
+  Verify(isolate, dict);
+  CHECK_EQ(2, dict->NumberOfBuckets());
+  CHECK_EQ(1, dict->NumberOfElements());
+  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+
+  int entry = dict->FindEntry(isolate, *key1);
+  CHECK_NE(entry, OrderedNameDictionary::kNotFound);
+
+  Handle<Symbol> key2 = factory->NewSymbol();
+  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+  dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details);
+  Verify(isolate, dict);
+  CHECK_EQ(2, dict->NumberOfBuckets());
+  CHECK_EQ(2, dict->NumberOfElements());
+  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+
+  entry = dict->FindEntry(isolate, *key1);
+  CHECK_NE(entry, OrderedNameDictionary::kNotFound);
+
+  entry = dict->FindEntry(isolate, *key2);
+  CHECK_NE(entry, OrderedNameDictionary::kNotFound);
 }
 
 }  // namespace test_orderedhashtable

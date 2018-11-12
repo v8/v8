@@ -90,6 +90,33 @@ bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
   return entry != kNotFound;
 }
 
+template <class Derived, int entrysize>
+int OrderedHashTable<Derived, entrysize>::FindEntry(Isolate* isolate,
+                                                    Object* key) {
+  int entry;
+  // This special cases for Smi, so that we avoid the HandleScope
+  // creation below.
+  if (key->IsSmi()) {
+    uint32_t hash = ComputeUnseededHash(Smi::ToInt(key));
+    entry = HashToEntry(hash & Smi::kMaxValue);
+  } else {
+    HandleScope scope(isolate);
+    Object* hash = key->GetHash();
+    // If the object does not have an identity hash, it was never used as a key
+    if (hash->IsUndefined(isolate)) return kNotFound;
+    entry = HashToEntry(Smi::ToInt(hash));
+  }
+
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    if (candidate_key->SameValueZero(key)) break;
+    entry = NextChainEntry(entry);
+  }
+
+  return entry;
+}
+
 Handle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
                                            Handle<OrderedHashSet> table,
                                            Handle<Object> key) {
@@ -311,6 +338,30 @@ Handle<OrderedNameDictionary> OrderedNameDictionary::Add(
   return table;
 }
 
+template <>
+int OrderedHashTable<OrderedNameDictionary, 3>::FindEntry(Isolate* isolate,
+                                                          Object* key) {
+  DisallowHeapAllocation no_gc;
+
+  DCHECK(key->IsUniqueName());
+  Name* raw_key = Name::cast(key);
+
+  int entry = HashToEntry(raw_key->Hash());
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    DCHECK(candidate_key->IsTheHole() ||
+           Name::cast(candidate_key)->IsUniqueName());
+    if (candidate_key == raw_key) return entry;
+
+    // TODO(gsathya): This is loading the bucket count from the hash
+    // table for every iteration. This should be peeled out of the
+    // loop.
+    entry = NextChainEntry(entry);
+  }
+
+  return kNotFound;
+}
+
 template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 
@@ -332,6 +383,9 @@ template bool OrderedHashTable<OrderedHashSet, 1>::Delete(Isolate* isolate,
                                                           OrderedHashSet* table,
                                                           Object* key);
 
+template int OrderedHashTable<OrderedHashSet, 1>::FindEntry(Isolate* isolate,
+                                                            Object* key);
+
 template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 
@@ -352,6 +406,9 @@ template bool OrderedHashTable<OrderedHashMap, 2>::HasKey(Isolate* isolate,
 template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
                                                           OrderedHashMap* table,
                                                           Object* key);
+
+template int OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate,
+                                                            Object* key);
 
 template Handle<OrderedNameDictionary>
 OrderedHashTable<OrderedNameDictionary, 3>::Allocate(Isolate* isolate,
