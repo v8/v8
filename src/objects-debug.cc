@@ -379,6 +379,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case SMALL_ORDERED_HASH_MAP_TYPE:
       SmallOrderedHashMap::cast(this)->SmallOrderedHashTableVerify(isolate);
       break;
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
+      SmallOrderedNameDictionary::cast(this)->SmallOrderedHashTableVerify(
+          isolate);
+      break;
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(this)->CodeDataContainerVerify(isolate);
       break;
@@ -1484,6 +1488,8 @@ template void SmallOrderedHashTable<
     SmallOrderedHashMap>::SmallOrderedHashTableVerify(Isolate* isolate);
 template void SmallOrderedHashTable<
     SmallOrderedHashSet>::SmallOrderedHashTableVerify(Isolate* isolate);
+template void SmallOrderedHashTable<
+    SmallOrderedNameDictionary>::SmallOrderedHashTableVerify(Isolate* isolate);
 
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   JSObjectVerify(isolate);

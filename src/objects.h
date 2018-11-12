@@ -464,6 +464,7 @@ enum InstanceType : uint16_t {
   SHARED_FUNCTION_INFO_TYPE,
   SMALL_ORDERED_HASH_MAP_TYPE,
   SMALL_ORDERED_HASH_SET_TYPE,
+  SMALL_ORDERED_NAME_DICTIONARY_TYPE,
   STORE_HANDLER_TYPE,
   UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE,
   UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE,
@@ -835,6 +836,7 @@ class ZoneForwardList;
   V(SloppyArgumentsElements)                   \
   V(SmallOrderedHashMap)                       \
   V(SmallOrderedHashSet)                       \
+  V(SmallOrderedNameDictionary)                \
   V(SourcePositionTableWithFrameCache)         \
   V(StoreHandler)                              \
   V(String)                                    \
@@ -977,6 +979,7 @@ class ZoneForwardList;
   V(SimpleNumberDictionary, SIMPLE_NUMBER_DICTIONARY_TYPE)               \
   V(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)                    \
   V(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)                    \
+  V(SmallOrderedNameDictionary, SMALL_ORDERED_NAME_DICTIONARY_TYPE)      \
   V(SourcePositionTableWithFrameCache, TUPLE2_TYPE)                      \
   V(StoreHandler, STORE_HANDLER_TYPE)                                    \
   V(StringTable, STRING_TABLE_TYPE)                                      \

@@ -344,6 +344,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case STACK_FRAME_INFO_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case INTERPRETER_DATA_TYPE:
     case TUPLE2_TYPE:

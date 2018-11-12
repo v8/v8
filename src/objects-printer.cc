@@ -430,6 +430,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
       // TODO(all): Handle these types too.

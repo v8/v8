@@ -517,34 +517,36 @@ Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
   return Handle<FrameArray>::cast(result);
 }
 
-Handle<SmallOrderedHashSet> Factory::NewSmallOrderedHashSet(
-    int capacity, PretenureFlag pretenure) {
+template <typename T>
+Handle<T> Factory::AllocateSmallOrderedHashTable(Handle<Map> map, int capacity,
+                                                 PretenureFlag pretenure) {
   DCHECK_LE(0, capacity);
-  CHECK_LE(capacity, SmallOrderedHashSet::kMaxCapacity);
-  DCHECK_EQ(0, capacity % SmallOrderedHashSet::kLoadFactor);
+  CHECK_LE(capacity, T::kMaxCapacity);
+  DCHECK_EQ(0, capacity % T::kLoadFactor);
 
-  int size = SmallOrderedHashSet::SizeFor(capacity);
-  Map* map = *small_ordered_hash_set_map();
-  HeapObject* result = AllocateRawWithImmortalMap(size, pretenure, map);
-  Handle<SmallOrderedHashSet> table(SmallOrderedHashSet::cast(result),
-                                    isolate());
+  int size = T::SizeFor(capacity);
+  HeapObject* result = AllocateRawWithImmortalMap(size, pretenure, *map);
+  Handle<T> table(T::cast(result), isolate());
   table->Initialize(isolate(), capacity);
   return table;
 }
 
+Handle<SmallOrderedHashSet> Factory::NewSmallOrderedHashSet(
+    int capacity, PretenureFlag pretenure) {
+  return AllocateSmallOrderedHashTable<SmallOrderedHashSet>(
+      small_ordered_hash_set_map(), capacity, pretenure);
+}
+
 Handle<SmallOrderedHashMap> Factory::NewSmallOrderedHashMap(
     int capacity, PretenureFlag pretenure) {
-  DCHECK_LE(0, capacity);
-  CHECK_LE(capacity, SmallOrderedHashMap::kMaxCapacity);
-  DCHECK_EQ(0, capacity % SmallOrderedHashMap::kLoadFactor);
+  return AllocateSmallOrderedHashTable<SmallOrderedHashMap>(
+      small_ordered_hash_map_map(), capacity, pretenure);
+}
 
-  int size = SmallOrderedHashMap::SizeFor(capacity);
-  Map* map = *small_ordered_hash_map_map();
-  HeapObject* result = AllocateRawWithImmortalMap(size, pretenure, map);
-  Handle<SmallOrderedHashMap> table(SmallOrderedHashMap::cast(result),
-                                    isolate());
-  table->Initialize(isolate(), capacity);
-  return table;
+Handle<SmallOrderedNameDictionary> Factory::NewSmallOrderedNameDictionary(
+    int capacity, PretenureFlag pretenure) {
+  return AllocateSmallOrderedHashTable<SmallOrderedNameDictionary>(
+      small_ordered_name_dictionary_map(), capacity, pretenure);
 }
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {

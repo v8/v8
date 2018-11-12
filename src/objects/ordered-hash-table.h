@@ -620,6 +620,27 @@ class OrderedNameDictionary
   static const int kPropertyDetailsOffset = 2;
 };
 
+class SmallOrderedNameDictionary
+    : public SmallOrderedHashTable<SmallOrderedNameDictionary> {
+ public:
+  DECL_CAST(SmallOrderedNameDictionary)
+
+  DECL_PRINTER(SmallOrderedNameDictionary)
+
+  static const int kKeyIndex = 0;
+  static const int kValueIndex = 1;
+  static const int kPropertyDetailsIndex = 2;
+  static const int kEntrySize = 3;
+
+  // Adds |value| to |table|, if the capacity isn't enough, a new
+  // table is created. The original |table| is returned if there is
+  // capacity to store |value| otherwise the new table is returned.
+  static MaybeHandle<SmallOrderedNameDictionary> Add(
+      Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
+      Handle<Name> key, Handle<Object> value, PropertyDetails details);
+  static inline RootIndex GetMapRootIndex();
+};
+
 class JSCollectionIterator : public JSObject {
  public:
   // [table]: the backing hash table mapping keys to values.

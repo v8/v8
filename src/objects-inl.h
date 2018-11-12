@@ -401,7 +401,8 @@ bool HeapObject::IsMapCache() const { return IsHashTable(); }
 bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
 
 bool Object::IsSmallOrderedHashTable() const {
-  return IsSmallOrderedHashSet() || IsSmallOrderedHashMap();
+  return IsSmallOrderedHashSet() || IsSmallOrderedHashMap() ||
+         IsSmallOrderedNameDictionary();
 }
 
 bool Object::IsPrimitive() const {
@@ -499,6 +500,7 @@ CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SimpleNumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)
+CAST_ACCESSOR(SmallOrderedNameDictionary)
 CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
@@ -1080,6 +1082,7 @@ bool HeapObject::NeedsRehashing() const {
     case HASH_TABLE_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
       return true;
     default:
       return false;
@@ -1549,13 +1552,17 @@ int HeapObject::SizeFromMap(Map* map) const {
     return SmallOrderedHashSet::SizeFor(
         reinterpret_cast<const SmallOrderedHashSet*>(this)->Capacity());
   }
-  if (instance_type == PROPERTY_ARRAY_TYPE) {
-    return PropertyArray::SizeFor(
-        PropertyArray::cast(this)->synchronized_length());
-  }
   if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
     return SmallOrderedHashMap::SizeFor(
         reinterpret_cast<const SmallOrderedHashMap*>(this)->Capacity());
+  }
+  if (instance_type == SMALL_ORDERED_NAME_DICTIONARY_TYPE) {
+    return SmallOrderedNameDictionary::SizeFor(
+        reinterpret_cast<const SmallOrderedNameDictionary*>(this)->Capacity());
+  }
+  if (instance_type == PROPERTY_ARRAY_TYPE) {
+    return PropertyArray::SizeFor(
+        PropertyArray::cast(this)->synchronized_length());
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(

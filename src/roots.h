@@ -111,6 +111,7 @@ class RootVisitor;
   V(Map*, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)           \
   V(Map*, small_ordered_hash_map_map, SmallOrderedHashMapMap)                  \
   V(Map*, small_ordered_hash_set_map, SmallOrderedHashSetMap)                  \
+  V(Map*, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)    \
   V(Map*, string_table_map, StringTableMap)                                    \
   V(Map*, uncompiled_data_without_pre_parsed_scope_map,                        \
     UncompiledDataWithoutPreParsedScopeMap)                                    \

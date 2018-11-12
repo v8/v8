@@ -57,6 +57,7 @@ namespace internal {
   V(SlicedString)                        \
   V(SmallOrderedHashMap)                 \
   V(SmallOrderedHashSet)                 \
+  V(SmallOrderedNameDictionary)          \
   V(Struct)                              \
   V(Symbol)                              \
   V(ThinString)                          \

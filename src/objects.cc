@@ -3197,6 +3197,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case SMALL_ORDERED_HASH_SET_TYPE:
       return kVisitSmallOrderedHashSet;
 
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
+      return kVisitSmallOrderedNameDictionary;
+
     case CODE_DATA_CONTAINER_TYPE:
       return kVisitCodeDataContainer;
 
@@ -3848,6 +3851,8 @@ bool HeapObject::CanBeRehashed() const {
       return SmallOrderedHashMap::cast(this)->NumberOfElements() == 0;
     case SMALL_ORDERED_HASH_SET_TYPE:
       return SmallOrderedHashMap::cast(this)->NumberOfElements() == 0;
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
+      return SmallOrderedNameDictionary::cast(this)->NumberOfElements() == 0;
     default:
       return false;
   }
@@ -3886,6 +3891,9 @@ void HeapObject::RehashBasedOnMap(Isolate* isolate) {
       break;
     case SMALL_ORDERED_HASH_SET_TYPE:
       DCHECK_EQ(0, SmallOrderedHashSet::cast(this)->NumberOfElements());
+      break;
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
+      DCHECK_EQ(0, SmallOrderedNameDictionary::cast(this)->NumberOfElements());
       break;
     default:
       break;

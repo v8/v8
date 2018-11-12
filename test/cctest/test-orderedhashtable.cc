@@ -1468,6 +1468,40 @@ TEST(OrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   CHECK_EQ(other.AsSmi(), found.AsSmi());
 }
 
+TEST(SmallOrderedNameDictionaryInsertion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  Handle<SmallOrderedNameDictionary> dict =
+      factory->NewSmallOrderedNameDictionary();
+  Verify(isolate, dict);
+  CHECK_EQ(2, dict->NumberOfBuckets());
+  CHECK_EQ(0, dict->NumberOfElements());
+
+  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  Handle<String> value = isolate->factory()->InternalizeUtf8String("foo");
+  CHECK(!dict->HasKey(isolate, key1));
+  PropertyDetails details = PropertyDetails::Empty();
+  dict = SmallOrderedNameDictionary::Add(isolate, dict, key1, value, details)
+             .ToHandleChecked();
+  Verify(isolate, dict);
+  CHECK_EQ(2, dict->NumberOfBuckets());
+  CHECK_EQ(1, dict->NumberOfElements());
+  CHECK(dict->HasKey(isolate, key1));
+
+  Handle<Symbol> key2 = factory->NewSymbol();
+  CHECK(!dict->HasKey(isolate, key2));
+  dict = SmallOrderedNameDictionary::Add(isolate, dict, key2, value, details)
+             .ToHandleChecked();
+  Verify(isolate, dict);
+  CHECK_EQ(2, dict->NumberOfBuckets());
+  CHECK_EQ(2, dict->NumberOfElements());
+  CHECK(dict->HasKey(isolate, key1));
+  CHECK(dict->HasKey(isolate, key2));
+}
+
 }  // namespace test_orderedhashtable
 }  // namespace internal
 }  // namespace v8

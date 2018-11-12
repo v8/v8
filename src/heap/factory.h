@@ -185,6 +185,9 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<SmallOrderedHashMap> NewSmallOrderedHashMap(
       int capacity = SmallOrderedHashMap::kMinCapacity,
       PretenureFlag pretenure = NOT_TENURED);
+  Handle<SmallOrderedNameDictionary> NewSmallOrderedNameDictionary(
+      int capacity = SmallOrderedHashMap::kMinCapacity,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
@@ -941,6 +944,10 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FixedArray> NewFixedArrayWithFiller(RootIndex map_root_index,
                                              int length, Object* filler,
                                              PretenureFlag pretenure);
+
+  template <typename T>
+  Handle<T> AllocateSmallOrderedHashTable(Handle<Map> map, int capacity,
+                                          PretenureFlag pretenure);
 
   // Creates a heap object based on the map. The fields of the heap object are
   // not initialized, it's the responsibility of the caller to do that.

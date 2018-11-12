@@ -25,6 +25,10 @@ RootIndex OrderedNameDictionary::GetMapRootIndex() {
   return RootIndex::kOrderedNameDictionaryMap;
 }
 
+RootIndex SmallOrderedNameDictionary::GetMapRootIndex() {
+  return RootIndex::kSmallOrderedNameDictionaryMap;
+}
+
 RootIndex SmallOrderedHashMap::GetMapRootIndex() {
   return RootIndex::kSmallOrderedHashMapMap;
 }

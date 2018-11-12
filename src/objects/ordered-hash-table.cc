@@ -438,6 +438,13 @@ SmallOrderedHashTable<SmallOrderedHashMap>::Allocate(Isolate* isolate,
   return isolate->factory()->NewSmallOrderedHashMap(capacity, pretenure);
 }
 
+template <>
+Handle<SmallOrderedNameDictionary>
+SmallOrderedHashTable<SmallOrderedNameDictionary>::Allocate(
+    Isolate* isolate, int capacity, PretenureFlag pretenure) {
+  return isolate->factory()->NewSmallOrderedNameDictionary(capacity, pretenure);
+}
+
 template <class Derived>
 void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
                                                 int capacity) {
@@ -539,6 +546,47 @@ MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
 
   table->SetDataEntry(new_entry, SmallOrderedHashMap::kValueIndex, *value);
   table->SetDataEntry(new_entry, SmallOrderedHashMap::kKeyIndex, *key);
+  table->SetFirstEntry(bucket, new_entry);
+  table->SetNextEntry(new_entry, previous_entry);
+
+  // and update book keeping.
+  table->SetNumberOfElements(nof + 1);
+
+  return table;
+}
+
+MaybeHandle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Add(
+    Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
+    Handle<Name> key, Handle<Object> value, PropertyDetails details) {
+  DCHECK(!table->HasKey(isolate, key));
+
+  if (table->UsedCapacity() >= table->Capacity()) {
+    MaybeHandle<SmallOrderedNameDictionary> new_table =
+        SmallOrderedNameDictionary::Grow(isolate, table);
+    if (!new_table.ToHandle(&table)) {
+      return MaybeHandle<SmallOrderedNameDictionary>();
+    }
+  }
+
+  int hash = key->GetOrCreateHash(isolate)->value();
+  int nof = table->NumberOfElements();
+
+  // Read the existing bucket values.
+  int bucket = table->HashToBucket(hash);
+  int previous_entry = table->HashToFirstEntry(hash);
+
+  // Insert a new entry at the end,
+  int new_entry = nof + table->NumberOfDeletedElements();
+
+  table->SetDataEntry(new_entry, SmallOrderedNameDictionary::kValueIndex,
+                      *value);
+  table->SetDataEntry(new_entry, SmallOrderedNameDictionary::kKeyIndex, *key);
+
+  // TODO(gsathya): PropertyDetails should be stored as part of the
+  // data table to save more memory.
+  table->SetDataEntry(new_entry,
+                      SmallOrderedNameDictionary::kPropertyDetailsIndex,
+                      details.AsSmi());
   table->SetFirstEntry(bucket, new_entry);
   table->SetNextEntry(new_entry, previous_entry);
 
@@ -667,6 +715,11 @@ template bool SmallOrderedHashTable<SmallOrderedHashMap>::Delete(
     Isolate* isolate, SmallOrderedHashMap* table, Object* key);
 template bool SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
     Isolate* isolate, SmallOrderedHashSet* table, Object* key);
+
+template void SmallOrderedHashTable<SmallOrderedNameDictionary>::Initialize(
+    Isolate* isolate, int capacity);
+template bool SmallOrderedHashTable<SmallOrderedNameDictionary>::HasKey(
+    Isolate* isolate, Handle<Object> key);
 
 template <class SmallTable, class LargeTable>
 Handle<HeapObject> OrderedHashTableHandler<SmallTable, LargeTable>::Allocate(

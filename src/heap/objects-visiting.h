@@ -64,6 +64,7 @@ class WasmInstanceObject;
   V(SlicedString, SlicedString*)                                               \
   V(SmallOrderedHashMap, SmallOrderedHashMap*)                                 \
   V(SmallOrderedHashSet, SmallOrderedHashSet*)                                 \
+  V(SmallOrderedNameDictionary, SmallOrderedNameDictionary*)                   \
   V(Symbol, Symbol*)                                                           \
   V(ThinString, ThinString*)                                                   \
   V(TransitionArray, TransitionArray*)                                         \
