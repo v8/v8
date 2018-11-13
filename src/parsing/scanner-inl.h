@@ -221,8 +221,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("true", Token::TRUE_LITERAL)                      \
   KEYWORD("try", Token::TRY)                                \
   KEYWORD("typeof", Token::TYPEOF)                          \
-  KEYWORD_GROUP('u')                                        \
-  KEYWORD("undefined", Token::UNDEFINED)                    \
   KEYWORD_GROUP('v')                                        \
   KEYWORD("var", Token::VAR)                                \
   KEYWORD("void", Token::VOID)                              \
