@@ -8004,13 +8004,8 @@ v8::Local<v8::Context> Isolate::GetEnteredContext() {
 
 v8::Local<v8::Context> Isolate::GetEnteredOrMicrotaskContext() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Handle<i::Object> last;
-  if (isolate->handle_scope_implementer()
-          ->MicrotaskContextIsLastEnteredContext()) {
-    last = isolate->handle_scope_implementer()->MicrotaskContext();
-  } else {
-    last = isolate->handle_scope_implementer()->LastEnteredContext();
-  }
+  i::Handle<i::Object> last =
+      isolate->handle_scope_implementer()->LastEnteredOrMicrotaskContext();
   if (last.is_null()) return Local<Context>();
   DCHECK(last->IsNativeContext());
   return Utils::ToLocal(i::Handle<i::Context>::cast(last));

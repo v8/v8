@@ -2426,12 +2426,12 @@ Handle<Context> Isolate::GetIncumbentContext() {
         *top_backup_incumbent_scope()->backup_incumbent_context_);
   }
 
-  // Last candidate: the entered context.
+  // Last candidate: the entered context or microtask context.
   // Given that there is no other author function is running, there must be
   // no cross-context function running, then the incumbent realm must match
   // the entry realm.
   v8::Local<v8::Context> entered_context =
-      reinterpret_cast<v8::Isolate*>(this)->GetEnteredContext();
+      reinterpret_cast<v8::Isolate*>(this)->GetEnteredOrMicrotaskContext();
   return Utils::OpenHandle(*entered_context);
 }
 

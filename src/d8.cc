@@ -926,7 +926,7 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_switch_ = 0;
   data_->realms_ = new Global<Context>[1];
   data_->realms_[0].Reset(data_->isolate_,
-                          data_->isolate_->GetEnteredContext());
+                          data_->isolate_->GetEnteredOrMicrotaskContext());
 }
 
 
@@ -993,7 +993,7 @@ void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  int index = data->RealmFind(isolate->GetEnteredContext());
+  int index = data->RealmFind(isolate->GetEnteredOrMicrotaskContext());
   if (index == -1) return;
   args.GetReturnValue().Set(index);
 }
@@ -1076,7 +1076,7 @@ void Shell::RealmCreateAllowCrossRealmAccess(
   Local<Context> context;
   if (CreateRealm(args, -1, v8::MaybeLocal<Value>()).ToLocal(&context)) {
     context->SetSecurityToken(
-        args.GetIsolate()->GetEnteredContext()->GetSecurityToken());
+        args.GetIsolate()->GetEnteredOrMicrotaskContext()->GetSecurityToken());
   }
 }
 
