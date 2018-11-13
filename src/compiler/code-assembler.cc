@@ -174,30 +174,44 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
   DCHECK(!state->code_generated_);
 
   RawMachineAssembler* rasm = state->raw_assembler_.get();
-  Schedule* schedule = rasm->Export();
 
-  JumpOptimizationInfo jump_opt;
-  bool should_optimize_jumps =
-      rasm->isolate()->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
+  Handle<Code> code;
+  if (FLAG_optimize_csa) {
+    // TODO(tebbi): Support jump rewriting also when FLAG_optimize_csa.
+    DCHECK(!FLAG_turbo_rewrite_far_jumps);
+    Graph* graph = rasm->ExportForOptimization();
 
-  Handle<Code> code =
-      Pipeline::GenerateCodeForCodeStub(
-          rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-          state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-          should_optimize_jumps ? &jump_opt : nullptr, rasm->poisoning_level(),
-          options)
-          .ToHandleChecked();
+    code = Pipeline::GenerateCodeForCodeStub(
+               rasm->isolate(), rasm->call_descriptor(), graph, nullptr,
+               state->kind_, state->name_, state->stub_key_,
+               state->builtin_index_, nullptr, rasm->poisoning_level(), options)
+               .ToHandleChecked();
+  } else {
+    Schedule* schedule = rasm->Export();
 
-  if (jump_opt.is_optimizable()) {
-    jump_opt.set_optimizing();
+    JumpOptimizationInfo jump_opt;
+    bool should_optimize_jumps =
+        rasm->isolate()->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
 
-    // Regenerate machine code
     code =
         Pipeline::GenerateCodeForCodeStub(
             rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
             state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-            &jump_opt, rasm->poisoning_level(), options)
+            should_optimize_jumps ? &jump_opt : nullptr,
+            rasm->poisoning_level(), options)
             .ToHandleChecked();
+
+    if (jump_opt.is_optimizable()) {
+      jump_opt.set_optimizing();
+
+      // Regenerate machine code
+      code = Pipeline::GenerateCodeForCodeStub(
+                 rasm->isolate(), rasm->call_descriptor(), rasm->graph(),
+                 schedule, state->kind_, state->name_, state->stub_key_,
+                 state->builtin_index_, &jump_opt, rasm->poisoning_level(),
+                 options)
+                 .ToHandleChecked();
+    }
   }
 
   state->code_generated_ = true;
@@ -1103,6 +1117,7 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   Goto(if_exception);
 
   Bind(&success);
+  raw_assembler()->AddNode(raw_assembler()->common()->IfSuccess(), node);
 }
 
 void CodeAssembler::HandleException(Node* node) {
@@ -1125,7 +1140,9 @@ void CodeAssembler::HandleException(Node* node) {
   Node* exception_value = raw_assembler()->AddNode(op, node, node);
   label->AddInputs({UncheckedCast<Object>(exception_value)});
   Goto(label->plain_label());
+
   Bind(&success);
+  raw_assembler()->AddNode(raw_assembler()->common()->IfSuccess(), node);
 }
 
 namespace {

@@ -2203,7 +2203,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   }
 
   PipelineImpl pipeline(&data);
-  DCHECK_NOT_NULL(data.schedule());
 
   if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
     CodeTracer::Scope tracing_scope(data.GetCodeTracer());
@@ -2221,9 +2220,15 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
-  TraceSchedule(data.info(), &data, data.schedule(), "schedule");
+  if (FLAG_optimize_csa) {
+    DCHECK_NULL(data.schedule());
+    pipeline.Run<VerifyGraphPhase>(true, !FLAG_optimize_csa);
+    pipeline.ComputeScheduledGraph();
+  } else {
+    TraceSchedule(data.info(), &data, data.schedule(), "schedule");
+  }
+  DCHECK_NOT_NULL(data.schedule());
 
-  pipeline.Run<VerifyGraphPhase>(false, true);
   return pipeline.GenerateCode(call_descriptor);
 }
 

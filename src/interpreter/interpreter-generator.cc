@@ -2754,6 +2754,7 @@ IGNITION_HANDLER(Throw, InterpreterAssembler) {
   CallRuntime(Runtime::kThrow, context, exception);
   // We shouldn't ever return from a throw.
   Abort(AbortReason::kUnexpectedReturnFromThrow);
+  Unreachable();
 }
 
 // ReThrow
@@ -2765,6 +2766,7 @@ IGNITION_HANDLER(ReThrow, InterpreterAssembler) {
   CallRuntime(Runtime::kReThrow, context, exception);
   // We shouldn't ever return from a throw.
   Abort(AbortReason::kUnexpectedReturnFromThrow);
+  Unreachable();
 }
 
 // Abort <abort_reason>
@@ -2801,6 +2803,7 @@ IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
     CallRuntime(Runtime::kThrowReferenceError, GetContext(), name);
     // We shouldn't ever return from a throw.
     Abort(AbortReason::kUnexpectedReturnFromThrow);
+    Unreachable();
   }
 }
 
@@ -2819,6 +2822,7 @@ IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
     CallRuntime(Runtime::kThrowSuperNotCalled, GetContext());
     // We shouldn't ever return from a throw.
     Abort(AbortReason::kUnexpectedReturnFromThrow);
+    Unreachable();
   }
 }
 
@@ -2838,6 +2842,7 @@ IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotHole, InterpreterAssembler) {
     CallRuntime(Runtime::kThrowSuperAlreadyCalledError, GetContext());
     // We shouldn't ever return from a throw.
     Abort(AbortReason::kUnexpectedReturnFromThrow);
+    Unreachable();
   }
 }
 
@@ -3071,6 +3076,7 @@ IGNITION_HANDLER(ExtraWide, InterpreterAssembler) {
 // An invalid bytecode aborting execution if dispatched.
 IGNITION_HANDLER(Illegal, InterpreterAssembler) {
   Abort(AbortReason::kInvalidBytecode);
+  Unreachable();
 }
 
 // SuspendGenerator <generator> <first input register> <register count>

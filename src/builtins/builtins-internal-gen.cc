@@ -436,6 +436,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
       Node* isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
       Node* fp_mode = Parameter(Descriptor::kFPMode);
+      Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
       CallCFunction3WithCallerSavedRegistersMode(
           MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
           MachineType::Pointer(), function, object, slot, isolate_constant,

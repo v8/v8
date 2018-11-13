@@ -1748,7 +1748,6 @@ void TurboAssembler::Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
 }
 
 void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
-  DCHECK(imm8 == 0 || imm8 == 1);
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pinsrd(dst, src, imm8);
