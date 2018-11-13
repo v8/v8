@@ -253,7 +253,6 @@ Token::Value Scanner::Next() {
     next_ = next_next_;
     next_next_ = previous;
     previous->token = Token::UNINITIALIZED;
-    previous->contextual_token = Token::UNINITIALIZED;
     DCHECK_NE(Token::UNINITIALIZED, current().token);
   }
   return current().token;
@@ -438,13 +437,6 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
       DCHECK_EQ(token.invalid_template_escape_message, MessageTemplate::kNone);
       break;
   }
-
-  DCHECK_IMPLIES(token.token != Token::IDENTIFIER,
-                 token.contextual_token == Token::UNINITIALIZED);
-  DCHECK_IMPLIES(token.contextual_token != Token::UNINITIALIZED,
-                 token.token == Token::IDENTIFIER &&
-                     Token::IsContextualKeyword(token.contextual_token));
-  DCHECK(!Token::IsContextualKeyword(token.token));
 }
 #endif  // DEBUG
 
@@ -690,7 +682,6 @@ Token::Value Scanner::ScanTemplateSpan() {
   literal.Complete();
   next().location.end_pos = source_pos();
   next().token = result;
-  next().contextual_token = Token::UNINITIALIZED;
 
   return result;
 }
@@ -1066,7 +1057,7 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(LiteralScope* literal,
       if (escaped) return Token::ESCAPED_STRICT_RESERVED_WORD;
       return token;
     }
-    if (token == Token::IDENTIFIER || Token::IsContextualKeyword(token)) {
+    if (token == Token::IDENTIFIER) {
       literal->Complete();
       return token;
     }
@@ -1129,7 +1120,6 @@ bool Scanner::ScanRegExpPattern() {
 
   literal.Complete();
   next().token = Token::REGEXP_LITERAL;
-  next().contextual_token = Token::UNINITIALIZED;
   return true;
 }
 
@@ -1225,10 +1215,7 @@ void Scanner::SeekNext(size_t position) {
   // 1, Reset the current_, next_ and next_next_ tokens
   //    (next_ + next_next_ will be overwrittem by Next(),
   //     current_ will remain unchanged, so overwrite it fully.)
-  for (TokenDesc& token : token_storage_) {
-    token.token = Token::UNINITIALIZED;
-    token.contextual_token = Token::UNINITIALIZED;
-  }
+  for (TokenDesc& token : token_storage_) token.token = Token::UNINITIALIZED;
   // 2, reset the source to the desired position,
   source_->Seek(position);
   // 3, re-scan, by scanning the look-ahead char + 1 token (next_).

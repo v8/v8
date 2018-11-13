@@ -20,12 +20,6 @@ namespace internal {
 //
 //   T: Non-keyword tokens
 //   K: Keyword tokens
-//   C: Contextual keyword token
-//
-// Contextual keyword tokens are tokens that are scanned as Token::IDENTIFIER,
-// but that in some contexts are treated as keywords. This mostly happens
-// when ECMAScript introduces new keywords, but for backwards compatibility
-// allows them to still be used as indentifiers in most contexts.
 
 // IGNORE_TOKEN is a convenience macro that can be supplied as
 // an argument (at any position) for a TOKEN_LIST call. It does
@@ -193,11 +187,7 @@ namespace internal {
   /* Scanner-internal use only. */                                 \
   T(WHITESPACE, nullptr, 0)                                        \
   T(UNINITIALIZED, nullptr, 0)                                     \
-  T(REGEXP_LITERAL, nullptr, 0)                                    \
-                                                                   \
-  /* Contextual keyword tokens */                                  \
-  C(GET, "get", 0)                                                 \
-  C(SET, "set", 0)
+  T(REGEXP_LITERAL, nullptr, 0)
 
 class Token {
  public:
@@ -217,9 +207,6 @@ class Token {
 
   // Predicates
   static bool IsKeyword(Value token) { return token_type[token] == 'K'; }
-  static bool IsContextualKeyword(Value token) {
-    return IsInRange(token, GET, SET);
-  }
 
   static bool IsIdentifier(Value token, LanguageMode language_mode,
                            bool is_generator, bool disallow_await) {
@@ -265,8 +252,6 @@ class Token {
   static bool IsAssignmentOp(Value token) {
     return IsInRange(token, INIT, ASSIGN_EXP);
   }
-
-  static bool IsGetOrSet(Value op) { return IsInRange(op, GET, SET); }
 
   static bool IsBinaryOp(Value op) { return IsInRange(op, COMMA, EXP); }
 

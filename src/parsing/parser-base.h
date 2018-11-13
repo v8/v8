@@ -1509,13 +1509,14 @@ ParserBase<Impl>::ParseAndClassifyIdentifier() {
   } else if (is_sloppy(language_mode()) &&
              (Token::IsStrictReservedWord(next) ||
               (next == Token::YIELD && !is_generator()))) {
+    IdentifierT name = impl()->GetSymbol();
     classifier()->RecordStrictModeFormalParameterError(
         scanner()->location(), MessageTemplate::kUnexpectedStrictReserved);
-    if (scanner()->IsLet()) {
+    if (impl()->IdentifierEquals(name, ast_value_factory()->let_string())) {
       classifier()->RecordLetPatternError(
           scanner()->location(), MessageTemplate::kLetInLexicalBinding);
     }
-    return impl()->GetSymbol();
+    return name;
   } else {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
@@ -1946,21 +1947,6 @@ inline bool ParsePropertyKindFromToken(Token::Value token,
   return false;
 }
 
-inline bool ParseAsAccessor(Token::Value token, Token::Value contextual_token,
-                            ParsePropertyKind* kind) {
-  if (ParsePropertyKindFromToken(token, kind)) return false;
-
-  if (contextual_token == Token::GET) {
-    *kind = ParsePropertyKind::kAccessorGetter;
-  } else if (contextual_token == Token::SET) {
-    *kind = ParsePropertyKind::kAccessorSetter;
-  } else {
-    return false;
-  }
-
-  return true;
-}
-
 template <class Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     IdentifierT* name, ParsePropertyKind* kind, ParseFunctionFlags* flags,
@@ -1986,11 +1972,21 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     *kind = ParsePropertyKind::kMethod;
   }
 
-  if (*kind == ParsePropertyKind::kNotSet && Check(Token::IDENTIFIER) &&
-      !ParseAsAccessor(peek(), scanner()->current_contextual_token(), kind)) {
-    *name = impl()->GetSymbol();
-    impl()->PushLiteralName(*name);
-    return factory()->NewStringLiteral(*name, position());
+  if (*kind == ParsePropertyKind::kNotSet && Check(Token::IDENTIFIER)) {
+    IdentifierT symbol = impl()->GetSymbol();
+    if (!ParsePropertyKindFromToken(peek(), kind)) {
+      if (impl()->IdentifierEquals(symbol, ast_value_factory()->get_string())) {
+        *kind = ParsePropertyKind::kAccessorGetter;
+      } else if (impl()->IdentifierEquals(symbol,
+                                          ast_value_factory()->set_string())) {
+        *kind = ParsePropertyKind::kAccessorSetter;
+      }
+    }
+    if (!IsAccessor(*kind)) {
+      *name = symbol;
+      impl()->PushLiteralName(*name);
+      return factory()->NewStringLiteral(*name, position());
+    }
   }
 
   int pos = peek_position();

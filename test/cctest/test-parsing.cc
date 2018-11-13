@@ -71,14 +71,6 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 }  // namespace
 
-TEST(IsContextualKeyword) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value token = static_cast<Token::Value>(i);
-    CHECK_EQ(Token::TypeForTesting(token) == 'C',
-             Token::IsContextualKeyword(token));
-  }
-}
-
 bool TokenIsAutoSemicolon(Token::Value token) {
   switch (token) {
     case Token::SEMICOLON:

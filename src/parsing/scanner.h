@@ -242,10 +242,7 @@ class Scanner {
     if (!has_parser_error()) {
       c0_ = kEndOfInput;
       source_->set_parser_error();
-      for (TokenDesc& desc : token_storage_) {
-        desc.token = Token::ILLEGAL;
-        desc.contextual_token = Token::UNINITIALIZED;
-      }
+      for (TokenDesc& desc : token_storage_) desc.token = Token::ILLEGAL;
     }
   }
   V8_INLINE void reset_parser_error_flag() {
@@ -284,11 +281,6 @@ class Scanner {
   Token::Value PeekAhead();
   // Returns the current token again.
   Token::Value current_token() const { return current().token; }
-
-  Token::Value current_contextual_token() const {
-    return current().contextual_token;
-  }
-  Token::Value next_contextual_token() const { return next().contextual_token; }
 
   // Returns the location information for the current token
   // (the token last returned by Next()).
@@ -335,34 +327,6 @@ class Scanner {
   inline bool CurrentMatches(Token::Value token) const {
     DCHECK(Token::IsKeyword(token));
     return current().token == token;
-  }
-
-  inline bool CurrentMatchesContextual(Token::Value token) const {
-    DCHECK(Token::IsContextualKeyword(token));
-    return current_contextual_token() == token;
-  }
-
-  // Match the token against the contextual keyword or literal buffer.
-  inline bool CurrentMatchesContextualEscaped(Token::Value token) const {
-    DCHECK(Token::IsContextualKeyword(token) || token == Token::LET);
-    // Escaped keywords are not matched as tokens. So if we require escape
-    // and/or string processing we need to look at the literal content
-    // (which was escape-processed already).
-    // Conveniently, !current().literal_chars.is_used() for all proper
-    // keywords, so this second condition should exit early in common cases.
-    return (current_contextual_token() == token) ||
-           (current().literal_chars.is_used() &&
-            current().literal_chars.Equals(Vector<const char>(
-                Token::String(token), Token::StringLength(token))));
-  }
-
-  bool IsGet() { return CurrentMatchesContextual(Token::GET); }
-
-  bool IsSet() { return CurrentMatchesContextual(Token::SET); }
-
-  bool IsLet() const {
-    return CurrentMatches(Token::LET) ||
-           CurrentMatchesContextualEscaped(Token::LET);
   }
 
   template <size_t N>
@@ -580,7 +544,6 @@ class Scanner {
     LiteralBuffer literal_chars;
     LiteralBuffer raw_literal_chars;
     Token::Value token = Token::UNINITIALIZED;
-    Token::Value contextual_token = Token::UNINITIALIZED;
     MessageTemplate invalid_template_escape_message = MessageTemplate::kNone;
     Location invalid_template_escape_location;
     uint32_t smi_value_ = 0;

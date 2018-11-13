@@ -179,8 +179,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("finally", Token::FINALLY)                        \
   KEYWORD("for", Token::FOR)                                \
   KEYWORD("function", Token::FUNCTION)                      \
-  KEYWORD_GROUP('g')                                        \
-  KEYWORD("get", Token::GET)                                \
   KEYWORD_GROUP('i')                                        \
   KEYWORD("if", Token::IF)                                  \
   KEYWORD("implements", Token::FUTURE_STRICT_RESERVED_WORD) \
@@ -201,7 +199,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD_GROUP('r')                                        \
   KEYWORD("return", Token::RETURN)                          \
   KEYWORD_GROUP('s')                                        \
-  KEYWORD("set", Token::SET)                                \
   KEYWORD("static", Token::STATIC)                          \
   KEYWORD("super", Token::SUPER)                            \
   KEYWORD("switch", Token::SWITCH)                          \
@@ -358,9 +355,9 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner(
           Token::Value token =
               KeywordOrIdentifierToken(chars.start(), chars.length());
           if (token == Token::IDENTIFIER ||
-              token == Token::FUTURE_STRICT_RESERVED_WORD ||
-              Token::IsContextualKeyword(token))
+              token == Token::FUTURE_STRICT_RESERVED_WORD) {
             literal->Complete();
+          }
           return token;
         } else {
           literal->Complete();
@@ -557,11 +554,7 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
         if (unicode_cache_->IsIdentifierStart(c0_) ||
             (CombineSurrogatePair() &&
              unicode_cache_->IsIdentifierStart(c0_))) {
-          Token::Value token = ScanIdentifierOrKeyword();
-          if (!Token::IsContextualKeyword(token)) return token;
-
-          next().contextual_token = token;
-          return Token::IDENTIFIER;
+          return ScanIdentifierOrKeyword();
         }
         if (IsDecimalDigit(c0_)) return ScanNumber(false);
         if (c0_ == kEndOfInput) {
@@ -581,7 +574,6 @@ void Scanner::Scan(TokenDesc* next_desc) {
 
   next_desc->literal_chars.Drop();
   next_desc->raw_literal_chars.Drop();
-  next_desc->contextual_token = Token::UNINITIALIZED;
   next_desc->invalid_template_escape_message = MessageTemplate::kNone;
 
   next_desc->token = ScanSingleToken();

@@ -218,6 +218,7 @@ class AstBigInt {
   F(eval, "eval")                               \
   F(from, "from")                               \
   F(function, "function")                       \
+  F(get, "get")                                 \
   F(get_space, "get ")                          \
   F(length, "length")                           \
   F(let, "let")                                 \
@@ -233,6 +234,7 @@ class AstBigInt {
   F(proto, "__proto__")                         \
   F(prototype, "prototype")                     \
   F(return, "return")                           \
+  F(set, "set")                                 \
   F(set_space, "set ")                          \
   F(star_default_star, "*default*")             \
   F(string, "string")                           \

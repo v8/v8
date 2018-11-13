@@ -107,24 +107,5 @@ TEST(AllThePushbacks) {
   }
 }
 
-TEST(ContextualKeywordTokens) {
-  auto scanner = make_scanner("function get bla");
-
-  // function (regular keyword)
-  scanner->Next();
-  CHECK_TOK(Token::FUNCTION, scanner->current_token());
-  CHECK_TOK(Token::UNINITIALIZED, scanner->current_contextual_token());
-
-  // get (contextual keyword)
-  scanner->Next();
-  CHECK_TOK(Token::IDENTIFIER, scanner->current_token());
-  CHECK_TOK(Token::GET, scanner->current_contextual_token());
-
-  // bla (identfier, not any sort of keyword)
-  scanner->Next();
-  CHECK_TOK(Token::IDENTIFIER, scanner->current_token());
-  CHECK_TOK(Token::UNINITIALIZED, scanner->current_contextual_token());
-}
-
 }  // namespace internal
 }  // namespace v8
