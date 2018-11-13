@@ -356,7 +356,7 @@
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
-['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
+['arch == mips or arch == mips64', {
   # TODO(mips-team): Implement I64Atomic operations on MIPS
   'test-run-wasm-atomics64/*': [SKIP],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'

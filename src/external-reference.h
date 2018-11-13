@@ -177,6 +177,14 @@ class StatsCounter;
   V(wasm_word32_ror, "wasm::word32_ror")                                      \
   V(wasm_word64_ctz, "wasm::word64_ctz")                                      \
   V(wasm_word64_popcnt, "wasm::word64_popcnt")                                \
+  V(atomic_pair_load_function, "atomic_pair_load_function")                   \
+  V(atomic_pair_store_function, "atomic_pair_store_function")                 \
+  V(atomic_pair_add_function, "atomic_pair_add_function")                     \
+  V(atomic_pair_sub_function, "atomic_pair_sub_function")                     \
+  V(atomic_pair_and_function, "atomic_pair_and_function")                     \
+  V(atomic_pair_or_function, "atomic_pair_or_function")                       \
+  V(atomic_pair_xor_function, "atomic_pair_xor_function")                     \
+  V(atomic_pair_exchange_function, "atomic_pair_exchange_function")           \
   V(atomic_pair_compare_exchange_function,                                    \
     "atomic_pair_compare_exchange_function")                                  \
   EXTERNAL_REFERENCE_LIST_INTL(V)

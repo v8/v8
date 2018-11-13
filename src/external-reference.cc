@@ -991,6 +991,95 @@ ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
 }
 
+static int64_t atomic_pair_load(intptr_t address) {
+  return std::atomic_load(reinterpret_cast<std::atomic<int64_t>*>(address));
+}
+
+ExternalReference ExternalReference::atomic_pair_load_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_load)));
+}
+
+static void atomic_pair_store(intptr_t address, int value_low, int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  std::atomic_store(reinterpret_cast<std::atomic<int64_t>*>(address), value);
+}
+
+ExternalReference ExternalReference::atomic_pair_store_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_store)));
+}
+
+static int64_t atomic_pair_add(intptr_t address, int value_low,
+                               int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_add(reinterpret_cast<std::atomic<int64_t>*>(address),
+                               value);
+}
+
+ExternalReference ExternalReference::atomic_pair_add_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_add)));
+}
+
+static int64_t atomic_pair_sub(intptr_t address, int value_low,
+                               int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_sub(reinterpret_cast<std::atomic<int64_t>*>(address),
+                               value);
+}
+
+ExternalReference ExternalReference::atomic_pair_sub_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_sub)));
+}
+
+static int64_t atomic_pair_and(intptr_t address, int value_low,
+                               int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_and(reinterpret_cast<std::atomic<int64_t>*>(address),
+                               value);
+}
+
+ExternalReference ExternalReference::atomic_pair_and_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_and)));
+}
+
+static int64_t atomic_pair_or(intptr_t address, int value_low, int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_or(reinterpret_cast<std::atomic<int64_t>*>(address),
+                              value);
+}
+
+ExternalReference ExternalReference::atomic_pair_or_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_or)));
+}
+
+static int64_t atomic_pair_xor(intptr_t address, int value_low,
+                               int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_fetch_xor(reinterpret_cast<std::atomic<int64_t>*>(address),
+                               value);
+}
+
+ExternalReference ExternalReference::atomic_pair_xor_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_xor)));
+}
+
+static int64_t atomic_pair_exchange(intptr_t address, int value_low,
+                                    int value_high) {
+  int64_t value =
+      static_cast<int64_t>(value_high) << 32 | (value_low & 0xFFFFFFFF);
+  return std::atomic_exchange(reinterpret_cast<std::atomic<int64_t>*>(address),
+                              value);
+}
+
+ExternalReference ExternalReference::atomic_pair_exchange_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(atomic_pair_exchange)));
+}
+
 static uint64_t atomic_pair_compare_exchange(intptr_t address,
                                              int old_value_low,
                                              int old_value_high,

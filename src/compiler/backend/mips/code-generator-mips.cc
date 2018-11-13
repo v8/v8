@@ -339,39 +339,63 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ sync();                                                          \
   } while (0)
 
-#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(bin_instr)                               \
+#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(bin_instr, external)                     \
   do {                                                                         \
     if (IsMipsArchVariant(kMips32r6)) {                                        \
       Label binop;                                                             \
+      Register oldval_low =                                                    \
+          instr->OutputCount() >= 1 ? i.OutputRegister(0) : i.TempRegister(1); \
+      Register oldval_high =                                                   \
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(2); \
+      __ Addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));      \
       __ sync();                                                               \
       __ bind(&binop);                                                         \
-      __ llwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));       \
-      __ bin_instr(i.TempRegister(0), i.TempRegister(1), i.TempRegister(0),    \
-                   i.TempRegister(1), i.InputRegister(0), i.InputRegister(1)); \
-      __ scwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));       \
+      __ llx(oldval_high, MemOperand(i.TempRegister(0), 4));                   \
+      __ ll(oldval_low, MemOperand(i.TempRegister(0), 0));                     \
+      __ bin_instr(i.TempRegister(1), i.TempRegister(2), oldval_low,           \
+                   oldval_high, i.InputRegister(2), i.InputRegister(3));       \
+      __ scx(i.TempRegister(2), MemOperand(i.TempRegister(0), 4));             \
+      __ sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));              \
       __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));        \
       __ sync();                                                               \
     } else {                                                                   \
-      UNREACHABLE();                                                           \
+      FrameScope scope(tasm(), StackFrame::MANUAL);                            \
+      __ Addu(a0, i.InputRegister(0), i.InputRegister(1));                     \
+      __ PushCallerSaved(kDontSaveFPRegs, v0, v1);                             \
+      __ PrepareCallCFunction(3, 0, kScratchReg);                              \
+      __ CallCFunction(ExternalReference::external(), 3, 0);                   \
+      __ PopCallerSaved(kDontSaveFPRegs, v0, v1);                              \
     }                                                                          \
   } while (0)
 
-#define ASSEMBLE_ATOMIC64_ARITH_BINOP(bin_instr)                              \
-  do {                                                                        \
-    if (IsMipsArchVariant(kMips32r6)) {                                       \
-      Label binop;                                                            \
-      __ sync();                                                              \
-      __ bind(&binop);                                                        \
-      __ llwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));      \
-      __ bin_instr(i.TempRegister(0), i.TempRegister(1), i.TempRegister(0),   \
-                   i.TempRegister(1), i.InputRegister(0), i.InputRegister(1), \
-                   i.TempRegister(2), i.TempRegister(3));                     \
-      __ scwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));      \
-      __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));       \
-      __ sync();                                                              \
-    } else {                                                                  \
-      UNREACHABLE();                                                          \
-    }                                                                         \
+#define ASSEMBLE_ATOMIC64_ARITH_BINOP(bin_instr, external)                     \
+  do {                                                                         \
+    if (IsMipsArchVariant(kMips32r6)) {                                        \
+      Label binop;                                                             \
+      Register oldval_low =                                                    \
+          instr->OutputCount() >= 1 ? i.OutputRegister(0) : i.TempRegister(1); \
+      Register oldval_high =                                                   \
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(2); \
+      __ Addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));      \
+      __ sync();                                                               \
+      __ bind(&binop);                                                         \
+      __ llx(oldval_high, MemOperand(i.TempRegister(0), 4));                   \
+      __ ll(oldval_low, MemOperand(i.TempRegister(0), 0));                     \
+      __ bin_instr(i.TempRegister(1), i.TempRegister(2), oldval_low,           \
+                   oldval_high, i.InputRegister(2), i.InputRegister(3),        \
+                   kScratchReg, kScratchReg2);                                 \
+      __ scx(i.TempRegister(2), MemOperand(i.TempRegister(0), 4));             \
+      __ sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));              \
+      __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));        \
+      __ sync();                                                               \
+    } else {                                                                   \
+      FrameScope scope(tasm(), StackFrame::MANUAL);                            \
+      __ Addu(a0, i.InputRegister(0), i.InputRegister(1));                     \
+      __ PushCallerSaved(kDontSaveFPRegs, v0, v1);                             \
+      __ PrepareCallCFunction(3, 0, kScratchReg);                              \
+      __ CallCFunction(ExternalReference::external(), 3, 0);                   \
+      __ PopCallerSaved(kDontSaveFPRegs, v0, v1);                              \
+    }                                                                          \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP_EXT(sign_extend, size, bin_instr)                \
@@ -1725,57 +1749,120 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ATOMIC_BINOP_CASE
     case kMipsWord32AtomicPairLoad: {
       if (IsMipsArchVariant(kMips32r6)) {
-        Register second_output =
-            instr->OutputCount() == 2 ? i.OutputRegister(1) : i.TempRegister(0);
-        __ llwp(i.OutputRegister(0), second_output, i.InputRegister(0));
-        __ sync();
+        if (instr->OutputCount() > 0) {
+          Register second_output = instr->OutputCount() == 2
+                                       ? i.OutputRegister(1)
+                                       : i.TempRegister(1);
+          __ Addu(a0, i.InputRegister(0), i.InputRegister(1));
+          __ llx(second_output, MemOperand(a0, 4));
+          __ ll(i.OutputRegister(0), MemOperand(a0, 0));
+          __ sync();
+        }
       } else {
-        UNREACHABLE();
+        FrameScope scope(tasm(), StackFrame::MANUAL);
+        __ Addu(a0, i.InputRegister(0), i.InputRegister(1));
+        __ PushCallerSaved(kDontSaveFPRegs, v0, v1);
+        __ PrepareCallCFunction(1, 0, kScratchReg);
+        __ CallCFunction(ExternalReference::atomic_pair_load_function(), 1, 0);
+        __ PopCallerSaved(kDontSaveFPRegs, v0, v1);
       }
       break;
     }
     case kMipsWord32AtomicPairStore: {
       if (IsMipsArchVariant(kMips32r6)) {
         Label store;
+        __ Addu(a0, i.InputRegister(0), i.InputRegister(1));
         __ sync();
         __ bind(&store);
-        __ llwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(0));
-        __ Move(i.TempRegister(0), i.InputRegister(2));
-        __ scwp(i.InputRegister(1), i.TempRegister(0), i.InputRegister(0));
-        __ BranchShort(&store, eq, i.TempRegister(0), Operand(zero_reg));
+        __ llx(i.TempRegister(2), MemOperand(a0, 4));
+        __ ll(i.TempRegister(1), MemOperand(a0, 0));
+        __ Move(i.TempRegister(1), i.InputRegister(2));
+        __ scx(i.InputRegister(3), MemOperand(a0, 4));
+        __ sc(i.TempRegister(1), MemOperand(a0, 0));
+        __ BranchShort(&store, eq, i.TempRegister(1), Operand(zero_reg));
         __ sync();
       } else {
-        UNREACHABLE();
+        FrameScope scope(tasm(), StackFrame::MANUAL);
+        __ Addu(a0, i.InputRegister(0), i.InputRegister(1));
+        __ PushCallerSaved(kDontSaveFPRegs);
+        __ PrepareCallCFunction(3, 0, kScratchReg);
+        __ CallCFunction(ExternalReference::atomic_pair_store_function(), 3, 0);
+        __ PopCallerSaved(kDontSaveFPRegs);
       }
       break;
     }
-#define ATOMIC64_BINOP_ARITH_CASE(op, instr) \
-  case kMipsWord32AtomicPair##op:            \
-    ASSEMBLE_ATOMIC64_ARITH_BINOP(instr);    \
+#define ATOMIC64_BINOP_ARITH_CASE(op, instr, external) \
+  case kMipsWord32AtomicPair##op:                      \
+    ASSEMBLE_ATOMIC64_ARITH_BINOP(instr, external);    \
     break;
-      ATOMIC64_BINOP_ARITH_CASE(Add, AddPair)
-      ATOMIC64_BINOP_ARITH_CASE(Sub, SubPair)
+      ATOMIC64_BINOP_ARITH_CASE(Add, AddPair, atomic_pair_add_function)
+      ATOMIC64_BINOP_ARITH_CASE(Sub, SubPair, atomic_pair_sub_function)
 #undef ATOMIC64_BINOP_ARITH_CASE
-#define ATOMIC64_BINOP_LOGIC_CASE(op, instr) \
-  case kMipsWord32AtomicPair##op:            \
-    ASSEMBLE_ATOMIC64_LOGIC_BINOP(instr);    \
+#define ATOMIC64_BINOP_LOGIC_CASE(op, instr, external) \
+  case kMipsWord32AtomicPair##op:                      \
+    ASSEMBLE_ATOMIC64_LOGIC_BINOP(instr, external);    \
     break;
-      ATOMIC64_BINOP_LOGIC_CASE(And, AndPair)
-      ATOMIC64_BINOP_LOGIC_CASE(Or, OrPair)
-      ATOMIC64_BINOP_LOGIC_CASE(Xor, XorPair)
+      ATOMIC64_BINOP_LOGIC_CASE(And, AndPair, atomic_pair_and_function)
+      ATOMIC64_BINOP_LOGIC_CASE(Or, OrPair, atomic_pair_or_function)
+      ATOMIC64_BINOP_LOGIC_CASE(Xor, XorPair, atomic_pair_xor_function)
 #undef ATOMIC64_BINOP_LOGIC_CASE
     case kMipsWord32AtomicPairExchange:
-      UNREACHABLE();
+      if (IsMipsArchVariant(kMips32r6)) {
+        Label binop;
+        Register oldval_low =
+            instr->OutputCount() >= 1 ? i.OutputRegister(0) : i.TempRegister(1);
+        Register oldval_high =
+            instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(2);
+        __ Addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        __ sync();
+        __ bind(&binop);
+        __ llx(oldval_high, MemOperand(i.TempRegister(0), 4));
+        __ ll(oldval_low, MemOperand(i.TempRegister(0), 0));
+        __ Move(i.TempRegister(1), i.InputRegister(2));
+        __ scx(i.InputRegister(3), MemOperand(i.TempRegister(0), 4));
+        __ sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));
+        __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));
+        __ sync();
+      } else {
+        FrameScope scope(tasm(), StackFrame::MANUAL);
+        __ PushCallerSaved(kDontSaveFPRegs, v0, v1);
+        __ PrepareCallCFunction(3, 0, kScratchReg);
+        __ Addu(a0, i.InputRegister(0), i.InputRegister(1));
+        __ CallCFunction(ExternalReference::atomic_pair_exchange_function(), 3,
+                         0);
+        __ PopCallerSaved(kDontSaveFPRegs, v0, v1);
+      }
       break;
     case kMipsWord32AtomicPairCompareExchange: {
-      FrameScope scope(tasm(), StackFrame::MANUAL);
-      __ PushCallerSaved(kDontSaveFPRegs, v0, v1);
-      __ PrepareCallCFunction(5, 0, kScratchReg);
-      __ addu(a0, i.InputRegister(0), i.InputRegister(1));
-      __ sw(i.InputRegister(5), MemOperand(sp, 16));
-      __ CallCFunction(
-          ExternalReference::atomic_pair_compare_exchange_function(), 5, 0);
-      __ PopCallerSaved(kDontSaveFPRegs, v0, v1);
+      if (IsMipsArchVariant(kMips32r6)) {
+        Label compareExchange, exit;
+        Register oldval_low =
+            instr->OutputCount() >= 1 ? i.OutputRegister(0) : kScratchReg;
+        Register oldval_high =
+            instr->OutputCount() >= 2 ? i.OutputRegister(1) : kScratchReg2;
+        __ Addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        __ sync();
+        __ bind(&compareExchange);
+        __ llx(oldval_high, MemOperand(i.TempRegister(0), 4));
+        __ ll(oldval_low, MemOperand(i.TempRegister(0), 0));
+        __ BranchShort(&exit, ne, i.InputRegister(2), Operand(oldval_low));
+        __ BranchShort(&exit, ne, i.InputRegister(3), Operand(oldval_high));
+        __ mov(kScratchReg, i.InputRegister(4));
+        __ scx(i.InputRegister(5), MemOperand(i.TempRegister(0), 4));
+        __ sc(kScratchReg, MemOperand(i.TempRegister(0), 0));
+        __ BranchShort(&compareExchange, eq, kScratchReg, Operand(zero_reg));
+        __ bind(&exit);
+        __ sync();
+      } else {
+        FrameScope scope(tasm(), StackFrame::MANUAL);
+        __ PushCallerSaved(kDontSaveFPRegs, v0, v1);
+        __ PrepareCallCFunction(5, 0, kScratchReg);
+        __ addu(a0, i.InputRegister(0), i.InputRegister(1));
+        __ sw(i.InputRegister(5), MemOperand(sp, 16));
+        __ CallCFunction(
+            ExternalReference::atomic_pair_compare_exchange_function(), 5, 0);
+        __ PopCallerSaved(kDontSaveFPRegs, v0, v1);
+      }
       break;
     }
     case kMipsS128Zero: {

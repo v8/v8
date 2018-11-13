@@ -235,29 +235,29 @@ static void VisitPairAtomicBinop(InstructionSelector* selector, Node* node,
   Node* value = node->InputAt(2);
   Node* value_high = node->InputAt(3);
 
-  InstructionOperand addr_reg = g.TempRegister();
-
-  selector->Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
-                 g.UseRegister(index), g.UseRegister(base));
-
-  InstructionOperand inputs[] = {g.UseRegister(value),
-                                 g.UseRegister(value_high), addr_reg};
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                g.TempRegister(), g.TempRegister()};
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
+                                 g.UseFixed(value, a1),
+                                 g.UseFixed(value_high, a2)};
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   if (projection1) {
-    InstructionOperand outputs[] = {g.DefineAsRegister(projection0),
-                                    g.DefineAsRegister(projection1)};
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, v0),
+                                    g.DefineAsFixed(projection1, v1)};
+    InstructionOperand temps[] = {g.TempRegister(a0), g.TempRegister(),
+                                  g.TempRegister()};
     selector->Emit(opcode | AddressingModeField::encode(kMode_None),
                    arraysize(outputs), outputs, arraysize(inputs), inputs,
                    arraysize(temps), temps);
   } else if (projection0) {
-    InstructionOperand outputs[] = {g.DefineAsRegister(projection0)};
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, v0)};
+    InstructionOperand temps[] = {g.TempRegister(a0), g.TempRegister(v1),
+                                  g.TempRegister()};
     selector->Emit(opcode | AddressingModeField::encode(kMode_None),
                    arraysize(outputs), outputs, arraysize(inputs), inputs,
                    arraysize(temps), temps);
   } else {
+    InstructionOperand temps[] = {g.TempRegister(a0), g.TempRegister(v0),
+                                  g.TempRegister(v1)};
     selector->Emit(opcode | AddressingModeField::encode(kMode_None), 0, nullptr,
                    arraysize(inputs), inputs, arraysize(temps), temps);
   }
@@ -688,24 +688,24 @@ void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
 
-  InstructionOperand addr_reg = g.TempRegister();
-  Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
-       g.UseRegister(index), g.UseRegister(base));
-  InstructionOperand inputs[] = {addr_reg};
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index)};
 
-  InstructionOperand temps[] = {g.TempRegister()};
   if (projection1) {
-    InstructionOperand outputs[] = {g.DefineAsRegister(projection0),
-                                    g.DefineAsRegister(projection1)};
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, v0),
+                                    g.DefineAsFixed(projection1, v1)};
+    InstructionOperand temps[] = {g.TempRegister(a0)};
     Emit(opcode | AddressingModeField::encode(kMode_MRI), arraysize(outputs),
-         outputs, arraysize(inputs), inputs, 1, temps);
+         outputs, arraysize(inputs), inputs, arraysize(temps), temps);
   } else if (projection0) {
-    InstructionOperand outputs[] = {g.DefineAsRegister(projection0)};
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, v0)};
+    InstructionOperand temps[] = {g.TempRegister(a0), g.TempRegister(v1)};
     Emit(opcode | AddressingModeField::encode(kMode_MRI), arraysize(outputs),
-         outputs, arraysize(inputs), inputs, 1, temps);
+         outputs, arraysize(inputs), inputs, arraysize(temps), temps);
   } else {
+    InstructionOperand temps[] = {g.TempRegister(a0), g.TempRegister(v0),
+                                  g.TempRegister(v1)};
     Emit(opcode | AddressingModeField::encode(kMode_MRI), 0, nullptr,
-         arraysize(inputs), inputs, 1, temps);
+         arraysize(inputs), inputs, arraysize(temps), temps);
   }
 }
 
@@ -716,13 +716,11 @@ void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
   Node* value_low = node->InputAt(2);
   Node* value_high = node->InputAt(3);
 
-  InstructionOperand addr_reg = g.TempRegister();
-  Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
-       g.UseRegister(index), g.UseRegister(base));
-
-  InstructionOperand inputs[] = {addr_reg, g.UseRegister(value_low),
-                                 g.UseRegister(value_high)};
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
+                                 g.UseFixed(value_low, a1),
+                                 g.UseFixed(value_high, a2)};
+  InstructionOperand temps[] = {g.TempRegister(a0), g.TempRegister(),
+                                g.TempRegister()};
   Emit(kMipsWord32AtomicPairStore | AddressingModeField::encode(kMode_MRI), 0,
        nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
 }

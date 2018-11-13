@@ -2358,14 +2358,16 @@ void Assembler::sc(Register rd, const MemOperand& rs) {
   }
 }
 
-void Assembler::llwp(Register rd, Register rt, Register base) {
+void Assembler::llx(Register rd, const MemOperand& rs) {
   DCHECK(IsMipsArchVariant(kMips32r6));
-  GenInstrRegister(SPECIAL3, base, rt, rd, 1, LL_R6);
+  DCHECK(is_int9(rs.offset_));
+  GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 1, LL_R6);
 }
 
-void Assembler::scwp(Register rd, Register rt, Register base) {
+void Assembler::scx(Register rd, const MemOperand& rs) {
   DCHECK(IsMipsArchVariant(kMips32r6));
-  GenInstrRegister(SPECIAL3, base, rt, rd, 1, SC_R6);
+  DCHECK(is_int9(rs.offset_));
+  GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 1, SC_R6);
 }
 
 void Assembler::lui(Register rd, int32_t j) {
