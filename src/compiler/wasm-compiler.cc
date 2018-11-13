@@ -5031,10 +5031,11 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
   return WasmImportCallKind::kUseCallBuiltin;
 }
 
-MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate* isolate,
-                                               WasmImportCallKind kind,
-                                               wasm::FunctionSig* sig,
-                                               bool source_positions) {
+wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
+                                             wasm::NativeModule* native_module,
+                                             WasmImportCallKind kind,
+                                             wasm::FunctionSig* sig,
+                                             bool source_positions) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
 
@@ -5080,10 +5081,7 @@ MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate* isolate,
   MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
       isolate, incoming, &graph, Code::WASM_TO_JS_FUNCTION, func_name,
       AssemblerOptions::Default(isolate), source_position_table);
-  Handle<Code> code;
-  if (!maybe_code.ToHandle(&code)) {
-    return maybe_code;
-  }
+  Handle<Code> code = maybe_code.ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code) {
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
@@ -5097,12 +5095,16 @@ MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate* isolate,
                               func_name);
   }
 
-  return code;
+  // TODO(wasm): No need to compile the code onto the heap and copy back.
+  wasm::WasmCode* wasm_code = native_module->AddImportCallWrapper(code);
+
+  return wasm_code;
 }
 
-MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
-                                              uint32_t func_index,
-                                              wasm::FunctionSig* sig) {
+wasm::WasmCode* CompileWasmInterpreterEntry(Isolate* isolate,
+                                            wasm::NativeModule* native_module,
+                                            uint32_t func_index,
+                                            wasm::FunctionSig* sig) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -5137,10 +5139,7 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
   MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
       isolate, incoming, &graph, Code::WASM_INTERPRETER_ENTRY,
       func_name.start(), AssemblerOptions::Default(isolate));
-  Handle<Code> code;
-  if (!maybe_code.ToHandle(&code)) {
-    return maybe_code;
-  }
+  Handle<Code> code = maybe_code.ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code) {
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
@@ -5154,7 +5153,11 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
                               "%.*s", func_name.length(), func_name.start());
   }
 
-  return maybe_code;
+  // TODO(wasm): No need to compile the code onto the heap and copy back.
+  wasm::WasmCode* wasm_code =
+      native_module->AddInterpreterEntry(code, func_index);
+
+  return wasm_code;
 }
 
 MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {

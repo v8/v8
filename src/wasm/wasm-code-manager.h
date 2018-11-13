@@ -238,6 +238,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // self-identify as the {index} function.
   WasmCode* AddInterpreterEntry(Handle<Code> code, uint32_t index);
 
+  // Add an import wrapper for a JS-to-Wasm call.
+  WasmCode* AddImportCallWrapper(Handle<Code> code);
+
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);
 
@@ -348,7 +351,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class WasmCode;
   friend class WasmCodeManager;
   friend class NativeModuleModificationScope;
-  friend class WasmImportWrapperCache;
 
   NativeModule(Isolate* isolate, const WasmFeatures& enabled_features,
                bool can_request_more, VirtualMemory code_space,

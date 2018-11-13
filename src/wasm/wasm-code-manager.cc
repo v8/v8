@@ -440,6 +440,11 @@ WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code,
   return ret;
 }
 
+WasmCode* NativeModule::AddImportCallWrapper(Handle<Code> code) {
+  WasmCode* ret = AddAnonymousCode(code, WasmCode::kWasmToJsWrapper);
+  return ret;
+}
+
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   WasmCode* ret = AddAnonymousCode(code, WasmCode::kFunction);
   return ret;

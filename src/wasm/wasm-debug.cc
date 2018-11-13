@@ -628,10 +628,8 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     DCHECK_GT(module->functions.size(), func_index);
     if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) continue;
 
-    MaybeHandle<Code> new_code = compiler::CompileWasmInterpreterEntry(
-        isolate, func_index, module->functions[func_index].sig);
-    const wasm::WasmCode* wasm_new_code = native_module->AddInterpreterEntry(
-        new_code.ToHandleChecked(), func_index);
+    const wasm::WasmCode* wasm_new_code = compiler::CompileWasmInterpreterEntry(
+        isolate, native_module, func_index, module->functions[func_index].sig);
     Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(
         wasm_new_code->instruction_start(), TENURED);
     interpreted_functions->set(func_index, *foreign_holder);
