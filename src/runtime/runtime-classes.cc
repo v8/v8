@@ -641,9 +641,9 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
   }
   if (FLAG_trace_maps) {
     LOG(isolate,
-        MapEvent("InitialMap", nullptr, constructor->map(),
+        MapEvent("InitialMap", Map(), constructor->map(),
                  "init class constructor", constructor->shared()->DebugName()));
-    LOG(isolate, MapEvent("InitialMap", nullptr, prototype->map(),
+    LOG(isolate, MapEvent("InitialMap", Map(), prototype->map(),
                           "init class prototype"));
   }
 

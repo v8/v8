@@ -507,7 +507,7 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 }
 
 template <Heap::FindMementoMode mode>
-AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
+AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
   Address object_address = object->address();
   Address memento_address = object_address + object->SizeFromMap(map);
   Address last_memento_word_address = memento_address + kPointerSize;
@@ -516,7 +516,7 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
     return nullptr;
   }
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
-  Map* candidate_map = candidate->map();
+  Map candidate_map = candidate->map();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
@@ -567,7 +567,7 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
   UNREACHABLE();
 }
 
-void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
+void Heap::UpdateAllocationSite(Map map, HeapObject* object,
                                 PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
   DCHECK(

@@ -79,11 +79,14 @@
 
 // TODO(3770): Replacement for the above, temporarily separate for
 // incremental transition.
-#define DECL_CAST2(Type)                                  \
-  V8_INLINE static Type cast(Object* object);             \
-  V8_INLINE static const Type cast(const Object* object); \
-  V8_INLINE static Type cast(ObjectPtr object);           \
-  V8_INLINE static Type unchecked_cast(const Object* object);
+#define DECL_CAST2(Type)                                      \
+  V8_INLINE static Type cast(Object* object);                 \
+  V8_INLINE static const Type cast(const Object* object);     \
+  V8_INLINE static Type cast(ObjectPtr object);               \
+  V8_INLINE static Type unchecked_cast(const Object* object); \
+  V8_INLINE static Type unchecked_cast(ObjectPtr object) {    \
+    return bit_cast<Type>(object);                            \
+  }
 
 #define CAST_ACCESSOR(type)                       \
   type* type::cast(Object* object) {              \

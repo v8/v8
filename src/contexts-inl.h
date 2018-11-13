@@ -209,9 +209,9 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 #undef CHECK_FOLLOWS2
 #undef CHECK_FOLLOWS4
 
-Map* Context::GetInitialJSArrayMap(ElementsKind kind) const {
+Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
   DCHECK(IsNativeContext());
-  if (!IsFastElementsKind(kind)) return nullptr;
+  if (!IsFastElementsKind(kind)) return Map();
   DisallowHeapAllocation no_gc;
   Object* const initial_js_array_map = get(Context::ArrayMapIndex(kind));
   DCHECK(!initial_js_array_map->IsUndefined());

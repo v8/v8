@@ -1289,16 +1289,14 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   inline bool TryEvacuateWithoutCopy(HeapObject* object) {
     if (is_incremental_marking_) return false;
 
-    Map* map = object->map();
+    Map map = object->map();
 
     // Some objects can be evacuated without creating a copy.
     if (map->visitor_id() == kVisitThinString) {
       HeapObject* actual = ThinString::cast(object)->unchecked_actual();
       if (MarkCompactCollector::IsOnEvacuationCandidate(actual)) return false;
-      base::Relaxed_Store(
-          reinterpret_cast<base::AtomicWord*>(object->address()),
-          reinterpret_cast<base::AtomicWord>(
-              MapWord::FromForwardingAddress(actual).ToMap()));
+      object->map_slot().Relaxed_Store(
+          MapWord::FromForwardingAddress(actual).ToMap());
       return true;
     }
     // TODO(mlippautz): Handle ConsString.
@@ -1642,7 +1640,7 @@ void MarkCompactCollector::ProcessMarkingWorklistInternal() {
                     kTrackNewlyDiscoveredObjects) {
       AddNewlyDiscovered(object);
     }
-    Map* map = object->map();
+    Map map = object->map();
     MarkObject(object, map);
     visitor.Visit(map, object);
   }
@@ -1899,11 +1897,11 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
   }
 }
 
-void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map* dead_target) {
+void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
   DCHECK(non_atomic_marking_state()->IsWhite(dead_target));
   Object* potential_parent = dead_target->constructor_or_backpointer();
   if (potential_parent->IsMap()) {
-    Map* parent = Map::cast(potential_parent);
+    Map parent = Map::cast(potential_parent);
     DisallowHeapAllocation no_gc_obviously;
     if (non_atomic_marking_state()->IsBlackOrGrey(parent) &&
         TransitionsAccessor(isolate(), parent, &no_gc_obviously)
@@ -1913,8 +1911,8 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map* dead_target) {
   }
 }
 
-void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map* map,
-                                                             Map* dead_target) {
+void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map map,
+                                                             Map dead_target) {
   DCHECK(!map->is_prototype_map());
   DCHECK(!dead_target->is_prototype_map());
   DCHECK_EQ(map->raw_transitions(), HeapObjectReference::Weak(dead_target));
@@ -1933,12 +1931,12 @@ void MarkCompactCollector::ClearFullMapTransitions() {
   while (weak_objects_.transition_arrays.Pop(kMainThread, &array)) {
     int num_transitions = array->number_of_entries();
     if (num_transitions > 0) {
-      Map* map;
+      Map map;
       // The array might contain "undefined" elements because it's not yet
       // filled. Allow it.
       if (array->GetTargetIfExists(0, isolate(), &map)) {
-        DCHECK_NOT_NULL(map);  // Weak pointers aren't cleared yet.
-        Map* parent = Map::cast(map->constructor_or_backpointer());
+        DCHECK(!map.is_null());  // Weak pointers aren't cleared yet.
+        Map parent = Map::cast(map->constructor_or_backpointer());
         bool parent_is_alive =
             non_atomic_marking_state()->IsBlackOrGrey(parent);
         DescriptorArray* descriptors =
@@ -1954,14 +1952,14 @@ void MarkCompactCollector::ClearFullMapTransitions() {
 }
 
 bool MarkCompactCollector::CompactTransitionArray(
-    Map* map, TransitionArray* transitions, DescriptorArray* descriptors) {
+    Map map, TransitionArray* transitions, DescriptorArray* descriptors) {
   DCHECK(!map->is_prototype_map());
   int num_transitions = transitions->number_of_entries();
   bool descriptors_owner_died = false;
   int transition_index = 0;
   // Compact all live transitions to the left.
   for (int i = 0; i < num_transitions; ++i) {
-    Map* target = transitions->GetTarget(i);
+    Map target = transitions->GetTarget(i);
     DCHECK_EQ(target->constructor_or_backpointer(), map);
     if (non_atomic_marking_state()->IsWhite(target)) {
       if (descriptors != nullptr &&
@@ -2002,7 +2000,7 @@ bool MarkCompactCollector::CompactTransitionArray(
   return descriptors_owner_died;
 }
 
-void MarkCompactCollector::TrimDescriptorArray(Map* map,
+void MarkCompactCollector::TrimDescriptorArray(Map map,
                                                DescriptorArray* descriptors) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) {
@@ -2031,7 +2029,7 @@ void MarkCompactCollector::TrimDescriptorArray(Map* map,
   map->set_owns_descriptors(true);
 }
 
-void MarkCompactCollector::TrimEnumCache(Map* map,
+void MarkCompactCollector::TrimEnumCache(Map map,
                                          DescriptorArray* descriptors) {
   int live_enum = map->EnumLength();
   if (live_enum == kInvalidEnumCacheSentinel) {
@@ -2905,7 +2903,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
     PointersUpdatingVisitor visitor(chunk_->heap());
     for (Address cur = start_; cur < end_;) {
       HeapObject* object = HeapObject::FromAddress(cur);
-      Map* map = object->map();
+      Map map = object->map();
       int size = object->SizeFromMap(map);
       object->IterateBodyFast(map, size, &visitor);
       cur += size;
@@ -3913,7 +3911,7 @@ void MinorMarkCompactCollector::MakeIterable(
       p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                       ClearRecordedSlots::kNo);
     }
-    Map* map = object->synchronized_map();
+    Map map = object->synchronized_map();
     int size = object->SizeFromMap(map);
     free_start = free_end + size;
   }

@@ -9,6 +9,7 @@
 #include "src/objects.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/object-macros.h"
 
 namespace v8 {
@@ -541,6 +542,13 @@ bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
   return changed;
 }
 
+Map FeedbackNexus::FindFirstMap() const {
+  MapHandles maps;
+  ExtractMaps(&maps);
+  if (maps.size() > 0) return *maps.at(0);
+  return Map();
+}
+
 InlineCacheState FeedbackNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   MaybeObject feedback = GetFeedback();
@@ -927,21 +935,21 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->Get(i)->IsWeakOrCleared());
       if (array->Get(i)->GetHeapObjectIfWeak(&heap_object)) {
-        Map* map = Map::cast(heap_object);
+        Map map = Map::cast(heap_object);
         maps->push_back(handle(map, isolate));
         found++;
       }
     }
     return found;
   } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
-    Map* map = Map::cast(heap_object);
+    Map map = Map::cast(heap_object);
     maps->push_back(handle(map, isolate));
     return 1;
   } else if (feedback->GetHeapObjectIfStrong(&heap_object) &&
              heap_object ==
                  heap_object->GetReadOnlyRoots().premonomorphic_symbol()) {
     if (GetFeedbackExtra()->GetHeapObjectIfWeak(&heap_object)) {
-      Map* map = Map::cast(heap_object);
+      Map map = Map::cast(heap_object);
       maps->push_back(handle(map, isolate));
       return 1;
     }
@@ -974,7 +982,7 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->Get(i)->IsWeakOrCleared());
       if (array->Get(i)->GetHeapObjectIfWeak(&heap_object)) {
-        Map* array_map = Map::cast(heap_object);
+        Map array_map = Map::cast(heap_object);
         if (array_map == *map && !array->Get(i + increment - 1)->IsCleared()) {
           MaybeObject handler = array->Get(i + increment - 1);
           DCHECK(IC::IsHandler(handler));
@@ -983,7 +991,7 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
       }
     }
   } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
-    Map* cell_map = Map::cast(heap_object);
+    Map cell_map = Map::cast(heap_object);
     if (cell_map == *map && !GetFeedbackExtra()->IsCleared()) {
       MaybeObject handler = GetFeedbackExtra();
       DCHECK(IC::IsHandler(handler));

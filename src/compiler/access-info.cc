@@ -302,11 +302,11 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
       // Don't generate elements kind transitions from stable maps.
-      Map* transition_target =
-          map->is_stable() ? nullptr
-                           : map->FindElementsKindTransitionedMap(
-                                 isolate(), possible_transition_targets);
-      if (transition_target == nullptr) {
+      Map transition_target = map->is_stable()
+                                  ? Map()
+                                  : map->FindElementsKindTransitionedMap(
+                                        isolate(), possible_transition_targets);
+      if (transition_target.is_null()) {
         receiver_maps.push_back(map);
       } else {
         transitions.push_back(
@@ -673,9 +673,9 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
                                          MaybeHandle<JSObject> holder,
                                          PropertyAccessInfo* access_info) {
   // Check if the {map} has a data transition with the given {name}.
-  Map* transition =
+  Map transition =
       TransitionsAccessor(isolate(), map).SearchTransition(*name, kData, NONE);
-  if (transition == nullptr) return false;
+  if (transition.is_null()) return false;
 
   Handle<Map> transition_map(transition, isolate());
   int const number = transition_map->LastAdded();

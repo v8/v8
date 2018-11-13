@@ -69,7 +69,7 @@ Name* TransitionsAccessor::GetKey(int transition_number) {
       UNREACHABLE();
       return nullptr;
     case kWeakRef: {
-      Map* map = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
+      Map map = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
       return GetSimpleTransitionKey(map);
     }
     case kFullTransitionArray:
@@ -90,7 +90,7 @@ HeapObjectSlot TransitionArray::GetTargetSlot(int transition_number) {
 }
 
 // static
-PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
+PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map target) {
   DCHECK(!IsSpecialTransition(name->GetReadOnlyRoots(), name));
   int descriptor = target->LastAdded();
   DescriptorArray* descriptors = target->instance_descriptors();
@@ -100,18 +100,18 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
 }
 
 // static
-PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map* transition) {
+PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
   return transition->GetLastDescriptorDetails();
 }
 
 // static
-Name* TransitionsAccessor::GetSimpleTransitionKey(Map* transition) {
+Name* TransitionsAccessor::GetSimpleTransitionKey(Map transition) {
   int descriptor = transition->LastAdded();
   return transition->instance_descriptors()->GetKey(descriptor);
 }
 
 // static
-Map* TransitionsAccessor::GetTargetFromRaw(MaybeObject raw) {
+Map TransitionsAccessor::GetTargetFromRaw(MaybeObject raw) {
   return Map::cast(raw->GetHeapObjectAssumeWeak());
 }
 
@@ -120,17 +120,17 @@ MaybeObject TransitionArray::GetRawTarget(int transition_number) {
   return Get(ToTargetIndex(transition_number));
 }
 
-Map* TransitionArray::GetTarget(int transition_number) {
+Map TransitionArray::GetTarget(int transition_number) {
   MaybeObject raw = GetRawTarget(transition_number);
   return TransitionsAccessor::GetTargetFromRaw(raw);
 }
 
-Map* TransitionsAccessor::GetTarget(int transition_number) {
+Map TransitionsAccessor::GetTarget(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
       UNREACHABLE();
-      return nullptr;
+      return Map();
     case kWeakRef:
       return Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
     case kFullTransitionArray:
@@ -147,7 +147,7 @@ void TransitionArray::SetRawTarget(int transition_number, MaybeObject value) {
 }
 
 bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
-                                        Map** target) {
+                                        Map* target) {
   MaybeObject raw = GetRawTarget(transition_number);
   HeapObject* heap_object;
   if (raw->GetHeapObjectIfStrong(&heap_object) &&

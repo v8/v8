@@ -96,7 +96,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   HeapObject* empty_slow_element_dictionary =
       roots.empty_slow_element_dictionary();
   while (prototype != null) {
-    Map* map = prototype->map();
+    Map map = prototype->map();
     if (map->IsCustomElementsReceiverMap()) return false;
     HeapObject* elements = JSObject::cast(prototype)->elements();
     if (elements != empty_fixed_array &&
@@ -233,7 +233,7 @@ InterceptorInfo* JSObject::GetNamedInterceptor() {
 
 int JSObject::GetHeaderSize() const { return GetHeaderSize(map()); }
 
-int JSObject::GetHeaderSize(const Map* map) {
+int JSObject::GetHeaderSize(const Map map) {
   // Check for the most common kind of JavaScript object before
   // falling into the generic switch. This speeds up the internal
   // field operations considerably on average.
@@ -244,7 +244,7 @@ int JSObject::GetHeaderSize(const Map* map) {
 }
 
 // static
-int JSObject::GetEmbedderFieldCount(const Map* map) {
+int JSObject::GetEmbedderFieldCount(const Map map) {
   int instance_size = map->instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
   return ((instance_size - GetHeaderSize(map)) >> kPointerSizeLog2) -
@@ -405,7 +405,7 @@ Object* JSObject::InObjectPropertyAtPut(int index, Object* value,
   return value;
 }
 
-void JSObject::InitializeBody(Map* map, int start_offset,
+void JSObject::InitializeBody(Map map, int start_offset,
                               Object* pre_allocated_value,
                               Object* filler_value) {
   DCHECK(!filler_value->IsHeapObject() || !Heap::InNewSpace(filler_value));
@@ -581,7 +581,7 @@ bool JSFunction::has_prototype_slot() const {
   return map()->has_prototype_slot();
 }
 
-Map* JSFunction::initial_map() { return Map::cast(prototype_or_initial_map()); }
+Map JSFunction::initial_map() { return Map::cast(prototype_or_initial_map()); }
 
 bool JSFunction::has_initial_map() {
   DCHECK(has_prototype_slot());
@@ -668,7 +668,7 @@ ElementsKind JSObject::GetElementsKind() const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
-    Map* map = fixed_array->map();
+    Map map = fixed_array->map();
     if (IsSmiOrObjectElementsKind(kind)) {
       DCHECK(map == GetReadOnlyRoots().fixed_array_map() ||
              map == GetReadOnlyRoots().fixed_cow_array_map());

@@ -440,7 +440,7 @@ class JSObject : public JSReceiver {
                                               Handle<Map> new_map,
                                               Isolate* isolate);
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
-  static Map* InvalidatePrototypeChains(Map* map);
+  static Map InvalidatePrototypeChains(Map map);
   static void InvalidatePrototypeValidityCell(JSGlobalObject* global);
 
   // Updates prototype chain tracking information when an object changes its
@@ -544,10 +544,10 @@ class JSObject : public JSReceiver {
   // JSFunction objects.
   static int GetHeaderSize(InstanceType instance_type,
                            bool function_has_prototype_slot = false);
-  static inline int GetHeaderSize(const Map* map);
+  static inline int GetHeaderSize(const Map map);
   inline int GetHeaderSize() const;
 
-  static inline int GetEmbedderFieldCount(const Map* map);
+  static inline int GetEmbedderFieldCount(const Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
   inline Object* GetEmbedderField(int index);
@@ -637,7 +637,7 @@ class JSObject : public JSReceiver {
   // pre_allocated_value and the rest with filler_value.
   // Note: this call does not update write barrier, the caller is responsible
   // to ensure that |filler_value| can be collected without WB here.
-  inline void InitializeBody(Map* map, int start_offset,
+  inline void InitializeBody(Map map, int start_offset,
                              Object* pre_allocated_value, Object* filler_value);
 
   // Check whether this object references another object
@@ -671,7 +671,7 @@ class JSObject : public JSReceiver {
                                       ElementsKind to_kind,
                                       Handle<FixedArrayBase> to_elements);
 
-  void PrintInstanceMigration(FILE* file, Map* original_map, Map* new_map);
+  void PrintInstanceMigration(FILE* file, Map original_map, Map new_map);
 
 #ifdef DEBUG
   // Structure for collecting spill information about JSObjects.
@@ -999,7 +999,7 @@ class JSFunction : public JSObject {
   inline bool has_prototype_slot() const;
 
   // The initial map for an object created by this constructor.
-  inline Map* initial_map();
+  inline Map initial_map();
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                             Handle<Object> prototype);
   inline bool has_initial_map();

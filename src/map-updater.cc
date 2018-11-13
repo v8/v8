@@ -317,10 +317,10 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   int root_nof = root_map_->NumberOfOwnDescriptors();
   for (int i = root_nof; i < old_nof_; ++i) {
     PropertyDetails old_details = GetDetails(i);
-    Map* transition = TransitionsAccessor(isolate_, target_map_)
-                          .SearchTransition(GetKey(i), old_details.kind(),
-                                            old_details.attributes());
-    if (transition == nullptr) break;
+    Map transition = TransitionsAccessor(isolate_, target_map_)
+                         .SearchTransition(GetKey(i), old_details.kind(),
+                                           old_details.attributes());
+    if (transition.is_null()) break;
     Handle<Map> tmp_map(transition, isolate_);
 
     Handle<DescriptorArray> tmp_descriptors(tmp_map->instance_descriptors(),
@@ -403,10 +403,10 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   // Find the last compatible target map in the transition tree.
   for (int i = target_nof; i < old_nof_; ++i) {
     PropertyDetails old_details = GetDetails(i);
-    Map* transition = TransitionsAccessor(isolate_, target_map_)
-                          .SearchTransition(GetKey(i), old_details.kind(),
-                                            old_details.attributes());
-    if (transition == nullptr) break;
+    Map transition = TransitionsAccessor(isolate_, target_map_)
+                         .SearchTransition(GetKey(i), old_details.kind(),
+                                           old_details.attributes());
+    if (transition.is_null()) break;
     Handle<Map> tmp_map(transition, isolate_);
     Handle<DescriptorArray> tmp_descriptors(tmp_map->instance_descriptors(),
                                             isolate_);
@@ -610,14 +610,14 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
   DisallowHeapAllocation no_allocation;
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
-  Map* current = *root_map_;
+  Map current = *root_map_;
   for (int i = root_nof; i < old_nof_; i++) {
     Name* name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
-    Map* next =
+    Map next =
         TransitionsAccessor(isolate_, current, &no_allocation)
             .SearchTransition(name, details.kind(), details.attributes());
-    if (next == nullptr) break;
+    if (next.is_null()) break;
     DescriptorArray* next_descriptors = next->instance_descriptors();
 
     PropertyDetails next_details = next_descriptors->GetDetails(i);
@@ -654,16 +654,16 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   TransitionsAccessor transitions(isolate_, split_map);
 
   // Invalidate a transition target at |key|.
-  Map* maybe_transition = transitions.SearchTransition(
+  Map maybe_transition = transitions.SearchTransition(
       GetKey(split_nof), split_details.kind(), split_details.attributes());
-  if (maybe_transition != nullptr) {
+  if (!maybe_transition.is_null()) {
     maybe_transition->DeprecateTransitionTree(isolate_);
   }
 
   // If |maybe_transition| is not nullptr then the transition array already
   // contains entry for given descriptor. This means that the transition
   // could be inserted regardless of whether transitions array is full or not.
-  if (maybe_transition == nullptr && !transitions.CanHaveMoreTransitions()) {
+  if (maybe_transition.is_null() && !transitions.CanHaveMoreTransitions()) {
     return CopyGeneralizeAllFields("GenAll_CantHaveMoreTransitions");
   }
 

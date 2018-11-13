@@ -96,10 +96,14 @@ class ObjectSlot : public SlotBase<ObjectSlot> {
   Object* operator*() const { return *reinterpret_cast<Object**>(address()); }
   inline void store(Object* value);
 
+  inline ObjectPtr Acquire_Load() const;
   inline Object* Relaxed_Load() const;
   inline Object* Relaxed_Load(int offset) const;
+  inline void Relaxed_Store(ObjectPtr value) const;
   inline void Relaxed_Store(int offset, Object* value) const;
-  inline Object* Release_CompareAndSwap(Object* old, Object* target) const;
+  inline void Release_Store(ObjectPtr value) const;
+  inline ObjectPtr Release_CompareAndSwap(ObjectPtr old,
+                                          ObjectPtr target) const;
 };
 
 // A MaybeObjectSlot instance describes a pointer-sized field ("slot") holding

@@ -297,7 +297,7 @@ class Expectations {
     UNREACHABLE();
   }
 
-  bool Check(Map* map, int expected_nof) const {
+  bool Check(Map map, int expected_nof) const {
     CHECK_EQ(elements_kind_, map->elements_kind());
     CHECK(number_of_properties_ <= MAX_PROPERTIES);
     CHECK_EQ(expected_nof, map->NumberOfOwnDescriptors());
@@ -318,8 +318,7 @@ class Expectations {
     return true;
   }
 
-  bool Check(Map* map) const { return Check(map, number_of_properties_); }
-
+  bool Check(Map map) const { return Check(map, number_of_properties_); }
 
   //
   // Helper methods for initializing expectations and adding properties to
@@ -400,9 +399,9 @@ class Expectations {
                  heap_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    Map* target = TransitionsAccessor(isolate_, map)
-                      .SearchTransition(*name, kData, attributes);
-    CHECK_NOT_NULL(target);
+    Map target = TransitionsAccessor(isolate_, map)
+                     .SearchTransition(*name, kData, attributes);
+    CHECK(!target.is_null());
     return handle(target, isolate_);
   }
 
@@ -697,7 +696,7 @@ static void TestGeneralizeField(int detach_property_at_index,
 
   {
     // Check that all previous maps are not stable.
-    Map* tmp = *new_map;
+    Map tmp = *new_map;
     while (true) {
       Object* back = tmp->GetBackPointer();
       if (back->IsUndefined(isolate)) break;
@@ -1836,7 +1835,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
   {
     MapHandles map_list;
     map_list.push_back(updated_map);
-    Map* transitioned_map =
+    Map transitioned_map =
         map2->FindElementsKindTransitionedMap(isolate, map_list);
     CHECK_EQ(*updated_map, transitioned_map);
   }
@@ -1934,7 +1933,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   {
     MapHandles map_list;
     map_list.push_back(updated_map);
-    Map* transitioned_map =
+    Map transitioned_map =
         map2->FindElementsKindTransitionedMap(isolate, map_list);
     CHECK_EQ(*updated_map, transitioned_map);
   }
@@ -2189,9 +2188,9 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       }
 
       Handle<String> name = MakeName("prop", i);
-      Map* target = TransitionsAccessor(isolate, map2)
-                        .SearchTransition(*name, kData, NONE);
-      CHECK_NOT_NULL(target);
+      Map target = TransitionsAccessor(isolate, map2)
+                       .SearchTransition(*name, kData, NONE);
+      CHECK(!target.is_null());
       map2 = handle(target, isolate);
     }
 

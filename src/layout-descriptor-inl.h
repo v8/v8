@@ -151,8 +151,7 @@ int LayoutDescriptor::GetSlowModeBackingStoreLength(int length) {
   return RoundUp(length, kBitsPerByte * kPointerSize) / kBitsPerByte;
 }
 
-
-int LayoutDescriptor::CalculateCapacity(Map* map, DescriptorArray* descriptors,
+int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray* descriptors,
                                         int num_descriptors) {
   int inobject_properties = map->GetInObjectProperties();
   if (inobject_properties == 0) return 0;
@@ -183,9 +182,8 @@ int LayoutDescriptor::CalculateCapacity(Map* map, DescriptorArray* descriptors,
   return layout_descriptor_length;
 }
 
-
 LayoutDescriptor* LayoutDescriptor::Initialize(
-    LayoutDescriptor* layout_descriptor, Map* map, DescriptorArray* descriptors,
+    LayoutDescriptor* layout_descriptor, Map map, DescriptorArray* descriptors,
     int num_descriptors) {
   DisallowHeapAllocation no_allocation;
   int inobject_properties = map->GetInObjectProperties();
@@ -220,7 +218,7 @@ void LayoutDescriptor::set_layout_word(int index, uint32_t value) {
 
 // LayoutDescriptorHelper is a helper class for querying whether inobject
 // property at offset is Double or not.
-LayoutDescriptorHelper::LayoutDescriptorHelper(Map* map)
+LayoutDescriptorHelper::LayoutDescriptorHelper(Map map)
     : all_fields_tagged_(true),
       header_size_(0),
       layout_descriptor_(LayoutDescriptor::FastPointerLayout()) {

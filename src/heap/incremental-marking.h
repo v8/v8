@@ -258,7 +258,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void FinishBlackAllocation();
 
   void MarkRoots();
-  bool ShouldRetainMap(Map* map, int age);
+  bool ShouldRetainMap(Map map, int age);
   // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
   // increase chances of reusing of map transition tree in future.
   void RetainMaps();
@@ -279,7 +279,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   V8_INLINE bool IsFixedArrayWithProgressBar(HeapObject* object);
 
   // Visits the object and returns its size.
-  V8_INLINE int VisitObject(Map* map, HeapObject* obj);
+  V8_INLINE int VisitObject(Map map, HeapObject* obj);
 
   void IncrementIdleMarkingDelayCounter();
 

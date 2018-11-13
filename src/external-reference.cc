@@ -904,9 +904,14 @@ ExternalReference ExternalReference::runtime_function_table_address(
       const_cast<Runtime::Function*>(Runtime::RuntimeFunctionTable(isolate)));
 }
 
+static Address InvalidatePrototypeChainsWrapper(Address raw_map) {
+  Map map = Map::cast(ObjectPtr(raw_map));
+  return JSObject::InvalidatePrototypeChains(map).ptr();
+}
+
 ExternalReference ExternalReference::invalidate_prototype_chains_function() {
   return ExternalReference(
-      Redirect(FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
+      Redirect(FUNCTION_ADDR(InvalidatePrototypeChainsWrapper)));
 }
 
 double power_helper(double x, double y) {

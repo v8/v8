@@ -72,13 +72,13 @@ class LayoutDescriptor : public ByteArray {
   V8_INLINE static LayoutDescriptor* FastPointerLayout();
 
   // Check that this layout descriptor corresponds to given map.
-  bool IsConsistentWithMap(Map* map, bool check_tail = false);
+  bool IsConsistentWithMap(Map map, bool check_tail = false);
 
   // Trims this layout descriptor to given number of descriptors. This happens
   // only when corresponding descriptors array is trimmed.
   // The layout descriptor could be trimmed if it was slow or it could
   // become fast.
-  LayoutDescriptor* Trim(Heap* heap, Map* map, DescriptorArray* descriptors,
+  LayoutDescriptor* Trim(Heap* heap, Map map, DescriptorArray* descriptors,
                          int num_descriptors);
 
 #ifdef OBJECT_PRINT
@@ -114,7 +114,7 @@ class LayoutDescriptor : public ByteArray {
 
   // Calculates minimal layout descriptor capacity required for given
   // |map|, |descriptors| and |num_descriptors|.
-  V8_INLINE static int CalculateCapacity(Map* map, DescriptorArray* descriptors,
+  V8_INLINE static int CalculateCapacity(Map map, DescriptorArray* descriptors,
                                          int num_descriptors);
 
   // Calculates the length of the slow-mode backing store array by given layout
@@ -124,7 +124,7 @@ class LayoutDescriptor : public ByteArray {
   // Fills in clean |layout_descriptor| according to given |map|, |descriptors|
   // and |num_descriptors|.
   V8_INLINE static LayoutDescriptor* Initialize(
-      LayoutDescriptor* layout_descriptor, Map* map,
+      LayoutDescriptor* layout_descriptor, Map map,
       DescriptorArray* descriptors, int num_descriptors);
 
   static Handle<LayoutDescriptor> EnsureCapacity(
@@ -146,7 +146,7 @@ class LayoutDescriptor : public ByteArray {
 // about whether the field at given offset is tagged or not.
 class LayoutDescriptorHelper {
  public:
-  inline explicit LayoutDescriptorHelper(Map* map);
+  inline explicit LayoutDescriptorHelper(Map map);
 
   bool all_fields_tagged() { return all_fields_tagged_; }
   inline bool IsTagged(int offset_in_bytes);

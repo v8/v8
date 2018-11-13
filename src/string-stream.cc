@@ -295,7 +295,7 @@ void StringStream::PrintName(Object* name) {
 
 
 void StringStream::PrintUsingMap(JSObject* js_object) {
-  Map* map = js_object->map();
+  Map map = js_object->map();
   int real_size = map->NumberOfOwnDescriptors();
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < real_size; i++) {

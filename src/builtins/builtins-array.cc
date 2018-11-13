@@ -1361,7 +1361,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
 
 bool IsSimpleArray(Isolate* isolate, Handle<JSArray> obj) {
   DisallowHeapAllocation no_gc;
-  Map* map = obj->map();
+  Map map = obj->map();
   // If there is only the 'length' property we are fine.
   if (map->prototype() ==
           isolate->native_context()->initial_array_prototype() &&

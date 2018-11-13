@@ -468,7 +468,7 @@ void IncrementalMarking::MarkRoots() {
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 }
 
-bool IncrementalMarking::ShouldRetainMap(Map* map, int age) {
+bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
   if (age == 0) {
     // The map has aged. Do not retain this map.
     return false;
@@ -504,7 +504,7 @@ void IncrementalMarking::RetainMaps() {
     }
     int age = retained_maps->Get(i + 1).ToSmi().value();
     int new_age;
-    Map* map = Map::cast(map_heap_object);
+    Map map = Map::cast(map_heap_object);
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
         marking_state()->IsWhite(map)) {
       if (ShouldRetainMap(map, age)) {
@@ -567,7 +567,7 @@ void IncrementalMarking::FinalizeIncrementally() {
 void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   if (!IsMarking()) return;
 
-  Map* filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
+  Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
 
 #ifdef ENABLE_MINOR_MC
   MinorMarkCompactCollector::MarkingState* minor_marking_state =
@@ -729,7 +729,7 @@ bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject* obj) {
   return chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR);
 }
 
-int IncrementalMarking::VisitObject(Map* map, HeapObject* obj) {
+int IncrementalMarking::VisitObject(Map map, HeapObject* obj) {
   DCHECK(marking_state()->IsGrey(obj) || marking_state()->IsBlack(obj));
   if (!marking_state()->GreyToBlack(obj)) {
     // The object can already be black in these cases:
@@ -762,7 +762,7 @@ void IncrementalMarking::RevisitObject(HeapObject* obj) {
   if (page->owner()->identity() == LO_SPACE) {
     page->ResetProgressBar();
   }
-  Map* map = obj->map();
+  Map map = obj->map();
   WhiteToGreyAndPush(map);
   IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
                                            marking_state());

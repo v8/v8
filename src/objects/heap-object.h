@@ -72,15 +72,31 @@ class ObjectPtr {
   inline void Print();
   inline void Print(std::ostream& os);
 
+  // For use with std::unordered_set.
+  struct Hasher {
+    size_t operator()(const ObjectPtr o) const {
+      return std::hash<v8::internal::Address>{}(o.ptr());
+    }
+  };
+
  private:
   friend class ObjectSlot;
   Address ptr_;
 };
 
+// In heap-objects.h to be usable without heap-objects-inl.h inclusion.
+bool ObjectPtr::IsSmi() const { return HAS_SMI_TAG(ptr()); }
+bool ObjectPtr::IsHeapObject() const {
+  DCHECK_EQ(!IsSmi(), Internals::HasHeapObjectTag(ptr()));
+  return !IsSmi();
+}
+
 // Replacement for HeapObject; temporarily separate for incremental transition:
 class HeapObjectPtr : public ObjectPtr {
  public:
-  inline Map* map() const;
+  inline Map map() const;
+  inline void set_map_after_allocation(
+      Map value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline ObjectSlot map_slot();
 
@@ -108,13 +124,15 @@ class HeapObjectPtr : public ObjectPtr {
   inline Address address() const { return ptr() - kHeapObjectTag; }
 
   inline int Size() const;
-  inline int SizeFromMap(Map* map) const;
+  inline int SizeFromMap(Map map) const;
 
   inline ObjectSlot RawField(int byte_offset) const;
+  inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
 
 #ifdef OBJECT_PRINT
   void PrintHeader(std::ostream& os, const char* id);  // NOLINT
 #endif
+  void HeapObjectVerify(Isolate* isolate);
 
   static const int kMapOffset = HeapObject::kMapOffset;
 

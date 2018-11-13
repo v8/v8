@@ -32,7 +32,7 @@ class PrototypeInfo : public Struct {
   // [object_create_map]: A field caching the map for Object.create(prototype).
   static inline void SetObjectCreateMap(Handle<PrototypeInfo> info,
                                         Handle<Map> map);
-  inline Map* ObjectCreateMap();
+  inline Map ObjectCreateMap();
   inline bool HasObjectCreateMap();
 
   // [registry_slot]: Slot in prototype's user registry where this user

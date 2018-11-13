@@ -777,7 +777,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
 
   {
     // Finish setting up Object function's initial map.
-    Map* initial_map = object_fun->initial_map();
+    Map initial_map = object_fun->initial_map();
     initial_map->set_elements_kind(HOLEY_ELEMENTS);
   }
 

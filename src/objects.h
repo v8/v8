@@ -1080,7 +1080,7 @@ typedef JSGlobalProxy* JSGlobalProxyArgType;
 typedef JSObject* JSObjectArgType;
 typedef JSPromise* JSPromiseArgType;
 typedef JSProxy* JSProxyArgType;
-typedef Map* MapArgType;
+typedef Map MapArgType;
 typedef Object* ObjectArgType;
 typedef RegExpMatchInfo* RegExpMatchInfoArgType;
 typedef ScriptContextTable* ScriptContextTableArgType;
@@ -1470,7 +1470,7 @@ class Object {
   friend class StringStream;
 
   // Return the map of the root of object's prototype chain.
-  Map* GetPrototypeChainRootMap(Isolate* isolate) const;
+  Map GetPrototypeChainRootMap(Isolate* isolate) const;
 
   // Returns a non-SMI for JSReceivers, but returns the hash code for
   // simple objects.  This avoids a double lookup in the cases where
@@ -1536,10 +1536,10 @@ class MapWord {
   // Normal state: the map word contains a map pointer.
 
   // Create a map word from a map pointer.
-  static inline MapWord FromMap(const Map* map);
+  static inline MapWord FromMap(const Map map);
 
   // View this map word as a map pointer.
-  inline Map* ToMap() const;
+  inline Map ToMap() const;
 
   // Scavenge collection: the map word of live objects in the from space
   // contains a forwarding address (a heap object pointer in the to space).
@@ -1567,9 +1567,9 @@ class MapWord {
   // HeapObject calls the private constructor and directly reads the value.
   friend class HeapObject;
 
-  explicit MapWord(uintptr_t value) : value_(value) {}
+  explicit MapWord(Address value) : value_(value) {}
 
-  uintptr_t value_;
+  Address value_;
 };
 
 
@@ -1579,28 +1579,28 @@ class HeapObject: public Object {
  public:
   // [map]: Contains a map which contains the object's reflective
   // information.
-  inline Map* map() const;
-  inline void set_map(Map* value);
+  inline Map map() const;
+  inline void set_map(Map value);
 
   inline ObjectSlot map_slot();
 
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
   // of primitive (non-JS) objects like strings, heap numbers etc.
-  inline void set_map_no_write_barrier(Map* value);
+  inline void set_map_no_write_barrier(Map value);
 
   // Get the map using acquire load.
-  inline Map* synchronized_map() const;
+  inline Map synchronized_map() const;
   inline MapWord synchronized_map_word() const;
 
   // Set the map using release store
-  inline void synchronized_set_map(Map* value);
+  inline void synchronized_set_map(Map value);
   inline void synchronized_set_map_word(MapWord map_word);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
   inline void set_map_after_allocation(
-      Map* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Map value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
@@ -1663,18 +1663,18 @@ class HeapObject: public Object {
   // If it's not performance critical iteration use the non-templatized
   // version.
   void IterateBody(ObjectVisitor* v);
-  void IterateBody(Map* map, int object_size, ObjectVisitor* v);
+  void IterateBody(Map map, int object_size, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
   inline void IterateBodyFast(ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateBodyFast(Map* map, int object_size, ObjectVisitor* v);
+  inline void IterateBodyFast(Map map, int object_size, ObjectVisitor* v);
 
   // Returns true if the object contains a tagged value at given offset.
   // It is used for invalid slots filtering. If the offset points outside
   // of the object or to the map word, the result is UNDEFINED (!!!).
-  bool IsValidSlot(Map* map, int offset);
+  bool IsValidSlot(Map map, int offset);
 
   // Returns the heap object's size in bytes
   inline int Size() const;
@@ -1682,7 +1682,7 @@ class HeapObject: public Object {
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
-  inline int SizeFromMap(Map* map) const;
+  inline int SizeFromMap(Map map) const;
 
   // Returns the field at offset in obj, as a read/write Object* reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
@@ -1720,7 +1720,7 @@ class HeapObject: public Object {
   static void VerifyHeapPointer(Isolate* isolate, Object* p);
 #endif
 
-  static inline AllocationAlignment RequiredAlignment(Map* map);
+  static inline AllocationAlignment RequiredAlignment(Map map);
 
   // Whether the object needs rehashing. That is the case if the object's
   // content depends on FLAG_hash_seed. When the object is deserialized into

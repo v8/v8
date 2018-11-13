@@ -2143,7 +2143,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     Isolate* isolate = holder->GetIsolate();
     Heap* heap = isolate->heap();
     FixedArrayBase* elements = holder->elements();
-    Map* map = elements->map();
+    Map map = elements->map();
     if (IsSmiOrObjectElementsKind(KindTraits::Kind)) {
       DCHECK_NE(map, ReadOnlyRoots(heap).fixed_double_array_map());
     } else if (IsDoubleElementsKind(KindTraits::Kind)) {

@@ -2379,7 +2379,7 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
 }
 
 namespace {
-OddballType GetOddballType(Isolate* isolate, Map* map) {
+OddballType GetOddballType(Isolate* isolate, Map map) {
   if (map->instance_type() != ODDBALL_TYPE) {
     return OddballType::kNone;
   }
@@ -2409,7 +2409,7 @@ OddballType GetOddballType(Isolate* isolate, Map* map) {
 HeapObjectType HeapObjectRef::GetHeapObjectType() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference handle_dereference;
-    Map* map = Handle<HeapObject>::cast(object())->map();
+    Map map = Handle<HeapObject>::cast(object())->map();
     HeapObjectType::Flags flags(0);
     if (map->is_undetectable()) flags |= HeapObjectType::kUndetectable;
     if (map->is_callable()) flags |= HeapObjectType::kCallable;

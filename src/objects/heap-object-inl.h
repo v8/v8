@@ -19,8 +19,11 @@ namespace internal {
   bool ObjectPtr::Is##Type() const {                     \
     return reinterpret_cast<Object*>(ptr())->Is##Type(); \
   }
-OBJECT_TYPE_LIST(TYPE_CHECK_FORWARDER)
 HEAP_OBJECT_TYPE_LIST(TYPE_CHECK_FORWARDER)
+TYPE_CHECK_FORWARDER(LayoutDescriptor);
+TYPE_CHECK_FORWARDER(Primitive);
+TYPE_CHECK_FORWARDER(Number);
+TYPE_CHECK_FORWARDER(Numeric);
 #undef TYPE_CHECK_FORWARDER
 
 #define TYPE_CHECK_FORWARDER(NAME, Name, name)           \
@@ -74,8 +77,12 @@ OBJECT_CONSTRUCTORS_IMPL(HeapObjectPtr, ObjectPtr)
 HEAP_OBJECT_TYPE_LIST(TYPE_CHECK_FORWARDER)
 #undef TYPE_CHECK_FORWARDER
 
-Map* HeapObjectPtr::map() const {
+Map HeapObjectPtr::map() const {
   return Map::cast(READ_FIELD(this, kMapOffset));
+}
+
+void HeapObjectPtr::set_map_after_allocation(Map value, WriteBarrierMode mode) {
+  reinterpret_cast<HeapObject*>(ptr())->set_map_after_allocation(value, mode);
 }
 
 ObjectSlot HeapObjectPtr::map_slot() {
@@ -99,12 +106,16 @@ ReadOnlyRoots HeapObjectPtr::GetReadOnlyRoots() const {
 int HeapObjectPtr::Size() const {
   return reinterpret_cast<HeapObject*>(ptr())->Size();
 }
-int HeapObjectPtr::SizeFromMap(Map* map) const {
+int HeapObjectPtr::SizeFromMap(Map map) const {
   return reinterpret_cast<HeapObject*>(ptr())->SizeFromMap(map);
 }
 
 ObjectSlot HeapObjectPtr::RawField(int byte_offset) const {
   return ObjectSlot(FIELD_ADDR(this, byte_offset));
+}
+
+MaybeObjectSlot HeapObjectPtr::RawMaybeWeakField(int byte_offset) const {
+  return MaybeObjectSlot(FIELD_ADDR(this, byte_offset));
 }
 
 Heap* NeverReadOnlySpaceObjectPtr::GetHeap(const HeapObjectPtr object) {

@@ -440,6 +440,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
   }
 }
 
+void HeapObjectPtr::HeapObjectVerify(Isolate* isolate) {
+  reinterpret_cast<HeapObject*>(ptr())->HeapObjectVerify(isolate);
+}
+
 void HeapObject::VerifyHeapPointer(Isolate* isolate, Object* p) {
   CHECK(p->IsHeapObject());
   HeapObject* ho = HeapObject::cast(p);
@@ -499,8 +503,7 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify(Isolate* isolate) {
 bool JSObject::ElementsAreSafeToExamine() const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  return reinterpret_cast<Map*>(elements()) !=
-         GetReadOnlyRoots().one_pointer_filler_map();
+  return elements() != GetReadOnlyRoots().one_pointer_filler_map();
 }
 
 namespace {
@@ -618,23 +621,23 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 
 void Map::MapVerify(Isolate* isolate) {
   Heap* heap = isolate->heap();
-  CHECK(!Heap::InNewSpace(this));
+  CHECK(!Heap::InNewSpace(*this));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kPointerSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
   CHECK(GetBackPointer()->IsUndefined(heap->isolate()) ||
         !Map::cast(GetBackPointer())->is_stable());
-  VerifyHeapPointer(isolate, prototype());
-  VerifyHeapPointer(isolate, instance_descriptors());
+  HeapObject::VerifyHeapPointer(isolate, prototype());
+  HeapObject::VerifyHeapPointer(isolate, instance_descriptors());
   SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
   DisallowHeapAllocation no_gc;
   SLOW_DCHECK(
-      TransitionsAccessor(isolate, this, &no_gc).IsSortedNoDuplicates());
-  SLOW_DCHECK(TransitionsAccessor(isolate, this, &no_gc)
+      TransitionsAccessor(isolate, *this, &no_gc).IsSortedNoDuplicates());
+  SLOW_DCHECK(TransitionsAccessor(isolate, *this, &no_gc)
                   .IsConsistentWithBackPointers());
   SLOW_DCHECK(!FLAG_unbox_double_fields ||
-              layout_descriptor()->IsConsistentWithMap(this));
+              layout_descriptor()->IsConsistentWithMap(*this));
   if (!may_have_interesting_symbols()) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());
@@ -665,7 +668,7 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
   CHECK_EQ(ReadOnlyRoots(isolate).empty_descriptor_array(),
            instance_descriptors());
   CHECK_EQ(0, UnusedPropertyFields());
-  CHECK_EQ(Map::GetVisitorId(this), visitor_id());
+  CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
 }
 
 void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {
@@ -2198,7 +2201,7 @@ bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(key->GetReadOnlyRoots(),
                                                   key)) {
-      Map* target = GetTarget(i);
+      Map target = GetTarget(i);
       PropertyDetails details =
           TransitionsAccessor::GetTargetDetails(key, target);
       kind = details.kind();
@@ -2228,15 +2231,14 @@ bool TransitionsAccessor::IsSortedNoDuplicates() {
   return transitions()->IsSortedNoDuplicates();
 }
 
-
-static bool CheckOneBackPointer(Map* current_map, Object* target) {
+static bool CheckOneBackPointer(Map current_map, Object* target) {
   return !target->IsMap() || Map::cast(target)->GetBackPointer() == current_map;
 }
 
 bool TransitionsAccessor::IsConsistentWithBackPointers() {
   int num_transitions = NumberOfTransitions();
   for (int i = 0; i < num_transitions; i++) {
-    Map* target = GetTarget(i);
+    Map target = GetTarget(i);
     if (!CheckOneBackPointer(map_, target)) return false;
   }
   return true;
@@ -2255,7 +2257,7 @@ bool CanLeak(Object* obj, Isolate* isolate) {
   }
   if (obj->IsContext()) return true;
   if (obj->IsMap()) {
-    Map* map = Map::cast(obj);
+    Map map = Map::cast(obj);
     for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
          root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
       if (map == isolate->root(root_index)) return false;

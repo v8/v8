@@ -2431,13 +2431,13 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
   if (size == 0) return nullptr;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
-    filler->set_map_after_allocation(reinterpret_cast<Map*>(isolate()->root(
-                                         RootIndex::kOnePointerFillerMap)),
-                                     SKIP_WRITE_BARRIER);
+    filler->set_map_after_allocation(
+        Map::unchecked_cast(isolate()->root(RootIndex::kOnePointerFillerMap)),
+        SKIP_WRITE_BARRIER);
   } else if (size == 2 * kPointerSize) {
-    filler->set_map_after_allocation(reinterpret_cast<Map*>(isolate()->root(
-                                         RootIndex::kTwoPointerFillerMap)),
-                                     SKIP_WRITE_BARRIER);
+    filler->set_map_after_allocation(
+        Map::unchecked_cast(isolate()->root(RootIndex::kTwoPointerFillerMap)),
+        SKIP_WRITE_BARRIER);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
       Memory<Address>(addr + kPointerSize) =
           static_cast<Address>(kClearedFreeMemoryValue);
@@ -2445,7 +2445,7 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
   } else {
     DCHECK_GT(size, 2 * kPointerSize);
     filler->set_map_after_allocation(
-        reinterpret_cast<Map*>(isolate()->root(RootIndex::kFreeSpaceMap)),
+        Map::unchecked_cast(isolate()->root(RootIndex::kFreeSpaceMap)),
         SKIP_WRITE_BARRIER);
     FreeSpace::cast(filler)->relaxed_write_size(size);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
@@ -2459,7 +2459,7 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
 
   // At this point, we may be deserializing the heap from a snapshot, and
   // none of the maps have been created yet and are nullptr.
-  DCHECK((filler->map() == nullptr && !deserialization_complete_) ||
+  DCHECK((filler->map().is_null() && !deserialization_complete_) ||
          filler->map()->IsMap());
   return filler;
 }
@@ -2531,7 +2531,7 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   DCHECK(object->IsFixedArray() || object->IsFixedDoubleArray());
   const int element_size = object->IsFixedArray() ? kPointerSize : kDoubleSize;
   const int bytes_to_trim = elements_to_trim * element_size;
-  Map* map = object->map();
+  Map map = object->map();
 
   // For now this trick is only applied to objects in new and paged space.
   // In large object space the object's start must coincide with chunk
@@ -3002,7 +3002,7 @@ class SlotCollectingVisitor final : public ObjectVisitor {
   std::vector<MaybeObjectSlot> slots_;
 };
 
-void Heap::VerifyObjectLayoutChange(HeapObject* object, Map* new_map) {
+void Heap::VerifyObjectLayoutChange(HeapObject* object, Map new_map) {
   if (!FLAG_verify_heap) return;
 
   // Check that Heap::NotifyObjectLayout was called for object transitions
@@ -5471,7 +5471,7 @@ void AllocationObserver::AllocationStep(int bytes_allocated,
 
 namespace {
 
-Map* GcSafeMapOfCodeSpaceObject(HeapObject* object) {
+Map GcSafeMapOfCodeSpaceObject(HeapObject* object) {
   MapWord map_word = object->map_word();
   return map_word.IsForwardingAddress() ? map_word.ToForwardingAddress()->map()
                                         : map_word.ToMap();
@@ -5491,7 +5491,7 @@ Code GcSafeCastToCode(Heap* heap, HeapObject* object, Address inner_pointer) {
 }  // namespace
 
 bool Heap::GcSafeCodeContains(Code code, Address addr) {
-  Map* map = GcSafeMapOfCodeSpaceObject(code);
+  Map map = GcSafeMapOfCodeSpaceObject(code);
   DCHECK(map == ReadOnlyRoots(this).code_map());
   if (InstructionStream::TryLookupCode(isolate(), addr) == code) return true;
   Address start = code->address();

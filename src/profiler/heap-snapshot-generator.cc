@@ -982,7 +982,7 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
   }
 }
 
-void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map* map) {
+void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
   MaybeObject maybe_raw_transitions_or_prototype_info = map->raw_transitions();
   HeapObject* raw_transitions_or_prototype_info;
   if (maybe_raw_transitions_or_prototype_info->GetHeapObjectIfWeak(

@@ -52,7 +52,7 @@ class WasmInstanceObject;
   V(JSObject, JSObject*)                                                       \
   V(JSTypedArray, JSTypedArray*)                                               \
   V(JSWeakCollection, JSWeakCollection*)                                       \
-  V(Map, Map*)                                                                 \
+  V(Map, Map)                                                                  \
   V(Oddball, Oddball*)                                                         \
   V(PreParsedScopeData, PreParsedScopeData*)                                   \
   V(PropertyArray, PropertyArray)                                              \
@@ -87,7 +87,7 @@ template <typename ResultType, typename ConcreteVisitor>
 class HeapVisitor : public ObjectVisitor {
  public:
   V8_INLINE ResultType Visit(HeapObject* object);
-  V8_INLINE ResultType Visit(Map* map, HeapObject* object);
+  V8_INLINE ResultType Visit(Map map, HeapObject* object);
 
  protected:
   // A guard predicate for visiting the object.
@@ -103,17 +103,17 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }
 
 #define VISIT(TypeName, Type) \
-  V8_INLINE ResultType Visit##TypeName(Map* map, Type object);
+  V8_INLINE ResultType Visit##TypeName(Map map, Type object);
   TYPED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
-  V8_INLINE ResultType VisitShortcutCandidate(Map* map, ConsString* object);
-  V8_INLINE ResultType VisitNativeContext(Map* map, Context* object);
-  V8_INLINE ResultType VisitDataObject(Map* map, HeapObject* object);
-  V8_INLINE ResultType VisitJSObjectFast(Map* map, JSObject* object);
-  V8_INLINE ResultType VisitJSApiObject(Map* map, JSObject* object);
-  V8_INLINE ResultType VisitStruct(Map* map, HeapObject* object);
-  V8_INLINE ResultType VisitFreeSpace(Map* map, FreeSpace* object);
-  V8_INLINE ResultType VisitWeakArray(Map* map, HeapObject* object);
+  V8_INLINE ResultType VisitShortcutCandidate(Map map, ConsString* object);
+  V8_INLINE ResultType VisitNativeContext(Map map, Context* object);
+  V8_INLINE ResultType VisitDataObject(Map map, HeapObject* object);
+  V8_INLINE ResultType VisitJSObjectFast(Map map, JSObject* object);
+  V8_INLINE ResultType VisitJSApiObject(Map map, JSObject* object);
+  V8_INLINE ResultType VisitStruct(Map map, HeapObject* object);
+  V8_INLINE ResultType VisitFreeSpace(Map map, FreeSpace* object);
+  V8_INLINE ResultType VisitWeakArray(Map map, HeapObject* object);
 
   template <typename T, typename = typename std::enable_if<
                             std::is_base_of<Object, T>::value>::type>
@@ -131,20 +131,20 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
 
   // Special cases for young generation.
 
-  V8_INLINE int VisitNativeContext(Map* map, Context* object);
-  V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
+  V8_INLINE int VisitNativeContext(Map map, Context* object);
+  V8_INLINE int VisitJSApiObject(Map map, JSObject* object);
 
-  int VisitBytecodeArray(Map* map, BytecodeArray* object) {
+  int VisitBytecodeArray(Map map, BytecodeArray* object) {
     UNREACHABLE();
     return 0;
   }
 
-  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) {
+  int VisitSharedFunctionInfo(Map map, SharedFunctionInfo* object) {
     UNREACHABLE();
     return 0;
   }
 
-  int VisitJSWeakCell(Map* map, JSWeakCell* js_weak_cell) {
+  int VisitJSWeakCell(Map map, JSWeakCell* js_weak_cell) {
     UNREACHABLE();
     return 0;
   }

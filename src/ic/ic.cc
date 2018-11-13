@@ -93,7 +93,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
                  State new_state) {
   if (V8_LIKELY(!FLAG_ic_stats)) return;
 
-  Map* map = nullptr;
+  Map map;
   if (!receiver_map().is_null()) {
     map = *receiver_map();
   }
@@ -144,8 +144,8 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   ic_info.state += TransitionMarkFromState(new_state);
   ic_info.state += modifier;
   ic_info.state += ")";
-  ic_info.map = reinterpret_cast<void*>(map);
-  if (map != nullptr) {
+  ic_info.map = reinterpret_cast<void*>(map.ptr());
+  if (!map.is_null()) {
     ic_info.is_dictionary_map = map->is_dictionary_map();
     ic_info.number_of_own_descriptors = map->NumberOfOwnDescriptors();
     ic_info.instance_type = std::to_string(map->instance_type());
@@ -257,8 +257,8 @@ bool IC::ShouldRecomputeHandler(Handle<String> name) {
   // would transition to.
   if (maybe_handler_.is_null()) {
     if (!receiver_map()->IsJSObjectMap()) return false;
-    Map* first_map = FirstTargetMap();
-    if (first_map == nullptr) return false;
+    Map first_map = FirstTargetMap();
+    if (first_map.is_null()) return false;
     Handle<Map> old_map(first_map, isolate());
     if (old_map->is_deprecated()) return true;
     return IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
@@ -616,15 +616,14 @@ void IC::CopyICToMegamorphicCache(Handle<Name> name) {
   }
 }
 
-
-bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
-  if (source_map == nullptr) return true;
-  if (target_map == nullptr) return false;
+bool IC::IsTransitionOfMonomorphicTarget(Map source_map, Map target_map) {
+  if (source_map.is_null()) return true;
+  if (target_map.is_null()) return false;
   if (source_map->is_abandoned_prototype_map()) return false;
   ElementsKind target_elements_kind = target_map->elements_kind();
   bool more_general_transition = IsMoreGeneralElementsKindTransition(
       source_map->elements_kind(), target_elements_kind);
-  Map* transitioned_map = nullptr;
+  Map transitioned_map;
   if (more_general_transition) {
     MapHandles map_list;
     map_list.push_back(handle(target_map, isolate_));
@@ -1128,9 +1127,9 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     // among receiver_maps as unstable because the optimizing compilers may
     // generate an elements kind transition for this kind of receivers.
     if (receiver_map->is_stable()) {
-      Map* tmap = receiver_map->FindElementsKindTransitionedMap(isolate(),
-                                                                *receiver_maps);
-      if (tmap != nullptr) {
+      Map tmap = receiver_map->FindElementsKindTransitionedMap(isolate(),
+                                                               *receiver_maps);
+      if (!tmap.is_null()) {
         receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
     }
@@ -1903,9 +1902,9 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
 
     } else {
       {
-        Map* tmap = receiver_map->FindElementsKindTransitionedMap(
+        Map tmap = receiver_map->FindElementsKindTransitionedMap(
             isolate(), *receiver_maps);
-        if (tmap != nullptr) {
+        if (!tmap.is_null()) {
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange(isolate());
           }

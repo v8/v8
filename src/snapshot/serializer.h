@@ -254,7 +254,7 @@ class Serializer : public SerializerDeserializer {
   void OutputStatistics(const char* name);
 
 #ifdef OBJECT_PRINT
-  void CountInstanceType(Map* map, int size, AllocationSpace space);
+  void CountInstanceType(Map map, int size, AllocationSpace space);
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
@@ -335,11 +335,11 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void VisitRelocInfo(RelocIterator* it) override;
 
  private:
-  void SerializePrologue(AllocationSpace space, int size, Map* map);
+  void SerializePrologue(AllocationSpace space, int size, Map map);
 
   // This function outputs or skips the raw data between the last pointer and
   // up to the current position.
-  void SerializeContent(Map* map, int size);
+  void SerializeContent(Map map, int size);
   void OutputRawData(Address up_to);
   void OutputCode(int size);
   int SkipTo(Address to);

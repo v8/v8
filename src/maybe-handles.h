@@ -27,18 +27,22 @@ class MaybeHandle final {
 
   // Constructor for handling automatic up casting from Handle.
   // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
-  // TODO(3770): Drop T==Object special case after the migration.
+  // TODO(3770): Drop std::is_same special cases after the migration.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value ||
-                            std::is_same<T, Object>::value>::type>
+                            std::is_same<T, Object>::value ||
+                            (std::is_same<T, HeapObject>::value &&
+                             std::is_same<S, Map>::value)>::type>
   V8_INLINE MaybeHandle(Handle<S> handle) : location_(handle.location_) {}
 
   // Constructor for handling automatic up casting.
   // Ex. MaybeHandle<JSArray> can be passed when Handle<Object> is expected.
-  // TODO(3770): Remove T==Object special case after the migration.
+  // TODO(3770): Remove std::is_same special cases after the migration.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value ||
-                            std::is_same<T, Object>::value>::type>
+                            std::is_same<T, Object>::value ||
+                            (std::is_same<T, HeapObject>::value &&
+                             std::is_same<S, Map>::value)>::type>
   V8_INLINE MaybeHandle(MaybeHandle<S> maybe_handle)
       : location_(maybe_handle.location_) {}
 

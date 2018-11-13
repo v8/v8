@@ -315,7 +315,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
             static_cast<uint32_t>(free_end - p->address())));
       }
     }
-    Map* map = object->synchronized_map();
+    Map map = object->synchronized_map();
     int size = object->SizeFromMap(map);
     live_bytes += size;
     if (rebuild_skip_list) {

@@ -153,7 +153,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   if (!proto->IsJSReceiver()) return false;
 
   Handle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
-  Map* proto_map = JSReceiver::cast(proto)->map();
+  Map proto_map = JSReceiver::cast(proto)->map();
   if (proto_map != *initial_proto_initial_map) {
     return false;
   }

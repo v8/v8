@@ -3480,7 +3480,7 @@ bool Isolate::IsNoElementsProtectorIntact(Context* context) {
 #ifdef DEBUG
   Context* native_context = context->native_context();
 
-  Map* root_array_map =
+  Map root_array_map =
       native_context->GetInitialJSArrayMap(GetInitialFastElementsKind());
   JSObject* initial_array_proto = JSObject::cast(
       native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
@@ -3489,8 +3489,7 @@ bool Isolate::IsNoElementsProtectorIntact(Context* context) {
   JSObject* initial_string_proto = JSObject::cast(
       native_context->get(Context::INITIAL_STRING_PROTOTYPE_INDEX));
 
-  if (root_array_map == nullptr ||
-      initial_array_proto == initial_object_proto) {
+  if (root_array_map.is_null() || initial_array_proto == initial_object_proto) {
     // We are in the bootstrapping process, and the entire check sequence
     // shouldn't be performed.
     return cell_reports_intact;
@@ -3562,9 +3561,9 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
   bool is_is_concat_spreadable_set =
       Smi::ToInt(is_concat_spreadable_cell->value()) == kProtectorInvalid;
 #ifdef DEBUG
-  Map* root_array_map =
+  Map root_array_map =
       raw_native_context()->GetInitialJSArrayMap(GetInitialFastElementsKind());
-  if (root_array_map == nullptr) {
+  if (root_array_map.is_null()) {
     // Ignore the value of is_concat_spreadable during bootstrap.
     return !is_is_concat_spreadable_set;
   }

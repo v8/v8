@@ -23,6 +23,7 @@
 #include "src/heap-symbols.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/smi.h"
 #include "src/objects/string-table.h"
 #include "src/visitors.h"
@@ -150,7 +151,16 @@ class AllocationResult {
   }
 
   // Implicit constructor from Object*.
+  // TODO(3770): This constructor should go away eventually, replaced by
+  // the ObjectPtr alternative below.
   AllocationResult(Object* object)  // NOLINT
+      : object_(ObjectPtr(object->ptr())) {
+    // AllocationResults can't return Smis, which are used to represent
+    // failure and the space to retry in.
+    CHECK(!object->IsSmi());
+  }
+
+  AllocationResult(ObjectPtr object)  // NOLINT
       : object_(object) {
     // AllocationResults can't return Smis, which are used to represent
     // failure and the space to retry in.
@@ -163,8 +173,17 @@ class AllocationResult {
   inline HeapObject* ToObjectChecked();
   inline AllocationSpace RetrySpace();
 
-  template <typename T>
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<Object, T>::value>::type>
   bool To(T** obj) {
+    if (IsRetry()) return false;
+    *obj = T::cast(object_);
+    return true;
+  }
+
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<ObjectPtr, T>::value>::type>
+  bool To(T* obj) {
     if (IsRetry()) return false;
     *obj = T::cast(object_);
     return true;
@@ -174,7 +193,7 @@ class AllocationResult {
   explicit AllocationResult(AllocationSpace space)
       : object_(Smi::FromInt(static_cast<int>(space))) {}
 
-  Object* object_;
+  ObjectPtr object_;
 };
 
 STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
@@ -457,7 +476,7 @@ class Heap {
   // If an object has an AllocationMemento trailing it, return it, otherwise
   // return nullptr;
   template <FindMementoMode mode>
-  inline AllocationMemento* FindAllocationMemento(Map* map, HeapObject* object);
+  inline AllocationMemento* FindAllocationMemento(Map map, HeapObject* object);
 
   // Returns false if not able to reserve.
   bool ReserveSpace(Reservation* reservations, std::vector<Address>* maps);
@@ -829,7 +848,7 @@ class Heap {
   // This function checks that either
   // - the map transition is safe,
   // - or it was communicated to GC using NotifyObjectLayoutChange.
-  void VerifyObjectLayoutChange(HeapObject* object, Map* new_map);
+  void VerifyObjectLayoutChange(HeapObject* object, Map new_map);
 #endif
 
   // ===========================================================================
@@ -1165,7 +1184,7 @@ class Heap {
   // Updates the AllocationSite of a given {object}. The entry (including the
   // count) is cached on the local pretenuring feedback.
   inline void UpdateAllocationSite(
-      Map* map, HeapObject* object,
+      Map map, HeapObject* object,
       PretenuringFeedbackMap* pretenuring_feedback);
 
   // Merges local pretenuring feedback into the global one. Note that this
@@ -1706,7 +1725,7 @@ class Heap {
   HeapObject* AllocateRawCodeInLargeObjectSpace(int size);
 
   // Allocates a heap object based on the map.
-  V8_WARN_UNUSED_RESULT AllocationResult Allocate(Map* map,
+  V8_WARN_UNUSED_RESULT AllocationResult Allocate(Map map,
                                                   AllocationSpace space);
 
   // Takes a code object and checks if it is on memory which is not subject to
@@ -1718,7 +1737,7 @@ class Heap {
   V8_WARN_UNUSED_RESULT AllocationResult
   AllocatePartialMap(InstanceType instance_type, int instance_size);
 
-  void FinalizePartialMap(Map* map);
+  void FinalizePartialMap(Map map);
 
   // Allocate empty fixed typed array of given type.
   V8_WARN_UNUSED_RESULT AllocationResult

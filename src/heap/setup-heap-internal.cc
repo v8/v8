@@ -109,7 +109,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
 
   result->set_map_after_allocation(ReadOnlyRoots(this).meta_map(),
                                    SKIP_WRITE_BARRIER);
-  Map* map = isolate()->factory()->InitializeMap(
+  Map map = isolate()->factory()->InitializeMap(
       Map::cast(result), instance_type, instance_size, elements_kind,
       inobject_properties);
 
@@ -122,9 +122,9 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   AllocationResult allocation = AllocateRaw(Map::kSize, RO_SPACE);
   if (!allocation.To(&result)) return allocation;
   // Map::cast cannot be used due to uninitialized map field.
-  Map* map = reinterpret_cast<Map*>(result);
+  Map map = Map::unchecked_cast(result);
   map->set_map_after_allocation(
-      reinterpret_cast<Map*>(isolate()->root(RootIndex::kMetaMap)),
+      Map::unchecked_cast(isolate()->root(RootIndex::kMetaMap)),
       SKIP_WRITE_BARRIER);
   map->set_instance_type(instance_type);
   map->set_instance_size(instance_size);
@@ -149,7 +149,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   return map;
 }
 
-void Heap::FinalizePartialMap(Map* map) {
+void Heap::FinalizePartialMap(Map map) {
   ReadOnlyRoots roots(this);
   map->set_dependent_code(DependentCode::cast(roots.empty_weak_fixed_array()));
   map->set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
@@ -161,7 +161,7 @@ void Heap::FinalizePartialMap(Map* map) {
   map->set_constructor_or_backpointer(roots.null_value());
 }
 
-AllocationResult Heap::Allocate(Map* map, AllocationSpace space) {
+AllocationResult Heap::Allocate(Map map, AllocationSpace space) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
   HeapObject* result = nullptr;
@@ -204,7 +204,7 @@ bool Heap::CreateInitialMaps() {
     if (!allocation.To(&obj)) return false;
   }
   // Map::cast cannot be used due to uninitialized map field.
-  Map* new_meta_map = reinterpret_cast<Map*>(obj);
+  Map new_meta_map = Map::unchecked_cast(obj);
   set_meta_map(new_meta_map);
   new_meta_map->set_map_after_allocation(new_meta_map);
 
@@ -212,7 +212,7 @@ bool Heap::CreateInitialMaps() {
   {  // Partial map allocation
 #define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                \
   {                                                                          \
-    Map* map;                                                                \
+    Map map;                                                                 \
     if (!AllocatePartialMap((instance_type), (size)).To(&map)) return false; \
     set_##field_name##_map(map);                                             \
   }
@@ -292,7 +292,7 @@ bool Heap::CreateInitialMaps() {
   // Setup the struct maps first (needed for the EnumCache).
   for (unsigned i = 0; i < arraysize(struct_table); i++) {
     const StructTable& entry = struct_table[i];
-    Map* map;
+    Map map;
     if (!AllocatePartialMap(entry.type, entry.size).To(&map)) return false;
     roots_table()[entry.index] = map;
   }
@@ -341,11 +341,11 @@ bool Heap::CreateInitialMaps() {
 
   {  // Map allocation
 #define ALLOCATE_MAP(instance_type, size, field_name)               \
-    {                                                                 \
-      Map* map;                                                       \
-      if (!AllocateMap((instance_type), size).To(&map)) return false; \
-      set_##field_name##_map(map);                                    \
-    }
+  {                                                                 \
+    Map map;                                                        \
+    if (!AllocateMap((instance_type), size).To(&map)) return false; \
+    set_##field_name##_map(map);                                    \
+  }
 
 #define ALLOCATE_VARSIZE_MAP(instance_type, field_name) \
     ALLOCATE_MAP(instance_type, kVariableSizeSentinel, field_name)
@@ -382,11 +382,8 @@ bool Heap::CreateInitialMaps() {
 
     for (unsigned i = 0; i < arraysize(string_type_table); i++) {
       const StringTypeTable& entry = string_type_table[i];
-      {
-        AllocationResult allocation = AllocateMap(entry.type, entry.size);
-        if (!allocation.To(&obj)) return false;
-      }
-      Map* map = Map::cast(obj);
+      Map map;
+      if (!AllocateMap(entry.type, entry.size).To(&map)) return false;
       map->SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
       // Mark cons string maps as unstable, because their objects can change
       // maps during GC.
@@ -395,11 +392,11 @@ bool Heap::CreateInitialMaps() {
     }
 
     {  // Create a separate external one byte string map for native sources.
+      Map map;
       AllocationResult allocation =
           AllocateMap(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,
                       ExternalOneByteString::kUncachedSize);
-      if (!allocation.To(&obj)) return false;
-      Map* map = Map::cast(obj);
+      if (!allocation.To(&map)) return false;
       map->SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
       set_native_source_string_map(map);
     }

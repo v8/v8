@@ -29,7 +29,7 @@ Handle<FieldType> FieldType::Any(Isolate* isolate) {
 }
 
 // static
-FieldType FieldType::Class(Map* map) { return FieldType::cast(map); }
+FieldType FieldType::Class(Map map) { return FieldType::cast(map); }
 
 // static
 Handle<FieldType> FieldType::Class(Handle<Map> map, Isolate* isolate) {
@@ -44,7 +44,7 @@ FieldType FieldType::cast(Object* object) {
 
 bool FieldType::IsClass() const { return this->IsMap(); }
 
-Map* FieldType::AsClass() const {
+Map FieldType::AsClass() const {
   DCHECK(IsClass());
   return Map::cast(*this);
 }

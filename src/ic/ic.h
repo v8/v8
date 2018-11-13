@@ -119,7 +119,7 @@ class IC {
   StubCache* stub_cache();
 
   void CopyICToMegamorphicCache(Handle<Name> name);
-  bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
+  bool IsTransitionOfMonomorphicTarget(Map source_map, Map target_map);
   void PatchCache(Handle<Name> name, Handle<Object> handler);
   void PatchCache(Handle<Name> name, const MaybeObjectHandle& handler);
   FeedbackSlotKind kind() const { return kind_; }
@@ -147,9 +147,9 @@ class IC {
     }
   }
 
-  Map* FirstTargetMap() {
+  Map FirstTargetMap() {
     FindTargetMaps();
-    return !target_maps_.empty() ? *target_maps_[0] : nullptr;
+    return !target_maps_.empty() ? *target_maps_[0] : Map();
   }
 
   State saved_state() const {

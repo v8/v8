@@ -59,7 +59,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   };
 
   Handle<Map> maps[] = {
-      Handle<Map>(nullptr, isolate),
+      Handle<Map>(Map(), isolate),
       factory->cell_map(),
       Map::Create(isolate, 0),
       factory->meta_map(),

@@ -21,16 +21,19 @@ class FieldType : public ObjectPtr {
   static FieldType Any();
   static Handle<FieldType> None(Isolate* isolate);
   static Handle<FieldType> Any(Isolate* isolate);
-  static FieldType Class(Map* map);
+  static FieldType Class(Map map);
   static Handle<FieldType> Class(Handle<Map> map, Isolate* isolate);
   static FieldType cast(Object* object);
+  static FieldType unchecked_cast(ObjectPtr object) {
+    return FieldType(object.ptr());
+  }
 
   bool NowContains(Object* value) const;
 
   bool NowContains(Handle<Object> value) const { return NowContains(*value); }
 
   bool IsClass() const;
-  Map* AsClass() const;
+  Map AsClass() const;
   bool IsNone() const { return *this == None(); }
   bool IsAny() const { return *this == Any(); }
   bool NowStable() const;

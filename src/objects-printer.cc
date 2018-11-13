@@ -822,7 +822,7 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
 }
 
 void Map::MapPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "Map");
+  PrintHeader(os, "Map");
   os << "\n - type: " << instance_type();
   os << "\n - instance size: ";
   if (instance_size() == kVariableSizeSentinel) {
@@ -876,9 +876,10 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   Isolate* isolate;
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (Isolate::FromWritableHeapObject(this, &isolate)) {
+  if (Isolate::FromWritableHeapObject(reinterpret_cast<HeapObject*>(ptr()),
+                                      &isolate)) {
     DisallowHeapAllocation no_gc;
-    TransitionsAccessor transitions(isolate, this, &no_gc);
+    TransitionsAccessor transitions(isolate, *this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0) {
       os << "\n - transitions #" << nof_transitions << ": ";
@@ -2413,7 +2414,7 @@ char* String::ToAsciiArray() {
 
 // static
 void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
-                                             Map* target) {
+                                             Map target) {
   os << "\n     ";
 #ifdef OBJECT_PRINT
   key->NamePrint(os);
@@ -2450,7 +2451,7 @@ void TransitionArray::PrintInternal(std::ostream& os) {
   os << "Transition array #" << num_transitions << ":";
   for (int i = 0; i < num_transitions; i++) {
     Name* key = GetKey(i);
-    Map* target = GetTarget(i);
+    Map target = GetTarget(i);
     TransitionsAccessor::PrintOneTransition(os, key, target);
   }
   os << "\n" << std::flush;
@@ -2462,7 +2463,7 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
     case kUninitialized:
       return;
     case kWeakRef: {
-      Map* target = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
+      Map target = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
       Name* key = GetSimpleTransitionKey(target);
       PrintOneTransition(os, key, target);
       break;
@@ -2487,7 +2488,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
   if (num_transitions == 0) return;
   for (int i = 0; i < num_transitions; i++) {
     Name* key = GetKey(i);
-    Map* target = GetTarget(i);
+    Map target = GetTarget(i);
     os << std::endl
        << "  " << level << "/" << i << ":" << std::setw(level * 2 + 2) << " ";
     std::stringstream ss;
@@ -2599,7 +2600,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
   } else {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
     i::DisallowHeapAllocation no_gc;
-    i::Map* map = reinterpret_cast<i::Map*>(object);
+    i::Map map = i::Map::unchecked_cast(o);
     i::TransitionsAccessor transitions(i::Isolate::Current(), map, &no_gc);
     transitions.PrintTransitionTree();
 #endif

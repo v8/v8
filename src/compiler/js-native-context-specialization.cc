@@ -2306,8 +2306,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
 
   DCHECK_EQ(MONOMORPHIC, nexus.ic_state());
 
-  Map* map = nexus.FindFirstMap();
-  if (map == nullptr) {
+  Map map = nexus.FindFirstMap();
+  if (map.is_null()) {
     // Maps are weakly held in the type feedback vector, we may not have one.
     return NoChange();
   }

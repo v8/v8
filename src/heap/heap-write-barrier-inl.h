@@ -113,6 +113,15 @@ inline void GenerationalBarrier(HeapObjectPtr* object, ObjectSlot slot,
       HeapObject::cast(value));
 }
 
+inline void GenerationalBarrier(HeapObjectPtr* object, MaybeObjectSlot slot,
+                                MaybeObject value) {
+  HeapObject* value_heap_object;
+  if (!value->GetHeapObject(&value_heap_object)) return;
+  heap_internals::GenerationalBarrierInternal(
+      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
+      value_heap_object);
+}
+
 inline void GenerationalBarrierForElements(Heap* heap, FixedArray* array,
                                            int offset, int length) {
   heap_internals::MemoryChunk* array_chunk =
@@ -154,6 +163,15 @@ inline void MarkingBarrier(HeapObjectPtr* object, ObjectSlot slot,
   heap_internals::MarkingBarrierInternal(
       reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
       HeapObject::cast(value));
+}
+
+inline void MarkingBarrier(HeapObjectPtr* object, MaybeObjectSlot slot,
+                           MaybeObject value) {
+  HeapObject* value_heap_object;
+  if (!value->GetHeapObject(&value_heap_object)) return;
+  heap_internals::MarkingBarrierInternal(
+      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
+      value_heap_object);
 }
 
 inline void MarkingBarrierForElements(Heap* heap, HeapObject* object) {

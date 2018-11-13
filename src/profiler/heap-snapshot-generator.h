@@ -356,7 +356,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractEphemeronHashTableReferences(HeapEntry* entry,
                                            EphemeronHashTable* table);
   void ExtractContextReferences(HeapEntry* entry, Context* context);
-  void ExtractMapReferences(HeapEntry* entry, Map* map);
+  void ExtractMapReferences(HeapEntry* entry, Map map);
   void ExtractSharedFunctionInfoReferences(HeapEntry* entry,
                                            SharedFunctionInfo* shared);
   void ExtractScriptReferences(HeapEntry* entry, Script* script);

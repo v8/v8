@@ -56,7 +56,7 @@ Serializer::~Serializer() {
 }
 
 #ifdef OBJECT_PRINT
-void Serializer::CountInstanceType(Map* map, int size, AllocationSpace space) {
+void Serializer::CountInstanceType(Map map, int size, AllocationSpace space) {
   int instance_type = map->instance_type();
   instance_type_count_[space][instance_type]++;
   instance_type_size_[space][instance_type] += size;
@@ -314,7 +314,7 @@ Code Serializer::CopyCode(Code code) {
 }
 
 void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
-                                                     int size, Map* map) {
+                                                     int size, Map map) {
   if (serializer_->code_address_map_) {
     const char* code_name =
         serializer_->code_address_map_->Lookup(object_->address());
@@ -473,7 +473,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   DCHECK(object_->map() != roots.native_source_string_map());
   ExternalString* string = ExternalString::cast(object_);
   int length = string->length();
-  Map* map;
+  Map map;
   int content_size;
   int allocation_size;
   const byte* resource;
@@ -593,7 +593,7 @@ void Serializer::ObjectSerializer::Serialize() {
 
 void Serializer::ObjectSerializer::SerializeObject() {
   int size = object_->Size();
-  Map* map = object_->map();
+  Map map = object_->map();
   AllocationSpace space =
       MemoryChunk::FromAddress(object_->address())->owner()->identity();
   DCHECK(space != NEW_LO_SPACE);
@@ -624,7 +624,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   }
 
   int size = object_->Size();
-  Map* map = object_->map();
+  Map map = object_->map();
   SerializerReference back_reference =
       serializer_->reference_map()->LookupReference(object_);
   DCHECK(back_reference.is_back_reference());
@@ -641,7 +641,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   SerializeContent(map, size);
 }
 
-void Serializer::ObjectSerializer::SerializeContent(Map* map, int size) {
+void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
   UnlinkWeakNextScope unlink_weak_next(serializer_->isolate()->heap(), object_);
   if (object_->IsCode()) {
     // For code objects, output raw bytes first.

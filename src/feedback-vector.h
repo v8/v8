@@ -599,12 +599,7 @@ class FeedbackNexus final {
   void Print(std::ostream& os);  // NOLINT
 
   // For map-based ICs (load, keyed-load, store, keyed-store).
-  Map* FindFirstMap() const {
-    MapHandles maps;
-    ExtractMaps(&maps);
-    if (maps.size() > 0) return *maps.at(0);
-    return nullptr;
-  }
+  Map FindFirstMap() const;
 
   InlineCacheState StateFromFeedback() const;
   int ExtractMaps(MapHandles* maps) const;

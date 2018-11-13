@@ -610,7 +610,7 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
     return elements_kind + FIRST_JS_ARRAY_MAP_SLOT;
   }
 
-  inline Map* GetInitialJSArrayMap(ElementsKind kind) const;
+  inline Map GetInitialJSArrayMap(ElementsKind kind) const;
 
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;
   static const int kNotFound = -1;

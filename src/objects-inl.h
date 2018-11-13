@@ -740,23 +740,20 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject* obj,
   return MaybeObjectSlot(FIELD_ADDR(obj, byte_offset));
 }
 
-MapWord MapWord::FromMap(const Map* map) {
-  return MapWord(reinterpret_cast<uintptr_t>(map));
-}
+MapWord MapWord::FromMap(const Map map) { return MapWord(map.ptr()); }
 
-Map* MapWord::ToMap() const { return reinterpret_cast<Map*>(value_); }
+Map MapWord::ToMap() const { return Map::unchecked_cast(ObjectPtr(value_)); }
 
 bool MapWord::IsForwardingAddress() const { return HAS_SMI_TAG(value_); }
 
 MapWord MapWord::FromForwardingAddress(HeapObject* object) {
-  Address raw = reinterpret_cast<Address>(object) - kHeapObjectTag;
-  return MapWord(static_cast<uintptr_t>(raw));
+  return MapWord(object->ptr() - kHeapObjectTag);
 }
 
 
 HeapObject* MapWord::ToForwardingAddress() {
   DCHECK(IsForwardingAddress());
-  return HeapObject::FromAddress(static_cast<Address>(value_));
+  return HeapObject::FromAddress(value_);
 }
 
 
@@ -794,37 +791,34 @@ Isolate* NeverReadOnlySpaceObject::GetIsolate() const {
   return GetHeap()->isolate();
 }
 
-Map* HeapObject::map() const {
-  return map_word().ToMap();
-}
+Map HeapObject::map() const { return map_word().ToMap(); }
 
-void HeapObject::set_map(Map* value) {
-  if (value != nullptr) {
+void HeapObject::set_map(Map value) {
+  if (!value.is_null()) {
 #ifdef VERIFY_HEAP
     Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(this, value);
 #endif
   }
   set_map_word(MapWord::FromMap(value));
-  if (value != nullptr) {
+  if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
     MarkingBarrier(this, ObjectSlot(kNullAddress), value);
   }
 }
 
-Map* HeapObject::synchronized_map() const {
+Map HeapObject::synchronized_map() const {
   return synchronized_map_word().ToMap();
 }
 
-
-void HeapObject::synchronized_set_map(Map* value) {
-  if (value != nullptr) {
+void HeapObject::synchronized_set_map(Map value) {
+  if (!value.is_null()) {
 #ifdef VERIFY_HEAP
     Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(this, value);
 #endif
   }
   synchronized_set_map_word(MapWord::FromMap(value));
-  if (value != nullptr) {
+  if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
     MarkingBarrier(this, ObjectSlot(kNullAddress), value);
@@ -833,8 +827,8 @@ void HeapObject::synchronized_set_map(Map* value) {
 
 
 // Unsafe accessor omitting write barrier.
-void HeapObject::set_map_no_write_barrier(Map* value) {
-  if (value != nullptr) {
+void HeapObject::set_map_no_write_barrier(Map value) {
+  if (!value.is_null()) {
 #ifdef VERIFY_HEAP
     Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(this, value);
 #endif
@@ -842,10 +836,10 @@ void HeapObject::set_map_no_write_barrier(Map* value) {
   set_map_word(MapWord::FromMap(value));
 }
 
-void HeapObject::set_map_after_allocation(Map* value, WriteBarrierMode mode) {
+void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
   set_map_word(MapWord::FromMap(value));
   if (mode != SKIP_WRITE_BARRIER) {
-    DCHECK_NOT_NULL(value);
+    DCHECK(!value.is_null());
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
     MarkingBarrier(this, ObjectSlot(kNullAddress), value);
@@ -870,7 +864,7 @@ void HeapObject::set_map_word(MapWord map_word) {
 
 MapWord HeapObject::synchronized_map_word() const {
   return MapWord(
-      reinterpret_cast<uintptr_t>(ACQUIRE_READ_FIELD(this, kMapOffset)));
+      reinterpret_cast<Address>(ACQUIRE_READ_FIELD(this, kMapOffset)));
 }
 
 
@@ -1052,7 +1046,7 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
   return UPDATE_WRITE_BARRIER;
 }
 
-AllocationAlignment HeapObject::RequiredAlignment(Map* map) {
+AllocationAlignment HeapObject::RequiredAlignment(Map map) {
 #ifdef V8_HOST_ARCH_32_BIT
   int instance_type = map->instance_type();
   if (instance_type == FIXED_FLOAT64_ARRAY_TYPE ||
@@ -1235,14 +1229,14 @@ int DescriptorArray::Search(Name* name, int valid_descriptors) {
                                          nullptr);
 }
 
-int DescriptorArray::Search(Name* name, Map* map) {
+int DescriptorArray::Search(Name* name, Map map) {
   DCHECK(name->IsUniqueName());
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
   return Search(name, number_of_own_descriptors);
 }
 
-int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
+int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map map) {
   DCHECK(name->IsUniqueName());
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
@@ -1490,7 +1484,7 @@ FreeSpace* FreeSpace::cast(HeapObject* o) {
   return reinterpret_cast<FreeSpace*>(o);
 }
 
-int HeapObject::SizeFromMap(Map* map) const {
+int HeapObject::SizeFromMap(Map map) const {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.

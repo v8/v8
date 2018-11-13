@@ -1945,7 +1945,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space.
-      Map* map = object->map();
+      Map map = object->map();
       CHECK(map->IsMap());
       CHECK(heap()->map_space()->Contains(map) ||
             heap()->read_only_space()->Contains(map));
@@ -2442,7 +2442,7 @@ void NewSpace::Verify(Isolate* isolate) {
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space or read-only space.
-      Map* map = object->map();
+      Map map = object->map();
       CHECK(map->IsMap());
       CHECK(heap()->map_space()->Contains(map) ||
             heap()->read_only_space()->Contains(map));
@@ -2872,9 +2872,9 @@ void FreeListCategory::Free(Address start, size_t size_in_bytes,
 void FreeListCategory::RepairFreeList(Heap* heap) {
   FreeSpace* n = top();
   while (n != nullptr) {
-    Map** map_location = reinterpret_cast<Map**>(n->address());
+    ObjectSlot map_location(n->address());
     if (*map_location == nullptr) {
-      *map_location = ReadOnlyRoots(heap).free_space_map();
+      map_location.store(ReadOnlyRoots(heap).free_space_map());
     } else {
       DCHECK(*map_location == ReadOnlyRoots(heap).free_space_map());
     }
@@ -3631,7 +3631,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
 
     // The first word should be a map, and we expect all map pointers to be
     // in map space or read-only space.
-    Map* map = object->map();
+    Map map = object->map();
     CHECK(map->IsMap());
     CHECK(heap()->map_space()->Contains(map) ||
           heap()->read_only_space()->Contains(map));

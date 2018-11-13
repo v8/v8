@@ -35,7 +35,7 @@ enum RobustnessFlag { ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL };
 class StringShape {
  public:
   inline explicit StringShape(const String* s);
-  inline explicit StringShape(Map* s);
+  inline explicit StringShape(Map s);
   inline explicit StringShape(InstanceType t);
   inline bool IsSequential();
   inline bool IsExternal();

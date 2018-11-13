@@ -115,7 +115,7 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
 
 HeapObject* Factory::AllocateRawWithImmortalMap(int size,
                                                 PretenureFlag pretenure,
-                                                Map* map,
+                                                Map map,
                                                 AllocationAlignment alignment) {
   HeapObject* result = isolate()->heap()->AllocateRawWithRetryOrFail(
       size, Heap::SelectSpace(pretenure), alignment);
@@ -294,7 +294,7 @@ Handle<FixedArray> Factory::NewFixedArrayWithFiller(RootIndex map_root_index,
                                                     PretenureFlag pretenure) {
   HeapObject* result = AllocateRawFixedArray(length, pretenure);
   DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
-  Map* map = Map::cast(isolate()->root(map_root_index));
+  Map map = Map::cast(isolate()->root(map_root_index));
   result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   Handle<FixedArray> array(FixedArray::cast(result), isolate());
   array->set_length(length);
@@ -326,7 +326,7 @@ Handle<T> Factory::NewWeakFixedArrayWithMap(RootIndex map_root_index,
 
   HeapObject* result =
       AllocateRawArray(WeakFixedArray::SizeFor(length), pretenure);
-  Map* map = Map::cast(isolate()->root(map_root_index));
+  Map map = Map::cast(isolate()->root(map_root_index));
   result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
 
   Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
@@ -472,7 +472,7 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int length,
     isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
   }
   int size = FixedDoubleArray::SizeFor(length);
-  Map* map = *fixed_double_array_map();
+  Map map = *fixed_double_array_map();
   HeapObject* result =
       AllocateRawWithImmortalMap(size, pretenure, map, kDoubleAligned);
   Handle<FixedDoubleArray> array(FixedDoubleArray::cast(result), isolate());
@@ -780,7 +780,7 @@ Handle<SeqOneByteString> Factory::AllocateRawOneByteInternalizedString(
   DCHECK_IMPLIES(length == 0,
                  isolate()->roots_table()[RootIndex::kempty_string] == nullptr);
 
-  Map* map = *one_byte_internalized_string_map();
+  Map map = *one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(length);
   HeapObject* result = AllocateRawWithImmortalMap(
       size,
@@ -799,7 +799,7 @@ Handle<String> Factory::AllocateTwoByteInternalizedString(
   CHECK_GE(String::kMaxLength, str.length());
   DCHECK_NE(0, str.length());  // Use Heap::empty_string() instead.
 
-  Map* map = *internalized_string_map();
+  Map map = *internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
   HeapObject* result = AllocateRawWithImmortalMap(size, TENURED, map);
   Handle<SeqTwoByteString> answer(SeqTwoByteString::cast(result), isolate());
@@ -821,7 +821,7 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
 
   // Compute map and object size.
   int size;
-  Map* map;
+  Map map;
   if (is_one_byte) {
     map = *one_byte_internalized_string_map();
     size = SeqOneByteString::SizeFor(chars);
@@ -1495,7 +1495,7 @@ Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
 }
 
 Handle<Struct> Factory::NewStruct(InstanceType type, PretenureFlag pretenure) {
-  Map* map;
+  Map map;
   switch (type) {
 #define MAKE_CASE(TYPE, Name, name) \
   case TYPE:                        \
@@ -1647,7 +1647,7 @@ Handle<MicrotaskQueue> Factory::NewMicrotaskQueue() {
 Handle<Foreign> Factory::NewForeign(Address addr, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   STATIC_ASSERT(Foreign::kSize <= kMaxRegularHeapObjectSize);
-  Map* map = *foreign_map();
+  Map map = *foreign_map();
   HeapObject* result =
       AllocateRawWithImmortalMap(map->instance_size(), pretenure, map);
   Handle<Foreign> foreign(Foreign::cast(result), isolate());
@@ -1726,7 +1726,7 @@ Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
   CHECK(byte_length <= kMaxInt - FixedTypedArrayBase::kDataOffset);
   size_t size =
       OBJECT_POINTER_ALIGN(byte_length + FixedTypedArrayBase::kDataOffset);
-  Map* map = ReadOnlyRoots(isolate()).MapForFixedTypedArray(array_type);
+  Map map = ReadOnlyRoots(isolate()).MapForFixedTypedArray(array_type);
   AllocationAlignment alignment =
       array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned;
   HeapObject* object = AllocateRawWithImmortalMap(static_cast<int>(size),
@@ -1846,9 +1846,9 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
                 isolate());
 }
 
-Map* Factory::InitializeMap(Map* map, InstanceType type, int instance_size,
-                            ElementsKind elements_kind,
-                            int inobject_properties) {
+Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
+                           ElementsKind elements_kind,
+                           int inobject_properties) {
   map->set_instance_type(type);
   map->set_prototype(*null_value(), SKIP_WRITE_BARRIER);
   map->set_constructor_or_backpointer(*null_value(), SKIP_WRITE_BARRIER);
@@ -2185,7 +2185,7 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value,
 
 Handle<HeapNumber> Factory::NewHeapNumber(PretenureFlag pretenure) {
   STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
-  Map* map = *heap_number_map();
+  Map map = *heap_number_map();
   HeapObject* result = AllocateRawWithImmortalMap(HeapNumber::kSize, pretenure,
                                                   map, kDoubleUnaligned);
   return handle(HeapNumber::cast(result), isolate());
@@ -2194,7 +2194,7 @@ Handle<HeapNumber> Factory::NewHeapNumber(PretenureFlag pretenure) {
 Handle<MutableHeapNumber> Factory::NewMutableHeapNumber(
     PretenureFlag pretenure) {
   STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
-  Map* map = *mutable_heap_number_map();
+  Map map = *mutable_heap_number_map();
   HeapObject* result = AllocateRawWithImmortalMap(
       MutableHeapNumber::kSize, pretenure, map, kDoubleUnaligned);
   return handle(MutableHeapNumber::cast(result), isolate());
@@ -2935,8 +2935,8 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(Handle<Map> map, int capacity,
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
   NativeContext* native_context = isolate()->raw_native_context();
-  Map* map = native_context->GetInitialJSArrayMap(elements_kind);
-  if (map == nullptr) {
+  Map map = native_context->GetInitialJSArrayMap(elements_kind);
+  if (map.is_null()) {
     JSFunction* array_function = native_context->array_function();
     map = array_function->initial_map();
   }
@@ -3743,7 +3743,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
     MaybeObject result = cache->Get(cache_index);
     HeapObject* heap_object;
     if (result->GetHeapObjectIfWeak(&heap_object)) {
-      Map* map = Map::cast(heap_object);
+      Map map = Map::cast(heap_object);
       DCHECK(!map->is_dictionary_map());
       return handle(map, isolate());
     }

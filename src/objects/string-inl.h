@@ -50,7 +50,7 @@ StringShape::StringShape(const String* str)
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
-StringShape::StringShape(Map* map) : type_(map->instance_type()) {
+StringShape::StringShape(Map map) : type_(map->instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }

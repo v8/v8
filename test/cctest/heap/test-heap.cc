@@ -68,7 +68,7 @@ namespace heap {
 static const int kPretenureCreationCount =
     AllocationSite::kPretenureMinimumCreated + 1;
 
-static void CheckMap(Map* map, int type, int instance_size) {
+static void CheckMap(Map map, int type, int instance_size) {
   CHECK(map->IsHeapObject());
 #ifdef DEBUG
   CHECK(CcTest::heap()->Contains(map));
@@ -2780,7 +2780,7 @@ TEST(OptimizedAllocationArrayLiterals) {
   CHECK(Heap::InNewSpace(o->elements()));
 }
 
-static int CountMapTransitions(i::Isolate* isolate, Map* map) {
+static int CountMapTransitions(i::Isolate* isolate, Map map) {
   DisallowHeapAllocation no_gc;
   return TransitionsAccessor(isolate, map, &no_gc).NumberOfTransitions();
 }

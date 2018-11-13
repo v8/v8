@@ -59,7 +59,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // the properties, we can undo the last map transition, with a few
   // prerequisites:
   // (1) The receiver must be a regular object and the key a unique name.
-  Map* map = receiver->map();
+  Map map = receiver->map();
   if (map->IsSpecialReceiverMap()) return false;
   if (!raw_key->IsUniqueName()) return false;
   Handle<Name> key = Handle<Name>::cast(raw_key);
@@ -252,7 +252,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
       if (maybe.FromJust()) return ReadOnlyRoots(isolate).true_value();
     }
 
-    Map* map = js_obj->map();
+    Map map = js_obj->map();
     if (!map->has_hidden_prototype() &&
         (key_is_array_index ? !map->has_indexed_interceptor()
                             : !map->has_named_interceptor())) {

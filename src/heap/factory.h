@@ -489,8 +489,8 @@ class V8_EXPORT_PRIVATE Factory {
                      int inobject_properties = 0);
   // Initializes the fields of a newly created Map. Exposed for tests and
   // heap setup; other code should just call NewMap which takes care of it.
-  Map* InitializeMap(Map* map, InstanceType type, int instance_size,
-                     ElementsKind elements_kind, int inobject_properties);
+  Map InitializeMap(Map map, InstanceType type, int instance_size,
+                    ElementsKind elements_kind, int inobject_properties);
 
   // Allocate a block of memory in the given space (filled with a filler).
   // Used as a fall-back for generated code when the space is full.
@@ -931,7 +931,7 @@ class V8_EXPORT_PRIVATE Factory {
   }
 
   HeapObject* AllocateRawWithImmortalMap(
-      int size, PretenureFlag pretenure, Map* map,
+      int size, PretenureFlag pretenure, Map map,
       AllocationAlignment alignment = kWordAligned);
   HeapObject* AllocateRawWithAllocationSite(
       Handle<Map> map, PretenureFlag pretenure,

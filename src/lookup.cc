@@ -148,7 +148,7 @@ void LookupIterator::Start() {
   holder_ = initial_holder_;
 
   JSReceiver* holder = *holder_;
-  Map* map = holder->map();
+  Map map = holder->map();
 
   state_ = LookupInHolder<is_element>(map, holder);
   if (IsFound()) return;
@@ -166,7 +166,7 @@ void LookupIterator::Next() {
   has_property_ = false;
 
   JSReceiver* holder = *holder_;
-  Map* map = holder->map();
+  Map map = holder->map();
 
   if (map->IsSpecialReceiverMap()) {
     state_ = IsElement() ? LookupInSpecialHolder<true>(map, holder)
@@ -179,7 +179,7 @@ void LookupIterator::Next() {
 }
 
 template <bool is_element>
-void LookupIterator::NextInternal(Map* map, JSReceiver* holder) {
+void LookupIterator::NextInternal(Map map, JSReceiver* holder) {
   do {
     JSReceiver* maybe_holder = NextHolder(map);
     if (maybe_holder == nullptr) {
@@ -955,7 +955,7 @@ Handle<Map> LookupIterator::GetFieldOwnerMap() const {
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(kField, property_details_.location());
   DCHECK(!IsElement());
-  Map* holder_map = holder_->map();
+  Map holder_map = holder_->map();
   return handle(holder_map->FindFieldOwner(isolate(), descriptor_number()),
                 isolate_);
 }
@@ -1050,7 +1050,7 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
   return interceptor_state_ == InterceptorState::kProcessNonMasking;
 }
 
-JSReceiver* LookupIterator::NextHolder(Map* map) {
+JSReceiver* LookupIterator::NextHolder(Map map) {
   DisallowHeapAllocation no_gc;
   if (map->prototype() == ReadOnlyRoots(heap()).null_value()) return nullptr;
   if (!check_prototype_chain() && !map->has_hidden_prototype()) return nullptr;
@@ -1072,7 +1072,7 @@ LookupIterator::State LookupIterator::NotFound(JSReceiver* const holder) const {
 namespace {
 
 template <bool is_element>
-bool HasInterceptor(Map* map) {
+bool HasInterceptor(Map map) {
   return is_element ? map->has_indexed_interceptor()
                     : map->has_named_interceptor();
 }
@@ -1081,7 +1081,7 @@ bool HasInterceptor(Map* map) {
 
 template <bool is_element>
 LookupIterator::State LookupIterator::LookupInSpecialHolder(
-    Map* const map, JSReceiver* const holder) {
+    Map const map, JSReceiver* const holder) {
   STATIC_ASSERT(INTERCEPTOR == BEFORE_PROPERTY);
   switch (state_) {
     case NOT_FOUND:
@@ -1130,7 +1130,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
 
 template <bool is_element>
 LookupIterator::State LookupIterator::LookupInRegularHolder(
-    Map* const map, JSReceiver* const holder) {
+    Map const map, JSReceiver* const holder) {
   DisallowHeapAllocation no_gc;
   if (interceptor_state_ == InterceptorState::kProcessNonMasking) {
     return NOT_FOUND;
