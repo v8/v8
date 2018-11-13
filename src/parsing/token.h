@@ -202,11 +202,7 @@ namespace internal {
   C(TARGET, "target", 0)                                           \
   C(META, "meta", 0)                                               \
   C(AS, "as", 0)                                                   \
-  C(FROM, "from", 0)                                               \
-  C(NAME, "name", 0)                                               \
-  C(CONSTRUCTOR, "constructor", 0)                                 \
-  C(PRIVATE_CONSTRUCTOR, "#constructor", 0)                        \
-  C(PROTOTYPE, "prototype", 0)
+  C(FROM, "from", 0)
 
 class Token {
  public:
@@ -227,7 +223,7 @@ class Token {
   // Predicates
   static bool IsKeyword(Value token) { return token_type[token] == 'K'; }
   static bool IsContextualKeyword(Value token) {
-    return IsInRange(token, GET, PROTOTYPE);
+    return IsInRange(token, GET, FROM);
   }
 
   static bool IsIdentifier(Value token, LanguageMode language_mode,

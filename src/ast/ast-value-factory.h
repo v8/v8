@@ -225,6 +225,7 @@ class AstBigInt {
   F(next, "next")                               \
   F(number, "number")                           \
   F(object, "object")                           \
+  F(private_constructor, "#constructor")        \
   F(proto, "__proto__")                         \
   F(prototype, "prototype")                     \
   F(return, "return")                           \

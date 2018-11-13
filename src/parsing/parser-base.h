@@ -1011,10 +1011,13 @@ class ParserBase {
                                 bool* is_computed_name, bool* is_private);
   ExpressionT ParseObjectLiteral();
   ClassLiteralPropertyT ParseClassPropertyDefinition(
-      ClassLiteralChecker* checker, ClassInfo* class_info,
-      IdentifierT* property_name, bool has_extends, bool* is_computed_name,
-      ClassLiteralProperty::Kind* property_kind, bool* is_static,
-      bool* is_private);
+      ClassInfo* class_info, IdentifierT* property_name, bool has_extends,
+      bool* is_computed_name, ClassLiteralProperty::Kind* property_kind,
+      bool* is_static, bool* is_private);
+  void CheckClassFieldName(IdentifierT name, bool is_static);
+  void CheckClassMethodName(IdentifierT name, ParsePropertyKind type,
+                            ParseFunctionFlags flags, bool is_static,
+                            bool* has_seen_constructor);
   ExpressionT ParseMemberInitializer(ClassInfo* class_info, int beg_pos,
                                      bool is_static);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(bool* has_seen_proto,
@@ -1311,36 +1314,6 @@ class ParserBase {
     }
     return factory()->NewReturnStatement(expr, pos, end_pos);
   }
-
-  // Validation per ES6 class literals.
-  class ClassLiteralChecker {
-   public:
-    explicit ClassLiteralChecker(ParserBase* parser)
-        : parser_(parser), has_seen_constructor_(false) {}
-
-    void CheckClassMethodName(Token::Value property, ParsePropertyKind type,
-                              ParseFunctionFlags flags, bool is_static);
-    void CheckClassFieldName(bool is_static);
-
-   private:
-    bool IsConstructor() {
-      return this->scanner()->CurrentMatchesContextualEscaped(
-          Token::CONSTRUCTOR);
-    }
-    bool IsPrivateConstructor() {
-      return this->scanner()->CurrentMatchesContextualEscaped(
-          Token::PRIVATE_CONSTRUCTOR);
-    }
-    bool IsPrototype() {
-      return this->scanner()->CurrentMatchesContextualEscaped(Token::PROTOTYPE);
-    }
-
-    ParserBase* parser() const { return parser_; }
-    Scanner* scanner() const { return parser_->scanner(); }
-
-    ParserBase* parser_;
-    bool has_seen_constructor_;
-  };
 
   ModuleDescriptor* module() const {
     return scope()->AsModuleScope()->module();
@@ -2116,10 +2089,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
 template <typename Impl>
 typename ParserBase<Impl>::ClassLiteralPropertyT
 ParserBase<Impl>::ParseClassPropertyDefinition(
-    ClassLiteralChecker* checker, ClassInfo* class_info, IdentifierT* name,
-    bool has_extends, bool* is_computed_name,
-    ClassLiteralProperty::Kind* property_kind, bool* is_static,
-    bool* is_private) {
+    ClassInfo* class_info, IdentifierT* name, bool has_extends,
+    bool* is_computed_name, ClassLiteralProperty::Kind* property_kind,
+    bool* is_static, bool* is_private) {
   DCHECK_NOT_NULL(class_info);
   ParseFunctionFlags function_flags = ParseFunctionFlag::kIsNormal;
   *is_static = false;
@@ -2190,7 +2162,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
           return impl()->NullLiteralProperty();
         }
         if (!*is_computed_name) {
-          checker->CheckClassFieldName(*is_static);
+          CheckClassFieldName(*name, *is_static);
         }
         ExpressionT initializer =
             ParseMemberInitializer(class_info, property_beg_pos, *is_static);
@@ -2216,8 +2188,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       //        '{' FunctionBody '}'
 
       if (!*is_computed_name) {
-        checker->CheckClassMethodName(name_token, ParsePropertyKind::kMethod,
-                                      function_flags, *is_static);
+        CheckClassMethodName(*name, ParsePropertyKind::kMethod, function_flags,
+                             *is_static, &class_info->has_seen_constructor);
       }
 
       FunctionKind kind = MethodKindFor(function_flags);
@@ -2247,8 +2219,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       bool is_get = kind == ParsePropertyKind::kAccessorGetter;
 
       if (!*is_computed_name) {
-        checker->CheckClassMethodName(name_token, kind,
-                                      ParseFunctionFlag::kIsNormal, *is_static);
+        CheckClassMethodName(*name, kind, ParseFunctionFlag::kIsNormal,
+                             *is_static, &class_info->has_seen_constructor);
         // Make sure the name expression is a string since we need a Name for
         // Runtime_DefineAccessorPropertyUnchecked and since we can determine
         // this statically we can skip the extra runtime check.
@@ -2368,7 +2340,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
       if (!*is_computed_name &&
-          (name_token == Token::IDENTIFIER || name_token == Token::STRING) &&
           impl()->IdentifierEquals(name, ast_value_factory()->proto_string())) {
         if (*has_seen_proto) {
           classifier()->RecordExpressionError(scanner()->location(),
@@ -4248,8 +4219,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     AccumulateFormalParameterContainmentErrors();
   }
 
-  ClassLiteralChecker checker(this);
-
   Expect(Token::LBRACE);
 
   const bool has_extends = !impl()->IsNull(class_info.extends);
@@ -4267,7 +4236,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     // property.
     bool is_constructor = !class_info.has_seen_constructor;
     ClassLiteralPropertyT property = ParseClassPropertyDefinition(
-        &checker, &class_info, &property_name, has_extends, &is_computed_name,
+        &class_info, &property_name, has_extends, &is_computed_name,
         &property_kind, &is_static, &is_private);
     if (!class_info.has_static_computed_names && is_static &&
         is_computed_name) {
@@ -5847,47 +5816,50 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 }
 
 template <typename Impl>
-void ParserBase<Impl>::ClassLiteralChecker::CheckClassMethodName(
-    Token::Value property, ParsePropertyKind type, ParseFunctionFlags flags,
-    bool is_static) {
+void ParserBase<Impl>::CheckClassMethodName(IdentifierT name,
+                                            ParsePropertyKind type,
+                                            ParseFunctionFlags flags,
+                                            bool is_static,
+                                            bool* has_seen_constructor) {
   DCHECK(type == ParsePropertyKind::kMethod || IsAccessor(type));
 
-  if (property == Token::SMI || property == Token::NUMBER) return;
+  AstValueFactory* avf = ast_value_factory();
 
   if (is_static) {
-    if (IsPrototype()) {
-      this->parser()->ReportMessage(MessageTemplate::kStaticPrototype);
+    if (impl()->IdentifierEquals(name, avf->prototype_string())) {
+      ReportMessage(MessageTemplate::kStaticPrototype);
       return;
     }
-  } else if (IsConstructor()) {
+  } else if (impl()->IdentifierEquals(name, avf->constructor_string())) {
     if (flags != ParseFunctionFlag::kIsNormal || IsAccessor(type)) {
       MessageTemplate msg = (flags & ParseFunctionFlag::kIsGenerator) != 0
                                 ? MessageTemplate::kConstructorIsGenerator
                                 : (flags & ParseFunctionFlag::kIsAsync) != 0
                                       ? MessageTemplate::kConstructorIsAsync
                                       : MessageTemplate::kConstructorIsAccessor;
-      this->parser()->ReportMessage(msg);
+      ReportMessage(msg);
       return;
     }
-    if (has_seen_constructor_) {
-      this->parser()->ReportMessage(MessageTemplate::kDuplicateConstructor);
+    if (*has_seen_constructor) {
+      ReportMessage(MessageTemplate::kDuplicateConstructor);
       return;
     }
-    has_seen_constructor_ = true;
+    *has_seen_constructor = true;
     return;
   }
 }
 
 template <typename Impl>
-void ParserBase<Impl>::ClassLiteralChecker::CheckClassFieldName(
-    bool is_static) {
-  if (is_static && IsPrototype()) {
-    this->parser()->ReportMessage(MessageTemplate::kStaticPrototype);
+void ParserBase<Impl>::CheckClassFieldName(IdentifierT name, bool is_static) {
+  AstValueFactory* avf = ast_value_factory();
+  if (is_static && impl()->IdentifierEquals(name, avf->prototype_string())) {
+    ReportMessage(MessageTemplate::kStaticPrototype);
     return;
   }
 
-  if (IsConstructor() || IsPrivateConstructor()) {
-    this->parser()->ReportMessage(MessageTemplate::kConstructorClassField);
+  if (impl()->IdentifierEquals(name, avf->constructor_string()) ||
+      impl()->IdentifierEquals(name, avf->private_constructor_string())) {
+    ReportMessage(MessageTemplate::kConstructorClassField);
     return;
   }
 }

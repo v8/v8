@@ -219,6 +219,7 @@
   V(_, percent_string, "percent")                                     \
   V(_, position_string, "position")                                   \
   V(_, preventExtensions_string, "preventExtensions")                 \
+  V(_, private_constructor_string, "#constructor")                    \
   V(_, Promise_string, "Promise")                                     \
   V(_, promise_string, "promise")                                     \
   V(_, proto_string, "__proto__")                                     \

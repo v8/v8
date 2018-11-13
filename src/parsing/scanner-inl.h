@@ -164,7 +164,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("catch", Token::CATCH)                            \
   KEYWORD("class", Token::CLASS)                            \
   KEYWORD("const", Token::CONST)                            \
-  KEYWORD("constructor", Token::CONSTRUCTOR)                \
   KEYWORD("continue", Token::CONTINUE)                      \
   KEYWORD_GROUP('d')                                        \
   KEYWORD("debugger", Token::DEBUGGER)                      \
@@ -196,7 +195,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD_GROUP('m')                                        \
   KEYWORD("meta", Token::META)                              \
   KEYWORD_GROUP('n')                                        \
-  KEYWORD("name", Token::NAME)                              \
   KEYWORD("new", Token::NEW)                                \
   KEYWORD("null", Token::NULL_LITERAL)                      \
   KEYWORD_GROUP('o')                                        \
@@ -205,7 +203,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("package", Token::FUTURE_STRICT_RESERVED_WORD)    \
   KEYWORD("private", Token::FUTURE_STRICT_RESERVED_WORD)    \
   KEYWORD("protected", Token::FUTURE_STRICT_RESERVED_WORD)  \
-  KEYWORD("prototype", Token::PROTOTYPE)                    \
   KEYWORD("public", Token::FUTURE_STRICT_RESERVED_WORD)     \
   KEYWORD_GROUP('r')                                        \
   KEYWORD("return", Token::RETURN)                          \
@@ -228,15 +225,13 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("while", Token::WHILE)                            \
   KEYWORD("with", Token::WITH)                              \
   KEYWORD_GROUP('y')                                        \
-  KEYWORD("yield", Token::YIELD)                            \
-  KEYWORD_GROUP('#')                                        \
-  KEYWORD("#constructor", Token::PRIVATE_CONSTRUCTOR)
+  KEYWORD("yield", Token::YIELD)
 
 V8_INLINE Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                                 int input_length) {
   DCHECK_GE(input_length, 1);
   const int kMinLength = 2;
-  const int kMaxLength = 12;
+  const int kMaxLength = 10;
   if (input_length < kMinLength || input_length > kMaxLength) {
     return Token::IDENTIFIER;
   }

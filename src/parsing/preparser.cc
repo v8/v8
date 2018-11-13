@@ -37,13 +37,11 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner,
     default:
       break;
   }
-  switch (scanner->current_contextual_token()) {
-    case Token::CONSTRUCTOR:
-      return PreParserIdentifier::Constructor();
-    case Token::NAME:
-      return PreParserIdentifier::Name();
-    default:
-      break;
+  if (string == avf->constructor_string()) {
+    return PreParserIdentifier::Constructor();
+  }
+  if (string == avf->name_string()) {
+    return PreParserIdentifier::Name();
   }
   if (scanner->literal_contains_escapes()) {
     return PreParserIdentifier::Default();
@@ -390,7 +388,6 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
 
 bool PreParser::IdentifierEquals(const PreParserIdentifier& identifier,
                                  const AstRawString* other) {
-  DCHECK_EQ(identifier.string_ == nullptr, has_error());
   return identifier.string_ == other;
 }
 
