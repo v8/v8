@@ -108,17 +108,12 @@ TEST(AllThePushbacks) {
 }
 
 TEST(ContextualKeywordTokens) {
-  auto scanner = make_scanner("function of get bla");
+  auto scanner = make_scanner("function get bla");
 
   // function (regular keyword)
   scanner->Next();
   CHECK_TOK(Token::FUNCTION, scanner->current_token());
   CHECK_TOK(Token::UNINITIALIZED, scanner->current_contextual_token());
-
-  // of (contextual keyword)
-  scanner->Next();
-  CHECK_TOK(Token::IDENTIFIER, scanner->current_token());
-  CHECK_TOK(Token::OF, scanner->current_contextual_token());
 
   // get (contextual keyword)
   scanner->Next();

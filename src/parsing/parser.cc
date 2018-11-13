@@ -928,7 +928,7 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
     const AstRawString* local_name = ParseIdentifierName();
     const AstRawString* export_name = nullptr;
     Scanner::Location location = scanner()->location();
-    if (CheckContextualKeyword(Token::AS)) {
+    if (CheckContextualKeyword(ast_value_factory()->as_string())) {
       export_name = ParseIdentifierName();
       // Set the location to the whole "a as b" string, so that it makes sense
       // both for errors due to "a" and for errors due to "b".
@@ -973,7 +973,7 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
     // In the presence of 'as', the left-side of the 'as' can
     // be any IdentifierName. But without 'as', it must be a valid
     // BindingIdentifier.
-    if (CheckContextualKeyword(Token::AS)) {
+    if (CheckContextualKeyword(ast_value_factory()->as_string())) {
       local_name = ParseIdentifierName();
     }
     if (!Token::IsIdentifier(scanner()->current_token(), LanguageMode::kStrict,
@@ -1047,7 +1047,7 @@ void Parser::ParseImportDeclaration() {
     switch (peek()) {
       case Token::MUL: {
         Consume(Token::MUL);
-        ExpectContextualKeyword(Token::AS);
+        ExpectContextualKeyword(ast_value_factory()->as_string());
         module_namespace_binding =
             ParseIdentifier(kDontAllowRestrictedIdentifiers);
         module_namespace_binding_loc = scanner()->location();
@@ -1066,7 +1066,7 @@ void Parser::ParseImportDeclaration() {
     }
   }
 
-  ExpectContextualKeyword(Token::FROM);
+  ExpectContextualKeyword(ast_value_factory()->from_string());
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
   ExpectSemicolon();
@@ -1184,10 +1184,11 @@ void Parser::ParseExportStar() {
   int pos = position();
   Consume(Token::MUL);
 
-  if (!FLAG_harmony_namespace_exports || !PeekContextualKeyword(Token::AS)) {
+  if (!FLAG_harmony_namespace_exports ||
+      !PeekContextualKeyword(ast_value_factory()->as_string())) {
     // 'export' '*' 'from' ModuleSpecifier ';'
     Scanner::Location loc = scanner()->location();
-    ExpectContextualKeyword(Token::FROM);
+    ExpectContextualKeyword(ast_value_factory()->from_string());
     Scanner::Location specifier_loc = scanner()->peek_location();
     const AstRawString* module_specifier = ParseModuleSpecifier();
     ExpectSemicolon();
@@ -1203,14 +1204,14 @@ void Parser::ParseExportStar() {
   // ~>
   //   import * as .x from "..."; export {.x as x};
 
-  ExpectContextualKeyword(Token::AS);
+  ExpectContextualKeyword(ast_value_factory()->as_string());
   const AstRawString* export_name = ParseIdentifierName();
   Scanner::Location export_name_loc = scanner()->location();
   const AstRawString* local_name = NextInternalNamespaceExportName();
   Scanner::Location local_name_loc = Scanner::Location::invalid();
   DeclareVariable(local_name, VariableMode::kConst, kCreatedInitialized, pos);
 
-  ExpectContextualKeyword(Token::FROM);
+  ExpectContextualKeyword(ast_value_factory()->from_string());
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
   ExpectSemicolon();
@@ -1258,7 +1259,7 @@ Statement* Parser::ParseExportDeclaration() {
           ParseExportClause(&reserved_loc);
       const AstRawString* module_specifier = nullptr;
       Scanner::Location specifier_loc;
-      if (CheckContextualKeyword(Token::FROM)) {
+      if (CheckContextualKeyword(ast_value_factory()->from_string())) {
         specifier_loc = scanner()->peek_location();
         module_specifier = ParseModuleSpecifier();
       } else if (reserved_loc.IsValid()) {

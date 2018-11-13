@@ -154,7 +154,6 @@ static const Token::Value one_char_tokens[] = {
 
 #define KEYWORDS(KEYWORD_GROUP, KEYWORD)                    \
   KEYWORD_GROUP('a')                                        \
-  KEYWORD("as", Token::AS)                                  \
   KEYWORD("async", Token::ASYNC)                            \
   KEYWORD("await", Token::AWAIT)                            \
   KEYWORD_GROUP('b')                                        \
@@ -179,7 +178,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("false", Token::FALSE_LITERAL)                    \
   KEYWORD("finally", Token::FINALLY)                        \
   KEYWORD("for", Token::FOR)                                \
-  KEYWORD("from", Token::FROM)                              \
   KEYWORD("function", Token::FUNCTION)                      \
   KEYWORD_GROUP('g')                                        \
   KEYWORD("get", Token::GET)                                \
@@ -192,13 +190,9 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("interface", Token::FUTURE_STRICT_RESERVED_WORD)  \
   KEYWORD_GROUP('l')                                        \
   KEYWORD("let", Token::LET)                                \
-  KEYWORD_GROUP('m')                                        \
-  KEYWORD("meta", Token::META)                              \
   KEYWORD_GROUP('n')                                        \
   KEYWORD("new", Token::NEW)                                \
   KEYWORD("null", Token::NULL_LITERAL)                      \
-  KEYWORD_GROUP('o')                                        \
-  KEYWORD("of", Token::OF)                                  \
   KEYWORD_GROUP('p')                                        \
   KEYWORD("package", Token::FUTURE_STRICT_RESERVED_WORD)    \
   KEYWORD("private", Token::FUTURE_STRICT_RESERVED_WORD)    \
@@ -212,7 +206,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("super", Token::SUPER)                            \
   KEYWORD("switch", Token::SWITCH)                          \
   KEYWORD_GROUP('t')                                        \
-  KEYWORD("target", Token::TARGET)                          \
   KEYWORD("this", Token::THIS)                              \
   KEYWORD("throw", Token::THROW)                            \
   KEYWORD("true", Token::TRUE_LITERAL)                      \

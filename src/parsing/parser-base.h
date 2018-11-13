@@ -709,27 +709,25 @@ class ParserBase {
 
   bool peek_any_identifier() { return Token::IsAnyIdentifier(peek()); }
 
-  bool CheckContextualKeyword(Token::Value token) {
-    if (PeekContextualKeyword(token)) {
+  bool PeekContextualKeyword(const AstRawString* name) {
+    return peek() == Token::IDENTIFIER &&
+           scanner()->NextSymbol(ast_value_factory()) == name;
+  }
+
+  bool CheckContextualKeyword(const AstRawString* name) {
+    if (PeekContextualKeyword(name)) {
       Consume(Token::IDENTIFIER);
       return true;
     }
     return false;
   }
 
-  bool PeekContextualKeyword(Token::Value token) {
-    DCHECK(Token::IsContextualKeyword(token));
-    return peek() == Token::IDENTIFIER &&
-           scanner()->next_contextual_token() == token;
-  }
+  void ExpectMetaProperty(const AstRawString* property_name,
+                          const char* full_name, int pos);
 
-  void ExpectMetaProperty(Token::Value property_name, const char* full_name,
-                          int pos);
-
-  void ExpectContextualKeyword(Token::Value token) {
-    DCHECK(Token::IsContextualKeyword(token));
+  void ExpectContextualKeyword(const AstRawString* name) {
     Expect(Token::IDENTIFIER);
-    if (V8_UNLIKELY(scanner()->current_contextual_token() != token)) {
+    if (V8_UNLIKELY(scanner()->CurrentSymbol(ast_value_factory()) != name)) {
       ReportUnexpectedToken(scanner()->current_token());
     }
   }
@@ -738,7 +736,7 @@ class ParserBase {
     if (Check(Token::IN)) {
       *visit_mode = ForEachStatement::ENUMERATE;
       return true;
-    } else if (CheckContextualKeyword(Token::OF)) {
+    } else if (CheckContextualKeyword(ast_value_factory()->of_string())) {
       *visit_mode = ForEachStatement::ITERATE;
       return true;
     }
@@ -746,7 +744,8 @@ class ParserBase {
   }
 
   bool PeekInOrOf() {
-    return peek() == Token::IN || PeekContextualKeyword(Token::OF);
+    return peek() == Token::IN ||
+           PeekContextualKeyword(ast_value_factory()->of_string());
   }
 
   // Checks whether an octal literal was last seen between beg_pos and end_pos.
@@ -3339,7 +3338,7 @@ ParserBase<Impl>::ParseImportExpressions() {
   Consume(Token::IMPORT);
   int pos = position();
   if (allow_harmony_import_meta() && peek() == Token::PERIOD) {
-    ExpectMetaProperty(Token::META, "import.meta", pos);
+    ExpectMetaProperty(ast_value_factory()->meta_string(), "import.meta", pos);
     if (!parsing_module_) {
       impl()->ReportMessageAt(scanner()->location(),
                               MessageTemplate::kImportMetaOutsideModule);
@@ -3389,7 +3388,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
 }
 
 template <typename Impl>
-void ParserBase<Impl>::ExpectMetaProperty(Token::Value property_name,
+void ParserBase<Impl>::ExpectMetaProperty(const AstRawString* property_name,
                                           const char* full_name, int pos) {
   Consume(Token::PERIOD);
   ExpectContextualKeyword(property_name);
@@ -3404,7 +3403,7 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseNewTargetExpression() {
   int pos = position();
-  ExpectMetaProperty(Token::TARGET, "new.target", pos);
+  ExpectMetaProperty(ast_value_factory()->target_string(), "new.target", pos);
 
   classifier()->RecordAssignmentPatternError(
       Scanner::Location(pos, end_position()),
@@ -5747,7 +5746,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     }
   }
 
-  ExpectContextualKeyword(Token::OF);
+  ExpectContextualKeyword(ast_value_factory()->of_string());
   int each_keyword_pos = scanner()->location().beg_pos;
 
   const bool kAllowIn = true;

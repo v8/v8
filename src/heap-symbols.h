@@ -97,6 +97,7 @@
   V(_, array_to_string, "[object Array]")                             \
   V(_, ArrayBuffer_string, "ArrayBuffer")                             \
   V(_, ArrayIterator_string, "Array Iterator")                        \
+  V(_, as_string, "as")                                               \
   V(_, assign_string, "assign")                                       \
   V(_, async_string, "async")                                         \
   V(_, auto_string, "auto")                                           \
@@ -155,6 +156,7 @@
   V(_, flags_string, "flags")                                         \
   V(_, Float32Array_string, "Float32Array")                           \
   V(_, Float64Array_string, "Float64Array")                           \
+  V(_, from_string, "from")                                           \
   V(_, Function_string, "Function")                                   \
   V(_, function_native_code_string, "function () { [native code] }")  \
   V(_, function_string, "function")                                   \
@@ -191,6 +193,7 @@
   V(_, Map_string, "Map")                                             \
   V(_, MapIterator_string, "Map Iterator")                            \
   V(_, message_string, "message")                                     \
+  V(_, meta_string, "meta")                                           \
   V(_, minus_Infinity_string, "-Infinity")                            \
   V(_, Module_string, "Module")                                       \
   V(_, multiline_string, "multiline")                                 \
@@ -213,6 +216,7 @@
   V(_, Object_string, "Object")                                       \
   V(_, object_string, "object")                                       \
   V(_, object_to_string, "[object Object]")                           \
+  V(_, of_string, "of")                                               \
   V(_, ok, "ok")                                                      \
   V(_, one_string, "1")                                               \
   V(_, ownKeys_string, "ownKeys")                                     \
@@ -261,6 +265,7 @@
   V(_, Symbol_string, "Symbol")                                       \
   V(_, symbol_string, "symbol")                                       \
   V(_, SyntaxError_string, "SyntaxError")                             \
+  V(_, target_string, "target")                                       \
   V(_, then_string, "then")                                           \
   V(_, this_function_string, ".this_function")                        \
   V(_, this_string, "this")                                           \

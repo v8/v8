@@ -197,12 +197,7 @@ namespace internal {
                                                                    \
   /* Contextual keyword tokens */                                  \
   C(GET, "get", 0)                                                 \
-  C(SET, "set", 0)                                                 \
-  C(OF, "of", 0)                                                   \
-  C(TARGET, "target", 0)                                           \
-  C(META, "meta", 0)                                               \
-  C(AS, "as", 0)                                                   \
-  C(FROM, "from", 0)
+  C(SET, "set", 0)
 
 class Token {
  public:
@@ -223,7 +218,7 @@ class Token {
   // Predicates
   static bool IsKeyword(Value token) { return token_type[token] == 'K'; }
   static bool IsContextualKeyword(Value token) {
-    return IsInRange(token, GET, FROM);
+    return IsInRange(token, GET, SET);
   }
 
   static bool IsIdentifier(Value token, LanguageMode language_mode,
