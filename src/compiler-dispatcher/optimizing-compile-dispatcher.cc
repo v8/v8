@@ -8,6 +8,7 @@
 #include "src/base/template-utils.h"
 #include "src/cancelable-task.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/optimized-compilation-info.h"

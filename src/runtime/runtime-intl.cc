@@ -12,6 +12,7 @@
 #include "src/api-inl.h"
 #include "src/api-natives.h"
 #include "src/arguments-inl.h"
+#include "src/counters.h"
 #include "src/date.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"

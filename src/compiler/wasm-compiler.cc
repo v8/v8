@@ -32,6 +32,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simd-scalar-lowering.h"
 #include "src/compiler/zone-stats.h"
+#include "src/counters.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"

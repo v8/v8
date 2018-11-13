@@ -5,6 +5,7 @@
 #include "src/lookup.h"
 
 #include "src/bootstrapper.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/field-type.h"

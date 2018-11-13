@@ -5,6 +5,7 @@
 #include "src/code-stub-assembler.h"
 
 #include "src/code-factory.h"
+#include "src/counters.h"
 #include "src/frames-inl.h"
 #include "src/frames.h"
 #include "src/objects/api-callbacks.h"

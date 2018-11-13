@@ -5,6 +5,7 @@
 #include "src/arguments-inl.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/conversions.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/frame-constants.h"
 #include "src/heap/factory.h"

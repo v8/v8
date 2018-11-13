@@ -9,6 +9,7 @@
 #include "src/base/iterator.h"
 #include "src/code-factory.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/counters.h"
 #include "src/debug/debug-interface.h"
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects-inl.h"

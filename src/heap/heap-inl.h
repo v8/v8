@@ -15,7 +15,6 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
-#include "src/counters-inl.h"
 #include "src/feedback-vector.h"
 
 // TODO(mstarzinger): There is one more include to remove in order to no longer
@@ -173,8 +172,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   }
 #endif
 #ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
+  IncrementObjectCounters();
 #endif
 
   bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;

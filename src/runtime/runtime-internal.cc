@@ -10,6 +10,7 @@
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"

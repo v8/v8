@@ -10,6 +10,7 @@
 #include "src/assembler-inl.h"
 #include "src/ast/prettyprinter.h"
 #include "src/callable.h"
+#include "src/counters.h"
 #include "src/disasm.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"

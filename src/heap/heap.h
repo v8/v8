@@ -1757,6 +1757,10 @@ class Heap {
   bool IsRetainingPathTarget(HeapObject* object, RetainingPathOption* option);
   void PrintRetainingPath(HeapObject* object, RetainingPathOption option);
 
+#ifdef DEBUG
+  void IncrementObjectCounters();
+#endif  // DEBUG
+
   // The amount of memory that has been freed concurrently.
   std::atomic<intptr_t> external_memory_concurrently_freed_{0};
 

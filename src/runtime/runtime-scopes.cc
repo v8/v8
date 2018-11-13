@@ -8,6 +8,7 @@
 #include "src/arguments-inl.h"
 #include "src/ast/scopes.h"
 #include "src/bootstrapper.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"

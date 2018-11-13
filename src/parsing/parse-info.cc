@@ -9,6 +9,7 @@
 #include "src/ast/ast.h"
 #include "src/base/template-utils.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"

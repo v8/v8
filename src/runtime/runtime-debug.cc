@@ -6,6 +6,7 @@
 
 #include "src/arguments-inl.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"

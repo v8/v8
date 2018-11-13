@@ -13,6 +13,7 @@
 #include "src/builtins/constants-table-builder.h"
 #include "src/compiler.h"
 #include "src/conversions.h"
+#include "src/counters.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"

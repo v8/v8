@@ -5,6 +5,7 @@
 #include "src/arguments-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
+#include "src/counters.h"
 #include "src/isolate-inl.h"
 #include "src/runtime/runtime-utils.h"
 

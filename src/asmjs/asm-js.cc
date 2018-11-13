@@ -11,6 +11,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/heap/factory.h"

@@ -11,6 +11,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/counters.h"
 #include "src/eh-frame.h"
 #include "src/frames.h"
 #include "src/lsan.h"

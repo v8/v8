@@ -9,6 +9,7 @@
 
 #include "src/accessors.h"
 #include "src/arguments-inl.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/isolate-inl.h"

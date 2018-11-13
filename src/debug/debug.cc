@@ -16,6 +16,7 @@
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"

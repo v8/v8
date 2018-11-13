@@ -7,7 +7,7 @@
 #include <cstdarg>
 
 #include "src/base/atomic-utils.h"
-#include "src/counters.h"
+#include "src/counters-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 

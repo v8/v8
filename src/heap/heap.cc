@@ -5637,5 +5637,12 @@ void Heap::SetEmbedderStackStateForNextFinalizaton(
       stack_state);
 }
 
+#ifdef DEBUG
+void Heap::IncrementObjectCounters() {
+  isolate_->counters()->objs_since_last_full()->Increment();
+  isolate_->counters()->objs_since_last_young()->Increment();
+}
+#endif  // DEBUG
+
 }  // namespace internal
 }  // namespace v8

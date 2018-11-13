@@ -6,6 +6,7 @@
 
 #include "src/arguments-inl.h"
 #include "src/conversions-inl.h"
+#include "src/counters.h"
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
