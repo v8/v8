@@ -143,7 +143,7 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
 }
 
 void DeclarationVisitor::Visit(ConstDeclaration* decl) {
-  Declarations::DeclareModuleConstant(
+  Declarations::DeclareNamespaceConstant(
       decl->name, Declarations::GetType(decl->type), decl->expression);
 }
 
@@ -272,10 +272,10 @@ void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
 Signature DeclarationVisitor::MakeSpecializedSignature(
     const SpecializationKey& key) {
   CurrentScope::Scope generic_scope(key.generic->ParentScope());
-  // Create a temporary fake-module just to temporarily declare the
+  // Create a temporary fake-namespace just to temporarily declare the
   // specialization aliases for the generic types to create a signature.
-  Module tmp_module("_tmp");
-  CurrentScope::Scope tmp_module_scope(&tmp_module);
+  Namespace tmp_namespace("_tmp");
+  CurrentScope::Scope tmp_namespace_scope(&tmp_namespace);
   DeclareSpecializedTypes(key);
   return MakeSignature(key.generic->declaration()->callable->signature.get());
 }

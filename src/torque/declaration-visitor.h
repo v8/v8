@@ -22,24 +22,24 @@ namespace torque {
 class DeclarationVisitor : public FileVisitor {
  public:
   void Visit(Ast* ast) {
-    CurrentScope::Scope current_namespace(GlobalContext::GetDefaultModule());
+    CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
     for (Declaration* child : ast->declarations()) Visit(child);
   }
 
   void Visit(Declaration* decl);
 
-  Module* GetOrCreateModule(const std::string& name) {
-    std::vector<Module*> existing_modules = FilterDeclarables<Module>(
+  Namespace* GetOrCreateNamespace(const std::string& name) {
+    std::vector<Namespace*> existing_namespaces = FilterDeclarables<Namespace>(
         Declarations::TryLookupShallow(QualifiedName(name)));
-    if (existing_modules.empty()) {
-      return Declarations::DeclareModule(name);
+    if (existing_namespaces.empty()) {
+      return Declarations::DeclareNamespace(name);
     }
-    DCHECK_EQ(1, existing_modules.size());
-    return existing_modules.front();
+    DCHECK_EQ(1, existing_namespaces.size());
+    return existing_namespaces.front();
   }
 
-  void Visit(ModuleDeclaration* decl) {
-    CurrentScope::Scope current_scope(GetOrCreateModule(decl->name));
+  void Visit(NamespaceDeclaration* decl) {
+    CurrentScope::Scope current_scope(GetOrCreateNamespace(decl->name));
     for (Declaration* child : decl->declarations) Visit(child);
   }
 

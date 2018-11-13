@@ -13,8 +13,6 @@ from subprocess import Popen, PIPE
 
 def preprocess(input):
   input = re.sub(r'(if\s+)constexpr(\s*\()', r'\1/*COxp*/\2', input)
-  input = re.sub(r'(\)\s*\:\s*\S+\s+)labels\s+',
-      r'\1,\n/*_LABELS_HOLD_*/ ', input)
   input = re.sub(r'(\s+)operator\s*(\'[^\']+\')', r'\1/*_OPE \2*/', input)
 
   # Mangle typeswitches to look like switch statements with the extra type
@@ -50,7 +48,7 @@ def preprocess(input):
 def postprocess(output):
   output = re.sub(r'\/\*COxp\*\/', r'constexpr', output)
   output = re.sub(r'(\S+)\s*: type([,>])', r'\1: type\2', output)
-  output = re.sub(r',([\n ]*)\/\*_LABELS_HOLD_\*\/', r'\1labels', output)
+  output = re.sub(r'(\n\s*)labels( [A-Z])', r'\1    labels\2', output)
   output = re.sub(r'\/\*_OPE \'([^\']+)\'\*\/', r"operator '\1'", output)
   output = re.sub(r'\/\*_TYPE\*\/(\s*)switch', r'typeswitch', output)
   output = re.sub(r'case (\w+)\:\s*\/\*_TSXDEFERRED_\*\/',

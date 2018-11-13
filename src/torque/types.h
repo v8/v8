@@ -34,7 +34,7 @@ static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
 class Value;
-class Module;
+class Namespace;
 
 class TypeBase {
  public:
@@ -375,20 +375,20 @@ class StructType final : public Type {
     ReportError(s.str());
   }
   const std::string& name() const { return name_; }
-  Module* module() const { return module_; }
+  Namespace* nspace() const { return namespace_; }
 
  private:
   friend class TypeOracle;
-  StructType(Module* module, const std::string& name,
+  StructType(Namespace* nspace, const std::string& name,
              const std::vector<NameAndType>& fields)
       : Type(Kind::kStructType, nullptr),
-        module_(module),
+        namespace_(nspace),
         name_(name),
         fields_(fields) {}
 
   const std::string& GetStructName() const { return name_; }
 
-  Module* module_;
+  Namespace* namespace_;
   std::string name_;
   std::vector<NameAndType> fields_;
 };

@@ -99,8 +99,9 @@ void CSAGenerator::EmitInstruction(
       instruction.external_name + ").code()))");
 }
 
-void CSAGenerator::EmitInstruction(const ModuleConstantInstruction& instruction,
-                                   Stack<std::string>* stack) {
+void CSAGenerator::EmitInstruction(
+    const NamespaceConstantInstruction& instruction,
+    Stack<std::string>* stack) {
   const Type* type = instruction.constant->type();
   std::vector<std::string> results;
   for (const Type* lowered : LowerType(type)) {

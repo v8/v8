@@ -439,7 +439,7 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
 base::Optional<ParseResult> MakeConstDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
-  if (!IsValidModuleConstName(name)) {
+  if (!IsValidNamespaceConstName(name)) {
     NamingConventionError("Constant", name, "kUpperCamelCase");
   }
 
@@ -485,15 +485,15 @@ base::Optional<ParseResult> MakeTypeDeclaration(
   return ParseResult{result};
 }
 
-base::Optional<ParseResult> MakeModuleDeclaration(
+base::Optional<ParseResult> MakeNamespaceDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
   if (!IsSnakeCase(name)) {
-    NamingConventionError("Module", name, "snake_case");
+    NamingConventionError("Namespace", name, "snake_case");
   }
   auto declarations = child_results->NextAs<std::vector<Declaration*>>();
   Declaration* result =
-      MakeNode<ModuleDeclaration>(std::move(name), std::move(declarations));
+      MakeNode<NamespaceDeclaration>(std::move(name), std::move(declarations));
   return ParseResult{result};
 }
 
@@ -1462,12 +1462,12 @@ struct TorqueGrammar : Grammar {
            MakeStructDeclaration)};
 
   // Result: Declaration*
-  Symbol moduleDeclaration = {
-      Rule({Token("module"), &identifier, Token("{"),
+  Symbol namespaceDeclaration = {
+      Rule({Token("namespace"), &identifier, Token("{"),
             List<Declaration*>(&declaration), Token("}")},
-           MakeModuleDeclaration)};
+           MakeNamespaceDeclaration)};
 
-  Symbol file = {Rule({&file, &moduleDeclaration}, AddGlobalDeclaration),
+  Symbol file = {Rule({&file, &namespaceDeclaration}, AddGlobalDeclaration),
                  Rule({&file, &declaration}, AddGlobalDeclaration), Rule({})};
 };
 

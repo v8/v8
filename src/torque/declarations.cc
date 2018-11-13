@@ -50,7 +50,7 @@ void CheckAlreadyDeclared(const std::string& name, const char* new_type) {
 std::vector<Declarable*> Declarations::LookupGlobalScope(
     const std::string& name) {
   std::vector<Declarable*> d =
-      GlobalContext::GetDefaultModule()->Lookup(QualifiedName(name));
+      GlobalContext::GetDefaultNamespace()->Lookup(QualifiedName(name));
   if (d.empty()) {
     std::stringstream s;
     s << "cannot find \"" << name << "\" in global scope";
@@ -138,8 +138,8 @@ Generic* Declarations::LookupUniqueGeneric(const QualifiedName& name) {
                       "generic");
 }
 
-Module* Declarations::DeclareModule(const std::string& name) {
-  return Declare(name, std::unique_ptr<Module>(new Module(name)));
+Namespace* Declarations::DeclareNamespace(const std::string& name) {
+  return Declare(name, std::unique_ptr<Namespace>(new Namespace(name)));
 }
 
 const AbstractType* Declarations::DeclareAbstractType(
@@ -174,7 +174,7 @@ Macro* Declarations::CreateMacro(
     base::Optional<std::string> external_assembler_name, Signature signature,
     bool transitioning, base::Optional<Statement*> body) {
   if (!external_assembler_name) {
-    external_assembler_name = CurrentModule()->ExternalName();
+    external_assembler_name = CurrentNamespace()->ExternalName();
   }
   return RegisterDeclarable(std::unique_ptr<Macro>(
       new Macro(std::move(external_name), std::move(readable_name),
@@ -239,11 +239,10 @@ void Declarations::DeclareExternConstant(const std::string& name,
   Declare(name, std::unique_ptr<Declarable>(result));
 }
 
-ModuleConstant* Declarations::DeclareModuleConstant(const std::string& name,
-                                                    const Type* type,
-                                                    Expression* body) {
+NamespaceConstant* Declarations::DeclareNamespaceConstant(
+    const std::string& name, const Type* type, Expression* body) {
   CheckAlreadyDeclared<Value>(name, "constant");
-  ModuleConstant* result = new ModuleConstant(name, type, body);
+  NamespaceConstant* result = new NamespaceConstant(name, type, body);
   Declare(name, std::unique_ptr<Declarable>(result));
   return result;
 }

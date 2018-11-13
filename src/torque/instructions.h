@@ -20,7 +20,7 @@ class Block;
 class Builtin;
 class ControlFlowGraph;
 class Macro;
-class ModuleConstant;
+class NamespaceConstant;
 class RuntimeFunction;
 
 #define TORQUE_INSTRUCTION_LIST(V)    \
@@ -30,7 +30,7 @@ class RuntimeFunction;
   V(PushUninitializedInstruction)     \
   V(PushCodePointerInstruction)       \
   V(CallCsaMacroInstruction)          \
-  V(ModuleConstantInstruction)        \
+  V(NamespaceConstantInstruction)     \
   V(CallCsaMacroAndBranchInstruction) \
   V(CallBuiltinInstruction)           \
   V(CallRuntimeInstruction)           \
@@ -179,12 +179,12 @@ struct PushCodePointerInstruction : InstructionBase {
   const Type* type;
 };
 
-struct ModuleConstantInstruction : InstructionBase {
+struct NamespaceConstantInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  explicit ModuleConstantInstruction(ModuleConstant* constant)
+  explicit NamespaceConstantInstruction(NamespaceConstant* constant)
       : constant(constant) {}
 
-  ModuleConstant* constant;
+  NamespaceConstant* constant;
 };
 
 struct CallCsaMacroInstruction : InstructionBase {

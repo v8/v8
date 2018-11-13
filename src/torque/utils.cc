@@ -109,7 +109,7 @@ bool ContainsUpperCase(const std::string& s) {
   return std::any_of(s.begin(), s.end(), [](char c) { return isupper(c); });
 }
 
-// Torque has some module constants that are used like language level
+// Torque has some namespace constants that are used like language level
 // keywords, e.g.: 'True', 'Undefined', etc.
 // These do not need to follow the default naming convention for constants.
 bool IsKeywordLikeName(const std::string& s) {
@@ -149,7 +149,7 @@ bool IsSnakeCase(const std::string& s) {
   return !ContainsUpperCase(s);
 }
 
-bool IsValidModuleConstName(const std::string& s) {
+bool IsValidNamespaceConstName(const std::string& s) {
   if (s.empty()) return false;
   if (IsKeywordLikeName(s)) return true;
 

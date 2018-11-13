@@ -58,8 +58,8 @@ int WrappedMain(int argc, const char** argv) {
     DeclarationVisitor().Visit(GlobalContext::Get().ast());
 
     ImplementationVisitor visitor;
-    for (Module* module : GlobalContext::Get().GetModules()) {
-      visitor.BeginModuleFile(module);
+    for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
+      visitor.BeginNamespaceFile(n);
     }
 
     visitor.VisitAllDeclarables();
@@ -68,9 +68,9 @@ int WrappedMain(int argc, const char** argv) {
     output_header_path += "/builtin-definitions-from-dsl.h";
     visitor.GenerateBuiltinDefinitions(output_header_path);
 
-    for (Module* module : GlobalContext::Get().GetModules()) {
-      visitor.EndModuleFile(module);
-      visitor.GenerateImplementation(output_directory, module);
+    for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
+      visitor.EndNamespaceFile(n);
+      visitor.GenerateImplementation(output_directory, n);
     }
   }
 

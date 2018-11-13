@@ -230,7 +230,7 @@ class ImplementationVisitor : public FileVisitor {
   void Visit(TypeAlias* decl);
   void Visit(Macro* macro);
   void Visit(Builtin* builtin);
-  void Visit(ModuleConstant* decl);
+  void Visit(NamespaceConstant* decl);
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
   const Type* Visit(TailCallStatement* stmt);
@@ -264,10 +264,10 @@ class ImplementationVisitor : public FileVisitor {
   const Type* Visit(DebugStatement* stmt);
   const Type* Visit(AssertStatement* stmt);
 
-  void BeginModuleFile(Module* module);
-  void EndModuleFile(Module* module);
+  void BeginNamespaceFile(Namespace* nspace);
+  void EndNamespaceFile(Namespace* nspace);
 
-  void GenerateImplementation(const std::string& dir, Module* module);
+  void GenerateImplementation(const std::string& dir, Namespace* nspace);
 
   DECLARE_CONTEXTUAL_VARIABLE(ValueBindingsManager,
                               BindingsManager<LocalValue>);
@@ -423,9 +423,9 @@ class ImplementationVisitor : public FileVisitor {
                                          size_t i);
   std::string ExternalParameterName(const std::string& name);
 
-  std::ostream& source_out() { return CurrentModule()->source_stream(); }
+  std::ostream& source_out() { return CurrentNamespace()->source_stream(); }
 
-  std::ostream& header_out() { return CurrentModule()->header_stream(); }
+  std::ostream& header_out() { return CurrentNamespace()->header_stream(); }
 
   CfgAssembler& assembler() { return *assembler_; }
 

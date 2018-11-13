@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module data_view {
+namespace data_view {
   extern operator '.buffer'
       macro LoadJSArrayBufferViewBuffer(JSArrayBufferView): JSArrayBuffer;
   extern operator '.byte_length'
@@ -68,8 +68,8 @@ module data_view {
     return IsDetachedBuffer(view.buffer);
   }
 
-  macro ValidateDataView(
-      context: Context, o: Object, method: String): JSDataView {
+  macro ValidateDataView(context: Context, o: Object, method: String):
+      JSDataView {
     try {
       return Cast<JSDataView>(o) otherwise CastError;
     }
@@ -345,8 +345,8 @@ module data_view {
     return result;
   }
 
-  macro MakeBigInt(
-      lowWord: uint32, highWord: uint32, signed: constexpr bool): BigInt {
+  macro MakeBigInt(lowWord: uint32, highWord: uint32, signed: constexpr bool):
+      BigInt {
     // A BigInt digit has the platform word size, so we only need one digit
     // on 64-bit platforms but may need two on 32-bit.
     if constexpr (Is64()) {
@@ -537,8 +537,8 @@ module data_view {
   extern macro TruncateFloat64ToFloat32(float64): float32;
   extern macro TruncateFloat64ToWord32(float64): uint32;
 
-  extern macro DataViewBuiltinsAssembler::StoreWord8(
-      RawPtr, uintptr, uint32): void;
+  extern macro DataViewBuiltinsAssembler::StoreWord8(RawPtr, uintptr, uint32):
+      void;
 
   macro StoreDataView8(buffer: JSArrayBuffer, offset: uintptr, value: uint32) {
     StoreWord8(buffer.backing_store, offset, value & 0xFF);

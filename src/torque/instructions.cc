@@ -65,8 +65,8 @@ void PushCodePointerInstruction::TypeInstruction(Stack<const Type*>* stack,
   stack->Push(type);
 }
 
-void ModuleConstantInstruction::TypeInstruction(Stack<const Type*>* stack,
-                                                ControlFlowGraph* cfg) const {
+void NamespaceConstantInstruction::TypeInstruction(
+    Stack<const Type*>* stack, ControlFlowGraph* cfg) const {
   stack->PushMany(LowerType(constant->type()));
 }
 

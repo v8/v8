@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   type LoadJoinElementFn = builtin(Context, JSReceiver, Number) => Object;
 
   // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
@@ -12,8 +12,8 @@ module array {
       FixedArray, intptr, String, String): String;
 
   extern macro ArrayBuiltinsAssembler::CallArrayJoin(
-      Context, constexpr bool, JSReceiver, String, Number, Object, Object):
-      String
+      Context, constexpr bool, JSReceiver, String, Number, Object,
+      Object): String
       labels IfException(Object);
 
   transitioning builtin LoadJoinElement<T: type>(
@@ -98,8 +98,8 @@ module array {
   // Calculates the running total length of the resulting string.  If the
   // calculated length exceeds the maximum string length (see
   // String::kMaxLength), throws a range error.
-  macro AddStringLength(implicit context: Context)(
-      lenA: intptr, lenB: intptr): intptr {
+  macro AddStringLength(implicit context: Context)(lenA: intptr, lenB: intptr):
+      intptr {
     try {
       const length: intptr = TryIntPtrAdd(lenA, lenB) otherwise IfOverflow;
       if (length > kStringMaxLength) goto IfOverflow;
@@ -217,8 +217,8 @@ module array {
     return Buffer{fixedArray, index, totalStringLength, buffer.isOneByte};
   }
 
-  macro BufferJoin(implicit context: Context)(
-      buffer: Buffer, sep: String): String {
+  macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
+      String {
     assert(IsValidPositiveSmi(buffer.totalStringLength));
     if (buffer.totalStringLength == 0) return kEmptyString;
 
@@ -428,7 +428,7 @@ module array {
 
   // Fast path the common non-nested calls.
   macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver)
-  labels CycleDetected {
+      labels CycleDetected {
     try {
       const stack: FixedArray = LoadJoinStack()
           otherwise IfUninitialized;
@@ -526,8 +526,8 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.join
-  transitioning javascript builtin ArrayPrototypeJoin(
-      context: Context, receiver: Object, ...arguments): Object {
+  transitioning javascript builtin
+  ArrayPrototypeJoin(context: Context, receiver: Object, ...arguments): Object {
     const separator: Object = arguments[0];
     return CycleProtectedArrayJoin(
         false, receiver, separator, Undefined, Undefined);

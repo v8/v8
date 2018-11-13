@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   macro LoadWithHoleCheck<Elements: type>(
       elements: FixedArrayBase, index: Smi): Object
       labels IfHole;

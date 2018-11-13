@@ -63,7 +63,7 @@ namespace torque {
   V(SpecializationDeclaration)            \
   V(ExternConstDeclaration)               \
   V(StructDeclaration)                    \
-  V(ModuleDeclaration)                    \
+  V(NamespaceDeclaration)                 \
   V(ConstDeclaration)
 
 #define AST_CALLABLE_NODE_KIND_LIST(V) \
@@ -151,12 +151,12 @@ struct Statement : AstNode {
   DEFINE_AST_NODE_INNER_BOILERPLATE(Statement)
 };
 
-class Module;
+class Namespace;
 
-struct ModuleDeclaration : Declaration {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(ModuleDeclaration)
-  ModuleDeclaration(SourcePosition pos, std::string name,
-                    std::vector<Declaration*> declarations)
+struct NamespaceDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(NamespaceDeclaration)
+  NamespaceDeclaration(SourcePosition pos, std::string name,
+                       std::vector<Declaration*> declarations)
       : Declaration(kKind, pos),
         declarations(std::move(declarations)),
         name(name) {}

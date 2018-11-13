@@ -194,7 +194,7 @@ std::string StructType::ToExplicitString() const {
 }
 
 std::string StructType::GetGeneratedTypeName() const {
-  return module_->ExternalName() + "::" + GetStructName();
+  return namespace_->ExternalName() + "::" + GetStructName();
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {

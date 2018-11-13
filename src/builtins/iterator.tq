@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module iterator {
+namespace iterator {
   extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
       implicit context: Context)(Object): Object;
   extern macro IteratorBuiltinsAssembler::GetIterator(
@@ -26,8 +26,8 @@ module iterator {
   extern macro IteratorBuiltinsAssembler::IterableToList(
       implicit context: Context)(Object, Object): JSArray;
 
-  extern builtin IterableToListMayPreserveHoles(implicit context: Context)(
-      Object, Object);
-  extern builtin IterableToListWithSymbolLookup(implicit context: Context)(
-      Object);
+  extern builtin IterableToListMayPreserveHoles(implicit context:
+                                                    Context)(Object, Object);
+  extern builtin IterableToListWithSymbolLookup(implicit context:
+                                                    Context)(Object);
 }

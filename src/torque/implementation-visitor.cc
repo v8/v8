@@ -45,9 +45,9 @@ const Type* ImplementationVisitor::Visit(Statement* stmt) {
   return result;
 }
 
-void ImplementationVisitor::BeginModuleFile(Module* module) {
-  std::ostream& source = module->source_stream();
-  std::ostream& header = module->header_stream();
+void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
+  std::ostream& source = nspace->source_stream();
+  std::ostream& header = nspace->header_stream();
 
   source << "#include \"src/objects/arguments.h\"\n";
   source << "#include \"src/builtins/builtins-utils-gen.h\"\n";
@@ -58,11 +58,11 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
   source << "#include \"src/objects.h\"\n";
   source << "#include \"src/objects/bigint.h\"\n";
 
-  for (Module* m : GlobalContext::Get().GetModules()) {
+  for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
     source << "#include \"torque-generated/builtins-" +
-                  DashifyString(m->name()) + "-from-dsl-gen.h\"\n";
-    if (m != GlobalContext::GetDefaultModule()) {
-      source << "#include \"src/builtins/builtins-" + DashifyString(m->name()) +
+                  DashifyString(n->name()) + "-from-dsl-gen.h\"\n";
+    if (n != GlobalContext::GetDefaultNamespace()) {
+      source << "#include \"src/builtins/builtins-" + DashifyString(n->name()) +
                     "-gen.h\"\n";
     }
   }
@@ -77,7 +77,7 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
       << "using ScopedCatch = compiler::CodeAssemblerScopedExceptionHandler;\n"
       << "\n";
 
-  std::string upper_name(module->name());
+  std::string upper_name(nspace->name());
   transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
             ::toupper);
   std::string headerDefine =
@@ -91,11 +91,11 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
          << "namespace internal {\n"
          << "\n";
 
-  header << "class " << module->ExternalName()
+  header << "class " << nspace->ExternalName()
          << ": public TorqueAssembler {\n";
   header << " public:\n";
   header
-      << "  explicit " << module->ExternalName()
+      << "  explicit " << nspace->ExternalName()
       << "(compiler::CodeAssemblerState* state) : TorqueAssembler(state) {}\n";
 
   header << "\n";
@@ -106,11 +106,11 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
   header << "  using SloppyTNode = compiler::SloppyTNode<T>;\n\n";
 }
 
-void ImplementationVisitor::EndModuleFile(Module* module) {
-  std::ostream& source = module->source_stream();
-  std::ostream& header = module->header_stream();
+void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
+  std::ostream& source = nspace->source_stream();
+  std::ostream& header = nspace->header_stream();
 
-  std::string upper_name(module->name());
+  std::string upper_name(nspace->name());
   transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
             ::toupper);
   std::string headerDefine =
@@ -127,7 +127,7 @@ void ImplementationVisitor::EndModuleFile(Module* module) {
   header << "#endif  // " << headerDefine << "\n";
 }
 
-void ImplementationVisitor::Visit(ModuleConstant* decl) {
+void ImplementationVisitor::Visit(NamespaceConstant* decl) {
   Signature signature{{}, base::nullopt, {{}, false}, 0, decl->type(), {}};
   const std::string& name = decl->name();
 
@@ -138,7 +138,7 @@ void ImplementationVisitor::Visit(ModuleConstant* decl) {
   header_out() << ";\n";
 
   GenerateFunctionDeclaration(source_out(),
-                              CurrentModule()->ExternalName() + "::", name,
+                              CurrentNamespace()->ExternalName() + "::", name,
                               signature, {});
   source_out() << " {\n";
 
@@ -215,7 +215,7 @@ void ImplementationVisitor::Visit(Macro* macro) {
   header_out() << ";\n";
 
   GenerateMacroFunctionDeclaration(
-      source_out(), CurrentModule()->ExternalName() + "::", macro);
+      source_out(), CurrentNamespace()->ExternalName() + "::", macro);
   source_out() << " {\n";
 
   Stack<std::string> lowered_parameters;
@@ -339,7 +339,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
   const std::string& name = builtin->ExternalName();
   const Signature& signature = builtin->signature();
   source_out() << "TF_BUILTIN(" << name << ", "
-               << CurrentModule()->ExternalName() << ") {\n";
+               << CurrentNamespace()->ExternalName() << ") {\n";
   CurrentCallable::Scope current_callable(builtin);
 
   Stack<const Type*> parameter_types;
@@ -1167,14 +1167,14 @@ const Type* ImplementationVisitor::Visit(ForLoopStatement* stmt) {
 }
 
 void ImplementationVisitor::GenerateImplementation(const std::string& dir,
-                                                   Module* module) {
-  std::string new_source(module->source());
+                                                   Namespace* nspace) {
+  std::string new_source(nspace->source());
   std::string base_file_name =
-      "builtins-" + DashifyString(module->name()) + "-from-dsl-gen";
+      "builtins-" + DashifyString(nspace->name()) + "-from-dsl-gen";
 
   std::string source_file_name = dir + "/" + base_file_name + ".cc";
   ReplaceFileContentsIfDifferent(source_file_name, new_source);
-  std::string new_header(module->header());
+  std::string new_header(nspace->header());
   std::string header_file_name = dir + "/" + base_file_name + ".h";
   ReplaceFileContentsIfDifferent(header_file_name, new_header);
 }
@@ -1197,7 +1197,7 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
   std::string return_type_name(signature.return_type->GetGeneratedTypeName());
   if (const StructType* struct_type =
           StructType::DynamicCast(signature.return_type)) {
-    o << struct_type->module()->ExternalName() << "::";
+    o << struct_type->nspace()->ExternalName() << "::";
   } else if (macro_prefix != "" && (return_type_name.length() > 5) &&
              (return_type_name.substr(0, 5) == "TNode")) {
     o << "compiler::";
@@ -1520,18 +1520,18 @@ LocationReference ImplementationVisitor::GetLocationReference(
     }
   }
   Value* value = Declarations::LookupValue(name);
-  if (auto* constant = ModuleConstant::DynamicCast(value)) {
+  if (auto* constant = NamespaceConstant::DynamicCast(value)) {
     if (constant->type()->IsConstexpr()) {
       return LocationReference::Temporary(
           VisitResult(constant->type(), constant->constant_name() + "()"),
-          "module constant " + expr->name);
+          "namespace constant " + expr->name);
     }
-    assembler().Emit(ModuleConstantInstruction{constant});
+    assembler().Emit(NamespaceConstantInstruction{constant});
     StackRange stack_range =
         assembler().TopRange(LoweredSlotCount(constant->type()));
     return LocationReference::Temporary(
         VisitResult(constant->type(), stack_range),
-        "module constant " + expr->name);
+        "namespace constant " + expr->name);
   }
   ExternConstant* constant = ExternConstant::cast(value);
   return LocationReference::Temporary(constant->value(),
@@ -2016,11 +2016,11 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
       return Visit(Builtin::cast(declarable));
     case Declarable::kTypeAlias:
       return Visit(TypeAlias::cast(declarable));
-    case Declarable::kModuleConstant:
-      return Visit(ModuleConstant::cast(declarable));
+    case Declarable::kNamespaceConstant:
+      return Visit(NamespaceConstant::cast(declarable));
     case Declarable::kRuntimeFunction:
     case Declarable::kExternConstant:
-    case Declarable::kModule:
+    case Declarable::kNamespace:
     case Declarable::kGeneric:
       return;
   }

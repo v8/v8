@@ -30,7 +30,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const StructType* GetStructType(
       const std::string& name, const std::vector<NameAndType>& fields) {
-    StructType* result = new StructType(CurrentModule(), name, fields);
+    StructType* result = new StructType(CurrentNamespace(), name, fields);
     Get().struct_types_.push_back(std::unique_ptr<StructType>(result));
     return result;
   }

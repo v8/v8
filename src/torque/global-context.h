@@ -19,9 +19,10 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     CurrentScope::Scope current_scope(nullptr);
     CurrentSourcePosition::Scope current_source_position(
         SourcePosition{CurrentSourceFile::Get(), -1, -1});
-    default_module_ = RegisterDeclarable(base::make_unique<Module>("base"));
+    default_namespace_ =
+        RegisterDeclarable(base::make_unique<Namespace>("base"));
   }
-  static Module* GetDefaultModule() { return Get().default_module_; }
+  static Namespace* GetDefaultNamespace() { return Get().default_namespace_; }
   template <class T>
   T* RegisterDeclarable(std::unique_ptr<T> d) {
     T* ptr = d.get();
@@ -33,11 +34,11 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return Get().declarables_;
   }
 
-  static const std::vector<Module*> GetModules() {
-    std::vector<Module*> result;
+  static const std::vector<Namespace*> GetNamespaces() {
+    std::vector<Namespace*> result;
     for (auto& declarable : AllDeclarables()) {
-      if (Module* m = Module::DynamicCast(declarable.get())) {
-        result.push_back(m);
+      if (Namespace* n = Namespace::DynamicCast(declarable.get())) {
+        result.push_back(n);
       }
     }
     return result;
@@ -49,7 +50,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
 
  private:
   bool verbose_;
-  Module* default_module_;
+  Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
 };

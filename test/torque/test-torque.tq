@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module test {
+namespace test {
   macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
     if constexpr ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
       return true;

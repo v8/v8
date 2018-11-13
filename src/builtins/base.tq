@@ -374,8 +374,8 @@ extern operator '<=' macro BranchIfNumberLessThanOrEqual(Number, Number): never
 
 extern operator '>' macro BranchIfNumberGreaterThan(Number, Number): never
     labels Taken, NotTaken;
-extern operator '>=' macro BranchIfNumberGreaterThanOrEqual(Number, Number):
-    never
+extern operator '>=' macro BranchIfNumberGreaterThanOrEqual(
+    Number, Number): never
     labels Taken, NotTaken;
 
 extern operator '==' macro WordEqual(Object, Object): bool;
@@ -938,8 +938,7 @@ extern macro BranchIfFastJSArrayForCopy(Object, Context): never
     labels Taken, NotTaken;
 extern macro BranchIfNotFastJSArray(Object, Context): never
     labels Taken, NotTaken;
-macro BranchIfNotFastJSArrayForCopy(implicit context: Context)(o: Object):
-    never
+macro BranchIfNotFastJSArrayForCopy(implicit context: Context)(o: Object): never
     labels Taken, NotTaken {
   BranchIfFastJSArrayForCopy(o, context) otherwise NotTaken, Taken;
 }
@@ -1017,7 +1016,7 @@ extern macro GetNumberDictionaryNumberOfElements(NumberDictionary): Smi;
 extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): Object
     labels NotData, IfHole;
 extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, Object)
-labels NotData, IfHole, ReadOnly;
+    labels NotData, IfHole, ReadOnly;
 
 extern macro IsFastElementsKind(ElementsKind): bool;
 extern macro IsDoubleElementsKind(ElementsKind): bool;
@@ -1165,9 +1164,8 @@ LoadElementNoHole<FixedDoubleArray>(a: JSArray, index: Smi): Object
   }
 }
 
-extern macro TransitionElementsKind(JSObject, Map, ElementsKind, ElementsKind):
-    void
-    labels Bailout;
+extern macro TransitionElementsKind(
+    JSObject, Map, ElementsKind, ElementsKind): void labels Bailout;
 
 extern macro IsCallable(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;

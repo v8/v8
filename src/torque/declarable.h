@@ -41,26 +41,26 @@ class Declarable {
  public:
   virtual ~Declarable() = default;
   enum Kind {
-    kModule,
+    kNamespace,
     kMacro,
     kBuiltin,
     kRuntimeFunction,
     kGeneric,
     kTypeAlias,
     kExternConstant,
-    kModuleConstant
+    kNamespaceConstant
   };
   Kind kind() const { return kind_; }
-  bool IsModule() const { return kind() == kModule; }
+  bool IsNamespace() const { return kind() == kNamespace; }
   bool IsMacro() const { return kind() == kMacro; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
   bool IsGeneric() const { return kind() == kGeneric; }
   bool IsTypeAlias() const { return kind() == kTypeAlias; }
   bool IsExternConstant() const { return kind() == kExternConstant; }
-  bool IsModuleConstant() const { return kind() == kModuleConstant; }
-  bool IsValue() const { return IsExternConstant() || IsModuleConstant(); }
-  bool IsScope() const { return IsModule() || IsCallable(); }
+  bool IsNamespaceConstant() const { return kind() == kNamespaceConstant; }
+  bool IsValue() const { return IsExternConstant() || IsNamespaceConstant(); }
+  bool IsScope() const { return IsNamespace() || IsCallable(); }
   bool IsCallable() const {
     return IsMacro() || IsBuiltin() || IsRuntimeFunction();
   }
@@ -143,11 +143,11 @@ class Scope : public Declarable {
   std::unordered_map<std::string, std::vector<Declarable*>> declarations_;
 };
 
-class Module : public Scope {
+class Namespace : public Scope {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Module, module);
-  explicit Module(const std::string& name)
-      : Scope(Declarable::kModule), name_(name) {}
+  DECLARE_DECLARABLE_BOILERPLATE(Namespace, namespace);
+  explicit Namespace(const std::string& name)
+      : Scope(Declarable::kNamespace), name_(name) {}
   const std::string& name() const { return name_; }
   std::string ExternalName() const {
     return CamelifyString(name()) + "BuiltinsFromDSLAssembler";
@@ -163,11 +163,11 @@ class Module : public Scope {
   std::stringstream source_stream_;
 };
 
-inline Module* CurrentModule() {
+inline Namespace* CurrentNamespace() {
   Scope* scope = CurrentScope::Get();
   while (true) {
-    if (Module* m = Module::DynamicCast(scope)) {
-      return m;
+    if (Namespace* n = Namespace::DynamicCast(scope)) {
+      return n;
     }
     scope = scope->ParentScope();
   }
@@ -196,21 +196,21 @@ class Value : public Declarable {
   base::Optional<VisitResult> value_;
 };
 
-class ModuleConstant : public Value {
+class NamespaceConstant : public Value {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(ModuleConstant, constant);
+  DECLARE_DECLARABLE_BOILERPLATE(NamespaceConstant, constant);
 
   const std::string& constant_name() const { return constant_name_; }
   Expression* body() { return body_; }
   std::string ExternalAssemblerName() const {
-    return Module::cast(ParentScope())->ExternalName();
+    return Namespace::cast(ParentScope())->ExternalName();
   }
 
  private:
   friend class Declarations;
-  explicit ModuleConstant(std::string constant_name, const Type* type,
-                          Expression* body)
-      : Value(Declarable::kModuleConstant, type, constant_name),
+  explicit NamespaceConstant(std::string constant_name, const Type* type,
+                             Expression* body)
+      : Value(Declarable::kNamespaceConstant, type, constant_name),
         constant_name_(std::move(constant_name)),
         body_(body) {}
 

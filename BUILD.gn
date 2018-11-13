@@ -930,7 +930,7 @@ torque_files = [
   "third_party/v8/builtins/array-sort.tq",
 ]
 
-torque_modules = [
+torque_namespaces = [
   "base",
   "array",
   "iterator",
@@ -957,10 +957,10 @@ action("run_torque") {
   outputs = [
     "$target_gen_dir/torque-generated/builtin-definitions-from-dsl.h",
   ]
-  foreach(module, torque_modules) {
+  foreach(namespace, torque_namespaces) {
     outputs += [
-      "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.cc",
-      "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.h",
+      "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.cc",
+      "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.h",
     ]
   }
 
@@ -992,10 +992,10 @@ v8_source_set("torque_generated_initializers") {
   }
 
   sources = []
-  foreach(module, torque_modules) {
+  foreach(namespace, torque_namespaces) {
     sources += [
-      "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.cc",
-      "$target_gen_dir/torque-generated/builtins-$module-from-dsl-gen.h",
+      "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.cc",
+      "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.h",
     ]
   }
 

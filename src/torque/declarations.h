@@ -72,7 +72,7 @@ class Declarations {
   static std::vector<Generic*> LookupGeneric(const std::string& name);
   static Generic* LookupUniqueGeneric(const QualifiedName& name);
 
-  static Module* DeclareModule(const std::string& name);
+  static Namespace* DeclareNamespace(const std::string& name);
 
   static const AbstractType* DeclareAbstractType(
       const std::string& name, bool transient, const std::string& generated,
@@ -110,9 +110,9 @@ class Declarations {
 
   static void DeclareExternConstant(const std::string& name, const Type* type,
                                     std::string value);
-  static ModuleConstant* DeclareModuleConstant(const std::string& name,
-                                               const Type* type,
-                                               Expression* body);
+  static NamespaceConstant* DeclareNamespaceConstant(const std::string& name,
+                                                     const Type* type,
+                                                     Expression* body);
 
   static Generic* DeclareGeneric(const std::string& name,
                                  GenericDeclaration* generic);

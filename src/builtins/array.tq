@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   // Naming convention from elements.cc. We have a similar intent but implement
   // fastpaths using generics instead of using a class hierarchy for elements
   // kinds specific implementations.
