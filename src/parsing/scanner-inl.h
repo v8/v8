@@ -157,7 +157,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD("as", Token::AS)                                  \
   KEYWORD("async", Token::ASYNC)                            \
   KEYWORD("await", Token::AWAIT)                            \
-  KEYWORD("anonymous", Token::ANONYMOUS)                    \
   KEYWORD_GROUP('b')                                        \
   KEYWORD("break", Token::BREAK)                            \
   KEYWORD_GROUP('c')                                        \

@@ -207,8 +207,7 @@ namespace internal {
   C(CONSTRUCTOR, "constructor", 0)                                 \
   C(PRIVATE_CONSTRUCTOR, "#constructor", 0)                        \
   C(PROTOTYPE, "prototype", 0)                                     \
-  C(UNDEFINED, "undefined", 0)                                     \
-  C(ANONYMOUS, "anonymous", 0)
+  C(UNDEFINED, "undefined", 0)
 
 class Token {
  public:
@@ -229,7 +228,7 @@ class Token {
   // Predicates
   static bool IsKeyword(Value token) { return token_type[token] == 'K'; }
   static bool IsContextualKeyword(Value token) {
-    return IsInRange(token, GET, ANONYMOUS);
+    return IsInRange(token, GET, UNDEFINED);
   }
 
   static bool IsIdentifier(Value token, LanguageMode language_mode,

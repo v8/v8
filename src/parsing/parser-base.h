@@ -3305,7 +3305,8 @@ ParserBase<Impl>::ParseFunctionExpression() {
     // "anonymous". We just want that name in the toString().
     Consume(Token::IDENTIFIER);
     DCHECK_IMPLIES(!has_error(),
-                   scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
+                   scanner()->CurrentSymbol(ast_value_factory()) ==
+                       ast_value_factory()->anonymous_string());
   } else if (peek_any_identifier()) {
     bool is_await = false;
     name = ParseIdentifierOrStrictReservedWord(
@@ -4336,7 +4337,8 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral() {
     // in the case of a stackoverflow.
     Consume(Token::IDENTIFIER);
     DCHECK_IMPLIES(!has_error(),
-                   scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
+                   scanner()->CurrentSymbol(ast_value_factory()) ==
+                       ast_value_factory()->anonymous_string());
   } else if (peek_any_identifier()) {
     type = FunctionLiteral::kNamedExpression;
     bool is_await = false;

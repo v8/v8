@@ -195,6 +195,7 @@ class AstBigInt {
 
 // For generating constants.
 #define AST_STRING_CONSTANTS(F)                 \
+  F(anonymous, "anonymous")                     \
   F(anonymous_function, "(anonymous function)") \
   F(arguments, "arguments")                     \
   F(async, "async")                             \
