@@ -60,7 +60,6 @@ class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
-class TorqueAssembler;
 class WeakFactoryCleanupJobTask;
 class Zone;
 
@@ -830,11 +829,27 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Branch(SloppyTNode<IntegralT> condition, Label* true_label,
               Label* false_label);
 
-  template <class... Ts>
-  using PLabel = compiler::CodeAssemblerParameterizedLabel<Ts...>;
+  template <class T>
+  TNode<T> Uninitialized() {
+    return {};
+  }
+
+  template <class... T>
+  void Bind(CodeAssemblerParameterizedLabel<T...>* label, TNode<T>*... phis) {
+    Bind(label->plain_label());
+    label->CreatePhis(phis...);
+  }
+  template <class... T, class... Args>
+  void Branch(TNode<BoolT> condition,
+              CodeAssemblerParameterizedLabel<T...>* if_true,
+              CodeAssemblerParameterizedLabel<T...>* if_false, Args... args) {
+    if_true->AddInputs(args...);
+    if_false->AddInputs(args...);
+    Branch(condition, if_true->plain_label(), if_false->plain_label());
+  }
 
   template <class... T, class... Args>
-  void Goto(PLabel<T...>* label, Args... args) {
+  void Goto(CodeAssemblerParameterizedLabel<T...>* label, Args... args) {
     label->AddInputs(args...);
     Goto(label->plain_label());
   }
@@ -1530,7 +1545,6 @@ class CodeAssemblerParameterizedLabel
       : CodeAssemblerParameterizedLabelBase(assembler, kArity, type) {}
 
  private:
-  friend class internal::TorqueAssembler;
   friend class CodeAssembler;
 
   void AddInputs(TNode<Types>... inputs) {
@@ -1578,8 +1592,8 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
 #if DEBUG
   void PrintCurrentBlock(std::ostream& os);
-  bool InsideBlock();
 #endif  // DEBUG
+  bool InsideBlock();
   void SetInitialDebugInformation(const char* msg, const char* file, int line);
 
  private:
@@ -1618,18 +1632,23 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
 class CodeAssemblerScopedExceptionHandler {
  public:
-  CodeAssemblerScopedExceptionHandler(CodeAssembler* assembler,
-                                      CodeAssemblerExceptionHandlerLabel* label)
-      : assembler_(assembler) {
-    assembler_->state()->PushExceptionHandler(label);
-  }
+  CodeAssemblerScopedExceptionHandler(
+      CodeAssembler* assembler, CodeAssemblerExceptionHandlerLabel* label);
 
-  ~CodeAssemblerScopedExceptionHandler() {
-    assembler_->state()->PopExceptionHandler();
-  }
+  // Use this constructor for compatability/ports of old CSA code only. New code
+  // should use the CodeAssemblerExceptionHandlerLabel version.
+  CodeAssemblerScopedExceptionHandler(
+      CodeAssembler* assembler, CodeAssemblerLabel* label,
+      TypedCodeAssemblerVariable<Object>* exception);
+
+  ~CodeAssemblerScopedExceptionHandler();
 
  private:
+  bool has_handler_;
   CodeAssembler* assembler_;
+  CodeAssemblerLabel* compatibility_label_;
+  std::unique_ptr<CodeAssemblerExceptionHandlerLabel> label_;
+  TypedCodeAssemblerVariable<Object>* exception_;
 };
 
 }  // namespace compiler

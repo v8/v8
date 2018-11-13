@@ -776,9 +776,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
 #if DEBUG
   void Bind(Label* label, AssemblerDebugInfo debug_info);
-#else
-  void Bind(Label* label);
 #endif  // DEBUG
+  void Bind(Label* label);
+
+  template <class... T>
+  void Bind(compiler::CodeAssemblerParameterizedLabel<T...>* label,
+            TNode<T>*... phis) {
+    CodeAssembler::Bind(label, phis...);
+  }
 
   void BranchIfSmiEqual(TNode<Smi> a, TNode<Smi> b, Label* if_true,
                         Label* if_false) {

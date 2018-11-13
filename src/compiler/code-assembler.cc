@@ -98,9 +98,9 @@ CodeAssembler::~CodeAssembler() = default;
 void CodeAssemblerState::PrintCurrentBlock(std::ostream& os) {
   raw_assembler_->PrintCurrentBlock(os);
 }
+#endif
 
 bool CodeAssemblerState::InsideBlock() { return raw_assembler_->InsideBlock(); }
-#endif
 
 void CodeAssemblerState::SetInitialDebugInformation(const char* msg,
                                                     const char* file,
@@ -1864,6 +1864,51 @@ void CodeAssemblerState::PushExceptionHandler(
 
 void CodeAssemblerState::PopExceptionHandler() {
   exception_handler_labels_.pop_back();
+}
+
+CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
+    CodeAssembler* assembler, CodeAssemblerExceptionHandlerLabel* label)
+    : has_handler_(label != nullptr),
+      assembler_(assembler),
+      compatibility_label_(nullptr),
+      exception_(nullptr) {
+  if (has_handler_) {
+    assembler_->state()->PushExceptionHandler(label);
+  }
+}
+
+CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
+    CodeAssembler* assembler, CodeAssemblerLabel* label,
+    TypedCodeAssemblerVariable<Object>* exception)
+    : has_handler_(label != nullptr),
+      assembler_(assembler),
+      compatibility_label_(label),
+      exception_(exception) {
+  if (has_handler_) {
+    label_ = base::make_unique<CodeAssemblerExceptionHandlerLabel>(
+        assembler, CodeAssemblerLabel::kDeferred);
+    assembler_->state()->PushExceptionHandler(label_.get());
+  }
+}
+
+CodeAssemblerScopedExceptionHandler::~CodeAssemblerScopedExceptionHandler() {
+  if (has_handler_) {
+    assembler_->state()->PopExceptionHandler();
+  }
+  if (label_ && label_->is_used()) {
+    CodeAssembler::Label skip(assembler_);
+    bool inside_block = assembler_->state()->InsideBlock();
+    if (inside_block) {
+      assembler_->Goto(&skip);
+    }
+    TNode<Object> e;
+    assembler_->Bind(label_.get(), &e);
+    *exception_ = e;
+    assembler_->Goto(compatibility_label_);
+    if (inside_block) {
+      assembler_->Bind(&skip);
+    }
+  }
 }
 
 }  // namespace compiler

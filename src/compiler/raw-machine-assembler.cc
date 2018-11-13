@@ -478,13 +478,13 @@ void RawMachineAssembler::PrintCurrentBlock(std::ostream& os) {
   os << CurrentBlock();
 }
 
-bool RawMachineAssembler::InsideBlock() { return current_block_ != nullptr; }
-
 void RawMachineAssembler::SetInitialDebugInformation(
     AssemblerDebugInfo debug_info) {
   CurrentBlock()->set_debug_info(debug_info);
 }
 #endif  // DEBUG
+
+bool RawMachineAssembler::InsideBlock() { return current_block_ != nullptr; }
 
 BasicBlock* RawMachineAssembler::CurrentBlock() {
   DCHECK(current_block_);
