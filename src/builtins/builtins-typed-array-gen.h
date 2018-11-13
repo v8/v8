@@ -15,10 +15,15 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  TNode<JSTypedArray> SpeciesCreateByLength(TNode<Context> context,
-                                            TNode<JSTypedArray> exemplar,
-                                            TNode<Smi> len,
-                                            const char* method_name);
+  template <class... TArgs>
+  TNode<JSTypedArray> TypedArraySpeciesCreate(const char* method_name,
+                                              TNode<Context> context,
+                                              TNode<JSTypedArray> exemplar,
+                                              TArgs... args);
+
+  TNode<JSTypedArray> TypedArraySpeciesCreateByLength(
+      TNode<Context> context, TNode<JSTypedArray> exemplar, TNode<Smi> len,
+      const char* method_name);
 
   void GenerateTypedArrayPrototypeIterationMethod(TNode<Context> context,
                                                   TNode<Object> receiver,
@@ -75,19 +80,14 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSFunction> GetDefaultConstructor(TNode<Context> context,
                                           TNode<JSTypedArray> exemplar);
 
-  TNode<JSReceiver> TypedArraySpeciesConstructor(TNode<Context> context,
-                                                 TNode<JSTypedArray> exemplar);
+  TNode<JSTypedArray> TypedArrayCreateByLength(TNode<Context> context,
+                                               TNode<Object> constructor,
+                                               TNode<Smi> len,
+                                               const char* method_name);
 
-  TNode<JSTypedArray> SpeciesCreateByArrayBuffer(TNode<Context> context,
-                                                 TNode<JSTypedArray> exemplar,
-                                                 TNode<JSArrayBuffer> buffer,
-                                                 TNode<Number> byte_offset,
-                                                 TNode<Smi> len,
-                                                 const char* method_name);
-
-  TNode<JSTypedArray> CreateByLength(TNode<Context> context,
-                                     TNode<Object> constructor, TNode<Smi> len,
-                                     const char* method_name);
+  void ThrowIfLengthLessThan(TNode<Context> context,
+                             TNode<JSTypedArray> typed_array,
+                             TNode<Smi> min_length);
 
   TNode<JSArrayBuffer> GetBuffer(TNode<Context> context,
                                  TNode<JSTypedArray> array);

@@ -208,7 +208,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     const char* method_name = "%TypedArray%.prototype.map";
 
     TypedArrayBuiltinsAssembler typedarray_asm(state());
-    TNode<JSTypedArray> a = typedarray_asm.SpeciesCreateByLength(
+    TNode<JSTypedArray> a = typedarray_asm.TypedArraySpeciesCreateByLength(
         context(), original_array, length, method_name);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
