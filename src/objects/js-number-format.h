@@ -59,7 +59,7 @@ class JSNumberFormat : public JSObject {
       const icu::NumberFormat& fmt, double number, Handle<String> unit);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumber(
-      Isolate* isolate, Handle<JSNumberFormat> number_format, double number);
+      Isolate* isolate, const icu::NumberFormat& number_format, double number);
 
   static std::set<std::string> GetAvailableLocales();
 

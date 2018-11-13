@@ -483,14 +483,9 @@ Handle<String> JSNumberFormat::CurrencyDisplayAsString() const {
 }
 
 MaybeHandle<String> JSNumberFormat::FormatNumber(
-    Isolate* isolate, Handle<JSNumberFormat> number_format_holder,
-    double number) {
-  icu::NumberFormat* number_format =
-      number_format_holder->icu_number_format()->raw();
-  CHECK_NOT_NULL(number_format);
-
+    Isolate* isolate, const icu::NumberFormat& number_format, double number) {
   icu::UnicodeString result;
-  number_format->format(number, result);
+  number_format.format(number, result);
 
   return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
       reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length()));

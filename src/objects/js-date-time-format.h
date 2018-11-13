@@ -69,8 +69,7 @@ class JSDateTimeFormat : public JSObject {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
-      Handle<Object> options, RequiredOption required, DefaultsOption defaults,
-      Intl::CacheType cache_type);
+      Handle<Object> options, RequiredOption required, DefaultsOption defaults);
 
   static std::set<std::string> GetAvailableLocales();
 

@@ -24,6 +24,7 @@
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
+class Collator;
 class DecimalFormat;
 class SimpleDateFormat;
 class UnicodeString;
@@ -158,7 +159,7 @@ class Intl {
       Handle<Object> locales, Handle<Object> options);
 
   V8_WARN_UNUSED_RESULT static Handle<Object> CompareStrings(
-      Isolate* isolate, Handle<JSCollator> collator, Handle<String> s1,
+      Isolate* isolate, const icu::Collator& collator, Handle<String> s1,
       Handle<String> s2);
 
   // ecma402/#sup-properties-of-the-number-prototype-object
@@ -212,11 +213,6 @@ class Intl {
       Isolate* isolate, Handle<JSReceiver> receiver,
       Handle<JSFunction> constructor, bool has_initialized_slot);
 
-  // A factory method to got cached objects.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> CachedOrNewService(
-      Isolate* isolate, Handle<String> service, Handle<Object> locales,
-      Handle<Object> options, Handle<Object> internal_options);
-
   // enum for "caseFirst" option: shared by Intl.Locale and Intl.Collator.
   enum class CaseFirst { kUpper, kLower, kFalse, kUndefined };
 
@@ -266,20 +262,6 @@ class Intl {
   static const uint8_t* ToLatin1LowerTable();
 
   static String* ConvertOneByteToLower(String* src, String* dst);
-
-  enum class CacheType {
-    kCollatorForStringLocaleCompare,
-    kDateTimeFormatForDateToLocaleString,
-    kDateTimeFormatForDateToLocaleDateString,
-    kDateTimeFormatForDateToLocaleTimeString,
-    kNumberFormatForNumberToLocaleString
-  };
-  // Factory method to create DateTimeFormat, NumberFormat and Collator
-  // for Date.prototype.toLocale(String|DateString|TimeString),
-  // Number.toLocaleString, and String.prototype.localeCompare.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> CachedOrNew(
-      Isolate* isolate, Intl::CacheType cache_type, Handle<Object> locales,
-      Handle<Object> options);
 };
 
 }  // namespace internal

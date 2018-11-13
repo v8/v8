@@ -412,9 +412,13 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   }
 
   double number = number_obj->Number();
+  icu::NumberFormat* icu_number_format =
+      number_format->icu_number_format()->raw();
+  CHECK_NOT_NULL(icu_number_format);
+
   // Return FormatNumber(nf, x).
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSNumberFormat::FormatNumber(isolate, number_format, number));
+  RETURN_RESULT_OR_FAILURE(isolate, JSNumberFormat::FormatNumber(
+                                        isolate, *icu_number_format, number));
 }
 
 BUILTIN(DateTimeFormatConstructor) {
@@ -886,7 +890,7 @@ BUILTIN(CollatorInternalCompare) {
   // 1. Let collator be F.[[Collator]].
   // 2. Assert: Type(collator) is Object and collator has an
   // [[InitializedCollator]] internal slot.
-  Handle<JSCollator> collator_holder = Handle<JSCollator>(
+  Handle<JSCollator> collator = Handle<JSCollator>(
       JSCollator::cast(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
@@ -906,7 +910,9 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  return *Intl::CompareStrings(isolate, collator_holder, string_x, string_y);
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  CHECK_NOT_NULL(icu_collator);
+  return *Intl::CompareStrings(isolate, *icu_collator, string_x, string_y);
 }
 
 // ecma402 #sec-segment-iterator-prototype-breakType

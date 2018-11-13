@@ -429,7 +429,7 @@ namespace {
 // ecma402/#sec-formatdatetime
 // FormatDateTime( dateTimeFormat, x )
 MaybeHandle<String> FormatDateTime(Isolate* isolate,
-                                   Handle<JSDateTimeFormat> date_time_format,
+                                   const icu::SimpleDateFormat& date_format,
                                    double x) {
   double date_value = DateCache::TimeClip(x);
   if (std::isnan(date_value)) {
@@ -437,12 +437,8 @@ MaybeHandle<String> FormatDateTime(Isolate* isolate,
                     String);
   }
 
-  icu::SimpleDateFormat* date_format =
-      date_time_format->icu_simple_date_format()->raw();
-  CHECK_NOT_NULL(date_format);
-
   icu::UnicodeString result;
-  date_format->format(date_value, result);
+  date_format.format(date_value, result);
 
   return Intl::ToString(isolate, result);
 }
@@ -471,13 +467,29 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
     x = date->Number();
   }
   // 5. Return FormatDateTime(dtf, x).
-  return FormatDateTime(isolate, date_time_format, x);
+  return FormatDateTime(
+      isolate, *(date_time_format->icu_simple_date_format()->raw()), x);
 }
+
+namespace {
+Isolate::ICUObjectCacheType ConvertToCacheType(
+    JSDateTimeFormat::DefaultsOption type) {
+  switch (type) {
+    case JSDateTimeFormat::DefaultsOption::kDate:
+      return Isolate::ICUObjectCacheType::kDefaultSimpleDateFormatForDate;
+    case JSDateTimeFormat::DefaultsOption::kTime:
+      return Isolate::ICUObjectCacheType::kDefaultSimpleDateFormatForTime;
+    case JSDateTimeFormat::DefaultsOption::kAll:
+      return Isolate::ICUObjectCacheType::kDefaultSimpleDateFormat;
+  }
+}
+}  // namespace
 
 MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
     Isolate* isolate, Handle<Object> date, Handle<Object> locales,
-    Handle<Object> options, RequiredOption required, DefaultsOption defaults,
-    Intl::CacheType cache_type) {
+    Handle<Object> options, RequiredOption required, DefaultsOption defaults) {
+  Isolate::ICUObjectCacheType cache_type = ConvertToCacheType(defaults);
+
   Factory* factory = isolate->factory();
   // 1. Let x be ? thisTimeValue(this value);
   if (!date->IsJSDate()) {
@@ -493,6 +505,20 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
     return factory->Invalid_Date_string();
   }
 
+  // We only cache the instance when both locales and options are undefined,
+  // as that is the only case when the specified side-effects of examining
+  // those arguments are unobservable.
+  bool can_cache =
+      locales->IsUndefined(isolate) && options->IsUndefined(isolate);
+  if (can_cache) {
+    // Both locales and options are undefined, check the cache.
+    icu::SimpleDateFormat* cached_icu_simple_date_format =
+        static_cast<icu::SimpleDateFormat*>(
+            isolate->get_cached_icu_object(cache_type));
+    if (cached_icu_simple_date_format != nullptr) {
+      return FormatDateTime(isolate, *cached_icu_simple_date_format, x);
+    }
+  }
   // 3. Let options be ? ToDateTimeOptions(options, required, defaults).
   Handle<JSObject> internal_options;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -500,17 +526,31 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
       ToDateTimeOptions(isolate, options, required, defaults), String);
 
   // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
-  Handle<JSObject> object;
+  Handle<JSFunction> constructor = Handle<JSFunction>(
+      JSFunction::cast(isolate->context()
+                           ->native_context()
+                           ->intl_date_time_format_function()),
+      isolate);
+  Handle<JSObject> obj;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, object,
-      Intl::CachedOrNew(isolate, cache_type, locales, internal_options),
+      isolate, obj,
+      JSObject::New(constructor, constructor, Handle<AllocationSite>::null()),
+      String);
+  Handle<JSDateTimeFormat> date_time_format;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_time_format,
+      JSDateTimeFormat::Initialize(isolate, Handle<JSDateTimeFormat>::cast(obj),
+                                   locales, internal_options),
       String);
 
-  CHECK(object->IsJSDateTimeFormat());
-  Handle<JSDateTimeFormat> date_time_format =
-      Handle<JSDateTimeFormat>::cast(object);
+  if (can_cache) {
+    isolate->set_icu_object_in_cache(
+        cache_type, std::static_pointer_cast<icu::UObject>(
+                        date_time_format->icu_simple_date_format()->get()));
+  }
   // 5. Return FormatDateTime(dateFormat, x).
-  return FormatDateTime(isolate, date_time_format, x);
+  return FormatDateTime(
+      isolate, *(date_time_format->icu_simple_date_format()->raw()), x);
 }
 
 namespace {
@@ -903,6 +943,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
       Managed<icu::SimpleDateFormat>::FromUniquePtr(isolate, 0,
                                                     std::move(date_format));
   date_time_format->set_icu_simple_date_format(*managed_format);
+
   return date_time_format;
 }
 

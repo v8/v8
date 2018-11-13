@@ -851,12 +851,11 @@ BUILTIN(DatePrototypeToLocaleDateString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
-                   date,                                     // date
-                   args.atOrUndefined(isolate, 1),           // locales
-                   args.atOrUndefined(isolate, 2),           // options
-                   JSDateTimeFormat::RequiredOption::kDate,  // required
-                   JSDateTimeFormat::DefaultsOption::kDate,  // defaults
-                   Intl::CacheType::kDateTimeFormatForDateToLocaleDateString));
+                   date,                                       // date
+                   args.atOrUndefined(isolate, 1),             // locales
+                   args.atOrUndefined(isolate, 2),             // options
+                   JSDateTimeFormat::RequiredOption::kDate,    // required
+                   JSDateTimeFormat::DefaultsOption::kDate));  // defaults
 }
 
 // ecma402 #sup-date.prototype.tolocalestring
@@ -870,12 +869,11 @@ BUILTIN(DatePrototypeToLocaleString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
-                   date,                                    // date
-                   args.atOrUndefined(isolate, 1),          // locales
-                   args.atOrUndefined(isolate, 2),          // options
-                   JSDateTimeFormat::RequiredOption::kAny,  // required
-                   JSDateTimeFormat::DefaultsOption::kAll,  // defaults
-                   Intl::CacheType::kDateTimeFormatForDateToLocaleString));
+                   date,                                      // date
+                   args.atOrUndefined(isolate, 1),            // locales
+                   args.atOrUndefined(isolate, 2),            // options
+                   JSDateTimeFormat::RequiredOption::kAny,    // required
+                   JSDateTimeFormat::DefaultsOption::kAll));  // defaults
 }
 
 // ecma402 #sup-date.prototype.tolocaletimestring
@@ -889,12 +887,11 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
-                   date,                                     // date
-                   args.atOrUndefined(isolate, 1),           // locales
-                   args.atOrUndefined(isolate, 2),           // options
-                   JSDateTimeFormat::RequiredOption::kTime,  // required
-                   JSDateTimeFormat::DefaultsOption::kTime,  // defaults
-                   Intl::CacheType::kDateTimeFormatForDateToLocaleTimeString));
+                   date,                                       // date
+                   args.atOrUndefined(isolate, 1),             // locales
+                   args.atOrUndefined(isolate, 2),             // options
+                   JSDateTimeFormat::RequiredOption::kTime,    // required
+                   JSDateTimeFormat::DefaultsOption::kTime));  // defaults
 }
 #endif  // V8_INTL_SUPPORT
 

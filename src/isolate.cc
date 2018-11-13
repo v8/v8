@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <fstream>  // NOLINT(readability/streams)
+#include <memory>
 #include <sstream>
 #include <unordered_map>
 
@@ -69,6 +70,9 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
+#ifdef V8_INTL_SUPPORT
+#include "unicode/uobject.h"
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -4329,6 +4333,21 @@ void Isolate::SetIdle(bool is_idle) {
     set_current_vm_state(EXTERNAL);
   }
 }
+
+#ifdef V8_INTL_SUPPORT
+icu::UObject* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type) {
+  return icu_object_cache_[cache_type].get();
+}
+
+void Isolate::set_icu_object_in_cache(ICUObjectCacheType cache_type,
+                                      std::shared_ptr<icu::UObject> obj) {
+  icu_object_cache_[cache_type] = obj;
+}
+
+void Isolate::clear_cached_icu_object(ICUObjectCacheType cache_type) {
+  icu_object_cache_.erase(cache_type);
+}
+#endif  // V8_INTL_SUPPORT
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   StackGuard* stack_guard = isolate_->stack_guard();

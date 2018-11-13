@@ -6,6 +6,7 @@
 #define V8_ISOLATE_H_
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <queue>
 #include <unordered_map>
@@ -35,6 +36,13 @@
 #include "src/runtime/runtime.h"
 #include "src/thread-id.h"
 #include "src/unicode.h"
+
+#ifdef V8_INTL_SUPPORT
+#include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.
+namespace U_ICU_NAMESPACE {
+class UObject;
+}  // namespace U_ICU_NAMESPACE
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 
@@ -1189,6 +1197,16 @@ class Isolate final : private HiddenFactory {
     default_locale_ = locale;
   }
 
+  // enum to access the icu object cache.
+  enum class ICUObjectCacheType{
+      kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
+      kDefaultSimpleDateFormatForTime, kDefaultSimpleDateFormatForDate};
+
+  icu::UObject* get_cached_icu_object(ICUObjectCacheType cache_type);
+  void set_icu_object_in_cache(ICUObjectCacheType cache_type,
+                               std::shared_ptr<icu::UObject> obj);
+  void clear_cached_icu_object(ICUObjectCacheType cache_type);
+
 #endif  // V8_INTL_SUPPORT
 
   static const int kProtectorValid = 1;
@@ -1732,6 +1750,16 @@ class Isolate final : private HiddenFactory {
 
 #ifdef V8_INTL_SUPPORT
   std::string default_locale_;
+
+  struct ICUObjectCacheTypeHash {
+    std::size_t operator()(ICUObjectCacheType a) const {
+      return static_cast<std::size_t>(a);
+    }
+  };
+  std::unordered_map<ICUObjectCacheType, std::shared_ptr<icu::UObject>,
+                     ICUObjectCacheTypeHash>
+      icu_object_cache_;
+
 #endif  // V8_INTL_SUPPORT
 
   // Whether the isolate has been created for snapshotting.
