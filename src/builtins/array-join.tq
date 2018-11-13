@@ -495,6 +495,10 @@ module array {
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
     const len: Number = GetLengthProperty(o);
+    // Only handle valid array lengths. Although the spec allows larger values,
+    // this matches historical V8 behavior.
+    if (len > kMaxArrayIndex + 1) ThrowTypeError(context, kInvalidArrayLength);
+
     // 3. If separator is undefined, let sep be the single-element String ",".
     // 4. Else, let sep be ? ToString(separator).
     let sep: String =
