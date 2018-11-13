@@ -180,8 +180,10 @@ enum class ParsePropertyKind : uint8_t {
   kAccessorSetter,
   kValue,
   kShorthand,
+  kAssign,
   kMethod,
   kClassField,
+  kShorthandOrClassField,
   kSpread,
   kNotSet
 };
@@ -1927,9 +1929,13 @@ inline bool ParsePropertyKindFromToken(Token::Value token,
       *kind = ParsePropertyKind::kValue;
       return true;
     case Token::COMMA:
-    case Token::RBRACE:
-    case Token::ASSIGN:
       *kind = ParsePropertyKind::kShorthand;
+      return true;
+    case Token::RBRACE:
+      *kind = ParsePropertyKind::kShorthandOrClassField;
+      return true;
+    case Token::ASSIGN:
+      *kind = ParsePropertyKind::kAssign;
       return true;
     case Token::LPAREN:
       *kind = ParsePropertyKind::kMethod;
@@ -2138,7 +2144,9 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
   }
 
   switch (kind) {
+    case ParsePropertyKind::kAssign:
     case ParsePropertyKind::kClassField:
+    case ParsePropertyKind::kShorthandOrClassField:
     case ParsePropertyKind::kNotSet:  // This case is a name followed by a name
                                       // or other property. Here we have to
                                       // assume that's an uninitialized field
@@ -2147,8 +2155,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
                                       // semicolon. If not, there will be a
                                       // syntax error after parsing the first
                                       // name as an uninitialized field.
-    case ParsePropertyKind::kShorthand:
-    case ParsePropertyKind::kValue:
       if (allow_harmony_public_fields() || allow_harmony_private_fields()) {
         *property_kind = ClassLiteralProperty::FIELD;
         *is_private = name_token == Token::PRIVATE_NAME;
@@ -2242,6 +2248,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       impl()->SetFunctionNameFromPropertyName(result, *name, prefix);
       return result;
     }
+    case ParsePropertyKind::kValue:
+    case ParsePropertyKind::kShorthand:
     case ParsePropertyKind::kSpread:
       ReportUnexpectedTokenAt(
           Scanner::Location(name_token_position, name_expression->position()),
@@ -2354,6 +2362,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
       return result;
     }
 
+    case ParsePropertyKind::kAssign:
+    case ParsePropertyKind::kShorthandOrClassField:
     case ParsePropertyKind::kShorthand: {
       // PropertyDefinition
       //    IdentifierReference
