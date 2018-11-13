@@ -2437,6 +2437,59 @@ void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
   resolver_->OnCompilationSucceeded(result);
 }
 
+class AsyncCompileJob::CompilationStateCallback {
+ public:
+  explicit CompilationStateCallback(AsyncCompileJob* job) : job_(job) {}
+
+  void operator()(CompilationEvent event, const VoidResult* error_result) {
+    // This callback is only being called from a foreground task.
+    switch (event) {
+      case CompilationEvent::kFinishedBaselineCompilation:
+        if (job_->DecrementAndCheckFinisherCount()) {
+          SaveContext saved_context(job_->isolate());
+          job_->isolate()->set_context(*job_->native_context_);
+          job_->FinishCompile(true);
+        }
+        return;
+      case CompilationEvent::kFinishedTopTierCompilation:
+        // Notify embedder that compilation is finished.
+        if (job_->stream_ && job_->stream_->module_compiled_callback()) {
+          job_->stream_->module_compiled_callback()(job_->module_object_);
+        }
+        // If a foreground task or a finisher is pending, we rely on
+        // FinishModule to remove the job.
+        if (!job_->pending_foreground_task_ &&
+            job_->outstanding_finishers_.load() == 0) {
+          job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
+        }
+        return;
+      case CompilationEvent::kFailedCompilation: {
+        DCHECK_NOT_NULL(error_result);
+        // Tier-up compilation should not fail if baseline compilation
+        // did not fail.
+        DCHECK(!Impl(job_->native_module_->compilation_state())
+                    ->baseline_compilation_finished());
+
+        SaveContext saved_context(job_->isolate());
+        job_->isolate()->set_context(*job_->native_context_);
+        ErrorThrower thrower(job_->isolate(), "AsyncCompilation");
+        thrower.CompileFailed(*error_result);
+        Handle<Object> error = thrower.Reify();
+
+        DeferredHandleScope deferred(job_->isolate());
+        error = handle(*error, job_->isolate());
+        job_->deferred_handles_.push_back(deferred.Detach());
+        job_->DoSync<CompileFailed>(error);
+        return;
+      }
+    }
+    UNREACHABLE();
+  }
+
+ private:
+  AsyncCompileJob* job_;
+};
+
 // A closure to run a compilation step (either as foreground or background
 // task) and schedule the next step(s), if any.
 class AsyncCompileJob::CompileStep {
@@ -2641,53 +2694,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     CompilationStateImpl* compilation_state =
         Impl(job->native_module_->compilation_state());
-    {
-      compilation_state->SetCallback(
-          [job](CompilationEvent event, const VoidResult* error_result) {
-            // Callback is called from a foreground thread.
-            switch (event) {
-              case CompilationEvent::kFinishedBaselineCompilation:
-                if (job->DecrementAndCheckFinisherCount()) {
-                  SaveContext saved_context(job->isolate());
-                  job->isolate()->set_context(*job->native_context_);
-                  job->FinishCompile(true);
-                }
-                return;
-              case CompilationEvent::kFinishedTopTierCompilation:
-                // Notify embedder that compilation is finished.
-                if (job->stream_ && job->stream_->module_compiled_callback()) {
-                  job->stream_->module_compiled_callback()(job->module_object_);
-                }
-                // If a foreground task or a finisher is pending, we rely on
-                // FinishModule to remove the job.
-                if (!job->pending_foreground_task_ &&
-                    job->outstanding_finishers_.load() == 0) {
-                  job->isolate_->wasm_engine()->RemoveCompileJob(job);
-                }
-                return;
-              case CompilationEvent::kFailedCompilation: {
-                DCHECK_NOT_NULL(error_result);
-                // Tier-up compilation should not fail if baseline compilation
-                // did not fail.
-                DCHECK(!Impl(job->native_module_->compilation_state())
-                            ->baseline_compilation_finished());
-
-                SaveContext saved_context(job->isolate());
-                job->isolate()->set_context(*job->native_context_);
-                ErrorThrower thrower(job->isolate(), "AsyncCompilation");
-                thrower.CompileFailed(*error_result);
-                Handle<Object> error = thrower.Reify();
-
-                DeferredHandleScope deferred(job->isolate());
-                error = handle(*error, job->isolate());
-                job->deferred_handles_.push_back(deferred.Detach());
-                job->DoSync<CompileFailed>(error);
-                return;
-              }
-            }
-            UNREACHABLE();
-          });
-    }
+    compilation_state->SetCallback(CompilationStateCallback{job});
     if (start_compilation_) {
       // TODO(ahaas): Try to remove the {start_compilation_} check when
       // streaming decoding is done in the background. If

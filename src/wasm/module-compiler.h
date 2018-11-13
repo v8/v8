@@ -86,6 +86,7 @@ class AsyncCompileJob {
  private:
   class CompileTask;
   class CompileStep;
+  class CompilationStateCallback;
 
   // States of the AsyncCompileJob.
   class DecodeModule;            // Step 1  (async)
