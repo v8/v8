@@ -4130,11 +4130,10 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 
 class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
-  WasmWrapperGraphBuilder(Zone* zone, wasm::CompilationEnv* env,
-                          JSGraph* jsgraph, wasm::FunctionSig* sig,
+  WasmWrapperGraphBuilder(Zone* zone, JSGraph* jsgraph, wasm::FunctionSig* sig,
                           compiler::SourcePositionTable* spt,
                           StubCallMode stub_mode)
-      : WasmGraphBuilder(env, zone, jsgraph, sig, spt),
+      : WasmGraphBuilder(nullptr, zone, jsgraph, sig, spt),
         isolate_(jsgraph->isolate()),
         jsgraph_(jsgraph),
         stub_mode_(stub_mode) {}
@@ -4947,9 +4946,7 @@ MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  wasm::CompilationEnv env(nullptr, wasm::kNoTrapHandler,
-                           wasm::kRuntimeExceptionSupport);
-  WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallOnHeapBuiltin);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -5058,11 +5055,7 @@ wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
   SourcePositionTable* source_position_table =
       source_positions ? new (&zone) SourcePositionTable(&graph) : nullptr;
 
-  wasm::CompilationEnv env(nullptr, wasm::kNoTrapHandler,
-                           wasm::kRuntimeExceptionSupport);
-
-  WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig,
-                                  source_position_table,
+  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, source_position_table,
                                   StubCallMode::kCallWasmRuntimeStub);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -5105,7 +5098,7 @@ wasm::WasmCode* CompileWasmInterpreterEntry(Isolate* isolate,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, nullptr, &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallWasmRuntimeStub);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -5143,7 +5136,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, nullptr, &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallOnHeapBuiltin);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
