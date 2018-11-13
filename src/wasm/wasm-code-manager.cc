@@ -1010,7 +1010,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   std::unique_ptr<NativeModule> ret(new NativeModule(
       isolate, enabled, can_request_more, std::move(code_space),
       isolate->wasm_engine()->code_manager(), std::move(module)));
-  TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
+  TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", ret.get(), start,
              size);
   AssignRangesAndAddModule(start, end, ret.get());
   return ret;
@@ -1069,7 +1069,7 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   base::MutexGuard lock(&native_modules_mutex_);
   DCHECK_EQ(1, native_modules_.count(native_module));
   native_modules_.erase(native_module);
-  TRACE_HEAP("Freeing NativeModule %p\n", this);
+  TRACE_HEAP("Freeing NativeModule %p\n", native_module);
   for (auto& code_space : native_module->owned_code_space_) {
     DCHECK(code_space.IsReserved());
     TRACE_HEAP("VMem Release: %" PRIxPTR ":%" PRIxPTR " (%zu)\n",
