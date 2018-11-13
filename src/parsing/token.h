@@ -207,8 +207,6 @@ namespace internal {
   C(CONSTRUCTOR, "constructor", 0)                                 \
   C(PRIVATE_CONSTRUCTOR, "#constructor", 0)                        \
   C(PROTOTYPE, "prototype", 0)                                     \
-  C(EVAL, "eval", 0)                                               \
-  C(ARGUMENTS, "arguments", 0)                                     \
   C(UNDEFINED, "undefined", 0)                                     \
   C(ANONYMOUS, "anonymous", 0)
 

@@ -154,7 +154,6 @@ static const Token::Value one_char_tokens[] = {
 
 #define KEYWORDS(KEYWORD_GROUP, KEYWORD)                    \
   KEYWORD_GROUP('a')                                        \
-  KEYWORD("arguments", Token::ARGUMENTS)                    \
   KEYWORD("as", Token::AS)                                  \
   KEYWORD("async", Token::ASYNC)                            \
   KEYWORD("await", Token::AWAIT)                            \
@@ -176,7 +175,6 @@ static const Token::Value one_char_tokens[] = {
   KEYWORD_GROUP('e')                                        \
   KEYWORD("else", Token::ELSE)                              \
   KEYWORD("enum", Token::ENUM)                              \
-  KEYWORD("eval", Token::EVAL)                              \
   KEYWORD("export", Token::EXPORT)                          \
   KEYWORD("extends", Token::EXTENDS)                        \
   KEYWORD_GROUP('f')                                        \
