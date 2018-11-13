@@ -4582,6 +4582,9 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
 
     SimpleInstallFunction(isolate(), weak_factory_prototype, "makeRef",
                           Builtins::kWeakFactoryMakeRef, 2, false);
+
+    SimpleInstallFunction(isolate(), weak_factory_prototype, "cleanupSome",
+                          Builtins::kWeakFactoryCleanupSome, 0, false);
   }
   {
     // Create %WeakCellPrototype%

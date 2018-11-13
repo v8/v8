@@ -1334,6 +1334,7 @@ namespace internal {
   CPP(WeakCellClear)                                                           \
   CPP(WeakCellHoldingsGetter)                                                  \
   CPP(WeakFactoryCleanupIteratorNext)                                          \
+  CPP(WeakFactoryCleanupSome)                                                  \
   CPP(WeakFactoryConstructor)                                                  \
   CPP(WeakFactoryMakeCell)                                                     \
   CPP(WeakFactoryMakeRef)                                                      \

@@ -115,6 +115,19 @@ BUILTIN(WeakFactoryMakeRef) {
   return *weak_ref;
 }
 
+BUILTIN(WeakFactoryCleanupSome) {
+  HandleScope scope(isolate);
+  const char* method_name = "WeakFactory.prototype.cleanupSome";
+
+  CHECK_RECEIVER(JSWeakFactory, weak_factory, method_name);
+
+  // Don't do set_scheduled_for_cleanup(false); we still have the microtask
+  // scheduled and don't want to schedule another one in case the user never
+  // executes microtasks.
+  JSWeakFactory::Cleanup(weak_factory, isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 BUILTIN(WeakFactoryCleanupIteratorNext) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSWeakFactoryCleanupIterator, iterator, "next");

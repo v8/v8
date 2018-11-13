@@ -232,6 +232,14 @@
   WeakFactory.prototype.makeRef.call(wf, {});
 })();
 
+(function TestCleanupSomeWithoutWeakFactory() {
+  assertThrows(() => WeakFactory.prototype.cleanupSome.call({}), TypeError);
+  // Does not throw:
+  let wf = new WeakFactory(() => {});
+  let rv = WeakFactory.prototype.cleanupSome.call(wf);
+  assertEquals(undefined, rv);
+})();
+
 (function TestDerefWithoutWeakRef() {
   let wf = new WeakFactory(() => {});
   let wc = wf.makeCell({});
