@@ -81,56 +81,35 @@ def postprocess(output):
 
   return output
 
-def process(filename, only_lint, use_stdout):
-  with open(filename, 'r') as content_file:
-    content = content_file.read()
+if len(sys.argv) < 2 or len(sys.argv) > 3:
+  print "invalid number of arguments"
+  sys.exit(-1)
 
-  p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-  output, err = p.communicate(preprocess(content))
-  output = postprocess(output)
-  rc = p.returncode
-  if (rc <> 0):
-    print "error code " + str(rc) + " running clang-format. Exiting..."
-    sys.exit(rc);
-
-  if only_lint:
-    if (output != original_input):
-      print >>sys.stderr, filename + ' requires formatting'
-  elif use_stdout:
-    print output
-  else:
-    output_file = open(filename, 'w')
-    output_file.write(output);
-    output_file.close()
-
-def print_usage():
-  print 'format-torque -i file1[, file2[, ...]]'
-  print '    format and overwrite input files'
-  print 'format-torque -l file1[, file2[, ...]]'
-  print '    merely indicate which files need formatting'
-
-def Main():
-  if len(sys.argv) < 3:
-    print "error: at least 2 arguments required"
-    print_usage();
-    sys.exit(-1)
-
-  use_stdout = True
-  lint = False
-
+use_stdout = True
+lint = False
+if len(sys.argv) == 3:
   if sys.argv[1] == '-i':
     use_stdout = False
-  elif sys.argv[1] == '-l':
+  if sys.argv[1] == '-l':
     lint = True
-  else:
-    print "error: -i or -l must be specified as the first argument"
-    print_usage();
-    sys.exit(-1);
 
-  for filename in sys.argv[2:]:
-    process(filename, lint, use_stdout)
+filename = sys.argv[len(sys.argv) - 1]
 
-  return 0
-
-if __name__ == '__main__':
-  sys.exit(Main());
+with open(filename, 'r') as content_file:
+  content = content_file.read()
+original_input = content
+p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+output, err = p.communicate(preprocess(content))
+output = postprocess(output)
+rc = p.returncode
+if (rc <> 0):
+  sys.exit(rc);
+if lint:
+  if (output != original_input):
+    print >>sys.stderr, filename + ' requires formatting'
+elif use_stdout:
+  print output
+else:
+  output_file = open(filename, 'w')
+  output_file.write(output);
+  output_file.close()
