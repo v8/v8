@@ -100,7 +100,7 @@ class CompilationStateImpl {
 
   void OnFinishedUnit();
   void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
-                                ExecutionTier mode);
+                                ExecutionTier tier);
   void ScheduleCodeLogging(WasmCode*);
 
   void OnBackgroundTaskStopped(const WasmFeatures& detected);
@@ -584,9 +584,9 @@ class CompilationUnitBuilder {
 
  private:
   std::unique_ptr<WasmCompilationUnit> CreateUnit(uint32_t func_index,
-                                                  ExecutionTier mode) {
+                                                  ExecutionTier tier) {
     return base::make_unique<WasmCompilationUnit>(wasm_engine_, native_module_,
-                                                  func_index, mode);
+                                                  func_index, tier);
   }
 
   CompilationStateImpl* compilation_state() const {
@@ -639,16 +639,16 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
       compilation_state->GetNextCompilationUnit();
   if (unit == nullptr) return false;
 
-  // TODO(kimanh): We need to find out in which mode the unit
+  // TODO(kimanh): We need to find out in which tier the unit
   // should be compiled in before compiling it, as it might fallback
   // to Turbofan if it cannot be compiled using Liftoff. This can be removed
   // later as soon as Liftoff can compile any function. Then, we can directly
-  // access {unit->mode()} within {ScheduleUnitForFinishing()}.
-  ExecutionTier mode = unit->mode();
+  // access {unit->tier()} within {ScheduleUnitForFinishing()}.
+  ExecutionTier tier = unit->tier();
   unit->ExecuteCompilation(env, compilation_state->GetSharedWireBytesStorage(),
                            counters, detected);
   if (!unit->failed()) compilation_state->ScheduleCodeLogging(unit->result());
-  compilation_state->ScheduleUnitForFinishing(std::move(unit), mode);
+  compilation_state->ScheduleUnitForFinishing(std::move(unit), tier);
 
   return true;
 }
@@ -3018,7 +3018,7 @@ void CompilationStateImpl::AddCompilationUnits(
 
     if (compile_mode_ == CompileMode::kTiering) {
       DCHECK_EQ(baseline_units.size(), tiering_units.size());
-      DCHECK_EQ(tiering_units.back()->mode(), ExecutionTier::kOptimized);
+      DCHECK_EQ(tiering_units.back()->tier(), ExecutionTier::kOptimized);
       tiering_compilation_units_.insert(
           tiering_compilation_units_.end(),
           std::make_move_iterator(tiering_units.begin()),
@@ -3099,10 +3099,10 @@ void CompilationStateImpl::OnFinishedUnit() {
 }
 
 void CompilationStateImpl::ScheduleUnitForFinishing(
-    std::unique_ptr<WasmCompilationUnit> unit, ExecutionTier mode) {
+    std::unique_ptr<WasmCompilationUnit> unit, ExecutionTier tier) {
   base::MutexGuard guard(&mutex_);
   if (compile_mode_ == CompileMode::kTiering &&
-      mode == ExecutionTier::kOptimized) {
+      tier == ExecutionTier::kOptimized) {
     tiering_finish_units_.push_back(std::move(unit));
   } else {
     baseline_finish_units_.push_back(std::move(unit));

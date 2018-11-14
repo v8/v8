@@ -16,8 +16,8 @@ namespace wasm {
 
 namespace {
 
-const char* GetExecutionTierAsString(ExecutionTier mode) {
-  switch (mode) {
+const char* GetExecutionTierAsString(ExecutionTier tier) {
+  switch (tier) {
     case ExecutionTier::kBaseline:
       return "liftoff";
     case ExecutionTier::kOptimized:
@@ -37,23 +37,23 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
 
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
                                          NativeModule* native_module, int index,
-                                         ExecutionTier mode)
+                                         ExecutionTier tier)
     : wasm_engine_(wasm_engine),
       func_index_(index),
       native_module_(native_module),
-      mode_(mode) {
+      tier_(tier) {
   const WasmModule* module = native_module->module();
   DCHECK_GE(index, module->num_imported_functions);
   DCHECK_LT(index, module->functions.size());
   // Always disable Liftoff for asm.js, for two reasons:
   //    1) asm-specific opcodes are not implemented, and
   //    2) tier-up does not work with lazy compilation.
-  if (module->origin == kAsmJsOrigin) mode = ExecutionTier::kOptimized;
+  if (module->origin == kAsmJsOrigin) tier = ExecutionTier::kOptimized;
   if (V8_UNLIKELY(FLAG_wasm_tier_mask_for_testing) && index < 32 &&
       (FLAG_wasm_tier_mask_for_testing & (1 << index))) {
-    mode = ExecutionTier::kOptimized;
+    tier = ExecutionTier::kOptimized;
   }
-  SwitchMode(mode);
+  SwitchTier(tier);
 }
 
 // Declared here such that {LiftoffCompilationUnit} and
@@ -80,17 +80,17 @@ void WasmCompilationUnit::ExecuteCompilation(
 
   if (FLAG_trace_wasm_compiler) {
     PrintF("Compiling wasm function %d with %s\n\n", func_index_,
-           GetExecutionTierAsString(mode_));
+           GetExecutionTierAsString(tier_));
   }
 
-  switch (mode_) {
+  switch (tier_) {
     case ExecutionTier::kBaseline:
       if (liftoff_unit_->ExecuteCompilation(env, func_body, counters,
                                             detected)) {
         break;
       }
       // Otherwise, fall back to turbofan.
-      SwitchMode(ExecutionTier::kOptimized);
+      SwitchTier(ExecutionTier::kOptimized);
       V8_FALLTHROUGH;
     case ExecutionTier::kOptimized:
       turbofan_unit_->ExecuteCompilation(env, func_body, counters, detected);
@@ -100,12 +100,12 @@ void WasmCompilationUnit::ExecuteCompilation(
   }
 }
 
-void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
+void WasmCompilationUnit::SwitchTier(ExecutionTier new_tier) {
   // This method is being called in the constructor, where neither
-  // {liftoff_unit_} nor {turbofan_unit_} are set, or to switch mode from
+  // {liftoff_unit_} nor {turbofan_unit_} are set, or to switch tier from
   // kLiftoff to kTurbofan, in which case {liftoff_unit_} is already set.
-  mode_ = new_mode;
-  switch (new_mode) {
+  tier_ = new_tier;
+  switch (new_tier) {
     case ExecutionTier::kBaseline:
       DCHECK(!turbofan_unit_);
       DCHECK(!liftoff_unit_);
@@ -127,14 +127,14 @@ bool WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
                                               NativeModule* native_module,
                                               WasmFeatures* detected,
                                               const WasmFunction* function,
-                                              ExecutionTier mode) {
+                                              ExecutionTier tier) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset()};
 
   WasmCompilationUnit unit(isolate->wasm_engine(), native_module,
-                           function->func_index, mode);
+                           function->func_index, tier);
   CompilationEnv env = native_module->CreateCompilationEnv();
   unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage(),
