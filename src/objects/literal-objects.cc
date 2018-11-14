@@ -221,28 +221,35 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
             GetExistingValueIndex(current_pair->getter());
         int existing_setter_index =
             GetExistingValueIndex(current_pair->setter());
+        // At least one of the accessors must already be defined.
+        DCHECK(existing_getter_index >= 0 || existing_setter_index >= 0);
         if (existing_getter_index < key_index &&
             existing_setter_index < key_index) {
-          // Both getter and setter were defined before the computed method,
-          // so overwrite both.
+          // Either both getter and setter were defined before the computed
+          // method or just one of them was defined before while the other one
+          // was not defined yet, so overwrite property to kData.
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
           dictionary->DetailsAtPut(isolate, entry, details);
           dictionary->ValueAtPut(entry, value);
 
         } else {
+          // The data property was defined "between" accessors so the one that
+          // was overwritten has to be cleared.
           if (existing_getter_index < key_index) {
-            DCHECK_LT(existing_setter_index, key_index);
-            // Getter was defined before the computed method and then it was
-            // overwritten by the current computed method which in turn was
-            // later overwritten by the setter method. So we clear the getter.
+            DCHECK_LT(key_index, existing_setter_index);
+            // Getter was defined and it was done before the computed method
+            // and then it was overwritten by the current computed method which
+            // in turn was later overwritten by the setter method. So we clear
+            // the getter.
             current_pair->set_getter(*isolate->factory()->null_value());
 
           } else if (existing_setter_index < key_index) {
-            DCHECK_LT(existing_getter_index, key_index);
-            // Setter was defined before the computed method and then it was
-            // overwritten by the current computed method which in turn was
-            // later overwritten by the getter method. So we clear the setter.
+            DCHECK_LT(key_index, existing_getter_index);
+            // Setter was defined and it was done before the computed method
+            // and then it was overwritten by the current computed method which
+            // in turn was later overwritten by the getter method. So we clear
+            // the setter.
             current_pair->set_setter(*isolate->factory()->null_value());
           }
         }
