@@ -1057,7 +1057,9 @@
           'cores': '8',
           'os': 'Ubuntu-16.04',
           'cpu': 'armv7l-32-ODROID-XU4',
-        }
+        },
+        # Less parallelism to prevent OOMs in benchmarks.
+        'test_args': ['-j4'],
       },
       {
         'name': 'optimize_for_size',
