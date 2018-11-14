@@ -174,9 +174,7 @@ PreParsedScopeDataBuilder::DataGatheringScope::DataGatheringScope(
 }
 
 PreParsedScopeDataBuilder::DataGatheringScope::~DataGatheringScope() {
-  if (builder_) {
-    preparser_->set_preparsed_scope_data_builder(builder_->parent_);
-  }
+  preparser_->set_preparsed_scope_data_builder(builder_->parent_);
 }
 
 void PreParsedScopeDataBuilder::DataGatheringScope::MarkFunctionAsSkippable(
