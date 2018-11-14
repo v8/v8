@@ -573,10 +573,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};
 
-  // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}. This
-  // requires unlocking the code space here. This should eventually be moved
-  // into the allocator.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   CompileJsToWasmWrappers(isolate, module_object);
 
   // Log the code within the generated module for profiling.

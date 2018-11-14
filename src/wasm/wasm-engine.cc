@@ -194,11 +194,6 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   size_t code_size = shared_module->committed_code_space();
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, std::move(shared_module), script, code_size);
-
-  // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}.
-  // This requires unlocking the code space here. This should eventually be
-  // moved into the allocator.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   CompileJsToWasmWrappers(isolate, module_object);
   return module_object;
 }

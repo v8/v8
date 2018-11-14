@@ -6,7 +6,6 @@
 
 #include "src/api.h"
 #include "src/asmjs/asm-js.h"
-#include "src/base/optional.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"
@@ -977,11 +976,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
 
-  // TODO(6792): No longer needed once WebAssembly code is off heap. Use
-  // base::Optional to be able to close the scope before notifying the debugger.
-  base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
-      base::in_place_t(), isolate->heap());
-
   // Create heap objects for script, module bytes and asm.js offset table to
   // be stored in the module object.
   Handle<Script> script;
@@ -1021,9 +1015,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   // If we created a wasm script, finish it now and make it public to the
   // debugger.
   if (asm_js_script.is_null()) {
-    // Close the CodeSpaceMemoryModificationScope before calling into the
-    // debugger.
-    modification_scope.reset();
     isolate->debug()->OnAfterCompile(script);
   }
 
@@ -2735,8 +2726,6 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
   // and the wrappers for the function table elements.
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(5) Compile wrappers...\n");
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(job->isolate_->heap());
     // Compile JS->wasm wrappers for exported functions.
     CompileJsToWasmWrappers(job->isolate_, job->module_object_);
     job->DoSync<FinishModule>();
@@ -3223,6 +3212,10 @@ void CompileJsToWasmWrappers(Isolate* isolate,
   Handle<FixedArray> export_wrappers(module_object->export_wrappers(), isolate);
   NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
+  // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
+  // optimization we keep the code space unlocked to avoid repeated unlocking
+  // because many such wrapper are allocated in sequence below.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     auto& function = module->functions[exp.index];
