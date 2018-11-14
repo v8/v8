@@ -617,9 +617,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
       instance->module_object()->native_module();
   const wasm::WasmModule* module = instance->module();
 
-  // We may modify js wrappers, as well as wasm functions. Hence the 2
-  // modification scopes.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+  // We may modify the wasm jump table.
   wasm::NativeModuleModificationScope native_module_modification_scope(
       native_module);
 
