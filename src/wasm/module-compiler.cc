@@ -53,6 +53,9 @@ namespace wasm {
 
 namespace {
 
+// Callbacks will receive either {kFailedCompilation} or both
+// {kFinishedBaselineCompilation} and {kFinishedTopTierCompilation}, in that
+// order. If tier up is off, both events are delivered right after each other.
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
   kFinishedTopTierCompilation,
@@ -2436,13 +2439,15 @@ class AsyncCompileJob::CompilationStateCallback {
     // This callback is only being called from a foreground task.
     switch (event) {
       case CompilationEvent::kFinishedBaselineCompilation:
+        DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
           SaveContext saved_context(job_->isolate());
           job_->isolate()->set_context(*job_->native_context_);
           job_->FinishCompile(true);
         }
-        return;
+        break;
       case CompilationEvent::kFinishedTopTierCompilation:
+        DCHECK_EQ(CompilationEvent::kFinishedBaselineCompilation, last_event_);
         // Notify embedder that compilation is finished.
         if (job_->stream_ && job_->stream_->module_compiled_callback()) {
           job_->stream_->module_compiled_callback()(job_->module_object_);
@@ -2453,32 +2458,43 @@ class AsyncCompileJob::CompilationStateCallback {
             job_->outstanding_finishers_.load() == 0) {
           job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
         }
-        return;
-      case CompilationEvent::kFailedCompilation: {
+        break;
+      case CompilationEvent::kFailedCompilation:
+        DCHECK(!last_event_.has_value());
         DCHECK_NOT_NULL(error_result);
         // Tier-up compilation should not fail if baseline compilation
         // did not fail.
         DCHECK(!Impl(job_->native_module_->compilation_state())
                     ->baseline_compilation_finished());
 
-        SaveContext saved_context(job_->isolate());
-        job_->isolate()->set_context(*job_->native_context_);
-        ErrorThrower thrower(job_->isolate(), "AsyncCompilation");
-        thrower.CompileFailed(*error_result);
-        Handle<Object> error = thrower.Reify();
+        {
+          SaveContext saved_context(job_->isolate());
+          job_->isolate()->set_context(*job_->native_context_);
+          ErrorThrower thrower(job_->isolate(), "AsyncCompilation");
+          thrower.CompileFailed(*error_result);
+          Handle<Object> error = thrower.Reify();
 
-        DeferredHandleScope deferred(job_->isolate());
-        error = handle(*error, job_->isolate());
-        job_->deferred_handles_.push_back(deferred.Detach());
-        job_->DoSync<CompileFailed>(error);
-        return;
-      }
+          DeferredHandleScope deferred(job_->isolate());
+          error = handle(*error, job_->isolate());
+          job_->deferred_handles_.push_back(deferred.Detach());
+
+          job_->DoSync<CompileFailed>(error);
+        }
+
+        break;
+      default:
+        UNREACHABLE();
     }
-    UNREACHABLE();
+#ifdef DEBUG
+    last_event_ = event;
+#endif
   }
 
  private:
   AsyncCompileJob* job_;
+#ifdef DEBUG
+  base::Optional<CompilationEvent> last_event_;
+#endif
 };
 
 // A closure to run a compilation step (either as foreground or background
