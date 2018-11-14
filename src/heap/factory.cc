@@ -2692,34 +2692,40 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   // The trampoline code object must inherit specific flags from the original
   // builtin (e.g. the safepoint-table offset). We set them manually here.
 
-  const bool set_is_off_heap_trampoline = true;
-  const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
-  result->initialize_flags(code->kind(), code->has_unwinding_info(),
-                           code->is_turbofanned(), stack_slots,
-                           set_is_off_heap_trampoline);
-  result->set_builtin_index(code->builtin_index());
-  result->set_handler_table_offset(code->handler_table_offset());
-  result->code_data_container()->set_kind_specific_flags(
-      code->code_data_container()->kind_specific_flags());
-  result->set_constant_pool_offset(code->constant_pool_offset());
-  if (code->has_safepoint_info()) {
-    result->set_safepoint_table_offset(code->safepoint_table_offset());
-  }
+  {
+    MemoryChunk* chunk = MemoryChunk::FromAddress(result->ptr());
+    CodePageMemoryModificationScope code_allocation(chunk);
 
-  // Replace the newly generated trampoline's RelocInfo ByteArray with the
-  // canonical one stored in the roots to avoid duplicating it for every single
-  // builtin.
-  ByteArray* canonical_reloc_info =
-      ReadOnlyRoots(isolate()).off_heap_trampoline_relocation_info();
+    const bool set_is_off_heap_trampoline = true;
+    const int stack_slots =
+        code->has_safepoint_info() ? code->stack_slots() : 0;
+    result->initialize_flags(code->kind(), code->has_unwinding_info(),
+                             code->is_turbofanned(), stack_slots,
+                             set_is_off_heap_trampoline);
+    result->set_builtin_index(code->builtin_index());
+    result->set_handler_table_offset(code->handler_table_offset());
+    result->code_data_container()->set_kind_specific_flags(
+        code->code_data_container()->kind_specific_flags());
+    result->set_constant_pool_offset(code->constant_pool_offset());
+    if (code->has_safepoint_info()) {
+      result->set_safepoint_table_offset(code->safepoint_table_offset());
+    }
+
+    // Replace the newly generated trampoline's RelocInfo ByteArray with the
+    // canonical one stored in the roots to avoid duplicating it for every
+    // single builtin.
+    ByteArray* canonical_reloc_info =
+        ReadOnlyRoots(isolate()).off_heap_trampoline_relocation_info();
 #ifdef DEBUG
-  // Verify that the contents are the same.
-  ByteArray* reloc_info = result->relocation_info();
-  DCHECK_EQ(reloc_info->length(), canonical_reloc_info->length());
-  for (int i = 0; i < reloc_info->length(); ++i) {
-    DCHECK_EQ(reloc_info->get(i), canonical_reloc_info->get(i));
-  }
+    // Verify that the contents are the same.
+    ByteArray* reloc_info = result->relocation_info();
+    DCHECK_EQ(reloc_info->length(), canonical_reloc_info->length());
+    for (int i = 0; i < reloc_info->length(); ++i) {
+      DCHECK_EQ(reloc_info->get(i), canonical_reloc_info->get(i));
+    }
 #endif
-  result->set_relocation_info(canonical_reloc_info);
+    result->set_relocation_info(canonical_reloc_info);
+  }
 
   return result;
 }
