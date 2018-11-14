@@ -187,7 +187,7 @@ namespace array {
         AddStringLength(buffer.totalStringLength, str.length);
     let index: intptr = buffer.index;
     const fixedArray: FixedArray =
-        StoreAndGrowFixedArray<String>(buffer.fixedArray, index++, str);
+        StoreAndGrowFixedArray(buffer.fixedArray, index++, str);
     const isOneByte: bool =
         HasOnlyOneByteChars(str.instanceType) & buffer.isOneByte;
     return Buffer{fixedArray, index, totalStringLength, isOneByte};
@@ -211,7 +211,7 @@ namespace array {
     let index: intptr = buffer.index;
     let fixedArray: FixedArray = buffer.fixedArray;
     if (write) deferred {
-        fixedArray = StoreAndGrowFixedArray<Smi>(
+        fixedArray = StoreAndGrowFixedArray(
             buffer.fixedArray, index++, Convert<Smi>(nofSeparatorsInt));
       }
     return Buffer{fixedArray, index, totalStringLength, buffer.isOneByte};
@@ -421,7 +421,7 @@ namespace array {
 
     // If no open slots were found, grow the stack and add receiver to the end.
     const newStack: FixedArray =
-        StoreAndGrowFixedArray<JSReceiver>(stack, capacity, receiver);
+        StoreAndGrowFixedArray(stack, capacity, receiver);
     SetJoinStack(newStack);
     return True;
   }

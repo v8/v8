@@ -1313,13 +1313,14 @@ Callable* ImplementationVisitor::LookupCall(
   std::vector<Signature> overload_signatures;
   for (Declarable* declarable : Declarations::Lookup(name)) {
     if (Generic* generic = Generic::DynamicCast(declarable)) {
-      if (generic->generic_parameters().size() != specialization_types.size()) {
-        continue;
-      }
+      base::Optional<TypeVector> inferred_specialization_types =
+          generic->InferSpecializationTypes(specialization_types,
+                                            parameter_types);
+      if (!inferred_specialization_types) continue;
       overloads.push_back(generic);
       overload_signatures.push_back(
           DeclarationVisitor().MakeSpecializedSignature(
-              SpecializationKey{generic, specialization_types}));
+              SpecializationKey{generic, *inferred_specialization_types}));
     } else if (Callable* callable = Callable::DynamicCast(declarable)) {
       overloads.push_back(callable);
       overload_signatures.push_back(callable->signature());
@@ -1378,7 +1379,8 @@ Callable* ImplementationVisitor::LookupCall(
 
   if (Generic* generic = Generic::DynamicCast(overloads[best])) {
     result = GetOrCreateSpecialization(
-        SpecializationKey{generic, specialization_types});
+        SpecializationKey{generic, *generic->InferSpecializationTypes(
+                                       specialization_types, parameter_types)});
   } else {
     result = Callable::cast(overloads[best]);
   }

@@ -421,7 +421,7 @@ namespace test {
 
   macro TypeswitchExample(x: Number | FixedArray): int32 {
     let result: int32 = 0;
-    typeswitch (IncrementIfSmi<(Number | FixedArray)>(x)) {
+    typeswitch (IncrementIfSmi(x)) {
       case (x: FixedArray): {
         result = result + 1;
       }
@@ -432,7 +432,7 @@ namespace test {
 
     result = result * 10;
 
-    typeswitch (IncrementIfSmi<(Number | FixedArray)>(x)) {
+    typeswitch (IncrementIfSmi(x)) {
       case (x: Smi): {
         result = result + Convert<int32>(x);
       }

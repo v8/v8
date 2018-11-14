@@ -66,6 +66,38 @@ std::ostream& operator<<(std::ostream& os, const Generic& g) {
   return os;
 }
 
+base::Optional<const Type*> Generic::InferTypeArgument(
+    size_t i, const TypeVector& arguments) {
+  const std::string type_name = declaration()->generic_parameters[i];
+  const std::vector<TypeExpression*>& parameters =
+      declaration()->callable->signature->parameters.types;
+  for (size_t i = 0; i < arguments.size() && i < parameters.size(); ++i) {
+    BasicTypeExpression* basic =
+        BasicTypeExpression::DynamicCast(parameters[i]);
+    if (basic && !basic->is_constexpr && basic->name == type_name) {
+      return arguments[i];
+    }
+  }
+  return base::nullopt;
+}
+
+base::Optional<TypeVector> Generic::InferSpecializationTypes(
+    const TypeVector& explicit_specialization_types,
+    const TypeVector& arguments) {
+  TypeVector result = explicit_specialization_types;
+  size_t type_parameter_count = declaration()->generic_parameters.size();
+  if (explicit_specialization_types.size() > type_parameter_count) {
+    return base::nullopt;
+  }
+  for (size_t i = explicit_specialization_types.size();
+       i < type_parameter_count; ++i) {
+    base::Optional<const Type*> inferred = InferTypeArgument(i, arguments);
+    if (!inferred) return base::nullopt;
+    result.push_back(*inferred);
+  }
+  return result;
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

@@ -63,8 +63,8 @@ namespace array {
     while (lower < upper) {
       const lowerValue: T = LoadElement<Accessor, T>(elements, lower);
       const upperValue: T = LoadElement<Accessor, T>(elements, upper);
-      StoreElement<Accessor, T>(elements, lower, upperValue);
-      StoreElement<Accessor, T>(elements, upper, lowerValue);
+      StoreElement<Accessor>(elements, lower, upperValue);
+      StoreElement<Accessor>(elements, upper, lowerValue);
       ++lower;
       --upper;
     }
