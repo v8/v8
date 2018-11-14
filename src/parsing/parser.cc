@@ -386,8 +386,7 @@ Parser::Parser(ParseInfo* info)
                          info->script().is_null() ? -1 : info->script()->id(),
                          info->is_module(), true),
       info_(info),
-      scanner_(info->unicode_cache(), info->character_stream(),
-               info->is_module()),
+      scanner_(info->character_stream(), info->is_module()),
       preparser_zone_(info->zone()->allocator(), ZONE_NAME),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.

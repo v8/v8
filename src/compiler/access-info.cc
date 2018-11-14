@@ -501,7 +501,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
     // Don't search on the prototype chain for special indices in case of
     // integer indexed exotic objects (see ES6 section 9.4.5).
     if (map->IsJSTypedArrayMap() && name->IsString() &&
-        IsSpecialIndex(isolate()->unicode_cache(), String::cast(*name))) {
+        IsSpecialIndex(String::cast(*name))) {
       return false;
     }
 

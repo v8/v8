@@ -63,8 +63,7 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
-  double value = StringToDouble(isolate, isolate->unicode_cache(), subject,
-                                ALLOW_TRAILING_JUNK,
+  double value = StringToDouble(isolate, subject, ALLOW_TRAILING_JUNK,
                                 std::numeric_limits<double>::quiet_NaN());
 
   return *isolate->factory()->NewNumber(value);

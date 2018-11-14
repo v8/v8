@@ -36,7 +36,6 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/unicode-cache.h"
 #include "src/unoptimized-compilation-info.h"
 #include "src/vm-state-inl.h"
 
@@ -971,7 +970,6 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
   LOG(isolate, ScriptEvent(Logger::ScriptEventType::kStreamingCompile,
                            info_->script_id()));
   info_->set_toplevel();
-  info_->set_unicode_cache(&unicode_cache_);
   info_->set_allow_lazy_parsing();
   if (V8_UNLIKELY(info_->block_coverage_enabled())) {
     info_->AllocateSourceRangeMap();
@@ -998,8 +996,6 @@ BackgroundCompileTask::BackgroundCompileTask(
       timer_(timer) {
   DCHECK(outer_parse_info->is_toplevel());
   DCHECK(!function_literal->is_toplevel());
-
-  info_->set_unicode_cache(&unicode_cache_);
 
   // Clone the character stream so both can be accessed independently.
   std::unique_ptr<Utf16CharacterStream> character_stream =

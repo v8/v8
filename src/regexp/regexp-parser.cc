@@ -852,7 +852,7 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
     }
 
     if (at_start) {
-      if (!IdentifierStart::Is(c)) {
+      if (!IsIdentifierStart(c)) {
         ReportError(CStrVector("Invalid capture group name"));
         return nullptr;
       }
@@ -861,7 +861,7 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
     } else {
       if (c == '>') {
         break;
-      } else if (IdentifierPart::Is(c)) {
+      } else if (IsIdentifierPart(c)) {
         push_code_unit(name, c);
       } else {
         ReportError(CStrVector("Invalid capture group name"));

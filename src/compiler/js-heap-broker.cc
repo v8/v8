@@ -483,8 +483,7 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
       is_seq_string_(object->IsSeqString()) {
   int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   if (length_ <= kMaxLengthForDoubleConversion) {
-    to_number_ = StringToDouble(
-        broker->isolate(), broker->isolate()->unicode_cache(), object, flags);
+    to_number_ = StringToDouble(broker->isolate(), object, flags);
   }
 }
 
@@ -2039,9 +2038,7 @@ base::Optional<double> StringRef::ToNumber() {
     AllowHandleAllocation allow_handle_allocation;
     AllowHeapAllocation allow_heap_allocation;
     int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-    return StringToDouble(broker()->isolate(),
-                          broker()->isolate()->unicode_cache(), object(),
-                          flags);
+    return StringToDouble(broker()->isolate(), object(), flags);
   }
   return data()->AsString()->to_number();
 }

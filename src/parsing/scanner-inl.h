@@ -7,7 +7,6 @@
 
 #include "src/char-predicates-inl.h"
 #include "src/parsing/scanner.h"
-#include "src/unicode-cache-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -240,7 +239,7 @@ static constexpr const uint8_t character_scan_flags[128] = {
 };
 
 V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
-  DCHECK(unicode_cache_->IsIdentifierStart(c0_));
+  DCHECK(IsIdentifierStart(c0_));
   bool escaped = false;
 
   STATIC_ASSERT(arraysize(character_scan_flags) == kMaxAscii + 1);
@@ -278,8 +277,8 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
       // Special case for escapes at the start of an identifier.
       escaped = true;
       uc32 c = ScanIdentifierUnicodeEscape();
-      DCHECK(!unicode_cache_->IsIdentifierStart(-1));
-      if (c == '\\' || !unicode_cache_->IsIdentifierStart(c)) {
+      DCHECK(!IsIdentifierStart(-1));
+      if (c == '\\' || !IsIdentifierStart(c)) {
         return Token::ILLEGAL;
       }
       AddLiteralChar(c);
@@ -293,10 +292,10 @@ V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
   // We won't skip behind the end of input.
-  DCHECK(!unicode_cache_->IsWhiteSpaceOrLineTerminator(kEndOfInput));
+  DCHECK(!IsWhiteSpaceOrLineTerminator(kEndOfInput));
 
   // Advance as long as character is a WhiteSpace or LineTerminator.
-  while (unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_)) {
+  while (IsWhiteSpaceOrLineTerminator(c0_)) {
     if (!next().after_line_terminator && unibrow::IsLineTerminator(c0_)) {
       next().after_line_terminator = true;
     }
@@ -484,8 +483,8 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
       }
     }
 
-    if (unicode_cache_->IsIdentifierStart(c0_) ||
-        (CombineSurrogatePair() && unicode_cache_->IsIdentifierStart(c0_))) {
+    if (IsIdentifierStart(c0_) ||
+        (CombineSurrogatePair() && IsIdentifierStart(c0_))) {
       return ScanIdentifierOrKeyword();
     }
     if (c0_ == kEndOfInput) {

@@ -29,7 +29,6 @@ class ExternalOneByteString;
 class ExternalTwoByteString;
 class ParserRecorder;
 class RuntimeCallStats;
-class UnicodeCache;
 class Zone;
 
 // ---------------------------------------------------------------------
@@ -270,8 +269,7 @@ class Scanner {
   static const int kNoOctalLocation = -1;
   static const uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
 
-  explicit Scanner(UnicodeCache* scanner_contants, Utf16CharacterStream* source,
-                   bool is_module);
+  explicit Scanner(Utf16CharacterStream* source, bool is_module);
 
   void Initialize();
 
@@ -342,8 +340,6 @@ class Scanner {
     const char* chars = reinterpret_cast<const char*>(next.start());
     return next.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
-
-  UnicodeCache* unicode_cache() const { return unicode_cache_; }
 
   // Returns the location of the last seen octal literal.
   Location octal_position() const { return octal_pos_; }
@@ -766,8 +762,6 @@ class Scanner {
 #ifdef DEBUG
   void SanityCheckTokenDesc(const TokenDesc&) const;
 #endif
-
-  UnicodeCache* const unicode_cache_;
 
   TokenDesc& next() { return *next_; }
 

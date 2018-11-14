@@ -531,7 +531,7 @@ static bool NotDigit(uc16 c) {
 static bool IsWhiteSpaceOrLineTerminator(uc16 c) {
   // According to ECMA 5.1, 15.10.2.12 the CharacterClassEscape \s includes
   // WhiteSpace (7.2) and LineTerminator (7.3) values.
-  return v8::internal::WhiteSpaceOrLineTerminator::Is(c);
+  return v8::internal::IsWhiteSpaceOrLineTerminator(c);
 }
 
 

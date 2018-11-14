@@ -1065,9 +1065,7 @@ LookupIterator::State LookupIterator::NotFound(JSReceiver* const holder) const {
   Handle<String> name_string = Handle<String>::cast(name_);
   if (name_string->length() == 0) return NOT_FOUND;
 
-  return IsSpecialIndex(isolate_->unicode_cache(), *name_string)
-             ? INTEGER_INDEXED_EXOTIC
-             : NOT_FOUND;
+  return IsSpecialIndex(*name_string) ? INTEGER_INDEXED_EXOTIC : NOT_FOUND;
 }
 
 namespace {

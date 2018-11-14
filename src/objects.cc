@@ -102,8 +102,8 @@
 #include "src/string-builder-inl.h"
 #include "src/string-search.h"
 #include "src/string-stream.h"
-#include "src/unicode-cache-inl.h"
 #include "src/unicode-decoder.h"
+#include "src/unicode-inl.h"
 #include "src/utils-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
@@ -10794,10 +10794,8 @@ Handle<String> String::Trim(Isolate* isolate, Handle<String> string,
 
   // Perform left trimming if requested.
   int left = 0;
-  UnicodeCache* unicode_cache = isolate->unicode_cache();
   if (mode == kTrim || mode == kTrimStart) {
-    while (left < length &&
-           unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(left))) {
+    while (left < length && IsWhiteSpaceOrLineTerminator(string->Get(left))) {
       left++;
     }
   }
@@ -10805,9 +10803,8 @@ Handle<String> String::Trim(Isolate* isolate, Handle<String> string,
   // Perform right trimming if requested.
   int right = length;
   if (mode == kTrim || mode == kTrimEnd) {
-    while (
-        right > left &&
-        unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(right - 1))) {
+    while (right > left &&
+           IsWhiteSpaceOrLineTerminator(string->Get(right - 1))) {
       right--;
     }
   }
@@ -10934,8 +10931,7 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
 
   // Slower case.
   int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-  return isolate->factory()->NewNumber(
-      StringToDouble(isolate, isolate->unicode_cache(), subject, flags));
+  return isolate->factory()->NewNumber(StringToDouble(isolate, subject, flags));
 }
 
 
@@ -11391,14 +11387,13 @@ static void CalculateLineEndsImpl(Isolate* isolate, std::vector<int>* line_ends,
                                   Vector<const SourceChar> src,
                                   bool include_ending_line) {
   const int src_len = src.length();
-  UnicodeCache* cache = isolate->unicode_cache();
   for (int i = 0; i < src_len - 1; i++) {
     SourceChar current = src[i];
     SourceChar next = src[i + 1];
-    if (cache->IsLineTerminatorSequence(current, next)) line_ends->push_back(i);
+    if (IsLineTerminatorSequence(current, next)) line_ends->push_back(i);
   }
 
-  if (src_len > 0 && cache->IsLineTerminatorSequence(src[src_len - 1], 0)) {
+  if (src_len > 0 && IsLineTerminatorSequence(src[src_len - 1], 0)) {
     line_ends->push_back(src_len - 1);
   }
   if (include_ending_line) {

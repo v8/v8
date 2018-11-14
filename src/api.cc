@@ -89,7 +89,6 @@
 #include "src/string-hasher.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/unicode-cache-inl.h"
 #include "src/unicode-inl.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -2415,9 +2414,9 @@ class IsIdentifierHelper {
     for (int i = 0; i < length; ++i) {
       if (first_char_) {
         first_char_ = false;
-        is_identifier_ = unicode_cache_.IsIdentifierStart(chars[0]);
+        is_identifier_ = i::IsIdentifierStart(chars[0]);
       } else {
-        is_identifier_ &= unicode_cache_.IsIdentifierPart(chars[i]);
+        is_identifier_ &= i::IsIdentifierPart(chars[i]);
       }
     }
   }
@@ -2425,9 +2424,9 @@ class IsIdentifierHelper {
     for (int i = 0; i < length; ++i) {
       if (first_char_) {
         first_char_ = false;
-        is_identifier_ = unicode_cache_.IsIdentifierStart(chars[0]);
+        is_identifier_ = i::IsIdentifierStart(chars[0]);
       } else {
-        is_identifier_ &= unicode_cache_.IsIdentifierPart(chars[i]);
+        is_identifier_ &= i::IsIdentifierPart(chars[i]);
       }
     }
   }
@@ -2435,7 +2434,6 @@ class IsIdentifierHelper {
  private:
   bool is_identifier_;
   bool first_char_;
-  i::UnicodeCache unicode_cache_;
   DISALLOW_COPY_AND_ASSIGN(IsIdentifierHelper);
 };
 

@@ -172,10 +172,8 @@ bool Scanner::BookmarkScope::HasBeenApplied() const {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(UnicodeCache* unicode_cache, Utf16CharacterStream* source,
-                 bool is_module)
-    : unicode_cache_(unicode_cache),
-      source_(source),
+Scanner::Scanner(Utf16CharacterStream* source, bool is_module)
+    : source_(source),
       found_html_comment_(false),
       allow_harmony_numeric_separator_(false),
       is_module_(is_module),
@@ -304,14 +302,14 @@ Token::Value Scanner::SkipSourceURLComment() {
 void Scanner::TryToParseSourceURLComment() {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
-  DCHECK(!unicode_cache_->IsWhiteSpaceOrLineTerminator(kEndOfInput));
-  if (!unicode_cache_->IsWhiteSpace(c0_)) return;
+  DCHECK(!IsWhiteSpaceOrLineTerminator(kEndOfInput));
+  if (!IsWhiteSpace(c0_)) return;
   Advance();
   LiteralBuffer name;
   name.Start();
 
-  while (c0_ != kEndOfInput &&
-         !unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_) && c0_ != '=') {
+  while (c0_ != kEndOfInput && !IsWhiteSpaceOrLineTerminator(c0_) &&
+         c0_ != '=') {
     name.AddChar(c0_);
     Advance();
   }
@@ -329,7 +327,7 @@ void Scanner::TryToParseSourceURLComment() {
     return;
   value->Start();
   Advance();
-  while (unicode_cache_->IsWhiteSpace(c0_)) {
+  while (IsWhiteSpace(c0_)) {
     Advance();
   }
   while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
@@ -338,7 +336,7 @@ void Scanner::TryToParseSourceURLComment() {
       value->Start();
       return;
     }
-    if (unicode_cache_->IsWhiteSpace(c0_)) {
+    if (IsWhiteSpace(c0_)) {
       break;
     }
     value->AddChar(c0_);
@@ -346,7 +344,7 @@ void Scanner::TryToParseSourceURLComment() {
   }
   // Allow whitespace at the end.
   while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    if (!unicode_cache_->IsWhiteSpace(c0_)) {
+    if (!IsWhiteSpace(c0_)) {
       value->Start();
       break;
     }
@@ -565,8 +563,8 @@ Token::Value Scanner::ScanPrivateName() {
 
   next().literal_chars.Start();
   DCHECK_EQ(c0_, '#');
-  DCHECK(!unicode_cache_->IsIdentifierStart(kEndOfInput));
-  if (!unicode_cache_->IsIdentifierStart(Peek())) {
+  DCHECK(!IsIdentifierStart(kEndOfInput));
+  if (!IsIdentifierStart(Peek())) {
     ReportScannerError(source_pos(),
                        MessageTemplate::kInvalidOrUnexpectedToken);
     return Token::ILLEGAL;
@@ -894,8 +892,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         }
 
         if (next().literal_chars.one_byte_literal().length() <= 10 &&
-            value <= Smi::kMaxValue && c0_ != '.' &&
-            !unicode_cache_->IsIdentifierStart(c0_)) {
+            value <= Smi::kMaxValue && c0_ != '.' && !IsIdentifierStart(c0_)) {
           next().smi_value_ = static_cast<uint32_t>(value);
 
           if (kind == DECIMAL_WITH_LEADING_ZERO) {
@@ -951,7 +948,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // not be an identifier start or a decimal digit; see ECMA-262
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
-  if (IsDecimalDigit(c0_) || unicode_cache_->IsIdentifierStart(c0_)) {
+  if (IsDecimalDigit(c0_) || IsIdentifierStart(c0_)) {
     return Token::ILLEGAL;
   }
 
@@ -997,15 +994,14 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped) {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
       // TODO(verwaest): Make this true.
-      // DCHECK(!unicode_cache_->IsIdentifierPart('\\'));
-      DCHECK(!unicode_cache_->IsIdentifierPart(-1));
-      if (c == '\\' || !unicode_cache_->IsIdentifierPart(c)) {
+      // DCHECK(!IsIdentifierPart('\'));
+      DCHECK(!IsIdentifierPart(-1));
+      if (c == '\\' || !IsIdentifierPart(c)) {
         return Token::ILLEGAL;
       }
       AddLiteralChar(c);
-    } else if (unicode_cache_->IsIdentifierPart(c0_) ||
-               (CombineSurrogatePair() &&
-                unicode_cache_->IsIdentifierPart(c0_))) {
+    } else if (IsIdentifierPart(c0_) ||
+               (CombineSurrogatePair() && IsIdentifierPart(c0_))) {
       AddLiteralCharAdvance();
     } else {
       break;
@@ -1087,7 +1083,7 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
 
   // Scan regular expression flags.
   int flags = 0;
-  while (unicode_cache_->IsIdentifierPart(c0_)) {
+  while (IsIdentifierPart(c0_)) {
     RegExp::Flags flag = RegExp::kNone;
     switch (c0_) {
       case 'g':
@@ -1150,7 +1146,6 @@ const AstRawString* Scanner::CurrentRawSymbol(
 double Scanner::DoubleValue() {
   DCHECK(is_literal_one_byte());
   return StringToDouble(
-      unicode_cache_,
       literal_one_byte_string(),
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
 }

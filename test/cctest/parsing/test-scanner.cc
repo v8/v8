@@ -9,7 +9,6 @@
 #include "src/objects-inl.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
-#include "src/unicode-cache.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -22,11 +21,9 @@ const char src_simple[] = "function foo() { var x = 2 * a() + b; }";
 struct ScannerTestHelper {
   ScannerTestHelper() = default;
   ScannerTestHelper(ScannerTestHelper&& other) V8_NOEXCEPT
-      : unicode_cache(std::move(other.unicode_cache)),
-        stream(std::move(other.stream)),
+      : stream(std::move(other.stream)),
         scanner(std::move(other.scanner)) {}
 
-  std::unique_ptr<UnicodeCache> unicode_cache;
   std::unique_ptr<Utf16CharacterStream> stream;
   std::unique_ptr<Scanner> scanner;
 
@@ -36,10 +33,9 @@ struct ScannerTestHelper {
 
 ScannerTestHelper make_scanner(const char* src) {
   ScannerTestHelper helper;
-  helper.unicode_cache = std::unique_ptr<UnicodeCache>(new UnicodeCache);
   helper.stream = ScannerStream::ForTesting(src);
-  helper.scanner = std::unique_ptr<Scanner>(
-      new Scanner(helper.unicode_cache.get(), helper.stream.get(), false));
+  helper.scanner =
+      std::unique_ptr<Scanner>(new Scanner(helper.stream.get(), false));
   helper.scanner->Initialize();
   return helper;
 }
