@@ -2573,18 +2573,26 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallFunction(isolate_, prototype, factory->match_symbol(),
                             "[Symbol.match]", Builtins::kRegExpPrototypeMatch,
                             1, true);
+      DCHECK_EQ(JSRegExp::kSymbolMatchFunctionDescriptorIndex,
+                prototype->map()->LastAdded());
 
       SimpleInstallFunction(isolate_, prototype, factory->replace_symbol(),
                             "[Symbol.replace]",
                             Builtins::kRegExpPrototypeReplace, 2, false);
+      DCHECK_EQ(JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
+                prototype->map()->LastAdded());
 
       SimpleInstallFunction(isolate_, prototype, factory->search_symbol(),
                             "[Symbol.search]", Builtins::kRegExpPrototypeSearch,
                             1, true);
+      DCHECK_EQ(JSRegExp::kSymbolSearchFunctionDescriptorIndex,
+                prototype->map()->LastAdded());
 
       SimpleInstallFunction(isolate_, prototype, factory->split_symbol(),
                             "[Symbol.split]", Builtins::kRegExpPrototypeSplit,
                             2, false);
+      DCHECK_EQ(JSRegExp::kSymbolSplitFunctionDescriptorIndex,
+                prototype->map()->LastAdded());
 
       Handle<Map> prototype_map(prototype->map(), isolate());
       Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate_);
@@ -4505,6 +4513,8 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
     Handle<Map> regexp_prototype_map(regexp_prototype->map(), isolate());
     Map::SetShouldBeFastPrototypeMap(regexp_prototype_map, true, isolate());
     native_context()->set_regexp_prototype_map(*regexp_prototype_map);
+    DCHECK_EQ(JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+              regexp_prototype->map()->LastAdded());
   }
 
   {  // --- R e g E x p S t r i n g  I t e r a t o r ---

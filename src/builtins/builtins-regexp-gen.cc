@@ -907,11 +907,10 @@ Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(Node* const context,
 // We use a fairly coarse granularity for this and simply check whether both
 // the regexp itself is unmodified (i.e. its map has not changed), its
 // prototype is unmodified, and lastIndex is a non-negative smi.
-void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
-                                                 Node* const object,
-                                                 Node* const map,
-                                                 Label* const if_isunmodified,
-                                                 Label* const if_ismodified) {
+void RegExpBuiltinsAssembler::BranchIfFastRegExp(
+    Node* const context, Node* const object, Node* const map,
+    base::Optional<DescriptorIndexAndName> additional_property_to_check,
+    Label* const if_isunmodified, Label* const if_ismodified) {
   CSA_ASSERT(this, WordEqual(LoadMap(object), map));
 
   GotoIfForceSlowPath(if_ismodified);
@@ -928,9 +927,17 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
   Node* const initial_proto_initial_map =
       LoadContextElement(native_context, Context::REGEXP_PROTOTYPE_MAP_INDEX);
 
-  GotoIfInitialPrototypePropertyModified(
+  DescriptorIndexAndName properties_to_check[2];
+  int property_count = 0;
+  properties_to_check[property_count++] = DescriptorIndexAndName{
+      JSRegExp::kExecFunctionDescriptorIndex, RootIndex::kexec_string};
+  if (additional_property_to_check) {
+    properties_to_check[property_count++] = *additional_property_to_check;
+  }
+
+  GotoIfInitialPrototypePropertiesModified(
       CAST(map), CAST(initial_proto_initial_map),
-      JSRegExp::kExecFunctionDescriptorIndex, RootIndex::kexec_string,
+      Vector<DescriptorIndexAndName>(properties_to_check, property_count),
       if_ismodified);
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
@@ -944,8 +951,8 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
                                                  Label* const if_isunmodified,
                                                  Label* const if_ismodified) {
   CSA_ASSERT(this, TaggedIsNotSmi(object));
-  BranchIfFastRegExp(context, object, LoadMap(object), if_isunmodified,
-                     if_ismodified);
+  BranchIfFastRegExp(context, object, LoadMap(object), base::nullopt,
+                     if_isunmodified, if_ismodified);
 }
 
 TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExp(SloppyTNode<Context> context,
@@ -1260,7 +1267,8 @@ TF_BUILTIN(RegExpPrototypeFlagsGetter, RegExpBuiltinsAssembler) {
   TNode<JSReceiver> receiver = CAST(maybe_receiver);
 
   Label if_isfastpath(this), if_isslowpath(this, Label::kDeferred);
-  BranchIfFastRegExp(context, receiver, map, &if_isfastpath, &if_isslowpath);
+  BranchIfFastRegExp(context, receiver, map, base::nullopt, &if_isfastpath,
+                     &if_isslowpath);
 
   BIND(&if_isfastpath);
   Return(FlagsGetter(context, receiver, true));

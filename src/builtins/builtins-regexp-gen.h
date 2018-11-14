@@ -5,6 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 #define V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 
+#include "src/base/optional.h"
 #include "src/code-stub-assembler.h"
 #include "src/message-template.h"
 
@@ -16,9 +17,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   explicit RegExpBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void BranchIfFastRegExp(Node* const context, Node* const object,
-                          Node* const map, Label* const if_isunmodified,
-                          Label* const if_ismodified);
+  void BranchIfFastRegExp(
+      Node* const context, Node* const object, Node* const map,
+      base::Optional<DescriptorIndexAndName> additional_property_to_check,
+      Label* const if_isunmodified, Label* const if_ismodified);
 
   // Create and initialize a RegExp object.
   TNode<Object> RegExpCreate(TNode<Context> context,

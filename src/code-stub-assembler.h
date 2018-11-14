@@ -3169,6 +3169,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                               int descfriptor,
                                               RootIndex field_name_root_index,
                                               Label* if_modified);
+  struct DescriptorIndexAndName {
+    DescriptorIndexAndName() {}
+    DescriptorIndexAndName(int descriptor_index, RootIndex name_root_index)
+        : descriptor_index(descriptor_index),
+          name_root_index(name_root_index) {}
+
+    int descriptor_index;
+    RootIndex name_root_index;
+  };
+  void GotoIfInitialPrototypePropertiesModified(
+      TNode<Map> object_map, TNode<Map> initial_prototype_map,
+      Vector<DescriptorIndexAndName> properties, Label* if_modified);
 
   // Implements DescriptorArray::Search().
   void DescriptorLookup(SloppyTNode<Name> unique_name,

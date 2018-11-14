@@ -1057,8 +1057,8 @@ void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     Node* const context, Node* const object, Node* const maybe_string,
-    Handle<Symbol> symbol, const NodeFunction0& regexp_call,
-    const NodeFunction1& generic_call) {
+    Handle<Symbol> symbol, DescriptorIndexAndName symbol_index,
+    const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
   Label out(this);
 
   // Smis definitely don't have an attached symbol.
@@ -1075,8 +1075,8 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     GotoIfNot(IsString(maybe_string), &slow_lookup);
 
     RegExpBuiltinsAssembler regexp_asm(state());
-    regexp_asm.BranchIfFastRegExp(context, object, LoadMap(object), &stub_call,
-                                  &slow_lookup);
+    regexp_asm.BranchIfFastRegExp(context, object, LoadMap(object),
+                                  symbol_index, &stub_call, &slow_lookup);
 
     BIND(&stub_call);
     // TODO(jgruber): Add a no-JS scope once it exists.
@@ -1290,6 +1290,8 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   MaybeCallFunctionAtSymbol(
       context, search, receiver, isolate()->factory()->replace_symbol(),
+      DescriptorIndexAndName{JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
+                             RootIndex::kreplace_symbol},
       [=]() {
         Return(CallBuiltin(Builtins::kRegExpReplace, context, search, receiver,
                            replace));
@@ -1440,18 +1442,25 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
 
     Builtins::Name builtin;
     Handle<Symbol> symbol;
+    DescriptorIndexAndName property_to_check;
     if (variant == kMatch) {
       builtin = Builtins::kRegExpMatchFast;
       symbol = isolate()->factory()->match_symbol();
+      property_to_check =
+          DescriptorIndexAndName{JSRegExp::kSymbolMatchFunctionDescriptorIndex,
+                                 RootIndex::kmatch_symbol};
     } else {
       builtin = Builtins::kRegExpSearchFast;
       symbol = isolate()->factory()->search_symbol();
+      property_to_check =
+          DescriptorIndexAndName{JSRegExp::kSymbolSearchFunctionDescriptorIndex,
+                                 RootIndex::ksearch_symbol};
     }
 
     RequireObjectCoercible(context, receiver, method_name);
 
     MaybeCallFunctionAtSymbol(
-        context, maybe_regexp, receiver, symbol,
+        context, maybe_regexp, receiver, symbol, property_to_check,
         [=] { Return(CallBuiltin(builtin, context, maybe_regexp, receiver)); },
         [=](Node* fn) {
           Callable call_callable = CodeFactory::Call(isolate());
@@ -1472,8 +1481,8 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
           context, initial_map, maybe_regexp, EmptyStringConstant());
 
       Label fast_path(this), slow_path(this);
-      regexp_asm.BranchIfFastRegExp(context, regexp, initial_map, &fast_path,
-                                    &slow_path);
+      regexp_asm.BranchIfFastRegExp(context, regexp, initial_map,
+                                    property_to_check, &fast_path, &slow_path);
 
       BIND(&fast_path);
       Return(CallBuiltin(builtin, context, regexp, receiver_string));
@@ -1533,9 +1542,12 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
       Callable call_callable = CodeFactory::Call(isolate());
       Return(CallJS(call_callable, context, fn, maybe_regexp, receiver));
     };
-    MaybeCallFunctionAtSymbol(context, maybe_regexp, receiver,
-                              isolate()->factory()->match_all_symbol(),
-                              if_regexp_call, if_generic_call);
+    MaybeCallFunctionAtSymbol(
+        context, maybe_regexp, receiver,
+        isolate()->factory()->match_all_symbol(),
+        DescriptorIndexAndName{JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+                               RootIndex::kmatch_all_symbol},
+        if_regexp_call, if_generic_call);
     Goto(&tostring_and_create_regexp_string_iterator);
   }
   BIND(&tostring_and_create_regexp_string_iterator);
@@ -1852,6 +1864,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
   MaybeCallFunctionAtSymbol(
       context, separator, receiver, isolate()->factory()->split_symbol(),
+      DescriptorIndexAndName{JSRegExp::kSymbolSplitFunctionDescriptorIndex,
+                             RootIndex::ksplit_symbol},
       [&]() {
         args.PopAndReturn(CallBuiltin(Builtins::kRegExpSplit, context,
                                       separator, receiver, limit));
