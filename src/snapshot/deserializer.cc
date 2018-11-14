@@ -649,6 +649,11 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         break;
       }
 
+      case kClearedWeakReference:
+        UnalignedCopy(current, HeapObjectReference::ClearedValue(isolate_));
+        current.Advance();
+        break;
+
       case kWeakPrefix:
         DCHECK(!allocator()->next_reference_is_weak());
         allocator()->set_next_reference_is_weak(true);

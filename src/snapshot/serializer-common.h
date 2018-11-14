@@ -142,8 +142,7 @@ class SerializerDeserializer : public RootVisitor {
   V(0x79)                               \
   V(0x7a)                               \
   V(0x7b)                               \
-  V(0x7c)                               \
-  V(0x7d)
+  V(0x7c)
 
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
@@ -236,6 +235,7 @@ class SerializerDeserializer : public RootVisitor {
   static const int kApiReference = 0x3d;
 
   // In-place weak references
+  static const int kClearedWeakReference = 0x7d;
   static const int kWeakPrefix = 0x7e;
 
   // Encodes an off-heap instruction stream target.

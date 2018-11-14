@@ -669,11 +669,18 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
                                                  MaybeObjectSlot end) {
   MaybeObjectSlot current = start;
   while (current < end) {
-    while (current < end && ((*current)->IsSmi() || (*current)->IsCleared())) {
+    while (current < end && (*current)->IsSmi()) {
       ++current;
     }
     if (current < end) {
       OutputRawData(current.address());
+    }
+    // TODO(ishell): Revisit this change once we stick to 32-bit compressed
+    // tagged values.
+    while (current < end && (*current)->IsCleared()) {
+      sink_->Put(kClearedWeakReference, "ClearedWeakReference");
+      bytes_processed_so_far_ += kPointerSize;
+      ++current;
     }
     HeapObject* current_contents;
     HeapObjectReferenceType reference_type;
