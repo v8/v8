@@ -262,8 +262,8 @@ V8_INLINE Token::Value KeywordOrIdentifierToken(const uint8_t* input,
 }
 
 V8_INLINE Token::Value Scanner::ScanIdentifierOrKeyword() {
-  LiteralScope literal(this);
-  return ScanIdentifierOrKeywordInner(&literal);
+  next().literal_chars.Start();
+  return ScanIdentifierOrKeywordInner();
 }
 
 // Character flags for the fast path of scanning a keyword or identifier token.
@@ -318,8 +318,7 @@ static constexpr const uint8_t character_scan_flags[128] = {
 #undef CALL_GET_SCAN_FLAGS
 };
 
-V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner(
-    LiteralScope* literal) {
+V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
   DCHECK(unicode_cache_->IsIdentifierStart(c0_));
   bool escaped = false;
 
@@ -349,20 +348,10 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner(
       });
 
       if (V8_LIKELY(!NeedsSlowPath(scan_flags))) {
-        if (CanBeKeyword(scan_flags)) {
-          // Could be a keyword or identifier.
-          Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
-          Token::Value token =
-              KeywordOrIdentifierToken(chars.start(), chars.length());
-          if (token == Token::IDENTIFIER ||
-              token == Token::FUTURE_STRICT_RESERVED_WORD) {
-            literal->Complete();
-          }
-          return token;
-        } else {
-          literal->Complete();
-          return Token::IDENTIFIER;
-        }
+        if (!CanBeKeyword(scan_flags)) return Token::IDENTIFIER;
+        // Could be a keyword or identifier.
+        Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
+        return KeywordOrIdentifierToken(chars.start(), chars.length());
       }
     } else {
       // Special case for escapes at the start of an identifier.
@@ -376,7 +365,7 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner(
     }
   }
 
-  return ScanIdentifierOrKeywordInnerSlow(literal, escaped);
+  return ScanIdentifierOrKeywordInnerSlow(escaped);
 }
 
 V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
@@ -572,8 +561,6 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
 void Scanner::Scan(TokenDesc* next_desc) {
   DCHECK_EQ(next_desc, &next());
 
-  next_desc->literal_chars.Drop();
-  next_desc->raw_literal_chars.Drop();
   next_desc->invalid_template_escape_message = MessageTemplate::kNone;
 
   next_desc->token = ScanSingleToken();

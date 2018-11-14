@@ -416,21 +416,16 @@ class Scanner {
   // LiteralBuffer -  Collector of chars of literals.
   class LiteralBuffer {
    public:
-    LiteralBuffer()
-        : backing_store_(),
-          position_(0),
-          flags_(IsOneByte::encode(true) | IsUsedByte::encode(false)) {}
+    LiteralBuffer() : backing_store_(), position_(0), is_one_byte_(true) {}
 
     ~LiteralBuffer() { backing_store_.Dispose(); }
 
     V8_INLINE void AddChar(char code_unit) {
-      DCHECK(is_used());
       DCHECK(IsValidAscii(code_unit));
       AddOneByteChar(static_cast<byte>(code_unit));
     }
 
     V8_INLINE void AddChar(uc32 code_unit) {
-      DCHECK(is_used());
       if (is_one_byte()) {
         if (code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
           AddOneByteChar(static_cast<byte>(code_unit));
@@ -441,17 +436,15 @@ class Scanner {
       AddTwoByteChar(code_unit);
     }
 
-    bool is_one_byte() const { return IsOneByte::decode(flags_); }
+    bool is_one_byte() const { return is_one_byte_; }
 
     bool Equals(Vector<const char> keyword) const {
-      DCHECK(is_used());
       return is_one_byte() && keyword.length() == position_ &&
              (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
     }
 
     Vector<const uint16_t> two_byte_literal() const {
       DCHECK(!is_one_byte());
-      DCHECK(is_used());
       DCHECK_EQ(position_ & 0x1, 0);
       return Vector<const uint16_t>(
           reinterpret_cast<const uint16_t*>(backing_store_.start()),
@@ -460,7 +453,6 @@ class Scanner {
 
     Vector<const uint8_t> one_byte_literal() const {
       DCHECK(is_one_byte());
-      DCHECK(is_used());
       return Vector<const uint8_t>(
           reinterpret_cast<const uint8_t*>(backing_store_.start()), position_);
     }
@@ -468,16 +460,8 @@ class Scanner {
     int length() const { return is_one_byte() ? position_ : (position_ >> 1); }
 
     void Start() {
-      DCHECK(!is_used());
-      DCHECK_EQ(0, position_);
-      flags_ = IsUsedByte::update(flags_, true);
-    }
-
-    bool is_used() const { return IsUsedByte::decode(flags_); }
-
-    void Drop() {
       position_ = 0;
-      flags_ = IsOneByte::encode(true) | IsUsedByte::encode(false);
+      is_one_byte_ = true;
     }
 
     Handle<String> Internalize(Isolate* isolate) const;
@@ -510,32 +494,10 @@ class Scanner {
 
     Vector<byte> backing_store_;
     int position_;
-    uint8_t flags_;
 
-    // Flags
-    typedef BitField8<bool, 0, 1> IsOneByte;
-    typedef BitField8<bool, 1, 2> IsUsedByte;
+    bool is_one_byte_;
 
     DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
-  };
-
-  // Scoped helper for literal recording. Automatically drops the literal
-  // if aborting the scanning before it's complete.
-  class LiteralScope {
-   public:
-    explicit LiteralScope(Scanner* scanner)
-        : buffer_and_complete_(&scanner->next().literal_chars, false) {
-      buffer()->Start();
-    }
-    ~LiteralScope() {
-      if (!buffer_and_complete_.GetPayload()) buffer()->Drop();
-    }
-    void Complete() { buffer_and_complete_.SetPayload(true); }
-
-   private:
-    LiteralBuffer* buffer() const { return buffer_and_complete_.GetPointer(); }
-
-    PointerWithPayload<LiteralBuffer, bool, 1> buffer_and_complete_;
   };
 
   // The current and look-ahead token.
@@ -548,6 +510,21 @@ class Scanner {
     Location invalid_template_escape_location;
     uint32_t smi_value_ = 0;
     bool after_line_terminator = false;
+
+#ifdef DEBUG
+    bool CanAccessLiteral() const {
+      return token == Token::PRIVATE_NAME || token == Token::ILLEGAL ||
+             token == Token::UNINITIALIZED || token == Token::REGEXP_LITERAL ||
+             token == Token::ESCAPED_KEYWORD ||
+             IsInRange(token, Token::NUMBER, Token::STRING) ||
+             (Token::IsAnyIdentifier(token) && !Token::IsKeyword(token)) ||
+             IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
+    }
+    bool CanAccessRawLiteral() const {
+      return token == Token::ILLEGAL || token == Token::UNINITIALIZED ||
+             IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
+    }
+#endif  // DEBUG
   };
 
   enum NumberKind {
@@ -672,45 +649,41 @@ class Scanner {
   // token as a one-byte literal. E.g. Token::FUNCTION pretends to have a
   // literal "function".
   Vector<const uint8_t> literal_one_byte_string() const {
-    if (current().literal_chars.is_used())
-      return current().literal_chars.one_byte_literal();
-    const char* str = Token::String(current().token);
-    const uint8_t* str_as_uint8 = reinterpret_cast<const uint8_t*>(str);
-    return Vector<const uint8_t>(str_as_uint8,
-                                 Token::StringLength(current().token));
+    DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token));
+    return current().literal_chars.one_byte_literal();
   }
   Vector<const uint16_t> literal_two_byte_string() const {
-    DCHECK(current().literal_chars.is_used());
+    DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token));
     return current().literal_chars.two_byte_literal();
   }
   bool is_literal_one_byte() const {
-    return !current().literal_chars.is_used() ||
-           current().literal_chars.is_one_byte();
+    DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token));
+    return current().literal_chars.is_one_byte();
   }
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
   Vector<const uint8_t> next_literal_one_byte_string() const {
-    DCHECK(next().literal_chars.is_used());
+    DCHECK(next().CanAccessLiteral());
     return next().literal_chars.one_byte_literal();
   }
   Vector<const uint16_t> next_literal_two_byte_string() const {
-    DCHECK(next().literal_chars.is_used());
+    DCHECK(next().CanAccessLiteral());
     return next().literal_chars.two_byte_literal();
   }
   bool is_next_literal_one_byte() const {
-    DCHECK(next().literal_chars.is_used());
+    DCHECK(next().CanAccessLiteral());
     return next().literal_chars.is_one_byte();
   }
   Vector<const uint8_t> raw_literal_one_byte_string() const {
-    DCHECK(current().raw_literal_chars.is_used());
+    DCHECK(current().CanAccessRawLiteral());
     return current().raw_literal_chars.one_byte_literal();
   }
   Vector<const uint16_t> raw_literal_two_byte_string() const {
-    DCHECK(current().raw_literal_chars.is_used());
+    DCHECK(current().CanAccessRawLiteral());
     return current().raw_literal_chars.two_byte_literal();
   }
   bool is_raw_literal_one_byte() const {
-    DCHECK(current().raw_literal_chars.is_used());
+    DCHECK(current().CanAccessRawLiteral());
     return current().raw_literal_chars.is_one_byte();
   }
 
@@ -754,9 +727,8 @@ class Scanner {
 
   Token::Value ScanNumber(bool seen_period);
   V8_INLINE Token::Value ScanIdentifierOrKeyword();
-  V8_INLINE Token::Value ScanIdentifierOrKeywordInner(LiteralScope* literal);
-  Token::Value ScanIdentifierOrKeywordInnerSlow(LiteralScope* literal,
-                                                bool escaped);
+  V8_INLINE Token::Value ScanIdentifierOrKeywordInner();
+  Token::Value ScanIdentifierOrKeywordInnerSlow(bool escaped);
 
   Token::Value ScanString();
   Token::Value ScanPrivateName();
@@ -788,8 +760,7 @@ class Scanner {
       // Subtract delimiters.
       source_length -= 2;
     }
-    return token.literal_chars.is_used() &&
-           (token.literal_chars.length() != source_length);
+    return token.literal_chars.length() != source_length;
   }
 
 #ifdef DEBUG
