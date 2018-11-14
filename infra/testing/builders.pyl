@@ -1059,7 +1059,7 @@
           'cpu': 'armv7l-32-ODROID-XU4',
         },
         # Less parallelism to prevent OOMs in benchmarks.
-        'test_args': ['-j4'],
+        'test_args': ['-j2'],
       },
       {
         'name': 'optimize_for_size',
