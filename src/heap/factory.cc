@@ -2735,24 +2735,28 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
       NewCodeDataContainer(code->code_data_container()->kind_specific_flags());
 
   Heap* heap = isolate()->heap();
-  int obj_size = code->Size();
-  HeapObject* result = heap->AllocateRawWithRetryOrFail(obj_size, CODE_SPACE);
+  Handle<Code> new_code;
+  {
+    int obj_size = code->Size();
+    CodePageCollectionMemoryModificationScope code_allocation(heap);
+    HeapObject* result = heap->AllocateRawWithRetryOrFail(obj_size, CODE_SPACE);
 
-  // Copy code object.
-  Address old_addr = code->address();
-  Address new_addr = result->address();
-  Heap::CopyBlock(new_addr, old_addr, obj_size);
-  Handle<Code> new_code(Code::cast(result), isolate());
+    // Copy code object.
+    Address old_addr = code->address();
+    Address new_addr = result->address();
+    Heap::CopyBlock(new_addr, old_addr, obj_size);
+    new_code = handle(Code::cast(result), isolate());
 
-  // Set the {CodeDataContainer}, it cannot be shared.
-  new_code->set_code_data_container(*data_container);
+    // Set the {CodeDataContainer}, it cannot be shared.
+    new_code->set_code_data_container(*data_container);
 
-  new_code->Relocate(new_addr - old_addr);
-  // We have to iterate over the object and process its pointers when black
-  // allocation is on.
-  heap->incremental_marking()->ProcessBlackAllocatedObject(*new_code);
-  // Record all references to embedded objects in the new code object.
-  WriteBarrierForCode(*new_code);
+    new_code->Relocate(new_addr - old_addr);
+    // We have to iterate over the object and process its pointers when black
+    // allocation is on.
+    heap->incremental_marking()->ProcessBlackAllocatedObject(*new_code);
+    // Record all references to embedded objects in the new code object.
+    WriteBarrierForCode(*new_code);
+  }
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) new_code->ObjectVerify(isolate());
