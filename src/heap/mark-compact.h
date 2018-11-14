@@ -715,8 +715,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
 
-  bool WillBeDeoptimized(Code code);
-
   void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
                                    size_t* max_evacuated_bytes);

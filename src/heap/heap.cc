@@ -816,12 +816,6 @@ void Heap::ProcessPretenuringFeedback() {
   }
 }
 
-void Heap::InvalidateCodeEmbeddedObjects(Code code) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(code->ptr());
-  CodePageMemoryModificationScope modification_scope(chunk);
-  code->InvalidateEmbeddedObjects(this);
-}
-
 void Heap::InvalidateCodeDeoptimizationData(Code code) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(code->ptr());
   CodePageMemoryModificationScope modification_scope(chunk);

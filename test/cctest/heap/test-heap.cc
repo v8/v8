@@ -3860,6 +3860,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
   }
 
   CHECK(code->marked_for_deoptimization());
+  CHECK(code->embedded_objects_cleared());
 }
 
 
@@ -3902,6 +3903,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
   }
 
   CHECK(code->marked_for_deoptimization());
+  CHECK(code->embedded_objects_cleared());
 }
 
 TEST(NewSpaceObjectsInOptimizedCode) {
@@ -3962,6 +3964,52 @@ TEST(NewSpaceObjectsInOptimizedCode) {
   }
 
   CHECK(code->marked_for_deoptimization());
+  CHECK(code->embedded_objects_cleared());
+}
+
+TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
+  if (FLAG_always_opt || !FLAG_opt) return;
+  FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+
+  if (!isolate->use_optimizer()) return;
+  HandleScope outer_scope(heap->isolate());
+  Handle<Code> code;
+  {
+    LocalContext context;
+    HandleScope scope(heap->isolate());
+
+    CompileRun(
+        "function bar() {"
+        "  return foo(1);"
+        "};"
+        "function foo(x) { with (x) { return 1 + x; } };"
+        "%NeverOptimizeFunction(foo);"
+        "bar();"
+        "bar();"
+        "bar();"
+        "%OptimizeFunctionOnNextCall(bar);"
+        "bar();"
+        "%DeoptimizeFunction(bar);");
+
+    Handle<JSFunction> bar = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CcTest::global()
+                                           ->Get(context.local(), v8_str("bar"))
+                                           .ToLocalChecked())));
+    code = scope.CloseAndEscape(Handle<Code>(bar->code(), isolate));
+  }
+
+  CHECK(code->marked_for_deoptimization());
+
+  // Now make sure that a gc should get rid of the function
+  for (int i = 0; i < 4; i++) {
+    CcTest::CollectAllGarbage();
+  }
+
+  CHECK(code->marked_for_deoptimization());
+  CHECK(code->embedded_objects_cleared());
 }
 
 static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,

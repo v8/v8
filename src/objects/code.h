@@ -76,7 +76,9 @@ class Code : public HeapObjectPtr {
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
-  void InvalidateEmbeddedObjects(Heap* heap);
+
+  // This function should be called only from GC.
+  void ClearEmbeddedObjects(Heap* heap);
 
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
@@ -164,9 +166,15 @@ class Code : public HeapObjectPtr {
   inline void set_handler_table_offset(int offset);
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
-  // the code is going to be deoptimized because of dead embedded maps.
+  // the code is going to be deoptimized.
   inline bool marked_for_deoptimization() const;
   inline void set_marked_for_deoptimization(bool flag);
+
+  // [embedded_objects_cleared]: For kind OPTIMIZED_FUNCTION tells whether
+  // the embedded objects in the code marked for deoptimization were cleared.
+  // Note that embedded_objects_cleared() implies marked_for_deoptimization().
+  inline bool embedded_objects_cleared() const;
+  inline void set_embedded_objects_cleared(bool flag);
 
   // [deopt_already_counted]: For kind OPTIMIZED_FUNCTION tells whether
   // the code was already deoptimized.
@@ -416,6 +424,7 @@ class Code : public HeapObjectPtr {
   // KindSpecificFlags layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
 #define CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _) \
   V(MarkedForDeoptimizationField, bool, 1, _)     \
+  V(EmbeddedObjectsClearedField, bool, 1, _)      \
   V(DeoptAlreadyCountedField, bool, 1, _)         \
   V(CanHaveWeakObjectsField, bool, 1, _)          \
   V(IsConstructStubField, bool, 1, _)             \

@@ -512,6 +512,20 @@ void Code::set_marked_for_deoptimization(bool flag) {
   code_data_container()->set_kind_specific_flags(updated);
 }
 
+bool Code::embedded_objects_cleared() const {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  int flags = code_data_container()->kind_specific_flags();
+  return EmbeddedObjectsClearedField::decode(flags);
+}
+
+void Code::set_embedded_objects_cleared(bool flag) {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK_IMPLIES(flag, marked_for_deoptimization());
+  int previous = code_data_container()->kind_specific_flags();
+  int updated = EmbeddedObjectsClearedField::update(previous, flag);
+  code_data_container()->set_kind_specific_flags(updated);
+}
+
 bool Code::deopt_already_counted() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   int flags = code_data_container()->kind_specific_flags();

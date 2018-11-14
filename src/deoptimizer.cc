@@ -332,8 +332,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     Object* next = code->next_code_link();
 
     if (code->marked_for_deoptimization()) {
-      // Make sure that this object does not point to any garbage.
-      isolate->heap()->InvalidateCodeEmbeddedObjects(code);
       codes.insert(code);
 
       if (!prev.is_null()) {

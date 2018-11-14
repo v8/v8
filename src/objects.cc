@@ -14381,7 +14381,7 @@ void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {
   }
 }
 
-void Code::InvalidateEmbeddedObjects(Heap* heap) {
+void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject* undefined = ReadOnlyRoots(heap).undefined_value();
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
@@ -14390,6 +14390,7 @@ void Code::InvalidateEmbeddedObjects(Heap* heap) {
       it.rinfo()->set_target_object(heap, undefined, SKIP_WRITE_BARRIER);
     }
   }
+  set_embedded_objects_cleared(true);
 }
 
 

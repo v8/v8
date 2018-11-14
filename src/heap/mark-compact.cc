@@ -1889,10 +1889,13 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
     HeapObject* object = weak_object_in_code.first;
     Code code = weak_object_in_code.second;
     if (!non_atomic_marking_state()->IsBlackOrGrey(object) &&
-        !code->marked_for_deoptimization()) {
-      code->SetMarkedForDeoptimization("weak objects");
-      code->InvalidateEmbeddedObjects(heap_);
-      have_code_to_deoptimize_ = true;
+        !code->embedded_objects_cleared()) {
+      if (!code->marked_for_deoptimization()) {
+        code->SetMarkedForDeoptimization("weak objects");
+        have_code_to_deoptimize_ = true;
+      }
+      code->ClearEmbeddedObjects(heap_);
+      DCHECK(code->embedded_objects_cleared());
     }
   }
 }
@@ -2685,11 +2688,6 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
     return object;
   }
 };
-
-// Return true if the given code is deoptimized or will be deoptimized.
-bool MarkCompactCollector::WillBeDeoptimized(Code code) {
-  return code->is_optimized_code() && code->marked_for_deoptimization();
-}
 
 void MarkCompactCollector::RecordLiveSlotsOnPage(Page* page) {
   EvacuateRecordOnlyVisitor visitor(heap());
