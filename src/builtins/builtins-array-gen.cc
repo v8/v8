@@ -3609,6 +3609,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     BIND(&if_hole);
     {
       GotoIf(IsNoElementsProtectorCellInvalid(), &if_generic);
+      GotoIfNot(IsPrototypeInitialArrayPrototype(context, array_map),
+                &if_generic);
       var_value.Bind(UndefinedConstant());
       Goto(&allocate_entry_if_needed);
     }
