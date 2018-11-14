@@ -236,6 +236,12 @@ class PreParserExpression {
     return TypeField::decode(code_) == kArrayLiteralExpression;
   }
 
+  bool IsValidPattern() const {
+    STATIC_ASSERT(kObjectLiteralExpression + 1 == kArrayLiteralExpression);
+    return IsInRange(TypeField::decode(code_),
+                     kObjectLiteralExpression, kArrayLiteralExpression);
+  }
+
   bool IsStringLiteral() const {
     return TypeField::decode(code_) == kStringLiteralExpression;
   }

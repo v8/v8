@@ -250,6 +250,11 @@ class Expression : public AstNode {
 
   bool IsCompileTimeValue();
 
+  bool IsValidPattern() {
+    STATIC_ASSERT(kObjectLiteral + 1 == kArrayLiteral);
+    return IsInRange(node_type(), kObjectLiteral, kArrayLiteral);
+  }
+
  protected:
   Expression(int pos, NodeType type) : AstNode(pos, type) {}
 
