@@ -5225,7 +5225,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
   Node* hash = ChangeUint32ToUintPtr(ComputeUnseededHash(key));
 
   Node* number_of_buckets = ChangeSmiToIntPtr(__ LoadField(
-      AccessBuilder::ForOrderedHashTableBaseNumberOfBuckets(), table));
+      AccessBuilder::ForOrderedHashMapOrSetNumberOfBuckets(), table));
   hash = __ WordAnd(hash, __ IntSub(number_of_buckets, __ IntPtrConstant(1)));
   Node* first_entry = ChangeSmiToIntPtr(__ Load(
       MachineType::TaggedSigned(), table,

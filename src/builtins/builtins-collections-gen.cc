@@ -1396,10 +1396,14 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
   GotoIfNot(SmiLessThan(SmiConstant(0), index), &return_zero);
 
   // Check if the {table} was cleared.
+  STATIC_ASSERT(OrderedHashMap::kNumberOfDeletedElementsOffset ==
+                OrderedHashSet::kNumberOfDeletedElementsOffset);
   Node* number_of_deleted_elements = LoadAndUntagObjectField(
-      table, OrderedHashTableBase::kNumberOfDeletedElementsOffset);
+      table, OrderedHashMap::kNumberOfDeletedElementsOffset);
+  STATIC_ASSERT(OrderedHashMap::kClearedTableSentinel ==
+                OrderedHashSet::kClearedTableSentinel);
   GotoIf(WordEqual(number_of_deleted_elements,
-                   IntPtrConstant(OrderedHashTableBase::kClearedTableSentinel)),
+                   IntPtrConstant(OrderedHashMap::kClearedTableSentinel)),
          &return_zero);
 
   VARIABLE(var_i, MachineType::PointerRepresentation(), IntPtrConstant(0));
@@ -1410,9 +1414,10 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
   {
     Node* i = var_i.value();
     GotoIfNot(IntPtrLessThan(i, number_of_deleted_elements), &return_index);
+    STATIC_ASSERT(OrderedHashMap::kRemovedHolesIndex ==
+                  OrderedHashSet::kRemovedHolesIndex);
     TNode<Smi> removed_index = CAST(LoadFixedArrayElement(
-        CAST(table), i,
-        OrderedHashTableBase::kRemovedHolesIndex * kPointerSize));
+        CAST(table), i, OrderedHashMap::kRemovedHolesIndex * kPointerSize));
     GotoIf(SmiGreaterThanOrEqual(removed_index, index), &return_index);
     Decrement(&var_index, 1, SMI_PARAMETERS);
     Increment(&var_i);

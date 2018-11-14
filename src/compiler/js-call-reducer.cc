@@ -6422,7 +6422,7 @@ Reduction JSCallReducer::ReduceCollectionPrototypeSize(
         receiver, effect, control);
     Node* value = effect = graph()->NewNode(
         simplified()->LoadField(
-            AccessBuilder::ForOrderedHashTableBaseNumberOfElements()),
+            AccessBuilder::ForOrderedHashMapOrSetNumberOfElements()),
         table, effect, control);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
@@ -6489,7 +6489,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
         receiver, effect, control);
     Node* next_table = effect =
         graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForOrderedHashTableBaseNextTable()),
+                             AccessBuilder::ForOrderedHashMapOrSetNextTable()),
                          table, effect, control);
     Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), next_table);
     control =
@@ -6558,15 +6558,15 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     // Compute the currently used capacity.
     Node* number_of_buckets = effect = graph()->NewNode(
         simplified()->LoadField(
-            AccessBuilder::ForOrderedHashTableBaseNumberOfBuckets()),
+            AccessBuilder::ForOrderedHashMapOrSetNumberOfBuckets()),
         table, effect, control);
     Node* number_of_elements = effect = graph()->NewNode(
         simplified()->LoadField(
-            AccessBuilder::ForOrderedHashTableBaseNumberOfElements()),
+            AccessBuilder::ForOrderedHashMapOrSetNumberOfElements()),
         table, effect, control);
     Node* number_of_deleted_elements = effect = graph()->NewNode(
         simplified()->LoadField(
-            AccessBuilder::ForOrderedHashTableBaseNumberOfDeletedElements()),
+            AccessBuilder::ForOrderedHashMapOrSetNumberOfDeletedElements()),
         table, effect, control);
     Node* used_capacity =
         graph()->NewNode(simplified()->NumberAdd(), number_of_elements,
@@ -6608,6 +6608,8 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
       Node* etrue0 = effect;
       {
         // Load the key of the entry.
+        STATIC_ASSERT(OrderedHashMap::kHashTableStartIndex ==
+                      OrderedHashSet::kHashTableStartIndex);
         Node* entry_start_position = graph()->NewNode(
             simplified()->NumberAdd(),
             graph()->NewNode(
@@ -6615,7 +6617,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
                 graph()->NewNode(simplified()->NumberMultiply(), index,
                                  jsgraph()->Constant(entry_size)),
                 number_of_buckets),
-            jsgraph()->Constant(OrderedHashTableBase::kHashTableStartIndex));
+            jsgraph()->Constant(OrderedHashMap::kHashTableStartIndex));
         Node* entry_key = etrue0 = graph()->NewNode(
             simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
             table, entry_start_position, etrue0, if_true0);

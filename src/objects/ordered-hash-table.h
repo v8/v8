@@ -16,40 +16,6 @@
 namespace v8 {
 namespace internal {
 
-// Non-templatized base class for {OrderedHashTable}s.
-// TODO(hash): Unify this with the HashTableBase above.
-class OrderedHashTableBase : public FixedArray {
- public:
-  static const int kNotFound = -1;
-  static const int kMinCapacity = 4;
-
-  static const int kNumberOfElementsIndex = 0;
-  // The next table is stored at the same index as the nof elements.
-  static const int kNextTableIndex = kNumberOfElementsIndex;
-  static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
-  static const int kNumberOfBucketsIndex = kNumberOfDeletedElementsIndex + 1;
-  static const int kHashTableStartIndex = kNumberOfBucketsIndex + 1;
-  static const int kRemovedHolesIndex = kHashTableStartIndex;
-
-  static constexpr const int kNumberOfElementsOffset =
-      FixedArray::OffsetOfElementAt(kNumberOfElementsIndex);
-  static constexpr const int kNextTableOffset =
-      FixedArray::OffsetOfElementAt(kNextTableIndex);
-  static constexpr const int kNumberOfDeletedElementsOffset =
-      FixedArray::OffsetOfElementAt(kNumberOfDeletedElementsIndex);
-  static constexpr const int kNumberOfBucketsOffset =
-      FixedArray::OffsetOfElementAt(kNumberOfBucketsIndex);
-  static constexpr const int kHashTableStartOffset =
-      FixedArray::OffsetOfElementAt(kHashTableStartIndex);
-
-  static const int kLoadFactor = 2;
-
-  // NumberOfDeletedElements is set to kClearedTableSentinel when
-  // the table is cleared, which allows iterator transitions to
-  // optimize that case.
-  static const int kClearedTableSentinel = -1;
-};
-
 // OrderedHashTable is a HashTable with Object keys that preserves
 // insertion order. There are Map and Set interfaces (OrderedHashMap
 // and OrderedHashTable, below). It is meant to be used by JSMap/JSSet.
@@ -87,7 +53,7 @@ class OrderedHashTableBase : public FixedArray {
 //   [3 + NumberOfRemovedHoles()..length]: Not used
 //
 template <class Derived, int entrysize>
-class OrderedHashTable : public OrderedHashTableBase {
+class OrderedHashTable : public FixedArray {
  public:
   // Returns an OrderedHashTable with a capacity of at least |capacity|.
   static Handle<Derived> Allocate(Isolate* isolate, int capacity,
@@ -168,6 +134,34 @@ class OrderedHashTable : public OrderedHashTableBase {
   static const int kEntrySize = entrysize + 1;
   static const int kChainOffset = entrysize;
 
+  static const int kNotFound = -1;
+  static const int kMinCapacity = 4;
+
+  static const int kNumberOfElementsIndex = 0;
+  // The next table is stored at the same index as the nof elements.
+  static const int kNextTableIndex = kNumberOfElementsIndex;
+  static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
+  static const int kNumberOfBucketsIndex = kNumberOfDeletedElementsIndex + 1;
+  static const int kHashTableStartIndex = kNumberOfBucketsIndex + 1;
+  static const int kRemovedHolesIndex = kHashTableStartIndex;
+
+  static constexpr const int kNumberOfElementsOffset =
+      FixedArray::OffsetOfElementAt(kNumberOfElementsIndex);
+  static constexpr const int kNextTableOffset =
+      FixedArray::OffsetOfElementAt(kNextTableIndex);
+  static constexpr const int kNumberOfDeletedElementsOffset =
+      FixedArray::OffsetOfElementAt(kNumberOfDeletedElementsIndex);
+  static constexpr const int kNumberOfBucketsOffset =
+      FixedArray::OffsetOfElementAt(kNumberOfBucketsIndex);
+  static constexpr const int kHashTableStartOffset =
+      FixedArray::OffsetOfElementAt(kHashTableStartIndex);
+
+  static const int kLoadFactor = 2;
+
+  // NumberOfDeletedElements is set to kClearedTableSentinel when
+  // the table is cleared, which allows iterator transitions to
+  // optimize that case.
+  static const int kClearedTableSentinel = -1;
   static const int kMaxCapacity =
       (FixedArray::kMaxLength - kHashTableStartIndex) /
       (1 + (kEntrySize * kLoadFactor));
