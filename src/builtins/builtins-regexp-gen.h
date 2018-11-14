@@ -28,12 +28,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<Object> RegExpCreate(TNode<Context> context, TNode<Map> initial_map,
                              TNode<Object> regexp_string, TNode<String> flags);
 
-  TNode<Object> MatchAllIterator(TNode<Context> context,
-                                 TNode<Context> native_context,
-                                 TNode<Object> regexp, TNode<String> string,
-                                 TNode<BoolT> is_fast_regexp,
-                                 char const* method_name);
-
  protected:
   TNode<Smi> SmiZero();
   TNode<IntPtrT> IntPtrZero();
@@ -144,6 +138,20 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   Node* ReplaceSimpleStringFastPath(Node* context, Node* regexp,
                                     TNode<String> string,
                                     TNode<String> replace_string);
+};
+
+class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {
+ public:
+  explicit RegExpMatchAllAssembler(compiler::CodeAssemblerState* state)
+      : RegExpBuiltinsAssembler(state) {}
+
+  TNode<Object> CreateRegExpStringIterator(TNode<Context> native_context,
+                                           TNode<Object> regexp,
+                                           TNode<String> string,
+                                           TNode<Int32T> global,
+                                           TNode<Int32T> full_unicode);
+  void Generate(TNode<Context> context, TNode<Context> native_context,
+                TNode<Object> receiver, TNode<Object> maybe_string);
 };
 
 }  // namespace internal

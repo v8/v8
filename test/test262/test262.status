@@ -625,13 +625,6 @@
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6890#c12
-  'built-ins/RegExp/prototype/Symbol.matchAll/isregexp-called-once': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.matchAll/species-constructor': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.matchAll/species-regexp-get-global-throws': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.matchAll/species-regexp-get-unicode-throws': [FAIL],
-  'built-ins/String/prototype/matchAll/regexp-prototype-has-no-matchAll': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=8258
   'intl402/Locale/constructor-options-language-valid-undefined': [FAIL],
   'intl402/Locale/constructor-options-throwing-getters': [FAIL],

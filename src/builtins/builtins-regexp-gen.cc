@@ -1985,175 +1985,167 @@ TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
   RegExpPrototypeMatchBody(context, receiver, string, false);
 }
 
-TNode<Object> RegExpBuiltinsAssembler::MatchAllIterator(
-    TNode<Context> context, TNode<Context> native_context,
-    TNode<Object> maybe_regexp, TNode<String> string,
-    TNode<BoolT> is_fast_regexp, char const* method_name) {
-  Label create_iterator(this), if_fast_regexp(this),
-      if_slow_regexp(this, Label::kDeferred), if_not_regexp(this);
-
-  // 1. Let S be ? ToString(O).
-  // Handled by the caller of MatchAllIterator.
-  CSA_ASSERT(this, IsString(string));
-
-  TVARIABLE(Object, var_matcher);
-  TVARIABLE(Int32T, var_global);
-  TVARIABLE(Int32T, var_unicode);
-
-  // 2. If ? IsRegExp(R) is true, then
-  GotoIf(is_fast_regexp, &if_fast_regexp);
-  Branch(IsRegExp(context, maybe_regexp), &if_slow_regexp, &if_not_regexp);
-  BIND(&if_fast_regexp);
-  {
-    CSA_ASSERT(this, IsFastRegExp(context, maybe_regexp));
-    TNode<JSRegExp> fast_regexp = CAST(maybe_regexp);
-    TNode<Object> source =
-        LoadObjectField(fast_regexp, JSRegExp::kSourceOffset);
-    TNode<String> flags = CAST(FlagsGetter(context, fast_regexp, true));
-
-    // c. Let matcher be ? Construct(C, « R, flags »).
-    var_matcher = RegExpCreate(context, native_context, source, flags);
-    CSA_ASSERT(this, IsFastRegExp(context, var_matcher.value()));
-
-    // d. Let global be ? ToBoolean(? Get(matcher, "global")).
-    var_global = FastFlagGetter(CAST(var_matcher.value()), JSRegExp::kGlobal);
-
-    // e. Let fullUnicode be ? ToBoolean(? Get(matcher, "unicode").
-    var_unicode = FastFlagGetter(CAST(var_matcher.value()), JSRegExp::kUnicode);
-
-    // f. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
-    // g. Perform ? Set(matcher, "lastIndex", lastIndex, true).
-    FastStoreLastIndex(var_matcher.value(), FastLoadLastIndex(fast_regexp));
-    Goto(&create_iterator);
-  }
-  BIND(&if_slow_regexp);
-  {
-    // a. Let C be ? SpeciesConstructor(R, %RegExp%).
-    TNode<JSFunction> regexp_fun = CAST(
-        LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
-    TNode<JSReceiver> species_constructor =
-        SpeciesConstructor(native_context, maybe_regexp, regexp_fun);
-
-    // b. Let flags be ? ToString(? Get(R, "flags")).
-    TNode<Object> flags = GetProperty(context, maybe_regexp,
-                                      isolate()->factory()->flags_string());
-    TNode<String> flags_string = ToString_Inline(context, flags);
-
-    // c. Let matcher be ? Construct(C, « R, flags »).
-    var_matcher =
-        Construct(context, species_constructor, maybe_regexp, flags_string);
-
-    // d. Let global be ? ToBoolean(? Get(matcher, "global")).
-    var_global = UncheckedCast<Int32T>(
-        SlowFlagGetter(context, var_matcher.value(), JSRegExp::kGlobal));
-
-    // e. Let fullUnicode be ? ToBoolean(? Get(matcher, "unicode").
-    var_unicode = UncheckedCast<Int32T>(
-        SlowFlagGetter(context, var_matcher.value(), JSRegExp::kUnicode));
-
-    // f. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
-    TNode<Number> last_index = UncheckedCast<Number>(
-        ToLength_Inline(context, SlowLoadLastIndex(context, maybe_regexp)));
-
-    // g. Perform ? Set(matcher, "lastIndex", lastIndex, true).
-    SlowStoreLastIndex(context, var_matcher.value(), last_index);
-
-    Goto(&create_iterator);
-  }
-  // 3. Else,
-  BIND(&if_not_regexp);
-  {
-    // a. Let flags be "g".
-    // b. Let matcher be ? RegExpCreate(R, flags).
-    var_matcher = RegExpCreate(context, native_context, maybe_regexp,
-                               StringConstant("g"));
-
-    // c. Let global be true.
-    var_global = Int32Constant(1);
-
-    // d. Let fullUnicode be false.
-    var_unicode = Int32Constant(0);
-
-#ifdef DEBUG
-    // Assert: ! Get(matcher, "lastIndex") is 0.
-    TNode<Object> last_index = SlowLoadLastIndex(context, var_matcher.value());
-    CSA_ASSERT(this, WordEqual(SmiZero(), last_index));
-#endif  // DEBUG
-
-    Goto(&create_iterator);
-  }
-  // 4. Return ! CreateRegExpStringIterator(matcher, S, global, fullUnicode).
-  BIND(&create_iterator);
-  {
-    TNode<Map> map = CAST(LoadContextElement(
-        native_context,
-        Context::INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX));
-
-    // 4. Let iterator be ObjectCreate(%RegExpStringIteratorPrototype%, «
-    // [[IteratingRegExp]], [[IteratedString]], [[Global]], [[Unicode]],
-    // [[Done]] »).
-    TNode<Object> iterator = Allocate(JSRegExpStringIterator::kSize);
-    StoreMapNoWriteBarrier(iterator, map);
-    StoreObjectFieldRoot(iterator,
-                         JSRegExpStringIterator::kPropertiesOrHashOffset,
-                         RootIndex::kEmptyFixedArray);
-    StoreObjectFieldRoot(iterator, JSRegExpStringIterator::kElementsOffset,
-                         RootIndex::kEmptyFixedArray);
-
-    // 5. Set iterator.[[IteratingRegExp]] to R.
-    StoreObjectFieldNoWriteBarrier(
-        iterator, JSRegExpStringIterator::kIteratingRegExpOffset,
-        var_matcher.value());
-
-    // 6. Set iterator.[[IteratedString]] to S.
-    StoreObjectFieldNoWriteBarrier(
-        iterator, JSRegExpStringIterator::kIteratedStringOffset, string);
-
-#ifdef DEBUG
-    // Verify global and unicode can be bitwise shifted without masking.
-    TNode<Int32T> zero = Int32Constant(0);
-    TNode<Int32T> one = Int32Constant(1);
-    CSA_ASSERT(this, Word32Or(Word32Equal(var_global.value(), zero),
-                              Word32Equal(var_global.value(), one)));
-    CSA_ASSERT(this, Word32Or(Word32Equal(var_unicode.value(), zero),
-                              Word32Equal(var_unicode.value(), one)));
-#endif  // DEBUG
-
-    // 7. Set iterator.[[Global]] to global.
-    // 8. Set iterator.[[Unicode]] to fullUnicode.
-    // 9. Set iterator.[[Done]] to false.
-    TNode<Word32T> global_flag = Word32Shl(
-        var_global.value(), Int32Constant(JSRegExpStringIterator::kGlobalBit));
-    TNode<Word32T> unicode_flag =
-        Word32Shl(var_unicode.value(),
-                  Int32Constant(JSRegExpStringIterator::kUnicodeBit));
-    TNode<Word32T> iterator_flags = Word32Or(global_flag, unicode_flag);
-    StoreObjectFieldNoWriteBarrier(iterator,
-                                   JSRegExpStringIterator::kFlagsOffset,
-                                   SmiFromInt32(Signed(iterator_flags)));
-
-    return iterator;
-  }
-}
-
-// https://tc39.github.io/proposal-string-matchall/
-// RegExp.prototype [ @@matchAll ] ( string )
-TF_BUILTIN(RegExpPrototypeMatchAll, RegExpBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Context> native_context = LoadNativeContext(context);
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> string = CAST(Parameter(Descriptor::kString));
-
+void RegExpMatchAllAssembler::Generate(TNode<Context> context,
+                                       TNode<Context> native_context,
+                                       TNode<Object> receiver,
+                                       TNode<Object> maybe_string) {
   // 1. Let R be the this value.
   // 2. If Type(R) is not Object, throw a TypeError exception.
   ThrowIfNotJSReceiver(context, receiver,
                        MessageTemplate::kIncompatibleMethodReceiver,
                        "RegExp.prototype.@@matchAll");
 
-  // 3. Return ? MatchAllIterator(R, string).
-  Return(MatchAllIterator(
-      context, native_context, receiver, ToString_Inline(context, string),
-      IsFastRegExp(context, receiver), "RegExp.prototype.@@matchAll"));
+  // 3. Let S be ? ToString(O).
+  TNode<String> string = ToString_Inline(context, maybe_string);
+
+  TVARIABLE(Object, var_matcher);
+  TVARIABLE(Int32T, var_global);
+  TVARIABLE(Int32T, var_unicode);
+  Label create_iterator(this), if_fast_regexp(this),
+      if_slow_regexp(this, Label::kDeferred);
+
+  BranchIfFastRegExp(context, receiver, &if_fast_regexp, &if_slow_regexp);
+  BIND(&if_fast_regexp);
+  {
+    TNode<JSRegExp> fast_regexp = CAST(receiver);
+    TNode<Object> source =
+        LoadObjectField(fast_regexp, JSRegExp::kSourceOffset);
+
+    // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
+    // 5. Let flags be ? ToString(? Get(R, "flags")).
+    // 6. Let matcher be ? Construct(C, « R, flags »).
+    TNode<String> flags = CAST(FlagsGetter(context, fast_regexp, true));
+    var_matcher = RegExpCreate(context, native_context, source, flags);
+    CSA_ASSERT(this, IsFastRegExp(context, var_matcher.value()));
+
+    // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
+    // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
+    FastStoreLastIndex(var_matcher.value(), FastLoadLastIndex(fast_regexp));
+
+    // 9. If flags contains "g", let global be true.
+    // 10. Else, let global be false.
+    var_global = FastFlagGetter(CAST(var_matcher.value()), JSRegExp::kGlobal);
+
+    // 11. If flags contains "u", let fullUnicode be true.
+    // 12. Else, let fullUnicode be false.
+    var_unicode = FastFlagGetter(CAST(var_matcher.value()), JSRegExp::kUnicode);
+    Goto(&create_iterator);
+  }
+
+  BIND(&if_slow_regexp);
+  {
+    // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
+    TNode<JSFunction> regexp_fun = CAST(
+        LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
+    TNode<JSReceiver> species_constructor =
+        SpeciesConstructor(native_context, receiver, regexp_fun);
+
+    // 5. Let flags be ? ToString(? Get(R, "flags")).
+    TNode<Object> flags =
+        GetProperty(context, receiver, isolate()->factory()->flags_string());
+    TNode<String> flags_string = ToString_Inline(context, flags);
+
+    // 6. Let matcher be ? Construct(C, « R, flags »).
+    var_matcher =
+        Construct(context, species_constructor, receiver, flags_string);
+
+    // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
+    TNode<Number> last_index =
+        ToLength_Inline(context, SlowLoadLastIndex(context, receiver));
+
+    // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
+    SlowStoreLastIndex(context, var_matcher.value(), last_index);
+
+    // 9. If flags contains "g", let global be true.
+    // 10. Else, let global be false.
+    TNode<String> global_char_string = StringConstant("g");
+    TNode<Smi> global_ix =
+        CAST(CallBuiltin(Builtins::kStringIndexOf, context, flags_string,
+                         global_char_string, SmiZero()));
+    var_global =
+        SelectInt32Constant(SmiEqual(global_ix, SmiConstant(-1)), 0, 1);
+
+    // 11. If flags contains "u", let fullUnicode be true.
+    // 12. Else, let fullUnicode be false.
+    TNode<String> unicode_char_string = StringConstant("u");
+    TNode<Smi> unicode_ix =
+        CAST(CallBuiltin(Builtins::kStringIndexOf, context, flags_string,
+                         unicode_char_string, SmiZero()));
+    var_unicode =
+        SelectInt32Constant(SmiEqual(unicode_ix, SmiConstant(-1)), 0, 1);
+    Goto(&create_iterator);
+  }
+
+  BIND(&create_iterator);
+  {
+    // 13. Return ! CreateRegExpStringIterator(matcher, S, global, fullUnicode).
+    TNode<Object> iterator =
+        CreateRegExpStringIterator(native_context, var_matcher.value(), string,
+                                   var_global.value(), var_unicode.value());
+    Return(iterator);
+  }
+}
+
+// ES#sec-createregexpstringiterator
+// CreateRegExpStringIterator ( R, S, global, fullUnicode )
+TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
+    TNode<Context> native_context, TNode<Object> regexp, TNode<String> string,
+    TNode<Int32T> global, TNode<Int32T> full_unicode) {
+  TNode<Map> map = CAST(LoadContextElement(
+      native_context,
+      Context::INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX));
+
+  // 4. Let iterator be ObjectCreate(%RegExpStringIteratorPrototype%, «
+  // [[IteratingRegExp]], [[IteratedString]], [[Global]], [[Unicode]],
+  // [[Done]] »).
+  TNode<Object> iterator = Allocate(JSRegExpStringIterator::kSize);
+  StoreMapNoWriteBarrier(iterator, map);
+  StoreObjectFieldRoot(iterator,
+                       JSRegExpStringIterator::kPropertiesOrHashOffset,
+                       RootIndex::kEmptyFixedArray);
+  StoreObjectFieldRoot(iterator, JSRegExpStringIterator::kElementsOffset,
+                       RootIndex::kEmptyFixedArray);
+
+  // 5. Set iterator.[[IteratingRegExp]] to R.
+  StoreObjectFieldNoWriteBarrier(
+      iterator, JSRegExpStringIterator::kIteratingRegExpOffset, regexp);
+
+  // 6. Set iterator.[[IteratedString]] to S.
+  StoreObjectFieldNoWriteBarrier(
+      iterator, JSRegExpStringIterator::kIteratedStringOffset, string);
+
+#ifdef DEBUG
+  // Verify global and full_unicode can be bitwise shifted without masking.
+  TNode<Int32T> zero = Int32Constant(0);
+  TNode<Int32T> one = Int32Constant(1);
+  CSA_ASSERT(this,
+             Word32Or(Word32Equal(global, zero), Word32Equal(global, one)));
+  CSA_ASSERT(this, Word32Or(Word32Equal(full_unicode, zero),
+                            Word32Equal(full_unicode, one)));
+#endif  // DEBUG
+
+  // 7. Set iterator.[[Global]] to global.
+  // 8. Set iterator.[[Unicode]] to fullUnicode.
+  // 9. Set iterator.[[Done]] to false.
+  TNode<Word32T> global_flag =
+      Word32Shl(global, Int32Constant(JSRegExpStringIterator::kGlobalBit));
+  TNode<Word32T> unicode_flag = Word32Shl(
+      full_unicode, Int32Constant(JSRegExpStringIterator::kUnicodeBit));
+  TNode<Word32T> iterator_flags = Word32Or(global_flag, unicode_flag);
+  StoreObjectFieldNoWriteBarrier(iterator, JSRegExpStringIterator::kFlagsOffset,
+                                 SmiFromInt32(Signed(iterator_flags)));
+
+  return iterator;
+}
+
+// https://tc39.github.io/proposal-string-matchall/
+// RegExp.prototype [ @@matchAll ] ( string )
+TF_BUILTIN(RegExpPrototypeMatchAll, RegExpMatchAllAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> maybe_string = CAST(Parameter(Descriptor::kString));
+  Generate(context, native_context, receiver, maybe_string);
 }
 
 // Helper that skips a few initial checks. and assumes...
