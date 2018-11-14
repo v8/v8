@@ -4968,7 +4968,7 @@ MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
       &zone, false, params + 1, CallDescriptor::kNoFlags);
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmHeapStub(
       isolate, incoming, &graph, Code::JS_TO_WASM_FUNCTION, debug_name,
       WasmAssemblerOptions());
   Handle<Code> code;
@@ -5078,25 +5078,11 @@ wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
   if (machine.Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
-      isolate, incoming, &graph, Code::WASM_TO_JS_FUNCTION, func_name,
-      AssemblerOptions::Default(isolate), source_position_table);
-  Handle<Code> code = maybe_code.ToHandleChecked();
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code) {
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    code->Disassemble(func_name, os);
-  }
-#endif
-
-  if (must_record_function_compilation(isolate)) {
-    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code, "%s",
-                              func_name);
-  }
-
-  // TODO(wasm): No need to compile the code onto the heap and copy back.
-  wasm::WasmCode* wasm_code = native_module->AddImportCallWrapper(code);
+  wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
+      isolate->wasm_engine(), incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
+      func_name, AssemblerOptions::Default(isolate), native_module,
+      source_position_table);
+  CHECK_NOT_NULL(wasm_code);
 
   return wasm_code;
 }
@@ -5136,7 +5122,7 @@ wasm::WasmCode* CompileWasmInterpreterEntry(Isolate* isolate,
   func_name.Truncate(
       SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmHeapStub(
       isolate, incoming, &graph, Code::WASM_INTERPRETER_ENTRY,
       func_name.start(), AssemblerOptions::Default(isolate));
   Handle<Code> code = maybe_code.ToHandleChecked();
@@ -5189,7 +5175,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   char debug_name[kMaxNameLen] = "c-wasm-entry:";
   AppendSignature(debug_name, kMaxNameLen, sig);
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmHeapStub(
       isolate, incoming, &graph, Code::C_WASM_ENTRY, debug_name,
       AssemblerOptions::Default(isolate));
   Handle<Code> code;

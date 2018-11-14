@@ -221,7 +221,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                     OwnedVector<trap_handler::ProtectedInstructionData>
                         protected_instructions,
                     OwnedVector<const byte> source_position_table,
-                    WasmCode::Tier tier);
+                    WasmCode::Kind kind, WasmCode::Tier tier);
 
   WasmCode* AddDeserializedCode(
       uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
@@ -237,9 +237,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // wrappers, we do not insert them in the code_table, however, we let them
   // self-identify as the {index} function.
   WasmCode* AddInterpreterEntry(Handle<Code> code, uint32_t index);
-
-  // Add an import wrapper for a JS-to-Wasm call.
-  WasmCode* AddImportCallWrapper(Handle<Code> code);
 
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);

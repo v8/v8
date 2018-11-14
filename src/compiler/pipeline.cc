@@ -1111,7 +1111,8 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
       code_generator->GetSafepointTableOffset(),
       code_generator->GetHandlerTableOffset(),
       code_generator->GetProtectedInstructions(),
-      code_generator->GetSourcePositionTable(), wasm::WasmCode::kTurbofan);
+      code_generator->GetSourcePositionTable(), wasm::WasmCode::kFunction,
+      wasm::WasmCode::kTurbofan);
 
   if (data_.info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data_.info(), std::ios_base::app);
@@ -2233,7 +2234,99 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 }
 
 // static
-MaybeHandle<Code> Pipeline::GenerateCodeForWasmStub(
+wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
+    wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
+    MachineGraph* mcgraph, Code::Kind kind, const char* debug_name,
+    const AssemblerOptions& options, wasm::NativeModule* native_module,
+    SourcePositionTable* source_positions) {
+  Graph* graph = mcgraph->graph();
+  OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
+  // Construct a pipeline for scheduling and code generation.
+  ZoneStats zone_stats(wasm_engine->allocator());
+  NodeOriginTable* node_positions = new (graph->zone()) NodeOriginTable(graph);
+  PipelineData data(&zone_stats, wasm_engine, &info, mcgraph, nullptr,
+                    source_positions, node_positions, -1, options);
+  std::unique_ptr<PipelineStatistics> pipeline_statistics;
+  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
+    pipeline_statistics.reset(new PipelineStatistics(
+        &info, wasm_engine->GetOrCreateTurboStatistics(), &zone_stats));
+    pipeline_statistics->BeginPhaseKind("wasm stub codegen");
+  }
+
+  PipelineImpl pipeline(&data);
+
+  if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
+    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "---------------------------------------------------\n"
+       << "Begin compiling method " << info.GetDebugName().get()
+       << " using Turbofan" << std::endl;
+  }
+
+  if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
+    StdoutStream{} << "-- wasm stub " << Code::Kind2String(kind) << " graph -- "
+                   << std::endl
+                   << AsRPO(*graph);
+  }
+
+  if (info.trace_turbo_json_enabled()) {
+    TurboJsonFile json_of(&info, std::ios_base::trunc);
+    json_of << "{\"function\":\"" << info.GetDebugName().get()
+            << "\", \"source\":\"\",\n\"phases\":[";
+  }
+  // TODO(rossberg): Should this really be untyped?
+  pipeline.RunPrintAndVerify("machine", true);
+  pipeline.ComputeScheduledGraph();
+
+  Linkage linkage(call_descriptor);
+  if (!pipeline.SelectInstructions(&linkage)) return nullptr;
+  pipeline.AssembleCode(&linkage);
+
+  CodeGenerator* code_generator = pipeline.code_generator();
+  CodeDesc code_desc;
+  code_generator->tasm()->GetCode(nullptr, &code_desc);
+
+  // TODO(mstarzinger): This is specific to Wasm-to-JS wrappers, fix this before
+  // using it for other wrappers (like the interpreter entry wrapper).
+  wasm::WasmCode* code = native_module->AddCode(
+      data.wasm_function_index(), code_desc,
+      code_generator->frame()->GetTotalFrameSlotCount(),
+      code_generator->GetSafepointTableOffset(),
+      code_generator->GetHandlerTableOffset(),
+      code_generator->GetProtectedInstructions(),
+      code_generator->GetSourcePositionTable(),
+      wasm::WasmCode::kWasmToJsWrapper, wasm::WasmCode::kOther);
+
+  if (info.trace_turbo_json_enabled()) {
+    TurboJsonFile json_of(&info, std::ios_base::app);
+    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
+#ifdef ENABLE_DISASSEMBLER
+    std::stringstream disassembler_stream;
+    Disassembler::Decode(
+        nullptr, &disassembler_stream, code->instructions().start(),
+        code->instructions().start() + code->safepoint_table_offset(),
+        CodeReference(code));
+    for (auto const c : disassembler_stream.str()) {
+      json_of << AsEscapedUC16ForJSON(c);
+    }
+#endif  // ENABLE_DISASSEMBLER
+    json_of << "\"}\n]";
+    json_of << "\n}";
+  }
+
+  if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
+    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "---------------------------------------------------\n"
+       << "Finished compiling method " << info.GetDebugName().get()
+       << " using Turbofan" << std::endl;
+  }
+
+  return code;
+}
+
+// static
+MaybeHandle<Code> Pipeline::GenerateCodeForWasmHeapStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     Code::Kind kind, const char* debug_name, const AssemblerOptions& options,
     SourcePositionTable* source_positions) {

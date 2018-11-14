@@ -440,11 +440,6 @@ WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code,
   return ret;
 }
 
-WasmCode* NativeModule::AddImportCallWrapper(Handle<Code> code) {
-  WasmCode* ret = AddAnonymousCode(code, WasmCode::kWasmToJsWrapper);
-  return ret;
-}
-
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   WasmCode* ret = AddAnonymousCode(code, WasmCode::kFunction);
   return ret;
@@ -546,7 +541,8 @@ WasmCode* NativeModule::AddCode(
     uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
     size_t safepoint_table_offset, size_t handler_table_offset,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
-    OwnedVector<const byte> source_pos_table, WasmCode::Tier tier) {
+    OwnedVector<const byte> source_pos_table, WasmCode::Kind kind,
+    WasmCode::Tier tier) {
   OwnedVector<byte> reloc_info = OwnedVector<byte>::New(desc.reloc_size);
   memcpy(reloc_info.start(), desc.buffer + desc.buffer_size - desc.reloc_size,
          desc.reloc_size);
@@ -555,7 +551,7 @@ WasmCode* NativeModule::AddCode(
                    stack_slots, safepoint_table_offset, handler_table_offset,
                    desc.instr_size - desc.constant_pool_size,
                    std::move(protected_instructions), std::move(reloc_info),
-                   std::move(source_pos_table), WasmCode::kFunction, tier);
+                   std::move(source_pos_table), kind, tier);
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = ret->instructions().start() - desc.buffer;
