@@ -645,6 +645,10 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  if (!isolate()->IsPromiseHookProtectorIntact()) {
+    return NoChange();
+  }
+
   // Check if the {constructor} is the %Promise% function.
   HeapObjectMatcher m(constructor);
   if (!m.HasValue() ||
@@ -663,6 +667,10 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   for (Handle<Map> const value_map : value_maps) {
     if (value_map->IsJSPromiseMap()) return NoChange();
   }
+
+  // Install a code dependency on the promise hook protector cell.
+  dependencies()->DependOnProtector(
+      PropertyCellRef(broker(), factory()->promise_hook_protector()));
 
   // Create a %Promise% instance and resolve it with {value}.
   Node* promise = effect =
