@@ -1,0 +1,83 @@
+{
+  "comment": ["This is a configuration file for gatekeeper_ng.py",
+              "Look at that for documentation on this file's format."],
+  "masters": {
+    "https://build.chromium.org/p/client.v8": [
+      {
+        "builders": {
+          "V8 Linux - vtunejit": {
+            "comment": [
+              "forgive_all below prevents closing tree and sending to ",
+              "blamelist, i.e. only addresses in tree_notify are emailed"
+            ],
+            "forgive_all": "true",
+            "tree_notify": [
+              "chunyang.dai@intel.com"
+            ],
+            "closing_optional": [
+              "gclient runhooks",
+              "compile"
+            ],
+            "status_template": "buildbot failure in %(project_name)s on %(builder_name)s, %(unsatisfied)s"
+          }
+        }
+      }
+    ],
+    "https://build.chromium.org/p/client.v8.chromium": [
+      {
+        "builders": {
+          "Linux V8 API Stability": {
+            "comment": [
+              "forgive_all below prevents closing tree and sending to ",
+              "blamelist, i.e. only addresses in tree_notify are emailed"
+            ],
+            "forgive_all": "true",
+            "tree_notify": [
+              "machenbach@chromium.org",
+              "hablich@chromium.org"
+            ],
+            "closing_optional": [
+              "compile"
+            ],
+            "subject_template": "V8 API checker %(result)s in %(project_name)s, revision %(revision)s"
+          }
+        }
+      }
+    ],
+    "https://build.chromium.org/p/client.v8.fyi": [
+      {
+        "categories": [
+          "v8_fyi_chromium"
+        ],
+        "builders": {
+          "V8-Blink Win": {},
+          "V8-Blink Mac": {},
+          "V8-Blink Linux 64": {},
+          "V8-Blink Linux 64 - future": {},
+          "V8-Blink Linux 64 (dbg)": {},
+          "Linux Debug Builder": {},
+          "V8 Linux GN": {},
+          "V8 Android GN (dbg)": {},
+          "Linux ASAN Builder": {},
+          "Android Builder": {}
+        }
+      }
+    ]
+  },
+  "categories": {
+    "v8_fyi_chromium": {
+      "comment": [
+        "close_tree below prevents closing tree, but still sends emails to ",
+        "blamelist"
+      ],
+      "close_tree": false,
+      "closing_optional": [
+        "bot_update",
+        "gclient runhooks",
+        "generate_build_files",
+        "compile"
+      ],
+      "status_template": "buildbot failure in %(project_name)s on %(builder_name)s, %(unsatisfied)s"
+    }
+  }
+}

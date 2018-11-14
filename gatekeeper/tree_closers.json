@@ -1,0 +1,169 @@
+{
+  "comment": ["This is a configuration file for gatekeeper_ng.py",
+              "Look at that for documentation on this file's format."],
+  "masters": {
+    "https://build.chromium.org/p/client.v8": [
+      {
+        "excluded_builders" : [
+          "V8 Fuzzer",
+          "V8 Linux64 - debug - fyi",
+          "V8 Linux64 - fyi",
+          "V8 Linux64 - gcov coverage",
+          "V8 Linux64 - pointer compression",
+          "V8 Linux64 TSAN - concurrent marking",
+          "V8 Linux64 TSAN - isolates",
+          "V8 Linux64 UBSan",
+          "V8 Linux - arm - sim - lite",
+          "V8 Linux - arm - sim - lite - debug",
+          "V8 Linux - noembed",
+          "V8 Linux - noembed - debug",
+          "V8 Linux - full debug",
+          "V8 Linux - interpreted regexp",
+          "V8 Win64 ASAN"
+        ],
+        "builders": {
+          "V8 Linux - predictable": {
+            "categories": [
+              "v8_compile"
+            ]
+          },
+          "*": {
+            "categories": [
+              "v8_all"
+            ]
+          }
+        }
+      }
+    ],
+    "https://build.chromium.org/p/client.v8.clusterfuzz": [
+      {
+        "excluded_builders" : [
+          "V8 NumFuzz",
+          "V8 NumFuzz - debug",
+          "V8 NumFuzz - nosnap",
+          "V8 NumFuzz - nosnap debug",
+          "V8 NumFuzz - TSAN",
+          "V8 TSAN GC Fuzzer",
+          "V8 GC Fuzzer - debug",
+          "V8 Deopt Fuzzer",
+          "V8 Random Deopt Fuzzer - debug"
+        ],
+        "categories": [
+          "v8_all"
+        ],
+        "builders": {
+          "*": {}
+        }
+      }
+    ],
+    "https://build.chromium.org/p/client.v8.ports": [
+      {
+        "categories": [
+          "v8_all"
+        ],
+        "excluded_builders" : [
+          "V8 Android Arm64 - N5X",
+          "V8 Linux - mipsel - sim - builder",
+          "V8 Linux - mipsel - sim",
+          "V8 Linux - mips64el - sim - builder",
+          "V8 Linux - mips64el - sim",
+          "V8 Mips - builder",
+          "V8 Mips - big endian - nosnap",
+          "V8 Linux - ppc - sim",
+          "V8 Linux - ppc64 - sim",
+          "V8 Linux - s390 - sim",
+          "V8 Linux - s390x - sim"
+        ],
+        "builders": {
+          "*": {}
+        }
+      }
+    ],
+    "https://build.chromium.org/p/client.v8.fyi": [
+      {
+        "excluded_builders" : [
+          "V8 Linux64 debug - node.js baseline",
+          "V8 Linux64 debug - node.js integration",
+          "V8 Win64 - node.js baseline",
+          "V8 Win64 - node.js integration",
+          "V8 Mac64 - node.js baseline",
+          "V8 Mac64 - node.js integration",
+          "Linux Snapshot Builder"
+        ],
+        "builders": {
+          "V8 Linux64 - node.js integration": {
+            "tree_notify": [
+              "node-build-notifications@google.com"
+            ],
+            "subject_template": "closed (%(build_url)s from %(revision)s)",
+            "closing_optional": [
+              "*"
+            ],
+            "excluded_steps": [
+              "bot_update",
+              "gsutil upload",
+              "Failure reason",
+              "update_scripts",
+              "steps"
+            ]
+          },
+          "*": {
+            "categories": [
+              "v8_compile"
+            ]
+          }
+        }
+      }
+    ]
+  },
+
+  "categories": {
+    "v8_all": {
+      "closing_optional": [
+        "*"
+      ],
+      "tree_notify": [
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
+        "v8-waterfall-sheriff@grotations.appspotmail.com"
+      ],
+      "excluded_steps": [
+        "Failure reason",
+        "update_scripts",
+        "steps",
+        "* (flakes)"
+      ],
+      "forgiving_optional": [
+        "bot_update",
+        "isolate tests",
+        "package build",
+        "extract build",
+        "cleanup_temp",
+        "gsutil upload",
+        "taskkill"
+      ],
+      "status_template": "closed (%(build_url)s from %(revision)s)"
+    },
+    "v8_compile": {
+      "tree_notify": [
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
+        "v8-waterfall-sheriff@grotations.appspotmail.com"
+      ],
+      "closing_optional": [
+        "compile",
+        "generate_build_files",
+        "gn",
+        "gclient runhooks"
+      ],
+      "forgiving_optional": [
+        "bot_update",
+        "isolate tests",
+        "package build",
+        "extract build",
+        "cleanup_temp",
+        "gsutil upload",
+        "taskkill"
+      ],
+      "status_template": "closed (%(build_url)s from %(revision)s)"
+    }
+  }
+}
