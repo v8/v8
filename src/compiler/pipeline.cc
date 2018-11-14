@@ -1002,154 +1002,6 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
   code->set_can_have_weak_objects(true);
 }
 
-// The stack limit used during compilation is used to limit the recursion
-// depth in, e.g. AST walking. No such recursion happens in WASM compilations.
-constexpr uintptr_t kNoStackLimit = 0;
-
-class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
- public:
-  explicit PipelineWasmCompilationJob(
-      OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
-      MachineGraph* mcgraph, CallDescriptor* call_descriptor,
-      SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-      wasm::FunctionBody function_body, wasm::NativeModule* native_module,
-      int function_index)
-      : OptimizedCompilationJob(kNoStackLimit, info, "TurboFan",
-                                State::kReadyToExecute),
-        zone_stats_(wasm_engine->allocator()),
-        pipeline_statistics_(CreatePipelineStatistics(
-            wasm_engine, function_body, native_module->module(), info,
-            &zone_stats_)),
-        data_(&zone_stats_, wasm_engine, info, mcgraph,
-              pipeline_statistics_.get(), source_positions, node_origins,
-              function_index, WasmAssemblerOptions()),
-        pipeline_(&data_),
-        linkage_(call_descriptor),
-        native_module_(native_module) {}
-
- protected:
-  Status PrepareJobImpl(Isolate* isolate) final;
-  Status ExecuteJobImpl() final;
-  Status FinalizeJobImpl(Isolate* isolate) final;
-
- private:
-  ZoneStats zone_stats_;
-  std::unique_ptr<PipelineStatistics> pipeline_statistics_;
-  PipelineData data_;
-  PipelineImpl pipeline_;
-  Linkage linkage_;
-  wasm::NativeModule* native_module_;
-};
-
-PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::PrepareJobImpl(
-    Isolate* isolate) {
-  UNREACHABLE();  // Prepare should always be skipped for WasmCompilationJob.
-}
-
-PipelineWasmCompilationJob::Status
-PipelineWasmCompilationJob::ExecuteJobImpl() {
-  if (data_.info()->trace_turbo_json_enabled() ||
-      data_.info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data_.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling method " << data_.info()->GetDebugName().get()
-       << " using Turbofan" << std::endl;
-  }
-
-  pipeline_.RunPrintAndVerify("Machine", true);
-
-  PipelineData* data = &data_;
-  data->BeginPhaseKind("wasm optimization");
-  const bool is_asm_js = native_module_->module()->origin == wasm::kAsmJsOrigin;
-  if (FLAG_turbo_splitting && !is_asm_js) {
-    data->info()->MarkAsSplittingEnabled();
-  }
-  if (FLAG_wasm_opt || is_asm_js) {
-    PipelineRunScope scope(data, "wasm full optimization");
-    GraphReducer graph_reducer(scope.zone(), data->graph(),
-                               data->mcgraph()->Dead());
-    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), scope.zone());
-    ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
-    const bool allow_signalling_nan = is_asm_js;
-    MachineOperatorReducer machine_reducer(data->mcgraph(),
-                                           allow_signalling_nan);
-    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->broker(), data->common(),
-                                         data->machine(), scope.zone());
-    AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &machine_reducer);
-    AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &value_numbering);
-    graph_reducer.ReduceGraph();
-  } else {
-    PipelineRunScope scope(data, "wasm base optimization");
-    GraphReducer graph_reducer(scope.zone(), data->graph(),
-                               data->mcgraph()->Dead());
-    ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
-    AddReducer(data, &graph_reducer, &value_numbering);
-    graph_reducer.ReduceGraph();
-  }
-  pipeline_.RunPrintAndVerify("wasm optimization", true);
-
-  if (data_.node_origins()) {
-    data_.node_origins()->RemoveDecorator();
-  }
-
-  pipeline_.ComputeScheduledGraph();
-  if (!pipeline_.SelectInstructions(&linkage_)) return FAILED;
-  pipeline_.AssembleCode(&linkage_);
-
-  CodeGenerator* code_generator = pipeline_.code_generator();
-  CodeDesc code_desc;
-  code_generator->tasm()->GetCode(nullptr, &code_desc);
-
-  wasm::WasmCode* code = native_module_->AddCode(
-      data_.wasm_function_index(), code_desc,
-      code_generator->frame()->GetTotalFrameSlotCount(),
-      code_generator->GetSafepointTableOffset(),
-      code_generator->GetHandlerTableOffset(),
-      code_generator->GetProtectedInstructions(),
-      code_generator->GetSourcePositionTable(), wasm::WasmCode::kFunction,
-      wasm::WasmCode::kTurbofan);
-
-  if (data_.info()->trace_turbo_json_enabled()) {
-    TurboJsonFile json_of(data_.info(), std::ios_base::app);
-    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
-#ifdef ENABLE_DISASSEMBLER
-    std::stringstream disassembler_stream;
-    Disassembler::Decode(
-        nullptr, &disassembler_stream, code->instructions().start(),
-        code->instructions().start() + code->safepoint_table_offset(),
-        CodeReference(code));
-    for (auto const c : disassembler_stream.str()) {
-      json_of << AsEscapedUC16ForJSON(c);
-    }
-#endif  // ENABLE_DISASSEMBLER
-    json_of << "\"}\n]";
-    json_of << "\n}";
-  }
-
-  compilation_info()->SetCode(code);
-
-  if (data_.info()->trace_turbo_json_enabled() ||
-      data_.info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Finished compiling method " << data_.info()->GetDebugName().get()
-       << " using Turbofan" << std::endl;
-  }
-
-  return SUCCEEDED;
-}
-
-PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
-    Isolate* isolate) {
-  UNREACHABLE();  // Finalize should always be skipped for WasmCompilationJob.
-}
-
 template <typename Phase>
 void PipelineImpl::Run() {
   PipelineRunScope scope(this->data_, Phase::phase_name());
@@ -2450,15 +2302,118 @@ OptimizedCompilationJob* Pipeline::NewCompilationJob(
 }
 
 // static
-OptimizedCompilationJob* Pipeline::NewWasmCompilationJob(
+wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
     OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
     MachineGraph* mcgraph, CallDescriptor* call_descriptor,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
     wasm::FunctionBody function_body, wasm::NativeModule* native_module,
     int function_index) {
-  return new PipelineWasmCompilationJob(
-      info, wasm_engine, mcgraph, call_descriptor, source_positions,
-      node_origins, function_body, native_module, function_index);
+  ZoneStats zone_stats(wasm_engine->allocator());
+  std::unique_ptr<PipelineStatistics> pipeline_statistics(
+      CreatePipelineStatistics(wasm_engine, function_body,
+                               native_module->module(), info, &zone_stats));
+  PipelineData data(&zone_stats, wasm_engine, info, mcgraph,
+                    pipeline_statistics.get(), source_positions, node_origins,
+                    function_index, WasmAssemblerOptions());
+
+  PipelineImpl pipeline(&data);
+
+  if (data.info()->trace_turbo_json_enabled() ||
+      data.info()->trace_turbo_graph_enabled()) {
+    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "---------------------------------------------------\n"
+       << "Begin compiling method " << data.info()->GetDebugName().get()
+       << " using Turbofan" << std::endl;
+  }
+
+  pipeline.RunPrintAndVerify("Machine", true);
+
+  data.BeginPhaseKind("wasm optimization");
+  const bool is_asm_js = native_module->module()->origin == wasm::kAsmJsOrigin;
+  if (FLAG_turbo_splitting && !is_asm_js) {
+    data.info()->MarkAsSplittingEnabled();
+  }
+  if (FLAG_wasm_opt || is_asm_js) {
+    PipelineRunScope scope(&data, "wasm full optimization");
+    GraphReducer graph_reducer(scope.zone(), data.graph(),
+                               data.mcgraph()->Dead());
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data.graph(),
+                                              data.common(), scope.zone());
+    ValueNumberingReducer value_numbering(scope.zone(), data.graph()->zone());
+    const bool allow_signalling_nan = is_asm_js;
+    MachineOperatorReducer machine_reducer(data.mcgraph(),
+                                           allow_signalling_nan);
+    CommonOperatorReducer common_reducer(&graph_reducer, data.graph(),
+                                         data.broker(), data.common(),
+                                         data.machine(), scope.zone());
+    AddReducer(&data, &graph_reducer, &dead_code_elimination);
+    AddReducer(&data, &graph_reducer, &machine_reducer);
+    AddReducer(&data, &graph_reducer, &common_reducer);
+    AddReducer(&data, &graph_reducer, &value_numbering);
+    graph_reducer.ReduceGraph();
+  } else {
+    PipelineRunScope scope(&data, "wasm base optimization");
+    GraphReducer graph_reducer(scope.zone(), data.graph(),
+                               data.mcgraph()->Dead());
+    ValueNumberingReducer value_numbering(scope.zone(), data.graph()->zone());
+    AddReducer(&data, &graph_reducer, &value_numbering);
+    graph_reducer.ReduceGraph();
+  }
+  pipeline.RunPrintAndVerify("wasm optimization", true);
+
+  if (data.node_origins()) {
+    data.node_origins()->RemoveDecorator();
+  }
+
+  pipeline.ComputeScheduledGraph();
+
+  Linkage linkage(call_descriptor);
+  if (!pipeline.SelectInstructions(&linkage)) return nullptr;
+  pipeline.AssembleCode(&linkage);
+
+  CodeGenerator* code_generator = pipeline.code_generator();
+  CodeDesc code_desc;
+  code_generator->tasm()->GetCode(nullptr, &code_desc);
+
+  wasm::WasmCode* code = native_module->AddCode(
+      data.wasm_function_index(), code_desc,
+      code_generator->frame()->GetTotalFrameSlotCount(),
+      code_generator->GetSafepointTableOffset(),
+      code_generator->GetHandlerTableOffset(),
+      code_generator->GetProtectedInstructions(),
+      code_generator->GetSourcePositionTable(), wasm::WasmCode::kFunction,
+      wasm::WasmCode::kTurbofan);
+
+  if (data.info()->trace_turbo_json_enabled()) {
+    TurboJsonFile json_of(data.info(), std::ios_base::app);
+    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
+#ifdef ENABLE_DISASSEMBLER
+    std::stringstream disassembler_stream;
+    Disassembler::Decode(
+        nullptr, &disassembler_stream, code->instructions().start(),
+        code->instructions().start() + code->safepoint_table_offset(),
+        CodeReference(code));
+    for (auto const c : disassembler_stream.str()) {
+      json_of << AsEscapedUC16ForJSON(c);
+    }
+#endif  // ENABLE_DISASSEMBLER
+    json_of << "\"}\n]";
+    json_of << "\n}";
+  }
+
+  info->SetCode(code);
+
+  if (data.info()->trace_turbo_json_enabled() ||
+      data.info()->trace_turbo_graph_enabled()) {
+    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "---------------------------------------------------\n"
+       << "Finished compiling method " << data.info()->GetDebugName().get()
+       << " using Turbofan" << std::endl;
+  }
+
+  return code;
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,

@@ -14,7 +14,6 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
-#include "src/compiler.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/common-operator.h"
@@ -5316,11 +5315,10 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
-  std::unique_ptr<OptimizedCompilationJob> job(Pipeline::NewWasmCompilationJob(
-      &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
-      source_positions, node_origins, func_body, wasm_unit_->native_module_,
-      wasm_unit_->func_index_));
-  if (job->ExecuteJob() == CompilationJob::SUCCEEDED) {
+  if (Pipeline::GenerateCodeForWasmFunction(
+          &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
+          source_positions, node_origins, func_body, wasm_unit_->native_module_,
+          wasm_unit_->func_index_)) {
     wasm_unit_->SetResult(info.wasm_code(), counters);
   }
   if (FLAG_trace_wasm_decode_time) {

@@ -44,8 +44,8 @@ class Pipeline : public AllStatic {
                                                     Handle<JSFunction> function,
                                                     bool has_script);
 
-  // Returns a new compilation job for the WebAssembly compilation info.
-  static OptimizedCompilationJob* NewWasmCompilationJob(
+  // Run the pipeline for the WebAssembly compilation info.
+  static wasm::WasmCode* GenerateCodeForWasmFunction(
       OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
       MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
