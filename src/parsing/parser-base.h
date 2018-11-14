@@ -773,15 +773,14 @@ class ParserBase {
   inline bool CheckTemplateEscapes(bool should_throw) {
     DCHECK(scanner()->current_token() == Token::TEMPLATE_SPAN ||
            scanner()->current_token() == Token::TEMPLATE_TAIL);
-    if (!scanner()->has_invalid_template_escape()) {
-      return true;
-    }
+    if (!scanner()->has_invalid_template_escape()) return true;
 
     // Handle error case(s)
     if (should_throw) {
       impl()->ReportMessageAt(scanner()->invalid_template_escape_location(),
                               scanner()->invalid_template_escape_message());
     }
+    scanner()->clear_invalid_template_escape_message();
     return should_throw;
   }
 

@@ -296,6 +296,12 @@ class Scanner {
     DCHECK(has_invalid_template_escape());
     return current().invalid_template_escape_message;
   }
+
+  void clear_invalid_template_escape_message() {
+    DCHECK(has_invalid_template_escape());
+    current_->invalid_template_escape_message = MessageTemplate::kNone;
+  }
+
   Location invalid_template_escape_location() const {
     DCHECK(has_invalid_template_escape());
     return current().invalid_template_escape_location;

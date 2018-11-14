@@ -501,8 +501,6 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
 void Scanner::Scan(TokenDesc* next_desc) {
   DCHECK_EQ(next_desc, &next());
 
-  next_desc->invalid_template_escape_message = MessageTemplate::kNone;
-
   next_desc->token = ScanSingleToken();
   DCHECK_IMPLIES(has_parser_error(), next_desc->token == Token::ILLEGAL);
   next_desc->location.end_pos = source_pos();
