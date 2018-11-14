@@ -448,8 +448,8 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
 
   auto mirror = ValueMirror::create(context, table);
   std::unique_ptr<ObjectPreview> preview;
-  int limit = 100;
-  mirror->buildObjectPreview(context, true /* generatePreviewForProperties */,
+  int limit = 1000;
+  mirror->buildObjectPreview(context, true /* generatePreviewForTable */,
                              &limit, &limit, &preview);
 
   Array<PropertyPreview>* columns = preview->getProperties();
