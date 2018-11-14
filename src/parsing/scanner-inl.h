@@ -222,7 +222,7 @@ V8_INLINE Token::Value KeywordOrIdentifierToken(const uint8_t* input,
   DCHECK_GE(input_length, 1);
   const int kMinLength = 2;
   const int kMaxLength = 10;
-  if (input_length < kMinLength || input_length > kMaxLength) {
+  if (!IsInRange(input_length, kMinLength, kMaxLength)) {
     return Token::IDENTIFIER;
   }
   switch (input[0]) {
