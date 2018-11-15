@@ -1070,7 +1070,7 @@ void AstPrinter::PrintClassProperties(
     }
     EmbeddedVector<char, 128> buf;
     SNPrintF(buf, "PROPERTY%s%s - %s", property->is_static() ? " - STATIC" : "",
-             property->is_private() ? "- PRIVATE" : "- PUBLIC", prop_kind);
+             property->is_private() ? " - PRIVATE" : " - PUBLIC", prop_kind);
     IndentedScope prop(this, buf.start());
     PrintIndentedVisit("KEY", properties->at(i)->key());
     PrintIndentedVisit("VALUE", properties->at(i)->value());
