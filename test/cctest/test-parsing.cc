@@ -1059,8 +1059,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a
         // script scope are marked as used.
-        CHECK(
-            scope->Lookup(info.ast_value_factory()->this_string())->is_used());
+        CHECK(scope->LookupForTesting(info.ast_value_factory()->this_string())
+                  ->is_used());
       }
       if (is_sloppy(scope->language_mode())) {
         CHECK_EQ((source_data[i].expected & EVAL) != 0,
@@ -3204,7 +3204,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   CHECK_NOT_NULL(name);
 
   // Get result from h's function context (that is f's context)
-  i::Variable* var = s->Lookup(name);
+  i::Variable* var = s->LookupForTesting(name);
 
   CHECK_NOT_NULL(var);
   // Maybe assigned should survive deserialization
@@ -3252,7 +3252,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   CHECK(s != script_scope);
 
   // Get result from f's function context (that is g's outer context)
-  i::Variable* var_x = s->Lookup(name_x);
+  i::Variable* var_x = s->LookupForTesting(name_x);
   CHECK_NOT_NULL(var_x);
   CHECK_EQ(var_x->maybe_assigned(), i::kMaybeAssigned);
 }
@@ -3424,7 +3424,7 @@ TEST(InnerAssignment) {
         DCHECK(scope->is_function_scope());
         const i::AstRawString* var_name =
             info->ast_value_factory()->GetOneByteString("x");
-        i::Variable* var = scope->Lookup(var_name);
+        i::Variable* var = scope->LookupForTesting(var_name);
         bool expected = outers[i].assigned || inners[j].assigned;
         CHECK_NOT_NULL(var);
         CHECK(var->is_used() || !expected);
@@ -3521,7 +3521,7 @@ TEST(MaybeAssignedParameters) {
       CHECK(scope->is_function_scope());
       const i::AstRawString* var_name =
           info->ast_value_factory()->GetOneByteString("arg");
-      i::Variable* var = scope->Lookup(var_name);
+      i::Variable* var = scope->LookupForTesting(var_name);
       CHECK(var->is_used() || !assigned);
       bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
       CHECK_EQ(is_maybe_assigned, assigned);
@@ -3565,7 +3565,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
     scope = i::ScopeTestHelper::FindScope(scope, input.location);
     const i::AstRawString* var_name =
         info->ast_value_factory()->GetOneByteString(variable);
-    var = scope->Lookup(var_name);
+    var = scope->LookupForTesting(var_name);
   }
 
   CHECK_NOT_NULL(var);
@@ -10025,7 +10025,7 @@ TEST(NoPessimisticContextAllocation) {
       DCHECK(scope->is_function_scope());
       const i::AstRawString* var_name =
           info.ast_value_factory()->GetOneByteString("my_var");
-      i::Variable* var = scope->Lookup(var_name);
+      i::Variable* var = scope->LookupForTesting(var_name);
       CHECK_EQ(inners[i].ctxt_allocate,
                i::ScopeTestHelper::MustAllocateInContext(var));
     }

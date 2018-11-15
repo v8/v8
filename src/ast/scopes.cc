@@ -555,7 +555,9 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       // example, that does not prevent hoisting of the function in
       // `{ let e; try {} catch (e) { function e(){} } }`
       do {
-        var = query_scope->LookupLocal(name);
+        var = query_scope->scope_info_.is_null()
+                  ? query_scope->LookupLocal(name)
+                  : query_scope->LookupInScopeInfo(name);
         if (var != nullptr && IsLexical(var)) {
           should_hoist = false;
           break;
@@ -910,6 +912,10 @@ void Scope::ReplaceOuterScope(Scope* outer) {
 }
 
 Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
+  DCHECK(!scope_info_.is_null());
+  Variable* cached = variables_.Lookup(name);
+  if (cached) return cached;
+
   Handle<String> name_handle = name->string();
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
@@ -957,14 +963,6 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
                                      maybe_assigned_flag);
   var->AllocateTo(location, index);
   return var;
-}
-
-Variable* Scope::Lookup(const AstRawString* name) {
-  for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
-    Variable* var = scope->LookupLocal(name);
-    if (var != nullptr) return var;
-  }
-  return nullptr;
 }
 
 Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
@@ -1399,7 +1397,8 @@ void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
   for (VariableProxy* proxy = unresolved_list_.first(); proxy != nullptr;
        proxy = proxy->next_unresolved()) {
     DCHECK(!proxy->is_resolved());
-    Variable* var = Lookup(proxy, lookup, max_outer_scope->outer_scope());
+    Variable* var =
+        Lookup<kParsedScope>(proxy, lookup, max_outer_scope->outer_scope());
     if (var == nullptr) {
       *non_locals = StringSet::Add(isolate, *non_locals, proxy->name());
     } else {
@@ -1428,7 +1427,8 @@ void Scope::AnalyzePartially(
   for (VariableProxy* proxy = unresolved_list_.first(); proxy != nullptr;
        proxy = proxy->next_unresolved()) {
     DCHECK(!proxy->is_resolved());
-    Variable* var = Lookup(proxy, this, max_outer_scope->outer_scope());
+    Variable* var =
+        Lookup<kParsedScope>(proxy, this, max_outer_scope->outer_scope());
     if (var == nullptr) {
       // Don't copy unresolved references to the script scope, unless it's a
       // reference to a private name or method. In that case keep it so we
@@ -1797,10 +1797,11 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
 }
 
 // static
+template <Scope::ScopeLookupMode mode>
 Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
                         Scope* outer_scope_end, bool force_context_allocation) {
-  while (true) {
-    DCHECK_NE(outer_scope_end, scope);
+  do {
+    DCHECK_IMPLIES(mode == kParsedScope, !scope->is_debug_evaluate_scope_);
     // Short-cut: whenever we find a debug-evaluate scope, just look everything
     // up dynamically. Debug-evaluate doesn't properly create scope info for the
     // lookups it does. It may not have a valid 'this' declaration, and anything
@@ -1808,18 +1809,22 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     // stack-allocated variables.
     // TODO(yangguo): Remove once debug-evaluate creates proper ScopeInfo for
     // the scopes in which it's evaluating.
-    if (V8_UNLIKELY(scope->is_debug_evaluate_scope_)) {
+    if (mode == kDeserializedScope &&
+        V8_UNLIKELY(scope->is_debug_evaluate_scope_)) {
       return scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
     }
 
     // Try to find the variable in this scope.
-    Variable* var = scope->LookupLocal(proxy->raw_name());
+    Variable* var = mode == kParsedScope
+                        ? scope->LookupLocal(proxy->raw_name())
+                        : scope->LookupInScopeInfo(proxy->raw_name());
 
     // We found a variable and we are done. (Even if there is an 'eval' in this
     // scope which introduces the same variable again, the resulting variable
     // remains the same.)
     if (var != nullptr) {
-      if (force_context_allocation && !var->is_dynamic()) {
+      if (mode == kParsedScope && force_context_allocation &&
+          !var->is_dynamic()) {
         var->ForceContextAllocation();
       }
       return var;
@@ -1840,7 +1845,11 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
 
     force_context_allocation |= scope->is_function_scope();
     scope = scope->outer_scope_;
-  }
+    // TODO(verwaest): Separate through AnalyzePartially.
+    if (mode == kParsedScope && !scope->scope_info_.is_null()) {
+      return Lookup<kDeserializedScope>(proxy, scope, outer_scope_end);
+    }
+  } while (mode == kParsedScope || !scope->is_script_scope());
 
   // We may just be trying to find all free variables. In that case, don't
   // declare them in the outer scope.
@@ -1852,6 +1861,13 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
   return scope->AsDeclarationScope()->DeclareDynamicGlobal(proxy->raw_name(),
                                                            NORMAL_VARIABLE);
 }
+
+template Variable* Scope::Lookup<Scope::kParsedScope>(
+    VariableProxy* proxy, Scope* scope, Scope* outer_scope_end,
+    bool force_context_allocation);
+template Variable* Scope::Lookup<Scope::kDeserializedScope>(
+    VariableProxy* proxy, Scope* scope, Scope* outer_scope_end,
+    bool force_context_allocation);
 
 namespace {
 bool CanBeShadowed(Scope* scope, Variable* var) {
@@ -1875,8 +1891,13 @@ Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
                             bool force_context_allocation) {
   DCHECK(scope->is_with_scope());
 
-  Variable* var = Lookup(proxy, scope->outer_scope_, outer_scope_end,
-                         force_context_allocation);
+  Variable* var =
+      scope->outer_scope_->scope_info_.is_null()
+          ? Lookup<kParsedScope>(proxy, scope->outer_scope_, outer_scope_end,
+                                 force_context_allocation)
+          : Lookup<kDeserializedScope>(proxy, scope->outer_scope_,
+                                       outer_scope_end);
+
   if (!CanBeShadowed(scope, var)) return var;
 
   // The current scope is a with scope, so the variable binding can not be
@@ -1900,8 +1921,12 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   DCHECK(scope->is_declaration_scope() &&
          scope->AsDeclarationScope()->calls_sloppy_eval());
 
-  Variable* var = Lookup(proxy, scope->outer_scope_, outer_scope_end,
-                         force_context_allocation);
+  Variable* var =
+      scope->outer_scope_->scope_info_.is_null()
+          ? Lookup<kParsedScope>(proxy, scope->outer_scope_, outer_scope_end,
+                                 force_context_allocation)
+          : Lookup<kDeserializedScope>(proxy, scope->outer_scope_,
+                                       outer_scope_end);
   if (!CanBeShadowed(scope, var)) return var;
 
   // A variable binding may have been found in an outer scope, but the current
@@ -1927,7 +1952,7 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
 bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(info->script_scope()->is_script_scope());
   DCHECK(!proxy->is_resolved());
-  Variable* var = Lookup(proxy, this, nullptr);
+  Variable* var = Lookup<kParsedScope>(proxy, this, nullptr);
   if (var == nullptr) {
     DCHECK(proxy->is_private_name());
     info->pending_error_handler()->ReportMessageAt(
@@ -2041,7 +2066,7 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {
     DCHECK_EQ(variables_.occupancy(), 0);
     for (VariableProxy* proxy : unresolved_list_) {
-      Variable* var = Lookup(proxy, outer_scope(), nullptr);
+      Variable* var = Lookup<kParsedScope>(proxy, outer_scope(), nullptr);
       if (var == nullptr) {
         info->pending_error_handler()->ReportMessageAt(
             proxy->position(), proxy->position() + 1,

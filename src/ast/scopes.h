@@ -184,16 +184,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Lookup a variable in this scope. Returns the variable or nullptr if not
   // found.
   Variable* LookupLocal(const AstRawString* name) {
-    Variable* result = variables_.Lookup(name);
-    if (result != nullptr || scope_info_.is_null()) return result;
-    return LookupInScopeInfo(name);
+    DCHECK(scope_info_.is_null());
+    return variables_.Lookup(name);
   }
 
   Variable* LookupInScopeInfo(const AstRawString* name);
-
-  // Lookup a variable in this scope or outer scopes.
-  // Returns the variable or nullptr if not found.
-  Variable* Lookup(const AstRawString* name);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
@@ -486,6 +481,16 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return false;
   }
 
+  Variable* LookupForTesting(const AstRawString* name) {
+    for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
+      Variable* var = scope->scope_info_.is_null()
+                          ? scope->LookupLocal(name)
+                          : scope->LookupInScopeInfo(name);
+      if (var != nullptr) return var;
+    }
+    return nullptr;
+  }
+
   static void* const kDummyPreParserVariable;
   static void* const kDummyPreParserLexicalVariable;
 
@@ -594,11 +599,17 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // These variables are looked up dynamically at runtime.
   Variable* NonLocal(const AstRawString* name, VariableMode mode);
 
+  enum ScopeLookupMode {
+    kParsedScope,
+    kDeserializedScope,
+  };
+
   // Variable resolution.
   // Lookup a variable reference given by name starting with this scope, and
   // stopping when reaching the outer_scope_end scope. If the code is executed
   // because of a call to 'eval', the context parameter should be set to the
   // calling context of 'eval'.
+  template <ScopeLookupMode mode>
   static Variable* Lookup(VariableProxy* proxy, Scope* scope,
                           Scope* outer_scope_end,
                           bool force_context_allocation = false);
@@ -695,6 +706,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   }
 
   bool was_lazily_parsed() const { return was_lazily_parsed_; }
+
+  Variable* LookupInModule(const AstRawString* name) {
+    DCHECK(is_module_scope());
+    Variable* var = LookupInScopeInfo(name);
+    DCHECK_NOT_NULL(var);
+    return var;
+  }
 
 #ifdef DEBUG
   void set_is_being_lazily_parsed(bool is_being_lazily_parsed) {

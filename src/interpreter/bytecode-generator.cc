@@ -1299,8 +1299,7 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
         ->LoadLiteral(Smi::FromInt(entry->module_request))
         .StoreAccumulatorInRegister(module_request)
         .CallRuntime(Runtime::kGetModuleNamespace, module_request);
-    Variable* var = closure_scope()->LookupLocal(entry->local_name);
-    DCHECK_NOT_NULL(var);
+    Variable* var = closure_scope()->LookupInModule(entry->local_name);
     BuildVariableAssignment(var, Token::INIT, HoleCheckMode::kElided);
   }
 }
