@@ -187,10 +187,15 @@ INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 #define CODE_ACCESSORS(name, type, offset) \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, !Heap::InNewSpace(value))
+#define SYNCHRONIZED_CODE_ACCESSORS(name, type, offset)           \
+  SYNCHRONIZED_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
+                                  !Heap::InNewSpace(value))
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
-CODE_ACCESSORS(code_data_container, CodeDataContainer, kCodeDataContainerOffset)
+// Concurrent marker needs to access kind specific flags in code data container.
+SYNCHRONIZED_CODE_ACCESSORS(code_data_container, CodeDataContainer,
+                            kCodeDataContainerOffset)
 #undef CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
@@ -404,53 +409,53 @@ inline bool Code::is_turbofanned() const {
 
 inline bool Code::can_have_weak_objects() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container()->kind_specific_flags();
   return CanHaveWeakObjectsField::decode(flags);
 }
 
 inline void Code::set_can_have_weak_objects(bool value) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int previous = code_data_container()->kind_specific_flags();
-  int updated = CanHaveWeakObjectsField::update(previous, value);
+  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t updated = CanHaveWeakObjectsField::update(previous, value);
   code_data_container()->set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_construct_stub() const {
   DCHECK(kind() == BUILTIN);
-  int flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container()->kind_specific_flags();
   return IsConstructStubField::decode(flags);
 }
 
 inline void Code::set_is_construct_stub(bool value) {
   DCHECK(kind() == BUILTIN);
-  int previous = code_data_container()->kind_specific_flags();
-  int updated = IsConstructStubField::update(previous, value);
+  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t updated = IsConstructStubField::update(previous, value);
   code_data_container()->set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_promise_rejection() const {
   DCHECK(kind() == BUILTIN);
-  int flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container()->kind_specific_flags();
   return IsPromiseRejectionField::decode(flags);
 }
 
 inline void Code::set_is_promise_rejection(bool value) {
   DCHECK(kind() == BUILTIN);
-  int previous = code_data_container()->kind_specific_flags();
-  int updated = IsPromiseRejectionField::update(previous, value);
+  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t updated = IsPromiseRejectionField::update(previous, value);
   code_data_container()->set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_exception_caught() const {
   DCHECK(kind() == BUILTIN);
-  int flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container()->kind_specific_flags();
   return IsExceptionCaughtField::decode(flags);
 }
 
 inline void Code::set_is_exception_caught(bool value) {
   DCHECK(kind() == BUILTIN);
-  int previous = code_data_container()->kind_specific_flags();
-  int updated = IsExceptionCaughtField::update(previous, value);
+  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t updated = IsExceptionCaughtField::update(previous, value);
   code_data_container()->set_kind_specific_flags(updated);
 }
 
@@ -500,43 +505,43 @@ void Code::set_safepoint_table_offset(int offset) {
 
 bool Code::marked_for_deoptimization() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container()->kind_specific_flags();
   return MarkedForDeoptimizationField::decode(flags);
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  int previous = code_data_container()->kind_specific_flags();
-  int updated = MarkedForDeoptimizationField::update(previous, flag);
+  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t updated = MarkedForDeoptimizationField::update(previous, flag);
   code_data_container()->set_kind_specific_flags(updated);
 }
 
 bool Code::embedded_objects_cleared() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container()->kind_specific_flags();
   return EmbeddedObjectsClearedField::decode(flags);
 }
 
 void Code::set_embedded_objects_cleared(bool flag) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   DCHECK_IMPLIES(flag, marked_for_deoptimization());
-  int previous = code_data_container()->kind_specific_flags();
-  int updated = EmbeddedObjectsClearedField::update(previous, flag);
+  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t updated = EmbeddedObjectsClearedField::update(previous, flag);
   code_data_container()->set_kind_specific_flags(updated);
 }
 
 bool Code::deopt_already_counted() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container()->kind_specific_flags();
   return DeoptAlreadyCountedField::decode(flags);
 }
 
 void Code::set_deopt_already_counted(bool flag) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  int previous = code_data_container()->kind_specific_flags();
-  int updated = DeoptAlreadyCountedField::update(previous, flag);
+  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t updated = DeoptAlreadyCountedField::update(previous, flag);
   code_data_container()->set_kind_specific_flags(updated);
 }
 
@@ -606,7 +611,10 @@ bool Code::IsWeakObjectInOptimizedCode(HeapObject* object) {
          InstanceTypeChecker::IsContext(instance_type);
 }
 
-INT_ACCESSORS(CodeDataContainer, kind_specific_flags, kKindSpecificFlagsOffset)
+// This field has to have relaxed atomic accessors because it is accessed in the
+// concurrent marker.
+RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,
+                        kKindSpecificFlagsOffset)
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 void CodeDataContainer::clear_padding() {

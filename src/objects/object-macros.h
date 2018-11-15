@@ -118,6 +118,14 @@
     WRITE_INT32_FIELD(this, offset, value);                               \
   }
 
+#define RELAXED_INT32_ACCESSORS(holder, name, offset) \
+  int32_t holder::name() const {                      \
+    return RELAXED_READ_INT32_FIELD(this, offset);    \
+  }                                                   \
+  void holder::set_##name(int32_t value) {            \
+    RELAXED_WRITE_INT32_FIELD(this, offset, value);   \
+  }
+
 #define UINT16_ACCESSORS(holder, name, offset)                              \
   uint16_t holder::name() const { return READ_UINT16_FIELD(this, offset); } \
   void holder::set_##name(int value) {                                      \
@@ -425,8 +433,17 @@
 #define READ_INT32_FIELD(p, offset) \
   (*reinterpret_cast<const int32_t*>(FIELD_ADDR(p, offset)))
 
+#define RELAXED_READ_INT32_FIELD(p, offset) \
+  static_cast<int32_t>(base::Relaxed_Load(  \
+      reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
+
 #define WRITE_INT32_FIELD(p, offset, value) \
   (*reinterpret_cast<int32_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define RELAXED_WRITE_INT32_FIELD(p, offset, value)             \
+  base::Relaxed_Store(                                          \
+      reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic32>(value));
 
 #define READ_FLOAT_FIELD(p, offset) \
   (*reinterpret_cast<const float*>(FIELD_ADDR(p, offset)))
