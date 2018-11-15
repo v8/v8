@@ -480,7 +480,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 
   // Remember that we inlined this function.
   int inlining_id = info_->AddInlinedFunction(
-      shared_info, source_positions_->GetSourcePosition(node));
+      shared_info, bytecode_array, source_positions_->GetSourcePosition(node));
 
   // Create the subgraph for the inlinee.
   Node* start;

@@ -174,9 +174,11 @@ JSGlobalObject* OptimizedCompilationInfo::global_object() const {
 }
 
 int OptimizedCompilationInfo::AddInlinedFunction(
-    Handle<SharedFunctionInfo> inlined_function, SourcePosition pos) {
+    Handle<SharedFunctionInfo> inlined_function,
+    Handle<BytecodeArray> inlined_bytecode, SourcePosition pos) {
   int id = static_cast<int>(inlined_functions_.size());
-  inlined_functions_.push_back(InlinedFunctionHolder(inlined_function, pos));
+  inlined_functions_.push_back(
+      InlinedFunctionHolder(inlined_function, inlined_bytecode, pos));
   return id;
 }
 

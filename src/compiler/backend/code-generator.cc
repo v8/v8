@@ -178,6 +178,16 @@ void CodeGenerator::AssembleCode() {
   }
   inlined_function_count_ = deoptimization_literals_.size();
 
+  // Define deoptimization literals for all BytecodeArrays to which we might
+  // deopt to ensure they are strongly held by the optimized code.
+  if (info->has_bytecode_array()) {
+    DefineDeoptimizationLiteral(DeoptimizationLiteral(info->bytecode_array()));
+  }
+  for (OptimizedCompilationInfo::InlinedFunctionHolder& inlined :
+       info->inlined_functions()) {
+    DefineDeoptimizationLiteral(DeoptimizationLiteral(inlined.bytecode_array));
+  }
+
   unwinding_info_writer_.SetNumberOfInstructionBlocks(
       code()->InstructionBlockCount());
 
