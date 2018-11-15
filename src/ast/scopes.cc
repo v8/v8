@@ -449,6 +449,15 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
                                                  : nullptr;
   }
 
+  if (deserialization_mode == DeserializationMode::kIncludingVariables &&
+      script_scope->scope_info_.is_null()) {
+    Handle<ScriptContextTable> table(
+        isolate->native_context()->script_context_table(), isolate);
+    Handle<Context> first = ScriptContextTable::GetContext(isolate, table, 0);
+    Handle<ScopeInfo> scope_info(first->scope_info(), isolate);
+    script_scope->SetScriptScopeInfo(scope_info);
+  }
+
   if (innermost_scope == nullptr) return script_scope;
   script_scope->AddInnerScope(current_scope);
   return innermost_scope;
@@ -1800,7 +1809,7 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
 template <Scope::ScopeLookupMode mode>
 Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
                         Scope* outer_scope_end, bool force_context_allocation) {
-  do {
+  while (true) {
     DCHECK_IMPLIES(mode == kParsedScope, !scope->is_debug_evaluate_scope_);
     // Short-cut: whenever we find a debug-evaluate scope, just look everything
     // up dynamically. Debug-evaluate doesn't properly create scope info for the
@@ -1849,12 +1858,14 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     if (mode == kParsedScope && !scope->scope_info_.is_null()) {
       return Lookup<kDeserializedScope>(proxy, scope, outer_scope_end);
     }
-  } while (mode == kParsedScope || !scope->is_script_scope());
+  }
 
   // We may just be trying to find all free variables. In that case, don't
   // declare them in the outer scope.
   // TODO(marja): Separate Lookup for preparsed scopes better.
-  if (!scope->is_script_scope()) return nullptr;
+  if (mode == kParsedScope && !scope->is_script_scope()) {
+    return nullptr;
+  }
   if (V8_UNLIKELY(proxy->is_private_name())) return nullptr;
 
   // No binding has been found. Declare a variable on the global object.

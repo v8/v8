@@ -432,8 +432,6 @@ Parser::Parser(ParseInfo* info)
 void Parser::InitializeEmptyScopeChain(ParseInfo* info) {
   DCHECK_NULL(original_scope_);
   DCHECK_NULL(info->script_scope());
-  // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
-  // context, which will have the "this" binding for script scopes.
   DeclarationScope* script_scope = NewScriptScope();
   info->set_script_scope(script_scope);
   original_scope_ = script_scope;
