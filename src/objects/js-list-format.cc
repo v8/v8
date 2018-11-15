@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/elements-inl.h"
 #include "src/elements.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
@@ -339,41 +340,42 @@ std::vector<icu::FieldPosition> GenerateFieldPosition(
 }
 
 // Extract String from JSArray into array of UnicodeString
-Maybe<bool> ToUnicodeStringArray(Isolate* isolate, Handle<JSArray> array,
-                                 icu::UnicodeString items[], uint32_t length) {
+Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
+    Isolate* isolate, Handle<JSArray> array) {
   Factory* factory = isolate->factory();
   // In general, ElementsAccessor::Get actually isn't guaranteed to give us the
-  // elements in order. But given that it was created by a builtin we control,
-  // it shouldn't be possible for it to be problematic. Add DCHECK to ensure
-  // that.
-  DCHECK(array->HasFastPackedElements());
+  // elements in order. But if it is a holey array, it will cause the exception
+  // with the IsString check.
   auto* accessor = array->GetElementsAccessor();
-  DCHECK(length == accessor->NumberOfElements(*array));
+  uint32_t length = accessor->NumberOfElements(*array);
+
   // ecma402 #sec-createpartsfromlist
   // 2. If list contains any element value such that Type(value) is not String,
   // throw a TypeError exception.
   //
   // Per spec it looks like we're supposed to throw a TypeError exception if the
-  // item isn't already a string, rather than coercing to a string. Moreover,
-  // the way the spec's written it looks like we're supposed to run through the
-  // whole list to check that they're all strings before going further.
+  // item isn't already a string, rather than coercing to a string.
+  std::vector<icu::UnicodeString> result;
   for (uint32_t i = 0; i < length; i++) {
+    DCHECK(accessor->HasElement(*array, i));
     Handle<Object> item = accessor->Get(array, i);
     DCHECK(!item.is_null());
     if (!item->IsString()) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
           NewTypeError(MessageTemplate::kArrayItemNotType,
-                       factory->list_string(), factory->NewNumber(i),
-                       factory->String_string()),
-          Nothing<bool>());
+                       factory->list_string(),
+                       // TODO(ftang): For dictionary-mode arrays, i isn't
+                       // actually the index in the array but the index in the
+                       // dictionary.
+                       factory->NewNumber(i), factory->String_string()),
+          Nothing<std::vector<icu::UnicodeString>>());
     }
+    result.push_back(
+        Intl::ToICUUnicodeString(isolate, Handle<String>::cast(item)));
   }
-  for (uint32_t i = 0; i < length; i++) {
-    Handle<String> string = Handle<String>::cast(accessor->Get(array, i));
-    items[i] = Intl::ToICUUnicodeString(isolate, string);
-  }
-  return Just(true);
+  DCHECK(!array->HasDictionaryElements());
+  return Just(result);
 }
 
 }  // namespace
@@ -383,21 +385,21 @@ MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
                                              Handle<JSListFormat> format,
                                              Handle<JSArray> list) {
   DCHECK(!list->IsUndefined());
-  uint32_t length = list->GetElementsAccessor()->NumberOfElements(*list);
-  std::unique_ptr<icu::UnicodeString[]> array(new icu::UnicodeString[length]);
-
   // ecma402 #sec-createpartsfromlist
   // 2. If list contains any element value such that Type(value) is not String,
   // throw a TypeError exception.
-  MAYBE_RETURN(ToUnicodeStringArray(isolate, list, array.get(), length),
-               Handle<String>());
+  Maybe<std::vector<icu::UnicodeString>> maybe_array =
+      ToUnicodeStringArray(isolate, list);
+  MAYBE_RETURN(maybe_array, Handle<String>());
+  std::vector<icu::UnicodeString> array = maybe_array.FromJust();
 
   icu::ListFormatter* formatter = format->icu_formatter()->raw();
   CHECK_NOT_NULL(formatter);
 
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString formatted;
-  formatter->format(array.get(), length, formatted, status);
+  formatter->format(array.data(), static_cast<int32_t>(array.size()), formatted,
+                    status);
   DCHECK(U_SUCCESS(status));
 
   return Intl::ToString(isolate, formatted);
@@ -418,14 +420,13 @@ std::set<std::string> JSListFormat::GetAvailableLocales() {
 MaybeHandle<JSArray> JSListFormat::FormatListToParts(
     Isolate* isolate, Handle<JSListFormat> format, Handle<JSArray> list) {
   DCHECK(!list->IsUndefined());
-  uint32_t length = list->GetElementsAccessor()->NumberOfElements(*list);
-  std::unique_ptr<icu::UnicodeString[]> array(new icu::UnicodeString[length]);
-
   // ecma402 #sec-createpartsfromlist
   // 2. If list contains any element value such that Type(value) is not String,
   // throw a TypeError exception.
-  MAYBE_RETURN(ToUnicodeStringArray(isolate, list, array.get(), length),
-               Handle<JSArray>());
+  Maybe<std::vector<icu::UnicodeString>> maybe_array =
+      ToUnicodeStringArray(isolate, list);
+  MAYBE_RETURN(maybe_array, Handle<JSArray>());
+  std::vector<icu::UnicodeString> array = maybe_array.FromJust();
 
   icu::ListFormatter* formatter = format->icu_formatter()->raw();
   CHECK_NOT_NULL(formatter);
@@ -433,7 +434,8 @@ MaybeHandle<JSArray> JSListFormat::FormatListToParts(
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString formatted;
   icu::FieldPositionIterator iter;
-  formatter->format(array.get(), length, formatted, &iter, status);
+  formatter->format(array.data(), static_cast<int32_t>(array.size()), formatted,
+                    &iter, status);
   DCHECK(U_SUCCESS(status));
 
   std::vector<icu::FieldPosition> field_positions = GenerateFieldPosition(iter);
