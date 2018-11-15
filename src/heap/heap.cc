@@ -3397,17 +3397,6 @@ bool Heap::Contains(HeapObject* value) {
           lo_space_->Contains(value) || read_only_space_->Contains(value));
 }
 
-bool Heap::ContainsSlow(Address addr) {
-  if (memory_allocator()->IsOutsideAllocatedSpace(addr)) {
-    return false;
-  }
-  return HasBeenSetUp() &&
-         (new_space_->ToSpaceContainsSlow(addr) ||
-          old_space_->ContainsSlow(addr) || code_space_->ContainsSlow(addr) ||
-          map_space_->ContainsSlow(addr) || lo_space_->ContainsSlow(addr) ||
-          read_only_space_->Contains(addr));
-}
-
 bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
   if (memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
     return false;

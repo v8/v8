@@ -459,14 +459,6 @@ bool Heap::InReadOnlySpace(Object* object) {
   return read_only_space_->Contains(object);
 }
 
-bool Heap::InNewSpaceSlow(Address address) {
-  return new_space_->ContainsSlow(address);
-}
-
-bool Heap::InOldSpaceSlow(Address address) {
-  return old_space_->ContainsSlow(address);
-}
-
 // static
 Heap* Heap::FromWritableHeapObject(const HeapObject* obj) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);

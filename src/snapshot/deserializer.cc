@@ -860,9 +860,9 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
     }
   }
   if (emit_write_barrier && write_barrier_needed) {
-    SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));
-    GenerationalBarrier(HeapObject::FromAddress(current_object_address),
-                        current.Slot(), current.Read());
+    HeapObject* object = HeapObject::FromAddress(current_object_address);
+    SLOW_DCHECK(isolate->heap()->Contains(object));
+    GenerationalBarrier(object, current.Slot(), current.Read());
   }
   if (!current_was_incremented) {
     current.Advance();

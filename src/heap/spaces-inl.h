@@ -154,10 +154,6 @@ bool NewSpace::ToSpaceContainsSlow(Address a) {
   return to_space_.ContainsSlow(a);
 }
 
-bool NewSpace::FromSpaceContainsSlow(Address a) {
-  return from_space_.ContainsSlow(a);
-}
-
 bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 

@@ -3462,11 +3462,6 @@ Object* LargeObjectSpace::FindObject(Address a) {
   return Smi::kZero;  // Signaling not found.
 }
 
-LargePage* LargeObjectSpace::FindPageThreadSafe(Address a) {
-  base::MutexGuard guard(&chunk_map_mutex_);
-  return FindPage(a);
-}
-
 LargePage* LargeObjectSpace::FindPage(Address a) {
   const Address key = MemoryChunk::FromAddress(a)->address();
   auto it = chunk_map_.find(key);

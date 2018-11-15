@@ -2730,7 +2730,6 @@ class NewSpace : public SpaceWithLinearArea {
   void UpdateInlineAllocationLimit(size_t size_in_bytes) override;
 
   inline bool ToSpaceContainsSlow(Address a);
-  inline bool FromSpaceContainsSlow(Address a);
   inline bool ToSpaceContains(Object* o);
   inline bool FromSpaceContains(Object* o);
 
@@ -2983,9 +2982,6 @@ class LargeObjectSpace : public Space {
   // Finds an object for a given address, returns a Smi if it is not found.
   // The function iterates through all objects in this space, may be slow.
   Object* FindObject(Address a);
-
-  // Takes the chunk_map_mutex_ and calls FindPage after that.
-  LargePage* FindPageThreadSafe(Address a);
 
   // Finds a large object page containing the given address, returns nullptr
   // if such a page doesn't exist.

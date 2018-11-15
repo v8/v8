@@ -949,10 +949,7 @@ class Heap {
 
   // Slow methods that can be used for verification as they can also be used
   // with off-heap Addresses.
-  bool ContainsSlow(Address addr);
   bool InSpaceSlow(Address addr, AllocationSpace space);
-  inline bool InNewSpaceSlow(Address address);
-  inline bool InOldSpaceSlow(Address address);
 
   // Find the heap which owns this HeapObject. Should never be called for
   // objects in RO space.
