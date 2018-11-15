@@ -1308,9 +1308,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
          func_index < num_wasm_functions; ++func_index) {
       func_indexes.push_back(func_index);
     }
-    WasmDebugInfo::RedirectToInterpreter(
-        debug_info, Vector<int>(func_indexes.data(),
-                                static_cast<int>(func_indexes.size())));
+    WasmDebugInfo::RedirectToInterpreter(debug_info, VectorOf(func_indexes));
   }
 
   //--------------------------------------------------------------------------

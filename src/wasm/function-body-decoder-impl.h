@@ -127,11 +127,6 @@ struct WasmException;
   V(I64AtomicStore16U, Uint16)  \
   V(I64AtomicStore32U, Uint32)
 
-template <typename T, typename Allocator>
-Vector<T> vec2vec(std::vector<T, Allocator>& vec) {
-  return Vector<T>(vec.data(), vec.size());
-}
-
 // Helpers for decoding different kinds of immediates which follow bytecodes.
 template <Decoder::ValidateFlag validate>
 struct LocalIndexImmediate {
@@ -1491,7 +1486,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             len = 1 + imm.length;
             if (!this->Validate(this->pc_, imm)) break;
             PopArgs(imm.exception->ToFunctionSig());
-            CALL_INTERFACE_IF_REACHABLE(Throw, imm, vec2vec(args_));
+            CALL_INTERFACE_IF_REACHABLE(Throw, imm, VectorOf(args_));
             EndControl();
             break;
           }
@@ -2278,7 +2273,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         PopArgs(sig);
         auto* results =
             sig->return_count() == 0 ? nullptr : Push(GetReturnType(sig));
-        CALL_INTERFACE_IF_REACHABLE(SimdOp, opcode, vec2vec(args_), results);
+        CALL_INTERFACE_IF_REACHABLE(SimdOp, opcode, VectorOf(args_), results);
       }
     }
     return len;
@@ -2316,7 +2311,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       len += imm.length;
       PopArgs(sig);
       auto result = ret_type == kWasmStmt ? nullptr : Push(GetReturnType(sig));
-      CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, vec2vec(args_), imm,
+      CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, VectorOf(args_), imm,
                                   result);
     } else {
       this->error("invalid atomic opcode");
@@ -2335,7 +2330,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     // Simulate that an implicit return morally comes after the current block.
     if (implicit && c->end_merge.reached) c->reachability = kReachable;
-    CALL_INTERFACE_IF_REACHABLE(DoReturn, vec2vec(args_), implicit);
+    CALL_INTERFACE_IF_REACHABLE(DoReturn, VectorOf(args_), implicit);
 
     EndControl();
   }

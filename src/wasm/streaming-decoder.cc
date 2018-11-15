@@ -66,8 +66,7 @@ void StreamingDecoder::Finish() {
   if (!ok()) return;
 
   if (deserializing()) {
-    Vector<const uint8_t> wire_bytes(wire_bytes_for_deserializing_.data(),
-                                     wire_bytes_for_deserializing_.size());
+    Vector<const uint8_t> wire_bytes = VectorOf(wire_bytes_for_deserializing_);
     // Try to deserialize the module from wire bytes and module bytes.
     if (processor_->Deserialize(compiled_module_bytes_, wire_bytes)) return;
 

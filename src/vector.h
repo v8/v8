@@ -288,6 +288,15 @@ inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
   return Vector<T>(arr);
 }
 
+// Construct a Vector from anything providing a {data()} and {size()} accessor.
+template <typename Container,
+          typename T = typename std::remove_reference<
+              decltype(*(std::declval<Container>()).data())>::type,
+          typename = decltype((std::declval<Container>()).size())>
+inline constexpr Vector<T> VectorOf(Container&& c) {
+  return Vector<T>(c.data(), c.size());
+}
+
 }  // namespace internal
 }  // namespace v8
 

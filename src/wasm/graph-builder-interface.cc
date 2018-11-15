@@ -414,7 +414,7 @@ class WasmGraphBuildingInterface {
     for (int i = 0; i < count; ++i) {
       args[i] = value_args[i].node;
     }
-    BUILD(Throw, imm.index, imm.exception, vec2vec(args));
+    BUILD(Throw, imm.index, imm.exception, VectorOf(args));
     builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
   }
 
