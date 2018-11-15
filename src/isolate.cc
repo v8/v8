@@ -108,22 +108,101 @@ namespace {
 
 std::atomic<const uint8_t*> current_embedded_blob_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_size_(0);
+
+// The various workflows around embedded snapshots are fairly complex. We need
+// to support plain old snapshot builds, nosnap builds, and the requirements of
+// subtly different serialization tests. There's two related knobs to twiddle:
+//
+// - The default embedded blob may be overridden by setting the sticky embedded
+// blob. This is set automatically whenever we create a new embedded blob.
+//
+// - Lifecycle management can be either manual or set to refcounting.
+//
+// A few situations to demonstrate their use:
+//
+// - A plain old snapshot build neither overrides the default blob nor
+// refcounts.
+//
+// - mksnapshot sets the sticky blob and manually frees the embedded
+// blob once done.
+//
+// - Most serializer tests do the same.
+//
+// - Nosnapshot builds set the sticky blob and enable refcounting.
+
+// This mutex protects access to the following variables:
+// - sticky_embedded_blob_
+// - sticky_embedded_blob_size_
+// - enable_embedded_blob_refcounting_
+// - current_embedded_blob_refs_
+base::LazyMutex current_embedded_blob_refcount_mutex_ = LAZY_MUTEX_INITIALIZER;
+
+const uint8_t* sticky_embedded_blob_ = nullptr;
+uint32_t sticky_embedded_blob_size_ = 0;
+
+bool enable_embedded_blob_refcounting_ = true;
+int current_embedded_blob_refs_ = 0;
+
+const uint8_t* StickyEmbeddedBlob() { return sticky_embedded_blob_; }
+uint32_t StickyEmbeddedBlobSize() { return sticky_embedded_blob_size_; }
+
+void SetStickyEmbeddedBlob(const uint8_t* blob, uint32_t blob_size) {
+  sticky_embedded_blob_ = blob;
+  sticky_embedded_blob_size_ = blob_size;
+}
+
 }  // namespace
 
+void DisableEmbeddedBlobRefcounting() {
+  base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+  enable_embedded_blob_refcounting_ = false;
+}
+
+void FreeCurrentEmbeddedBlob() {
+  CHECK(!enable_embedded_blob_refcounting_);
+  base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+
+  if (StickyEmbeddedBlob() == nullptr) return;
+
+  CHECK_EQ(StickyEmbeddedBlob(), Isolate::CurrentEmbeddedBlob());
+
+  InstructionStream::FreeOffHeapInstructionStream(
+      const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlob()),
+      Isolate::CurrentEmbeddedBlobSize());
+
+  current_embedded_blob_.store(nullptr, std::memory_order_relaxed);
+  current_embedded_blob_size_.store(0, std::memory_order_relaxed);
+  sticky_embedded_blob_ = nullptr;
+  sticky_embedded_blob_size_ = 0;
+}
+
 void Isolate::SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size) {
+  CHECK_NOT_NULL(blob);
+
   embedded_blob_ = blob;
   embedded_blob_size_ = blob_size;
   current_embedded_blob_.store(blob, std::memory_order_relaxed);
   current_embedded_blob_size_.store(blob_size, std::memory_order_relaxed);
 
 #ifdef DEBUG
-  if (blob != nullptr) {
-    // Verify that the contents of the embedded blob are unchanged from
-    // serialization-time, just to ensure the compiler isn't messing with us.
-    EmbeddedData d = EmbeddedData::FromBlob();
-    CHECK_EQ(d.Hash(), d.CreateHash());
-  }
+  // Verify that the contents of the embedded blob are unchanged from
+  // serialization-time, just to ensure the compiler isn't messing with us.
+  EmbeddedData d = EmbeddedData::FromBlob();
+  CHECK_EQ(d.Hash(), d.CreateHash());
 #endif  // DEBUG
+}
+
+void Isolate::ClearEmbeddedBlob() {
+  CHECK(enable_embedded_blob_refcounting_);
+  CHECK_EQ(embedded_blob_, CurrentEmbeddedBlob());
+  CHECK_EQ(embedded_blob_, StickyEmbeddedBlob());
+
+  embedded_blob_ = nullptr;
+  embedded_blob_size_ = 0;
+  current_embedded_blob_.store(nullptr, std::memory_order_relaxed);
+  current_embedded_blob_size_.store(0, std::memory_order_relaxed);
+  sticky_embedded_blob_ = nullptr;
+  sticky_embedded_blob_size_ = 0;
 }
 
 const uint8_t* Isolate::embedded_blob() const { return embedded_blob_; }
@@ -2723,17 +2802,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
   InitializeLoggingAndCounters();
   debug_ = new Debug(this);
 
-  if (FLAG_embedded_builtins) {
-#ifdef V8_MULTI_SNAPSHOTS
-  if (FLAG_untrusted_code_mitigations) {
-    SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
-  } else {
-    SetEmbeddedBlob(TrustedEmbeddedBlob(), TrustedEmbeddedBlobSize());
-  }
-#else
-  SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
-#endif
-  }
+  InitializeDefaultEmbeddedBlob();
 }
 
 void Isolate::CheckIsolateLayout() {
@@ -2836,14 +2905,7 @@ void Isolate::Deinit() {
     wasm_engine_.reset();
   }
 
-  if (FLAG_embedded_builtins) {
-    if (DefaultEmbeddedBlob() == nullptr && embedded_blob() != nullptr) {
-      // We own the embedded blob. Free it.
-      uint8_t* data = const_cast<uint8_t*>(embedded_blob_);
-      InstructionStream::FreeOffHeapInstructionStream(data,
-                                                      embedded_blob_size_);
-    }
-  }
+  TearDownEmbeddedBlob();
 
   delete interpreter_;
   interpreter_ = nullptr;
@@ -3015,7 +3077,6 @@ void PrintBuiltinSizes(Isolate* isolate) {
 }
 
 void CreateOffHeapTrampolines(Isolate* isolate) {
-  DCHECK(isolate->serializer_enabled());
   DCHECK_NOT_NULL(isolate->embedded_blob());
   DCHECK_NE(0, isolate->embedded_blob_size());
 
@@ -3047,21 +3108,73 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 }
 }  // namespace
 
-void Isolate::PrepareEmbeddedBlobForSerialization() {
-  // When preparing the embedded blob, ensure it doesn't exist yet.
-  DCHECK_NULL(embedded_blob());
-  DCHECK_NULL(DefaultEmbeddedBlob());
-  DCHECK(serializer_enabled());
+void Isolate::InitializeDefaultEmbeddedBlob() {
+  const uint8_t* blob = DefaultEmbeddedBlob();
+  uint32_t size = DefaultEmbeddedBlobSize();
 
-  // The isolate takes ownership of this pointer into an executable mmap'd
-  // area. We muck around with const-casts because the standard use-case in
-  // shipping builds is for embedded_blob_ to point into a read-only
-  // .text-embedded section.
-  uint8_t* data;
-  uint32_t size;
-  InstructionStream::CreateOffHeapInstructionStream(this, &data, &size);
-  SetEmbeddedBlob(const_cast<const uint8_t*>(data), size);
+#ifdef V8_MULTI_SNAPSHOTS
+  if (!FLAG_untrusted_code_mitigations) {
+    blob = TrustedEmbeddedBlob();
+    size = TrustedEmbeddedBlobSize();
+  }
+#endif
+
+  if (StickyEmbeddedBlob() != nullptr) {
+    base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+    // Check again now that we hold the lock.
+    if (StickyEmbeddedBlob() != nullptr) {
+      blob = StickyEmbeddedBlob();
+      size = StickyEmbeddedBlobSize();
+      current_embedded_blob_refs_++;
+    }
+  }
+
+  if (blob == nullptr) {
+    CHECK_EQ(0, size);
+  } else {
+    SetEmbeddedBlob(blob, size);
+  }
+}
+
+void Isolate::CreateAndSetEmbeddedBlob() {
+  base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+
+  // If a sticky blob has been set, we reuse it.
+  if (StickyEmbeddedBlob() != nullptr) {
+    CHECK_EQ(embedded_blob(), StickyEmbeddedBlob());
+    CHECK_EQ(CurrentEmbeddedBlob(), StickyEmbeddedBlob());
+  } else {
+    // Create and set a new embedded blob.
+    uint8_t* data;
+    uint32_t size;
+    InstructionStream::CreateOffHeapInstructionStream(this, &data, &size);
+
+    CHECK_EQ(0, current_embedded_blob_refs_);
+    const uint8_t* const_data = const_cast<const uint8_t*>(data);
+    SetEmbeddedBlob(const_data, size);
+    current_embedded_blob_refs_++;
+
+    SetStickyEmbeddedBlob(const_data, size);
+  }
+
   CreateOffHeapTrampolines(this);
+}
+
+void Isolate::TearDownEmbeddedBlob() {
+  // Nothing to do in case the blob is embedded into the binary or unset.
+  if (StickyEmbeddedBlob() == nullptr) return;
+
+  CHECK_EQ(embedded_blob(), StickyEmbeddedBlob());
+  CHECK_EQ(CurrentEmbeddedBlob(), StickyEmbeddedBlob());
+
+  base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+  current_embedded_blob_refs_--;
+  if (current_embedded_blob_refs_ == 0 && enable_embedded_blob_refcounting_) {
+    // We own the embedded blob and are the last holder. Free it.
+    InstructionStream::FreeOffHeapInstructionStream(
+        const_cast<uint8_t*>(embedded_blob()), embedded_blob_size());
+    ClearEmbeddedBlob();
+  }
 }
 
 bool Isolate::Init(StartupDeserializer* des) {
@@ -3166,19 +3279,16 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   bootstrapper_->Initialize(create_heap_objects);
 
-  if (FLAG_embedded_builtins) {
-    if (create_heap_objects && serializer_enabled()) {
-      builtins_constants_table_builder_ =
-          new BuiltinsConstantsTableBuilder(this);
-    }
+  if (FLAG_embedded_builtins && create_heap_objects) {
+    builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
   }
   setup_delegate_->SetupBuiltins(this);
-  if (FLAG_embedded_builtins) {
-    if (create_heap_objects && serializer_enabled()) {
-      builtins_constants_table_builder_->Finalize();
-      delete builtins_constants_table_builder_;
-      builtins_constants_table_builder_ = nullptr;
-    }
+  if (FLAG_embedded_builtins && create_heap_objects) {
+    builtins_constants_table_builder_->Finalize();
+    delete builtins_constants_table_builder_;
+    builtins_constants_table_builder_ = nullptr;
+
+    CreateAndSetEmbeddedBlob();
   }
 
   if (create_heap_objects) heap_.CreateFixedStubs();

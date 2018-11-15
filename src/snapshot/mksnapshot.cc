@@ -418,9 +418,7 @@ v8::StartupData WarmUpSnapshotDataBlob(v8::SnapshotCreator* snapshot_creator,
   return result;
 }
 
-void WriteEmbeddedFile(v8::SnapshotCreator* creator, SnapshotWriter* writer) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(creator->GetIsolate());
-  isolate->PrepareEmbeddedBlobForSerialization();
+void WriteEmbeddedFile(SnapshotWriter* writer) {
   i::EmbeddedData embedded_blob = i::EmbeddedData::FromBlob();
   writer->WriteEmbedded(&embedded_blob);
 }
@@ -463,6 +461,7 @@ int main(int argc, char** argv) {
     std::unique_ptr<char> warmup_script(
         GetExtraCode(argc >= 3 ? argv[2] : nullptr, "warm up"));
 
+    i::DisableEmbeddedBlobRefcounting();
     v8::StartupData blob;
     {
       v8::Isolate* isolate = v8::Isolate::Allocate();
@@ -478,13 +477,7 @@ int main(int argc, char** argv) {
         i_isolate->heap()->ConfigureHeap(0, 0, code_range_size);
       }
       v8::SnapshotCreator snapshot_creator(isolate);
-      if (i::FLAG_embedded_builtins) {
-        // This process is a bit tricky since we might go on to make a second
-        // snapshot if a warmup script is passed. In that case, create the first
-        // snapshot without off-heap trampolines and only move code off-heap for
-        // the warmed-up snapshot.
-        if (!warmup_script) WriteEmbeddedFile(&snapshot_creator, &writer);
-      }
+      if (i::FLAG_embedded_builtins) WriteEmbeddedFile(&writer);
       blob = CreateSnapshotDataBlob(&snapshot_creator, embed_script.get());
     }
 
@@ -492,9 +485,6 @@ int main(int argc, char** argv) {
       CHECK(blob.raw_size > 0 && blob.data != nullptr);
       v8::StartupData cold = blob;
       v8::SnapshotCreator snapshot_creator(nullptr, &cold);
-      if (i::FLAG_embedded_builtins) {
-        WriteEmbeddedFile(&snapshot_creator, &writer);
-      }
       blob = WarmUpSnapshotDataBlob(&snapshot_creator, warmup_script.get());
       delete[] cold.data;
     }
@@ -503,6 +493,7 @@ int main(int argc, char** argv) {
     writer.WriteSnapshot(blob);
     delete[] blob.data;
   }
+  i::FreeCurrentEmbeddedBlob();
 
   v8::V8::Dispose();
   v8::V8::ShutdownPlatform();

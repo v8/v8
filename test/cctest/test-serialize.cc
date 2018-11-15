@@ -85,6 +85,7 @@ class TestSerializer {
   static v8::Isolate* NewIsolateInitialized() {
     const bool kEnableSerializer = true;
     const bool kGenerateHeap = true;
+    DisableEmbeddedBlobRefcounting();
     v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer, kGenerateHeap);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -127,24 +128,9 @@ class TestSerializer {
     isolate->set_array_buffer_allocator(CcTest::array_buffer_allocator());
     isolate->setup_delegate_ = new SetupIsolateDelegateForTests(generate_heap);
 
-    if (FLAG_embedded_builtins) {
-      if (generate_heap || clear_embedded_blob_) {
-        // We're generating the heap, including new builtins. Act as if we don't
-        // have an embedded blob.
-        clear_embedded_blob_ = true;
-        isolate->SetEmbeddedBlob(nullptr, 0);
-      }
-    }
     return v8_isolate;
   }
-
-  // A sticky flag that ensures the embedded blob is remains cleared after it
-  // has been cleared once. E.g.: after creating & serializing a complete heap
-  // snapshot, future isolates also expect the embedded blob to be cleared.
-  static bool clear_embedded_blob_;
 };
-
-bool TestSerializer::clear_embedded_blob_ = false;
 
 static Vector<const byte> WritePayload(const Vector<const byte>& payload) {
   int length = payload.length();
@@ -180,6 +166,7 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
 v8::StartupData CreateSnapshotDataBlob(const char* embedded_source = nullptr) {
   // Create a new isolate and a new context from scratch, optionally run
   // a script to embed, and serialize to create a snapshot blob.
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData result = {nullptr, 0};
   {
     v8::SnapshotCreator snapshot_creator;
@@ -316,6 +303,7 @@ void TestStartupSerializerOnceImpl() {
   }
   isolate->Dispose();
   blobs.Dispose();
+  FreeCurrentEmbeddedBlob();
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce) {
@@ -419,6 +407,7 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
   }
   isolate->Dispose();
   blobs2.Dispose();
+  FreeCurrentEmbeddedBlob();
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
@@ -444,6 +433,7 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
   }
   isolate->Dispose();
   blobs.Dispose();
+  FreeCurrentEmbeddedBlob();
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
@@ -470,6 +460,7 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   }
   isolate->Dispose();
   blobs2.Dispose();
+  FreeCurrentEmbeddedBlob();
 }
 
 static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
@@ -576,6 +567,7 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
   }
   v8_isolate->Dispose();
   blobs.Dispose();
+  FreeCurrentEmbeddedBlob();
 }
 
 static void PartiallySerializeCustomContext(
@@ -753,9 +745,10 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
   }
   v8_isolate->Dispose();
   blobs.Dispose();
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(CustomSnapshotDataBlob1) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlob1) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
@@ -779,9 +772,10 @@ TEST(CustomSnapshotDataBlob1) {
   }
   isolate1->Dispose();
   delete[] data1.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(SnapshotChecksum) {
+UNINITIALIZED_TEST(SnapshotChecksum) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
@@ -790,6 +784,7 @@ TEST(SnapshotChecksum) {
   const_cast<char*>(data1.data)[142] = data1.data[142] ^ 4;  // Flip a bit.
   CHECK(!i::Snapshot::VerifyChecksum(&data1));
   delete[] data1.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
 struct InternalFieldData {
@@ -845,6 +840,7 @@ void TypedArrayTestHelper(
     const Int32Expectations& after_restore_expectations = Int32Expectations()) {
   DisableAlwaysOpt();
   i::FLAG_allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator;
@@ -886,9 +882,10 @@ void TypedArrayTestHelper(
   }
   isolate->Dispose();
   delete[] blob.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(CustomSnapshotDataBlobWithOffHeapTypedArray) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobWithOffHeapTypedArray) {
   const char* code =
       "var x = new Uint8Array(128);"
       "x[0] = 12;"
@@ -905,7 +902,7 @@ TEST(CustomSnapshotDataBlobWithOffHeapTypedArray) {
   TypedArrayTestHelper(code, expectations);
 }
 
-TEST(CustomSnapshotDataBlobSharedArrayBuffer) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobSharedArrayBuffer) {
   const char* code =
       "var x = new Int32Array([12, 24, 48, 96]);"
       "var y = new Uint8Array(x.buffer)";
@@ -930,7 +927,7 @@ TEST(CustomSnapshotDataBlobSharedArrayBuffer) {
   TypedArrayTestHelper(code, expectations);
 }
 
-TEST(CustomSnapshotDataBlobArrayBufferWithOffset) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobArrayBufferWithOffset) {
   const char* code =
       "var x = new Int32Array([12, 24, 48, 96]);"
       "var y = new Int32Array(x.buffer, 4, 2)";
@@ -949,7 +946,7 @@ TEST(CustomSnapshotDataBlobArrayBufferWithOffset) {
                        after_restore_expectations);
 }
 
-TEST(CustomSnapshotDataBlobDataView) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobDataView) {
   const char* code =
       "var x = new Int8Array([1, 2, 3, 4]);"
       "var v = new DataView(x.buffer)";
@@ -961,7 +958,7 @@ TEST(CustomSnapshotDataBlobDataView) {
   TypedArrayTestHelper(code, expectations);
 }
 
-TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
   const char* code =
       "var x = new Int16Array([12, 24, 48]);"
       "%ArrayBufferNeuter(x.buffer);";
@@ -970,6 +967,7 @@ TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
 
   DisableAlwaysOpt();
   i::FLAG_allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator;
@@ -1014,6 +1012,7 @@ TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
   }
   isolate->Dispose();
   delete[] blob.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
 i::Handle<i::JSArrayBuffer> GetBufferFromTypedArray(
@@ -1026,7 +1025,7 @@ i::Handle<i::JSArrayBuffer> GetBufferFromTypedArray(
   return i::handle(i::JSArrayBuffer::cast(view->buffer()), view->GetIsolate());
 }
 
-TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
   const char* code =
       "var x = new Uint8Array(8);"
       "x[0] = 12;"
@@ -1040,6 +1039,7 @@ TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
 
   DisableAlwaysOpt();
   i::FLAG_allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator;
@@ -1088,9 +1088,10 @@ TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
   }
   isolate->Dispose();
   delete[] blob.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(CustomSnapshotDataBlob2) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlob2) {
   DisableAlwaysOpt();
   const char* source2 =
       "function f() { return g() * 2; }"
@@ -1117,6 +1118,7 @@ TEST(CustomSnapshotDataBlob2) {
   }
   isolate2->Dispose();
   delete[] data2.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
 static void SerializationFunctionTemplate(
@@ -1124,7 +1126,7 @@ static void SerializationFunctionTemplate(
   args.GetReturnValue().Set(args[0]);
 }
 
-TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
   DisableAlwaysOpt();
   const char* source1 =
       "var o = {};"
@@ -1168,12 +1170,14 @@ TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
   }
   isolate->Dispose();
   delete[] data.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(CustomSnapshotDataBlobWithLocker) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobWithLocker) {
   DisableAlwaysOpt();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  DisableEmbeddedBlobRefcounting();
   v8::Isolate* isolate0 = v8::Isolate::New(create_params);
   {
     v8::Locker locker(isolate0);
@@ -1207,9 +1211,10 @@ TEST(CustomSnapshotDataBlobWithLocker) {
   }
   isolate1->Dispose();
   delete[] data1.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(CustomSnapshotDataBlobStackOverflow) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobStackOverflow) {
   DisableAlwaysOpt();
   const char* source =
       "var a = [0];"
@@ -1247,6 +1252,7 @@ TEST(CustomSnapshotDataBlobStackOverflow) {
   }
   isolate->Dispose();
   delete[] data.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
 bool IsCompiled(const char* name) {
@@ -1256,7 +1262,7 @@ bool IsCompiled(const char* name) {
       ->is_compiled();
 }
 
-TEST(SnapshotDataBlobWithWarmup) {
+UNINITIALIZED_TEST(SnapshotDataBlobWithWarmup) {
   DisableAlwaysOpt();
   const char* warmup = "Math.abs(1); Math.random = 1;";
 
@@ -1283,9 +1289,10 @@ TEST(SnapshotDataBlobWithWarmup) {
   }
   isolate->Dispose();
   delete[] warm.data;
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(CustomSnapshotDataBlobWithWarmup) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobWithWarmup) {
   DisableAlwaysOpt();
   const char* source =
       "function f() { return Math.abs(1); }\n"
@@ -1320,9 +1327,10 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
   }
   isolate->Dispose();
   delete[] warm.data;
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   DisableAlwaysOpt();
   // Flood the startup snapshot with shared function infos. If they are
   // serialized before the immortal immovable root, the root will no longer end
@@ -1351,6 +1359,7 @@ TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   isolate->Dispose();
   source.Dispose();
   delete[] data.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
 }
 
 TEST(TestThatAlwaysSucceeds) {
@@ -3468,6 +3477,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
   i::FLAG_rehash_snapshot = true;
   i::FLAG_hash_seed = 42;
   i::FLAG_allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator;
@@ -3506,6 +3516,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
   }
   isolate->Dispose();
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
@@ -3513,6 +3524,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   i::FLAG_rehash_snapshot = true;
   i::FLAG_hash_seed = 42;
   i::FLAG_allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator;
@@ -3576,6 +3588,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   }
   isolate->Dispose();
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 TEST(SerializationStats) {
