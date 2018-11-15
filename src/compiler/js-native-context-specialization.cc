@@ -441,14 +441,10 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   }
 
   if (access_info.IsDataConstant() || access_info.IsDataConstantField()) {
-    // Determine actual holder and perform prototype chain checks.
+    // Determine actual holder.
     Handle<JSObject> holder;
-    if (access_info.holder().ToHandle(&holder)) {
-      dependencies()->DependOnStablePrototypeChains(
-          broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
-    } else {
-      holder = receiver;
-    }
+    bool found_on_proto = access_info.holder().ToHandle(&holder);
+    if (!found_on_proto) holder = receiver;
 
     Handle<Object> constant;
     if (access_info.IsDataConstant()) {
@@ -457,12 +453,30 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     } else {
       DCHECK(FLAG_track_constant_fields);
       DCHECK(access_info.IsDataConstantField());
-      // The value must be callable therefore tagged.
-      DCHECK(CanBeTaggedPointer(access_info.field_representation()));
       FieldIndex field_index = access_info.field_index();
       constant = JSObject::FastPropertyAt(holder, Representation::Tagged(),
                                           field_index);
+      if (!constant->IsCallable()) {
+        return NoChange();
+      }
+
+      // Install dependency on constness. Unfortunately, access_info does not
+      // track descriptor index, so we have to search for it.
+      Handle<Map> holder_map(holder->map(), isolate());
+      Handle<DescriptorArray> descriptors(holder_map->instance_descriptors(),
+                                          isolate());
+      int descriptor_index =
+          descriptors->Search(*(factory()->has_instance_symbol()), *holder_map);
+      CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
+      dependencies()->DependOnFieldType(MapRef(broker(), holder_map),
+                                        descriptor_index);
     }
+
+    if (found_on_proto) {
+      dependencies()->DependOnStablePrototypeChains(
+          broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
+    }
+
     DCHECK(constant->IsCallable());
 
     // Check that {constructor} is actually {receiver}.
