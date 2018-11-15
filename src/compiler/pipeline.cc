@@ -1578,8 +1578,7 @@ struct InstructionSelectionPhase {
         FLAG_turbo_instruction_scheduling
             ? InstructionSelector::kEnableScheduling
             : InstructionSelector::kDisableScheduling,
-        !data->isolate() || data->isolate()->serializer_enabled() ||
-                data->isolate()->ShouldLoadConstantsFromRootList()
+        !data->isolate() || data->isolate()->serializer_enabled()
             ? InstructionSelector::kDisableRootsRelativeAddressing
             : InstructionSelector::kEnableRootsRelativeAddressing,
         data->info()->GetPoisoningMitigationLevel(),

@@ -177,13 +177,6 @@
 }],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
-['arch == ia32', {
-  # Requires call to non-isolate-independent code target, unsupported by
-  # MacroAssembler::Call() on ia32.
-  'test-api/SetFunctionEntryHook': [SKIP],
-}],  # 'no_snap == False'
-
-##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'test-cpu-profiler/MultipleIsolates': [SKIP],

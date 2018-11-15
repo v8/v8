@@ -2681,6 +2681,7 @@ Handle<Code> Factory::NewCode(
 
 Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
                                               Address off_heap_entry) {
+  CHECK(isolate()->serializer_enabled());
   CHECK_NOT_NULL(isolate()->embedded_blob());
   CHECK_NE(0, isolate()->embedded_blob_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));

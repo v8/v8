@@ -65,20 +65,17 @@ AssemblerOptions AssemblerOptions::EnableV8AgnosticCode() const {
 AssemblerOptions AssemblerOptions::Default(
     Isolate* isolate, bool explicitly_support_serialization) {
   AssemblerOptions options;
-  const bool serializer =
+  bool serializer =
       isolate->serializer_enabled() || explicitly_support_serialization;
-  const bool generating_embedded_builtin =
-      isolate->ShouldLoadConstantsFromRootList();
   options.record_reloc_info_for_serialization = serializer;
-  options.enable_root_array_delta_access =
-      !serializer && !generating_embedded_builtin;
+  options.enable_root_array_delta_access = !serializer;
 #ifdef USE_SIMULATOR
   // Don't generate simulator specific code if we are building a snapshot, which
   // might be run on real hardware.
   options.enable_simulator_code = !serializer;
 #endif
-  options.inline_offheap_trampolines =
-      !serializer && !generating_embedded_builtin;
+  options.inline_offheap_trampolines = !serializer;
+
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   const base::AddressRegion& code_range =
       isolate->heap()->memory_allocator()->code_range();
