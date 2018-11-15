@@ -1524,7 +1524,7 @@ class ScheduleLateNodeVisitor {
       if (!scheduler_->IsLive(edge.from())) continue;
       BasicBlock* use_block = GetBlockForUse(edge);
       if (use_block == nullptr) continue;
-      while (IsMarked(use_block)) {
+      while (IsMarked(use_block->dominator())) {
         use_block = use_block->dominator();
       }
       auto& use_node = dominators[use_block];
