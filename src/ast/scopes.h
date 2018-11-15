@@ -188,7 +188,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return variables_.Lookup(name);
   }
 
-  Variable* LookupInScopeInfo(const AstRawString* name);
+  Variable* LookupInScopeInfo(const AstRawString* name, Scope* cache);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
@@ -485,7 +485,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
       Variable* var = scope->scope_info_.is_null()
                           ? scope->LookupLocal(name)
-                          : scope->LookupInScopeInfo(name);
+                          : scope->LookupInScopeInfo(name, scope);
       if (var != nullptr) return var;
     }
     return nullptr;
@@ -709,7 +709,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   Variable* LookupInModule(const AstRawString* name) {
     DCHECK(is_module_scope());
-    Variable* var = LookupInScopeInfo(name);
+    Variable* var = LookupInScopeInfo(name, this);
     DCHECK_NOT_NULL(var);
     return var;
   }
@@ -779,7 +779,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // scope) by a reference to an unresolved variable with no intervening
   // with statements or eval calls.
   Variable* DeclareDynamicGlobal(const AstRawString* name,
-                                 VariableKind variable_kind);
+                                 VariableKind variable_kind, Scope* cache);
 
   // The variable corresponding to the 'this' value.
   Variable* receiver() {

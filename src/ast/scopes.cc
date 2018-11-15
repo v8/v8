@@ -157,7 +157,7 @@ DeclarationScope::DeclarationScope(Zone* zone,
 
   // Make sure that if we don't find the global 'this', it won't be declared as
   // a regular dynamic global by predeclaring it with the right variable kind.
-  DeclareDynamicGlobal(ast_value_factory->this_string(), THIS_VARIABLE);
+  DeclareDynamicGlobal(ast_value_factory->this_string(), THIS_VARIABLE, this);
 }
 
 DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
@@ -566,7 +566,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       do {
         var = query_scope->scope_info_.is_null()
                   ? query_scope->LookupLocal(name)
-                  : query_scope->LookupInScopeInfo(name);
+                  : query_scope->LookupInScopeInfo(name, query_scope);
         if (var != nullptr && IsLexical(var)) {
           should_hoist = false;
           break;
@@ -920,9 +920,9 @@ void Scope::ReplaceOuterScope(Scope* outer) {
   outer_scope_ = outer;
 }
 
-Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
+Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!scope_info_.is_null());
-  Variable* cached = variables_.Lookup(name);
+  Variable* cached = cache->variables_.Lookup(name);
   if (cached) return cached;
 
   Handle<String> name_handle = name->string();
@@ -968,8 +968,8 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
   // TODO(marja, rossberg): Correctly declare FUNCTION, CLASS, NEW_TARGET, and
   // ARGUMENTS bindings as their corresponding VariableKind.
 
-  Variable* var = variables_.Declare(zone(), this, name, mode, kind, init_flag,
-                                     maybe_assigned_flag);
+  Variable* var = cache->variables_.Declare(zone(), this, name, mode, kind,
+                                            init_flag, maybe_assigned_flag);
   var->AllocateTo(location, index);
   return var;
 }
@@ -1188,10 +1188,11 @@ void Scope::AddUnresolved(VariableProxy* proxy) {
 }
 
 Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
-                                                 VariableKind kind) {
+                                                 VariableKind kind,
+                                                 Scope* cache) {
   DCHECK(is_script_scope());
-  return variables_.Declare(zone(), this, name, VariableMode::kDynamicGlobal,
-                            kind);
+  return cache->variables_.Declare(zone(), this, name,
+                                   VariableMode::kDynamicGlobal, kind);
   // TODO(neis): Mark variable as maybe-assigned?
 }
 
@@ -1809,6 +1810,7 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
 template <Scope::ScopeLookupMode mode>
 Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
                         Scope* outer_scope_end, bool force_context_allocation) {
+  Scope* entry_point = scope;
   while (true) {
     DCHECK_IMPLIES(mode == kParsedScope, !scope->is_debug_evaluate_scope_);
     // Short-cut: whenever we find a debug-evaluate scope, just look everything
@@ -1824,9 +1826,9 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     }
 
     // Try to find the variable in this scope.
-    Variable* var = mode == kParsedScope
-                        ? scope->LookupLocal(proxy->raw_name())
-                        : scope->LookupInScopeInfo(proxy->raw_name());
+    Variable* var = mode == kParsedScope ? scope->LookupLocal(proxy->raw_name())
+                                         : scope->LookupInScopeInfo(
+                                               proxy->raw_name(), entry_point);
 
     // We found a variable and we are done. (Even if there is an 'eval' in this
     // scope which introduces the same variable again, the resulting variable
@@ -1869,8 +1871,9 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
   if (V8_UNLIKELY(proxy->is_private_name())) return nullptr;
 
   // No binding has been found. Declare a variable on the global object.
-  return scope->AsDeclarationScope()->DeclareDynamicGlobal(proxy->raw_name(),
-                                                           NORMAL_VARIABLE);
+  return scope->AsDeclarationScope()->DeclareDynamicGlobal(
+      proxy->raw_name(), NORMAL_VARIABLE,
+      mode == kDeserializedScope ? entry_point : scope);
 }
 
 template Variable* Scope::Lookup<Scope::kParsedScope>(
