@@ -232,12 +232,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
       OwnedVector<const byte> reloc_info,
       OwnedVector<const byte> source_position_table, WasmCode::Tier tier);
 
-  // Add an interpreter entry. We currently compile these using a different
-  // pipeline and we can't get a CodeDesc here. When adding interpreter
-  // wrappers, we do not insert them in the code_table, however, we let them
-  // self-identify as the {index} function.
-  WasmCode* AddInterpreterEntry(Handle<Code> code, uint32_t index);
-
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);
 
@@ -256,6 +250,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // and patching the jump table). Callers have to take care not to race with
   // threads executing the old code.
   void PublishCode(WasmCode* code);
+
+  // Switch a function to an interpreter entry wrapper. When adding interpreter
+  // wrappers, we do not insert them in the code_table, however, we let them
+  // self-identify as the {index} function.
+  void PublishInterpreterEntry(WasmCode* code, uint32_t index);
 
   // Creates a snapshot of the current state of the code table. This is useful
   // to get a consistent view of the table (e.g. used by the serializer).

@@ -2089,9 +2089,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 // static
 wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
     wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
-    MachineGraph* mcgraph, Code::Kind kind, const char* debug_name,
-    const AssemblerOptions& options, wasm::NativeModule* native_module,
-    SourcePositionTable* source_positions) {
+    MachineGraph* mcgraph, Code::Kind kind, int wasm_kind,
+    const char* debug_name, const AssemblerOptions& options,
+    wasm::NativeModule* native_module, SourcePositionTable* source_positions) {
   Graph* graph = mcgraph->graph();
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   // Construct a pipeline for scheduling and code generation.
@@ -2139,8 +2139,6 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
   CodeDesc code_desc;
   code_generator->tasm()->GetCode(nullptr, &code_desc);
 
-  // TODO(mstarzinger): This is specific to Wasm-to-JS wrappers, fix this before
-  // using it for other wrappers (like the interpreter entry wrapper).
   wasm::WasmCode* code = native_module->AddCode(
       data.wasm_function_index(), code_desc,
       code_generator->frame()->GetTotalFrameSlotCount(),
@@ -2148,7 +2146,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
       code_generator->GetHandlerTableOffset(),
       code_generator->GetProtectedInstructions(),
       code_generator->GetSourcePositionTable(),
-      wasm::WasmCode::kWasmToJsWrapper, wasm::WasmCode::kOther);
+      static_cast<wasm::WasmCode::Kind>(wasm_kind), wasm::WasmCode::kOther);
 
   if (info.trace_turbo_json_enabled()) {
     TurboJsonFile json_of(&info, std::ios_base::app);

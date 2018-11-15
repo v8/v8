@@ -5079,8 +5079,8 @@ wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
   }
   wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
       isolate->wasm_engine(), incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
-      func_name, AssemblerOptions::Default(isolate), native_module,
-      source_position_table);
+      wasm::WasmCode::kWasmToJsWrapper, func_name,
+      AssemblerOptions::Default(isolate), native_module, source_position_table);
   CHECK_NOT_NULL(wasm_code);
 
   return wasm_code;
@@ -5121,26 +5121,11 @@ wasm::WasmCode* CompileWasmInterpreterEntry(Isolate* isolate,
   func_name.Truncate(
       SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmHeapStub(
-      isolate, incoming, &graph, Code::WASM_INTERPRETER_ENTRY,
-      func_name.start(), AssemblerOptions::Default(isolate));
-  Handle<Code> code = maybe_code.ToHandleChecked();
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code) {
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    code->Disassemble(func_name.start(), os);
-  }
-#endif
-
-  if (must_record_function_compilation(isolate)) {
-    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
-                              "%.*s", func_name.length(), func_name.start());
-  }
-
-  // TODO(wasm): No need to compile the code onto the heap and copy back.
-  wasm::WasmCode* wasm_code =
-      native_module->AddInterpreterEntry(code, func_index);
+  wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
+      isolate->wasm_engine(), incoming, &jsgraph, Code::WASM_INTERPRETER_ENTRY,
+      wasm::WasmCode::kInterpreterEntry, func_name.start(),
+      AssemblerOptions::Default(isolate), native_module);
+  CHECK_NOT_NULL(wasm_code);
 
   return wasm_code;
 }

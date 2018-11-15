@@ -55,8 +55,8 @@ class Pipeline : public AllStatic {
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCode* GenerateCodeForWasmNativeStub(
       wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
-      MachineGraph* mcgraph, Code::Kind kind, const char* debug_name,
-      const AssemblerOptions& assembler_options,
+      MachineGraph* mcgraph, Code::Kind kind, int wasm_kind,
+      const char* debug_name, const AssemblerOptions& assembler_options,
       wasm::NativeModule* native_module,
       SourcePositionTable* source_positions = nullptr);
 

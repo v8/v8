@@ -430,16 +430,6 @@ WasmCode* NativeModule::AddOwnedCode(
   return code;
 }
 
-WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code,
-                                            uint32_t func_index) {
-  WasmCode* ret = AddAnonymousCode(code, WasmCode::kInterpreterEntry);
-  ret->index_ = func_index;
-  base::MutexGuard lock(&allocation_mutex_);
-  InstallCode(ret);
-  SetInterpreterRedirection(func_index);
-  return ret;
-}
-
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   WasmCode* ret = AddAnonymousCode(code, WasmCode::kFunction);
   return ret;
@@ -620,6 +610,14 @@ void NativeModule::PublishCode(WasmCode* code) {
     code->RegisterTrapHandlerData();
   }
   InstallCode(code);
+}
+
+void NativeModule::PublishInterpreterEntry(WasmCode* code,
+                                           uint32_t func_index) {
+  code->index_ = func_index;
+  base::MutexGuard lock(&allocation_mutex_);
+  InstallCode(code);
+  SetInterpreterRedirection(func_index);
 }
 
 std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
