@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "src/bailout-reason.h"
-#include "src/code-reference.h"
 #include "src/frames.h"
 #include "src/globals.h"
 #include "src/handles.h"
@@ -70,11 +69,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   bool has_shared_info() const { return !shared_info().is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
-  Handle<Code> code() const { return code_.as_js_code(); }
-
-  wasm::WasmCode* wasm_code() const {
-    return const_cast<wasm::WasmCode*>(code_.as_wasm_code());
-  }
+  Handle<Code> code() const { return code_; }
   Code::Kind code_kind() const { return code_kind_; }
   uint32_t stub_key() const { return stub_key_; }
   void set_stub_key(uint32_t stub_key) { stub_key_ = stub_key; }
@@ -177,10 +172,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Code getters and setters.
 
-  template <typename T>
-  void SetCode(T code) {
-    code_ = CodeReference(code);
-  }
+  void SetCode(Handle<Code> code) { code_ = code; }
 
   bool has_context() const;
   Context* context() const;
@@ -291,7 +283,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Handle<JSFunction> closure_;
 
   // The compiled code.
-  CodeReference code_;
+  Handle<Code> code_;
 
   // Entry point when compiling for OSR, {BailoutId::None} otherwise.
   BailoutId osr_offset_ = BailoutId::None();

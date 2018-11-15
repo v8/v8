@@ -5315,11 +5315,11 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
-  if (Pipeline::GenerateCodeForWasmFunction(
+  if (wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmFunction(
           &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
           source_positions, node_origins, func_body, wasm_unit_->native_module_,
           wasm_unit_->func_index_)) {
-    wasm_unit_->SetResult(info.wasm_code(), counters);
+    wasm_unit_->SetResult(wasm_code, counters);
   }
   if (FLAG_trace_wasm_decode_time) {
     double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();

@@ -2403,8 +2403,6 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
     json_of << "\n}";
   }
 
-  info->SetCode(code);
-
   if (data.info()->trace_turbo_json_enabled() ||
       data.info()->trace_turbo_graph_enabled()) {
     CodeTracer::Scope tracing_scope(data.GetCodeTracer());
