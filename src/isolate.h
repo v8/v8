@@ -1028,10 +1028,6 @@ class Isolate final : private HiddenFactory {
     return materialized_object_store_;
   }
 
-  ContextSlotCache* context_slot_cache() {
-    return context_slot_cache_;
-  }
-
   DescriptorLookupCache* descriptor_lookup_cache() {
     return descriptor_lookup_cache_;
   }
@@ -1712,7 +1708,6 @@ class Isolate final : private HiddenFactory {
   int stack_trace_for_uncaught_exceptions_frame_limit_ = 0;
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_ =
       StackTrace::kOverview;
-  ContextSlotCache* context_slot_cache_ = nullptr;
   DescriptorLookupCache* descriptor_lookup_cache_ = nullptr;
   HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_ = nullptr;

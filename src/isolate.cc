@@ -15,7 +15,6 @@
 #include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/ast/ast-value-factory.h"
-#include "src/ast/context-slot-cache.h"
 #include "src/ast/scopes.h"
 #include "src/base/adapters.h"
 #include "src/base/hashmap.h"
@@ -2958,8 +2957,6 @@ Isolate::~Isolate() {
 
   delete descriptor_lookup_cache_;
   descriptor_lookup_cache_ = nullptr;
-  delete context_slot_cache_;
-  context_slot_cache_ = nullptr;
 
   delete load_stub_cache_;
   load_stub_cache_ = nullptr;
@@ -3211,7 +3208,6 @@ bool Isolate::Init(StartupDeserializer* des) {
 #undef ASSIGN_ELEMENT
 
   compilation_cache_ = new CompilationCache(this);
-  context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
   unicode_cache_ = new UnicodeCache();
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);

@@ -5,7 +5,6 @@
 #include "src/setup-isolate.h"
 
 #include "src/accessors.h"
-#include "src/ast/context-slot-cache.h"
 #include "src/compilation-cache.h"
 #include "src/contexts.h"
 #include "src/heap-symbols.h"
@@ -909,9 +908,6 @@ void Heap::CreateInitialObjects() {
 
   // Initialize builtins constants table.
   set_builtins_constants_table(roots.empty_fixed_array());
-
-  // Initialize context slot cache.
-  isolate_->context_slot_cache()->Clear();
 
   // Initialize descriptor cache.
   isolate_->descriptor_lookup_cache()->Clear();
