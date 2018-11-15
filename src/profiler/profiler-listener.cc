@@ -5,10 +5,10 @@
 #include "src/profiler/profiler-listener.h"
 
 #include "src/deoptimizer.h"
-#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 

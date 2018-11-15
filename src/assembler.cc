@@ -38,10 +38,10 @@
 #include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
-#include "src/instruction-stream.h"
 #include "src/isolate.h"
 #include "src/ostreams.h"
 #include "src/simulator.h"  // For flushing instruction cache.
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
 #include "src/string-constants.h"
