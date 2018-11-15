@@ -224,18 +224,11 @@ bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
 bool Builtins::IsIsolateIndependent(int index) {
   DCHECK(IsBuiltinId(index));
   switch (index) {
-    // TODO(jgruber): There's currently two blockers for moving
-    // InterpreterEntryTrampoline into the binary:
-    // 1. InterpreterEnterBytecode calculates a pointer into the middle of
-    //    InterpreterEntryTrampoline (see interpreter_entry_return_pc_offset).
-    //    When the builtin is embedded, the pointer would need to be calculated
-    //    at an offset from the embedded instruction stream (instead of the
-    //    trampoline code object).
-    // 2. We create distinct copies of the trampoline to make it possible to
-    //    attribute ticks in the interpreter to individual JS functions.
-    //    See https://crrev.com/c/959081 and InstallBytecodeArray. When the
-    //    trampoline is embedded, we need to ensure that CopyCode creates a copy
-    //    of the builtin itself (and not just the trampoline).
+    // TODO(jgruber): InterpreterEnterBytecode calculates a pointer into the
+    // middle of InterpreterEntryTrampoline (see
+    // interpreter_entry_return_pc_offset). When the builtin is embedded, the
+    // pointer would need to be calculated at an offset from the embedded
+    // instruction stream (instead of the trampoline code object).
     case kInterpreterEntryTrampoline:
       return false;
     default:

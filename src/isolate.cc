@@ -3285,6 +3285,17 @@ bool Isolate::Init(StartupDeserializer* des) {
     builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
   }
   setup_delegate_->SetupBuiltins(this);
+  if (create_heap_objects) {
+    // Create a copy of the the interpreter entry trampoline and store it
+    // on the root list. It is used as a template for further copies that
+    // may later be created to help profile interpreted code.
+    // TODO(jgruber): Merge this with the block below once
+    //                FLAG_embedded_builtins is always true.
+    HandleScope handle_scope(this);
+    Handle<Code> code =
+        factory()->CopyCode(BUILTIN_CODE(this, InterpreterEntryTrampoline));
+    heap_.SetInterpreterEntryTrampolineForProfiling(*code);
+  }
   if (FLAG_embedded_builtins && create_heap_objects) {
     builtins_constants_table_builder_->Finalize();
     delete builtins_constants_table_builder_;
