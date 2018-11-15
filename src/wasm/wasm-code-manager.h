@@ -142,6 +142,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
+  static constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
+  STATIC_ASSERT(kAnonymousFuncIndex > kV8MaxWasmFunctions);
+
  private:
   friend class NativeModule;
 
@@ -179,9 +182,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // Register protected instruction information with the trap handler. Sets
   // trap_handler_index.
   void RegisterTrapHandlerData();
-
-  static constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
-  STATIC_ASSERT(kAnonymousFuncIndex > kV8MaxWasmFunctions);
 
   Vector<byte> instructions_;
   OwnedVector<const byte> reloc_info_;

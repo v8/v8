@@ -88,11 +88,6 @@
 
 namespace v8 {
 namespace internal {
-
-namespace trap_handler {
-struct ProtectedInstructionData;
-}  // namespace trap_handler
-
 namespace compiler {
 
 // Turbofan can only handle 2^16 control inputs. Since each control flow split
@@ -147,14 +142,13 @@ class PipelineData {
                OptimizedCompilationInfo* info, MachineGraph* mcgraph,
                PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
-               NodeOriginTable* node_origins, int wasm_function_index,
+               NodeOriginTable* node_origins,
                const AssemblerOptions& assembler_options)
       : isolate_(nullptr),
         wasm_engine_(wasm_engine),
         allocator_(wasm_engine->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
-        wasm_function_index_(wasm_function_index),
         may_have_unverifiable_graph_(false),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
@@ -434,15 +428,12 @@ class PipelineData {
 
   const char* debug_name() const { return debug_name_.get(); }
 
-  int wasm_function_index() const { return wasm_function_index_; }
-
  private:
   Isolate* const isolate_;
   wasm::WasmEngine* const wasm_engine_ = nullptr;
   AccountingAllocator* const allocator_;
   OptimizedCompilationInfo* const info_;
   std::unique_ptr<char[]> debug_name_;
-  int wasm_function_index_ = -1;
   bool may_have_unverifiable_graph_ = true;
   ZoneStats* const zone_stats_;
   PipelineStatistics* pipeline_statistics_ = nullptr;
@@ -2097,7 +2088,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
   ZoneStats zone_stats(wasm_engine->allocator());
   NodeOriginTable* node_positions = new (graph->zone()) NodeOriginTable(graph);
   PipelineData data(&zone_stats, wasm_engine, &info, mcgraph, nullptr,
-                    source_positions, node_positions, -1, options);
+                    source_positions, node_positions, options);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
@@ -2139,7 +2130,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
   code_generator->tasm()->GetCode(nullptr, &code_desc);
 
   wasm::WasmCode* code = native_module->AddCode(
-      data.wasm_function_index(), code_desc,
+      wasm::WasmCode::kAnonymousFuncIndex, code_desc,
       code_generator->frame()->GetTotalFrameSlotCount(),
       code_generator->GetSafepointTableOffset(),
       code_generator->GetHandlerTableOffset(),
@@ -2312,7 +2303,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
                                native_module->module(), info, &zone_stats));
   PipelineData data(&zone_stats, wasm_engine, info, mcgraph,
                     pipeline_statistics.get(), source_positions, node_origins,
-                    function_index, WasmAssemblerOptions());
+                    WasmAssemblerOptions());
 
   PipelineImpl pipeline(&data);
 
@@ -2375,7 +2366,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
   code_generator->tasm()->GetCode(nullptr, &code_desc);
 
   wasm::WasmCode* code = native_module->AddCode(
-      data.wasm_function_index(), code_desc,
+      function_index, code_desc,
       code_generator->frame()->GetTotalFrameSlotCount(),
       code_generator->GetSafepointTableOffset(),
       code_generator->GetHandlerTableOffset(),
