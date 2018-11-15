@@ -1042,7 +1042,7 @@ void WasmMemoryObject::RemoveInstance(Handle<WasmMemoryObject> memory,
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory")
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
   if (!old_buffer->is_growable()) return -1;
   size_t old_size = old_buffer->byte_length();
