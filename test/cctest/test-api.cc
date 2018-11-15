@@ -14582,6 +14582,8 @@ class SetFunctionEntryHookTest {
   SymbolLocationMap symbol_locations_;
   InvocationMap invocations_;
 
+  i::Isolate* isolate_ = nullptr;
+
   static SetFunctionEntryHookTest* instance_;
 };
 SetFunctionEntryHookTest* SetFunctionEntryHookTest::instance_ = nullptr;
@@ -14668,8 +14670,8 @@ void SetFunctionEntryHookTest::OnJitEvent(const v8::JitCodeEvent* event) {
 void SetFunctionEntryHookTest::OnEntryHook(
     uintptr_t function, uintptr_t return_addr_location) {
   // Get the function's code object.
-  i::Code function_code =
-      i::Code::GetCodeFromTargetAddress(static_cast<i::Address>(function));
+  i::Code function_code = isolate_->heap()->GcSafeFindCodeForInnerPointer(
+      static_cast<i::Address>(function));
   CHECK(!function_code.is_null());
 
   // Then try and look up the caller's code object.
@@ -14795,7 +14797,9 @@ void SetFunctionEntryHookTest::RunTest() {
   create_params.entry_hook = EntryHook;
   create_params.code_event_handler = JitEvent;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  v8::Isolate* isolate = v8::Isolate::Allocate();
+  isolate_ = reinterpret_cast<i::Isolate*>(isolate);
+  v8::Isolate::Initialize(isolate, create_params);
 
   {
     v8::Isolate::Scope scope(isolate);
@@ -14838,7 +14842,9 @@ void SetFunctionEntryHookTest::RunTest() {
   // Make sure a second isolate is unaffected by the previous entry hook.
   create_params = v8::Isolate::CreateParams();
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  isolate = v8::Isolate::New(create_params);
+  isolate = v8::Isolate::Allocate();
+  isolate_ = reinterpret_cast<i::Isolate*>(isolate);
+  v8::Isolate::Initialize(isolate, create_params);
   {
     v8::Isolate::Scope scope(isolate);
 
@@ -14852,8 +14858,7 @@ void SetFunctionEntryHookTest::RunTest() {
   isolate->Dispose();
 }
 
-
-TEST(SetFunctionEntryHook) {
+UNINITIALIZED_TEST(SetFunctionEntryHook) {
   // FunctionEntryHook does not work well with experimental natives.
   // Experimental natives are compiled during snapshot deserialization.
   // This test breaks because InstallGetter (function from snapshot that

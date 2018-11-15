@@ -24,6 +24,8 @@ import("snapshot_toolchain.gni")
 is_target_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
                       (current_cpu != v8_current_cpu && v8_multi_arch_build)
 
+is_msvc = is_win && !is_clang
+
 declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
@@ -83,9 +85,8 @@ declare_args() {
   v8_enable_fast_mksnapshot = false
 
   # Enable embedded builtins.
-  # TODO(v8:6666): Support no-snapshot builds, aix and MSVC.
-  v8_enable_embedded_builtins =
-      v8_use_snapshot && !is_aix && (!is_win || is_clang)
+  # TODO(v8:6666): Support aix and MSVC.
+  v8_enable_embedded_builtins = !is_aix && !is_msvc
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
@@ -215,8 +216,6 @@ if (v8_check_microtasks_scopes_consistency == "") {
       v8_enable_debugging_features || dcheck_always_on
 }
 
-assert(!v8_enable_embedded_builtins || v8_use_snapshot,
-       "Embedded builtins only work with snapshots")
 assert(
     v8_current_cpu != "x86" || !v8_enable_embedded_builtins ||
         !v8_untrusted_code_mitigations,

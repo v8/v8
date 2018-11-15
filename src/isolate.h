@@ -335,6 +335,11 @@ class WasmEngine;
   inline void set_##name(type v) { name##_ = v; }  \
   inline type name() const { return name##_; }
 
+// Controls for manual embedded blob lifecycle management, used by tests and
+// mksnapshot.
+V8_EXPORT_PRIVATE void DisableEmbeddedBlobRefcounting();
+V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
+
 class ThreadLocalTop {
  public:
   // Does early low-level initialization that does not depend on the
@@ -1462,19 +1467,11 @@ class Isolate final : private HiddenFactory {
 
   // Off-heap builtins cannot embed constants within the code object itself,
   // and thus need to load them from the root list.
+  // TODO(jgruber): Rename to IsGeneratingEmbeddedBuiltins().
   bool ShouldLoadConstantsFromRootList() const {
-    if (FLAG_embedded_builtins) {
-      return (serializer_enabled() &&
-              builtins_constants_table_builder() != nullptr);
-    } else {
-      return false;
-    }
+    return FLAG_embedded_builtins &&
+           builtins_constants_table_builder() != nullptr;
   }
-
-  // Called only prior to serialization.
-  // This function copies off-heap-safe builtins off the heap, creates off-heap
-  // trampolines, and sets up this isolate's embedded blob.
-  void PrepareEmbeddedBlobForSerialization();
 
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder() const {
     return builtins_constants_table_builder_;
@@ -1863,7 +1860,12 @@ class Isolate final : private HiddenFactory {
   // which is stored on the root list prior to serialization.
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder_ = nullptr;
 
+  void InitializeDefaultEmbeddedBlob();
+  void CreateAndSetEmbeddedBlob();
+  void TearDownEmbeddedBlob();
+
   void SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size);
+  void ClearEmbeddedBlob();
 
   const uint8_t* embedded_blob_ = nullptr;
   uint32_t embedded_blob_size_ = 0;
