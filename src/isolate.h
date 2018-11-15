@@ -1225,6 +1225,7 @@ class Isolate final : private HiddenFactory {
 
   inline bool IsArraySpeciesLookupChainIntact();
   inline bool IsTypedArraySpeciesLookupChainIntact();
+  inline bool IsRegExpSpeciesLookupChainIntact();
   inline bool IsPromiseSpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
@@ -1303,6 +1304,7 @@ class Isolate final : private HiddenFactory {
   void InvalidateArrayConstructorProtector();
   void InvalidateArraySpeciesProtector();
   void InvalidateTypedArraySpeciesProtector();
+  void InvalidateRegExpSpeciesProtector();
   void InvalidatePromiseSpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
