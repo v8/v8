@@ -91,7 +91,6 @@
   'test-cpu-profiler/NativeAccessorUninitializedIC': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
   'test-cpu-profiler/TracingCpuProfiler': [SKIP],
-  'test-cpu-profiler/MultipleIsolates': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
   # BUG(7202). The test is flaky.

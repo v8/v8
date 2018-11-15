@@ -2560,12 +2560,13 @@ void ProfileSomeCode(v8::Isolate* isolate) {
   profiler->StartProfiling(profile_name);
   const char* source = R"(
       function foo() {
-        var s = {};
-        for (var i = 0; i < 1e4; ++i) {
-          for (var j = 0; j < 100; j++) {
-            s['item' + j] = 'bar';
+        var x = 0;
+        for (var i = 0; i < 1e4; i++) {
+          for (var j = 0; j < 1e3; j++) {
+            x += i * j;
           }
         }
+        return x;
       }
       foo();
     )";
