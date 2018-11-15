@@ -13,9 +13,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '66002355116ab500fbdc7462b2c1c69e5a2c5434',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ccf9ff581e0c3dea7784b4cc7c5e8433ad61adbb',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ef71a5f047daf72a6017c14f46b198f24521fefc',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f66e5510327b30b53454dfed0f6edb40286a67a2',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '45f655f2feb7069a7b9b47d1b1a596807bfd4220',
   'v8/third_party/instrumented_libraries':
@@ -33,7 +33,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '6b8b30c8a1b138f083cb474871e500662397b3f2',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '8a6451c727a27d061b9a886207996f0a079c6433',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -86,7 +86,7 @@ deps = {
       'packages': [
         {
           'package': 'infra/tools/luci/isolate/${{platform}}',
-          'version': 'git_revision:b47dd589aae9f538adeaecc096a8dd1948d08012',
+          'version': 'git_revision:b4183943efee5d2a2d444c8551877ae96b78d8b2',
         },
       ],
       'condition': 'host_cpu != "s390"',
