@@ -3512,8 +3512,12 @@ group("v8_archive") {
 
   deps = [
     ":d8",
-    "test/cctest:cctest",
   ]
+
+  if (!is_win) {
+    # On windows, cctest doesn't link with v8_static_library.
+    deps += [ "test/cctest:cctest" ]
+  }
 }
 
 # TODO(dglazkov): Remove the "!build_with_chromium" condition once this clause
