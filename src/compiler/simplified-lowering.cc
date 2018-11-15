@@ -2294,9 +2294,13 @@ class RepresentationSelector {
                      UseInfo::TruncatingFloat64(truncation.identify_zeros()),
                      MachineRepresentation::kFloat64);
           if (lower()) {
-            if (truncation.IdentifiesZeroAndMinusZero() ||
-                (lhs_type.Is(Type::PlainNumber()) &&
-                 rhs_type.Is(Type::PlainNumber()))) {
+            // If the right hand side is not NaN, and the left hand side
+            // is not NaN (or -0 if the difference between the zeros is
+            // observed), we can do a simple floating point comparison here.
+            if (lhs_type.Is(truncation.IdentifiesZeroAndMinusZero()
+                                ? Type::OrderedNumber()
+                                : Type::PlainNumber()) &&
+                rhs_type.Is(Type::OrderedNumber())) {
               lowering->DoMax(node, lowering->machine()->Float64LessThan(),
                               MachineRepresentation::kFloat64);
             } else {
@@ -2348,9 +2352,13 @@ class RepresentationSelector {
                      UseInfo::TruncatingFloat64(truncation.identify_zeros()),
                      MachineRepresentation::kFloat64);
           if (lower()) {
-            if (truncation.IdentifiesZeroAndMinusZero() ||
-                (lhs_type.Is(Type::PlainNumber()) &&
-                 rhs_type.Is(Type::PlainNumber()))) {
+            // If the left hand side is not NaN, and the right hand side
+            // is not NaN (or -0 if the difference between the zeros is
+            // observed), we can do a simple floating point comparison here.
+            if (lhs_type.Is(Type::OrderedNumber()) &&
+                rhs_type.Is(truncation.IdentifiesZeroAndMinusZero()
+                                ? Type::OrderedNumber()
+                                : Type::PlainNumber())) {
               lowering->DoMin(node, lowering->machine()->Float64LessThan(),
                               MachineRepresentation::kFloat64);
             } else {
