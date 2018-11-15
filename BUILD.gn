@@ -923,6 +923,7 @@ torque_files = [
   "src/builtins/array-slice.tq",
   "src/builtins/array-splice.tq",
   "src/builtins/array-unshift.tq",
+  "src/builtins/collections.tq",
   "src/builtins/typed-array.tq",
   "src/builtins/data-view.tq",
   "src/builtins/iterator.tq",
@@ -933,6 +934,7 @@ torque_files = [
 torque_namespaces = [
   "base",
   "array",
+  "collections",
   "iterator",
   "typed-array",
   "data-view",

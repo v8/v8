@@ -12,6 +12,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection.h"
 #include "torque-generated/builtins-base-from-dsl-gen.h"
+#include "torque-generated/builtins-collections-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -19,10 +20,10 @@ namespace internal {
 template <class T>
 using TVariable = compiler::TypedCodeAssemblerVariable<T>;
 
-class BaseCollectionsAssembler : public BaseBuiltinsFromDSLAssembler {
+class BaseCollectionsAssembler : public CollectionsBuiltinsFromDSLAssembler {
  public:
   explicit BaseCollectionsAssembler(compiler::CodeAssemblerState* state)
-      : BaseBuiltinsFromDSLAssembler(state) {}
+      : CollectionsBuiltinsFromDSLAssembler(state) {}
 
   virtual ~BaseCollectionsAssembler() = default;
 
@@ -140,14 +141,6 @@ class BaseCollectionsAssembler : public BaseBuiltinsFromDSLAssembler {
   // returns `undefined`.
   TNode<Object> LoadAndNormalizeFixedDoubleArrayElement(
       TNode<HeapObject> elements, TNode<IntPtrT> index);
-
-  // Loads key and value variables with the first and second elements of an
-  // array.  If the array lacks 2 elements, undefined is used.
-  void LoadKeyValue(TNode<Context> context, TNode<Object> maybe_array,
-                    TVariable<Object>* key, TVariable<Object>* value,
-                    Label* if_may_have_side_effects = nullptr,
-                    Label* if_exception = nullptr,
-                    TVariable<Object>* var_exception = nullptr);
 };
 
 void BaseCollectionsAssembler::AddConstructorEntry(
@@ -155,22 +148,23 @@ void BaseCollectionsAssembler::AddConstructorEntry(
     TNode<Object> add_function, TNode<Object> key_value,
     Label* if_may_have_side_effects, Label* if_exception,
     TVariable<Object>* var_exception) {
+  compiler::CodeAssemblerScopedExceptionHandler handler(this, if_exception,
+                                                        var_exception);
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(key_value)));
   if (variant == kMap || variant == kWeakMap) {
-    TVARIABLE(Object, key);
-    TVARIABLE(Object, value);
-    LoadKeyValue(context, key_value, &key, &value, if_may_have_side_effects,
-                 if_exception, var_exception);
-    Node* key_n = key.value();
-    Node* value_n = value.value();
-    Node* ret = CallJS(CodeFactory::Call(isolate()), context, add_function,
-                       collection, key_n, value_n);
-    GotoIfException(ret, if_exception, var_exception);
+    BaseBuiltinsFromDSLAssembler::KeyValuePair pair =
+        if_may_have_side_effects != nullptr
+            ? LoadKeyValuePairNoSideEffects(context, key_value,
+                                            if_may_have_side_effects)
+            : LoadKeyValuePair(context, key_value);
+    Node* key_n = pair.key;
+    Node* value_n = pair.value;
+    CallJS(CodeFactory::Call(isolate()), context, add_function, collection,
+           key_n, value_n);
   } else {
     DCHECK(variant == kSet || variant == kWeakSet);
-    Node* ret = CallJS(CodeFactory::Call(isolate()), context, add_function,
-                       collection, key_value);
-    GotoIfException(ret, if_exception, var_exception);
+    CallJS(CodeFactory::Call(isolate()), context, add_function, collection,
+           key_value);
   }
 }
 
@@ -318,7 +312,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
 
   TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
-  IteratorRecord iterator = iterator_assembler.GetIterator(context, iterable);
+  BaseBuiltinsFromDSLAssembler::IteratorRecord iterator =
+      iterator_assembler.GetIterator(context, iterable);
 
   CSA_ASSERT(this, Word32BinaryNot(IsUndefined(iterator.object)));
 
@@ -562,109 +557,6 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
   }
   BIND(&next);
   return entry.value();
-}
-
-void BaseCollectionsAssembler::LoadKeyValue(
-    TNode<Context> context, TNode<Object> maybe_array, TVariable<Object>* key,
-    TVariable<Object>* value, Label* if_may_have_side_effects,
-    Label* if_exception, TVariable<Object>* var_exception) {
-  CSA_ASSERT(this, Word32BinaryNot(IsTheHole(maybe_array)));
-
-  Label exit(this), if_fast(this), if_slow(this, Label::kDeferred);
-  BranchIfFastJSArray(maybe_array, context, &if_fast, &if_slow);
-  BIND(&if_fast);
-  {
-    TNode<JSArray> array = CAST(maybe_array);
-    TNode<Smi> length = LoadFastJSArrayLength(array);
-    TNode<FixedArrayBase> elements = LoadElements(array);
-    TNode<Int32T> elements_kind = LoadElementsKind(array);
-
-    Label if_smiorobjects(this), if_doubles(this);
-    Branch(IsFastSmiOrTaggedElementsKind(elements_kind), &if_smiorobjects,
-           &if_doubles);
-    BIND(&if_smiorobjects);
-    {
-      Label if_one(this), if_two(this);
-      GotoIf(SmiGreaterThan(length, SmiConstant(1)), &if_two);
-      GotoIf(SmiEqual(length, SmiConstant(1)), &if_one);
-      {  // empty array
-        *key = UndefinedConstant();
-        *value = UndefinedConstant();
-        Goto(&exit);
-      }
-      BIND(&if_one);
-      {
-        *key = LoadAndNormalizeFixedArrayElement(CAST(elements),
-                                                 IntPtrConstant(0));
-        *value = UndefinedConstant();
-        Goto(&exit);
-      }
-      BIND(&if_two);
-      {
-        TNode<FixedArray> elements_fixed_array = CAST(elements);
-        *key = LoadAndNormalizeFixedArrayElement(elements_fixed_array,
-                                                 IntPtrConstant(0));
-        *value = LoadAndNormalizeFixedArrayElement(elements_fixed_array,
-                                                   IntPtrConstant(1));
-        Goto(&exit);
-      }
-    }
-    BIND(&if_doubles);
-    {
-      Label if_one(this), if_two(this);
-      GotoIf(SmiGreaterThan(length, SmiConstant(1)), &if_two);
-      GotoIf(SmiEqual(length, SmiConstant(1)), &if_one);
-      {  // empty array
-        *key = UndefinedConstant();
-        *value = UndefinedConstant();
-        Goto(&exit);
-      }
-      BIND(&if_one);
-      {
-        *key = LoadAndNormalizeFixedDoubleArrayElement(elements,
-                                                       IntPtrConstant(0));
-        *value = UndefinedConstant();
-        Goto(&exit);
-      }
-      BIND(&if_two);
-      {
-        *key = LoadAndNormalizeFixedDoubleArrayElement(elements,
-                                                       IntPtrConstant(0));
-        *value = LoadAndNormalizeFixedDoubleArrayElement(elements,
-                                                         IntPtrConstant(1));
-        Goto(&exit);
-      }
-    }
-  }
-  BIND(&if_slow);
-  {
-    Label if_notobject(this, Label::kDeferred);
-    GotoIfNotJSReceiver(maybe_array, &if_notobject);
-    if (if_may_have_side_effects != nullptr) {
-      // If the element is not a fast array, we cannot guarantee accessing the
-      // key and value won't execute user code that will break fast path
-      // assumptions.
-      Goto(if_may_have_side_effects);
-    } else {
-      *key = UncheckedCast<Object>(GetProperty(
-          context, maybe_array, isolate()->factory()->zero_string()));
-      GotoIfException(key->value(), if_exception, var_exception);
-
-      *value = UncheckedCast<Object>(GetProperty(
-          context, maybe_array, isolate()->factory()->one_string()));
-      GotoIfException(value->value(), if_exception, var_exception);
-      Goto(&exit);
-    }
-    BIND(&if_notobject);
-    {
-      Node* ret = CallRuntime(
-          Runtime::kThrowTypeError, context,
-          SmiConstant(MessageTemplate::kIteratorValueNotAnObject), maybe_array);
-      GotoIfException(ret, if_exception, var_exception);
-      Unreachable();
-    }
-  }
-  BIND(&exit);
 }
 
 class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {

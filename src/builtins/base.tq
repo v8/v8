@@ -1262,3 +1262,8 @@ struct IteratorRecord {
   // iteratorRecord.[[NextMethod]]
   next: Object;
 }
+
+struct KeyValuePair {
+  key: Object;
+  value: Object;
+}
