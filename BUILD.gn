@@ -24,8 +24,6 @@ import("snapshot_toolchain.gni")
 is_target_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
                       (current_cpu != v8_current_cpu && v8_multi_arch_build)
 
-is_msvc = is_win && !is_clang
-
 declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
@@ -85,8 +83,8 @@ declare_args() {
   v8_enable_fast_mksnapshot = false
 
   # Enable embedded builtins.
-  # TODO(v8:6666): Support aix and MSVC.
-  v8_enable_embedded_builtins = !is_aix && !is_msvc
+  # TODO(v8:8043): Support aix.
+  v8_enable_embedded_builtins = !is_aix
 
   # Build-time flag for enabling nojit mode.
   # TODO(v8:7777): Remove the build-time flag once the --jitless runtime flag
@@ -1035,7 +1033,7 @@ action("generate_bytecode_builtins_list") {
 # Template to generate different V8 snapshots based on different runtime flags.
 # Can be invoked with run_mksnapshot(<name>). The target will resolve to
 # run_mksnapshot_<name>. If <name> is "default", no file suffixes will be used.
-# Otherwise files are suffixed, e.g. embedded_<name>.cc and
+# Otherwise files are suffixed, e.g. embedded_<name>.S and
 # snapshot_blob_<name>.bin.
 #
 # The template exposes the variables:
@@ -1074,10 +1072,10 @@ template("run_mksnapshot") {
     args += invoker.args
 
     if (v8_enable_embedded_builtins) {
-      outputs += [ "$target_gen_dir/embedded${suffix}.cc" ]
+      outputs += [ "$target_gen_dir/embedded${suffix}.S" ]
       args += [
         "--embedded_src",
-        rebase_path("$target_gen_dir/embedded${suffix}.cc", root_build_dir),
+        rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
       ]
       if (invoker.embedded_variant != "") {
         args += [
@@ -1281,7 +1279,7 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
     ]
 
     if (v8_enable_embedded_builtins) {
-      sources += [ "$target_gen_dir/embedded.cc" ]
+      sources += [ "$target_gen_dir/embedded.S" ]
     } else {
       sources += [ "src/snapshot/embedded-empty.cc" ]
     }
@@ -1328,15 +1326,15 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
     public = []
 
     if (v8_enable_embedded_builtins) {
-      sources += [ "$target_gen_dir/embedded.cc" ]
+      sources += [ "$target_gen_dir/embedded.S" ]
 
       if (v8_use_multi_snapshots) {
-        sources += [ "$target_gen_dir/embedded_trusted.cc" ]
+        sources += [ "$target_gen_dir/embedded_trusted.S" ]
 
         if (use_jumbo_build == true) {
           jumbo_excluded_sources = [
-            # Duplicated symbols with embedded.cc
-            "$target_gen_dir/embedded_trusted.cc",
+            # Duplicated symbols with embedded.S
+            "$target_gen_dir/embedded_trusted.S",
           ]
         }
       }
@@ -2493,7 +2491,6 @@ v8_source_set("v8_base") {
     "src/snapshot/deserializer-allocator.h",
     "src/snapshot/deserializer.cc",
     "src/snapshot/deserializer.h",
-    "src/snapshot/macros.h",
     "src/snapshot/natives-common.cc",
     "src/snapshot/natives.h",
     "src/snapshot/object-deserializer.cc",
@@ -3419,6 +3416,8 @@ if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     sources = [
+      "src/snapshot/embedded-file-writer.cc",
+      "src/snapshot/embedded-file-writer.h",
       "src/snapshot/mksnapshot.cc",
     ]
 

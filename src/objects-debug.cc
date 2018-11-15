@@ -1160,7 +1160,7 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
 
 void Code::CodeVerify(Isolate* isolate) {
   CHECK_LE(constant_pool_offset(), InstructionSize());
-  CHECK(IsAligned(InstructionStart(), kCodeAlignment));
+  CHECK(IsAligned(raw_instruction_start(), kCodeAlignment));
   relocation_info()->ObjectVerify(isolate);
   Address last_gc_pc = kNullAddress;
 
