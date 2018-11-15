@@ -1543,7 +1543,7 @@ void InstructionSelector::EmitPrepareArguments(
         opcode |= AddressingModeField::encode(mode);
         Emit(opcode, 0, outputs, input_count, inputs);
       } else {
-        Emit(kX64Push, g.NoOutput(), g.Use(input.node));
+        Emit(kX64Push, g.NoOutput(), g.UseAny(input.node));
       }
     }
   }
