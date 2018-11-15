@@ -591,23 +591,19 @@ bool Code::CanContainWeakObjects() {
   return is_optimized_code() && can_have_weak_objects();
 }
 
-bool Code::IsWeakObject(Object* object) {
+bool Code::IsWeakObject(HeapObject* object) {
   return (CanContainWeakObjects() && IsWeakObjectInOptimizedCode(object));
 }
 
-bool Code::IsWeakObjectInOptimizedCode(Object* object) {
-  if (object->IsMap()) {
+bool Code::IsWeakObjectInOptimizedCode(HeapObject* object) {
+  Map map = object->synchronized_map();
+  InstanceType instance_type = map->instance_type();
+  if (InstanceTypeChecker::IsMap(instance_type)) {
     return Map::cast(object)->CanTransition();
   }
-  if (object->IsCell()) {
-    object = Cell::cast(object)->value();
-  } else if (object->IsPropertyCell()) {
-    object = PropertyCell::cast(object)->value();
-  }
-  if (object->IsJSReceiver() || object->IsContext()) {
-    return true;
-  }
-  return false;
+  return InstanceTypeChecker::IsPropertyCell(instance_type) ||
+         InstanceTypeChecker::IsJSReceiver(instance_type) ||
+         InstanceTypeChecker::IsContext(instance_type);
 }
 
 INT_ACCESSORS(CodeDataContainer, kind_specific_flags, kKindSpecificFlagsOffset)

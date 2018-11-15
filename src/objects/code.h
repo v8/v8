@@ -362,9 +362,9 @@ class Code : public HeapObjectPtr {
 
   inline bool CanContainWeakObjects();
 
-  inline bool IsWeakObject(Object* object);
+  inline bool IsWeakObject(HeapObject* object);
 
-  static inline bool IsWeakObjectInOptimizedCode(Object* object);
+  static inline bool IsWeakObjectInOptimizedCode(HeapObject* object);
 
   // Return true if the function is inlined in the code.
   bool Inlines(SharedFunctionInfo* sfi);
