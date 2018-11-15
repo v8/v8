@@ -3459,6 +3459,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Label if_hole(this, Label::kDeferred);
     TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
     TNode<FixedArrayBase> elements = LoadElements(CAST(array));
+    GotoIfForceSlowPath(&if_generic);
     var_value.Bind(LoadFixedArrayBaseElementAsTagged(
         elements, Signed(ChangeUint32ToWord(index32)), elements_kind,
         &if_generic, &if_hole));
