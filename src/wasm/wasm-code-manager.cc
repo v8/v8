@@ -835,6 +835,8 @@ WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
 }
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
+  // TODO(v8:8462) Remove eager commit once perf supports remapping.
+  if (FLAG_perf_prof) return true;
   DCHECK(IsAligned(start, AllocatePageSize()));
   DCHECK(IsAligned(size, AllocatePageSize()));
   // Reserve the size. Use CAS loop to avoid underflow on
@@ -898,6 +900,12 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",
              reinterpret_cast<void*>(mem.address()),
              reinterpret_cast<void*>(mem.end()), mem.size());
+
+  // TODO(v8:8462) Remove eager commit once perf supports remapping.
+  if (FLAG_perf_prof) {
+    SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
+                   PageAllocator::kReadWriteExecute);
+  }
   return mem;
 }
 
