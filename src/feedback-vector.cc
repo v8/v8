@@ -1075,6 +1075,56 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   return STANDARD_LOAD;
 }
 
+namespace {
+
+bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  switch (builtin_index) {
+    case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
+    case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
+    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
+    case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
+    case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
+    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
+    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_Slow_Standard:
+    case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
+    case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(int builtin_index) {
+  DCHECK(BuiltinHasKeyedAccessStoreMode(builtin_index));
+  switch (builtin_index) {
+    case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
+    case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
+    case Builtins::kKeyedStoreIC_Slow_Standard:
+      return STANDARD_STORE;
+    case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
+    case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
+      return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
+    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
+    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
+    case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
+      return STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS;
+    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
+    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
+      return STORE_NO_TRANSITION_HANDLE_COW;
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
 KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsStoreInArrayLiteralICKind(kind()));
   KeyedAccessStoreMode mode = STANDARD_STORE;
@@ -1101,19 +1151,25 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     } else {
       // Element store without prototype chain check.
       handler = Handle<Code>::cast(maybe_code_handler.object());
-      if (handler->is_builtin()) continue;
     }
-    CodeStub::Major major_key = CodeStub::MajorKeyFromKey(handler->stub_key());
-    uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
-    CHECK(major_key == CodeStub::KeyedStoreSloppyArguments ||
-          major_key == CodeStub::StoreFastElement ||
-          major_key == CodeStub::StoreSlowElement ||
-          major_key == CodeStub::StoreInArrayLiteralSlow ||
-          major_key == CodeStub::ElementsTransitionAndStore ||
-          major_key == CodeStub::NoCache);
-    if (major_key != CodeStub::NoCache) {
-      mode = CommonStoreModeBits::decode(minor_key);
+
+    if (handler->is_builtin()) {
+      const int builtin_index = handler->builtin_index();
+      if (!BuiltinHasKeyedAccessStoreMode(builtin_index)) continue;
+
+      mode = KeyedAccessStoreModeForBuiltin(builtin_index);
       break;
+    } else {
+      CodeStub::Major major_key =
+          CodeStub::MajorKeyFromKey(handler->stub_key());
+      uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
+      CHECK(major_key == CodeStub::StoreFastElement ||
+            major_key == CodeStub::ElementsTransitionAndStore ||
+            major_key == CodeStub::NoCache);
+      if (major_key != CodeStub::NoCache) {
+        mode = CommonStoreModeBits::decode(minor_key);
+        break;
+      }
     }
   }
 

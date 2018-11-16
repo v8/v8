@@ -214,6 +214,21 @@ namespace internal {
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
   TFH(StoreIC_Uninitialized, StoreWithVector)                                  \
   TFH(StoreInArrayLiteralIC_Slow, StoreWithVector)                             \
+  TFH(KeyedLoadIC_SloppyArguments, LoadWithVector)                             \
+  TFH(LoadIndexedInterceptorIC, LoadWithVector)                                \
+  TFH(StoreInterceptorIC, StoreWithVector)                                     \
+  TFH(KeyedStoreIC_SloppyArguments_Standard, StoreWithVector)                  \
+  TFH(KeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW, StoreWithVector) \
+  TFH(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB, StoreWithVector)     \
+  TFH(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW, StoreWithVector)     \
+  TFH(StoreInArrayLiteralIC_Slow_Standard, StoreWithVector)                    \
+  TFH(StoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)   \
+  TFH(StoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)       \
+  TFH(StoreInArrayLiteralIC_Slow_NoTransitionHandleCOW, StoreWithVector)       \
+  TFH(KeyedStoreIC_Slow_Standard, StoreWithVector)                             \
+  TFH(KeyedStoreIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)            \
+  TFH(KeyedStoreIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)                \
+  TFH(KeyedStoreIC_Slow_NoTransitionHandleCOW, StoreWithVector)                \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \

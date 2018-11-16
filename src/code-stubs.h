@@ -19,21 +19,15 @@ class CodeAssemblerState;
 }
 
 // List of code stubs used on all platforms.
-#define CODE_STUB_LIST_ALL_PLATFORMS(V)     \
-  /* --- PlatformCodeStubs --- */           \
-  V(CallApiCallback)                        \
-  V(CallApiGetter)                          \
-  V(JSEntry)                                \
-  V(ProfileEntryHook)                       \
-  /* --- TurboFanCodeStubs --- */           \
-  V(StoreSlowElement)                       \
-  V(StoreInArrayLiteralSlow)                \
-  V(ElementsTransitionAndStore)             \
-  V(KeyedLoadSloppyArguments)               \
-  V(KeyedStoreSloppyArguments)              \
-  V(StoreFastElement)                       \
-  V(StoreInterceptor)                       \
-  V(LoadIndexedInterceptor)
+#define CODE_STUB_LIST_ALL_PLATFORMS(V) \
+  /* --- PlatformCodeStubs --- */       \
+  V(CallApiCallback)                    \
+  V(CallApiGetter)                      \
+  V(JSEntry)                            \
+  V(ProfileEntryHook)                   \
+  /* --- TurboFanCodeStubs --- */       \
+  V(ElementsTransitionAndStore)         \
+  V(StoreFastElement)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -411,51 +405,7 @@ class TurboFanCodeStub : public CodeStub {
 namespace v8 {
 namespace internal {
 
-// TODO(jgruber): Convert this stub into a builtin.
-class StoreInterceptorStub : public TurboFanCodeStub {
- public:
-  explicit StoreInterceptorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
-};
-
-// TODO(jgruber): Convert this stub into a builtin.
-class LoadIndexedInterceptorStub : public TurboFanCodeStub {
- public:
-  explicit LoadIndexedInterceptorStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
-};
-
-// TODO(jgruber): Convert this stub into a builtin.
-class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
- public:
-  explicit KeyedLoadSloppyArgumentsStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-
- protected:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(KeyedLoadSloppyArguments, TurboFanCodeStub);
-};
-
-
 class CommonStoreModeBits : public BitField<KeyedAccessStoreMode, 0, 3> {};
-
-class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
- public:
-  explicit KeyedStoreSloppyArgumentsStub(Isolate* isolate,
-                                         KeyedAccessStoreMode mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(mode);
-  }
-
- protected:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(KeyedStoreSloppyArguments, TurboFanCodeStub);
-};
 
 class CallApiCallbackStub : public PlatformCodeStub {
  public:
@@ -577,30 +527,6 @@ class StoreFastElementStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreFastElement, TurboFanCodeStub);
-};
-
-class StoreSlowElementStub : public TurboFanCodeStub {
- public:
-  StoreSlowElementStub(Isolate* isolate, KeyedAccessStoreMode mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(mode);
-  }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreSlowElement, TurboFanCodeStub);
-};
-
-class StoreInArrayLiteralSlowStub : public TurboFanCodeStub {
- public:
-  StoreInArrayLiteralSlowStub(Isolate* isolate, KeyedAccessStoreMode mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(mode);
-  }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreInArrayLiteralSlow, TurboFanCodeStub);
 };
 
 class ElementsTransitionAndStoreStub : public TurboFanCodeStub {

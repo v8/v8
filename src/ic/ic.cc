@@ -10,6 +10,7 @@
 #include "src/arguments-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/conversions.h"
 #include "src/execution.h"
 #include "src/field-type.h"
@@ -1072,8 +1073,9 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
       !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined(
           isolate()) &&
       !receiver_map->GetIndexedInterceptor()->non_masking()) {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
-    return LoadIndexedInterceptorStub(isolate()).GetCode();
+    return BUILTIN_CODE(isolate(), LoadIndexedInterceptorIC);
   }
   InstanceType instance_type = receiver_map->instance_type();
   if (instance_type < FIRST_NONSTRING_TYPE) {
@@ -1090,8 +1092,9 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
 
   ElementsKind elements_kind = receiver_map->elements_kind();
   if (IsSloppyArgumentsElementsKind(elements_kind)) {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
-    return KeyedLoadSloppyArgumentsStub(isolate()).GetCode();
+    return BUILTIN_CODE(isolate(), KeyedLoadIC_SloppyArguments);
   }
   bool is_js_array = instance_type == JS_ARRAY_TYPE;
   if (elements_kind == DICTIONARY_ELEMENTS) {
@@ -1499,9 +1502,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       USE(holder);
 
       DCHECK(!holder->GetNamedInterceptor()->setter()->IsUndefined(isolate()));
+      // TODO(jgruber): Update counter name.
       TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorStub);
-      StoreInterceptorStub stub(isolate());
-      return MaybeObjectHandle(stub.GetCode());
+      return MaybeObjectHandle(BUILTIN_CODE(isolate(), StoreInterceptorIC));
     }
 
     case LookupIterator::ACCESSOR: {
@@ -1842,8 +1845,10 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub;
   if (receiver_map->has_sloppy_arguments_elements()) {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_KeyedStoreSloppyArgumentsStub);
-    stub = KeyedStoreSloppyArgumentsStub(isolate(), store_mode).GetCode();
+    stub =
+        CodeFactory::KeyedStoreIC_SloppyArguments(isolate(), store_mode).code();
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_fixed_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
@@ -1852,12 +1857,15 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
             .GetCode();
     if (receiver_map->has_fixed_typed_array_elements()) return stub;
   } else if (IsStoreInArrayLiteralICKind(kind())) {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
-    stub = StoreInArrayLiteralSlowStub(isolate(), store_mode).GetCode();
+    stub =
+        CodeFactory::StoreInArrayLiteralIC_Slow(isolate(), store_mode).code();
   } else {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
-    stub = StoreSlowElementStub(isolate(), store_mode).GetCode();
+    stub = CodeFactory::KeyedStoreIC_Slow(isolate(), store_mode).code();
   }
 
   if (IsStoreInArrayLiteralICKind(kind())) return stub;

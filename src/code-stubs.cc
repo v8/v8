@@ -303,105 +303,10 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
   }
 }
 
-// TODO(ishell): move to builtins-handler-gen.
-TF_STUB(KeyedLoadSloppyArgumentsStub, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* key = Parameter(Descriptor::kName);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Label miss(this);
-
-  Node* result = LoadKeyedSloppyArguments(receiver, key, &miss);
-  Return(result);
-
-  BIND(&miss);
-  {
-    Comment("Miss");
-    TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key, slot,
-                    vector);
-  }
-}
-
-// TODO(ishell): move to builtins-handler-gen.
-TF_STUB(KeyedStoreSloppyArgumentsStub, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* key = Parameter(Descriptor::kName);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Label miss(this);
-
-  StoreKeyedSloppyArguments(receiver, key, value, &miss);
-  Return(value);
-
-  BIND(&miss);
-  {
-    Comment("Miss");
-    TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
-                    receiver, key);
-  }
-}
-
-// TODO(ishell): move to builtins-handler-gen.
-TF_STUB(StoreInterceptorStub, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-  TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context, value, slot,
-                  vector, receiver, name);
-}
-
-// TODO(ishell): move to builtins-handler-gen.
-TF_STUB(LoadIndexedInterceptorStub, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* key = Parameter(Descriptor::kName);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Label if_keyispositivesmi(this), if_keyisinvalid(this);
-  Branch(TaggedIsPositiveSmi(key), &if_keyispositivesmi, &if_keyisinvalid);
-  BIND(&if_keyispositivesmi);
-  TailCallRuntime(Runtime::kLoadElementWithInterceptor, context, receiver, key);
-
-  BIND(&if_keyisinvalid);
-  TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key, slot,
-                  vector);
-}
-
 int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
   int handler_table_offset = HandlerTable::EmitReturnTableStart(masm, 1);
   HandlerTable::EmitReturnEntry(masm, 0, handler_offset_);
   return handler_table_offset;
-}
-
-// TODO(ishell): move to builtins-handler-gen.
-TF_STUB(StoreSlowElementStub, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  TailCallRuntime(Runtime::kKeyedStoreIC_Slow, context, value, slot, vector,
-                  receiver, name);
-}
-
-TF_STUB(StoreInArrayLiteralSlowStub, CodeStubAssembler) {
-  Node* array = Parameter(Descriptor::kReceiver);
-  Node* index = Parameter(Descriptor::kName);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
-  TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, context, value, array,
-                  index);
 }
 
 TF_STUB(StoreFastElementStub, CodeStubAssembler) {
