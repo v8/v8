@@ -744,18 +744,20 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
   }
 }
 
-Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
+Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name,
+                                               Scope* cache) {
   DCHECK(is_function_scope());
   DCHECK_NULL(function_);
-  DCHECK_NULL(variables_.Lookup(name));
+  if (cache == nullptr) cache = this;
+  DCHECK_NULL(cache->variables_.Lookup(name));
   VariableKind kind = is_sloppy(language_mode()) ? SLOPPY_FUNCTION_NAME_VARIABLE
                                                  : NORMAL_VARIABLE;
   function_ = new (zone())
       Variable(this, name, VariableMode::kConst, kind, kCreatedInitialized);
   if (calls_sloppy_eval()) {
-    NonLocal(name, VariableMode::kDynamic);
+    cache->NonLocal(name, VariableMode::kDynamic);
   } else {
-    variables_.Add(zone(), function_);
+    cache->variables_.Add(zone(), function_);
   }
   return function_;
 }
@@ -954,7 +956,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   if (!found) {
     index = scope_info_->FunctionContextSlotIndex(*name_handle);
     if (index < 0) return nullptr;  // Nowhere found.
-    Variable* var = AsDeclarationScope()->DeclareFunctionVar(name);
+    Variable* var = AsDeclarationScope()->DeclareFunctionVar(name, cache);
     DCHECK_EQ(VariableMode::kConst, var->mode());
     var->AllocateTo(VariableLocation::CONTEXT, index);
     return variables_.Lookup(name);
