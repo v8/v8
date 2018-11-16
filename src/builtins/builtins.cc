@@ -221,23 +221,6 @@ bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
 }
 
 // static
-bool Builtins::IsIsolateIndependent(int index) {
-  DCHECK(IsBuiltinId(index));
-  switch (index) {
-    // TODO(jgruber): InterpreterEnterBytecode calculates a pointer into the
-    // middle of InterpreterEntryTrampoline (see
-    // interpreter_entry_return_pc_offset). When the builtin is embedded, the
-    // pointer would need to be calculated at an offset from the embedded
-    // instruction stream (instead of the trampoline code object).
-    case kInterpreterEntryTrampoline:
-      return false;
-    default:
-      return true;
-  }
-  UNREACHABLE();
-}
-
-// static
 bool Builtins::IsWasmRuntimeStub(int index) {
   DCHECK(IsBuiltinId(index));
   switch (index) {

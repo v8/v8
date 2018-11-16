@@ -50,7 +50,9 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
   DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
 };
 
-Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
+Interpreter::Interpreter(Isolate* isolate)
+    : isolate_(isolate),
+      interpreter_entry_trampoline_instruction_start_(kNullAddress) {
   memset(dispatch_table_, 0, sizeof(dispatch_table_));
 
   if (FLAG_trace_ignition_dispatches) {
@@ -251,8 +253,17 @@ void Interpreter::ForEachBytecode(
   }
 }
 
-void Interpreter::InitializeDispatchTable() {
+void Interpreter::Initialize() {
   Builtins* builtins = isolate_->builtins();
+
+  // Set the interpreter entry trampoline entry point now that builtins are
+  // initialized.
+  Handle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
+  DCHECK(builtins->is_initialized());
+  DCHECK(code->is_off_heap_trampoline() || Heap::IsImmovable(*code));
+  interpreter_entry_trampoline_instruction_start_ = code->InstructionStart();
+
+  // Initialize the dispatch table.
   Code illegal = builtins->builtin(Builtins::kIllegalHandler);
   int builtin_id = Builtins::kFirstBytecodeHandler;
   ForEachBytecode([=, &builtin_id](Bytecode bytecode,

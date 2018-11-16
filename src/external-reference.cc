@@ -146,6 +146,14 @@ ExternalReference ExternalReference::interpreter_dispatch_counters(
       isolate->interpreter()->bytecode_dispatch_counters_table());
 }
 
+ExternalReference
+ExternalReference::address_of_interpreter_entry_trampoline_instruction_start(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->interpreter()
+          ->address_of_interpreter_entry_trampoline_instruction_start());
+}
+
 ExternalReference ExternalReference::bytecode_size_table_address() {
   return ExternalReference(
       interpreter::Bytecodes::bytecode_size_table_address());

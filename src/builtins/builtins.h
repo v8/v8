@@ -123,9 +123,9 @@ class Builtins {
                     kNumberOfWideBytecodeHandlers ==
                 builtin_count);
 
-  // Helper methods used for testing isolate-independent builtins.
-  // TODO(jgruber,v8:6666): Remove once all builtins have been migrated.
-  static bool IsIsolateIndependent(int index);
+  // True, iff the given builtin contains no isolate-specific code and can be
+  // embedded into the binary.
+  static bool IsIsolateIndependent(int index) { return true; }
 
   // Wasm runtime stubs are treated specially by wasm. To guarantee reachability
   // through near jumps, their code is completely copied into a fresh off-heap

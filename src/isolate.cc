@@ -3328,7 +3328,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     if (!create_heap_objects) des->DeserializeInto(this);
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
-    interpreter_->InitializeDispatchTable();
+    interpreter_->Initialize();
     heap_.NotifyDeserializationComplete();
   }
   delete setup_delegate_;

@@ -5001,8 +5001,7 @@ TEST(InterpreterWithNativeStack) {
 
   CHECK(code->IsCode());
   CHECK(code->is_interpreter_trampoline_builtin());
-  CHECK_NE(code->InstructionStart(),
-           interpreter_entry_trampoline->InstructionStart());
+  CHECK_NE(code->address(), interpreter_entry_trampoline->address());
 }
 
 TEST(InterpreterGetBytecodeHandler) {

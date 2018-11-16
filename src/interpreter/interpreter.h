@@ -66,7 +66,7 @@ class Interpreter {
 
   void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
 
-  void InitializeDispatchTable();
+  void Initialize();
 
   bool IsDispatchTableInitialized() const;
 
@@ -76,6 +76,11 @@ class Interpreter {
 
   Address bytecode_dispatch_counters_table() {
     return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
+  }
+
+  Address address_of_interpreter_entry_trampoline_instruction_start() const {
+    return reinterpret_cast<Address>(
+        &interpreter_entry_trampoline_instruction_start_);
   }
 
  private:
@@ -95,6 +100,7 @@ class Interpreter {
   Isolate* isolate_;
   Address dispatch_table_[kDispatchTableSize];
   std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
+  Address interpreter_entry_trampoline_instruction_start_;
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };
