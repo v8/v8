@@ -352,7 +352,7 @@ class BigInt::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {}
 
   static inline int SizeOf(Map map, HeapObject* obj) {
-    return BigInt::SizeFor(BigInt::cast(obj)->length());
+    return BigInt::SizeFor(BigInt::cast(obj)->synchronized_length());
   }
 };
 
