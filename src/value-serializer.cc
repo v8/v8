@@ -1473,10 +1473,8 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
     // hole. Past version 11, undefined means undefined.
     if (version_ < 11 && element->IsUndefined(isolate_)) continue;
 
-    // Make sure elements is still large enough.
-    if (i >= static_cast<uint32_t>(elements->length())) {
-      return MaybeHandle<JSArray>();
-    }
+    // Safety check.
+    CHECK_LT(i, static_cast<uint32_t>(elements->length()));
 
     elements->set(i, *element);
   }
