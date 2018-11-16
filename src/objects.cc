@@ -2356,12 +2356,6 @@ Map Map::GetPrototypeChainRootMap(Isolate* isolate) const {
   return ReadOnlyRoots(isolate).null_value()->map();
 }
 
-// static
-Address Object::GetOrCreateHash(Isolate* isolate, Object* key) {
-  DisallowHeapAllocation no_gc;
-  return key->GetOrCreateHash(isolate).ptr();
-}
-
 Smi Object::GetOrCreateHash(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
   Object* hash = Object::GetSimpleHash(this);
