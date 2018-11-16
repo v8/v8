@@ -17,6 +17,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/macro-assembler.h"
 #include "src/objects/smi.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
@@ -24,7 +25,11 @@
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
 
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
 #include "src/s390/macro-assembler-s390.h"
+#endif
 
 namespace v8 {
 namespace internal {

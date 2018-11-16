@@ -17,14 +17,18 @@
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/macro-assembler-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
 
-#include "src/arm64/macro-assembler-arm64-inl.h"
-#include "src/arm64/macro-assembler-arm64.h"  // Cannot be the first include
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
+#include "src/arm64/macro-assembler-arm64.h"
+#endif
 
 namespace v8 {
 namespace internal {

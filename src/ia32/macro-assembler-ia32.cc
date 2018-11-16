@@ -16,12 +16,17 @@
 #include "src/external-reference-table.h"
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
+#include "src/ia32/assembler-ia32-inl.h"
+#include "src/macro-assembler.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 
-#include "src/ia32/assembler-ia32-inl.h"
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
 #include "src/ia32/macro-assembler-ia32.h"
+#endif
 
 namespace v8 {
 namespace internal {

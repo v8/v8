@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_MIPS
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
@@ -16,13 +17,18 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
-#include "src/mips/assembler-mips-inl.h"
-#include "src/mips/macro-assembler-mips.h"
+#include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
+
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
+#include "src/mips/macro-assembler-mips.h"
+#endif
 
 namespace v8 {
 namespace internal {

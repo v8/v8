@@ -17,6 +17,7 @@
 #include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/register-configuration.h"
@@ -25,7 +26,11 @@
 #include "src/string-constants.h"
 #include "src/x64/assembler-x64.h"
 
-#include "src/x64/macro-assembler-x64.h"  // Cannot be the first include.
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
+#include "src/x64/macro-assembler-x64.h"
+#endif
 
 namespace v8 {
 namespace internal {

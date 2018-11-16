@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef INCLUDED_FROM_MACRO_ASSEMBLER_H
+#error This header must be included via macro-assembler.h
+#endif
+
 #ifndef V8_IA32_MACRO_ASSEMBLER_IA32_H_
 #define V8_IA32_MACRO_ASSEMBLER_IA32_H_
 

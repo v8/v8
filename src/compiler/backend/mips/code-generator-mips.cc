@@ -10,7 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/heap-inl.h"
-#include "src/mips/macro-assembler-mips.h"
+#include "src/macro-assembler.h"
 #include "src/optimized-compilation-info.h"
 #include "src/wasm/wasm-code-manager.h"
 

@@ -14,7 +14,7 @@
 #include "src/frames.h"
 #include "src/heap/heap-inl.h"
 #include "src/ia32/assembler-ia32.h"
-#include "src/ia32/macro-assembler-ia32.h"
+#include "src/macro-assembler.h"
 #include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"
 #include "src/wasm/wasm-code-manager.h"

@@ -30,9 +30,8 @@
 #include <sstream>
 
 #include "include/v8.h"
-#include "src/v8.h"
-
 #include "src/api-inl.h"
+#include "src/assembler-arch.h"
 #include "src/ast/ast.h"
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
@@ -44,49 +43,34 @@
 #include "src/splay-tree-inl.h"
 #include "src/string-stream.h"
 #include "src/unicode-inl.h"
+#include "src/v8.h"
 
 #ifdef V8_INTERPRETED_REGEXP
 #include "src/regexp/interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP
 #include "src/macro-assembler.h"
 #if V8_TARGET_ARCH_ARM
-#include "src/arm/assembler-arm.h"  // NOLINT
-#include "src/arm/macro-assembler-arm.h"
 #include "src/regexp/arm/regexp-macro-assembler-arm.h"
 #endif
 #if V8_TARGET_ARCH_ARM64
-#include "src/arm64/assembler-arm64.h"
-#include "src/arm64/macro-assembler-arm64.h"
 #include "src/regexp/arm64/regexp-macro-assembler-arm64.h"
 #endif
 #if V8_TARGET_ARCH_S390
 #include "src/regexp/s390/regexp-macro-assembler-s390.h"
-#include "src/s390/assembler-s390.h"
-#include "src/s390/macro-assembler-s390.h"
 #endif
 #if V8_TARGET_ARCH_PPC
-#include "src/ppc/assembler-ppc.h"
-#include "src/ppc/macro-assembler-ppc.h"
 #include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
 #endif
 #if V8_TARGET_ARCH_MIPS
-#include "src/mips/assembler-mips.h"
-#include "src/mips/macro-assembler-mips.h"
 #include "src/regexp/mips/regexp-macro-assembler-mips.h"
 #endif
 #if V8_TARGET_ARCH_MIPS64
-#include "src/mips64/assembler-mips64.h"
-#include "src/mips64/macro-assembler-mips64.h"
 #include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
 #endif
 #if V8_TARGET_ARCH_X64
 #include "src/regexp/x64/regexp-macro-assembler-x64.h"
-#include "src/x64/assembler-x64.h"
-#include "src/x64/macro-assembler-x64.h"
 #endif
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/assembler-ia32.h"
-#include "src/ia32/macro-assembler-ia32.h"
 #include "src/regexp/ia32/regexp-macro-assembler-ia32.h"
 #endif
 #endif  // V8_INTERPRETED_REGEXP

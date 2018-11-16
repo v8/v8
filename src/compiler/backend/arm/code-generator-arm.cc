@@ -4,7 +4,6 @@
 
 #include "src/compiler/backend/code-generator.h"
 
-#include "src/arm/macro-assembler-arm.h"
 #include "src/assembler-inl.h"
 #include "src/boxed-float.h"
 #include "src/compiler/backend/code-generator-impl.h"
@@ -13,6 +12,7 @@
 #include "src/compiler/osr.h"
 #include "src/double.h"
 #include "src/heap/heap-inl.h"
+#include "src/macro-assembler.h"
 #include "src/optimized-compilation-info.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
