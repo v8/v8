@@ -154,7 +154,6 @@ void WasmCode::LogCode(Isolate* isolate) const {
       native_module()->module()->LookupFunctionName(wire_bytes, index());
   WasmName name_vec = wire_bytes.GetNameOrNull(name_ref);
   if (!name_vec.is_empty()) {
-    HandleScope scope(isolate);
     MaybeHandle<String> maybe_name = isolate->factory()->NewStringFromUtf8(
         Vector<const char>::cast(name_vec));
     Handle<String> name;
