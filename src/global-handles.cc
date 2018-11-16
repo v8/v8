@@ -834,11 +834,8 @@ void GlobalHandles::UpdateListOfNewSpaceNodes() {
   new_space_nodes_.shrink_to_fit();
 }
 
-
-int GlobalHandles::DispatchPendingPhantomCallbacks(
-    bool synchronous_second_pass) {
+int GlobalHandles::InvokeFirstPassWeakCallbacks() {
   int freed_nodes = 0;
-  // Protect against callback modifying pending_phantom_callbacks_.
   std::vector<PendingPhantomCallback> pending_phantom_callbacks;
   pending_phantom_callbacks.swap(pending_phantom_callbacks_);
   {
@@ -851,6 +848,11 @@ int GlobalHandles::DispatchPendingPhantomCallbacks(
       freed_nodes++;
     }
   }
+  return freed_nodes;
+}
+
+void GlobalHandles::InvokeOrScheduleSecondPassPhantomCallbacks(
+    bool synchronous_second_pass) {
   if (!second_pass_callbacks_.empty()) {
     if (FLAG_optimize_for_size || FLAG_predictable || synchronous_second_pass) {
       isolate()->heap()->CallGCPrologueCallbacks(
@@ -866,9 +868,7 @@ int GlobalHandles::DispatchPendingPhantomCallbacks(
           isolate(), [this] { InvokeSecondPassPhantomCallbacksFromTask(); }));
     }
   }
-  return freed_nodes;
 }
-
 
 void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate) {
   Data::Callback* callback_addr = nullptr;
@@ -893,7 +893,6 @@ void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate) {
   }
 }
 
-
 int GlobalHandles::PostGarbageCollectionProcessing(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   // Process weak global handle callbacks. This must be done after the
@@ -907,7 +906,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
-  freed_nodes += DispatchPendingPhantomCallbacks(synchronous_second_pass);
+  InvokeOrScheduleSecondPassPhantomCallbacks(synchronous_second_pass);
   if (initial_post_gc_processing_count != post_gc_processing_count_) {
     // If the callbacks caused a nested GC, then return.  See comment in
     // PostScavengeProcessing.

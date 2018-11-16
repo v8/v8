@@ -1700,15 +1700,22 @@ bool Heap::PerformGarbageCollection(
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
-  gc_post_processing_depth_++;
   {
-    AllowHeapAllocation allow_allocation;
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
+    // First round weak callbacks are not supposed to allocate and trigger
+    // nested GCs.
     freed_global_handles =
-        isolate_->global_handles()->PostGarbageCollectionProcessing(
-            collector, gc_callback_flags);
+        isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
+
+    gc_post_processing_depth_++;
+    {
+      AllowHeapAllocation allow_allocation;
+      freed_global_handles +=
+          isolate_->global_handles()->PostGarbageCollectionProcessing(
+              collector, gc_callback_flags);
+    }
+    gc_post_processing_depth_--;
   }
-  gc_post_processing_depth_--;
 
   isolate_->eternal_handles()->PostGarbageCollectionProcessing();
 

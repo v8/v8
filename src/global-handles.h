@@ -108,6 +108,8 @@ class GlobalHandles {
   // Tells whether global handle is weak.
   static bool IsWeak(Address* location);
 
+  int InvokeFirstPassWeakCallbacks();
+
   // Process pending weak handles.
   // Returns the number of freed nodes.
   int PostGarbageCollectionProcessing(
@@ -193,7 +195,7 @@ class GlobalHandles {
   void InvokeSecondPassPhantomCallbacksFromTask();
   int PostScavengeProcessing(int initial_post_gc_processing_count);
   int PostMarkSweepProcessing(int initial_post_gc_processing_count);
-  int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
+  void InvokeOrScheduleSecondPassPhantomCallbacks(bool synchronous_second_pass);
   void UpdateListOfNewSpaceNodes();
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
                                     Node* node);
