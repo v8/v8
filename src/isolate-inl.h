@@ -163,12 +163,6 @@ bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
-bool Isolate::IsRegExpSpeciesLookupChainIntact() {
-  PropertyCell* species_cell = heap()->regexp_species_protector();
-  return species_cell->value()->IsSmi() &&
-         Smi::ToInt(species_cell->value()) == kProtectorValid;
-}
-
 bool Isolate::IsPromiseSpeciesLookupChainIntact() {
   PropertyCell* species_cell = heap()->promise_species_protector();
   return species_cell->value()->IsSmi() &&

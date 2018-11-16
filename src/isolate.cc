@@ -3793,15 +3793,6 @@ void Isolate::InvalidateTypedArraySpeciesProtector() {
   DCHECK(!IsTypedArraySpeciesLookupChainIntact());
 }
 
-void Isolate::InvalidateRegExpSpeciesProtector() {
-  DCHECK(factory()->regexp_species_protector()->value()->IsSmi());
-  DCHECK(IsRegExpSpeciesLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, factory()->regexp_species_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsRegExpSpeciesLookupChainIntact());
-}
-
 void Isolate::InvalidatePromiseSpeciesProtector() {
   DCHECK(factory()->promise_species_protector()->value()->IsSmi());
   DCHECK(IsPromiseSpeciesLookupChainIntact());

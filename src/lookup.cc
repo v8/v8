@@ -279,11 +279,9 @@ void LookupIterator::InternalUpdateProtector() {
   ReadOnlyRoots roots(heap());
   if (*name_ == roots.constructor_string()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
-        !isolate_->IsPromiseSpeciesLookupChainIntact() &&
-        !isolate_->IsRegExpSpeciesLookupChainIntact() &&
-        !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
+        !isolate_->IsTypedArraySpeciesLookupChainIntact() &&
+        !isolate_->IsPromiseSpeciesLookupChainIntact())
       return;
-    }
     // Setting the constructor property could change an instance's @@species
     if (holder_->IsJSArray()) {
       if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
@@ -295,10 +293,6 @@ void LookupIterator::InternalUpdateProtector() {
       if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
       isolate_->InvalidatePromiseSpeciesProtector();
       return;
-    } else if (holder_->IsJSRegExp()) {
-      if (!isolate_->IsRegExpSpeciesLookupChainIntact()) return;
-      isolate_->InvalidateRegExpSpeciesProtector();
-      return;
     } else if (holder_->IsJSTypedArray()) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
       isolate_->InvalidateTypedArraySpeciesProtector();
@@ -306,8 +300,9 @@ void LookupIterator::InternalUpdateProtector() {
     }
     if (holder_->map()->is_prototype_map()) {
       DisallowHeapAllocation no_gc;
-      // Setting the constructor of any prototype with the @@species protector
-      // (of any realm) also needs to invalidate the protector.
+      // Setting the constructor of Array.prototype, Promise.prototype or
+      // %TypedArray%.prototype of any realm also needs to invalidate the
+      // @@species protector.
       // For typed arrays, we check a prototype of this holder since TypedArrays
       // have different prototypes for each type, and their parent prototype is
       // pointing the same TYPED_ARRAY_PROTOTYPE.
@@ -321,10 +316,6 @@ void LookupIterator::InternalUpdateProtector() {
                                           Context::PROMISE_PROTOTYPE_INDEX)) {
         if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
         isolate_->InvalidatePromiseSpeciesProtector();
-      } else if (isolate_->IsInAnyContext(*holder_,
-                                          Context::REGEXP_PROTOTYPE_INDEX)) {
-        if (!isolate_->IsRegExpSpeciesLookupChainIntact()) return;
-        isolate_->InvalidateRegExpSpeciesProtector();
       } else if (isolate_->IsInAnyContext(
                      holder_->map()->prototype(),
                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
@@ -357,11 +348,9 @@ void LookupIterator::InternalUpdateProtector() {
     }
   } else if (*name_ == roots.species_symbol()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
-        !isolate_->IsPromiseSpeciesLookupChainIntact() &&
-        !isolate_->IsRegExpSpeciesLookupChainIntact() &&
-        !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
+        !isolate_->IsTypedArraySpeciesLookupChainIntact() &&
+        !isolate_->IsPromiseSpeciesLookupChainIntact())
       return;
-    }
     // Setting the Symbol.species property of any Array, Promise or TypedArray
     // constructor invalidates the @@species protector
     if (isolate_->IsInAnyContext(*holder_, Context::ARRAY_FUNCTION_INDEX)) {
@@ -373,10 +362,6 @@ void LookupIterator::InternalUpdateProtector() {
                                         Context::PROMISE_FUNCTION_INDEX)) {
       if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
       isolate_->InvalidatePromiseSpeciesProtector();
-    } else if (isolate_->IsInAnyContext(*holder_,
-                                        Context::REGEXP_FUNCTION_INDEX)) {
-      if (!isolate_->IsRegExpSpeciesLookupChainIntact()) return;
-      isolate_->InvalidateRegExpSpeciesProtector();
     } else if (IsTypedArrayFunctionInAnyContext(isolate_, *holder_)) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
       isolate_->InvalidateTypedArraySpeciesProtector();
