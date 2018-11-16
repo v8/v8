@@ -501,9 +501,8 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
       }
 
       if (FLAG_use_ic) {
-        if (nexus()->ConfigureLexicalVarMode(
-                lookup_result.context_index, lookup_result.slot_index,
-                lookup_result.mode == VariableMode::kConst)) {
+        if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
+                                             lookup_result.slot_index)) {
           TRACE_HANDLER_STATS(isolate(), LoadGlobalIC_LoadScriptContextField);
         } else {
           // Given combination of indices can't be encoded, so use slow stub.
@@ -1359,9 +1358,8 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     }
 
     if (FLAG_use_ic) {
-      if (nexus()->ConfigureLexicalVarMode(
-              lookup_result.context_index, lookup_result.slot_index,
-              lookup_result.mode == VariableMode::kConst)) {
+      if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
+                                           lookup_result.slot_index)) {
         TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_StoreScriptContextField);
       } else {
         // Given combination of indices can't be encoded, so use slow stub.
