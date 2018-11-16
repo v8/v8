@@ -3650,6 +3650,18 @@ class V8_EXPORT Object : public Value {
 
   static Local<Object> New(Isolate* isolate);
 
+  /**
+   * Creates a JavaScript object with the given properties, and
+   * a the given prototype_or_null (which can be any JavaScript
+   * value, and if it's null, the newly created object won't have
+   * a prototype at all). This is similar to Object.create().
+   * All properties will be created as enumerable, configurable
+   * and writable properties.
+   */
+  static Local<Object> New(Isolate* isolate, Local<Value> prototype_or_null,
+                           Local<Name>* names, Local<Value>* values,
+                           size_t length);
+
   V8_INLINE static Object* Cast(Value* obj);
 
  private:

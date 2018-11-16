@@ -51,6 +51,7 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -6691,6 +6692,64 @@ Local<v8::Object> v8::Object::New(Isolate* isolate) {
   return Utils::ToLocal(obj);
 }
 
+Local<v8::Object> v8::Object::New(Isolate* isolate,
+                                  Local<Value> prototype_or_null,
+                                  Local<Name>* names, Local<Value>* values,
+                                  size_t length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::Object> proto = Utils::OpenHandle(*prototype_or_null);
+  if (!Utils::ApiCheck(proto->IsNull() || proto->IsJSReceiver(),
+                       "v8::Object::New", "prototype must be null or object")) {
+    return Local<v8::Object>();
+  }
+  LOG_API(i_isolate, Object, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+
+  // We assume that this API is mostly used to create objects with named
+  // properties, and so we default to creating a properties backing store
+  // large enough to hold all of them, while we start with no elements
+  // (see http://bit.ly/v8-fast-object-create-cpp for the motivation).
+  i::Handle<i::NameDictionary> properties =
+      i::NameDictionary::New(i_isolate, static_cast<int>(length));
+  i::Handle<i::FixedArrayBase> elements =
+      i_isolate->factory()->empty_fixed_array();
+  for (size_t i = 0; i < length; ++i) {
+    i::Handle<i::Name> name = Utils::OpenHandle(*names[i]);
+    i::Handle<i::Object> value = Utils::OpenHandle(*values[i]);
+
+    // See if the {name} is a valid array index, in which case we need to
+    // add the {name}/{value} pair to the {elements}, otherwise they end
+    // up in the {properties} backing store.
+    uint32_t index;
+    if (name->AsArrayIndex(&index)) {
+      // If this is the first element, allocate a proper
+      // dictionary elements backing store for {elements}.
+      if (!elements->IsNumberDictionary()) {
+        elements =
+            i::NumberDictionary::New(i_isolate, static_cast<int>(length));
+      }
+      elements = i::NumberDictionary::Set(
+          i_isolate, i::Handle<i::NumberDictionary>::cast(elements), index,
+          value);
+    } else {
+      // Internalize the {name} first.
+      name = i_isolate->factory()->InternalizeName(name);
+      int const entry = properties->FindEntry(i_isolate, name);
+      if (entry == i::NameDictionary::kNotFound) {
+        // Add the {name}/{value} pair as a new entry.
+        properties = i::NameDictionary::Add(i_isolate, properties, name, value,
+                                            i::PropertyDetails::Empty());
+      } else {
+        // Overwrite the {entry} with the {value}.
+        properties->ValueAtPut(entry, *value);
+      }
+    }
+  }
+  i::Handle<i::JSObject> obj =
+      i_isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
+          proto, properties, elements);
+  return Utils::ToLocal(obj);
+}
 
 Local<v8::Value> v8::NumberObject::New(Isolate* isolate, double value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);

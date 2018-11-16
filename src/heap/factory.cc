@@ -2942,6 +2942,26 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(Handle<Map> map, int capacity,
   return js_object;
 }
 
+Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
+    Handle<Object> prototype, Handle<NameDictionary> properties,
+    Handle<FixedArrayBase> elements, PretenureFlag pretenure) {
+  Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();
+  if (object_map->prototype() != *prototype) {
+    object_map = Map::TransitionToPrototype(isolate(), object_map, prototype);
+  }
+  DCHECK(object_map->is_dictionary_map());
+  Handle<JSObject> object = NewJSObjectFromMap(object_map, pretenure);
+  object->set_raw_properties_or_hash(*properties);
+  if (*elements != ReadOnlyRoots(isolate()).empty_fixed_array()) {
+    DCHECK(elements->IsNumberDictionary());
+    object_map =
+        JSObject::GetElementsTransitionMap(object, DICTIONARY_ELEMENTS);
+    JSObject::MigrateToMap(object, object_map);
+    object->set_elements(*elements);
+  }
+  return object;
+}
+
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
   NativeContext* native_context = isolate()->raw_native_context();

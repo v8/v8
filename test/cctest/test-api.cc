@@ -24525,6 +24525,143 @@ THREADED_TEST(FunctionNew) {
   CHECK(v8::Integer::New(isolate, 17)->Equals(env.local(), result2).FromJust());
 }
 
+namespace {
+
+void Verify(v8::Isolate* isolate, Local<v8::Object> obj) {
+#if VERIFY_HEAP
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSReceiver> i_obj = v8::Utils::OpenHandle(*obj);
+  i_obj->ObjectVerify(i_isolate);
+#endif
+}
+
+}  // namespace
+
+THREADED_TEST(ObjectNew) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  {
+    // Verify that Object::New(null) produces an object with a null
+    // [[Prototype]].
+    Local<v8::Object> obj =
+        v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
+    CHECK(obj->GetPrototype()->IsNull());
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(0, keys->Length());
+  }
+  {
+    // Verify that Object::New(proto) produces an object with
+    // proto as it's [[Prototype]].
+    Local<v8::Object> proto = v8::Object::New(isolate);
+    Local<v8::Object> obj =
+        v8::Object::New(isolate, proto, nullptr, nullptr, 0);
+    Verify(isolate, obj);
+    CHECK(obj->GetPrototype()->SameValue(proto));
+  }
+  {
+    // Verify that the properties are installed correctly.
+    Local<v8::Name> names[3] = {v8_str("a"), v8_str("b"), v8_str("c")};
+    Local<v8::Value> values[3] = {v8_num(1), v8_num(2), v8_num(3)};
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(values));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    for (uint32_t i = 0; i < arraysize(names); ++i) {
+      CHECK(names[i]->SameValue(keys->Get(env.local(), i).ToLocalChecked()));
+      CHECK(values[i]->SameValue(
+          obj->Get(env.local(), names[i]).ToLocalChecked()));
+    }
+  }
+  {
+    // Same as above, but with non-null prototype.
+    Local<v8::Object> proto = v8::Object::New(isolate);
+    Local<v8::Name> names[3] = {v8_str("x"), v8_str("y"), v8_str("z")};
+    Local<v8::Value> values[3] = {v8_num(1), v8_num(2), v8_num(3)};
+    Local<v8::Object> obj =
+        v8::Object::New(isolate, proto, names, values, arraysize(values));
+    CHECK(obj->GetPrototype()->SameValue(proto));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    for (uint32_t i = 0; i < arraysize(names); ++i) {
+      CHECK(names[i]->SameValue(keys->Get(env.local(), i).ToLocalChecked()));
+      CHECK(values[i]->SameValue(
+          obj->Get(env.local(), names[i]).ToLocalChecked()));
+    }
+  }
+  {
+    // This has to work with duplicate names too.
+    Local<v8::Name> names[3] = {v8_str("a"), v8_str("a"), v8_str("a")};
+    Local<v8::Value> values[3] = {v8_num(1), v8_num(2), v8_num(3)};
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(values));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(1, keys->Length());
+    CHECK(v8_str("a")->SameValue(keys->Get(env.local(), 0).ToLocalChecked()));
+    CHECK(v8_num(3)->SameValue(
+        obj->Get(env.local(), v8_str("a")).ToLocalChecked()));
+  }
+  {
+    // This has to work with array indices too.
+    Local<v8::Name> names[2] = {v8_str("0"), v8_str("1")};
+    Local<v8::Value> values[2] = {v8_num(0), v8_num(1)};
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(values));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    for (uint32_t i = 0; i < arraysize(names); ++i) {
+      CHECK(v8::Number::New(isolate, i)
+                ->SameValue(keys->Get(env.local(), i).ToLocalChecked()));
+      CHECK(values[i]->SameValue(obj->Get(env.local(), i).ToLocalChecked()));
+    }
+  }
+  {
+    // This has to work with mixed array indices / property names too.
+    Local<v8::Name> names[2] = {v8_str("0"), v8_str("x")};
+    Local<v8::Value> values[2] = {v8_num(42), v8_num(24)};
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(values));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    // 0 -> 42
+    CHECK(v8_num(0)->SameValue(keys->Get(env.local(), 0).ToLocalChecked()));
+    CHECK(
+        values[0]->SameValue(obj->Get(env.local(), names[0]).ToLocalChecked()));
+    // "x" -> 24
+    CHECK(v8_str("x")->SameValue(keys->Get(env.local(), 1).ToLocalChecked()));
+    CHECK(
+        values[1]->SameValue(obj->Get(env.local(), names[1]).ToLocalChecked()));
+  }
+  {
+    // Verify that this also works for a couple thousand properties.
+    size_t const kLength = 10 * 1024;
+    Local<v8::Name> names[kLength];
+    Local<v8::Value> values[kLength];
+    for (size_t i = 0; i < arraysize(names); ++i) {
+      std::ostringstream ost;
+      ost << "a" << i;
+      names[i] = v8_str(ost.str().c_str());
+      values[i] = v8_num(static_cast<double>(i));
+    }
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(names));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    for (uint32_t i = 0; i < arraysize(names); ++i) {
+      CHECK(names[i]->SameValue(keys->Get(env.local(), i).ToLocalChecked()));
+      CHECK(values[i]->SameValue(
+          obj->Get(env.local(), names[i]).ToLocalChecked()));
+    }
+  }
+}
+
 TEST(EscapableHandleScope) {
   HandleScope outer_scope(CcTest::isolate());
   LocalContext context;

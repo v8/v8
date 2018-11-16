@@ -600,6 +600,15 @@ class V8_EXPORT_PRIVATE Factory {
       Handle<Map> map,
       int number_of_slow_properties = NameDictionary::kInitialCapacity,
       PretenureFlag pretenure = NOT_TENURED);
+  // Allocates and initializes a new JavaScript object with the given
+  // {prototype} and {properties}. The newly created object will be
+  // in dictionary properties mode. The {elements} can either be the
+  // empty fixed array, in which case the resulting object will have
+  // fast elements, or a NumberDictionary, in which case the resulting
+  // object will have dictionary elements.
+  Handle<JSObject> NewSlowJSObjectWithPropertiesAndElements(
+      Handle<Object> prototype, Handle<NameDictionary> properties,
+      Handle<FixedArrayBase> elements, PretenureFlag pretenure = NOT_TENURED);
 
   // JS arrays are pretenured when allocated by the parser.
 
