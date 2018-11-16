@@ -1808,9 +1808,8 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
 // static
 template <Scope::ScopeLookupMode mode>
 Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
-                        Scope* outer_scope_end, bool force_context_allocation) {
-  Scope* entry_point = scope;
-
+                        Scope* outer_scope_end, Scope* entry_point,
+                        bool force_context_allocation) {
   if (mode == kDeserializedScope) {
     Variable* var = entry_point->variables_.Lookup(proxy->raw_name());
     if (var != nullptr) return var;
@@ -1850,12 +1849,12 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
 
     DCHECK(!scope->is_script_scope());
     if (V8_UNLIKELY(scope->is_with_scope())) {
-      return LookupWith(proxy, scope, outer_scope_end,
+      return LookupWith(proxy, scope, outer_scope_end, entry_point,
                         force_context_allocation);
     }
     if (V8_UNLIKELY(scope->is_declaration_scope() &&
                     scope->AsDeclarationScope()->calls_sloppy_eval())) {
-      return LookupSloppyEval(proxy, scope, outer_scope_end,
+      return LookupSloppyEval(proxy, scope, outer_scope_end, entry_point,
                               force_context_allocation);
     }
 
@@ -1863,7 +1862,7 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     scope = scope->outer_scope_;
     // TODO(verwaest): Separate through AnalyzePartially.
     if (mode == kParsedScope && !scope->scope_info_.is_null()) {
-      return Lookup<kDeserializedScope>(proxy, scope, outer_scope_end);
+      return Lookup<kDeserializedScope>(proxy, scope, outer_scope_end, scope);
     }
   }
 
@@ -1883,10 +1882,10 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
 
 template Variable* Scope::Lookup<Scope::kParsedScope>(
     VariableProxy* proxy, Scope* scope, Scope* outer_scope_end,
-    bool force_context_allocation);
+    Scope* entry_point, bool force_context_allocation);
 template Variable* Scope::Lookup<Scope::kDeserializedScope>(
     VariableProxy* proxy, Scope* scope, Scope* outer_scope_end,
-    bool force_context_allocation);
+    Scope* entry_point, bool force_context_allocation);
 
 namespace {
 bool CanBeShadowed(Scope* scope, Variable* var) {
@@ -1906,16 +1905,16 @@ bool CanBeShadowed(Scope* scope, Variable* var) {
 };  // namespace
 
 Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
-                            Scope* outer_scope_end,
+                            Scope* outer_scope_end, Scope* entry_point,
                             bool force_context_allocation) {
   DCHECK(scope->is_with_scope());
 
   Variable* var =
       scope->outer_scope_->scope_info_.is_null()
           ? Lookup<kParsedScope>(proxy, scope->outer_scope_, outer_scope_end,
-                                 force_context_allocation)
+                                 nullptr, force_context_allocation)
           : Lookup<kDeserializedScope>(proxy, scope->outer_scope_,
-                                       outer_scope_end);
+                                       outer_scope_end, entry_point);
 
   if (!CanBeShadowed(scope, var)) return var;
 
@@ -1931,21 +1930,26 @@ Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
     var->ForceContextAllocation();
     if (proxy->is_assigned()) var->set_maybe_assigned();
   }
-  return scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
+  if (entry_point != nullptr) entry_point->variables_.Remove(var);
+  Scope* target = entry_point == nullptr ? scope : entry_point;
+  return target->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
 }
 
 Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
-                                  Scope* outer_scope_end,
+                                  Scope* outer_scope_end, Scope* entry_point,
                                   bool force_context_allocation) {
   DCHECK(scope->is_declaration_scope() &&
          scope->AsDeclarationScope()->calls_sloppy_eval());
 
+  // If we're compiling eval, it's possible that the outer scope is the first
+  // ScopeInfo-backed scope.
+  Scope* entry = entry_point == nullptr ? scope->outer_scope_ : entry_point;
   Variable* var =
       scope->outer_scope_->scope_info_.is_null()
           ? Lookup<kParsedScope>(proxy, scope->outer_scope_, outer_scope_end,
-                                 force_context_allocation)
+                                 nullptr, force_context_allocation)
           : Lookup<kDeserializedScope>(proxy, scope->outer_scope_,
-                                       outer_scope_end);
+                                       outer_scope_end, entry);
   if (!CanBeShadowed(scope, var)) return var;
 
   // A variable binding may have been found in an outer scope, but the current
@@ -1956,13 +1960,17 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   // here (this excludes block and catch scopes), and variable lookups at
   // script scope are always dynamic.
   if (var->IsGlobalObjectProperty()) {
-    return scope->NonLocal(proxy->raw_name(), VariableMode::kDynamicGlobal);
+    Scope* target = entry_point == nullptr ? scope : entry_point;
+    return target->NonLocal(proxy->raw_name(), VariableMode::kDynamicGlobal);
   }
 
   if (var->is_dynamic()) return var;
 
   Variable* invalidated = var;
-  var = scope->NonLocal(proxy->raw_name(), VariableMode::kDynamicLocal);
+  if (entry_point != nullptr) entry_point->variables_.Remove(invalidated);
+
+  Scope* target = entry_point == nullptr ? scope : entry_point;
+  var = target->NonLocal(proxy->raw_name(), VariableMode::kDynamicLocal);
   var->set_local_if_not_shadowed(invalidated);
 
   return var;

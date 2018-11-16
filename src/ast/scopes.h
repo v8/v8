@@ -615,13 +615,13 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // calling context of 'eval'.
   template <ScopeLookupMode mode>
   static Variable* Lookup(VariableProxy* proxy, Scope* scope,
-                          Scope* outer_scope_end,
+                          Scope* outer_scope_end, Scope* entry_point = nullptr,
                           bool force_context_allocation = false);
   static Variable* LookupWith(VariableProxy* proxy, Scope* scope,
-                              Scope* outer_scope_end,
+                              Scope* outer_scope_end, Scope* entry_point,
                               bool force_context_allocation);
   static Variable* LookupSloppyEval(VariableProxy* proxy, Scope* scope,
-                                    Scope* outer_scope_end,
+                                    Scope* outer_scope_end, Scope* entry_point,
                                     bool force_context_allocation);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
   V8_WARN_UNUSED_RESULT bool ResolveVariable(ParseInfo* info,
