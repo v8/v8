@@ -5,6 +5,7 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
+#include "src/frames.h"
 #include "src/interface-descriptors.h"
 #include "src/type-hints.h"
 
@@ -14,6 +15,8 @@ namespace internal {
 // Forward declarations.
 class CodeStubDescriptor;
 class Isolate;
+class MacroAssembler;
+class TurboAssembler;
 namespace compiler {
 class CodeAssemblerState;
 }

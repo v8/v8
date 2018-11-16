@@ -15,6 +15,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/regexp-match-info.h"

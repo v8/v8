@@ -13,6 +13,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/counters.h"
 #include "src/interface-descriptors.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

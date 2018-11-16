@@ -10,11 +10,9 @@
 #define V8_ARM_MACRO_ASSEMBLER_ARM_H_
 
 #include "src/arm/assembler-arm.h"
-#include "src/assembler.h"
 #include "src/bailout-reason.h"
 #include "src/contexts.h"
 #include "src/globals.h"
-#include "src/turbo-assembler.h"
 
 namespace v8 {
 namespace internal {

@@ -14,6 +14,7 @@
 #include "src/interpreter/interpreter-generator.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"

@@ -7,6 +7,7 @@
 
 #include <functional>
 
+#include "src/bailout-reason.h"
 #include "src/base/macros.h"
 #include "src/compiler/code-assembler.h"
 #include "src/globals.h"

@@ -15,7 +15,6 @@
 #include "src/bailout-reason.h"
 #include "src/base/bits.h"
 #include "src/globals.h"
-#include "src/turbo-assembler.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR

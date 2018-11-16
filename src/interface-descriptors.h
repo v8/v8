@@ -7,10 +7,10 @@
 
 #include <memory>
 
-#include "src/assembler.h"
+#include "src/assembler-arch.h"
 #include "src/globals.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
+#include "src/machine-type.h"
 
 namespace v8 {
 namespace internal {

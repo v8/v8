@@ -4,6 +4,8 @@
 
 #include "src/interface-descriptors.h"
 
+#include "src/macro-assembler.h"
+
 namespace v8 {
 namespace internal {
 
