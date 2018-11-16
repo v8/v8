@@ -43,7 +43,6 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects.h"
-#include "src/register-configuration.h"
 #include "src/reglist.h"
 #include "src/reloc-info.h"
 

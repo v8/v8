@@ -14,6 +14,7 @@
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/smi.h"
+#include "src/register-configuration.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 

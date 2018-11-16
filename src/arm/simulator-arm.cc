@@ -16,6 +16,7 @@
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime-utils.h"
 
 #if defined(USE_SIMULATOR)
