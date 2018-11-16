@@ -1168,7 +1168,10 @@ void Scanner::SeekNext(size_t position) {
   // 1, Reset the current_, next_ and next_next_ tokens
   //    (next_ + next_next_ will be overwrittem by Next(),
   //     current_ will remain unchanged, so overwrite it fully.)
-  for (TokenDesc& token : token_storage_) token.token = Token::UNINITIALIZED;
+  for (TokenDesc& token : token_storage_) {
+    token.token = Token::UNINITIALIZED;
+    token.invalid_template_escape_message = MessageTemplate::kNone;
+  }
   // 2, reset the source to the desired position,
   source_->Seek(position);
   // 3, re-scan, by scanning the look-ahead char + 1 token (next_).
