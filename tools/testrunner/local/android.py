@@ -9,6 +9,7 @@ Wrapper around the Android device abstraction from src/build/android.
 import logging
 import os
 import sys
+import time
 
 
 BASE_DIR = os.path.normpath(
@@ -50,8 +51,14 @@ class _Driver(object):
     devil_chromium.Initialize()
 
     if not device:
-      # Detect attached device if not specified.
-      devices = adb_wrapper.AdbWrapper.Devices()
+      # Detect attached device if not specified. Retry 3 times with 60 second
+      # sleep in-between.
+      for _ in range(3):
+        devices = adb_wrapper.AdbWrapper.Devices()
+        if devices:
+          break
+        logging.warning('Failed to detect device. Will retry in 60 secs...')
+        time.sleep(60)
       assert devices, 'No devices detected'
       assert len(devices) == 1, 'Multiple devices detected.'
       device = str(devices[0])
