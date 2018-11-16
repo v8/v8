@@ -613,6 +613,7 @@ TEST(FwPermuted_diamond) { RunAllPermutations<4>(RunPermutedDiamond); }
 
 
 void ApplyForwarding(TestCode& code, int size, int* forward) {
+  code.sequence_.RecomputeAssemblyOrderForTesting();
   ZoneVector<RpoNumber> vector(code.main_zone());
   for (int i = 0; i < size; i++) {
     vector.push_back(RpoNumber::FromInt(forward[i]));

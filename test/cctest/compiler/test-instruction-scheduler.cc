@@ -14,13 +14,11 @@ namespace compiler {
 
 // Create InstructionBlocks with a single block.
 InstructionBlocks* CreateSingleBlock(Zone* zone) {
-  InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
-  new (blocks) InstructionBlocks(1, nullptr, zone);
   InstructionBlock* block = new (zone)
       InstructionBlock(zone, RpoNumber::FromInt(0), RpoNumber::Invalid(),
                        RpoNumber::Invalid(), false, false);
-  block->set_ao_number(RpoNumber::FromInt(0));
-  (*blocks)[0] = block;
+  InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
+  new (blocks) InstructionBlocks(1, block, zone);
   return blocks;
 }
 

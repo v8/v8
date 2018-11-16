@@ -636,17 +636,12 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
     : successors_(zone),
       predecessors_(zone),
       phis_(zone),
-      ao_number_(rpo_number),
+      ao_number_(RpoNumber::Invalid()),
       rpo_number_(rpo_number),
       loop_header_(loop_header),
       loop_end_(loop_end),
-      code_start_(-1),
-      code_end_(-1),
       deferred_(deferred),
-      handler_(handler),
-      needs_frame_(false),
-      must_construct_frame_(false),
-      must_deconstruct_frame_(false) {}
+      handler_(handler) {}
 
 size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {
   size_t j = 0;
@@ -748,7 +743,6 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     DCHECK(GetRpo(*it).ToSize() == rpo_number);
     (*blocks)[rpo_number] = InstructionBlockFor(zone, *it);
   }
-  ComputeAssemblyOrder(blocks);
   return blocks;
 }
 
@@ -807,18 +801,59 @@ void InstructionSequence::ValidateSSA() const {
   }
 }
 
-void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
+void InstructionSequence::ComputeAssemblyOrder() {
   int ao = 0;
-  for (InstructionBlock* const block : *blocks) {
-    if (!block->IsDeferred()) {
+  RpoNumber invalid = RpoNumber::Invalid();
+
+  ao_blocks_ = zone()->NewArray<InstructionBlocks>(1);
+  new (ao_blocks_) InstructionBlocks(zone());
+  ao_blocks_->reserve(instruction_blocks_->size());
+
+  // Place non-deferred blocks.
+  for (InstructionBlock* const block : *instruction_blocks_) {
+    DCHECK_NOT_NULL(block);
+    if (block->IsDeferred()) continue;            // skip deferred blocks.
+    if (block->ao_number() != invalid) continue;  // loop rotated.
+    if (block->IsLoopHeader()) {
+      bool header_align = true;
+      if (FLAG_turbo_loop_rotation) {
+        // Perform loop rotation for non-deferred loops.
+        InstructionBlock* loop_end =
+            instruction_blocks_->at(block->loop_end().ToSize() - 1);
+        if (loop_end->SuccessorCount() == 1 && /* ends with goto */
+            loop_end != block /* not a degenerate infinite loop */) {
+          // If the last block has an unconditional jump back to the header,
+          // then move it to be in front of the header in the assembly order.
+          DCHECK_EQ(block->rpo_number(), loop_end->successors()[0]);
+          loop_end->set_ao_number(RpoNumber::FromInt(ao++));
+          ao_blocks_->push_back(loop_end);
+          // This block will be the new machine-level loop header, so align
+          // this block instead of the loop header block.
+          loop_end->set_alignment(true);
+          header_align = false;
+        }
+      }
+      block->set_alignment(header_align);
+    }
+    block->set_ao_number(RpoNumber::FromInt(ao++));
+    ao_blocks_->push_back(block);
+  }
+  // Add all leftover (deferred) blocks.
+  for (InstructionBlock* const block : *instruction_blocks_) {
+    if (block->ao_number() == invalid) {
       block->set_ao_number(RpoNumber::FromInt(ao++));
+      ao_blocks_->push_back(block);
     }
   }
-  for (InstructionBlock* const block : *blocks) {
-    if (block->IsDeferred()) {
-      block->set_ao_number(RpoNumber::FromInt(ao++));
-    }
+  DCHECK_EQ(instruction_blocks_->size(), ao);
+}
+
+void InstructionSequence::RecomputeAssemblyOrderForTesting() {
+  RpoNumber invalid = RpoNumber::Invalid();
+  for (InstructionBlock* block : *instruction_blocks_) {
+    block->set_ao_number(invalid);
   }
+  ComputeAssemblyOrder();
 }
 
 InstructionSequence::InstructionSequence(Isolate* isolate,
@@ -827,6 +862,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
     : isolate_(isolate),
       zone_(instruction_zone),
       instruction_blocks_(instruction_blocks),
+      ao_blocks_(nullptr),
       source_positions_(zone()),
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
@@ -837,7 +873,9 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       representations_(zone()),
       representation_mask_(0),
       deoptimization_entries_(zone()),
-      current_block_(nullptr) {}
+      current_block_(nullptr) {
+  ComputeAssemblyOrder();
+}
 
 int InstructionSequence::NextVirtualRegister() {
   int virtual_register = next_virtual_register_++;

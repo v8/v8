@@ -381,19 +381,12 @@ class TestEnvironment : public HandleAndZoneScope {
   static constexpr int kDoubleConstantCount = 4;
 
   TestEnvironment()
-      : blocks_(1, main_zone()),
+      : blocks_(1, NewBlock(main_zone(), RpoNumber::FromInt(0)), main_zone()),
         code_(main_isolate(), main_zone(), &blocks_),
         rng_(CcTest::random_number_generator()),
         supported_reps_({MachineRepresentation::kTagged,
                          MachineRepresentation::kFloat32,
                          MachineRepresentation::kFloat64}) {
-    // Create and initialize a single empty block in blocks_.
-    InstructionBlock* block = new (main_zone()) InstructionBlock(
-        main_zone(), RpoNumber::FromInt(0), RpoNumber::Invalid(),
-        RpoNumber::Invalid(), false, false);
-    block->set_ao_number(RpoNumber::FromInt(0));
-    blocks_[0] = block;
-
     stack_slot_count_ =
         kTaggedSlotCount + kFloat32SlotCount + kFloat64SlotCount;
     if (TestSimd128Moves()) {
@@ -923,6 +916,11 @@ class TestEnvironment : public HandleAndZoneScope {
     int index =
         rng_->NextInt(static_cast<int>(allocated_constants_[rep].size()));
     return allocated_constants_[rep][index];
+  }
+
+  static InstructionBlock* NewBlock(Zone* zone, RpoNumber rpo) {
+    return new (zone) InstructionBlock(zone, rpo, RpoNumber::Invalid(),
+                                       RpoNumber::Invalid(), false, false);
   }
 
   v8::base::RandomNumberGenerator* rng() const { return rng_; }

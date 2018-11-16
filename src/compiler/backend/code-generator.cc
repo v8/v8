@@ -195,78 +195,71 @@ void CodeGenerator::AssembleCode() {
     block_starts_.assign(code()->instruction_blocks().size(), -1);
     instr_starts_.assign(code()->instructions().size(), -1);
   }
-  // Assemble all non-deferred blocks, followed by deferred ones.
-  for (int deferred = 0; deferred < 2; ++deferred) {
-    for (const InstructionBlock* block : code()->instruction_blocks()) {
-      if (block->IsDeferred() == (deferred == 0)) {
-        continue;
-      }
 
-      // Align loop headers on 16-byte boundaries.
-      if (block->IsLoopHeader() && !tasm()->jump_optimization_info()) {
-        tasm()->Align(16);
-      }
-      if (info->trace_turbo_json_enabled()) {
-        block_starts_[block->rpo_number().ToInt()] = tasm()->pc_offset();
-      }
-      // Bind a label for a block.
-      current_block_ = block->rpo_number();
-      unwinding_info_writer_.BeginInstructionBlock(tasm()->pc_offset(), block);
-      if (FLAG_code_comments) {
-        Vector<char> buffer = Vector<char>::New(200);
-        char* buffer_start = buffer.start();
-        LSAN_IGNORE_OBJECT(buffer_start);
-
-        int next = SNPrintF(
-            buffer, "-- B%d start%s%s%s%s", block->rpo_number().ToInt(),
-            block->IsDeferred() ? " (deferred)" : "",
-            block->needs_frame() ? "" : " (no frame)",
-            block->must_construct_frame() ? " (construct frame)" : "",
-            block->must_deconstruct_frame() ? " (deconstruct frame)" : "");
-
-        buffer = buffer.SubVector(next, buffer.length());
-
-        if (block->IsLoopHeader()) {
-          next =
-              SNPrintF(buffer, " (loop up to %d)", block->loop_end().ToInt());
-          buffer = buffer.SubVector(next, buffer.length());
-        }
-        if (block->loop_header().IsValid()) {
-          next =
-              SNPrintF(buffer, " (in loop %d)", block->loop_header().ToInt());
-          buffer = buffer.SubVector(next, buffer.length());
-        }
-        SNPrintF(buffer, " --");
-        tasm()->RecordComment(buffer_start);
-      }
-
-      frame_access_state()->MarkHasFrame(block->needs_frame());
-
-      tasm()->bind(GetLabel(current_block_));
-
-      TryInsertBranchPoisoning(block);
-
-      if (block->must_construct_frame()) {
-        AssembleConstructFrame();
-        // We need to setup the root register after we assemble the prologue, to
-        // avoid clobbering callee saved registers in case of C linkage and
-        // using the roots.
-        // TODO(mtrofin): investigate how we can avoid doing this repeatedly.
-        if (linkage()->GetIncomingDescriptor()->InitializeRootRegister()) {
-          tasm()->InitializeRootRegister();
-        }
-      }
-
-      if (FLAG_enable_embedded_constant_pool && !block->needs_frame()) {
-        ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
-        result_ = AssembleBlock(block);
-      } else {
-        result_ = AssembleBlock(block);
-      }
-      if (result_ != kSuccess) return;
-      unwinding_info_writer_.EndInstructionBlock(block);
+  // Assemble instructions in assembly order.
+  for (const InstructionBlock* block : code()->ao_blocks()) {
+    // Align loop headers on 16-byte boundaries.
+    if (block->ShouldAlign() && !tasm()->jump_optimization_info()) {
+      tasm()->Align(16);
     }
-  }
+    if (info->trace_turbo_json_enabled()) {
+      block_starts_[block->rpo_number().ToInt()] = tasm()->pc_offset();
+    }
+    // Bind a label for a block.
+    current_block_ = block->rpo_number();
+    unwinding_info_writer_.BeginInstructionBlock(tasm()->pc_offset(), block);
+    if (FLAG_code_comments) {
+      Vector<char> buffer = Vector<char>::New(200);
+      char* buffer_start = buffer.start();
+      LSAN_IGNORE_OBJECT(buffer_start);
+
+      int next = SNPrintF(
+          buffer, "-- B%d start%s%s%s%s", block->rpo_number().ToInt(),
+          block->IsDeferred() ? " (deferred)" : "",
+          block->needs_frame() ? "" : " (no frame)",
+          block->must_construct_frame() ? " (construct frame)" : "",
+          block->must_deconstruct_frame() ? " (deconstruct frame)" : "");
+
+      buffer = buffer.SubVector(next, buffer.length());
+
+      if (block->IsLoopHeader()) {
+        next = SNPrintF(buffer, " (loop up to %d)", block->loop_end().ToInt());
+        buffer = buffer.SubVector(next, buffer.length());
+      }
+      if (block->loop_header().IsValid()) {
+        next = SNPrintF(buffer, " (in loop %d)", block->loop_header().ToInt());
+        buffer = buffer.SubVector(next, buffer.length());
+      }
+      SNPrintF(buffer, " --");
+      tasm()->RecordComment(buffer_start);
+    }
+
+    frame_access_state()->MarkHasFrame(block->needs_frame());
+
+    tasm()->bind(GetLabel(current_block_));
+
+    TryInsertBranchPoisoning(block);
+
+    if (block->must_construct_frame()) {
+      AssembleConstructFrame();
+      // We need to setup the root register after we assemble the prologue, to
+      // avoid clobbering callee saved registers in case of C linkage and
+      // using the roots.
+      // TODO(mtrofin): investigate how we can avoid doing this repeatedly.
+      if (linkage()->GetIncomingDescriptor()->InitializeRootRegister()) {
+        tasm()->InitializeRootRegister();
+      }
+    }
+
+    if (FLAG_enable_embedded_constant_pool && !block->needs_frame()) {
+      ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
+      result_ = AssembleBlock(block);
+    } else {
+      result_ = AssembleBlock(block);
+    }
+    if (result_ != kSuccess) return;
+    unwinding_info_writer_.EndInstructionBlock(block);
+    }
 
   // Assemble all out-of-line code.
   if (ools_) {

@@ -197,19 +197,12 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
     }
   }
 
-  // Recompute assembly order numbers.
+  // Renumber the blocks so that IsNextInAssemblyOrder() will return true,
+  // even if there are skipped blocks in-between.
   int ao = 0;
-  for (auto const block : code->instruction_blocks()) {
-    if (!block->IsDeferred()) {
-      block->set_ao_number(RpoNumber::FromInt(ao));
-      if (!skip[block->rpo_number().ToInt()]) ao++;
-    }
-  }
-  for (auto const block : code->instruction_blocks()) {
-    if (block->IsDeferred()) {
-      block->set_ao_number(RpoNumber::FromInt(ao));
-      if (!skip[block->rpo_number().ToInt()]) ao++;
-    }
+  for (auto const block : code->ao_blocks()) {
+    block->set_ao_number(RpoNumber::FromInt(ao));
+    if (!skip[block->rpo_number().ToInt()]) ao++;
   }
 }
 

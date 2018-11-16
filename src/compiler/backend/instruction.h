@@ -1386,6 +1386,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
     return loop_end_;
   }
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
+  inline bool ShouldAlign() const { return alignment_; }
 
   typedef ZoneVector<RpoNumber> Predecessors;
   Predecessors& predecessors() { return predecessors_; }
@@ -1405,6 +1406,8 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   void set_ao_number(RpoNumber ao_number) { ao_number_ = ao_number; }
 
+  void set_alignment(bool val) { alignment_ = val; }
+
   bool needs_frame() const { return needs_frame_; }
   void mark_needs_frame() { needs_frame_ = true; }
 
@@ -1423,12 +1426,13 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   const RpoNumber loop_header_;
   const RpoNumber loop_end_;
   int32_t code_start_;   // start index of arch-specific code.
-  int32_t code_end_;     // end index of arch-specific code.
-  const bool deferred_;  // Block contains deferred code.
+  int32_t code_end_ = -1;     // end index of arch-specific code.
+  const bool deferred_ = -1;  // Block contains deferred code.
   const bool handler_;   // Block is a handler entry point.
-  bool needs_frame_;
-  bool must_construct_frame_;
-  bool must_deconstruct_frame_;
+  bool alignment_ = false;  // insert alignment before this block
+  bool needs_frame_ = false;
+  bool must_construct_frame_ = false;
+  bool must_deconstruct_frame_ = false;
 };
 
 class InstructionSequence;
@@ -1461,9 +1465,6 @@ class V8_EXPORT_PRIVATE InstructionSequence final
  public:
   static InstructionBlocks* InstructionBlocksFor(Zone* zone,
                                                  const Schedule* schedule);
-  // Puts the deferred blocks last.
-  static void ComputeAssemblyOrder(InstructionBlocks* blocks);
-
   InstructionSequence(Isolate* isolate, Zone* zone,
                       InstructionBlocks* instruction_blocks);
 
@@ -1473,6 +1474,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   const InstructionBlocks& instruction_blocks() const {
     return *instruction_blocks_;
   }
+
+  const InstructionBlocks& ao_blocks() const { return *ao_blocks_; }
 
   int InstructionBlockCount() const {
     return static_cast<int>(instruction_blocks_->size());
@@ -1618,6 +1621,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
       const RegisterConfiguration* regConfig);
   static void ClearRegisterConfigurationForTesting();
 
+  void RecomputeAssemblyOrderForTesting();
+
  private:
   friend V8_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os, const PrintableInstructionSequence& code);
@@ -1627,9 +1632,13 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   static const RegisterConfiguration* RegisterConfigurationForTesting();
   static const RegisterConfiguration* registerConfigurationForTesting_;
 
+  // Puts the deferred blocks last and may rotate loops.
+  void ComputeAssemblyOrder();
+
   Isolate* isolate_;
   Zone* const zone_;
   InstructionBlocks* const instruction_blocks_;
+  InstructionBlocks* ao_blocks_;
   SourcePositionMap source_positions_;
   ConstantMap constants_;
   Immediates immediates_;
