@@ -9845,14 +9845,20 @@ TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVector(
     SloppyTNode<JSFunction> closure, Label* if_undefined) {
-  TNode<FeedbackCell> feedback_cell =
-      CAST(LoadObjectField(closure, JSFunction::kFeedbackCellOffset));
-  TNode<Object> maybe_vector =
-      LoadObjectField(feedback_cell, FeedbackCell::kValueOffset);
+  TNode<Object> maybe_vector = LoadFeedbackVectorUnchecked(closure);
   if (if_undefined) {
     GotoIf(IsUndefined(maybe_vector), if_undefined);
   }
   return CAST(maybe_vector);
+}
+
+TNode<Object> CodeStubAssembler::LoadFeedbackVectorUnchecked(
+    SloppyTNode<JSFunction> closure) {
+  TNode<FeedbackCell> feedback_cell =
+      CAST(LoadObjectField(closure, JSFunction::kFeedbackCellOffset));
+  TNode<Object> maybe_vector =
+      LoadObjectField(feedback_cell, FeedbackCell::kValueOffset);
+  return maybe_vector;
 }
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
@@ -9861,16 +9867,20 @@ TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
   return LoadFeedbackVector(function);
 }
 
-void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
+void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* maybe_vector,
                                        Node* slot_id) {
+  Label end(this);
+  // If feedback_vector is not valid, then nothing to do.
+  GotoIf(IsUndefined(maybe_vector), &end);
+
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
+  TNode<FeedbackVector> feedback_vector = CAST(maybe_vector);
   TNode<MaybeObject> feedback_element =
       LoadFeedbackVectorSlot(feedback_vector, slot_id);
   TNode<Smi> previous_feedback = CAST(feedback_element);
   TNode<Smi> combined_feedback = SmiOr(previous_feedback, CAST(feedback));
-  Label end(this);
 
   GotoIf(SmiEqual(previous_feedback, combined_feedback), &end);
   {

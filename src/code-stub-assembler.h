@@ -2789,6 +2789,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<FeedbackVector> LoadFeedbackVector(SloppyTNode<JSFunction> closure,
                                            Label* if_undefined = nullptr);
 
+  // Load the object from feedback vector cell for the given closure.
+  // The returned object could be undefined if the closure does not have
+  // a feedback vector associated with it.
+  TNode<Object> LoadFeedbackVectorUnchecked(SloppyTNode<JSFunction> closure);
+
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
 
