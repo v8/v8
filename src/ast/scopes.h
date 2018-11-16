@@ -755,7 +755,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // declared in the scope. It will add a variable for {name} to {variables_};
   // either the function variable itself, or a non-local in case the function
   // calls sloppy eval.
-  Variable* DeclareFunctionVar(const AstRawString* name);
+  Variable* DeclareFunctionVar(const AstRawString* name,
+                               Scope* cache = nullptr);
 
   // Declare some special internal variables which must be accessible to
   // Ignition without ScopeInfo.
