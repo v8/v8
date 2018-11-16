@@ -564,9 +564,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       // example, that does not prevent hoisting of the function in
       // `{ let e; try {} catch (e) { function e(){} } }`
       do {
-        var = query_scope->scope_info_.is_null()
-                  ? query_scope->LookupLocal(name)
-                  : query_scope->LookupInScopeInfo(name, query_scope);
+        var = query_scope->LookupInScopeOrScopeInfo(name);
         if (var != nullptr && IsLexical(var)) {
           should_hoist = false;
           break;
@@ -924,8 +922,7 @@ void Scope::ReplaceOuterScope(Scope* outer) {
 
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!scope_info_.is_null());
-  Variable* cached = cache->variables_.Lookup(name);
-  if (cached) return cached;
+  DCHECK_NULL(cache->variables_.Lookup(name));
 
   Handle<String> name_handle = name->string();
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
@@ -959,7 +956,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
     Variable* var = AsDeclarationScope()->DeclareFunctionVar(name, cache);
     DCHECK_EQ(VariableMode::kConst, var->mode());
     var->AllocateTo(VariableLocation::CONTEXT, index);
-    return variables_.Lookup(name);
+    return cache->variables_.Lookup(name);
   }
 
   VariableKind kind = NORMAL_VARIABLE;
@@ -1813,6 +1810,12 @@ template <Scope::ScopeLookupMode mode>
 Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
                         Scope* outer_scope_end, bool force_context_allocation) {
   Scope* entry_point = scope;
+
+  if (mode == kDeserializedScope) {
+    Variable* var = entry_point->variables_.Lookup(proxy->raw_name());
+    if (var != nullptr) return var;
+  }
+
   while (true) {
     DCHECK_IMPLIES(mode == kParsedScope, !scope->is_debug_evaluate_scope_);
     // Short-cut: whenever we find a debug-evaluate scope, just look everything
@@ -1824,7 +1827,7 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     // the scopes in which it's evaluating.
     if (mode == kDeserializedScope &&
         V8_UNLIKELY(scope->is_debug_evaluate_scope_)) {
-      return scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
+      return entry_point->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
     }
 
     // Try to find the variable in this scope.

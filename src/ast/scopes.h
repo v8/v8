@@ -481,11 +481,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return false;
   }
 
+  Variable* LookupInScopeOrScopeInfo(const AstRawString* name) {
+    Variable* var = variables_.Lookup(name);
+    if (var != nullptr || scope_info_.is_null()) return var;
+    return LookupInScopeInfo(name, this);
+  }
+
   Variable* LookupForTesting(const AstRawString* name) {
     for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
-      Variable* var = scope->scope_info_.is_null()
-                          ? scope->LookupLocal(name)
-                          : scope->LookupInScopeInfo(name, scope);
+      Variable* var = scope->LookupInScopeOrScopeInfo(name);
       if (var != nullptr) return var;
     }
     return nullptr;
@@ -709,7 +713,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   Variable* LookupInModule(const AstRawString* name) {
     DCHECK(is_module_scope());
-    Variable* var = LookupInScopeInfo(name, this);
+    Variable* var = variables_.Lookup(name);
     DCHECK_NOT_NULL(var);
     return var;
   }
