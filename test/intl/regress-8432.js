@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Somehow only ar-SA fail on Android in regress-8413*.js
-// Split it into this test just for ar-SA
-// This is likely to be an ICU data trimming issue only apply to Android.
+// Somehow only ar-SA fails on Android in regress-8413*.js.
+// Split it into this test just for ar-SA.
+// This is likely to be caused by an Android-specific ICU data trimming.
 let locales = [ "ar-SA" ];
 
 // "Table 5: Components of date and time formats" as in
