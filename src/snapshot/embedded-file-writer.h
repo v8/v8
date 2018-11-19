@@ -44,7 +44,7 @@ class PlatformDependentEmbeddedFileWriter final {
   void DeclareFunctionEnd(const char* name);
 
   // Returns the number of printed characters.
-  int HexLiteral(int value);
+  int HexLiteral(uint64_t value);
 
   void Comment(const char* string);
   void Newline() { fprintf(fp_, "\n"); }
@@ -203,7 +203,29 @@ class EmbeddedFileWriter {
     w->FileEpilogue();
   }
 
-  static int WriteOcta(FILE* fp, int current_line_length, const uint8_t* data) {
+#ifdef V8_OS_WIN
+  // Windows MASM doesn't have an .octa directive, use QWORDs instead.
+  // Note: MASM *really* does not like large data streams. It takes over 5
+  // minutes to assemble the ~350K lines of embedded.S produced when using
+  // BYTE directives in a debug build. QWORD produces roughly 120KLOC and
+  // reduces assembly time to ~40 seconds. Still terrible, but much better
+  // than before.
+  // TODO(v8:8475): Use nasm or yasm instead of MASM.
+
+  static constexpr DataDirective kByteChunkDirective = kQuad;
+  static constexpr int kByteChunkSize = 8;
+
+  static int WriteByteChunk(PlatformDependentEmbeddedFileWriter* w,
+                            int current_line_length, const uint8_t* data) {
+    const uint64_t* quad_ptr = reinterpret_cast<const uint64_t*>(data);
+    return current_line_length + w->HexLiteral(*quad_ptr);
+  }
+#else  // V8_OS_WIN
+  static constexpr DataDirective kByteChunkDirective = kOcta;
+  static constexpr int kByteChunkSize = 16;
+
+  static int WriteByteChunk(PlatformDependentEmbeddedFileWriter* w,
+                            int current_line_length, const uint8_t* data) {
     const uint64_t* quad_ptr1 = reinterpret_cast<const uint64_t*>(data);
     const uint64_t* quad_ptr2 = reinterpret_cast<const uint64_t*>(data + 8);
 
@@ -217,12 +239,13 @@ class EmbeddedFileWriter {
 
     if (part1 != 0) {
       current_line_length +=
-          fprintf(fp, "0x%" PRIx64 "%016" PRIx64, part1, part2);
+          fprintf(w->fp(), "0x%" PRIx64 "%016" PRIx64, part1, part2);
     } else {
-      current_line_length += fprintf(fp, "0x%" PRIx64, part2);
+      current_line_length += fprintf(w->fp(), "0x%" PRIx64, part2);
     }
     return current_line_length;
   }
+#endif  // V8_OS_WIN
 
   static int WriteDirectiveOrSeparator(PlatformDependentEmbeddedFileWriter* w,
                                        int current_line_length,
@@ -238,14 +261,14 @@ class EmbeddedFileWriter {
     return current_line_length + printed_chars;
   }
 
-  static int WriteLineEndIfNeeded(FILE* fp, int current_line_length,
-                                  int write_size) {
-    static const int kTextWidth = 80;
+  static int WriteLineEndIfNeeded(PlatformDependentEmbeddedFileWriter* w,
+                                  int current_line_length, int write_size) {
+    static const int kTextWidth = 100;
     // Check if adding ',0xFF...FF\n"' would force a line wrap. This doesn't use
     // the actual size of the string to be written to determine this so it's
     // more conservative than strictly needed.
     if (current_line_length + strlen(",0x") + write_size * 2 > kTextWidth) {
-      fprintf(fp, "\n");
+      fprintf(w->fp(), "\n");
       return 0;
     } else {
       return current_line_length;
@@ -258,24 +281,24 @@ class EmbeddedFileWriter {
     int current_line_length = 0;
 
     uint32_t i = 0;
-#ifndef V8_OS_WIN
-    const uint32_t size_of_octa = 16;
-    for (; i <= size - size_of_octa; i += size_of_octa) {
+
+    // Begin by writing out byte chunks.
+    for (; i <= size - kByteChunkSize; i += kByteChunkSize) {
+      current_line_length = WriteDirectiveOrSeparator(w, current_line_length,
+                                                      kByteChunkDirective);
+      current_line_length = WriteByteChunk(w, current_line_length, data + i);
       current_line_length =
-          WriteDirectiveOrSeparator(w, current_line_length, kOcta);
-      current_line_length = WriteOcta(w->fp(), current_line_length, data + i);
-      current_line_length =
-          WriteLineEndIfNeeded(w->fp(), current_line_length, size_of_octa);
+          WriteLineEndIfNeeded(w, current_line_length, kByteChunkSize);
     }
     if (current_line_length != 0) w->Newline();
     current_line_length = 0;
-#endif
+
+    // Write any trailing bytes one-by-one.
     for (; i < size; i++) {
       current_line_length =
           WriteDirectiveOrSeparator(w, current_line_length, kByte);
       current_line_length += w->HexLiteral(data[i]);
-      current_line_length =
-          WriteLineEndIfNeeded(w->fp(), current_line_length, 1);
+      current_line_length = WriteLineEndIfNeeded(w, current_line_length, 1);
     }
     if (current_line_length != 0) w->Newline();
   }

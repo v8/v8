@@ -4,6 +4,8 @@
 
 #include "src/snapshot/embedded-file-writer.h"
 
+#include <cinttypes>
+
 namespace v8 {
 namespace internal {
 
@@ -117,8 +119,8 @@ void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionEnd(const char* name) {
 }
 
-int PlatformDependentEmbeddedFileWriter::HexLiteral(int value) {
-  return fprintf(fp_, "0x%x", value);
+int PlatformDependentEmbeddedFileWriter::HexLiteral(uint64_t value) {
+  return fprintf(fp_, "0x%" PRIx64, value);
 }
 
 void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
@@ -194,8 +196,8 @@ void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionEnd(const char* name) {
 }
 
-int PlatformDependentEmbeddedFileWriter::HexLiteral(int value) {
-  return fprintf(fp_, "0x%x", value);
+int PlatformDependentEmbeddedFileWriter::HexLiteral(uint64_t value) {
+  return fprintf(fp_, "0x%" PRIx64, value);
 }
 
 void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
@@ -292,8 +294,8 @@ void PlatformDependentEmbeddedFileWriter::DeclareFunctionEnd(const char* name) {
 #endif
 }
 
-int PlatformDependentEmbeddedFileWriter::HexLiteral(int value) {
-  return fprintf(fp_, "0%xh", value);
+int PlatformDependentEmbeddedFileWriter::HexLiteral(uint64_t value) {
+  return fprintf(fp_, "0%" PRIx64 "h", value);
 }
 
 void PlatformDependentEmbeddedFileWriter::FilePrologue() {
@@ -383,8 +385,8 @@ void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionEnd(const char* name) {
 }
 
-int PlatformDependentEmbeddedFileWriter::HexLiteral(int value) {
-  return fprintf(fp_, "0x%x", value);
+int PlatformDependentEmbeddedFileWriter::HexLiteral(uint64_t value) {
+  return fprintf(fp_, "0x%" PRIx64, value);
 }
 
 void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
