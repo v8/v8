@@ -1512,10 +1512,7 @@ void JSHeapBroker::Retire() {
   mode_ = kRetired;
 }
 
-bool JSHeapBroker::SerializingAllowed() const {
-  return mode() == kSerializing ||
-         (!FLAG_strict_heap_broker && mode() == kSerialized);
-}
+bool JSHeapBroker::SerializingAllowed() const { return mode() == kSerializing; }
 
 void JSHeapBroker::SetNativeContextRef() {
   native_context_ = NativeContextRef(this, isolate()->native_context());
@@ -2350,8 +2347,7 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
     : broker_(broker) {
   switch (broker->mode()) {
     case JSHeapBroker::kSerialized:
-      data_ = FLAG_strict_heap_broker ? broker->GetData(object)
-                                      : broker->GetOrCreateData(object);
+      data_ = broker->GetData(object);
       break;
     case JSHeapBroker::kSerializing:
       data_ = broker->GetOrCreateData(object);
