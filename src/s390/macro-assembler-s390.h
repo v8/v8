@@ -9,7 +9,6 @@
 #ifndef V8_S390_MACRO_ASSEMBLER_S390_H_
 #define V8_S390_MACRO_ASSEMBLER_S390_H_
 
-#include "src/assembler.h"
 #include "src/bailout-reason.h"
 #include "src/contexts.h"
 #include "src/globals.h"
