@@ -7092,9 +7092,40 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     return NoChange();
   }
   // If "exec" has been modified on {regexp}, we can't do anything.
-  if (!ai_exec.IsDataConstant()) return NoChange();
-  Handle<Object> exec_on_proto = ai_exec.constant();
-  if (*exec_on_proto != *isolate()->regexp_exec_function()) return NoChange();
+  if (ai_exec.IsDataConstant()) {
+    if (ai_exec.constant().is_identical_to(isolate()->regexp_exec_function())) {
+      return NoChange();
+    }
+  } else if (ai_exec.IsDataConstantField()) {
+    Handle<JSObject> holder;
+    // Do not reduce if the exec method is not on the prototype chain.
+    if (!ai_exec.holder().ToHandle(&holder)) return NoChange();
+
+    // Bail out if the exec method is not the original one.
+    Handle<Object> constant = JSObject::FastPropertyAt(
+        holder, Representation::Tagged(), ai_exec.field_index());
+    if (!constant.is_identical_to(isolate()->regexp_exec_function())) {
+      return NoChange();
+    }
+
+    // Protect the prototype chain from changes.
+    dependencies()->DependOnStablePrototypeChains(
+        broker(), ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
+
+    // Protect the exec method change in the holder.
+    Handle<Object> exec_on_proto;
+    Handle<Map> holder_map(holder->map(), isolate());
+    Handle<DescriptorArray> descriptors(holder_map->instance_descriptors(),
+                                        isolate());
+    int descriptor_index =
+        descriptors->Search(*(factory()->exec_string()), *holder_map);
+    CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
+
+    dependencies()->DependOnFieldType(MapRef(broker(), holder_map),
+                                      descriptor_index);
+  } else {
+    return NoChange();
+  }
 
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
