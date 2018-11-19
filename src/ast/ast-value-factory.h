@@ -363,7 +363,8 @@ class AstValueFactory {
   const AstConsString* empty_cons_string_;
 
   // Caches one character lowercase strings (for minified code).
-  AstRawString* one_character_strings_[26];
+  static const int kMaxOneCharStringValue = 128;
+  AstRawString* one_character_strings_[kMaxOneCharStringValue];
 
   Zone* zone_;
 
