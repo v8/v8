@@ -861,6 +861,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       if (property_details.cell_type() == PropertyCellType::kConstant ||
           property_details.cell_type() == PropertyCellType::kUndefined) {
         value = jsgraph()->Constant(property_cell_value);
+        CHECK(
+            !property_cell_value.is_identical_to(factory()->the_hole_value()));
       } else {
         // Load from constant type cell can benefit from type feedback.
         MaybeHandle<Map> map;

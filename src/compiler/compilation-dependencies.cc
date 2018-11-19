@@ -203,6 +203,15 @@ class GlobalPropertyDependency final
 
   bool IsValid() const override {
     Handle<PropertyCell> cell = cell_.object();
+    // The dependency is never valid if the cell is 'invalidated'. This is
+    // marked by setting the value to the hole.
+    if (cell->value() == *(cell_.isolate()->factory()->the_hole_value())) {
+      DCHECK(cell->property_details().cell_type() ==
+                 PropertyCellType::kInvalidated ||
+             cell->property_details().cell_type() ==
+                 PropertyCellType::kUninitialized);
+      return false;
+    }
     return type_ == cell->property_details().cell_type() &&
            read_only_ == cell->property_details().IsReadOnly();
   }
