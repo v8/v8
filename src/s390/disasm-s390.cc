@@ -32,6 +32,7 @@
 #include "src/base/platform/platform.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
+#include "src/register-configuration.h"
 #include "src/s390/constants-s390.h"
 
 namespace v8 {

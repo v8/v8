@@ -17,6 +17,7 @@
 #include "src/ppc/constants-ppc.h"
 #include "src/ppc/frame-constants-ppc.h"
 #include "src/ppc/simulator-ppc.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime-utils.h"
 
 #if defined(USE_SIMULATOR)

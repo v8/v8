@@ -15,6 +15,7 @@
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/s390/constants-s390.h"
 #include "src/s390/simulator-s390.h"
