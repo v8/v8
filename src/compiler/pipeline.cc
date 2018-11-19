@@ -1933,7 +1933,6 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   RunPrintAndVerify(TyperPhase::phase_name());
   Run<TypedLoweringPhase>();
   RunPrintAndVerify(TypedLoweringPhase::phase_name());
-  data->DeleteTyper();
 
   if (data->info()->is_loop_peeling_enabled()) {
     Run<LoopPeelingPhase>();
@@ -1947,6 +1946,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     Run<LoadEliminationPhase>();
     RunPrintAndVerify(LoadEliminationPhase::phase_name());
   }
+  data->DeleteTyper();
 
   if (FLAG_turbo_escape) {
     Run<EscapeAnalysisPhase>();
