@@ -5960,6 +5960,13 @@ TNode<BoolT> CodeStubAssembler::IsTypedArraySpeciesProtectorCellInvalid() {
   return WordEqual(cell_value, invalid);
 }
 
+TNode<BoolT> CodeStubAssembler::IsRegExpSpeciesProtectorCellInvalid() {
+  Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
+  Node* cell = LoadRoot(RootIndex::kRegExpSpeciesProtector);
+  Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  return WordEqual(cell_value, invalid);
+}
+
 TNode<BoolT> CodeStubAssembler::IsPromiseSpeciesProtectorCellInvalid() {
   Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
   Node* cell = LoadRoot(RootIndex::kPromiseSpeciesProtector);

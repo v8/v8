@@ -2532,6 +2532,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       // Setup %RegExpPrototype%.
       Handle<JSObject> prototype(
           JSObject::cast(regexp_fun->instance_prototype()), isolate());
+      native_context()->set_regexp_prototype(*prototype);
 
       {
         Handle<JSFunction> fun = SimpleInstallFunction(

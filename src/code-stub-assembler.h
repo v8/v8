@@ -33,7 +33,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(PromiseSpeciesProtector, promise_species_protector,                    \
     PromiseSpeciesProtector)                                               \
   V(TypedArraySpeciesProtector, typed_array_species_protector,             \
-    TypedArraySpeciesProtector)
+    TypedArraySpeciesProtector)                                            \
+  V(RegExpSpeciesProtector, regexp_species_protector, RegExpSpeciesProtector)
 
 #define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                              \
   V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                     \
@@ -2136,6 +2137,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsPromiseThenProtectorCellInvalid();
   TNode<BoolT> IsArraySpeciesProtectorCellInvalid();
   TNode<BoolT> IsTypedArraySpeciesProtectorCellInvalid();
+  TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid();
   TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
 
   // True iff |object| is a Smi or a HeapNumber.

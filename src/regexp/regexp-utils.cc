@@ -172,6 +172,8 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
     }
   }
 
+  if (!isolate->IsRegExpSpeciesLookupChainIntact()) return false;
+
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.
   Object* last_index = JSRegExp::cast(recv)->last_index();
