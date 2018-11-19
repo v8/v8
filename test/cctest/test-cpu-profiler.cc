@@ -2561,9 +2561,9 @@ void ProfileSomeCode(v8::Isolate* isolate) {
   const char* source = R"(
       function foo() {
         var x = 0;
-        for (var i = 0; i < 1e4; i++) {
+        for (var i = 0; i < 1e3; i++) {
           for (var j = 0; j < 1e3; j++) {
-            x += i * j;
+            x = i * j;
           }
         }
         return x;
