@@ -312,7 +312,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
 
   TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
-  BaseBuiltinsFromDSLAssembler::IteratorRecord iterator =
+  IteratorBuiltinsFromDSLAssembler::IteratorRecord iterator =
       iterator_assembler.GetIterator(context, iterable);
 
   CSA_ASSERT(this, Word32BinaryNot(IsUndefined(iterator.object)));

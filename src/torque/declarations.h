@@ -56,7 +56,8 @@ class Declarations {
 
   static std::vector<Declarable*> LookupGlobalScope(const std::string& name);
 
-  static const Type* LookupType(const std::string& name);
+  static const Type* LookupType(const QualifiedName& name);
+  static const Type* LookupType(std::string name);
   static const Type* LookupGlobalType(const std::string& name);
   static const Type* GetType(TypeExpression* type_expression);
 

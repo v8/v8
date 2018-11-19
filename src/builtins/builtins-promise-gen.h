@@ -9,6 +9,7 @@
 #include "src/contexts.h"
 #include "src/objects/promise.h"
 #include "torque-generated/builtins-base-from-dsl-gen.h"
+#include "torque-generated/builtins-iterator-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -183,7 +184,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* PerformPromiseAll(
       Node* context, Node* constructor, Node* capability,
-      const BaseBuiltinsFromDSLAssembler::IteratorRecord& record,
+      const IteratorBuiltinsFromDSLAssembler::IteratorRecord& record,
       Label* if_exception, Variable* var_exception);
 
   void SetForwardingHandlerIfTrue(Node* context, Node* condition,

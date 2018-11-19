@@ -351,7 +351,8 @@ base::Optional<ParseResult> MakeDebugStatement(
 }
 
 base::Optional<ParseResult> MakeVoidType(ParseResultIterator* child_results) {
-  TypeExpression* result = MakeNode<BasicTypeExpression>(false, "void");
+  TypeExpression* result =
+      MakeNode<BasicTypeExpression>(std::vector<std::string>{}, false, "void");
   return ParseResult{result};
 }
 
@@ -563,10 +564,12 @@ base::Optional<ParseResult> StringLiteralUnquoteAction(
 
 base::Optional<ParseResult> MakeBasicTypeExpression(
     ParseResultIterator* child_results) {
+  auto namespace_qualification =
+      child_results->NextAs<std::vector<std::string>>();
   auto is_constexpr = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
-  TypeExpression* result =
-      MakeNode<BasicTypeExpression>(is_constexpr, std::move(name));
+  TypeExpression* result = MakeNode<BasicTypeExpression>(
+      std::move(namespace_qualification), is_constexpr, std::move(name));
   return ParseResult{result};
 }
 
@@ -845,7 +848,8 @@ base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
   }
   ParameterList parameters;
   parameters.names.push_back(variable);
-  parameters.types.push_back(MakeNode<BasicTypeExpression>(false, "Object"));
+  parameters.types.push_back(MakeNode<BasicTypeExpression>(
+      std::vector<std::string>{}, false, "Object"));
   parameters.has_varargs = false;
   LabelBlock* result =
       MakeNode<LabelBlock>("_catch", std::move(parameters), body);
@@ -899,10 +903,13 @@ base::Optional<ParseResult> MakeElementAccessExpression(
 
 base::Optional<ParseResult> MakeStructExpression(
     ParseResultIterator* child_results) {
+  auto namespace_qualification =
+      child_results->NextAs<std::vector<std::string>>();
   auto name = child_results->NextAs<std::string>();
   auto expressions = child_results->NextAs<std::vector<Expression*>>();
   Expression* result =
-      MakeNode<StructExpression>(std::move(name), std::move(expressions));
+      MakeNode<StructExpression>(std::move(namespace_qualification),
+                                 std::move(name), std::move(expressions));
   return ParseResult{result};
 }
 
@@ -1099,7 +1106,9 @@ struct TorqueGrammar : Grammar {
   // Result: TypeExpression*
   Symbol simpleType = {
       Rule({Token("("), &type, Token(")")}),
-      Rule({CheckIf(Token("constexpr")), &identifier}, MakeBasicTypeExpression),
+      Rule({List<std::string>(Sequence({&identifier, Token("::")})),
+            CheckIf(Token("constexpr")), &identifier},
+           MakeBasicTypeExpression),
       Rule({Token("builtin"), Token("("), typeList, Token(")"), Token("=>"),
             &simpleType},
            MakeFunctionTypeExpression)};
@@ -1235,9 +1244,10 @@ struct TorqueGrammar : Grammar {
            CastParseResult<LocationExpression*, Expression*>),
       Rule({&decimalLiteral}, MakeNumberLiteralExpression),
       Rule({&stringLiteral}, MakeStringLiteralExpression),
-      Rule({&identifier, Token("{"), List<Expression*>(expression, Token(",")),
-            Token("}")},
-           MakeStructExpression),
+      Rule(
+          {List<std::string>(Sequence({&identifier, Token("::")})), &identifier,
+           Token("{"), List<Expression*>(expression, Token(",")), Token("}")},
+          MakeStructExpression),
       Rule({Token("("), expression, Token(")")})};
 
   // Result: Expression*

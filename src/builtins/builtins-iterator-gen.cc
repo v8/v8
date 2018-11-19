@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-typedef BaseBuiltinsFromDSLAssembler::IteratorRecord IteratorRecord;
+typedef IteratorBuiltinsFromDSLAssembler::IteratorRecord IteratorRecord;
 
 using compiler::Node;
 

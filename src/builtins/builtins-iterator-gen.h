@@ -7,6 +7,7 @@
 
 #include "src/code-stub-assembler.h"
 #include "torque-generated/builtins-base-from-dsl-gen.h"
+#include "torque-generated/builtins-iterator-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -23,10 +24,10 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
 
   // https://tc39.github.io/ecma262/#sec-getiterator --- never used for
   // @@asyncIterator.
-  BaseBuiltinsFromDSLAssembler::IteratorRecord GetIterator(
+  IteratorBuiltinsFromDSLAssembler::IteratorRecord GetIterator(
       Node* context, Node* object, Label* if_exception = nullptr,
       Variable* exception = nullptr);
-  BaseBuiltinsFromDSLAssembler::IteratorRecord GetIterator(
+  IteratorBuiltinsFromDSLAssembler::IteratorRecord GetIterator(
       Node* context, Node* object, Node* method, Label* if_exception = nullptr,
       Variable* exception = nullptr);
 
@@ -37,13 +38,13 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // object, loaded from the native context.
   TNode<Object> IteratorStep(
       Node* context,
-      const BaseBuiltinsFromDSLAssembler::IteratorRecord& iterator,
+      const IteratorBuiltinsFromDSLAssembler::IteratorRecord& iterator,
       Label* if_done, Node* fast_iterator_result_map = nullptr,
       Label* if_exception = nullptr, Variable* exception = nullptr);
 
   TNode<Object> IteratorStep(
       Node* context,
-      const BaseBuiltinsFromDSLAssembler::IteratorRecord& iterator,
+      const IteratorBuiltinsFromDSLAssembler::IteratorRecord& iterator,
       Node* fast_iterator_result_map, Label* if_done) {
     return IteratorStep(context, iterator, if_done, fast_iterator_result_map);
   }
@@ -60,11 +61,11 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // https://tc39.github.io/ecma262/#sec-iteratorclose
   void IteratorCloseOnException(
       Node* context,
-      const BaseBuiltinsFromDSLAssembler::IteratorRecord& iterator,
+      const IteratorBuiltinsFromDSLAssembler::IteratorRecord& iterator,
       Label* if_exception, Variable* exception);
   void IteratorCloseOnException(
       Node* context,
-      const BaseBuiltinsFromDSLAssembler::IteratorRecord& iterator,
+      const IteratorBuiltinsFromDSLAssembler::IteratorRecord& iterator,
       TNode<Object> exception);
 
   // #sec-iterabletolist

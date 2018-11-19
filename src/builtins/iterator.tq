@@ -3,6 +3,15 @@
 // found in the LICENSE file.
 
 namespace iterator {
+  // Returned from IteratorBuiltinsAssembler::GetIterator().
+  struct IteratorRecord {
+    // iteratorRecord.[[Iterator]]
+    object: JSReceiver;
+
+    // iteratorRecord.[[NextMethod]]
+    next: Object;
+  }
+
   extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
       implicit context: Context)(Object): Object;
   extern macro IteratorBuiltinsAssembler::GetIterator(

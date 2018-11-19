@@ -1423,7 +1423,8 @@ VisitResult ImplementationVisitor::GenerateCopy(const VisitResult& to_copy) {
 }
 
 VisitResult ImplementationVisitor::Visit(StructExpression* decl) {
-  const Type* raw_type = Declarations::LookupType(decl->name);
+  const Type* raw_type = Declarations::LookupType(
+      QualifiedName(decl->namespace_qualification, decl->name));
   if (!raw_type->IsStructType()) {
     std::stringstream s;
     s << decl->name << " is not a struct but used like one ";

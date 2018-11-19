@@ -74,7 +74,8 @@ base::Optional<const Type*> Generic::InferTypeArgument(
   for (size_t i = 0; i < arguments.size() && i < parameters.size(); ++i) {
     BasicTypeExpression* basic =
         BasicTypeExpression::DynamicCast(parameters[i]);
-    if (basic && !basic->is_constexpr && basic->name == type_name) {
+    if (basic && basic->namespace_qualification.empty() &&
+        !basic->is_constexpr && basic->name == type_name) {
       return arguments[i];
     }
   }

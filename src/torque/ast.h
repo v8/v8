@@ -217,11 +217,14 @@ struct CallExpression : Expression {
 
 struct StructExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StructExpression)
-  StructExpression(SourcePosition pos, std::string name,
-                   std::vector<Expression*> expressions)
+  StructExpression(SourcePosition pos,
+                   std::vector<std::string> namespace_qualification,
+                   std::string name, std::vector<Expression*> expressions)
       : Expression(kKind, pos),
+        namespace_qualification(std::move(namespace_qualification)),
         name(std::move(name)),
         expressions(std::move(expressions)) {}
+  std::vector<std::string> namespace_qualification;
   std::string name;
   std::vector<Expression*> expressions;
 };
@@ -350,10 +353,14 @@ struct ParameterList {
 
 struct BasicTypeExpression : TypeExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(BasicTypeExpression)
-  BasicTypeExpression(SourcePosition pos, bool is_constexpr, std::string name)
+  BasicTypeExpression(SourcePosition pos,
+                      std::vector<std::string> namespace_qualification,
+                      bool is_constexpr, std::string name)
       : TypeExpression(kKind, pos),
+        namespace_qualification(std::move(namespace_qualification)),
         is_constexpr(is_constexpr),
         name(std::move(name)) {}
+  std::vector<std::string> namespace_qualification;
   bool is_constexpr;
   std::string name;
 };

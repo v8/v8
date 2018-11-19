@@ -59,10 +59,14 @@ std::vector<Declarable*> Declarations::LookupGlobalScope(
   return d;
 }
 
-const Type* Declarations::LookupType(const std::string& name) {
-  TypeAlias* declaration = EnsureUnique(
-      FilterDeclarables<TypeAlias>(Lookup(QualifiedName(name))), name, "type");
+const Type* Declarations::LookupType(const QualifiedName& name) {
+  TypeAlias* declaration =
+      EnsureUnique(FilterDeclarables<TypeAlias>(Lookup(name)), name, "type");
   return declaration->type();
+}
+
+const Type* Declarations::LookupType(std::string name) {
+  return LookupType(QualifiedName(std::move(name)));
 }
 
 const Type* Declarations::LookupGlobalType(const std::string& name) {
@@ -75,7 +79,7 @@ const Type* Declarations::GetType(TypeExpression* type_expression) {
   if (auto* basic = BasicTypeExpression::DynamicCast(type_expression)) {
     std::string name =
         (basic->is_constexpr ? CONSTEXPR_TYPE_PREFIX : "") + basic->name;
-    return LookupType(name);
+    return LookupType(QualifiedName{basic->namespace_qualification, name});
   } else if (auto* union_type = UnionTypeExpression::cast(type_expression)) {
     return TypeOracle::GetUnionType(GetType(union_type->a),
                                     GetType(union_type->b));
@@ -149,7 +153,7 @@ const AbstractType* Declarations::DeclareAbstractType(
   CheckAlreadyDeclared<TypeAlias>(name, "type");
   const Type* parent_type = nullptr;
   if (parent) {
-    parent_type = LookupType(*parent);
+    parent_type = LookupType(QualifiedName{*parent});
   }
   const AbstractType* type = TypeOracle::GetAbstractType(
       parent_type, name, transient, generated, non_constexpr_version);

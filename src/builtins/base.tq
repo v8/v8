@@ -1253,16 +1253,6 @@ extern macro TryIntPtrAdd(intptr, intptr): intptr
 extern builtin ObjectToString(Context, Object): Object;
 extern builtin StringRepeat(Context, String, Number): String;
 
-// Returned from IteratorBuiltinsAssembler::GetIterator(). Struct is declared
-// here to simplify use in other generated builtins.
-struct IteratorRecord {
-  // iteratorRecord.[[Iterator]]
-  object: JSReceiver;
-
-  // iteratorRecord.[[NextMethod]]
-  next: Object;
-}
-
 struct KeyValuePair {
   key: Object;
   value: Object;

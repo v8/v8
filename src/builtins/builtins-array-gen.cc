@@ -18,6 +18,7 @@ namespace v8 {
 namespace internal {
 
 using Node = compiler::Node;
+using IteratorRecord = IteratorBuiltinsFromDSLAssembler::IteratorRecord;
 
 ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     compiler::CodeAssemblerState* state)
