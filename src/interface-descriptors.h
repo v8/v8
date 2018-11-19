@@ -76,6 +76,7 @@ namespace internal {
   V(RunMicrotasks)                    \
   V(WasmMemoryGrow)                   \
   V(WasmThrow)                        \
+  V(WasmAtomicWake)                   \
   V(CloneObjectWithVector)            \
   BUILTIN_LIST_TFS(V)
 
@@ -1102,6 +1103,15 @@ class WasmThrowDescriptor final : public CallInterfaceDescriptor {
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 1
                                     MachineType::AnyTagged())  // kException
   DECLARE_DESCRIPTOR(WasmThrowDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmAtomicWakeDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kCount)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),  // result 1
+                                    MachineType::Uint32(),  // kAddress
+                                    MachineType::Uint32())  // kCount
+  DECLARE_DESCRIPTOR(WasmAtomicWakeDescriptor, CallInterfaceDescriptor)
 };
 
 class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {

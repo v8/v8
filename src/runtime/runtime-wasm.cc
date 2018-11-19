@@ -26,7 +26,7 @@ namespace internal {
 
 namespace {
 
-Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
+WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   StackFrameIterator it(isolate, isolate->thread_local_top());
   // On top: C entry stub.
   DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
@@ -34,7 +34,11 @@ Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
   // Next: the wasm compiled frame.
   DCHECK(it.frame()->is_wasm_compiled());
   WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
-  return frame->wasm_instance()->native_context();
+  return frame->wasm_instance();
+}
+
+Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
+  return GetWasmInstanceOnStackTop(isolate)->native_context();
 }
 
 class ClearThreadInWasmScope {
@@ -251,6 +255,26 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   Address entrypoint = wasm::CompileLazy(
       isolate, instance->module_object()->native_module(), func_index);
   return reinterpret_cast<Object*>(entrypoint);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmAtomicWake) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
+  CONVERT_NUMBER_CHECKED(uint32_t, count, Uint32, args[2]);
+
+  DCHECK(instance->has_memory_object());
+  Handle<JSArrayBuffer> array_buffer(instance->memory_object()->array_buffer(),
+                                     isolate);
+
+  // Validation should have failed if the memory was not shared.
+  DCHECK(array_buffer->is_shared());
+
+  // Should have trapped if address was OOB
+  DCHECK_LT(address, array_buffer->byte_length());
+
+  return FutexEmulation::Wake(array_buffer, address, count);
 }
 
 }  // namespace internal

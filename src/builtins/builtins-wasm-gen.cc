@@ -98,6 +98,31 @@ TF_BUILTIN(WasmThrow, WasmBuiltinsAssembler) {
   TailCallRuntimeWithCEntry(Runtime::kThrow, centry, context, exception);
 }
 
+TF_BUILTIN(WasmAtomicWake, WasmBuiltinsAssembler) {
+  TNode<Uint32T> address =
+      UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));
+  TNode<Uint32T> count = UncheckedCast<Uint32T>(Parameter(Descriptor::kCount));
+
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+
+  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kAllocateHeapNumber);
+
+  // TODO(aseemgarg): Use SMIs if possible for address and count
+  TNode<HeapNumber> address_heap = UncheckedCast<HeapNumber>(
+      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
+  StoreHeapNumberValue(address_heap, ChangeUint32ToFloat64(address));
+
+  TNode<HeapNumber> count_heap = UncheckedCast<HeapNumber>(
+      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
+  StoreHeapNumberValue(count_heap, ChangeUint32ToFloat64(count));
+
+  TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
+      Runtime::kWasmAtomicWake, centry, NoContextConstant(), instance,
+      address_heap, count_heap));
+  ReturnRaw(SmiToInt32(result_smi));
+}
+
 TF_BUILTIN(WasmMemoryGrow, WasmBuiltinsAssembler) {
   TNode<Int32T> num_pages =
       UncheckedCast<Int32T>(Parameter(Descriptor::kNumPages));
