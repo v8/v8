@@ -552,6 +552,7 @@ class JSObject : public JSReceiver {
   inline int GetEmbedderFieldOffset(int index);
   inline Object* GetEmbedderField(int index);
   inline Address GetEmbedderFieldRaw(int index);
+  inline ObjectSlot GetEmbedderFieldSlot(int index);
   inline void SetEmbedderField(int index, Object* value);
   inline void SetEmbedderField(int index, Smi value);
   inline void SetEmbedderFieldRaw(int index, Address value);

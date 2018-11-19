@@ -32,6 +32,7 @@
 #include "src/maybe-handles-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/maybe-object-inl.h"
@@ -1489,8 +1490,7 @@ int HeapObject::SizeFromMap(Map map) const {
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
-  if (instance_type >= FIRST_FIXED_ARRAY_TYPE &&
-      instance_type <= LAST_FIXED_ARRAY_TYPE) {
+  if (IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)) {
     return FixedArray::SizeFor(
         reinterpret_cast<const FixedArray*>(this)->synchronized_length());
   }
@@ -1528,8 +1528,8 @@ int HeapObject::SizeFromMap(Map map) const {
         reinterpret_cast<const FeedbackMetadata*>(this)
             ->synchronized_slot_count());
   }
-  if (instance_type >= FIRST_WEAK_FIXED_ARRAY_TYPE &&
-      instance_type <= LAST_WEAK_FIXED_ARRAY_TYPE) {
+  if (IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
+                LAST_WEAK_FIXED_ARRAY_TYPE)) {
     return WeakFixedArray::SizeFor(
         reinterpret_cast<const WeakFixedArray*>(this)->synchronized_length());
   }
@@ -1537,8 +1537,8 @@ int HeapObject::SizeFromMap(Map map) const {
     return WeakArrayList::SizeForCapacity(
         reinterpret_cast<const WeakArrayList*>(this)->synchronized_capacity());
   }
-  if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
-      instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
+  if (IsInRange(instance_type, FIRST_FIXED_TYPED_ARRAY_TYPE,
+                LAST_FIXED_TYPED_ARRAY_TYPE)) {
     return reinterpret_cast<const FixedTypedArrayBase*>(this)->TypedArraySize(
         instance_type);
   }
@@ -1569,8 +1569,12 @@ int HeapObject::SizeFromMap(Map map) const {
     return PreParsedScopeData::SizeFor(
         reinterpret_cast<const PreParsedScopeData*>(this)->length());
   }
-  DCHECK(instance_type == CODE_TYPE);
-  return Code::unchecked_cast(this)->CodeSize();
+  if (instance_type == CODE_TYPE) {
+    return Code::unchecked_cast(this)->CodeSize();
+  }
+  DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
+  return EmbedderDataArray::SizeFor(
+      EmbedderDataArray::unchecked_cast(this)->length());
 }
 
 

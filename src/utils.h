@@ -1178,7 +1178,7 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
   }
 }
 
-inline void MemsetPointer(Address* dest, Address value, int counter) {
+inline void MemsetPointer(Address* dest, Address value, size_t counter) {
 #if V8_HOST_ARCH_IA32
 #define STOS "stosl"
 #elif V8_HOST_ARCH_X64
@@ -1202,7 +1202,7 @@ inline void MemsetPointer(Address* dest, Address value, int counter) {
       : "a" (value)
       : "memory", "cc");
 #else
-  for (int i = 0; i < counter; i++) {
+  for (size_t i = 0; i < counter; i++) {
     dest[i] = value;
   }
 #endif
@@ -1211,7 +1211,7 @@ inline void MemsetPointer(Address* dest, Address value, int counter) {
 }
 
 template <typename T, typename U>
-inline void MemsetPointer(T** dest, U* value, int counter) {
+inline void MemsetPointer(T** dest, U* value, size_t counter) {
 #ifdef DEBUG
   T* a = nullptr;
   U* b = nullptr;
@@ -1222,7 +1222,7 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
                 reinterpret_cast<Address>(value), counter);
 }
 
-inline void MemsetPointer(ObjectSlot start, Object* value, int counter) {
+inline void MemsetPointer(ObjectSlot start, Object* value, size_t counter) {
   MemsetPointer(start.location(), reinterpret_cast<Address>(value), counter);
 }
 

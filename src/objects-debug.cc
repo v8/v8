@@ -17,6 +17,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -151,6 +152,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
       ObjectBoilerplateDescription::cast(this)
           ->ObjectBoilerplateDescriptionVerify(isolate);
+      break;
+    case EMBEDDER_DATA_ARRAY_TYPE:
+      EmbedderDataArray::cast(this)->EmbedderDataArrayVerify(isolate);
       break;
     // FixedArray types
     case HASH_TABLE_TYPE:
@@ -673,6 +677,13 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
 
 void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {
   VerifySmiField(kAliasedContextSlot);
+}
+
+void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
+  for (int i = 0; i < length(); i++) {
+    Object* e = get(i);
+    Object::VerifyPointer(isolate, e);
+  }
 }
 
 void FixedArray::FixedArrayVerify(Isolate* isolate) {

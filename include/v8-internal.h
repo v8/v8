@@ -124,6 +124,7 @@ class Internals {
   static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
+  static const int kEmbedderDataArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
   static const int kContextEmbedderDataIndex = 5;
   static const int kFullStringRepresentationMask = 0x0f;
@@ -272,7 +273,7 @@ class Internals {
         (internal::kApiPointerSize * I::kContextEmbedderDataIndex);
     A embedder_data = I::ReadField<A>(ctx, embedder_data_offset);
     int value_offset =
-        I::kFixedArrayHeaderSize + (internal::kApiPointerSize * index);
+        I::kEmbedderDataArrayHeaderSize + (internal::kApiPointerSize * index);
     return I::ReadField<T>(embedder_data, value_offset);
   }
 };

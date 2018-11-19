@@ -273,6 +273,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case SHARED_FUNCTION_INFO_TYPE:
     case FUNCTION_TEMPLATE_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
+    case EMBEDDER_DATA_ARRAY_TYPE:
     case FIXED_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:

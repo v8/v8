@@ -20,6 +20,7 @@ namespace internal {
 class BigInt;
 class BytecodeArray;
 class DataHandler;
+class EmbedderDataArray;
 class JSArrayBuffer;
 class JSDataView;
 class JSRegExp;
@@ -40,6 +41,7 @@ class WasmInstanceObject;
   V(CodeDataContainer, CodeDataContainer*)                                     \
   V(ConsString, ConsString*)                                                   \
   V(DataHandler, DataHandler*)                                                 \
+  V(EmbedderDataArray, EmbedderDataArray)                                      \
   V(EphemeronHashTable, EphemeronHashTable*)                                   \
   V(FeedbackCell, FeedbackCell*)                                               \
   V(FeedbackVector, FeedbackVector*)                                           \

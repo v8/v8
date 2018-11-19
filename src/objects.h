@@ -421,6 +421,7 @@ enum InstanceType : uint16_t {
   MICROTASK_QUEUE_TYPE,
 
   ALLOCATION_SITE_TYPE,
+  EMBEDDER_DATA_ARRAY_TYPE,
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
@@ -725,6 +726,7 @@ class ZoneForwardList;
   V(DeoptimizationData)                        \
   V(DependentCode)                             \
   V(DescriptorArray)                           \
+  V(EmbedderDataArray)                         \
   V(EphemeronHashTable)                        \
   V(EnumCache)                                 \
   V(ExternalOneByteString)                     \
@@ -917,6 +919,7 @@ class ZoneForwardList;
   V(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)                         \
   V(CoverageInfo, FIXED_ARRAY_TYPE)                                      \
   V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                              \
+  V(EmbedderDataArray, EMBEDDER_DATA_ARRAY_TYPE)                         \
   V(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)                       \
   V(FeedbackCell, FEEDBACK_CELL_TYPE)                                    \
   V(FeedbackMetadata, FEEDBACK_METADATA_TYPE)                            \

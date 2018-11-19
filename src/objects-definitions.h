@@ -125,6 +125,7 @@ namespace internal {
   V(MICROTASK_QUEUE_TYPE)                                          \
                                                                    \
   V(ALLOCATION_SITE_TYPE)                                          \
+  V(EMBEDDER_DATA_ARRAY_TYPE)                                      \
                                                                    \
   V(FIXED_ARRAY_TYPE)                                              \
   V(OBJECT_BOILERPLATE_DESCRIPTION_TYPE)                           \

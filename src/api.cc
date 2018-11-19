@@ -51,6 +51,7 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
@@ -1197,11 +1198,9 @@ static i::Smi EncodeAlignedAsSmi(void* value, const char* location) {
   return smi;
 }
 
-
-static i::Handle<i::FixedArray> EmbedderDataFor(Context* context,
-                                                int index,
-                                                bool can_grow,
-                                                const char* location) {
+static i::Handle<i::EmbedderDataArray> EmbedderDataFor(Context* context,
+                                                       int index, bool can_grow,
+                                                       const char* location) {
   i::Handle<i::Context> env = Utils::OpenHandle(context);
   i::Isolate* isolate = env->GetIsolate();
   bool ok =
@@ -1209,15 +1208,16 @@ static i::Handle<i::FixedArray> EmbedderDataFor(Context* context,
                       location,
                       "Not a native context") &&
       Utils::ApiCheck(index >= 0, location, "Negative index");
-  if (!ok) return i::Handle<i::FixedArray>();
-  i::Handle<i::FixedArray> data(env->embedder_data(), isolate);
+  if (!ok) return i::Handle<i::EmbedderDataArray>();
+  // TODO(ishell): remove cast once embedder_data slot has a proper type.
+  i::Handle<i::EmbedderDataArray> data(
+      i::EmbedderDataArray::cast(env->embedder_data()), isolate);
   if (index < data->length()) return data;
-  if (!Utils::ApiCheck(can_grow, location, "Index too large")) {
-    return i::Handle<i::FixedArray>();
+  if (!Utils::ApiCheck(can_grow && index < i::EmbedderDataArray::kMaxLength,
+                       location, "Index too large")) {
+    return i::Handle<i::EmbedderDataArray>();
   }
-  int new_size = index + 1;
-  int grow_by = new_size - data->length();
-  data = isolate->factory()->CopyFixedArrayAndGrow(data, grow_by);
+  data = i::EmbedderDataArray::EnsureCapacity(isolate, data, index);
   env->set_embedder_data(*data);
   return data;
 }
@@ -1225,23 +1225,26 @@ static i::Handle<i::FixedArray> EmbedderDataFor(Context* context,
 uint32_t Context::GetNumberOfEmbedderDataFields() {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   CHECK(context->IsNativeContext());
-  return static_cast<uint32_t>(context->embedder_data()->length());
+  // TODO(ishell): remove cast once embedder_data slot has a proper type.
+  return static_cast<uint32_t>(
+      i::EmbedderDataArray::cast(context->embedder_data())->length());
 }
 
 v8::Local<v8::Value> Context::SlowGetEmbedderData(int index) {
   const char* location = "v8::Context::GetEmbedderData()";
-  i::Handle<i::FixedArray> data = EmbedderDataFor(this, index, false, location);
+  i::Handle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return Local<Value>();
-  i::Handle<i::Object> result(
-      data->get(index),
-      reinterpret_cast<i::Isolate*>(Utils::OpenHandle(this)->GetIsolate()));
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Handle<i::Object> result(data->get(index), isolate);
   return Utils::ToLocal(result);
 }
 
 
 void Context::SetEmbedderData(int index, v8::Local<Value> value) {
   const char* location = "v8::Context::SetEmbedderData()";
-  i::Handle<i::FixedArray> data = EmbedderDataFor(this, index, true, location);
+  i::Handle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, true, location);
   if (data.is_null()) return;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   data->set(index, *val);
@@ -1252,7 +1255,8 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
 
 void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
-  i::Handle<i::FixedArray> data = EmbedderDataFor(this, index, false, location);
+  i::Handle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return nullptr;
   return DecodeSmiToAligned(data->get(index), location);
 }
@@ -1260,7 +1264,8 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
 
 void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
-  i::Handle<i::FixedArray> data = EmbedderDataFor(this, index, true, location);
+  i::Handle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, true, location);
   data->set(index, EncodeAlignedAsSmi(value, location));
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index));
 }

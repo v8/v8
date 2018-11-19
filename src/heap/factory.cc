@@ -21,6 +21,7 @@
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -428,6 +429,25 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   // TODO(leszeks): Initialize based on the feedback metadata.
   MemsetPointer(ObjectSlot(vector->slots_start()), *undefined_value(), length);
   return vector;
+}
+
+Handle<EmbedderDataArray> Factory::NewEmbedderDataArray(
+    int length, PretenureFlag pretenure) {
+  DCHECK_LE(0, length);
+  int size = EmbedderDataArray::SizeFor(length);
+
+  HeapObject* result =
+      AllocateRawWithImmortalMap(size, pretenure, *embedder_data_array_map());
+  Handle<EmbedderDataArray> array(EmbedderDataArray::cast(result), isolate());
+  array->set_length(length);
+
+  if (length > 0) {
+    ObjectSlot start(array->slots_start());
+    ObjectSlot end(array->slots_end());
+    size_t slot_count = end - start;
+    MemsetPointer(start, *undefined_value(), slot_count);
+  }
+  return array;
 }
 
 Handle<ObjectBoilerplateDescription> Factory::NewObjectBoilerplateDescription(

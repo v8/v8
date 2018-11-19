@@ -2764,7 +2764,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   // Initialize the embedder data slot.
-  native_context()->set_embedder_data(*factory->empty_fixed_array());
+  // TODO(ishell): microtask queue pointer will be moved from native context
+  // to the embedder data array so we don't need an empty embedder data array.
+  Handle<EmbedderDataArray> embedder_data = factory->NewEmbedderDataArray(0);
+  native_context()->set_embedder_data(*embedder_data);
 
   {  // -- J S O N
     Handle<String> name = factory->InternalizeUtf8String("JSON");

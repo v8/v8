@@ -3098,6 +3098,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case FREE_SPACE_TYPE:
       return kVisitFreeSpace;
 
+    case EMBEDDER_DATA_ARRAY_TYPE:
+      return kVisitEmbedderDataArray;
+
     case FIXED_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:

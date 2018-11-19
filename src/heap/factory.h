@@ -34,6 +34,7 @@ class CallableTask;
 class CallbackTask;
 class CallHandlerInfo;
 class Expression;
+class EmbedderDataArray;
 class ArrayBoilerplateDescription;
 class CoverageInfo;
 class DebugInfo;
@@ -152,6 +153,10 @@ class V8_EXPORT_PRIVATE Factory {
   // values.
   Handle<FeedbackVector> NewFeedbackVector(
       Handle<SharedFunctionInfo> shared, PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocates a clean embedder data array with given capacity.
+  Handle<EmbedderDataArray> NewEmbedderDataArray(
+      int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.

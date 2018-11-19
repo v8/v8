@@ -458,6 +458,7 @@ bool Heap::CreateInitialMaps() {
                          simple_number_dictionary)
     ALLOCATE_VARSIZE_MAP(STRING_TABLE_TYPE, string_table)
 
+    ALLOCATE_VARSIZE_MAP(EMBEDDER_DATA_ARRAY_TYPE, embedder_data_array)
     ALLOCATE_VARSIZE_MAP(EPHEMERON_HASH_TABLE_TYPE, ephemeron_hash_table)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, array_list)

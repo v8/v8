@@ -720,6 +720,27 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
+    // We store raw aligned pointers as Smis, so it's safe to iterate the whole
+    // array.
+    return true;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    // We store raw aligned pointers as Smis, so it's safe to iterate the whole
+    // array.
+    IteratePointers(obj, EmbedderDataArray::kHeaderSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject* object) {
+    return object->SizeFromMap(map);
+  }
+};
+
 template <typename Op, typename ReturnType, typename T1, typename T2,
           typename T3, typename T4>
 ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
@@ -746,6 +767,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
   }
 
   switch (type) {
+    case EMBEDDER_DATA_ARRAY_TYPE:
+      return Op::template apply<EmbedderDataArray::BodyDescriptor>(p1, p2, p3,
+                                                                   p4);
     case FIXED_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:

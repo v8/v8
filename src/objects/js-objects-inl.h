@@ -272,6 +272,10 @@ Address JSObject::GetEmbedderFieldRaw(int index) {
   return GetEmbedderField(index)->ptr();
 }
 
+ObjectSlot JSObject::GetEmbedderFieldSlot(int index) {
+  return ObjectSlot(FIELD_ADDR(this, GetEmbedderFieldOffset(index)));
+}
+
 void JSObject::SetEmbedderField(int index, Object* value) {
   DCHECK(index < GetEmbedderFieldCount() && index >= 0);
   // Internal objects do follow immediately after the header, whereas in-object
