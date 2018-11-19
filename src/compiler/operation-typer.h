@@ -87,8 +87,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
                  double rhs_max);
   Type SubtractRanger(double lhs_min, double lhs_max, double rhs_min,
                       double rhs_max);
-  Type MultiplyRanger(double lhs_min, double lhs_max, double rhs_min,
-                      double rhs_max);
+  Type MultiplyRanger(Type lhs, Type rhs);
 
   Zone* zone() const { return zone_; }
 
