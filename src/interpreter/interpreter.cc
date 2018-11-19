@@ -282,15 +282,6 @@ void Interpreter::Initialize() {
   });
   DCHECK(builtin_id == Builtins::builtin_count);
   DCHECK(IsDispatchTableInitialized());
-
-#if defined(V8_USE_SNAPSHOT) && !defined(V8_USE_SNAPSHOT_WITH_UNWINDING_INFO)
-  if (!isolate_->serializer_enabled() && FLAG_perf_prof_unwinding_info) {
-    StdoutStream{}
-        << "Warning: The --perf-prof-unwinding-info flag can be passed at "
-           "mksnapshot time to get better results."
-        << std::endl;
-  }
-#endif
 }
 
 bool Interpreter::IsDispatchTableInitialized() const {

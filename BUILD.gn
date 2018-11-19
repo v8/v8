@@ -123,10 +123,6 @@ declare_args() {
   # Enables various testing features.
   v8_enable_test_features = ""
 
-  # Build the snapshot with unwinding information for perf.
-  # Sets -dV8_USE_SNAPSHOT_WITH_UNWINDING_INFO.
-  v8_perf_prof_unwinding_info = false
-
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
   # tools/gen-postmortem-metadata.py for details.
@@ -391,9 +387,6 @@ config("features") {
   }
   if (v8_use_snapshot) {
     defines += [ "V8_USE_SNAPSHOT" ]
-    if (v8_perf_prof_unwinding_info) {
-      defines += [ "V8_USE_SNAPSHOT_WITH_UNWINDING_INFO" ]
-    }
   }
   if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
@@ -1097,10 +1090,6 @@ template("run_mksnapshot") {
         "--v8_os_page_size",
         v8_os_page_size,
       ]
-    }
-
-    if (v8_perf_prof_unwinding_info) {
-      args += [ "--perf-prof-unwinding-info" ]
     }
 
     if (v8_use_external_startup_data) {
