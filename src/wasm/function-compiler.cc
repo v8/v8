@@ -91,6 +91,8 @@ void WasmCompilationUnit::ExecuteCompilation(
       }
       // Otherwise, fall back to turbofan.
       SwitchTier(ExecutionTier::kOptimized);
+      // TODO(wasm): We could actually stop or remove the tiering unit for this
+      // function to avoid compiling it twice with TurboFan.
       V8_FALLTHROUGH;
     case ExecutionTier::kOptimized:
       turbofan_unit_->ExecuteCompilation(env, func_body, counters, detected);

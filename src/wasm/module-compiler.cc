@@ -126,7 +126,9 @@ class CompilationStateImpl {
     return baseline_compilation_finished_;
   }
 
-  bool has_outstanding_units() const { return outstanding_units_ > 0; }
+  bool has_outstanding_units() const {
+    return outstanding_tiering_units_ > 0 || outstanding_baseline_units_ > 0;
+  }
 
   CompileMode compile_mode() const { return compile_mode_; }
   WasmFeatures* detected_features() { return &detected_features_; }
@@ -274,8 +276,8 @@ class CompilationStateImpl {
 
   const size_t max_background_tasks_ = 0;
 
-  size_t outstanding_units_ = 0;
-  size_t num_tiering_units_ = 0;
+  size_t outstanding_baseline_units_ = 0;
+  size_t outstanding_tiering_units_ = 0;
 };
 
 void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
@@ -639,11 +641,8 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
       compilation_state->GetNextCompilationUnit();
   if (unit == nullptr) return false;
 
-  // TODO(kimanh): We need to find out in which tier the unit
-  // should be compiled in before compiling it, as it might fallback
-  // to Turbofan if it cannot be compiled using Liftoff. This can be removed
-  // later as soon as Liftoff can compile any function. Then, we can directly
-  // access {unit->tier()} within {ScheduleUnitForFinishing()}.
+  // Get the tier before starting compilation, as compilation can switch tiers
+  // if baseline bails out.
   ExecutionTier tier = unit->tier();
   unit->ExecuteCompilation(env, compilation_state->GetSharedWireBytesStorage(),
                            counters, detected);
@@ -2995,11 +2994,10 @@ void CompilationStateImpl::CancelAndWait() {
 
 void CompilationStateImpl::SetNumberOfFunctionsToCompile(size_t num_functions) {
   DCHECK(!failed());
-  outstanding_units_ = num_functions;
+  outstanding_baseline_units_ = num_functions;
 
   if (compile_mode_ == CompileMode::kTiering) {
-    outstanding_units_ += num_functions;
-    num_tiering_units_ = num_functions;
+    outstanding_tiering_units_ = num_functions;
   }
 }
 
@@ -3067,32 +3065,44 @@ bool CompilationStateImpl::HasCompilationUnitToFinish() {
 }
 
 void CompilationStateImpl::OnFinishedUnit() {
-  DCHECK_GT(outstanding_units_, 0);
-  --outstanding_units_;
+  // If we are *not* compiling in tiering mode, then all units are counted as
+  // baseline units.
+  bool is_tiering_mode = compile_mode_ == CompileMode::kTiering;
+  bool is_tiering_unit = is_tiering_mode && baseline_compilation_finished_;
 
-  if (outstanding_units_ == 0) {
-    background_task_manager_.CancelAndWait();
-    baseline_compilation_finished_ = true;
+  // Sanity check: Baseline compilation cannot be finished if there are
+  // outstanding baseline units and tiering units.
+  DCHECK_IMPLIES(
+      outstanding_tiering_units_ > 0 && outstanding_baseline_units_ > 0,
+      !baseline_compilation_finished_);
+  // Sanity check: If we are not in tiering mode, there cannot be outstanding
+  // tiering units.
+  DCHECK_IMPLIES(!is_tiering_mode, outstanding_tiering_units_ == 0);
 
-    DCHECK(compile_mode_ == CompileMode::kRegular ||
-           compile_mode_ == CompileMode::kTiering);
-    NotifyOnEvent(compile_mode_ == CompileMode::kRegular
-                      ? CompilationEvent::kFinishedBaselineCompilation
-                      : CompilationEvent::kFinishedTopTierCompilation,
-                  nullptr);
+  auto* units_counter = is_tiering_unit ? &outstanding_tiering_units_
+                                        : &outstanding_baseline_units_;
+  DCHECK_GT(*units_counter, 0);
+  --*units_counter;
 
-  } else if (outstanding_units_ == num_tiering_units_) {
-    DCHECK_EQ(compile_mode_, CompileMode::kTiering);
-    baseline_compilation_finished_ = true;
+  if (*units_counter == 0) {
+    if (!baseline_compilation_finished_) {
+      baseline_compilation_finished_ = true;
 
-    // TODO(wasm): For streaming compilation, we want to start top tier
-    // compilation before all functions have been compiled with Liftoff, e.g.
-    // in the case when all received functions have been compiled with Liftoff
-    // and we are waiting for new functions to compile.
+      // TODO(wasm): For streaming compilation, we want to start top tier
+      // compilation before all functions have been compiled with Liftoff, e.g.
+      // in the case when all received functions have been compiled with Liftoff
+      // and we are waiting for new functions to compile.
 
-    // If we are in {kRegular} mode, {num_tiering_units_} is 0, therefore
-    // this case is already caught by the previous check.
-    NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation, nullptr);
+      // If we are in {kRegular} mode, {num_tiering_units_} is 0, therefore
+      // this case is already caught by the previous check.
+      NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation, nullptr);
+      if (!is_tiering_mode) {
+        NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation, nullptr);
+      }
+    } else {
+      DCHECK(is_tiering_unit);
+      NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation, nullptr);
+    }
   }
 }
 
