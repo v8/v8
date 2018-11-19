@@ -10339,7 +10339,6 @@ void CodeStubAssembler::EmitBigTypedArrayElementStore(
 }
 
 void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
-                                         bool is_jsarray,
                                          ElementsKind elements_kind,
                                          KeyedAccessStoreMode store_mode,
                                          Label* bailout, Node* context) {
@@ -10409,8 +10408,10 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   DCHECK(IsSmiOrObjectElementsKind(elements_kind) ||
          IsDoubleElementsKind(elements_kind));
 
-  Node* length = is_jsarray ? LoadJSArrayLength(object)
-                            : LoadFixedArrayBaseLength(elements);
+  Node* length =
+      SelectImpl(IsJSArray(object), [=]() { return LoadJSArrayLength(object); },
+                 [=]() { return LoadFixedArrayBaseLength(elements); },
+                 MachineRepresentation::kTagged);
   length = TaggedToParameter(length, parameter_mode);
 
   // In case value is stored into a fast smi array, assure that the value is
@@ -10423,9 +10424,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   }
 
   if (IsGrowStoreMode(store_mode)) {
-    elements = CheckForCapacityGrow(object, elements, elements_kind, store_mode,
-                                    length, intptr_key, parameter_mode,
-                                    is_jsarray, bailout);
+    elements = CheckForCapacityGrow(object, elements, elements_kind, length,
+                                    intptr_key, parameter_mode, bailout);
   } else {
     GotoIfNot(UintPtrLessThan(intptr_key, length), bailout);
   }
@@ -10443,10 +10443,10 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   StoreElement(elements, elements_kind, intptr_key, value, parameter_mode);
 }
 
-Node* CodeStubAssembler::CheckForCapacityGrow(
-    Node* object, Node* elements, ElementsKind kind,
-    KeyedAccessStoreMode store_mode, Node* length, Node* key,
-    ParameterMode mode, bool is_js_array, Label* bailout) {
+Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
+                                              ElementsKind kind, Node* length,
+                                              Node* key, ParameterMode mode,
+                                              Label* bailout) {
   DCHECK(IsFastElementsKind(kind));
   VARIABLE(checked_elements, MachineRepresentation::kTagged);
   Label grow_case(this), no_grow_case(this), done(this),
@@ -10491,11 +10491,11 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
     }
 
     BIND(&fits_capacity);
-    if (is_js_array) {
-      Node* new_length = IntPtrAdd(key, IntPtrOrSmiConstant(1, mode));
-      StoreObjectFieldNoWriteBarrier(object, JSArray::kLengthOffset,
-                                     ParameterToTagged(new_length, mode));
-    }
+    GotoIfNot(IsJSArray(object), &done);
+
+    Node* new_length = IntPtrAdd(key, IntPtrOrSmiConstant(1, mode));
+    StoreObjectFieldNoWriteBarrier(object, JSArray::kLengthOffset,
+                                   ParameterToTagged(new_length, mode));
     Goto(&done);
   }
 
@@ -10534,7 +10534,6 @@ Node* CodeStubAssembler::CopyElementsOnWrite(Node* object, Node* elements,
 void CodeStubAssembler::TransitionElementsKind(Node* object, Node* map,
                                                ElementsKind from_kind,
                                                ElementsKind to_kind,
-                                               bool is_jsarray,
                                                Label* bailout) {
   DCHECK(!IsHoleyElementsKind(from_kind) || IsHoleyElementsKind(to_kind));
   if (AllocationSite::ShouldTrack(from_kind, to_kind)) {
@@ -10551,8 +10550,14 @@ void CodeStubAssembler::TransitionElementsKind(Node* object, Node* map,
     // TODO(ishell): Use OptimalParameterMode().
     ParameterMode mode = INTPTR_PARAMETERS;
     Node* elements_length = SmiUntag(LoadFixedArrayBaseLength(elements));
-    Node* array_length =
-        is_jsarray ? SmiUntag(LoadFastJSArrayLength(object)) : elements_length;
+    Node* array_length = SelectImpl(
+        IsJSArray(object),
+        [=]() {
+          CSA_ASSERT(this, IsFastElementsKind(LoadElementsKind(object)));
+          return SmiUntag(LoadFastJSArrayLength(object));
+        },
+        [=]() { return elements_length; },
+        MachineType::PointerRepresentation());
 
     CSA_ASSERT(this, WordNotEqual(elements_length, IntPtrConstant(0)));
 

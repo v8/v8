@@ -276,11 +276,9 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   Comment(
-      "ElementsTransitionAndStoreStub: from_kind=%s, to_kind=%s,"
-      " is_jsarray=%d, store_mode=%d",
+      "ElementsTransitionAndStoreStub: from_kind=%s, to_kind=%s, store_mode=%d",
       ElementsKindToString(stub->from_kind()),
-      ElementsKindToString(stub->to_kind()), stub->is_jsarray(),
-      stub->store_mode());
+      ElementsKindToString(stub->to_kind()), stub->store_mode());
 
   Label miss(this);
 
@@ -289,9 +287,9 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
     Goto(&miss);
   } else {
     TransitionElementsKind(receiver, map, stub->from_kind(), stub->to_kind(),
-                           stub->is_jsarray(), &miss);
-    EmitElementStore(receiver, key, value, stub->is_jsarray(), stub->to_kind(),
-                     stub->store_mode(), &miss, context);
+                           &miss);
+    EmitElementStore(receiver, key, value, stub->to_kind(), stub->store_mode(),
+                     &miss, context);
     Return(value);
   }
 
@@ -310,9 +308,8 @@ int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
 }
 
 TF_STUB(StoreFastElementStub, CodeStubAssembler) {
-  Comment("StoreFastElementStub: js_array=%d, elements_kind=%s, store_mode=%d",
-          stub->is_js_array(), ElementsKindToString(stub->elements_kind()),
-          stub->store_mode());
+  Comment("StoreFastElementStub: elements_kind=%s, store_mode=%d",
+          ElementsKindToString(stub->elements_kind()), stub->store_mode());
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kName);
@@ -323,8 +320,8 @@ TF_STUB(StoreFastElementStub, CodeStubAssembler) {
 
   Label miss(this);
 
-  EmitElementStore(receiver, key, value, stub->is_js_array(),
-                   stub->elements_kind(), stub->store_mode(), &miss, context);
+  EmitElementStore(receiver, key, value, stub->elements_kind(),
+                   stub->store_mode(), &miss, context);
   Return(value);
 
   BIND(&miss);
@@ -337,16 +334,14 @@ TF_STUB(StoreFastElementStub, CodeStubAssembler) {
 
 // static
 void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
-  StoreFastElementStub(isolate, false, HOLEY_ELEMENTS, STANDARD_STORE)
-      .GetCode();
-  StoreFastElementStub(isolate, false, HOLEY_ELEMENTS,
+  StoreFastElementStub(isolate, HOLEY_ELEMENTS, STANDARD_STORE).GetCode();
+  StoreFastElementStub(isolate, HOLEY_ELEMENTS,
                        STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
       .GetCode();
   for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
     ElementsKind kind = static_cast<ElementsKind>(i);
-    StoreFastElementStub(isolate, true, kind, STANDARD_STORE).GetCode();
-    StoreFastElementStub(isolate, true, kind,
-                         STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
+    StoreFastElementStub(isolate, kind, STANDARD_STORE).GetCode();
+    StoreFastElementStub(isolate, kind, STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
         .GetCode();
   }
 }

@@ -297,10 +297,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
       const ElementsKind kFromKind = HOLEY_SMI_ELEMENTS;
       const ElementsKind kToKind = HOLEY_DOUBLE_ELEMENTS;
-      const bool kIsJSArray = true;
 
       Label transition_in_runtime(this, Label::kDeferred);
-      TransitionElementsKind(a(), double_map, kFromKind, kToKind, kIsJSArray,
+      TransitionElementsKind(a(), double_map, kFromKind, kToKind,
                              &transition_in_runtime);
       Goto(&array_double);
 
@@ -360,7 +359,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
       num_value = ToNumber_Inline(context(), mapped_value);
     }
     // The only way how this can bailout is because of a detached buffer.
-    EmitElementStore(a(), k, num_value, false, source_elements_kind_,
+    EmitElementStore(a(), k, num_value, source_elements_kind_,
                      KeyedAccessStoreMode::STANDARD_STORE, &detached,
                      context());
     Goto(&done);

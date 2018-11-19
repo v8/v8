@@ -943,7 +943,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Int32T> LoadMapInstanceType(SloppyTNode<Map> map);
   // Load the ElementsKind of a map.
   TNode<Int32T> LoadMapElementsKind(SloppyTNode<Map> map);
-  TNode<Int32T> LoadElementsKind(SloppyTNode<HeapObject> map);
+  TNode<Int32T> LoadElementsKind(SloppyTNode<HeapObject> object);
   // Load the instance descriptors of a map.
   TNode<DescriptorArray> LoadMapDescriptors(SloppyTNode<Map> map);
   // Load the prototype of a map.
@@ -2862,28 +2862,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void BigIntToRawBytes(TNode<BigInt> bigint, TVariable<UintPtrT>* var_low,
                         TVariable<UintPtrT>* var_high);
 
-  void EmitElementStore(Node* object, Node* key, Node* value, bool is_jsarray,
+  void EmitElementStore(Node* object, Node* key, Node* value,
                         ElementsKind elements_kind,
                         KeyedAccessStoreMode store_mode, Label* bailout,
                         Node* context);
 
   Node* CheckForCapacityGrow(Node* object, Node* elements, ElementsKind kind,
-                             KeyedAccessStoreMode store_mode, Node* length,
-                             Node* key, ParameterMode mode, bool is_js_array,
+                             Node* length, Node* key, ParameterMode mode,
                              Label* bailout);
 
   Node* CopyElementsOnWrite(Node* object, Node* elements, ElementsKind kind,
                             Node* length, ParameterMode mode, Label* bailout);
 
   void TransitionElementsKind(Node* object, Node* map, ElementsKind from_kind,
-                              ElementsKind to_kind, bool is_jsarray,
-                              Label* bailout);
-
-  void TransitionElementsKind(TNode<JSReceiver> object, TNode<Map> map,
-                              ElementsKind from_kind, ElementsKind to_kind,
-                              Label* bailout) {
-    TransitionElementsKind(object, map, from_kind, to_kind, true, bailout);
-  }
+                              ElementsKind to_kind, Label* bailout);
 
   void TrapAllocationMemento(Node* object, Label* memento_found);
 

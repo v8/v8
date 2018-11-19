@@ -500,17 +500,14 @@ class JSEntryStub : public PlatformCodeStub {
 
 class StoreFastElementStub : public TurboFanCodeStub {
  public:
-  StoreFastElementStub(Isolate* isolate, bool is_js_array,
-                       ElementsKind elements_kind, KeyedAccessStoreMode mode)
+  StoreFastElementStub(Isolate* isolate, ElementsKind elements_kind,
+                       KeyedAccessStoreMode mode)
       : TurboFanCodeStub(isolate) {
     minor_key_ = CommonStoreModeBits::encode(mode) |
-                 ElementsKindBits::encode(elements_kind) |
-                 IsJSArrayBits::encode(is_js_array);
+                 ElementsKindBits::encode(elements_kind);
   }
 
   static void GenerateAheadOfTime(Isolate* isolate);
-
-  bool is_js_array() const { return IsJSArrayBits::decode(minor_key_); }
 
   ElementsKind elements_kind() const {
     return ElementsKindBits::decode(minor_key_);
@@ -523,7 +520,6 @@ class StoreFastElementStub : public TurboFanCodeStub {
  private:
   class ElementsKindBits
       : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
-  class IsJSArrayBits : public BitField<bool, ElementsKindBits::kNext, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreFastElement, TurboFanCodeStub);
@@ -532,17 +528,15 @@ class StoreFastElementStub : public TurboFanCodeStub {
 class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
  public:
   ElementsTransitionAndStoreStub(Isolate* isolate, ElementsKind from_kind,
-                                 ElementsKind to_kind, bool is_jsarray,
+                                 ElementsKind to_kind,
                                  KeyedAccessStoreMode store_mode)
       : TurboFanCodeStub(isolate) {
     minor_key_ = CommonStoreModeBits::encode(store_mode) |
-                 FromBits::encode(from_kind) | ToBits::encode(to_kind) |
-                 IsJSArrayBits::encode(is_jsarray);
+                 FromBits::encode(from_kind) | ToBits::encode(to_kind);
   }
 
   ElementsKind from_kind() const { return FromBits::decode(minor_key_); }
   ElementsKind to_kind() const { return ToBits::decode(minor_key_); }
-  bool is_jsarray() const { return IsJSArrayBits::decode(minor_key_); }
   KeyedAccessStoreMode store_mode() const {
     return CommonStoreModeBits::decode(minor_key_);
   }
@@ -551,7 +545,6 @@ class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
   class FromBits
       : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
   class ToBits : public BitField<ElementsKind, 11, 8> {};
-  class IsJSArrayBits : public BitField<bool, 19, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
   DEFINE_TURBOFAN_CODE_STUB(ElementsTransitionAndStore, TurboFanCodeStub);
