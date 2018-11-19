@@ -12245,10 +12245,7 @@ bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
     return CompareChars(content.ToOneByteVector().start(),
                         str.start(), slen) == 0;
   }
-  for (int i = 0; i < slen; i++) {
-    if (Get(i) != static_cast<uint16_t>(str[i])) return false;
-  }
-  return true;
+  return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
 }
 
 
@@ -12257,13 +12254,11 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   if (str.length() != slen) return false;
   DisallowHeapAllocation no_gc;
   FlatContent content = GetFlatContent();
-  if (content.IsTwoByte()) {
-    return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
+  if (content.IsOneByte()) {
+    return CompareChars(content.ToOneByteVector().start(), str.start(), slen) ==
+           0;
   }
-  for (int i = 0; i < slen; i++) {
-    if (Get(i) != str[i]) return false;
-  }
-  return true;
+  return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
 }
 
 uint32_t String::ComputeAndSetHash(Isolate* isolate) {
