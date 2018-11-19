@@ -38,10 +38,9 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
   running_hash += (running_hash << 3);
   running_hash ^= (running_hash >> 11);
   running_hash += (running_hash << 15);
-  if ((running_hash & String::kHashBitMask) == 0) {
-    return kZeroHash;
-  }
-  return running_hash;
+  int32_t hash = static_cast<int32_t>(running_hash & String::kHashBitMask);
+  int32_t mask = (hash - 1) >> 31;
+  return running_hash | (kZeroHash & mask);
 }
 
 uint32_t StringHasher::ComputeRunningHash(uint32_t running_hash,
