@@ -497,6 +497,38 @@ class WasmGraphBuildingInterface {
     if (result) result->node = node;
   }
 
+  void MemoryInit(FullDecoder* decoder,
+                  const MemoryInitImmediate<validate>& imm,
+                  Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void MemoryDrop(FullDecoder* decoder,
+                  const MemoryDropImmediate<validate>& imm) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void MemoryCopy(FullDecoder* decoder,
+                  const MemoryIndexImmediate<validate>& imm,
+                  Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void MemoryFill(FullDecoder* decoder,
+                  const MemoryIndexImmediate<validate>& imm,
+                  Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
+                 Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void TableDrop(FullDecoder* decoder,
+                 const TableDropImmediate<validate>& imm) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void TableCopy(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
+  }
+
  private:
   SsaEnv* ssa_env_;
   compiler::WasmGraphBuilder* builder_;

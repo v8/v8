@@ -1817,6 +1817,37 @@ class LiftoffCompiler {
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
     unsupported(decoder, "atomicop");
   }
+  void MemoryInit(FullDecoder* decoder,
+                  const MemoryInitImmediate<validate>& imm,
+                  Vector<Value> args) {
+    unsupported(decoder, "memory.init");
+  }
+  void MemoryDrop(FullDecoder* decoder,
+                  const MemoryDropImmediate<validate>& imm) {
+    unsupported(decoder, "memory.drop");
+  }
+  void MemoryCopy(FullDecoder* decoder,
+                  const MemoryIndexImmediate<validate>& imm,
+                  Vector<Value> args) {
+    unsupported(decoder, "memory.copy");
+  }
+  void MemoryFill(FullDecoder* decoder,
+                  const MemoryIndexImmediate<validate>& imm,
+                  Vector<Value> args) {
+    unsupported(decoder, "memory.fill");
+  }
+  void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
+                 Vector<Value> args) {
+    unsupported(decoder, "table.init");
+  }
+  void TableDrop(FullDecoder* decoder,
+                 const TableDropImmediate<validate>& imm) {
+    unsupported(decoder, "table.drop");
+  }
+  void TableCopy(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Vector<Value> args) {
+    unsupported(decoder, "table.copy");
+  }
 
  private:
   LiftoffAssembler asm_;

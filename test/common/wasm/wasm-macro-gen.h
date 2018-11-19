@@ -582,6 +582,21 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_I64_SCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI64SConvertSatF64)
 #define WASM_I64_UCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI64UConvertSatF64)
 
+#define MEMORY_ZERO 0
+
+#define WASM_MEMORY_INIT(seg, dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprMemoryInit), MEMORY_ZERO, U32V_1(seg)
+#define WASM_MEMORY_DROP(seg) WASM_NUMERIC_OP(kExprMemoryDrop), U32V_1(seg)
+#define WASM_MEMORY_COPY(dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprMemoryCopy), MEMORY_ZERO
+#define WASM_MEMORY_FILL(dst, val, size) \
+  dst, val, size, WASM_NUMERIC_OP(kExprMemoryFill), MEMORY_ZERO
+#define WASM_TABLE_INIT(seg, dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprTableInit), TABLE_ZERO, U32V_1(seg)
+#define WASM_TABLE_DROP(seg) WASM_NUMERIC_OP(kExprTableDrop), U32V_1(seg)
+#define WASM_TABLE_COPY(dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprTableCopy), TABLE_ZERO
+
 //------------------------------------------------------------------------------
 // Memory Operations.
 //------------------------------------------------------------------------------
