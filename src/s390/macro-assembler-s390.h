@@ -896,7 +896,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // and place them into the least significant bits of dst.
   inline void ExtractBitRange(Register dst, Register src, int rangeStart,
                               int rangeEnd) {
-    DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerPointer);
+    DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerSystemPointer);
 
     // Try to use RISBG if possible.
     if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
@@ -931,7 +931,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // into the least significant bits of dst.
   inline void ExtractBitMask(Register dst, Register src, uintptr_t mask,
                              RCBit rc = LeaveRC) {
-    int start = kBitsPerPointer - 1;
+    int start = kBitsPerSystemPointer - 1;
     int end;
     uintptr_t bit = (1L << start);
 

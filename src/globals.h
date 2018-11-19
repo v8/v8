@@ -130,18 +130,18 @@ constexpr int kFloatSize = sizeof(float);
 constexpr int kDoubleSize = sizeof(double);
 constexpr int kIntptrSize = sizeof(intptr_t);
 constexpr int kUIntptrSize = sizeof(uintptr_t);
-constexpr int kPointerSize = sizeof(void*);
-constexpr int kPointerHexDigits = kPointerSize == 4 ? 8 : 12;
+constexpr int kSystemPointerSize = sizeof(void*);
+constexpr int kSystemPointerHexDigits = kSystemPointerSize == 4 ? 8 : 12;
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-constexpr int kRegisterSize = kPointerSize + kPointerSize;
+constexpr int kRegisterSize = kSystemPointerSize + kSystemPointerSize;
 #else
-constexpr int kRegisterSize = kPointerSize;
+constexpr int kRegisterSize = kSystemPointerSize;
 #endif
 constexpr int kPCOnStackSize = kRegisterSize;
 constexpr int kFPOnStackSize = kRegisterSize;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
-constexpr int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
+constexpr int kElidedFrameSlots = kPCOnStackSize / kSystemPointerSize;
 #else
 constexpr int kElidedFrameSlots = 0;
 #endif
@@ -155,7 +155,7 @@ constexpr size_t kMaxWasmCodeMemory = 1024 * MB;
 #endif
 
 #if V8_HOST_ARCH_64_BIT
-constexpr int kPointerSizeLog2 = 3;
+constexpr int kSystemPointerSizeLog2 = 3;
 constexpr intptr_t kIntptrSignBit =
     static_cast<intptr_t>(uintptr_t{0x8000000000000000});
 constexpr uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
@@ -178,7 +178,7 @@ constexpr size_t kMinimumCodeRangeSize = 3 * MB;
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
 #else
-constexpr int kPointerSizeLog2 = 2;
+constexpr int kSystemPointerSizeLog2 = 2;
 constexpr intptr_t kIntptrSignBit = 0x80000000;
 constexpr uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
@@ -201,6 +201,17 @@ constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
 
+STATIC_ASSERT(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
+
+constexpr int kTaggedSize = kSystemPointerSize;
+constexpr int kTaggedSizeLog2 = kSystemPointerSizeLog2;
+STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
+
+// TODO(ishell): use kTaggedSize or kSystemPointerSize instead.
+constexpr int kPointerSize = kSystemPointerSize;
+constexpr int kPointerSizeLog2 = kSystemPointerSizeLog2;
+STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
+
 constexpr int kExternalAllocationSoftLimit =
     internal::Internals::kExternalAllocationSoftLimit;
 
@@ -217,11 +228,9 @@ constexpr int kMaxRegularHeapObjectSize = 507136;
 // new large object space.
 constexpr int kMaxNewSpaceHeapObjectSize = 32 * KB;
 
-STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
-
 constexpr int kBitsPerByte = 8;
 constexpr int kBitsPerByteLog2 = 3;
-constexpr int kBitsPerPointer = kPointerSize * kBitsPerByte;
+constexpr int kBitsPerSystemPointer = kSystemPointerSize * kBitsPerByte;
 constexpr int kBitsPerInt = kIntSize * kBitsPerByte;
 
 // IEEE 754 single precision floating point number bit layout.
@@ -422,12 +431,13 @@ static_assert(SmiValuesAre31Bits() == kIsSmiValueInLower32Bits,
 constexpr intptr_t kSmiSignMask = static_cast<intptr_t>(
     uintptr_t{1} << (kSmiValueSize + kSmiShiftSize + kSmiTagSize - 1));
 
-constexpr int kObjectAlignmentBits = kPointerSizeLog2;
+// Desired alignment for tagged pointers.
+constexpr int kObjectAlignmentBits = kTaggedSizeLog2;
 constexpr intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
 constexpr intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 
-// Desired alignment for pointers.
-constexpr intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
+// Desired alignment for system pointers.
+constexpr intptr_t kPointerAlignment = (1 << kSystemPointerSizeLog2);
 constexpr intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 
 // Desired alignment for double values.
@@ -1288,7 +1298,7 @@ inline std::ostream& operator<<(std::ostream& os,
 inline uint32_t ObjectHash(Address address) {
   // All objects are at least pointer aligned, so we can remove the trailing
   // zeros.
-  return static_cast<uint32_t>(address >> kPointerSizeLog2);
+  return static_cast<uint32_t>(address >> kTaggedSizeLog2);
 }
 
 // Type feedback is encoded in such a way that, we can combine the feedback

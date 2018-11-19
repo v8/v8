@@ -1874,7 +1874,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
 #if V8_TARGET_ARCH_PPC64
     case EXTSW: {
-      const int shift = kBitsPerPointer - 32;
+      const int shift = kBitsPerSystemPointer - 32;
       int ra = instr->RAValue();
       int rs = instr->RSValue();
       intptr_t rs_val = get_register(rs);
@@ -1887,7 +1887,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
 #endif
     case EXTSH: {
-      const int shift = kBitsPerPointer - 16;
+      const int shift = kBitsPerSystemPointer - 16;
       int ra = instr->RAValue();
       int rs = instr->RSValue();
       intptr_t rs_val = get_register(rs);
@@ -1899,7 +1899,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
     case EXTSB: {
-      const int shift = kBitsPerPointer - 8;
+      const int shift = kBitsPerSystemPointer - 8;
       int ra = instr->RAValue();
       int rs = instr->RSValue();
       intptr_t rs_val = get_register(rs);

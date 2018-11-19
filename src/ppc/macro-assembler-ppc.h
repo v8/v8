@@ -521,18 +521,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void ExtractBitRange(Register dst, Register src, int rangeStart,
                               int rangeEnd, RCBit rc = LeaveRC,
                               bool test = false) {
-    DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerPointer);
-    int rotate = (rangeEnd == 0) ? 0 : kBitsPerPointer - rangeEnd;
+    DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerSystemPointer);
+    int rotate = (rangeEnd == 0) ? 0 : kBitsPerSystemPointer - rangeEnd;
     int width = rangeStart - rangeEnd + 1;
     if (rc == SetRC && rangeStart < 16 && (rangeEnd == 0 || test)) {
       // Prefer faster andi when applicable.
       andi(dst, src, Operand(((1 << width) - 1) << rangeEnd));
     } else {
 #if V8_TARGET_ARCH_PPC64
-      rldicl(dst, src, rotate, kBitsPerPointer - width, rc);
+      rldicl(dst, src, rotate, kBitsPerSystemPointer - width, rc);
 #else
-      rlwinm(dst, src, rotate, kBitsPerPointer - width, kBitsPerPointer - 1,
-             rc);
+      rlwinm(dst, src, rotate, kBitsPerSystemPointer - width,
+             kBitsPerSystemPointer - 1, rc);
 #endif
     }
   }
@@ -546,7 +546,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // into the least significant bits of dst.
   inline void ExtractBitMask(Register dst, Register src, uintptr_t mask,
                              RCBit rc = LeaveRC, bool test = false) {
-    int start = kBitsPerPointer - 1;
+    int start = kBitsPerSystemPointer - 1;
     int end;
     uintptr_t bit = (1L << start);
 

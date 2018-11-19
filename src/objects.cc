@@ -2562,7 +2562,7 @@ void MaybeObject::ShortPrint(StringStream* accumulator) {
 
 void MaybeObject::ShortPrint(std::ostream& os) { os << Brief(*this); }
 
-Brief::Brief(const Object* v) : value(reinterpret_cast<Address>(v)) {}
+Brief::Brief(const Object* v) : value(v->ptr()) {}
 Brief::Brief(const MaybeObject v) : value(v.ptr()) {}
 
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
@@ -3404,7 +3404,7 @@ bool JSObject::IsUnmodifiedApiObject(ObjectSlot o) {
 }
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
-  os << AsHex(reinterpret_cast<Address>(this), kPointerHexDigits, true) << " ";
+  os << AsHex(this->ptr(), kSystemPointerHexDigits, true) << " ";
 
   if (IsString()) {
     HeapStringAllocator allocator;
