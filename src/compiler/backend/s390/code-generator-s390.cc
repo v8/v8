@@ -6,12 +6,12 @@
 
 #include "src/assembler-inl.h"
 #include "src/callable.h"
-#include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/backend/code-generator-impl.h"
+#include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/macro-assembler.h"
 #include "src/optimized-compilation-info.h"
-#include "src/s390/macro-assembler-s390.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
