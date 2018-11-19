@@ -605,18 +605,17 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
 Node* RepresentationChanger::GetFloat64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type output_type,
     Node* use_node, UseInfo use_info) {
-  // Eagerly fold representation changes for constants.
-  if ((use_info.type_check() == TypeCheckKind::kNone)) {
-    // TODO(jarin) Handle checked constant conversions.
-    switch (node->opcode()) {
-      case IrOpcode::kNumberConstant:
-        return jsgraph()->Float64Constant(OpParameter<double>(node->op()));
-      case IrOpcode::kInt32Constant:
-      case IrOpcode::kFloat64Constant:
-      case IrOpcode::kFloat32Constant:
-        UNREACHABLE();
-        break;
-      default:
+  NumberMatcher m(node);
+  if (m.HasValue()) {
+    switch (use_info.type_check()) {
+      case TypeCheckKind::kNone:
+      case TypeCheckKind::kNumber:
+      case TypeCheckKind::kNumberOrOddball:
+        return jsgraph()->Float64Constant(m.Value());
+      case TypeCheckKind::kHeapObject:
+      case TypeCheckKind::kSigned32:
+      case TypeCheckKind::kSigned64:
+      case TypeCheckKind::kSignedSmall:
         break;
     }
   }
