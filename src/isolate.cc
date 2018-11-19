@@ -52,6 +52,7 @@
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/prototype.h"
+#include "src/ptr-compr.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime-profiler.h"
 #include "src/setup-isolate.h"
@@ -2728,8 +2729,9 @@ Isolate* Isolate::New(IsolateAllocationMode mode) {
   void* isolate_ptr = isolate_allocator->isolate_memory();
   Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
 #ifdef V8_TARGET_ARCH_64_BIT
-  DCHECK_IMPLIES(mode == IsolateAllocationMode::kInV8Heap,
-                 IsAligned(isolate->isolate_root(), size_t{4} * GB));
+  DCHECK_IMPLIES(
+      mode == IsolateAllocationMode::kInV8Heap,
+      IsAligned(isolate->isolate_root(), kPtrComprIsolateRootAlignment));
 #endif
 
 #ifdef DEBUG
