@@ -354,8 +354,8 @@
   F(MC_INCREMENTAL)                                                \
   F(MC_INCREMENTAL_START)                                          \
   F(MC_INCREMENTAL_SWEEPING)                                       \
-  F(MC_INCREMENTAL_WRAPPER_PROLOGUE)                               \
-  F(MC_INCREMENTAL_WRAPPER_TRACING)                                \
+  F(MC_INCREMENTAL_EMBEDDER_PROLOGUE)                              \
+  F(MC_INCREMENTAL_EMBEDDER_TRACING)                               \
   F(MC_INCREMENTAL_FINALIZE)                                       \
   F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
@@ -372,6 +372,7 @@
 
 #define TRACER_SCOPES(F)                             \
   INCREMENTAL_SCOPES(F)                              \
+  F(HEAP_EMBEDDER_TRACING_EPILOGUE)                  \
   F(HEAP_EPILOGUE)                                   \
   F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
   F(HEAP_EXTERNAL_EPILOGUE)                          \
@@ -398,7 +399,9 @@
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
-  F(MC_FINISH_WRAPPER_EPILOGUE)                      \
+  F(MC_MARK_EMBEDDER_PROLOGUE)                       \
+  F(MC_MARK_EMBEDDER_TRACING)                        \
+  F(MC_MARK_EMBEDDER_TRACING_CLOSURE)                \
   F(MC_MARK_FINISH_INCREMENTAL)                      \
   F(MC_MARK_MAIN)                                    \
   F(MC_MARK_ROOTS)                                   \
@@ -409,9 +412,6 @@
   F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)               \
   F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                 \
   F(MC_MARK_WEAK_CLOSURE_HARMONY)                    \
-  F(MC_MARK_WRAPPERS)                                \
-  F(MC_MARK_WRAPPER_PROLOGUE)                        \
-  F(MC_MARK_WRAPPER_TRACING)                         \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_OLD)                                    \

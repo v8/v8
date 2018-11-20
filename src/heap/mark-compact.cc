@@ -758,7 +758,7 @@ void MarkCompactCollector::Prepare() {
   heap()->memory_allocator()->unmapper()->PrepareForMarkCompact();
 
   if (!was_marked_incrementally_) {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_PROLOGUE);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
     heap_->local_embedder_heap_tracer()->TracePrologue();
   }
 
@@ -844,14 +844,6 @@ void MarkCompactCollector::Finish() {
     // Some code objects were marked for deoptimization during the GC.
     Deoptimizer::DeoptimizeMarkedCode(isolate());
     have_code_to_deoptimize_ = false;
-  }
-
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH_WRAPPER_EPILOGUE);
-    // TraceEpilogue may trigger operations that invalidate global handles. It
-    // has to be called *after* all other operations that potentially touch and
-    // reset global handles.
-    heap()->local_embedder_heap_tracer()->TraceEpilogue();
   }
 }
 
@@ -1610,7 +1602,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
 
 void MarkCompactCollector::PerformWrapperTracing() {
   if (heap_->local_embedder_heap_tracer()->InUse()) {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
     HeapObject* object;
     while (marking_worklist()->embedder()->Pop(kMainThread, &object)) {
       heap_->TracePossibleWrapper(JSObject::cast(object));
@@ -1768,7 +1760,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     // opportunistic as it may not discover graphs that are only reachable
     // through ephemerons.
     {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPERS);
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_MARK_EMBEDDER_TRACING_CLOSURE);
       do {
         // PerformWrapperTracing() also empties the work items collected by
         // concurrent markers. As a result this call needs to happen at least
