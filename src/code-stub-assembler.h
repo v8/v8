@@ -18,6 +18,8 @@
 #include "src/objects/smi.h"
 #include "src/roots.h"
 
+#include "torque-generated/builtins-base-from-dsl-gen.h"
+
 namespace v8 {
 namespace internal {
 
@@ -195,30 +197,14 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #define CSA_SLOW_ASSERT(csa, ...) ((void)0)
 #endif
 
-class int31_t {
- public:
-  int31_t() : value_(0) {}
-  int31_t(int value) : value_(value) {  // NOLINT(runtime/explicit)
-    DCHECK_EQ((value & 0x80000000) != 0, (value & 0x40000000) != 0);
-  }
-  int31_t& operator=(int value) {
-    DCHECK_EQ((value & 0x80000000) != 0, (value & 0x40000000) != 0);
-    value_ = value;
-    return *this;
-  }
-  int32_t value() const { return value_; }
-  operator int32_t() const { return value_; }
-
- private:
-  int32_t value_;
-};
-
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"
 // without modifying files in the compiler directory (and requiring a review
 // from a compiler directory OWNER).
-class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
+class V8_EXPORT_PRIVATE CodeStubAssembler
+    : public compiler::CodeAssembler,
+      public BaseBuiltinsFromDSLAssembler {
  public:
   using Node = compiler::Node;
   template <class T>

@@ -1848,10 +1848,10 @@ TF_BUILTIN(ArrayPrototypeFindIndex, ArrayBuiltinsAssembler) {
       MissingPropertyMode::kUseUndefined, ForEachDirection::kForward);
 }
 
-class ArrayPopulatorAssembler : public BaseBuiltinsFromDSLAssembler {
+class ArrayPopulatorAssembler : public CodeStubAssembler {
  public:
   explicit ArrayPopulatorAssembler(compiler::CodeAssemblerState* state)
-      : BaseBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state) {}
 
   TNode<Object> ConstructArrayLike(TNode<Context> context,
                                    TNode<Object> receiver) {

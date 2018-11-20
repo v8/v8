@@ -20,10 +20,11 @@ namespace internal {
 template <class T>
 using TVariable = compiler::TypedCodeAssemblerVariable<T>;
 
-class BaseCollectionsAssembler : public CollectionsBuiltinsFromDSLAssembler {
+class BaseCollectionsAssembler : public CodeStubAssembler,
+                                 public CollectionsBuiltinsFromDSLAssembler {
  public:
   explicit BaseCollectionsAssembler(compiler::CodeAssemblerState* state)
-      : CollectionsBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state), CollectionsBuiltinsFromDSLAssembler(state) {}
 
   virtual ~BaseCollectionsAssembler() = default;
 
@@ -312,7 +313,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
 
   TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
-  IteratorBuiltinsFromDSLAssembler::IteratorRecord iterator =
+  IteratorBuiltinsAssembler::IteratorRecord iterator =
       iterator_assembler.GetIterator(context, iterable);
 
   CSA_ASSERT(this, Word32BinaryNot(IsUndefined(iterator.object)));

@@ -35,9 +35,9 @@ def preprocess(input):
     if old == input:
       break;
 
-  input = re.sub(r'\sgenerates\s+\'([^\']+)\'\s*',
+  input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*',
       r' _GeNeRaTeS00_/*\1@*/', input)
-  input = re.sub(r'\sconstexpr\s+\'([^\']+)\'\s*',
+  input = re.sub(r'\bconstexpr\s+\'([^\']+)\'\s*',
       r' _CoNsExP_/*\1@*/', input)
   input = re.sub(r'\notherwise',
       r'\n otherwise', input)

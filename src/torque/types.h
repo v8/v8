@@ -171,7 +171,10 @@ class AbstractType final : public Type {
   const std::string& name() const { return name_; }
   std::string ToExplicitString() const override { return name(); }
   std::string MangledName() const override { return "AT" + name(); }
-  std::string GetGeneratedTypeName() const override { return generated_type_; }
+  std::string GetGeneratedTypeName() const override {
+    return IsConstexpr() ? generated_type_
+                         : "compiler::TNode<" + generated_type_ + ">";
+  }
   std::string GetGeneratedTNodeTypeName() const override;
   bool IsConstexpr() const override {
     return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
@@ -266,7 +269,7 @@ class UnionType final : public Type {
   std::string ToExplicitString() const override;
   std::string MangledName() const override;
   std::string GetGeneratedTypeName() const override {
-    return "TNode<" + GetGeneratedTNodeTypeName() + ">";
+    return "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
   }
   std::string GetGeneratedTNodeTypeName() const override;
 

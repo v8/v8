@@ -23,7 +23,7 @@ template <class T>
 using SloppyTNode = compiler::SloppyTNode<T>;
 
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
-    : compiler::CodeAssembler(state) {
+    : compiler::CodeAssembler(state), BaseBuiltinsFromDSLAssembler(state) {
   if (DEBUG_BOOL && FLAG_csa_trap_on_node != nullptr) {
     HandleBreakOnNode();
   }

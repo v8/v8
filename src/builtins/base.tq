@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 type Arguments constexpr 'CodeStubArguments*';
-type void generates 'void';
-type never generates 'void';
+type void;
+type never;
 
 type Tagged generates 'TNode<Object>';
 type Smi extends Tagged generates 'TNode<Smi>';
@@ -20,7 +20,8 @@ type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 type string constexpr 'const char*';
 
-type int31 extends int32 generates 'TNode<Int32T>' constexpr 'int31_t';
+type int31 extends int32
+    generates 'TNode<Int32T>' constexpr 'int31_t';
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
 type AbstractCode extends HeapObject generates 'TNode<AbstractCode>';
 type Code extends AbstractCode generates 'TNode<Code>';
@@ -86,14 +87,17 @@ type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
 type LanguageMode generates 'TNode<Smi>' constexpr 'LanguageMode';
 type ExtractFixedArrayFlags
-    generates 'TNode<Smi>' constexpr 'ExtractFixedArrayFlags';
-type ParameterMode generates 'TNode<Int32T>' constexpr 'ParameterMode';
+    generates 'TNode<Smi>'
+    constexpr 'CodeStubAssembler::ExtractFixedArrayFlags';
+type ParameterMode
+    generates 'TNode<Int32T>' constexpr 'ParameterMode';
 type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
 type MessageTemplate constexpr 'MessageTemplate';
-type ToIntegerTruncationMode constexpr 'ToIntegerTruncationMode';
+type ToIntegerTruncationMode
+constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
 type AllocationFlags constexpr 'AllocationFlags';
 
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
@@ -131,7 +135,8 @@ const BIGUINT64_ELEMENTS:
 const BIGINT64_ELEMENTS:
     constexpr ElementsKind generates 'BIGINT64_ELEMENTS';
 
-const kNone: constexpr AllocationFlags generates 'kNone';
+const kNone:
+    constexpr AllocationFlags generates 'CodeStubAssembler::kNone';
 const kDoubleAlignment:
     constexpr AllocationFlags generates 'kDoubleAlignment';
 const kPretenured: constexpr AllocationFlags generates 'kPretenured';
@@ -151,11 +156,11 @@ type FixedBigUint64Array extends FixedTypedArray;
 type FixedBigInt64Array extends FixedTypedArray;
 
 const kFixedDoubleArrays: constexpr ExtractFixedArrayFlags
-    generates 'ExtractFixedArrayFlag::kFixedDoubleArrays';
+    generates 'CodeStubAssembler::ExtractFixedArrayFlag::kFixedDoubleArrays';
 const kAllFixedArrays: constexpr ExtractFixedArrayFlags
-    generates 'ExtractFixedArrayFlag::kAllFixedArrays';
+    generates 'CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays';
 const kFixedArrays: constexpr ExtractFixedArrayFlags
-    generates 'ExtractFixedArrayFlag::kFixedArrays';
+    generates 'CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays';
 
 const kFixedCOWArrayMapRootIndex:
     constexpr RootIndex generates 'RootIndex::kFixedCOWArrayMap';
@@ -195,7 +200,8 @@ const kSloppyArgumentsParameterMapStart: constexpr int31
     generates 'SloppyArgumentsElements::kParameterMapStart';
 
 const kTruncateMinusZero: constexpr ToIntegerTruncationMode
-    generates 'ToIntegerTruncationMode::kTruncateMinusZero';
+    generates 'CodeStubAssembler::ToIntegerTruncationMode::kTruncateMinusZero'
+    ;
 
 const kNotTypedArray: constexpr MessageTemplate
     generates 'MessageTemplate::kNotTypedArray';
@@ -234,9 +240,10 @@ const false: constexpr bool generates 'false';
 const kStrict: constexpr LanguageMode generates 'LanguageMode::kStrict';
 const kSloppy: constexpr LanguageMode generates 'LanguageMode::kSloppy';
 
-const SMI_PARAMETERS: constexpr ParameterMode generates 'SMI_PARAMETERS';
-const INTPTR_PARAMETERS:
-    constexpr ParameterMode generates 'INTPTR_PARAMETERS';
+const SMI_PARAMETERS: constexpr ParameterMode
+    generates 'CodeStubAssembler::SMI_PARAMETERS';
+const INTPTR_PARAMETERS: constexpr ParameterMode
+    generates 'CodeStubAssembler::INTPTR_PARAMETERS';
 
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';

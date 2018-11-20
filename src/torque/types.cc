@@ -75,10 +75,7 @@ bool Type::IsAbstractName(const std::string& name) const {
 }
 
 std::string AbstractType::GetGeneratedTNodeTypeName() const {
-  std::string result = GetGeneratedTypeName();
-  DCHECK_EQ(result.substr(0, 6), "TNode<");
-  result = result.substr(6, result.length() - 7);
-  return result;
+  return generated_type_;
 }
 
 std::string FunctionPointerType::ToExplicitString() const {

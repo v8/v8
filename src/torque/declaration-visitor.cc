@@ -233,6 +233,15 @@ void DeclarationVisitor::Visit(StructDeclaration* decl) {
 
 void DeclarationVisitor::Visit(TypeDeclaration* decl) {
   std::string generates = decl->generates ? *decl->generates : std::string("");
+  if (decl->generates) {
+    if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
+        generates.substr(generates.length() - 1, 1) != ">") {
+      ReportError("generated type \"", generates,
+                  "\" should be of the form \"TNode<...>\"");
+    }
+    generates = generates.substr(6, generates.length() - 7);
+  }
+
   const AbstractType* type = Declarations::DeclareAbstractType(
       decl->name, decl->transient, generates, {}, decl->extends);
 

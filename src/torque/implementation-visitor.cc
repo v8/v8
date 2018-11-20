@@ -68,16 +68,9 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
   }
   source << "\n";
 
-  source
-      << "namespace v8 {\n"
-      << "namespace internal {\n"
-      << "\n"
-      << "using Node = compiler::Node;\n"
-      << "using CatchLabel = compiler::CodeAssemblerExceptionHandlerLabel;\n"
-      << "using ScopedCatch = compiler::CodeAssemblerScopedExceptionHandler;\n"
-      << "template <class... Ts>\n"
-      << "using PLabel = compiler::CodeAssemblerParameterizedLabel<Ts...>;\n"
-      << "\n";
+  source << "namespace v8 {\n"
+         << "namespace internal {\n"
+         << "\n";
 
   std::string upper_name(nspace->name());
   transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
@@ -86,26 +79,21 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
       std::string("V8_TORQUE_") + upper_name + "_FROM_DSL_BASE_H__";
   header << "#ifndef " << headerDefine << "\n";
   header << "#define " << headerDefine << "\n\n";
-  header << "#include \"src/code-stub-assembler.h\"";
-  header << "\n\n ";
+  header << "#include \"src/compiler/code-assembler.h\"\n";
+  if (nspace != GlobalContext::GetDefaultNamespace()) {
+    header << "#include \"src/code-stub-assembler.h\"\n";
+  }
+  header << "\n";
 
   header << "namespace v8 {\n"
          << "namespace internal {\n"
          << "\n";
 
-  header << "class " << nspace->ExternalName()
-         << ": public CodeStubAssembler {\n";
+  header << "class " << nspace->ExternalName() << " {\n";
   header << " public:\n";
   header << "  explicit " << nspace->ExternalName()
-         << "(compiler::CodeAssemblerState* state) : CodeStubAssembler(state) "
-            "{}\n";
-
-  header << "\n";
-  header << "  using Node = compiler::Node;\n";
-  header << "  template <class T>\n";
-  header << "  using TNode = compiler::TNode<T>;\n";
-  header << "  template <class T>\n";
-  header << "  using SloppyTNode = compiler::SloppyTNode<T>;\n\n";
+         << "(compiler::CodeAssemblerState* state) : state_(state), ca_(state) "
+            "{ USE(state_, ca_); }\n";
 }
 
 void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
@@ -122,7 +110,10 @@ void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
          << "}  // namespace v8\n"
          << "\n";
 
-  header << "};\n\n";
+  header << " private:\n"
+         << "  compiler::CodeAssemblerState* const state_;\n"
+         << "  compiler::CodeAssembler ca_;"
+         << "}; \n\n";
   header << "}  // namespace internal\n"
          << "}  // namespace v8\n"
          << "\n";
@@ -340,8 +331,10 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
   CurrentScope::Scope current_scope(builtin);
   const std::string& name = builtin->ExternalName();
   const Signature& signature = builtin->signature();
-  source_out() << "TF_BUILTIN(" << name << ", "
-               << CurrentNamespace()->ExternalName() << ") {\n";
+  source_out() << "TF_BUILTIN(" << name << ", CodeStubAssembler) {\n"
+               << "  compiler::CodeAssemblerState* state_ = state();"
+               << "  compiler::CodeAssembler ca_(state());\n";
+
   CurrentCallable::Scope current_callable(builtin);
 
   Stack<const Type*> parameter_types;
@@ -1194,17 +1187,11 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
     std::cout << "generating source for declaration " << name << "\n";
   }
 
-  // Quite a hack here. Make sure that TNode is namespace qualified if the
-  // macro/constant name is also qualified.
-  std::string return_type_name(signature.return_type->GetGeneratedTypeName());
-  if (const StructType* struct_type =
-          StructType::DynamicCast(signature.return_type)) {
-    o << struct_type->nspace()->ExternalName() << "::";
-  } else if (macro_prefix != "" && (return_type_name.length() > 5) &&
-             (return_type_name.substr(0, 5) == "TNode")) {
-    o << "compiler::";
+  if (signature.return_type->IsVoidOrNever()) {
+    o << "void";
+  } else {
+    o << signature.return_type->GetGeneratedTypeName();
   }
-  o << return_type_name;
   o << " " << macro_prefix << name << "(";
 
   DCHECK_EQ(signature.types().size(), parameter_names.size());
@@ -1226,10 +1213,10 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
     if (!first) {
       o << ", ";
     }
-    o << "Label* " << ExternalLabelName(label_info.name);
+    o << "compiler::CodeAssemblerLabel* " << ExternalLabelName(label_info.name);
     size_t i = 0;
     for (const Type* type : label_info.types) {
-      std::string generated_type_name("TVariable<");
+      std::string generated_type_name("compiler::TypedCodeAssemblerVariable<");
       generated_type_name += type->GetGeneratedTNodeTypeName();
       generated_type_name += ">*";
       o << ", ";
@@ -1528,7 +1515,9 @@ LocationReference ImplementationVisitor::GetLocationReference(
   if (auto* constant = NamespaceConstant::DynamicCast(value)) {
     if (constant->type()->IsConstexpr()) {
       return LocationReference::Temporary(
-          VisitResult(constant->type(), constant->constant_name() + "()"),
+          VisitResult(constant->type(), constant->ExternalAssemblerName() +
+                                            "(state_)." +
+                                            constant->constant_name() + "()"),
           "namespace constant " + expr->name);
     }
     assembler().Emit(NamespaceConstantInstruction{constant});
@@ -1731,7 +1720,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     if (return_type->IsConstexpr()) {
       DCHECK_EQ(0, arguments.labels.size());
       std::stringstream result;
-      result << "(" << macro->external_assembler_name() << "(state())."
+      result << "(" << macro->external_assembler_name() << "(state_)."
              << macro->ExternalName() << "(";
       bool first = true;
       for (VisitResult arg : arguments.parameters) {
