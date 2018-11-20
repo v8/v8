@@ -54,7 +54,7 @@ namespace array {
     return LoadElementOrUndefined(a, Convert<intptr>(i));
   }
 
-  macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): Object {
+  macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
     try {
       const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
       return AllocateHeapNumberWithValue(f);
@@ -64,7 +64,8 @@ namespace array {
     }
   }
 
-  macro LoadElementOrUndefined(a: FixedDoubleArray, i: intptr): Object {
+  macro LoadElementOrUndefined(a: FixedDoubleArray, i: intptr):
+      NumberOrUndefined {
     try {
       const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
       return AllocateHeapNumberWithValue(f);
@@ -75,7 +76,7 @@ namespace array {
   }
 
   macro LoadElementOrUndefined(a: FixedDoubleArray, i: constexpr int31):
-      Object {
+      NumberOrUndefined {
     return LoadElementOrUndefined(a, Convert<intptr>(i));
   }
 

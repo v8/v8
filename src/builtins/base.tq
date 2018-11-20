@@ -35,7 +35,6 @@ type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
-type Boolean extends Oddball generates 'TNode<Oddball>';
 type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 type JSObject extends JSReceiver generates 'TNode<JSObject>';
 type JSArgumentsObjectWithLength extends JSObject
@@ -216,21 +215,30 @@ const kInvalidDataViewAccessorOffset: constexpr MessageTemplate
 const kStrictReadOnlyProperty: constexpr MessageTemplate
     generates 'MessageTemplate::kStrictReadOnlyProperty';
 
-extern macro TheHoleConstant(): Oddball;
-extern macro NullConstant(): Oddball;
-extern macro UndefinedConstant(): Oddball;
-extern macro TrueConstant(): Boolean;
-extern macro FalseConstant(): Boolean;
+type Hole extends Oddball generates 'TNode<Oddball>';
+type Null extends Oddball generates 'TNode<Oddball>';
+type Undefined extends Oddball generates 'TNode<Oddball>';
+type True extends Oddball generates 'TNode<Oddball>';
+type False extends Oddball generates 'TNode<Oddball>';
+type Boolean = True | False;
+
+type NumberOrUndefined = Number | Undefined;
+
+extern macro TheHoleConstant(): Hole;
+extern macro NullConstant(): Null;
+extern macro UndefinedConstant(): Undefined;
+extern macro TrueConstant(): True;
+extern macro FalseConstant(): False;
 extern macro Int32TrueConstant(): bool;
 extern macro Int32FalseConstant(): bool;
 extern macro EmptyStringConstant(): String;
 extern macro LengthStringConstant(): String;
 
-const Hole: Oddball = TheHoleConstant();
-const Null: Oddball = NullConstant();
-const Undefined: Oddball = UndefinedConstant();
-const True: Boolean = TrueConstant();
-const False: Boolean = FalseConstant();
+const Hole: Hole = TheHoleConstant();
+const Null: Null = NullConstant();
+const Undefined: Undefined = UndefinedConstant();
+const True: True = TrueConstant();
+const False: False = FalseConstant();
 const kEmptyString: String = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
 
