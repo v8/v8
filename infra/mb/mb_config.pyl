@@ -121,8 +121,6 @@
       'V8 Clusterfuzz Linux64 - release builder':
           'release_x64_correctness_fuzzer',
       'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64',
-      'V8 Clusterfuzz Linux64 - nosnap release builder': 'release_x64_no_snap',
-      'V8 Clusterfuzz Linux64 - nosnap debug builder': 'debug_x64_no_snap',
       'V8 Clusterfuzz Linux64 ASAN no inline - release builder':
           'release_x64_asan_symbolized_edge_verify_heap',
       'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan_edge',
@@ -438,8 +436,6 @@
       'release_trybot', 'x64', 'jumbo_limited'],
     'release_x64_minimal_symbols': [
       'release_bot', 'x64', 'minimal_symbols'],
-    'release_x64_no_snap': [
-      'release_bot', 'x64', 'v8_snapshot_none'],
     'release_x64_pointer_compression': [
       'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
       'v8_enable_pointer_compression'],
@@ -485,8 +481,6 @@
       'debug_bot', 'x64', 'jumbo_limited'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
-    'debug_x64_no_snap': [
-      'debug_bot', 'x64', 'v8_snapshot_none'],
     'debug_x64_trybot': [
       'debug_trybot', 'x64'],
 
