@@ -66,6 +66,7 @@ Name* TransitionsAccessor::GetKey(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
       UNREACHABLE();
       return nullptr;
     case kWeakRef: {
@@ -129,6 +130,7 @@ Map TransitionsAccessor::GetTarget(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
       UNREACHABLE();
       return Map();
     case kWeakRef:
