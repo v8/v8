@@ -192,6 +192,7 @@ v8_source_set("cctest_sources") {
     "test-hashcode.cc",
     "test-hashmap.cc",
     "test-heap-profiler.cc",
+    "test-icache.cc",
     "test-identity-map.cc",
     "test-inobject-slack-tracking.cc",
     "test-inspector.cc",
