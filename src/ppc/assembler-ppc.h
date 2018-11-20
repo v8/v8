@@ -1637,6 +1637,11 @@ class PatchingAssembler : public Assembler {
   ~PatchingAssembler();
 };
 
+// Define {RegisterName} methods for the register types.
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS);
+DEFINE_REGISTER_NAMES(DoubleRegister, DOUBLE_REGISTERS);
+
+
 }  // namespace internal
 }  // namespace v8
 
