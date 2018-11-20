@@ -341,16 +341,17 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 class ExternalOwningOneByteStringResource
     : public String::ExternalOneByteStringResource {
  public:
-  ExternalOwningOneByteStringResource() : length_(0) {}
-  ExternalOwningOneByteStringResource(std::unique_ptr<const char[]> data,
-                                      size_t length)
-      : data_(std::move(data)), length_(length) {}
-  const char* data() const override { return data_.get(); }
-  size_t length() const override { return length_; }
+  ExternalOwningOneByteStringResource() {}
+  ExternalOwningOneByteStringResource(
+      std::unique_ptr<base::OS::MemoryMappedFile> file)
+      : file_(std::move(file)) {}
+  const char* data() const override {
+    return static_cast<char*>(file_->memory());
+  }
+  size_t length() const override { return file_->size(); }
 
  private:
-  std::unique_ptr<const char[]> data_;
-  size_t length_;
+  std::unique_ptr<base::OS::MemoryMappedFile> file_;
 };
 
 CounterMap* Shell::counter_map_;
@@ -2231,19 +2232,20 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 // Reads a file into a v8 string.
 Local<String> Shell::ReadFile(Isolate* isolate, const char* name) {
-  int size = 0;
-  char* chars = ReadChars(name, &size);
-  if (chars == nullptr) return Local<String>();
+  std::unique_ptr<base::OS::MemoryMappedFile> file(
+      base::OS::MemoryMappedFile::open(name));
+  if (!file) return Local<String>();
+
+  int size = static_cast<int>(file->size());
+  char* chars = static_cast<char*>(file->memory());
   Local<String> result;
   if (i::FLAG_use_external_strings && i::String::IsAscii(chars, size)) {
     String::ExternalOneByteStringResource* resource =
-        new ExternalOwningOneByteStringResource(
-            std::unique_ptr<const char[]>(chars), size);
+        new ExternalOwningOneByteStringResource(std::move(file));
     result = String::NewExternalOneByte(isolate, resource).ToLocalChecked();
   } else {
     result = String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size)
                  .ToLocalChecked();
-    delete[] chars;
   }
   return result;
 }
