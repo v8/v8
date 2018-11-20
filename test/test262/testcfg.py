@@ -173,6 +173,8 @@ class TestCase(testcase.D8TestCase):
         list(self.suite.harness) +
         ([os.path.join(self.suite.root, "harness-agent.js")]
          if self.path.startswith('built-ins/Atomics') else []) +
+        ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
+         if self.fail_phase_only else []) +
         self._get_includes() +
         (["--module"] if "module" in self.test_record else []) +
         [self._get_source_path()]

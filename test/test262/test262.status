@@ -178,7 +178,7 @@
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=896
-  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F': [FAIL_PHASE_ONLY],
   'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F-negated': [FAIL],
   'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid': [FAIL],
   'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid-negated': [FAIL],
