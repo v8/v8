@@ -386,7 +386,7 @@ void IncrementalMarking::StartMarking() {
 
   {
     TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
+             GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
     heap_->local_embedder_heap_tracer()->TracePrologue();
   }
 
@@ -802,7 +802,7 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
 void IncrementalMarking::EmbedderStep(double duration_ms) {
   constexpr int kObjectsToProcessBeforeInterrupt = 100;
 
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
 
   const double deadline =
       heap_->MonotonicallyIncreasingTimeInMs() + duration_ms;

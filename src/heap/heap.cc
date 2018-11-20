@@ -1700,20 +1700,7 @@ bool Heap::PerformGarbageCollection(
     // nested GCs.
     freed_global_handles =
         isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
-  }
 
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EMBEDDER_TRACING_EPILOGUE);
-    // TraceEpilogue may trigger operations that invalidate global handles. It
-    // has to be called *after* all other operations that potentially touch and
-    // reset global handles. It is also still part of the main garbage
-    // collection pause and thus needs to be called *before* any operation that
-    // can potentially trigger recursive garbage
-    local_embedder_heap_tracer()->TraceEpilogue();
-  }
-
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
     gc_post_processing_depth_++;
     {
       AllowHeapAllocation allow_allocation;
