@@ -1534,7 +1534,7 @@ v8_header_set("v8_headers") {
     "include/v8config.h",
   ]
 
-  if (is_linux) {
+  if (is_linux || is_mac) {
     sources += [ "include/v8-wasm-trap-handler-posix.h" ]
   }
 
@@ -2759,7 +2759,7 @@ v8_source_set("v8_base") {
       "src/x64/simulator-x64.h",
       "src/x64/sse-instr.h",
     ]
-    if (is_linux) {
+    if (is_linux || is_mac) {
       sources += [
         "src/trap-handler/handler-inside-posix.cc",
         "src/trap-handler/handler-inside-posix.h",

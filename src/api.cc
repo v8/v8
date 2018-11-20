@@ -102,7 +102,7 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
-#ifdef V8_OS_POSIX
+#if V8_OS_LINUX || V8_OS_MACOSX
 #include <signal.h>
 #include "src/trap-handler/handler-inside-posix.h"
 #endif
@@ -5873,12 +5873,12 @@ bool v8::V8::Initialize() {
   return true;
 }
 
-#if V8_OS_POSIX
+#if V8_OS_LINUX || V8_OS_MACOSX
 bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
                                    void* context) {
-#if V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+#if V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
   return i::trap_handler::TryHandleSignal(sig_code, info, context);
-#else  // V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+#else
   return false;
 #endif
 }
