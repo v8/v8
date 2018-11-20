@@ -249,12 +249,12 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   os << "})();\n";
 }
 
-int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
-                                        bool require_valid) {
+void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
+                                         bool require_valid) {
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all
   // respect that limit.
-  if (data.size() > max_input_size()) return 0;
+  if (data.size() > max_input_size()) return;
 
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
@@ -282,7 +282,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   if (!data.is_empty()) data += 1;
   if (!GenerateModule(i_isolate, &zone, data, buffer, num_args,
                       interpreter_args, compiler_args)) {
-    return 0;
+    return;
   }
 
   testing::SetupIsolateForWasmModule(i_isolate);
@@ -314,7 +314,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   CHECK_EQ(compiles, validates);
   CHECK_IMPLIES(require_valid, validates);
 
-  if (!compiles) return 0;
+  if (!compiles) return;
 
   MaybeHandle<WasmInstanceObject> interpreter_instance =
       i_isolate->wasm_engine()->SyncInstantiate(
@@ -322,7 +322,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
           MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
 
   // Ignore instantiation failure.
-  if (interpreter_thrower.error()) return 0;
+  if (interpreter_thrower.error()) return;
 
   testing::WasmInterpretationResult interpreter_result =
       testing::InterpretWasmModule(i_isolate,
@@ -331,7 +331,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
 
   // Do not execute the generated code if the interpreter did not finished after
   // a bounded number of steps.
-  if (interpreter_result.stopped()) return 0;
+  if (interpreter_result.stopped()) return;
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
   // This sign bit can make the difference between an infinite loop and
@@ -339,7 +339,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   // the generated code will not go into an infinite loop and cause a timeout in
   // Clusterfuzz. Therefore we do not execute the generated code if the result
   // may be non-deterministic.
-  if (interpreter_result.possible_nondeterminism()) return 0;
+  if (interpreter_result.possible_nondeterminism()) return;
 
   int32_t result_compiled;
   {
@@ -368,7 +368,6 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
 
   // Cleanup any pending exception.
   i_isolate->clear_pending_exception();
-  return 0;
 }
 
 }  // namespace fuzzer
