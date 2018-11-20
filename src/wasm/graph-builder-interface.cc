@@ -157,7 +157,7 @@ class WasmGraphBuildingInterface {
     ssa_env_->SetNotMerged();
     if (!decoder->ok()) return;
     // Wrap input merge into phis.
-    for (unsigned i = 0; i < block->start_merge.arity; ++i) {
+    for (uint32_t i = 0; i < block->start_merge.arity; ++i) {
       Value& val = block->start_merge[i];
       val.node = builder_->Phi(val.type, 1, &val.node, block->end_env->control);
     }
@@ -248,7 +248,7 @@ class WasmGraphBuildingInterface {
     for (size_t i = 0; i < num_values; ++i) {
       buffer[i] = values[i].node;
     }
-    BUILD(Return, static_cast<unsigned>(values.size()), buffer);
+    BUILD(Return, static_cast<uint32_t>(values.size()), buffer);
   }
 
   void GetLocal(FullDecoder* decoder, Value* result,

@@ -1305,7 +1305,7 @@ class ModuleDecoderImpl : public Decoder {
     const byte* pos = pc();
     uint8_t opcode = consume_u8("opcode");
     WasmInitExpr expr;
-    unsigned len = 0;
+    uint32_t len = 0;
     switch (opcode) {
       case kExprGetGlobal: {
         GlobalIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
@@ -1686,7 +1686,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
   Decoder decoder(tables_start, tables_end);
   uint32_t functions_count = decoder.consume_u32v("functions count");
   // Reserve space for the entries, taking care of invalid input.
-  if (functions_count < static_cast<unsigned>(tables_end - tables_start)) {
+  if (functions_count < static_cast<uint32_t>(tables_end - tables_start)) {
     table.reserve(functions_count);
   }
 

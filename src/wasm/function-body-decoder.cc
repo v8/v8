@@ -203,7 +203,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                                                      i.pc());
         os << "   // @" << i.pc_offset();
         if (decoder.Complete(imm)) {
-          for (unsigned i = 0; i < imm.out_arity(); i++) {
+          for (uint32_t i = 0; i < imm.out_arity(); i++) {
             os << " " << ValueTypes::TypeName(imm.out_type(i));
           }
         }

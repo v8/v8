@@ -134,7 +134,7 @@ template <Decoder::ValidateFlag validate>
 struct LocalIndexImmediate {
   uint32_t index;
   ValueType type = kWasmStmt;
-  unsigned length;
+  uint32_t length;
 
   inline LocalIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<validate>(pc + 1, &length, "local index");
@@ -145,7 +145,7 @@ template <Decoder::ValidateFlag validate>
 struct ExceptionIndexImmediate {
   uint32_t index;
   const WasmException* exception = nullptr;
-  unsigned length;
+  uint32_t length;
 
   inline ExceptionIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<validate>(pc + 1, &length, "exception index");
@@ -155,7 +155,7 @@ struct ExceptionIndexImmediate {
 template <Decoder::ValidateFlag validate>
 struct ImmI32Immediate {
   int32_t value;
-  unsigned length;
+  uint32_t length;
   inline ImmI32Immediate(Decoder* decoder, const byte* pc) {
     value = decoder->read_i32v<validate>(pc + 1, &length, "immi32");
   }
@@ -164,7 +164,7 @@ struct ImmI32Immediate {
 template <Decoder::ValidateFlag validate>
 struct ImmI64Immediate {
   int64_t value;
-  unsigned length;
+  uint32_t length;
   inline ImmI64Immediate(Decoder* decoder, const byte* pc) {
     value = decoder->read_i64v<validate>(pc + 1, &length, "immi64");
   }
@@ -173,7 +173,7 @@ struct ImmI64Immediate {
 template <Decoder::ValidateFlag validate>
 struct ImmF32Immediate {
   float value;
-  unsigned length = 4;
+  uint32_t length = 4;
   inline ImmF32Immediate(Decoder* decoder, const byte* pc) {
     // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
     uint32_t tmp = decoder->read_u32<validate>(pc + 1, "immf32");
@@ -184,7 +184,7 @@ struct ImmF32Immediate {
 template <Decoder::ValidateFlag validate>
 struct ImmF64Immediate {
   double value;
-  unsigned length = 8;
+  uint32_t length = 8;
   inline ImmF64Immediate(Decoder* decoder, const byte* pc) {
     // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
     uint64_t tmp = decoder->read_u64<validate>(pc + 1, "immf64");
@@ -197,7 +197,7 @@ struct GlobalIndexImmediate {
   uint32_t index;
   ValueType type = kWasmStmt;
   const WasmGlobal* global = nullptr;
-  unsigned length;
+  uint32_t length;
 
   inline GlobalIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<validate>(pc + 1, &length, "global index");
@@ -206,7 +206,7 @@ struct GlobalIndexImmediate {
 
 template <Decoder::ValidateFlag validate>
 struct BlockTypeImmediate {
-  unsigned length = 1;
+  uint32_t length = 1;
   ValueType type = kWasmStmt;
   uint32_t sig_index = 0;
   FunctionSig* sig = nullptr;
@@ -289,7 +289,7 @@ struct BlockTypeImmediate {
 template <Decoder::ValidateFlag validate>
 struct BreakDepthImmediate {
   uint32_t depth;
-  unsigned length;
+  uint32_t length;
   inline BreakDepthImmediate(Decoder* decoder, const byte* pc) {
     depth = decoder->read_u32v<validate>(pc + 1, &length, "break depth");
   }
@@ -300,9 +300,9 @@ struct CallIndirectImmediate {
   uint32_t table_index;
   uint32_t sig_index;
   FunctionSig* sig = nullptr;
-  unsigned length = 0;
+  uint32_t length = 0;
   inline CallIndirectImmediate(Decoder* decoder, const byte* pc) {
-    unsigned len = 0;
+    uint32_t len = 0;
     sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
     if (!VALIDATE(decoder->ok())) return;
     table_index = decoder->read_u8<validate>(pc + 1 + len, "table index");
@@ -318,7 +318,7 @@ template <Decoder::ValidateFlag validate>
 struct CallFunctionImmediate {
   uint32_t index;
   FunctionSig* sig = nullptr;
-  unsigned length;
+  uint32_t length;
   inline CallFunctionImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<validate>(pc + 1, &length, "function index");
   }
@@ -327,7 +327,7 @@ struct CallFunctionImmediate {
 template <Decoder::ValidateFlag validate>
 struct MemoryIndexImmediate {
   uint32_t index;
-  unsigned length = 1;
+  uint32_t length = 1;
   inline MemoryIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u8<validate>(pc + 1, "memory index");
     if (!VALIDATE(index == 0)) {
@@ -356,7 +356,7 @@ struct BranchTableImmediate {
   inline BranchTableImmediate(Decoder* decoder, const byte* pc) {
     DCHECK_EQ(kExprBrTable, decoder->read_u8<validate>(pc, "opcode"));
     start = pc + 1;
-    unsigned len = 0;
+    uint32_t len = 0;
     table_count = decoder->read_u32v<validate>(pc + 1, &len, "table count");
     table = pc + 1 + len;
   }
@@ -366,12 +366,12 @@ struct BranchTableImmediate {
 template <Decoder::ValidateFlag validate>
 class BranchTableIterator {
  public:
-  unsigned cur_index() { return index_; }
+  uint32_t cur_index() { return index_; }
   bool has_next() { return VALIDATE(decoder_->ok()) && index_ <= table_count_; }
   uint32_t next() {
     DCHECK(has_next());
     index_++;
-    unsigned length;
+    uint32_t length;
     uint32_t result =
         decoder_->read_u32v<validate>(pc_, &length, "branch table entry");
     pc_ += length;
@@ -379,9 +379,9 @@ class BranchTableIterator {
   }
   // length, including the length of the {BranchTableImmediate}, but not the
   // opcode.
-  unsigned length() {
+  uint32_t length() {
     while (has_next()) next();
-    return static_cast<unsigned>(pc_ - start_);
+    return static_cast<uint32_t>(pc_ - start_);
   }
   const byte* pc() { return pc_; }
 
@@ -404,10 +404,10 @@ template <Decoder::ValidateFlag validate>
 struct MemoryAccessImmediate {
   uint32_t alignment;
   uint32_t offset;
-  unsigned length = 0;
+  uint32_t length = 0;
   inline MemoryAccessImmediate(Decoder* decoder, const byte* pc,
                                uint32_t max_alignment) {
-    unsigned alignment_length;
+    uint32_t alignment_length;
     alignment =
         decoder->read_u32v<validate>(pc + 1, &alignment_length, "alignment");
     if (!VALIDATE(alignment <= max_alignment)) {
@@ -417,7 +417,7 @@ struct MemoryAccessImmediate {
                       max_alignment, alignment);
     }
     if (!VALIDATE(decoder->ok())) return;
-    unsigned offset_length;
+    uint32_t offset_length;
     offset = decoder->read_u32v<validate>(pc + 1 + alignment_length,
                                           &offset_length, "offset");
     length = alignment_length + offset_length;
@@ -428,7 +428,7 @@ struct MemoryAccessImmediate {
 template <Decoder::ValidateFlag validate>
 struct SimdLaneImmediate {
   uint8_t lane;
-  unsigned length = 1;
+  uint32_t length = 1;
 
   inline SimdLaneImmediate(Decoder* decoder, const byte* pc) {
     lane = decoder->read_u8<validate>(pc + 2, "lane");
@@ -439,7 +439,7 @@ struct SimdLaneImmediate {
 template <Decoder::ValidateFlag validate>
 struct SimdShiftImmediate {
   uint8_t shift;
-  unsigned length = 1;
+  uint32_t length = 1;
 
   inline SimdShiftImmediate(Decoder* decoder, const byte* pc) {
     shift = decoder->read_u8<validate>(pc + 2, "shift");
@@ -842,7 +842,7 @@ class WasmDecoder : public Decoder {
     // Iteratively process all AST nodes nested inside the loop.
     while (pc < decoder->end() && VALIDATE(decoder->ok())) {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
-      unsigned length = 1;
+      uint32_t length = 1;
       switch (opcode) {
         case kExprLoop:
         case kExprIf:
@@ -1109,7 +1109,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  static unsigned OpcodeLength(Decoder* decoder, const byte* pc) {
+  static uint32_t OpcodeLength(Decoder* decoder, const byte* pc) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     switch (opcode) {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
@@ -1590,7 +1590,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
 
     while (this->pc_ < this->end_) {  // decoding loop.
-      unsigned len = 1;
+      uint32_t len = 1;
       WasmOpcode opcode = static_cast<WasmOpcode>(*this->pc_);
 
       CALL_INTERFACE_IF_REACHABLE(NextInstruction, opcode);
@@ -2243,7 +2243,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       merge->vals.first = get_val(0);
     } else if (arity > 1) {
       merge->vals.array = zone_->NewArray<Value>(arity);
-      for (unsigned i = 0; i < arity; i++) {
+      for (uint32_t i = 0; i < arity; i++) {
         merge->vals.array[i] = get_val(i);
       }
     }
@@ -2330,7 +2330,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
-  unsigned SimdExtractLane(WasmOpcode opcode, ValueType type) {
+  uint32_t SimdExtractLane(WasmOpcode opcode, ValueType type) {
     SimdLaneImmediate<validate> imm(this, this->pc_);
     if (this->Validate(this->pc_, opcode, imm)) {
       Value inputs[] = {Pop(0, kWasmS128)};
@@ -2341,7 +2341,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
-  unsigned SimdReplaceLane(WasmOpcode opcode, ValueType type) {
+  uint32_t SimdReplaceLane(WasmOpcode opcode, ValueType type) {
     SimdLaneImmediate<validate> imm(this, this->pc_);
     if (this->Validate(this->pc_, opcode, imm)) {
       Value inputs[2];
@@ -2354,7 +2354,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
-  unsigned SimdShiftOp(WasmOpcode opcode) {
+  uint32_t SimdShiftOp(WasmOpcode opcode) {
     SimdShiftImmediate<validate> imm(this, this->pc_);
     if (this->Validate(this->pc_, opcode, imm)) {
       auto input = Pop(0, kWasmS128);
@@ -2364,7 +2364,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
-  unsigned Simd8x16ShuffleOp() {
+  uint32_t Simd8x16ShuffleOp() {
     Simd8x16ShuffleImmediate<validate> imm(this, this->pc_);
     if (this->Validate(this->pc_, imm)) {
       auto input1 = Pop(1, kWasmS128);
@@ -2376,8 +2376,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return 16;
   }
 
-  unsigned DecodeSimdOpcode(WasmOpcode opcode) {
-    unsigned len = 0;
+  uint32_t DecodeSimdOpcode(WasmOpcode opcode) {
+    uint32_t len = 0;
     switch (opcode) {
       case kExprF32x4ExtractLane: {
         len = SimdExtractLane(opcode, kWasmF32);
@@ -2436,8 +2436,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return len;
   }
 
-  unsigned DecodeAtomicOpcode(WasmOpcode opcode) {
-    unsigned len = 0;
+  uint32_t DecodeAtomicOpcode(WasmOpcode opcode) {
+    uint32_t len = 0;
     ValueType ret_type;
     FunctionSig* sig = WasmOpcodes::Signature(opcode);
     if (sig != nullptr) {
@@ -2584,7 +2584,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (merge->arity == 1) {
       stack_.push_back(merge->vals.first);
     } else {
-      for (unsigned i = 0; i < merge->arity; i++) {
+      for (uint32_t i = 0; i < merge->arity; i++) {
         stack_.push_back(merge->vals.array[i]);
       }
     }

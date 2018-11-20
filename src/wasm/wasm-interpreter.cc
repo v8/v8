@@ -1244,7 +1244,7 @@ class ThreadImpl {
     pc_t pc;
     sp_t sp;
     size_t fp;
-    unsigned arity;
+    uint32_t arity;
   };
 
   friend class InterpretedFrameImpl;
