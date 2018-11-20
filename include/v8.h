@@ -2526,7 +2526,7 @@ enum class NewStringType {
  */
 class V8_EXPORT String : public Name {
  public:
-  static constexpr int kMaxLength = internal::kApiPointerSize == 4
+  static constexpr int kMaxLength = internal::kApiTaggedSize == 4
                                         ? (1 << 28) - 16
                                         : internal::kSmiMaxValue / 2 - 24;
 
@@ -9818,7 +9818,7 @@ AccessorSignature* AccessorSignature::Cast(Data* data) {
 }
 
 Local<Value> Object::GetInternalField(int index) {
-#ifndef V8_ENABLE_CHECKS
+#if !defined(V8_ENABLE_CHECKS) && !defined(V8_COMPRESS_POINTERS)
   typedef internal::Address A;
   typedef internal::Internals I;
   A obj = *reinterpret_cast<A*>(this);
@@ -9828,7 +9828,7 @@ Local<Value> Object::GetInternalField(int index) {
   if (instance_type == I::kJSObjectType ||
       instance_type == I::kJSApiObjectType ||
       instance_type == I::kJSSpecialApiObjectType) {
-    int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
+    int offset = I::kJSObjectHeaderSize + (I::kEmbedderSlotSize * index);
     A value = I::ReadField<A>(obj, offset);
     A* result = HandleScope::CreateHandle(
         reinterpret_cast<internal::NeverReadOnlySpaceObject*>(obj), value);
@@ -9840,7 +9840,7 @@ Local<Value> Object::GetInternalField(int index) {
 
 
 void* Object::GetAlignedPointerFromInternalField(int index) {
-#ifndef V8_ENABLE_CHECKS
+#if !defined(V8_ENABLE_CHECKS) && !defined(V8_COMPRESS_POINTERS)
   typedef internal::Address A;
   typedef internal::Internals I;
   A obj = *reinterpret_cast<A*>(this);
@@ -9850,7 +9850,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   if (V8_LIKELY(instance_type == I::kJSObjectType ||
                 instance_type == I::kJSApiObjectType ||
                 instance_type == I::kJSSpecialApiObjectType)) {
-    int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
+    int offset = I::kJSObjectHeaderSize + (I::kEmbedderSlotSize * index);
     return I::ReadField<void*>(obj, offset);
   }
 #endif
@@ -10447,7 +10447,7 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
 }
 
 Local<Value> Context::GetEmbedderData(int index) {
-#ifndef V8_ENABLE_CHECKS
+#if !defined(V8_ENABLE_CHECKS) && !defined(V8_COMPRESS_POINTERS)
   typedef internal::Address A;
   typedef internal::Internals I;
   auto* context = *reinterpret_cast<internal::NeverReadOnlySpaceObject**>(this);
@@ -10461,7 +10461,7 @@ Local<Value> Context::GetEmbedderData(int index) {
 
 
 void* Context::GetAlignedPointerFromEmbedderData(int index) {
-#ifndef V8_ENABLE_CHECKS
+#if !defined(V8_ENABLE_CHECKS) && !defined(V8_COMPRESS_POINTERS)
   typedef internal::Internals I;
   return I::ReadEmbedderData<void*>(this, index);
 #else

@@ -26,10 +26,11 @@ static const Address kNullAddress = 0;
 /**
  * Configuration of tagging scheme.
  */
-const int kApiPointerSize = sizeof(void*);  // NOLINT
-const int kApiDoubleSize = sizeof(double);  // NOLINT
-const int kApiIntSize = sizeof(int);        // NOLINT
-const int kApiInt64Size = sizeof(int64_t);  // NOLINT
+const int kApiSystemPointerSize = sizeof(void*);
+const int kApiTaggedSize = kApiSystemPointerSize;
+const int kApiDoubleSize = sizeof(double);
+const int kApiIntSize = sizeof(int);
+const int kApiInt64Size = sizeof(int64_t);
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
@@ -87,11 +88,11 @@ struct SmiTagging<8> {
 
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
 static_assert(
-    kApiPointerSize == kApiInt64Size,
+    kApiSystemPointerSize == kApiInt64Size,
     "Pointer compression can be enabled only for 64-bit architectures");
 typedef SmiTagging<4> PlatformSmiTagging;
 #else
-typedef SmiTagging<kApiPointerSize> PlatformSmiTagging;
+typedef SmiTagging<kApiSystemPointerSize> PlatformSmiTagging;
 #endif
 
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
@@ -116,16 +117,16 @@ class Internals {
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
-  static const int kMapInstanceTypeOffset = 1 * kApiPointerSize + kApiIntSize;
-  static const int kStringResourceOffset =
-      1 * kApiPointerSize + 2 * kApiIntSize;
+  static const int kMapInstanceTypeOffset = 1 * kApiTaggedSize + kApiIntSize;
+  static const int kStringResourceOffset = 1 * kApiTaggedSize + 2 * kApiIntSize;
 
-  static const int kOddballKindOffset = 4 * kApiPointerSize + kApiDoubleSize;
-  static const int kForeignAddressOffset = kApiPointerSize;
-  static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
-  static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
-  static const int kEmbedderDataArrayHeaderSize = 2 * kApiPointerSize;
-  static const int kContextHeaderSize = 2 * kApiPointerSize;
+  static const int kOddballKindOffset = 4 * kApiTaggedSize + kApiDoubleSize;
+  static const int kForeignAddressOffset = kApiTaggedSize;
+  static const int kJSObjectHeaderSize = 3 * kApiTaggedSize;
+  static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
+  static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
+  static const int kEmbedderSlotSize = kApiSystemPointerSize;
+  static const int kContextHeaderSize = 2 * kApiTaggedSize;
   static const int kContextEmbedderDataIndex = 5;
   static const int kFullStringRepresentationMask = 0x0f;
   static const int kStringEncodingMask = 0x8;
@@ -136,7 +137,7 @@ class Internals {
 
   static const int kIsolateEmbedderDataOffset = 0;
   static const int kExternalMemoryOffset =
-      kNumIsolateDataSlots * kApiPointerSize;
+      kNumIsolateDataSlots * kApiTaggedSize;
   static const int kExternalMemoryLimitOffset =
       kExternalMemoryOffset + kApiInt64Size;
   static const int kExternalMemoryAtLastMarkCompactOffset =
@@ -151,8 +152,8 @@ class Internals {
   static const int kFalseValueRootIndex = 8;
   static const int kEmptyStringRootIndex = 9;
 
-  static const int kNodeClassIdOffset = 1 * kApiPointerSize;
-  static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
+  static const int kNodeClassIdOffset = 1 * kApiTaggedSize;
+  static const int kNodeFlagsOffset = 1 * kApiTaggedSize + 3;
   static const int kNodeStateMask = 0x7;
   static const int kNodeStateIsWeakValue = 2;
   static const int kNodeStateIsPendingValue = 3;
@@ -238,7 +239,7 @@ class Internals {
                                         void* data) {
     internal::Address addr = reinterpret_cast<internal::Address>(isolate) +
                              kIsolateEmbedderDataOffset +
-                             slot * kApiPointerSize;
+                             slot * kApiSystemPointerSize;
     *reinterpret_cast<void**>(addr) = data;
   }
 
@@ -246,14 +247,15 @@ class Internals {
                                          uint32_t slot) {
     internal::Address addr = reinterpret_cast<internal::Address>(isolate) +
                              kIsolateEmbedderDataOffset +
-                             slot * kApiPointerSize;
+                             slot * kApiSystemPointerSize;
     return *reinterpret_cast<void* const*>(addr);
   }
 
   V8_INLINE static internal::Address* GetRoot(v8::Isolate* isolate, int index) {
-    internal::Address addr =
-        reinterpret_cast<internal::Address>(isolate) + kIsolateRootsOffset;
-    return reinterpret_cast<internal::Address*>(addr + index * kApiPointerSize);
+    internal::Address addr = reinterpret_cast<internal::Address>(isolate) +
+                             kIsolateRootsOffset +
+                             index * kApiSystemPointerSize;
+    return reinterpret_cast<internal::Address*>(addr);
   }
 
   template <typename T>
@@ -263,6 +265,7 @@ class Internals {
     return *reinterpret_cast<const T*>(addr);
   }
 
+#ifndef V8_COMPRESS_POINTERS
   template <typename T>
   V8_INLINE static T ReadEmbedderData(const v8::Context* context, int index) {
     typedef internal::Address A;
@@ -270,12 +273,13 @@ class Internals {
     A ctx = *reinterpret_cast<const A*>(context);
     int embedder_data_offset =
         I::kContextHeaderSize +
-        (internal::kApiPointerSize * I::kContextEmbedderDataIndex);
+        (internal::kApiTaggedSize * I::kContextEmbedderDataIndex);
     A embedder_data = I::ReadField<A>(ctx, embedder_data_offset);
     int value_offset =
-        I::kEmbedderDataArrayHeaderSize + (internal::kApiPointerSize * index);
+        I::kEmbedderDataArrayHeaderSize + (I::kEmbedderSlotSize * index);
     return I::ReadField<T>(embedder_data, value_offset);
   }
+#endif
 };
 
 // Only perform cast check for types derived from v8::Data since
