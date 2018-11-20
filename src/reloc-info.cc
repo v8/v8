@@ -4,7 +4,7 @@
 
 #include "src/reloc-info.h"
 
-#include "src/assembler-arch-inl.h"
+#include "src/assembler-inl.h"
 #include "src/code-reference.h"
 #include "src/code-stubs.h"
 #include "src/deoptimize-reason.h"
