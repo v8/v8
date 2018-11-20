@@ -1133,12 +1133,10 @@ std::ostream& operator<<(std::ostream& os,
   os << "{" << std::endl;
   UseInterval* interval = range->first_interval();
   UsePosition* use_pos = range->first_pos();
-  PrintableInstructionOperand pio;
-  pio.register_configuration_ = printable_range.register_configuration_;
   while (use_pos != nullptr) {
     if (use_pos->HasOperand()) {
-      pio.op_ = *use_pos->operand();
-      os << pio << use_pos->pos() << " ";
+      os << PrintableInstructionOperand{*use_pos->operand()} << use_pos->pos()
+         << " ";
     }
     use_pos = use_pos->next();
   }
@@ -2624,11 +2622,9 @@ void RegisterAllocator::Spill(LiveRange* range) {
 }
 
 const char* RegisterAllocator::RegisterName(int register_code) const {
-  if (mode() == GENERAL_REGISTERS) {
-    return data()->config()->GetGeneralRegisterName(register_code);
-  } else {
-    return data()->config()->GetDoubleRegisterName(register_code);
-  }
+  return mode() == GENERAL_REGISTERS
+             ? i::RegisterName(Register::from_code(register_code))
+             : i::RegisterName(DoubleRegister::from_code(register_code));
 }
 
 LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,

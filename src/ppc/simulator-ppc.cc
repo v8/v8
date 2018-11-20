@@ -26,8 +26,6 @@
 namespace v8 {
 namespace internal {
 
-const auto GetRegConfig = RegisterConfiguration::Default;
-
 // static
 base::LazyInstance<Simulator::GlobalMonitor>::type Simulator::global_monitor_ =
     LAZY_INSTANCE_INITIALIZER;
@@ -273,7 +271,7 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("    %3s: %08" V8PRIxPTR,
-                     GetRegConfig()->GetGeneralRegisterName(i), value);
+                     RegisterName(Register::from_code(i)), value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -292,7 +290,7 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("     %3s: %08" V8PRIxPTR " %11" V8PRIdPTR,
-                     GetRegConfig()->GetGeneralRegisterName(i), value, value);
+                     RegisterName(Register::from_code(i)), value, value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -312,7 +310,7 @@ void PPCDebugger::Debug() {
               dvalue = GetFPDoubleRegisterValue(i);
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
               PrintF("%3s: %f 0x%08x %08x\n",
-                     GetRegConfig()->GetDoubleRegisterName(i), dvalue,
+                     RegisterName(DoubleRegister::from_code(i)), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
                      static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             }

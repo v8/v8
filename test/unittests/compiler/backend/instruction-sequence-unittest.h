@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/compiler/backend/instruction.h"
+#include "src/register-configuration.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -17,12 +18,14 @@ namespace compiler {
 
 class InstructionSequenceTest : public TestWithIsolateAndZone {
  public:
-  static const int kDefaultNRegs = 8;
-  static const int kNoValue = kMinInt;
-  static const MachineRepresentation kNoRep = MachineRepresentation::kNone;
-  static const MachineRepresentation kFloat32 = MachineRepresentation::kFloat32;
-  static const MachineRepresentation kFloat64 = MachineRepresentation::kFloat64;
-  static const MachineRepresentation kSimd128 = MachineRepresentation::kSimd128;
+  static constexpr int kNoValue = kMinInt;
+  static constexpr MachineRepresentation kNoRep = MachineRepresentation::kNone;
+  static constexpr MachineRepresentation kFloat32 =
+      MachineRepresentation::kFloat32;
+  static constexpr MachineRepresentation kFloat64 =
+      MachineRepresentation::kFloat64;
+  static constexpr MachineRepresentation kSimd128 =
+      MachineRepresentation::kSimd128;
 
   typedef RpoNumber Rpo;
 

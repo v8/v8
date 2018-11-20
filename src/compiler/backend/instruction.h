@@ -18,12 +18,14 @@
 #include "src/double.h"
 #include "src/globals.h"
 #include "src/macro-assembler.h"
-#include "src/register-configuration.h"
 #include "src/source-position.h"
 #include "src/zone/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
+
+class RegisterConfiguration;
+
 namespace compiler {
 
 class Schedule;
@@ -119,8 +121,7 @@ class V8_EXPORT_PRIVATE InstructionOperand {
 
   bool InterferesWith(const InstructionOperand& other) const;
 
-  // APIs to aid debugging. For general-stream APIs, use operator<<
-  void Print(const RegisterConfiguration* config) const;
+  // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
 
  protected:
@@ -136,7 +137,6 @@ class V8_EXPORT_PRIVATE InstructionOperand {
 typedef ZoneVector<InstructionOperand> InstructionOperandVector;
 
 struct PrintableInstructionOperand {
-  const RegisterConfiguration* register_configuration_;
   InstructionOperand op_;
 };
 
@@ -693,8 +693,7 @@ class V8_EXPORT_PRIVATE MoveOperands final
     return source_.IsInvalid();
   }
 
-  // APIs to aid debugging. For general-stream APIs, use operator<<
-  void Print(const RegisterConfiguration* config) const;
+  // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
 
  private:
@@ -705,7 +704,6 @@ class V8_EXPORT_PRIVATE MoveOperands final
 };
 
 struct PrintableMoveOperands {
-  const RegisterConfiguration* register_configuration_;
   const MoveOperands* move_operands_;
 };
 
@@ -746,7 +744,6 @@ class V8_EXPORT_PRIVATE ParallelMove final
 };
 
 struct PrintableParallelMove {
-  const RegisterConfiguration* register_configuration_;
   const ParallelMove* parallel_move_;
 };
 
@@ -935,8 +932,7 @@ class V8_EXPORT_PRIVATE Instruction final {
     block_ = block;
   }
 
-  // APIs to aid debugging. For general-stream APIs, use operator<<
-  void Print(const RegisterConfiguration* config) const;
+  // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
 
   typedef BitField<size_t, 0, 8> OutputCountField;
@@ -968,7 +964,6 @@ class V8_EXPORT_PRIVATE Instruction final {
 };
 
 struct PrintableInstruction {
-  const RegisterConfiguration* register_configuration_;
   const Instruction* instr_;
 };
 std::ostream& operator<<(std::ostream& os, const PrintableInstruction& instr);
@@ -1438,7 +1433,6 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 class InstructionSequence;
 
 struct PrintableInstructionBlock {
-  const RegisterConfiguration* register_configuration_;
   const InstructionBlock* block_;
   const InstructionSequence* code_;
 };
@@ -1605,11 +1599,9 @@ class V8_EXPORT_PRIVATE InstructionSequence final
     return false;
   }
 
-  // APIs to aid debugging. For general-stream APIs, use operator<<
-  void Print(const RegisterConfiguration* config) const;
+  // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
 
-  void PrintBlock(const RegisterConfiguration* config, int block_id) const;
   void PrintBlock(int block_id) const;
 
   void ValidateEdgeSplitForm() const;
@@ -1656,7 +1648,6 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 };
 
 struct PrintableInstructionSequence {
-  const RegisterConfiguration* register_configuration_;
   const InstructionSequence* sequence_;
 };
 

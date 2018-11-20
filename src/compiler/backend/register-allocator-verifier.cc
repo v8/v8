@@ -317,11 +317,8 @@ void BlockAssessments::Print() const {
     const InstructionOperand op = pair.first;
     const Assessment* assessment = pair.second;
     // Use operator<< so we can write the assessment on the same
-    // line. Since we need a register configuration, just pick
-    // Turbofan for now.
-    PrintableInstructionOperand wrapper = {RegisterConfiguration::Default(),
-                                           op};
-    os << wrapper << " : ";
+    // line.
+    os << PrintableInstructionOperand{op} << " : ";
     if (assessment->kind() == AssessmentKind::Final) {
       os << "v" << FinalAssessment::cast(assessment)->virtual_register();
     } else {

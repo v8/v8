@@ -16,7 +16,6 @@
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/register-configuration.h"
 #include "src/runtime/runtime-utils.h"
 
 #if defined(USE_SIMULATOR)
@@ -244,10 +243,8 @@ void ArmDebugger::Debug() {
           if (strcmp(arg1, "all") == 0) {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
-              PrintF(
-                  "%3s: 0x%08x %10d",
-                  RegisterConfiguration::Default()->GetGeneralRegisterName(i),
-                  value, value);
+              PrintF("%3s: 0x%08x %10d", RegisterName(Register::from_code(i)),
+                     value, value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) &&
                   i < 8 &&
                   (i % 2) == 0) {

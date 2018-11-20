@@ -2702,13 +2702,12 @@ bool PipelineImpl::CommitDependencies(Handle<Code> code) {
 namespace {
 
 void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
-                   const RegisterConfiguration* config,
                    const char* phase_name) {
   if (info->trace_turbo_json_enabled()) {
     AllowHandleDereference allow_deref;
     TurboJsonFile json_of(info, std::ios_base::app);
     json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"sequence\",";
-    json_of << InstructionSequenceAsJSON{config, data->sequence()};
+    json_of << InstructionSequenceAsJSON{data->sequence()};
     json_of << "},\n";
   }
   if (info->trace_turbo_graph_enabled()) {
@@ -2716,7 +2715,7 @@ void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
     CodeTracer::Scope tracing_scope(data->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "----- Instruction sequence " << phase_name << " -----\n"
-       << PrintableInstructionSequence({config, data->sequence()});
+       << PrintableInstructionSequence{data->sequence()};
   }
 }
 
@@ -2747,7 +2746,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   Run<MeetRegisterConstraintsPhase>();
   Run<ResolvePhisPhase>();
   Run<BuildLiveRangesPhase>();
-  TraceSequence(info(), data, config, "before register allocation");
+  TraceSequence(info(), data, "before register allocation");
   if (verifier != nullptr) {
     CHECK(!data->register_allocation_data()->ExistsUseWithoutDefinition());
     CHECK(data->register_allocation_data()
@@ -2800,7 +2799,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
 
   Run<LocateSpillSlotsPhase>();
 
-  TraceSequence(info(), data, config, "after register allocation");
+  TraceSequence(info(), data, "after register allocation");
 
   if (verifier != nullptr) {
     verifier->VerifyAssignment("End of regalloc pipeline.");

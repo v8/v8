@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <set>
 
+#include "src/register-configuration.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {

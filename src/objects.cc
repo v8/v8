@@ -60,7 +60,6 @@
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/register-configuration.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"
 #include "src/objects/js-collator.h"
@@ -14862,18 +14861,13 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
 
         case Translation::FLOAT_REGISTER: {
           int reg_code = iterator.Next();
-          os << "{input="
-             << RegisterConfiguration::Default()->GetFloatRegisterName(reg_code)
-             << "}";
+          os << "{input=" << FloatRegister::from_code(reg_code) << "}";
           break;
         }
 
         case Translation::DOUBLE_REGISTER: {
           int reg_code = iterator.Next();
-          os << "{input="
-             << RegisterConfiguration::Default()->GetDoubleRegisterName(
-                    reg_code)
-             << "}";
+          os << "{input=" << DoubleRegister::from_code(reg_code) << "}";
           break;
         }
 

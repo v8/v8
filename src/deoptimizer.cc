@@ -1705,10 +1705,10 @@ void Deoptimizer::DoComputeBuiltinContinuation(
         SNPrintF(
             str,
             "tagged argument count %s (will be untagged by continuation)\n",
-            config->GetGeneralRegisterName(code));
+            RegisterName(Register::from_code(code)));
       } else {
         SNPrintF(str, "builtin register argument %s\n",
-                 config->GetGeneralRegisterName(code));
+                 RegisterName(Register::from_code(code)));
       }
     }
     frame_writer.PushTranslatedValue(
@@ -3189,9 +3189,8 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       Float32 value = registers->GetFloatRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(
-            trace_file, "%e ; %s (float)", value.get_scalar(),
-            RegisterConfiguration::Default()->GetFloatRegisterName(input_reg));
+        PrintF(trace_file, "%e ; %s (float)", value.get_scalar(),
+               RegisterName(FloatRegister::from_code(input_reg)));
       }
       TranslatedValue translated_value = TranslatedValue::NewFloat(this, value);
       frame.Add(translated_value);
@@ -3207,9 +3206,8 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       Float64 value = registers->GetDoubleRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(
-            trace_file, "%e ; %s (double)", value.get_scalar(),
-            RegisterConfiguration::Default()->GetDoubleRegisterName(input_reg));
+        PrintF(trace_file, "%e ; %s (double)", value.get_scalar(),
+               RegisterName(DoubleRegister::from_code(input_reg)));
       }
       TranslatedValue translated_value =
           TranslatedValue::NewDouble(this, value);
