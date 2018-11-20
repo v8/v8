@@ -2359,7 +2359,8 @@ class RepresentationSelector {
                 rhs_type.Is(truncation.IdentifiesZeroAndMinusZero()
                                 ? Type::OrderedNumber()
                                 : Type::PlainNumber())) {
-              lowering->DoMin(node, lowering->machine()->Float64LessThan(),
+              lowering->DoMin(node,
+                              lowering->machine()->Float64LessThanOrEqual(),
                               MachineRepresentation::kFloat64);
             } else {
               NodeProperties::ChangeOp(node, Float64Op(node));
