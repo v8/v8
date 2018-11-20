@@ -414,11 +414,10 @@ class ScriptContextTable : public FixedArray {
 //
 // [ extension      ]  Additional data.
 //
+//                     For native contexts, it contains the global object.
 //                     For module contexts, it contains the module object.
-//
-//                     For block contexts, it may contain an "extension object"
-//                     (see below).
-//
+//                     For await contexts, it contains the generator object.
+//                     For block contexts, it may contain an "extension object".
 //                     For with contexts, it contains an "extension object".
 //
 //                     An "extension object" is used to dynamically extend a
@@ -452,11 +451,6 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
     // These slots are in all contexts.
     SCOPE_INFO_INDEX,
     PREVIOUS_INDEX,
-    // The extension slot is used for either the global object (in native
-    // contexts), eval extension object (function contexts), subject of with
-    // (with contexts), or the variable name (catch contexts), the serialized
-    // scope info (block contexts), the module instance (module contexts), or
-    // the generator object (await contexts).
     EXTENSION_INDEX,
     NATIVE_CONTEXT_INDEX,
 
