@@ -419,6 +419,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig);
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
   V(AtomicWake, 0xfe00, i_ii)                   \
+  V(I32AtomicWait, 0xfe01, i_iil)               \
   V(I32AtomicLoad, 0xfe10, i_i)                 \
   V(I64AtomicLoad, 0xfe11, l_i)                 \
   V(I32AtomicLoad8U, 0xfe12, i_i)               \
@@ -538,6 +539,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(v_iii, kWasmStmt, kWasmI32, kWasmI32, kWasmI32) \
   V(i_iii, kWasmI32, kWasmI32, kWasmI32, kWasmI32)  \
   V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
+  V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
   V(i_r, kWasmI32, kWasmAnyRef)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \

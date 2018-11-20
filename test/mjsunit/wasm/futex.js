@@ -27,6 +27,26 @@ function WasmAtomicWakeFunction(memory, offset, index, num) {
   return instance.exports.main(index, num);
 }
 
+function WasmI32AtomicWaitFunction(memory, offset, index, val, timeout) {
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "memory", 0, 20, "shared");
+  builder.addFunction("main",
+    makeSig([kWasmI32, kWasmI32, kWasmF64], [kWasmI32]))
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kExprGetLocal, 2,
+      kExprI64SConvertF64,
+      kAtomicPrefix,
+      kExprI32AtomicWait, /* alignment */ 0, offset])
+      .exportAs("main");
+
+  // Instantiate module, get function exports
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module, {m: {memory}});
+  return instance.exports.main(index, val, timeout);
+}
+
 (function TestInvalidIndex() {
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
 
@@ -36,12 +56,41 @@ function WasmAtomicWakeFunction(memory, offset, index, num) {
       WasmAtomicWakeFunction(memory, 0, invalidIndex, -1);
     }, Error);
     assertThrows(function() {
+      WasmI32AtomicWaitFunction(memory, 0, invalidIndex, 0, -1);
+    }, Error);
+    assertThrows(function() {
       WasmAtomicWakeFunction(memory, invalidIndex, 0, -1);
+    }, Error);
+    assertThrows(function() {
+      WasmI32AtomicWaitFunction(memory, invalidIndex, 0, 0, -1);
     }, Error);
     assertThrows(function() {
       WasmAtomicWakeFunction(memory, invalidIndex/2, invalidIndex/2, -1);
     }, Error);
+    assertThrows(function() {
+      WasmI32AtomicWaitFunction(memory, invalidIndex/2, invalidIndex/2, 0, -1);
+    }, Error);
   });
+})();
+
+(function TestWaitTimeout() {
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
+  var waitMs = 100;
+  var startTime = new Date();
+  assertEquals(2, WasmI32AtomicWaitFunction(memory, 0, 0, 0, waitMs*1000000));
+  var endTime = new Date();
+  assertTrue(endTime - startTime >= waitMs);
+})();
+
+(function TestWaitNotEqual() {
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
+  assertEquals(1, WasmI32AtomicWaitFunction(memory, 0, 0, 42, -1));
+
+  assertEquals(2, WasmI32AtomicWaitFunction(memory, 0, 0, 0, 0));
+
+  let i32a = new Int32Array(memory.buffer);
+  i32a[0] = 1;
+  assertEquals(1, WasmI32AtomicWaitFunction(memory, 0, 0, 0, -1));
 })();
 
 (function TestWakeCounts() {
@@ -59,14 +108,26 @@ if (this.Worker) {
     return WasmAtomicWakeFunction(memory, offset, index, count);
   };
 
-  // Wait adapter string that can be passed as a parameter to TestWaitWake to generate
+  let js_wake_adapter = (memory, offset, index, count) => {
+    let i32a = new Int32Array(memory.buffer, offset);
+    return Atomics.wake(i32a, index>>>2, count);
+  };
+
+  // Wait adapter strings that can be passed as a parameter to TestWaitWake to generate
   // custom worker script
   let js_wait_adapter = `(memory, offset, index, val) => {
     let i32a = new Int32Array(memory.buffer, offset);
-    let res = Atomics.wait(i32a, index/4, val);
+    let res = Atomics.wait(i32a, index>>>2, val);
     if (res == "ok") return 0;
     if (res == "not-equal") return 1;
     return 2;
+  }`
+
+  let wasm_wait_adapter = `(memory, offset, index, val) => {
+    load("test/mjsunit/wasm/wasm-constants.js");
+    load("test/mjsunit/wasm/wasm-module-builder.js");
+    ${WasmI32AtomicWaitFunction.toString()}
+    return WasmI32AtomicWaitFunction(memory, offset, index, val, -1);
   }`
 
   let TestWaitWake = function(wait_adapter, wake_adapter, num_workers, num_workers_wake) {
@@ -128,7 +189,7 @@ if (this.Worker) {
                  %AtomicsNumWaitersForTesting(i32a, num_workers));
 
     // Finally wake and kill all workers.
-    wake_adapter(memory, 0, 4*num_workers, num_workers_wake)
+    wake_adapter(memory, 0, 4*num_workers, num_workers)
     for (let id = 0; id < num_workers; id++) {
       workers[id].terminate();
     }
@@ -138,4 +199,14 @@ if (this.Worker) {
   TestWaitWake(js_wait_adapter, wasm_wake_adapter, 4, 4);
   TestWaitWake(js_wait_adapter, wasm_wake_adapter, 4, 3);
   TestWaitWake(js_wait_adapter, wasm_wake_adapter, 3, 4);
+
+  TestWaitWake(wasm_wait_adapter, wasm_wake_adapter, 1, 1);
+  TestWaitWake(wasm_wait_adapter, wasm_wake_adapter, 4, 4);
+  TestWaitWake(wasm_wait_adapter, wasm_wake_adapter, 4, 3);
+  TestWaitWake(wasm_wait_adapter, wasm_wake_adapter, 3, 4);
+
+  TestWaitWake(wasm_wait_adapter, js_wake_adapter, 1, 1);
+  TestWaitWake(wasm_wait_adapter, js_wake_adapter, 4, 4);
+  TestWaitWake(wasm_wait_adapter, js_wake_adapter, 4, 3);
+  TestWaitWake(wasm_wait_adapter, js_wake_adapter, 3, 4);
 }

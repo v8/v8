@@ -257,13 +257,9 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   return reinterpret_cast<Object*>(entrypoint);
 }
 
-RUNTIME_FUNCTION(Runtime_WasmAtomicWake) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
-  CONVERT_NUMBER_CHECKED(uint32_t, count, Uint32, args[2]);
-
+// Should be called from within a handle scope
+Handle<JSArrayBuffer> getSharedArrayBuffer(Handle<WasmInstanceObject> instance,
+                                           Isolate* isolate, uint32_t address) {
   DCHECK(instance->has_memory_object());
   Handle<JSArrayBuffer> array_buffer(instance->memory_object()->array_buffer(),
                                      isolate);
@@ -273,8 +269,34 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicWake) {
 
   // Should have trapped if address was OOB
   DCHECK_LT(address, array_buffer->byte_length());
+  return array_buffer;
+}
 
+RUNTIME_FUNCTION(Runtime_WasmAtomicWake) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
+  CONVERT_NUMBER_CHECKED(uint32_t, count, Uint32, args[2]);
+  Handle<JSArrayBuffer> array_buffer =
+      getSharedArrayBuffer(instance, isolate, address);
   return FutexEmulation::Wake(array_buffer, address, count);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
+  CONVERT_NUMBER_CHECKED(int32_t, expected_value, Int32, args[2]);
+  CONVERT_DOUBLE_ARG_CHECKED(timeout, 3);
+  timeout = timeout < 0 ? V8_INFINITY
+                        : timeout / (base::Time::kNanosecondsPerMicrosecond *
+                                     base::Time::kMicrosecondsPerMillisecond);
+  Handle<JSArrayBuffer> array_buffer =
+      getSharedArrayBuffer(instance, isolate, address);
+  return FutexEmulation::Wait(isolate, array_buffer, address, expected_value,
+                              timeout);
 }
 
 }  // namespace internal
