@@ -11,64 +11,6 @@
 namespace v8 {
 namespace internal {
 
-// Make sure tokens are stored as a single byte.
-STATIC_ASSERT(sizeof(Token::Value) == 1);
-
-// Get the shortest token that this character starts, the token may change
-// depending on subsequent characters.
-constexpr Token::Value GetOneCharToken(char c) {
-  // clang-format off
-  return
-      c == '(' ? Token::LPAREN :
-      c == ')' ? Token::RPAREN :
-      c == '{' ? Token::LBRACE :
-      c == '}' ? Token::RBRACE :
-      c == '[' ? Token::LBRACK :
-      c == ']' ? Token::RBRACK :
-      c == '?' ? Token::CONDITIONAL :
-      c == ':' ? Token::COLON :
-      c == ';' ? Token::SEMICOLON :
-      c == ',' ? Token::COMMA :
-      c == '.' ? Token::PERIOD :
-      c == '|' ? Token::BIT_OR :
-      c == '&' ? Token::BIT_AND :
-      c == '^' ? Token::BIT_XOR :
-      c == '~' ? Token::BIT_NOT :
-      c == '!' ? Token::NOT :
-      c == '<' ? Token::LT :
-      c == '>' ? Token::GT :
-      c == '%' ? Token::MOD :
-      c == '=' ? Token::ASSIGN :
-      c == '+' ? Token::ADD :
-      c == '-' ? Token::SUB :
-      c == '*' ? Token::MUL :
-      c == '/' ? Token::DIV :
-      c == '#' ? Token::PRIVATE_NAME :
-      c == '"' ? Token::STRING :
-      c == '\'' ? Token::STRING :
-      c == '`' ? Token::TEMPLATE_SPAN :
-      c == '\\' ? Token::IDENTIFIER :
-      // Whitespace or line terminator
-      c == ' ' ? Token::WHITESPACE :
-      c == '\t' ? Token::WHITESPACE :
-      c == '\v' ? Token::WHITESPACE :
-      c == '\f' ? Token::WHITESPACE :
-      c == '\r' ? Token::WHITESPACE :
-      c == '\n' ? Token::WHITESPACE :
-      // IsDecimalDigit must be tested before IsAsciiIdentifier
-      IsDecimalDigit(c) ? Token::NUMBER :
-      IsAsciiIdentifier(c) ? Token::IDENTIFIER :
-      Token::ILLEGAL;
-  // clang-format on
-}
-
-// Table of one-character tokens, by character (0x00..0x7F only).
-static const constexpr Token::Value one_char_tokens[128] = {
-#define CALL_GET_SCAN_FLAGS(N) GetOneCharToken(N),
-    INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
-#undef CALL_GET_SCAN_FLAGS
-};
-
 // ----------------------------------------------------------------------------
 // Keyword Matcher
 
@@ -137,6 +79,14 @@ static const constexpr Token::Value one_char_tokens[128] = {
   KEYWORD_GROUP('y')                                        \
   KEYWORD("yield", Token::YIELD)
 
+constexpr bool IsKeywordStart(char c) {
+#define KEYWORD_GROUP_CHECK(ch) c == ch ||
+#define KEYWORD_CHECK(keyword, token)
+  return KEYWORDS(KEYWORD_GROUP_CHECK, KEYWORD_CHECK) /* || */ false;
+#undef KEYWORD_GROUP_CHECK
+#undef KEYWORD_CHECK
+}
+
 V8_INLINE Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                                 int input_length) {
   DCHECK_GE(input_length, 1);
@@ -173,6 +123,64 @@ V8_INLINE Token::Value KeywordOrIdentifierToken(const uint8_t* input,
 #undef KEYWORD_GROUP_CASE
 }
 
+// Make sure tokens are stored as a single byte.
+STATIC_ASSERT(sizeof(Token::Value) == 1);
+
+// Get the shortest token that this character starts, the token may change
+// depending on subsequent characters.
+constexpr Token::Value GetOneCharToken(char c) {
+  // clang-format off
+  return
+      c == '(' ? Token::LPAREN :
+      c == ')' ? Token::RPAREN :
+      c == '{' ? Token::LBRACE :
+      c == '}' ? Token::RBRACE :
+      c == '[' ? Token::LBRACK :
+      c == ']' ? Token::RBRACK :
+      c == '?' ? Token::CONDITIONAL :
+      c == ':' ? Token::COLON :
+      c == ';' ? Token::SEMICOLON :
+      c == ',' ? Token::COMMA :
+      c == '.' ? Token::PERIOD :
+      c == '|' ? Token::BIT_OR :
+      c == '&' ? Token::BIT_AND :
+      c == '^' ? Token::BIT_XOR :
+      c == '~' ? Token::BIT_NOT :
+      c == '!' ? Token::NOT :
+      c == '<' ? Token::LT :
+      c == '>' ? Token::GT :
+      c == '%' ? Token::MOD :
+      c == '=' ? Token::ASSIGN :
+      c == '+' ? Token::ADD :
+      c == '-' ? Token::SUB :
+      c == '*' ? Token::MUL :
+      c == '/' ? Token::DIV :
+      c == '#' ? Token::PRIVATE_NAME :
+      c == '"' ? Token::STRING :
+      c == '\'' ? Token::STRING :
+      c == '`' ? Token::TEMPLATE_SPAN :
+      c == '\\' ? Token::IDENTIFIER :
+      // Whitespace or line terminator
+      c == ' ' ? Token::WHITESPACE :
+      c == '\t' ? Token::WHITESPACE :
+      c == '\v' ? Token::WHITESPACE :
+      c == '\f' ? Token::WHITESPACE :
+      c == '\r' ? Token::WHITESPACE :
+      c == '\n' ? Token::WHITESPACE :
+      // IsDecimalDigit must be tested before IsAsciiIdentifier
+      IsDecimalDigit(c) ? Token::NUMBER :
+      IsAsciiIdentifier(c) ? Token::IDENTIFIER :
+      Token::ILLEGAL;
+  // clang-format on
+}
+
+// Table of one-character tokens, by character (0x00..0x7F only).
+static const constexpr Token::Value one_char_tokens[128] = {
+#define CALL_GET_SCAN_FLAGS(N) GetOneCharToken(N),
+    INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
+#undef CALL_GET_SCAN_FLAGS
+};
+
 V8_INLINE Token::Value Scanner::ScanIdentifierOrKeyword() {
   next().literal_chars.Start();
   return ScanIdentifierOrKeywordInner();
@@ -184,8 +192,9 @@ enum class ScanFlags : uint8_t {
   // "Cannot" rather than "can" so that this flag can be ORed together across
   // multiple characters.
   kCannotBeKeyword = 1 << 1,
-  kStringTerminator = 1 << 2,
-  kNeedsSlowPath = 1 << 3,
+  kCannotBeKeywordStart = 1 << 2,
+  kStringTerminator = 1 << 3,
+  kNeedsSlowPath = 1 << 4,
 };
 constexpr uint8_t GetScanFlags(char c) {
   return
@@ -197,6 +206,9 @@ constexpr uint8_t GetScanFlags(char c) {
       (IsAsciiIdentifier(c) && !IsInRange(c, 'a', 'z')
            ? static_cast<uint8_t>(ScanFlags::kCannotBeKeyword)
            : 0) |
+      (IsKeywordStart(c)
+           ? 0
+           : static_cast<uint8_t>(ScanFlags::kCannotBeKeywordStart)) |
       // Anything that isn't an identifier character will terminate the
       // literal, or at least terminates the literal fast path processing
       // (like an escape).
@@ -239,6 +251,12 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
     if (V8_LIKELY(c0_ != '\\')) {
       uint8_t scan_flags = character_scan_flags[c0_];
       DCHECK(!TerminatesLiteral(scan_flags));
+      STATIC_ASSERT(static_cast<uint8_t>(ScanFlags::kCannotBeKeywordStart) ==
+                    static_cast<uint8_t>(ScanFlags::kCannotBeKeyword) << 1);
+      scan_flags >>= 1;
+      // Make sure the shifting above doesn't set NeedsSlowPath. Otherwise we'll
+      // fall into the slow path after scanning the identifier.
+      DCHECK(!NeedsSlowPath(scan_flags));
       AddLiteralChar(static_cast<char>(c0_));
       AdvanceUntil([this, &scan_flags](uc32 c0) {
         if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
