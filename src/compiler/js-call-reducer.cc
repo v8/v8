@@ -7093,7 +7093,8 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   }
   // If "exec" has been modified on {regexp}, we can't do anything.
   if (ai_exec.IsDataConstant()) {
-    if (ai_exec.constant().is_identical_to(isolate()->regexp_exec_function())) {
+    if (!ai_exec.constant().is_identical_to(
+            isolate()->regexp_exec_function())) {
       return NoChange();
     }
   } else if (ai_exec.IsDataConstantField()) {
