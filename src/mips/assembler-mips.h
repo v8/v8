@@ -2257,6 +2257,11 @@ class UseScratchRegisterScope {
   RegList old_available_;
 };
 
+// Define {RegisterName} methods for the register types.
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
+DEFINE_REGISTER_NAMES(FPURegister, DOUBLE_REGISTERS)
+DEFINE_REGISTER_NAMES(MSARegister, SIMD128_REGISTERS)
+
 }  // namespace internal
 }  // namespace v8
 

@@ -3645,6 +3645,9 @@ class EnsureSpace {
   }
 };
 
+// Define a {RegisterName} method for {CPURegister}.
+DEFINE_REGISTER_NAMES(CPURegister, GENERAL_REGISTERS);
+
 }  // namespace internal
 }  // namespace v8
 
