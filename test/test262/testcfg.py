@@ -57,10 +57,10 @@ FEATURE_FLAGS = {
   'globalThis': '--harmony-global',
   'well-formed-json-stringify': '--harmony-json-stringify',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
+  'Object.fromEntries': '--harmony-object-from-entries',
 }
 
-SKIPPED_FEATURES = set(['Object.fromEntries',
-                        'class-fields-private',
+SKIPPED_FEATURES = set(['class-fields-private',
                         'class-static-fields-private',
                         'class-methods-private',
                         'class-static-methods-private'])
