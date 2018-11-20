@@ -123,7 +123,9 @@ class CompilationStateImpl {
   }
 
   bool baseline_compilation_finished() const {
-    return baseline_compilation_finished_;
+    return outstanding_baseline_units_ == 0 ||
+           (compile_mode_ == CompileMode::kTiering &&
+            outstanding_tiering_units_ == 0);
   }
 
   bool has_outstanding_units() const {
@@ -218,8 +220,8 @@ class CompilationStateImpl {
   void NotifyOnEvent(CompilationEvent event, const VoidResult* error_result);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
-    return baseline_compilation_finished_ ? tiering_finish_units_
-                                          : baseline_finish_units_;
+    return baseline_compilation_finished() ? tiering_finish_units_
+                                           : baseline_finish_units_;
   }
 
   // TODO(mstarzinger): Get rid of the Isolate field to make sure the
@@ -227,7 +229,6 @@ class CompilationStateImpl {
   Isolate* const isolate_;
   NativeModule* const native_module_;
   const CompileMode compile_mode_;
-  bool baseline_compilation_finished_ = false;
   // Store the value of {WasmCode::ShouldBeLogged()} at creation time of the
   // compilation state.
   // TODO(wasm): We might lose log events if logging is enabled while
@@ -3068,40 +3069,30 @@ void CompilationStateImpl::OnFinishedUnit() {
   // If we are *not* compiling in tiering mode, then all units are counted as
   // baseline units.
   bool is_tiering_mode = compile_mode_ == CompileMode::kTiering;
-  bool is_tiering_unit = is_tiering_mode && baseline_compilation_finished_;
+  bool is_tiering_unit = is_tiering_mode && outstanding_baseline_units_ == 0;
 
-  // Sanity check: Baseline compilation cannot be finished if there are
-  // outstanding baseline units and tiering units.
-  DCHECK_IMPLIES(
-      outstanding_tiering_units_ > 0 && outstanding_baseline_units_ > 0,
-      !baseline_compilation_finished_);
   // Sanity check: If we are not in tiering mode, there cannot be outstanding
   // tiering units.
   DCHECK_IMPLIES(!is_tiering_mode, outstanding_tiering_units_ == 0);
 
-  auto* units_counter = is_tiering_unit ? &outstanding_tiering_units_
-                                        : &outstanding_baseline_units_;
-  DCHECK_GT(*units_counter, 0);
-  --*units_counter;
-
-  if (*units_counter == 0) {
-    if (!baseline_compilation_finished_) {
-      baseline_compilation_finished_ = true;
-
-      // TODO(wasm): For streaming compilation, we want to start top tier
-      // compilation before all functions have been compiled with Liftoff, e.g.
-      // in the case when all received functions have been compiled with Liftoff
-      // and we are waiting for new functions to compile.
-
-      // If we are in {kRegular} mode, {num_tiering_units_} is 0, therefore
-      // this case is already caught by the previous check.
+  if (is_tiering_unit) {
+    DCHECK_LT(0, outstanding_tiering_units_);
+    --outstanding_tiering_units_;
+    if (outstanding_tiering_units_ == 0) {
+      // We currently finish all baseline units before finishing tiering units.
+      DCHECK_EQ(0, outstanding_baseline_units_);
+      NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation, nullptr);
+    }
+  } else {
+    DCHECK_LT(0, outstanding_baseline_units_);
+    --outstanding_baseline_units_;
+    if (outstanding_baseline_units_ == 0) {
       NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation, nullptr);
+      // If we are not tiering, then we also trigger the "top tier finished"
+      // event when baseline compilation is finished.
       if (!is_tiering_mode) {
         NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation, nullptr);
       }
-    } else {
-      DCHECK(is_tiering_unit);
-      NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation, nullptr);
     }
   }
 }
