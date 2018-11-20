@@ -95,6 +95,7 @@ class RootVisitor;
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
+  V(Map, no_feedback_cell_map, NoFeedbackCellMap)                              \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
@@ -232,6 +233,7 @@ class RootVisitor;
   /* Canonical empty values */                                                \
   V(Script*, empty_script, EmptyScript)                                       \
   V(FeedbackCell*, many_closures_cell, ManyClosuresCell)                      \
+  V(FeedbackCell*, no_feedback_cell, NoFeedbackCell)                          \
   V(Cell*, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)     \
   /* Protectors */                                                            \
   V(Cell*, array_constructor_protector, ArrayConstructorProtector)            \

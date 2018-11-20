@@ -647,17 +647,15 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
   //  -- eax : argument count (preserved for callee if needed, and caller)
   //  -- edx : new target (preserved for callee if needed, and caller)
   //  -- edi : target function (preserved for callee if needed, and caller)
+  //  -- ecx : feedback vector (also used as scratch, value is not preserved)
   // -----------------------------------
   DCHECK(!AreAliased(eax, edx, edi, scratch));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
   Register closure = edi;
-  // Load the feedback vector from the closure.
+  // Scratch contains feedback_vector.
   Register feedback_vector = scratch;
-  __ mov(feedback_vector,
-         FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
 
   // Load the optimized code from the feedback vector and re-use the register.
   Register optimized_code_entry = scratch;
@@ -677,6 +675,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
            Immediate(Smi::FromEnum(OptimizationMarker::kNone)));
     __ j(equal, &fallthrough);
 
+    // TODO(v8:8394): The logging of first execution will break if
+    // feedback vectors are not allocated. We need to find a different way of
+    // logging these events if required.
     TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
                                   OptimizationMarker::kLogFirstExecution,
                                   Runtime::kFunctionFirstExecution);
@@ -823,12 +824,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   Register closure = edi;
 
+  Register feedback_vector = ecx;
+  Label push_stack_frame;
+  // Load feedback vector and check if it is valid. If valid, check for
+  // optimized code and update invocation count. Otherwise, setup the stack
+  // frame.
+  __ mov(feedback_vector,
+         FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+  __ JumpIfRoot(feedback_vector, RootIndex::kUndefinedValue, &push_stack_frame);
+
   // Read off the optimized code slot in the closure's feedback vector, and if
   // there is optimized code or an optimization marker, call that instead.
   MaybeTailCallOptimizedCodeSlot(masm, ecx);
 
   // Load the feedback vector and increment the invocation count.
-  Register feedback_vector = ecx;
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
@@ -837,6 +847,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set
   // up the frame (that is done below).
+  __ bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);

@@ -2559,18 +2559,30 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   Node* flags = BytecodeOperandFlag(2);
   Node* context = GetContext();
   Node* slot = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  TNode<Object> feedback_cell =
-      CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
 
+  Label if_undefined(this), load_feedback_done(this);
+  Variable feedback_cell(this, MachineRepresentation::kTagged);
+  Node* feedback_vector = LoadFeedbackVectorUnchecked();
+
+  GotoIf(IsUndefined(feedback_vector), &if_undefined);
+  feedback_cell.Bind(LoadFeedbackVectorSlot(feedback_vector, slot));
+  Goto(&load_feedback_done);
+
+  BIND(&if_undefined);
+  {
+    feedback_cell.Bind(LoadRoot(RootIndex::kNoFeedbackCell));
+    Goto(&load_feedback_done);
+  }
+
+  BIND(&load_feedback_done);
   Label if_fast(this), if_slow(this, Label::kDeferred);
   Branch(IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags), &if_fast,
          &if_slow);
 
   BIND(&if_fast);
   {
-    Node* result =
-        CallBuiltin(Builtins::kFastNewClosure, context, shared, feedback_cell);
+    Node* result = CallBuiltin(Builtins::kFastNewClosure, context, shared,
+                               feedback_cell.value());
     SetAccumulator(result);
     Dispatch();
   }
@@ -2583,8 +2595,8 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
 
     BIND(&if_newspace);
     {
-      Node* result =
-          CallRuntime(Runtime::kNewClosure, context, shared, feedback_cell);
+      Node* result = CallRuntime(Runtime::kNewClosure, context, shared,
+                                 feedback_cell.value());
       SetAccumulator(result);
       Dispatch();
     }
@@ -2592,7 +2604,7 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
     BIND(&if_oldspace);
     {
       Node* result = CallRuntime(Runtime::kNewClosure_Tenured, context, shared,
-                                 feedback_cell);
+                                 feedback_cell.value());
       SetAccumulator(result);
       Dispatch();
     }

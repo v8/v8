@@ -690,6 +690,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
            Operand(Smi::FromEnum(OptimizationMarker::kNone)));
     __ b(eq, &fallthrough);
 
+    // TODO(v8:8394): The logging of first execution will break if
+    // feedback vectors are not allocated. We need to find a different way of
+    // logging these events if required.
     TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
                                   OptimizationMarker::kLogFirstExecution,
                                   Runtime::kFunctionFirstExecution);
@@ -833,13 +836,28 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ ldr(feedback_vector,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ ldr(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+
+  Label push_stack_frame;
+  // Check if feedback vector is valid. If valid, check for optimized code
+  // and update invocation count. Otherwise, setup the stack frame.
+  __ CompareRoot(feedback_vector, RootIndex::kUndefinedValue);
+  __ b(eq, &push_stack_frame);
+
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
   MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, r4, r6, r5);
 
+  // Increment invocation count for the function.
+  __ ldr(r9, FieldMemOperand(feedback_vector,
+                             FeedbackVector::kInvocationCountOffset));
+  __ add(r9, r9, Operand(1));
+  __ str(r9, FieldMemOperand(feedback_vector,
+                             FeedbackVector::kInvocationCountOffset));
+
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
+  __ bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(closure);
 
@@ -849,13 +867,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ ldr(kInterpreterBytecodeArrayRegister,
          FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset));
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, r4);
-
-  // Increment invocation count for the function.
-  __ ldr(r9, FieldMemOperand(feedback_vector,
-                             FeedbackVector::kInvocationCountOffset));
-  __ add(r9, r9, Operand(1));
-  __ str(r9, FieldMemOperand(feedback_vector,
-                             FeedbackVector::kInvocationCountOffset));
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {

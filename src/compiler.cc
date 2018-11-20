@@ -2019,7 +2019,9 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
   if (shared->is_compiled() && !shared->HasAsmWasmData()) {
     JSFunction::EnsureFeedbackVector(function);
 
-    Code code = function->feedback_vector()->optimized_code();
+    Code code = function->has_feedback_vector()
+                    ? function->feedback_vector()->optimized_code()
+                    : Code();
     if (!code.is_null()) {
       // Caching of optimized code enabled and optimized code found.
       DCHECK(!code->marked_for_deoptimization());

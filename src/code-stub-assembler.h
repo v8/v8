@@ -71,6 +71,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)     \
   V(NanValue, nan_value, Nan)                                                \
   V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)              \
+  V(NoFeedbackCellMap, no_feedback_cell_map, NoFeedbackCellMap)              \
   V(NullValue, null_value, Null)                                             \
   V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)              \
   V(PreParsedScopeDataMap, pre_parsed_scope_data_map, PreParsedScopeDataMap) \

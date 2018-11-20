@@ -1802,6 +1802,17 @@ Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
   return cell;
 }
 
+Handle<FeedbackCell> Factory::NewNoFeedbackCell() {
+  AllowDeferredHandleDereference convert_to_cell;
+  HeapObject* result = AllocateRawWithImmortalMap(FeedbackCell::kSize, TENURED,
+                                                  *no_feedback_cell_map());
+  Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
+  // Set the value to undefined. We wouldn't allocate feedback vectors with
+  // NoFeedbackCell map type.
+  cell->set_value(*undefined_value());
+  return cell;
+}
+
 Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
                                               PretenureFlag pretenure) {
   DCHECK(name->IsUniqueName());
@@ -2501,7 +2512,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   } else if (feedback_cell->map() == *one_closure_cell_map()) {
     feedback_cell->set_map(*many_closures_cell_map());
   } else {
-    DCHECK_EQ(feedback_cell->map(), *many_closures_cell_map());
+    DCHECK(feedback_cell->map() == *no_feedback_cell_map() ||
+           feedback_cell->map() == *many_closures_cell_map());
   }
 
   // Check that the optimized code in the feedback cell wasn't marked for

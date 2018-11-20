@@ -154,16 +154,23 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     Handle<Object> value;
     if (is_function) {
-      DCHECK(possibly_feedback_cell_slot->IsSmi());
+      // If feedback vector was not allocated for this function, then we don't
+      // have any information about number of closures. Use NoFeedbackCell to
+      // indicate that.
+      Handle<FeedbackCell> feedback_cell =
+          isolate->factory()->no_feedback_cell();
+      if (!feedback_vector.is_null()) {
+        DCHECK(possibly_feedback_cell_slot->IsSmi());
+        FeedbackSlot feedback_cells_slot(
+            Smi::ToInt(*possibly_feedback_cell_slot));
+        feedback_cell = Handle<FeedbackCell>(
+            FeedbackCell::cast(feedback_vector->Get(feedback_cells_slot)
+                                   ->GetHeapObjectAssumeStrong()),
+            isolate);
+      }
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);
-      FeedbackSlot feedback_cells_slot(
-          Smi::ToInt(*possibly_feedback_cell_slot));
-      Handle<FeedbackCell> feedback_cell(
-          FeedbackCell::cast(feedback_vector->Get(feedback_cells_slot)
-                                 ->GetHeapObjectAssumeStrong()),
-          isolate);
       Handle<JSFunction> function =
           isolate->factory()->NewFunctionFromSharedFunctionInfo(
               shared, context, feedback_cell, TENURED);
@@ -202,7 +209,11 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 2);
 
-  Handle<FeedbackVector> feedback_vector(closure->feedback_vector(), isolate);
+  Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>();
+  if (closure->has_feedback_vector()) {
+    feedback_vector =
+        Handle<FeedbackVector>(closure->feedback_vector(), isolate);
+  }
   return DeclareGlobals(isolate, declarations, flags, feedback_vector);
 }
 

@@ -786,6 +786,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                         Operand(Smi::FromEnum(OptimizationMarker::kNone)), eq,
                         &fallthrough);
 
+    // TODO(v8:8394): The logging of first execution will break if
+    // feedback vectors are not allocated. We need to find a different way of
+    // logging these events if required.
     TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
                                   OptimizationMarker::kLogFirstExecution,
                                   Runtime::kFunctionFirstExecution);
@@ -927,13 +930,29 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Ldr(feedback_vector,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ Ldr(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+
+  Label push_stack_frame;
+  // Check if feedback vector is valid. If valid, check for optimized code
+  // and update invocation count. Otherwise, setup the stack frame.
+  __ CompareRoot(feedback_vector, RootIndex::kUndefinedValue);
+  __ B(eq, &push_stack_frame);
+
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
   MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, x7, x4, x5);
 
+  // Increment invocation count for the function.
+  // MaybeTailCallOptimizedCodeSlot preserves feedback_vector, so safe to reuse
+  __ Ldr(w10, FieldMemOperand(feedback_vector,
+                              FeedbackVector::kInvocationCountOffset));
+  __ Add(w10, w10, Operand(1));
+  __ Str(w10, FieldMemOperand(feedback_vector,
+                              FeedbackVector::kInvocationCountOffset));
+
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
+  __ Bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ Push(lr, fp, cp, closure);
   __ Add(fp, sp, StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -951,13 +970,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          FieldMemOperand(kInterpreterBytecodeArrayRegister,
                          InterpreterData::kBytecodeArrayOffset));
   __ Bind(&has_bytecode_array);
-
-  // Increment invocation count for the function.
-  __ Ldr(x11, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ Ldr(x11, FieldMemOperand(x11, Cell::kValueOffset));
-  __ Ldr(w10, FieldMemOperand(x11, FeedbackVector::kInvocationCountOffset));
-  __ Add(w10, w10, Operand(1));
-  __ Str(w10, FieldMemOperand(x11, FeedbackVector::kInvocationCountOffset));
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {

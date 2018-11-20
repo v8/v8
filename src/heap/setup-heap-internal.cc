@@ -444,6 +444,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kSize, one_closure_cell)
     roots.one_closure_cell_map()->mark_unstable();
     ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kSize, many_closures_cell)
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kSize, no_feedback_cell)
+    roots.no_feedback_cell_map()->mark_unstable();
 
     ALLOCATE_VARSIZE_MAP(TRANSITION_ARRAY_TYPE, transition_array)
 
@@ -768,6 +770,10 @@ void Heap::CreateInitialObjects() {
   Handle<FeedbackCell> many_closures_cell =
       factory->NewManyClosuresCell(factory->undefined_value());
   set_many_closures_cell(*many_closures_cell);
+
+  // Allocate FeedbackCell for cases where we don't collect feedback.
+  Handle<FeedbackCell> no_feedback_cell = factory->NewNoFeedbackCell();
+  set_no_feedback_cell(*no_feedback_cell);
 
   set_default_microtask_queue(*factory->NewMicrotaskQueue());
 

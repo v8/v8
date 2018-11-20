@@ -241,6 +241,8 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
     DCHECK(function->shared()->is_compiled());
     if (!function->shared()->IsInterpreted()) continue;
 
+    if (!function->has_feedback_vector()) continue;
+
     MaybeOptimize(function, InterpretedFrame::cast(frame));
 
     // TODO(leszeks): Move this increment to before the maybe optimize checks,
