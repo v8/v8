@@ -316,29 +316,22 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
 
   if (!compiles) return 0;
 
-  int32_t result_interpreter;
-  bool possible_nondeterminism = false;
-  {
-    MaybeHandle<WasmInstanceObject> interpreter_instance =
-        i_isolate->wasm_engine()->SyncInstantiate(
-            i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
-            MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+  MaybeHandle<WasmInstanceObject> interpreter_instance =
+      i_isolate->wasm_engine()->SyncInstantiate(
+          i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
+          MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
 
-    // Ignore instantiation failure.
-    if (interpreter_thrower.error()) {
-      return 0;
-    }
+  // Ignore instantiation failure.
+  if (interpreter_thrower.error()) return 0;
 
-    result_interpreter = testing::InterpretWasmModule(
-        i_isolate, interpreter_instance.ToHandleChecked(), &interpreter_thrower,
-        0, interpreter_args.get(), &possible_nondeterminism);
-  }
+  testing::WasmInterpretationResult interpreter_result =
+      testing::InterpretWasmModule(i_isolate,
+                                   interpreter_instance.ToHandleChecked(), 0,
+                                   interpreter_args.get());
 
   // Do not execute the generated code if the interpreter did not finished after
   // a bounded number of steps.
-  if (interpreter_thrower.error()) {
-    return 0;
-  }
+  if (interpreter_result.stopped()) return 0;
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
   // This sign bit can make the difference between an infinite loop and
@@ -346,12 +339,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   // the generated code will not go into an infinite loop and cause a timeout in
   // Clusterfuzz. Therefore we do not execute the generated code if the result
   // may be non-deterministic.
-  if (possible_nondeterminism) {
-    return 0;
-  }
-
-  bool expect_exception =
-      result_interpreter == static_cast<int32_t>(0xDEADBEEF);
+  if (interpreter_result.possible_nondeterminism()) return 0;
 
   int32_t result_compiled;
   {
@@ -367,13 +355,16 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
         "main", num_args, compiler_args.get());
   }
 
-  if (expect_exception != i_isolate->has_pending_exception()) {
+  if (interpreter_result.trapped() != i_isolate->has_pending_exception()) {
     const char* exception_text[] = {"no exception", "exception"};
-    FATAL("interpreter: %s; compiled: %s", exception_text[expect_exception],
+    FATAL("interpreter: %s; compiled: %s",
+          exception_text[interpreter_result.trapped()],
           exception_text[i_isolate->has_pending_exception()]);
   }
 
-  if (!expect_exception) CHECK_EQ(result_interpreter, result_compiled);
+  if (!interpreter_result.trapped()) {
+    CHECK_EQ(interpreter_result.result(), result_compiled);
+  }
 
   // Cleanup any pending exception.
   i_isolate->clear_pending_exception();

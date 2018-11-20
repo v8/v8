@@ -160,10 +160,9 @@ int32_t CompileAndRunAsmWasmModule(Isolate* isolate, const byte* module_start,
   return RunWasmModuleForTesting(isolate, instance.ToHandleChecked(), 0,
                                  nullptr);
 }
-int32_t InterpretWasmModule(Isolate* isolate,
-                            Handle<WasmInstanceObject> instance,
-                            ErrorThrower* thrower, int32_t function_index,
-                            WasmValue* args, bool* possible_nondeterminism) {
+WasmInterpretationResult InterpretWasmModule(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    int32_t function_index, WasmValue* args) {
   // Don't execute more than 16k steps.
   constexpr int kMaxNumSteps = 16 * 1024;
 
@@ -186,17 +185,19 @@ int32_t InterpretWasmModule(Isolate* isolate,
   bool stack_overflow = isolate->has_pending_exception();
   isolate->clear_pending_exception();
 
-  *possible_nondeterminism = thread->PossibleNondeterminism();
-  if (stack_overflow) return 0xDEADBEEF;
+  if (stack_overflow) return WasmInterpretationResult::Stopped();
 
-  if (thread->state() == WasmInterpreter::TRAPPED) return 0xDEADBEEF;
+  if (thread->state() == WasmInterpreter::TRAPPED) {
+    return WasmInterpretationResult::Trapped(thread->PossibleNondeterminism());
+  }
 
-  if (interpreter_result == WasmInterpreter::FINISHED)
-    return thread->GetReturnValue().to<int32_t>();
+  if (interpreter_result == WasmInterpreter::FINISHED) {
+    return WasmInterpretationResult::Finished(
+        thread->GetReturnValue().to<int32_t>(),
+        thread->PossibleNondeterminism());
+  }
 
-  thrower->RangeError(
-      "Interpreter did not finish execution within its step bound");
-  return -1;
+  return WasmInterpretationResult::Stopped();
 }
 
 MaybeHandle<WasmExportedFunction> GetExportedFunction(
