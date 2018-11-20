@@ -1562,6 +1562,9 @@ class StringBuilder : public SimpleStringBuilder {
 
 bool DoubleToBoolean(double d);
 
+template <typename Char>
+bool TryAddIndexChar(uint32_t* index, Char c);
+
 template <typename Stream>
 bool StringToArrayIndex(Stream* stream, uint32_t* index);
 
