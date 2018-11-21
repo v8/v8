@@ -627,7 +627,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   virtual void AbortedCodeGeneration() {
     pending_32_bit_constants_.clear();
-    pending_64_bit_constants_.clear();
   }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -1506,13 +1505,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // PC-relative loads, thereby defining a maximum distance between the
   // instruction and the accessed constant.
   static constexpr int kMaxDistToIntPool = 4 * KB;
-  static constexpr int kMaxDistToFPPool = 1 * KB;
   // All relocations could be integer, it therefore acts as the limit.
   static constexpr int kMinNumPendingConstants = 4;
   static constexpr int kMaxNumPending32Constants =
       kMaxDistToIntPool / kInstrSize;
-  static constexpr int kMaxNumPending64Constants =
-      kMaxDistToFPPool / kInstrSize;
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
@@ -1563,11 +1559,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
       DCHECK(pending_32_bit_constants_.empty() ||
-             (start + pending_64_bit_constants_.size() * kDoubleSize <
-              static_cast<size_t>(first_const_pool_32_use_ +
-                                  kMaxDistToIntPool)));
-      DCHECK(pending_64_bit_constants_.empty() ||
-             (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
+             (start < first_const_pool_32_use_ + kMaxDistToIntPool));
 #endif
       // Two cases:
       //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
@@ -1618,7 +1610,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // The buffers of pending constant pool entries.
   std::vector<ConstantPoolEntry> pending_32_bit_constants_;
-  std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
   // Scratch registers available for use by the Assembler.
   RegList scratch_register_list_;
@@ -1654,7 +1645,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
   int first_const_pool_32_use_;
-  int first_const_pool_64_use_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
