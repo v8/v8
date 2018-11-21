@@ -46,6 +46,10 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                                     KeyedAccessStoreMode mode);
   static Callable StoreInArrayLiteralIC_Slow(Isolate* isolate,
                                              KeyedAccessStoreMode mode);
+  static Callable ElementsTransitionAndStore(Isolate* isolate,
+                                             KeyedAccessStoreMode mode);
+  static Callable StoreFastElementIC(Isolate* isolate,
+                                     KeyedAccessStoreMode mode);
 
   static Callable ResumeGenerator(Isolate* isolate);
 

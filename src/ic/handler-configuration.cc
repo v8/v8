@@ -4,7 +4,7 @@
 
 #include "src/ic/handler-configuration.h"
 
-#include "src/code-stubs.h"
+#include "src/code-factory.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/maybe-object.h"
@@ -183,7 +183,7 @@ Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
     KeyedAccessStoreMode store_mode) {
   Handle<Code> stub =
-      ElementsTransitionAndStoreStub(isolate, store_mode).GetCode();
+      CodeFactory::ElementsTransitionAndStore(isolate, store_mode).code();
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);

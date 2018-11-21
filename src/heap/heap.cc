@@ -2420,13 +2420,6 @@ void Heap::CreateFixedStubs() {
   // Canonicalize handles, so that we can share constant pool entries pointing
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate());
-
-  // Create stubs that should be there, so we don't unexpectedly have to
-  // create them if we need them during the creation of another stub.
-  // Stub creation mixes raw pointers and handles in an unsafe manner so
-  // we cannot create stubs while we are creating stubs.
-  CodeStub::GenerateStubsAheadOfTime(isolate());
-
   // gcc-4.4 has problem generating correct code of following snippet:
   // {  JSEntryStub stub;
   //    js_entry_code_ = *stub.GetCode();

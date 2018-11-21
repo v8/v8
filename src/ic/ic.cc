@@ -1843,40 +1843,40 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   }
 
   // TODO(ishell): move to StoreHandler::StoreElement().
-  Handle<Code> stub;
+  Handle<Code> code;
   if (receiver_map->has_sloppy_arguments_elements()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_KeyedStoreSloppyArgumentsStub);
-    stub =
+    code =
         CodeFactory::KeyedStoreIC_SloppyArguments(isolate(), store_mode).code();
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_fixed_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
-    stub = StoreFastElementStub(isolate(), store_mode).GetCode();
-    if (receiver_map->has_fixed_typed_array_elements()) return stub;
+    code = CodeFactory::StoreFastElementIC(isolate(), store_mode).code();
+    if (receiver_map->has_fixed_typed_array_elements()) return code;
   } else if (IsStoreInArrayLiteralICKind(kind())) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
-    stub =
+    code =
         CodeFactory::StoreInArrayLiteralIC_Slow(isolate(), store_mode).code();
   } else {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK_EQ(DICTIONARY_ELEMENTS, receiver_map->elements_kind());
-    stub = CodeFactory::KeyedStoreIC_Slow(isolate(), store_mode).code();
+    code = CodeFactory::KeyedStoreIC_Slow(isolate(), store_mode).code();
   }
 
-  if (IsStoreInArrayLiteralICKind(kind())) return stub;
+  if (IsStoreInArrayLiteralICKind(kind())) return code;
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell->IsSmi()) {
     // There's no prototype validity cell to check, so we can just use the stub.
-    return stub;
+    return code;
   }
   Handle<StoreHandler> handler = isolate()->factory()->NewStoreHandler(0);
   handler->set_validity_cell(*validity_cell);
-  handler->set_smi_handler(*stub);
+  handler->set_smi_handler(*code);
   return handler;
 }
 

@@ -1091,6 +1091,10 @@ bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
     case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
+    case Builtins::kStoreFastElementIC_Standard:
+    case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
+    case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
+    case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
     case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
     case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
     case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
@@ -1099,6 +1103,10 @@ bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
     case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
+    case Builtins::kElementsTransitionAndStore_Standard:
+    case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
+    case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
+    case Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW:
       return true;
     default:
       return false;
@@ -1112,18 +1120,26 @@ KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(int builtin_index) {
     case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
     case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
     case Builtins::kKeyedStoreIC_Slow_Standard:
+    case Builtins::kStoreFastElementIC_Standard:
+    case Builtins::kElementsTransitionAndStore_Standard:
       return STANDARD_STORE;
     case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
     case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
     case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
+    case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
+    case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
       return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
     case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
+    case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
+    case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
       return STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
     case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
+    case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
+    case Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW:
       return STORE_NO_TRANSITION_HANDLE_COW;
     default:
       UNREACHABLE();
@@ -1167,16 +1183,8 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       mode = KeyedAccessStoreModeForBuiltin(builtin_index);
       break;
     } else {
-      CodeStub::Major major_key =
-          CodeStub::MajorKeyFromKey(handler->stub_key());
-      uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
-      CHECK(major_key == CodeStub::StoreFastElement ||
-            major_key == CodeStub::ElementsTransitionAndStore ||
-            major_key == CodeStub::NoCache);
-      if (major_key != CodeStub::NoCache) {
-        mode = CommonStoreModeBits::decode(minor_key);
-        break;
-      }
+      CHECK(CodeStub::MajorKeyFromKey(handler->stub_key()) ==
+            CodeStub::NoCache);
     }
   }
 

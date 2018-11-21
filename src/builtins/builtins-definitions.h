@@ -222,6 +222,10 @@ namespace internal {
   TFH(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB, StoreWithVector)     \
   TFH(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW, StoreWithVector)     \
   TFH(StoreInArrayLiteralIC_Slow_Standard, StoreWithVector)                    \
+  TFH(StoreFastElementIC_Standard, StoreWithVector)                            \
+  TFH(StoreFastElementIC_GrowNoTransitionHandleCOW, StoreWithVector)           \
+  TFH(StoreFastElementIC_NoTransitionIgnoreOOB, StoreWithVector)               \
+  TFH(StoreFastElementIC_NoTransitionHandleCOW, StoreWithVector)               \
   TFH(StoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)   \
   TFH(StoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)       \
   TFH(StoreInArrayLiteralIC_Slow_NoTransitionHandleCOW, StoreWithVector)       \
@@ -229,6 +233,10 @@ namespace internal {
   TFH(KeyedStoreIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)            \
   TFH(KeyedStoreIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)                \
   TFH(KeyedStoreIC_Slow_NoTransitionHandleCOW, StoreWithVector)                \
+  TFH(ElementsTransitionAndStore_Standard, StoreTransition)                    \
+  TFH(ElementsTransitionAndStore_GrowNoTransitionHandleCOW, StoreTransition)   \
+  TFH(ElementsTransitionAndStore_NoTransitionIgnoreOOB, StoreTransition)       \
+  TFH(ElementsTransitionAndStore_NoTransitionHandleCOW, StoreTransition)       \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \

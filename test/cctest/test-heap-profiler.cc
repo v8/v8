@@ -2558,16 +2558,10 @@ TEST(CheckCodeNames) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  const char* stub_path[] = {"::(GC roots)", "::(Strong roots)",
-                             "code_stubs::", "::(StoreFastElementStub code)"};
-  const v8::HeapGraphNode* node = GetNodeByPath(
-      env->GetIsolate(), snapshot, stub_path, arraysize(stub_path));
-  CHECK(node);
-
   const char* builtin_path1[] = {"::(GC roots)", "::(Builtins)",
                                  "::(KeyedLoadIC_Slow builtin)"};
-  node = GetNodeByPath(env->GetIsolate(), snapshot, builtin_path1,
-                       arraysize(builtin_path1));
+  const v8::HeapGraphNode* node = GetNodeByPath(
+      env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK(node);
 
   const char* builtin_path2[] = {"::(GC roots)", "::(Builtins)",

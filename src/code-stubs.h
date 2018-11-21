@@ -27,10 +27,7 @@ class CodeAssemblerState;
   V(CallApiCallback)                    \
   V(CallApiGetter)                      \
   V(JSEntry)                            \
-  V(ProfileEntryHook)                   \
-  /* --- TurboFanCodeStubs --- */       \
-  V(ElementsTransitionAndStore)         \
-  V(StoreFastElement)
+  V(ProfileEntryHook)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -113,8 +110,6 @@ class CodeStub : public ZoneObject {
 
   explicit CodeStub(Isolate* isolate) : minor_key_(0), isolate_(isolate) {}
   virtual ~CodeStub() = default;
-
-  static void GenerateStubsAheadOfTime(Isolate* isolate);
 
   // Some stubs put untagged junk on the stack that cannot be scanned by the
   // GC.  This means that we must be statically sure that no GC can occur while
@@ -499,41 +494,6 @@ class JSEntryStub : public PlatformCodeStub {
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
-};
-
-class StoreFastElementStub : public TurboFanCodeStub {
- public:
-  StoreFastElementStub(Isolate* isolate, KeyedAccessStoreMode mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(mode);
-  }
-
-  static void GenerateAheadOfTime(Isolate* isolate);
-
-  KeyedAccessStoreMode store_mode() const {
-    return CommonStoreModeBits::decode(minor_key_);
-  }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreFastElement, TurboFanCodeStub);
-};
-
-class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
- public:
-  ElementsTransitionAndStoreStub(Isolate* isolate,
-                                 KeyedAccessStoreMode store_mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(store_mode);
-  }
-
-  KeyedAccessStoreMode store_mode() const {
-    return CommonStoreModeBits::decode(minor_key_);
-  }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
-  DEFINE_TURBOFAN_CODE_STUB(ElementsTransitionAndStore, TurboFanCodeStub);
 };
 
 // TODO(jgruber): Convert this stub into a builtin.
