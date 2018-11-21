@@ -451,6 +451,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
   int limit = 1000;
   mirror->buildObjectPreview(context, true /* generatePreviewForTable */,
                              &limit, &limit, &preview);
+  if (!preview) return nullptr;
 
   Array<PropertyPreview>* columns = preview->getProperties();
   std::unordered_set<String16> selectedColumns;
