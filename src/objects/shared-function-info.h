@@ -17,6 +17,7 @@
 namespace v8 {
 namespace internal {
 
+class AsmWasmData;
 class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
@@ -281,7 +282,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   //  - a BytecodeArray for the interpreter [HasBytecodeArray()].
   //  - a InterpreterData with the BytecodeArray and a copy of the
   //    interpreter trampoline [HasInterpreterData()]
-  //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
+  //  - an AsmWasmData with Asm->Wasm conversion [HasAsmWasmData()].
   //  - a Smi containing the builtin id [HasBuiltinId()]
   //  - a UncompiledDataWithoutPreParsedScope for lazy compilation
   //    [HasUncompiledDataWithoutPreParsedScope()]
@@ -303,8 +304,8 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline BytecodeArray* GetDebugBytecodeArray() const;
   inline void SetDebugBytecodeArray(BytecodeArray* bytecode);
   inline bool HasAsmWasmData() const;
-  inline FixedArray* asm_wasm_data() const;
-  inline void set_asm_wasm_data(FixedArray* data);
+  inline AsmWasmData* asm_wasm_data() const;
+  inline void set_asm_wasm_data(AsmWasmData* data);
 
   // A brief note to clear up possible confusion:
   // builtin_id corresponds to the auto-generated

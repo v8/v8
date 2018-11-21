@@ -143,12 +143,16 @@ int32_t CompileAndRunAsmWasmModule(Isolate* isolate, const byte* module_start,
                                    const byte* module_end) {
   HandleScope scope(isolate);
   ErrorThrower thrower(isolate, "CompileAndRunAsmWasmModule");
-  MaybeHandle<WasmModuleObject> module =
+  MaybeHandle<AsmWasmData> data =
       isolate->wasm_engine()->SyncCompileTranslatedAsmJs(
           isolate, &thrower, ModuleWireBytes(module_start, module_end),
-          Handle<Script>::null(), Vector<const byte>());
-  DCHECK_EQ(thrower.error(), module.is_null());
-  if (module.is_null()) return -1;
+          Vector<const byte>(), Handle<HeapNumber>());
+  DCHECK_EQ(thrower.error(), data.is_null());
+  if (data.is_null()) return -1;
+
+  MaybeHandle<WasmModuleObject> module =
+      isolate->wasm_engine()->FinalizeTranslatedAsmJs(
+          isolate, data.ToHandleChecked(), Handle<Script>::null());
 
   MaybeHandle<WasmInstanceObject> instance =
       isolate->wasm_engine()->SyncInstantiate(

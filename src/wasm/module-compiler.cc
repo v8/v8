@@ -683,8 +683,7 @@ void FinishCompilationUnits(CompilationStateImpl* compilation_state) {
   }
 }
 
-void CompileInParallel(Isolate* isolate, NativeModule* native_module,
-                       Handle<WasmModuleObject> module_object) {
+void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   // Data structures for the parallel compilation.
 
   //-----------------------------------------------------------------------
@@ -831,9 +830,8 @@ void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
 }
 
 void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
-                         Handle<WasmModuleObject> module_object,
-                         const WasmModule* wasm_module) {
-  NativeModule* const native_module = module_object->native_module();
+                         const WasmModule* wasm_module,
+                         NativeModule* native_module) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
 
   if (compile_lazy(wasm_module)) {
@@ -858,7 +856,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
 
     if (compile_parallel) {
-      CompileInParallel(isolate, native_module, module_object);
+      CompileInParallel(isolate, native_module);
     } else {
       CompileSequentially(isolate, native_module, thrower);
     }
@@ -965,11 +963,10 @@ class BackgroundCompileTask : public CancelableTask {
 
 }  // namespace
 
-MaybeHandle<WasmModuleObject> CompileToModuleObject(
+std::unique_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    Handle<Script> asm_js_script,
-    Vector<const byte> asm_js_offset_table_bytes) {
+    Handle<FixedArray>* export_wrappers_out) {
   const WasmModule* wasm_module = module.get();
   TimedHistogramScope wasm_compile_module_time_scope(SELECT_WASM_COUNTER(
       isolate->counters(), wasm_module->origin, wasm_compile, module_time));
@@ -978,53 +975,36 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   if (wasm_module->has_shared_memory) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
+  int export_wrapper_size = static_cast<int>(module->num_exported_functions);
 
-  // Create heap objects for script, module bytes and asm.js offset table to
-  // be stored in the module object.
-  Handle<Script> script;
-  Handle<ByteArray> asm_js_offset_table;
-  if (asm_js_script.is_null()) {
-    script = CreateWasmScript(isolate, wire_bytes, wasm_module->source_map_url);
-  } else {
-    script = asm_js_script;
-    asm_js_offset_table =
-        isolate->factory()->NewByteArray(asm_js_offset_table_bytes.length());
-    asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.start(),
-                                 asm_js_offset_table_bytes.length());
-  }
   // TODO(wasm): only save the sections necessary to deserialize a
   // {WasmModule}. E.g. function bodies could be omitted.
   OwnedVector<uint8_t> wire_bytes_copy =
       OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
 
-  // Create the module object.
-  // TODO(clemensh): For the same module (same bytes / same hash), we should
-  // only have one WasmModuleObject. Otherwise, we might only set
-  // breakpoints on a (potentially empty) subset of the instances.
+  // Create and compile the native module.
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
 
-  // Create the compiled module object and populate with compiled functions
-  // and information needed at instantiation time. This object needs to be
-  // serializable. Instantiation may occur off a deserialized version of this
-  // object.
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, enabled, std::move(module), std::move(wire_bytes_copy), script,
-      asm_js_offset_table);
-  CompileNativeModule(isolate, thrower, module_object, wasm_module);
+  // Create a new {NativeModule} first.
+  auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
+      isolate, enabled, code_size_estimate,
+      wasm::NativeModule::kCanAllocateMoreMemory, std::move(module));
+  native_module->SetWireBytes(std::move(wire_bytes_copy));
+  native_module->SetRuntimeStubs(isolate);
+
+  CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
   if (thrower->error()) return {};
 
   // Compile JS->wasm wrappers for exported functions.
-  CompileJsToWasmWrappers(isolate, module_object);
-
-  // If we created a wasm script, finish it now and make it public to the
-  // debugger.
-  if (asm_js_script.is_null()) {
-    isolate->debug()->OnAfterCompile(script);
-  }
+  *export_wrappers_out =
+      isolate->factory()->NewFixedArray(export_wrapper_size, TENURED);
+  CompileJsToWasmWrappers(isolate, native_module.get(), *export_wrappers_out);
 
   // Log the code within the generated module for profiling.
-  module_object->native_module()->LogWasmCodes(isolate);
+  native_module->LogWasmCodes(isolate);
 
-  return module_object;
+  return native_module;
 }
 
 InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
@@ -1125,7 +1105,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
       // Recompile all functions in this native module.
       ErrorThrower thrower(isolate_, "recompile");
-      CompileNativeModule(isolate_, &thrower, module_object_, module_);
+      CompileNativeModule(isolate_, &thrower, module_, native_module);
       if (thrower.error()) {
         return {};
       }
@@ -2741,7 +2721,9 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(5) Compile wrappers...\n");
     // Compile JS->wasm wrappers for exported functions.
-    CompileJsToWasmWrappers(job->isolate_, job->module_object_);
+    CompileJsToWasmWrappers(
+        job->isolate_, job->module_object_->native_module(),
+        handle(job->module_object_->export_wrappers(), job->isolate_));
     job->DoSync<FinishModule>();
   }
 };
@@ -3220,13 +3202,12 @@ void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
   if (callback_) callback_(event, error_result);
 }
 
-void CompileJsToWasmWrappers(Isolate* isolate,
-                             Handle<WasmModuleObject> module_object) {
+void CompileJsToWasmWrappers(Isolate* isolate, NativeModule* native_module,
+                             Handle<FixedArray> export_wrappers) {
   JSToWasmWrapperCache js_to_wasm_cache;
   int wrapper_index = 0;
-  Handle<FixedArray> export_wrappers(module_object->export_wrappers(), isolate);
-  NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
+
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
   // optimization we keep the code space unlocked to avoid repeated unlocking
   // because many such wrapper are allocated in sequence below.

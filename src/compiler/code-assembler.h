@@ -28,6 +28,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class AsmWasmData;
 class CallInterfaceDescriptor;
 class Callable;
 class Factory;

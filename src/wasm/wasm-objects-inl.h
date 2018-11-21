@@ -29,6 +29,7 @@ CAST_ACCESSOR(WasmInstanceObject)
 CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
 CAST_ACCESSOR(WasmTableObject)
+CAST_ACCESSOR(AsmWasmData)
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset) \
   bool holder::has_##name() {                          \
@@ -239,6 +240,13 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 uint32_t WasmTableObject::current_length() { return functions()->length(); }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
+
+// AsmWasmData
+ACCESSORS(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,
+          kManagedNativeModuleOffset)
+ACCESSORS(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
+ACCESSORS(AsmWasmData, asm_js_offset_table, ByteArray, kAsmJsOffsetTableOffset)
+ACCESSORS(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
 
 #include "src/objects/object-macros-undef.h"
 

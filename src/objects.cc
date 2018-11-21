@@ -13824,8 +13824,8 @@ Code SharedFunctionInfo::GetCode() const {
     // Having a bytecode array means we are a compiled, interpreted function.
     DCHECK(HasBytecodeArray());
     return isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
-  } else if (data->IsFixedArray()) {
-    // Having a fixed array means we are an asm.js/wasm function.
+  } else if (data->IsAsmWasmData()) {
+    // Having AsmWasmData means we are an asm.js/wasm function.
     DCHECK(HasAsmWasmData());
     return isolate->builtins()->builtin(Builtins::kInstantiateAsmJs);
   } else if (data->IsUncompiledData()) {

@@ -96,6 +96,7 @@ namespace internal {
   V(ACCESSOR_PAIR_TYPE)                                            \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                                  \
   V(ALLOCATION_MEMENTO_TYPE)                                       \
+  V(ASM_WASM_DATA_TYPE)                                            \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                                  \
   V(DEBUG_INFO_TYPE)                                               \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                   \
@@ -315,6 +316,7 @@ namespace internal {
   V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                   \
     aliased_arguments_entry)                                                  \
   V(_, ALLOCATION_MEMENTO_TYPE, AllocationMemento, allocation_memento)        \
+  V(_, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)                        \
   V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                   \
     async_generator_request)                                                  \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                \

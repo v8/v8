@@ -146,6 +146,10 @@ class WasmModuleObject : public JSObject {
   static Handle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       Handle<Script> script, size_t code_size_estimate);
+  static Handle<WasmModuleObject> New(
+      Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
+      Handle<Script> script, Handle<FixedArray> export_wrappers,
+      size_t code_size_estimate);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.
@@ -638,6 +642,35 @@ class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
 
   static Handle<JSFunction> GetCWasmEntry(Handle<WasmDebugInfo>,
                                           wasm::FunctionSig*);
+};
+
+class AsmWasmData : public Struct {
+ public:
+  static Handle<AsmWasmData> New(
+      Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
+      Handle<FixedArray> export_wrappers, Handle<ByteArray> asm_js_offset_table,
+      Handle<HeapNumber> uses_bitset);
+
+  DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
+  DECL_ACCESSORS(export_wrappers, FixedArray)
+  DECL_ACCESSORS(asm_js_offset_table, ByteArray)
+  DECL_ACCESSORS(uses_bitset, HeapNumber)
+
+  DECL_CAST(AsmWasmData)
+  DECL_PRINTER(AsmWasmData)
+  DECL_VERIFIER(AsmWasmData)
+
+// Layout description.
+#define ASM_WASM_DATA_FIELDS(V)               \
+  V(kManagedNativeModuleOffset, kPointerSize) \
+  V(kExportWrappersOffset, kPointerSize)      \
+  V(kAsmJsOffsetTableOffset, kPointerSize)    \
+  V(kUsesBitsetOffset, kPointerSize)          \
+  /* Total size. */                           \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, ASM_WASM_DATA_FIELDS)
+#undef ASM_WASM_DATA_FIELDS
 };
 
 #undef DECL_OPTIONAL_ACCESSORS

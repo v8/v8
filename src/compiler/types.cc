@@ -333,6 +333,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
 #undef FIXED_TYPED_ARRAY_CASE
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
+    case ASM_WASM_DATA_TYPE:
     case CALL_HANDLER_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:

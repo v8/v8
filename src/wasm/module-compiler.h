@@ -37,10 +37,10 @@ class NativeModule;
 class WasmCode;
 struct WasmModule;
 
-MaybeHandle<WasmModuleObject> CompileToModuleObject(
+std::unique_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes);
+    Handle<FixedArray>* export_wrappers_out);
 
 MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
@@ -48,8 +48,8 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     MaybeHandle<JSArrayBuffer> memory);
 
 V8_EXPORT_PRIVATE
-void CompileJsToWasmWrappers(Isolate* isolate,
-                             Handle<WasmModuleObject> module_object);
+void CompileJsToWasmWrappers(Isolate* isolate, NativeModule* native_module,
+                             Handle<FixedArray> export_wrappers);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
     Isolate* isolate, const ModuleWireBytes& wire_bytes,

@@ -140,6 +140,7 @@
 //     - SharedFunctionInfo
 //     - Struct
 //       - AccessorInfo
+//       - AsmWasmData
 //       - PromiseReaction
 //       - PromiseCapability
 //       - AccessorPair
@@ -391,6 +392,7 @@ enum InstanceType : uint16_t {
   ACCESSOR_PAIR_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   ALLOCATION_MEMENTO_TYPE,
+  ASM_WASM_DATA_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
   DEBUG_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
