@@ -3623,7 +3623,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32StackCheck: {
-      __ VerifyRootRegister();
       __ CompareStackLimit(esp);
       break;
     }

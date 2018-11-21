@@ -98,8 +98,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   __ bind(&exit);
 
-  __ VerifyRootRegister();
-
   // Check if the current stack frame is marked as the outermost JS frame.
   __ pop(edi);
   __ cmp(edi, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));

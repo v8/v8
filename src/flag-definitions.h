@@ -1068,10 +1068,6 @@ DEFINE_VALUE_IMPLICATION(runtime_call_stats, runtime_stats, 1)
 #endif
 DEFINE_BOOL_READONLY(embedded_builtins, V8_EMBEDDED_BUILTINS_BOOL,
                      "Embed builtin code into the binary.")
-// TODO(jgruber,v8:6666): Remove once ia32 has full embedded builtin support.
-DEFINE_BOOL_READONLY(
-    ia32_verify_root_register, false,
-    "Check that the value of the root register was not clobbered.")
 DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
 DEFINE_BOOL(serialization_statistics, false,

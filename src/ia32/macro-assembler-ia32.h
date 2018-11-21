@@ -231,7 +231,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Root register utility functions.
 
   void InitializeRootRegister();
-  void VerifyRootRegister();
 
   void LoadRoot(Register destination, RootIndex index) override;
 

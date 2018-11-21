@@ -54,19 +54,6 @@ void TurboAssembler::InitializeRootRegister() {
   Move(kRootRegister, Immediate(isolate_root));
 }
 
-void TurboAssembler::VerifyRootRegister() {
-  if (!FLAG_ia32_verify_root_register) return;
-
-  DCHECK(FLAG_embedded_builtins);
-
-  Label root_register_ok;
-  cmp(Operand(kRootRegister, IsolateData::magic_number_offset()),
-      Immediate(IsolateData::kRootRegisterSentinel));
-  j(equal, &root_register_ok);
-  int3();
-  bind(&root_register_ok);
-}
-
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   if (root_array_available()) {
     mov(destination,
