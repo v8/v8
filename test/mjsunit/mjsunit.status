@@ -765,6 +765,7 @@
   # Intentionally non-deterministic using shared arraybuffers.
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
+  'wasm/futex': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
