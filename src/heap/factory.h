@@ -513,6 +513,8 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
+  Handle<FixedArrayPtr> CopyFixedArrayWithMap(Handle<FixedArrayPtr> array,
+                                              Handle<Map> map);
 
   Handle<FixedArray> CopyFixedArrayAndGrow(
       Handle<FixedArray> array, int grow_by,

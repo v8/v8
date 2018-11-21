@@ -2046,6 +2046,11 @@ Handle<FixedArray> Factory::CopyFixedArrayWithMap(Handle<FixedArray> array,
                                                   Handle<Map> map) {
   return CopyArrayWithMap(array, map);
 }
+// TODO(3770): Replacement for the above, temporarily separate.
+Handle<FixedArrayPtr> Factory::CopyFixedArrayWithMap(
+    Handle<FixedArrayPtr> array, Handle<Map> map) {
+  return CopyArrayWithMap(array, map);
+}
 
 Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
                                                   int grow_by,

@@ -10292,6 +10292,27 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
   new_array->set(index, *value);
   return new_array;
 }
+Handle<FixedArrayPtr> FixedArrayPtr::SetAndGrow(Isolate* isolate,
+                                                Handle<FixedArrayPtr> array,
+                                                int index, Handle<Object> value,
+                                                PretenureFlag pretenure) {
+  if (index < array->length()) {
+    array->set(index, *value);
+    return array;
+  }
+  int capacity = array->length();
+  do {
+    capacity = JSObject::NewElementsCapacity(capacity);
+  } while (capacity <= index);
+  Handle<FixedArrayPtr> new_array(
+      isolate->factory()
+          ->NewUninitializedFixedArray(capacity, pretenure)
+          .location());
+  array->CopyTo(0, *new_array, 0, array->length());
+  new_array->FillWithHoles(array->length(), new_array->length());
+  new_array->set(index, *value);
+  return new_array;
+}
 
 bool FixedArray::ContainsSortedNumbers() {
   for (int i = 1; i < length(); ++i) {
@@ -10306,6 +10327,9 @@ bool FixedArray::ContainsSortedNumbers() {
   }
   return true;
 }
+bool FixedArrayPtr::ContainsSortedNumbers() {
+  return reinterpret_cast<FixedArray*>(ptr())->ContainsSortedNumbers();
+}
 
 Handle<FixedArray> FixedArray::ShrinkOrEmpty(Isolate* isolate,
                                              Handle<FixedArray> array,
@@ -10317,11 +10341,30 @@ Handle<FixedArray> FixedArray::ShrinkOrEmpty(Isolate* isolate,
     return array;
   }
 }
+Handle<FixedArrayPtr> FixedArrayPtr::ShrinkOrEmpty(Isolate* isolate,
+                                                   Handle<FixedArrayPtr> array,
+                                                   int new_length) {
+  if (new_length == 0) {
+    // TODO(3770): Drop type conversion.
+    return Handle<FixedArrayPtr>(
+        array->GetReadOnlyRoots().empty_fixed_array_handle().location());
+  } else {
+    array->Shrink(isolate, new_length);
+    return array;
+  }
+}
 
 void FixedArray::Shrink(Isolate* isolate, int new_length) {
   DCHECK(0 < new_length && new_length <= length());
   if (new_length < length()) {
     isolate->heap()->RightTrimFixedArray(this, length() - new_length);
+  }
+}
+void FixedArrayPtr::Shrink(Isolate* isolate, int new_length) {
+  DCHECK(0 < new_length && new_length <= length());
+  if (new_length < length()) {
+    isolate->heap()->RightTrimFixedArray(reinterpret_cast<FixedArray*>(ptr()),
+                                         length() - new_length);
   }
 }
 
@@ -10336,16 +10379,17 @@ void FixedArray::CopyTo(int pos, FixedArray* dest, int dest_pos,
     dest->set(dest_pos+index, get(pos+index), mode);
   }
 }
-
-#ifdef DEBUG
-bool FixedArray::IsEqualTo(FixedArray* other) {
-  if (length() != other->length()) return false;
-  for (int i = 0 ; i < length(); ++i) {
-    if (get(i) != other->get(i)) return false;
+void FixedArrayPtr::CopyTo(int pos, FixedArrayPtr dest, int dest_pos,
+                           int len) const {
+  DisallowHeapAllocation no_gc;
+  // Return early if len == 0 so that we don't try to read the write barrier off
+  // a canonical read-only empty fixed array.
+  if (len == 0) return;
+  WriteBarrierMode mode = dest->GetWriteBarrierMode(no_gc);
+  for (int index = 0; index < len; index++) {
+    dest->set(dest_pos + index, get(pos + index), mode);
   }
-  return true;
 }
-#endif
 
 void JSObject::PrototypeRegistryCompactionCallback(HeapObject* value,
                                                    int old_index,

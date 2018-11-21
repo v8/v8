@@ -57,6 +57,10 @@ class ObjectPtr {
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
+  // TODO(3770): Drop these after migrating the respective classes:
+  inline bool IsFixedArrayBasePtr() const;
+  inline bool IsFixedArrayPtr() const;
+
   inline bool IsObject() const { return true; }
   inline double Number() const;
   inline bool ToInt32(int32_t* value) const;
