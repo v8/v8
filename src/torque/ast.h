@@ -19,6 +19,7 @@ namespace torque {
 
 #define AST_EXPRESSION_NODE_KIND_LIST(V) \
   V(CallExpression)                      \
+  V(IntrinsicCallExpression)             \
   V(StructExpression)                    \
   V(LogicalOrExpression)                 \
   V(LogicalAndExpression)                \
@@ -71,7 +72,8 @@ namespace torque {
   V(TorqueBuiltinDeclaration)          \
   V(ExternalMacroDeclaration)          \
   V(ExternalBuiltinDeclaration)        \
-  V(ExternalRuntimeDeclaration)
+  V(ExternalRuntimeDeclaration)        \
+  V(IntrinsicDeclaration)
 
 #define AST_NODE_KIND_LIST(V)           \
   AST_EXPRESSION_NODE_KIND_LIST(V)      \
@@ -199,6 +201,20 @@ struct IdentifierExpression : LocationExpression {
   std::vector<std::string> namespace_qualification;
   std::string name;
   std::vector<TypeExpression*> generic_arguments;
+};
+
+struct IntrinsicCallExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(IntrinsicCallExpression)
+  IntrinsicCallExpression(SourcePosition pos, std::string name,
+                          std::vector<TypeExpression*> generic_arguments,
+                          std::vector<Expression*> arguments)
+      : Expression(kKind, pos),
+        name(std::move(name)),
+        generic_arguments(std::move(generic_arguments)),
+        arguments(std::move(arguments)) {}
+  std::string name;
+  std::vector<TypeExpression*> generic_arguments;
+  std::vector<Expression*> arguments;
 };
 
 struct CallExpression : Expression {
@@ -664,6 +680,14 @@ struct ExternalMacroDeclaration : MacroDeclaration {
                          labels),
         external_assembler_name(std::move(external_assembler_name)) {}
   std::string external_assembler_name;
+};
+
+struct IntrinsicDeclaration : CallableNode {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(IntrinsicDeclaration)
+  IntrinsicDeclaration(SourcePosition pos, std::string name,
+                       ParameterList parameters, TypeExpression* return_type)
+      : CallableNode(kKind, pos, false, std::move(name), std::move(parameters),
+                     return_type, {}) {}
 };
 
 struct TorqueMacroDeclaration : MacroDeclaration {
