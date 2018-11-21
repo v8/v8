@@ -69,6 +69,8 @@ class DeclarationVisitor : public FileVisitor {
              base::Optional<Statement*> body);
   void Visit(TorqueMacroDeclaration* decl, const Signature& signature,
              base::Optional<Statement*> body);
+  void Visit(IntrinsicDeclaration* decl, const Signature& signature,
+             base::Optional<Statement*> body);
 
   void Visit(CallableNode* decl, const Signature& signature,
              base::Optional<Statement*> body);
@@ -84,7 +86,7 @@ class DeclarationVisitor : public FileVisitor {
   Callable* SpecializeImplicit(const SpecializationKey& key);
   Callable* Specialize(const SpecializationKey& key, CallableNode* declaration,
                        base::Optional<const CallableNodeSignature*> signature,
-                       Statement* body);
+                       base::Optional<Statement*> body);
 
  private:
   void DeclareSpecializedTypes(const SpecializationKey& key);

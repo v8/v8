@@ -18,6 +18,7 @@
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
+#include "src/objects/arguments.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"

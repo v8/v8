@@ -62,6 +62,11 @@ type SloppyArgumentsElements extends FixedArray
 type NumberDictionary extends HeapObject
     generates 'TNode<NumberDictionary>';
 
+// RawCasts should *never* be used anywhere in Torque code except for
+// in Torque-based UnsafeCast operators preceeded by an appropriate
+// type assert()
+intrinsic %RawCast<A: type>(o: Object): A;
+
 type NativeContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
 const ARRAY_JOIN_STACK_INDEX: constexpr NativeContextSlot
     generates 'Context::ARRAY_JOIN_STACK_INDEX';
@@ -835,15 +840,6 @@ UnsafeCast<String>(o: Object): String {
   return UnsafeCastObjectToString(o);
 }
 
-// RawCasts should *never* be used anywhere in Torque code except for
-// in Torque-based UnsafeCast operators preceeded by an appropriate
-// type check().
-extern macro RawCastObjectToJSFunction(Object): JSFunction;
-extern macro RawCastObjectToJSArgumentsObjectWithLength(Object):
-    JSArgumentsObjectWithLength;
-extern macro RawCastObjectToFastJSArray(Object): FastJSArray;
-extern macro RawCastObjectToFastJSArrayForCopy(Object): FastJSArrayForCopy;
-
 macro BranchIfJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
     never
     labels True, False {
@@ -859,7 +855,7 @@ macro BranchIfJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
 UnsafeCast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
     JSArgumentsObjectWithLength {
   assert(BranchIfJSArgumentsObjectWithLength(o));
-  return RawCastObjectToJSArgumentsObjectWithLength(o);
+  return %RawCast<JSArgumentsObjectWithLength>(o);
 }
 
 Cast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
@@ -874,7 +870,7 @@ Cast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
 
 UnsafeCast<FastJSArray>(implicit context: Context)(o: Object): FastJSArray {
   assert(BranchIfFastJSArray(o, context));
-  return RawCastObjectToFastJSArray(o);
+  return %RawCast<FastJSArray>(o);
 }
 
 Cast<FastJSArray>(implicit context: Context)(o: Object): FastJSArray
@@ -898,7 +894,7 @@ Cast<FastJSArray>(implicit context: Context)(ho: HeapObject): FastJSArray
 UnsafeCast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
     FastJSArrayForCopy {
   assert(BranchIfFastJSArrayForCopy(o, context));
-  return RawCastObjectToFastJSArrayForCopy(o);
+  return %RawCast<FastJSArrayForCopy>(o);
 }
 
 Cast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
@@ -913,7 +909,7 @@ Cast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
 
 UnsafeCast<JSFunction>(implicit context: Context)(o: Object): JSFunction {
   assert(IsJSFunction(Cast<HeapObject>(o) otherwise unreachable));
-  return RawCastObjectToJSFunction(o);
+  return %RawCast<JSFunction>(o);
 }
 
 Cast<JSFunction>(implicit context: Context)(o: Object): JSFunction

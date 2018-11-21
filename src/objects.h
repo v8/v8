@@ -757,6 +757,7 @@ class ZoneForwardList;
   V(HeapNumber)                                \
   V(InternalizedString)                        \
   V(JSArgumentsObject)                         \
+  V(JSArgumentsObjectWithLength)               \
   V(JSArray)                                   \
   V(JSArrayBuffer)                             \
   V(JSArrayBufferView)                         \
@@ -927,6 +928,7 @@ class ZoneForwardList;
   V(GlobalDictionary, GLOBAL_DICTIONARY_TYPE)                            \
   V(HeapNumber, HEAP_NUMBER_TYPE)                                        \
   V(JSArgumentsObject, JS_ARGUMENTS_TYPE)                                \
+  V(JSArgumentsObjectWithLength, JS_ARGUMENTS_TYPE)                      \
   V(JSArray, JS_ARRAY_TYPE)                                              \
   V(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)                                 \
   V(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)                             \

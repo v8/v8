@@ -403,23 +403,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(p_o);
   }
 
-  TNode<JSArgumentsObjectWithLength> RawCastObjectToJSArgumentsObjectWithLength(
-      TNode<Object> p_o) {
-    return TNode<JSArgumentsObjectWithLength>::UncheckedCast(p_o);
-  }
-
-  TNode<JSArray> RawCastObjectToFastJSArray(TNode<Object> p_o) {
-    return TNode<JSArray>::UncheckedCast(p_o);
-  }
-
-  TNode<JSArray> RawCastObjectToFastJSArrayForCopy(TNode<Object> p_o) {
-    return TNode<JSArray>::UncheckedCast(p_o);
-  }
-
-  TNode<JSFunction> RawCastObjectToJSFunction(TNode<Object> p_o) {
-    return TNode<JSFunction>::UncheckedCast(p_o);
-  }
-
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
