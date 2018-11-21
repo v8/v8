@@ -1735,15 +1735,19 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
   string = String::Flatten(isolate, string);
 
-  // Fast-path for unmodified JSRegExps.
+  const bool functional_replace = replace_obj->IsCallable();
+
+  // Fast-path for unmodified JSRegExps (and non-functional replace).
   if (RegExpUtils::IsUnmodifiedRegExp(isolate, recv)) {
+    // We should never get here with functional replace because unmodified
+    // regexp and functional replace should be fully handled in CSA code.
+    CHECK(!functional_replace);
     RETURN_RESULT_OR_FAILURE(
         isolate, RegExpReplace(isolate, Handle<JSRegExp>::cast(recv), string,
                                replace_obj));
   }
 
   const uint32_t length = string->length();
-  const bool functional_replace = replace_obj->IsCallable();
 
   Handle<String> replace;
   if (!functional_replace) {
