@@ -608,15 +608,19 @@ class ConsString : public String {
   DECL_CAST(ConsString)
 
   // Layout description.
-  static const int kFirstOffset = String::kHeaderSize;
-  static const int kSecondOffset = kFirstOffset + kPointerSize;
-  static const int kSize = kSecondOffset + kPointerSize;
+#define CONS_STRING_FIELDS(V)   \
+  V(kFirstOffset, kTaggedSize)  \
+  V(kSecondOffset, kTaggedSize) \
+  /* Total size. */             \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize, CONS_STRING_FIELDS)
+#undef CONS_STRING_FIELDS
 
   // Minimum length for a cons string.
   static const int kMinLength = 13;
 
-  typedef FixedBodyDescriptor<kFirstOffset, kSecondOffset + kPointerSize, kSize>
-      BodyDescriptor;
+  typedef FixedBodyDescriptor<kFirstOffset, kSize, kSize> BodyDescriptor;
 
   DECL_VERIFIER(ConsString)
 
@@ -645,8 +649,13 @@ class ThinString : public String {
   DECL_VERIFIER(ThinString)
 
   // Layout description.
-  static const int kActualOffset = String::kHeaderSize;
-  static const int kSize = kActualOffset + kPointerSize;
+#define THIN_STRING_FIELDS(V)   \
+  V(kActualOffset, kTaggedSize) \
+  /* Total size. */             \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize, THIN_STRING_FIELDS)
+#undef THIN_STRING_FIELDS
 
   typedef FixedBodyDescriptor<kActualOffset, kSize, kSize> BodyDescriptor;
 
@@ -680,16 +689,19 @@ class SlicedString : public String {
   DECL_CAST(SlicedString)
 
   // Layout description.
-  static const int kParentOffset = String::kHeaderSize;
-  static const int kOffsetOffset = kParentOffset + kPointerSize;
-  static const int kSize = kOffsetOffset + kPointerSize;
+#define SLICED_STRING_FIELDS(V) \
+  V(kParentOffset, kTaggedSize) \
+  V(kOffsetOffset, kTaggedSize) \
+  /* Total size. */             \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize, SLICED_STRING_FIELDS)
+#undef SLICED_STRING_FIELDS
 
   // Minimum length for a sliced string.
   static const int kMinLength = 13;
 
-  typedef FixedBodyDescriptor<kParentOffset, kOffsetOffset + kPointerSize,
-                              kSize>
-      BodyDescriptor;
+  typedef FixedBodyDescriptor<kParentOffset, kSize, kSize> BodyDescriptor;
 
   DECL_VERIFIER(SlicedString)
 
@@ -711,10 +723,16 @@ class ExternalString : public String {
   DECL_CAST(ExternalString)
 
   // Layout description.
-  static const int kResourceOffset = String::kHeaderSize;
-  static const int kUncachedSize = kResourceOffset + kPointerSize;
-  static const int kResourceDataOffset = kResourceOffset + kPointerSize;
-  static const int kSize = kResourceDataOffset + kPointerSize;
+#define EXTERNAL_STRING_FIELDS(V)            \
+  V(kResourceOffset, kSystemPointerSize)     \
+  /* Size of uncached external strings. */   \
+  V(kUncachedSize, 0)                        \
+  V(kResourceDataOffset, kSystemPointerSize) \
+  /* Total size. */                          \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize, EXTERNAL_STRING_FIELDS)
+#undef EXTERNAL_STRING_FIELDS
 
   // Return whether the external string data pointer is not cached.
   inline bool is_uncached() const;

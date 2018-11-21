@@ -67,8 +67,9 @@ class ArrayBoilerplateDescription : public Struct {
   void BriefPrintDetails(std::ostream& os);
 
 #define ARRAY_BOILERPLATE_DESCRIPTION_FIELDS(V) \
-  V(kFlagsOffset, kPointerSize)                 \
-  V(kConstantElementsOffset, kPointerSize)      \
+  V(kFlagsOffset, kTaggedSize)                  \
+  V(kConstantElementsOffset, kTaggedSize)       \
+  /* Total size. */                             \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,

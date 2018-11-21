@@ -828,6 +828,10 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 #define OBJECT_POINTER_ALIGN(value)                             \
   (((value) + kObjectAlignmentMask) & ~kObjectAlignmentMask)
 
+// OBJECT_POINTER_PADDING returns the padding size required to align value
+// as a HeapObject pointer
+#define OBJECT_POINTER_PADDING(value) (OBJECT_POINTER_ALIGN(value) - (value))
+
 // POINTER_SIZE_ALIGN returns the value aligned as a pointer.
 #define POINTER_SIZE_ALIGN(value)                               \
   (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
@@ -835,6 +839,10 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // CODE_POINTER_ALIGN returns the value aligned as a generated code segment.
 #define CODE_POINTER_ALIGN(value)                               \
   (((value) + kCodeAlignmentMask) & ~kCodeAlignmentMask)
+
+// CODE_POINTER_PADDING returns the padding size required to align value
+// as a generated code segment.
+#define CODE_POINTER_PADDING(value) (CODE_POINTER_ALIGN(value) - (value))
 
 // DOUBLE_POINTER_ALIGN returns the value algined for double pointers.
 #define DOUBLE_POINTER_ALIGN(value) \

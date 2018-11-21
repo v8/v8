@@ -43,8 +43,9 @@ class PreParsedScopeData : public HeapObject {
   DECL_PRINTER(PreParsedScopeData)
   DECL_VERIFIER(PreParsedScopeData)
 
+// Layout description.
 #define PRE_PARSED_SCOPE_DATA_FIELDS(V) \
-  V(kScopeDataOffset, kPointerSize)     \
+  V(kScopeDataOffset, kTaggedSize)      \
   V(kLengthOffset, kIntSize)            \
   V(kUnalignedChildDataStartOffset, 0)
 
@@ -58,7 +59,7 @@ class PreParsedScopeData : public HeapObject {
   class BodyDescriptor;
 
   static constexpr int SizeFor(int length) {
-    return kChildDataStartOffset + length * kPointerSize;
+    return kChildDataStartOffset + length * kTaggedSize;
   }
 
  private:
@@ -76,10 +77,12 @@ class UncompiledData : public HeapObject {
 
   DECL_CAST(UncompiledData)
 
+// Layout description.
 #define UNCOMPILED_DATA_FIELDS(V)         \
   V(kStartOfPointerFieldsOffset, 0)       \
-  V(kInferredNameOffset, kPointerSize)    \
-  V(kEndOfPointerFieldsOffset, 0)         \
+  V(kInferredNameOffset, kTaggedSize)     \
+  V(kEndOfTaggedFieldsOffset, 0)          \
+  /* Raw data fields. */                  \
   V(kStartPositionOffset, kInt32Size)     \
   V(kEndPositionOffset, kInt32Size)       \
   V(kFunctionLiteralIdOffset, kInt32Size) \
@@ -92,7 +95,7 @@ class UncompiledData : public HeapObject {
   static const int kSize = POINTER_SIZE_ALIGN(kUnalignedSize);
 
   typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                              kEndOfPointerFieldsOffset, kSize>
+                              kEndOfTaggedFieldsOffset, kSize>
       BodyDescriptor;
 
   // Clear uninitialized padding space.
@@ -130,10 +133,11 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
   DECL_PRINTER(UncompiledDataWithPreParsedScope)
   DECL_VERIFIER(UncompiledDataWithPreParsedScope)
 
+// Layout description.
 #define UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS(V) \
   V(kStartOfPointerFieldsOffset, 0)                     \
-  V(kPreParsedScopeDataOffset, kPointerSize)            \
-  V(kEndOfPointerFieldsOffset, 0)                       \
+  V(kPreParsedScopeDataOffset, kTaggedSize)             \
+  V(kEndOfTaggedFieldsOffset, 0)                        \
   /* Total size. */                                     \
   V(kSize, 0)
 
@@ -146,8 +150,8 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
 
   typedef SubclassBodyDescriptor<
       UncompiledData::BodyDescriptor,
-      FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                          kEndOfPointerFieldsOffset, kSize>>
+      FixedBodyDescriptor<kStartOfPointerFieldsOffset, kEndOfTaggedFieldsOffset,
+                          kSize>>
       BodyDescriptor;
 
  private:
@@ -159,10 +163,15 @@ class InterpreterData : public Struct {
   DECL_ACCESSORS(bytecode_array, BytecodeArray)
   DECL_ACCESSORS2(interpreter_trampoline, Code)
 
-  static const int kBytecodeArrayOffset = Struct::kHeaderSize;
-  static const int kInterpreterTrampolineOffset =
-      kBytecodeArrayOffset + kPointerSize;
-  static const int kSize = kInterpreterTrampolineOffset + kPointerSize;
+// Layout description.
+#define INTERPRETER_DATA_FIELDS(V)             \
+  V(kBytecodeArrayOffset, kTaggedSize)         \
+  V(kInterpreterTrampolineOffset, kTaggedSize) \
+  /* Total size. */                            \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, INTERPRETER_DATA_FIELDS)
+#undef INTERPRETER_DATA_FIELDS
 
   DECL_CAST(InterpreterData)
   DECL_PRINTER(InterpreterData)
@@ -211,14 +220,6 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 
   static const int kNotFound = -1;
   static const uint16_t kInvalidLength = static_cast<uint16_t>(-1);
-
-  // Helpers for assembly code that does a backwards walk of the optimized code
-  // map.
-  static const int kOffsetToPreviousContext =
-      FixedArray::kHeaderSize + kPointerSize * (kContextOffset - kEntryLength);
-  static const int kOffsetToPreviousCachedCode =
-      FixedArray::kHeaderSize +
-      kPointerSize * (kCachedCodeOffset - kEntryLength);
 
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
@@ -591,23 +592,23 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 #endif
 
 // Layout description.
-#define SHARED_FUNCTION_INFO_FIELDS(V)                     \
-  /* Pointer fields. */                                    \
-  V(kStartOfPointerFieldsOffset, 0)                        \
-  V(kFunctionDataOffset, kPointerSize)                     \
-  V(kNameOrScopeInfoOffset, kPointerSize)                  \
-  V(kOuterScopeInfoOrFeedbackMetadataOffset, kPointerSize) \
-  V(kScriptOrDebugInfoOffset, kPointerSize)                \
-  V(kEndOfPointerFieldsOffset, 0)                          \
-  /* Raw data fields. */                                   \
-  V(kUniqueIdOffset, kUniqueIdFieldSize)                   \
-  V(kLengthOffset, kUInt16Size)                            \
-  V(kFormalParameterCountOffset, kUInt16Size)              \
-  V(kExpectedNofPropertiesOffset, kUInt8Size)              \
-  V(kBuiltinFunctionId, kUInt8Size)                        \
-  V(kFunctionTokenOffsetOffset, kUInt16Size)               \
-  V(kFlagsOffset, kInt32Size)                              \
-  /* Total size. */                                        \
+#define SHARED_FUNCTION_INFO_FIELDS(V)                    \
+  /* Pointer fields. */                                   \
+  V(kStartOfPointerFieldsOffset, 0)                       \
+  V(kFunctionDataOffset, kTaggedSize)                     \
+  V(kNameOrScopeInfoOffset, kTaggedSize)                  \
+  V(kOuterScopeInfoOrFeedbackMetadataOffset, kTaggedSize) \
+  V(kScriptOrDebugInfoOffset, kTaggedSize)                \
+  V(kEndOfTaggedFieldsOffset, 0)                          \
+  /* Raw data fields. */                                  \
+  V(kUniqueIdOffset, kUniqueIdFieldSize)                  \
+  V(kLengthOffset, kUInt16Size)                           \
+  V(kFormalParameterCountOffset, kUInt16Size)             \
+  V(kExpectedNofPropertiesOffset, kUInt8Size)             \
+  V(kBuiltinFunctionId, kUInt8Size)                       \
+  V(kFunctionTokenOffsetOffset, kUInt16Size)              \
+  V(kFlagsOffset, kInt32Size)                             \
+  /* Total size. */                                       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -617,7 +618,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
   typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                              kEndOfPointerFieldsOffset, kAlignedSize>
+                              kEndOfTaggedFieldsOffset, kAlignedSize>
       BodyDescriptor;
 
 // Bit positions in |flags|.

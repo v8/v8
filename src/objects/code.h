@@ -371,38 +371,30 @@ class Code : public HeapObjectPtr {
 
   class OptimizedCodeIterator;
 
-  static const int kConstantPoolSize =
-      FLAG_enable_embedded_constant_pool ? kIntSize : 0;
-
   // Layout description.
-  static const int kRelocationInfoOffset = HeapObject::kHeaderSize;
-  static const int kDeoptimizationDataOffset =
-      kRelocationInfoOffset + kPointerSize;
-  static const int kSourcePositionTableOffset =
-      kDeoptimizationDataOffset + kPointerSize;
-  static const int kCodeDataContainerOffset =
-      kSourcePositionTableOffset + kPointerSize;
-  static const int kInstructionSizeOffset =
-      kCodeDataContainerOffset + kPointerSize;
-  static const int kFlagsOffset = kInstructionSizeOffset + kIntSize;
-  static const int kSafepointTableOffsetOffset = kFlagsOffset + kIntSize;
-  static const int kHandlerTableOffsetOffset =
-      kSafepointTableOffsetOffset + kIntSize;
-  static const int kStubKeyOffset = kHandlerTableOffsetOffset + kIntSize;
-  static const int kConstantPoolOffset = kStubKeyOffset + kIntSize;
-  static const int kBuiltinIndexOffset =
-      kConstantPoolOffset + kConstantPoolSize;
-  static const int kHeaderPaddingStart = kBuiltinIndexOffset + kIntSize;
+#define CODE_FIELDS(V)                                                      \
+  V(kRelocationInfoOffset, kTaggedSize)                                     \
+  V(kDeoptimizationDataOffset, kTaggedSize)                                 \
+  V(kSourcePositionTableOffset, kTaggedSize)                                \
+  V(kCodeDataContainerOffset, kTaggedSize)                                  \
+  /* Data or code not directly visited by GC directly starts here. */       \
+  /* The serializer needs to copy bytes starting from here verbatim. */     \
+  /* Objects embedded into code is visited via reloc info. */               \
+  V(kDataStart, 0)                                                          \
+  V(kInstructionSizeOffset, kIntSize)                                       \
+  V(kFlagsOffset, kIntSize)                                                 \
+  V(kSafepointTableOffsetOffset, kIntSize)                                  \
+  V(kHandlerTableOffsetOffset, kIntSize)                                    \
+  V(kStubKeyOffset, kIntSize)                                               \
+  V(kConstantPoolOffset, FLAG_enable_embedded_constant_pool ? kIntSize : 0) \
+  V(kBuiltinIndexOffset, kIntSize)                                          \
+  /* Add padding to align the instruction start following right after */    \
+  /* the Code object header. */                                             \
+  V(kHeaderPaddingStart, CODE_POINTER_PADDING(kHeaderPaddingStart))         \
+  V(kHeaderSize, 0)
 
-  // Add padding to align the instruction start following right after
-  // the Code object header.
-  static const int kHeaderSize =
-      (kHeaderPaddingStart + kCodeAlignmentMask) & ~kCodeAlignmentMask;
-
-  // Data or code not directly visited by GC directly starts here.
-  // The serializer needs to copy bytes starting from here verbatim.
-  // Objects embedded into code is visited via reloc info.
-  static const int kDataStart = kInstructionSizeOffset;
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_FIELDS)
+#undef CODE_FIELDS
 
   inline int GetUnwindingInfoSizeOffset() const;
 
@@ -485,15 +477,20 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
   DECL_PRINTER(CodeDataContainer)
   DECL_VERIFIER(CodeDataContainer)
 
-  static const int kNextCodeLinkOffset = HeapObject::kHeaderSize;
-  static const int kKindSpecificFlagsOffset =
-      kNextCodeLinkOffset + kPointerSize;
-  static const int kUnalignedSize = kKindSpecificFlagsOffset + kIntSize;
-  static const int kSize = OBJECT_POINTER_ALIGN(kUnalignedSize);
+// Layout description.
+#define CODE_DATA_FIELDS(V)                                 \
+  /* Weak pointer fields. */                                \
+  V(kPointerFieldsStrongEndOffset, 0)                       \
+  V(kNextCodeLinkOffset, kTaggedSize)                       \
+  V(kPointerFieldsWeakEndOffset, 0)                         \
+  /* Raw data fields. */                                    \
+  V(kKindSpecificFlagsOffset, kIntSize)                     \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize)) \
+  /* Total size. */                                         \
+  V(kSize, 0)
 
-  // During mark compact we need to take special care for weak fields.
-  static const int kPointerFieldsStrongEndOffset = kNextCodeLinkOffset;
-  static const int kPointerFieldsWeakEndOffset = kKindSpecificFlagsOffset;
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
+#undef CODE_DATA_FIELDS
 
   class BodyDescriptor;
 
@@ -785,9 +782,9 @@ class BytecodeArray : public FixedArrayBase {
 // Layout description.
 #define BYTECODE_ARRAY_FIELDS(V)                           \
   /* Pointer fields. */                                    \
-  V(kConstantPoolOffset, kPointerSize)                     \
-  V(kHandlerTableOffset, kPointerSize)                     \
-  V(kSourcePositionTableOffset, kPointerSize)              \
+  V(kConstantPoolOffset, kTaggedSize)                      \
+  V(kHandlerTableOffset, kTaggedSize)                      \
+  V(kSourcePositionTableOffset, kTaggedSize)               \
   V(kFrameSizeOffset, kIntSize)                            \
   V(kParameterSizeOffset, kIntSize)                        \
   V(kIncomingNewTargetOrGeneratorRegisterOffset, kIntSize) \
@@ -904,10 +901,16 @@ class SourcePositionTableWithFrameCache : public Tuple2 {
 
   DECL_CAST(SourcePositionTableWithFrameCache)
 
-  static const int kSourcePositionTableIndex = Struct::kHeaderSize;
-  static const int kStackFrameCacheIndex =
-      kSourcePositionTableIndex + kPointerSize;
-  static const int kSize = kStackFrameCacheIndex + kPointerSize;
+// Layout description.
+#define SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS(V) \
+  V(kSourcePositionTableIndex, kTaggedSize)        \
+  V(kStackFrameCacheIndex, kTaggedSize)            \
+  /* Total size. */                                \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS)
+#undef SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SourcePositionTableWithFrameCache);

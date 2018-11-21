@@ -365,8 +365,7 @@ void Heap::FinalizeExternalString(String* string) {
 
   v8::String::ExternalStringResourceBase** resource_addr =
       reinterpret_cast<v8::String::ExternalStringResourceBase**>(
-          reinterpret_cast<byte*>(string) + ExternalString::kResourceOffset -
-          kHeapObjectTag);
+          string->address() + ExternalString::kResourceOffset);
 
   // Dispose of the C++ object if it has not already been disposed.
   if (*resource_addr != nullptr) {

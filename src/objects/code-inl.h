@@ -634,7 +634,7 @@ void BytecodeArray::set(int index, byte value) {
 
 void BytecodeArray::set_frame_size(int frame_size) {
   DCHECK_GE(frame_size, 0);
-  DCHECK(IsAligned(frame_size, static_cast<unsigned>(kPointerSize)));
+  DCHECK(IsAligned(frame_size, kSystemPointerSize));
   WRITE_INT_FIELD(this, kFrameSizeOffset, frame_size);
 }
 
@@ -643,7 +643,7 @@ int BytecodeArray::frame_size() const {
 }
 
 int BytecodeArray::register_count() const {
-  return frame_size() / kPointerSize;
+  return frame_size() / kSystemPointerSize;
 }
 
 void BytecodeArray::set_parameter_count(int number_of_parameters) {
@@ -651,7 +651,7 @@ void BytecodeArray::set_parameter_count(int number_of_parameters) {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
   WRITE_INT_FIELD(this, kParameterSizeOffset,
-                  (number_of_parameters << kPointerSizeLog2));
+                  (number_of_parameters << kSystemPointerSizeLog2));
 }
 
 interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
@@ -713,7 +713,7 @@ void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
 int BytecodeArray::parameter_count() const {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
-  return READ_INT_FIELD(this, kParameterSizeOffset) >> kPointerSizeLog2;
+  return READ_INT_FIELD(this, kParameterSizeOffset) >> kSystemPointerSizeLog2;
 }
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)

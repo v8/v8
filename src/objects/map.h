@@ -804,28 +804,29 @@ class Map : public HeapObjectPtr {
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
-#define MAP_FIELDS(V)                                                       \
-  /* Raw data fields. */                                                    \
-  V(kInstanceSizeInWordsOffset, kUInt8Size)                                 \
-  V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size)   \
-  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                     \
-  V(kVisitorIdOffset, kUInt8Size)                                           \
-  V(kInstanceTypeOffset, kUInt16Size)                                       \
-  V(kBitFieldOffset, kUInt8Size)                                            \
-  V(kBitField2Offset, kUInt8Size)                                           \
-  V(kBitField3Offset, kUInt32Size)                                          \
-  V(k64BitArchPaddingOffset, kPointerSize == kUInt32Size ? 0 : kUInt32Size) \
-  /* Pointer fields. */                                                     \
-  V(kPointerFieldsBeginOffset, 0)                                           \
-  V(kPrototypeOffset, kPointerSize)                                         \
-  V(kConstructorOrBackPointerOffset, kPointerSize)                          \
-  V(kTransitionsOrPrototypeInfoOffset, kPointerSize)                        \
-  V(kDescriptorsOffset, kPointerSize)                                       \
-  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kPointerSize : 0)   \
-  V(kDependentCodeOffset, kPointerSize)                                     \
-  V(kPrototypeValidityCellOffset, kPointerSize)                             \
-  V(kPointerFieldsEndOffset, 0)                                             \
-  /* Total size. */                                                         \
+#define MAP_FIELDS(V)                                                     \
+  /* Raw data fields. */                                                  \
+  V(kInstanceSizeInWordsOffset, kUInt8Size)                               \
+  V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size) \
+  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                   \
+  V(kVisitorIdOffset, kUInt8Size)                                         \
+  V(kInstanceTypeOffset, kUInt16Size)                                     \
+  V(kBitFieldOffset, kUInt8Size)                                          \
+  V(kBitField2Offset, kUInt8Size)                                         \
+  V(kBitField3Offset, kUInt32Size)                                        \
+  V(k64BitArchPaddingOffset,                                              \
+    kSystemPointerSize == kUInt32Size ? 0 : kUInt32Size)                  \
+  /* Pointer fields. */                                                   \
+  V(kPointerFieldsBeginOffset, 0)                                         \
+  V(kPrototypeOffset, kTaggedSize)                                        \
+  V(kConstructorOrBackPointerOffset, kTaggedSize)                         \
+  V(kTransitionsOrPrototypeInfoOffset, kTaggedSize)                       \
+  V(kDescriptorsOffset, kTaggedSize)                                      \
+  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kTaggedSize : 0)  \
+  V(kDependentCodeOffset, kTaggedSize)                                    \
+  V(kPrototypeValidityCellOffset, kTaggedSize)                            \
+  V(kPointerFieldsEndOffset, 0)                                           \
+  /* Total size. */                                                       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
@@ -872,11 +873,11 @@ class Map : public HeapObjectPtr {
  private:
   // This byte encodes either the instance size without the in-object slack or
   // the slack size in properties backing store.
-  // Let H be JSObject::kHeaderSize / kPointerSize.
+  // Let H be JSObject::kHeaderSize / kTaggedSize.
   // If value >= H then:
   //     - all field properties are stored in the object.
   //     - there is no property array.
-  //     - value * kPointerSize is the actual object size without the slack.
+  //     - value * kTaggedSize is the actual object size without the slack.
   // Otherwise:
   //     - there is no slack in the object.
   //     - the property array has value slack slots.

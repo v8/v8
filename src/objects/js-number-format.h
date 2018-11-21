@@ -95,12 +95,12 @@ class JSNumberFormat : public JSObject {
   inline CurrencyDisplay currency_display() const;
 
 // Layout description.
-#define JS_NUMBER_FORMAT_FIELDS(V)        \
-  V(kLocaleOffset, kPointerSize)          \
-  V(kICUNumberFormatOffset, kPointerSize) \
-  V(kBoundFormatOffset, kPointerSize)     \
-  V(kFlagsOffset, kPointerSize)           \
-  /* Total size. */                       \
+#define JS_NUMBER_FORMAT_FIELDS(V)       \
+  V(kLocaleOffset, kTaggedSize)          \
+  V(kICUNumberFormatOffset, kTaggedSize) \
+  V(kBoundFormatOffset, kTaggedSize)     \
+  V(kFlagsOffset, kTaggedSize)           \
+  /* Total size. */                      \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_NUMBER_FORMAT_FIELDS)

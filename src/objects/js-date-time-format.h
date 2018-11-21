@@ -76,11 +76,11 @@ class JSDateTimeFormat : public JSObject {
   DECL_CAST(JSDateTimeFormat)
 
 // Layout description.
-#define JS_DATE_TIME_FORMAT_FIELDS(V)         \
-  V(kICULocaleOffset, kPointerSize)           \
-  V(kICUSimpleDateFormatOffset, kPointerSize) \
-  V(kBoundFormatOffset, kPointerSize)         \
-  /* Total size. */                           \
+#define JS_DATE_TIME_FORMAT_FIELDS(V)        \
+  V(kICULocaleOffset, kTaggedSize)           \
+  V(kICUSimpleDateFormatOffset, kTaggedSize) \
+  V(kBoundFormatOffset, kTaggedSize)         \
+  /* Total size. */                          \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,

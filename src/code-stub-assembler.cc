@@ -7112,7 +7112,8 @@ Node* CodeStubAssembler::DerefIndirectString(TNode<String> string,
   Label deref(this);
   BranchIfCanDerefIndirectString(string, instance_type, &deref, cannot_deref);
   BIND(&deref);
-  STATIC_ASSERT(ThinString::kActualOffset == ConsString::kFirstOffset);
+  STATIC_ASSERT(static_cast<int>(ThinString::kActualOffset) ==
+                static_cast<int>(ConsString::kFirstOffset));
   return LoadObjectField(string, ThinString::kActualOffset);
 }
 
@@ -7128,7 +7129,8 @@ void CodeStubAssembler::DerefIndirectString(Variable* var_string,
   BIND(&can_deref);
 #endif  // DEBUG
 
-  STATIC_ASSERT(ThinString::kActualOffset == ConsString::kFirstOffset);
+  STATIC_ASSERT(static_cast<int>(ThinString::kActualOffset) ==
+                static_cast<int>(ConsString::kFirstOffset));
   var_string->Bind(
       LoadObjectField(var_string->value(), ThinString::kActualOffset));
 }

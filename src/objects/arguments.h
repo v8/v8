@@ -30,9 +30,15 @@ class JSArgumentsObject : public JSObject {
 // mode already. Only use the below layout with the specific initial maps.
 class JSArgumentsObjectWithLength : public JSArgumentsObject {
  public:
-  // Offsets of object fields.
-  static const int kLengthOffset = JSObject::kHeaderSize;
-  static const int kSize = kLengthOffset + kPointerSize;
+// Layout description.
+#define JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS(V) \
+  V(kLengthOffset, kTaggedSize)                   \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
+#undef JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS
+
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
 
@@ -47,9 +53,15 @@ class JSArgumentsObjectWithLength : public JSArgumentsObject {
 // This initial map adds in-object properties for "length" and "callee".
 class JSSloppyArgumentsObject : public JSArgumentsObjectWithLength {
  public:
-  // Offsets of object fields.
-  static const int kCalleeOffset = JSArgumentsObjectWithLength::kSize;
-  static const int kSize = kCalleeOffset + kPointerSize;
+// Layout description.
+#define JS_SLOPPY_ARGUMENTS_OBJECT_FIELDS(V) \
+  V(kCalleeOffset, kTaggedSize)              \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSArgumentsObjectWithLength::kSize,
+                                JS_SLOPPY_ARGUMENTS_OBJECT_FIELDS)
+#undef JS_SLOPPY_ARGUMENTS_OBJECT_FIELDS
+
   // Indices of in-object properties.
   static const int kCalleeIndex = kLengthIndex + 1;
 
@@ -65,7 +77,7 @@ class JSSloppyArgumentsObject : public JSArgumentsObjectWithLength {
 // This initial map adds an in-object property for "length".
 class JSStrictArgumentsObject : public JSArgumentsObjectWithLength {
  public:
-  // Offsets of object fields.
+  // Layout description.
   static const int kSize = JSArgumentsObjectWithLength::kSize;
 
  private:
@@ -135,8 +147,15 @@ class AliasedArgumentsEntry : public Struct {
   DECL_PRINTER(AliasedArgumentsEntry)
   DECL_VERIFIER(AliasedArgumentsEntry)
 
-  static const int kAliasedContextSlot = HeapObject::kHeaderSize;
-  static const int kSize = kAliasedContextSlot + kPointerSize;
+// Layout description.
+#define ALIASED_ARGUMENTS_FIELDS(V)   \
+  V(kAliasedContextSlot, kTaggedSize) \
+  /* Total size. */                   \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                ALIASED_ARGUMENTS_FIELDS)
+#undef ALIASED_ARGUMENTS_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AliasedArgumentsEntry);

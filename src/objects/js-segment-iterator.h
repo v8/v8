@@ -88,12 +88,12 @@ class JSSegmentIterator : public JSObject {
   DECL_INT_ACCESSORS(flags)
 
 // Layout description.
-#define SEGMENTER_FIELDS(V)                \
-  /* Pointer fields. */                    \
-  V(kICUBreakIteratorOffset, kPointerSize) \
-  V(kUnicodeStringOffset, kPointerSize)    \
-  V(kFlagsOffset, kPointerSize)            \
-  /* Total Size */                         \
+#define SEGMENTER_FIELDS(V)               \
+  /* Pointer fields. */                   \
+  V(kICUBreakIteratorOffset, kTaggedSize) \
+  V(kUnicodeStringOffset, kTaggedSize)    \
+  V(kFlagsOffset, kTaggedSize)            \
+  /* Total Size */                        \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, SEGMENTER_FIELDS)

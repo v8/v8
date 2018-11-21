@@ -17299,7 +17299,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
       cons->set_first(isolate, *result);
       cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
     } else if (string->IsSlicedString()) {
-      STATIC_ASSERT(ConsString::kSize == SlicedString::kSize);
+      STATIC_ASSERT(static_cast<int>(ConsString::kSize) ==
+                    static_cast<int>(SlicedString::kSize));
       DisallowHeapAllocation no_gc;
       bool one_byte = result->IsOneByteRepresentation();
       Handle<Map> map = one_byte

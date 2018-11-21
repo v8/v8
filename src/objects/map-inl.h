@@ -229,12 +229,12 @@ void Map::set_instance_size_in_words(int value) {
 }
 
 int Map::instance_size() const {
-  return instance_size_in_words() << kPointerSizeLog2;
+  return instance_size_in_words() << kTaggedSizeLog2;
 }
 
 void Map::set_instance_size(int value) {
-  CHECK_EQ(0, value & (kPointerSize - 1));
-  value >>= kPointerSizeLog2;
+  CHECK(IsAligned(value, kTaggedSize));
+  value >>= kTaggedSizeLog2;
   CHECK_LT(static_cast<unsigned>(value), 256);
   set_instance_size_in_words(value);
 }
@@ -278,7 +278,7 @@ void Map::SetConstructorFunctionIndex(int value) {
 }
 
 int Map::GetInObjectPropertyOffset(int index) const {
-  return (GetInObjectPropertiesStartInWords() + index) * kPointerSize;
+  return (GetInObjectPropertiesStartInWords() + index) * kTaggedSize;
 }
 
 Handle<Map> Map::AddMissingTransitionsForTesting(
@@ -340,11 +340,11 @@ int Map::UsedInstanceSize() const {
     // in the property array.
     return instance_size();
   }
-  return words * kPointerSize;
+  return words * kTaggedSize;
 }
 
 void Map::SetInObjectUnusedPropertyFields(int value) {
-  STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);
+  STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kTaggedSize);
   if (!IsJSObjectMap()) {
     CHECK_EQ(0, value);
     set_used_or_unused_instance_size_in_words(0);
@@ -355,12 +355,12 @@ void Map::SetInObjectUnusedPropertyFields(int value) {
   DCHECK_LE(value, GetInObjectProperties());
   int used_inobject_properties = GetInObjectProperties() - value;
   set_used_or_unused_instance_size_in_words(
-      GetInObjectPropertyOffset(used_inobject_properties) / kPointerSize);
+      GetInObjectPropertyOffset(used_inobject_properties) / kTaggedSize);
   DCHECK_EQ(value, UnusedPropertyFields());
 }
 
 void Map::SetOutOfObjectUnusedPropertyFields(int value) {
-  STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);
+  STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kTaggedSize);
   CHECK_LT(static_cast<unsigned>(value), JSObject::kFieldsAdded);
   // For out of object properties "used_instance_size_in_words" byte encodes
   // the slack in the property array.
@@ -387,7 +387,7 @@ void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map map) {
 
 void Map::AccountAddedPropertyField() {
   // Update used instance size and unused property fields number.
-  STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);
+  STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kTaggedSize);
 #ifdef DEBUG
   int new_unused = UnusedPropertyFields() - 1;
   if (new_unused < 0) new_unused += JSObject::kFieldsAdded;
@@ -617,7 +617,7 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors,
 }
 
 void Map::set_bit_field3(uint32_t bits) {
-  if (kInt32Size != kPointerSize) {
+  if (kInt32Size != kTaggedSize) {
     WRITE_UINT32_FIELD(this, kBitField3Offset + kInt32Size, 0);
   }
   WRITE_UINT32_FIELD(this, kBitField3Offset, bits);

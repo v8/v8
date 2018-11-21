@@ -70,18 +70,18 @@ class JSV8BreakIterator : public JSObject {
   DECL_ACCESSORS(bound_break_type, Object)
 
 // Layout description.
-#define BREAK_ITERATOR_FIELDS(V)         \
-  /* Pointer fields. */                  \
-  V(kLocaleOffset, kPointerSize)         \
-  V(kTypeOffset, kPointerSize)           \
-  V(kBreakIteratorOffset, kPointerSize)  \
-  V(kUnicodeStringOffset, kPointerSize)  \
-  V(kBoundAdoptTextOffset, kPointerSize) \
-  V(kBoundFirstOffset, kPointerSize)     \
-  V(kBoundNextOffset, kPointerSize)      \
-  V(kBoundCurrentOffset, kPointerSize)   \
-  V(kBoundBreakTypeOffset, kPointerSize) \
-  /* Total Size */                       \
+#define BREAK_ITERATOR_FIELDS(V)        \
+  /* Pointer fields. */                 \
+  V(kLocaleOffset, kTaggedSize)         \
+  V(kTypeOffset, kTaggedSize)           \
+  V(kBreakIteratorOffset, kTaggedSize)  \
+  V(kUnicodeStringOffset, kTaggedSize)  \
+  V(kBoundAdoptTextOffset, kTaggedSize) \
+  V(kBoundFirstOffset, kTaggedSize)     \
+  V(kBoundNextOffset, kTaggedSize)      \
+  V(kBoundCurrentOffset, kTaggedSize)   \
+  V(kBoundBreakTypeOffset, kTaggedSize) \
+  /* Total Size */                      \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, BREAK_ITERATOR_FIELDS)

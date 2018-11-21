@@ -373,8 +373,10 @@ String* String::GetUnderlying() {
   // wrapping string is already flattened.
   DCHECK(this->IsFlat());
   DCHECK(StringShape(this).IsIndirect());
-  STATIC_ASSERT(ConsString::kFirstOffset == SlicedString::kParentOffset);
-  STATIC_ASSERT(ConsString::kFirstOffset == ThinString::kActualOffset);
+  STATIC_ASSERT(static_cast<int>(ConsString::kFirstOffset) ==
+                static_cast<int>(SlicedString::kParentOffset));
+  STATIC_ASSERT(static_cast<int>(ConsString::kFirstOffset) ==
+                static_cast<int>(ThinString::kActualOffset));
   const int kUnderlyingOffset = SlicedString::kParentOffset;
   return String::cast(READ_FIELD(this, kUnderlyingOffset));
 }
@@ -556,7 +558,6 @@ Address ExternalString::resource_as_address() {
 }
 
 void ExternalString::set_address_as_resource(Address address) {
-  DCHECK(IsAligned(address, kPointerSize));
   *reinterpret_cast<Address*>(FIELD_ADDR(this, kResourceOffset)) = address;
   if (IsExternalOneByteString()) {
     ExternalOneByteString::cast(this)->update_data_cache();
@@ -599,7 +600,6 @@ void ExternalOneByteString::SetResource(
 
 void ExternalOneByteString::set_resource(
     const ExternalOneByteString::Resource* resource) {
-  DCHECK(IsAligned(reinterpret_cast<intptr_t>(resource), kPointerSize));
   *reinterpret_cast<const Resource**>(FIELD_ADDR(this, kResourceOffset)) =
       resource;
   if (resource != nullptr) update_data_cache();
