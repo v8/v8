@@ -910,10 +910,8 @@ class ParserBase {
     }
   }
 
-  void ValidateArrowFormalParameters(ExpressionT expr,
-                                     bool parenthesized_formals,
-                                     bool is_async) {
-    if (!parenthesized_formals) {
+  void ValidateArrowFormalParameters(ExpressionT expr) {
+    if (!next_arrow_formals_parenthesized_) {
       // A simple arrow formal parameter: async? IDENTIFIER => BODY.
       if (!impl()->IsIdentifier(expr)) {
         if (classifier()->is_valid_binding_pattern()) {
@@ -930,7 +928,7 @@ class ParserBase {
     } else if (!classifier()->is_valid_arrow_formal_parameters()) {
       ReportClassifierError(classifier()->arrow_formal_parameters_error());
     } else {
-      DCHECK_IMPLIES(is_async,
+      DCHECK_IMPLIES(IsAsyncFunction(next_arrow_function_kind_),
                      classifier()->is_valid_async_arrow_formal_parameters());
     }
   }
@@ -1402,6 +1400,9 @@ class ParserBase {
   int function_literal_id_;
   int script_id_;
 
+  FunctionKind next_arrow_function_kind_ = FunctionKind::kArrowFunction;
+
+  bool next_arrow_formals_parenthesized_ = false;
   bool accept_IN_ = true;
 
   bool allow_natives_;
@@ -1675,6 +1676,8 @@ ParserBase<Impl>::ParsePrimaryExpression() {
               classifier()->async_arrow_formal_parameters_error());
           return impl()->FailureExpression();
         }
+
+        next_arrow_function_kind_ = FunctionKind::kAsyncArrowFunction;
         infer = InferName::kNo;
       }
     }
@@ -1715,6 +1718,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         // ()=>x.  The continuation that consumes the => is in
         // ParseAssignmentExpression.
         if (peek() != Token::ARROW) ReportUnexpectedToken(Token::RPAREN);
+        next_arrow_formals_parenthesized_ = true;
         return factory()->NewEmptyParentheses(beg_pos);
       }
       // Heuristically try to detect immediately called functions before
@@ -1728,7 +1732,11 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       Expect(Token::RPAREN);
       // Parenthesized parameters have to be followed immediately by an arrow to
       // be valid.
-      if (peek() != Token::ARROW) ArrowFormalParametersUnexpectedToken();
+      if (peek() == Token::ARROW) {
+        next_arrow_formals_parenthesized_ = true;
+      } else {
+        ArrowFormalParametersUnexpectedToken();
+      }
       return expr;
     }
 
@@ -2632,10 +2640,10 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   Scope::Snapshot scope_snapshot(scope());
   int rewritable_length = static_cast<int>(
       function_state_->destructuring_assignments_to_rewrite().size());
-  bool is_async = peek() == Token::ASYNC && PeekAhead() != Token::ARROW;
-  bool parenthesized_formals =
-      (is_async ? PeekAhead() : peek()) == Token::LPAREN;
 
+  DCHECK_IMPLIES(!has_error(),
+                 FunctionKind::kArrowFunction == next_arrow_function_kind_);
+  DCHECK_IMPLIES(!has_error(), !next_arrow_formals_parenthesized_);
   ExpressionT expression = ParseConditionalExpression();
 
   Token::Value op = peek();
@@ -2656,7 +2664,7 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   // Arrow functions.
   if (V8_UNLIKELY(op == Token::ARROW)) {
     Scanner::Location arrow_loc = scanner()->peek_location();
-    ValidateArrowFormalParameters(expression, parenthesized_formals, is_async);
+    ValidateArrowFormalParameters(expression);
     // This reads strangely, but is correct: it checks whether any
     // sub-expression of the parameter list failed to be a valid formal
     // parameter initializer. Since YieldExpressions are banned anywhere
@@ -2666,9 +2674,11 @@ ParserBase<Impl>::ParseAssignmentExpression() {
     ValidateFormalParameterInitializer();
 
     Scanner::Location loc(lhs_beg_pos, end_position());
-    DeclarationScope* scope =
-        NewFunctionScope(is_async ? FunctionKind::kAsyncArrowFunction
-                                  : FunctionKind::kArrowFunction);
+    DeclarationScope* scope = NewFunctionScope(next_arrow_function_kind_);
+
+    // Reset to default.
+    next_arrow_function_kind_ = FunctionKind::kArrowFunction;
+    next_arrow_formals_parenthesized_ = false;
 
     // Because the arrow's parameters were parsed in the outer scope,
     // we need to fix up the scope chain appropriately.
@@ -3139,6 +3149,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
                   classifier()->async_arrow_formal_parameters_error());
               return impl()->FailureExpression();
             }
+            next_arrow_function_kind_ = FunctionKind::kAsyncArrowFunction;
+            next_arrow_formals_parenthesized_ = true;
             if (args.length()) {
               // async ( Arguments ) => ...
               return impl()->ExpressionListToExpression(args);
@@ -3345,7 +3357,6 @@ ParserBase<Impl>::ParseImportExpressions() {
   classifier()->RecordPatternError(scanner()->peek_location(),
                                    MessageTemplate::kUnexpectedToken,
                                    Token::String(Token::IMPORT));
-
   Consume(Token::IMPORT);
   int pos = position();
   if (allow_harmony_import_meta() && peek() == Token::PERIOD) {
@@ -4431,6 +4442,7 @@ ParserBase<Impl>::CheckAndRewriteReferenceExpression(ExpressionT expression,
   if (impl()->IsIdentifier(expression)) {
     DCHECK(is_strict(language_mode()));
     DCHECK(impl()->IsEvalOrArguments(impl()->AsIdentifier(expression)));
+
     ReportMessageAt(Scanner::Location(beg_pos, end_pos),
                     MessageTemplate::kStrictEvalArguments, kSyntaxError);
     return impl()->FailureExpression();
