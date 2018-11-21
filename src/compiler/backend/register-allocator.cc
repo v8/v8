@@ -4,6 +4,8 @@
 
 #include "src/compiler/backend/register-allocator.h"
 
+#include <iomanip>
+
 #include "src/assembler-inl.h"
 #include "src/base/adapters.h"
 #include "src/compiler/linkage.h"
@@ -1149,6 +1151,78 @@ std::ostream& operator<<(std::ostream& os,
   }
   os << "}";
   return os;
+}
+
+namespace {
+void PrintBlockRow(std::ostream& os, const InstructionBlocks& blocks) {
+  os << "     ";
+  for (auto block : blocks) {
+    LifetimePosition start_pos = LifetimePosition::GapFromInstructionIndex(
+        block->first_instruction_index());
+    LifetimePosition end_pos = LifetimePosition::GapFromInstructionIndex(
+                                   block->last_instruction_index())
+                                   .NextFullStart();
+    int length = end_pos.value() - start_pos.value();
+    constexpr int kMaxPrefixLength = 32;
+    char buffer[kMaxPrefixLength];
+    int rpo_number = block->rpo_number().ToInt();
+    const char* deferred_marker = block->IsDeferred() ? "(deferred)" : "";
+    int max_prefix_length = std::min(length, kMaxPrefixLength);
+    int prefix = snprintf(buffer, max_prefix_length, "[-B%d-%s", rpo_number,
+                          deferred_marker);
+    os << buffer;
+    int remaining = length - std::min(prefix, max_prefix_length) - 1;
+    for (int i = 0; i < remaining; ++i) os << '-';
+    os << ']';
+  }
+  os << '\n';
+}
+}  // namespace
+
+void LinearScanAllocator::PrintRangeOverview(std::ostream& os) {
+  int rowcount = 0;
+  for (auto toplevel : data()->live_ranges()) {
+    if (!CanProcessRange(toplevel)) continue;
+    if (rowcount++ % 10 == 0) PrintBlockRow(os, code()->instruction_blocks());
+    int position = 0;
+    os << std::setw(3) << toplevel->vreg()
+       << (toplevel->IsSplinter() ? "s:" : ": ");
+    for (LiveRange* range = toplevel; range != nullptr; range = range->next()) {
+      for (UseInterval* interval = range->first_interval(); interval != nullptr;
+           interval = interval->next()) {
+        LifetimePosition start = interval->start();
+        LifetimePosition end = interval->end();
+        CHECK_GE(start.value(), position);
+        for (; start.value() > position; position++) {
+          os << ' ';
+        }
+        int length = end.value() - start.value();
+        constexpr int kMaxPrefixLength = 32;
+        char buffer[kMaxPrefixLength];
+        int max_prefix_length = std::min(length + 1, kMaxPrefixLength);
+        int prefix;
+        if (range->spilled()) {
+          prefix = snprintf(buffer, max_prefix_length, "|ss");
+        } else {
+          const char* reg_name;
+          if (range->assigned_register() == kUnassignedRegister) {
+            reg_name = "???";
+          } else {
+            reg_name = RegisterName(range->assigned_register());
+          }
+          prefix = snprintf(buffer, max_prefix_length, "|%s", reg_name);
+        }
+        os << buffer;
+        position += std::min(prefix, max_prefix_length - 1);
+        CHECK_GE(end.value(), position);
+        const char line_style = range->spilled() ? '-' : '=';
+        for (; end.value() > position; position++) {
+          os << line_style;
+        }
+      }
+    }
+    os << '\n';
+  }
 }
 
 SpillRange::SpillRange(TopLevelLiveRange* parent, Zone* zone)
@@ -2719,6 +2793,10 @@ void LinearScanAllocator::AllocateRegisters() {
     DCHECK(!current->HasRegisterAssigned() && !current->spilled());
 
     ProcessCurrentRange(current);
+  }
+
+  if (FLAG_trace_alloc) {
+    PrintRangeOverview(std::cout);
   }
 }
 

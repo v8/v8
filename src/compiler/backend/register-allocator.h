@@ -1080,6 +1080,7 @@ class LinearScanAllocator final : public RegisterAllocator {
                          LifetimePosition until, LifetimePosition end);
 
   void SplitAndSpillIntersecting(LiveRange* range);
+  void PrintRangeOverview(std::ostream& os);
 
   LiveRangeQueue unhandled_live_ranges_;
   ZoneVector<LiveRange*> active_live_ranges_;
