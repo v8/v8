@@ -23,6 +23,7 @@ BOTS = {
 # This list will contain builder names that should be triggered on an internal
 # swarming bucket instead of internal Buildbot master.
 SWARMING_BOTS = [
+  'v8_linux32_perf_try',
   'v8_linux64_perf_try',
   'v8_linux64_atom_perf_try',
   'v8_pixel2_perf_try',
