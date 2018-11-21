@@ -49,6 +49,14 @@ static void FloodWithInc(Isolate* isolate, byte* buffer, size_t allocated) {
   for (int i = 0; i < kNumInstr; ++i) {
     __ Addu(v0, v0, Operand(1));
   }
+#elif V8_TARGET_ARCH_PPC
+  for (int i = 0; i < kNumInstr; ++i) {
+    __ addi(r3, r3, Operand(1));
+  }
+#elif V8_TARGET_ARCH_S390
+  for (int i = 0; i < kNumInstr; ++i) {
+    __ agfi(r2, Operand(1));
+  }
 #else
 #error Unsupported architecture
 #endif
