@@ -110,8 +110,16 @@ V8_INLINE Token::Value KeywordOrIdentifierToken(const uint8_t* input,
     DCHECK_EQ(input[0], keyword[0]);                                      \
     DCHECK(token == Token::FUTURE_STRICT_RESERVED_WORD ||                 \
            0 == strncmp(keyword, Token::String(token), sizeof(keyword))); \
-    if (input_length == keyword_length &&                                 \
-        memcmp(&input[1], &keyword[1], keyword_length - 1) == 0) {        \
+    if (input_length == keyword_length && input[1] == keyword[1] &&       \
+        (keyword_length <= 2 || input[2] == keyword[2]) &&                \
+        (keyword_length <= 3 || input[3] == keyword[3]) &&                \
+        (keyword_length <= 4 || input[4] == keyword[4]) &&                \
+        (keyword_length <= 5 || input[5] == keyword[5]) &&                \
+        (keyword_length <= 6 || input[6] == keyword[6]) &&                \
+        (keyword_length <= 7 || input[7] == keyword[7]) &&                \
+        (keyword_length <= 8 || input[8] == keyword[8]) &&                \
+        (keyword_length <= 9 || input[9] == keyword[9]) &&                \
+        (keyword_length <= 10 || input[10] == keyword[10])) {             \
       return token;                                                       \
     }                                                                     \
   }
