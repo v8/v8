@@ -1809,11 +1809,6 @@ VisitResult ImplementationVisitor::GenerateCall(
       // we should assert slot_count == 1 here.
       return VisitResult(return_type, assembler().TopRange(slot_count));
     }
-  } else if (auto* intrinsic = Intrinsic::DynamicCast(callable)) {
-    assembler().Emit(CallIntrinsicInstruction{intrinsic, constexpr_arguments});
-    size_t return_slot_count =
-        LoweredSlotCount(intrinsic->signature().return_type);
-    return VisitResult(return_type, assembler().TopRange(return_slot_count));
   } else {
     UNREACHABLE();
   }
@@ -1840,16 +1835,6 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
     return scope.Yield(
         GenerateCall(name, arguments, specialization_types, is_tailcall));
   }
-}
-
-VisitResult ImplementationVisitor::Visit(IntrinsicCallExpression* expr) {
-  StackScope scope(this);
-  Arguments arguments;
-  TypeVector specialization_types = GetTypeVector(expr->generic_arguments);
-  for (Expression* arg : expr->arguments)
-    arguments.parameters.push_back(Visit(arg));
-  return scope.Yield(
-      GenerateCall(expr->name, arguments, specialization_types, false));
 }
 
 void ImplementationVisitor::GenerateBranch(const VisitResult& condition,
@@ -2028,7 +2013,6 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
     case Declarable::kNamespaceConstant:
       return Visit(NamespaceConstant::cast(declarable));
     case Declarable::kRuntimeFunction:
-    case Declarable::kIntrinsic:
     case Declarable::kExternConstant:
     case Declarable::kNamespace:
     case Declarable::kGeneric:

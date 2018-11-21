@@ -204,9 +204,7 @@ void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
       if (i > 0) os << ", ";
     }
     if (with_names && !sig.parameter_names.empty()) {
-      if (i < sig.parameter_names.size()) {
-        os << sig.parameter_names[i] << ": ";
-      }
+      os << sig.parameter_names[i] << ": ";
     }
     os << *sig.parameter_types.types[i];
   }

@@ -19,7 +19,6 @@ namespace torque {
 class Block;
 class Builtin;
 class ControlFlowGraph;
-class Intrinsic;
 class Macro;
 class NamespaceConstant;
 class RuntimeFunction;
@@ -31,7 +30,6 @@ class RuntimeFunction;
   V(PushUninitializedInstruction)     \
   V(PushCodePointerInstruction)       \
   V(CallCsaMacroInstruction)          \
-  V(CallIntrinsicInstruction)         \
   V(NamespaceConstantInstruction)     \
   V(CallCsaMacroAndBranchInstruction) \
   V(CallBuiltinInstruction)           \
@@ -187,16 +185,6 @@ struct NamespaceConstantInstruction : InstructionBase {
       : constant(constant) {}
 
   NamespaceConstant* constant;
-};
-
-struct CallIntrinsicInstruction : InstructionBase {
-  TORQUE_INSTRUCTION_BOILERPLATE()
-  CallIntrinsicInstruction(Intrinsic* intrinsic,
-                           std::vector<std::string> constexpr_arguments)
-      : intrinsic(intrinsic), constexpr_arguments(constexpr_arguments) {}
-
-  Intrinsic* intrinsic;
-  std::vector<std::string> constexpr_arguments;
 };
 
 struct CallCsaMacroInstruction : InstructionBase {

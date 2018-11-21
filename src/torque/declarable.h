@@ -45,7 +45,6 @@ class Declarable {
     kMacro,
     kBuiltin,
     kRuntimeFunction,
-    kIntrinsic,
     kGeneric,
     kTypeAlias,
     kExternConstant,
@@ -54,7 +53,6 @@ class Declarable {
   Kind kind() const { return kind_; }
   bool IsNamespace() const { return kind() == kNamespace; }
   bool IsMacro() const { return kind() == kMacro; }
-  bool IsIntrinsic() const { return kind() == kIntrinsic; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
   bool IsGeneric() const { return kind() == kGeneric; }
@@ -64,7 +62,7 @@ class Declarable {
   bool IsValue() const { return IsExternConstant() || IsNamespaceConstant(); }
   bool IsScope() const { return IsNamespace() || IsCallable(); }
   bool IsCallable() const {
-    return IsMacro() || IsBuiltin() || IsRuntimeFunction() || IsIntrinsic();
+    return IsMacro() || IsBuiltin() || IsRuntimeFunction();
   }
   virtual const char* type_name() const { return "<<unknown>>"; }
   Scope* ParentScope() const { return parent_scope_; }
@@ -329,21 +327,6 @@ class RuntimeFunction : public Callable {
                   bool transitioning)
       : Callable(Declarable::kRuntimeFunction, name, name, signature,
                  transitioning, base::nullopt) {}
-};
-
-class Intrinsic : public Callable {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(Intrinsic, intrinsic);
-
- private:
-  friend class Declarations;
-  Intrinsic(std::string name, const Signature& signature)
-      : Callable(Declarable::kIntrinsic, name, name, signature, false,
-                 base::nullopt) {
-    if (signature.parameter_types.var_args) {
-      ReportError("Varargs are not supported for intrinsics.");
-    }
-  }
 };
 
 class Generic : public Declarable {

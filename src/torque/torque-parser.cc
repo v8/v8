@@ -269,17 +269,6 @@ base::Optional<ParseResult> MakeBinaryOperator(
                               std::vector<Statement*>{})};
 }
 
-base::Optional<ParseResult> MakeIntrinsicDeclarationCallExpression(
-    ParseResultIterator* child_results) {
-  auto callee = child_results->NextAs<std::string>();
-  auto generic_arguments =
-      child_results->NextAs<std::vector<TypeExpression*>>();
-  auto args = child_results->NextAs<std::vector<Expression*>>();
-  Expression* result =
-      MakeNode<IntrinsicCallExpression>(callee, generic_arguments, args);
-  return ParseResult{result};
-}
-
 base::Optional<ParseResult> MakeUnaryOperator(
     ParseResultIterator* child_results) {
   auto op = child_results->NextAs<std::string>();
@@ -384,25 +373,6 @@ base::Optional<ParseResult> MakeExternalMacro(
       transitioning,
       external_assembler_name ? *external_assembler_name : "CodeStubAssembler",
       name, operator_name, args, return_type, labels);
-  Declaration* result;
-  if (generic_parameters.empty()) {
-    result = MakeNode<StandardDeclaration>(macro, base::nullopt);
-  } else {
-    result = MakeNode<GenericDeclaration>(macro, generic_parameters);
-  }
-  return ParseResult{result};
-}
-
-base::Optional<ParseResult> MakeIntrinsicDeclaration(
-    ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
-  auto generic_parameters = child_results->NextAs<GenericParameters>();
-  LintGenericParameters(generic_parameters);
-
-  auto args = child_results->NextAs<ParameterList>();
-  auto return_type = child_results->NextAs<TypeExpression*>();
-  IntrinsicDeclaration* macro =
-      MakeNode<IntrinsicDeclaration>(name, args, return_type);
   Declaration* result;
   if (generic_parameters.empty()) {
     result = MakeNode<StandardDeclaration>(macro, base::nullopt);
@@ -1055,16 +1025,6 @@ struct TorqueGrammar : Grammar {
     return true;
   }
 
-  static bool MatchIntrinsicName(InputPosition* pos) {
-    InputPosition current = *pos;
-    if (!MatchString("%", &current)) return false;
-    if (!MatchChar(std::isalpha, &current)) return false;
-    while (MatchChar(std::isalnum, &current) || MatchString("_", pos)) {
-    }
-    *pos = current;
-    return true;
-  }
-
   static bool MatchStringLiteral(InputPosition* pos) {
     InputPosition current = *pos;
     if (MatchString("\"", &current)) {
@@ -1127,10 +1087,6 @@ struct TorqueGrammar : Grammar {
 
   // Result: std::string
   Symbol identifier = {Rule({Pattern(MatchIdentifier)}, YieldMatchedInput)};
-
-  // Result: std::string
-  Symbol intrinsicName = {
-      Rule({Pattern(MatchIntrinsicName)}, YieldMatchedInput)};
 
   // Result: std::string
   Symbol stringLiteral = {
@@ -1282,15 +1238,8 @@ struct TorqueGrammar : Grammar {
       {&identifierExpression, &argumentList, optionalOtherwise}, MakeCall)};
 
   // Result: Expression*
-  Symbol IntrinsicCallExpression = {Rule(
-      {&intrinsicName, TryOrDefault<TypeList>(&genericSpecializationTypeList),
-       &argumentList},
-      MakeIntrinsicDeclarationCallExpression)};
-
-  // Result: Expression*
   Symbol primaryExpression = {
       Rule({&callExpression}),
-      Rule({&IntrinsicCallExpression}),
       Rule({&locationExpression},
            CastParseResult<LocationExpression*, Expression*>),
       Rule({&decimalLiteral}, MakeNumberLiteralExpression),
@@ -1482,10 +1431,6 @@ struct TorqueGrammar : Grammar {
            MakeTypeDeclaration),
       Rule({Token("type"), &identifier, Token("="), &type, Token(";")},
            MakeTypeAliasDeclaration),
-      Rule({Token("intrinsic"), &intrinsicName,
-            TryOrDefault<GenericParameters>(&genericParameters),
-            &parameterListNoVararg, &optionalReturnType, Token(";")},
-           MakeIntrinsicDeclaration),
       Rule({Token("extern"), CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
