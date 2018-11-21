@@ -70,6 +70,38 @@ inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
 inline MemOperand GetInstanceOperand() {
   return MemOperand(fp, -kInstanceOffset);
 }
+
+inline MemOperand GetMemOp(LiftoffAssembler* assm,
+                           UseScratchRegisterScope* temps, Register addr,
+                           Register offset, int32_t offset_imm) {
+  if (offset != no_reg) {
+    if (offset_imm == 0) return MemOperand(addr, offset);
+    Register tmp = temps->Acquire();
+    assm->add(tmp, offset, Operand(offset_imm));
+    return MemOperand(addr, tmp);
+  }
+  return MemOperand(addr, offset_imm);
+}
+
+inline Register CalculateActualAddress(LiftoffAssembler* assm,
+                                       UseScratchRegisterScope* temps,
+                                       Register addr_reg, Register offset_reg,
+                                       int32_t offset_imm) {
+  if (offset_reg == no_reg && offset_imm == 0) {
+    return addr_reg;
+  }
+  Register actual_addr_reg = temps->Acquire();
+  if (offset_reg == no_reg) {
+    assm->add(actual_addr_reg, addr_reg, Operand(offset_imm));
+  } else {
+    assm->add(actual_addr_reg, addr_reg, Operand(offset_reg));
+    if (offset_imm != 0) {
+      assm->add(actual_addr_reg, actual_addr_reg, Operand(offset_imm));
+    }
+  }
+  return actual_addr_reg;
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -114,7 +146,29 @@ void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
-  BAILOUT("LoadConstant");
+  switch (value.type()) {
+    case kWasmI32:
+      TurboAssembler::Move(reg.gp(), Operand(value.to_i32(), rmode));
+      break;
+    case kWasmI64: {
+      DCHECK(RelocInfo::IsNone(rmode));
+      int32_t low_word = value.to_i64();
+      int32_t high_word = value.to_i64() >> 32;
+      TurboAssembler::Move(reg.low_gp(), Operand(low_word));
+      TurboAssembler::Move(reg.high_gp(), Operand(high_word));
+      break;
+    }
+    case kWasmF32:
+      BAILOUT("Load f32 Constant");
+      break;
+    case kWasmF64: {
+      Register extra_scratch = GetUnusedRegister(kGpReg).gp();
+      vmov(reg.fp(), Double(value.to_f64_boxed().get_scalar()), extra_scratch);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
@@ -130,27 +184,179 @@ void LiftoffAssembler::SpillInstance(Register instance) {
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
-  BAILOUT("FillInstanceInto");
+  ldr(dst, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  BAILOUT("Load");
+  DCHECK_IMPLIES(type.value_type() == kWasmI64, dst.is_pair());
+  // If offset_imm cannot be converted to int32 safely, we abort as a separate
+  // check should cause this code to never be executed.
+  // TODO(7881): Support when >2GB is required.
+  if (!is_uint31(offset_imm)) {
+    TurboAssembler::Abort(AbortReason::kOffsetOutOfRange);
+    return;
+  }
+  UseScratchRegisterScope temps(this);
+  if (type.value() == LoadType::kF64Load) {
+    // Armv6 is not supported so Neon can be used to avoid alignment issues.
+    CpuFeatureScope scope(this, NEON);
+    Register actual_src_addr = liftoff::CalculateActualAddress(
+        this, &temps, src_addr, offset_reg, offset_imm);
+    vld1(Neon64, NeonListOperand(dst.fp()), NeonMemOperand(actual_src_addr));
+  } else {
+    MemOperand src_op =
+        liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
+    if (protected_load_pc) *protected_load_pc = pc_offset();
+    switch (type.value()) {
+      case LoadType::kI32Load8U:
+        ldrb(dst.gp(), src_op);
+        break;
+      case LoadType::kI64Load8U:
+        ldrb(dst.low_gp(), src_op);
+        mov(dst.high_gp(), Operand(0));
+        break;
+      case LoadType::kI32Load8S:
+        ldrsb(dst.gp(), src_op);
+        break;
+      case LoadType::kI64Load8S:
+        ldrsb(dst.low_gp(), src_op);
+        asr(dst.high_gp(), dst.low_gp(), Operand(31));
+        break;
+      case LoadType::kI32Load16U:
+        ldrh(dst.gp(), src_op);
+        break;
+      case LoadType::kI64Load16U:
+        ldrh(dst.low_gp(), src_op);
+        mov(dst.high_gp(), Operand(0));
+        break;
+      case LoadType::kI32Load16S:
+        ldrsh(dst.gp(), src_op);
+        break;
+      case LoadType::kI32Load:
+        ldr(dst.gp(), src_op);
+        break;
+      case LoadType::kI64Load16S:
+        ldrsh(dst.low_gp(), src_op);
+        asr(dst.high_gp(), dst.low_gp(), Operand(31));
+        break;
+      case LoadType::kI64Load32U:
+        ldr(dst.low_gp(), src_op);
+        mov(dst.high_gp(), Operand(0));
+        break;
+      case LoadType::kI64Load32S:
+        ldr(dst.low_gp(), src_op);
+        asr(dst.high_gp(), dst.low_gp(), Operand(31));
+        break;
+      case LoadType::kI64Load:
+        ldr(dst.low_gp(), src_op);
+        // GetMemOp may use a scratch register as the offset register, in which
+        // case, calling GetMemOp again will fail due to the assembler having
+        // ran out of scratch registers.
+        if (temps.CanAcquire()) {
+          src_op = liftoff::GetMemOp(this, &temps, src_addr, offset_reg,
+                                     offset_imm + kRegisterSize);
+        } else {
+          add(src_op.rm(), src_op.rm(), Operand(kRegisterSize));
+        }
+        ldr(dst.high_gp(), src_op);
+        break;
+      case LoadType::kF32Load:
+        BAILOUT("Load f32");
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
-  BAILOUT("Store");
+  // If offset_imm cannot be converted to int32 safely, we abort as a separate
+  // check should cause this code to never be executed.
+  // TODO(7881): Support when >2GB is required.
+  if (!is_uint31(offset_imm)) {
+    TurboAssembler::Abort(AbortReason::kOffsetOutOfRange);
+    return;
+  }
+  UseScratchRegisterScope temps(this);
+  if (type.value() == StoreType::kF64Store) {
+    // Armv6 is not supported so Neon can be used to avoid alignment issues.
+    CpuFeatureScope scope(this, NEON);
+    Register actual_dst_addr = liftoff::CalculateActualAddress(
+        this, &temps, dst_addr, offset_reg, offset_imm);
+    vst1(Neon64, NeonListOperand(src.fp()), NeonMemOperand(actual_dst_addr));
+  } else {
+    MemOperand dst_op =
+        liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
+    if (protected_store_pc) *protected_store_pc = pc_offset();
+    switch (type.value()) {
+      case StoreType::kI64Store8:
+        src = src.low();
+        V8_FALLTHROUGH;
+      case StoreType::kI32Store8:
+        strb(src.gp(), dst_op);
+        break;
+      case StoreType::kI64Store16:
+        src = src.low();
+        V8_FALLTHROUGH;
+      case StoreType::kI32Store16:
+        strh(src.gp(), dst_op);
+        break;
+      case StoreType::kI64Store32:
+        src = src.low();
+        V8_FALLTHROUGH;
+      case StoreType::kI32Store:
+        str(src.gp(), dst_op);
+        break;
+      case StoreType::kI64Store:
+        str(src.low_gp(), dst_op);
+        // GetMemOp may use a scratch register as the offset register, in which
+        // case, calling GetMemOp again will fail due to the assembler having
+        // ran out of scratch registers.
+        if (temps.CanAcquire()) {
+          dst_op = liftoff::GetMemOp(this, &temps, dst_addr, offset_reg,
+                                     offset_imm + kRegisterSize);
+        } else {
+          add(dst_op.rm(), dst_op.rm(), Operand(kRegisterSize));
+        }
+        str(src.high_gp(), dst_op);
+        break;
+      case StoreType::kF32Store:
+        BAILOUT("Store f32");
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  BAILOUT("LoadCallerFrameSlot");
+  int32_t offset = (caller_slot_idx + 1) * kRegisterSize;
+  MemOperand src(fp, offset);
+  switch (type) {
+    case kWasmI32:
+      ldr(dst.gp(), src);
+      break;
+    case kWasmI64:
+      ldr(dst.low_gp(), src);
+      ldr(dst.high_gp(), MemOperand(fp, offset + kRegisterSize));
+      break;
+    case kWasmF32:
+      BAILOUT("Load Caller Frame Slot for f32");
+      break;
+    case kWasmF64:
+      vldr(dst.fp(), src);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
@@ -527,7 +733,7 @@ void LiftoffStackSlots::Construct() {
             asm_->Push(scratch);
           } break;
           case kWasmF32:
-            asm_->BAILOUT("Construct F32 from kStack");
+            asm_->BAILOUT("Construct f32 from kStack");
             break;
           case kWasmF64: {
             UseScratchRegisterScope temps(asm_);
@@ -551,7 +757,7 @@ void LiftoffStackSlots::Construct() {
             asm_->push(src.reg().gp());
             break;
           case kWasmF32:
-            asm_->BAILOUT("Construct F32 from kRegister");
+            asm_->BAILOUT("Construct f32 from kRegister");
             break;
           case kWasmF64:
             asm_->vpush(src.reg().fp());
