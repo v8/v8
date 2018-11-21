@@ -403,6 +403,8 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
   heap_stats.map_space_capacity = &map_space_capacity;
   size_t lo_space_size;
   heap_stats.lo_space_size = &lo_space_size;
+  size_t code_lo_space_size;
+  heap_stats.code_lo_space_size = &code_lo_space_size;
   size_t global_handle_count;
   heap_stats.global_handle_count = &global_handle_count;
   size_t weak_global_handle_count;

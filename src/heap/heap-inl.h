@@ -130,6 +130,8 @@ void Heap::SetMessageListeners(TemplateList* value) {
 PagedSpace* Heap::paged_space(int idx) {
   DCHECK_NE(idx, LO_SPACE);
   DCHECK_NE(idx, NEW_SPACE);
+  DCHECK_NE(idx, CODE_LO_SPACE);
+  DCHECK_NE(idx, NEW_LO_SPACE);
   return static_cast<PagedSpace*>(space_[idx]);
 }
 
@@ -199,7 +201,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   // Here we only allocate in the old generation.
   if (OLD_SPACE == space) {
     if (large_object) {
-      allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+      allocation = lo_space_->AllocateRaw(size_in_bytes);
     } else {
       allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
     }
@@ -207,11 +209,16 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     if (size_in_bytes <= code_space()->AreaSize()) {
       allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
     } else {
-      allocation = lo_space_->AllocateRaw(size_in_bytes, EXECUTABLE);
+      allocation = code_lo_space_->AllocateRaw(size_in_bytes);
     }
   } else if (LO_SPACE == space) {
     DCHECK(large_object);
-    allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+    allocation = lo_space_->AllocateRaw(size_in_bytes);
+  } else if (NEW_LO_SPACE == space) {
+    DCHECK(FLAG_young_generation_large_objects);
+    allocation = new_lo_space_->AllocateRaw(size_in_bytes);
+  } else if (CODE_LO_SPACE == space) {
+    allocation = code_lo_space_->AllocateRaw(size_in_bytes);
   } else if (MAP_SPACE == space) {
     allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
   } else if (RO_SPACE == space) {
@@ -648,6 +655,13 @@ void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
   // trigger garbage collections.
 }
 
+bool Heap::IsWithinLargeObject(Address address) {
+  if (new_lo_space()->FindPage(address) || lo_space()->FindPage(address) ||
+      code_lo_space()->FindPage(address))
+    return true;
+  return false;
+}
+
 void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                               size_t amount) {
   base::CheckedDecrement(&backing_store_bytes_, amount);
@@ -667,12 +681,11 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
   if (heap_->write_protect_code_memory()) {
     heap_->increment_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndWritable();
-    LargePage* page = heap_->lo_space()->first_page();
+    LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
-      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-        page->SetReadAndWritable();
-      }
+      DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndWritable();
       page = page->next_page();
     }
   }
@@ -682,12 +695,11 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
   if (heap_->write_protect_code_memory()) {
     heap_->decrement_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndExecutable();
-    LargePage* page = heap_->lo_space()->first_page();
+    LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
-      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-        page->SetReadAndExecutable();
-      }
+      DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndExecutable();
       page = page->next_page();
     }
   }
@@ -718,8 +730,7 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
                     chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
   if (scope_active_) {
     DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
-           (chunk_->owner()->identity() == LO_SPACE &&
-            chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)));
+           (chunk_->owner()->identity() == CODE_LO_SPACE));
     chunk_->SetReadAndWritable();
   }
 }

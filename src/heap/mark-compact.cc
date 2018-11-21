@@ -91,6 +91,7 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
   void VerifyMarkingOnPage(const Page* page, Address start, Address end);
   void VerifyMarking(NewSpace* new_space);
   void VerifyMarking(PagedSpace* paged_space);
+  void VerifyMarking(LargeObjectSpace* lo_space);
 
   Heap* heap_;
 };
@@ -150,6 +151,15 @@ void MarkingVerifier::VerifyMarking(PagedSpace* space) {
   }
 }
 
+void MarkingVerifier::VerifyMarking(LargeObjectSpace* lo_space) {
+  LargeObjectIterator it(lo_space);
+  for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+    if (IsBlackOrGrey(obj)) {
+      obj->Iterate(this);
+    }
+  }
+}
+
 class FullMarkingVerifier : public MarkingVerifier {
  public:
   explicit FullMarkingVerifier(Heap* heap)
@@ -163,13 +173,8 @@ class FullMarkingVerifier : public MarkingVerifier {
     VerifyMarking(heap_->old_space());
     VerifyMarking(heap_->code_space());
     VerifyMarking(heap_->map_space());
-
-    LargeObjectIterator it(heap_->lo_space());
-    for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
-      if (marking_state_->IsBlackOrGrey(obj)) {
-        obj->Iterate(this);
-      }
-    }
+    VerifyMarking(heap_->lo_space());
+    VerifyMarking(heap_->code_lo_space());
   }
 
  protected:
@@ -499,6 +504,14 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
   }
 }
 
+void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
+  LargeObjectIterator it(space);
+  for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+    CHECK(non_atomic_marking_state()->IsWhite(obj));
+    CHECK_EQ(0, non_atomic_marking_state()->live_bytes(
+                    MemoryChunk::FromAddress(obj->address())));
+  }
+}
 
 void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->old_space());
@@ -508,13 +521,9 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
   // Read-only space should always be black since we never collect any objects
   // in it or linked from it.
   VerifyMarkbitsAreDirty(heap_->read_only_space());
-
-  LargeObjectIterator it(heap_->lo_space());
-  for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
-    CHECK(non_atomic_marking_state()->IsWhite(obj));
-    CHECK_EQ(0, non_atomic_marking_state()->live_bytes(
-                    MemoryChunk::FromAddress(obj->address())));
-  }
+  VerifyMarkbitsAreClean(heap_->lo_space());
+  VerifyMarkbitsAreClean(heap_->code_lo_space());
+  VerifyMarkbitsAreClean(heap_->new_lo_space());
 }
 
 #endif  // VERIFY_HEAP
@@ -826,6 +835,7 @@ void MarkCompactCollector::Finish() {
 
   // Clear the marking state of live large objects.
   heap_->lo_space()->ClearMarkingStateOfLiveObjects();
+  heap_->code_lo_space()->ClearMarkingStateOfLiveObjects();
 
 #ifdef DEBUG
   DCHECK(state_ == SWEEP_SPACES || state_ == RELOCATE_OBJECTS);
@@ -1155,7 +1165,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     Address dst_addr = dst->address();
     Address src_addr = src->address();
     DCHECK(base->heap_->AllowedToBeMigrated(src, dest));
-    DCHECK(dest != LO_SPACE);
+    DCHECK_NE(dest, LO_SPACE);
+    DCHECK_NE(dest, CODE_LO_SPACE);
     if (dest == OLD_SPACE) {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kPointerSize));
@@ -2339,6 +2350,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
   heap()->new_space()->set_age_mark(heap()->new_space()->top());
   // Deallocate unmarked large objects.
   heap()->lo_space()->FreeUnmarkedObjects();
+  heap()->code_lo_space()->FreeUnmarkedObjects();
   // Old space. Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
   // Give pages that are queued to be freed back to the OS.
@@ -3232,6 +3244,8 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
         &updating_job, heap()->code_space(), RememberedSetUpdatingMode::ALL);
     remembered_set_pages += CollectRememberedSetUpdatingItems(
         &updating_job, heap()->lo_space(), RememberedSetUpdatingMode::ALL);
+    remembered_set_pages += CollectRememberedSetUpdatingItems(
+        &updating_job, heap()->code_lo_space(), RememberedSetUpdatingMode::ALL);
     const int remembered_set_tasks =
         remembered_set_pages == 0
             ? 0
@@ -3760,6 +3774,9 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
       RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
   remembered_set_pages += CollectRememberedSetUpdatingItems(
       &updating_job, heap()->lo_space(),
+      RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+  remembered_set_pages += CollectRememberedSetUpdatingItems(
+      &updating_job, heap()->code_lo_space(),
       RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
   const int remembered_set_tasks =
       remembered_set_pages == 0 ? 0

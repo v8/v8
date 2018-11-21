@@ -327,11 +327,7 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
     sink_->Put(kNewObject + reference_representation_ + space,
                "NewLargeObject");
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
-    if (object_->IsCode()) {
-      sink_->Put(EXECUTABLE, "executable large object");
-    } else {
-      sink_->Put(NOT_EXECUTABLE, "not executable large object");
-    }
+    CHECK(!object_->IsCode());
     back_reference = serializer_->allocator()->AllocateLargeObject(size);
   } else if (space == MAP_SPACE) {
     DCHECK_EQ(Map::kSize, size);

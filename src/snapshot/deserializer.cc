@@ -369,9 +369,9 @@ void Deserializer::ReadObject(int space_number, UnalignedSlot write_back,
   UnalignedCopy(write_back, write_back_obj);
 #ifdef DEBUG
   if (obj->IsCode()) {
-    DCHECK(space_number == CODE_SPACE || space_number == LO_SPACE);
+    DCHECK(space_number == CODE_SPACE || space_number == CODE_LO_SPACE);
   } else {
-    DCHECK(space_number != CODE_SPACE);
+    DCHECK(space_number != CODE_SPACE && space_number != CODE_LO_SPACE);
   }
 #endif  // DEBUG
 }

@@ -176,7 +176,7 @@ size_t Heap::OldGenerationCapacity() {
        space = spaces.next()) {
     total += space->Capacity();
   }
-  return total + lo_space_->SizeOfObjects();
+  return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
 }
 
 size_t Heap::CommittedOldGenerationMemory() {
@@ -188,7 +188,7 @@ size_t Heap::CommittedOldGenerationMemory() {
        space = spaces.next()) {
     total += space->CommittedMemory();
   }
-  return total + lo_space_->Size();
+  return total + lo_space_->Size() + code_lo_space_->Size();
 }
 
 size_t Heap::CommittedMemoryOfUnmapper() {
@@ -363,6 +363,15 @@ void Heap::PrintShortHeapStatistics() {
                ", committed: %6" PRIuS " KB\n",
                lo_space_->SizeOfObjects() / KB, lo_space_->Available() / KB,
                lo_space_->CommittedMemory() / KB);
+  PrintIsolate(isolate_,
+               "Code large object space,     used: %6" PRIuS
+               " KB"
+               ", available: %6" PRIuS
+               " KB"
+               ", committed: %6" PRIuS " KB\n",
+               lo_space_->SizeOfObjects() / KB,
+               code_lo_space_->Available() / KB,
+               code_lo_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "All spaces,             used: %6" PRIuS
                " KB"
@@ -598,6 +607,8 @@ const char* Heap::GetSpaceName(int idx) {
       return "large_object_space";
     case NEW_LO_SPACE:
       return "new_large_object_space";
+    case CODE_LO_SPACE:
+      return "code_large_object_space";
     case RO_SPACE:
       return "read_only_space";
     default:
@@ -2485,7 +2496,7 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
 
   Address address = object->address();
 
-  if (lo_space()->Contains(object)) return false;
+  if (IsLargeObject(object)) return false;
 
   // We can move the object start if the page was already swept.
   return Page::FromAddress(address)->SweepingDone();
@@ -2493,7 +2504,12 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
 
 bool Heap::IsImmovable(HeapObject* object) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-  return chunk->NeverEvacuate() || chunk->owner()->identity() == LO_SPACE;
+  return chunk->NeverEvacuate() || IsLargeObject(object);
+}
+
+bool Heap::IsLargeObject(HeapObject* object) {
+  return lo_space()->Contains(object) || code_lo_space()->Contains(object) ||
+         new_lo_space()->Contains(object);
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -2545,10 +2561,10 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   const int bytes_to_trim = elements_to_trim * element_size;
   Map map = object->map();
 
-  // For now this trick is only applied to objects in new and paged space.
-  // In large object space the object's start must coincide with chunk
-  // and thus the trick is just not applicable.
-  DCHECK(!lo_space()->Contains(object));
+  // For now this trick is only applied to fixed arrays which may be in new
+  // space or old space. In a large object space the object's start must
+  // coincide with chunk and thus the trick is just not applicable.
+  DCHECK(!IsLargeObject(object));
   DCHECK(object->map() != ReadOnlyRoots(this).fixed_cow_array_map());
 
   STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
@@ -2690,10 +2706,8 @@ void Heap::CreateFillerForArray(T* object, int elements_to_trim,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  // We do not create a filler for objects in large object space.
-  // TODO(hpayer): We should shrink the large object page if the size
-  // of the object changed significantly.
-  if (!lo_space()->Contains(object)) {
+  // We do not create a filler for objects in a large object space.
+  if (!IsLargeObject(object)) {
     HeapObject* filler =
         CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
     DCHECK_NOT_NULL(filler);
@@ -3325,7 +3339,7 @@ void Heap::CollectCodeStatistics() {
   // somehow ends up in those spaces, we would miss it here.
   CodeStatistics::CollectCodeStatistics(code_space_, isolate());
   CodeStatistics::CollectCodeStatistics(old_space_, isolate());
-  CodeStatistics::CollectCodeStatistics(lo_space_, isolate());
+  CodeStatistics::CollectCodeStatistics(code_lo_space_, isolate());
 }
 
 #ifdef DEBUG
@@ -3408,7 +3422,8 @@ bool Heap::Contains(HeapObject* value) {
   return HasBeenSetUp() &&
          (new_space_->ToSpaceContains(value) || old_space_->Contains(value) ||
           code_space_->Contains(value) || map_space_->Contains(value) ||
-          lo_space_->Contains(value) || read_only_space_->Contains(value));
+          lo_space_->Contains(value) || read_only_space_->Contains(value) ||
+          code_lo_space_->Contains(value) || new_lo_space_->Contains(value));
 }
 
 bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
@@ -3428,6 +3443,8 @@ bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
       return map_space_->Contains(value);
     case LO_SPACE:
       return lo_space_->Contains(value);
+    case CODE_LO_SPACE:
+      return code_lo_space_->Contains(value);
     case NEW_LO_SPACE:
       return new_lo_space_->Contains(value);
     case RO_SPACE:
@@ -3453,6 +3470,8 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) {
       return map_space_->ContainsSlow(addr);
     case LO_SPACE:
       return lo_space_->ContainsSlow(addr);
+    case CODE_LO_SPACE:
+      return code_lo_space_->ContainsSlow(addr);
     case NEW_LO_SPACE:
       return new_lo_space_->ContainsSlow(addr);
     case RO_SPACE:
@@ -3469,6 +3488,7 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
     case MAP_SPACE:
     case LO_SPACE:
     case NEW_LO_SPACE:
+    case CODE_LO_SPACE:
     case RO_SPACE:
       return true;
     default:
@@ -3521,6 +3541,8 @@ void Heap::Verify() {
   code_space_->Verify(isolate(), &no_dirty_regions_visitor);
 
   lo_space_->Verify(isolate());
+  code_lo_space_->Verify(isolate());
+  new_lo_space_->Verify(isolate());
 
   VerifyReadOnlyPointersVisitor read_only_visitor(this);
   read_only_space_->Verify(isolate(), &read_only_visitor);
@@ -4023,6 +4045,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->map_space_size = map_space_->SizeOfObjects();
   *stats->map_space_capacity = map_space_->Capacity();
   *stats->lo_space_size = lo_space_->Size();
+  *stats->code_lo_space_size = code_lo_space_->Size();
   isolate_->global_handles()->RecordStats(stats);
   *stats->memory_allocator_size = memory_allocator()->Size();
   *stats->memory_allocator_capacity =
@@ -4294,7 +4317,7 @@ HeapObject* Heap::AllocateRawWithRetryOrFail(int size, AllocationSpace space,
 // TODO(jkummerow): Refactor this. AllocateRaw should take an "immovability"
 // parameter and just do what's necessary.
 HeapObject* Heap::AllocateRawCodeInLargeObjectSpace(int size) {
-  AllocationResult alloc = lo_space()->AllocateRaw(size, EXECUTABLE);
+  AllocationResult alloc = code_lo_space()->AllocateRaw(size);
   HeapObject* result;
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
@@ -4304,7 +4327,7 @@ HeapObject* Heap::AllocateRawCodeInLargeObjectSpace(int size) {
   for (int i = 0; i < 2; i++) {
     CollectGarbage(alloc.RetrySpace(),
                    GarbageCollectionReason::kAllocationFailure);
-    alloc = lo_space()->AllocateRaw(size, EXECUTABLE);
+    alloc = code_lo_space()->AllocateRaw(size);
     if (alloc.To(&result)) {
       DCHECK(result != ReadOnlyRoots(this).exception());
       return result;
@@ -4314,7 +4337,7 @@ HeapObject* Heap::AllocateRawCodeInLargeObjectSpace(int size) {
   CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
   {
     AlwaysAllocateScope scope(isolate());
-    alloc = lo_space()->AllocateRaw(size, EXECUTABLE);
+    alloc = code_lo_space()->AllocateRaw(size);
   }
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
@@ -4383,6 +4406,7 @@ void Heap::SetUp() {
   space_[MAP_SPACE] = map_space_ = new MapSpace(this);
   space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this);
   space_[NEW_LO_SPACE] = new_lo_space_ = new NewLargeObjectSpace(this);
+  space_[CODE_LO_SPACE] = code_lo_space_ = new CodeLargeObjectSpace(this);
 
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
        i++) {
@@ -5444,6 +5468,7 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
       return dst == CODE_SPACE && type == CODE_TYPE;
     case MAP_SPACE:
     case LO_SPACE:
+    case CODE_LO_SPACE:
     case NEW_LO_SPACE:
     case RO_SPACE:
       return false;
@@ -5508,7 +5533,7 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   if (!code.is_null()) return code;
 
   // Check if the inner pointer points into a large object chunk.
-  LargePage* large_page = lo_space()->FindPage(inner_pointer);
+  LargePage* large_page = code_lo_space()->FindPage(inner_pointer);
   if (large_page != nullptr) {
     return GcSafeCastToCode(this, large_page->GetObject(), inner_pointer);
   }

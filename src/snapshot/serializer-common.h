@@ -108,10 +108,13 @@ class SerializerDeserializer : public RootVisitor {
   // We also handle map space differenly.
   STATIC_ASSERT(MAP_SPACE == CODE_SPACE + 1);
 
-  // We do not support young generation large objects.
+  // We do not support young generation large objects and large code objects.
   STATIC_ASSERT(LAST_SPACE == NEW_LO_SPACE);
-  STATIC_ASSERT(LAST_SPACE - 1 == LO_SPACE);
+  STATIC_ASSERT(LAST_SPACE - 2 == LO_SPACE);
   static const int kNumberOfPreallocatedSpaces = CODE_SPACE + 1;
+
+  // The number of spaces supported by the serializer. Spaces after LO_SPACE
+  // (NEW_LO_SPACE and CODE_LO_SPACE) are not supported.
   static const int kNumberOfSpaces = LO_SPACE + 1;
 
  protected:

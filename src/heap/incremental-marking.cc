@@ -46,7 +46,7 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
     HeapObject* object = HeapObject::FromAddress(addr);
     if (incremental_marking_.marking_state()->IsWhite(object) &&
         !(Heap::InNewSpace(object) || heap->new_lo_space()->Contains(object))) {
-      if (heap->lo_space()->Contains(object)) {
+      if (heap->IsLargeObject(object)) {
         incremental_marking_.marking_state()->WhiteToBlack(object);
       } else {
         Page::FromAddress(addr)->CreateBlackArea(addr, addr + size);
@@ -264,6 +264,10 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
   for (LargePage* p : *heap_->lo_space()) {
     p->SetOldGenerationPageFlags(false);
   }
+
+  for (LargePage* p : *heap_->code_lo_space()) {
+    p->SetOldGenerationPageFlags(false);
+  }
 }
 
 
@@ -288,6 +292,10 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
   ActivateIncrementalWriteBarrier(heap_->new_space());
 
   for (LargePage* p : *heap_->lo_space()) {
+    p->SetOldGenerationPageFlags(true);
+  }
+
+  for (LargePage* p : *heap_->code_lo_space()) {
     p->SetOldGenerationPageFlags(true);
   }
 }

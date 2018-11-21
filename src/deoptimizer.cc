@@ -1866,7 +1866,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Object>(), Builtins::kNoBuiltinId,
       MaybeHandle<ByteArray>(), MaybeHandle<DeoptimizationData>(), kImmovable);
-  CHECK(Heap::IsImmovable(*code));
+  CHECK(isolate->heap()->IsImmovable(*code));
 
   CHECK(data->deopt_entry_code(kind).is_null());
   data->set_deopt_entry_code(kind, *code);

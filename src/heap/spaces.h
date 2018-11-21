@@ -2965,8 +2965,8 @@ class LargeObjectSpace : public Space {
   // Releases internal resources, frees objects in this space.
   void TearDown();
 
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
-                                                     Executability executable);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRaw(int object_size);
 
   // Available bytes for objects in this space.
   size_t Available() override;
@@ -3035,6 +3035,8 @@ class LargeObjectSpace : public Space {
 
  protected:
   LargePage* AllocateLargePage(int object_size, Executability executable);
+  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
+                                                     Executability executable);
 
  private:
   size_t size_;          // allocated bytes
@@ -3063,6 +3065,14 @@ class NewLargeObjectSpace : public LargeObjectSpace {
   void Flip();
 };
 
+class CodeLargeObjectSpace : public LargeObjectSpace {
+ public:
+  explicit CodeLargeObjectSpace(Heap* heap);
+
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRaw(int object_size);
+};
+
 class LargeObjectIterator : public ObjectIterator {
  public:
   explicit LargeObjectIterator(LargeObjectSpace* space);
@@ -3075,9 +3085,9 @@ class LargeObjectIterator : public ObjectIterator {
 
 // Iterates over the chunks (pages and large object pages) that can contain
 // pointers to new space or to evacuation candidates.
-class MemoryChunkIterator {
+class OldGenerationMemoryChunkIterator {
  public:
-  inline explicit MemoryChunkIterator(Heap* heap);
+  inline explicit OldGenerationMemoryChunkIterator(Heap* heap);
 
   // Return nullptr when the iterator is done.
   inline MemoryChunk* next();
@@ -3088,6 +3098,7 @@ class MemoryChunkIterator {
     kMapState,
     kCodeState,
     kLargeObjectState,
+    kCodeLargeObjectState,
     kFinishedState
   };
   Heap* heap_;
@@ -3096,6 +3107,7 @@ class MemoryChunkIterator {
   PageIterator code_iterator_;
   PageIterator map_iterator_;
   LargePageIterator lo_iterator_;
+  LargePageIterator code_lo_iterator_;
 };
 
 }  // namespace internal

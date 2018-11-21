@@ -55,6 +55,7 @@ using v8::MemoryPressureLevel;
 class AllocationObserver;
 class ArrayBufferCollector;
 class ArrayBufferTracker;
+class CodeLargeObjectSpace;
 class ConcurrentMarking;
 class GCIdleTimeAction;
 class GCIdleTimeHandler;
@@ -385,7 +386,10 @@ class Heap {
 
   bool CanMoveObjectStart(HeapObject* object);
 
-  static bool IsImmovable(HeapObject* object);
+  bool IsImmovable(HeapObject* object);
+
+  bool IsLargeObject(HeapObject* object);
+  inline bool IsWithinLargeObject(Address address);
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
@@ -618,6 +622,7 @@ class Heap {
   CodeSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
+  CodeLargeObjectSpace* code_lo_space() { return code_lo_space_; }
   NewLargeObjectSpace* new_lo_space() { return new_lo_space_; }
   ReadOnlySpace* read_only_space() { return read_only_space_; }
 
@@ -1812,6 +1817,7 @@ class Heap {
   CodeSpace* code_space_ = nullptr;
   MapSpace* map_space_ = nullptr;
   LargeObjectSpace* lo_space_ = nullptr;
+  CodeLargeObjectSpace* code_lo_space_ = nullptr;
   NewLargeObjectSpace* new_lo_space_ = nullptr;
   ReadOnlySpace* read_only_space_ = nullptr;
   // Map from the space id to the space.
@@ -2084,21 +2090,22 @@ class HeapStats {
   size_t* map_space_size;                  //  9
   size_t* map_space_capacity;              // 10
   size_t* lo_space_size;                   // 11
-  size_t* global_handle_count;             // 12
-  size_t* weak_global_handle_count;        // 13
-  size_t* pending_global_handle_count;     // 14
-  size_t* near_death_global_handle_count;  // 15
-  size_t* free_global_handle_count;        // 16
-  size_t* memory_allocator_size;           // 17
-  size_t* memory_allocator_capacity;       // 18
-  size_t* malloced_memory;                 // 19
-  size_t* malloced_peak_memory;            // 20
-  size_t* objects_per_type;                // 21
-  size_t* size_per_type;                   // 22
-  int* os_error;                           // 23
-  char* last_few_messages;                 // 24
-  char* js_stacktrace;                     // 25
-  intptr_t* end_marker;                    // 26
+  size_t* code_lo_space_size;              // 12
+  size_t* global_handle_count;             // 13
+  size_t* weak_global_handle_count;        // 14
+  size_t* pending_global_handle_count;     // 15
+  size_t* near_death_global_handle_count;  // 16
+  size_t* free_global_handle_count;        // 17
+  size_t* memory_allocator_size;           // 18
+  size_t* memory_allocator_capacity;       // 19
+  size_t* malloced_memory;                 // 20
+  size_t* malloced_peak_memory;            // 21
+  size_t* objects_per_type;                // 22
+  size_t* size_per_type;                   // 23
+  int* os_error;                           // 24
+  char* last_few_messages;                 // 25
+  char* js_stacktrace;                     // 26
+  intptr_t* end_marker;                    // 27
 };
 
 

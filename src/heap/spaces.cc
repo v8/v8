@@ -546,7 +546,8 @@ void MemoryChunk::InitializationMemoryFence() {
 
 void MemoryChunk::SetReadAndExecutable() {
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
+  DCHECK(owner()->identity() == CODE_SPACE ||
+         owner()->identity() == CODE_LO_SPACE);
   // Decrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::MutexGuard guard(page_protection_change_mutex_);
@@ -571,7 +572,8 @@ void MemoryChunk::SetReadAndExecutable() {
 
 void MemoryChunk::SetReadAndWritable() {
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
+  DCHECK(owner()->identity() == CODE_SPACE ||
+         owner()->identity() == CODE_LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::MutexGuard guard(page_protection_change_mutex_);
@@ -3401,6 +3403,10 @@ void LargeObjectSpace::TearDown() {
   }
 }
 
+AllocationResult LargeObjectSpace::AllocateRaw(int object_size) {
+  return AllocateRaw(object_size, NOT_EXECUTABLE);
+}
+
 AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
                                                Executability executable) {
   // Check if we want to force a GC before growing the old space further.
@@ -3743,5 +3749,13 @@ void NewLargeObjectSpace::Flip() {
     chunk->ClearFlag(MemoryChunk::IN_TO_SPACE);
   }
 }
+
+CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
+    : LargeObjectSpace(heap, CODE_LO_SPACE) {}
+
+AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
+  return LargeObjectSpace::AllocateRaw(object_size, EXECUTABLE);
+}
+
 }  // namespace internal
 }  // namespace v8

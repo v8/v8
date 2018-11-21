@@ -260,7 +260,8 @@ void Interpreter::Initialize() {
   // initialized.
   Handle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   DCHECK(builtins->is_initialized());
-  DCHECK(code->is_off_heap_trampoline() || Heap::IsImmovable(*code));
+  DCHECK(code->is_off_heap_trampoline() ||
+         isolate_->heap()->IsImmovable(*code));
   interpreter_entry_trampoline_instruction_start_ = code->InstructionStart();
 
   // Initialize the dispatch table.

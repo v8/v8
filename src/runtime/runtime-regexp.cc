@@ -783,7 +783,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   // needed.
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
-  if (!heap->lo_space()->Contains(*answer)) {
+  if (!heap->IsLargeObject(*answer)) {
     heap->CreateFillerObjectAt(end_of_string, delta, ClearRecordedSlots::kNo);
   }
   return *answer;

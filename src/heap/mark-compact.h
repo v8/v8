@@ -709,6 +709,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void VerifyMarkbitsAreDirty(PagedSpace* space);
   void VerifyMarkbitsAreClean(PagedSpace* space);
   void VerifyMarkbitsAreClean(NewSpace* space);
+  void VerifyMarkbitsAreClean(LargeObjectSpace* space);
 #endif
 
  private:

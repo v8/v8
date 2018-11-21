@@ -2693,7 +2693,6 @@ Handle<Code> Factory::NewCode(
     CodePageCollectionMemoryModificationScope code_allocation(heap);
     HeapObject* result =
         heap->AllocateRawWithRetryOrFail(object_size, CODE_SPACE);
-
     if (movability == kImmovable) {
       result = heap->EnsureImmovableCode(result, object_size);
     }

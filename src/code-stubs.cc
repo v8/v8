@@ -171,7 +171,7 @@ Handle<Code> CodeStub::GetCode() {
     code = *new_object;
   }
 
-  DCHECK(!NeedsImmovableCode() || Heap::IsImmovable(code));
+  DCHECK(!NeedsImmovableCode() || heap->IsImmovable(code));
   return Handle<Code>(code, isolate());
 }
 

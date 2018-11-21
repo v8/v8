@@ -116,7 +116,7 @@ class RememberedSet : public AllStatic {
   // The callback should take (MemoryChunk* chunk) and return void.
   template <typename Callback>
   static void IterateMemoryChunks(Heap* heap, Callback callback) {
-    MemoryChunkIterator it(heap);
+    OldGenerationMemoryChunkIterator it(heap);
     MemoryChunk* chunk;
     while ((chunk = it.next()) != nullptr) {
       SlotSet* slots = chunk->slot_set<type>();
@@ -252,7 +252,7 @@ class RememberedSet : public AllStatic {
   // Clear all old to old slots from the remembered set.
   static void ClearAll(Heap* heap) {
     STATIC_ASSERT(type == OLD_TO_OLD);
-    MemoryChunkIterator it(heap);
+    OldGenerationMemoryChunkIterator it(heap);
     MemoryChunk* chunk;
     while ((chunk = it.next()) != nullptr) {
       chunk->ReleaseSlotSet<OLD_TO_OLD>();

@@ -28,11 +28,10 @@ DeserializerAllocator::DeserializerAllocator(Deserializer* deserializer)
 Address DeserializerAllocator::AllocateRaw(AllocationSpace space, int size) {
   if (space == LO_SPACE) {
     AlwaysAllocateScope scope(isolate());
+    // Note that we currently do not support deserialization of large code
+    // objects.
     LargeObjectSpace* lo_space = isolate()->heap()->lo_space();
-    // TODO(jgruber): May be cleaner to pass in executability as an argument.
-    Executability exec =
-        static_cast<Executability>(deserializer_->source()->Get());
-    AllocationResult result = lo_space->AllocateRaw(size, exec);
+    AllocationResult result = lo_space->AllocateRaw(size);
     HeapObject* obj = result.ToObjectChecked();
     deserialized_large_objects_.push_back(obj);
     return obj->address();

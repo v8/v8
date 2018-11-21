@@ -340,7 +340,7 @@ Handle<BigInt> MutableBigInt::MakeImmutable(Handle<MutableBigInt> result) {
     int size_delta = to_trim * kDigitSize;
     Address new_end = result->address() + BigInt::SizeFor(new_length);
     Heap* heap = result->GetHeap();
-    if (!heap->lo_space()->Contains(*result)) {
+    if (!heap->IsLargeObject(*result)) {
       // We do not create a filler for objects in large object space.
       // TODO(hpayer): We should shrink the large object page if the size
       // of the object changed significantly.

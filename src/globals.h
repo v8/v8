@@ -599,14 +599,15 @@ enum AllocationSpace {
   CODE_SPACE,  // Old generation code object space, marked executable.
   MAP_SPACE,   // Old generation map object space, non-movable.
   LO_SPACE,    // Old generation large object space.
-  NEW_LO_SPACE,  // Young generation large object space.
+  CODE_LO_SPACE,  // Old generation large code object space.
+  NEW_LO_SPACE,   // Young generation large object space.
 
   FIRST_SPACE = RO_SPACE,
   LAST_SPACE = NEW_LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
   LAST_GROWABLE_PAGED_SPACE = MAP_SPACE
 };
-constexpr int kSpaceTagSize = 3;
+constexpr int kSpaceTagSize = 4;
 STATIC_ASSERT(FIRST_SPACE == 0);
 
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };

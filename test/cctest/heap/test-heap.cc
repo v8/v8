@@ -5928,8 +5928,8 @@ HEAP_TEST(Regress5831) {
     Handle<Code> code = GenerateDummyImmovableCode(isolate);
     array = FixedArray::SetAndGrow(isolate, array, i, code);
     CHECK(heap->code_space()->Contains(code->address()) ||
-          heap->lo_space()->Contains(*code));
-    if (heap->lo_space()->Contains(*code)) {
+          heap->code_lo_space()->Contains(*code));
+    if (heap->code_lo_space()->Contains(*code)) {
       overflowed_into_lospace = true;
       break;
     }

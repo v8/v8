@@ -109,6 +109,10 @@ void StatisticsExtension::GetCounters(
       {heap->lo_space()->Size(), "lo_space_live_bytes"},
       {heap->lo_space()->Available(), "lo_space_available_bytes"},
       {heap->lo_space()->CommittedMemory(), "lo_space_commited_bytes"},
+      {heap->code_lo_space()->Size(), "code_lo_space_live_bytes"},
+      {heap->code_lo_space()->Available(), "code_lo_space_available_bytes"},
+      {heap->code_lo_space()->CommittedMemory(),
+       "code_lo_space_commited_bytes"},
   };
 
   for (size_t i = 0; i < arraysize(numbers); i++) {
