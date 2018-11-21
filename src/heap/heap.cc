@@ -4040,7 +4040,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
       memory_allocator()->Size() + memory_allocator()->Available();
   *stats->os_error = base::OS::GetLastError();
   *stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage();
-  *stats->malloced_peak_memory = isolate_->allocator()->GetMaxMemoryUsage();
+  *stats->malloced_peak_memory = isolate_->allocator()->GetPeakMemoryUsage();
   if (take_snapshot) {
     HeapIterator iterator(this);
     for (HeapObject* obj = iterator.next(); obj != nullptr;
