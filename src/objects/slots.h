@@ -12,25 +12,27 @@ namespace internal {
 
 class ObjectPtr;
 
-template <typename Subclass>
+template <typename Subclass, size_t SlotDataSize>
 class SlotBase {
  public:
+  static constexpr size_t kSlotDataSize = SlotDataSize;
+
   Subclass& operator++() {  // Prefix increment.
-    ptr_ += kPointerSize;
+    ptr_ += kSlotDataSize;
     return *static_cast<Subclass*>(this);
   }
   Subclass operator++(int) {  // Postfix increment.
     Subclass result = *static_cast<Subclass*>(this);
-    ptr_ += kPointerSize;
+    ptr_ += kSlotDataSize;
     return result;
   }
   Subclass& operator--() {  // Prefix decrement.
-    ptr_ -= kPointerSize;
+    ptr_ -= kSlotDataSize;
     return *static_cast<Subclass*>(this);
   }
   Subclass operator--(int) {  // Postfix decrement.
     Subclass result = *static_cast<Subclass*>(this);
-    ptr_ -= kPointerSize;
+    ptr_ -= kSlotDataSize;
     return result;
   }
 
@@ -42,20 +44,20 @@ class SlotBase {
   bool operator!=(const SlotBase& other) const { return ptr_ != other.ptr_; }
   size_t operator-(const SlotBase& other) const {
     DCHECK_GE(ptr_, other.ptr_);
-    return static_cast<size_t>((ptr_ - other.ptr_) / kPointerSize);
+    return static_cast<size_t>((ptr_ - other.ptr_) / kSlotDataSize);
   }
-  Subclass operator-(int i) const { return Subclass(ptr_ - i * kPointerSize); }
-  Subclass operator+(int i) const { return Subclass(ptr_ + i * kPointerSize); }
+  Subclass operator-(int i) const { return Subclass(ptr_ - i * kSlotDataSize); }
+  Subclass operator+(int i) const { return Subclass(ptr_ + i * kSlotDataSize); }
   friend Subclass operator+(int i, const Subclass& slot) {
-    return Subclass(slot.ptr_ + i * kPointerSize);
+    return Subclass(slot.ptr_ + i * kSlotDataSize);
   }
   Subclass& operator+=(int i) {
-    ptr_ += i * kPointerSize;
+    ptr_ += i * kSlotDataSize;
     return *static_cast<Subclass*>(this);
   }
-  Subclass operator-(int i) { return Subclass(ptr_ - i * kPointerSize); }
+  Subclass operator-(int i) { return Subclass(ptr_ - i * kSlotDataSize); }
   Subclass& operator-=(int i) {
-    ptr_ -= i * kPointerSize;
+    ptr_ -= i * kSlotDataSize;
     return *static_cast<Subclass*>(this);
   }
 
@@ -66,8 +68,9 @@ class SlotBase {
   Address* location() const { return reinterpret_cast<Address*>(ptr_); }
 
  protected:
+  STATIC_ASSERT(IsAligned(kSlotDataSize, kTaggedSize));
   explicit SlotBase(Address ptr) : ptr_(ptr) {
-    DCHECK(IsAligned(ptr, kPointerSize));
+    DCHECK(IsAligned(ptr, kTaggedSize));
   }
 
  private:
@@ -81,7 +84,7 @@ class SlotBase {
 // a tagged pointer (smi or heap object).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
-class ObjectSlot : public SlotBase<ObjectSlot> {
+class ObjectSlot : public SlotBase<ObjectSlot, kTaggedSize> {
  public:
   ObjectSlot() : SlotBase(kNullAddress) {}
   explicit ObjectSlot(Address ptr) : SlotBase(ptr) {}
@@ -91,7 +94,8 @@ class ObjectSlot : public SlotBase<ObjectSlot> {
   explicit ObjectSlot(Object const* const* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit ObjectSlot(SlotBase<T> slot) : SlotBase(slot.address()) {}
+  explicit ObjectSlot(SlotBase<T, kSlotDataSize> slot)
+      : SlotBase(slot.address()) {}
 
   Object* operator*() const { return *reinterpret_cast<Object**>(address()); }
   inline void store(Object* value);
@@ -110,13 +114,14 @@ class ObjectSlot : public SlotBase<ObjectSlot> {
 // a possibly-weak tagged pointer (think: MaybeObject).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
-class MaybeObjectSlot : public SlotBase<MaybeObjectSlot> {
+class MaybeObjectSlot : public SlotBase<MaybeObjectSlot, kTaggedSize> {
  public:
   explicit MaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit MaybeObjectSlot(Object** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit MaybeObjectSlot(SlotBase<T> slot) : SlotBase(slot.address()) {}
+  explicit MaybeObjectSlot(SlotBase<T, kSlotDataSize> slot)
+      : SlotBase(slot.address()) {}
 
   inline MaybeObject operator*();
   inline void store(MaybeObject value);
@@ -131,12 +136,13 @@ class MaybeObjectSlot : public SlotBase<MaybeObjectSlot> {
 // The slot's contents can be read and written using operator* and store().
 // In case it is known that that slot contains a strong heap object pointer,
 // ToHeapObject() can be used to retrieve that heap object.
-class HeapObjectSlot : public SlotBase<HeapObjectSlot> {
+class HeapObjectSlot : public SlotBase<HeapObjectSlot, kTaggedSize> {
  public:
   HeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit HeapObjectSlot(Address ptr) : SlotBase(ptr) {}
   template <typename T>
-  explicit HeapObjectSlot(SlotBase<T> slot) : SlotBase(slot.address()) {}
+  explicit HeapObjectSlot(SlotBase<T, kSlotDataSize> slot)
+      : SlotBase(slot.address()) {}
 
   inline HeapObjectReference operator*();
   inline void store(HeapObjectReference value);

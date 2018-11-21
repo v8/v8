@@ -24,7 +24,7 @@ namespace internal {
 // Note how the comparator operates on Address values, representing the raw
 // data found at the given heap location, so you probably want to construct
 // an Object from it.
-class AtomicSlot : public SlotBase<AtomicSlot> {
+class AtomicSlot : public SlotBase<AtomicSlot, kTaggedSize> {
  public:
   // This class is a stand-in for "Address&" that uses custom atomic
   // read/write operations for the actual memory accesses.
