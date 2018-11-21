@@ -3496,6 +3496,8 @@ int Shell::Main(int argc, char* argv[]) {
       DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
              options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
       options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
+      options.code_cache_options =
+          ShellOptions::CodeCacheOptions::kNoProduceCache;
 
       printf("============ Run: Consume code cache ============\n");
       // Second run to consume the cache in current isolate
