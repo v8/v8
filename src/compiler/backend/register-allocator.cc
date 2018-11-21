@@ -1137,8 +1137,7 @@ std::ostream& operator<<(std::ostream& os,
   UsePosition* use_pos = range->first_pos();
   while (use_pos != nullptr) {
     if (use_pos->HasOperand()) {
-      os << PrintableInstructionOperand{*use_pos->operand()} << use_pos->pos()
-         << " ";
+      os << *use_pos->operand() << use_pos->pos() << " ";
     }
     use_pos = use_pos->next();
   }

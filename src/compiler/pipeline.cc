@@ -2718,7 +2718,7 @@ void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
     CodeTracer::Scope tracing_scope(data->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "----- Instruction sequence " << phase_name << " -----\n"
-       << PrintableInstructionSequence{data->sequence()};
+       << *data->sequence();
   }
 }
 
