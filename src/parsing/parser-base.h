@@ -1194,12 +1194,12 @@ class ParserBase {
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
   // we allow calls for web compatibility and rewrite them to a runtime throw.
   V8_INLINE ExpressionT
-  CheckAndRewriteReferenceExpression(ExpressionT expression, int beg_pos,
-                                     int end_pos, MessageTemplate message);
-  ExpressionT CheckAndRewriteReferenceExpression(ExpressionT expression,
-                                                 int beg_pos, int end_pos,
-                                                 MessageTemplate message,
-                                                 ParseErrorType type);
+  RewriteInvalidReferenceExpression(ExpressionT expression, int beg_pos,
+                                    int end_pos, MessageTemplate message);
+  ExpressionT RewriteInvalidReferenceExpression(ExpressionT expression,
+                                                int beg_pos, int end_pos,
+                                                MessageTemplate message,
+                                                ParseErrorType type);
 
   bool IsValidReferenceExpression(ExpressionT expression);
 
@@ -2733,9 +2733,11 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   // assignment pattern-related errors.
   Accumulate(~ExpressionClassifier::AssignmentPatternProduction);
 
-  expression = CheckAndRewriteReferenceExpression(
-      expression, lhs_beg_pos, end_position(),
-      MessageTemplate::kInvalidLhsInAssignment);
+  if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
+    expression = RewriteInvalidReferenceExpression(
+        expression, lhs_beg_pos, end_position(),
+        MessageTemplate::kInvalidLhsInAssignment);
+  }
   impl()->MarkExpressionAsAssigned(expression);
 
   Consume(op);
@@ -2999,9 +3001,11 @@ ParserBase<Impl>::ParsePrefixExpression() {
   CheckStackOverflow();
 
   ExpressionT expression = ParseUnaryExpression();
-  expression = CheckAndRewriteReferenceExpression(
-      expression, beg_pos, end_position(),
-      MessageTemplate::kInvalidLhsInPrefixOp);
+  if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
+    expression = RewriteInvalidReferenceExpression(
+        expression, beg_pos, end_position(),
+        MessageTemplate::kInvalidLhsInPrefixOp);
+  }
   impl()->MarkExpressionAsAssigned(expression);
 
   return factory()->NewCountOperation(op, true /* prefix */, expression,
@@ -3067,9 +3071,11 @@ ParserBase<Impl>::ParsePostfixExpression() {
   if (!scanner()->HasLineTerminatorBeforeNext() && Token::IsCountOp(peek())) {
     BindingPatternUnexpectedToken();
 
-    expression = CheckAndRewriteReferenceExpression(
-        expression, lhs_beg_pos, end_position(),
-        MessageTemplate::kInvalidLhsInPostfixOp);
+    if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
+      expression = RewriteInvalidReferenceExpression(
+          expression, lhs_beg_pos, end_position(),
+          MessageTemplate::kInvalidLhsInPostfixOp);
+    }
     impl()->MarkExpressionAsAssigned(expression);
 
     Token::Value next = Next();
@@ -4424,21 +4430,20 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::CheckAndRewriteReferenceExpression(ExpressionT expression,
-                                                     int beg_pos, int end_pos,
-                                                     MessageTemplate message) {
-  return CheckAndRewriteReferenceExpression(expression, beg_pos, end_pos,
-                                            message, kReferenceError);
+ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
+                                                    int beg_pos, int end_pos,
+                                                    MessageTemplate message) {
+  return RewriteInvalidReferenceExpression(expression, beg_pos, end_pos,
+                                           message, kReferenceError);
 }
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::CheckAndRewriteReferenceExpression(ExpressionT expression,
-                                                     int beg_pos, int end_pos,
-                                                     MessageTemplate message,
-                                                     ParseErrorType type) {
-  if (V8_LIKELY(IsValidReferenceExpression(expression))) return expression;
-
+ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
+                                                    int beg_pos, int end_pos,
+                                                    MessageTemplate message,
+                                                    ParseErrorType type) {
+  DCHECK(!IsValidReferenceExpression(expression));
   if (impl()->IsIdentifier(expression)) {
     DCHECK(is_strict(language_mode()));
     DCHECK(impl()->IsEvalOrArguments(impl()->AsIdentifier(expression)));
@@ -5557,8 +5562,9 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     ForInfo* for_info, ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels) {
   // Initializer is reference followed by in/of.
-  if (!expression->IsValidPattern()) {
-    expression = CheckAndRewriteReferenceExpression(
+  if (V8_UNLIKELY(!expression->IsValidPattern() &&
+                  !IsValidReferenceExpression(expression))) {
+    expression = RewriteInvalidReferenceExpression(
         expression, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
         kSyntaxError);
   }
@@ -5762,9 +5768,11 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
       ValidateAssignmentPattern();
     } else {
       ValidateExpression();
-      each_variable = CheckAndRewriteReferenceExpression(
-          lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
-          kSyntaxError);
+      if (V8_UNLIKELY(!IsValidReferenceExpression(lhs))) {
+        each_variable = RewriteInvalidReferenceExpression(
+            lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
+            kSyntaxError);
+      }
     }
   }
 
