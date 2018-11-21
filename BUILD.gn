@@ -1404,6 +1404,8 @@ v8_source_set("v8_initializers") {
     "src/builtins/growable-fixed-array-gen.cc",
     "src/builtins/growable-fixed-array-gen.h",
     "src/builtins/setup-builtins-internal.cc",
+    "src/code-stub-assembler.cc",
+    "src/code-stub-assembler.h",
     "src/heap/setup-heap-internal.cc",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
@@ -1425,9 +1427,10 @@ v8_source_set("v8_initializers") {
       "src/builtins/builtins-async-iterator-gen.cc",
       "src/builtins/builtins-async-generator-gen.cc",
 
-      # This source file takes an unusually large amount of time to
-      # compile.  Build it separately to avoid bottlenecks.
+      # These source files take an unusually large amount of time to
+      # compile.  Build them separately to avoid bottlenecks.
       "src/builtins/builtins-regexp-gen.cc",
+      "src/code-stub-assembler.cc",
     ]
   }
 
@@ -1676,8 +1679,6 @@ v8_source_set("v8_base") {
     "src/code-factory.h",
     "src/code-reference.cc",
     "src/code-reference.h",
-    "src/code-stub-assembler.cc",
-    "src/code-stub-assembler.h",
     "src/code-stubs-utils.h",
     "src/code-stubs.cc",
     "src/code-stubs.h",
@@ -2686,7 +2687,6 @@ v8_source_set("v8_base") {
       # These source files take an unusually large amount of time to
       # compile.  Build them separately to avoid bottlenecks.
       "src/api.cc",
-      "src/code-stub-assembler.cc",
       "src/elements.cc",
       "src/heap/heap.cc",
       "src/objects.cc",

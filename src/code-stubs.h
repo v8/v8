@@ -360,25 +360,6 @@ class CodeStubDescriptor {
   bool has_miss_handler_;
 };
 
-
-class TurboFanCodeStub : public CodeStub {
- public:
-  // Retrieve the code for the stub. Generate the code if needed.
-  Handle<Code> GenerateCode() override;
-
-  int GetStackParameterCount() const override {
-    return GetCallInterfaceDescriptor().GetStackParameterCount();
-  }
-
- protected:
-  explicit TurboFanCodeStub(Isolate* isolate) : CodeStub(isolate) {}
-
-  virtual void GenerateAssembly(compiler::CodeAssemblerState* state) const = 0;
-
- private:
-  DEFINE_CODE_STUB_BASE(TurboFanCodeStub, CodeStub);
-};
-
 }  // namespace internal
 }  // namespace v8
 

@@ -11,7 +11,6 @@
 #include "src/ast/ast.h"
 #include "src/bootstrapper.h"
 #include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
 #include "src/code-stubs-utils.h"
 #include "src/code-tracer.h"
 #include "src/counters.h"
@@ -252,18 +251,6 @@ MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
   void** value_out = reinterpret_cast<void**>(&code);
   Dispatch(isolate, key, value_out, &GetCodeDispatchCall);
   return scope.CloseAndEscape(code);
-}
-
-Handle<Code> TurboFanCodeStub::GenerateCode() {
-  const char* name = CodeStub::MajorName(MajorKey());
-  Zone zone(isolate()->allocator(), ZONE_NAME);
-  CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
-  compiler::CodeAssemblerState state(
-      isolate(), &zone, descriptor, Code::STUB, name,
-      PoisoningMitigationLevel::kDontPoison, GetKey());
-  GenerateAssembly(&state);
-  return compiler::CodeAssembler::GenerateCode(
-      &state, AssemblerOptions::Default(isolate()));
 }
 
 int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
