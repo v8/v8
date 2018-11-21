@@ -18,6 +18,7 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -680,8 +681,10 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {
 }
 
 void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
-  for (int i = 0; i < length(); i++) {
-    Object* e = get(i);
+  EmbedderDataSlot start(*this, 0);
+  EmbedderDataSlot end(*this, length());
+  for (EmbedderDataSlot slot = start; slot < end; ++slot) {
+    Object* e = slot.load_tagged();
     Object::VerifyPointer(isolate, e);
   }
 }

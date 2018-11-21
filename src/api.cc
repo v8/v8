@@ -52,6 +52,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
@@ -1198,6 +1199,8 @@ static i::Smi EncodeAlignedAsSmi(void* value, const char* location) {
   return smi;
 }
 
+STATIC_ASSERT(i::Internals::kEmbedderDataSlotSize == i::kEmbedderDataSlotSize);
+
 static i::Handle<i::EmbedderDataArray> EmbedderDataFor(Context* context,
                                                        int index, bool can_grow,
                                                        const char* location) {
@@ -1236,7 +1239,8 @@ v8::Local<v8::Value> Context::SlowGetEmbedderData(int index) {
       EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return Local<Value>();
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::Handle<i::Object> result(data->get(index), isolate);
+  i::Handle<i::Object> result(i::EmbedderDataSlot(*data, index).load_tagged(),
+                              isolate);
   return Utils::ToLocal(result);
 }
 
@@ -1247,7 +1251,7 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
       EmbedderDataFor(this, index, true, location);
   if (data.is_null()) return;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
-  data->set(index, *val);
+  i::EmbedderDataSlot::store_tagged(*data, index, *val);
   DCHECK_EQ(*Utils::OpenHandle(*value),
             *Utils::OpenHandle(*GetEmbedderData(index)));
 }
@@ -1258,7 +1262,10 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return nullptr;
-  return DecodeSmiToAligned(data->get(index), location);
+  void* result;
+  Utils::ApiCheck(i::EmbedderDataSlot(*data, index).ToAlignedPointer(&result),
+                  location, "Pointer is not aligned");
+  return result;
 }
 
 
@@ -1266,7 +1273,8 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
-  data->set(index, EncodeAlignedAsSmi(value, location));
+  bool ok = i::EmbedderDataSlot(*data, index).store_aligned_pointer(value);
+  Utils::ApiCheck(ok, location, "Pointer is not aligned");
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index));
 }
 

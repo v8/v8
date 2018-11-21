@@ -7,6 +7,7 @@
 
 #include "src/maybe-handles.h"
 #include "src/objects.h"
+#include "src/objects/embedder-data-slot.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -47,12 +48,6 @@ class EmbedderDataArray : public HeapObjectPtr {
   // Code Generation support.
   static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  // TODO(ishell): remove these accessors once EmbedderDataSlot is introduced.
-  // Setter and getter for elements.
-  V8_INLINE Object* get(int index) const;
-  V8_INLINE void set(int index, Object* value);
-  V8_INLINE void set(int index, Smi value);
-
   // Address of the first slot.
   V8_INLINE Address slots_start();
 
@@ -64,8 +59,6 @@ class EmbedderDataArray : public HeapObjectPtr {
   DECL_VERIFIER(EmbedderDataArray)
 
   class BodyDescriptor;
-
-  static constexpr int kEmbedderDataSlotSize = kPointerSize;
 
   static const int kMaxSize = kMaxNewSpaceHeapObjectSize;
   static constexpr int kMaxLength =

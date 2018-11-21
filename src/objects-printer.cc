@@ -16,6 +16,7 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -635,6 +636,16 @@ void PrintEmbedderData(std::ostream& os, ObjectSlot slot) {
   }
 }
 
+void PrintEmbedderData(std::ostream& os, EmbedderDataSlot slot) {
+  DisallowHeapAllocation no_gc;
+  Object* value = slot.load_tagged();
+  os << Brief(value);
+  void* raw_pointer;
+  if (slot.ToAlignedPointer(&raw_pointer)) {
+    os << ", aligned pointer: " << raw_pointer;
+  }
+}
+
 }  // namespace
 
 void JSObject::PrintElements(std::ostream& os) {  // NOLINT
@@ -728,9 +739,8 @@ static void JSObjectPrintBody(std::ostream& os,
   if (embedder_fields > 0) {
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
-      ObjectSlot embedder_data_slot = obj->GetEmbedderFieldSlot(i);
       os << "\n    ";
-      PrintEmbedderData(os, embedder_data_slot);
+      PrintEmbedderData(os, obj->GetEmbedderFieldSlot(i));
     }
     os << "\n }\n";
   }
@@ -994,9 +1004,9 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
-  ObjectSlot start(slots_start());
-  ObjectSlot end(slots_end());
-  for (ObjectSlot slot = start; slot < end; ++slot) {
+  EmbedderDataSlot start(*this, 0);
+  EmbedderDataSlot end(*this, length());
+  for (EmbedderDataSlot slot = start; slot < end; ++slot) {
     os << "\n    ";
     PrintEmbedderData(os, slot);
   }
