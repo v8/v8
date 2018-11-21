@@ -42,6 +42,8 @@ SerializerReference SerializerAllocator::Allocate(AllocationSpace space,
 
   // Maps are allocated through AllocateMap.
   DCHECK_NE(MAP_SPACE, space);
+  // We tenure large object allocations.
+  DCHECK_NE(NEW_LO_SPACE, space);
 
   uint32_t old_chunk_size = pending_chunk_[space];
   uint32_t new_chunk_size = old_chunk_size + size;
