@@ -89,22 +89,6 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
                        func, isolate_ptr, fixed_array, length, sep, dest));
   }
 
-  // Temporary Torque support for Array.prototype.join().
-  // TODO(pwong): Remove this when Torque supports exception handlers.
-  TNode<String> CallArrayJoin(TNode<Context> context, bool use_to_locale_string,
-                              TNode<JSReceiver> receiver, TNode<String> sep,
-                              TNode<Number> len, TNode<Object> locales,
-                              TNode<Object> options, Label* if_exception,
-                              TVariable<Object>* var_exception) {
-    Builtins::Name builtin = use_to_locale_string
-                                 ? Builtins::kArrayJoinWithToLocaleString
-                                 : Builtins::kArrayJoinWithoutToLocaleString;
-    TNode<Object> result =
-        CallBuiltin(builtin, context, receiver, sep, len, locales, options);
-    GotoIfException(result, if_exception, var_exception);
-    return CAST(result);
-  }
-
  protected:
   TNode<Context> context() { return context_; }
   TNode<Object> receiver() { return receiver_; }

@@ -11,11 +11,6 @@ namespace array {
   ArrayBuiltinsAssembler::CallJSArrayArrayJoinConcatToSequentialString(
       FixedArray, intptr, String, String): String;
 
-  extern macro ArrayBuiltinsAssembler::CallArrayJoin(
-      Context, constexpr bool, JSReceiver, String, Number, Object,
-      Object): String
-      labels IfException(Object);
-
   transitioning builtin LoadJoinElement<T: type>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     return GetProperty(receiver, k);
@@ -366,18 +361,6 @@ namespace array {
         loadJoinElements);
   }
 
-  transitioning builtin ArrayJoinWithToLocaleString(
-      context: Context, receiver: JSReceiver, sep: String, len: Number,
-      locales: Object, options: Object): Object {
-    return ArrayJoin(true, receiver, sep, len, locales, options);
-  }
-
-  transitioning builtin ArrayJoinWithoutToLocaleString(
-      context: Context, receiver: JSReceiver, sep: String, len: Number,
-      locales: Object, options: Object): Object {
-    return ArrayJoin(false, receiver, sep, len, locales, options);
-  }
-
   // The Join Stack detects cyclical calls to Array Join builtins
   // (Array.p.join(), Array.p.toString(), Array.p.toLocaleString()). This
   // FixedArray holds a stack of receivers to the current call.
@@ -426,9 +409,12 @@ namespace array {
     return True;
   }
 
-  // Fast path the common non-nested calls.
-  macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver)
-      labels CycleDetected {
+  // Fast path the common non-nested calls. If the receiver is not already on
+  // the stack, add it to the stack and go to ReceiverAdded. Otherwise go to
+  // ReceiverNotAdded.
+  macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver):
+      never
+      labels ReceiverAdded, ReceiverNotAdded {
     try {
       const stack: FixedArray = LoadJoinStack()
           otherwise IfUninitialized;
@@ -436,7 +422,7 @@ namespace array {
         stack[0] = receiver;
       } else if (JoinStackPush(stack, receiver) == False)
         deferred {
-          goto CycleDetected;
+          goto ReceiverNotAdded;
         }
     }
     label IfUninitialized {
@@ -445,6 +431,7 @@ namespace array {
       stack[0] = receiver;
       SetJoinStack(stack);
     }
+    goto ReceiverAdded;
   }
 
   // Removes a receiver from the stack. The FixedArray will automatically shrink
@@ -503,25 +490,21 @@ namespace array {
     // 4. Else, let sep be ? ToString(separator).
     let sep: String =
         sepObj == Undefined ? ',' : ToString_Inline(context, sepObj);
-    try {
-      // Fast paths for zero elements
-      if (len == 0) goto IfReturnEmpty;
 
-      JoinStackPushInline(o) otherwise IfReturnEmpty;
-
-      const result: Object = CallArrayJoin(
-          context, useToLocaleString, o, sep, len, locales, options)
-          otherwise IfException;
-
-      JoinStackPopInline(o);
-      return result;
-    }
-    label IfReturnEmpty {
+    // If the receiver is not empty and not already being joined, continue with
+    // the normal join algorithm.
+    if (len > 0 && JoinStackPushInline(o)) {
+      try {
+        const result: Object =
+            ArrayJoin(useToLocaleString, o, sep, len, locales, options);
+        JoinStackPopInline(o);
+        return result;
+      } catch (e) deferred {
+        JoinStackPopInline(o);
+        ReThrow(context, e);
+      }
+    } else {
       return kEmptyString;
-    }
-    label IfException(e: Object) deferred {
-      JoinStackPopInline(o);
-      ReThrow(context, e);
     }
   }
 
