@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_EMBEDDER_DATA_ARRAY_H_
 #define V8_OBJECTS_EMBEDDER_DATA_ARRAY_H_
 
+#include "src/globals.h"
 #include "src/maybe-handles.h"
 #include "src/objects.h"
-#include "src/objects/embedder-data-slot.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -29,7 +29,7 @@ class EmbedderDataArray : public HeapObjectPtr {
 
 // Layout description.
 #define EMBEDDER_DATA_ARRAY_FIELDS(V) \
-  V(kLengthOffset, kPointerSize)      \
+  V(kLengthOffset, kTaggedSize)       \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,

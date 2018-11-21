@@ -625,16 +625,6 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   }
 }
 
-void PrintEmbedderData(std::ostream& os, ObjectSlot slot) {
-  DisallowHeapAllocation no_gc;
-  Object* value = *slot;
-  os << Brief(value);
-  if (value->IsSmi()) {
-    void* raw_pointer = reinterpret_cast<void*>(value->ptr());
-    os << ", aligned pointer: " << raw_pointer;
-  }
-}
-
 void PrintEmbedderData(std::ostream& os, EmbedderDataSlot slot) {
   DisallowHeapAllocation no_gc;
   Object* value = slot.load_tagged();
@@ -739,7 +729,7 @@ static void JSObjectPrintBody(std::ostream& os,
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    ";
-      PrintEmbedderData(os, obj->GetEmbedderFieldSlot(i));
+      PrintEmbedderData(os, EmbedderDataSlot(obj, i));
     }
     os << "\n }\n";
   }

@@ -155,7 +155,7 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
   Handle<JSObject> obj_handle(js_obj, isolate());
   v8::Local<v8::Object> api_obj = v8::Utils::ToLocal(obj_handle);
 
-  std::vector<Address> original_values;
+  std::vector<EmbedderDataSlot::RawData> original_embedder_values;
   std::vector<StartupData> serialized_data;
 
   // 1) Iterate embedder fields. Hold onto the original value of the fields.
@@ -163,10 +163,9 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
   //    serializer. For aligned pointers, call the serialize callback. Hold
   //    onto the result.
   for (int i = 0; i < embedder_fields_count; i++) {
-    Address address = js_obj->GetEmbedderFieldRaw(i);
-    original_values.push_back(address);
-    ObjectPtr object_ptr(address);
-    Object* object(object_ptr);
+    EmbedderDataSlot embedder_data_slot(js_obj, i);
+    original_embedder_values.emplace_back(embedder_data_slot.load_raw(no_gc));
+    Object* object = embedder_data_slot.load_tagged();
     if (object->IsHeapObject()) {
       DCHECK(isolate()->heap()->Contains(HeapObject::cast(object)));
       serialized_data.push_back({nullptr, 0});
@@ -184,7 +183,7 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
   //    with embedder callbacks.
   for (int i = 0; i < embedder_fields_count; i++) {
     if (!DataIsEmpty(serialized_data[i])) {
-      js_obj->SetEmbedderFieldRaw(i, kNullAddress);
+      EmbedderDataSlot(js_obj, i).store_raw({kNullAddress}, no_gc);
     }
   }
 
@@ -200,10 +199,10 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
   // 5) Write data returned by the embedder callbacks into a separate sink,
   //    headed by the back reference. Restore the original embedder fields.
   for (int i = 0; i < embedder_fields_count; i++) {
-    // Restore original values from potentially cleared fields.
-    js_obj->SetEmbedderFieldRaw(i, original_values[i]);
     StartupData data = serialized_data[i];
     if (DataIsEmpty(data)) continue;
+    // Restore original values from cleared fields.
+    EmbedderDataSlot(js_obj, i).store_raw(original_embedder_values[i], no_gc);
     embedder_fields_sink_.Put(kNewObject + reference.space(),
                               "embedder field holder");
     embedder_fields_sink_.PutInt(reference.chunk_index(), "BackRefChunkIndex");

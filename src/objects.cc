@@ -1414,6 +1414,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSAsyncFunctionObject::kSize;
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
       return JSAsyncGeneratorObject::kSize;
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
+      return JSAsyncFromSyncIterator::kSize;
     case JS_GLOBAL_PROXY_TYPE:
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
@@ -1451,6 +1453,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSWeakCell::kSize;
     case JS_WEAK_FACTORY_TYPE:
       return JSWeakFactory::kSize;
+    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
+      return JSWeakFactoryCleanupIterator::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
     case JS_WEAK_SET_TYPE:
@@ -1505,6 +1509,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return WasmModuleObject::kSize;
     case WASM_TABLE_TYPE:
       return WasmTableObject::kSize;
+    case WASM_EXCEPTION_TYPE:
+      return WasmExceptionObject::kSize;
     default:
       UNREACHABLE();
   }
@@ -14057,6 +14063,7 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                                              int* in_object_properties) {
   DCHECK_LE(static_cast<unsigned>(requested_embedder_fields),
             JSObject::kMaxEmbedderFields);
+  requested_embedder_fields *= kEmbedderDataSlotSizeInTaggedSlots;
   int header_size = JSObject::GetHeaderSize(instance_type, has_prototype_slot);
   int max_nof_fields =
       (JSObject::kMaxInstanceSize - header_size) >> kPointerSizeLog2;

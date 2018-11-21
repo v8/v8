@@ -1188,17 +1188,6 @@ Context::BackupIncumbentScope::~BackupIncumbentScope() {
   isolate->set_top_backup_incumbent_scope(prev_);
 }
 
-static void* DecodeSmiToAligned(i::Object* value, const char* location) {
-  Utils::ApiCheck(value->IsSmi(), location, "Not a Smi");
-  return reinterpret_cast<void*>(value);
-}
-
-static i::Smi EncodeAlignedAsSmi(void* value, const char* location) {
-  i::Smi smi(reinterpret_cast<i::Address>(value));
-  Utils::ApiCheck(smi->IsSmi(), location, "Pointer is not aligned");
-  return smi;
-}
-
 STATIC_ASSERT(i::Internals::kEmbedderDataSlotSize == i::kEmbedderDataSlotSize);
 
 static i::Handle<i::EmbedderDataArray> EmbedderDataFor(Context* context,
@@ -5805,9 +5794,8 @@ Local<Value> v8::Object::SlowGetInternalField(int index) {
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::GetInternalField()";
   if (!InternalFieldOK(obj, index, location)) return Local<Value>();
-  i::Handle<i::Object> value(
-      i::Handle<i::JSObject>::cast(obj)->GetEmbedderField(index),
-      obj->GetIsolate());
+  i::Handle<i::Object> value(i::JSObject::cast(*obj)->GetEmbedderField(index),
+                             obj->GetIsolate());
   return Utils::ToLocal(value);
 }
 
@@ -5823,16 +5811,20 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::GetAlignedPointerFromInternalField()";
   if (!InternalFieldOK(obj, index, location)) return nullptr;
-  return DecodeSmiToAligned(
-      i::Handle<i::JSObject>::cast(obj)->GetEmbedderField(index), location);
+  void* result;
+  Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
+                      .ToAlignedPointer(&result),
+                  location, "Unaligned pointer");
+  return result;
 }
 
 void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::SetAlignedPointerInInternalField()";
   if (!InternalFieldOK(obj, index, location)) return;
-  i::Handle<i::JSObject>::cast(obj)->SetEmbedderField(
-      index, EncodeAlignedAsSmi(value, location));
+  Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
+                      .store_aligned_pointer(value),
+                  location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
 }
 
@@ -5841,8 +5833,8 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::SetAlignedPointerInInternalFields()";
   i::DisallowHeapAllocation no_gc;
-  i::JSObject* object = i::JSObject::cast(*obj);
-  int nof_embedder_fields = object->GetEmbedderFieldCount();
+  i::JSObject* js_obj = i::JSObject::cast(*obj);
+  int nof_embedder_fields = js_obj->GetEmbedderFieldCount();
   for (int i = 0; i < argc; i++) {
     int index = indices[i];
     if (!Utils::ApiCheck(index < nof_embedder_fields, location,
@@ -5850,7 +5842,9 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
       return;
     }
     void* value = values[i];
-    object->SetEmbedderField(index, EncodeAlignedAsSmi(value, location));
+    Utils::ApiCheck(
+        i::EmbedderDataSlot(js_obj, index).store_aligned_pointer(value),
+        location, "Unaligned pointer");
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }
 }

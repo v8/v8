@@ -4542,15 +4542,13 @@ EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
 
 void Heap::TracePossibleWrapper(JSObject* js_object) {
   DCHECK(js_object->IsApiWrapper());
-  if (js_object->GetEmbedderFieldCount() >= 2 &&
-      js_object->GetEmbedderField(0) &&
-      js_object->GetEmbedderField(0) != ReadOnlyRoots(this).undefined_value() &&
-      js_object->GetEmbedderField(1) != ReadOnlyRoots(this).undefined_value()) {
-    DCHECK_EQ(0,
-              reinterpret_cast<intptr_t>(js_object->GetEmbedderField(0)) % 2);
-    local_embedder_heap_tracer()->AddWrapperToTrace(std::pair<void*, void*>(
-        reinterpret_cast<void*>(js_object->GetEmbedderField(0)),
-        reinterpret_cast<void*>(js_object->GetEmbedderField(1))));
+  if (js_object->GetEmbedderFieldCount() < 2) return;
+  void* pointer0;
+  void* pointer1;
+  if (EmbedderDataSlot(js_object, 0).ToAlignedPointer(&pointer0) && pointer0 &&
+      EmbedderDataSlot(js_object, 1).ToAlignedPointer(&pointer1)) {
+    local_embedder_heap_tracer()->AddWrapperToTrace(
+        std::pair<void*, void*>(pointer0, pointer1));
   }
 }
 

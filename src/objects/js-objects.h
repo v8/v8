@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_OBJECTS_H_
 
 #include "src/objects.h"
+#include "src/objects/embedder-data-slot.h"
 #include "src/objects/property-array.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -551,11 +552,8 @@ class JSObject : public JSReceiver {
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
   inline Object* GetEmbedderField(int index);
-  inline Address GetEmbedderFieldRaw(int index);
-  inline ObjectSlot GetEmbedderFieldSlot(int index);
   inline void SetEmbedderField(int index, Object* value);
   inline void SetEmbedderField(int index, Smi value);
-  inline void SetEmbedderFieldRaw(int index, Address value);
 
   // Returns true when the object is potentially a wrapper that gets special
   // garbage collection treatment.
@@ -747,8 +745,9 @@ class JSObject : public JSReceiver {
   STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
   // TODO(cbruni): Revisit calculation of the max supported embedder fields.
   static const int kMaxEmbedderFields =
-      ((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
-      kPointerSizeLog2;
+      (((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
+       kPointerSizeLog2) /
+      kEmbedderDataSlotSizeInTaggedSlots;
   STATIC_ASSERT(kMaxEmbedderFields <= kMaxInObjectProperties);
 
   class BodyDescriptor;

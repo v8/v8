@@ -212,6 +212,16 @@ constexpr int kPointerSize = kSystemPointerSize;
 constexpr int kPointerSizeLog2 = kSystemPointerSizeLog2;
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
+constexpr int kEmbedderDataSlotSize =
+#ifdef V8_COMPRESS_POINTERS
+    kTaggedSize +
+#endif
+    kTaggedSize;
+
+constexpr int kEmbedderDataSlotSizeInTaggedSlots =
+    kEmbedderDataSlotSize / kTaggedSize;
+STATIC_ASSERT(kEmbedderDataSlotSize >= kSystemPointerSize);
+
 constexpr int kExternalAllocationSoftLimit =
     internal::Internals::kExternalAllocationSoftLimit;
 

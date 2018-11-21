@@ -7,8 +7,9 @@
 
 #include <utility>
 
-#include "src/objects/fixed-array.h"
-#include "src/objects/heap-object.h"
+#include "src/assert-scope.h"
+#include "src/globals.h"
+#include "src/objects/slots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,12 +17,9 @@
 namespace v8 {
 namespace internal {
 
-static constexpr int kEmbedderDataSlotSize = kTaggedSize;
-
-static constexpr int kEmbedderDataSlotSizeInTaggedSlots =
-    kEmbedderDataSlotSize / kTaggedSize;
-
 class EmbedderDataArray;
+class JSObject;
+class Object;
 
 // An EmbedderDataSlot instance describes a kEmbedderDataSlotSize field ("slot")
 // holding an embedder data which may contain raw aligned pointer or a tagged
