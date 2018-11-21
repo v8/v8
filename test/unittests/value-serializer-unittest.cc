@@ -1877,7 +1877,7 @@ TEST_F(ValueSerializerTest, DecodeArrayWithLengthProperty1) {
                   0x74, 0x68, 0x49, 0x02, 0x24, 0x01, 0x03}),
       ".*LookupIterator::NOT_FOUND == it.state\\(\\).*");
 }
- 
+
 TEST_F(ValueSerializerTest, DecodeArrayWithLengthProperty2) {
   ASSERT_DEATH_IF_SUPPORTED(
       DecodeTest({0xff, 0x0d, 0x41, 0x03, 0x49, 0x02, 0x49, 0x04,
