@@ -9,7 +9,6 @@ the source and header files directly in V8's src directory."""
 import subprocess
 import sys
 import re
-import io
 from subprocess import Popen, PIPE
 
 def preprocess(input):
@@ -83,13 +82,13 @@ def postprocess(output):
   return output
 
 def process(filename, only_lint, use_stdout):
-  with io.open(filename, 'r') as content_file:
+  with open(filename, 'r') as content_file:
     content = content_file.read()
 
   original_input = content
 
   p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-  output, err = p.communicate(preprocess(content).encode('utf-8'))
+  output, err = p.communicate(preprocess(content))
   output = postprocess(output)
   rc = p.returncode
   if (rc <> 0):
@@ -102,8 +101,8 @@ def process(filename, only_lint, use_stdout):
   elif use_stdout:
     print output
   else:
-    output_file = io.open(filename, 'w', newline="\n")
-    output_file.write(output.decode('utf-8'));
+    output_file = open(filename, 'w')
+    output_file.write(output);
     output_file.close()
 
 def print_usage():
