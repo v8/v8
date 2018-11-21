@@ -173,7 +173,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     Variant variant, TNode<Context> context, TNode<Context> native_context,
     TNode<Object> collection, TNode<Object> initial_entries) {
   TVARIABLE(BoolT, use_fast_loop,
-            IsFastJSArrayWithNoCustomIteration(context, initial_entries));
+            IsFastJSArrayWithNoCustomIteration(initial_entries, context));
   TNode<IntPtrT> at_least_space_for =
       EstimatedInitialSize(initial_entries, use_fast_loop.value());
   Label allocate_table(this, &use_fast_loop), exit(this), fast_loop(this),
@@ -193,8 +193,8 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     TNode<JSArray> initial_entries_jsarray =
         UncheckedCast<JSArray>(initial_entries);
 #if DEBUG
-    CSA_ASSERT(this, IsFastJSArrayWithNoCustomIteration(
-                         context, initial_entries_jsarray));
+    CSA_ASSERT(this, IsFastJSArrayWithNoCustomIteration(initial_entries_jsarray,
+                                                        context));
     TNode<Map> original_initial_entries_map = LoadMap(initial_entries_jsarray);
 #endif
 
@@ -243,7 +243,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
   CSA_ASSERT(
       this,
       WordEqual(GetAddFunction(variant, native_context, collection), add_func));
-  CSA_ASSERT(this, IsFastJSArrayWithNoCustomIteration(context, fast_jsarray));
+  CSA_ASSERT(this, IsFastJSArrayWithNoCustomIteration(fast_jsarray, context));
   TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(fast_jsarray));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(length, IntPtrConstant(0)));
   CSA_ASSERT(
