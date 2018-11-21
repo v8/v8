@@ -361,11 +361,11 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   if (!free_ranges.empty()) {
     TypedSlotSet* old_to_new = p->typed_slot_set<OLD_TO_NEW>();
     if (old_to_new != nullptr) {
-      old_to_new->RemoveInvaldSlots(free_ranges);
+      old_to_new->ClearInvalidSlots(free_ranges);
     }
     TypedSlotSet* old_to_old = p->typed_slot_set<OLD_TO_OLD>();
     if (old_to_old != nullptr) {
-      old_to_old->RemoveInvaldSlots(free_ranges);
+      old_to_old->ClearInvalidSlots(free_ranges);
     }
   }
 

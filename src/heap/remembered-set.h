@@ -261,12 +261,6 @@ class RememberedSet : public AllStatic {
     }
   }
 
-  // Eliminates all stale slots from the remembered set, i.e.
-  // slots that are not part of live objects anymore. This method must be
-  // called after marking, when the whole transitive closure is known and
-  // must be called before sweeping when mark bits are still intact.
-  static void ClearInvalidTypedSlots(Heap* heap, MemoryChunk* chunk);
-
  private:
   static bool IsValidSlot(Heap* heap, MemoryChunk* chunk, ObjectSlot slot);
 };
