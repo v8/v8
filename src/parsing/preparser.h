@@ -58,7 +58,10 @@ class PreParserIdentifier {
   bool IsEval() const { return type_ == kEvalIdentifier; }
   bool IsAsync() const { return type_ == kAsyncIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
-  bool IsEvalOrArguments() const { return IsEval() || IsArguments(); }
+  bool IsEvalOrArguments() const {
+    STATIC_ASSERT(kEvalIdentifier + 1 == kArgumentsIdentifier);
+    return IsInRange(type_, kEvalIdentifier, kArgumentsIdentifier);
+  }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
   bool IsName() const { return type_ == kNameIdentifier; }

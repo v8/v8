@@ -142,10 +142,6 @@ bool Expression::ToBooleanIsFalse() const {
 }
 
 bool Expression::IsValidReferenceExpression() const {
-  // We don't want expressions wrapped inside RewritableExpression to be
-  // considered as valid reference expressions, as they will be rewritten
-  // to something (most probably involving a do expression).
-  if (IsRewritableExpression()) return false;
   return IsProperty() ||
          (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
 }

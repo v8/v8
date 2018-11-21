@@ -4426,14 +4426,14 @@ ParserBase<Impl>::CheckAndRewriteReferenceExpression(ExpressionT expression,
                                                      int beg_pos, int end_pos,
                                                      MessageTemplate message,
                                                      ParseErrorType type) {
-  if (impl()->IsIdentifier(expression) && is_strict(language_mode()) &&
-      impl()->IsEvalOrArguments(impl()->AsIdentifier(expression))) {
+  if (V8_LIKELY(IsValidReferenceExpression(expression))) return expression;
+
+  if (impl()->IsIdentifier(expression)) {
+    DCHECK(is_strict(language_mode()));
+    DCHECK(impl()->IsEvalOrArguments(impl()->AsIdentifier(expression)));
     ReportMessageAt(Scanner::Location(beg_pos, end_pos),
                     MessageTemplate::kStrictEvalArguments, kSyntaxError);
     return impl()->FailureExpression();
-  }
-  if (expression->IsValidReferenceExpression()) {
-    return expression;
   }
   if (expression->IsCall() && !expression->AsCall()->is_tagged_template()) {
     // If it is a call, make it a runtime error for legacy web compatibility.
@@ -5410,8 +5410,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     int lhs_end_pos = end_position();
 
     bool is_for_each = CheckInOrOf(&for_info.mode);
-    bool is_destructuring = is_for_each && (expression->IsArrayLiteral() ||
-                                            expression->IsObjectLiteral());
+    bool is_destructuring = is_for_each && expression->IsValidPattern();
 
     if (is_destructuring) {
       ValidateAssignmentPattern();
@@ -5546,7 +5545,7 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     ForInfo* for_info, ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels) {
   // Initializer is reference followed by in/of.
-  if (!expression->IsArrayLiteral() && !expression->IsObjectLiteral()) {
+  if (!expression->IsValidPattern()) {
     expression = CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
         kSyntaxError);
@@ -5747,7 +5746,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     ExpressionT lhs = each_variable = ParseLeftHandSideExpression();
     int lhs_end_pos = end_position();
 
-    if (lhs->IsArrayLiteral() || lhs->IsObjectLiteral()) {
+    if (lhs->IsValidPattern()) {
       ValidateAssignmentPattern();
     } else {
       ValidateExpression();

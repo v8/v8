@@ -1816,7 +1816,7 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
     return InitializeForOfStatement(for_of, each, subject, body, finalize,
                                     IteratorType::kNormal, each->position());
   } else {
-    if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
+    if (each->IsValidPattern()) {
       Variable* temp = NewTemporary(ast_value_factory()->empty_string());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
       Expression* assign_each =
@@ -2053,7 +2053,7 @@ Statement* Parser::InitializeForOfStatement(
   {
     assign_each =
         factory()->NewAssignment(Token::ASSIGN, each, result_value, nopos);
-    if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
+    if (each->IsValidPattern()) {
       assign_each = RewriteDestructuringAssignment(assign_each->AsAssignment());
     }
   }

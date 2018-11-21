@@ -606,8 +606,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // inside a variable proxy).  We exclude the case of 'this', which
   // has been converted to a variable proxy.
   V8_INLINE static bool IsIdentifier(Expression* expression) {
-    // TODO(verwaest): Rely on FailureExpression instead.
-    if (expression == nullptr) return false;
     VariableProxy* operand = expression->AsVariableProxy();
     return operand != nullptr && !operand->is_this() &&
            !operand->is_new_target();
