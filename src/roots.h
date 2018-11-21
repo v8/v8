@@ -257,8 +257,6 @@ class RootVisitor;
   V(FixedArray*, single_character_string_cache, SingleCharacterStringCache)   \
   V(FixedArray*, string_split_cache, StringSplitCache)                        \
   V(FixedArray*, regexp_multiple_cache, RegExpMultipleCache)                  \
-  /* Lists and dictionaries */                                                \
-  V(MicrotaskQueue*, default_microtask_queue, DefaultMicrotaskQueue)          \
   /* Indirection lists for isolate-independent builtins */                    \
   V(FixedArray*, builtins_constants_table, BuiltinsConstantsTable)            \
   /* JS Entries */                                                            \

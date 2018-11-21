@@ -29,7 +29,6 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/microtask-inl.h"
-#include "src/objects/microtask-queue-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/scope-info.h"
@@ -1653,16 +1652,6 @@ Handle<WeakFactoryCleanupJobTask> Factory::NewWeakFactoryCleanupJobTask(
           NewStruct(WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE));
   microtask->set_factory(*weak_factory);
   return microtask;
-}
-
-Handle<MicrotaskQueue> Factory::NewMicrotaskQueue() {
-  // MicrotaskQueue should be TENURED, as it outlives Context, and is mostly
-  // as long-living as Context is.
-  Handle<MicrotaskQueue> microtask_queue =
-      Handle<MicrotaskQueue>::cast(NewStruct(MICROTASK_QUEUE_TYPE, TENURED));
-  microtask_queue->set_queue(*empty_fixed_array());
-  microtask_queue->set_pending_microtask_count(0);
-  return microtask_queue;
 }
 
 Handle<Foreign> Factory::NewForeign(Address addr, PretenureFlag pretenure) {

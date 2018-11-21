@@ -46,6 +46,7 @@
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
 #include "src/interpreter/interpreter.h"
+#include "src/microtask-queue.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/maybe-object.h"
@@ -3868,6 +3869,16 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
     v->VisitRootPointers(Root::kStrongRoots, nullptr, list->start, list->end);
   }
   v->Synchronize(VisitorSynchronization::kStrongRoots);
+
+  // Iterate over pending Microtasks stored in MicrotaskQueues.
+  MicrotaskQueue* default_microtask_queue = isolate_->default_microtask_queue();
+  if (default_microtask_queue) {
+    MicrotaskQueue* microtask_queue = default_microtask_queue;
+    do {
+      microtask_queue->IterateMicrotasks(v);
+      microtask_queue = microtask_queue->next();
+    } while (microtask_queue != default_microtask_queue);
+  }
 
   // Iterate over the partial snapshot cache unless serializing or
   // deserializing.
