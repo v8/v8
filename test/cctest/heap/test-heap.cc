@@ -5733,6 +5733,7 @@ TEST(YoungGenerationLargeObjectAllocation) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
+  if (!isolate->serializer_enabled()) return;
 
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
