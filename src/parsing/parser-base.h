@@ -193,26 +193,36 @@ class ParserBase {
  public:
   // Shorten type names defined by ParserTypes<Impl>.
   typedef ParserTypes<Impl> Types;
-  typedef typename Types::Identifier IdentifierT;
-  typedef typename Types::Expression ExpressionT;
-  typedef typename Types::FunctionLiteral FunctionLiteralT;
-  typedef typename Types::ObjectLiteralProperty ObjectLiteralPropertyT;
-  typedef typename Types::ClassLiteralProperty ClassLiteralPropertyT;
-  typedef typename Types::Suspend SuspendExpressionT;
-  typedef typename Types::RewritableExpression RewritableExpressionT;
-  typedef typename Types::ObjectPropertyList ObjectPropertyListT;
-  typedef typename Types::FormalParameters FormalParametersT;
-  typedef typename Types::Statement StatementT;
-  typedef typename Types::StatementList StatementListT;
-  typedef typename Types::ExpressionList ExpressionListT;
-  typedef typename Types::Block BlockT;
-  typedef typename Types::ForStatement ForStatementT;
   typedef typename v8::internal::ExpressionClassifier<Types>
       ExpressionClassifier;
+
+  // Return types for traversing functions.
+  typedef typename Types::Block BlockT;
+  typedef typename Types::BreakableStatement BreakableStatementT;
+  typedef typename Types::ClassLiteralProperty ClassLiteralPropertyT;
+  typedef typename Types::ClassPropertyList ClassPropertyListT;
+  typedef typename Types::Expression ExpressionT;
+  typedef typename Types::ExpressionList ExpressionListT;
+  typedef typename Types::FormalParameters FormalParametersT;
+  typedef typename Types::ForStatement ForStatementT;
+  typedef typename Types::FunctionLiteral FunctionLiteralT;
+  typedef typename Types::Identifier IdentifierT;
+  typedef typename Types::IterationStatement IterationStatementT;
+  typedef typename Types::ObjectLiteralProperty ObjectLiteralPropertyT;
+  typedef typename Types::ObjectPropertyList ObjectPropertyListT;
+  typedef typename Types::RewritableExpression RewritableExpressionT;
+  typedef typename Types::Statement StatementT;
+  typedef typename Types::StatementList StatementListT;
+  typedef typename Types::Suspend SuspendExpressionT;
+  // For constructing objects returned by the traversing functions.
+  typedef typename Types::Factory FactoryT;
+  // Other implementation-specific tasks.
   typedef typename Types::FuncNameInferrer FuncNameInferrer;
   typedef typename Types::FuncNameInferrer::State FuncNameInferrerState;
   typedef typename Types::SourceRange SourceRange;
   typedef typename Types::SourceRangeScope SourceRangeScope;
+  typedef typename Types::Target TargetT;
+  typedef typename Types::TargetScope TargetScopeT;
 
   // All implementation-specific methods must be called through this.
   Impl* impl() { return static_cast<Impl*>(this); }
@@ -552,9 +562,9 @@ class ParserBase {
           computed_field_count(0) {}
     Variable* variable;
     ExpressionT extends;
-    typename Types::ClassPropertyList properties;
-    typename Types::ClassPropertyList static_fields;
-    typename Types::ClassPropertyList instance_fields;
+    ClassPropertyListT properties;
+    ClassPropertyListT static_fields;
+    ClassPropertyListT instance_fields;
     FunctionLiteralT constructor;
 
     bool has_seen_constructor;
@@ -4504,7 +4514,7 @@ ParserBase<Impl>::ParseStatementList(StatementListT* body,
   // Allocate a target stack to use for this set of source elements. This way,
   // all scripts and functions get their own target stack thus avoiding illegal
   // breaks and continues across functions.
-  typename Types::TargetScope target_scope(this);
+  TargetScopeT target_scope(this);
   int count_statements = 0;
 
   if (may_abort) {
@@ -4641,7 +4651,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       if (labels == nullptr) return ParseTryStatement();
       StatementListT statements(pointer_buffer());
       BlockT result = factory()->NewBlock(false, labels);
-      typename Types::Target target(this, result);
+      TargetT target(this, result);
       StatementT statement = ParseTryStatement();
       statements.Add(statement);
       result->InitializeStatements(statements, zone());
@@ -4698,7 +4708,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   {
     BlockState block_state(zone(), &scope_);
     scope()->set_start_position(scanner()->location().beg_pos);
-    typename Types::Target target(this, body);
+    TargetT target(this, body);
 
     while (peek() != Token::RBRACE) {
       StatementT stat = ParseStatementListItem();
@@ -4898,13 +4908,11 @@ ParserBase<Impl>::ParseContinueStatement() {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
     label = ParseIdentifier(kAllowRestrictedIdentifiers);
   }
-  typename Types::IterationStatement target =
-      impl()->LookupContinueTarget(label);
+  IterationStatementT target = impl()->LookupContinueTarget(label);
   if (impl()->IsNull(target)) {
     // Illegal continue statement.
     MessageTemplate message = MessageTemplate::kIllegalContinue;
-    typename Types::BreakableStatement breakable_target =
-        impl()->LookupBreakTarget(label);
+    BreakableStatementT breakable_target = impl()->LookupBreakTarget(label);
     if (impl()->IsNull(label)) {
       message = MessageTemplate::kNoIterationStatement;
     } else if (impl()->IsNull(breakable_target)) {
@@ -4940,7 +4948,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
     ExpectSemicolon();
     return factory()->EmptyStatement();
   }
-  typename Types::BreakableStatement target = impl()->LookupBreakTarget(label);
+  BreakableStatementT target = impl()->LookupBreakTarget(label);
   if (impl()->IsNull(target)) {
     // Illegal break statement.
     MessageTemplate message = MessageTemplate::kIllegalBreak;
@@ -5033,7 +5041,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   //   'do' Statement 'while' '(' Expression ')' ';'
   auto loop =
       factory()->NewDoWhileStatement(labels, own_labels, peek_position());
-  typename Types::Target target(this, loop);
+  TargetT target(this, loop);
 
   SourceRange body_range;
   StatementT body = impl()->NullStatement();
@@ -5071,7 +5079,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
   //   'while' '(' Expression ')' Statement
 
   auto loop = factory()->NewWhileStatement(labels, own_labels, peek_position());
-  typename Types::Target target(this, loop);
+  TargetT target(this, loop);
 
   SourceRange body_range;
   StatementT body = impl()->NullStatement();
@@ -5134,7 +5142,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     BlockState cases_block_state(zone(), &scope_);
     scope()->set_start_position(switch_pos);
     scope()->SetNonlinear();
-    typename Types::Target target(this, switch_statement);
+    TargetT target(this, switch_statement);
 
     bool default_seen = false;
     Expect(Token::LBRACE);
@@ -5427,7 +5435,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
 
   auto loop = factory()->NewForEachStatement(for_info->mode, labels, own_labels,
                                              stmt_pos);
-  typename Types::Target target(this, loop);
+  TargetT target(this, loop);
 
   ExpressionT enumerable = impl()->NullExpression();
   if (for_info->mode == ForEachStatement::ITERATE) {
@@ -5514,7 +5522,7 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
 
   auto loop = factory()->NewForEachStatement(for_info->mode, labels, own_labels,
                                              stmt_pos);
-  typename Types::Target target(this, loop);
+  TargetT target(this, loop);
 
   ExpressionT enumerable = impl()->NullExpression();
   if (for_info->mode == ForEachStatement::ITERATE) {
@@ -5604,7 +5612,7 @@ typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
     ZonePtrList<const AstRawString>* own_labels, ExpressionT* cond,
     StatementT* next, StatementT* body) {
   ForStatementT loop = factory()->NewForStatement(labels, own_labels, stmt_pos);
-  typename Types::Target target(this, loop);
+  TargetT target(this, loop);
 
   if (peek() != Token::SEMICOLON) {
     *cond = ParseExpression();
@@ -5659,7 +5667,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   scope()->set_is_hidden();
 
   auto loop = factory()->NewForOfStatement(labels, own_labels, stmt_pos);
-  typename Types::Target target(this, loop);
+  TargetT target(this, loop);
 
   ExpressionT each_variable = impl()->NullExpression();
 

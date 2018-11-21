@@ -128,30 +128,31 @@ struct ParserTypes<Parser> {
   typedef Parser Impl;
 
   // Return types for traversing functions.
-  typedef const AstRawString* Identifier;
-  typedef v8::internal::Expression* Expression;
-  typedef v8::internal::FunctionLiteral* FunctionLiteral;
-  typedef ObjectLiteral::Property* ObjectLiteralProperty;
-  typedef ClassLiteral::Property* ClassLiteralProperty;
-  typedef v8::internal::Suspend* Suspend;
-  typedef v8::internal::RewritableExpression* RewritableExpression;
-  typedef ZonePtrList<ClassLiteral::Property>* ClassPropertyList;
-  typedef ParserFormalParameters FormalParameters;
-  typedef v8::internal::Statement* Statement;
-  typedef ScopedPtrList<v8::internal::Statement> StatementList;
-  typedef ScopedPtrList<v8::internal::Expression> ExpressionList;
-  typedef ScopedPtrList<v8::internal::ObjectLiteralProperty> ObjectPropertyList;
   typedef v8::internal::Block* Block;
   typedef v8::internal::BreakableStatement* BreakableStatement;
+  typedef ClassLiteral::Property* ClassLiteralProperty;
+  typedef ZonePtrList<ClassLiteral::Property>* ClassPropertyList;
+  typedef v8::internal::Expression* Expression;
+  typedef ScopedPtrList<v8::internal::Expression> ExpressionList;
+  typedef ParserFormalParameters FormalParameters;
   typedef v8::internal::ForStatement* ForStatement;
+  typedef v8::internal::FunctionLiteral* FunctionLiteral;
+  typedef const AstRawString* Identifier;
   typedef v8::internal::IterationStatement* IterationStatement;
-  typedef v8::internal::FuncNameInferrer FuncNameInferrer;
-  typedef v8::internal::SourceRange SourceRange;
-  typedef v8::internal::SourceRangeScope SourceRangeScope;
+  typedef ObjectLiteral::Property* ObjectLiteralProperty;
+  typedef ScopedPtrList<v8::internal::ObjectLiteralProperty> ObjectPropertyList;
+  typedef v8::internal::RewritableExpression* RewritableExpression;
+  typedef v8::internal::Statement* Statement;
+  typedef ScopedPtrList<v8::internal::Statement> StatementList;
+  typedef v8::internal::Suspend* Suspend;
 
   // For constructing objects returned by the traversing functions.
   typedef AstNodeFactory Factory;
 
+  // Other implementation-specific functions.
+  typedef v8::internal::FuncNameInferrer FuncNameInferrer;
+  typedef v8::internal::SourceRange SourceRange;
+  typedef v8::internal::SourceRangeScope SourceRangeScope;
   typedef ParserTarget Target;
   typedef ParserTargetScope TargetScope;
 

@@ -903,32 +903,34 @@ struct ParserTypes<PreParser> {
   typedef PreParser Impl;
 
   // Return types for traversing functions.
-  typedef PreParserIdentifier Identifier;
+  typedef PreParserExpression ClassLiteralProperty;
   typedef PreParserExpression Expression;
   typedef PreParserExpression FunctionLiteral;
   typedef PreParserExpression ObjectLiteralProperty;
-  typedef PreParserExpression ClassLiteralProperty;
-  typedef PreParserExpression Suspend;
   typedef PreParserExpression RewritableExpression;
-  typedef PreParserPropertyList ClassPropertyList;
-  typedef PreParserFormalParameters FormalParameters;
-  typedef PreParserStatement Statement;
-  typedef PreParserScopedStatementList StatementList;
+  typedef PreParserExpression Suspend;
   typedef PreParserExpressionList ExpressionList;
   typedef PreParserExpressionList ObjectPropertyList;
+  typedef PreParserFormalParameters FormalParameters;
+  typedef PreParserIdentifier Identifier;
+  typedef PreParserPropertyList ClassPropertyList;
+  typedef PreParserScopedStatementList StatementList;
   typedef PreParserStatement Block;
   typedef PreParserStatement BreakableStatement;
-  typedef PreParserStatement IterationStatement;
   typedef PreParserStatement ForStatement;
+  typedef PreParserStatement IterationStatement;
+  typedef PreParserStatement Statement;
 
   // For constructing objects returned by the traversing functions.
   typedef PreParserFactory Factory;
 
-  typedef PreParserTarget Target;
-  typedef PreParserTargetScope TargetScope;
+  // Other implementation-specific tasks.
   typedef PreParserFuncNameInferrer FuncNameInferrer;
   typedef PreParserSourceRange SourceRange;
   typedef PreParserSourceRangeScope SourceRangeScope;
+  typedef PreParserTarget Target;
+  typedef PreParserTargetScope TargetScope;
+
   static constexpr bool ExpressionClassifierReportErrors = false;
 };
 
