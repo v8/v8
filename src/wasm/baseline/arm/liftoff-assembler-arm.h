@@ -361,7 +361,10 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
-  BAILOUT("MoveStackValue");
+  DCHECK_NE(dst_index, src_index);
+  LiftoffRegister reg = GetUnusedRegister(kGpReg);
+  Fill(reg, src_index, type);
+  Spill(dst_index, reg, type);
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
@@ -377,20 +380,83 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
                              ValueType type) {
-  BAILOUT("Spill register");
+  RecordUsedSpillSlot(index);
+  MemOperand dst = liftoff::GetStackSlot(index);
+  switch (type) {
+    case kWasmI32:
+      str(reg.gp(), dst);
+      break;
+    case kWasmI64:
+      str(reg.low_gp(), dst);
+      str(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
+      break;
+    case kWasmF32:
+      BAILOUT("Spill Register f32");
+      break;
+    case kWasmF64:
+      vstr(reg.fp(), dst);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
-  BAILOUT("Spill value");
+  RecordUsedSpillSlot(index);
+  MemOperand dst = liftoff::GetStackSlot(index);
+  UseScratchRegisterScope temps(this);
+  Register src = no_reg;
+  // The scratch register will be required by str if multiple instructions
+  // are required to encode the offset, and so we cannot use it in that case.
+  if (!ImmediateFitsAddrMode2Instruction(dst.offset())) {
+    src = GetUnusedRegister(kGpReg).gp();
+  } else {
+    src = temps.Acquire();
+  }
+  switch (value.type()) {
+    case kWasmI32:
+      mov(src, Operand(value.to_i32()));
+      str(src, dst);
+      break;
+    case kWasmI64: {
+      int32_t low_word = value.to_i64();
+      mov(src, Operand(low_word));
+      str(src, dst);
+      int32_t high_word = value.to_i64() >> 32;
+      mov(src, Operand(high_word));
+      str(src, liftoff::GetHalfStackSlot(index, kHighWord));
+      break;
+    }
+    default:
+      // We do not track f32 and f64 constants, hence they are unreachable.
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
                             ValueType type) {
-  BAILOUT("Fill");
+  MemOperand src = liftoff::GetStackSlot(index);
+  switch (type) {
+    case kWasmI32:
+      ldr(reg.gp(), src);
+      break;
+    case kWasmI64:
+      ldr(reg.low_gp(), src);
+      ldr(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
+      break;
+    case kWasmF32:
+      BAILOUT("Fill Register");
+      break;
+    case kWasmF64:
+      vldr(reg.fp(), src);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
-  BAILOUT("FillI64Half");
+void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
+  ldr(reg, liftoff::GetHalfStackSlot(half_index));
 }
 
 #define UNIMPLEMENTED_GP_BINOP(name)                             \
@@ -709,11 +775,12 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  BAILOUT("AllocateStackSlot");
+  sub(sp, sp, Operand(size));
+  mov(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  BAILOUT("DeallocateStackSlot");
+  add(sp, sp, Operand(size));
 }
 
 void LiftoffStackSlots::Construct() {
