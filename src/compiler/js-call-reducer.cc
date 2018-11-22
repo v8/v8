@@ -3011,8 +3011,9 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         FieldAccess const& access = FieldAccessOf(user->op());
         if (access.offset == JSArray::kLengthOffset) {
           // Ignore uses for arguments#length.
-          STATIC_ASSERT(JSArray::kLengthOffset ==
-                        JSArgumentsObjectWithLength::kLengthOffset);
+          STATIC_ASSERT(
+              static_cast<int>(JSArray::kLengthOffset) ==
+              static_cast<int>(JSArgumentsObjectWithLength::kLengthOffset));
           continue;
         } else if (access.offset == JSObject::kElementsOffset) {
           // Ignore safe uses for arguments#elements.

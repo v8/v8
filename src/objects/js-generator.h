@@ -67,15 +67,19 @@ class JSGeneratorObject : public JSObject {
   static const int kGeneratorClosed = -1;
 
   // Layout description.
-  static const int kFunctionOffset = JSObject::kHeaderSize;
-  static const int kContextOffset = kFunctionOffset + kPointerSize;
-  static const int kReceiverOffset = kContextOffset + kPointerSize;
-  static const int kInputOrDebugPosOffset = kReceiverOffset + kPointerSize;
-  static const int kResumeModeOffset = kInputOrDebugPosOffset + kPointerSize;
-  static const int kContinuationOffset = kResumeModeOffset + kPointerSize;
-  static const int kParametersAndRegistersOffset =
-      kContinuationOffset + kPointerSize;
-  static const int kSize = kParametersAndRegistersOffset + kPointerSize;
+#define JS_GENERATOR_FIELDS(V)                  \
+  V(kFunctionOffset, kTaggedSize)               \
+  V(kContextOffset, kTaggedSize)                \
+  V(kReceiverOffset, kTaggedSize)               \
+  V(kInputOrDebugPosOffset, kTaggedSize)        \
+  V(kResumeModeOffset, kTaggedSize)             \
+  V(kContinuationOffset, kTaggedSize)           \
+  V(kParametersAndRegistersOffset, kTaggedSize) \
+  /* Header size. */                            \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GENERATOR_FIELDS)
+#undef JS_GENERATOR_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
@@ -92,8 +96,14 @@ class JSAsyncFunctionObject : public JSGeneratorObject {
   DECL_ACCESSORS(promise, JSPromise)
 
   // Layout description.
-  static const int kPromiseOffset = JSGeneratorObject::kSize;
-  static const int kSize = kPromiseOffset + kPointerSize;
+#define JS_ASYNC_FUNCTION_FIELDS(V) \
+  V(kPromiseOffset, kTaggedSize)    \
+  /* Header size. */                \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSGeneratorObject::kSize,
+                                JS_ASYNC_FUNCTION_FIELDS)
+#undef JS_ASYNC_FUNCTION_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncFunctionObject);
@@ -116,9 +126,15 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
   DECL_INT_ACCESSORS(is_awaiting)
 
   // Layout description.
-  static const int kQueueOffset = JSGeneratorObject::kSize;
-  static const int kIsAwaitingOffset = kQueueOffset + kPointerSize;
-  static const int kSize = kIsAwaitingOffset + kPointerSize;
+#define JS_ASYNC_GENERATOR_FIELDS(V) \
+  V(kQueueOffset, kTaggedSize)       \
+  V(kIsAwaitingOffset, kTaggedSize)  \
+  /* Header size. */                 \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSGeneratorObject::kSize,
+                                JS_ASYNC_GENERATOR_FIELDS)
+#undef JS_ASYNC_GENERATOR_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncGeneratorObject);

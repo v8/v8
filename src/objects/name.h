@@ -176,9 +176,14 @@ class Symbol : public Name {
   DECL_VERIFIER(Symbol)
 
   // Layout description.
-  static const int kFlagsOffset = Name::kHeaderSize;
-  static const int kNameOffset = kFlagsOffset + kInt32Size;
-  static const int kSize = kNameOffset + kPointerSize;
+#define SYMBOL_FIELDS(V)      \
+  V(kFlagsOffset, kInt32Size) \
+  V(kNameOffset, kTaggedSize) \
+  /* Header size. */          \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Name::kHeaderSize, SYMBOL_FIELDS)
+#undef SYMBOL_FIELDS
 
 // Flags layout.
 #define FLAGS_BIT_FIELDS(V, _)          \

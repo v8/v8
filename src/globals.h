@@ -836,6 +836,10 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 #define POINTER_SIZE_ALIGN(value)                               \
   (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
 
+// POINTER_SIZE_PADDING returns the padding size required to align value
+// as a system pointer.
+#define POINTER_SIZE_PADDING(value) (POINTER_SIZE_ALIGN(value) - (value))
+
 // CODE_POINTER_ALIGN returns the value aligned as a generated code segment.
 #define CODE_POINTER_ALIGN(value)                               \
   (((value) + kCodeAlignmentMask) & ~kCodeAlignmentMask)

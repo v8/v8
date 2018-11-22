@@ -251,7 +251,7 @@ int JSObject::GetEmbedderFieldCount(const Map map) {
   // Internal objects do follow immediately after the header, whereas in-object
   // properties are at the end of the object. Therefore there is no need
   // to adjust the index here.
-  return (((instance_size - GetHeaderSize(map)) >> kPointerSizeLog2) -
+  return (((instance_size - GetHeaderSize(map)) >> kTaggedSizeLog2) -
           map->GetInObjectProperties()) /
          kEmbedderDataSlotSizeInTaggedSlots;
 }
@@ -319,8 +319,9 @@ void JSObject::RawFastPropertyAtPut(FieldIndex index, Object* value) {
 
 void JSObject::RawFastDoublePropertyAsBitsAtPut(FieldIndex index,
                                                 uint64_t bits) {
-  // Double unboxing is enabled only on 64-bit platforms.
-  DCHECK_EQ(kDoubleSize, kPointerSize);
+  // Double unboxing is enabled only on 64-bit platforms without pointer
+  // compression.
+  DCHECK_EQ(kDoubleSize, kTaggedSize);
   Address field_addr = FIELD_ADDR(this, index.offset());
   base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(field_addr),
                       static_cast<base::AtomicWord>(bits));
@@ -398,16 +399,16 @@ void JSObject::InitializeBody(Map map, int start_offset,
   int offset = start_offset;
   if (filler_value != pre_allocated_value) {
     int end_of_pre_allocated_offset =
-        size - (map->UnusedPropertyFields() * kPointerSize);
+        size - (map->UnusedPropertyFields() * kTaggedSize);
     DCHECK_LE(kHeaderSize, end_of_pre_allocated_offset);
     while (offset < end_of_pre_allocated_offset) {
       WRITE_FIELD(this, offset, pre_allocated_value);
-      offset += kPointerSize;
+      offset += kTaggedSize;
     }
   }
   while (offset < size) {
     WRITE_FIELD(this, offset, filler_value);
-    offset += kPointerSize;
+    offset += kTaggedSize;
   }
 }
 

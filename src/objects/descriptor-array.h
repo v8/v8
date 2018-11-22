@@ -141,9 +141,15 @@ class DescriptorArray : public WeakFixedArray {
   static const int kFirstIndex = 2;
 
   // Layout description.
-  static const int kDescriptorLengthOffset = FixedArray::kHeaderSize;
-  static const int kEnumCacheOffset = kDescriptorLengthOffset + kPointerSize;
-  static const int kFirstOffset = kEnumCacheOffset + kPointerSize;
+#define DESCRIPTOR_ARRAY_FIELDS(V)        \
+  V(kDescriptorLengthOffset, kTaggedSize) \
+  V(kEnumCacheOffset, kTaggedSize)        \
+  /* Header size. */                      \
+  V(kFirstOffset, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArray::kHeaderSize,
+                                DESCRIPTOR_ARRAY_FIELDS)
+#undef DESCRIPTOR_ARRAY_FIELDS
 
   // Layout of descriptor.
   // Naming is consistent with Dictionary classes for easy templating.

@@ -75,11 +75,11 @@ bool FixedArrayPtr::ContainsOnlySmisOrHoles() {
 
 Object* FixedArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
-  return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
+  return RELAXED_READ_FIELD(this, kHeaderSize + index * kTaggedSize);
 }
 Object* FixedArrayPtr::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
-  return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
+  return RELAXED_READ_FIELD(this, kHeaderSize + index * kTaggedSize);
 }
 
 Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
@@ -127,7 +127,7 @@ void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(index, this->length());
   DCHECK(ObjectPtr(value).IsSmi());
-  int offset = kHeaderSize + index * kPointerSize;
+  int offset = kHeaderSize + index * kTaggedSize;
   RELAXED_WRITE_FIELD(this, offset, value);
 }
 void FixedArrayPtr::set(int index, Smi value) {
@@ -139,7 +139,7 @@ void FixedArray::set(int index, Object* value) {
   DCHECK(IsFixedArray());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
+  int offset = kHeaderSize + index * kTaggedSize;
   RELAXED_WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(this, offset, value);
 }
@@ -151,7 +151,7 @@ void FixedArray::set(int index, Object* value, WriteBarrierMode mode) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
+  int offset = kHeaderSize + index * kTaggedSize;
   RELAXED_WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
@@ -165,7 +165,7 @@ void FixedArray::NoWriteBarrierSet(FixedArray* array, int index,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
   DCHECK(!Heap::InNewSpace(value));
-  RELAXED_WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
+  RELAXED_WRITE_FIELD(array, kHeaderSize + index * kTaggedSize, value);
 }
 void FixedArrayPtr::NoWriteBarrierSet(FixedArrayPtr array, int index,
                                       Object* value) {
@@ -173,7 +173,7 @@ void FixedArrayPtr::NoWriteBarrierSet(FixedArrayPtr array, int index,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
   DCHECK(!Heap::InNewSpace(value));
-  RELAXED_WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
+  RELAXED_WRITE_FIELD(array, kHeaderSize + index * kTaggedSize, value);
 }
 
 void FixedArray::set_undefined(int index) {
@@ -419,7 +419,7 @@ void ArrayList::Clear(int index, Object* undefined) {
                               SKIP_WRITE_BARRIER);
 }
 
-int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
+int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
 
 byte ByteArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
@@ -475,7 +475,7 @@ ByteArray* ByteArray::FromDataStartAddress(Address address) {
   return reinterpret_cast<ByteArray*>(address - kHeaderSize + kHeapObjectTag);
 }
 
-int ByteArray::DataSize() const { return RoundUp(length(), kPointerSize); }
+int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
 
 int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
 

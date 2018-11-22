@@ -101,8 +101,13 @@ class JSArray : public JSObject {
   static const int kPreallocatedArrayElements = 4;
 
   // Layout description.
-  static const int kLengthOffset = JSObject::kHeaderSize;
-  static const int kSize = kLengthOffset + kPointerSize;
+#define JS_ARRAY_FIELDS(V)      \
+  V(kLengthOffset, kTaggedSize) \
+  /* Header size. */            \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_ARRAY_FIELDS)
+#undef JS_ARRAY_FIELDS
 
   static const int kLengthDescriptorIndex = 0;
 
@@ -171,10 +176,16 @@ class JSArrayIterator : public JSObject {
   inline IterationKind kind() const;
   inline void set_kind(IterationKind kind);
 
-  static const int kIteratedObjectOffset = JSObject::kHeaderSize;
-  static const int kNextIndexOffset = kIteratedObjectOffset + kPointerSize;
-  static const int kKindOffset = kNextIndexOffset + kPointerSize;
-  static const int kSize = kKindOffset + kPointerSize;
+  // Layout description.
+#define JS_ARRAY_ITERATOR_FIELDS(V)     \
+  V(kIteratedObjectOffset, kTaggedSize) \
+  V(kNextIndexOffset, kTaggedSize)      \
+  V(kKindOffset, kTaggedSize)           \
+  /* Header size. */                    \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_ARRAY_ITERATOR_FIELDS)
+#undef JS_ARRAY_ITERATOR_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayIterator);

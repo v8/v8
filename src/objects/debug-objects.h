@@ -166,18 +166,21 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   DECL_PRINTER(DebugInfo)
   DECL_VERIFIER(DebugInfo)
 
-  static const int kSharedFunctionInfoOffset = Struct::kHeaderSize;
-  static const int kDebuggerHintsOffset =
-      kSharedFunctionInfoOffset + kPointerSize;
-  static const int kScriptOffset = kDebuggerHintsOffset + kPointerSize;
-  static const int kOriginalBytecodeArrayOffset = kScriptOffset + kPointerSize;
-  static const int kDebugBytecodeArrayOffset =
-      kOriginalBytecodeArrayOffset + kPointerSize;
-  static const int kBreakPointsStateOffset =
-      kDebugBytecodeArrayOffset + kPointerSize;
-  static const int kFlagsOffset = kBreakPointsStateOffset + kPointerSize;
-  static const int kCoverageInfoOffset = kFlagsOffset + kPointerSize;
-  static const int kSize = kCoverageInfoOffset + kPointerSize;
+// Layout description.
+#define DEBUG_INFO_FIELDS(V)                   \
+  V(kSharedFunctionInfoOffset, kTaggedSize)    \
+  V(kDebuggerHintsOffset, kTaggedSize)         \
+  V(kScriptOffset, kTaggedSize)                \
+  V(kOriginalBytecodeArrayOffset, kTaggedSize) \
+  V(kDebugBytecodeArrayOffset, kTaggedSize)    \
+  V(kBreakPointsStateOffset, kTaggedSize)      \
+  V(kFlagsOffset, kTaggedSize)                 \
+  V(kCoverageInfoOffset, kTaggedSize)          \
+  /* Total size. */                            \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, DEBUG_INFO_FIELDS)
+#undef DEBUG_INFO_FIELDS
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 

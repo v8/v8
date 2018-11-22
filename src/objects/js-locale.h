@@ -109,20 +109,24 @@ class JSLocale : public JSObject {
   DECL_VERIFIER(JSLocale)
 
   // Layout description.
-  static const int kJSLocaleOffset = JSObject::kHeaderSize;
-  // Locale fields.
-  static const int kLanguageOffset = kJSLocaleOffset + kPointerSize;
-  static const int kScriptOffset = kLanguageOffset + kPointerSize;
-  static const int kRegionOffset = kScriptOffset + kPointerSize;
-  static const int kBaseNameOffset = kRegionOffset + kPointerSize;
-  static const int kLocaleOffset = kBaseNameOffset + kPointerSize;
-  // Unicode extension fields.
-  static const int kFlagsOffset = kLocaleOffset + kPointerSize;
-  static const int kCalendarOffset = kFlagsOffset + kPointerSize;
-  static const int kCollationOffset = kCalendarOffset + kPointerSize;
-  static const int kNumberingSystemOffset = kCollationOffset + kPointerSize;
-  // Final size.
-  static const int kSize = kNumberingSystemOffset + kPointerSize;
+#define JS_LOCALE_FIELDS(V)              \
+  V(kJSLocaleOffset, kTaggedSize)        \
+  /* Locale fields. */                   \
+  V(kLanguageOffset, kTaggedSize)        \
+  V(kScriptOffset, kTaggedSize)          \
+  V(kRegionOffset, kTaggedSize)          \
+  V(kBaseNameOffset, kTaggedSize)        \
+  V(kLocaleOffset, kTaggedSize)          \
+  /* Unicode extension fields. */        \
+  V(kFlagsOffset, kTaggedSize)           \
+  V(kCalendarOffset, kTaggedSize)        \
+  V(kCollationOffset, kTaggedSize)       \
+  V(kNumberingSystemOffset, kTaggedSize) \
+  /* Header size. */                     \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_LOCALE_FIELDS)
+#undef JS_LOCALE_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSLocale);

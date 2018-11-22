@@ -44,17 +44,16 @@ class PreParsedScopeData : public HeapObject {
   DECL_VERIFIER(PreParsedScopeData)
 
 // Layout description.
-#define PRE_PARSED_SCOPE_DATA_FIELDS(V) \
-  V(kScopeDataOffset, kTaggedSize)      \
-  V(kLengthOffset, kIntSize)            \
-  V(kUnalignedChildDataStartOffset, 0)
+#define PRE_PARSED_SCOPE_DATA_FIELDS(V)                                   \
+  V(kScopeDataOffset, kTaggedSize)                                        \
+  V(kLengthOffset, kIntSize)                                              \
+  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
+  /* Header size. */                                                      \
+  V(kChildDataStartOffset, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 PRE_PARSED_SCOPE_DATA_FIELDS)
 #undef PRE_PARSED_SCOPE_DATA_FIELDS
-
-  static const int kChildDataStartOffset =
-      POINTER_SIZE_ALIGN(kUnalignedChildDataStartOffset);
 
   class BodyDescriptor;
 
@@ -78,21 +77,20 @@ class UncompiledData : public HeapObject {
   DECL_CAST(UncompiledData)
 
 // Layout description.
-#define UNCOMPILED_DATA_FIELDS(V)         \
-  V(kStartOfPointerFieldsOffset, 0)       \
-  V(kInferredNameOffset, kTaggedSize)     \
-  V(kEndOfTaggedFieldsOffset, 0)          \
-  /* Raw data fields. */                  \
-  V(kStartPositionOffset, kInt32Size)     \
-  V(kEndPositionOffset, kInt32Size)       \
-  V(kFunctionLiteralIdOffset, kInt32Size) \
-  /* Total size. */                       \
-  V(kUnalignedSize, 0)
+#define UNCOMPILED_DATA_FIELDS(V)                                         \
+  V(kStartOfPointerFieldsOffset, 0)                                       \
+  V(kInferredNameOffset, kTaggedSize)                                     \
+  V(kEndOfTaggedFieldsOffset, 0)                                          \
+  /* Raw data fields. */                                                  \
+  V(kStartPositionOffset, kInt32Size)                                     \
+  V(kEndPositionOffset, kInt32Size)                                       \
+  V(kFunctionLiteralIdOffset, kInt32Size)                                 \
+  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
+  /* Header size. */                                                      \
+  V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, UNCOMPILED_DATA_FIELDS)
 #undef UNCOMPILED_DATA_FIELDS
-
-  static const int kSize = POINTER_SIZE_ALIGN(kUnalignedSize);
 
   typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
                               kEndOfTaggedFieldsOffset, kSize>

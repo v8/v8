@@ -25,13 +25,18 @@ class TemplateInfo : public Struct, public NeverReadOnlySpaceObject {
 
   DECL_CAST(TemplateInfo)
 
-  static const int kTagOffset = HeapObject::kHeaderSize;
-  static const int kSerialNumberOffset = kTagOffset + kPointerSize;
-  static const int kNumberOfProperties = kSerialNumberOffset + kPointerSize;
-  static const int kPropertyListOffset = kNumberOfProperties + kPointerSize;
-  static const int kPropertyAccessorsOffset =
-      kPropertyListOffset + kPointerSize;
-  static const int kHeaderSize = kPropertyAccessorsOffset + kPointerSize;
+  // Layout description.
+#define TEMPLATE_INFO_FIELDS(V)            \
+  V(kTagOffset, kTaggedSize)               \
+  V(kSerialNumberOffset, kTaggedSize)      \
+  V(kNumberOfProperties, kTaggedSize)      \
+  V(kPropertyListOffset, kTaggedSize)      \
+  V(kPropertyAccessorsOffset, kTaggedSize) \
+  /* Header size. */                       \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, TEMPLATE_INFO_FIELDS)
+#undef TEMPLATE_INFO_FIELDS
 
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
@@ -63,22 +68,21 @@ class FunctionTemplateRareData : public Struct {
   DECL_PRINTER(FunctionTemplateRareData)
   DECL_VERIFIER(FunctionTemplateRareData)
 
-  static const int kPrototypeTemplateOffset = HeapObject::kHeaderSize;
-  static const int kPrototypeProviderTemplateOffset =
-      kPrototypeTemplateOffset + kPointerSize;
-  static const int kParentTemplateOffset =
-      kPrototypeProviderTemplateOffset + kPointerSize;
-  static const int kNamedPropertyHandlerOffset =
-      kParentTemplateOffset + kPointerSize;
-  static const int kIndexedPropertyHandlerOffset =
-      kNamedPropertyHandlerOffset + kPointerSize;
-  static const int kInstanceTemplateOffset =
-      kIndexedPropertyHandlerOffset + kPointerSize;
-  static const int kInstanceCallHandlerOffset =
-      kInstanceTemplateOffset + kPointerSize;
-  static const int kAccessCheckInfoOffset =
-      kInstanceCallHandlerOffset + kPointerSize;
-  static const int kSize = kAccessCheckInfoOffset + kPointerSize;
+  // Layout description.
+#define SYMBOL_FIELDS(V)                           \
+  V(kPrototypeTemplateOffset, kTaggedSize)         \
+  V(kPrototypeProviderTemplateOffset, kTaggedSize) \
+  V(kParentTemplateOffset, kTaggedSize)            \
+  V(kNamedPropertyHandlerOffset, kTaggedSize)      \
+  V(kIndexedPropertyHandlerOffset, kTaggedSize)    \
+  V(kInstanceTemplateOffset, kTaggedSize)          \
+  V(kInstanceCallHandlerOffset, kTaggedSize)       \
+  V(kAccessCheckInfoOffset, kTaggedSize)           \
+  /* Total size. */                                \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, SYMBOL_FIELDS)
+#undef SYMBOL_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateRareData);
@@ -188,17 +192,22 @@ class FunctionTemplateInfo : public TemplateInfo {
 
   static const int kInvalidSerialNumber = 0;
 
-  static const int kCallCodeOffset = TemplateInfo::kHeaderSize;
-  static const int kClassNameOffset = kCallCodeOffset + kPointerSize;
-  static const int kSignatureOffset = kClassNameOffset + kPointerSize;
-  static const int kFunctionTemplateRareDataOffset =
-      kSignatureOffset + kPointerSize;
-  static const int kSharedFunctionInfoOffset =
-      kFunctionTemplateRareDataOffset + kPointerSize;
-  static const int kFlagOffset = kSharedFunctionInfoOffset + kPointerSize;
-  static const int kLengthOffset = kFlagOffset + kPointerSize;
-  static const int kCachedPropertyNameOffset = kLengthOffset + kPointerSize;
-  static const int kSize = kCachedPropertyNameOffset + kPointerSize;
+  // Layout description.
+#define FUNCTION_TEMPLATE_INFO_FIELDS(V)          \
+  V(kCallCodeOffset, kTaggedSize)                 \
+  V(kClassNameOffset, kTaggedSize)                \
+  V(kSignatureOffset, kTaggedSize)                \
+  V(kFunctionTemplateRareDataOffset, kTaggedSize) \
+  V(kSharedFunctionInfoOffset, kTaggedSize)       \
+  V(kFlagOffset, kTaggedSize)                     \
+  V(kLengthOffset, kTaggedSize)                   \
+  V(kCachedPropertyNameOffset, kTaggedSize)       \
+  /* Total size. */                               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kHeaderSize,
+                                FUNCTION_TEMPLATE_INFO_FIELDS)
+#undef FUNCTION_TEMPLATE_INFO_FIELDS
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,
@@ -248,10 +257,17 @@ class ObjectTemplateInfo : public TemplateInfo {
   DECL_PRINTER(ObjectTemplateInfo)
   DECL_VERIFIER(ObjectTemplateInfo)
 
-  static const int kConstructorOffset = TemplateInfo::kHeaderSize;
-  // LSB is for immutable_proto, higher bits for embedder_field_count
-  static const int kDataOffset = kConstructorOffset + kPointerSize;
-  static const int kSize = kDataOffset + kPointerSize;
+  // Layout description.
+#define OBJECT_TEMPLATE_INFO_FIELDS(V)                                   \
+  V(kConstructorOffset, kTaggedSize)                                     \
+  /* LSB is for immutable_proto, higher bits for embedder_field_count */ \
+  V(kDataOffset, kTaggedSize)                                            \
+  /* Total size. */                                                      \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kHeaderSize,
+                                OBJECT_TEMPLATE_INFO_FIELDS)
+#undef OBJECT_TEMPLATE_INFO_FIELDS
 
   // Starting from given object template's constructor walk up the inheritance
   // chain till a function template that has an instance template is found.

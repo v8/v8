@@ -103,11 +103,16 @@ class JSSegmenter : public JSObject {
   DECL_VERIFIER(JSSegmenter)
 
   // Layout description.
-  static const int kJSSegmenterOffset = JSObject::kHeaderSize;
-  static const int kLocaleOffset = kJSSegmenterOffset + kPointerSize;
-  static const int kICUBreakIteratorOffset = kLocaleOffset + kPointerSize;
-  static const int kFlagsOffset = kICUBreakIteratorOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+#define JS_SEGMENTER_FIELDS(V)            \
+  V(kJSSegmenterOffset, kTaggedSize)      \
+  V(kLocaleOffset, kTaggedSize)           \
+  V(kICUBreakIteratorOffset, kTaggedSize) \
+  V(kFlagsOffset, kTaggedSize)            \
+  /* Header size. */                      \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_SEGMENTER_FIELDS)
+#undef JS_SEGMENTER_FIELDS
 
  private:
   static LineBreakStyle GetLineBreakStyle(const char* str);

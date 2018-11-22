@@ -105,11 +105,16 @@ class JSListFormat : public JSObject {
   DECL_VERIFIER(JSListFormat)
 
   // Layout description.
-  static const int kJSListFormatOffset = JSObject::kHeaderSize;
-  static const int kLocaleOffset = kJSListFormatOffset + kPointerSize;
-  static const int kICUFormatterOffset = kLocaleOffset + kPointerSize;
-  static const int kFlagsOffset = kICUFormatterOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+#define JS_LIST_FORMAT_FIELDS(V)      \
+  V(kJSListFormatOffset, kTaggedSize) \
+  V(kLocaleOffset, kTaggedSize)       \
+  V(kICUFormatterOffset, kTaggedSize) \
+  V(kFlagsOffset, kTaggedSize)        \
+  /* Header size. */                  \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_LIST_FORMAT_FIELDS)
+#undef JS_LIST_FORMAT_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSListFormat);

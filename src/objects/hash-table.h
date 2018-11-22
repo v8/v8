@@ -165,7 +165,7 @@ class HashTable : public HashTableBase {
   STATIC_ASSERT(kEntrySize > 0);
   static const int kEntryKeyIndex = 0;
   static const int kElementsStartOffset =
-      kHeaderSize + kElementsStartIndex * kPointerSize;
+      kHeaderSize + kElementsStartIndex * kTaggedSize;
   // Maximal capacity of HashTable. Based on maximal length of underlying
   // FixedArray. Staying below kMaxCapacity also ensures that EntryToIndex
   // cannot overflow.

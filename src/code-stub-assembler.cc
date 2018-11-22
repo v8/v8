@@ -2821,9 +2821,10 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
-  STATIC_ASSERT(FixedArrayBase::kLengthOffset == WeakFixedArray::kLengthOffset);
-  STATIC_ASSERT(FixedArrayBase::kLengthOffset ==
-                PropertyArray::kLengthAndHashOffset);
+  STATIC_ASSERT(static_cast<int>(FixedArrayBase::kLengthOffset) ==
+                static_cast<int>(WeakFixedArray::kLengthOffset));
+  STATIC_ASSERT(static_cast<int>(FixedArrayBase::kLengthOffset) ==
+                static_cast<int>(PropertyArray::kLengthAndHashOffset));
   // Check that index_node + additional_offset <= object.length.
   // TODO(cbruni): Use proper LoadXXLength helpers
   CSA_ASSERT(

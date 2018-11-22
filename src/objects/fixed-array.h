@@ -97,9 +97,14 @@ class FixedArrayBase : public HeapObject {
 #endif  // V8_HOST_ARCH_32_BIT
 
   // Layout description.
-  // Length is smi tagged when it is stored.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthOffset + kPointerSize;
+#define FIXED_ARRAY_BASE_FIELDS(V) \
+  V(kLengthOffset, kTaggedSize)    \
+  /* Header size. */               \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                FIXED_ARRAY_BASE_FIELDS)
+#undef FIXED_ARRAY_BASE_FIELDS
 };
 
 // TODO(3770): Replacement for the above.
@@ -201,7 +206,7 @@ class FixedArray : public FixedArrayBase {
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kPointerSize;
+    return kHeaderSize + length * kTaggedSize;
   }
 
   // Code Generation support.
@@ -212,14 +217,14 @@ class FixedArray : public FixedArrayBase {
 
   DECL_CAST(FixedArray)
   // Maximally allowed length of a FixedArray.
-  static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
+  static const int kMaxLength = (kMaxSize - kHeaderSize) / kTaggedSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "FixedArray maxLength not a Smi");
 
   // Maximally allowed length for regular (non large object space) object.
   STATIC_ASSERT(kMaxRegularHeapObjectSize < kMaxSize);
   static const int kMaxRegularLength =
-      (kMaxRegularHeapObjectSize - kHeaderSize) / kPointerSize;
+      (kMaxRegularHeapObjectSize - kHeaderSize) / kTaggedSize;
 
   // Dispatched behavior.
   DECL_PRINTER(FixedArray)
@@ -307,7 +312,7 @@ class FixedArrayPtr : public FixedArrayBasePtr {
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kPointerSize;
+    return kHeaderSize + length * kTaggedSize;
   }
 
   // Code Generation support.
@@ -318,14 +323,14 @@ class FixedArrayPtr : public FixedArrayBasePtr {
 
   DECL_CAST2(FixedArrayPtr)
   // Maximally allowed length of a FixedArray.
-  static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
+  static const int kMaxLength = (kMaxSize - kHeaderSize) / kTaggedSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "FixedArray maxLength not a Smi");
 
   // Maximally allowed length for regular (non large object space) object.
   STATIC_ASSERT(kMaxRegularHeapObjectSize < kMaxSize);
   static const int kMaxRegularLength =
-      (kMaxRegularHeapObjectSize - kHeaderSize) / kPointerSize;
+      (kMaxRegularHeapObjectSize - kHeaderSize) / kTaggedSize;
 
   // Dispatched behavior.
   DECL_PRINTER(FixedArrayPtr)
@@ -411,7 +416,7 @@ class WeakFixedArray : public HeapObject {
   inline void Set(int index, MaybeObject value, WriteBarrierMode mode);
 
   static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kPointerSize;
+    return kHeaderSize + length * kTaggedSize;
   }
 
   DECL_INT_ACCESSORS(length)
@@ -430,17 +435,24 @@ class WeakFixedArray : public HeapObject {
 
   typedef WeakArrayBodyDescriptor BodyDescriptor;
 
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthOffset + kPointerSize;
+  // Layout description.
+#define WEAK_FIXED_ARRAY_FIELDS(V) \
+  V(kLengthOffset, kTaggedSize)    \
+  /* Header size. */               \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                WEAK_FIXED_ARRAY_FIELDS)
+#undef WEAK_FIXED_ARRAY_FIELDS
 
   static const int kMaxLength =
-      (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
+      (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "WeakFixedArray maxLength not a Smi");
 
  protected:
   static int OffsetOfElementAt(int index) {
-    return kHeaderSize + index * kPointerSize;
+    return kHeaderSize + index * kTaggedSize;
   }
 
  private:
@@ -475,7 +487,7 @@ class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   static constexpr int SizeForCapacity(int capacity) {
-    return kHeaderSize + capacity * kPointerSize;
+    return kHeaderSize + capacity * kTaggedSize;
   }
 
   // Gives access to raw memory which stores the array's data.
@@ -492,12 +504,18 @@ class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
 
   typedef WeakArrayBodyDescriptor BodyDescriptor;
 
-  static const int kCapacityOffset = HeapObject::kHeaderSize;
-  static const int kLengthOffset = kCapacityOffset + kPointerSize;
-  static const int kHeaderSize = kLengthOffset + kPointerSize;
+  // Layout description.
+#define WEAK_ARRAY_LIST_FIELDS(V) \
+  V(kCapacityOffset, kTaggedSize) \
+  V(kLengthOffset, kTaggedSize)   \
+  /* Header size. */              \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WEAK_ARRAY_LIST_FIELDS)
+#undef WEAK_ARRAY_LIST_FIELDS
 
   static const int kMaxCapacity =
-      (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
+      (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;
 
   static Handle<WeakArrayList> EnsureSpace(
       Isolate* isolate, Handle<WeakArrayList> array, int length,
@@ -529,7 +547,7 @@ class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
 
  private:
   static int OffsetOfElementAt(int index) {
-    return kHeaderSize + index * kPointerSize;
+    return kHeaderSize + index * kTaggedSize;
   }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WeakArrayList);
@@ -620,7 +638,7 @@ class ByteArray : public FixedArrayBase {
   // array, this function returns the number of elements a byte array should
   // have.
   static int LengthFor(int size_in_bytes) {
-    DCHECK(IsAligned(size_in_bytes, kPointerSize));
+    DCHECK(IsAligned(size_in_bytes, kTaggedSize));
     DCHECK_GE(size_in_bytes, kHeaderSize);
     return size_in_bytes - kHeaderSize;
   }
@@ -694,10 +712,17 @@ class FixedTypedArrayBase : public FixedArrayBase {
   // Dispatched behavior.
   DECL_CAST(FixedTypedArrayBase)
 
-  static const int kBasePointerOffset = FixedArrayBase::kHeaderSize;
-  static const int kExternalPointerOffset = kBasePointerOffset + kPointerSize;
-  static const int kHeaderSize =
-      DOUBLE_POINTER_ALIGN(kExternalPointerOffset + kPointerSize);
+#define FIXED_TYPED_ARRAY_BASE_FIELDS(V)        \
+  V(kBasePointerOffset, kTaggedSize)            \
+  V(kExternalPointerOffset, kSystemPointerSize) \
+  /* Header size. */                            \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
+                                FIXED_TYPED_ARRAY_BASE_FIELDS)
+#undef FIXED_TYPED_ARRAY_BASE_FIELDS
+
+  STATIC_ASSERT(IsAligned(kHeaderSize, kDoubleAlignment));
 
   static const int kDataOffset = kHeaderSize;
 

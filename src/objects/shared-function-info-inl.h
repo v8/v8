@@ -27,7 +27,7 @@ INT_ACCESSORS(PreParsedScopeData, length, kLengthOffset)
 Object* PreParsedScopeData::child_data(int index) const {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
-  int offset = kChildDataStartOffset + index * kPointerSize;
+  int offset = kChildDataStartOffset + index * kTaggedSize;
   return RELAXED_READ_FIELD(this, offset);
 }
 
@@ -35,7 +35,7 @@ void PreParsedScopeData::set_child_data(int index, Object* value,
                                         WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
-  int offset = kChildDataStartOffset + index * kPointerSize;
+  int offset = kChildDataStartOffset + index * kTaggedSize;
   RELAXED_WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
@@ -45,11 +45,10 @@ ObjectSlot PreParsedScopeData::child_data_start() const {
 }
 
 void PreParsedScopeData::clear_padding() {
-  // For archs where kIntSize < kPointerSize, there will be padding between the
-  // length field and the start of the child data.
-  if (kUnalignedChildDataStartOffset < kChildDataStartOffset) {
-    memset(reinterpret_cast<void*>(address() + kUnalignedChildDataStartOffset),
-           0, kChildDataStartOffset - kUnalignedChildDataStartOffset);
+  if (FIELD_SIZE(kOptionalPaddingOffset)) {
+    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
   }
 }
 
@@ -60,11 +59,10 @@ INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
 INT32_ACCESSORS(UncompiledData, function_literal_id, kFunctionLiteralIdOffset)
 
 void UncompiledData::clear_padding() {
-  // For archs where kIntSize < kPointerSize, there will be padding at the end
-  // of the data.
-  if (kUnalignedSize < kSize) {
-    memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
-           kSize - kUnalignedSize);
+  if (FIELD_SIZE(kOptionalPaddingOffset)) {
+    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
   }
 }
 
