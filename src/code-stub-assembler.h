@@ -1014,14 +1014,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              int additional_offset = 0,
                              ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
-  // Load an array element from a FixedArray / WeakFixedArray / PropertyArray.
+  // Array is any array-like type that has a fixed header followed by
+  // tagged elements.
+  template <typename Array>
+  TNode<IntPtrT> LoadArrayLength(TNode<Array> array);
+
+  // Array is any array-like type that has a fixed header followed by
+  // tagged elements.
+  template <typename Array>
   TNode<MaybeObject> LoadArrayElement(
-      SloppyTNode<HeapObject> object, int array_header_size, Node* index,
+      TNode<Array> array, int array_header_size, Node* index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
-  // Load an array element from a FixedArray.
   TNode<Object> LoadFixedArrayElement(
       TNode<FixedArray> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
@@ -1053,24 +1059,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadFixedArrayElement(object, index, 0, SMI_PARAMETERS);
   }
 
-  TNode<Object> LoadPropertyArrayElement(SloppyTNode<PropertyArray> object,
+  TNode<Object> LoadPropertyArrayElement(TNode<PropertyArray> object,
                                          SloppyTNode<IntPtrT> index);
   TNode<IntPtrT> LoadPropertyArrayLength(TNode<PropertyArray> object);
 
-  // Load an array element from a FixedArray / WeakFixedArray, untag it and
-  // return it as Word32.
+  // Load an element from an array and untag it and return it as Word32.
+  // Array is any array-like type that has a fixed header followed by
+  // tagged elements.
+  template <typename Array>
   TNode<Int32T> LoadAndUntagToWord32ArrayElement(
-      SloppyTNode<HeapObject> object, int array_header_size, Node* index,
+      TNode<Array> array, int array_header_size, Node* index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   // Load an array element from a FixedArray, untag it and return it as Word32.
   TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
-      SloppyTNode<HeapObject> object, Node* index, int additional_offset = 0,
+      TNode<FixedArray> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
-      SloppyTNode<HeapObject> object, int index, int additional_offset = 0) {
+      TNode<FixedArray> object, int index, int additional_offset = 0) {
     return LoadAndUntagToWord32FixedArrayElement(
         object, IntPtrConstant(index), additional_offset, INTPTR_PARAMETERS);
   }

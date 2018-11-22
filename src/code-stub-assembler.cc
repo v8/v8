@@ -1936,8 +1936,36 @@ TNode<MaybeObject> CodeStubAssembler::MakeWeak(TNode<HeapObject> value) {
       WordOr(BitcastTaggedToWord(value), IntPtrConstant(kWeakHeapObjectTag))));
 }
 
+template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<FixedArray> array) {
+  return LoadAndUntagFixedArrayBaseLength(array);
+}
+
+template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<WeakFixedArray> array) {
+  return LoadAndUntagWeakFixedArrayLength(array);
+}
+
+template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<PropertyArray> array) {
+  return LoadPropertyArrayLength(array);
+}
+
+template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
+    TNode<DescriptorArray> array) {
+  return LoadAndUntagWeakFixedArrayLength(array);
+}
+
+template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
+    TNode<TransitionArray> array) {
+  return LoadAndUntagWeakFixedArrayLength(array);
+}
+
+template <typename Array>
 TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
-    SloppyTNode<HeapObject> array, int array_header_size, Node* index_node,
+    TNode<Array> array, int array_header_size, Node* index_node,
     int additional_offset, ParameterMode parameter_mode,
     LoadSensitivity needs_poisoning) {
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(
@@ -1947,31 +1975,23 @@ TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
   int32_t header_size = array_header_size + additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                                  parameter_mode, header_size);
-  STATIC_ASSERT(FixedArrayBase::kLengthOffset == WeakFixedArray::kLengthOffset);
-  STATIC_ASSERT(FixedArrayBase::kLengthOffset ==
-                PropertyArray::kLengthAndHashOffset);
-  // Check that index_node + additional_offset <= object.length.
-  // TODO(cbruni): Use proper LoadXXLength helpers
-  CSA_ASSERT(
-      this,
-      IsOffsetInBounds(
-          offset,
-          Select<IntPtrT>(
-              IsPropertyArray(array),
-              [=] {
-                TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
-                    array, PropertyArray::kLengthAndHashOffset);
-                return TNode<IntPtrT>::UncheckedCast(
-                    DecodeWord<PropertyArray::LengthField>(length_and_hash));
-              },
-              [=] {
-                return LoadAndUntagObjectField(array,
-                                               FixedArrayBase::kLengthOffset);
-              }),
-          FixedArray::kHeaderSize));
+  CSA_ASSERT(this, IsOffsetInBounds(offset, LoadArrayLength(array),
+                                    array_header_size));
   return UncheckedCast<MaybeObject>(
       Load(MachineType::AnyTagged(), array, offset, needs_poisoning));
 }
+
+template TNode<MaybeObject>
+CodeStubAssembler::LoadArrayElement<TransitionArray>(TNode<TransitionArray>,
+                                                     int, Node*, int,
+                                                     ParameterMode,
+                                                     LoadSensitivity);
+
+template TNode<MaybeObject>
+CodeStubAssembler::LoadArrayElement<DescriptorArray>(TNode<DescriptorArray>,
+                                                     int, Node*, int,
+                                                     ParameterMode,
+                                                     LoadSensitivity);
 
 void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
                                               Node* index,
@@ -2016,12 +2036,10 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
 }
 
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
-    SloppyTNode<PropertyArray> object, SloppyTNode<IntPtrT> index) {
+    TNode<PropertyArray> object, SloppyTNode<IntPtrT> index) {
   int additional_offset = 0;
   ParameterMode parameter_mode = INTPTR_PARAMETERS;
   LoadSensitivity needs_poisoning = LoadSensitivity::kSafe;
-  STATIC_ASSERT(PropertyArray::kHeaderSize == FixedArray::kHeaderSize);
-
   return CAST(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
                                additional_offset, parameter_mode,
                                needs_poisoning));
@@ -2378,8 +2396,9 @@ TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
       Load(MachineType::AnyTagged(), object, offset));
 }
 
+template <typename Array>
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
-    SloppyTNode<HeapObject> object, int array_header_size, Node* index_node,
+    TNode<Array> object, int array_header_size, Node* index_node,
     int additional_offset, ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK_EQ(additional_offset % kPointerSize, 0);
@@ -2391,14 +2410,8 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
                         endian_correction;
   Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
-  STATIC_ASSERT(FixedArrayBase::kLengthOffset == WeakFixedArray::kLengthOffset);
-  // Check that index_node + additional_offset <= object.length.
-  // TODO(cbruni): Use proper LoadXXLength helpers
-  CSA_ASSERT(this,
-             IsOffsetInBounds(
-                 offset,
-                 LoadAndUntagObjectField(object, FixedArrayBase::kLengthOffset),
-                 FixedArray::kHeaderSize + endian_correction));
+  CSA_ASSERT(this, IsOffsetInBounds(offset, LoadArrayLength(object),
+                                    array_header_size + endian_correction));
   if (SmiValuesAre32Bits()) {
     return UncheckedCast<Int32T>(Load(MachineType::Int32(), object, offset));
   } else {
@@ -2407,7 +2420,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
 }
 
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
-    SloppyTNode<HeapObject> object, Node* index_node, int additional_offset,
+    TNode<FixedArray> object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(this, IsFixedArraySubclass(object));
   return LoadAndUntagToWord32ArrayElement(object, FixedArray::kHeaderSize,
@@ -9159,9 +9172,9 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
     BIND(&if_backing_store);
     {
       Comment("if_backing_store");
-      Node* properties = LoadFastProperties(object);
+      TNode<HeapObject> properties = LoadFastProperties(object);
       field_index = IntPtrSub(field_index, instance_size_in_words);
-      Node* value = LoadPropertyArrayElement(properties, field_index);
+      Node* value = LoadPropertyArrayElement(CAST(properties), field_index);
 
       Label if_double(this), if_tagged(this);
       Branch(Word32NotEqual(representation,

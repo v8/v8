@@ -130,7 +130,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
             __ Int32Constant(0));
         for (int lane = 0; lane < 4; lane++) {
           TNode<Int32T> lane_value = __ LoadAndUntagToWord32FixedArrayElement(
-              element, __ IntPtrConstant(lane));
+              __ CAST(element), __ IntPtrConstant(lane));
           vector = tester.raw_assembler_for_testing()->AddNode(
               tester.raw_assembler_for_testing()->machine()->I32x4ReplaceLane(
                   lane),
