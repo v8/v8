@@ -5726,7 +5726,7 @@ TEST(Regress618958) {
          !heap->incremental_marking()->IsStopped()));
 }
 
-TEST(YoungGenerationLargeObjectAllocation) {
+TEST(YoungGenerationLargeObjectAllocationScavenge) {
   if (FLAG_minor_mc) return;
   FLAG_young_generation_large_objects = true;
   CcTest::InitializeVM();
@@ -5752,6 +5752,38 @@ TEST(YoungGenerationLargeObjectAllocation) {
 
   // After the first young generation GC array_small will be in the old
   // generation large object space.
+  chunk = MemoryChunk::FromAddress(array_small->address());
+  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
+  CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+
+  CcTest::CollectAllAvailableGarbage();
+}
+
+TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
+  if (FLAG_minor_mc) return;
+  FLAG_young_generation_large_objects = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
+  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
+  CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+
+  Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
+  chunk = MemoryChunk::FromAddress(array_small->address());
+  CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+  CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+
+  Handle<Object> number = isolate->factory()->NewHeapNumber(123.456);
+  array_small->set(0, *number);
+
+  CcTest::CollectGarbage(OLD_SPACE);
+
+  // After the first full GC array_small will be in the old generation
+  // large object space.
   chunk = MemoryChunk::FromAddress(array_small->address());
   CHECK_EQ(LO_SPACE, chunk->owner()->identity());
   CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));

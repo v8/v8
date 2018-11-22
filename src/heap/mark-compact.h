@@ -847,7 +847,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void ReleaseEvacuationCandidates();
   void PostProcessEvacuationCandidates();
-  void ReportAbortedEvacuationCandidate(HeapObject* failed_object, Page* page);
+  void ReportAbortedEvacuationCandidate(HeapObject* failed_object,
+                                        MemoryChunk* chunk);
 
   static const int kEphemeronChunkSize = 8 * KB;
 

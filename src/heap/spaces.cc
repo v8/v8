@@ -3596,7 +3596,6 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   }
 }
 
-
 bool LargeObjectSpace::Contains(HeapObject* object) {
   Address address = object->address();
   MemoryChunk* chunk = MemoryChunk::FromAddress(address);

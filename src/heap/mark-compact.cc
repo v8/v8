@@ -2337,6 +2337,8 @@ void MarkCompactCollector::EvacuatePrologue() {
   new_space->Flip();
   new_space->ResetLinearAllocationArea();
 
+  heap()->new_lo_space()->Flip();
+
   // Old space.
   DCHECK(old_space_evacuation_pages_.empty());
   old_space_evacuation_pages_ = std::move(evacuation_candidates_);
@@ -2351,6 +2353,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
   // Deallocate unmarked large objects.
   heap()->lo_space()->FreeUnmarkedObjects();
   heap()->code_lo_space()->FreeUnmarkedObjects();
+  heap()->new_lo_space()->FreeUnmarkedObjects();
   // Old space. Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
   // Give pages that are queued to be freed back to the OS.
@@ -2410,7 +2413,7 @@ class Evacuator : public Malloced {
 
   virtual ~Evacuator() = default;
 
-  void EvacuatePage(Page* page);
+  void EvacuatePage(MemoryChunk* chunk);
 
   void AddObserver(MigrationObserver* observer) {
     new_space_visitor_.AddObserver(observer);
@@ -2427,7 +2430,8 @@ class Evacuator : public Malloced {
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
   // |saved_live_bytes| returns the live bytes of the page that was processed.
-  virtual void RawEvacuatePage(Page* page, intptr_t* saved_live_bytes) = 0;
+  virtual void RawEvacuatePage(MemoryChunk* chunk,
+                               intptr_t* saved_live_bytes) = 0;
 
   inline Heap* heap() { return heap_; }
 
@@ -2455,29 +2459,30 @@ class Evacuator : public Malloced {
   intptr_t bytes_compacted_;
 };
 
-void Evacuator::EvacuatePage(Page* page) {
+void Evacuator::EvacuatePage(MemoryChunk* chunk) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Evacuator::EvacuatePage");
-  DCHECK(page->SweepingDone());
+  DCHECK(chunk->SweepingDone());
   intptr_t saved_live_bytes = 0;
   double evacuation_time = 0.0;
   {
     AlwaysAllocateScope always_allocate(heap()->isolate());
     TimedScope timed_scope(&evacuation_time);
-    RawEvacuatePage(page, &saved_live_bytes);
+    RawEvacuatePage(chunk, &saved_live_bytes);
   }
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
   if (FLAG_trace_evacuation) {
-    PrintIsolate(
-        heap()->isolate(),
-        "evacuation[%p]: page=%p new_space=%d "
-        "page_evacuation=%d executable=%d contains_age_mark=%d "
-        "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
-        static_cast<void*>(this), static_cast<void*>(page), page->InNewSpace(),
-        page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
-            page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
-        page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
-        page->Contains(heap()->new_space()->age_mark()), saved_live_bytes,
-        evacuation_time, page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+    PrintIsolate(heap()->isolate(),
+                 "evacuation[%p]: page=%p new_space=%d "
+                 "page_evacuation=%d executable=%d contains_age_mark=%d "
+                 "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
+                 static_cast<void*>(this), static_cast<void*>(chunk),
+                 chunk->InNewSpace(),
+                 chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
+                     chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
+                 chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
+                 chunk->Contains(heap()->new_space()->age_mark()),
+                 saved_live_bytes, evacuation_time,
+                 chunk->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
   }
 }
 
@@ -2508,51 +2513,51 @@ class FullEvacuator : public Evacuator {
   }
 
  protected:
-  void RawEvacuatePage(Page* page, intptr_t* live_bytes) override;
+  void RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
 
   MarkCompactCollector* collector_;
 };
 
-void FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
-  const EvacuationMode evacuation_mode = ComputeEvacuationMode(page);
+void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
+  const EvacuationMode evacuation_mode = ComputeEvacuationMode(chunk);
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "FullEvacuator::RawEvacuatePage", "evacuation_mode",
                evacuation_mode);
   MarkCompactCollector::NonAtomicMarkingState* marking_state =
       collector_->non_atomic_marking_state();
-  *live_bytes = marking_state->live_bytes(page);
+  *live_bytes = marking_state->live_bytes(chunk);
   HeapObject* failed_object = nullptr;
   switch (evacuation_mode) {
     case kObjectsNewToOld:
       LiveObjectVisitor::VisitBlackObjectsNoFail(
-          page, marking_state, &new_space_visitor_,
+          chunk, marking_state, &new_space_visitor_,
           LiveObjectVisitor::kClearMarkbits);
       // ArrayBufferTracker will be updated during pointers updating.
       break;
     case kPageNewToOld:
       LiveObjectVisitor::VisitBlackObjectsNoFail(
-          page, marking_state, &new_to_old_page_visitor_,
+          chunk, marking_state, &new_to_old_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
       new_to_old_page_visitor_.account_moved_bytes(
-          marking_state->live_bytes(page));
+          marking_state->live_bytes(chunk));
       // ArrayBufferTracker will be updated during sweeping.
       break;
     case kPageNewToNew:
       LiveObjectVisitor::VisitBlackObjectsNoFail(
-          page, marking_state, &new_to_new_page_visitor_,
+          chunk, marking_state, &new_to_new_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
       new_to_new_page_visitor_.account_moved_bytes(
-          marking_state->live_bytes(page));
+          marking_state->live_bytes(chunk));
       // ArrayBufferTracker will be updated during sweeping.
       break;
     case kObjectsOldToOld: {
       const bool success = LiveObjectVisitor::VisitBlackObjects(
-          page, marking_state, &old_space_visitor_,
+          chunk, marking_state, &old_space_visitor_,
           LiveObjectVisitor::kClearMarkbits, &failed_object);
       if (!success) {
         // Aborted compaction page. Actual processing happens on the main
         // thread for simplicity reasons.
-        collector_->ReportAbortedEvacuationCandidate(failed_object, page);
+        collector_->ReportAbortedEvacuationCandidate(failed_object, chunk);
       } else {
         // ArrayBufferTracker will be updated during pointers updating.
       }
@@ -2561,14 +2566,14 @@ void FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
   }
 }
 
-class PageEvacuationItem : public ItemParallelJob::Item {
+class EvacuationItem : public ItemParallelJob::Item {
  public:
-  explicit PageEvacuationItem(Page* page) : page_(page) {}
-  ~PageEvacuationItem() override = default;
-  Page* page() const { return page_; }
+  explicit EvacuationItem(MemoryChunk* chunk) : chunk_(chunk) {}
+  ~EvacuationItem() override = default;
+  MemoryChunk* chunk() const { return chunk_; }
 
  private:
-  Page* page_;
+  MemoryChunk* chunk_;
 };
 
 class PageEvacuationTask : public ItemParallelJob::Task {
@@ -2580,9 +2585,9 @@ class PageEvacuationTask : public ItemParallelJob::Task {
 
   void RunInParallel() override {
     TRACE_BACKGROUND_GC(tracer_, evacuator_->GetBackgroundTracingScope());
-    PageEvacuationItem* item = nullptr;
-    while ((item = GetItem<PageEvacuationItem>()) != nullptr) {
-      evacuator_->EvacuatePage(item->page());
+    EvacuationItem* item = nullptr;
+    while ((item = GetItem<EvacuationItem>()) != nullptr) {
+      evacuator_->EvacuatePage(item->chunk());
       item->MarkFinished();
     }
   };
@@ -2651,7 +2656,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   for (Page* page : old_space_evacuation_pages_) {
     live_bytes += non_atomic_marking_state()->live_bytes(page);
-    evacuation_job.AddItem(new PageEvacuationItem(page));
+    evacuation_job.AddItem(new EvacuationItem(page));
   }
 
   for (Page* page : new_space_evacuation_pages_) {
@@ -2670,8 +2675,25 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
     }
-    evacuation_job.AddItem(new PageEvacuationItem(page));
+    evacuation_job.AddItem(new EvacuationItem(page));
   }
+
+  // Promote young generation large objects.
+  LargePage* current = heap()->new_lo_space()->first_page();
+  IncrementalMarking::NonAtomicMarkingState* marking_state =
+      heap()->incremental_marking()->non_atomic_marking_state();
+  while (current) {
+    LargePage* next_current = current->next_page();
+    HeapObject* object = current->GetObject();
+    DCHECK(!marking_state->IsGrey(object));
+    if (marking_state->IsBlack(object)) {
+      heap_->lo_space()->PromoteNewLargeObject(current);
+      current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+      evacuation_job.AddItem(new EvacuationItem(current));
+    }
+    current = next_current;
+  }
+
   if (evacuation_job.NumberOfItems() == 0) return;
 
   RecordMigratedSlotVisitor record_visitor(this);
@@ -3308,10 +3330,11 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidate(
-    HeapObject* failed_object, Page* page) {
+    HeapObject* failed_object, MemoryChunk* chunk) {
   base::MutexGuard guard(&mutex_);
 
-  aborted_evacuation_candidates_.push_back(std::make_pair(failed_object, page));
+  aborted_evacuation_candidates_.push_back(
+      std::make_pair(failed_object, static_cast<Page*>(chunk)));
 }
 
 void MarkCompactCollector::PostProcessEvacuationCandidates() {
@@ -4389,63 +4412,67 @@ class YoungGenerationEvacuator : public Evacuator {
   }
 
  protected:
-  void RawEvacuatePage(Page* page, intptr_t* live_bytes) override;
+  void RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
 
   MinorMarkCompactCollector* collector_;
 };
 
-void YoungGenerationEvacuator::RawEvacuatePage(Page* page,
+void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
                                                intptr_t* live_bytes) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "YoungGenerationEvacuator::RawEvacuatePage");
   MinorMarkCompactCollector::NonAtomicMarkingState* marking_state =
       collector_->non_atomic_marking_state();
-  *live_bytes = marking_state->live_bytes(page);
-  switch (ComputeEvacuationMode(page)) {
+  *live_bytes = marking_state->live_bytes(chunk);
+  switch (ComputeEvacuationMode(chunk)) {
     case kObjectsNewToOld:
       LiveObjectVisitor::VisitGreyObjectsNoFail(
-          page, marking_state, &new_space_visitor_,
+          chunk, marking_state, &new_space_visitor_,
           LiveObjectVisitor::kClearMarkbits);
       // ArrayBufferTracker will be updated during pointers updating.
       break;
     case kPageNewToOld:
       LiveObjectVisitor::VisitGreyObjectsNoFail(
-          page, marking_state, &new_to_old_page_visitor_,
+          chunk, marking_state, &new_to_old_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
       new_to_old_page_visitor_.account_moved_bytes(
-          marking_state->live_bytes(page));
-      // TODO(mlippautz): If cleaning array buffers is too slow here we can
-      // delay it until the next GC.
-      ArrayBufferTracker::FreeDead(page, marking_state);
-      if (heap()->ShouldZapGarbage()) {
-        collector_->MakeIterable(page, MarkingTreatmentMode::KEEP,
-                                 ZAP_FREE_SPACE);
-      } else if (heap()->incremental_marking()->IsMarking()) {
-        // When incremental marking is on, we need to clear the mark bits of
-        // the full collector. We cannot yet discard the young generation mark
-        // bits as they are still relevant for pointers updating.
-        collector_->MakeIterable(page, MarkingTreatmentMode::KEEP,
-                                 IGNORE_FREE_SPACE);
+          marking_state->live_bytes(chunk));
+      if (chunk->owner()->identity() != NEW_LO_SPACE) {
+        // TODO(mlippautz): If cleaning array buffers is too slow here we can
+        // delay it until the next GC.
+        ArrayBufferTracker::FreeDead(static_cast<Page*>(chunk), marking_state);
+        if (heap()->ShouldZapGarbage()) {
+          collector_->MakeIterable(static_cast<Page*>(chunk),
+                                   MarkingTreatmentMode::KEEP, ZAP_FREE_SPACE);
+        } else if (heap()->incremental_marking()->IsMarking()) {
+          // When incremental marking is on, we need to clear the mark bits of
+          // the full collector. We cannot yet discard the young generation mark
+          // bits as they are still relevant for pointers updating.
+          collector_->MakeIterable(static_cast<Page*>(chunk),
+                                   MarkingTreatmentMode::KEEP,
+                                   IGNORE_FREE_SPACE);
+        }
       }
       break;
     case kPageNewToNew:
       LiveObjectVisitor::VisitGreyObjectsNoFail(
-          page, marking_state, &new_to_new_page_visitor_,
+          chunk, marking_state, &new_to_new_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
       new_to_new_page_visitor_.account_moved_bytes(
-          marking_state->live_bytes(page));
+          marking_state->live_bytes(chunk));
+      DCHECK_NE(chunk->owner()->identity(), NEW_LO_SPACE);
       // TODO(mlippautz): If cleaning array buffers is too slow here we can
       // delay it until the next GC.
-      ArrayBufferTracker::FreeDead(page, marking_state);
+      ArrayBufferTracker::FreeDead(static_cast<Page*>(chunk), marking_state);
       if (heap()->ShouldZapGarbage()) {
-        collector_->MakeIterable(page, MarkingTreatmentMode::KEEP,
-                                 ZAP_FREE_SPACE);
+        collector_->MakeIterable(static_cast<Page*>(chunk),
+                                 MarkingTreatmentMode::KEEP, ZAP_FREE_SPACE);
       } else if (heap()->incremental_marking()->IsMarking()) {
         // When incremental marking is on, we need to clear the mark bits of
         // the full collector. We cannot yet discard the young generation mark
         // bits as they are still relevant for pointers updating.
-        collector_->MakeIterable(page, MarkingTreatmentMode::KEEP,
-                                 IGNORE_FREE_SPACE);
+        collector_->MakeIterable(static_cast<Page*>(chunk),
+                                 MarkingTreatmentMode::KEEP, IGNORE_FREE_SPACE);
       }
       break;
     case kObjectsOldToOld:
@@ -4472,7 +4499,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
         EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
     }
-    evacuation_job.AddItem(new PageEvacuationItem(page));
+    evacuation_job.AddItem(new EvacuationItem(page));
   }
   if (evacuation_job.NumberOfItems() == 0) return;
 
