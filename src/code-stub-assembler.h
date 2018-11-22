@@ -403,6 +403,28 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(p_o);
   }
 
+  TNode<JSArgumentsObjectWithLength> RawCastObjectToJSArgumentsObjectWithLength(
+      TNode<Object> p_o) {
+    return TNode<JSArgumentsObjectWithLength>::UncheckedCast(p_o);
+  }
+
+  TNode<JSArray> RawCastObjectToFastJSArray(TNode<Object> p_o) {
+    return TNode<JSArray>::UncheckedCast(p_o);
+  }
+
+  TNode<JSArray> RawCastObjectToFastJSArrayForCopy(TNode<Object> p_o) {
+    return TNode<JSArray>::UncheckedCast(p_o);
+  }
+
+  TNode<JSArray> RawCastObjectToFastJSArrayWithNoCustomIteration(
+      TNode<Object> p_o) {
+    return TNode<JSArray>::UncheckedCast(p_o);
+  }
+
+  TNode<JSFunction> RawCastObjectToJSFunction(TNode<Object> p_o) {
+    return TNode<JSFunction>::UncheckedCast(p_o);
+  }
+
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
@@ -790,6 +812,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   void BranchIfFastJSArrayForCopy(Node* object, Node* context, Label* if_true,
                                   Label* if_false);
+  void BranchIfFastJSArrayWithNoCustomIteration(TNode<Context> context,
+                                                TNode<Object> object,
+                                                Label* if_true,
+                                                Label* if_false);
 
   // Branches to {if_true} when --force-slow-path flag has been passed.
   // It's used for testing to ensure that slow path implementation behave
@@ -2013,8 +2039,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsFastJSArray(SloppyTNode<Object> object,
                              SloppyTNode<Context> context);
-  TNode<BoolT> IsFastJSArrayWithNoCustomIteration(TNode<Object> object,
-                                                  TNode<Context> context);
+  TNode<BoolT> IsFastJSArrayWithNoCustomIteration(TNode<Context> context,
+                                                  TNode<Object> object);
   TNode<BoolT> IsFeedbackCell(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFeedbackVector(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsContext(SloppyTNode<HeapObject> object);

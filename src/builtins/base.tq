@@ -41,10 +41,20 @@ type JSArgumentsObjectWithLength extends JSObject
     generates 'TNode<JSArgumentsObjectWithLength>';
 type JSArray extends JSArgumentsObjectWithLength
     generates 'TNode<JSArray>';
+
+// A HeapObject with a JSArray map, and either fast packed elements, or fast
+// holey elements when the global NoElementsProtector is not invalidated.
 transient type FastJSArray extends JSArray
     generates 'TNode<JSArray>';
+
+// A FastJSArray when the global ArraySpeciesProtector is not invalidated.
 transient type FastJSArrayForCopy extends FastJSArray
     generates 'TNode<JSArray>';
+
+// A FastJSArray when the global ArrayIteratorProtector is not invalidated.
+transient type FastJSArrayWithNoCustomIteration extends FastJSArray
+    generates 'TNode<JSArray>';
+
 type JSFunction extends JSObject generates 'TNode<JSFunction>';
 type JSBoundFunction extends JSObject generates 'TNode<JSBoundFunction>';
 type Callable = JSFunction | JSBoundFunction | JSProxy;
@@ -72,6 +82,8 @@ const ARRAY_JOIN_STACK_INDEX: constexpr NativeContextSlot
     generates 'Context::ARRAY_JOIN_STACK_INDEX';
 const OBJECT_FUNCTION_INDEX: constexpr NativeContextSlot
     generates 'Context::OBJECT_FUNCTION_INDEX';
+const ITERATOR_RESULT_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::ITERATOR_RESULT_MAP_INDEX';
 extern operator '[]' macro LoadContextElement(
     NativeContext, NativeContextSlot): Object;
 extern operator '[]=' macro StoreContextElement(
@@ -907,6 +919,21 @@ Cast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
   }
 }
 
+UnsafeCast<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
+    o: Object): FastJSArrayWithNoCustomIteration {
+  assert(BranchIfFastJSArrayWithNoCustomIteration(o));
+  return %RawCast<FastJSArrayWithNoCustomIteration>(o);
+}
+
+Cast<FastJSArrayWithNoCustomIteration>(implicit context: Context)(o: Object):
+    FastJSArrayWithNoCustomIteration labels CastError {
+  if (BranchIfFastJSArrayWithNoCustomIteration(o)) {
+    return UnsafeCast<FastJSArrayWithNoCustomIteration>(o);
+  } else {
+    goto CastError;
+  }
+}
+
 UnsafeCast<JSFunction>(implicit context: Context)(o: Object): JSFunction {
   assert(IsJSFunction(Cast<HeapObject>(o) otherwise unreachable));
   return %RawCast<JSFunction>(o);
@@ -947,6 +974,9 @@ extern macro BranchIfFastJSArray(Object, Context): never
     labels Taken, NotTaken;
 extern macro BranchIfFastJSArrayForCopy(Object, Context): never
     labels Taken, NotTaken;
+extern macro BranchIfFastJSArrayWithNoCustomIteration(
+    implicit context: Context)(Object): never labels Taken,
+    NotTaken;
 extern macro BranchIfNotFastJSArray(Object, Context): never
     labels Taken, NotTaken;
 macro BranchIfNotFastJSArrayForCopy(implicit context: Context)(o: Object): never
@@ -1074,7 +1104,7 @@ extern macro CopyFixedArrayElements(
 extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 
-extern macro AllocateJSObjectFromMap(Map): HeapObject;
+extern macro AllocateJSObjectFromMap(Map): JSObject;
 
 extern operator '[]=' macro StoreFixedDoubleArrayElementSmi(
     FixedDoubleArray, Smi, float64): void;
@@ -1191,8 +1221,21 @@ extern macro IsNumber(Object): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro IsFastJSArray(Object, Context): bool;
+extern macro IsFastJSArrayWithNoCustomIteration(implicit context: Context)(
+    Object): bool;
 extern macro Typeof(Object): Object;
 extern macro LoadTargetFromFrame(): JSFunction;
+
+macro IsJSReceiver(o: Object): bool {
+  typeswitch (o) {
+    case (JSReceiver): {
+      return true;
+    }
+    case (Object): {
+      return false;
+    }
+  }
+}
 
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {

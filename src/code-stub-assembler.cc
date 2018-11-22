@@ -1056,22 +1056,29 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArray(SloppyTNode<Object> object,
   return var_result.value();
 }
 
-TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
-    TNode<Object> object, TNode<Context> context) {
-  Label if_false(this, Label::kDeferred), if_fast(this), exit(this);
-  TVARIABLE(BoolT, var_result);
-  BranchIfFastJSArray(object, context, &if_fast, &if_false, true);
+void CodeStubAssembler::BranchIfFastJSArrayWithNoCustomIteration(
+    TNode<Context> context, TNode<Object> object, Label* if_true,
+    Label* if_false) {
+  Label if_fast(this);
+  BranchIfFastJSArray(object, context, &if_fast, if_false, true);
   BIND(&if_fast);
   {
     // Check that the Array.prototype hasn't been modified in a way that would
     // affect iteration.
     Node* protector_cell = LoadRoot(RootIndex::kArrayIteratorProtector);
     DCHECK(isolate()->heap()->array_iterator_protector()->IsPropertyCell());
-    var_result =
+    Branch(
         WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Isolate::kProtectorValid));
-    Goto(&exit);
+                  SmiConstant(Isolate::kProtectorValid)),
+        if_true, if_false);
   }
+}
+
+TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
+    TNode<Context> context, TNode<Object> object) {
+  Label if_false(this, Label::kDeferred), exit(this);
+  TVARIABLE(BoolT, var_result, Int32TrueConstant());
+  BranchIfFastJSArrayWithNoCustomIteration(context, object, &exit, &if_false);
   BIND(&if_false);
   {
     var_result = Int32FalseConstant();

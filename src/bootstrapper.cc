@@ -4848,6 +4848,12 @@ void Genesis::InitializeGlobal_harmony_intl_segmenter() {
 
 #endif  // V8_INTL_SUPPORT
 
+void Genesis::InitializeGlobal_harmony_object_from_entries() {
+  if (!FLAG_harmony_object_from_entries) return;
+  SimpleInstallFunction(isolate(), isolate()->object_function(), "fromEntries",
+                        Builtins::kObjectFromEntries, 1, false);
+}
+
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
   // Create the %ArrayBufferPrototype%
