@@ -281,8 +281,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFromFloatResult(DwVfpRegister dst);
 
   // Calls Abort(msg) if the condition cond is not satisfied.
-  // Use --debug_code to enable.
+  // Use --debug-code to enable.
   void Assert(Condition cond, AbortReason reason);
+
+  // Like Assert(), but without condition.
+  // Use --debug-code to enable.
+  void AssertUnreachable(AbortReason reason);
 
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason);

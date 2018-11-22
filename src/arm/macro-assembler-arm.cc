@@ -1884,6 +1884,10 @@ void TurboAssembler::Assert(Condition cond, AbortReason reason) {
     Check(cond, reason);
 }
 
+void TurboAssembler::AssertUnreachable(AbortReason reason) {
+  if (emit_debug_code()) Abort(reason);
+}
+
 void TurboAssembler::Check(Condition cond, AbortReason reason) {
   Label L;
   b(cond, &L);

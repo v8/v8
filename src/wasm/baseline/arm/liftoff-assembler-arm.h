@@ -476,6 +476,7 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
                                      Register rhs) {             \
     instruction(dst, lhs, rhs);                                  \
   }
+
 #define UNIMPLEMENTED_I64_BINOP(name)                                          \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
                                      LiftoffRegister rhs) {                    \
@@ -804,7 +805,8 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  BAILOUT("AssertUnreachable");
+  // Asserts unreachable within the wasm code.
+  TurboAssembler::AssertUnreachable(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
