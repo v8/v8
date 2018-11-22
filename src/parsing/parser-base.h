@@ -1330,12 +1330,6 @@ class ParserBase {
     bool previous_accept_IN_;
   };
 
-  V8_INLINE void AccumulateNonBindingPatternErrors() {
-    this->Accumulate(ExpressionClassifier::AllProductions &
-                     ~(ExpressionClassifier::BindingPatternProduction |
-                       ExpressionClassifier::LetPatternProduction));
-  }
-
   // Accumulate errors that can be arbitrarily deep in an expression.
   // These correspond to the ECMAScript spec's 'Contains' operation
   // on productions. This includes:
@@ -2559,10 +2553,10 @@ void ParserBase<Impl>::ParseArguments(
     ExpressionT argument = ParseAssignmentExpression();
     if (maybe_arrow) {
       if (!impl()->IsIdentifier(argument)) {
-        classifier()->previous()->RecordNonSimpleParameter();
+        classifier()->RecordNonSimpleParameter();
       }
       if (is_spread) {
-        classifier()->previous()->RecordNonSimpleParameter();
+        classifier()->RecordNonSimpleParameter();
         if (argument->IsAssignment()) {
           classifier()->RecordAsyncArrowFormalParametersError(
               scanner()->location(), MessageTemplate::kRestDefaultInitializer);
@@ -2833,8 +2827,6 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
   SourceRange then_range, else_range;
   BindingPatternUnexpectedToken();
 
-  ExpressionClassifier classifier(this);
-
   ExpressionT left;
   {
     SourceRangeScope range_scope(scanner(), &then_range);
@@ -2853,7 +2845,6 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
   }
   ExpressionT expr = factory()->NewConditional(expression, left, right, pos);
   impl()->RecordConditionalSourceRange(expr, then_range, else_range);
-  AccumulateNonBindingPatternErrors();
   return expr;
 }
 
@@ -3079,8 +3070,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
                   scanner()->current_token() == Token::ASYNC &&
                   !scanner()->HasLineTerminatorBeforeNext())) {
     DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
-    ExpressionClassifier async_classifier(this);
-
     Scanner::Location lparen_loc = scanner()->peek_location();
     int pos = position();
 
@@ -3106,7 +3095,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       }
     }
     ValidateExpression();
-    AccumulateFormalParameterContainmentErrors();
 
     classifier()->RecordPatternError(lparen_loc,
                                      MessageTemplate::kUnexpectedToken,
@@ -4227,10 +4215,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   scope()->set_start_position(end_position());
   if (Check(Token::EXTENDS)) {
     FuncNameInferrerState fni_state(&fni_);
-    ExpressionClassifier extends_classifier(this);
     class_info.extends = ParseLeftHandSideExpression();
     ValidateExpression();
-    AccumulateFormalParameterContainmentErrors();
   }
 
   Expect(Token::LBRACE);
@@ -4244,7 +4230,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     bool is_static;
     bool is_private = false;
     ClassLiteralProperty::Kind property_kind;
-    ExpressionClassifier property_classifier(this);
     IdentifierT property_name;
     // If we haven't seen the constructor yet, it potentially is the next
     // property.
@@ -4262,7 +4247,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
     is_constructor &= class_info.has_seen_constructor;
     ValidateExpression();
-    AccumulateFormalParameterContainmentErrors();
 
     if (has_error()) return impl()->FailureExpression();
     impl()->DeclareClassProperty(name, property, property_name, property_kind,
@@ -4481,7 +4465,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic() {
   Consume(Token::MOD);
   // Allow "eval" or "arguments" for backward compatibility.
   IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers);
-  ExpressionClassifier classifier(this);
   if (peek() != Token::LPAREN) {
     impl()->ReportUnexpectedToken(peek());
     return impl()->FailureExpression();
