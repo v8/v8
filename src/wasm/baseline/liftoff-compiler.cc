@@ -1601,6 +1601,7 @@ class LiftoffCompiler {
         !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
                             "return"))
       return;
+    if (DidAssemblerBailout(decoder)) return;
 
     auto call_descriptor =
         compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
