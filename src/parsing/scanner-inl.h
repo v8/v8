@@ -126,9 +126,28 @@ V8_INLINE Token::Value KeywordOrIdentifierToken(const uint8_t* input,
       KEYWORDS(KEYWORD_GROUP_CASE, KEYWORD)
   }
   return Token::IDENTIFIER;
-#undef KEYWORDS
 #undef KEYWORD
 #undef KEYWORD_GROUP_CASE
+}
+
+// Recursive constexpr template magic to check if a character is in a given
+// string.
+template <int N>
+constexpr bool IsInString(const char (&s)[N], char c, size_t i = 0) {
+  return i >= N ? false : s[i] == c ? true : IsInString(s, c, i + 1);
+}
+
+inline constexpr bool CanBeKeywordCharacter(char c) {
+  return IsInString(
+#define KEYWORD_GROUP_CASE(ch)  // Nothing
+#define KEYWORD(keyword, token) keyword
+      // Use C string literal concatenation ("a" "b" becomes "ab") to build one
+      // giant string containing all the keywords.
+      KEYWORDS(KEYWORD_GROUP_CASE, KEYWORD)
+#undef KEYWORD
+#undef KEYWORD_GROUP_CASE
+          ,
+      c);
 }
 
 // Make sure tokens are stored as a single byte.
@@ -189,6 +208,8 @@ static const constexpr Token::Value one_char_tokens[128] = {
 #undef CALL_GET_SCAN_FLAGS
 };
 
+#undef KEYWORDS
+
 V8_INLINE Token::Value Scanner::ScanIdentifierOrKeyword() {
   next().literal_chars.Start();
   return ScanIdentifierOrKeywordInner();
@@ -208,10 +229,8 @@ constexpr uint8_t GetScanFlags(char c) {
   return
       // Keywords are all lowercase and only contain letters.
       // Note that non-identifier characters do not set this flag, so
-      // that it plays well with kTerminatesLiteral
-      // TODO(leszeks): We could probably get an even tighter measure
-      // here if not all letters are present in keywords.
-      (IsAsciiIdentifier(c) && !IsInRange(c, 'a', 'z')
+      // that it plays well with kTerminatesLiteral.
+      (IsAsciiIdentifier(c) && !CanBeKeywordCharacter(c)
            ? static_cast<uint8_t>(ScanFlags::kCannotBeKeyword)
            : 0) |
       (IsKeywordStart(c)
