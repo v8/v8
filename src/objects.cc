@@ -15107,21 +15107,6 @@ const char* Code::GetName(Isolate* isolate) const {
   }
 }
 
-void Code::PrintBuiltinCode(Isolate* isolate, const char* name) {
-  DCHECK(FLAG_print_builtin_code);
-  if (name == nullptr) {
-    name = GetName(isolate);
-  }
-  if (name != nullptr &&
-      PassesFilter(CStrVector(name),
-                   CStrVector(FLAG_print_builtin_code_filter))) {
-    CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
-    OFStream os(trace_scope.file());
-    Disassemble(name, os);
-    os << "\n";
-  }
-}
-
 namespace {
 
 inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,

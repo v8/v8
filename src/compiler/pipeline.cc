@@ -622,12 +622,9 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 #ifdef ENABLE_DISASSEMBLER
   AllowDeferredHandleDereference allow_deference_for_print_code;
   bool print_code =
-      isolate->bootstrapper()->IsActive()
-          ? FLAG_print_builtin_code && info->shared_info()->PassesFilter(
-                                           FLAG_print_builtin_code_filter)
-          : (FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
-             (info->IsOptimizing() && FLAG_print_opt_code &&
-              info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)));
+      FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
+      (info->IsOptimizing() && FLAG_print_opt_code &&
+       info->shared_info()->PassesFilter(FLAG_print_opt_code_filter));
   if (print_code) {
     std::unique_ptr<char[]> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());

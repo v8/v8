@@ -65,7 +65,7 @@ class Builtins {
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, BCH, DLH, ASM };
+  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, BCH, ASM };
 
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
@@ -93,6 +93,10 @@ class Builtins {
   static int GetStackParameterCount(Name name);
 
   static const char* name(int index);
+
+  // Support for --print-builtin-size and --print-builtin-code.
+  void PrintBuiltinCode();
+  void PrintBuiltinSize();
 
   // Returns the C++ entry point for builtins implemented in C++, and the null
   // Address otherwise.

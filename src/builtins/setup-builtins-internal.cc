@@ -33,11 +33,6 @@ namespace {
 void PostBuildProfileAndTracing(Isolate* isolate, Code code, const char* name) {
   PROFILE(isolate, CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
                                    AbstractCode::cast(code), name));
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_builtin_code) {
-    code->PrintBuiltinCode(isolate, name);
-  }
-#endif
 }
 
 AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,

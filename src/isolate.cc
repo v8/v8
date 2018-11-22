@@ -3072,15 +3072,6 @@ void Isolate::InitializeLoggingAndCounters() {
 }
 
 namespace {
-void PrintBuiltinSizes(Isolate* isolate) {
-  Builtins* builtins = isolate->builtins();
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    const char* name = builtins->name(i);
-    const char* kind = Builtins::KindNameOf(i);
-    Code code = builtins->builtin(i);
-    PrintF(stdout, "%s Builtin, %s, %d\n", kind, name, code->InstructionSize());
-  }
-}
 
 void CreateOffHeapTrampolines(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->embedded_blob());
@@ -3112,6 +3103,7 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
     }
   }
 }
+
 }  // namespace
 
 void Isolate::InitializeDefaultEmbeddedBlob() {
@@ -3337,7 +3329,8 @@ bool Isolate::Init(StartupDeserializer* des) {
   delete setup_delegate_;
   setup_delegate_ = nullptr;
 
-  if (FLAG_print_builtin_size) PrintBuiltinSizes(this);
+  if (FLAG_print_builtin_code) builtins()->PrintBuiltinCode();
+  if (FLAG_print_builtin_size) builtins()->PrintBuiltinSize();
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();

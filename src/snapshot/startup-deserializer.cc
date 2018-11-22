@@ -7,7 +7,6 @@
 #include "src/api.h"
 #include "src/assembler-inl.h"
 #include "src/code-stubs.h"
-#include "src/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/snapshot.h"
@@ -65,11 +64,6 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
 
   isolate->builtins()->MarkInitialized();
 
-  // If needed, print the dissassembly of deserialized code objects.
-  // Needs to be called after the builtins are marked as initialized, in order
-  // to display the builtin names.
-  PrintDisassembledCodeObjects();
-
   if (FLAG_rehash_snapshot && can_rehash()) {
     isolate->heap()->InitializeHashSeed();
     read_only_deserializer.RehashHeap();
@@ -83,32 +77,6 @@ void StartupDeserializer::FlushICacheForNewIsolate() {
   for (Page* p : *isolate()->heap()->code_space()) {
     Assembler::FlushICache(p->area_start(), p->area_end() - p->area_start());
   }
-}
-
-void StartupDeserializer::PrintDisassembledCodeObjects() {
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_builtin_code) {
-    Heap* heap = isolate()->heap();
-    HeapIterator iterator(heap);
-    DisallowHeapAllocation no_gc;
-
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-
-    for (HeapObject* obj = iterator.next(); obj != nullptr;
-         obj = iterator.next()) {
-      if (obj->IsCode()) {
-        Code code = Code::cast(obj);
-        // Printing of builtins and bytecode handlers is handled during their
-        // deserialization.
-        if (code->kind() != Code::BUILTIN &&
-            code->kind() != Code::BYTECODE_HANDLER) {
-          code->PrintBuiltinCode(isolate(), nullptr);
-        }
-      }
-    }
-  }
-#endif
 }
 
 }  // namespace internal

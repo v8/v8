@@ -23,7 +23,6 @@ class StartupDeserializer final : public Deserializer {
 
  private:
   void FlushICacheForNewIsolate();
-  void PrintDisassembledCodeObjects();
 
   const SnapshotData* read_only_data_;
 };
