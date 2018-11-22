@@ -453,6 +453,22 @@ class Map : public HeapObjectPtr {
 
   inline int GetInObjectPropertyOffset(int index) const;
 
+  class FieldCounts {
+   public:
+    FieldCounts(int mutable_count, int const_count)
+        : mutable_count_(mutable_count), const_count_(const_count) {}
+
+    int GetTotal() const { return mutable_count() + const_count(); }
+
+    int mutable_count() const { return mutable_count_; }
+    int const_count() const { return const_count_; }
+
+   private:
+    int mutable_count_;
+    int const_count_;
+  };
+
+  FieldCounts GetFieldCounts() const;
   int NumberOfFields() const;
 
   bool HasOutOfObjectProperties() const;

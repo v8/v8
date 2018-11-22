@@ -145,10 +145,19 @@ bool Map::IsUnboxedDoubleField(FieldIndex index) const {
 bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   if (UnusedPropertyFields() != 0) return false;
   if (is_prototype_map()) return false;
-  int minimum = store_origin == StoreOrigin::kNamed ? 128 : 12;
-  int limit = Max(minimum, GetInObjectProperties());
-  int external = NumberOfFields() - GetInObjectProperties();
-  return external > limit;
+  if (store_origin == StoreOrigin::kNamed) {
+    int limit = Max(kMaxFastProperties, GetInObjectProperties());
+    FieldCounts counts = GetFieldCounts();
+    // Only count mutable fields so that objects with large numbers of
+    // constant functions do not go to dictionary mode. That would be bad
+    // because such objects have often been used as modules.
+    int external = counts.mutable_count() - GetInObjectProperties();
+    return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
+  } else {
+    int limit = Max(kFastPropertiesSoftLimit, GetInObjectProperties());
+    int external = NumberOfFields() - GetInObjectProperties();
+    return external > limit;
+  }
 }
 
 PropertyDetails Map::GetLastDescriptorDetails() const {
