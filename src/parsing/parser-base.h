@@ -900,10 +900,15 @@ class ParserBase {
   }
 
   void ValidateFormalParameters(LanguageMode language_mode,
+                                const FormalParametersT& parameters,
                                 bool allow_duplicates) {
-    if (!allow_duplicates &&
-        !classifier()->is_valid_formal_parameter_list_without_duplicates()) {
-      ReportClassifierError(classifier()->duplicate_formal_parameter_error());
+    if (!allow_duplicates && parameters.has_duplicate()) {
+      if (classifier()->does_error_reporting()) {
+        impl()->ReportMessageAt(parameters.duplicate_location(),
+                                MessageTemplate::kParamDupe);
+      } else {
+        impl()->ReportUnidentifiableError();
+      }
     } else if (is_strict(language_mode) &&
                !classifier()->is_valid_strict_mode_formal_parameters()) {
       ReportClassifierError(classifier()->strict_mode_formal_parameter_error());
@@ -3969,7 +3974,8 @@ void ParserBase<Impl>::ParseFunctionBody(
     body->Add(inner_block);
   }
 
-  ValidateFormalParameters(language_mode(), allow_duplicate_parameters);
+  ValidateFormalParameters(language_mode(), parameters,
+                           allow_duplicate_parameters);
 
   if (!IsArrowFunction(kind)) {
     // Declare arguments after parsing the function since lexical 'arguments'
@@ -4103,7 +4109,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
         // Validate parameter names. We can do this only after preparsing the
         // function, since the function can declare itself strict.
-        ValidateFormalParameters(language_mode(), false);
+        ValidateFormalParameters(language_mode(), formal_parameters, false);
 
         DCHECK_NULL(produced_preparsed_scope_data);
 

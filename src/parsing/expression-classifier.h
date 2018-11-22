@@ -22,10 +22,9 @@ class ZoneList;
   T(FormalParameterInitializerProduction, 1) \
   T(BindingPatternProduction, 2)             \
   T(AssignmentPatternProduction, 3)          \
-  T(DistinctFormalParametersProduction, 4)   \
-  T(StrictModeFormalParametersProduction, 5) \
-  T(LetPatternProduction, 6)                 \
-  T(AsyncArrowFormalParametersProduction, 7)
+  T(StrictModeFormalParametersProduction, 4) \
+  T(LetPatternProduction, 5)                 \
+  T(AsyncArrowFormalParametersProduction, 6)
 
 // Expression classifiers serve two purposes:
 //
@@ -143,10 +142,6 @@ class ExpressionClassifierBase {
 
   V8_INLINE bool is_valid_assignment_pattern() const {
     return is_valid(AssignmentPatternProduction);
-  }
-
-  V8_INLINE bool is_valid_formal_parameter_list_without_duplicates() const {
-    return is_valid(DistinctFormalParametersProduction);
   }
 
   // Note: callers should also check
@@ -387,10 +382,6 @@ class ExpressionClassifier
     return this->reported_error(ErrorKind::kAssignmentPatternProduction);
   }
 
-  V8_INLINE const Error& duplicate_formal_parameter_error() const {
-    return this->reported_error(ErrorKind::kDistinctFormalParametersProduction);
-  }
-
   V8_INLINE const Error& strict_mode_formal_parameter_error() const {
     return this->reported_error(
         ErrorKind::kStrictModeFormalParametersProduction);
@@ -449,12 +440,6 @@ class ExpressionClassifier
     this->Add(TP::AsyncArrowFormalParametersProduction,
               Error(loc, message,
                     ErrorKind::kAsyncArrowFormalParametersProduction, arg));
-  }
-
-  void RecordDuplicateFormalParameterError(const Scanner::Location& loc) {
-    this->Add(TP::DistinctFormalParametersProduction,
-              Error(loc, MessageTemplate::kParamDupe,
-                    ErrorKind::kDistinctFormalParametersProduction));
   }
 
   // Record a binding that would be invalid in strict mode.  Confusingly this

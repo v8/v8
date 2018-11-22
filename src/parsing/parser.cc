@@ -3007,8 +3007,7 @@ void Parser::ParseFunction(
 
   RewriteDestructuringAssignments();
 
-  *has_duplicate_parameters =
-      !classifier()->is_valid_formal_parameter_list_without_duplicates();
+  *has_duplicate_parameters = formals.has_duplicate();
 
   *expected_property_count = function_state.expected_property_count();
   *suspend_count = function_state.suspend_count();

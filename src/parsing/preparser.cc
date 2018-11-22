@@ -197,7 +197,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     if (!IsArrowFunction(kind)) {
       // Validate parameter names. We can do this only after parsing the
       // function, since the function can declare itself strict.
-      ValidateFormalParameters(language_mode(), allow_duplicate_parameters);
+      ValidateFormalParameters(language_mode(), formals,
+                               allow_duplicate_parameters);
       if (has_error()) {
         if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
           return kPreParseNotIdentifiableError;

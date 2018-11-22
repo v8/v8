@@ -817,12 +817,18 @@ class PreParserFactory {
   Zone* zone_;
 };
 
-
-struct PreParserFormalParameters : FormalParametersBase {
+class PreParserFormalParameters : public FormalParametersBase {
+ public:
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
-};
 
+  Scanner::Location duplicate_location() const { UNREACHABLE(); }
+  bool has_duplicate() const { return has_duplicate_; }
+  void set_has_duplicate() { has_duplicate_ = true; }
+
+ private:
+  bool has_duplicate_ = false;
+};
 
 class PreParser;
 
@@ -1630,16 +1636,16 @@ class PreParser : public ParserBase<PreParser> {
       // We declare the parameter name for all names, but only create a
       // parameter entry for the first one.
       auto it = pattern.variables_->begin();
-      if (scope->LookupLocal(it->raw_name()) != nullptr) {
-        classifier()->RecordDuplicateFormalParameterError(
-            Scanner::Location::invalid());
+      if (!parameters->has_duplicate() &&
+          scope->LookupLocal(it->raw_name()) != nullptr) {
+        parameters->set_has_duplicate();
       }
       scope->DeclareParameterName(it->raw_name(), is_rest, ast_value_factory(),
                                   true, true);
       for (++it; it != pattern.variables_->end(); ++it) {
-        if (scope->LookupLocal(it->raw_name()) != nullptr) {
-          classifier()->RecordDuplicateFormalParameterError(
-              Scanner::Location::invalid());
+        if (!parameters->has_duplicate() &&
+            scope->LookupLocal(it->raw_name()) != nullptr) {
+          parameters->set_has_duplicate();
         }
         scope->DeclareParameterName(it->raw_name(), is_rest,
                                     ast_value_factory(), true, false);
@@ -1659,9 +1665,9 @@ class PreParser : public ParserBase<PreParser> {
     if (params.variables_ != nullptr) {
       Scope* scope = parameters->scope;
       for (auto variable : *params.variables_) {
-        if (scope->LookupLocal(variable->raw_name())) {
-          classifier()->RecordDuplicateFormalParameterError(
-              Scanner::Location::invalid());
+        if (!parameters->has_duplicate() &&
+            scope->LookupLocal(variable->raw_name())) {
+          parameters->set_has_duplicate();
         }
         scope->DeclareVariableName(variable->raw_name(), VariableMode::kVar);
       }

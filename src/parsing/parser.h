@@ -113,9 +113,13 @@ struct ParserFormalParameters : FormalParametersBase {
     Parameter* const* next() const { return &next_parameter; }
   };
 
+  Scanner::Location duplicate_location() const { return duplicate_loc; }
+  bool has_duplicate() const { return duplicate_loc.IsValid(); }
+
   explicit ParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
   base::ThreadedList<Parameter> params;
+  Scanner::Location duplicate_loc = Scanner::Location::invalid();
 };
 
 template <>
@@ -905,8 +909,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     parameters->params.Add(parameter);
   }
 
-  V8_INLINE void DeclareFormalParameters(
-      const ParserFormalParameters* parameters) {
+  V8_INLINE void DeclareFormalParameters(ParserFormalParameters* parameters) {
     bool is_simple = parameters->is_simple;
     DeclarationScope* scope = parameters->scope;
     if (!is_simple) scope->SetHasNonSimpleParameters();
@@ -916,10 +919,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       // their names. If the parameter list is not simple, declare a temporary
       // for each parameter - the corresponding named variable is declared by
       // BuildParamerterInitializationBlock.
-      if (is_simple && scope->LookupLocal(parameter->name)) {
-        classifier()->RecordDuplicateFormalParameterError(
+      if (is_simple && !parameters->has_duplicate() &&
+          scope->LookupLocal(parameter->name)) {
+        parameters->duplicate_loc =
             Scanner::Location(parameter->position,
-                              parameter->position + parameter->name->length()));
+                              parameter->position + parameter->name->length());
       }
       scope->DeclareParameter(
           is_simple ? parameter->name : ast_value_factory()->empty_string(),
