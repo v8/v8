@@ -41,7 +41,6 @@
 #include "src/libsampler/sampler.h"
 #include "src/log.h"
 #include "src/messages.h"
-#include "src/microtask-queue.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -2812,8 +2811,6 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
   debug_ = new Debug(this);
 
   InitializeDefaultEmbeddedBlob();
-
-  MicrotaskQueue::SetUpDefaultMicrotaskQueue(this);
 }
 
 void Isolate::CheckIsolateLayout() {
@@ -3019,12 +3016,6 @@ Isolate::~Isolate() {
 
   delete allocator_;
   allocator_ = nullptr;
-
-  // Assert that |default_microtask_queue_| is the last MicrotaskQueue instance.
-  DCHECK_IMPLIES(default_microtask_queue_,
-                 default_microtask_queue_ == default_microtask_queue_->next());
-  delete default_microtask_queue_;
-  default_microtask_queue_ = nullptr;
 }
 
 void Isolate::InitializeThreadLocal() { thread_local_top_.Initialize(this); }
@@ -4042,7 +4033,7 @@ void Isolate::FireCallCompletedCallback() {
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
 
   bool run_microtasks =
-      default_microtask_queue()->size() &&
+      heap()->default_microtask_queue()->pending_microtask_count() &&
       !handle_scope_implementer()->HasMicrotasksSuppressions() &&
       handle_scope_implementer()->microtasks_policy() ==
           v8::MicrotasksPolicy::kAuto;
@@ -4297,29 +4288,37 @@ void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
 }
 
 void Isolate::EnqueueMicrotask(Handle<Microtask> microtask) {
-  default_microtask_queue()->EnqueueMicrotask(*microtask);
+  Handle<MicrotaskQueue> microtask_queue(heap()->default_microtask_queue(),
+                                         this);
+  MicrotaskQueue::EnqueueMicrotask(this, microtask_queue, microtask);
 }
 
 
 void Isolate::RunMicrotasks() {
-  // TODO(tzik): Move the suppression, |is_running_microtask_|, and the
-  // completion callbacks into MicrotaskQueue.
-
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
       reinterpret_cast<v8::Isolate*>(this));
-  if (default_microtask_queue()->size()) {
+  HandleScope scope(this);
+  Handle<MicrotaskQueue> microtask_queue(heap()->default_microtask_queue(),
+                                         this);
+  if (microtask_queue->pending_microtask_count()) {
     is_running_microtasks_ = true;
     TRACE_EVENT0("v8.execute", "RunMicrotasks");
     TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
 
+    MaybeHandle<Object> maybe_exception;
+    MaybeHandle<Object> maybe_result = Execution::RunMicrotasks(
+        this, Execution::MessageHandling::kReport, &maybe_exception);
     // If execution is terminating, bail out, clean up, and propagate to
     // TryCatch scope.
-    if (default_microtask_queue()->RunMicrotasks(this) < 0) {
+    if (maybe_result.is_null() && maybe_exception.is_null()) {
+      microtask_queue->set_queue(ReadOnlyRoots(heap()).empty_fixed_array());
+      microtask_queue->set_pending_microtask_count(0);
       handle_scope_implementer()->LeaveMicrotaskContext();
       SetTerminationOnExternalTryCatch();
     }
-    DCHECK_EQ(0, default_microtask_queue()->size());
+    CHECK_EQ(0, microtask_queue->pending_microtask_count());
+    CHECK_EQ(0, microtask_queue->queue()->length());
     is_running_microtasks_ = false;
   }
   // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob

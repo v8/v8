@@ -46,6 +46,7 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/microtask-inl.h"
+#include "src/objects/microtask-queue-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
@@ -2307,6 +2308,13 @@ void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopePrint(
   os << "\n - start position: " << start_position();
   os << "\n - end position: " << end_position();
   os << "\n - pre_parsed_scope_data: " << Brief(pre_parsed_scope_data());
+  os << "\n";
+}
+
+void MicrotaskQueue::MicrotaskQueuePrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "MicrotaskQueue");
+  os << "\n - pending_microtask_count: " << pending_microtask_count();
+  os << "\n - queue: " << Brief(queue());
   os << "\n";
 }
 

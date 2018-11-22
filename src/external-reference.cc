@@ -17,7 +17,6 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/math-random.h"
-#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator-base.h"
@@ -134,11 +133,6 @@ ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
 ExternalReference ExternalReference::handle_scope_implementer_address(
     Isolate* isolate) {
   return ExternalReference(isolate->handle_scope_implementer_address());
-}
-
-ExternalReference ExternalReference::default_microtask_queue_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->default_microtask_queue_address());
 }
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
@@ -828,11 +822,6 @@ ExternalReference ExternalReference::wasm_thread_in_wasm_flag_address_address(
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
   return ExternalReference(reinterpret_cast<void*>(
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
-}
-
-ExternalReference ExternalReference::call_enqueue_microtask_function() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(MicrotaskQueue::CallEnqueueMicrotask)));
 }
 
 static int64_t atomic_pair_load(intptr_t address) {

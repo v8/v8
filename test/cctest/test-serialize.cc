@@ -598,9 +598,7 @@ static void PartiallySerializeCustomContext(
           "var r = Math.random();"
           "var c = Math.sin(0) + Math.cos(0);"
           "var f = (function(a, b) { return a + b; }).bind(1, 2, 3);"
-          "var s = parseInt('12345');"
-          "var p = 0;"
-          "(async ()=>{ p = await 42; })();");
+          "var s = parseInt('12345');");
 
       Vector<const uint8_t> source = ConstructSource(
           STATIC_CHAR_VECTOR("function g() { return [,"),
@@ -730,11 +728,6 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
                                     .ToLocalChecked();
       CHECK(s->Equals(v8_isolate->GetCurrentContext(), v8_str("12345"))
                 .FromJust());
-      v8::Local<v8::String> p = CompileRun("p")
-                                    ->ToString(v8_isolate->GetCurrentContext())
-                                    .ToLocalChecked();
-      CHECK(
-          p->Equals(v8_isolate->GetCurrentContext(), v8_str("42")).FromJust());
       int a = CompileRun("a.length")
                   ->ToNumber(v8_isolate->GetCurrentContext())
                   .ToLocalChecked()

@@ -7,7 +7,6 @@
 
 #include "src/api-inl.h"
 #include "src/math-random.h"
-#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
 
@@ -44,11 +43,6 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
   DCHECK(!context_->global_object()->IsUndefined());
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
-
-  DCHECK_EQ(
-      0, reinterpret_cast<MicrotaskQueue*>(context_->microtask_queue_pointer())
-             ->size());
-  context_->set_microtask_queue_pointer(nullptr);
 
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
                    ObjectSlot(reinterpret_cast<Address>(o)));

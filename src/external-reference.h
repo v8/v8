@@ -27,8 +27,6 @@ class StatsCounter;
   V(builtins_address, "builtins")                                              \
   V(handle_scope_implementer_address,                                          \
     "Isolate::handle_scope_implementer_address")                               \
-  V(default_microtask_queue_address,                                           \
-    "Isolate::default_microtask_queue_address()")                              \
   V(address_of_interpreter_entry_trampoline_instruction_start,                 \
     "Address of the InterpreterEntryTrampoline instruction start")             \
   V(interpreter_dispatch_counters, "Interpreter::dispatch_counters")           \
@@ -181,7 +179,6 @@ class StatsCounter;
   V(wasm_word32_ror, "wasm::word32_ror")                                      \
   V(wasm_word64_ctz, "wasm::word64_ctz")                                      \
   V(wasm_word64_popcnt, "wasm::word64_popcnt")                                \
-  V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")  \
   V(atomic_pair_load_function, "atomic_pair_load_function")                   \
   V(atomic_pair_store_function, "atomic_pair_store_function")                 \
   V(atomic_pair_add_function, "atomic_pair_add_function")                     \

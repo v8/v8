@@ -47,6 +47,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/microtask-inl.h"
+#include "src/objects/microtask-queue-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
@@ -1381,6 +1382,13 @@ void PromiseReactionJobTask::PromiseReactionJobTaskVerify(Isolate* isolate) {
   CHECK(promise_or_capability()->IsJSPromise() ||
         promise_or_capability()->IsPromiseCapability() ||
         promise_or_capability()->IsUndefined(isolate));
+}
+
+void MicrotaskQueue::MicrotaskQueueVerify(Isolate* isolate) {
+  CHECK(IsMicrotaskQueue());
+  VerifyHeapPointer(isolate, queue());
+  VerifySmiField(kPendingMicrotaskCountOffset);
+  CHECK_LE(pending_microtask_count(), queue()->length());
 }
 
 void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskVerify(

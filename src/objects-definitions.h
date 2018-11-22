@@ -123,6 +123,8 @@ namespace internal {
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                        \
   V(WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE)                            \
                                                                    \
+  V(MICROTASK_QUEUE_TYPE)                                          \
+                                                                   \
   V(ALLOCATION_SITE_TYPE)                                          \
   V(EMBEDDER_DATA_ARRAY_TYPE)                                      \
                                                                    \
@@ -348,7 +350,8 @@ namespace internal {
   V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask, \
     promise_resolve_thenable_job_task)                                        \
   V(_, WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE, WeakFactoryCleanupJobTask,         \
-    weak_factory_cleanup_job_task)
+    weak_factory_cleanup_job_task)                                            \
+  V(_, MICROTASK_QUEUE_TYPE, MicrotaskQueue, microtask_queue)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)
