@@ -345,6 +345,8 @@ class BaseTestRunner(object):
                       help="Run without test harness of a given suite")
     parser.add_option("--random-seed", default=0, type=int,
                       help="Default seed for initializing random generator")
+    parser.add_option("--run-skipped", help="Also run skipped tests.",
+                      default=False, action="store_true")
     parser.add_option("-t", "--timeout", default=60, type=int,
                       help="Timeout for single test in seconds")
     parser.add_option("-v", "--verbose", default=False, action="store_true",
@@ -677,6 +679,7 @@ class BaseTestRunner(object):
         no_harness=options.no_harness,
         noi18n=self.build_config.no_i18n,
         random_seed=options.random_seed,
+        run_skipped=options.run_skipped,
         shell_dir=self.outdir,
         timeout=timeout,
         verbose=options.verbose,
