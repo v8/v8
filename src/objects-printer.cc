@@ -2400,7 +2400,7 @@ void Map::PrintMapDetails(std::ostream& os) {
 #ifdef OBJECT_PRINT
   this->MapPrint(os);
 #else
-  os << "Map=" << reinterpret_cast<void*>(this);
+  os << "Map=" << reinterpret_cast<void*>(ptr());
 #endif
   os << "\n";
   instance_descriptors()->PrintDescriptors(os);
