@@ -24,9 +24,8 @@ class ZoneList;
   T(AssignmentPatternProduction, 3)          \
   T(DistinctFormalParametersProduction, 4)   \
   T(StrictModeFormalParametersProduction, 5) \
-  T(ArrowFormalParametersProduction, 6)      \
-  T(LetPatternProduction, 7)                 \
-  T(AsyncArrowFormalParametersProduction, 8)
+  T(LetPatternProduction, 6)                 \
+  T(AsyncArrowFormalParametersProduction, 7)
 
 // Expression classifiers serve two purposes:
 //
@@ -146,10 +145,6 @@ class ExpressionClassifierBase {
     return is_valid(AssignmentPatternProduction);
   }
 
-  V8_INLINE bool is_valid_arrow_formal_parameters() const {
-    return is_valid(ArrowFormalParametersProduction);
-  }
-
   V8_INLINE bool is_valid_formal_parameter_list_without_duplicates() const {
     return is_valid(DistinctFormalParametersProduction);
   }
@@ -184,15 +179,7 @@ class ExpressionClassifierBase {
     // Propagate errors from inner, but don't overwrite already recorded
     // errors.
     unsigned filter = productions & ~this->invalid_productions_;
-    // Don't propagate ArrowFormalParameter error directly.
-    unsigned errors =
-        ~ArrowFormalParametersProduction & inner->invalid_productions_ & filter;
-    // Convert BindingPattern error to ArrowFormalParameter error.
-    static const unsigned shift =
-        kArrowFormalParametersProduction - kBindingPatternProduction;
-    unsigned binding_as_arrow =
-        (inner->invalid_productions_ & BindingPatternProduction) << shift;
-    errors |= binding_as_arrow & filter;
+    unsigned errors = inner->invalid_productions_ & filter;
     static_cast<ErrorTracker*>(this)->AccumulateErrorImpl(inner, productions,
                                                           errors);
     this->invalid_productions_ |= errors;
@@ -288,46 +275,14 @@ class ExpressionClassifierErrorTracker
 
   void AccumulateErrorImpl(ExpressionClassifier<Types>* const inner,
                            unsigned productions, unsigned errors) {
-    unsigned non_arrow_errors = errors & ~TP::ArrowFormalParametersProduction;
     // Traverse the list of errors reported by the inner classifier
     // to copy what's necessary.
-    int binding_pattern_index = inner->reported_errors_end_;
     for (int i = inner->reported_errors_begin_; errors != 0; i++) {
       int mask = 1 << this->reported_errors_->at(i).kind;
-      if ((non_arrow_errors & mask) != 0) {
+      if ((errors & mask) != 0) {
         errors ^= mask;
         this->Copy(i);
       }
-      // Check if it's a BP error that has to be copied to an AFP error.
-      if (mask == TP::BindingPatternProduction &&
-          (errors & TP::ArrowFormalParametersProduction) != 0) {
-        errors ^= TP::ArrowFormalParametersProduction;
-        if (this->reported_errors_end_ <= i) {
-          // If the BP error itself has not already been copied,
-          // copy it now and change it to an AFP error.
-          this->Copy(i);
-          this->reported_errors_->at(this->reported_errors_end_ - 1).kind =
-              ErrorKind::kArrowFormalParametersProduction;
-        } else {
-          // Otherwise, if the BP error was already copied, keep its
-          // position and wait until the end of the traversal.
-          DCHECK_EQ(this->reported_errors_end_, i + 1);
-          binding_pattern_index = i;
-        }
-      }
-    }
-    // Do we still have to copy the BP error to an AFP error?
-    if (binding_pattern_index < inner->reported_errors_end_) {
-      // If there's still unused space in the list of the inner
-      // classifier, copy it there, otherwise add it to the end
-      // of the list.
-      if (this->reported_errors_end_ < inner->reported_errors_end_)
-        this->Copy(binding_pattern_index);
-      else
-        Add(TP::ArrowFormalParametersProduction,
-            this->reported_errors_->at(binding_pattern_index));
-      this->reported_errors_->at(this->reported_errors_end_ - 1).kind =
-          ErrorKind::kArrowFormalParametersProduction;
     }
 
     RewindErrors(inner);
@@ -432,10 +387,6 @@ class ExpressionClassifier
     return this->reported_error(ErrorKind::kAssignmentPatternProduction);
   }
 
-  V8_INLINE const Error& arrow_formal_parameters_error() const {
-    return this->reported_error(ErrorKind::kArrowFormalParametersProduction);
-  }
-
   V8_INLINE const Error& duplicate_formal_parameter_error() const {
     return this->reported_error(ErrorKind::kDistinctFormalParametersProduction);
   }
@@ -490,14 +441,6 @@ class ExpressionClassifier
                           const char* arg = nullptr) {
     RecordBindingPatternError(loc, message, arg);
     RecordAssignmentPatternError(loc, message, arg);
-  }
-
-  void RecordArrowFormalParametersError(const Scanner::Location& loc,
-                                        MessageTemplate message,
-                                        const char* arg = nullptr) {
-    this->Add(
-        TP::ArrowFormalParametersProduction,
-        Error(loc, message, ErrorKind::kArrowFormalParametersProduction, arg));
   }
 
   void RecordAsyncArrowFormalParametersError(const Scanner::Location& loc,

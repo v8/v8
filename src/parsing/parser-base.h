@@ -910,27 +910,17 @@ class ParserBase {
     }
   }
 
-  void ValidateArrowFormalParameters(ExpressionT expr) {
-    if (!next_arrow_formals_parenthesized_) {
-      // A simple arrow formal parameter: async? IDENTIFIER => BODY.
-      if (!impl()->IsIdentifier(expr)) {
-        if (classifier()->is_valid_binding_pattern()) {
-          // Non-parenthesized destructuring param.
-          impl()->ReportMessageAt(
-              Scanner::Location(expr->position(), position()),
-              MessageTemplate::kMalformedArrowFunParamList);
-        } else {
-          // Otherwise simply throw where we detect that it's not a valid
-          // binding pattern.
-          ReportClassifierError(classifier()->binding_pattern_error());
-        }
-      }
-    } else if (!classifier()->is_valid_arrow_formal_parameters()) {
-      ReportClassifierError(classifier()->arrow_formal_parameters_error());
-    } else {
-      DCHECK_IMPLIES(IsAsyncFunction(next_arrow_function_kind_),
-                     classifier()->is_valid_async_arrow_formal_parameters());
+  void ValidateArrowFormalParameters(ExpressionT expression) {
+    ValidateBindingPattern();
+    if (scanner()->current_token() != Token::RPAREN &&
+        !impl()->IsIdentifier(expression)) {
+      // Non-parenthesized destructuring param.
+      impl()->ReportMessageAt(
+          Scanner::Location(expression->position(), position()),
+          MessageTemplate::kMalformedArrowFunParamList);
     }
+    DCHECK_IMPLIES(IsAsyncFunction(next_arrow_function_kind_),
+                   classifier()->is_valid_async_arrow_formal_parameters());
   }
 
   void ValidateLetPattern() {
@@ -945,14 +935,6 @@ class ParserBase {
     Scanner::Location location = scanner()->peek_location();
     impl()->GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
     classifier()->RecordBindingPatternError(location, message, arg);
-  }
-
-  void ArrowFormalParametersUnexpectedToken() {
-    MessageTemplate message = MessageTemplate::kUnexpectedToken;
-    const char* arg = nullptr;
-    Scanner::Location location = scanner()->peek_location();
-    impl()->GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
-    classifier()->RecordArrowFormalParametersError(location, message, arg);
   }
 
   // Parses an identifier that is valid for the current scope, in particular it
@@ -1402,7 +1384,6 @@ class ParserBase {
 
   FunctionKind next_arrow_function_kind_ = FunctionKind::kArrowFunction;
 
-  bool next_arrow_formals_parenthesized_ = false;
   bool accept_IN_ = true;
 
   bool allow_natives_;
@@ -1710,18 +1691,12 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       return ParseObjectLiteral();
 
     case Token::LPAREN: {
-      classifier()->RecordPatternError(scanner()->peek_location(),
-                                       MessageTemplate::kUnexpectedToken,
-                                       Token::String(Token::LPAREN));
+      Scanner::Location lparen_loc = scanner()->peek_location();
       Consume(Token::LPAREN);
       if (Check(Token::RPAREN)) {
         // ()=>x.  The continuation that consumes the => is in
         // ParseAssignmentExpression.
-        if (peek() == Token::ARROW) {
-          next_arrow_formals_parenthesized_ = true;
-        } else {
-          ReportUnexpectedToken(Token::RPAREN);
-        }
+        if (peek() != Token::ARROW) ReportUnexpectedToken(Token::RPAREN);
         return factory()->NewEmptyParentheses(beg_pos);
       }
       // Heuristically try to detect immediately called functions before
@@ -1735,10 +1710,10 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       Expect(Token::RPAREN);
       // Parenthesized parameters have to be followed immediately by an arrow to
       // be valid.
-      if (peek() == Token::ARROW) {
-        next_arrow_formals_parenthesized_ = true;
-      } else {
-        ArrowFormalParametersUnexpectedToken();
+      if (peek() != Token::ARROW) {
+        classifier()->RecordPatternError(lparen_loc,
+                                         MessageTemplate::kUnexpectedToken,
+                                         Token::String(Token::LPAREN));
       }
       return expr;
     }
@@ -1803,14 +1778,10 @@ ParserBase<Impl>::ParseExpressionCoverGrammar() {
   ExpressionListT list(pointer_buffer());
   ExpressionT expression;
   while (true) {
-    ExpressionClassifier binding_classifier(this);
     if (V8_UNLIKELY(peek() == Token::ELLIPSIS)) {
       return ParseArrowFormalsWithRest(&list);
     }
     expression = ParseAssignmentExpression();
-    // No need to accumulate binding pattern-related errors, since
-    // an Expression can't be a binding pattern anyway.
-    AccumulateNonBindingPatternErrors();
     if (!impl()->IsIdentifier(expression)) {
       classifier()->RecordNonSimpleParameter();
     }
@@ -1849,7 +1820,6 @@ ParserBase<Impl>::ParseArrowFormalsWithRest(
   int pattern_pos = peek_position();
   ExpressionT pattern = ParseBindingPattern();
 
-  AccumulateNonBindingPatternErrors();
   classifier()->RecordNonSimpleParameter();
 
   if (V8_UNLIKELY(peek() == Token::ASSIGN)) {
@@ -2646,7 +2616,6 @@ ParserBase<Impl>::ParseAssignmentExpression() {
 
   DCHECK_IMPLIES(!has_error(),
                  FunctionKind::kArrowFunction == next_arrow_function_kind_);
-  DCHECK_IMPLIES(!has_error(), !next_arrow_formals_parenthesized_);
   ExpressionT expression = ParseConditionalExpression();
 
   Token::Value op = peek();
@@ -2681,7 +2650,6 @@ ParserBase<Impl>::ParseAssignmentExpression() {
 
     // Reset to default.
     next_arrow_function_kind_ = FunctionKind::kArrowFunction;
-    next_arrow_formals_parenthesized_ = false;
 
     // Because the arrow's parameters were parsed in the outer scope,
     // we need to fix up the scope chain appropriately.
@@ -3106,7 +3074,55 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
   DCHECK(Token::IsPropertyOrCall(peek()));
-  BindingPatternUnexpectedToken();
+
+  if (V8_UNLIKELY(peek() == Token::LPAREN && impl()->IsIdentifier(result) &&
+                  scanner()->current_token() == Token::ASYNC &&
+                  !scanner()->HasLineTerminatorBeforeNext())) {
+    DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
+    ExpressionClassifier async_classifier(this);
+
+    Scanner::Location lparen_loc = scanner()->peek_location();
+    int pos = position();
+
+    ExpressionListT args(pointer_buffer());
+    bool has_spread;
+    ParseArguments(&args, &has_spread, true);
+    if (V8_LIKELY(peek() == Token::ARROW)) {
+      fni_.RemoveAsyncKeywordFromEnd();
+      ValidateBindingPattern();
+      ValidateFormalParameterInitializer();
+      if (!classifier()->is_valid_async_arrow_formal_parameters()) {
+        ReportClassifierError(
+            classifier()->async_arrow_formal_parameters_error());
+        return impl()->FailureExpression();
+      }
+      next_arrow_function_kind_ = FunctionKind::kAsyncArrowFunction;
+      if (args.length()) {
+        // async ( Arguments ) => ...
+        return impl()->ExpressionListToExpression(args);
+      } else {
+        // async () => ...
+        return factory()->NewEmptyParentheses(pos);
+      }
+    }
+    ValidateExpression();
+    AccumulateFormalParameterContainmentErrors();
+
+    classifier()->RecordPatternError(lparen_loc,
+                                     MessageTemplate::kUnexpectedToken,
+                                     Token::String(Token::LPAREN));
+
+    if (has_spread) {
+      result = impl()->SpreadCall(result, args, pos, Call::NOT_EVAL);
+    } else {
+      result = factory()->NewCall(result, args, pos, Call::NOT_EVAL);
+    }
+
+    fni_.RemoveLastFunction();
+    if (!Token::IsPropertyOrCall(peek())) return result;
+  } else {
+    BindingPatternUnexpectedToken();
+  }
 
   do {
     switch (peek()) {
@@ -3143,39 +3159,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         }
         bool has_spread;
         ExpressionListT args(pointer_buffer());
-        if (impl()->IsIdentifier(result) &&
-            scanner()->current_token() == Token::ASYNC &&
-            !scanner()->HasLineTerminatorBeforeNext()) {
-          DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
-          ExpressionClassifier async_classifier(this);
-          ParseArguments(&args, &has_spread, true);
-          if (peek() == Token::ARROW) {
-            fni_.RemoveAsyncKeywordFromEnd();
-            ValidateBindingPattern();
-            ValidateFormalParameterInitializer();
-            if (!classifier()->is_valid_async_arrow_formal_parameters()) {
-              ReportClassifierError(
-                  classifier()->async_arrow_formal_parameters_error());
-              return impl()->FailureExpression();
-            }
-            next_arrow_function_kind_ = FunctionKind::kAsyncArrowFunction;
-            next_arrow_formals_parenthesized_ = true;
-            if (args.length()) {
-              // async ( Arguments ) => ...
-              return impl()->ExpressionListToExpression(args);
-            } else {
-              // async () => ...
-              return factory()->NewEmptyParentheses(pos);
-            }
-          } else {
-            ValidateExpression();
-            AccumulateFormalParameterContainmentErrors();
-          }
-        } else {
-          ParseArguments(&args, &has_spread);
-        }
-
-        ArrowFormalParametersUnexpectedToken();
+        ParseArguments(&args, &has_spread);
 
         // Keep track of eval() calls since they disable all local variable
         // optimizations.
