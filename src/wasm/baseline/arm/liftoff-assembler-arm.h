@@ -476,21 +476,10 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
                                      Register rhs) {             \
     instruction(dst, lhs, rhs);                                  \
   }
-
-#define UNIMPLEMENTED_GP_BINOP(name)                             \
-  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
-                                     Register rhs) {             \
-    BAILOUT("gp binop: " #name);                                 \
-  }
 #define UNIMPLEMENTED_I64_BINOP(name)                                          \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
                                      LiftoffRegister rhs) {                    \
     BAILOUT("i64 binop: " #name);                                              \
-  }
-#define UNIMPLEMENTED_GP_UNOP(name)                                \
-  bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
-    BAILOUT("gp unop: " #name);                                    \
-    return true;                                                   \
   }
 #define UNIMPLEMENTED_FP_BINOP(name)                                         \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
@@ -528,7 +517,6 @@ UNIMPLEMENTED_I64_BINOP(i64_mul)
 UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
 UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
 UNIMPLEMENTED_I64_SHIFTOP(i64_shr)
-UNIMPLEMENTED_GP_UNOP(i32_popcnt)
 UNIMPLEMENTED_FP_BINOP(f32_add)
 UNIMPLEMENTED_FP_BINOP(f32_sub)
 UNIMPLEMENTED_FP_BINOP(f32_mul)
@@ -561,9 +549,7 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #undef I32_BINOP
 #undef I32_SHIFTOP
 #undef I32_SHIFTOP_I
-#undef UNIMPLEMENTED_GP_BINOP
 #undef UNIMPLEMENTED_I64_BINOP
-#undef UNIMPLEMENTED_GP_UNOP
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_FP_UNOP
 #undef UNIMPLEMENTED_FP_UNOP_RETURN_TRUE
@@ -580,25 +566,116 @@ bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   return true;
 }
 
+bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    // x = x - ((x & (0x55555555 << 1)) >> 1)
+    and_(scratch, src, Operand(0xaaaaaaaa));
+    sub(dst, src, Operand(scratch, LSR, 1));
+    LiftoffRegList pinned;
+    pinned.set(dst);
+    Register scratch_2 = GetUnusedRegister(kGpReg, pinned).gp();
+    // x = (x & 0x33333333) + ((x & (0x33333333 << 2)) >> 2)
+    mov(scratch, Operand(0x33333333));
+    and_(scratch_2, dst, Operand(scratch, LSL, 2));
+    and_(scratch, dst, scratch);
+    add(dst, scratch, Operand(scratch_2, LSR, 2));
+  }
+  // x = (x + (x >> 4)) & 0x0F0F0F0F
+  add(dst, dst, Operand(dst, LSR, 4));
+  and_(dst, dst, Operand(0x0f0f0f0f));
+  // x = x + (x >> 8)
+  add(dst, dst, Operand(dst, LSR, 8));
+  // x = x + (x >> 16)
+  add(dst, dst, Operand(dst, LSR, 16));
+  // x = x & 0x3F
+  and_(dst, dst, Operand(0x3f));
+  return true;
+}
+
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  BAILOUT("i32_divs");
+  if (!CpuFeatures::IsSupported(SUDIV)) {
+    BAILOUT("i32_divs");
+    return;
+  }
+  CpuFeatureScope scope(this, SUDIV);
+  // Issue division early so we can perform the trapping checks whilst it
+  // completes.
+  bool speculative_sdiv = dst != lhs && dst != rhs;
+  if (speculative_sdiv) {
+    sdiv(dst, lhs, rhs);
+  }
+  Label noTrap;
+  // Check for division by zero.
+  cmp(rhs, Operand(0));
+  b(trap_div_by_zero, eq);
+  // Check for kMinInt / -1. This is unrepresentable.
+  cmp(rhs, Operand(-1));
+  b(&noTrap, ne);
+  cmp(lhs, Operand(kMinInt));
+  b(trap_div_unrepresentable, eq);
+  bind(&noTrap);
+  if (!speculative_sdiv) {
+    sdiv(dst, lhs, rhs);
+  }
 }
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_divu");
+  if (!CpuFeatures::IsSupported(SUDIV)) {
+    BAILOUT("i32_divu");
+    return;
+  }
+  CpuFeatureScope scope(this, SUDIV);
+  // Check for division by zero.
+  cmp(rhs, Operand(0));
+  b(trap_div_by_zero, eq);
+  udiv(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_rems");
+  if (!CpuFeatures::IsSupported(SUDIV)) {
+    // When this case is handled, a check for ARMv7 is required to use mls.
+    // Mls support is implied with SUDIV support.
+    BAILOUT("i32_rems");
+    return;
+  }
+  CpuFeatureScope scope(this, SUDIV);
+  // No need to check kMinInt / -1 because the result is kMinInt and then
+  // kMinInt * -1 -> kMinInt. In this case, the Msub result is therefore 0.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  sdiv(scratch, lhs, rhs);
+  // Check for division by zero.
+  cmp(rhs, Operand(0));
+  b(trap_div_by_zero, eq);
+  // Compute remainder.
+  mls(dst, scratch, rhs, lhs);
 }
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_remu");
+  if (!CpuFeatures::IsSupported(SUDIV)) {
+    // When this case is handled, a check for ARMv7 is required to use mls.
+    // Mls support is implied with SUDIV support.
+    BAILOUT("i32_remu");
+    return;
+  }
+  CpuFeatureScope scope(this, SUDIV);
+  // No need to check kMinInt / -1 because the result is kMinInt and then
+  // kMinInt * -1 -> kMinInt. In this case, the Msub result is therefore 0.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  udiv(scratch, lhs, rhs);
+  // Check for division by zero.
+  cmp(rhs, Operand(0));
+  b(trap_div_by_zero, eq);
+  // Compute remainder.
+  mls(dst, scratch, rhs, lhs);
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
