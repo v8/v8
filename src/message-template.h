@@ -458,7 +458,7 @@ namespace internal {
   T(AwaitExpressionFormalParameter,                                            \
     "Illegal await-expression in formal parameters of async function")         \
   T(TooManyArguments,                                                          \
-    "Too many arguments in function call (only 65535 allowed)")                \
+    "Too many arguments in function call (only 65534 allowed)")                \
   T(TooManyParameters,                                                         \
     "Too many parameters in function definition (only 65534 allowed)")         \
   T(TooManySpreads,                                                            \

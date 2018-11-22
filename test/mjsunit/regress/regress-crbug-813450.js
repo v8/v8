@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-var constructorArgs = new Array(0x10100);
+var constructorArgs = new Array(65534);
 var constructor = function() {};
 var target = new Proxy(constructor, {
   construct: function() {

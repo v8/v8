@@ -7,10 +7,7 @@
 function f(a, b, c) { return arguments }
 function g(...args) { return args }
 
-// On 64-bit machine this produces a 768K array which is sufficiently small to
-// not cause a stack overflow, but big enough to move the allocated arguments
-// object into large object space (kMaxRegularHeapObjectSize == 600K).
-var length = Math.pow(2, 15) * 3;
+var length = 65534;
 var args = new Array(length);
 assertEquals(length, f.apply(null, args).length);
 assertEquals(length, g.apply(null, args).length);
