@@ -498,9 +498,9 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
         fti, CallHandlerInfo::cast(fti->call_code()),
         ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
   }
-  if (!fti->instance_call_handler()->IsUndefined(isolate())) {
+  if (!fti->GetInstanceCallHandler()->IsUndefined(isolate())) {
     RecordSimpleVirtualObjectStats(
-        fti, CallHandlerInfo::cast(fti->instance_call_handler()),
+        fti, CallHandlerInfo::cast(fti->GetInstanceCallHandler()),
         ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
   }
 }

@@ -1890,14 +1890,20 @@ void FunctionTemplateInfo::FunctionTemplateInfoVerify(Isolate* isolate) {
   TemplateInfoVerify(isolate);
   VerifyPointer(isolate, serial_number());
   VerifyPointer(isolate, call_code());
+  VerifyPointer(isolate, signature());
+  VerifyPointer(isolate, cached_property_name());
+  VerifyPointer(isolate, rare_data());
+}
+
+void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
+    Isolate* isolate) {
+  CHECK(IsFunctionTemplateRareData());
   VerifyPointer(isolate, prototype_template());
   VerifyPointer(isolate, parent_template());
   VerifyPointer(isolate, named_property_handler());
   VerifyPointer(isolate, indexed_property_handler());
   VerifyPointer(isolate, instance_template());
-  VerifyPointer(isolate, signature());
   VerifyPointer(isolate, access_check_info());
-  VerifyPointer(isolate, cached_property_name());
 }
 
 void ObjectTemplateInfo::ObjectTemplateInfoVerify(Isolate* isolate) {

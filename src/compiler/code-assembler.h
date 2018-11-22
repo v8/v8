@@ -280,6 +280,7 @@ class BooleanWrapper;
 class CompilationCacheTable;
 class Constructor;
 class Filler;
+class FunctionTemplateRareData;
 class InternalizedString;
 class JSArgumentsObject;
 class JSContextExtensionObject;

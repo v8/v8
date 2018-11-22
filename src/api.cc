@@ -1336,13 +1336,14 @@ static Local<ObjectTemplate> ObjectTemplateNew(
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Object> result(Utils::OpenHandle(this)->prototype_template(),
+  i::Handle<i::Object> result(Utils::OpenHandle(this)->GetPrototypeTemplate(),
                               i_isolate);
   if (result->IsUndefined(i_isolate)) {
     // Do not cache prototype objects.
     result = Utils::OpenHandle(
         *ObjectTemplateNew(i_isolate, Local<FunctionTemplate>(), true));
-    Utils::OpenHandle(this)->set_prototype_template(*result);
+    i::FunctionTemplateInfo::SetPrototypeTemplate(
+        i_isolate, Utils::OpenHandle(this), result);
   }
   return ToApiHandle<ObjectTemplate>(result);
 }
@@ -1353,9 +1354,10 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Object> result = Utils::OpenHandle(*prototype_provider);
   auto info = Utils::OpenHandle(this);
-  CHECK(info->prototype_template()->IsUndefined(i_isolate));
-  CHECK(info->parent_template()->IsUndefined(i_isolate));
-  info->set_prototype_provider_template(*result);
+  CHECK(info->GetPrototypeTemplate()->IsUndefined(i_isolate));
+  CHECK(info->GetParentTemplate()->IsUndefined(i_isolate));
+  i::FunctionTemplateInfo::SetPrototypeProviderTemplate(i_isolate, info,
+                                                        result);
 }
 
 static void EnsureNotInstantiated(i::Handle<i::FunctionTemplateInfo> info,
@@ -1370,8 +1372,9 @@ void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
   EnsureNotInstantiated(info, "v8::FunctionTemplate::Inherit");
   i::Isolate* i_isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  CHECK(info->prototype_provider_template()->IsUndefined(i_isolate));
-  info->set_parent_template(*Utils::OpenHandle(*value));
+  CHECK(info->GetPrototypeProviderTemplate()->IsUndefined(i_isolate));
+  i::FunctionTemplateInfo::SetParentTemplate(i_isolate, info,
+                                             Utils::OpenHandle(*value));
 }
 
 static Local<FunctionTemplate> FunctionTemplateNew(
@@ -1537,13 +1540,14 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
   }
   i::Isolate* isolate = handle->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  if (handle->instance_template()->IsUndefined(isolate)) {
+  if (handle->GetInstanceTemplate()->IsUndefined(isolate)) {
     Local<ObjectTemplate> templ =
         ObjectTemplate::New(isolate, ToApiHandle<FunctionTemplate>(handle));
-    handle->set_instance_template(*Utils::OpenHandle(*templ));
+    i::FunctionTemplateInfo::SetInstanceTemplate(isolate, handle,
+                                                 Utils::OpenHandle(*templ));
   }
   i::Handle<i::ObjectTemplateInfo> result(
-      i::ObjectTemplateInfo::cast(handle->instance_template()), isolate);
+      i::ObjectTemplateInfo::cast(handle->GetInstanceTemplate()), isolate);
   return Utils::ToLocal(result);
 }
 
@@ -1665,7 +1669,8 @@ static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
   Local<FunctionTemplate> templ =
       FunctionTemplate::New(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::FunctionTemplateInfo> constructor = Utils::OpenHandle(*templ);
-  constructor->set_instance_template(*Utils::OpenHandle(object_template));
+  i::FunctionTemplateInfo::SetInstanceTemplate(
+      isolate, constructor, Utils::OpenHandle(object_template));
   Utils::OpenHandle(object_template)->set_constructor(*constructor);
   return constructor;
 }
@@ -1839,7 +1844,7 @@ static void ObjectTemplateSetNamedPropertyHandler(
   auto obj =
       CreateNamedInterceptorInfo(isolate, getter, setter, query, descriptor,
                                  remover, enumerator, definer, data, flags);
-  cons->set_named_property_handler(*obj);
+  i::FunctionTemplateInfo::SetNamedPropertyHandler(isolate, cons, obj);
 }
 
 void ObjectTemplate::SetHandler(
@@ -1883,7 +1888,7 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   }
   info->set_data(*Utils::OpenHandle(*data));
 
-  cons->set_access_check_info(*info);
+  i::FunctionTemplateInfo::SetAccessCheckInfo(isolate, cons, info);
   cons->set_needs_access_check(true);
 }
 
@@ -1922,7 +1927,7 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   }
   info->set_data(*Utils::OpenHandle(*data));
 
-  cons->set_access_check_info(*info);
+  i::FunctionTemplateInfo::SetAccessCheckInfo(isolate, cons, info);
   cons->set_needs_access_check(true);
 }
 
@@ -1937,7 +1942,7 @@ void ObjectTemplate::SetHandler(
       isolate, config.getter, config.setter, config.query, config.descriptor,
       config.deleter, config.enumerator, config.definer, config.data,
       config.flags);
-  cons->set_indexed_property_handler(*obj);
+  i::FunctionTemplateInfo::SetIndexedPropertyHandler(isolate, cons, obj);
 }
 
 void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
@@ -1954,7 +1959,7 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
   obj->set_data(*Utils::OpenHandle(*data));
-  cons->set_instance_call_handler(*obj);
+  i::FunctionTemplateInfo::SetInstanceCallHandler(isolate, cons, obj);
 }
 
 int ObjectTemplate::InternalFieldCount() {
@@ -6048,8 +6053,8 @@ static i::Handle<ObjectType> CreateEnvironment(
 
       // Set the global template to be the prototype template of
       // global proxy template.
-      proxy_constructor->set_prototype_template(
-          *Utils::OpenHandle(*global_template));
+      i::FunctionTemplateInfo::SetPrototypeTemplate(
+          isolate, proxy_constructor, Utils::OpenHandle(*global_template));
 
       proxy_template->SetInternalFieldCount(
           global_template->InternalFieldCount());
@@ -6057,32 +6062,37 @@ static i::Handle<ObjectType> CreateEnvironment(
       // Migrate security handlers from global_template to
       // proxy_template.  Temporarily removing access check
       // information from the global template.
-      if (!global_constructor->access_check_info()->IsUndefined(isolate)) {
-        proxy_constructor->set_access_check_info(
-            global_constructor->access_check_info());
+      if (!global_constructor->GetAccessCheckInfo()->IsUndefined(isolate)) {
+        i::FunctionTemplateInfo::SetAccessCheckInfo(
+            isolate, proxy_constructor,
+            i::handle(global_constructor->GetAccessCheckInfo(), isolate));
         proxy_constructor->set_needs_access_check(
             global_constructor->needs_access_check());
         global_constructor->set_needs_access_check(false);
-        global_constructor->set_access_check_info(
-            i::ReadOnlyRoots(isolate).undefined_value());
+        i::FunctionTemplateInfo::SetAccessCheckInfo(
+            isolate, global_constructor,
+            i::ReadOnlyRoots(isolate).undefined_value_handle());
       }
 
       // Same for other interceptors. If the global constructor has
       // interceptors, we need to replace them temporarily with noop
       // interceptors, so the map is correctly marked as having interceptors,
       // but we don't invoke any.
-      if (!global_constructor->named_property_handler()->IsUndefined(isolate)) {
+      if (!global_constructor->GetNamedPropertyHandler()->IsUndefined(
+              isolate)) {
         named_interceptor =
-            handle(global_constructor->named_property_handler(), isolate);
-        global_constructor->set_named_property_handler(
-            i::ReadOnlyRoots(isolate).noop_interceptor_info());
+            handle(global_constructor->GetNamedPropertyHandler(), isolate);
+        i::FunctionTemplateInfo::SetNamedPropertyHandler(
+            isolate, global_constructor,
+            i::ReadOnlyRoots(isolate).noop_interceptor_info_handle());
       }
-      if (!global_constructor->indexed_property_handler()->IsUndefined(
+      if (!global_constructor->GetIndexedPropertyHandler()->IsUndefined(
               isolate)) {
         indexed_interceptor =
-            handle(global_constructor->indexed_property_handler(), isolate);
-        global_constructor->set_indexed_property_handler(
-            i::ReadOnlyRoots(isolate).noop_interceptor_info());
+            handle(global_constructor->GetIndexedPropertyHandler(), isolate);
+        i::FunctionTemplateInfo::SetIndexedPropertyHandler(
+            isolate, global_constructor,
+            i::ReadOnlyRoots(isolate).noop_interceptor_info_handle());
       }
     }
 
@@ -6101,12 +6111,15 @@ static i::Handle<ObjectType> CreateEnvironment(
     if (!maybe_global_template.IsEmpty()) {
       DCHECK(!global_constructor.is_null());
       DCHECK(!proxy_constructor.is_null());
-      global_constructor->set_access_check_info(
-          proxy_constructor->access_check_info());
+      i::FunctionTemplateInfo::SetAccessCheckInfo(
+          isolate, global_constructor,
+          i::handle(proxy_constructor->GetAccessCheckInfo(), isolate));
       global_constructor->set_needs_access_check(
           proxy_constructor->needs_access_check());
-      global_constructor->set_named_property_handler(*named_interceptor);
-      global_constructor->set_indexed_property_handler(*indexed_interceptor);
+      i::FunctionTemplateInfo::SetNamedPropertyHandler(
+          isolate, global_constructor, named_interceptor);
+      i::FunctionTemplateInfo::SetIndexedPropertyHandler(
+          isolate, global_constructor, indexed_interceptor);
     }
   }
   // Leave V8.
@@ -6176,7 +6189,7 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
                   "v8::Context::NewRemoteContext",
                   "Global template needs to have access checks enabled.");
   i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
-      i::AccessCheckInfo::cast(global_constructor->access_check_info()),
+      i::AccessCheckInfo::cast(global_constructor->GetAccessCheckInfo()),
       isolate);
   Utils::ApiCheck(access_check_info->named_interceptor() != nullptr,
                   "v8::Context::NewRemoteContext",
@@ -6368,7 +6381,7 @@ MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
                   "v8::FunctionTemplate::NewRemoteInstance",
                   "InstanceTemplate needs to have access checks enabled.");
   i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
-      i::AccessCheckInfo::cast(constructor->access_check_info()), isolate);
+      i::AccessCheckInfo::cast(constructor->GetAccessCheckInfo()), isolate);
   Utils::ApiCheck(access_check_info->named_interceptor() != nullptr,
                   "v8::FunctionTemplate::NewRemoteInstance",
                   "InstanceTemplate needs to have access check handlers.");

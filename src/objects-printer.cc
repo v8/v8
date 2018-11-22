@@ -1956,21 +1956,30 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - property_list: " << Brief(property_list());
   os << "\n - call_code: " << Brief(call_code());
   os << "\n - property_accessors: " << Brief(property_accessors());
-  os << "\n - prototype_template: " << Brief(prototype_template());
-  os << "\n - parent_template: " << Brief(parent_template());
-  os << "\n - named_property_handler: " << Brief(named_property_handler());
-  os << "\n - indexed_property_handler: " << Brief(indexed_property_handler());
-  os << "\n - instance_template: " << Brief(instance_template());
   os << "\n - signature: " << Brief(signature());
-  os << "\n - access_check_info: " << Brief(access_check_info());
   os << "\n - cached_property_name: " << Brief(cached_property_name());
   os << "\n - hidden_prototype: " << (hidden_prototype() ? "true" : "false");
   os << "\n - undetectable: " << (undetectable() ? "true" : "false");
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
   os << "\n - instantiated: " << (instantiated() ? "true" : "false");
+  os << "\n - rare_data: " << Brief(rare_data());
   os << "\n";
 }
 
+void FunctionTemplateRareData::FunctionTemplateRareDataPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "FunctionTemplateRareData");
+  os << "\n - prototype_template: " << Brief(prototype_template());
+  os << "\n - prototype_provider_template: "
+     << Brief(prototype_provider_template());
+  os << "\n - parent_template: " << Brief(parent_template());
+  os << "\n - named_property_handler: " << Brief(named_property_handler());
+  os << "\n - indexed_property_handler: " << Brief(indexed_property_handler());
+  os << "\n - instance_template: " << Brief(instance_template());
+  os << "\n - instance_call_handler: " << Brief(instance_call_handler());
+  os << "\n - access_check_info: " << Brief(access_check_info());
+  os << "\n";
+}
 
 void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "ObjectTemplateInfo");

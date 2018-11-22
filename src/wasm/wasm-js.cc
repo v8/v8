@@ -1492,7 +1492,9 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
 // object explicitly and ignore implicit receiver.
 void SetDummyInstanceTemplate(Isolate* isolate, Handle<JSFunction> fun) {
   Handle<ObjectTemplateInfo> instance_template = NewObjectTemplate(isolate);
-  fun->shared()->get_api_func_data()->set_instance_template(*instance_template);
+  FunctionTemplateInfo::SetInstanceTemplate(
+      isolate, handle(fun->shared()->get_api_func_data(), isolate),
+      instance_template);
 }
 
 // static

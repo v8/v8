@@ -13542,7 +13542,7 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
       v8::Utils::OpenHandle(*templ)->constructor());
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
   i::CallHandlerInfo* handler_info =
-      i::CallHandlerInfo::cast(cons->instance_call_handler());
+      i::CallHandlerInfo::cast(cons->GetInstanceCallHandler());
   CHECK(!handler_info->IsSideEffectFreeCallHandlerInfo());
   handler_info->set_map(
       i::ReadOnlyRoots(heap).side_effect_free_call_handler_info_map());

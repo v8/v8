@@ -79,13 +79,13 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
 InterceptorInfo* Map::GetNamedInterceptor() {
   DCHECK(has_named_interceptor());
   FunctionTemplateInfo* info = GetFunctionTemplateInfo();
-  return InterceptorInfo::cast(info->named_property_handler());
+  return InterceptorInfo::cast(info->GetNamedPropertyHandler());
 }
 
 InterceptorInfo* Map::GetIndexedInterceptor() {
   DCHECK(has_indexed_interceptor());
   FunctionTemplateInfo* info = GetFunctionTemplateInfo();
-  return InterceptorInfo::cast(info->indexed_property_handler());
+  return InterceptorInfo::cast(info->GetIndexedPropertyHandler());
 }
 
 bool Map::IsInplaceGeneralizableField(PropertyConstness constness,

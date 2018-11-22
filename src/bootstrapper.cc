@@ -1241,7 +1241,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     Handle<FunctionTemplateInfo> global_constructor =
         Handle<FunctionTemplateInfo>(
             FunctionTemplateInfo::cast(data->constructor()), isolate());
-    Handle<Object> proto_template(global_constructor->prototype_template(),
+    Handle<Object> proto_template(global_constructor->GetPrototypeTemplate(),
                                   isolate());
     if (!proto_template->IsUndefined(isolate())) {
       js_global_object_template =
@@ -5645,9 +5645,9 @@ bool Genesis::ConfigureGlobalObjects(
     Handle<FunctionTemplateInfo> proxy_constructor(
         FunctionTemplateInfo::cast(global_proxy_data->constructor()),
         isolate());
-    if (!proxy_constructor->prototype_template()->IsUndefined(isolate())) {
+    if (!proxy_constructor->GetPrototypeTemplate()->IsUndefined(isolate())) {
       Handle<ObjectTemplateInfo> global_object_data(
-          ObjectTemplateInfo::cast(proxy_constructor->prototype_template()),
+          ObjectTemplateInfo::cast(proxy_constructor->GetPrototypeTemplate()),
           isolate());
       if (!ConfigureApiObject(global_object, global_object_data)) return false;
     }
@@ -5995,7 +5995,7 @@ Genesis::Genesis(Isolate* isolate,
       FunctionTemplateInfo::cast(global_proxy_data->constructor()), isolate);
 
   Handle<ObjectTemplateInfo> global_object_template(
-      ObjectTemplateInfo::cast(global_constructor->prototype_template()),
+      ObjectTemplateInfo::cast(global_constructor->GetPrototypeTemplate()),
       isolate);
   Handle<JSObject> global_object =
       ApiNatives::InstantiateRemoteObject(

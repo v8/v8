@@ -53,14 +53,15 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
   JSReceiver* raw_holder;
   if (is_construct) {
     DCHECK(args.receiver()->IsTheHole(isolate));
-    if (fun_data->instance_template()->IsUndefined(isolate)) {
+    if (fun_data->GetInstanceTemplate()->IsUndefined(isolate)) {
       v8::Local<ObjectTemplate> templ =
           ObjectTemplate::New(reinterpret_cast<v8::Isolate*>(isolate),
                               ToApiHandle<v8::FunctionTemplate>(fun_data));
-      fun_data->set_instance_template(*Utils::OpenHandle(*templ));
+      FunctionTemplateInfo::SetInstanceTemplate(isolate, fun_data,
+                                                Utils::OpenHandle(*templ));
     }
     Handle<ObjectTemplateInfo> instance_template(
-        ObjectTemplateInfo::cast(fun_data->instance_template()), isolate);
+        ObjectTemplateInfo::cast(fun_data->GetInstanceTemplate()), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
         ApiNatives::InstantiateObject(isolate, instance_template,
@@ -270,7 +271,7 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   // TODO(ishell): turn this back to a DCHECK.
   CHECK(constructor->shared()->IsApiFunction());
   Object* handler =
-      constructor->shared()->get_api_func_data()->instance_call_handler();
+      constructor->shared()->get_api_func_data()->GetInstanceCallHandler();
   DCHECK(!handler->IsUndefined(isolate));
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
 
