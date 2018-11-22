@@ -79,7 +79,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
 
   static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 
-  DECL_CAST(StringTable)
+  DECL_CAST2(StringTable)
 
   static const int kMaxEmptyFactor = 4;
   static const int kMinCapacity = 2048;
@@ -89,7 +89,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   template <bool seq_one_byte>
   friend class JsonParser;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringTable);
+  OBJECT_CONSTRUCTORS(StringTable, HashTable<StringTable, StringTableShape>)
 };
 
 class StringSetShape : public BaseShape<String*> {
@@ -109,7 +109,8 @@ class StringSet : public HashTable<StringSet, StringSetShape> {
                                Handle<String> name);
   bool Has(Isolate* isolate, Handle<String> name);
 
-  DECL_CAST(StringSet)
+  DECL_CAST2(StringSet)
+  OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>)
 };
 
 }  // namespace internal

@@ -888,7 +888,7 @@ void V8HeapExplorer::ExtractJSWeakCollectionReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractEphemeronHashTableReferences(
-    HeapEntry* entry, EphemeronHashTable* table) {
+    HeapEntry* entry, EphemeronHashTable table) {
   for (int i = 0, capacity = table->Capacity(); i < capacity; ++i) {
     int key_index = EphemeronHashTable::EntryToIndex(i) +
                     EphemeronHashTable::kEntryKeyIndex;
@@ -1287,7 +1287,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
     }
   } else if (js_obj->IsJSGlobalObject()) {
     // We assume that global objects can only have slow properties.
-    GlobalDictionary* dictionary =
+    GlobalDictionary dictionary =
         JSGlobalObject::cast(js_obj)->global_dictionary();
     int length = dictionary->Capacity();
     ReadOnlyRoots roots(isolate);
@@ -1300,7 +1300,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
       SetDataOrAccessorPropertyReference(details.kind(), entry, name, value);
     }
   } else {
-    NameDictionary* dictionary = js_obj->property_dictionary();
+    NameDictionary dictionary = js_obj->property_dictionary();
     int length = dictionary->Capacity();
     ReadOnlyRoots roots(isolate);
     for (int i = 0; i < length; ++i) {
@@ -1344,7 +1344,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj,
       }
     }
   } else if (js_obj->HasDictionaryElements()) {
-    NumberDictionary* dictionary = js_obj->element_dictionary();
+    NumberDictionary dictionary = js_obj->element_dictionary();
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);

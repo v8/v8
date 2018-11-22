@@ -1431,7 +1431,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, ObjectSlot p) {
 
 void MarkCompactCollector::MarkStringTable(
     ObjectVisitor* custom_root_body_visitor) {
-  StringTable* string_table = heap()->string_table();
+  StringTable string_table = heap()->string_table();
   // Mark the string table itself.
   if (marking_state()->WhiteToBlack(string_table)) {
     // Explicitly mark the prefix.
@@ -1847,7 +1847,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // Prune the string table removing all strings only pointed to by the
     // string table.  Cannot use string_table() here because the string
     // table is marked.
-    StringTable* string_table = heap()->string_table();
+    StringTable string_table = heap()->string_table();
     InternalizedStringTableCleaner internalized_visitor(heap(), string_table);
     string_table->IterateElements(&internalized_visitor);
     string_table->ElementsRemoved(internalized_visitor.PointersRemoved());
@@ -2058,7 +2058,7 @@ void MarkCompactCollector::TrimEnumCache(Map map,
 
 void MarkCompactCollector::ClearWeakCollections() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS);
-  EphemeronHashTable* table;
+  EphemeronHashTable table;
 
   while (weak_objects_.ephemeron_hash_tables.Pop(kMainThread, &table)) {
     for (int i = 0; i < table->Capacity(); i++) {

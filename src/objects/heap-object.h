@@ -56,6 +56,7 @@ class ObjectPtr {
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
+  inline bool IsHashTableBase() const;
 
   // TODO(3770): Drop these after migrating the respective classes:
   inline bool IsFixedArrayBasePtr() const;
@@ -103,6 +104,7 @@ class HeapObjectPtr : public ObjectPtr {
       Map value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline ObjectSlot map_slot();
+  inline MapWord map_word() const;
 
   inline WriteBarrierMode GetWriteBarrierMode(
       const DisallowHeapAllocation& promise);

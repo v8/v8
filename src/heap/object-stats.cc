@@ -479,7 +479,7 @@ void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
       RecordSimpleVirtualObjectStats(
           site, properties, ObjectStats::BOILERPLATE_PROPERTY_ARRAY_TYPE);
     } else {
-      NameDictionary* properties = boilerplate->property_dictionary();
+      NameDictionary properties = boilerplate->property_dictionary();
       RecordSimpleVirtualObjectStats(
           site, properties, ObjectStats::BOILERPLATE_PROPERTY_DICTIONARY_TYPE);
     }
@@ -508,7 +508,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
 void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
     JSGlobalObject* object) {
   // Properties.
-  GlobalDictionary* properties = object->global_dictionary();
+  GlobalDictionary properties = object->global_dictionary();
   RecordHashTableVirtualObjectStats(object, properties,
                                     ObjectStats::GLOBAL_PROPERTIES_TYPE);
   // Elements.
@@ -540,7 +540,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
     PropertyArray properties = object->property_array();
     CHECK_EQ(PROPERTY_ARRAY_TYPE, properties->map()->instance_type());
   } else {
-    NameDictionary* properties = object->property_dictionary();
+    NameDictionary properties = object->property_dictionary();
     RecordHashTableVirtualObjectStats(
         object, properties, ObjectStats::OBJECT_PROPERTY_DICTIONARY_TYPE);
   }

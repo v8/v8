@@ -341,7 +341,7 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclass(map, object);
   }
 
-  int VisitEphemeronHashTable(Map map, EphemeronHashTable* table) {
+  int VisitEphemeronHashTable(Map map, EphemeronHashTable table) {
     if (!ShouldVisit(table)) return 0;
     weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
 

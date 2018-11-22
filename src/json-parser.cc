@@ -881,7 +881,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     }
     Vector<const uint8_t> string_vector(seq_source_->GetChars() + position_,
                                         length);
-    StringTable* string_table = isolate()->heap()->string_table();
+    StringTable string_table = isolate()->heap()->string_table();
     uint32_t capacity = string_table->Capacity();
     uint32_t entry = StringTable::FirstProbe(hash, capacity);
     uint32_t count = 1;

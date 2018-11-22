@@ -103,7 +103,7 @@ MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-void Heap::SetRootCodeStubs(SimpleNumberDictionary* value) {
+void Heap::SetRootCodeStubs(SimpleNumberDictionary value) {
   roots_table()[RootIndex::kCodeStubs] = value;
 }
 
@@ -115,7 +115,7 @@ void Heap::SetRootScriptList(Object* value) {
   roots_table()[RootIndex::kScriptList] = value;
 }
 
-void Heap::SetRootStringTable(StringTable* value) {
+void Heap::SetRootStringTable(StringTable value) {
   roots_table()[RootIndex::kStringTable] = value;
 }
 

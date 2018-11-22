@@ -18,9 +18,9 @@
 
 // Since this changes visibility, it should always be last in a class
 // definition.
-#define OBJECT_CONSTRUCTORS(Type, Super)          \
+#define OBJECT_CONSTRUCTORS(Type, ...)            \
  public:                                          \
-  constexpr Type() : Super() {}                   \
+  constexpr Type() : __VA_ARGS__() {}             \
   Type* operator->() { return this; }             \
   const Type* operator->() const { return this; } \
                                                   \

@@ -201,7 +201,9 @@ FixedArrayBase* Map::GetInitialElements() const {
   } else if (has_fixed_typed_array_elements()) {
     result = GetReadOnlyRoots().EmptyFixedTypedArrayForMap(*this);
   } else if (has_dictionary_elements()) {
-    result = GetReadOnlyRoots().empty_slow_element_dictionary();
+    // TODO(3770): Drop unsightly cast.
+    result = reinterpret_cast<FixedArrayBase*>(
+        GetReadOnlyRoots().empty_slow_element_dictionary().ptr());
   } else {
     UNREACHABLE();
   }

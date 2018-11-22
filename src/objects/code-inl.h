@@ -31,8 +31,8 @@ CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 
 ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
           kSourcePositionTableIndex)
-ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
-          SimpleNumberDictionary, kStackFrameCacheIndex)
+ACCESSORS2(SourcePositionTableWithFrameCache, stack_frame_cache,
+           SimpleNumberDictionary, kStackFrameCacheIndex)
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {

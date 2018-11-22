@@ -46,6 +46,8 @@ STRUCT_LIST(TYPE_CHECK_FORWARDER)
 ODDBALL_LIST(TYPE_CHECK_FORWARDER)
 #undef TYPE_CHECK_FORWARDER
 
+bool ObjectPtr::IsHashTableBase() const { return IsHashTable(); }
+
 bool ObjectPtr::IsFixedArrayBasePtr() const {
   return reinterpret_cast<Object*>(ptr())->IsFixedArrayBase();
 }
@@ -94,6 +96,11 @@ void HeapObjectPtr::set_map_after_allocation(Map value, WriteBarrierMode mode) {
 
 ObjectSlot HeapObjectPtr::map_slot() {
   return ObjectSlot(FIELD_ADDR(this, kMapOffset));
+}
+
+MapWord HeapObjectPtr::map_word() const {
+  return MapWord(
+      reinterpret_cast<Address>(RELAXED_READ_FIELD(this, kMapOffset)));
 }
 
 WriteBarrierMode HeapObjectPtr::GetWriteBarrierMode(

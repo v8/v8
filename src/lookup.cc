@@ -1036,12 +1036,12 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
       DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
     }
   } else if (holder->IsJSGlobalObject()) {
-    GlobalDictionary* dictionary =
+    GlobalDictionary dictionary =
         JSGlobalObject::cast(*holder)->global_dictionary();
     dictionary->CellAt(dictionary_entry())->set_value(*value);
   } else {
     DCHECK_IMPLIES(holder->IsJSProxy(), name()->IsPrivate());
-    NameDictionary* dictionary = holder->property_dictionary();
+    NameDictionary dictionary = holder->property_dictionary();
     dictionary->ValueAtPut(dictionary_entry(), *value);
   }
 }
@@ -1114,7 +1114,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       V8_FALLTHROUGH;
     case INTERCEPTOR:
       if (!is_element && map->IsJSGlobalObjectMap()) {
-        GlobalDictionary* dict =
+        GlobalDictionary dict =
             JSGlobalObject::cast(holder)->global_dictionary();
         int number = dict->FindEntry(isolate(), name_);
         if (number == GlobalDictionary::kNotFound) return NOT_FOUND;
@@ -1168,7 +1168,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     property_details_ = descriptors->GetDetails(number_);
   } else {
     DCHECK_IMPLIES(holder->IsJSProxy(), name()->IsPrivate());
-    NameDictionary* dict = holder->property_dictionary();
+    NameDictionary dict = holder->property_dictionary();
     int number = dict->FindEntry(isolate(), name_);
     if (number == NameDictionary::kNotFound) return NotFound(holder);
     number_ = static_cast<uint32_t>(number);

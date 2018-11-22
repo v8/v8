@@ -199,13 +199,13 @@ class RootVisitor;
   V(FixedTypedArrayBase*, empty_fixed_bigint64_array, EmptyFixedBigInt64Array) \
   V(FixedArray*, empty_sloppy_arguments_elements,                              \
     EmptySloppyArgumentsElements)                                              \
-  V(NumberDictionary*, empty_slow_element_dictionary,                          \
+  V(NumberDictionary, empty_slow_element_dictionary,                           \
     EmptySlowElementDictionary)                                                \
   V(FixedArray*, empty_ordered_hash_map, EmptyOrderedHashMap)                  \
   V(FixedArray*, empty_ordered_hash_set, EmptyOrderedHashSet)                  \
   V(FeedbackMetadata*, empty_feedback_metadata, EmptyFeedbackMetadata)         \
   V(PropertyCell*, empty_property_cell, EmptyPropertyCell)                     \
-  V(NameDictionary*, empty_property_dictionary, EmptyPropertyDictionary)       \
+  V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
   V(InterceptorInfo*, noop_interceptor_info, NoOpInterceptorInfo)              \
   V(WeakFixedArray*, empty_weak_fixed_array, EmptyWeakFixedArray)              \
   V(WeakArrayList*, empty_weak_array_list, EmptyWeakArrayList)                 \
@@ -271,11 +271,11 @@ class RootVisitor;
   /* Caches */                                                              \
   V(FixedArray*, number_string_cache, NumberStringCache)                    \
   /* Lists and dictionaries */                                              \
-  V(NameDictionary*, public_symbol_table, PublicSymbolTable)                \
-  V(NameDictionary*, api_symbol_table, ApiSymbolTable)                      \
-  V(NameDictionary*, api_private_symbol_table, ApiPrivateSymbolTable)       \
+  V(NameDictionary, public_symbol_table, PublicSymbolTable)                 \
+  V(NameDictionary, api_symbol_table, ApiSymbolTable)                       \
+  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)        \
   V(WeakArrayList*, script_list, ScriptList)                                \
-  V(SimpleNumberDictionary*, code_stubs, CodeStubs)                         \
+  V(SimpleNumberDictionary, code_stubs, CodeStubs)                          \
   V(FixedArray*, materialized_objects, MaterializedObjects)                 \
   V(WeakArrayList*, detached_contexts, DetachedContexts)                    \
   V(WeakArrayList*, retaining_path_targets, RetainingPathTargets)           \
@@ -351,10 +351,10 @@ class RootVisitor;
   ALLOCATION_SITE_MAPS_LIST(V)     \
   DATA_HANDLER_MAPS_LIST(V)
 
-#define MUTABLE_ROOT_LIST(V)                 \
-  STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)      \
-  STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)        \
-  V(StringTable*, string_table, StringTable) \
+#define MUTABLE_ROOT_LIST(V)                \
+  STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)     \
+  STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)       \
+  V(StringTable, string_table, StringTable) \
   SMI_ROOT_LIST(V)
 
 #define ROOT_LIST(V)     \

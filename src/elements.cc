@@ -176,7 +176,7 @@ static void CopyDictionaryToObjectElements(
     FixedArrayBase* to_base, ElementsKind to_kind, uint32_t to_start,
     int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
-  NumberDictionary* from = NumberDictionary::cast(from_base);
+  NumberDictionary from = NumberDictionary::cast(from_base);
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
     DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
@@ -408,7 +408,7 @@ static void CopyDictionaryToDoubleElements(
     Isolate* isolate, FixedArrayBase* from_base, uint32_t from_start,
     FixedArrayBase* to_base, uint32_t to_start, int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
-  NumberDictionary* from = NumberDictionary::cast(from_base);
+  NumberDictionary from = NumberDictionary::cast(from_base);
   int copy_size = raw_copy_size;
   if (copy_size < 0) {
     DCHECK(copy_size == ElementsAccessor::kCopyToEnd ||
@@ -1411,7 +1411,7 @@ class DictionaryElementsAccessor
 
   static uint32_t NumberOfElementsImpl(JSObject* receiver,
                                        FixedArrayBase* backing_store) {
-    NumberDictionary* dict = NumberDictionary::cast(backing_store);
+    NumberDictionary dict = NumberDictionary::cast(backing_store);
     return dict->NumberOfElements();
   }
 
@@ -1520,7 +1520,7 @@ class DictionaryElementsAccessor
   static bool HasAccessorsImpl(JSObject* holder,
                                FixedArrayBase* backing_store) {
     DisallowHeapAllocation no_gc;
-    NumberDictionary* dict = NumberDictionary::cast(backing_store);
+    NumberDictionary dict = NumberDictionary::cast(backing_store);
     if (!dict->requires_slow_elements()) return false;
     int capacity = dict->Capacity();
     ReadOnlyRoots roots = holder->GetReadOnlyRoots();
@@ -1534,7 +1534,7 @@ class DictionaryElementsAccessor
   }
 
   static Object* GetRaw(FixedArrayBase* store, uint32_t entry) {
-    NumberDictionary* backing_store = NumberDictionary::cast(store);
+    NumberDictionary backing_store = NumberDictionary::cast(store);
     return backing_store->ValueAt(entry);
   }
 
@@ -1557,7 +1557,7 @@ class DictionaryElementsAccessor
                               Handle<FixedArrayBase> store, uint32_t entry,
                               Handle<Object> value,
                               PropertyAttributes attributes) {
-    NumberDictionary* dictionary = NumberDictionary::cast(*store);
+    NumberDictionary dictionary = NumberDictionary::cast(*store);
     if (attributes != NONE) object->RequireSlowElements(dictionary);
     dictionary->ValueAtPut(entry, *value);
     PropertyDetails details = dictionary->DetailsAt(entry);
@@ -1587,14 +1587,14 @@ class DictionaryElementsAccessor
   static bool HasEntryImpl(Isolate* isolate, FixedArrayBase* store,
                            uint32_t entry) {
     DisallowHeapAllocation no_gc;
-    NumberDictionary* dict = NumberDictionary::cast(store);
+    NumberDictionary dict = NumberDictionary::cast(store);
     Object* index = dict->KeyAt(entry);
     return !index->IsTheHole(isolate);
   }
 
   static uint32_t GetIndexForEntryImpl(FixedArrayBase* store, uint32_t entry) {
     DisallowHeapAllocation no_gc;
-    NumberDictionary* dict = NumberDictionary::cast(store);
+    NumberDictionary dict = NumberDictionary::cast(store);
     uint32_t result = 0;
     CHECK(dict->KeyAt(entry)->ToArrayIndex(&result));
     return result;
@@ -1604,7 +1604,7 @@ class DictionaryElementsAccessor
                                        FixedArrayBase* store, uint32_t index,
                                        PropertyFilter filter) {
     DisallowHeapAllocation no_gc;
-    NumberDictionary* dictionary = NumberDictionary::cast(store);
+    NumberDictionary dictionary = NumberDictionary::cast(store);
     int entry = dictionary->FindEntry(isolate, index);
     if (entry == NumberDictionary::kNotFound) return kMaxUInt32;
     if (filter != ALL_PROPERTIES) {
@@ -1718,7 +1718,7 @@ class DictionaryElementsAccessor
                                     Handle<Object> value, uint32_t start_from,
                                     uint32_t length, Maybe<bool>* result) {
     DisallowHeapAllocation no_gc;
-    NumberDictionary* dictionary = NumberDictionary::cast(receiver->elements());
+    NumberDictionary dictionary = NumberDictionary::cast(receiver->elements());
     int capacity = dictionary->Capacity();
     Object* the_hole = ReadOnlyRoots(isolate).the_hole_value();
     Object* undefined = ReadOnlyRoots(isolate).undefined_value();
@@ -1899,7 +1899,7 @@ class DictionaryElementsAccessor
     DCHECK_EQ(holder->map()->elements_kind(), DICTIONARY_ELEMENTS);
     if (!FLAG_enable_slow_asserts) return;
     ReadOnlyRoots roots = holder->GetReadOnlyRoots();
-    NumberDictionary* dictionary = NumberDictionary::cast(holder->elements());
+    NumberDictionary dictionary = NumberDictionary::cast(holder->elements());
     // Validate the requires_slow_elements and max_number_key values.
     int capacity = dictionary->Capacity();
     bool requires_slow_elements = false;
@@ -2069,8 +2069,10 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                               PropertyAttributes attributes) {
     Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(object);
     entry = dictionary->FindEntry(object->GetIsolate(), entry);
-    DictionaryElementsAccessor::ReconfigureImpl(object, dictionary, entry,
-                                                value, attributes);
+    // TODO(3770): Drop type conversion.
+    DictionaryElementsAccessor::ReconfigureImpl(
+        object, Handle<FixedArrayBase>(dictionary.location()), entry, value,
+        attributes);
   }
 
   static void AddImpl(Handle<JSObject> object, uint32_t index,

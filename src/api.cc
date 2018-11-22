@@ -6744,12 +6744,17 @@ Local<v8::Object> v8::Object::New(Isolate* isolate,
       // If this is the first element, allocate a proper
       // dictionary elements backing store for {elements}.
       if (!elements->IsNumberDictionary()) {
-        elements =
-            i::NumberDictionary::New(i_isolate, static_cast<int>(length));
+        // TODO(3770): Drop explicit cast.
+        elements = i::Handle<i::FixedArrayBase>(
+            i::NumberDictionary::New(i_isolate, static_cast<int>(length))
+                .location());
       }
-      elements = i::NumberDictionary::Set(
-          i_isolate, i::Handle<i::NumberDictionary>::cast(elements), index,
-          value);
+      // TODO(3770): Drop explicit cast.
+      elements = i::Handle<i::FixedArrayBase>(
+          i::NumberDictionary::Set(
+              i_isolate, i::Handle<i::NumberDictionary>::cast(elements), index,
+              value)
+              .location());
     } else {
       // Internalize the {name} first.
       name = i_isolate->factory()->InternalizeName(name);

@@ -592,7 +592,7 @@ void PrintFixedArrayElements(std::ostream& os, T* array) {
 
 void PrintDictionaryElements(std::ostream& os, FixedArrayBase* elements) {
   // Print some internal fields
-  NumberDictionary* dict = NumberDictionary::cast(elements);
+  NumberDictionary dict = NumberDictionary::cast(elements);
   if (dict->requires_slow_elements()) {
     os << "\n   - requires_slow_elements";
   } else {
@@ -952,7 +952,7 @@ void PrintFixedArrayWithHeader(std::ostream& os, FixedArray* array,
 }
 
 template <typename T>
-void PrintHashTableWithHeader(std::ostream& os, T* table, const char* type) {
+void PrintHashTableWithHeader(std::ostream& os, T table, const char* type) {
   table->PrintHeader(os, type);
   os << "\n - length: " << table->length();
   os << "\n - elements: " << table->NumberOfElements();
@@ -1021,15 +1021,15 @@ void NativeContext::NativeContextPrint(std::ostream& os) {
 }
 
 void ObjectHashTable::ObjectHashTablePrint(std::ostream& os) {
-  PrintHashTableWithHeader(os, this, "ObjectHashTable");
+  PrintHashTableWithHeader(os, *this, "ObjectHashTable");
 }
 
 void NumberDictionary::NumberDictionaryPrint(std::ostream& os) {
-  PrintHashTableWithHeader(os, this, "NumberDictionary");
+  PrintHashTableWithHeader(os, *this, "NumberDictionary");
 }
 
 void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
-  PrintHashTableWithHeader(os, this, "EphemeronHashTable");
+  PrintHashTableWithHeader(os, *this, "EphemeronHashTable");
 }
 
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(

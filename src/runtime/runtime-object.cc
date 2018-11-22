@@ -498,7 +498,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       DisallowHeapAllocation no_allocation;
       if (receiver->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
-        GlobalDictionary* dictionary =
+        GlobalDictionary dictionary =
             JSGlobalObject::cast(*receiver)->global_dictionary();
         int entry = dictionary->FindEntry(isolate, key);
         if (entry != GlobalDictionary::kNotFound) {
@@ -511,7 +511,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         }
       } else if (!receiver->HasFastProperties()) {
         // Attempt dictionary lookup.
-        NameDictionary* dictionary = receiver->property_dictionary();
+        NameDictionary dictionary = receiver->property_dictionary();
         int entry = dictionary->FindEntry(isolate, key);
         if ((entry != NameDictionary::kNotFound) &&
             (dictionary->DetailsAt(entry).kind() == kData)) {

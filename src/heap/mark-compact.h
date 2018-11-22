@@ -418,7 +418,7 @@ struct WeakObjects {
 
   // Keep track of all EphemeronHashTables in the heap to process
   // them in the atomic pause.
-  Worklist<EphemeronHashTable*, 64> ephemeron_hash_tables;
+  Worklist<EphemeronHashTable, 64> ephemeron_hash_tables;
 
   // Keep track of all ephemerons for concurrent marking tasks. Only store
   // ephemerons in these Worklists if both key and value are unreachable at the
@@ -656,7 +656,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     weak_objects_.transition_arrays.Push(kMainThread, array);
   }
 
-  void AddEphemeronHashTable(EphemeronHashTable* table) {
+  void AddEphemeronHashTable(EphemeronHashTable table) {
     weak_objects_.ephemeron_hash_tables.Push(kMainThread, table);
   }
 
@@ -923,7 +923,7 @@ class MarkingVisitor final
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray* object);
-  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable* object);
+  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
   V8_INLINE int VisitFixedArray(Map map, FixedArray* object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject* object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer* object);

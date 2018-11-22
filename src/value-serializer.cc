@@ -1134,8 +1134,9 @@ bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
 void ValueDeserializer::TransferArrayBuffer(
     uint32_t transfer_id, Handle<JSArrayBuffer> array_buffer) {
   if (array_buffer_transfer_map_.is_null()) {
-    array_buffer_transfer_map_ = isolate_->global_handles()->Create(
-        *SimpleNumberDictionary::New(isolate_, 0));
+    array_buffer_transfer_map_ =
+        Handle<SimpleNumberDictionary>::cast(isolate_->global_handles()->Create(
+            *SimpleNumberDictionary::New(isolate_, 0)));
   }
   Handle<SimpleNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
@@ -1143,8 +1144,8 @@ void ValueDeserializer::TransferArrayBuffer(
       isolate_, dictionary, transfer_id, array_buffer);
   if (!new_dictionary.is_identical_to(dictionary)) {
     GlobalHandles::Destroy(dictionary.location());
-    array_buffer_transfer_map_ =
-        isolate_->global_handles()->Create(*new_dictionary);
+    array_buffer_transfer_map_ = Handle<SimpleNumberDictionary>::cast(
+        isolate_->global_handles()->Create(*new_dictionary));
   }
 }
 

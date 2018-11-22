@@ -47,7 +47,7 @@ class Module : public Struct, public NeverReadOnlySpaceObject {
 
   // The complete export table, mapping an export name to its cell.
   // TODO(neis): We may want to remove the regular exports from the table.
-  DECL_ACCESSORS(exports, ObjectHashTable)
+  DECL_ACCESSORS2(exports, ObjectHashTable)
 
   // Hash for this object (a random non-zero Smi).
   DECL_INT_ACCESSORS(hash)

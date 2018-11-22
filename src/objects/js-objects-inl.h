@@ -749,18 +749,18 @@ bool JSObject::HasIndexedInterceptor() {
   return map()->has_indexed_interceptor();
 }
 
-void JSGlobalObject::set_global_dictionary(GlobalDictionary* dictionary) {
+void JSGlobalObject::set_global_dictionary(GlobalDictionary dictionary) {
   DCHECK(IsJSGlobalObject());
   set_raw_properties_or_hash(dictionary);
 }
 
-GlobalDictionary* JSGlobalObject::global_dictionary() {
+GlobalDictionary JSGlobalObject::global_dictionary() {
   DCHECK(!HasFastProperties());
   DCHECK(IsJSGlobalObject());
   return GlobalDictionary::cast(raw_properties_or_hash());
 }
 
-NumberDictionary* JSObject::element_dictionary() {
+NumberDictionary JSObject::element_dictionary() {
   DCHECK(HasDictionaryElements() || HasSlowStringWrapperElements());
   return NumberDictionary::cast(elements());
 }
@@ -784,7 +784,7 @@ bool JSReceiver::HasFastProperties() const {
   return !map()->is_dictionary_map();
 }
 
-NameDictionary* JSReceiver::property_dictionary() const {
+NameDictionary JSReceiver::property_dictionary() const {
   DCHECK(!IsJSGlobalObject());
   DCHECK(!HasFastProperties());
 

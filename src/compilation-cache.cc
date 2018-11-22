@@ -42,7 +42,7 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
-    CompilationCacheTable* table =
+    CompilationCacheTable table =
         CompilationCacheTable::cast(tables_[generation]);
     result = Handle<CompilationCacheTable>(table, isolate());
   }

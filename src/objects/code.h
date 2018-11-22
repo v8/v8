@@ -896,7 +896,7 @@ class DeoptimizationData : public FixedArray {
 class SourcePositionTableWithFrameCache : public Tuple2 {
  public:
   DECL_ACCESSORS(source_position_table, ByteArray)
-  DECL_ACCESSORS(stack_frame_cache, SimpleNumberDictionary)
+  DECL_ACCESSORS2(stack_frame_cache, SimpleNumberDictionary)
 
   DECL_CAST(SourcePositionTableWithFrameCache)
 

@@ -32,7 +32,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
   inline PropertyArray property_array() const;
 
   // Gets slow properties for non-global objects.
-  inline NameDictionary* property_dictionary() const;
+  inline NameDictionary property_dictionary() const;
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -351,7 +351,7 @@ class JSObject : public JSReceiver {
   inline bool HasSlowStringWrapperElements();
   bool HasEnumerableElements();
 
-  inline NumberDictionary* element_dictionary();  // Gets slow elements.
+  inline NumberDictionary element_dictionary();  // Gets slow elements.
 
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
@@ -594,7 +594,7 @@ class JSObject : public JSReceiver {
   // NumberDictionary dictionary.  Returns the backing after conversion.
   static Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
 
-  void RequireSlowElements(NumberDictionary* dictionary);
+  void RequireSlowElements(NumberDictionary dictionary);
 
   // Transform slow named properties to fast variants.
   static void MigrateSlowToFast(Handle<JSObject> object,
@@ -1139,8 +1139,8 @@ class JSGlobalObject : public JSObject {
   DECL_ACCESSORS(global_proxy, JSObject)
 
   // Gets global object properties.
-  inline GlobalDictionary* global_dictionary();
-  inline void set_global_dictionary(GlobalDictionary* dictionary);
+  inline GlobalDictionary global_dictionary();
+  inline void set_global_dictionary(GlobalDictionary dictionary);
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);

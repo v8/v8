@@ -465,6 +465,69 @@ bool Object::IsMinusZero() const {
          i::IsMinusZero(HeapNumber::cast(this)->value());
 }
 
+OBJECT_CONSTRUCTORS_IMPL(HashTableBase, FixedArrayPtr)
+
+template <typename Derived, typename Shape>
+HashTable<Derived, Shape>::HashTable(Address ptr) : HashTableBase(ptr) {
+  SLOW_DCHECK(IsHashTable());
+}
+
+template <typename Derived, typename Shape>
+ObjectHashTableBase<Derived, Shape>::ObjectHashTableBase(Address ptr)
+    : HashTable<Derived, Shape>(ptr) {}
+
+ObjectHashTable::ObjectHashTable(Address ptr)
+    : ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>(ptr) {
+  SLOW_DCHECK(IsObjectHashTable());
+}
+
+EphemeronHashTable::EphemeronHashTable(Address ptr)
+    : ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>(ptr) {
+  SLOW_DCHECK(IsEphemeronHashTable());
+}
+
+ObjectHashSet::ObjectHashSet(Address ptr)
+    : HashTable<ObjectHashSet, ObjectHashSetShape>(ptr) {
+  SLOW_DCHECK(IsObjectHashSet());
+}
+
+template <typename Derived, typename Shape>
+Dictionary<Derived, Shape>::Dictionary(Address ptr)
+    : HashTable<Derived, Shape>(ptr) {}
+
+template <typename Derived, typename Shape>
+BaseNameDictionary<Derived, Shape>::BaseNameDictionary(Address ptr)
+    : Dictionary<Derived, Shape>(ptr) {}
+
+GlobalDictionary::GlobalDictionary(Address ptr)
+    : BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>(ptr) {
+  SLOW_DCHECK(IsGlobalDictionary());
+}
+
+NameDictionary::NameDictionary(Address ptr)
+    : BaseNameDictionary<NameDictionary, NameDictionaryShape>(ptr) {
+  SLOW_DCHECK(IsNameDictionary());
+}
+
+NumberDictionary::NumberDictionary(Address ptr)
+    : Dictionary<NumberDictionary, NumberDictionaryShape>(ptr) {
+  SLOW_DCHECK(IsNumberDictionary());
+}
+
+SimpleNumberDictionary::SimpleNumberDictionary(Address ptr)
+    : Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>(ptr) {
+  SLOW_DCHECK(IsSimpleNumberDictionary());
+}
+
+StringTable::StringTable(Address ptr)
+    : HashTable<StringTable, StringTableShape>(ptr) {
+  SLOW_DCHECK(IsStringTable());
+}
+
+StringSet::StringSet(Address ptr) : HashTable<StringSet, StringSetShape>(ptr) {
+  SLOW_DCHECK(IsStringSet());
+}
+
 // ------------------------------------
 // Cast operations
 
@@ -476,34 +539,34 @@ CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ArrayBoilerplateDescription)
 CAST_ACCESSOR(DataHandler)
 CAST_ACCESSOR(DescriptorArray)
-CAST_ACCESSOR(EphemeronHashTable)
+CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(FeedbackCell)
 CAST_ACCESSOR(Foreign)
-CAST_ACCESSOR(GlobalDictionary)
+CAST_ACCESSOR2(GlobalDictionary)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(MutableHeapNumber)
 CAST_ACCESSOR(OrderedNameDictionary)
-CAST_ACCESSOR(NameDictionary)
+CAST_ACCESSOR2(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
-CAST_ACCESSOR(NumberDictionary)
+CAST_ACCESSOR2(NumberDictionary)
 CAST_ACCESSOR(Object)
-CAST_ACCESSOR(ObjectHashSet)
-CAST_ACCESSOR(ObjectHashTable)
+CAST_ACCESSOR2(ObjectHashSet)
+CAST_ACCESSOR2(ObjectHashTable)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
-CAST_ACCESSOR(SimpleNumberDictionary)
+CAST_ACCESSOR2(SimpleNumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)
 CAST_ACCESSOR(SmallOrderedNameDictionary)
-CAST_ACCESSOR(StringSet)
-CAST_ACCESSOR(StringTable)
+CAST_ACCESSOR2(StringSet)
+CAST_ACCESSOR2(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
@@ -1759,7 +1822,7 @@ template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::ClearEntry(Isolate* isolate, int entry) {
   Object* the_hole = this->GetReadOnlyRoots().the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
-  Derived::cast(this)->SetEntry(isolate, entry, the_hole, the_hole, details);
+  Derived::cast(*this)->SetEntry(isolate, entry, the_hole, the_hole, details);
 }
 
 template <typename Derived, typename Shape>
@@ -1876,15 +1939,14 @@ Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
   return key;
 }
 
-
 template <typename Dictionary>
-PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary* dict, int entry) {
+PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary dict, int entry) {
   DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
   return dict->CellAt(entry)->property_details();
 }
 
 template <typename Dictionary>
-void GlobalDictionaryShape::DetailsAtPut(Isolate* isolate, Dictionary* dict,
+void GlobalDictionaryShape::DetailsAtPut(Isolate* isolate, Dictionary dict,
                                          int entry, PropertyDetails value) {
   DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
   PropertyCell* cell = dict->CellAt(entry);

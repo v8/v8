@@ -646,7 +646,8 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 }
 
 namespace {
-template <typename T>
+template <typename T, typename = typename std::enable_if<
+                          std::is_base_of<HeapObject, T>::value>::type>
 T* ForwardingAddress(T* heap_obj) {
   MapWord map_word = heap_obj->map_word();
 
@@ -654,6 +655,21 @@ T* ForwardingAddress(T* heap_obj) {
     return T::cast(map_word.ToForwardingAddress());
   } else if (Heap::InNewSpace(heap_obj)) {
     return nullptr;
+  } else {
+    return heap_obj;
+  }
+}
+
+// TODO(3770): Replacement for the above.
+template <typename T, typename = typename std::enable_if<
+                          std::is_base_of<HeapObjectPtr, T>::value>::type>
+T ForwardingAddress(T heap_obj) {
+  MapWord map_word = heap_obj->map_word();
+
+  if (map_word.IsForwardingAddress()) {
+    return T::cast(map_word.ToForwardingAddress());
+  } else if (Heap::InNewSpace(heap_obj)) {
+    return T();
   } else {
     return heap_obj;
   }
@@ -694,10 +710,10 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         return false;
       });
   weak_objects_->ephemeron_hash_tables.Update(
-      [](EphemeronHashTable* slot_in, EphemeronHashTable** slot_out) -> bool {
-        EphemeronHashTable* forwarded = ForwardingAddress(slot_in);
+      [](EphemeronHashTable slot_in, EphemeronHashTable* slot_out) -> bool {
+        EphemeronHashTable forwarded = ForwardingAddress(slot_in);
 
-        if (forwarded) {
+        if (!forwarded.is_null()) {
           *slot_out = forwarded;
           return true;
         }

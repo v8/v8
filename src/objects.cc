@@ -6782,7 +6782,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   DCHECK(object->HasFastProperties());
 }
 
-void JSObject::RequireSlowElements(NumberDictionary* dictionary) {
+void JSObject::RequireSlowElements(NumberDictionary dictionary) {
   if (dictionary->requires_slow_elements()) return;
   dictionary->set_requires_slow_elements();
   if (map()->is_prototype_map()) {
@@ -8341,7 +8341,7 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
 namespace {
 
 template <typename Dictionary>
-bool TestDictionaryPropertiesIntegrityLevel(Dictionary* dict,
+bool TestDictionaryPropertiesIntegrityLevel(Dictionary dict,
                                             ReadOnlyRoots roots,
                                             PropertyAttributes level) {
   DCHECK(level == SEALED || level == FROZEN);
@@ -8941,7 +8941,7 @@ bool JSObject::HasEnumerableElements() {
         return length > 0;
       }
     case DICTIONARY_ELEMENTS: {
-      NumberDictionary* elements = NumberDictionary::cast(object->elements());
+      NumberDictionary elements = NumberDictionary::cast(object->elements());
       return elements->NumberOfEnumerableProperties() > 0;
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -15831,7 +15831,7 @@ static ElementsKind BestFittingFastElementsKind(JSObject* object) {
     return FAST_STRING_WRAPPER_ELEMENTS;
   }
   DCHECK(object->HasDictionaryElements());
-  NumberDictionary* dictionary = object->element_dictionary();
+  NumberDictionary dictionary = object->element_dictionary();
   ElementsKind kind = HOLEY_SMI_ELEMENTS;
   for (int i = 0; i < dictionary->Capacity(); i++) {
     Object* key = dictionary->KeyAt(i);
@@ -15848,7 +15848,7 @@ static ElementsKind BestFittingFastElementsKind(JSObject* object) {
 }
 
 static bool ShouldConvertToFastElements(JSObject* object,
-                                        NumberDictionary* dictionary,
+                                        NumberDictionary dictionary,
                                         uint32_t index,
                                         uint32_t* new_capacity) {
   // If properties with non-standard attributes or accessors were added, we
@@ -16190,7 +16190,7 @@ template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::Print(std::ostream& os) {
   DisallowHeapAllocation no_gc;
   ReadOnlyRoots roots = this->GetReadOnlyRoots();
-  Derived* dictionary = Derived::cast(this);
+  Derived dictionary = Derived::cast(*this);
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = dictionary->KeyAt(i);
@@ -16857,12 +16857,12 @@ class InternalizedStringKey : public StringTableKey {
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::IteratePrefix(ObjectVisitor* v) {
-  BodyDescriptorBase::IteratePointers(this, 0, kElementsStartOffset, v);
+  BodyDescriptorBase::IteratePointers(*this, 0, kElementsStartOffset, v);
 }
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
-  BodyDescriptorBase::IteratePointers(this, kElementsStartOffset,
+  BodyDescriptorBase::IteratePointers(*this, kElementsStartOffset,
                                       kHeaderSize + length() * kPointerSize, v);
 }
 
@@ -16900,7 +16900,7 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(Isolate* isolate, Derived* new_table) {
+void HashTable<Derived, Shape>::Rehash(Isolate* isolate, Derived new_table) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
 
@@ -17489,7 +17489,7 @@ Object* StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
                                                      String* string) {
   DisallowHeapAllocation no_gc;
   Heap* heap = isolate->heap();
-  StringTable* table = heap->string_table();
+  StringTable table = heap->string_table();
 
   StringTableNoAllocateKey key(string, heap->HashSeed());
 
@@ -17577,7 +17577,7 @@ const int kLiteralInitialLength = 2;
 const int kLiteralContextOffset = 0;
 const int kLiteralLiteralsOffset = 1;
 
-int SearchLiteralsMapEntry(CompilationCacheTable* cache, int cache_entry,
+int SearchLiteralsMapEntry(CompilationCacheTable cache, int cache_entry,
                            Context* native_context) {
   DisallowHeapAllocation no_gc;
   DCHECK(native_context->IsNativeContext());
@@ -17669,7 +17669,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
   }
 }
 
-FeedbackCell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
+FeedbackCell* SearchLiteralsMap(CompilationCacheTable cache, int cache_entry,
                                 Context* native_context) {
   FeedbackCell* result = nullptr;
   int entry = SearchLiteralsMapEntry(cache, cache_entry, native_context);
@@ -17826,17 +17826,17 @@ void CompilationCacheTable::Age() {
       Smi count = Smi::cast(get(value_index));
       count = Smi::FromInt(count->value() - 1);
       if (count->value() == 0) {
-        NoWriteBarrierSet(this, entry_index, the_hole_value);
-        NoWriteBarrierSet(this, value_index, the_hole_value);
+        NoWriteBarrierSet(*this, entry_index, the_hole_value);
+        NoWriteBarrierSet(*this, value_index, the_hole_value);
         ElementRemoved();
       } else {
-        NoWriteBarrierSet(this, value_index, count);
+        NoWriteBarrierSet(*this, value_index, count);
       }
     } else if (get(entry_index)->IsFixedArray()) {
       SharedFunctionInfo* info = SharedFunctionInfo::cast(get(value_index));
       if (info->IsInterpreted() && info->GetBytecodeArray()->IsOld()) {
         for (int i = 0; i < kEntrySize; i++) {
-          NoWriteBarrierSet(this, entry_index + i, the_hole_value);
+          NoWriteBarrierSet(*this, entry_index + i, the_hole_value);
         }
         ElementRemoved();
       }
@@ -17853,7 +17853,7 @@ void CompilationCacheTable::Remove(Object* value) {
     int value_index = entry_index + 1;
     if (get(value_index) == value) {
       for (int i = 0; i < kEntrySize; i++) {
-        NoWriteBarrierSet(this, entry_index + i, the_hole_value);
+        NoWriteBarrierSet(*this, entry_index + i, the_hole_value);
       }
       ElementRemoved();
     }
@@ -18025,7 +18025,7 @@ void NumberDictionary::UpdateMaxNumberKey(uint32_t key,
   // elements.
   if (key > kRequiresSlowElementsLimit) {
     if (!dictionary_holder.is_null()) {
-      dictionary_holder->RequireSlowElements(this);
+      dictionary_holder->RequireSlowElements(*this);
     }
     set_requires_slow_elements();
     return;
@@ -18033,8 +18033,8 @@ void NumberDictionary::UpdateMaxNumberKey(uint32_t key,
   // Update max key value.
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi() || max_number_key() < key) {
-    FixedArray::set(kMaxNumberKeyIndex,
-                    Smi::FromInt(key << kRequiresSlowElementsTagSize));
+    FixedArrayPtr::set(kMaxNumberKeyIndex,
+                       Smi::FromInt(key << kRequiresSlowElementsTagSize));
   }
 }
 
@@ -18080,13 +18080,13 @@ int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
 
 template <typename Dictionary>
 struct EnumIndexComparator {
-  explicit EnumIndexComparator(Dictionary* dict) : dict(dict) {}
+  explicit EnumIndexComparator(Dictionary dict) : dict(dict) {}
   bool operator()(Address a, Address b) {
     PropertyDetails da(dict->DetailsAt(Smi(a).value()));
     PropertyDetails db(dict->DetailsAt(Smi(b).value()));
     return da.dictionary_index() < db.dictionary_index();
   }
-  Dictionary* dict;
+  Dictionary dict;
 };
 
 template <typename Derived, typename Shape>
@@ -18123,7 +18123,7 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
 
   CHECK_EQ(length, properties);
   DisallowHeapAllocation no_gc;
-  Derived* raw_dictionary = *dictionary;
+  Derived raw_dictionary = *dictionary;
   FixedArray* raw_storage = *storage;
   EnumIndexComparator<Derived> cmp(raw_dictionary);
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
@@ -18146,7 +18146,7 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
   int array_size = 0;
   {
     DisallowHeapAllocation no_gc;
-    Derived* raw_dictionary = *dictionary;
+    Derived raw_dictionary = *dictionary;
     for (int i = 0; i < capacity; i++) {
       Object* k;
       if (!raw_dictionary->ToKey(roots, i, &k)) continue;
@@ -18176,7 +18176,7 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
   PropertyFilter filter = keys->filter();
   {
     DisallowHeapAllocation no_gc;
-    Derived* raw_dictionary = *dictionary;
+    Derived raw_dictionary = *dictionary;
     for (int i = 0; i < capacity; i++) {
       Object* k;
       if (!raw_dictionary->ToKey(roots, i, &k)) continue;
@@ -18225,7 +18225,7 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
 // Backwards lookup (slow).
 template <typename Derived, typename Shape>
 Object* Dictionary<Derived, Shape>::SlowReverseLookup(Object* value) {
-  Derived* dictionary = Derived::cast(this);
+  Derived dictionary = Derived::cast(*this);
   ReadOnlyRoots roots = dictionary->GetReadOnlyRoots();
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {

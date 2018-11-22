@@ -18,7 +18,7 @@ namespace internal {
 
 CAST_ACCESSOR(Module)
 ACCESSORS(Module, code, Object, kCodeOffset)
-ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
+ACCESSORS2(Module, exports, ObjectHashTable, kExportsOffset)
 ACCESSORS(Module, regular_exports, FixedArray, kRegularExportsOffset)
 ACCESSORS(Module, regular_imports, FixedArray, kRegularImportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)

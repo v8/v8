@@ -667,10 +667,10 @@ class Heap {
 #undef ROOT_ACCESSOR
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  V8_INLINE void SetRootCodeStubs(SimpleNumberDictionary* value);
+  V8_INLINE void SetRootCodeStubs(SimpleNumberDictionary value);
   V8_INLINE void SetRootMaterializedObjects(FixedArray* objects);
   V8_INLINE void SetRootScriptList(Object* value);
-  V8_INLINE void SetRootStringTable(StringTable* value);
+  V8_INLINE void SetRootStringTable(StringTable value);
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object* value);
   V8_INLINE void SetMessageListeners(TemplateList* value);
 

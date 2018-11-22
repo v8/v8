@@ -66,9 +66,9 @@ class InfoCellPair {
 // recompilation stub, or to "old" code. This avoids memory leaks due to
 // premature caching of scripts and eval strings that are never needed later.
 class CompilationCacheTable
-    : public HashTable<CompilationCacheTable, CompilationCacheShape>,
-      public NeverReadOnlySpaceObject {
+    : public HashTable<CompilationCacheTable, CompilationCacheShape> {
  public:
+  NEVER_READ_ONLY_SPACE
   static MaybeHandle<SharedFunctionInfo> LookupScript(
       Handle<CompilationCacheTable> table, Handle<String> src,
       Handle<Context> native_context, LanguageMode language_mode);
@@ -94,10 +94,11 @@ class CompilationCacheTable
   void Age();
   static const int kHashGenerations = 10;
 
-  DECL_CAST(CompilationCacheTable)
+  DECL_CAST2(CompilationCacheTable)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);
+  OBJECT_CONSTRUCTORS(CompilationCacheTable,
+                      HashTable<CompilationCacheTable, CompilationCacheShape>);
 };
 
 }  // namespace internal
