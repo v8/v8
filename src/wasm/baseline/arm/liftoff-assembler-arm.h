@@ -387,7 +387,7 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
       str(reg.gp(), dst);
       break;
     case kWasmI64:
-      str(reg.low_gp(), dst);
+      str(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
       str(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
@@ -421,7 +421,7 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
     case kWasmI64: {
       int32_t low_word = value.to_i64();
       mov(src, Operand(low_word));
-      str(src, dst);
+      str(src, liftoff::GetHalfStackSlot(index, kLowWord));
       int32_t high_word = value.to_i64() >> 32;
       mov(src, Operand(high_word));
       str(src, liftoff::GetHalfStackSlot(index, kHighWord));
@@ -435,20 +435,19 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
                             ValueType type) {
-  MemOperand src = liftoff::GetStackSlot(index);
   switch (type) {
     case kWasmI32:
-      ldr(reg.gp(), src);
+      ldr(reg.gp(), liftoff::GetStackSlot(index));
       break;
     case kWasmI64:
-      ldr(reg.low_gp(), src);
+      ldr(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
       ldr(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
       BAILOUT("Fill Register");
       break;
     case kWasmF64:
-      vldr(reg.fp(), src);
+      vldr(reg.fp(), liftoff::GetStackSlot(index));
       break;
     default:
       UNREACHABLE();
@@ -692,7 +691,8 @@ void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
-  BAILOUT("CallTrapCallbackForTesting");
+  PrepareCallCFunction(0, 0);
+  CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
@@ -755,17 +755,87 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
                              ExternalReference ext_ref) {
-  BAILOUT("CallC");
+  // Arguments are passed by pushing them all to the stack and then passing
+  // a pointer to them.
+  DCHECK_EQ(stack_bytes % kPointerSize, 0);
+  // Reserve space in the stack.
+  sub(sp, sp, Operand(stack_bytes));
+
+  int arg_bytes = 0;
+  for (ValueType param_type : sig->parameters()) {
+    switch (param_type) {
+      case kWasmI32:
+        str(args->gp(), MemOperand(sp, arg_bytes));
+        break;
+      case kWasmI64:
+        str(args->low_gp(), MemOperand(sp, arg_bytes));
+        str(args->high_gp(), MemOperand(sp, arg_bytes + kRegisterSize));
+        break;
+      case kWasmF32:
+        BAILOUT("Call C for f32 parameter");
+        break;
+      case kWasmF64:
+        vstr(args->fp(), MemOperand(sp, arg_bytes));
+        break;
+      default:
+        UNREACHABLE();
+    }
+    args++;
+    arg_bytes += ValueTypes::MemSize(param_type);
+  }
+  DCHECK_LE(arg_bytes, stack_bytes);
+
+  // Pass a pointer to the buffer with the arguments to the C function.
+  mov(r0, sp);
+
+  // Now call the C function.
+  constexpr int kNumCCallArgs = 1;
+  PrepareCallCFunction(kNumCCallArgs);
+  CallCFunction(ext_ref, kNumCCallArgs);
+
+  // Move return value to the right register.
+  const LiftoffRegister* result_reg = rets;
+  if (sig->return_count() > 0) {
+    DCHECK_EQ(1, sig->return_count());
+    constexpr Register kReturnReg = r0;
+    if (kReturnReg != rets->gp()) {
+      Move(*rets, LiftoffRegister(kReturnReg), sig->GetReturn(0));
+    }
+    result_reg++;
+  }
+
+  // Load potential output value from the buffer on the stack.
+  if (out_argument_type != kWasmStmt) {
+    switch (out_argument_type) {
+      case kWasmI32:
+        ldr(result_reg->gp(), MemOperand(sp));
+        break;
+      case kWasmI64:
+        ldr(result_reg->low_gp(), MemOperand(sp));
+        ldr(result_reg->high_gp(), MemOperand(sp, kPointerSize));
+        break;
+      case kWasmF32:
+        BAILOUT("Call C for f32 parameter");
+        break;
+      case kWasmF64:
+        vldr(result_reg->fp(), MemOperand(sp));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  add(sp, sp, Operand(stack_bytes));
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
-  BAILOUT("CallNativeWasmCode");
+  Call(addr, RelocInfo::WASM_CALL);
 }
 
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
-  BAILOUT("CallIndirect");
+  DCHECK(target != no_reg);
+  Call(target);
 }
 
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
