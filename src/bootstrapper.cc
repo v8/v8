@@ -3178,8 +3178,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- T y p e d A r r a y
     Handle<JSFunction> typed_array_fun = CreateFunction(
         isolate_, factory->InternalizeUtf8String("TypedArray"),
-        JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize, 0, factory->the_hole_value(),
-        Builtins::kTypedArrayBaseConstructor);
+        JS_TYPED_ARRAY_TYPE, JSTypedArray::kHeaderSize, 0,
+        factory->the_hole_value(), Builtins::kTypedArrayBaseConstructor);
     typed_array_fun->shared()->set_native(false);
     typed_array_fun->shared()->set_length(0);
     InstallSpeciesGetter(isolate_, typed_array_fun);

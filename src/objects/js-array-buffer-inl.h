@@ -80,14 +80,15 @@ void JSArrayBuffer::set_is_wasm_memory(bool is_wasm_memory) {
   set_bit_field(IsWasmMemoryBit::update(bit_field(), is_wasm_memory));
 }
 
-void JSArrayBuffer::set_bit_field(uint32_t bits) {
-  if (kInt32Size != kPointerSize) {
-#if V8_TARGET_LITTLE_ENDIAN
-    WRITE_UINT32_FIELD(this, kBitFieldSlot + kInt32Size, 0);
-#else
-    WRITE_UINT32_FIELD(this, kBitFieldSlot, 0);
-#endif
+void JSArrayBuffer::clear_padding() {
+  if (FIELD_SIZE(kOptionalPaddingOffset)) {
+    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
   }
+}
+
+void JSArrayBuffer::set_bit_field(uint32_t bits) {
   WRITE_UINT32_FIELD(this, kBitFieldOffset, bits);
 }
 

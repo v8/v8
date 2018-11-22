@@ -1444,13 +1444,13 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_ARRAY_TYPE:
       return JSArray::kSize;
     case JS_ARRAY_BUFFER_TYPE:
-      return JSArrayBuffer::kSize;
+      return JSArrayBuffer::kHeaderSize;
     case JS_ARRAY_ITERATOR_TYPE:
       return JSArrayIterator::kSize;
     case JS_TYPED_ARRAY_TYPE:
-      return JSTypedArray::kSize;
+      return JSTypedArray::kHeaderSize;
     case JS_DATA_VIEW_TYPE:
-      return JSDataView::kSize;
+      return JSDataView::kHeaderSize;
     case JS_SET_TYPE:
       return JSSet::kSize;
     case JS_MAP_TYPE:

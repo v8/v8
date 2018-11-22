@@ -225,13 +225,9 @@ class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
 
 class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kByteLengthOffset + kPointerSize == kBackingStoreOffset);
-  STATIC_ASSERT(kBackingStoreOffset + kPointerSize == kBitFieldSlot);
-  STATIC_ASSERT(kBitFieldSlot + kPointerSize == kSize);
-
   static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
-    if (offset < kBitFieldSlot) return true;
-    if (offset < kSize) return false;
+    if (offset < kEndOfTaggedFieldsOffset) return true;
+    if (offset < kHeaderSize) return false;
     return IsValidSlotImpl(map, obj, offset);
   }
 
@@ -239,8 +235,8 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     // JSArrayBuffer instances contain raw data that the GC does not know about.
-    IteratePointers(obj, kPropertiesOrHashOffset, kByteLengthOffset, v);
-    IterateBodyImpl(map, obj, kSize, object_size, v);
+    IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
+    IterateBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
 
   static inline int SizeOf(Map map, HeapObject* object) {
@@ -250,12 +246,8 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
 
 class JSArrayBufferView::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kBufferOffset + kPointerSize == kByteOffsetOffset);
-  STATIC_ASSERT(kByteOffsetOffset + kUIntptrSize == kByteLengthOffset);
-  STATIC_ASSERT(kByteLengthOffset + kUIntptrSize == kHeaderSize);
-
   static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
-    if (offset < kByteOffsetOffset) return true;
+    if (offset < kEndOfTaggedFieldsOffset) return true;
     if (offset < kHeaderSize) return false;
     return IsValidSlotImpl(map, obj, offset);
   }
@@ -264,7 +256,7 @@ class JSArrayBufferView::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     // JSArrayBufferView contains raw data that the GC does not know about.
-    IteratePointers(obj, kPropertiesOrHashOffset, kByteOffsetOffset, v);
+    IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
     IterateBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
 

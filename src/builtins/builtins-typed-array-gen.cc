@@ -73,7 +73,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
   StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteLengthOffset,
                                  byte_length,
                                  MachineType::PointerRepresentation());
-  for (int offset = JSTypedArray::kSize;
+  for (int offset = JSTypedArray::kHeaderSize;
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kPointerSize) {
     StoreObjectField(holder, offset, SmiConstant(0));
   }
@@ -189,8 +189,12 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     //  - Set the byte_length field to byte_length.
     //  - Set backing_store to null/Smi(0).
     //  - Set all embedder fields to Smi(0).
-    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldSlot,
-                                   SmiConstant(0));
+    if (FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset)) {
+      DCHECK_EQ(4, FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset));
+      StoreObjectFieldNoWriteBarrier(
+          buffer, JSArrayBuffer::kOptionalPaddingOffset, Int32Constant(0),
+          MachineRepresentation::kWord32);
+    }
     int32_t bitfield_value = (1 << JSArrayBuffer::IsExternalBit::kShift) |
                              (1 << JSArrayBuffer::IsNeuterableBit::kShift);
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
@@ -202,7 +206,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
                                    MachineType::PointerRepresentation());
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
                                    SmiConstant(0));
-    for (int offset = JSArrayBuffer::kSize;
+    for (int offset = JSArrayBuffer::kHeaderSize;
          offset < JSArrayBuffer::kSizeWithEmbedderFields;
          offset += kTaggedSize) {
       StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));

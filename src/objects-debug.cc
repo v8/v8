@@ -1580,6 +1580,11 @@ void JSProxy::JSProxyVerify(Isolate* isolate) {
 
 void JSArrayBuffer::JSArrayBufferVerify(Isolate* isolate) {
   CHECK(IsJSArrayBuffer());
+  if (FIELD_SIZE(kOptionalPaddingOffset)) {
+    CHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    CHECK_EQ(0,
+             *reinterpret_cast<uint32_t*>(address() + kOptionalPaddingOffset));
+  }
   JSObjectVerify(isolate);
 }
 

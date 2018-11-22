@@ -472,6 +472,9 @@ class BitSetComputer {
     LIST_MACRO(DEFINE_ONE_FIELD_OFFSET)                        \
   };
 
+// Size of the field defined by DEFINE_FIELD_OFFSET_CONSTANTS
+#define FIELD_SIZE(Name) (Name##End + 1 - Name)
+
 // ----------------------------------------------------------------------------
 // Hash function.
 
