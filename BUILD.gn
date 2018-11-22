@@ -24,6 +24,9 @@ import("snapshot_toolchain.gni")
 is_target_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
                       (current_cpu != v8_current_cpu && v8_multi_arch_build)
 
+# For faster Windows builds. See https://crbug.com/v8/8475.
+emit_builtins_as_inline_asm = is_win && is_clang
+
 declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
@@ -398,10 +401,7 @@ config("features") {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
   }
   if (v8_enable_embedded_builtins) {
-    defines += [
-      "V8_EMBEDDED_BUILTINS",
-      "V8_EMBEDDED_BYTECODE_HANDLERS",
-    ]
+    defines += [ "V8_EMBEDDED_BUILTINS" ]
   }
   if (v8_enable_jitless_mode) {
     defines += [ "V8_JITLESS_MODE" ]
@@ -679,6 +679,39 @@ config("v8_gcov_coverage_ldflags") {
 ###############################################################################
 # Actions
 #
+
+# Only for Windows clang builds. Converts the embedded.S file produced by
+# mksnapshot into an embedded.cc file with corresponding inline assembly.
+template("asm_to_inline_asm") {
+  name = target_name
+  if (name == "default") {
+    suffix = ""
+  } else {
+    suffix = "_$name"
+  }
+
+  action("asm_to_inline_asm_" + name) {
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+    assert(emit_builtins_as_inline_asm)
+
+    script = "tools/snapshot/asm_to_inline_asm.py"
+    deps = [
+      ":run_mksnapshot_" + name,
+    ]
+    sources = [
+      "$target_gen_dir/embedded${suffix}.S",
+    ]
+    outputs = [
+      "$target_gen_dir/embedded${suffix}.cc",
+    ]
+    args = invoker.args
+    args += [
+      rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
+      rebase_path("$target_gen_dir/embedded${suffix}.cc", root_build_dir),
+    ]
+  }
+}
 
 action("js2c") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
@@ -1133,11 +1166,21 @@ if (v8_use_snapshot) {
       embedded_variant = "Default"
     }
   }
+  if (emit_builtins_as_inline_asm) {
+    asm_to_inline_asm("default") {
+      args = []
+    }
+  }
   if (v8_use_multi_snapshots) {
     run_mksnapshot("trusted") {
       args = [ "--no-untrusted-code-mitigations" ]
       if (v8_enable_embedded_builtins) {
         embedded_variant = "Trusted"
+      }
+    }
+    if (emit_builtins_as_inline_asm) {
+      asm_to_inline_asm("trusted") {
+        args = []
       }
     }
   }
@@ -1267,7 +1310,10 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
       "src/setup-isolate-deserialize.cc",
     ]
 
-    if (v8_enable_embedded_builtins) {
+    if (v8_enable_embedded_builtins && emit_builtins_as_inline_asm) {
+      deps += [ ":asm_to_inline_asm_default" ]
+      sources += [ "$target_gen_dir/embedded.cc" ]
+    } else if (v8_enable_embedded_builtins) {
       sources += [ "$target_gen_dir/embedded.S" ]
     } else {
       sources += [ "src/snapshot/embedded-empty.cc" ]
@@ -1314,7 +1360,19 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
     # Do not publicize any header to remove build dependency.
     public = []
 
-    if (v8_enable_embedded_builtins) {
+    if (v8_enable_embedded_builtins && emit_builtins_as_inline_asm) {
+      deps += [ ":asm_to_inline_asm_default" ]
+      sources += [ "$target_gen_dir/embedded.cc" ]
+
+      if (v8_use_multi_snapshots) {
+        deps += [ ":asm_to_inline_asm_trusted" ]
+        sources += [ "$target_gen_dir/embedded_trusted.cc" ]
+
+        if (use_jumbo_build == true) {
+          jumbo_excluded_sources = [ "$target_gen_dir/embedded_trusted.cc" ]
+        }
+      }
+    } else if (v8_enable_embedded_builtins) {
       sources += [ "$target_gen_dir/embedded.S" ]
 
       if (v8_use_multi_snapshots) {

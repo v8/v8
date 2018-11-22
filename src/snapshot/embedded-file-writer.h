@@ -59,8 +59,6 @@ class PlatformDependentEmbeddedFileWriter final {
  private:
   void DeclareSymbolGlobal(const char* name);
 
-  static const char* DirectiveAsString(DataDirective directive);
-
  private:
   FILE* fp_ = nullptr;
 };
@@ -76,8 +74,8 @@ class PlatformDependentEmbeddedFileWriter final {
 // The variant is usually "Default" but can be modified in multisnapshot builds.
 class EmbeddedFileWriter {
  public:
-  void SetEmbeddedFile(const char* embedded_cpp_file) {
-    embedded_cpp_path_ = embedded_cpp_file;
+  void SetEmbeddedFile(const char* embedded_src_path) {
+    embedded_src_path_ = embedded_src_path;
   }
 
   void SetEmbeddedVariant(const char* embedded_variant) {
@@ -90,9 +88,9 @@ class EmbeddedFileWriter {
 
  private:
   void MaybeWriteEmbeddedFile(const i::EmbeddedData* blob) const {
-    if (embedded_cpp_path_ == nullptr) return;
+    if (embedded_src_path_ == nullptr) return;
 
-    FILE* fp = GetFileDescriptorOrDie(embedded_cpp_path_);
+    FILE* fp = GetFileDescriptorOrDie(embedded_src_path_);
 
     PlatformDependentEmbeddedFileWriter writer;
     writer.SetFile(fp);
@@ -203,14 +201,17 @@ class EmbeddedFileWriter {
     w->FileEpilogue();
   }
 
-#ifdef V8_OS_WIN
+#if defined(_MSC_VER) && !defined(__clang__)
+#define V8_COMPILER_IS_MSVC
+#endif
+
+#ifdef V8_COMPILER_IS_MSVC
   // Windows MASM doesn't have an .octa directive, use QWORDs instead.
   // Note: MASM *really* does not like large data streams. It takes over 5
   // minutes to assemble the ~350K lines of embedded.S produced when using
   // BYTE directives in a debug build. QWORD produces roughly 120KLOC and
   // reduces assembly time to ~40 seconds. Still terrible, but much better
-  // than before.
-  // TODO(v8:8475): Use nasm or yasm instead of MASM.
+  // than before. See also: https://crbug.com/v8/8475.
 
   static constexpr DataDirective kByteChunkDirective = kQuad;
   static constexpr int kByteChunkSize = 8;
@@ -220,7 +221,7 @@ class EmbeddedFileWriter {
     const uint64_t* quad_ptr = reinterpret_cast<const uint64_t*>(data);
     return current_line_length + w->HexLiteral(*quad_ptr);
   }
-#else  // V8_OS_WIN
+#else  // V8_COMPILER_IS_MSVC
   static constexpr DataDirective kByteChunkDirective = kOcta;
   static constexpr int kByteChunkSize = 16;
 
@@ -245,7 +246,8 @@ class EmbeddedFileWriter {
     }
     return current_line_length;
   }
-#endif  // V8_OS_WIN
+#endif  // V8_COMPILER_IS_MSVC
+#undef V8_COMPILER_IS_MSVC
 
   static int WriteDirectiveOrSeparator(PlatformDependentEmbeddedFileWriter* w,
                                        int current_line_length,
@@ -303,7 +305,7 @@ class EmbeddedFileWriter {
     if (current_line_length != 0) w->Newline();
   }
 
-  const char* embedded_cpp_path_ = nullptr;
+  const char* embedded_src_path_ = nullptr;
   const char* embedded_variant_ = kDefaultEmbeddedVariant;
 };
 
