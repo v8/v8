@@ -808,30 +808,27 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
 }
 
 void IncrementalMarking::EmbedderStep(double duration_ms) {
-  constexpr int kObjectsToProcessBeforeInterrupt = 100;
+  constexpr size_t kObjectsToProcessBeforeInterrupt = 500;
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
-
-  const double deadline =
-      heap_->MonotonicallyIncreasingTimeInMs() + duration_ms;
-
-  HeapObject* object;
-  int cnt = 0;
-  while (marking_worklist()->embedder()->Pop(0, &object)) {
-    heap_->TracePossibleWrapper(JSObject::cast(object));
-    if (++cnt == kObjectsToProcessBeforeInterrupt) {
-      cnt = 0;
-      if (heap_->MonotonicallyIncreasingTimeInMs() > deadline) {
+  double deadline = heap_->MonotonicallyIncreasingTimeInMs() + duration_ms;
+  do {
+    HeapObject* object;
+    size_t cnt = 0;
+    bool embedder_fields_empty = true;
+    while (marking_worklist()->embedder()->Pop(0, &object)) {
+      heap_->TracePossibleWrapper(JSObject::cast(object));
+      if (++cnt == kObjectsToProcessBeforeInterrupt) {
+        cnt = 0;
+        embedder_fields_empty = false;
         break;
       }
     }
-  }
-
-  heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
-  if (!heap_->local_embedder_heap_tracer()
-           ->ShouldFinalizeIncrementalMarking()) {
+    heap_->local_embedder_heap_tracer()->SetEmbedderWorklistEmpty(
+        embedder_fields_empty);
+    heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
     heap_->local_embedder_heap_tracer()->Trace(deadline);
-  }
+  } while (heap_->MonotonicallyIncreasingTimeInMs() < deadline);
 }
 
 void IncrementalMarking::Hurry() {
@@ -941,6 +938,11 @@ void IncrementalMarking::Epilogue() {
   finalize_marking_completed_ = false;
 }
 
+bool IncrementalMarking::ShouldDoEmbedderStep() {
+  return state_ == MARKING && FLAG_incremental_marking_wrappers &&
+         heap_->local_embedder_heap_tracer()->InUse();
+}
+
 double IncrementalMarking::AdvanceIncrementalMarking(
     double deadline_in_ms, CompletionAction completion_action,
     StepOrigin step_origin) {
@@ -953,23 +955,20 @@ double IncrementalMarking::AdvanceIncrementalMarking(
       0, heap_->local_embedder_heap_tracer()->NumberOfCachedWrappersToTrace());
 
   double remaining_time_in_ms = 0.0;
-  intptr_t step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
-      kStepSizeInMs,
-      heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
-
-  const bool incremental_wrapper_tracing =
-      state_ == MARKING && FLAG_incremental_marking_wrappers &&
-      heap_->local_embedder_heap_tracer()->InUse();
   do {
-    if (incremental_wrapper_tracing && trace_wrappers_toggle_) {
+    if (ShouldDoEmbedderStep() && trace_wrappers_toggle_) {
       EmbedderStep(kStepSizeInMs);
     } else {
+      const intptr_t step_size_in_bytes =
+          GCIdleTimeHandler::EstimateMarkingStepSize(
+              kStepSizeInMs,
+              heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
       Step(step_size_in_bytes, completion_action, step_origin);
     }
     trace_wrappers_toggle_ = !trace_wrappers_toggle_;
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-  } while (remaining_time_in_ms >= kStepSizeInMs && !IsComplete() &&
+  } while (remaining_time_in_ms > kStepSizeInMs && !IsComplete() &&
            !marking_worklist()->IsEmpty());
   return remaining_time_in_ms;
 }
@@ -1021,49 +1020,58 @@ void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
     return;
   }
 
-  size_t bytes_to_process =
-      StepSizeToKeepUpWithAllocations() + StepSizeToMakeProgress();
+  HistogramTimerScope incremental_marking_scope(
+      heap_->isolate()->counters()->gc_incremental_marking());
+  TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
 
-  if (bytes_to_process >= IncrementalMarking::kMinStepSizeInBytes) {
-    HistogramTimerScope incremental_marking_scope(
-        heap_->isolate()->counters()->gc_incremental_marking());
-    TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
-    // The first step after Scavenge will see many allocated bytes.
-    // Cap the step size to distribute the marking work more uniformly.
-    size_t max_step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-        kMaxStepSizeInMs,
-        heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
-    bytes_to_process = Min(bytes_to_process, max_step_size);
-    size_t bytes_processed = 0;
-    if (FLAG_concurrent_marking) {
-      bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
-                             StepOrigin::kV8, WorklistToProcess::kBailout);
-      bytes_to_process = (bytes_processed >= bytes_to_process)
-                             ? 0
-                             : bytes_to_process - bytes_processed;
-      size_t current_bytes_marked_concurrently =
-          heap()->concurrent_marking()->TotalMarkedBytes();
-      // The concurrent_marking()->TotalMarkedBytes() is not monothonic for a
-      // short period of time when a concurrent marking task is finishing.
-      if (current_bytes_marked_concurrently > bytes_marked_concurrently_) {
-        bytes_marked_ahead_of_schedule_ +=
-            current_bytes_marked_concurrently - bytes_marked_concurrently_;
-        bytes_marked_concurrently_ = current_bytes_marked_concurrently;
+  if (ShouldDoEmbedderStep() && trace_wrappers_toggle_) {
+    EmbedderStep(kMaxStepSizeInMs);
+  } else {
+    size_t bytes_to_process =
+        StepSizeToKeepUpWithAllocations() + StepSizeToMakeProgress();
+    if (bytes_to_process >= IncrementalMarking::kMinStepSizeInBytes) {
+      HistogramTimerScope incremental_marking_scope(
+          heap_->isolate()->counters()->gc_incremental_marking());
+      TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
+      TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
+      // The first step after Scavenge will see many allocated bytes.
+      // Cap the step size to distribute the marking work more uniformly.
+      size_t max_step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
+          kMaxStepSizeInMs,
+          heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
+      bytes_to_process = Min(bytes_to_process, max_step_size);
+      size_t bytes_processed = 0;
+      if (FLAG_concurrent_marking) {
+        bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
+                               StepOrigin::kV8, WorklistToProcess::kBailout);
+        bytes_to_process = (bytes_processed >= bytes_to_process)
+                               ? 0
+                               : bytes_to_process - bytes_processed;
+        size_t current_bytes_marked_concurrently =
+            heap()->concurrent_marking()->TotalMarkedBytes();
+        // The concurrent_marking()->TotalMarkedBytes() is not monothonic for a
+        // short period of time when a concurrent marking task is finishing.
+        if (current_bytes_marked_concurrently > bytes_marked_concurrently_) {
+          bytes_marked_ahead_of_schedule_ +=
+              current_bytes_marked_concurrently - bytes_marked_concurrently_;
+          bytes_marked_concurrently_ = current_bytes_marked_concurrently;
+        }
       }
+      if (bytes_marked_ahead_of_schedule_ >= bytes_to_process) {
+        // Steps performed in tasks and concurrently have put us ahead of
+        // schedule. We skip processing of marking dequeue here and thus shift
+        // marking time from inside V8 to standalone tasks.
+        bytes_marked_ahead_of_schedule_ -= bytes_to_process;
+        bytes_processed += bytes_to_process;
+        bytes_to_process = IncrementalMarking::kMinStepSizeInBytes;
+      }
+      bytes_processed += Step(bytes_to_process, GC_VIA_STACK_GUARD,
+                              StepOrigin::kV8, WorklistToProcess::kAll);
+      bytes_allocated_ -= Min(bytes_allocated_, bytes_processed);
     }
-    if (bytes_marked_ahead_of_schedule_ >= bytes_to_process) {
-      // Steps performed in tasks and concurrently have put us ahead of
-      // schedule. We skip processing of marking dequeue here and thus shift
-      // marking time from inside V8 to standalone tasks.
-      bytes_marked_ahead_of_schedule_ -= bytes_to_process;
-      bytes_processed += bytes_to_process;
-      bytes_to_process = IncrementalMarking::kMinStepSizeInBytes;
-    }
-    bytes_processed += Step(bytes_to_process, GC_VIA_STACK_GUARD,
-                            StepOrigin::kV8, WorklistToProcess::kAll);
-    bytes_allocated_ -= Min(bytes_allocated_, bytes_processed);
   }
+  trace_wrappers_toggle_ = !trace_wrappers_toggle_;
 }
 
 size_t IncrementalMarking::Step(size_t bytes_to_process,
