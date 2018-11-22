@@ -269,7 +269,7 @@ base::Optional<ParseResult> MakeBinaryOperator(
                               std::vector<Statement*>{})};
 }
 
-base::Optional<ParseResult> MakeIntrinsicDeclarationCallExpression(
+base::Optional<ParseResult> MakeIntrinsicCallExpression(
     ParseResultIterator* child_results) {
   auto callee = child_results->NextAs<std::string>();
   auto generic_arguments =
@@ -1282,15 +1282,15 @@ struct TorqueGrammar : Grammar {
       {&identifierExpression, &argumentList, optionalOtherwise}, MakeCall)};
 
   // Result: Expression*
-  Symbol IntrinsicCallExpression = {Rule(
+  Symbol intrinsicCallExpression = {Rule(
       {&intrinsicName, TryOrDefault<TypeList>(&genericSpecializationTypeList),
        &argumentList},
-      MakeIntrinsicDeclarationCallExpression)};
+      MakeIntrinsicCallExpression)};
 
   // Result: Expression*
   Symbol primaryExpression = {
       Rule({&callExpression}),
-      Rule({&IntrinsicCallExpression}),
+      Rule({&intrinsicCallExpression}),
       Rule({&locationExpression},
            CastParseResult<LocationExpression*, Expression*>),
       Rule({&decimalLiteral}, MakeNumberLiteralExpression),
