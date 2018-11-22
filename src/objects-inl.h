@@ -1491,6 +1491,7 @@ int HeapObject::SizeFromMap(Map map) const {
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
   if (IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)) {
+    if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
     return FixedArray::SizeFor(
         reinterpret_cast<const FixedArray*>(this)->synchronized_length());
   }

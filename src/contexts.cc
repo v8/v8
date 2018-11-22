@@ -509,8 +509,17 @@ void Context::IncrementErrorsThrown() {
   set_errors_thrown(Smi::FromInt(previous_value + 1));
 }
 
-
 int Context::GetErrorsThrown() { return errors_thrown()->value(); }
+
+STATIC_ASSERT(NativeContext::kStartOfStrongFieldsOffset ==
+              Context::OffsetOfElementAt(0));
+STATIC_ASSERT(NativeContext::kStartOfWeakFieldsOffset ==
+              Context::OffsetOfElementAt(NativeContext::FIRST_WEAK_SLOT));
+STATIC_ASSERT(NativeContext::kMicrotaskQueueOffset ==
+              Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS));
+STATIC_ASSERT(NativeContext::kSize ==
+              (Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS) +
+               kSystemPointerSize));
 
 }  // namespace internal
 }  // namespace v8

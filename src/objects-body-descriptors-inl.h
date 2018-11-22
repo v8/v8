@@ -677,24 +677,23 @@ class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class Context::BodyDescriptor final : public BodyDescriptorBase {
+class NativeContext::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
-    return offset >= Context::kHeaderSize && offset < Context::kSize;
+    return offset < NativeContext::kEndOfTaggedFieldsOffset;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, Context::kHeaderSize,
-                    Context::kHeaderSize + FIRST_WEAK_SLOT * kPointerSize, v);
-    IterateCustomWeakPointers(
-        obj, Context::kHeaderSize + FIRST_WEAK_SLOT * kPointerSize,
-        Context::kSize, v);
+    IteratePointers(obj, NativeContext::kStartOfStrongFieldsOffset,
+                    NativeContext::kEndOfStrongFieldsOffset, v);
+    IterateCustomWeakPointers(obj, NativeContext::kStartOfWeakFieldsOffset,
+                              NativeContext::kEndOfWeakFieldsOffset, v);
   }
 
   static inline int SizeOf(Map map, HeapObject* object) {
-    return Context::kSize;
+    return NativeContext::kSize;
   }
 };
 
@@ -784,6 +783,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case EPHEMERON_HASH_TABLE_TYPE:
     case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
+      return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3, p4);
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -791,10 +791,11 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case EVAL_CONTEXT_TYPE:
     case FUNCTION_CONTEXT_TYPE:
     case MODULE_CONTEXT_TYPE:
-    case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
-      return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3, p4);
+      return Op::template apply<Context::BodyDescriptor>(p1, p2, p3, p4);
+    case NATIVE_CONTEXT_TYPE:
+      return Op::template apply<NativeContext::BodyDescriptor>(p1, p2, p3, p4);
     case WEAK_FIXED_ARRAY_TYPE:
       return Op::template apply<WeakFixedArray::BodyDescriptor>(p1, p2, p3, p4);
     case WEAK_ARRAY_LIST_TYPE:

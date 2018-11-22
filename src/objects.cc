@@ -3138,10 +3138,12 @@ VisitorId Map::GetVisitorId(Map map) {
     case EVAL_CONTEXT_TYPE:
     case FUNCTION_CONTEXT_TYPE:
     case MODULE_CONTEXT_TYPE:
-    case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
       return kVisitFixedArray;
+
+    case NATIVE_CONTEXT_TYPE:
+      return kVisitNativeContext;
 
     case EPHEMERON_HASH_TABLE_TYPE:
       return kVisitEphemeronHashTable;

@@ -130,8 +130,7 @@ class Internals {
       2 *
 #endif
       kApiSystemPointerSize;
-  static const int kContextHeaderSize = 2 * kApiTaggedSize;
-  static const int kContextEmbedderDataIndex = 5;
+  static const int kNativeContextEmbedderDataOffset = 7 * kApiTaggedSize;
   static const int kFullStringRepresentationMask = 0x0f;
   static const int kStringEncodingMask = 0x8;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -275,10 +274,7 @@ class Internals {
     typedef internal::Address A;
     typedef internal::Internals I;
     A ctx = *reinterpret_cast<const A*>(context);
-    int embedder_data_offset =
-        I::kContextHeaderSize +
-        (internal::kApiTaggedSize * I::kContextEmbedderDataIndex);
-    A embedder_data = I::ReadField<A>(ctx, embedder_data_offset);
+    A embedder_data = I::ReadField<A>(ctx, I::kNativeContextEmbedderDataOffset);
     int value_offset =
         I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
     return I::ReadField<T>(embedder_data, value_offset);

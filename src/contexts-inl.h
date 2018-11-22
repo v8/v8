@@ -16,6 +16,9 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/template-objects.h"
 
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -217,6 +220,18 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
   DCHECK(!initial_js_array_map->IsUndefined());
   return Map::cast(initial_js_array_map);
 }
+
+MicrotaskQueue* NativeContext::microtask_queue() const {
+  return reinterpret_cast<MicrotaskQueue*>(
+      READ_INTPTR_FIELD(this, kMicrotaskQueueOffset));
+}
+
+void NativeContext::set_microtask_queue(MicrotaskQueue* microtask_queue) {
+  WRITE_INTPTR_FIELD(this, kMicrotaskQueueOffset,
+                     reinterpret_cast<intptr_t>(microtask_queue));
+}
+
+#include "src/objects/object-macros-undef.h"
 
 }  // namespace internal
 }  // namespace v8

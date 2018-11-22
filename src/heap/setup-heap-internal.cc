@@ -479,7 +479,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
                          object_boilerplate_description)
 
-    ALLOCATE_VARSIZE_MAP(NATIVE_CONTEXT_TYPE, native_context)
+    ALLOCATE_MAP(NATIVE_CONTEXT_TYPE, NativeContext::kSize, native_context)
     roots.native_context_map()->set_visitor_id(kVisitNativeContext);
 
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,

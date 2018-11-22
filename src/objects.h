@@ -440,6 +440,7 @@ enum InstanceType : uint16_t {
   EPHEMERON_HASH_TABLE_TYPE,
   SCOPE_INFO_TYPE,
   SCRIPT_CONTEXT_TABLE_TYPE,
+  // TODO(ishell): remove native context from fixed array range
   AWAIT_CONTEXT_TYPE,  // FIRST_CONTEXT_TYPE
   BLOCK_CONTEXT_TYPE,
   CATCH_CONTEXT_TYPE,

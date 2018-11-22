@@ -171,6 +171,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case FIXED_ARRAY_TYPE:
     case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
+      FixedArray::cast(this)->FixedArrayVerify(isolate);
+      break;
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -178,10 +180,12 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case EVAL_CONTEXT_TYPE:
     case FUNCTION_CONTEXT_TYPE:
     case MODULE_CONTEXT_TYPE:
-    case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
-      FixedArray::cast(this)->FixedArrayVerify(isolate);
+      Context::cast(this)->ContextVerify(isolate);
+      break;
+    case NATIVE_CONTEXT_TYPE:
+      NativeContext::cast(this)->NativeContextVerify(isolate);
       break;
     case WEAK_FIXED_ARRAY_TYPE:
       WeakFixedArray::cast(this)->WeakFixedArrayVerify(isolate);
@@ -734,6 +738,14 @@ void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
             (value & uint64_t{0x0007FFFFFFFFFFFF}) == uint64_t{0});
     }
   }
+}
+
+void Context::ContextVerify(Isolate* isolate) { FixedArrayVerify(isolate); }
+
+void NativeContext::NativeContextVerify(Isolate* isolate) {
+  CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
+  CHECK_EQ(kSize, map()->instance_size());
+  FixedArrayVerify(isolate);
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {

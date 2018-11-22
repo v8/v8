@@ -7,11 +7,15 @@
 
 #include "src/objects/fixed-array.h"
 
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
 namespace v8 {
 namespace internal {
 
 class JSGlobalObject;
 class JSGlobalProxy;
+class MicrotaskQueue;
 class NativeContext;
 class ObjectSlot;
 class RegExpMatchInfo;
@@ -446,6 +450,8 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   // Conversions.
   static inline Context* cast(Object* context);
 
+  // TODO(ishell): eventually migrate to the offset based access instead of
+  // index-based.
   // The default context slot layout; indices are FixedArray slot indices.
   enum Field {
     // These slots are in all contexts.
@@ -471,6 +477,7 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
     FIRST_JS_ARRAY_MAP_SLOT = JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX,
 
     MIN_CONTEXT_SLOTS = GLOBAL_PROXY_INDEX,
+
     // This slot holds the thrown value in catch contexts.
     THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
 
@@ -594,7 +601,7 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
                         bool* is_sloppy_function_name = nullptr);
 
   // Code generation support.
-  static int SlotOffset(int index) {
+  static constexpr int SlotOffset(int index) {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;
   }
 
@@ -610,10 +617,13 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
 
   inline Map GetInitialJSArrayMap(ElementsKind kind) const;
 
-  static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;
   static const int kNotFound = -1;
 
-  class BodyDescriptor;
+  // Dispatched behavior.
+  DECL_PRINTER(Context)
+  DECL_VERIFIER(Context)
+
+  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
 
  private:
 #ifdef DEBUG
@@ -623,8 +633,8 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   static bool IsBootstrappingOrValidParentContext(Object* object, Context* kid);
 #endif
 
-  STATIC_ASSERT(kHeaderSize == Internals::kContextHeaderSize);
-  STATIC_ASSERT(EMBEDDER_DATA_INDEX == Internals::kContextEmbedderDataIndex);
+  STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
+                Internals::kNativeContextEmbedderDataOffset);
 };
 
 class NativeContext : public Context {
@@ -632,11 +642,41 @@ class NativeContext : public Context {
   static inline NativeContext* cast(Object* context);
   // TODO(neis): Move some stuff from Context here.
 
+  // [microtask_queue]: pointer to the MicrotaskQueue object.
+  DECL_PRIMITIVE_ACCESSORS(microtask_queue, MicrotaskQueue*)
+
+  // Dispatched behavior.
+  DECL_PRINTER(NativeContext)
+  DECL_VERIFIER(NativeContext)
+
+  // Layout description.
+#define NATIVE_CONTEXT_FIELDS_DEF(V)                                        \
+  V(kStartOfTaggedFieldsOffset, 0)                                          \
+  /* TODO(ishell): move definition of common context offsets to Context. */ \
+  V(kStartOfStrongFieldsOffset, FIRST_WEAK_SLOT* kTaggedSize)               \
+  V(kEndOfStrongFieldsOffset, 0)                                            \
+  V(kStartOfWeakFieldsOffset,                                               \
+    (NATIVE_CONTEXT_SLOTS - FIRST_WEAK_SLOT) * kTaggedSize)                 \
+  V(kEndOfWeakFieldsOffset, 0)                                              \
+  V(kEndOfNativeContextFieldsOffset, 0)                                     \
+  V(kEndOfTaggedFieldsOffset, 0)                                            \
+  /* Raw data. */                                                           \
+  V(kMicrotaskQueueOffset, kSystemPointerSize)                              \
+  /* Total size. */                                                         \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Context::kHeaderSize, NATIVE_CONTEXT_FIELDS_DEF)
+#undef NATIVE_CONTEXT_FIELDS_DEF
+
+  class BodyDescriptor;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(NativeContext);
 };
 
 typedef Context::Field ContextField;
+
+#include "src/objects/object-macros-undef.h"
 
 }  // namespace internal
 }  // namespace v8

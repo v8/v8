@@ -1378,12 +1378,18 @@ Handle<Symbol> Factory::NewPrivateNameSymbol() {
 }
 
 Handle<NativeContext> Factory::NewNativeContext() {
-  Handle<NativeContext> context = NewFixedArrayWithMap<NativeContext>(
-      RootIndex::kNativeContextMap, Context::NATIVE_CONTEXT_SLOTS, TENURED);
+  Map map = *native_context_map();
+  HeapObject* result =
+      AllocateRawWithImmortalMap(map->instance_size(), TENURED, map);
+  Handle<NativeContext> context(NativeContext::cast(result), isolate());
+  context->set_length(NativeContext::NATIVE_CONTEXT_SLOTS);
+  MemsetPointer(ObjectSlot(context->address() + NativeContext::kHeaderSize),
+                *undefined_value(), NativeContext::NATIVE_CONTEXT_SLOTS);
   context->set_native_context(*context);
   context->set_errors_thrown(Smi::zero());
   context->set_math_random_index(Smi::zero());
   context->set_serialized_objects(*empty_fixed_array());
+  context->set_microtask_queue(nullptr);
   return context;
 }
 

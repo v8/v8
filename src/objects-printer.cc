@@ -140,6 +140,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
     case FIXED_ARRAY_TYPE:
+      FixedArray::cast(this)->FixedArrayPrint(os);
+      break;
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -147,11 +149,13 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case EVAL_CONTEXT_TYPE:
     case FUNCTION_CONTEXT_TYPE:
     case MODULE_CONTEXT_TYPE:
-    case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
-      FixedArray::cast(this)->FixedArrayPrint(os);
+      Context::cast(this)->ContextPrint(os);
+      break;
+    case NATIVE_CONTEXT_TYPE:
+      NativeContext::cast(this)->NativeContextPrint(os);
       break;
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
@@ -1005,6 +1009,15 @@ void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, this, "FixedArray");
+}
+
+void Context::ContextPrint(std::ostream& os) {
+  PrintFixedArrayWithHeader(os, this, "Context");
+}
+
+void NativeContext::NativeContextPrint(std::ostream& os) {
+  PrintFixedArrayWithHeader(os, this, "NativeContext");
+  os << " - microtask_queue: " << microtask_queue() << "\n";
 }
 
 void ObjectHashTable::ObjectHashTablePrint(std::ostream& os) {

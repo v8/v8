@@ -52,7 +52,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
           map, ConcreteVisitor::template Cast<ConsString>(object));
     case kVisitNativeContext:
       return visitor->VisitNativeContext(
-          map, ConcreteVisitor::template Cast<Context>(object));
+          map, ConcreteVisitor::template Cast<NativeContext>(object));
     case kVisitDataObject:
       return visitor->VisitDataObject(map, object);
     case kVisitJSObjectFast:
@@ -111,13 +111,13 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitNativeContext(
-    Map map, Context* object) {
+    Map map, NativeContext* object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
-  int size = Context::BodyDescriptor::SizeOf(map, object);
   if (visitor->ShouldVisitMapPointer())
     visitor->VisitMapPointer(object, object->map_slot());
-  Context::BodyDescriptor::IterateBody(map, object, size, visitor);
+  int size = NativeContext::BodyDescriptor::SizeOf(map, object);
+  NativeContext::BodyDescriptor::IterateBody(map, object, size, visitor);
   return static_cast<ResultType>(size);
 }
 
@@ -179,11 +179,11 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
 }
 
 template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map map,
-                                                         Context* object) {
+int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(
+    Map map, NativeContext* object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = Context::BodyDescriptor::SizeOf(map, object);
-  Context::BodyDescriptor::IterateBody(map, object, size, visitor);
+  int size = NativeContext::BodyDescriptor::SizeOf(map, object);
+  NativeContext::BodyDescriptor::IterateBody(map, object, size, visitor);
   return size;
 }
 
