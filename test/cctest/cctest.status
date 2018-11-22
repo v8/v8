@@ -164,7 +164,7 @@
   'test-api/Threading*': [SKIP],
 }],  # 'arch == arm64 and simulator_run'
 
-['arch == arm64 and mode == debug and simulator_run', {
+['arch == arm64 and (mode == debug or dcheck_always_on) and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'test-api/ExternalDoubleArray': [SKIP],
@@ -173,7 +173,7 @@
   'test-api/ExternalFloatArray': [SKIP],
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
-}],  # 'arch == arm64 and mode == debug and simulator_run'
+}],  # 'arch == arm64 and (mode == debug or dcheck_always_on) and simulator_run'
 
 ##############################################################################
 ['arch == ia32', {
@@ -186,6 +186,14 @@
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'test-cpu-profiler/MultipleIsolates': [SKIP],
+
+  # Slow but tolarable tests.
+  'test-api/FixedFloat64Array': [PASS, SLOW],
+  'test-api/FixedUint16Array': [PASS, SLOW],
+  'test-api/Int8Array': [PASS, SLOW],
+  'test-api/SharedFloat64Array': [PASS, SLOW],
+  'test-api/SharedUint16Array': [PASS, SLOW],
+  'test-api/Uint16Array': [PASS, SLOW],
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
