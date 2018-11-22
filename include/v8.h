@@ -1822,8 +1822,18 @@ struct SampleInfo {
 };
 
 struct MemoryRange {
-  const void* start;
-  size_t length_in_bytes;
+  const void* start = nullptr;
+  size_t length_in_bytes = 0;
+};
+
+struct JSEntryStub {
+  MemoryRange code;
+};
+
+struct UnwindState {
+  MemoryRange code_range;
+  MemoryRange embedded_code_range;
+  JSEntryStub js_entry_stub;
 };
 
 /**
@@ -8137,13 +8147,9 @@ class V8_EXPORT Isolate {
   void GetCodeRange(void** start, size_t* length_in_bytes);
 
   /**
-   * Returns a memory range containing the code for V8's embedded functions
-   * (e.g. builtins) which are shared across isolates.
-   *
-   * If embedded builtins are disabled, then the memory range will be a null
-   * pointer with 0 length.
+   * Returns the UnwindState necessary for use with the Unwinder API.
    */
-  MemoryRange GetEmbeddedCodeRange();
+  UnwindState GetUnwindState();
 
   /** Set the callback to invoke in case of fatal errors. */
   void SetFatalErrorHandler(FatalErrorCallback that);
@@ -9313,6 +9319,51 @@ class V8_EXPORT Locker {
   internal::Isolate* isolate_;
 };
 
+/**
+ * Various helpers for skipping over V8 frames in a given stack.
+ *
+ * The unwinder API is only supported on the x64 architecture.
+ */
+class V8_EXPORT Unwinder {
+ public:
+  /**
+   * Attempt to unwind the stack to the most recent C++ frame. This function is
+   * signal-safe and does not access any V8 state and thus doesn't require an
+   * Isolate.
+   *
+   * The unwinder needs to know the location of the JS Entry Stub (a piece of
+   * code that is run when C++ code calls into generated JS code). This is used
+   * for edge cases where the current frame is being constructed or torn down
+   * when the stack sample occurs.
+   *
+   * The unwinder also needs the virtual memory range of all possible V8 code
+   * objects. There are two ranges required - the heap code range and the range
+   * for code embedded in the binary. The V8 API provides all required inputs
+   * via an UnwindState object through the Isolate::GetUnwindState() API. These
+   * values will not change after Isolate initialization, so the same
+   * |unwind_state| can be used for multiple calls.
+   *
+   * \param unwind_state Input state for the Isolate that the stack comes from.
+   * \param register_state The current registers. This is an in-out param that
+   * will be overwritten with the register values after unwinding, on success.
+   * \param stack_base Currently unused.
+   *
+   * \return True on success.
+   */
+  static bool TryUnwindV8Frames(const UnwindState& unwind_state,
+                                RegisterState* register_state,
+                                const void* stack_base);
+
+  /**
+   * Whether the PC is within the V8 code range represented by code_range or
+   * embedded_code_range in |unwind_state|.
+   *
+   * If this returns false, then calling UnwindV8Frames() with the same PC
+   * and unwind_state will always fail. If it returns true, then unwinding may
+   * (but not necessarily) be successful.
+   */
+  static bool PCIsInV8(const UnwindState& unwind_state, void* pc);
+};
 
 // --- Implementation ---
 

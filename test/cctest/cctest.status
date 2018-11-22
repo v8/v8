@@ -477,4 +477,10 @@
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps
 
+##############################################################################
+# The stack unwinder API is only supported on x64.
+['arch != x64', {
+  'test-unwinder/*': [SKIP]
+}],
+
 ]

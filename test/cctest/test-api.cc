@@ -29092,12 +29092,13 @@ TEST(TestSetWasmThreadsEnabledCallback) {
   CHECK(i_isolate->AreWasmThreadsEnabled(i_context));
 }
 
-TEST(TestGetEmbeddedCodeRange) {
+TEST(TestGetUnwindState) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  v8::MemoryRange builtins_range = isolate->GetEmbeddedCodeRange();
+  v8::UnwindState unwind_state = isolate->GetUnwindState();
+  v8::MemoryRange builtins_range = unwind_state.embedded_code_range;
 
   // Check that each off-heap builtin is within the builtins code range.
   if (i::FLAG_embedded_builtins) {
@@ -29116,6 +29117,11 @@ TEST(TestGetEmbeddedCodeRange) {
     CHECK_EQ(nullptr, builtins_range.start);
     CHECK_EQ(0, builtins_range.length_in_bytes);
   }
+
+  v8::JSEntryStub js_entry_stub = unwind_state.js_entry_stub;
+
+  CHECK_EQ(i_isolate->heap()->js_entry_code()->InstructionStart(),
+           reinterpret_cast<i::Address>(js_entry_stub.code.start));
 }
 
 TEST(MicrotaskContextShouldBeNativeContext) {

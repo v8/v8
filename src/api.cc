@@ -8812,10 +8812,24 @@ void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   *length_in_bytes = code_range.size();
 }
 
-MemoryRange Isolate::GetEmbeddedCodeRange() {
+UnwindState Isolate::GetUnwindState() {
+  UnwindState unwind_state;
+  void* code_range_start;
+  GetCodeRange(&code_range_start, &unwind_state.code_range.length_in_bytes);
+  unwind_state.code_range.start = code_range_start;
+
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  return {reinterpret_cast<const void*>(isolate->embedded_blob()),
-          isolate->embedded_blob_size()};
+  unwind_state.embedded_code_range.start =
+      reinterpret_cast<const void*>(isolate->embedded_blob());
+  unwind_state.embedded_code_range.length_in_bytes =
+      isolate->embedded_blob_size();
+
+  i::Code js_entry = isolate->heap()->js_entry_code();
+  unwind_state.js_entry_stub.code.start =
+      reinterpret_cast<const void*>(js_entry->InstructionStart());
+  unwind_state.js_entry_stub.code.length_in_bytes = js_entry->InstructionSize();
+
+  return unwind_state;
 }
 
 #define CALLBACK_SETTER(ExternalName, Type, InternalName)      \
