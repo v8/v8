@@ -3749,6 +3749,19 @@ void NewLargeObjectSpace::Flip() {
   }
 }
 
+void NewLargeObjectSpace::FreeAllObjects() {
+  LargePage* current = first_page();
+  objects_size_ = 0;
+  while (current) {
+    LargePage* next_current = current->next_page();
+    Unregister(current, static_cast<size_t>(current->GetObject()->Size()));
+    heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(
+        current);
+    current = next_current;
+  }
+  DCHECK_EQ(objects_size_, 0);
+}
+
 CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
     : LargeObjectSpace(heap, CODE_LO_SPACE) {}
 
