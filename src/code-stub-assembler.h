@@ -3347,6 +3347,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   Label* if_bigint = nullptr,
                                   Variable* var_bigint = nullptr,
                                   Variable* var_feedback = nullptr);
+
+ private:
+  // Low-level accessors for Descriptor arrays.
+  TNode<MaybeObject> LoadDescriptorArrayElement(TNode<DescriptorArray> object,
+                                                Node* index,
+                                                int additional_offset = 0);
 };
 
 class CodeStubArguments {

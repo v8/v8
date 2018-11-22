@@ -8232,9 +8232,15 @@ TNode<IntPtrT> CodeStubAssembler::EntryToIndex(TNode<IntPtrT> entry,
                                                field_index));
 }
 
+TNode<MaybeObject> CodeStubAssembler::LoadDescriptorArrayElement(
+    TNode<DescriptorArray> object, Node* index, int additional_offset) {
+  return LoadArrayElement(object, DescriptorArray::kHeaderSize, index,
+                          additional_offset);
+}
+
 TNode<Name> CodeStubAssembler::LoadKeyByKeyIndex(
     TNode<DescriptorArray> container, TNode<IntPtrT> key_index) {
-  return CAST(LoadWeakFixedArrayElement(container, key_index, 0));
+  return CAST(LoadDescriptorArrayElement(container, key_index, 0));
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
@@ -8242,7 +8248,7 @@ TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
   const int kKeyToDetails =
       DescriptorArray::ToDetailsIndex(0) - DescriptorArray::ToKeyIndex(0);
   return Unsigned(LoadAndUntagToWord32ArrayElement(
-      container, WeakFixedArray::kHeaderSize, key_index,
+      container, DescriptorArray::kHeaderSize, key_index,
       kKeyToDetails * kPointerSize));
 }
 
@@ -8250,16 +8256,16 @@ TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
     TNode<DescriptorArray> container, TNode<IntPtrT> key_index) {
   const int kKeyToValue =
       DescriptorArray::ToValueIndex(0) - DescriptorArray::ToKeyIndex(0);
-  return CAST(LoadWeakFixedArrayElement(container, key_index,
-                                        kKeyToValue * kPointerSize));
+  return CAST(LoadDescriptorArrayElement(container, key_index,
+                                         kKeyToValue * kPointerSize));
 }
 
 TNode<MaybeObject> CodeStubAssembler::LoadFieldTypeByKeyIndex(
     TNode<DescriptorArray> container, TNode<IntPtrT> key_index) {
   const int kKeyToValue =
       DescriptorArray::ToValueIndex(0) - DescriptorArray::ToKeyIndex(0);
-  return LoadWeakFixedArrayElement(container, key_index,
-                                   kKeyToValue * kPointerSize);
+  return LoadDescriptorArrayElement(container, key_index,
+                                    kKeyToValue * kPointerSize);
 }
 
 TNode<IntPtrT> CodeStubAssembler::DescriptorEntryToIndex(
@@ -8270,21 +8276,22 @@ TNode<IntPtrT> CodeStubAssembler::DescriptorEntryToIndex(
 
 TNode<Name> CodeStubAssembler::LoadKeyByDescriptorEntry(
     TNode<DescriptorArray> container, TNode<IntPtrT> descriptor_entry) {
-  return CAST(LoadWeakFixedArrayElement(
+  return CAST(LoadDescriptorArrayElement(
       container, DescriptorEntryToIndex(descriptor_entry),
       DescriptorArray::ToKeyIndex(0) * kPointerSize));
 }
 
 TNode<Name> CodeStubAssembler::LoadKeyByDescriptorEntry(
     TNode<DescriptorArray> container, int descriptor_entry) {
-  return CAST(LoadWeakFixedArrayElement(
-      container, DescriptorArray::ToKeyIndex(descriptor_entry)));
+  return CAST(LoadDescriptorArrayElement(
+      container, IntPtrConstant(0),
+      DescriptorArray::ToKeyIndex(descriptor_entry) * kPointerSize));
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadDetailsByDescriptorEntry(
     TNode<DescriptorArray> container, TNode<IntPtrT> descriptor_entry) {
   return Unsigned(LoadAndUntagToWord32ArrayElement(
-      container, WeakFixedArray::kHeaderSize,
+      container, DescriptorArray::kHeaderSize,
       DescriptorEntryToIndex(descriptor_entry),
       DescriptorArray::ToDetailsIndex(0) * kPointerSize));
 }
@@ -8292,19 +8299,20 @@ TNode<Uint32T> CodeStubAssembler::LoadDetailsByDescriptorEntry(
 TNode<Uint32T> CodeStubAssembler::LoadDetailsByDescriptorEntry(
     TNode<DescriptorArray> container, int descriptor_entry) {
   return Unsigned(LoadAndUntagToWord32ArrayElement(
-      container, WeakFixedArray::kHeaderSize, IntPtrConstant(0),
+      container, DescriptorArray::kHeaderSize, IntPtrConstant(0),
       DescriptorArray::ToDetailsIndex(descriptor_entry) * kPointerSize));
 }
 
 TNode<Object> CodeStubAssembler::LoadValueByDescriptorEntry(
     TNode<DescriptorArray> container, int descriptor_entry) {
-  return CAST(LoadWeakFixedArrayElement(
-      container, DescriptorArray::ToValueIndex(descriptor_entry)));
+  return CAST(LoadDescriptorArrayElement(
+      container, IntPtrConstant(0),
+      DescriptorArray::ToValueIndex(descriptor_entry) * kPointerSize));
 }
 
 TNode<MaybeObject> CodeStubAssembler::LoadFieldTypeByDescriptorEntry(
     TNode<DescriptorArray> container, TNode<IntPtrT> descriptor_entry) {
-  return LoadWeakFixedArrayElement(
+  return LoadDescriptorArrayElement(
       container, DescriptorEntryToIndex(descriptor_entry),
       DescriptorArray::ToValueIndex(0) * kPointerSize);
 }
@@ -8783,7 +8791,7 @@ TNode<Uint32T> CodeStubAssembler::DescriptorArrayGetDetails(
     TNode<DescriptorArray> descriptors, TNode<Uint32T> descriptor_number) {
   const int details_offset = DescriptorArray::ToDetailsIndex(0) * kPointerSize;
   return Unsigned(LoadAndUntagToWord32ArrayElement(
-      descriptors, WeakFixedArray::kHeaderSize,
+      descriptors, DescriptorArray::kHeaderSize,
       EntryIndexToIndex<DescriptorArray>(descriptor_number), details_offset));
 }
 
