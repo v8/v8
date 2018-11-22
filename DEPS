@@ -13,15 +13,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a2bfd5371f5bec815b63129d3b3c34707652166e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '05ea63bf59ec1c9e10152bc1ca6ae9a1fc893d52',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e47ac15d93b88d76e38e56054a15dfb916b30112',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd66dad7fc2c3caad80c0117ae0ee625d7367a14a',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '407b39301e71006b68bd38e770f35d32398a7b14',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + 'da9b2941cbf6d6d67b694e069e8e8dc06910f66a',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '04161ec8d7c781e4498c699254c69ba0dd959fde',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '211b3ed9d0481b4caddbee1322321b86a483ca1f',
   'v8/third_party/android_ndk': {
@@ -33,7 +33,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd11507507daae2e80b82614c6bbf07975e8843b7',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'aa21a922d4a8fb32bf9f24a0cfbeec8c2ed1f963',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -81,12 +81,12 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'aa6b9c8b9e96ae949239d4c36badbc746495fda5',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7fa2bdf028b016a97aeefcf147162bfb1cd8a9f8',
   'v8/tools/luci-go': {
       'packages': [
         {
           'package': 'infra/tools/luci/isolate/${{platform}}',
-          'version': 'git_revision:b4183943efee5d2a2d444c8551877ae96b78d8b2',
+          'version': 'git_revision:73de65b9f89014a1b6718ad3d5ce791130e7c492',
         },
       ],
       'condition': 'host_cpu != "s390"',
