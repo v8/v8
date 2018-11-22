@@ -458,6 +458,25 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
   ldr(reg, liftoff::GetHalfStackSlot(half_index));
 }
 
+#define I32_SHIFTOP(name, instruction)                                         \
+  void LiftoffAssembler::emit_##name(Register dst, Register src,               \
+                                     Register amount, LiftoffRegList pinned) { \
+    UseScratchRegisterScope temps(this);                                       \
+    Register scratch = temps.Acquire();                                        \
+    and_(scratch, amount, Operand(0x1f));                                      \
+    instruction(dst, src, Operand(scratch));                                   \
+  }
+#define I32_SHIFTOP_I(name, instruction)                                       \
+  void LiftoffAssembler::emit_##name(Register dst, Register src, int amount) { \
+    DCHECK(is_uint5(amount));                                                  \
+    instruction(dst, src, Operand(amount));                                    \
+  }
+#define I32_BINOP(name, instruction)                             \
+  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
+                                     Register rhs) {             \
+    instruction(dst, lhs, rhs);                                  \
+  }
+
 #define UNIMPLEMENTED_GP_BINOP(name)                             \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
                                      Register rhs) {             \
@@ -487,34 +506,28 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
     BAILOUT("fp unop: " #name);                                                \
     return true;                                                               \
   }
-#define UNIMPLEMENTED_I32_SHIFTOP(name)                                        \
-  void LiftoffAssembler::emit_##name(Register dst, Register src,               \
-                                     Register amount, LiftoffRegList pinned) { \
-    BAILOUT("i32 shiftop: " #name);                                            \
-  }
 #define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
                                      Register amount, LiftoffRegList pinned) { \
     BAILOUT("i64 shiftop: " #name);                                            \
   }
 
-UNIMPLEMENTED_GP_BINOP(i32_add)
-UNIMPLEMENTED_GP_BINOP(i32_sub)
-UNIMPLEMENTED_GP_BINOP(i32_mul)
-UNIMPLEMENTED_GP_BINOP(i32_and)
-UNIMPLEMENTED_GP_BINOP(i32_or)
-UNIMPLEMENTED_GP_BINOP(i32_xor)
-UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
-UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
-UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
+I32_BINOP(i32_add, add)
+I32_BINOP(i32_sub, sub)
+I32_BINOP(i32_mul, mul)
+I32_BINOP(i32_and, and_)
+I32_BINOP(i32_or, orr)
+I32_BINOP(i32_xor, eor)
+I32_SHIFTOP(i32_shl, lsl)
+I32_SHIFTOP(i32_sar, asr)
+I32_SHIFTOP(i32_shr, lsr)
+I32_SHIFTOP_I(i32_shr, lsr)
 UNIMPLEMENTED_I64_BINOP(i64_add)
 UNIMPLEMENTED_I64_BINOP(i64_sub)
 UNIMPLEMENTED_I64_BINOP(i64_mul)
 UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
 UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
 UNIMPLEMENTED_I64_SHIFTOP(i64_shr)
-UNIMPLEMENTED_GP_UNOP(i32_clz)
-UNIMPLEMENTED_GP_UNOP(i32_ctz)
 UNIMPLEMENTED_GP_UNOP(i32_popcnt)
 UNIMPLEMENTED_FP_BINOP(f32_add)
 UNIMPLEMENTED_FP_BINOP(f32_sub)
@@ -545,14 +558,27 @@ UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_trunc)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_nearest_int)
 UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 
+#undef I32_BINOP
+#undef I32_SHIFTOP
+#undef I32_SHIFTOP_I
 #undef UNIMPLEMENTED_GP_BINOP
 #undef UNIMPLEMENTED_I64_BINOP
 #undef UNIMPLEMENTED_GP_UNOP
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_FP_UNOP
 #undef UNIMPLEMENTED_FP_UNOP_RETURN_TRUE
-#undef UNIMPLEMENTED_I32_SHIFTOP
 #undef UNIMPLEMENTED_I64_SHIFTOP
+
+bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+  clz(dst, src);
+  return true;
+}
+
+bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+  rbit(dst, src);
+  clz(dst, dst);
+  return true;
+}
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
@@ -573,10 +599,6 @@ void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   BAILOUT("i32_remu");
-}
-
-void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, int amount) {
-  BAILOUT("i32_shr");
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
@@ -650,16 +672,25 @@ void LiftoffAssembler::emit_jump(Register target) { bx(target); }
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       ValueType type, Register lhs,
                                       Register rhs) {
-  BAILOUT("emit_cond_jump");
+  DCHECK_EQ(type, kWasmI32);
+  if (rhs == no_reg) {
+    cmp(lhs, Operand(0));
+  } else {
+    cmp(lhs, rhs);
+  }
+  b(label, cond);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  BAILOUT("emit_i32_eqz");
+  clz(dst, src);
+  mov(dst, Operand(dst, LSR, kRegSizeInBitsLog2));
 }
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
-  BAILOUT("emit_i32_set_cond");
+  cmp(lhs, rhs);
+  mov(dst, Operand(0), LeaveCC);
+  mov(dst, Operand(1), LeaveCC, cond);
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {

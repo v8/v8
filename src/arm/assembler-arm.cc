@@ -1497,6 +1497,10 @@ void Assembler::eor(Register dst, Register src1, const Operand& src2,
   AddrMode1(cond | EOR | s, dst, src1, src2);
 }
 
+void Assembler::eor(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  AddrMode1(cond | EOR | s, dst, src1, Operand(src2));
+}
 
 void Assembler::sub(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {

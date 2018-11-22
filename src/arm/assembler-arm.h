@@ -741,6 +741,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void eor(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
+  void eor(Register dst, Register src1, Register src2, SBit s = LeaveCC,
+           Condition cond = al);
 
   void sub(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
