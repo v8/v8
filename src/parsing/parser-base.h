@@ -1717,8 +1717,11 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       if (Check(Token::RPAREN)) {
         // ()=>x.  The continuation that consumes the => is in
         // ParseAssignmentExpression.
-        if (peek() != Token::ARROW) ReportUnexpectedToken(Token::RPAREN);
-        next_arrow_formals_parenthesized_ = true;
+        if (peek() == Token::ARROW) {
+          next_arrow_formals_parenthesized_ = true;
+        } else {
+          ReportUnexpectedToken(Token::RPAREN);
+        }
         return factory()->NewEmptyParentheses(beg_pos);
       }
       // Heuristically try to detect immediately called functions before

@@ -2710,6 +2710,10 @@ bool Parser::SkipFunction(
     // Propagate stack overflow.
     set_stack_overflow();
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
+    // Make sure we don't re-preparse inner functions of the aborted function.
+    // The error might be in an inner function.
+    allow_lazy_ = false;
+    mode_ = PARSE_EAGERLY;
     DCHECK(!pending_error_handler()->stack_overflow());
     // If we encounter an error that the preparser can not identify we reset to
     // the state before preparsing. The caller may then fully parse the function
