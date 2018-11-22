@@ -716,8 +716,109 @@ void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
-  BAILOUT("emit_type_conversion");
-  return true;
+  switch (opcode) {
+    case kExprI32ConvertI64:
+      TurboAssembler::Move(dst.gp(), src.low_gp());
+      return true;
+    case kExprI32SConvertF32: {
+      BAILOUT("kExprI32SConvertF32");
+      return true;
+    }
+    case kExprI32UConvertF32: {
+      BAILOUT("kExprI32UConvertF32");
+      return true;
+    }
+    case kExprI32SConvertF64: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_s32_f64(scratch_f, src.fp());  // f64 -> i32 round to zero.
+      vmov(dst.gp(), scratch_f);
+      // Check underflow and NaN.
+      DwVfpRegister scratch_d = temps.AcquireD();
+      vmov(scratch_d, Double(static_cast<double>(INT32_MIN - 1.0)));
+      VFPCompareAndSetFlags(src.fp(), scratch_d);
+      b(trap, le);
+      // Check overflow.
+      vmov(scratch_d, Double(static_cast<double>(INT32_MAX + 1.0)));
+      VFPCompareAndSetFlags(src.fp(), scratch_d);
+      b(trap, ge);
+      return true;
+    }
+    case kExprI32UConvertF64: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_u32_f64(scratch_f, src.fp());  // f64 -> i32 round to zero.
+      vmov(dst.gp(), scratch_f);
+      // Check underflow and NaN.
+      DwVfpRegister scratch_d = temps.AcquireD();
+      vmov(scratch_d, Double(static_cast<double>(-1.0)));
+      VFPCompareAndSetFlags(src.fp(), scratch_d);
+      b(trap, le);
+      // Check overflow.
+      vmov(scratch_d, Double(static_cast<double>(UINT32_MAX + 1.0)));
+      VFPCompareAndSetFlags(src.fp(), scratch_d);
+      b(trap, ge);
+      return true;
+    }
+    case kExprI32ReinterpretF32:
+      BAILOUT("kExprI32ReinterpretF32");
+      return true;
+    case kExprI64SConvertI32:
+      if (dst.low_gp() != src.gp()) mov(dst.low_gp(), src.gp());
+      mov(dst.high_gp(), Operand(src.gp(), ASR, 31));
+      return true;
+    case kExprI64UConvertI32:
+      if (dst.low_gp() != src.gp()) mov(dst.low_gp(), src.gp());
+      mov(dst.high_gp(), Operand(0));
+      return true;
+    case kExprI64ReinterpretF64:
+      vmov(dst.low_gp(), dst.high_gp(), src.fp());
+      return true;
+    case kExprF32SConvertI32:
+      BAILOUT("kExprF32SConvertI32");
+      return true;
+    case kExprF32UConvertI32:
+      BAILOUT("kExprF32UConvertI32");
+      return true;
+    case kExprF32ConvertF64:
+      BAILOUT("kExprF32ConvertF64");
+      return true;
+    case kExprF32ReinterpretI32:
+      BAILOUT("kExprF32ReinterpretI32");
+      return true;
+    case kExprF64SConvertI32: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch = temps.AcquireS();
+      vmov(scratch, src.gp());
+      vcvt_f64_s32(dst.fp(), scratch);
+      return true;
+    }
+    case kExprF64UConvertI32: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch = temps.AcquireS();
+      vmov(scratch, src.gp());
+      vcvt_f64_u32(dst.fp(), scratch);
+      return true;
+    }
+    case kExprF64ConvertF32:
+      BAILOUT("kExprF64ConvertF32");
+      return true;
+    case kExprF64ReinterpretI64:
+      vmov(dst.fp(), src.low_gp(), src.high_gp());
+      return true;
+    case kExprF64SConvertI64:
+    case kExprF64UConvertI64:
+    case kExprI64SConvertF32:
+    case kExprI64UConvertF32:
+    case kExprF32SConvertI64:
+    case kExprF32UConvertI64:
+    case kExprI64SConvertF64:
+    case kExprI64UConvertF64:
+      // These cases can be handled by the C fallback function.
+      return false;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
