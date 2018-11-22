@@ -10387,9 +10387,14 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
       // Skip the store if we write beyond the length or
       // to a property with a negative integer index.
       GotoIfNot(UintPtrLessThan(intptr_key, length), &done);
-    } else {
-      DCHECK_EQ(STANDARD_STORE, store_mode);
+    } else if (store_mode == STANDARD_STORE) {
       GotoIfNot(UintPtrLessThan(intptr_key, length), bailout);
+    } else {
+      // This case is produced due to the dispatched call in
+      // ElementsTransitionAndStore and StoreFastElement.
+      // TODO(jgruber): Avoid generating unsupported combinations to save code
+      // size.
+      DebugBreak();
     }
 
     if (elements_kind == BIGINT64_ELEMENTS ||
@@ -10412,8 +10417,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     BIND(&done);
     return;
   }
-  DCHECK(IsSmiOrObjectElementsKind(elements_kind) ||
-         IsDoubleElementsKind(elements_kind));
+  DCHECK(IsFastElementsKind(elements_kind));
 
   Node* length =
       SelectImpl(IsJSArray(object), [=]() { return LoadJSArrayLength(object); },

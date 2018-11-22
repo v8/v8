@@ -1843,7 +1843,6 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   }
 
   // TODO(ishell): move to StoreHandler::StoreElement().
-  ElementsKind elements_kind = receiver_map->elements_kind();
   Handle<Code> stub;
   if (receiver_map->has_sloppy_arguments_elements()) {
     // TODO(jgruber): Update counter name.
@@ -1853,7 +1852,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_fixed_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
-    stub = StoreFastElementStub(isolate(), elements_kind, store_mode).GetCode();
+    stub = StoreFastElementStub(isolate(), store_mode).GetCode();
     if (receiver_map->has_fixed_typed_array_elements()) return stub;
   } else if (IsStoreInArrayLiteralICKind(kind())) {
     // TODO(jgruber): Update counter name.
@@ -1863,7 +1862,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   } else {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
-    DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
+    DCHECK_EQ(DICTIONARY_ELEMENTS, receiver_map->elements_kind());
     stub = CodeFactory::KeyedStoreIC_Slow(isolate(), store_mode).code();
   }
 

@@ -182,11 +182,8 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
     KeyedAccessStoreMode store_mode) {
-  ElementsKind elements_kind = receiver_map->elements_kind();
   Handle<Code> stub =
-      ElementsTransitionAndStoreStub(isolate, elements_kind,
-                                     transition->elements_kind(), store_mode)
-          .GetCode();
+      ElementsTransitionAndStoreStub(isolate, store_mode).GetCode();
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);

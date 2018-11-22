@@ -266,7 +266,97 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
       &state, AssemblerOptions::Default(isolate()));
 }
 
-TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
+namespace {
+
+class HandlerStubAssembler : public CodeStubAssembler {
+ public:
+  explicit HandlerStubAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+  // Essentially turns runtime elements kinds (TNode<Int32T>) into
+  // compile-time types (int) by dispatching over the runtime type and
+  // emitting a specialized copy of the given case function for each elements
+  // kind. Use with caution. This produces a *lot* of code.
+  typedef std::function<void(ElementsKind)> ElementsKindSwitchCase;
+  void DispatchByElementsKind(TNode<Int32T> elements_kind,
+                              const ElementsKindSwitchCase& case_function);
+
+  // Dispatches over all possible combinations of {from,to} elements kinds.
+  typedef std::function<void(ElementsKind, ElementsKind)>
+      ElementsKindTransitionSwitchCase;
+  void DispatchForElementsKindTransition(
+      TNode<Int32T> from_kind, TNode<Int32T> to_kind,
+      const ElementsKindTransitionSwitchCase& case_function);
+};
+
+// All possible fast-to-fast transitions. Transitions to dictionary mode are not
+// handled by ElementsTransitionAndStore.
+#define ELEMENTS_KIND_TRANSITIONS(V)               \
+  V(PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS)       \
+  V(PACKED_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS)   \
+  V(PACKED_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS)    \
+  V(PACKED_SMI_ELEMENTS, PACKED_ELEMENTS)          \
+  V(PACKED_SMI_ELEMENTS, HOLEY_ELEMENTS)           \
+  V(HOLEY_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS)     \
+  V(HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS)            \
+  V(PACKED_DOUBLE_ELEMENTS, HOLEY_DOUBLE_ELEMENTS) \
+  V(PACKED_DOUBLE_ELEMENTS, PACKED_ELEMENTS)       \
+  V(PACKED_DOUBLE_ELEMENTS, HOLEY_ELEMENTS)        \
+  V(HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS)         \
+  V(PACKED_ELEMENTS, HOLEY_ELEMENTS)
+
+void HandlerStubAssembler::DispatchForElementsKindTransition(
+    TNode<Int32T> from_kind, TNode<Int32T> to_kind,
+    const ElementsKindTransitionSwitchCase& case_function) {
+  STATIC_ASSERT(sizeof(ElementsKind) == sizeof(uint8_t));
+
+  Label next(this), if_unknown_type(this, Label::kDeferred);
+
+  int32_t combined_elements_kinds[] = {
+#define ELEMENTS_KINDS_CASE(FROM, TO) (FROM << kBitsPerByte) | TO,
+      ELEMENTS_KIND_TRANSITIONS(ELEMENTS_KINDS_CASE)
+#undef ELEMENTS_KINDS_CASE
+  };
+
+#define ELEMENTS_KINDS_CASE(FROM, TO) Label if_##FROM##_##TO(this);
+  ELEMENTS_KIND_TRANSITIONS(ELEMENTS_KINDS_CASE)
+#undef ELEMENTS_KINDS_CASE
+
+  Label* elements_kind_labels[] = {
+#define ELEMENTS_KINDS_CASE(FROM, TO) &if_##FROM##_##TO,
+      ELEMENTS_KIND_TRANSITIONS(ELEMENTS_KINDS_CASE)
+#undef ELEMENTS_KINDS_CASE
+  };
+  STATIC_ASSERT(arraysize(combined_elements_kinds) ==
+                arraysize(elements_kind_labels));
+
+  TNode<Word32T> combined_elements_kind =
+      Word32Or(Word32Shl(from_kind, Int32Constant(kBitsPerByte)), to_kind);
+
+  Switch(combined_elements_kind, &if_unknown_type, combined_elements_kinds,
+         elements_kind_labels, arraysize(combined_elements_kinds));
+
+#define ELEMENTS_KINDS_CASE(FROM, TO) \
+  BIND(&if_##FROM##_##TO);            \
+  {                                   \
+    case_function(FROM, TO);          \
+    Goto(&next);                      \
+  }
+  ELEMENTS_KIND_TRANSITIONS(ELEMENTS_KINDS_CASE)
+#undef ELEMENTS_KINDS_CASE
+
+  BIND(&if_unknown_type);
+  Unreachable();
+
+  BIND(&next);
+}
+
+#undef ELEMENTS_KIND_TRANSITIONS
+
+}  // namespace
+
+TF_STUB(ElementsTransitionAndStoreStub, HandlerStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -275,10 +365,7 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  Comment(
-      "ElementsTransitionAndStoreStub: from_kind=%s, to_kind=%s, store_mode=%d",
-      ElementsKindToString(stub->from_kind()),
-      ElementsKindToString(stub->to_kind()), stub->store_mode());
+  Comment("ElementsTransitionAndStoreStub: store_mode=%d", stub->store_mode());
 
   Label miss(this);
 
@@ -286,19 +373,20 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
     // Tracing elements transitions is the job of the runtime.
     Goto(&miss);
   } else {
-    TransitionElementsKind(receiver, map, stub->from_kind(), stub->to_kind(),
-                           &miss);
-    EmitElementStore(receiver, key, value, stub->to_kind(), stub->store_mode(),
-                     &miss, context);
+    // TODO(v8:8481): Pass from_kind and to_kind in feedback vector slots.
+    DispatchForElementsKindTransition(
+        LoadElementsKind(receiver), LoadMapElementsKind(map),
+        [=, &miss](ElementsKind from_kind, ElementsKind to_kind) {
+          TransitionElementsKind(receiver, map, from_kind, to_kind, &miss);
+          EmitElementStore(receiver, key, value, to_kind, stub->store_mode(),
+                           &miss, context);
+        });
     Return(value);
   }
 
   BIND(&miss);
-  {
-    Comment("Miss");
-    TailCallRuntime(Runtime::kElementsTransitionAndStoreIC_Miss, context,
-                    receiver, key, value, map, slot, vector);
-  }
+  TailCallRuntime(Runtime::kElementsTransitionAndStoreIC_Miss, context,
+                  receiver, key, value, map, slot, vector);
 }
 
 int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
@@ -307,9 +395,74 @@ int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
   return handler_table_offset;
 }
 
-TF_STUB(StoreFastElementStub, CodeStubAssembler) {
-  Comment("StoreFastElementStub: elements_kind=%s, store_mode=%d",
-          ElementsKindToString(stub->elements_kind()), stub->store_mode());
+namespace {
+
+// All elements kinds handled by EmitElementStore. Specifically, this includes
+// fast elements and fixed typed array elements.
+#define ELEMENTS_KINDS(V)   \
+  V(PACKED_SMI_ELEMENTS)    \
+  V(HOLEY_SMI_ELEMENTS)     \
+  V(PACKED_ELEMENTS)        \
+  V(HOLEY_ELEMENTS)         \
+  V(PACKED_DOUBLE_ELEMENTS) \
+  V(HOLEY_DOUBLE_ELEMENTS)  \
+  V(UINT8_ELEMENTS)         \
+  V(INT8_ELEMENTS)          \
+  V(UINT16_ELEMENTS)        \
+  V(INT16_ELEMENTS)         \
+  V(UINT32_ELEMENTS)        \
+  V(INT32_ELEMENTS)         \
+  V(FLOAT32_ELEMENTS)       \
+  V(FLOAT64_ELEMENTS)       \
+  V(UINT8_CLAMPED_ELEMENTS) \
+  V(BIGUINT64_ELEMENTS)     \
+  V(BIGINT64_ELEMENTS)
+
+void HandlerStubAssembler::DispatchByElementsKind(
+    TNode<Int32T> elements_kind, const ElementsKindSwitchCase& case_function) {
+  Label next(this), if_unknown_type(this, Label::kDeferred);
+
+  int32_t elements_kinds[] = {
+#define ELEMENTS_KINDS_CASE(KIND) KIND,
+      ELEMENTS_KINDS(ELEMENTS_KINDS_CASE)
+#undef ELEMENTS_KINDS_CASE
+  };
+
+#define ELEMENTS_KINDS_CASE(KIND) Label if_##KIND(this);
+  ELEMENTS_KINDS(ELEMENTS_KINDS_CASE)
+#undef ELEMENTS_KINDS_CASE
+
+  Label* elements_kind_labels[] = {
+#define ELEMENTS_KINDS_CASE(KIND) &if_##KIND,
+      ELEMENTS_KINDS(ELEMENTS_KINDS_CASE)
+#undef ELEMENTS_KINDS_CASE
+  };
+  STATIC_ASSERT(arraysize(elements_kinds) == arraysize(elements_kind_labels));
+
+  Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
+         arraysize(elements_kinds));
+
+#define ELEMENTS_KINDS_CASE(KIND) \
+  BIND(&if_##KIND);               \
+  {                               \
+    case_function(KIND);          \
+    Goto(&next);                  \
+  }
+  ELEMENTS_KINDS(ELEMENTS_KINDS_CASE)
+#undef ELEMENTS_KINDS_CASE
+
+  BIND(&if_unknown_type);
+  Unreachable();
+
+  BIND(&next);
+}
+
+#undef ELEMENTS_KINDS
+
+}  // namespace
+
+TF_STUB(StoreFastElementStub, HandlerStubAssembler) {
+  Comment("StoreFastElementStub: store_mode=%d", stub->store_mode());
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kName);
@@ -320,30 +473,24 @@ TF_STUB(StoreFastElementStub, CodeStubAssembler) {
 
   Label miss(this);
 
-  EmitElementStore(receiver, key, value, stub->elements_kind(),
-                   stub->store_mode(), &miss, context);
+  // TODO(v8:8481): Pass elements_kind in feedback vector slots.
+  DispatchByElementsKind(LoadElementsKind(receiver),
+                         [=, &miss](ElementsKind elements_kind) {
+                           EmitElementStore(receiver, key, value, elements_kind,
+                                            stub->store_mode(), &miss, context);
+                         });
   Return(value);
 
   BIND(&miss);
-  {
-    Comment("Miss");
-    TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
-                    receiver, key);
-  }
+  TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
+                  receiver, key);
 }
 
 // static
 void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
-  StoreFastElementStub(isolate, HOLEY_ELEMENTS, STANDARD_STORE).GetCode();
-  StoreFastElementStub(isolate, HOLEY_ELEMENTS,
-                       STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
+  StoreFastElementStub(isolate, STANDARD_STORE).GetCode();
+  StoreFastElementStub(isolate, STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
       .GetCode();
-  for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
-    ElementsKind kind = static_cast<ElementsKind>(i);
-    StoreFastElementStub(isolate, kind, STANDARD_STORE).GetCode();
-    StoreFastElementStub(isolate, kind, STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
-        .GetCode();
-  }
 }
 
 

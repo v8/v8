@@ -503,52 +503,35 @@ class JSEntryStub : public PlatformCodeStub {
 
 class StoreFastElementStub : public TurboFanCodeStub {
  public:
-  StoreFastElementStub(Isolate* isolate, ElementsKind elements_kind,
-                       KeyedAccessStoreMode mode)
+  StoreFastElementStub(Isolate* isolate, KeyedAccessStoreMode mode)
       : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(mode) |
-                 ElementsKindBits::encode(elements_kind);
+    minor_key_ = CommonStoreModeBits::encode(mode);
   }
 
   static void GenerateAheadOfTime(Isolate* isolate);
-
-  ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(minor_key_);
-  }
 
   KeyedAccessStoreMode store_mode() const {
     return CommonStoreModeBits::decode(minor_key_);
   }
 
  private:
-  class ElementsKindBits
-      : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
-
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreFastElement, TurboFanCodeStub);
 };
 
 class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
  public:
-  ElementsTransitionAndStoreStub(Isolate* isolate, ElementsKind from_kind,
-                                 ElementsKind to_kind,
+  ElementsTransitionAndStoreStub(Isolate* isolate,
                                  KeyedAccessStoreMode store_mode)
       : TurboFanCodeStub(isolate) {
-    minor_key_ = CommonStoreModeBits::encode(store_mode) |
-                 FromBits::encode(from_kind) | ToBits::encode(to_kind);
+    minor_key_ = CommonStoreModeBits::encode(store_mode);
   }
 
-  ElementsKind from_kind() const { return FromBits::decode(minor_key_); }
-  ElementsKind to_kind() const { return ToBits::decode(minor_key_); }
   KeyedAccessStoreMode store_mode() const {
     return CommonStoreModeBits::decode(minor_key_);
   }
 
  private:
-  class FromBits
-      : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
-  class ToBits : public BitField<ElementsKind, 11, 8> {};
-
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
   DEFINE_TURBOFAN_CODE_STUB(ElementsTransitionAndStore, TurboFanCodeStub);
 };
