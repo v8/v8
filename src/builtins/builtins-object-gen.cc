@@ -318,15 +318,15 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       // Currently, we will not invoke getters,
       // so, map will not be changed.
       CSA_ASSERT(this, WordEqual(map, LoadMap(object)));
-      TNode<Uint32T> descriptor_index = TNode<Uint32T>::UncheckedCast(
-          TruncateIntPtrToInt32(var_descriptor_number.value()));
-      Node* next_key = GetKey(descriptors, descriptor_index);
+      TNode<IntPtrT> descriptor_entry = var_descriptor_number.value();
+      Node* next_key = LoadKeyByDescriptorEntry(descriptors, descriptor_entry);
 
       // Skip Symbols.
       GotoIf(IsSymbol(next_key), &next_descriptor);
 
-      TNode<Uint32T> details = TNode<Uint32T>::UncheckedCast(
-          DescriptorArrayGetDetails(descriptors, descriptor_index));
+      TNode<Uint32T> details =
+          LoadDetailsByDescriptorEntry(descriptors, descriptor_entry);
+
       TNode<Uint32T> kind = LoadPropertyKind(details);
 
       // If property is accessor, we escape fast path and call runtime.

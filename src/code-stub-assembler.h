@@ -2474,13 +2474,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadFixedArrayElement(CAST(container), key_index, kKeyToValueOffset);
   }
 
-  TNode<Uint32T> LoadDetailsByKeyIndex(TNode<DescriptorArray> container,
-                                       TNode<IntPtrT> key_index);
-  TNode<Object> LoadValueByKeyIndex(TNode<DescriptorArray> container,
-                                    TNode<IntPtrT> key_index);
-  TNode<MaybeObject> LoadFieldTypeByKeyIndex(TNode<DescriptorArray> container,
-                                             TNode<IntPtrT> key_index);
-
   // Stores the details for the entry with the given key_index.
   // |details| must be a Smi.
   template <class ContainerType>
@@ -3209,13 +3202,40 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> DescriptorArrayGetDetails(TNode<DescriptorArray> descriptors,
                                            TNode<Uint32T> descriptor_number);
 
-  typedef std::function<void(TNode<UintPtrT> descriptor_key_index)>
+  typedef std::function<void(TNode<IntPtrT> descriptor_key_index)>
       ForEachDescriptorBodyFunction;
 
   void DescriptorArrayForEach(VariableList& variable_list,
                               TNode<Uint32T> start_descriptor,
                               TNode<Uint32T> end_descriptor,
                               const ForEachDescriptorBodyFunction& body);
+
+  // Descriptor array accessors based on key_index, which is equal to
+  // DescriptorArray::ToKeyIndex(descriptor).
+  TNode<Name> LoadKeyByKeyIndex(TNode<DescriptorArray> container,
+                                TNode<IntPtrT> key_index);
+  TNode<Uint32T> LoadDetailsByKeyIndex(TNode<DescriptorArray> container,
+                                       TNode<IntPtrT> key_index);
+  TNode<Object> LoadValueByKeyIndex(TNode<DescriptorArray> container,
+                                    TNode<IntPtrT> key_index);
+  TNode<MaybeObject> LoadFieldTypeByKeyIndex(TNode<DescriptorArray> container,
+                                             TNode<IntPtrT> key_index);
+
+  TNode<IntPtrT> DescriptorEntryToIndex(TNode<IntPtrT> descriptor);
+
+  // Descriptor array accessors based on descriptor.
+  TNode<Name> LoadKeyByDescriptorEntry(TNode<DescriptorArray> descriptors,
+                                       TNode<IntPtrT> descriptor);
+  TNode<Name> LoadKeyByDescriptorEntry(TNode<DescriptorArray> descriptors,
+                                       int descriptor);
+  TNode<Uint32T> LoadDetailsByDescriptorEntry(
+      TNode<DescriptorArray> descriptors, TNode<IntPtrT> descriptor);
+  TNode<Uint32T> LoadDetailsByDescriptorEntry(
+      TNode<DescriptorArray> descriptors, int descriptor);
+  TNode<Object> LoadValueByDescriptorEntry(TNode<DescriptorArray> descriptors,
+                                           int descriptor);
+  TNode<MaybeObject> LoadFieldTypeByDescriptorEntry(
+      TNode<DescriptorArray> descriptors, TNode<IntPtrT> descriptor);
 
   typedef std::function<void(TNode<Name> key, TNode<Object> value)>
       ForEachKeyValueFunction;
