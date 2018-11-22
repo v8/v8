@@ -555,8 +555,12 @@ bool FinalizeUnoptimizedCode(
     UnoptimizedCompilationJobList* inner_function_jobs) {
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
-  // TODO(rmcilroy): Clear native context in debug once AsmJS generates doesn't
-  // rely on accessing native context during finalization.
+#ifdef DEBUG
+  // Unoptimized compilation should be context-independent. Verify that we don't
+  // access the native context by nulling it out during finalization.
+  SaveContext save(isolate);
+  isolate->set_context(nullptr);
+#endif
 
   // Allocate scope infos for the literal.
   DeclarationScope::AllocateScopeInfos(parse_info, isolate);
