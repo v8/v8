@@ -96,10 +96,7 @@ class V8_EXPORT_PRIVATE Zone final {
   static const size_t kAlignmentInBytes = 8;
 
   // Never allocate segments smaller than this size in bytes.
-  static const size_t kMinimumSegmentSize = 8 * KB;
-
-  // Never allocate segments larger than this size in bytes.
-  static const size_t kMaximumSegmentSize = 32 * KB;
+  static const size_t kDefaultSegmentSize = 32 * KB;
 
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
@@ -117,10 +114,6 @@ class V8_EXPORT_PRIVATE Zone final {
   // memory in the Zone. Should only be called if there isn't enough
   // room in the Zone already.
   Address NewExpand(size_t size);
-
-  // Creates a new segment, sets it size, and pushes it to the front
-  // of the segment chain. Returns the new segment.
-  inline Segment* NewSegment(size_t requested_size);
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
