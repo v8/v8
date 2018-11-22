@@ -822,26 +822,29 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 }
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  BAILOUT("emit_i32_signextend_i8");
+  sxtb(dst, src);
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  BAILOUT("emit_i32_signextend_i16");
+  sxth(dst, src);
 }
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i8");
+  emit_i32_signextend_i8(dst.low_gp(), src.low_gp());
+  mov(dst.high_gp(), Operand(dst.low_gp(), ASR, 31));
 }
 
 void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i16");
+  emit_i32_signextend_i16(dst.low_gp(), src.low_gp());
+  mov(dst.high_gp(), Operand(dst.low_gp(), ASR, 31));
 }
 
 void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i32");
+  TurboAssembler::Move(dst.low_gp(), src.low_gp());
+  mov(dst.high_gp(), Operand(src.low_gp(), ASR, 31));
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { b(label); }
