@@ -255,10 +255,24 @@ class Expression : public AstNode {
     return IsInRange(node_type(), kObjectLiteral, kArrayLiteral);
   }
 
- protected:
-  Expression(int pos, NodeType type) : AstNode(pos, type) {}
+  bool is_parenthesized() const {
+    return IsParenthesizedField::decode(bit_field_);
+  }
 
-  static const uint8_t kNextBitFieldIndex = AstNode::kNextBitFieldIndex;
+  void mark_parenthesized() {
+    bit_field_ = IsParenthesizedField::update(bit_field_, true);
+  }
+
+ private:
+  class IsParenthesizedField
+      : public BitField<bool, AstNode::kNextBitFieldIndex, 1> {};
+
+ protected:
+  Expression(int pos, NodeType type) : AstNode(pos, type) {
+    DCHECK(!is_parenthesized());
+  }
+
+  static const uint8_t kNextBitFieldIndex = IsParenthesizedField::kNext;
 };
 
 class FailureExpression : public Expression {
@@ -2723,7 +2737,9 @@ class EmptyParentheses final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  explicit EmptyParentheses(int pos) : Expression(pos, kEmptyParentheses) {}
+  explicit EmptyParentheses(int pos) : Expression(pos, kEmptyParentheses) {
+    mark_parenthesized();
+  }
 };
 
 // Represents the spec operation `GetIterator()`

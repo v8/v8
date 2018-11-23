@@ -308,6 +308,12 @@ class PreParserExpression {
     return TypeField::decode(code_) == kSpreadExpression;
   }
 
+  bool is_parenthesized() const { return IsParenthesizedField::decode(code_); }
+
+  void mark_parenthesized() {
+    code_ = IsParenthesizedField::update(code_, true);
+  }
+
   PreParserExpression AsFunctionLiteral() { return *this; }
 
   // Dummy implementation for making expression->somefunc() work in both Parser
@@ -380,14 +386,16 @@ class PreParserExpression {
   // Expression nodes may be represented as multiple Types, not exclusively
   // through kExpression.
   // TODO(caitp, adamk): clean up PreParserExpression bitfields.
-  typedef BitField<bool, 31, 1> ParenthesizedField;
+  typedef BitField<bool, TypeField::kNext, 1> IsParenthesizedField;
 
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.
-  typedef BitField<ExpressionType, TypeField::kNext, 4> ExpressionTypeField;
-  typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 8>
+  typedef BitField<ExpressionType, IsParenthesizedField::kNext, 4>
+      ExpressionTypeField;
+  typedef BitField<PreParserIdentifier::Type, IsParenthesizedField::kNext, 8>
       IdentifierTypeField;
-  typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
+  typedef BitField<bool, IsParenthesizedField::kNext, 1>
+      HasCoverInitializedNameField;
 
   uint32_t code_;
   // If the PreParser is used in the variable tracking mode, PreParserExpression
@@ -702,7 +710,9 @@ class PreParserFactory {
   }
 
   PreParserExpression NewEmptyParentheses(int pos) {
-    return PreParserExpression::Default();
+    PreParserExpression result = PreParserExpression::Default();
+    result.mark_parenthesized();
+    return result;
   }
 
   PreParserStatement EmptyStatement() { return PreParserStatement::Default(); }
