@@ -1441,8 +1441,10 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
   ExpressionClassifier classifier(this);
   auto result = ParseAndClassifyIdentifier();
 
-  if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers) {
-    ValidatePattern();
+  if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers &&
+      is_strict(language_mode()) && impl()->IsEvalOrArguments(result)) {
+    impl()->ReportMessageAt(scanner()->location(),
+                            MessageTemplate::kStrictEvalArguments);
   }
 
   return result;
@@ -1462,7 +1464,7 @@ ParserBase<Impl>::ParseAndClassifyIdentifier() {
     // is actually a formal parameter.  Therefore besides the errors that we
     // must detect because we know we're in strict mode, we also record any
     // error that we might make in the future once we know the language mode.
-    if (impl()->IsEvalOrArguments(name)) {
+    if (V8_UNLIKELY(impl()->IsEvalOrArguments(name))) {
       if (impl()->IsArguments(name) && scope()->ShouldBanArguments()) {
         ReportMessage(MessageTemplate::kArgumentsDisallowedInInitializer);
         return impl()->EmptyIdentifierString();
@@ -1470,10 +1472,6 @@ ParserBase<Impl>::ParseAndClassifyIdentifier() {
 
       classifier()->RecordStrictModeFormalParameterError(
           scanner()->location(), MessageTemplate::kStrictEvalArguments);
-      if (is_strict(language_mode())) {
-        classifier()->RecordPatternError(scanner()->location(),
-                                         MessageTemplate::kStrictEvalArguments);
-      }
     }
 
     return name;
@@ -1585,19 +1583,25 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBindingPattern() {
 
   if (Token::IsAnyIdentifier(token)) {
     IdentifierT name = ParseAndClassifyIdentifier();
-    result = impl()->ExpressionFromIdentifier(name, beg_pos);
-  } else {
-    CheckStackOverflow();
-    classifier()->RecordNonSimpleParameter();
-
-    if (token == Token::LBRACK) {
-      result = ParseArrayLiteral();
-    } else if (token == Token::LBRACE) {
-      result = ParseObjectLiteral();
-    } else {
-      ReportUnexpectedToken(Next());
+    if (V8_UNLIKELY(is_strict(language_mode()) &&
+                    impl()->IsEvalOrArguments(name))) {
+      impl()->ReportMessageAt(scanner()->location(),
+                              MessageTemplate::kStrictEvalArguments);
       return impl()->FailureExpression();
     }
+    return impl()->ExpressionFromIdentifier(name, beg_pos);
+  }
+
+  CheckStackOverflow();
+  classifier()->RecordNonSimpleParameter();
+
+  if (token == Token::LBRACK) {
+    result = ParseArrayLiteral();
+  } else if (token == Token::LBRACE) {
+    result = ParseObjectLiteral();
+  } else {
+    ReportUnexpectedToken(Next());
+    return impl()->FailureExpression();
   }
 
   ValidateBindingPattern();
