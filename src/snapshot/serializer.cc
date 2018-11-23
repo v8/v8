@@ -926,10 +926,10 @@ int Serializer::ObjectSerializer::SkipTo(Address to) {
 
 void Serializer::ObjectSerializer::OutputCode(int size) {
   DCHECK_EQ(kPointerSize, bytes_processed_so_far_);
-  Code code = Code::cast(object_);
+  Code on_heap_code = Code::cast(object_);
   // To make snapshots reproducible, we make a copy of the code object
   // and wipe all pointers in the copy, which we then serialize.
-  code = serializer_->CopyCode(code);
+  Code off_heap_code = serializer_->CopyCode(on_heap_code);
   int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
@@ -937,15 +937,20 @@ void Serializer::ObjectSerializer::OutputCode(int size) {
                   RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                   RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-  for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+  // With enabled pointer compression normal accessors no longer work for
+  // off-heap objects, so we have to get the relocation info data via the
+  // on-heap code object.
+  ByteArray* relocation_info = on_heap_code->unchecked_relocation_info();
+  for (RelocIterator it(off_heap_code, relocation_info, mode_mask); !it.done();
+       it.next()) {
     RelocInfo* rinfo = it.rinfo();
     rinfo->WipeOut();
   }
   // We need to wipe out the header fields *after* wiping out the
   // relocations, because some of these fields are needed for the latter.
-  code->WipeOutHeader();
+  off_heap_code->WipeOutHeader();
 
-  Address start = code->address() + Code::kDataStart;
+  Address start = off_heap_code->address() + Code::kDataStart;
   int bytes_to_output = size - Code::kDataStart;
 
   sink_->Put(kVariableRawCode, "VariableRawCode");

@@ -645,6 +645,8 @@ class ByteArray : public FixedArrayBase {
 
   // Returns data start address.
   inline byte* GetDataStartAddress();
+  // Returns address of the past-the-end element.
+  inline byte* GetDataEndAddress();
 
   inline int DataSize() const;
 

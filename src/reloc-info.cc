@@ -281,9 +281,13 @@ void RelocIterator::next() {
 }
 
 RelocIterator::RelocIterator(Code code, int mode_mask)
+    : RelocIterator(code, code->unchecked_relocation_info(), mode_mask) {}
+
+RelocIterator::RelocIterator(Code code, ByteArray* relocation_info,
+                             int mode_mask)
     : RelocIterator(code, code->raw_instruction_start(), code->constant_pool(),
-                    code->relocation_end(), code->relocation_start(),
-                    mode_mask) {}
+                    relocation_info->GetDataEndAddress(),
+                    relocation_info->GetDataStartAddress(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
     : RelocIterator(Code(), code_reference.instruction_start(),

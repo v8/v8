@@ -487,6 +487,10 @@ byte* ByteArray::GetDataStartAddress() {
   return reinterpret_cast<byte*>(address() + kHeaderSize);
 }
 
+byte* ByteArray::GetDataEndAddress() {
+  return GetDataStartAddress() + length();
+}
+
 template <class T>
 PodArray<T>* PodArray<T>::cast(Object* object) {
   DCHECK(object->IsByteArray());
