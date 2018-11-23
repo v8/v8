@@ -429,19 +429,6 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
   return result;
 }
 
-V8_NOINLINE Handle<JSFunction> CreateFunction(Isolate* isolate,
-                                              Handle<String> name,
-                                              Builtins::Name builtin_id) {
-  Handle<JSFunction> result;
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name, builtin_id, LanguageMode::kStrict);
-  result = isolate->factory()->NewFunction(args);
-  // Make the resulting JSFunction object fast.
-  JSObject::MakePrototypesFast(result, kStartAtReceiver, isolate);
-  result->shared()->set_native(true);
-  return result;
-}
-
 V8_NOINLINE Handle<JSFunction> InstallFunction(
     Isolate* isolate, Handle<JSObject> target, Handle<Name> name,
     InstanceType type, int instance_size, int inobject_properties,
@@ -2202,20 +2189,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           BuiltinFunctionId::kSymbolPrototypeValueOf);
 
     // Install the @@toPrimitive function.
-    Handle<String> name =
-        Name::ToFunctionName(isolate_, factory->to_primitive_symbol())
-            .ToHandleChecked();
-    Handle<JSFunction> to_primitive =
-        CreateFunction(isolate_, name, Builtins::kSymbolPrototypeToPrimitive);
-    InstallFunction(isolate_, prototype, factory->to_primitive_symbol(),
-                    to_primitive,
-                    static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-
-    // Set the expected parameters for @@toPrimitive to 1; required by builtin.
-    to_primitive->shared()->set_internal_formal_parameter_count(1);
-
-    // Set the length for the function to satisfy ECMA-262.
-    to_primitive->shared()->set_length(1);
+    InstallFunctionAtSymbol(
+        isolate_, prototype, factory->to_primitive_symbol(),
+        "[Symbol.toPrimitive]", Builtins::kSymbolPrototypeToPrimitive, 1, true,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
   {  // --- D a t e ---
@@ -2347,20 +2324,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 #endif  // V8_INTL_SUPPORT
 
     // Install the @@toPrimitive function.
-    Handle<String> name =
-        Name::ToFunctionName(isolate_, factory->to_primitive_symbol())
-            .ToHandleChecked();
-    Handle<JSFunction> to_primitive =
-        CreateFunction(isolate_, name, Builtins::kDatePrototypeToPrimitive);
-    InstallFunction(isolate_, prototype, factory->to_primitive_symbol(),
-                    to_primitive,
-                    static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-
-    // Set the expected parameters for @@toPrimitive to 1; required by builtin.
-    to_primitive->shared()->set_internal_formal_parameter_count(1);
-
-    // Set the length for the function to satisfy ECMA-262.
-    to_primitive->shared()->set_length(1);
+    InstallFunctionAtSymbol(
+        isolate_, prototype, factory->to_primitive_symbol(),
+        "[Symbol.toPrimitive]", Builtins::kDatePrototypeToPrimitive, 1, true,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
   {
