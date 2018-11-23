@@ -69,10 +69,9 @@ class V8_EXPORT_PRIVATE Zone final {
   // Seals the zone to prevent any further allocation.
   void Seal() { sealed_ = true; }
 
-  // Allows the zone to be safely reused. Releases the memory except for the
-  // last page, and fires zone destruction and creation events for the
-  // accounting allocator.
-  void Reset();
+  // Allows the zone to be safely reused. Releases the memory and fires zone
+  // destruction and creation events for the accounting allocator.
+  void ReleaseMemory();
 
   // Returns true if more memory has been allocated in zones than
   // the limit allows.

@@ -1488,7 +1488,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   has_rest_ = false;
 
   DCHECK_NE(zone_, ast_value_factory->zone());
-  zone_->Reset();
+  zone_->ReleaseMemory();
 
   if (aborted) {
     // Prepare scope for use in the outer zone.
