@@ -30,7 +30,6 @@ namespace internal {
 
 // Forward declarations.
 class AsmWasmData;
-class AsyncGeneratorRequest;
 class CallInterfaceDescriptor;
 class Callable;
 class Factory;
