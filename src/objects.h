@@ -1954,28 +1954,6 @@ class Tuple3 : public Tuple2 {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple3);
 };
 
-class AsyncGeneratorRequest : public Struct {
- public:
-  // Holds an AsyncGeneratorRequest, or Undefined.
-  DECL_ACCESSORS(next, Object)
-  DECL_INT_ACCESSORS(resume_mode)
-  DECL_ACCESSORS(value, Object)
-  DECL_ACCESSORS(promise, Object)
-
-  static const int kNextOffset = Struct::kHeaderSize;
-  static const int kResumeModeOffset = kNextOffset + kPointerSize;
-  static const int kValueOffset = kResumeModeOffset + kPointerSize;
-  static const int kPromiseOffset = kValueOffset + kPointerSize;
-  static const int kSize = kPromiseOffset + kPointerSize;
-
-  DECL_CAST(AsyncGeneratorRequest)
-  DECL_PRINTER(AsyncGeneratorRequest)
-  DECL_VERIFIER(AsyncGeneratorRequest)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AsyncGeneratorRequest);
-};
-
 // Utility superclass for stack-allocated objects that must be updated
 // on gc.  It provides two ways for the gc to update instances, either
 // iterating or updating after gc.

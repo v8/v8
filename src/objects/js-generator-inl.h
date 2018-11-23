@@ -19,6 +19,7 @@ namespace internal {
 CAST_ACCESSOR(JSAsyncFunctionObject)
 CAST_ACCESSOR(JSAsyncGeneratorObject)
 CAST_ACCESSOR(JSGeneratorObject)
+CAST_ACCESSOR(AsyncGeneratorRequest)
 
 ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
 ACCESSORS2(JSGeneratorObject, context, Context, kContextOffset)
@@ -28,6 +29,11 @@ SMI_ACCESSORS(JSGeneratorObject, resume_mode, kResumeModeOffset)
 SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
 ACCESSORS(JSGeneratorObject, parameters_and_registers, FixedArray,
           kParametersAndRegistersOffset)
+
+ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
+SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
+ACCESSORS(AsyncGeneratorRequest, value, Object, kValueOffset)
+ACCESSORS(AsyncGeneratorRequest, promise, Object, kPromiseOffset)
 
 bool JSGeneratorObject::is_suspended() const {
   DCHECK_LT(kGeneratorExecuting, 0);

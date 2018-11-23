@@ -532,7 +532,6 @@ StringSet::StringSet(Address ptr) : HashTable<StringSet, StringSetShape>(ptr) {
 // Cast operations
 
 CAST_ACCESSOR(AccessorPair)
-CAST_ACCESSOR(AsyncGeneratorRequest)
 CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(ObjectBoilerplateDescription)
 CAST_ACCESSOR(Cell)
@@ -1640,12 +1639,6 @@ int HeapObject::SizeFromMap(Map map) const {
   return EmbedderDataArray::SizeFor(
       EmbedderDataArray::unchecked_cast(this)->length());
 }
-
-
-ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
-SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
-ACCESSORS(AsyncGeneratorRequest, value, Object, kValueOffset)
-ACCESSORS(AsyncGeneratorRequest, promise, Object, kPromiseOffset)
 
 ACCESSORS(Tuple2, value1, Object, kValue1Offset)
 ACCESSORS(Tuple2, value2, Object, kValue2Offset)
