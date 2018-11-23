@@ -604,6 +604,7 @@ void LiftoffAssembler::ParallelRegisterMove(
   }
 }
 
+#ifdef ENABLE_SLOW_DCHECKS
 bool LiftoffAssembler::ValidateCacheState() const {
   uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
   LiftoffRegList used_regs;
@@ -631,6 +632,7 @@ bool LiftoffAssembler::ValidateCacheState() const {
   os << "Use --trace-liftoff to debug.";
   FATAL("%s", os.str().c_str());
 }
+#endif
 
 LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
                                                    LiftoffRegList pinned) {

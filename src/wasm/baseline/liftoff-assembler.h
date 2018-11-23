@@ -338,8 +338,10 @@ class LiftoffAssembler : public TurboAssembler {
   };
   void ParallelRegisterMove(Vector<ParallelRegisterMoveTuple>);
 
+#ifdef ENABLE_SLOW_DCHECKS
   // Validate that the register use counts reflect the state of the cache.
   bool ValidateCacheState() const;
+#endif
 
   ////////////////////////////////////
   // Platform-specific part.        //
