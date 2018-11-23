@@ -73,10 +73,16 @@ void* Zone::AsanNew(size_t size) {
   return reinterpret_cast<void*>(result);
 }
 
-void Zone::ReleaseMemory() {
+void Zone::Reset() {
+  if (!segment_head_) return;
   allocator_->ZoneDestruction(this);
+  Segment* keep = segment_head_;
+  segment_head_ = segment_head_->next();
+  keep->set_next(nullptr);
   DeleteAll();
   allocator_->ZoneCreation(this);
+  keep->ZapContents();
+  segment_head_ = keep;
 }
 
 void Zone::DeleteAll() {
