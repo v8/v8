@@ -24,7 +24,7 @@ CAST_ACCESSOR(SloppyArgumentsElements)
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
 
-Context* SloppyArgumentsElements::context() {
+Context SloppyArgumentsElements::context() {
   return Context::cast(get(kContextIndex));
 }
 
@@ -55,7 +55,7 @@ void SloppyArgumentsElements::set_mapped_entry(uint32_t entry, Object* object) {
 bool JSSloppyArgumentsObject::GetSloppyArgumentsLength(Isolate* isolate,
                                                        Handle<JSObject> object,
                                                        int* out) {
-  Context* context = *isolate->native_context();
+  Context context = *isolate->native_context();
   Map map = object->map();
   if (map != context->sloppy_arguments_map() &&
       map != context->strict_arguments_map() &&

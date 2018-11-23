@@ -111,11 +111,12 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitNativeContext(
-    Map map, NativeContext* object) {
+    Map map, NativeContext object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
-  if (visitor->ShouldVisitMapPointer())
+  if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object, object->map_slot());
+  }
   int size = NativeContext::BodyDescriptor::SizeOf(map, object);
   NativeContext::BodyDescriptor::IterateBody(map, object, size, visitor);
   return static_cast<ResultType>(size);
@@ -179,8 +180,8 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
 }
 
 template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(
-    Map map, NativeContext* object) {
+int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map map,
+                                                         NativeContext object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   int size = NativeContext::BodyDescriptor::SizeOf(map, object);
   NativeContext::BodyDescriptor::IterateBody(map, object, size, visitor);

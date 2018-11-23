@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/code-tracer.h"
+#include "src/contexts.h"
 #include "src/global-handles.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
@@ -131,8 +132,8 @@ void StartupSerializer::SerializeStrongReferences() {
   isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
 }
 
-SerializedHandleChecker::SerializedHandleChecker(
-    Isolate* isolate, std::vector<Context*>* contexts)
+SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
+                                                 std::vector<Context>* contexts)
     : isolate_(isolate) {
   AddToSet(isolate->heap()->serialized_objects());
   for (auto const& context : *contexts) {

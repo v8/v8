@@ -128,7 +128,9 @@ OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 namespace internal {
 
 Handle<Context> HandleScopeImplementer::MicrotaskContext() {
-  if (microtask_context_) return Handle<Context>(microtask_context_, isolate_);
+  if (!microtask_context_.is_null()) {
+    return Handle<Context>(microtask_context_, isolate_);
+  }
   return Handle<Context>::null();
 }
 

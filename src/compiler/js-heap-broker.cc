@@ -1595,7 +1595,7 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
 
   Object* maybe_context = isolate()->heap()->native_contexts_list();
   while (!maybe_context->IsUndefined(isolate())) {
-    Context* context = Context::cast(maybe_context);
+    Context context = Context::cast(maybe_context);
     Object* array_prot = context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
     Object* object_prot = context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
     array_and_object_prototypes_.emplace(JSObject::cast(array_prot), isolate());

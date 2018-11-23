@@ -87,7 +87,7 @@ class JSStrictArgumentsObject : public JSArgumentsObjectWithLength {
 // Helper class to access FAST_ and SLOW_SLOPPY_ARGUMENTS_ELEMENTS
 //
 // +---+-----------------------+
-// | 0 | Context* context      |
+// | 0 | Context  context      |
 // +---------------------------+
 // | 1 | FixedArray* arguments +----+ HOLEY_ELEMENTS
 // +---------------------------+    v-----+-----------+
@@ -112,7 +112,7 @@ class SloppyArgumentsElements : public FixedArray {
   static const int kArgumentsIndex = 1;
   static const uint32_t kParameterMapStart = 2;
 
-  inline Context* context();
+  inline Context context();
   inline FixedArray* arguments();
   inline void set_arguments(FixedArray* arguments);
   inline uint32_t parameter_map_length();

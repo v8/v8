@@ -37,7 +37,7 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   return frame->wasm_instance();
 }
 
-Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
+Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate)->native_context();
 }
 
@@ -88,7 +88,7 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   return isolate->StackOverflow();
 }
@@ -104,7 +104,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(HeapObject, tag_raw, 0);
   CONVERT_SMI_ARG_CHECKED(size, 1);
@@ -130,7 +130,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
@@ -151,7 +151,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
@@ -201,7 +201,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   }
 
   // Set the current isolate's context.
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
 
   // Run the function in the interpreter. Note that neither the {WasmDebugInfo}

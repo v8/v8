@@ -700,6 +700,10 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
   }
 }
 
+void FixedArrayPtr::FixedArrayPtrVerify(Isolate* isolate) {
+  reinterpret_cast<FixedArray*>(ptr())->FixedArrayVerify(isolate);
+}
+
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
   for (int i = 0; i < length(); i++) {
     MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
@@ -740,12 +744,12 @@ void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
   }
 }
 
-void Context::ContextVerify(Isolate* isolate) { FixedArrayVerify(isolate); }
+void Context::ContextVerify(Isolate* isolate) { FixedArrayPtrVerify(isolate); }
 
 void NativeContext::NativeContextVerify(Isolate* isolate) {
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
   CHECK_EQ(kSize, map()->instance_size());
-  FixedArrayVerify(isolate);
+  FixedArrayPtrVerify(isolate);
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
@@ -837,7 +841,7 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
   CHECK(IsFixedArray());
   CHECK_GE(length(), 2);
   CHECK_EQ(map(), ReadOnlyRoots(isolate).sloppy_arguments_elements_map());
-  Context* context_object = Context::cast(context());
+  Context context_object = context();
   FixedArray* arg_elements = FixedArray::cast(arguments());
   if (arg_elements->length() == 0) {
     CHECK(arg_elements == ReadOnlyRoots(isolate).empty_fixed_array());

@@ -110,7 +110,7 @@ class HeapVisitor : public ObjectVisitor {
   TYPED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
   V8_INLINE ResultType VisitShortcutCandidate(Map map, ConsString* object);
-  V8_INLINE ResultType VisitNativeContext(Map map, NativeContext* object);
+  V8_INLINE ResultType VisitNativeContext(Map map, NativeContext object);
   V8_INLINE ResultType VisitDataObject(Map map, HeapObject* object);
   V8_INLINE ResultType VisitJSObjectFast(Map map, JSObject* object);
   V8_INLINE ResultType VisitJSApiObject(Map map, JSObject* object);
@@ -134,7 +134,7 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
 
   // Special cases for young generation.
 
-  V8_INLINE int VisitNativeContext(Map map, NativeContext* object);
+  V8_INLINE int VisitNativeContext(Map map, NativeContext object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject* object);
 
   int VisitBytecodeArray(Map map, BytecodeArray* object) {
@@ -162,6 +162,8 @@ class WeakObjectRetainer;
 // access the next-element pointers.
 template <class T>
 Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer);
+template <class T>
+Object* VisitWeakList2(Heap* heap, Object* list, WeakObjectRetainer* retainer);
 }  // namespace internal
 }  // namespace v8
 

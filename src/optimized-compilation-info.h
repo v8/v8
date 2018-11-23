@@ -177,10 +177,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void SetCode(Handle<Code> code) { code_ = code; }
 
   bool has_context() const;
-  Context* context() const;
+  Context context() const;
 
   bool has_native_context() const;
-  Context* native_context() const;
+  Context native_context() const;
 
   bool has_global_object() const;
   JSGlobalObject* global_object() const;

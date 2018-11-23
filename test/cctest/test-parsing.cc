@@ -3192,7 +3192,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Context* context = f->context();
+  i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          isolate->heap()->HashSeed());
   const i::AstRawString* name = avf.GetOneByteString("result");
@@ -3242,7 +3242,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Context* context = f->context();
+  i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          isolate->heap()->HashSeed());
   const i::AstRawString* name_x = avf.GetOneByteString("x");

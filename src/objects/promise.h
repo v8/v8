@@ -27,7 +27,7 @@ class JSPromise;
 class PromiseReactionJobTask : public Microtask {
  public:
   DECL_ACCESSORS(argument, Object)
-  DECL_ACCESSORS(context, Context)
+  DECL_ACCESSORS2(context, Context)
   DECL_ACCESSORS(handler, HeapObject)
   // [promise_or_capability]: Either a JSPromise (in case of native promises),
   // a PromiseCapability (general case), or undefined (in case of await).
@@ -74,7 +74,7 @@ class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
 // A container struct to hold state required for PromiseResolveThenableJob.
 class PromiseResolveThenableJobTask : public Microtask {
  public:
-  DECL_ACCESSORS(context, Context)
+  DECL_ACCESSORS2(context, Context)
   DECL_ACCESSORS(promise_to_resolve, JSPromise)
   DECL_ACCESSORS(then, JSReceiver)
   DECL_ACCESSORS(thenable, JSReceiver)

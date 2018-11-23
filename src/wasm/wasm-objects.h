@@ -383,7 +383,7 @@ class WasmInstanceObject : public JSObject {
 
   DECL_ACCESSORS(module_object, WasmModuleObject)
   DECL_ACCESSORS(exports_object, JSObject)
-  DECL_ACCESSORS(native_context, Context)
+  DECL_ACCESSORS2(native_context, Context)
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)

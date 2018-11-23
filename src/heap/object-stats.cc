@@ -377,7 +377,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualAllocationSiteDetails(AllocationSite* site);
   void RecordVirtualBytecodeArrayDetails(BytecodeArray* bytecode);
   void RecordVirtualCodeDetails(Code code);
-  void RecordVirtualContext(Context* context);
+  void RecordVirtualContext(Context context);
   void RecordVirtualFeedbackVectorDetails(FeedbackVector* vector);
   void RecordVirtualFixedArrayDetails(FixedArray* array);
   void RecordVirtualFunctionTemplateInfoDetails(FunctionTemplateInfo* fti);
@@ -958,7 +958,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
   }
 }
 
-void ObjectStatsCollectorImpl::RecordVirtualContext(Context* context) {
+void ObjectStatsCollectorImpl::RecordVirtualContext(Context context) {
   if (context->IsNativeContext()) {
     RecordObjectStats(context, NATIVE_CONTEXT_TYPE, context->Size());
   } else if (context->IsFunctionContext()) {

@@ -424,7 +424,7 @@ ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
-ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
+ACCESSORS2(JSGlobalObject, native_context, Context, kNativeContextOffset)
 ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
@@ -540,7 +540,7 @@ bool JSFunction::has_feedback_vector() const {
   return !feedback_cell()->value()->IsUndefined();
 }
 
-Context* JSFunction::context() {
+Context JSFunction::context() {
   return Context::cast(READ_FIELD(this, kContextOffset));
 }
 
@@ -550,7 +550,7 @@ bool JSFunction::has_context() const {
 
 JSGlobalProxy* JSFunction::global_proxy() { return context()->global_proxy(); }
 
-Context* JSFunction::native_context() { return context()->native_context(); }
+Context JSFunction::native_context() { return context()->native_context(); }
 
 void JSFunction::set_context(Object* value) {
   DCHECK(value->IsUndefined() || value->IsContext());

@@ -1012,11 +1012,11 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {
 }
 
 void Context::ContextPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, this, "Context");
+  PrintFixedArrayWithHeader(os, *this, "Context");
 }
 
 void NativeContext::NativeContextPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, this, "NativeContext");
+  PrintFixedArrayWithHeader(os, *this, "NativeContext");
   os << " - microtask_queue: " << microtask_queue() << "\n";
 }
 

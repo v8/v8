@@ -307,7 +307,8 @@ Handle<FixedArray> Factory::NewFixedArrayWithFiller(RootIndex map_root_index,
 template <typename T>
 Handle<T> Factory::NewFixedArrayWithMap(RootIndex map_root_index, int length,
                                         PretenureFlag pretenure) {
-  static_assert(std::is_base_of<FixedArray, T>::value,
+  static_assert(std::is_base_of<FixedArray, T>::value ||
+                    std::is_base_of<FixedArrayPtr, T>::value,
                 "T must be a descendant of FixedArray");
   // Zero-length case must be handled outside, where the knowledge about
   // the map is.
@@ -3006,7 +3007,7 @@ Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
-  NativeContext* native_context = isolate()->raw_native_context();
+  NativeContext native_context = isolate()->raw_native_context();
   Map map = native_context->GetInitialJSArrayMap(elements_kind);
   if (map.is_null()) {
     JSFunction* array_function = native_context->array_function();
@@ -3073,7 +3074,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array, int length, int capacity,
 }
 
 Handle<JSWeakMap> Factory::NewJSWeakMap() {
-  NativeContext* native_context = isolate()->raw_native_context();
+  NativeContext native_context = isolate()->raw_native_context();
   Handle<Map> map(native_context->js_weak_map_fun()->initial_map(), isolate());
   Handle<JSWeakMap> weakmap(JSWeakMap::cast(*NewJSObjectFromMap(map)),
                             isolate());
@@ -3224,7 +3225,7 @@ static void ForFixedTypedArray(ExternalArrayType array_type,
 }
 
 JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
-  NativeContext* native_context = isolate->context()->native_context();
+  NativeContext native_context = isolate->context()->native_context();
   switch (type) {
 #define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \
   case kExternal##Type##Array:                   \
@@ -3237,7 +3238,7 @@ JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
 }
 
 JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
-  NativeContext* native_context = isolate->context()->native_context();
+  NativeContext native_context = isolate->context()->native_context();
   switch (elements_kind) {
 #define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \
   case TYPE##_ELEMENTS:                          \

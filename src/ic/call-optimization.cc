@@ -20,7 +20,7 @@ CallOptimization::CallOptimization(Isolate* isolate, Handle<Object> function) {
   }
 }
 
-Context* CallOptimization::GetAccessorContext(Map holder_map) const {
+Context CallOptimization::GetAccessorContext(Map holder_map) const {
   if (is_constant_call()) {
     return constant_function_->context()->native_context();
   }
@@ -28,7 +28,7 @@ Context* CallOptimization::GetAccessorContext(Map holder_map) const {
   return constructor->context()->native_context();
 }
 
-bool CallOptimization::IsCrossContextLazyAccessorPair(Context* native_context,
+bool CallOptimization::IsCrossContextLazyAccessorPair(Context native_context,
                                                       Map holder_map) const {
   DCHECK(native_context->IsNativeContext());
   if (is_constant_call()) return false;

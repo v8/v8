@@ -909,11 +909,11 @@ class JSFunction : public JSObject {
   static const int kMaybeHomeObjectDescriptorIndex = 2;
 
   // [context]: The context for this function.
-  inline Context* context();
+  inline Context context();
   inline bool has_context() const;
   inline void set_context(Object* context);
   inline JSGlobalProxy* global_proxy();
-  inline Context* native_context();
+  inline Context native_context();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
   static Maybe<int> GetLength(Isolate* isolate, Handle<JSFunction> function);
@@ -1133,7 +1133,7 @@ class JSGlobalProxy : public JSObject {
 class JSGlobalObject : public JSObject {
  public:
   // [native context]: the natives corresponding to this global object.
-  DECL_ACCESSORS(native_context, Context)
+  DECL_ACCESSORS2(native_context, Context)
 
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSObject)

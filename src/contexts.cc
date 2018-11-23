@@ -70,17 +70,16 @@ bool Context::is_declaration_context() {
   return scope_info()->is_declaration_scope();
 }
 
-
-Context* Context::declaration_context() {
-  Context* current = this;
+Context Context::declaration_context() {
+  Context current = *this;
   while (!current->is_declaration_context()) {
     current = current->previous();
   }
   return current;
 }
 
-Context* Context::closure_context() {
-  Context* current = this;
+Context Context::closure_context() {
+  Context current = *this;
   while (!current->IsFunctionContext() && !current->IsScriptContext() &&
          !current->IsModuleContext() && !current->IsNativeContext() &&
          !current->IsEvalContext()) {
@@ -110,7 +109,7 @@ ScopeInfo* Context::scope_info() {
 }
 
 Module* Context::module() {
-  Context* current = this;
+  Context current = *this;
   while (!current->IsModuleContext()) {
     current = current->previous();
   }
@@ -121,9 +120,8 @@ JSGlobalObject* Context::global_object() {
   return JSGlobalObject::cast(native_context()->extension());
 }
 
-
-Context* Context::script_context() {
-  Context* current = this;
+Context Context::script_context() {
+  Context current = *this;
   while (!current->IsScriptContext()) {
     current = current->previous();
   }
@@ -177,7 +175,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name) {
   Isolate* isolate = GetIsolate();
-  Handle<Context> context(this, isolate);
+  Handle<Context> context(*this, isolate);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   bool failed_whitelist = false;
@@ -197,7 +195,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
   do {
     if (FLAG_trace_contexts) {
-      PrintF(" - looking in context %p", reinterpret_cast<void*>(*context));
+      PrintF(" - looking in context %p",
+             reinterpret_cast<void*>(context->ptr()));
       if (context->IsScriptContext()) PrintF(" (script context)");
       if (context->IsNativeContext()) PrintF(" (native context)");
       PrintF("\n");
@@ -226,7 +225,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
             Handle<Context> c = ScriptContextTable::GetContext(
                 isolate, script_contexts, r.context_index);
             PrintF("=> found property in script context %d: %p\n",
-                   r.context_index, reinterpret_cast<void*>(*c));
+                   r.context_index, reinterpret_cast<void*>(c->ptr()));
           }
           *index = r.slot_index;
           *variable_mode = r.mode;
@@ -483,14 +482,13 @@ bool Context::IsBootstrappingOrNativeContext(Isolate* isolate, Object* object) {
          isolate->bootstrapper()->IsActive() || object->IsNativeContext();
 }
 
-
-bool Context::IsBootstrappingOrValidParentContext(
-    Object* object, Context* child) {
+bool Context::IsBootstrappingOrValidParentContext(Object* object,
+                                                  Context child) {
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.
   if (child->GetIsolate()->bootstrapper()->IsActive()) return true;
   if (!object->IsContext()) return false;
-  Context* context = Context::cast(object);
+  Context context = Context::cast(object);
   return context->IsNativeContext() || context->IsScriptContext() ||
          context->IsModuleContext() || !child->IsModuleContext();
 }

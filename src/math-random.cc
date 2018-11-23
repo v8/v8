@@ -25,13 +25,14 @@ void MathRandom::InitializeContext(Isolate* isolate,
   ResetContext(*native_context);
 }
 
-void MathRandom::ResetContext(Context* native_context) {
+void MathRandom::ResetContext(Context native_context) {
   native_context->set_math_random_index(Smi::zero());
   State state = {0, 0};
   PodArray<State>::cast(native_context->math_random_state())->set(0, state);
 }
 
-Address MathRandom::RefillCache(Isolate* isolate, Context* native_context) {
+Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
+  Context native_context = Context::cast(ObjectPtr(raw_native_context));
   DisallowHeapAllocation no_gc;
   PodArray<State>* pod =
       PodArray<State>::cast(native_context->math_random_state());

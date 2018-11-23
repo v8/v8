@@ -445,10 +445,11 @@ class ScriptContextTable : public FixedArray {
 // Script contexts from all top-level scripts are gathered in
 // ScriptContextTable.
 
-class Context : public FixedArray, public NeverReadOnlySpaceObject {
+class Context : public FixedArrayPtr {
  public:
-  // Conversions.
-  static inline Context* cast(Object* context);
+  NEVER_READ_ONLY_SPACE
+
+  DECL_CAST2(Context)
 
   // TODO(ishell): eventually migrate to the offset based access instead of
   // index-based.
@@ -500,8 +501,8 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
 
   // Direct slot access.
   inline void set_scope_info(ScopeInfo* scope_info);
-  inline Context* previous();
-  inline void set_previous(Context* context);
+  inline Context previous();
+  inline void set_previous(Context context);
 
   inline Object* next_context_link();
 
@@ -518,11 +519,11 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
-  Context* declaration_context();
+  Context declaration_context();
   bool is_declaration_context();
 
   // Get the next closure's context on the context chain.
-  Context* closure_context();
+  Context closure_context();
 
   // Returns a JSGlobalProxy object or null.
   JSGlobalProxy* global_proxy();
@@ -532,11 +533,11 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   V8_EXPORT_PRIVATE JSGlobalObject* global_object();
 
   // Get the script context by traversing the context chain.
-  Context* script_context();
+  Context script_context();
 
   // Compute the native context.
-  inline NativeContext* native_context() const;
-  inline void set_native_context(NativeContext* context);
+  inline NativeContext native_context() const;
+  inline void set_native_context(NativeContext context);
 
   // Predicates for context types.  IsNativeContext is already defined on
   // Object.
@@ -550,7 +551,7 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   inline bool IsEvalContext() const;
   inline bool IsScriptContext() const;
 
-  inline bool HasSameSecurityTokenAs(Context* that) const;
+  inline bool HasSameSecurityTokenAs(Context that) const;
 
   // The native context also stores a list of all optimized code and a
   // list of all deoptimized code, which are needed by the deoptimizer.
@@ -630,16 +631,18 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   // Bootstrapping-aware type checks.
   V8_EXPORT_PRIVATE static bool IsBootstrappingOrNativeContext(Isolate* isolate,
                                                                Object* object);
-  static bool IsBootstrappingOrValidParentContext(Object* object, Context* kid);
+  static bool IsBootstrappingOrValidParentContext(Object* object, Context kid);
 #endif
 
   STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
                 Internals::kNativeContextEmbedderDataOffset);
+
+  OBJECT_CONSTRUCTORS(Context, FixedArrayPtr)
 };
 
 class NativeContext : public Context {
  public:
-  static inline NativeContext* cast(Object* context);
+  DECL_CAST2(NativeContext)
   // TODO(neis): Move some stuff from Context here.
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
@@ -671,14 +674,14 @@ class NativeContext : public Context {
   class BodyDescriptor;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(NativeContext);
+  OBJECT_CONSTRUCTORS(NativeContext, Context);
 };
 
 typedef Context::Field ContextField;
 
-#include "src/objects/object-macros-undef.h"
-
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_CONTEXTS_H_

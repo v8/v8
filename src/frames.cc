@@ -2026,12 +2026,12 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   int expressions_count = ComputeExpressionsCount();
 
   // Try to get hold of the context of this frame.
-  Context* context = nullptr;
+  Context context;
   if (this->context() != nullptr && this->context()->IsContext()) {
     context = Context::cast(this->context());
     while (context->IsWithContext()) {
       context = context->previous();
-      DCHECK_NOT_NULL(context);
+      DCHECK(!context.is_null());
     }
   }
 
@@ -2043,7 +2043,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     accumulator->Add("  var ");
     accumulator->PrintName(scope_info->ContextLocalName(i));
     accumulator->Add(" = ");
-    if (context != nullptr) {
+    if (!context.is_null()) {
       int index = Context::MIN_CONTEXT_SLOTS + i;
       if (index < context->length()) {
         accumulator->Add("%o", context->get(index));

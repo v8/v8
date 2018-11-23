@@ -3299,7 +3299,7 @@ class TypedElementsAccessor
     }
   }
 
-  static bool HoleyPrototypeLookupRequired(Isolate* isolate, Context* context,
+  static bool HoleyPrototypeLookupRequired(Isolate* isolate, Context context,
                                            JSArray* source) {
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
@@ -3322,7 +3322,7 @@ class TypedElementsAccessor
     return !isolate->IsNoElementsProtectorIntact(context);
   }
 
-  static bool TryCopyElementsFastNumber(Context* context, JSArray* source,
+  static bool TryCopyElementsFastNumber(Context context, JSArray* source,
                                         JSTypedArray* destination,
                                         size_t length, uint32_t offset) {
     if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) return false;
@@ -3537,7 +3537,7 @@ class SloppyArgumentsElementsAccessor
       DisallowHeapAllocation no_gc;
       Object* probe = elements->get_mapped_entry(entry);
       DCHECK(!probe->IsTheHole(isolate));
-      Context* context = elements->context();
+      Context context = elements->context();
       int context_entry = Smi::ToInt(probe);
       DCHECK(!context->get(context_entry)->IsTheHole(isolate));
       return handle(context->get(context_entry), isolate);
@@ -3573,7 +3573,7 @@ class SloppyArgumentsElementsAccessor
       DisallowHeapAllocation no_gc;
       Object* probe = elements->get_mapped_entry(entry);
       DCHECK(!probe->IsTheHole());
-      Context* context = elements->context();
+      Context context = elements->context();
       int context_entry = Smi::ToInt(probe);
       DCHECK(!context->get(context_entry)->IsTheHole());
       context->set(context_entry, value);
@@ -3583,7 +3583,7 @@ class SloppyArgumentsElementsAccessor
       Object* current = ArgumentsAccessor::GetRaw(arguments, entry - length);
       if (current->IsAliasedArgumentsEntry()) {
         AliasedArgumentsEntry* alias = AliasedArgumentsEntry::cast(current);
-        Context* context = elements->context();
+        Context context = elements->context();
         int context_entry = alias->aliased_context_slot();
         DCHECK(!context->get(context_entry)->IsTheHole());
         context->set(context_entry, value);
@@ -3900,7 +3900,7 @@ class SlowSloppyArgumentsElementsAccessor
     if (result->IsAliasedArgumentsEntry()) {
       DisallowHeapAllocation no_gc;
       AliasedArgumentsEntry* alias = AliasedArgumentsEntry::cast(*result);
-      Context* context = elements->context();
+      Context context = elements->context();
       int context_entry = alias->aliased_context_slot();
       DCHECK(!context->get(context_entry)->IsTheHole(isolate));
       return handle(context->get(context_entry), isolate);
@@ -3951,7 +3951,7 @@ class SlowSloppyArgumentsElementsAccessor
     if (entry < length) {
       Object* probe = elements->get_mapped_entry(entry);
       DCHECK(!probe->IsTheHole(isolate));
-      Context* context = elements->context();
+      Context context = elements->context();
       int context_entry = Smi::ToInt(probe);
       DCHECK(!context->get(context_entry)->IsTheHole(isolate));
       context->set(context_entry, *value);
@@ -4450,12 +4450,12 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
   return array;
 }
 
-void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
+void CopyFastNumberJSArrayElementsToTypedArray(Address raw_context,
                                                JSArray* source,
                                                JSTypedArray* destination,
                                                uintptr_t length,
                                                uintptr_t offset) {
-  DCHECK(context->IsContext());
+  Context context = Context::cast(ObjectPtr(raw_context));
   DCHECK(source->IsJSArray());
   DCHECK(destination->IsJSTypedArray());
 

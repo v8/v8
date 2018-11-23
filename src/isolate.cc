@@ -332,9 +332,7 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
                       ObjectSlot(&thread->pending_exception_));
   v->VisitRootPointer(Root::kTop, nullptr,
                       ObjectSlot(&thread->pending_message_obj_));
-  v->VisitRootPointer(
-      Root::kTop, nullptr,
-      ObjectSlot(reinterpret_cast<Address>(&(thread->context_))));
+  v->VisitRootPointer(Root::kTop, nullptr, ObjectSlot(&thread->context_));
   v->VisitRootPointer(Root::kTop, nullptr,
                       ObjectSlot(&thread->scheduled_exception_));
 
@@ -1200,7 +1198,7 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
   }
 
   DCHECK(receiver->IsAccessCheckNeeded());
-  DCHECK(context());
+  DCHECK(!context().is_null());
 
   // Get the data object from access check info.
   HandleScope scope(this);
@@ -1241,7 +1239,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 
       // Get the native context of current top context.
       // avoid using Isolate::native_context() because it uses Handle.
-      Context* native_context =
+      Context native_context =
           accessing_context->global_object()->native_context();
       if (receiver_context == native_context) return true;
 
@@ -1527,7 +1525,7 @@ Object* Isolate::ReThrow(Object* exception) {
 Object* Isolate::UnwindAndFindHandler() {
   Object* exception = pending_exception();
 
-  auto FoundHandler = [&](Context* context, Address instruction_start,
+  auto FoundHandler = [&](Context context, Address instruction_start,
                           intptr_t handler_offset,
                           Address constant_pool_address, Address handler_sp,
                           Address handler_fp) {
@@ -1568,7 +1566,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // Gather information from the handler.
         Code code = frame->LookupCode();
         HandlerTable table(code);
-        return FoundHandler(nullptr, code->InstructionStart(),
+        return FoundHandler(Context(), code->InstructionStart(),
                             table.LookupReturn(0), code->constant_pool(),
                             handler->address() + StackHandlerConstants::kSize,
                             0);
@@ -1598,7 +1596,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // Gather information from the frame.
         wasm::WasmCode* wasm_code =
             wasm_engine()->code_manager()->LookupCode(frame->pc());
-        return FoundHandler(nullptr, wasm_code->instruction_start(), offset,
+        return FoundHandler(Context(), wasm_code->instruction_start(), offset,
                             wasm_code->constant_pool(), return_sp, frame->fp());
       }
 
@@ -1630,7 +1628,7 @@ Object* Isolate::UnwindAndFindHandler() {
           set_deoptimizer_lazy_throw(true);
         }
 
-        return FoundHandler(nullptr, code->InstructionStart(), offset,
+        return FoundHandler(Context(), code->InstructionStart(), offset,
                             code->constant_pool(), return_sp, frame->fp());
       }
 
@@ -1654,7 +1652,7 @@ Object* Isolate::UnwindAndFindHandler() {
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             stack_slots * kPointerSize;
 
-        return FoundHandler(nullptr, code->InstructionStart(), offset,
+        return FoundHandler(Context(), code->InstructionStart(), offset,
                             code->constant_pool(), return_sp, frame->fp());
       }
 
@@ -1681,7 +1679,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // position of the exception handler. The special builtin below will
         // take care of continuing to dispatch at that position. Also restore
         // the correct context for the handler from the interpreter register.
-        Context* context =
+        Context context =
             Context::cast(js_frame->ReadInterpreterRegister(context_reg));
         js_frame->PatchBytecodeOffset(static_cast<int>(offset));
 
@@ -1720,7 +1718,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
         Code code = js_frame->LookupCode();
-        return FoundHandler(nullptr, code->InstructionStart(), 0,
+        return FoundHandler(Context(), code->InstructionStart(), 0,
                             code->constant_pool(), return_sp, frame->fp());
       } break;
 
@@ -2518,7 +2516,7 @@ Handle<Context> Isolate::GetIncumbentContext() {
 #endif
   if (!it.done() &&
       (!top_backup_incumbent || it.frame()->sp() < top_backup_incumbent)) {
-    Context* context = Context::cast(it.frame()->context());
+    Context context = Context::cast(it.frame()->context());
     return Handle<Context>(context->native_context(), this);
   }
 
@@ -2556,7 +2554,7 @@ char* Isolate::RestoreThread(char* from) {
 #ifdef USE_SIMULATOR
   thread_local_top()->simulator_ = Simulator::current(this);
 #endif
-  DCHECK(context() == nullptr || context()->IsContext());
+  DCHECK(context().is_null() || context()->IsContext());
   return from + sizeof(ThreadLocalTop);
 }
 
@@ -3569,7 +3567,7 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
 bool Isolate::IsArrayOrObjectOrStringPrototype(Object* object) {
   Object* context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
-    Context* current_context = Context::cast(context);
+    Context current_context = Context::cast(context);
     if (current_context->initial_object_prototype() == object ||
         current_context->initial_array_prototype() == object ||
         current_context->initial_string_prototype() == object) {
@@ -3584,7 +3582,7 @@ bool Isolate::IsInAnyContext(Object* object, uint32_t index) {
   DisallowHeapAllocation no_gc;
   Object* context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
-    Context* current_context = Context::cast(context);
+    Context current_context = Context::cast(context);
     if (current_context->get(index) == object) {
       return true;
     }
@@ -3593,14 +3591,14 @@ bool Isolate::IsInAnyContext(Object* object, uint32_t index) {
   return false;
 }
 
-bool Isolate::IsNoElementsProtectorIntact(Context* context) {
+bool Isolate::IsNoElementsProtectorIntact(Context context) {
   PropertyCell* no_elements_cell = heap()->no_elements_protector();
   bool cell_reports_intact =
       no_elements_cell->value()->IsSmi() &&
       Smi::ToInt(no_elements_cell->value()) == kProtectorValid;
 
 #ifdef DEBUG
-  Context* native_context = context->native_context();
+  Context native_context = context->native_context();
 
   Map root_array_map =
       native_context->GetInitialJSArrayMap(GetInitialFastElementsKind());
@@ -4489,7 +4487,7 @@ bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
 
 SaveContext::SaveContext(Isolate* isolate)
     : isolate_(isolate), prev_(isolate->save_context()) {
-  if (isolate->context() != nullptr) {
+  if (!isolate->context().is_null()) {
     context_ = Handle<Context>(isolate->context(), isolate);
   }
   isolate->set_save_context(this);
@@ -4498,7 +4496,7 @@ SaveContext::SaveContext(Isolate* isolate)
 }
 
 SaveContext::~SaveContext() {
-  isolate_->set_context(context_.is_null() ? nullptr : *context_);
+  isolate_->set_context(context_.is_null() ? Context() : *context_);
   isolate_->set_save_context(prev_);
 }
 

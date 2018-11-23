@@ -277,7 +277,7 @@ class CallDepthScope {
     if (!context.IsEmpty()) {
       i::Handle<i::Context> env = Utils::OpenHandle(*context);
       i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-      if (isolate->context() != nullptr &&
+      if (!isolate->context().is_null() &&
           isolate->context()->native_context() == env->native_context()) {
         context_ = Local<Context>();
       } else {
@@ -771,7 +771,7 @@ StartupData SnapshotCreator::CreateBlob(
   i::DisallowHeapAllocation no_gc_from_here_on;
 
   int num_contexts = num_additional_contexts + 1;
-  std::vector<i::Context*> contexts;
+  std::vector<i::Context> contexts;
   contexts.reserve(num_contexts);
   {
     i::HandleScope scope(isolate);
@@ -8069,16 +8069,16 @@ void Isolate::SetIdle(bool is_idle) {
 
 bool Isolate::InContext() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  return isolate->context() != nullptr;
+  return !isolate->context().is_null();
 }
 
 
 v8::Local<v8::Context> Isolate::GetCurrentContext() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Context* context = isolate->context();
-  if (context == nullptr) return Local<Context>();
-  i::Context* native_context = context->native_context();
-  if (native_context == nullptr) return Local<Context>();
+  i::Context context = isolate->context();
+  if (context.is_null()) return Local<Context>();
+  i::Context native_context = context->native_context();
+  if (native_context.is_null()) return Local<Context>();
   return Utils::ToLocal(i::Handle<i::Context>(native_context, isolate));
 }
 
@@ -10650,19 +10650,18 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
                          ObjectSlot(handle_scope_data_.next));
   }
 
-  DetachableVector<Context*>* context_lists[2] = {&saved_contexts_,
-                                                  &entered_contexts_};
+  DetachableVector<Context>* context_lists[2] = {&saved_contexts_,
+                                                 &entered_contexts_};
   for (unsigned i = 0; i < arraysize(context_lists); i++) {
     context_lists[i]->shrink_to_fit();
     if (context_lists[i]->empty()) continue;
-    ObjectSlot start(reinterpret_cast<Address>(&context_lists[i]->front()));
+    ObjectSlot start(&context_lists[i]->front());
     v->VisitRootPointers(Root::kHandleScope, nullptr, start,
                          start + static_cast<int>(context_lists[i]->size()));
   }
-  if (microtask_context_) {
-    v->VisitRootPointer(
-        Root::kHandleScope, nullptr,
-        ObjectSlot(reinterpret_cast<Address>(&microtask_context_)));
+  if (!microtask_context_.is_null()) {
+    v->VisitRootPointer(Root::kHandleScope, nullptr,
+                        ObjectSlot(&microtask_context_));
   }
 }
 

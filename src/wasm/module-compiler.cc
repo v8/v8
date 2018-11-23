@@ -879,7 +879,7 @@ class FinishCompileTask : public CancelableTask {
     Isolate* isolate = compilation_state_->isolate();
     HandleScope scope(isolate);
     SaveContext saved_context(isolate);
-    isolate->set_context(nullptr);
+    isolate->set_context(Context());
 
     TRACE_COMPILE("(4a) Finishing compilation units...\n");
     if (compilation_state_->failed()) {
@@ -2372,7 +2372,7 @@ void AsyncCompileJob::PrepareRuntimeObjects(
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
 void AsyncCompileJob::FinishCompile(bool compile_wrappers) {
-  DCHECK_NOT_NULL(isolate_->context());
+  DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
   if (script->type() == Script::TYPE_WASM &&

@@ -355,7 +355,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                                          JSWeakCollection* collection);
   void ExtractEphemeronHashTableReferences(HeapEntry* entry,
                                            EphemeronHashTable table);
-  void ExtractContextReferences(HeapEntry* entry, Context* context);
+  void ExtractContextReferences(HeapEntry* entry, Context context);
   void ExtractMapReferences(HeapEntry* entry, Map map);
   void ExtractSharedFunctionInfoReferences(HeapEntry* entry,
                                            SharedFunctionInfo* shared);

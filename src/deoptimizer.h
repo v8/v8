@@ -596,10 +596,10 @@ class Deoptimizer : public Malloced {
                                             DeoptimizeKind kind);
 
   // Marks all the code in the given context for deoptimization.
-  static void MarkAllCodeForContext(Context* native_context);
+  static void MarkAllCodeForContext(Context native_context);
 
   // Deoptimizes all code marked in the given context.
-  static void DeoptimizeMarkedCodeForContext(Context* native_context);
+  static void DeoptimizeMarkedCodeForContext(Context native_context);
 
   // Some architectures need to push padding together with the TOS register
   // in order to maintain stack alignment.

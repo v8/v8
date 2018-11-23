@@ -923,7 +923,7 @@ static const struct {
 };
 
 void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
-                                              Context* context) {
+                                              Context context) {
   if (!context->IsNativeContext() && context->is_declaration_context()) {
     ScopeInfo* scope_info = context->scope_info();
     // Add context allocated locals.
@@ -2166,13 +2166,13 @@ class NullContextScope {
  public:
   explicit NullContextScope(Isolate* isolate)
       : isolate_(isolate), prev_(isolate->context()) {
-    isolate_->set_context(nullptr);
+    isolate_->set_context(Context());
   }
   ~NullContextScope() { isolate_->set_context(prev_); }
 
  private:
   Isolate* isolate_;
-  Context* prev_;
+  Context prev_;
 };
 }  //  namespace
 

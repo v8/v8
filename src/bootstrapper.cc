@@ -1152,7 +1152,7 @@ void Genesis::AddRestrictedFunctionProperties(Handle<JSFunction> empty) {
                    accessors);
 }
 
-static void AddToWeakNativeContextList(Isolate* isolate, Context* context) {
+static void AddToWeakNativeContextList(Isolate* isolate, Context context) {
   DCHECK(context->IsNativeContext());
   Heap* heap = isolate->heap();
 #ifdef DEBUG
@@ -1433,7 +1433,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   // --- N a t i v e   C o n t e x t ---
   // Use the empty scope info.
   native_context()->set_scope_info(empty_function->shared()->scope_info());
-  native_context()->set_previous(nullptr);
+  native_context()->set_previous(Context());
   // Set extension and global object.
   native_context()->set_extension(*global_object);
   // Security setup: Set the security token of the native context to the global

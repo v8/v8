@@ -2219,7 +2219,8 @@ void Heap::ProcessYoungWeakReferences(WeakObjectRetainer* retainer) {
 
 
 void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
-  Object* head = VisitWeakList<Context>(this, native_contexts_list(), retainer);
+  Object* head =
+      VisitWeakList2<Context>(this, native_contexts_list(), retainer);
   // Update the head of the list of contexts.
   set_native_contexts_list(head);
 }
@@ -5363,7 +5364,7 @@ size_t Heap::NumberOfNativeContexts() {
   Object* context = native_contexts_list();
   while (!context->IsUndefined(isolate())) {
     ++result;
-    Context* native_context = Context::cast(context);
+    Context native_context = Context::cast(context);
     context = native_context->next_context_link();
   }
   return result;

@@ -24,7 +24,7 @@ class JSWeakFactory : public JSObject {
   DECL_VERIFIER(JSWeakFactory)
   DECL_CAST(JSWeakFactory)
 
-  DECL_ACCESSORS(native_context, Context)
+  DECL_ACCESSORS2(native_context, Context)
   DECL_ACCESSORS(cleanup, Object)
   DECL_ACCESSORS(active_cells, Object)
   DECL_ACCESSORS(cleared_cells, Object)

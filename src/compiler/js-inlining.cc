@@ -296,8 +296,7 @@ bool JSInliner::DetermineCallTarget(
     // TODO(turbofan): We might want to revisit this restriction later when we
     // have a need for this, and we know how to model different native contexts
     // in the same graph in a compositional way.
-    if (function->context()->native_context() !=
-        info_->context()->native_context()) {
+    if (function->native_context() != info_->native_context()) {
       return false;
     }
 
@@ -376,7 +375,7 @@ Reduction JSInliner::Reduce(Node* node) {
 }
 
 Handle<Context> JSInliner::native_context() const {
-  return handle(info_->context()->native_context(), isolate());
+  return handle(info_->native_context(), isolate());
 }
 
 Reduction JSInliner::ReduceJSCall(Node* node) {

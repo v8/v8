@@ -157,7 +157,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
   if (function_->IsHeapObject()) {
     // Search all deoptimizing code in the native context of the function.
     Isolate* isolate = isolate_;
-    Context* native_context = function_->context()->native_context();
+    Context native_context = function_->context()->native_context();
     Object* element = native_context->DeoptimizedCodeListHead();
     while (!element->IsUndefined(isolate)) {
       Code code = Code::cast(element);
@@ -278,7 +278,7 @@ class ActivationsFinder : public ThreadVisitor {
 
 // Move marked code from the optimized code list to the deoptimized code list,
 // and replace pc on the stack for codes marked for deoptimization.
-void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
+void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
   DisallowHeapAllocation no_allocation;
 
   Isolate* isolate = context->GetHeap()->isolate();
@@ -385,7 +385,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   // For all contexts, mark all code, then deoptimize.
   Object* context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined(isolate)) {
-    Context* native_context = Context::cast(context);
+    Context native_context = Context::cast(context);
     MarkAllCodeForContext(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context->next_context_link();
@@ -406,13 +406,13 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   // For all contexts, deoptimize code already marked.
   Object* context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined(isolate)) {
-    Context* native_context = Context::cast(context);
+    Context native_context = Context::cast(context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context->next_context_link();
   }
 }
 
-void Deoptimizer::MarkAllCodeForContext(Context* context) {
+void Deoptimizer::MarkAllCodeForContext(Context context) {
   Object* element = context->OptimizedCodeListHead();
   Isolate* isolate = context->GetIsolate();
   while (!element->IsUndefined(isolate)) {
@@ -496,7 +496,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
 
   DCHECK_NE(from, kNullAddress);
   compiled_code_ = FindOptimizedCode();
-  DCHECK_NOT_NULL(compiled_code_);
+  DCHECK(!compiled_code_.is_null());
 
   DCHECK(function->IsJSFunction());
   trace_scope_ = FLAG_trace_deopt
@@ -634,7 +634,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
   // Count all entries in the deoptimizing code list of every context.
   Object* context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined(isolate)) {
-    Context* native_context = Context::cast(context);
+    Context native_context = Context::cast(context);
     Object* element = native_context->DeoptimizedCodeListHead();
     while (!element->IsUndefined(isolate)) {
       Code code = Code::cast(element);

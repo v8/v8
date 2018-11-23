@@ -22,7 +22,7 @@ class JSGeneratorObject : public JSObject {
   DECL_ACCESSORS(function, JSFunction)
 
   // [context]: The context of the suspended computation.
-  DECL_ACCESSORS(context, Context)
+  DECL_ACCESSORS2(context, Context)
 
   // [receiver]: The receiver of the suspended computation.
   DECL_ACCESSORS(receiver, Object)

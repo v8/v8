@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-ACCESSORS(JSWeakFactory, native_context, Context, kNativeContextOffset)
+ACCESSORS2(JSWeakFactory, native_context, Context, kNativeContextOffset)
 ACCESSORS(JSWeakFactory, cleanup, Object, kCleanupOffset)
 ACCESSORS(JSWeakFactory, active_cells, Object, kActiveCellsOffset)
 ACCESSORS(JSWeakFactory, cleared_cells, Object, kClearedCellsOffset)

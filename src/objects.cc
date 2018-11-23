@@ -1216,7 +1216,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it) {
       case LookupIterator::ACCESS_CHECK:
         // Support calling this method without an active context, but refuse
         // access to access-checked objects in that case.
-        if (it->isolate()->context() != nullptr && it->HasAccess()) continue;
+        if (!it->isolate()->context().is_null() && it->HasAccess()) continue;
         V8_FALLTHROUGH;
       case LookupIterator::JSPROXY:
         it->NotFound();
@@ -2351,7 +2351,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
 Map Object::GetPrototypeChainRootMap(Isolate* isolate) const {
   DisallowHeapAllocation no_alloc;
   if (IsSmi()) {
-    Context* native_context = isolate->context()->native_context();
+    Context native_context = isolate->context()->native_context();
     return native_context->number_function()->initial_map();
   }
 
@@ -2366,7 +2366,7 @@ Map Map::GetPrototypeChainRootMap(Isolate* isolate) const {
   }
   int constructor_function_index = GetConstructorFunctionIndex();
   if (constructor_function_index != Map::kNoConstructorFunctionIndex) {
-    Context* native_context = isolate->context()->native_context();
+    Context native_context = isolate->context()->native_context();
     JSFunction* constructor_function =
         JSFunction::cast(native_context->get(constructor_function_index));
     return constructor_function->initial_map();
@@ -5713,7 +5713,7 @@ int AccessorInfo::AppendUnique(Isolate* isolate, Handle<Object> descriptors,
 }
 
 static bool ContainsMap(MapHandles const& maps, Map map) {
-  DCHECK_NOT_NULL(map);
+  DCHECK(!map.is_null());
   for (Handle<Map> current : maps) {
     if (!current.is_null() && *current == map) return true;
   }
@@ -5736,7 +5736,7 @@ Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
     Map root_map = FindRootMap(isolate);
     if (!EquivalentToForElementsKindTransition(root_map)) return Map();
     root_map = root_map->LookupElementsTransitionMap(isolate, kind);
-    DCHECK_NOT_NULL(root_map);
+    DCHECK(!root_map.is_null());
     // Starting from the next existing elements kind transition try to
     // replay the property transitions that does not involve instance rewriting
     // (ElementsTransitionAndStoreStub does not support that).
@@ -5830,7 +5830,7 @@ Handle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
   ElementsKind from_kind = map->elements_kind();
   if (from_kind == to_kind) return map;
 
-  Context* native_context = isolate->context()->native_context();
+  Context native_context = isolate->context()->native_context();
   if (from_kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
     if (*map == native_context->fast_aliased_arguments_map()) {
       DCHECK_EQ(SLOW_SLOPPY_ARGUMENTS_ELEMENTS, to_kind);
@@ -12855,7 +12855,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
     if (maybe_constructor->IsJSFunction()) {
       JSFunction* constructor = JSFunction::cast(maybe_constructor);
       if (!constructor->shared()->IsApiFunction()) {
-        Context* context = constructor->context()->native_context();
+        Context context = constructor->context()->native_context();
         JSFunction* object_function = context->object_function();
         object->map()->SetConstructor(object_function);
       }
@@ -14831,7 +14831,7 @@ bool Code::Inlines(SharedFunctionInfo* sfi) {
 Code::OptimizedCodeIterator::OptimizedCodeIterator(Isolate* isolate) {
   isolate_ = isolate;
   Object* list = isolate->heap()->native_contexts_list();
-  next_context_ = list->IsUndefined(isolate_) ? nullptr : Context::cast(list);
+  next_context_ = list->IsUndefined(isolate_) ? Context() : Context::cast(list);
 }
 
 Code Code::OptimizedCodeIterator::Next() {
@@ -14840,12 +14840,12 @@ Code Code::OptimizedCodeIterator::Next() {
     if (!current_code_.is_null()) {
       // Get next code in the linked list.
       next = current_code_->next_code_link();
-    } else if (next_context_ != nullptr) {
+    } else if (!next_context_.is_null()) {
       // Linked list of code exhausted. Get list of next context.
       next = next_context_->OptimizedCodeListHead();
       Object* next_context = next_context_->next_context_link();
       next_context_ = next_context->IsUndefined(isolate_)
-                          ? nullptr
+                          ? Context()
                           : Context::cast(next_context);
     } else {
       // Exhausted contexts.
@@ -17578,7 +17578,7 @@ const int kLiteralContextOffset = 0;
 const int kLiteralLiteralsOffset = 1;
 
 int SearchLiteralsMapEntry(CompilationCacheTable cache, int cache_entry,
-                           Context* native_context) {
+                           Context native_context) {
   DisallowHeapAllocation no_gc;
   DCHECK(native_context->IsNativeContext());
   Object* obj = cache->get(cache_entry);
@@ -17670,7 +17670,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
 }
 
 FeedbackCell* SearchLiteralsMap(CompilationCacheTable cache, int cache_entry,
-                                Context* native_context) {
+                                Context native_context) {
   FeedbackCell* result = nullptr;
   int entry = SearchLiteralsMapEntry(cache, cache_entry, native_context);
   if (entry >= 0) {

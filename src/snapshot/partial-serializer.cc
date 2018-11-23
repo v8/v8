@@ -19,8 +19,7 @@ PartialSerializer::PartialSerializer(
     : Serializer(isolate),
       startup_serializer_(startup_serializer),
       serialize_embedder_fields_(callback),
-      can_be_rehashed_(true),
-      context_(nullptr) {
+      can_be_rehashed_(true) {
   InitializeCodeAddressMap();
   allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
@@ -29,7 +28,7 @@ PartialSerializer::~PartialSerializer() {
   OutputStatistics("PartialSerializer");
 }
 
-void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
+void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   context_ = *o;
   DCHECK(context_->IsNativeContext());
   reference_map()->AddAttachedReference(context_->global_proxy());
@@ -44,8 +43,7 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
 
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                   ObjectSlot(reinterpret_cast<Address>(o)));
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, ObjectSlot(o));
   SerializeDeferredObjects();
 
   // Add section for embedder-serialized embedder fields.

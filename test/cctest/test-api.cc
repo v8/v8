@@ -16667,7 +16667,7 @@ TEST(DefineProperty) {
 THREADED_TEST(GetCurrentContextWhenNotInContext) {
   i::Isolate* isolate = CcTest::i_isolate();
   CHECK_NOT_NULL(isolate);
-  CHECK_NULL(isolate->context());
+  CHECK(isolate->context().is_null());
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::HandleScope scope(v8_isolate);
   // The following should not crash, but return an empty handle.
@@ -22196,8 +22196,7 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
             .FromJust());
 }
 
-
-static int CountLiveMapsInMapCache(i::Context* context) {
+static int CountLiveMapsInMapCache(i::Context context) {
   i::WeakFixedArray* map_cache = i::WeakFixedArray::cast(context->map_cache());
   int length = map_cache->length();
   int count = 0;

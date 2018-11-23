@@ -561,8 +561,7 @@ Handle<AccessorInfo> Accessors::MakeFunctionArgumentsInfo(Isolate* isolate) {
 // Accessors::FunctionCaller
 //
 
-
-static inline bool AllowAccessToFunction(Context* current_context,
+static inline bool AllowAccessToFunction(Context current_context,
                                          JSFunction* function) {
   return current_context->HasSameSecurityTokenAs(function->context());
 }

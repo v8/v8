@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CODE_H_
 #define V8_OBJECTS_CODE_H_
 
+#include "src/contexts.h"
 #include "src/handler-table.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
@@ -448,7 +449,7 @@ class Code::OptimizedCodeIterator {
   Code Next();
 
  private:
-  Context* next_context_;
+  Context next_context_;
   Code current_code_;
   Isolate* isolate_;
 

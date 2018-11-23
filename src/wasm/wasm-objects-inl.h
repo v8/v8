@@ -167,7 +167,7 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_start, Address,
 ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
           kModuleObjectOffset)
 ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
-ACCESSORS(WasmInstanceObject, native_context, Context, kNativeContextOffset)
+ACCESSORS2(WasmInstanceObject, native_context, Context, kNativeContextOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
                    kMemoryObjectOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
