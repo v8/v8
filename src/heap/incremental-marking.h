@@ -177,8 +177,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   size_t Step(size_t bytes_to_process, CompletionAction action,
               StepOrigin step_origin,
               WorklistToProcess worklist_to_process = WorklistToProcess::kAll);
-
-  bool ShouldDoEmbedderStep();
   void EmbedderStep(double duration);
 
   inline void RestartIfNotMarking();

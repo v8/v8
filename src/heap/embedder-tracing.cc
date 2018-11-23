@@ -14,7 +14,6 @@ void LocalEmbedderHeapTracer::TracePrologue() {
 
   CHECK(cached_wrappers_to_trace_.empty());
   num_v8_marking_worklist_was_empty_ = 0;
-  embedder_worklist_empty_ = false;
   remote_tracer_->TracePrologue();
 }
 

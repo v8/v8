@@ -58,16 +58,11 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   void NotifyV8MarkingWorklistWasEmpty() {
     num_v8_marking_worklist_was_empty_++;
   }
-
   bool ShouldFinalizeIncrementalMarking() {
     static const size_t kMaxIncrementalFixpointRounds = 3;
     return !FLAG_incremental_marking_wrappers || !InUse() ||
-           (IsRemoteTracingDone() && embedder_worklist_empty_) ||
+           IsRemoteTracingDone() ||
            num_v8_marking_worklist_was_empty_ > kMaxIncrementalFixpointRounds;
-  }
-
-  void SetEmbedderWorklistEmpty(bool empty) {
-    embedder_worklist_empty_ = empty;
   }
 
   void SetEmbedderStackStateForNextFinalization(
@@ -82,11 +77,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   size_t num_v8_marking_worklist_was_empty_ = 0;
   EmbedderHeapTracer::EmbedderStackState embedder_stack_state_ =
       EmbedderHeapTracer::kUnknown;
-
-  // Indicates whether the embedder worklist was observed empty on the main
-  // thread. This is opportunistic as concurrent marking tasks may hold local
-  // segments of potential embedder fields to move to the main thread.
-  bool embedder_worklist_empty_ = false;
 
   friend class EmbedderStackStateScope;
 };
