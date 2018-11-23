@@ -261,7 +261,7 @@ bool Signature::HasSameTypesAs(const Signature& other,
     compare_types = GetExplicitTypes();
     other_compare_types = other.GetExplicitTypes();
   }
-  if (!(compare_types == other.parameter_types.types &&
+  if (!(compare_types == other_compare_types &&
         parameter_types.var_args == other.parameter_types.var_args &&
         return_type == other.return_type)) {
     return false;
