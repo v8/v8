@@ -379,6 +379,7 @@ namespace internal {
   T(IntrinsicWithSpread, "Intrinsic calls do not support spread arguments")    \
   T(InvalidRestBindingPattern,                                                 \
     "`...` must be followed by an identifier in declaration contexts")         \
+  T(InvalidPropertyBindingPattern, "Illegal property in declaration context")  \
   T(InvalidRestAssignmentPattern,                                              \
     "`...` must be followed by an assignable reference in assignment "         \
     "contexts")                                                                \

@@ -20,8 +20,8 @@ class ZoneList;
 #define ERROR_CODES(T)                       \
   T(ExpressionProduction, 0)                 \
   T(FormalParameterInitializerProduction, 1) \
-  T(BindingPatternProduction, 2)             \
-  T(AssignmentPatternProduction, 3)          \
+  T(PatternProduction, 2)                    \
+  T(BindingPatternProduction, 3)             \
   T(StrictModeFormalParametersProduction, 4) \
   T(LetPatternProduction, 5)                 \
   T(AsyncArrowFormalParametersProduction, 6)
@@ -136,12 +136,12 @@ class ExpressionClassifierBase {
     return is_valid(FormalParameterInitializerProduction);
   }
 
-  V8_INLINE bool is_valid_binding_pattern() const {
-    return is_valid(BindingPatternProduction);
+  V8_INLINE bool is_valid_pattern() const {
+    return is_valid(PatternProduction);
   }
 
-  V8_INLINE bool is_valid_assignment_pattern() const {
-    return is_valid(AssignmentPatternProduction);
+  V8_INLINE bool is_valid_binding_pattern() const {
+    return is_valid(BindingPatternProduction);
   }
 
   // Note: callers should also check
@@ -374,12 +374,12 @@ class ExpressionClassifier
         ErrorKind::kFormalParameterInitializerProduction);
   }
 
-  V8_INLINE const Error& binding_pattern_error() const {
-    return this->reported_error(ErrorKind::kBindingPatternProduction);
+  V8_INLINE const Error& pattern_error() const {
+    return this->reported_error(ErrorKind::kPatternProduction);
   }
 
-  V8_INLINE const Error& assignment_pattern_error() const {
-    return this->reported_error(ErrorKind::kAssignmentPatternProduction);
+  V8_INLINE const Error& binding_pattern_error() const {
+    return this->reported_error(ErrorKind::kBindingPatternProduction);
   }
 
   V8_INLINE const Error& strict_mode_formal_parameter_error() const {
@@ -413,25 +413,17 @@ class ExpressionClassifier
                     ErrorKind::kFormalParameterInitializerProduction, arg));
   }
 
+  void RecordPatternError(const Scanner::Location& loc, MessageTemplate message,
+                          const char* arg = nullptr) {
+    this->Add(TP::PatternProduction,
+              Error(loc, message, ErrorKind::kPatternProduction, arg));
+  }
+
   void RecordBindingPatternError(const Scanner::Location& loc,
                                  MessageTemplate message,
                                  const char* arg = nullptr) {
     this->Add(TP::BindingPatternProduction,
               Error(loc, message, ErrorKind::kBindingPatternProduction, arg));
-  }
-
-  void RecordAssignmentPatternError(const Scanner::Location& loc,
-                                    MessageTemplate message,
-                                    const char* arg = nullptr) {
-    this->Add(
-        TP::AssignmentPatternProduction,
-        Error(loc, message, ErrorKind::kAssignmentPatternProduction, arg));
-  }
-
-  void RecordPatternError(const Scanner::Location& loc, MessageTemplate message,
-                          const char* arg = nullptr) {
-    RecordBindingPatternError(loc, message, arg);
-    RecordAssignmentPatternError(loc, message, arg);
   }
 
   void RecordAsyncArrowFormalParametersError(const Scanner::Location& loc,

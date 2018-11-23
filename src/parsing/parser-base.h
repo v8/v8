@@ -891,11 +891,12 @@ class ParserBase {
     if (!classifier()->is_valid_binding_pattern()) {
       ReportClassifierError(classifier()->binding_pattern_error());
     }
+    ValidatePattern();
   }
 
-  void ValidateAssignmentPattern() {
-    if (!classifier()->is_valid_assignment_pattern()) {
-      ReportClassifierError(classifier()->assignment_pattern_error());
+  void ValidatePattern() {
+    if (!classifier()->is_valid_pattern()) {
+      ReportClassifierError(classifier()->pattern_error());
     }
   }
 
@@ -934,12 +935,12 @@ class ParserBase {
     }
   }
 
-  void BindingPatternUnexpectedToken() {
+  void PatternUnexpectedToken() {
     MessageTemplate message = MessageTemplate::kUnexpectedToken;
     const char* arg = nullptr;
     Scanner::Location location = scanner()->peek_location();
     impl()->GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
-    classifier()->RecordBindingPatternError(location, message, arg);
+    classifier()->RecordPatternError(location, message, arg);
   }
 
   // Parses an identifier that is valid for the current scope, in particular it
@@ -1449,7 +1450,7 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
   auto result = ParseAndClassifyIdentifier();
 
   if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers) {
-    ValidateBindingPattern();
+    ValidatePattern();
   }
 
   return result;
@@ -1478,8 +1479,8 @@ ParserBase<Impl>::ParseAndClassifyIdentifier() {
       classifier()->RecordStrictModeFormalParameterError(
           scanner()->location(), MessageTemplate::kStrictEvalArguments);
       if (is_strict(language_mode())) {
-        classifier()->RecordBindingPatternError(
-            scanner()->location(), MessageTemplate::kStrictEvalArguments);
+        classifier()->RecordPatternError(scanner()->location(),
+                                         MessageTemplate::kStrictEvalArguments);
       }
     }
 
@@ -1644,7 +1645,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     if (V8_UNLIKELY(impl()->IsAsync(name) &&
                     !scanner()->HasLineTerminatorBeforeNext())) {
       if (peek() == Token::FUNCTION) {
-        BindingPatternUnexpectedToken();
+        PatternUnexpectedToken();
         return ParseAsyncFunctionLiteral();
       }
       // async Identifier => AsyncConciseBody
@@ -1666,21 +1667,21 @@ ParserBase<Impl>::ParsePrimaryExpression() {
   DCHECK_IMPLIES(Token::IsAnyIdentifier(token), token == Token::ENUM);
 
   if (Token::IsLiteral(token)) {
-    BindingPatternUnexpectedToken();
+    PatternUnexpectedToken();
     return impl()->ExpressionFromLiteral(Next(), beg_pos);
   }
 
   switch (token) {
     case Token::THIS: {
-      BindingPatternUnexpectedToken();
+      PatternUnexpectedToken();
       Consume(Token::THIS);
       return impl()->ThisExpression(beg_pos);
     }
 
     case Token::ASSIGN_DIV:
     case Token::DIV:
-      classifier()->RecordBindingPatternError(
-          scanner()->peek_location(), MessageTemplate::kUnexpectedTokenRegExp);
+      classifier()->RecordPatternError(scanner()->peek_location(),
+                                       MessageTemplate::kUnexpectedTokenRegExp);
       return ParseRegExpLiteral();
 
     case Token::LBRACK:
@@ -1718,7 +1719,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     }
 
     case Token::CLASS: {
-      BindingPatternUnexpectedToken();
+      PatternUnexpectedToken();
       Consume(Token::CLASS);
       int class_token_pos = position();
       IdentifierT name = impl()->NullIdentifier();
@@ -1740,12 +1741,12 @@ ParserBase<Impl>::ParsePrimaryExpression() {
 
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
-      BindingPatternUnexpectedToken();
+      PatternUnexpectedToken();
       return ParseTemplateLiteral(impl()->NullExpression(), beg_pos, false);
 
     case Token::MOD:
       if (allow_natives() || extension_ != nullptr) {
-        BindingPatternUnexpectedToken();
+        PatternUnexpectedToken();
         return ParseV8Intrinsic();
       }
       break;
@@ -1856,6 +1857,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
   Consume(Token::LBRACK);
   while (!Check(Token::RBRACK)) {
     ExpressionT elem;
+    ExpressionClassifier destructuring_classifier(this);
     if (peek() == Token::COMMA) {
       elem = factory()->NewTheHoleLiteral();
     } else if (Check(Token::ELLIPSIS)) {
@@ -1870,6 +1872,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
       }
 
       if (argument->IsAssignment()) {
+        Accumulate(ExpressionClassifier::AllProductions);
         classifier()->RecordPatternError(
             Scanner::Location(start_pos, end_position()),
             MessageTemplate::kInvalidDestructuringTarget);
@@ -2042,19 +2045,27 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
         *name = impl()->NullIdentifier();
         Consume(Token::ELLIPSIS);
         AcceptINScope scope(this, true);
+        ExpressionClassifier destructuring_classifier(this);
         ExpressionT expression = ParseAssignmentExpression();
         *kind = ParsePropertyKind::kSpread;
 
-        if (!impl()->IsIdentifier(expression)) {
-          classifier()->RecordBindingPatternError(
-              scanner()->location(),
-              MessageTemplate::kInvalidRestBindingPattern);
-        }
-
-        if (!expression->IsValidReferenceExpression()) {
-          classifier()->RecordAssignmentPatternError(
-              scanner()->location(),
-              MessageTemplate::kInvalidRestAssignmentPattern);
+        if (IsValidReferenceExpression(expression)) {
+          Accumulate(~ExpressionClassifier::PatternProduction);
+          if (expression->IsProperty()) {
+            classifier()->RecordBindingPatternError(
+                Scanner::Location(expression->position(), end_position()),
+                MessageTemplate::kInvalidPropertyBindingPattern);
+          }
+        } else {
+          Accumulate(ExpressionClassifier::AllProductions);
+          if (expression->IsValidPattern()) {
+            classifier()->RecordBindingPatternError(
+                Scanner::Location(expression->position(), end_position()),
+                MessageTemplate::kInvalidRestBindingPattern);
+            classifier()->RecordPatternError(
+                Scanner::Location(expression->position(), end_position()),
+                MessageTemplate::kInvalidRestAssignmentPattern);
+          }
         }
 
         if (peek() != Token::RBRACE) {
@@ -2304,8 +2315,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
 
   IdentifierT name = impl()->NullIdentifier();
   Token::Value name_token = peek();
-  int next_beg_pos = peek_position();
-  int next_end_pos = peek_end_position();
+  Scanner::Location next_loc = scanner()->peek_location();
 
   bool is_private = false;
   ExpressionT name_expression = ParsePropertyName(
@@ -2338,6 +2348,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
       Consume(Token::COLON);
       int beg_pos = peek_position();
       AcceptINScope scope(this, true);
+      ExpressionClassifier destructuring_classifier(this);
       ExpressionT value = ParseAssignmentExpression();
       CheckDestructuringElement(value, beg_pos, end_position());
 
@@ -2368,8 +2379,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
       DCHECK(!*is_computed_name);
 
       if (impl()->IsEvalOrArguments(name) && is_strict(language_mode())) {
-        classifier()->RecordBindingPatternError(
-            scanner()->location(), MessageTemplate::kStrictEvalArguments);
+        classifier()->RecordPatternError(scanner()->location(),
+                                         MessageTemplate::kStrictEvalArguments);
       }
 
       if (name_token == Token::LET) {
@@ -2379,11 +2390,14 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
       if (name_token == Token::AWAIT) {
         DCHECK(!is_async_function());
         classifier()->RecordAsyncArrowFormalParametersError(
-            Scanner::Location(next_beg_pos, next_end_pos),
-            MessageTemplate::kAwaitBindingIdentifier);
+            next_loc, MessageTemplate::kAwaitBindingIdentifier);
       }
-      ExpressionT lhs = impl()->ExpressionFromIdentifier(name, next_beg_pos);
-      CheckDestructuringElement(lhs, next_beg_pos, next_end_pos);
+      ExpressionT lhs =
+          impl()->ExpressionFromIdentifier(name, next_loc.beg_pos);
+      if (!IsAssignableIdentifier(lhs)) {
+        classifier()->RecordPatternError(
+            next_loc, MessageTemplate::kInvalidDestructuringTarget);
+      }
 
       ExpressionT value;
       if (peek() == Token::ASSIGN) {
@@ -2396,7 +2410,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
         value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
                                          kNoSourcePosition);
         classifier()->RecordExpressionError(
-            Scanner::Location(next_beg_pos, end_position()),
+            Scanner::Location(next_loc.beg_pos, end_position()),
             MessageTemplate::kInvalidCoverInitializedName);
 
         impl()->SetFunctionNameFromIdentifierRef(rhs, lhs);
@@ -2416,14 +2430,14 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
       //    '*' PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'
 
       classifier()->RecordPatternError(
-          Scanner::Location(next_beg_pos, end_position()),
+          Scanner::Location(next_loc.beg_pos, end_position()),
           MessageTemplate::kInvalidDestructuringTarget);
 
       FunctionKind kind = MethodKindFor(function_flags);
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          next_beg_pos, FunctionLiteral::kAccessorOrMethod, language_mode(),
+          next_loc.beg_pos, FunctionLiteral::kAccessorOrMethod, language_mode(),
           nullptr);
 
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
@@ -2439,7 +2453,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
       bool is_get = kind == ParsePropertyKind::kAccessorGetter;
 
       classifier()->RecordPatternError(
-          Scanner::Location(next_beg_pos, end_position()),
+          Scanner::Location(next_loc.beg_pos, end_position()),
           MessageTemplate::kInvalidDestructuringTarget);
 
       if (!*is_computed_name) {
@@ -2455,7 +2469,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          next_beg_pos, FunctionLiteral::kAccessorOrMethod, language_mode(),
+          next_loc.beg_pos, FunctionLiteral::kAccessorOrMethod, language_mode(),
           nullptr);
 
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
@@ -2620,15 +2634,7 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   Token::Value op = peek();
 
   if (!Token::IsArrowOrAssignmentOp(op)) {
-    if (IsValidReferenceExpression(expression)) {
-      // Parenthesized identifiers and property references are allowed as part
-      // of a larger assignment pattern, even though parenthesized patterns
-      // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
-      // assignment pattern errors if the parsed expression is more complex.
-      Accumulate(~ExpressionClassifier::AssignmentPatternProduction);
-    } else {
-      Accumulate(ExpressionClassifier::AllProductions);
-    }
+    Accumulate(ExpressionClassifier::AllProductions);
     return expression;
   }
 
@@ -2676,7 +2682,7 @@ ParserBase<Impl>::ParseAssignmentExpression() {
 
   // Destructuring assignmment.
   if (V8_UNLIKELY(expression->IsValidPattern() && op == Token::ASSIGN)) {
-    ValidateAssignmentPattern();
+    ValidatePattern();
 
     // This is definitely not an expression so don't accumulate
     // expression-related errors.
@@ -2701,7 +2707,7 @@ ParserBase<Impl>::ParseAssignmentExpression() {
 
   // This is definitely not an assignment pattern, so don't accumulate
   // assignment pattern-related errors.
-  Accumulate(~ExpressionClassifier::AssignmentPatternProduction);
+  Accumulate(~ExpressionClassifier::PatternProduction);
 
   if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
     expression = RewriteInvalidReferenceExpression(
@@ -2830,7 +2836,7 @@ typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
                                                int pos) {
   SourceRange then_range, else_range;
-  BindingPatternUnexpectedToken();
+  PatternUnexpectedToken();
 
   ExpressionT left;
   {
@@ -2857,7 +2863,7 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1) {
-  BindingPatternUnexpectedToken();
+  PatternUnexpectedToken();
   do {
     // prec1 >= 4
     while (Token::Precedence(peek(), accept_IN_) == prec1) {
@@ -2922,7 +2928,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseUnaryOpExpression() {
-  BindingPatternUnexpectedToken();
+  PatternUnexpectedToken();
 
   Token::Value op = Next();
   int pos = position();
@@ -2961,7 +2967,7 @@ ParserBase<Impl>::ParseUnaryOpExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParsePrefixExpression() {
-  BindingPatternUnexpectedToken();
+  PatternUnexpectedToken();
   Token::Value op = Next();
   int beg_pos = peek_position();
 
@@ -2992,7 +2998,7 @@ ParserBase<Impl>::ParseAwaitExpression() {
 
   ExpressionT value = ParseUnaryExpression();
 
-  classifier()->RecordBindingPatternError(
+  classifier()->RecordPatternError(
       Scanner::Location(await_pos, end_position()),
       MessageTemplate::kInvalidDestructuringTarget);
 
@@ -3036,7 +3042,7 @@ ParserBase<Impl>::ParsePostfixExpression() {
   int lhs_beg_pos = peek_position();
   ExpressionT expression = ParseLeftHandSideExpression();
   if (!scanner()->HasLineTerminatorBeforeNext() && Token::IsCountOp(peek())) {
-    BindingPatternUnexpectedToken();
+    PatternUnexpectedToken();
 
     if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
       expression = RewriteInvalidReferenceExpression(
@@ -3083,7 +3089,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     ParseArguments(&args, &has_spread, true);
     if (V8_LIKELY(peek() == Token::ARROW)) {
       fni_.RemoveAsyncKeywordFromEnd();
-      ValidateBindingPattern();
+      ValidatePattern();
       ValidateFormalParameterInitializer();
       if (!classifier()->is_valid_async_arrow_formal_parameters()) {
         ReportClassifierError(
@@ -3114,11 +3120,12 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     fni_.RemoveLastFunction();
     if (!Token::IsPropertyOrCall(peek())) return result;
   } else {
-    BindingPatternUnexpectedToken();
+    PatternUnexpectedToken();
   }
 
   do {
     switch (peek()) {
+      /* Property */
       case Token::LBRACK: {
         Consume(Token::LBRACK);
         int pos = position();
@@ -3129,6 +3136,16 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         break;
       }
 
+      /* Property */
+      case Token::PERIOD: {
+        Consume(Token::PERIOD);
+        int pos = position();
+        ExpressionT key = ParseIdentifierNameOrPrivateName();
+        result = factory()->NewProperty(result, key, pos);
+        break;
+      }
+
+      /* Call */
       case Token::LPAREN: {
         int pos;
         if (Token::IsCallable(scanner()->current_token())) {
@@ -3174,14 +3191,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         break;
       }
 
-      case Token::PERIOD: {
-        Consume(Token::PERIOD);
-        int pos = position();
-        ExpressionT key = ParseIdentifierNameOrPrivateName();
-        result = factory()->NewProperty(result, key, pos);
-        break;
-      }
-
+      /* Call */
       default:
         DCHECK(peek() == Token::TEMPLATE_SPAN ||
                peek() == Token::TEMPLATE_TAIL);
@@ -3214,7 +3224,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   // new new foo means new (new foo)
   // new new foo() means new (new foo())
   // new new foo().bar().baz means (new (new foo()).bar()).baz
-  BindingPatternUnexpectedToken();
+  PatternUnexpectedToken();
   Consume(Token::NEW);
   int new_pos = position();
   ExpressionT result;
@@ -3266,7 +3276,7 @@ ParserBase<Impl>::ParseMemberWithNewPrefixesExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseFunctionExpression() {
-  BindingPatternUnexpectedToken();
+  PatternUnexpectedToken();
 
   Consume(Token::FUNCTION);
   int function_token_position = position();
@@ -3413,7 +3423,7 @@ ParserBase<Impl>::ParseNewTargetExpression() {
   int pos = position();
   ExpectMetaProperty(ast_value_factory()->target_string(), "new.target", pos);
 
-  classifier()->RecordAssignmentPatternError(
+  classifier()->RecordPatternError(
       Scanner::Location(pos, end_position()),
       MessageTemplate::kInvalidDestructuringTarget);
 
@@ -3430,7 +3440,7 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
   DCHECK(Token::IsProperty(peek()));
-  BindingPatternUnexpectedToken();
+  PatternUnexpectedToken();
   // Parses this part of MemberExpression:
   // ('[' Expression ']' | '.' Identifier | TemplateLiteral)*
   do {
@@ -4453,10 +4463,24 @@ bool ParserBase<Impl>::IsValidReferenceExpression(ExpressionT expression) {
 template <typename Impl>
 void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
                                                  int begin, int end) {
-  if (!expression->IsValidPattern() && !expression->IsAssignment() &&
-      !IsValidReferenceExpression(expression)) {
-    if (expression->IsProperty()) ValidateExpression();
-    classifier()->RecordAssignmentPatternError(
+  if (expression->IsProperty() || IsAssignableIdentifier(expression)) {
+    // Parenthesized identifiers and property references are allowed as part of
+    // a larger assignment pattern, even though parenthesized patterns
+    // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
+    // assignment pattern errors if the parsed expression is more complex.
+    Accumulate(~ExpressionClassifier::PatternProduction);
+    if (expression->IsProperty()) {
+      ValidateExpression();
+      classifier()->RecordBindingPatternError(
+          Scanner::Location(begin, end),
+          MessageTemplate::kInvalidPropertyBindingPattern);
+    }
+    return;
+  }
+
+  Accumulate(ExpressionClassifier::AllProductions);
+  if (!expression->IsValidPattern() && !expression->IsAssignment()) {
+    classifier()->RecordPatternError(
         Scanner::Location(begin, end),
         MessageTemplate::kInvalidDestructuringTarget);
   }
@@ -5406,7 +5430,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     bool is_destructuring = is_for_each && expression->IsValidPattern();
 
     if (is_destructuring) {
-      ValidateAssignmentPattern();
+      ValidatePattern();
     } else {
       ValidateExpression();
     }
@@ -5741,7 +5765,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     int lhs_end_pos = end_position();
 
     if (lhs->IsValidPattern()) {
-      ValidateAssignmentPattern();
+      ValidatePattern();
     } else {
       ValidateExpression();
       if (V8_UNLIKELY(!IsValidReferenceExpression(lhs))) {
