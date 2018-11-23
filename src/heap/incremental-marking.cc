@@ -8,6 +8,7 @@
 #include "src/compilation-cache.h"
 #include "src/conversions.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -815,11 +816,6 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
     int size = VisitObject(obj->map(), obj);
     bytes_processed += size - unscanned_bytes_of_large_object_;
   }
-  // Report all found wrappers to the embedder. This is necessary as the
-  // embedder could potentially invalidate wrappers as soon as V8 is done
-  // with its incremental marking processing. Any cached wrappers could
-  // result in broken pointers at this point.
-  heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
   return bytes_processed;
 }
 
@@ -829,20 +825,20 @@ void IncrementalMarking::EmbedderStep(double duration_ms) {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
   double deadline = heap_->MonotonicallyIncreasingTimeInMs() + duration_ms;
   do {
-    HeapObject* object;
-    size_t cnt = 0;
-    bool embedder_fields_empty = true;
-    while (marking_worklist()->embedder()->Pop(0, &object)) {
-      heap_->TracePossibleWrapper(JSObject::cast(object));
-      if (++cnt == kObjectsToProcessBeforeInterrupt) {
-        cnt = 0;
-        embedder_fields_empty = false;
-        break;
+    {
+      LocalEmbedderHeapTracer::ProcessingScope scope(
+          heap_->local_embedder_heap_tracer());
+      HeapObject* object;
+      size_t cnt = 0;
+      while (marking_worklist()->embedder()->Pop(0, &object)) {
+        scope.TracePossibleWrapper(JSObject::cast(object));
+        if (++cnt == kObjectsToProcessBeforeInterrupt) {
+          cnt = 0;
+          scope.set_not_done();
+          break;
+        }
       }
     }
-    heap_->local_embedder_heap_tracer()->SetEmbedderWorklistEmpty(
-        embedder_fields_empty);
-    heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
     heap_->local_embedder_heap_tracer()->Trace(deadline);
   } while (heap_->MonotonicallyIncreasingTimeInMs() < deadline);
 }
@@ -967,8 +963,6 @@ double IncrementalMarking::AdvanceIncrementalMarking(
   TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
   DCHECK(!IsStopped());
-  DCHECK_EQ(
-      0, heap_->local_embedder_heap_tracer()->NumberOfCachedWrappersToTrace());
 
   double remaining_time_in_ms = 0.0;
   do {

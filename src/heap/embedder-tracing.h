@@ -13,10 +13,32 @@ namespace v8 {
 namespace internal {
 
 class Heap;
+class JSObject;
 
 class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
  public:
   typedef std::pair<void*, void*> WrapperInfo;
+  typedef std::vector<WrapperInfo> WrapperCache;
+
+  class V8_EXPORT_PRIVATE ProcessingScope {
+   public:
+    explicit ProcessingScope(LocalEmbedderHeapTracer* tracer);
+    ~ProcessingScope();
+
+    void TracePossibleWrapper(JSObject* js_object);
+    void set_not_done() { empty_worklist_ = false; }
+
+    void AddWrapperInfoForTesting(WrapperInfo info);
+
+   private:
+    static constexpr size_t kWrapperCacheSize = 1000;
+
+    void FlushWrapperCacheIfFull();
+
+    LocalEmbedderHeapTracer* const tracer_;
+    WrapperCache wrapper_cache_;
+    bool empty_worklist_ = true;
+  };
 
   explicit LocalEmbedderHeapTracer(Isolate* isolate) : isolate_(isolate) {}
 
@@ -24,36 +46,15 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
   }
 
+  bool InUse() const { return remote_tracer_ != nullptr; }
   EmbedderHeapTracer* remote_tracer() const { return remote_tracer_; }
 
-  void SetRemoteTracer(EmbedderHeapTracer* tracer) {
-    if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
-
-    remote_tracer_ = tracer;
-    if (remote_tracer_)
-      remote_tracer_->isolate_ = reinterpret_cast<v8::Isolate*>(isolate_);
-  }
-
-  bool InUse() const { return remote_tracer_ != nullptr; }
-
+  void SetRemoteTracer(EmbedderHeapTracer* tracer);
   void TracePrologue();
   void TraceEpilogue();
   void EnterFinalPause();
   bool Trace(double deadline);
   bool IsRemoteTracingDone();
-
-  size_t NumberOfCachedWrappersToTrace() {
-    return cached_wrappers_to_trace_.size();
-  }
-  void AddWrapperToTrace(WrapperInfo entry) {
-    cached_wrappers_to_trace_.push_back(entry);
-  }
-  void ClearCachedWrappersToTrace() { cached_wrappers_to_trace_.clear(); }
-  void RegisterWrappersWithRemoteTracer();
-
-  // In order to avoid running out of memory we force tracing wrappers if there
-  // are too many of them.
-  bool RequiresImmediateWrapperProcessing();
 
   void NotifyV8MarkingWorklistWasEmpty() {
     num_v8_marking_worklist_was_empty_++;
@@ -66,23 +67,16 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
            num_v8_marking_worklist_was_empty_ > kMaxIncrementalFixpointRounds;
   }
 
-  void SetEmbedderWorklistEmpty(bool empty) {
-    embedder_worklist_empty_ = empty;
-  }
-
   void SetEmbedderStackStateForNextFinalization(
       EmbedderHeapTracer::EmbedderStackState stack_state);
 
  private:
-  typedef std::vector<WrapperInfo> WrapperCache;
-
   Isolate* const isolate_;
-  WrapperCache cached_wrappers_to_trace_;
   EmbedderHeapTracer* remote_tracer_ = nullptr;
+
   size_t num_v8_marking_worklist_was_empty_ = 0;
   EmbedderHeapTracer::EmbedderStackState embedder_stack_state_ =
       EmbedderHeapTracer::kUnknown;
-
   // Indicates whether the embedder worklist was observed empty on the main
   // thread. This is opportunistic as concurrent marking tasks may hold local
   // segments of potential embedder fields to move to the main thread.
