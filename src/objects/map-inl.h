@@ -6,7 +6,10 @@
 #define V8_OBJECTS_MAP_INL_H_
 
 #include "src/objects/map.h"
+
 #include "src/field-type.h"
+#include "src/heap/heap-inl.h"
+#include "src/layout-descriptor-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/descriptor-array.h"
@@ -15,10 +18,6 @@
 #include "src/objects/templates-inl.h"
 #include "src/property.h"
 #include "src/transitions.h"
-
-// For pulling in heap/incremental-marking.h which is needed by
-// ACCESSORS_CHECKED.
-#include "src/heap/heap-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

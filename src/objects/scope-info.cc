@@ -9,7 +9,7 @@
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/bootstrapper.h"
-#include "src/heap/heap-inl.h"
+
 #include "src/objects-inl.h"
 #include "src/objects/module-inl.h"
 

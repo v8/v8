@@ -5,7 +5,6 @@
 #include "src/json-stringifier.h"
 
 #include "src/conversions.h"
-#include "src/heap/heap-inl.h"
 #include "src/lookup.h"
 #include "src/message-template.h"
 #include "src/objects-inl.h"

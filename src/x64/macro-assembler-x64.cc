@@ -16,7 +16,6 @@
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
-#include "src/heap/heap-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/smi.h"

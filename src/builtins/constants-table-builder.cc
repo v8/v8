@@ -5,6 +5,8 @@
 #include "src/builtins/constants-table-builder.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/isolate.h"
+#include "src/roots-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -7,8 +7,14 @@
 
 #include "src/roots.h"
 
+#include "src/feedback-vector.h"
 #include "src/handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/api-callbacks.h"
+#include "src/objects/descriptor-array.h"
+#include "src/objects/literal-objects.h"
+#include "src/objects/map.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/slots.h"
 
 namespace v8 {

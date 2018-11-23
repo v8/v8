@@ -5,7 +5,7 @@
 #include "src/snapshot/read-only-deserializer.h"
 
 #include "src/api.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8threads.h"

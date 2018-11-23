@@ -5,7 +5,6 @@
 #include "src/snapshot/partial-deserializer.h"
 
 #include "src/api-inl.h"
-#include "src/heap/heap-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
 

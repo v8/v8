@@ -7,6 +7,7 @@
 
 #include "src/objects/shared-function-info.h"
 
+#include "src/feedback-vector-inl.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/debug-objects-inl.h"

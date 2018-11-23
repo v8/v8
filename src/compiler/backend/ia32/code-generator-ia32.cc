@@ -12,7 +12,7 @@
 #include "src/compiler/osr.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/ia32/assembler-ia32.h"
 #include "src/macro-assembler.h"
 #include "src/objects/smi.h"

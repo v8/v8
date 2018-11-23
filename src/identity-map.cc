@@ -5,7 +5,8 @@
 #include "src/identity-map.h"
 
 #include "src/base/functional.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
+#include "src/roots-inl.h"
 
 namespace v8 {
 namespace internal {
