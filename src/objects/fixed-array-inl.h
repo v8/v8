@@ -7,8 +7,12 @@
 
 #include "src/objects/fixed-array.h"
 
+#include "src/conversions.h"
+#include "src/handles-inl.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/objects-inl.h"  // Needed for write barriers
 #include "src/objects/bigint.h"
+#include "src/objects/map.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
 

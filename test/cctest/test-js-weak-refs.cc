@@ -5,6 +5,7 @@
 #include "src/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/isolate.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

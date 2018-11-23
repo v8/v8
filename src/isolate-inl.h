@@ -5,6 +5,7 @@
 #ifndef V8_ISOLATE_INL_H_
 #define V8_ISOLATE_INL_H_
 
+#include "src/heap/heap-inl.h"  // Need MemoryChunk from heap/spaces.h
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/regexp-match-info.h"
