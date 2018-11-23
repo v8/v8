@@ -2049,23 +2049,15 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
         ExpressionT expression = ParseAssignmentExpression();
         *kind = ParsePropertyKind::kSpread;
 
-        if (IsValidReferenceExpression(expression)) {
-          Accumulate(~ExpressionClassifier::PatternProduction);
-          if (expression->IsProperty()) {
-            classifier()->RecordBindingPatternError(
-                Scanner::Location(expression->position(), end_position()),
-                MessageTemplate::kInvalidPropertyBindingPattern);
-          }
-        } else {
-          Accumulate(ExpressionClassifier::AllProductions);
-          if (expression->IsValidPattern()) {
-            classifier()->RecordBindingPatternError(
-                Scanner::Location(expression->position(), end_position()),
-                MessageTemplate::kInvalidRestBindingPattern);
-            classifier()->RecordPatternError(
-                Scanner::Location(expression->position(), end_position()),
-                MessageTemplate::kInvalidRestAssignmentPattern);
-          }
+        CheckDestructuringElement(expression, expression->position(),
+                                  end_position());
+        if (!IsValidReferenceExpression(expression)) {
+          classifier()->RecordBindingPatternError(
+              Scanner::Location(expression->position(), end_position()),
+              MessageTemplate::kInvalidRestBindingPattern);
+          classifier()->RecordPatternError(
+              Scanner::Location(expression->position(), end_position()),
+              MessageTemplate::kInvalidRestAssignmentPattern);
         }
 
         if (peek() != Token::RBRACE) {
@@ -2378,11 +2370,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
 
       DCHECK(!*is_computed_name);
 
-      if (impl()->IsEvalOrArguments(name) && is_strict(language_mode())) {
-        classifier()->RecordPatternError(scanner()->location(),
-                                         MessageTemplate::kStrictEvalArguments);
-      }
-
       if (name_token == Token::LET) {
         classifier()->RecordLetPatternError(
             scanner()->location(), MessageTemplate::kLetInLexicalBinding);
@@ -2395,8 +2382,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
       ExpressionT lhs =
           impl()->ExpressionFromIdentifier(name, next_loc.beg_pos);
       if (!IsAssignableIdentifier(lhs)) {
-        classifier()->RecordPatternError(
-            next_loc, MessageTemplate::kInvalidDestructuringTarget);
+        classifier()->RecordPatternError(next_loc,
+                                         MessageTemplate::kStrictEvalArguments);
       }
 
       ExpressionT value;
@@ -3105,8 +3092,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         return factory()->NewEmptyParentheses(pos);
       }
     }
-    ValidateExpression();
-
     classifier()->RecordPatternError(lparen_loc,
                                      MessageTemplate::kUnexpectedToken,
                                      Token::String(Token::LPAREN));
@@ -3119,8 +3104,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
 
     fni_.RemoveLastFunction();
     if (!Token::IsPropertyOrCall(peek())) return result;
-  } else {
-    PatternUnexpectedToken();
   }
 
   do {
@@ -3147,6 +3130,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
 
       /* Call */
       case Token::LPAREN: {
+        PatternUnexpectedToken();
         int pos;
         if (Token::IsCallable(scanner()->current_token())) {
           // For call of an identifier we want to report position of
@@ -3193,6 +3177,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
 
       /* Call */
       default:
+        PatternUnexpectedToken();
         DCHECK(peek() == Token::TEMPLATE_SPAN ||
                peek() == Token::TEMPLATE_TAIL);
         result = ParseTemplateLiteral(result, position(), true);
@@ -4463,7 +4448,7 @@ bool ParserBase<Impl>::IsValidReferenceExpression(ExpressionT expression) {
 template <typename Impl>
 void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
                                                  int begin, int end) {
-  if (expression->IsProperty() || IsAssignableIdentifier(expression)) {
+  if (IsValidReferenceExpression(expression)) {
     // Parenthesized identifiers and property references are allowed as part of
     // a larger assignment pattern, even though parenthesized patterns
     // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
