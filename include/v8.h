@@ -8500,8 +8500,8 @@ class V8_EXPORT V8 {
    * Enable the default signal handler rather than using one provided by the
    * embedder.
    */
-  V8_DEPRECATE_SOON("Use EnableWebAssemblyTrapHandler",
-                    static bool RegisterDefaultSignalHandler());
+  V8_DEPRECATED("Use EnableWebAssemblyTrapHandler",
+                static bool RegisterDefaultSignalHandler());
 
   /**
    * Activate trap-based bounds checking for WebAssembly.
