@@ -3038,11 +3038,11 @@ class LargeObjectSpace : public Space {
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
                                                      Executability executable);
 
+ private:
   size_t size_;          // allocated bytes
   int page_count_;       // number of chunks
   size_t objects_size_;  // size of objects
 
- private:
   // The chunk_map_mutex_ has to be used when the chunk map is accessed
   // concurrently.
   base::Mutex chunk_map_mutex_;
@@ -3063,8 +3063,6 @@ class NewLargeObjectSpace : public LargeObjectSpace {
   size_t Available() override;
 
   void Flip();
-
-  void FreeAllObjects();
 };
 
 class CodeLargeObjectSpace : public LargeObjectSpace {
