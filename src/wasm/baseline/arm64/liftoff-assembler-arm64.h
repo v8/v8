@@ -628,12 +628,24 @@ void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("f32_copysign");
+  UseScratchRegisterScope temps(this);
+  DoubleRegister scratch = temps.AcquireD();
+  Ushr(scratch.V2S(), rhs.V2S(), 31);
+  if (dst != lhs) {
+    Fmov(dst.S(), lhs.S());
+  }
+  Sli(dst.V2S(), scratch.V2S(), 31);
 }
 
 void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("f64_copysign");
+  UseScratchRegisterScope temps(this);
+  DoubleRegister scratch = temps.AcquireD();
+  Ushr(scratch.V1D(), rhs.V1D(), 63);
+  if (dst != lhs) {
+    Fmov(dst.D(), lhs.D());
+  }
+  Sli(dst.V1D(), scratch.V1D(), 63);
 }
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,

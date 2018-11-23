@@ -626,7 +626,6 @@ UNIMPLEMENTED_FP_UNOP(f32_floor)
 UNIMPLEMENTED_FP_UNOP(f32_trunc)
 UNIMPLEMENTED_FP_UNOP(f32_nearest_int)
 UNIMPLEMENTED_FP_UNOP(f32_sqrt)
-UNIMPLEMENTED_FP_BINOP(f64_copysign)
 FP64_BINOP(f64_add, vadd)
 FP64_BINOP(f64_sub, vsub)
 FP64_BINOP(f64_mul, vmul)
@@ -845,6 +844,26 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   // This is a nop on arm.
+}
+
+void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  constexpr uint32_t kF64SignBitHighWord = uint32_t{1} << 31;
+  // On arm, we cannot hold the whole f64 value in a gp register, so we just
+  // operate on the upper half (UH).
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Register scratch2 = GetUnusedRegister(kGpReg).gp();
+  VmovHigh(scratch, lhs);
+  // Clear sign bit in {scratch}.
+  bic(scratch, scratch, Operand(kF64SignBitHighWord));
+  VmovHigh(scratch2, rhs);
+  // Isolate sign bit in {scratch2}.
+  and_(scratch2, scratch2, Operand(kF64SignBitHighWord));
+  // Combine {scratch2} into {scratch}.
+  orr(scratch, scratch, scratch2);
+  vmov(dst, lhs);
+  VmovHigh(dst, scratch);
 }
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
