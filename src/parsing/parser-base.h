@@ -941,7 +941,7 @@ class ParserBase {
   // "arguments" as identifier even in strict mode (this is needed in cases like
   // "var foo = eval;").
   IdentifierT ParseIdentifier(AllowRestrictedIdentifiers);
-  IdentifierT ParseAndClassifyIdentifier();
+  V8_INLINE IdentifierT ParseAndClassifyIdentifier();
   // Parses an identifier or a strict mode future reserved word, and indicate
   // whether it is strict mode future reserved. Allows passing in function_kind
   // for the case of parsing the identifier in a function expression, where the
