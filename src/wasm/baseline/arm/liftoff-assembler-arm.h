@@ -102,6 +102,90 @@ inline Register CalculateActualAddress(LiftoffAssembler* assm,
   return actual_addr_reg;
 }
 
+inline Condition MakeUnsigned(Condition cond) {
+  switch (cond) {
+    case kSignedLessThan:
+      return kUnsignedLessThan;
+    case kSignedLessEqual:
+      return kUnsignedLessEqual;
+    case kSignedGreaterThan:
+      return kUnsignedGreaterThan;
+    case kSignedGreaterEqual:
+      return kUnsignedGreaterEqual;
+    case kEqual:
+    case kUnequal:
+    case kUnsignedLessThan:
+    case kUnsignedLessEqual:
+    case kUnsignedGreaterThan:
+    case kUnsignedGreaterEqual:
+      return cond;
+    default:
+      UNREACHABLE();
+  }
+}
+
+enum class MinOrMax : uint8_t { kMin, kMax };
+inline void EmitFloatMinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
+                              DoubleRegister lhs, DoubleRegister rhs,
+                              MinOrMax min_or_max) {
+  Label is_nan;
+  Label lhs_below_rhs;
+  Label lhs_above_rhs;
+  Label done;
+  // Check the easy cases first: nan (e.g. unordered), smaller and greater.
+  assm->VFPCompareAndSetFlags(lhs, rhs);
+  assm->b(&is_nan, vs);
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(assm, ARMv8);
+    if (min_or_max == MinOrMax::kMin) {
+      assm->vminnm(dst, lhs, rhs);
+    } else {
+      assm->vmaxnm(dst, lhs, rhs);
+    }
+    assm->b(&done);
+    assm->bind(&is_nan);
+    // Create a NaN output.
+    assm->vadd(dst, lhs, rhs);
+  } else {
+    assm->b(&lhs_below_rhs, lt);
+    assm->b(&lhs_above_rhs, gt);
+
+    UseScratchRegisterScope temps(assm);
+    Register scratch = temps.Acquire();
+
+    // If we get here, then either
+    // a) {lhs == rhs},
+    // b) {lhs == -0.0} and {rhs == 0.0}, or
+    // c) {lhs == 0.0} and {rhs == -0.0}.
+    // For a), it does not matter whether we return {lhs} or {rhs}. Check the
+    // sign bit of {rhs} to differentiate b) and c).
+    assm->VmovHigh(scratch, lhs);
+    assm->cmp(scratch, Operand(0));
+    assm->b(&lhs_below_rhs, mi);
+    assm->b(&lhs_above_rhs);
+    assm->bind(&is_nan);
+    // Create a NaN output.
+    assm->vadd(dst, lhs, rhs);
+
+    assm->b(&done);
+    assm->bind(&lhs_below_rhs);
+    DoubleRegister lhs_below_rhs_src =
+        (min_or_max == MinOrMax::kMin) ? lhs : rhs;
+    if (dst != lhs_below_rhs_src) {
+      assm->vmov(dst, lhs_below_rhs_src);
+    }
+    assm->b(&done);
+
+    assm->bind(&lhs_above_rhs);
+    DoubleRegister lhs_above_rhs_src =
+        (min_or_max == MinOrMax::kMin) ? rhs : lhs;
+    if (dst != lhs_above_rhs_src) {
+      assm->vmov(dst, lhs_above_rhs_src);
+    }
+  }
+  assm->bind(&done);
+}
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -375,7 +459,13 @@ void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
 
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
                             ValueType type) {
-  BAILOUT("Move DoubleRegister");
+  DCHECK_NE(dst, src);
+  if (type == kWasmF32) {
+    BAILOUT("Move DoubleRegister");
+  } else {
+    DCHECK_EQ(kWasmF64, type);
+    vmov(dst, src);
+  }
 }
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
@@ -482,6 +572,15 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
                                      LiftoffRegister rhs) {                    \
     BAILOUT("i64 binop: " #name);                                              \
   }
+#define FP64_UNOP(name, instruction)                                           \
+  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    instruction(dst, src);                                                     \
+  }
+#define FP64_BINOP(name, instruction)                                        \
+  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
+                                     DoubleRegister rhs) {                   \
+    instruction(dst, lhs, rhs);                                              \
+  }
 #define UNIMPLEMENTED_FP_BINOP(name)                                         \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
@@ -490,11 +589,6 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
 #define UNIMPLEMENTED_FP_UNOP(name)                                            \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     BAILOUT("fp unop: " #name);                                                \
-  }
-#define UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(name)                                \
-  bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    BAILOUT("fp unop: " #name);                                                \
-    return true;                                                               \
   }
 #define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
@@ -532,20 +626,14 @@ UNIMPLEMENTED_FP_UNOP(f32_floor)
 UNIMPLEMENTED_FP_UNOP(f32_trunc)
 UNIMPLEMENTED_FP_UNOP(f32_nearest_int)
 UNIMPLEMENTED_FP_UNOP(f32_sqrt)
-UNIMPLEMENTED_FP_BINOP(f64_add)
-UNIMPLEMENTED_FP_BINOP(f64_sub)
-UNIMPLEMENTED_FP_BINOP(f64_mul)
-UNIMPLEMENTED_FP_BINOP(f64_div)
-UNIMPLEMENTED_FP_BINOP(f64_min)
-UNIMPLEMENTED_FP_BINOP(f64_max)
 UNIMPLEMENTED_FP_BINOP(f64_copysign)
-UNIMPLEMENTED_FP_UNOP(f64_abs)
-UNIMPLEMENTED_FP_UNOP(f64_neg)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_ceil)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_floor)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_trunc)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_nearest_int)
-UNIMPLEMENTED_FP_UNOP(f64_sqrt)
+FP64_BINOP(f64_add, vadd)
+FP64_BINOP(f64_sub, vsub)
+FP64_BINOP(f64_mul, vmul)
+FP64_BINOP(f64_div, vdiv)
+FP64_UNOP(f64_abs, vabs)
+FP64_UNOP(f64_neg, vneg)
+FP64_UNOP(f64_sqrt, vsqrt)
 
 #undef I32_BINOP
 #undef I32_SHIFTOP
@@ -553,7 +641,6 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #undef UNIMPLEMENTED_I64_BINOP
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_FP_UNOP
-#undef UNIMPLEMENTED_FP_UNOP_RETURN_TRUE
 #undef UNIMPLEMENTED_I64_SHIFTOP
 
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
@@ -707,6 +794,53 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister lhs,
                                     int amount) {
   BAILOUT("i64_shr");
+}
+
+bool LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    vrintp(dst, src);
+    return true;
+  }
+  return false;
+}
+
+bool LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    vrintm(dst, src);
+    return true;
+  }
+  return false;
+}
+
+bool LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    vrintz(dst, src);
+    return true;
+  }
+  return false;
+}
+
+bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    vrintn(dst, src);
+    return true;
+  }
+  return false;
+}
+
+void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  liftoff::EmitFloatMinOrMax(this, dst, lhs, rhs, liftoff::MinOrMax::kMin);
+}
+
+void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  liftoff::EmitFloatMinOrMax(this, dst, lhs, rhs, liftoff::MinOrMax::kMax);
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
@@ -894,7 +1028,13 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
 void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("emit_f64_set_cond");
+  VFPCompareAndSetFlags(lhs, rhs);
+  mov(dst, Operand(0), LeaveCC);
+  mov(dst, Operand(1), LeaveCC, cond);
+  if (cond != ne) {
+    // If V flag set, at least one of the arguments was a Nan -> false.
+    mov(dst, Operand(0), LeaveCC, vs);
+  }
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
