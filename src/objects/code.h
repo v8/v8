@@ -563,7 +563,7 @@ class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
 
   DECL_CAST(AbstractCode)
   inline Code GetCode();
-  inline BytecodeArray* GetBytecodeArray();
+  inline BytecodeArray GetBytecodeArray();
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
@@ -680,7 +680,7 @@ class DependentCode : public WeakFixedArray {
 };
 
 // BytecodeArray represents a sequence of interpreter bytecodes.
-class BytecodeArray : public FixedArrayBase {
+class BytecodeArray : public FixedArrayBasePtr {
  public:
   enum Age {
     kNoAgeBytecodeAge = 0,
@@ -750,7 +750,7 @@ class BytecodeArray : public FixedArrayBase {
   inline ByteArray SourcePositionTable();
   inline void ClearFrameCacheFromSourcePositionTable();
 
-  DECL_CAST(BytecodeArray)
+  DECL_CAST2(BytecodeArray)
 
   // Dispatched behavior.
   inline int BytecodeArraySize();
@@ -769,7 +769,7 @@ class BytecodeArray : public FixedArrayBase {
 
   void Disassemble(std::ostream& os);
 
-  void CopyBytecodesTo(BytecodeArray* to);
+  void CopyBytecodesTo(BytecodeArray to);
 
   // Bytecode aging
   bool IsOld() const;
@@ -805,8 +805,7 @@ class BytecodeArray : public FixedArrayBase {
 
   class BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeArray);
+  OBJECT_CONSTRUCTORS(BytecodeArray, FixedArrayBasePtr);
 };
 
 // DeoptimizationData is a fixed array used to hold the deoptimization data for

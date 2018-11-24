@@ -459,6 +459,10 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Object* p) {
   CHECK(isolate->heap()->Contains(ho));
 }
 
+void HeapObjectPtr::VerifyHeapPointer(Isolate* isolate, Object* p) {
+  HeapObject::VerifyHeapPointer(isolate, p);
+}
+
 void Symbol::SymbolVerify(Isolate* isolate) {
   CHECK(IsSymbol());
   CHECK(HasHashCode());

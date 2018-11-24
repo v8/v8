@@ -144,6 +144,9 @@ class HeapObjectPtr : public ObjectPtr {
   void PrintHeader(std::ostream& os, const char* id);  // NOLINT
 #endif
   void HeapObjectVerify(Isolate* isolate);
+#ifdef VERIFY_HEAP
+  static void VerifyHeapPointer(Isolate* isolate, Object* p);
+#endif
 
   static const int kMapOffset = HeapObject::kMapOffset;
 

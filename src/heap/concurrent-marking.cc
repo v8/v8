@@ -302,7 +302,7 @@ class ConcurrentMarkingVisitor final
   // Side-effectful visitation.
   // ===========================================================================
 
-  int VisitBytecodeArray(Map map, BytecodeArray* object) {
+  int VisitBytecodeArray(Map map, BytecodeArray object) {
     if (!ShouldVisit(object)) return 0;
     int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());

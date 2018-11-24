@@ -22,9 +22,10 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBasePtr)
 
 CAST_ACCESSOR(AbstractCode)
-CAST_ACCESSOR(BytecodeArray)
+CAST_ACCESSOR2(BytecodeArray)
 CAST_ACCESSOR2(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
@@ -137,7 +138,7 @@ AbstractCode::Kind AbstractCode::kind() {
 
 Code AbstractCode::GetCode() { return Code::cast(this); }
 
-BytecodeArray* AbstractCode::GetBytecodeArray() {
+BytecodeArray AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(this);
 }
 
@@ -742,7 +743,7 @@ void BytecodeArray::clear_padding() {
 }
 
 Address BytecodeArray::GetFirstBytecodeAddress() {
-  return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
+  return ptr() - kHeapObjectTag + kHeaderSize;
 }
 
 ByteArray BytecodeArray::SourcePositionTable() {

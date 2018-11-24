@@ -2244,7 +2244,7 @@ TEST(CodeSerializerAfterExecute) {
 
     Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
     CHECK(sfi->HasBytecodeArray());
-    BytecodeArray* bytecode = sfi->GetBytecodeArray();
+    BytecodeArray bytecode = sfi->GetBytecodeArray();
     CHECK_EQ(bytecode->interrupt_budget(),
              interpreter::Interpreter::InterruptBudget());
     CHECK_EQ(bytecode->osr_loop_nesting_level(), 0);

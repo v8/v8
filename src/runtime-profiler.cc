@@ -188,7 +188,7 @@ bool RuntimeProfiler::MaybeOSR(JSFunction* function, InterpretedFrame* frame) {
 }
 
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction* function,
-                                                   BytecodeArray* bytecode) {
+                                                   BytecodeArray bytecode) {
   int ticks = function->feedback_vector()->profiler_ticks();
   if (bytecode->length() > kMaxBytecodeSizeForOpt) {
     return OptimizationReason::kDoNotOptimize;

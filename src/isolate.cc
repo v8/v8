@@ -995,8 +995,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   if (frame->is_interpreted()) {
     InterpretedFrame* iframe = static_cast<InterpretedFrame*>(frame);
     Address bytecode_start =
-        reinterpret_cast<Address>(iframe->GetBytecodeArray()) - kHeapObjectTag +
-        BytecodeArray::kHeaderSize;
+        iframe->GetBytecodeArray()->GetFirstBytecodeAddress();
     return bytecode_start + iframe->GetBytecodeOffset();
   }
 

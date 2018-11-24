@@ -158,7 +158,7 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
 
 class InterpreterData : public Struct {
  public:
-  DECL_ACCESSORS(bytecode_array, BytecodeArray)
+  DECL_ACCESSORS2(bytecode_array, BytecodeArray)
   DECL_ACCESSORS2(interpreter_trampoline, Code)
 
 // Layout description.
@@ -294,14 +294,14 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline FunctionTemplateInfo* get_api_func_data();
   inline void set_api_func_data(FunctionTemplateInfo* data);
   inline bool HasBytecodeArray() const;
-  inline BytecodeArray* GetBytecodeArray() const;
-  inline void set_bytecode_array(BytecodeArray* bytecode);
+  inline BytecodeArray GetBytecodeArray() const;
+  inline void set_bytecode_array(BytecodeArray bytecode);
   inline Code InterpreterTrampoline() const;
   inline bool HasInterpreterData() const;
   inline InterpreterData* interpreter_data() const;
   inline void set_interpreter_data(InterpreterData* interpreter_data);
-  inline BytecodeArray* GetDebugBytecodeArray() const;
-  inline void SetDebugBytecodeArray(BytecodeArray* bytecode);
+  inline BytecodeArray GetDebugBytecodeArray() const;
+  inline void SetDebugBytecodeArray(BytecodeArray bytecode);
   inline bool HasAsmWasmData() const;
   inline AsmWasmData* asm_wasm_data() const;
   inline void set_asm_wasm_data(AsmWasmData* data);

@@ -16,7 +16,7 @@ namespace internal {
 HandlerTable::HandlerTable(Code code)
     : HandlerTable(code->InstructionStart(), code->handler_table_offset()) {}
 
-HandlerTable::HandlerTable(BytecodeArray* bytecode_array)
+HandlerTable::HandlerTable(BytecodeArray bytecode_array)
     : HandlerTable(bytecode_array->handler_table()) {}
 
 HandlerTable::HandlerTable(ByteArray byte_array)

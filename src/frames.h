@@ -848,11 +848,11 @@ class InterpretedFrame : public JavaScriptFrame {
   void PatchBytecodeOffset(int new_offset);
 
   // Returns the frame's current bytecode array.
-  BytecodeArray* GetBytecodeArray() const;
+  BytecodeArray GetBytecodeArray() const;
 
   // Updates the frame's BytecodeArray with |bytecode_array|. Used by the
   // debugger to swap execution onto a BytecodeArray patched with breakpoints.
-  void PatchBytecodeArray(BytecodeArray* bytecode_array);
+  void PatchBytecodeArray(BytecodeArray bytecode_array);
 
   // Access to the interpreter register file for this frame.
   Object* ReadInterpreterRegister(int register_index) const;

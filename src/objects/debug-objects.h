@@ -64,8 +64,8 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   // and DebugBytecodeArray returns the instrumented bytecode.
   inline bool HasInstrumentedBytecodeArray();
 
-  inline BytecodeArray* OriginalBytecodeArray();
-  inline BytecodeArray* DebugBytecodeArray();
+  inline BytecodeArray OriginalBytecodeArray();
+  inline BytecodeArray DebugBytecodeArray();
 
   // --- Break points ---
   // --------------------

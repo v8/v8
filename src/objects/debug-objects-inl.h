@@ -54,12 +54,12 @@ bool DebugInfo::HasInstrumentedBytecodeArray() {
   return debug_bytecode_array()->IsBytecodeArray();
 }
 
-BytecodeArray* DebugInfo::OriginalBytecodeArray() {
+BytecodeArray DebugInfo::OriginalBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
   return BytecodeArray::cast(original_bytecode_array());
 }
 
-BytecodeArray* DebugInfo::DebugBytecodeArray() {
+BytecodeArray DebugInfo::DebugBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
   DCHECK_EQ(shared()->GetDebugBytecodeArray(), debug_bytecode_array());
   return BytecodeArray::cast(debug_bytecode_array());

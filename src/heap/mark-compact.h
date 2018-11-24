@@ -923,7 +923,7 @@ class MarkingVisitor final
 
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 
-  V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray* object);
+  V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
   V8_INLINE int VisitFixedArray(Map map, FixedArray* object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject* object);

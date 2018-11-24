@@ -249,7 +249,7 @@ void BreakIterator::Next() {
 }
 
 DebugBreakType BreakIterator::GetDebugBreakType() {
-  BytecodeArray* bytecode_array = debug_info_->OriginalBytecodeArray();
+  BytecodeArray bytecode_array = debug_info_->OriginalBytecodeArray();
   interpreter::Bytecode bytecode =
       interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
 
@@ -294,8 +294,8 @@ void BreakIterator::ClearDebugBreak() {
   DebugBreakType debug_break_type = GetDebugBreakType();
   if (debug_break_type == DEBUGGER_STATEMENT) return;
   DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
-  BytecodeArray* bytecode_array = debug_info_->DebugBytecodeArray();
-  BytecodeArray* original = debug_info_->OriginalBytecodeArray();
+  BytecodeArray bytecode_array = debug_info_->DebugBytecodeArray();
+  BytecodeArray original = debug_info_->OriginalBytecodeArray();
   bytecode_array->set(code_offset(), original->get(code_offset()));
 }
 
@@ -310,7 +310,7 @@ BreakLocation BreakIterator::GetBreakLocation() {
     // index that holds the generator object by reading it directly off the
     // bytecode array, and we'll read the actual generator object off the
     // interpreter stack frame in GetGeneratorObjectForSuspendedFrame.
-    BytecodeArray* bytecode_array = debug_info_->OriginalBytecodeArray();
+    BytecodeArray bytecode_array = debug_info_->OriginalBytecodeArray();
     interpreter::BytecodeArrayAccessor accessor(
         handle(bytecode_array, isolate()), code_offset());
 
@@ -1151,7 +1151,7 @@ class RedirectActiveFunctions : public ThreadVisitor {
       if (function->shared() != shared_) continue;
       InterpretedFrame* interpreted_frame =
           reinterpret_cast<InterpretedFrame*>(frame);
-      BytecodeArray* debug_copy = shared_->GetDebugInfo()->DebugBytecodeArray();
+      BytecodeArray debug_copy = shared_->GetDebugInfo()->DebugBytecodeArray();
       interpreted_frame->PatchBytecodeArray(debug_copy);
     }
   }
@@ -2243,7 +2243,7 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
 
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   SharedFunctionInfo* shared = frame->function()->shared();
-  BytecodeArray* bytecode_array = shared->GetBytecodeArray();
+  BytecodeArray bytecode_array = shared->GetBytecodeArray();
   int offset = frame->GetBytecodeOffset();
   interpreter::BytecodeArrayAccessor bytecode_accessor(
       handle(bytecode_array, isolate_), offset);

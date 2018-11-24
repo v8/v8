@@ -286,7 +286,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   } else if (obj->IsBytecodeArray()) {
     // TODO(mythria): Remove these once we store the default values for these
     // fields in the serializer.
-    BytecodeArray* bytecode_array = BytecodeArray::cast(obj);
+    BytecodeArray bytecode_array = BytecodeArray::cast(obj);
     bytecode_array->set_interrupt_budget(
         interpreter::Interpreter::InterruptBudget());
     bytecode_array->set_osr_loop_nesting_level(0);

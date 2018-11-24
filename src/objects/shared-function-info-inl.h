@@ -73,7 +73,7 @@ ACCESSORS(UncompiledDataWithPreParsedScope, pre_parsed_scope_data,
           PreParsedScopeData, kPreParsedScopeDataOffset)
 
 CAST_ACCESSOR(InterpreterData)
-ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
+ACCESSORS2(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
 ACCESSORS2(InterpreterData, interpreter_trampoline, Code,
            kInterpreterTrampolineOffset)
 
@@ -393,7 +393,7 @@ bool SharedFunctionInfo::HasBytecodeArray() const {
          function_data()->IsInterpreterData();
 }
 
-BytecodeArray* SharedFunctionInfo::GetBytecodeArray() const {
+BytecodeArray SharedFunctionInfo::GetBytecodeArray() const {
   DCHECK(HasBytecodeArray());
   if (HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray()) {
     return GetDebugInfo()->OriginalBytecodeArray();
@@ -405,7 +405,7 @@ BytecodeArray* SharedFunctionInfo::GetBytecodeArray() const {
   }
 }
 
-BytecodeArray* SharedFunctionInfo::GetDebugBytecodeArray() const {
+BytecodeArray SharedFunctionInfo::GetDebugBytecodeArray() const {
   DCHECK(HasBytecodeArray());
   DCHECK(HasDebugInfo() && GetDebugInfo()->HasInstrumentedBytecodeArray());
   if (function_data()->IsBytecodeArray()) {
@@ -416,7 +416,7 @@ BytecodeArray* SharedFunctionInfo::GetDebugBytecodeArray() const {
   }
 }
 
-void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray* bytecode) {
+void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray bytecode) {
   DCHECK(HasBytecodeArray());
   if (function_data()->IsBytecodeArray()) {
     set_function_data(bytecode);
@@ -426,7 +426,7 @@ void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray* bytecode) {
   }
 }
 
-void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
+void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
          HasUncompiledData());
   set_function_data(bytecode);

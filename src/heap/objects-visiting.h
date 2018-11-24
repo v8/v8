@@ -36,7 +36,7 @@ class WasmInstanceObject;
   V(AllocationSite, AllocationSite*)                                           \
   V(BigInt, BigInt*)                                                           \
   V(ByteArray, ByteArray)                                                      \
-  V(BytecodeArray, BytecodeArray*)                                             \
+  V(BytecodeArray, BytecodeArray)                                              \
   V(Cell, Cell*)                                                               \
   V(Code, Code)                                                                \
   V(CodeDataContainer, CodeDataContainer*)                                     \
@@ -137,7 +137,7 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitNativeContext(Map map, NativeContext object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject* object);
 
-  int VisitBytecodeArray(Map map, BytecodeArray* object) {
+  int VisitBytecodeArray(Map map, BytecodeArray object) {
     UNREACHABLE();
     return 0;
   }

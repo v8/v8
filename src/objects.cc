@@ -15266,8 +15266,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
 
   // Storage for backing the handle passed to the iterator. This handle won't be
   // updated by the gc, but that's ok because we've disallowed GCs anyway.
-  BytecodeArray* handle_storage = this;
-  Handle<BytecodeArray> handle(&handle_storage);
+  BytecodeArray handle_storage = *this;
+  Handle<BytecodeArray> handle(reinterpret_cast<Address*>(&handle_storage));
   interpreter::BytecodeArrayIterator iterator(handle);
   while (!iterator.done()) {
     if (!source_positions.done() &&
@@ -15315,14 +15315,14 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Handler Table (size = " << handler_table()->length() << ")\n";
 #ifdef ENABLE_DISASSEMBLER
   if (handler_table()->length() > 0) {
-    HandlerTable table(this);
+    HandlerTable table(*this);
     table.HandlerTableRangePrint(os);
   }
 #endif
 }
 
-void BytecodeArray::CopyBytecodesTo(BytecodeArray* to) {
-  BytecodeArray* from = this;
+void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
+  BytecodeArray from = *this;
   DCHECK_EQ(from->length(), to->length());
   CopyBytes(reinterpret_cast<byte*>(to->GetFirstBytecodeAddress()),
             reinterpret_cast<byte*>(from->GetFirstBytecodeAddress()),

@@ -375,7 +375,7 @@ class ObjectStatsCollectorImpl {
 
   // Details.
   void RecordVirtualAllocationSiteDetails(AllocationSite* site);
-  void RecordVirtualBytecodeArrayDetails(BytecodeArray* bytecode);
+  void RecordVirtualBytecodeArrayDetails(BytecodeArray bytecode);
   void RecordVirtualCodeDetails(Code code);
   void RecordVirtualContext(Context context);
   void RecordVirtualFeedbackVectorDetails(FeedbackVector* vector);
@@ -877,7 +877,7 @@ void ObjectStatsCollectorImpl::
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
-    BytecodeArray* bytecode) {
+    BytecodeArray bytecode) {
   RecordSimpleVirtualObjectStats(
       bytecode, bytecode->constant_pool(),
       ObjectStats::BYTECODE_ARRAY_CONSTANT_POOL_TYPE);

@@ -1592,7 +1592,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == BYTECODE_ARRAY_TYPE) {
     return BytecodeArray::SizeFor(
-        reinterpret_cast<const BytecodeArray*>(this)->synchronized_length());
+        BytecodeArray::unchecked_cast(this)->synchronized_length());
   }
   if (instance_type == FREE_SPACE_TYPE) {
     return reinterpret_cast<const FreeSpace*>(this)->relaxed_read_size();
