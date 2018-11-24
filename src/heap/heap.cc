@@ -2965,6 +2965,9 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
       }
     }
   }
+  // We potentially deserialized wrappers which require registering with the
+  // embedder as the marker will not find them.
+  local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
 
   // Large object space doesn't use reservations, so it needs custom handling.
   for (HeapObject* object : large_objects) {
@@ -4542,6 +4545,18 @@ void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
 
 EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
   return local_embedder_heap_tracer()->remote_tracer();
+}
+
+void Heap::TracePossibleWrapper(JSObject* js_object) {
+  DCHECK(js_object->IsApiWrapper());
+  if (js_object->GetEmbedderFieldCount() < 2) return;
+  void* pointer0;
+  void* pointer1;
+  if (EmbedderDataSlot(js_object, 0).ToAlignedPointer(&pointer0) && pointer0 &&
+      EmbedderDataSlot(js_object, 1).ToAlignedPointer(&pointer1)) {
+    local_embedder_heap_tracer()->AddWrapperToTrace(
+        std::pair<void*, void*>(pointer0, pointer1));
+  }
 }
 
 void Heap::RegisterExternallyReferencedObject(Address* location) {

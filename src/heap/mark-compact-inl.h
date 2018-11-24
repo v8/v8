@@ -74,8 +74,7 @@ V8_INLINE int
 MarkingVisitor<fixed_array_mode, retaining_path_mode,
                MarkingState>::VisitEmbedderTracingSubclass(Map map, T* object) {
   if (heap_->local_embedder_heap_tracer()->InUse()) {
-    marking_worklist()->embedder()->Push(MarkCompactCollectorBase::kMainThread,
-                                         object);
+    heap_->TracePossibleWrapper(object);
   }
   int size = T::BodyDescriptor::SizeOf(map, object);
   T::BodyDescriptor::IterateBody(map, object, size, this);

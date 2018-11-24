@@ -279,6 +279,10 @@ void ScavengerCollector::CollectGarbage() {
 
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedNewSpaceObjectSize());
+
+  // Scavenger may find new wrappers by iterating objects promoted onto a black
+  // page.
+  heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
 }
 
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {

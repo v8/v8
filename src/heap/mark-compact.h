@@ -235,8 +235,6 @@ enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 // Base class for minor and full MC collectors.
 class MarkCompactCollectorBase {
  public:
-  static const int kMainThread = 0;
-
   virtual ~MarkCompactCollectorBase() = default;
 
   virtual void SetUp() = 0;
@@ -247,6 +245,7 @@ class MarkCompactCollectorBase {
   inline Isolate* isolate();
 
  protected:
+  static const int kMainThread = 0;
   explicit MarkCompactCollectorBase(Heap* heap)
       : heap_(heap), old_to_new_slots_(0) {}
 
