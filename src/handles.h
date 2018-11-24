@@ -30,6 +30,9 @@ class Isolate;
 template <typename T>
 class MaybeHandle;
 class ObjectPtr;
+class OrderedHashMap;
+class OrderedHashSet;
+class OrderedNameDictionary;
 
 // ----------------------------------------------------------------------------
 // Base class for Handle instantiations.  Don't use directly.
@@ -138,14 +141,18 @@ class Handle final : public HandleBase {
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
   // TODO(3770): Remove special cases after the migration.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value ||
-                            std::is_same<T, Object>::value ||
-                            (std::is_same<T, HeapObject>::value &&
-                             (std::is_same<S, Code>::value ||
-                              std::is_same<S, Context>::value ||
-                              std::is_same<S, Map>::value ||
-                              std::is_same<S, NumberDictionary>::value))>::type>
+  template <
+      typename S,
+      typename = typename std::enable_if<
+          std::is_convertible<S*, T*>::value ||
+          std::is_same<T, Object>::value ||
+          (std::is_same<T, HeapObject>::value &&
+           (std::is_same<S, Code>::value || std::is_same<S, Context>::value ||
+            std::is_same<S, Map>::value ||
+            std::is_same<S, NumberDictionary>::value ||
+            std::is_same<S, OrderedHashMap>::value ||
+            std::is_same<S, OrderedHashSet>::value ||
+            std::is_same<S, OrderedNameDictionary>::value))>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
   // The NeverReadOnlySpaceObject special-case is needed for the

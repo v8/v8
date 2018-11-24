@@ -528,6 +528,25 @@ StringSet::StringSet(Address ptr) : HashTable<StringSet, StringSetShape>(ptr) {
   SLOW_DCHECK(IsStringSet());
 }
 
+template <class Derived, int entrysize>
+OrderedHashTable<Derived, entrysize>::OrderedHashTable(Address ptr)
+    : FixedArrayPtr(ptr) {}
+
+OrderedHashSet::OrderedHashSet(Address ptr)
+    : OrderedHashTable<OrderedHashSet, 1>(ptr) {
+  SLOW_DCHECK(IsOrderedHashSet());
+}
+
+OrderedHashMap::OrderedHashMap(Address ptr)
+    : OrderedHashTable<OrderedHashMap, 2>(ptr) {
+  SLOW_DCHECK(IsOrderedHashMap());
+}
+
+OrderedNameDictionary::OrderedNameDictionary(Address ptr)
+    : OrderedHashTable<OrderedNameDictionary, 3>(ptr) {
+  SLOW_DCHECK(IsOrderedNameDictionary());
+}
+
 // ------------------------------------
 // Cast operations
 
@@ -547,7 +566,7 @@ CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(MutableHeapNumber)
-CAST_ACCESSOR(OrderedNameDictionary)
+CAST_ACCESSOR2(OrderedNameDictionary)
 CAST_ACCESSOR2(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
 CAST_ACCESSOR2(NumberDictionary)
@@ -555,8 +574,8 @@ CAST_ACCESSOR(Object)
 CAST_ACCESSOR2(ObjectHashSet)
 CAST_ACCESSOR2(ObjectHashTable)
 CAST_ACCESSOR(Oddball)
-CAST_ACCESSOR(OrderedHashMap)
-CAST_ACCESSOR(OrderedHashSet)
+CAST_ACCESSOR2(OrderedHashMap)
+CAST_ACCESSOR2(OrderedHashSet)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
@@ -2028,7 +2047,7 @@ Relocatable::~Relocatable() {
 
 template<class Derived, class TableType>
 Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
-  TableType* table(TableType::cast(this->table()));
+  TableType table = TableType::cast(this->table());
   int index = Smi::ToInt(this->index());
   Object* key = table->KeyAt(index);
   DCHECK(!key->IsTheHole());

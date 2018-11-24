@@ -81,7 +81,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
 
 template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
-                                                  Derived* table, Object* key) {
+                                                  Derived table, Object* key) {
   DCHECK((entrysize == 1 && table->IsOrderedHashSet()) ||
          (entrysize == 2 && table->IsOrderedHashMap()) ||
          (entrysize == 3 && table->IsOrderedNameDictionary()));
@@ -227,7 +227,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
 
 template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
-                                                  Derived* table, Object* key) {
+                                                  Derived table, Object* key) {
   DisallowHeapAllocation no_gc;
   int entry = table->FindEntry(isolate, key);
   if (entry == kNotFound) return false;
@@ -376,11 +376,11 @@ template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Clear(
     Isolate* isolate, Handle<OrderedHashSet> table);
 
 template bool OrderedHashTable<OrderedHashSet, 1>::HasKey(Isolate* isolate,
-                                                          OrderedHashSet* table,
+                                                          OrderedHashSet table,
                                                           Object* key);
 
 template bool OrderedHashTable<OrderedHashSet, 1>::Delete(Isolate* isolate,
-                                                          OrderedHashSet* table,
+                                                          OrderedHashSet table,
                                                           Object* key);
 
 template int OrderedHashTable<OrderedHashSet, 1>::FindEntry(Isolate* isolate,
@@ -400,11 +400,11 @@ template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Clear(
     Isolate* isolate, Handle<OrderedHashMap> table);
 
 template bool OrderedHashTable<OrderedHashMap, 2>::HasKey(Isolate* isolate,
-                                                          OrderedHashMap* table,
+                                                          OrderedHashMap table,
                                                           Object* key);
 
 template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
-                                                          OrderedHashMap* table,
+                                                          OrderedHashMap table,
                                                           Object* key);
 
 template int OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate,
@@ -416,7 +416,7 @@ OrderedHashTable<OrderedNameDictionary, 3>::Allocate(Isolate* isolate,
                                                      PretenureFlag pretenure);
 
 template bool OrderedHashTable<OrderedNameDictionary, 3>::HasKey(
-    Isolate* isolate, OrderedNameDictionary* table, Object* key);
+    Isolate* isolate, OrderedNameDictionary table, Object* key);
 
 template Handle<OrderedNameDictionary>
 OrderedHashTable<OrderedNameDictionary, 3>::EnsureGrowable(
@@ -888,12 +888,12 @@ Handle<HeapObject> OrderedHashSetHandler::Add(Isolate* isolate,
 template <class Derived, class TableType>
 void OrderedHashTableIterator<Derived, TableType>::Transition() {
   DisallowHeapAllocation no_allocation;
-  TableType* table = TableType::cast(this->table());
+  TableType table = TableType::cast(this->table());
   if (!table->IsObsolete()) return;
 
   int index = Smi::ToInt(this->index());
   while (table->IsObsolete()) {
-    TableType* next_table = table->NextTable();
+    TableType next_table = table->NextTable();
 
     if (index > 0) {
       int nod = table->NumberOfDeletedElements();
@@ -924,7 +924,7 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
 
   Transition();
 
-  TableType* table = TableType::cast(this->table());
+  TableType table = TableType::cast(this->table());
   int index = Smi::ToInt(this->index());
   int used_capacity = table->UsedCapacity();
 

@@ -75,7 +75,9 @@ void KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
   }
   if (IsShadowed(key)) return;
   if (keys_.is_null()) {
-    keys_ = OrderedHashSet::Allocate(isolate_, 16);
+    // TODO(3770): Drop explicit conversion.
+    keys_ =
+        Handle<FixedArray>(OrderedHashSet::Allocate(isolate_, 16).location());
   }
   uint32_t index;
   if (convert == CONVERT_TO_ARRAY_INDEX && key->IsString() &&
@@ -88,7 +90,8 @@ void KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
     // be left-trimmer. Hence the previous Set should not keep a pointer to the
     // new one.
     keys_->set(OrderedHashSet::kNextTableIndex, Smi::kZero);
-    keys_ = new_set;
+    // TODO(3770): Drop explicit conversion.
+    keys_ = Handle<FixedArray>(new_set.location());
   }
 }
 

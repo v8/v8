@@ -53,7 +53,7 @@ namespace internal {
 //   [3 + NumberOfRemovedHoles()..length]: Not used
 //
 template <class Derived, int entrysize>
-class OrderedHashTable : public FixedArray {
+class OrderedHashTable : public FixedArrayPtr {
  public:
   // Returns an OrderedHashTable with a capacity of at least |capacity|.
   static Handle<Derived> Allocate(Isolate* isolate, int capacity,
@@ -73,11 +73,11 @@ class OrderedHashTable : public FixedArray {
   static Handle<Derived> Clear(Isolate* isolate, Handle<Derived> table);
 
   // Returns true if the OrderedHashTable contains the key
-  static bool HasKey(Isolate* isolate, Derived* table, Object* key);
+  static bool HasKey(Isolate* isolate, Derived table, Object* key);
 
   // Returns a true value if the OrderedHashTable contains the key and
   // the key has been deleted. This does not shrink the table.
-  static bool Delete(Isolate* isolate, Derived* table, Object* key);
+  static bool Delete(Isolate* isolate, Derived table, Object* key);
 
   int FindEntry(Isolate* isolate, Object* key);
 
@@ -124,7 +124,7 @@ class OrderedHashTable : public FixedArray {
   bool IsObsolete() { return !get(kNextTableIndex)->IsSmi(); }
 
   // The next newer table. This is only valid if the table is obsolete.
-  Derived* NextTable() { return Derived::cast(get(kNextTableIndex)); }
+  Derived NextTable() { return Derived::cast(get(kNextTableIndex)); }
 
   // When the table is obsolete we store the indexes of the removed holes.
   int RemovedIndexAt(int index) {
@@ -185,16 +185,18 @@ class OrderedHashTable : public FixedArray {
   // Returns the number elements that can fit into the allocated buffer.
   int Capacity() { return NumberOfBuckets() * kLoadFactor; }
 
-  void SetNextTable(Derived* next_table) { set(kNextTableIndex, next_table); }
+  void SetNextTable(Derived next_table) { set(kNextTableIndex, next_table); }
 
   void SetRemovedIndexAt(int index, int removed_index) {
     return set(kRemovedHolesIndex + index, Smi::FromInt(removed_index));
   }
+
+  OBJECT_CONSTRUCTORS(OrderedHashTable, FixedArrayPtr)
 };
 
 class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
  public:
-  DECL_CAST(OrderedHashSet)
+  DECL_CAST2(OrderedHashSet)
 
   static Handle<OrderedHashSet> Add(Isolate* isolate,
                                     Handle<OrderedHashSet> table,
@@ -205,11 +207,13 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
   static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
   static inline bool Is(Handle<HeapObject> table);
+
+  OBJECT_CONSTRUCTORS(OrderedHashSet, OrderedHashTable<OrderedHashSet, 1>)
 };
 
 class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
  public:
-  DECL_CAST(OrderedHashMap)
+  DECL_CAST2(OrderedHashMap)
 
   // Returns a value if the OrderedHashMap contains the key, otherwise
   // returns undefined.
@@ -225,6 +229,8 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
   static inline bool Is(Handle<HeapObject> table);
 
   static const int kValueOffset = 1;
+
+  OBJECT_CONSTRUCTORS(OrderedHashMap, OrderedHashTable<OrderedHashMap, 2>)
 };
 
 // This is similar to the OrderedHashTable, except for the memory
@@ -573,7 +579,7 @@ class OrderedHashSetHandler
 class OrderedNameDictionary
     : public OrderedHashTable<OrderedNameDictionary, 3> {
  public:
-  DECL_CAST(OrderedNameDictionary)
+  DECL_CAST2(OrderedNameDictionary)
 
   static Handle<OrderedNameDictionary> Add(Isolate* isolate,
                                            Handle<OrderedNameDictionary> table,
@@ -598,6 +604,9 @@ class OrderedNameDictionary
 
   static const int kValueOffset = 1;
   static const int kPropertyDetailsOffset = 2;
+
+  OBJECT_CONSTRUCTORS(OrderedNameDictionary,
+                      OrderedHashTable<OrderedNameDictionary, 3>)
 };
 
 class SmallOrderedNameDictionary

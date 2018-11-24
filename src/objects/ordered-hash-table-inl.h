@@ -10,6 +10,9 @@
 #include "src/heap/heap.h"
 #include "src/objects/fixed-array-inl.h"
 
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -113,5 +116,7 @@ inline bool SmallOrderedHashMap::Is(Handle<HeapObject> table) {
 }
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_ORDERED_HASH_TABLE_INL_H_
