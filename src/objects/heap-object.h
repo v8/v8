@@ -110,6 +110,7 @@ class HeapObjectPtr : public ObjectPtr {
 
   inline ObjectSlot map_slot();
   inline MapWord map_word() const;
+  inline void set_map_word(MapWord map_word);
 
   inline WriteBarrierMode GetWriteBarrierMode(
       const DisallowHeapAllocation& promise);
@@ -122,8 +123,7 @@ class HeapObjectPtr : public ObjectPtr {
 
   bool is_null() const { return ptr() == kNullAddress; }
 
-  bool IsHeapObject() const { return true; }
-  bool IsHeapObjectPtr() const { return true; }
+  bool IsHeapObjectPtr() const { return IsHeapObject(); }
 
   inline ReadOnlyRoots GetReadOnlyRoots() const;
 
@@ -146,6 +146,12 @@ class HeapObjectPtr : public ObjectPtr {
   void HeapObjectVerify(Isolate* isolate);
 
   static const int kMapOffset = HeapObject::kMapOffset;
+
+ protected:
+  // Special-purpose constructor for subclasses that have fast paths where
+  // their ptr() is a Smi.
+  enum class AllowInlineSmiStorage { kRequireHeapObjectTag, kAllowBeingASmi };
+  inline HeapObjectPtr(Address ptr, AllowInlineSmiStorage allow_smi);
 
   OBJECT_CONSTRUCTORS(HeapObjectPtr, ObjectPtr)
 };

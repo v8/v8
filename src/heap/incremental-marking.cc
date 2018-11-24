@@ -137,7 +137,7 @@ bool IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
 void IncrementalMarking::MarkBlackAndPush(HeapObject* obj) {
   // Marking left-trimmable fixed array black is unsafe because left-trimming
   // re-pushes only grey arrays onto the marking worklist.
-  DCHECK(!obj->IsFixedArrayBase());
+  DCHECK(!obj->IsFixedArray() && !obj->IsFixedDoubleArray());
   // Color the object black and push it into the bailout deque.
   marking_state()->WhiteToGrey(obj);
   if (marking_state()->GreyToBlack(obj)) {

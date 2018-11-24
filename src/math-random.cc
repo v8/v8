@@ -34,7 +34,7 @@ void MathRandom::ResetContext(Context native_context) {
 Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
   Context native_context = Context::cast(ObjectPtr(raw_native_context));
   DisallowHeapAllocation no_gc;
-  PodArray<State>* pod =
+  PodArray<State> pod =
       PodArray<State>::cast(native_context->math_random_state());
   State state = pod->get(0);
   // Initialize state if not yet initialized. If a fixed random seed was

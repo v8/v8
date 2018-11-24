@@ -940,7 +940,7 @@ void Serializer::ObjectSerializer::OutputCode(int size) {
   // With enabled pointer compression normal accessors no longer work for
   // off-heap objects, so we have to get the relocation info data via the
   // on-heap code object.
-  ByteArray* relocation_info = on_heap_code->unchecked_relocation_info();
+  ByteArray relocation_info = on_heap_code->unchecked_relocation_info();
   for (RelocIterator it(off_heap_code, relocation_info, mode_mask); !it.done();
        it.next()) {
     RelocInfo* rinfo = it.rinfo();

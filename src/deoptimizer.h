@@ -893,7 +893,7 @@ class TranslationBuffer {
 
 class TranslationIterator {
  public:
-  TranslationIterator(ByteArray* buffer, int index);
+  TranslationIterator(ByteArray buffer, int index);
 
   int32_t Next();
 
@@ -904,7 +904,7 @@ class TranslationIterator {
   }
 
  private:
-  ByteArray* buffer_;
+  ByteArray buffer_;
   int index_;
 };
 

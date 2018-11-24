@@ -75,7 +75,7 @@ class Code : public HeapObjectPtr {
   int OffHeapInstructionSize() const;
 
   // [relocation_info]: Code relocation information
-  DECL_ACCESSORS(relocation_info, ByteArray)
+  DECL_ACCESSORS2(relocation_info, ByteArray)
 
   // This function should be called only from GC.
   void ClearEmbeddedObjects(Heap* heap);
@@ -86,7 +86,7 @@ class Code : public HeapObjectPtr {
   // [source_position_table]: ByteArray for the source positions table or
   // SourcePositionTableWithFrameCache.
   DECL_ACCESSORS(source_position_table, Object)
-  inline ByteArray* SourcePositionTable() const;
+  inline ByteArray SourcePositionTable() const;
 
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_ACCESSORS(code_data_container, CodeDataContainer)
@@ -106,7 +106,7 @@ class Code : public HeapObjectPtr {
   inline void set_constant_pool_offset(int offset);
 
   // Unchecked accessors to be used during GC.
-  inline ByteArray* unchecked_relocation_info() const;
+  inline ByteArray unchecked_relocation_info() const;
 
   inline int relocation_size() const;
 
@@ -320,7 +320,7 @@ class Code : public HeapObjectPtr {
 
   // Copy the RelocInfo portion of |desc| to |dest|. The ByteArray must be
   // exactly the same size as the RelocInfo in |desc|.
-  static inline void CopyRelocInfoToByteArray(ByteArray* dest,
+  static inline void CopyRelocInfoToByteArray(ByteArray dest,
                                               const CodeDesc& desc);
 
   // Flushes the instruction cache for the executable instructions of this code
@@ -541,7 +541,7 @@ class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
   inline int InstructionSize();
 
   // Return the source position table.
-  inline ByteArray* source_position_table();
+  inline ByteArray source_position_table();
 
   inline Object* stack_frame_cache();
   static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
@@ -741,13 +741,13 @@ class BytecodeArray : public FixedArrayBase {
   DECL_ACCESSORS(constant_pool, FixedArray)
 
   // Accessors for handler table containing offsets of exception handlers.
-  DECL_ACCESSORS(handler_table, ByteArray)
+  DECL_ACCESSORS2(handler_table, ByteArray)
 
   // Accessors for source position table containing mappings between byte code
   // offset and source position or SourcePositionTableWithFrameCache.
   DECL_ACCESSORS(source_position_table, Object)
 
-  inline ByteArray* SourcePositionTable();
+  inline ByteArray SourcePositionTable();
   inline void ClearFrameCacheFromSourcePositionTable();
 
   DECL_CAST(BytecodeArray)
@@ -839,14 +839,14 @@ class DeoptimizationData : public FixedArrayPtr {
   inline type name() const;                \
   inline void Set##name(type value);
 
-  DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray*)
+  DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
   DECL_ELEMENT_ACCESSORS(LiteralArray, FixedArray*)
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
   DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object*)
-  DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>*)
+  DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
 #undef DECL_ELEMENT_ACCESSORS
 
@@ -898,7 +898,7 @@ class DeoptimizationData : public FixedArrayPtr {
 
 class SourcePositionTableWithFrameCache : public Tuple2 {
  public:
-  DECL_ACCESSORS(source_position_table, ByteArray)
+  DECL_ACCESSORS2(source_position_table, ByteArray)
   DECL_ACCESSORS2(stack_frame_cache, SimpleNumberDictionary)
 
   DECL_CAST(SourcePositionTableWithFrameCache)

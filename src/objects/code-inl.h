@@ -31,8 +31,8 @@ CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR2(DeoptimizationData)
 CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 
-ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
-          kSourcePositionTableIndex)
+ACCESSORS2(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
+           kSourcePositionTableIndex)
 ACCESSORS2(SourcePositionTableWithFrameCache, stack_frame_cache,
            SimpleNumberDictionary, kStackFrameCacheIndex)
 
@@ -52,7 +52,7 @@ int AbstractCode::InstructionSize() {
   }
 }
 
-ByteArray* AbstractCode::source_position_table() {
+ByteArray AbstractCode::source_position_table() {
   if (IsCode()) {
     return GetCode()->SourcePositionTable();
   } else {
@@ -189,16 +189,29 @@ INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 #define CODE_ACCESSORS(name, type, offset) \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, !Heap::InNewSpace(value))
-#define SYNCHRONIZED_CODE_ACCESSORS(name, type, offset)           \
-  SYNCHRONIZED_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
-                                  !Heap::InNewSpace(value))
-CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
+#define CODE_ACCESSORS2(name, type, offset) \
+  ACCESSORS_CHECKED3(Code, name, type, offset, true, !Heap::InNewSpace(value))
+// TODO(3770): Use shared SYNCHRONIZED_ACCESSORS_CHECKED2 when migrating
+// CodeDataContainer*.
+#define SYNCHRONIZED_CODE_ACCESSORS(name, type, offset)         \
+  type* Code::name() const {                                    \
+    type* value = type::cast(ACQUIRE_READ_FIELD(this, offset)); \
+    return value;                                               \
+  }                                                             \
+  void Code::set_##name(type* value, WriteBarrierMode mode) {   \
+    DCHECK(!Heap::InNewSpace(value));                           \
+    RELEASE_WRITE_FIELD(this, offset, value);                   \
+    CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);       \
+  }
+CODE_ACCESSORS2(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
 // Concurrent marker needs to access kind specific flags in code data container.
 SYNCHRONIZED_CODE_ACCESSORS(code_data_container, CodeDataContainer,
                             kCodeDataContainerOffset)
 #undef CODE_ACCESSORS
+#undef CODE_ACCESSORS2
+#undef SYNCHRONIZED_CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
   WRITE_FIELD(this, kRelocationInfoOffset, Smi::FromInt(0));
@@ -216,7 +229,7 @@ void Code::clear_padding() {
          CodeSize() - (data_end - address()));
 }
 
-ByteArray* Code::SourcePositionTable() const {
+ByteArray Code::SourcePositionTable() const {
   Object* maybe_table = source_position_table();
   if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
@@ -315,8 +328,8 @@ int Code::SizeIncludingMetadata() const {
   return size;
 }
 
-ByteArray* Code::unchecked_relocation_info() const {
-  return reinterpret_cast<ByteArray*>(READ_FIELD(this, kRelocationInfoOffset));
+ByteArray Code::unchecked_relocation_info() const {
+  return ByteArray::unchecked_cast(READ_FIELD(this, kRelocationInfoOffset));
 }
 
 byte* Code::relocation_start() const {
@@ -352,7 +365,7 @@ int Code::ExecutableSize() const {
 }
 
 // static
-void Code::CopyRelocInfoToByteArray(ByteArray* dest, const CodeDesc& desc) {
+void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
   DCHECK_EQ(dest->length(), desc.reloc_size);
   CopyBytes(dest->GetDataStartAddress(),
             desc.buffer + desc.buffer_size - desc.reloc_size,
@@ -718,7 +731,7 @@ int BytecodeArray::parameter_count() const {
 }
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
-ACCESSORS(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
+ACCESSORS2(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
 ACCESSORS(BytecodeArray, source_position_table, Object,
           kSourcePositionTableOffset)
 
@@ -732,7 +745,7 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
   return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
 }
 
-ByteArray* BytecodeArray::SourcePositionTable() {
+ByteArray BytecodeArray::SourcePositionTable() {
   Object* maybe_table = source_position_table();
   if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());

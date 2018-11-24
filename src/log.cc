@@ -1345,7 +1345,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   msg << kNext;
   int maxInlinedId = -1;
   if (hasInlined) {
-    PodArray<InliningPosition>* inlining_positions =
+    PodArray<InliningPosition> inlining_positions =
         DeoptimizationData::cast(Code::cast(code)->deoptimization_data())
             ->InliningPositions();
     for (int i = 0; i < inlining_positions->length(); i++) {
@@ -1437,7 +1437,7 @@ void CodeLinePosEvent(JitLogger* jit_logger, Address code_start,
 }  // namespace
 
 void Logger::CodeLinePosInfoRecordEvent(Address code_start,
-                                        ByteArray* source_position_table) {
+                                        ByteArray source_position_table) {
   SourcePositionTableIterator iter(source_position_table);
   CodeLinePosEvent(jit_logger_, code_start, iter);
 }

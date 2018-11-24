@@ -345,8 +345,7 @@ void StringStream::PrintFixedArray(FixedArray* array, unsigned int limit) {
   }
 }
 
-
-void StringStream::PrintByteArray(ByteArray* byte_array) {
+void StringStream::PrintByteArray(ByteArray byte_array) {
   unsigned int limit = byte_array->length();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
     byte b = byte_array->get(i);
@@ -366,7 +365,6 @@ void StringStream::PrintByteArray(ByteArray* byte_array) {
     Add("                  ...\n");
   }
 }
-
 
 void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
   if (object_print_mode_ == kPrintObjectConcise) return;

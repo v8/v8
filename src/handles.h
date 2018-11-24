@@ -147,7 +147,8 @@ class Handle final : public HandleBase {
           std::is_convertible<S*, T*>::value ||
           std::is_same<T, Object>::value ||
           (std::is_same<T, HeapObject>::value &&
-           (std::is_same<S, Code>::value || std::is_same<S, Context>::value ||
+           (std::is_same<S, ByteArray>::value || std::is_same<S, Code>::value ||
+            std::is_same<S, Context>::value ||
             std::is_same<S, FixedDoubleArray>::value ||
             std::is_same<S, Map>::value ||
             std::is_same<S, NumberDictionary>::value ||

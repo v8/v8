@@ -141,6 +141,11 @@ class FixedArrayBasePtr : public HeapObjectPtr {
   static const int kLengthOffset = FixedArrayBase::kLengthOffset;
   static const int kHeaderSize = FixedArrayBase::kHeaderSize;
 
+ protected:
+  // Special-purpose constructor for subclasses that have fast paths where
+  // their ptr() is a Smi.
+  inline FixedArrayBasePtr(Address ptr, AllowInlineSmiStorage allow_smi);
+
   OBJECT_CONSTRUCTORS(FixedArrayBasePtr, HeapObjectPtr)
 };
 
@@ -603,7 +608,7 @@ inline int Search(T* array, Name* name, int valid_entries = 0,
 
 // ByteArray represents fixed sized byte arrays.  Used for the relocation info
 // that is attached to code objects.
-class ByteArray : public FixedArrayBase {
+class ByteArray : public FixedArrayBasePtr {
  public:
   inline int Size();
 
@@ -647,9 +652,9 @@ class ByteArray : public FixedArrayBase {
   inline int DataSize() const;
 
   // Returns a pointer to the ByteArray object for a given data start address.
-  static inline ByteArray* FromDataStartAddress(Address address);
+  static inline ByteArray FromDataStartAddress(Address address);
 
-  DECL_CAST(ByteArray)
+  DECL_CAST2(ByteArray)
 
   // Dispatched behavior.
   inline int ByteArraySize();
@@ -666,8 +671,12 @@ class ByteArray : public FixedArrayBase {
 
   class BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
+ protected:
+  // Special-purpose constructor for subclasses that have fast paths where
+  // their ptr() is a Smi.
+  inline ByteArray(Address ptr, AllowInlineSmiStorage allow_smi);
+
+  OBJECT_CONSTRUCTORS(ByteArray, FixedArrayBasePtr);
 };
 
 // Wrapper class for ByteArray which can store arbitrary C++ classes, as long
@@ -690,11 +699,10 @@ class PodArray : public ByteArray {
     copy_in(index * sizeof(T), reinterpret_cast<const byte*>(&value),
             sizeof(T));
   }
-  inline int length();
-  DECL_CAST(PodArray<T>)
+  inline int length() const;
+  DECL_CAST2(PodArray<T>)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PodArray<T>);
+  OBJECT_CONSTRUCTORS(PodArray<T>, ByteArray);
 };
 
 class FixedTypedArrayBase : public FixedArrayBasePtr {

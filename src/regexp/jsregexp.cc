@@ -392,8 +392,7 @@ int RegExpImpl::IrregexpNumberOfRegisters(FixedArray* re) {
   return Smi::ToInt(re->get(JSRegExp::kIrregexpMaxRegisterCountIndex));
 }
 
-
-ByteArray* RegExpImpl::IrregexpByteCode(FixedArray* re, bool is_one_byte) {
+ByteArray RegExpImpl::IrregexpByteCode(FixedArray* re, bool is_one_byte) {
   return ByteArray::cast(re->get(JSRegExp::code_index(is_one_byte)));
 }
 

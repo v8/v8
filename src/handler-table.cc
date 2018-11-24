@@ -19,7 +19,7 @@ HandlerTable::HandlerTable(Code code)
 HandlerTable::HandlerTable(BytecodeArray* bytecode_array)
     : HandlerTable(bytecode_array->handler_table()) {}
 
-HandlerTable::HandlerTable(ByteArray* byte_array)
+HandlerTable::HandlerTable(ByteArray byte_array)
     : number_of_entries_(byte_array->length() / kRangeEntrySize /
                          sizeof(int32_t)),
 #ifdef DEBUG

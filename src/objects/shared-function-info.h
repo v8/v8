@@ -27,7 +27,7 @@ class WasmExportedFunctionData;
 // functions.
 class PreParsedScopeData : public HeapObject {
  public:
-  DECL_ACCESSORS(scope_data, PodArray<uint8_t>)
+  DECL_ACCESSORS2(scope_data, PodArray<uint8_t>)
   DECL_INT_ACCESSORS(length)
 
   inline Object* child_data(int index) const;

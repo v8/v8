@@ -724,7 +724,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
 
   BailoutId node_id = input_data->BytecodeOffset(bailout_id_);
-  ByteArray* translations = input_data->TranslationByteArray();
+  ByteArray translations = input_data->TranslationByteArray();
   unsigned translation_index =
       input_data->TranslationIndex(bailout_id_)->value();
 
@@ -1924,7 +1924,7 @@ void TranslationBuffer::Add(int32_t value) {
   } while (bits != 0);
 }
 
-TranslationIterator::TranslationIterator(ByteArray* buffer, int index)
+TranslationIterator::TranslationIterator(ByteArray buffer, int index)
     : buffer_(buffer), index_(index) {
   DCHECK(index >= 0 && index < buffer->length());
 }

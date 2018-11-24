@@ -4760,7 +4760,7 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
 // Installs |new_descriptors| over the current instance_descriptors to ensure
 // proper sharing of descriptor arrays.
 void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray* new_descriptors,
-                             LayoutDescriptor* new_layout_descriptor) {
+                             LayoutDescriptor new_layout_descriptor) {
   // Don't overwrite the empty descriptor array or initial map's descriptors.
   if (NumberOfOwnDescriptors() == 0 || GetBackPointer()->IsUndefined(isolate)) {
     return;
@@ -5582,7 +5582,7 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
 
   DisallowHeapAllocation no_allocation;
   // The descriptors are still the same, so keep the layout descriptor.
-  LayoutDescriptor* layout_descriptor = map->GetLayoutDescriptor();
+  LayoutDescriptor layout_descriptor = map->GetLayoutDescriptor();
 
   if (old_size == 0) {
     map->UpdateDescriptors(*new_descriptors, layout_descriptor);

@@ -99,7 +99,8 @@ INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE);
 
 V8_INLINE bool IsFixedArrayBase(InstanceType instance_type) {
   return IsFixedArray(instance_type) || IsFixedDoubleArray(instance_type) ||
-         IsFixedTypedArrayBase(instance_type);
+         IsFixedTypedArrayBase(instance_type) || IsByteArray(instance_type) ||
+         IsBytecodeArray(instance_type);
 }
 
 V8_INLINE bool IsHeapObject(InstanceType instance_type) { return true; }
@@ -567,7 +568,6 @@ CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR2(GlobalDictionary)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
-CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(MutableHeapNumber)
 CAST_ACCESSOR2(OrderedNameDictionary)
 CAST_ACCESSOR2(NameDictionary)
@@ -1520,13 +1520,13 @@ void NumberDictionary::set_requires_slow_elements() {
   set(kMaxNumberKeyIndex, Smi::FromInt(kRequiresSlowElementsMask));
 }
 
-DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(TranslationByteArray, ByteArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrBytecodeOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(OptimizationId, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(InliningPositions, PodArray<InliningPosition>)
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
@@ -1588,7 +1588,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
     return ByteArray::SizeFor(
-        reinterpret_cast<const ByteArray*>(this)->synchronized_length());
+        ByteArray::unchecked_cast(this)->synchronized_length());
   }
   if (instance_type == BYTECODE_ARRAY_TYPE) {
     return BytecodeArray::SizeFor(

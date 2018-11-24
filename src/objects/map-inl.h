@@ -561,7 +561,7 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(this, kPrototypeOffset, value, mode);
 }
 
-LayoutDescriptor* Map::layout_descriptor_gc_safe() const {
+LayoutDescriptor Map::layout_descriptor_gc_safe() const {
   DCHECK(FLAG_unbox_double_fields);
   // The loaded value can be dereferenced on background thread to load the
   // bitmap. We need acquire load in order to ensure that the bitmap
@@ -579,7 +579,7 @@ bool Map::HasFastPointerLayout() const {
 }
 
 void Map::UpdateDescriptors(DescriptorArray* descriptors,
-                            LayoutDescriptor* layout_desc) {
+                            LayoutDescriptor layout_desc) {
   set_instance_descriptors(descriptors);
   if (FLAG_unbox_double_fields) {
     if (layout_descriptor()->IsSlowLayout()) {
@@ -599,7 +599,7 @@ void Map::UpdateDescriptors(DescriptorArray* descriptors,
 }
 
 void Map::InitializeDescriptors(DescriptorArray* descriptors,
-                                LayoutDescriptor* layout_desc) {
+                                LayoutDescriptor layout_desc) {
   int len = descriptors->number_of_descriptors();
   set_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(len);
@@ -629,7 +629,7 @@ uint32_t Map::bit_field3() const {
   return READ_UINT32_FIELD(this, kBitField3Offset);
 }
 
-LayoutDescriptor* Map::GetLayoutDescriptor() const {
+LayoutDescriptor Map::GetLayoutDescriptor() const {
   return FLAG_unbox_double_fields ? layout_descriptor()
                                   : LayoutDescriptor::FastPointerLayout();
 }

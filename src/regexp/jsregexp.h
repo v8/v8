@@ -174,7 +174,7 @@ class RegExpImpl {
                                         Handle<FixedArray> value);
   static int IrregexpNumberOfCaptures(FixedArray* re);
   static int IrregexpNumberOfRegisters(FixedArray* re);
-  static ByteArray* IrregexpByteCode(FixedArray* re, bool is_one_byte);
+  static ByteArray IrregexpByteCode(FixedArray* re, bool is_one_byte);
   static Code IrregexpNativeCode(FixedArray* re, bool is_one_byte);
 
   // Limit the space regexps take up on the heap.  In order to limit this we

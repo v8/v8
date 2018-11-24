@@ -283,7 +283,7 @@ void RelocIterator::next() {
 RelocIterator::RelocIterator(Code code, int mode_mask)
     : RelocIterator(code, code->unchecked_relocation_info(), mode_mask) {}
 
-RelocIterator::RelocIterator(Code code, ByteArray* relocation_info,
+RelocIterator::RelocIterator(Code code, ByteArray relocation_info,
                              int mode_mask)
     : RelocIterator(code, code->raw_instruction_start(), code->constant_pool(),
                     relocation_info->GetDataEndAddress(),

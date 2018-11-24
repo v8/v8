@@ -2763,11 +2763,11 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     // Replace the newly generated trampoline's RelocInfo ByteArray with the
     // canonical one stored in the roots to avoid duplicating it for every
     // single builtin.
-    ByteArray* canonical_reloc_info =
+    ByteArray canonical_reloc_info =
         ReadOnlyRoots(isolate()).off_heap_trampoline_relocation_info();
 #ifdef DEBUG
     // Verify that the contents are the same.
-    ByteArray* reloc_info = result->relocation_info();
+    ByteArray reloc_info = result->relocation_info();
     DCHECK_EQ(reloc_info->length(), canonical_reloc_info->length());
     for (int i = 0; i < reloc_info->length(); ++i) {
       DCHECK_EQ(reloc_info->get(i), canonical_reloc_info->get(i));

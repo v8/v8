@@ -27,10 +27,26 @@ OBJECT_CONSTRUCTORS_IMPL(FixedArrayPtr, FixedArrayBasePtr)
 OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedArrayBasePtr)
 OBJECT_CONSTRUCTORS_IMPL(FixedTypedArrayBase, FixedArrayBasePtr)
 OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(ByteArray, FixedArrayBasePtr)
 OBJECT_CONSTRUCTORS_IMPL(TemplateList, FixedArrayPtr)
 
+FixedArrayBasePtr::FixedArrayBasePtr(Address ptr,
+                                     AllowInlineSmiStorage allow_smi)
+    : HeapObjectPtr(ptr, allow_smi) {
+  SLOW_DCHECK(
+      (allow_smi == AllowInlineSmiStorage::kAllowBeingASmi && IsSmi()) ||
+      IsFixedArrayBase());
+}
+
+ByteArray::ByteArray(Address ptr, AllowInlineSmiStorage allow_smi)
+    : FixedArrayBasePtr(ptr, allow_smi) {
+  SLOW_DCHECK(
+      (allow_smi == AllowInlineSmiStorage::kAllowBeingASmi && IsSmi()) ||
+      IsByteArray());
+}
+
 CAST_ACCESSOR2(ArrayList)
-CAST_ACCESSOR(ByteArray)
+CAST_ACCESSOR2(ByteArray)
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR2(FixedArrayPtr)
 CAST_ACCESSOR(FixedArrayBase)
@@ -478,9 +494,9 @@ void ByteArray::clear_padding() {
   memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
 }
 
-ByteArray* ByteArray::FromDataStartAddress(Address address) {
+ByteArray ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
-  return reinterpret_cast<ByteArray*>(address - kHeaderSize + kHeapObjectTag);
+  return ByteArray::cast(ObjectPtr(address - kHeaderSize + kHeapObjectTag));
 }
 
 int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
@@ -496,14 +512,16 @@ byte* ByteArray::GetDataEndAddress() {
 }
 
 template <class T>
-PodArray<T>* PodArray<T>::cast(Object* object) {
-  DCHECK(object->IsByteArray());
-  return reinterpret_cast<PodArray<T>*>(object);
-}
+PodArray<T>::PodArray(Address ptr) : ByteArray(ptr) {}
+
 template <class T>
-const PodArray<T>* PodArray<T>::cast(const Object* object) {
-  DCHECK(object->IsByteArray());
-  return reinterpret_cast<const PodArray<T>*>(object);
+PodArray<T> PodArray<T>::cast(Object* object) {
+  return PodArray<T>(object->ptr());
+}
+
+template <class T>
+PodArray<T> PodArray<T>::cast(ObjectPtr object) {
+  return PodArray<T>(object.ptr());
 }
 
 // static
@@ -515,7 +533,7 @@ Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
 }
 
 template <class T>
-int PodArray<T>::length() {
+int PodArray<T>::length() const {
   return ByteArray::length() / sizeof(T);
 }
 

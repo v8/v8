@@ -137,7 +137,7 @@ Handle<PodArray<uint8_t>> PreParsedScopeDataBuilder::ByteData::Serialize(
       isolate, static_cast<int>(backing_store_.size()), TENURED);
 
   DisallowHeapAllocation no_gc;
-  PodArray<uint8_t>* raw_array = *array;
+  PodArray<uint8_t> raw_array = *array;
 
   int i = 0;
   for (uint8_t item : backing_store_) {
@@ -626,7 +626,7 @@ void BaseConsumedPreParsedScopeData<Data>::VerifyDataStart() {
 }
 #endif
 
-PodArray<uint8_t>* OnHeapConsumedPreParsedScopeData::GetScopeData() {
+PodArray<uint8_t> OnHeapConsumedPreParsedScopeData::GetScopeData() {
   return data_->scope_data();
 }
 
@@ -689,8 +689,8 @@ ZoneConsumedPreParsedScopeData::ZoneConsumedPreParsedScopeData(
 #endif
 }
 
-ZoneVectorWrapper* ZoneConsumedPreParsedScopeData::GetScopeData() {
-  return &scope_data_wrapper_;
+ZoneVectorWrapper ZoneConsumedPreParsedScopeData::GetScopeData() {
+  return scope_data_wrapper_;
 }
 
 ProducedPreParsedScopeData* ZoneConsumedPreParsedScopeData::GetChildData(

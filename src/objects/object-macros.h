@@ -154,6 +154,19 @@
     WRITE_FIELD(this, offset, value);                                 \
     CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);             \
   }
+// TODO(3770): Replacement for the above.
+#define ACCESSORS_CHECKED3(holder, name, type, offset, get_condition, \
+                           set_condition)                             \
+  type holder::name() const {                                         \
+    type value = type::cast(READ_FIELD(this, offset));                \
+    DCHECK(get_condition);                                            \
+    return value;                                                     \
+  }                                                                   \
+  void holder::set_##name(type value, WriteBarrierMode mode) {        \
+    DCHECK(set_condition);                                            \
+    WRITE_FIELD(this, offset, value);                                 \
+    CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);             \
+  }
 #define ACCESSORS_CHECKED(holder, name, type, offset, condition) \
   ACCESSORS_CHECKED2(holder, name, type, offset, condition, condition)
 
@@ -172,12 +185,12 @@
 
 #define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,   \
                                         get_condition, set_condition) \
-  type* holder::name() const {                                        \
-    type* value = type::cast(ACQUIRE_READ_FIELD(this, offset));       \
+  type holder::name() const {                                         \
+    type value = type::cast(ACQUIRE_READ_FIELD(this, offset));        \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \
-  void holder::set_##name(type* value, WriteBarrierMode mode) {       \
+  void holder::set_##name(type value, WriteBarrierMode mode) {        \
     DCHECK(set_condition);                                            \
     RELEASE_WRITE_FIELD(this, offset, value);                         \
     CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);             \

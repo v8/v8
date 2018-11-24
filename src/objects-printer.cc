@@ -2281,9 +2281,10 @@ void LayoutDescriptor::Print() {
 
 void LayoutDescriptor::ShortPrint(std::ostream& os) {
   if (IsSmi()) {
-    os << this;  // Print tagged value for easy use with "jld" gdb macro.
+    // Print tagged value for easy use with "jld" gdb macro.
+    os << reinterpret_cast<void*>(ptr());
   } else {
-    os << Brief(this);
+    os << Brief(*this);
   }
 }
 
@@ -2293,7 +2294,7 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
     os << "<all tagged>";
   } else if (IsSmi()) {
     os << "fast";
-    PrintBitMask(os, static_cast<uint32_t>(Smi::ToInt(this)));
+    PrintBitMask(os, static_cast<uint32_t>(Smi::ToInt(*this)));
   } else if (IsOddball() && IsUninitialized()) {
     os << "<uninitialized>";
   } else {
@@ -2646,7 +2647,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_LayoutDescriptor(
   if (!o->IsLayoutDescriptor()) {
     printf("Please provide a layout descriptor\n");
   } else {
-    reinterpret_cast<i::LayoutDescriptor*>(object)->Print();
+    i::LayoutDescriptor::cast(o)->Print();
   }
 }
 

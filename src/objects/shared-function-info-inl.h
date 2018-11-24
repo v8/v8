@@ -21,7 +21,7 @@ namespace v8 {
 namespace internal {
 
 CAST_ACCESSOR(PreParsedScopeData)
-ACCESSORS(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
+ACCESSORS2(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
 INT_ACCESSORS(PreParsedScopeData, length, kLengthOffset)
 
 Object* PreParsedScopeData::child_data(int index) const {

@@ -217,7 +217,7 @@ class Logger : public CodeEventListener {
   void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(Address code_start,
-                                  ByteArray* source_position_table);
+                                  ByteArray source_position_table);
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   Vector<const byte> source_position_table);
 

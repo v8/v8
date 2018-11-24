@@ -572,20 +572,20 @@ class Map : public HeapObjectPtr {
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
 
   // [layout descriptor]: describes the object layout.
-  DECL_ACCESSORS(layout_descriptor, LayoutDescriptor)
+  DECL_ACCESSORS2(layout_descriptor, LayoutDescriptor)
   // |layout descriptor| accessor which can be used from GC.
-  inline LayoutDescriptor* layout_descriptor_gc_safe() const;
+  inline LayoutDescriptor layout_descriptor_gc_safe() const;
   inline bool HasFastPointerLayout() const;
 
   // |layout descriptor| accessor that is safe to call even when
   // FLAG_unbox_double_fields is disabled (in this case Map does not contain
   // |layout_descriptor| field at all).
-  inline LayoutDescriptor* GetLayoutDescriptor() const;
+  inline LayoutDescriptor GetLayoutDescriptor() const;
 
   inline void UpdateDescriptors(DescriptorArray* descriptors,
-                                LayoutDescriptor* layout_descriptor);
+                                LayoutDescriptor layout_descriptor);
   inline void InitializeDescriptors(DescriptorArray* descriptors,
-                                    LayoutDescriptor* layout_descriptor);
+                                    LayoutDescriptor layout_descriptor);
 
   // [dependent code]: list of optimized codes that weakly embed this map.
   DECL_ACCESSORS(dependent_code, DependentCode)
@@ -940,7 +940,7 @@ class Map : public HeapObjectPtr {
   void DeprecateTransitionTree(Isolate* isolate);
 
   void ReplaceDescriptors(Isolate* isolate, DescriptorArray* new_descriptors,
-                          LayoutDescriptor* new_layout_descriptor);
+                          LayoutDescriptor new_layout_descriptor);
 
   // Update field type of the given descriptor to new representation and new
   // type. The type must be prepared for storing in descriptor array:

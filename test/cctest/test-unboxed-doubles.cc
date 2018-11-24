@@ -36,12 +36,10 @@ namespace test_unboxed_doubles {
 //
 
 static void InitializeVerifiedMapDescriptors(
-    Map map, DescriptorArray* descriptors,
-    LayoutDescriptor* layout_descriptor) {
+    Map map, DescriptorArray* descriptors, LayoutDescriptor layout_descriptor) {
   map->InitializeDescriptors(descriptors, layout_descriptor);
   CHECK(layout_descriptor->IsConsistentWithMap(map, true));
 }
-
 
 static Handle<String> MakeString(const char* str) {
   Isolate* isolate = CcTest::i_isolate();
@@ -139,7 +137,7 @@ TEST(LayoutDescriptorBasicFast) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  LayoutDescriptor* layout_desc = LayoutDescriptor::FastPointerLayout();
+  LayoutDescriptor layout_desc = LayoutDescriptor::FastPointerLayout();
 
   CHECK(!layout_desc->IsSlowLayout());
   CHECK(layout_desc->IsFastPointerLayout());
@@ -245,7 +243,7 @@ TEST(LayoutDescriptorBasicSlow) {
     CHECK(layout_descriptor->IsTagged(-12347));
     CHECK(layout_descriptor->IsTagged(15635));
 
-    LayoutDescriptor* layout_desc = *layout_descriptor;
+    LayoutDescriptor layout_desc = *layout_descriptor;
     // Play with the bits but leave it in consistent state with map at the end.
     for (int i = 1; i < kPropsCount - 1; i++) {
       layout_desc = layout_desc->SetTaggedForTesting(i, false);
@@ -266,7 +264,7 @@ static void TestLayoutDescriptorQueries(int layout_descriptor_length,
   Handle<LayoutDescriptor> layout_descriptor = LayoutDescriptor::NewForTesting(
       CcTest::i_isolate(), layout_descriptor_length);
   layout_descriptor_length = layout_descriptor->capacity();
-  LayoutDescriptor* layout_desc = *layout_descriptor;
+  LayoutDescriptor layout_desc = *layout_descriptor;
 
   {
     // Fill in the layout descriptor.
@@ -326,7 +324,7 @@ static void TestLayoutDescriptorQueries(int layout_descriptor_length,
 
 static void TestLayoutDescriptorQueriesFast(int max_sequence_length) {
   {
-    LayoutDescriptor* layout_desc = LayoutDescriptor::FastPointerLayout();
+    LayoutDescriptor layout_desc = LayoutDescriptor::FastPointerLayout();
     int sequence_length;
     for (int i = 0; i < kNumberOfBits; i++) {
       CHECK_EQ(true,
@@ -610,7 +608,7 @@ TEST(LayoutDescriptorCreateNewSlow) {
     Handle<LayoutDescriptor> layout_descriptor_copy =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
 
-    LayoutDescriptor* layout_desc = *layout_descriptor;
+    LayoutDescriptor layout_desc = *layout_descriptor;
     CHECK_EQ(layout_desc, LayoutDescriptor::cast(layout_desc));
     CHECK_EQ(layout_desc, LayoutDescriptor::cast_gc_safe(layout_desc));
     CHECK(layout_desc->IsSlowLayout());
@@ -803,7 +801,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   for (int i = 0; i < number_of_descriptors; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
     map = maps[i];
-    LayoutDescriptor* layout_desc = map->layout_descriptor();
+    LayoutDescriptor layout_desc = map->layout_descriptor();
 
     if (layout_desc->IsSlowLayout()) {
       switched_to_slow_mode = true;

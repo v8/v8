@@ -45,6 +45,10 @@ class Managed;
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   V8_INLINE bool has_##name();              \
   DECL_ACCESSORS(name, type)
+// TODO(3770): Replacement for the above, temporarily separate.
+#define DECL_OPTIONAL_ACCESSORS2(name, type) \
+  V8_INLINE bool has_##name();               \
+  DECL_ACCESSORS2(name, type)
 
 // A helper for an entry in an indirect function table (IFT).
 // The underlying storage in the instance is used by generated code to
@@ -110,7 +114,7 @@ class WasmModuleObject : public JSObject {
   DECL_ACCESSORS(export_wrappers, FixedArray)
   DECL_ACCESSORS(script, Script)
   DECL_ACCESSORS(weak_instance_list, WeakArrayList)
-  DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
+  DECL_OPTIONAL_ACCESSORS2(asm_js_offset_table, ByteArray)
   DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
   inline wasm::NativeModule* native_module() const;
   inline const wasm::WasmModule* module() const;
@@ -478,7 +482,7 @@ class WasmExceptionObject : public JSObject {
  public:
   DECL_CAST(WasmExceptionObject)
 
-  DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
+  DECL_ACCESSORS2(serialized_signature, PodArray<wasm::ValueType>)
   DECL_ACCESSORS(exception_tag, HeapObject)
 
 // Layout description.
@@ -653,7 +657,7 @@ class AsmWasmData : public Struct {
 
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS(export_wrappers, FixedArray)
-  DECL_ACCESSORS(asm_js_offset_table, ByteArray)
+  DECL_ACCESSORS2(asm_js_offset_table, ByteArray)
   DECL_ACCESSORS(uses_bitset, HeapNumber)
 
   DECL_CAST(AsmWasmData)

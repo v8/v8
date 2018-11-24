@@ -35,7 +35,7 @@ class WasmInstanceObject;
 #define TYPED_VISITOR_ID_LIST(V)                                               \
   V(AllocationSite, AllocationSite*)                                           \
   V(BigInt, BigInt*)                                                           \
-  V(ByteArray, ByteArray*)                                                     \
+  V(ByteArray, ByteArray)                                                      \
   V(BytecodeArray, BytecodeArray*)                                             \
   V(Cell, Cell*)                                                               \
   V(Code, Code)                                                                \
