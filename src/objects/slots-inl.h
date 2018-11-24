@@ -18,32 +18,18 @@ namespace internal {
 ObjectSlot::ObjectSlot(ObjectPtr* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
-void ObjectSlot::store(Object* value) {
-  *reinterpret_cast<Address*>(address()) = value->ptr();
-}
+void ObjectSlot::store(Object* value) { *location() = value->ptr(); }
 
 ObjectPtr ObjectSlot::Acquire_Load() const {
   return ObjectPtr(base::AsAtomicWord::Acquire_Load(location()));
 }
 
-Object* ObjectSlot::Relaxed_Load() const {
-  Address object_ptr = base::AsAtomicWord::Relaxed_Load(location());
-  return reinterpret_cast<Object*>(object_ptr);
-}
-
-Object* ObjectSlot::Relaxed_Load(int offset) const {
-  Address object_ptr = base::AsAtomicWord::Relaxed_Load(
-      reinterpret_cast<Address*>(address() + offset * kPointerSize));
-  return reinterpret_cast<Object*>(object_ptr);
+ObjectPtr ObjectSlot::Relaxed_Load() const {
+  return ObjectPtr(base::AsAtomicWord::Relaxed_Load(location()));
 }
 
 void ObjectSlot::Relaxed_Store(ObjectPtr value) const {
   base::AsAtomicWord::Relaxed_Store(location(), value->ptr());
-}
-
-void ObjectSlot::Relaxed_Store(int offset, Object* value) const {
-  Address* addr = reinterpret_cast<Address*>(address() + offset * kPointerSize);
-  base::AsAtomicWord::Relaxed_Store(addr, value->ptr());
 }
 
 void ObjectSlot::Release_Store(ObjectPtr value) const {
@@ -57,17 +43,12 @@ ObjectPtr ObjectSlot::Release_CompareAndSwap(ObjectPtr old,
   return ObjectPtr(result);
 }
 
-MaybeObject MaybeObjectSlot::operator*() {
-  return MaybeObject(*reinterpret_cast<Address*>(address()));
-}
+MaybeObject MaybeObjectSlot::operator*() { return MaybeObject(*location()); }
 
-void MaybeObjectSlot::store(MaybeObject value) {
-  *reinterpret_cast<Address*>(address()) = value.ptr();
-}
+void MaybeObjectSlot::store(MaybeObject value) { *location() = value.ptr(); }
 
 MaybeObject MaybeObjectSlot::Relaxed_Load() const {
-  Address object_ptr = base::AsAtomicWord::Relaxed_Load(location());
-  return MaybeObject(object_ptr);
+  return MaybeObject(base::AsAtomicWord::Relaxed_Load(location()));
 }
 
 void MaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
@@ -77,10 +58,10 @@ void MaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
 }
 
 HeapObjectReference HeapObjectSlot::operator*() {
-  return HeapObjectReference(*reinterpret_cast<Address*>(address()));
+  return HeapObjectReference(*location());
 }
 void HeapObjectSlot::store(HeapObjectReference value) {
-  *reinterpret_cast<Address*>(address()) = value.ptr();
+  *location() = value.ptr();
 }
 
 }  // namespace internal

@@ -101,10 +101,8 @@ class ObjectSlot : public SlotBase<ObjectSlot, kTaggedSize> {
   inline void store(Object* value);
 
   inline ObjectPtr Acquire_Load() const;
-  inline Object* Relaxed_Load() const;
-  inline Object* Relaxed_Load(int offset) const;
+  inline ObjectPtr Relaxed_Load() const;
   inline void Relaxed_Store(ObjectPtr value) const;
-  inline void Relaxed_Store(int offset, Object* value) const;
   inline void Release_Store(ObjectPtr value) const;
   inline ObjectPtr Release_CompareAndSwap(ObjectPtr old,
                                           ObjectPtr target) const;
@@ -148,9 +146,8 @@ class HeapObjectSlot : public SlotBase<HeapObjectSlot, kTaggedSize> {
   inline void store(HeapObjectReference value);
 
   HeapObject* ToHeapObject() {
-    DCHECK((*reinterpret_cast<Address*>(address()) & kHeapObjectTagMask) ==
-           kHeapObjectTag);
-    return *reinterpret_cast<HeapObject**>(address());
+    DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
+    return reinterpret_cast<HeapObject*>(*location());
   }
 
   void StoreHeapObject(HeapObject* value) {

@@ -1429,11 +1429,18 @@ void Heap::MoveElements(FixedArray array, int dst_index, int src_index, int len,
   if (FLAG_concurrent_marking && incremental_marking()->IsMarking()) {
     if (dst < src) {
       for (int i = 0; i < len; i++) {
-        dst.Relaxed_Store(i, src.Relaxed_Load(i));
+        dst.Relaxed_Store(src.Relaxed_Load());
+        ++dst;
+        ++src;
       }
     } else {
-      for (int i = len - 1; i >= 0; i--) {
-        dst.Relaxed_Store(i, src.Relaxed_Load(i));
+      // Copy backwards.
+      dst += len - 1;
+      src += len - 1;
+      for (int i = 0; i < len; i++) {
+        dst.Relaxed_Store(src.Relaxed_Load());
+        --dst;
+        --src;
       }
     }
   } else {
