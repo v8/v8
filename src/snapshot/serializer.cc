@@ -376,7 +376,7 @@ int32_t Serializer::ObjectSerializer::SerializeBackingStore(
 
 void Serializer::ObjectSerializer::SerializeJSTypedArray() {
   JSTypedArray* typed_array = JSTypedArray::cast(object_);
-  FixedTypedArrayBase* elements =
+  FixedTypedArrayBase elements =
       FixedTypedArrayBase::cast(typed_array->elements());
 
   if (!typed_array->WasNeutered()) {

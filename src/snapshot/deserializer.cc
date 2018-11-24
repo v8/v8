@@ -255,7 +255,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
     int32_t byte_offset = static_cast<int32_t>(typed_array->byte_offset());
     if (byte_offset > 0) {
-      FixedTypedArrayBase* elements =
+      FixedTypedArrayBase elements =
           FixedTypedArrayBase::cast(typed_array->elements());
       // Must be off-heap layout.
       DCHECK(!typed_array->is_on_heap());
@@ -276,9 +276,9 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
       isolate_->heap()->RegisterNewArrayBuffer(buffer);
     }
   } else if (obj->IsFixedTypedArrayBase()) {
-    FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(obj);
+    FixedTypedArrayBase fta = FixedTypedArrayBase::cast(obj);
     // Only fixup for the off-heap case.
-    if (fta->base_pointer() == nullptr) {
+    if (fta->base_pointer() == Smi::kZero) {
       Smi store_index(reinterpret_cast<Address>(fta->external_pointer()));
       void* backing_store = off_heap_backing_stores_[store_index->value()];
       fta->set_external_pointer(backing_store);

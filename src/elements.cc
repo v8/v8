@@ -286,8 +286,8 @@ static void CopyDoubleToDoubleElements(FixedArrayBase* from_base,
   DCHECK((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
-  FixedDoubleArray* from = FixedDoubleArray::cast(from_base);
-  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
+  FixedDoubleArray from = FixedDoubleArray::cast(from_base);
+  FixedDoubleArray to = FixedDoubleArray::cast(to_base);
   Address to_address = to->address() + FixedDoubleArray::kHeaderSize;
   Address from_address = from->address() + FixedDoubleArray::kHeaderSize;
   to_address += kDoubleSize * to_start;
@@ -318,7 +318,7 @@ static void CopySmiToDoubleElements(FixedArrayBase* from_base,
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
   FixedArray* from = FixedArray::cast(from_base);
-  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
+  FixedDoubleArray to = FixedDoubleArray::cast(to_base);
   Object* the_hole = from->GetReadOnlyRoots().the_hole_value();
   for (uint32_t from_end = from_start + static_cast<uint32_t>(copy_size);
        from_start < from_end; from_start++, to_start++) {
@@ -361,7 +361,7 @@ static void CopyPackedSmiToDoubleElements(FixedArrayBase* from_base,
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
   FixedArray* from = FixedArray::cast(from_base);
-  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
+  FixedDoubleArray to = FixedDoubleArray::cast(to_base);
   for (uint32_t from_end = from_start + static_cast<uint32_t>(packed_size);
        from_start < from_end; from_start++, to_start++) {
     Object* smi = from->get(from_start);
@@ -391,7 +391,7 @@ static void CopyObjectToDoubleElements(FixedArrayBase* from_base,
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
   FixedArray* from = FixedArray::cast(from_base);
-  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
+  FixedDoubleArray to = FixedDoubleArray::cast(to_base);
   Object* the_hole = from->GetReadOnlyRoots().the_hole_value();
   for (uint32_t from_end = from_start + copy_size;
        from_start < from_end; from_start++, to_start++) {
@@ -421,7 +421,7 @@ static void CopyDictionaryToDoubleElements(
     }
   }
   if (copy_size == 0) return;
-  FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
+  FixedDoubleArray to = FixedDoubleArray::cast(to_base);
   uint32_t to_length = to->length();
   if (to_start + copy_size > to_length) {
     copy_size = to_length - to_start;
@@ -2157,7 +2157,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     if (length == 0) return;  // nothing to do!
 #if ENABLE_SLOW_DCHECKS
     DisallowHeapAllocation no_gc;
-    BackingStore* backing_store = BackingStore::cast(elements);
+    // TODO(3770): s/auto/BackingStore/ after migrating FixedArrayBase*.
+    auto backing_store = BackingStore::cast(elements);
     if (IsSmiElementsKind(KindTraits::Kind)) {
       HandleScope scope(isolate);
       for (int i = 0; i < length; i++) {
@@ -2791,7 +2792,7 @@ class FastDoubleElementsAccessor
       return Just<int64_t>(-1);
     }
     double numeric_search_value = value->Number();
-    FixedDoubleArray* elements = FixedDoubleArray::cast(receiver->elements());
+    FixedDoubleArray elements = FixedDoubleArray::cast(receiver->elements());
 
     for (uint32_t k = start_from; k < length; ++k) {
       if (elements->is_the_hole(k)) {
@@ -2968,7 +2969,7 @@ class TypedElementsAccessor
     CHECK_LE(end, array->length_value());
 
     DisallowHeapAllocation no_gc;
-    BackingStore* elements = BackingStore::cast(receiver->elements());
+    BackingStore elements = BackingStore::cast(receiver->elements());
     ctype* data = static_cast<ctype*>(elements->DataPtr());
     std::fill(data + start, data + end, value);
     return *array;
@@ -2986,7 +2987,7 @@ class TypedElementsAccessor
       return Just(value->IsUndefined(isolate) && length > start_from);
     }
 
-    BackingStore* elements = BackingStore::cast(receiver->elements());
+    BackingStore elements = BackingStore::cast(receiver->elements());
     if (value->IsUndefined(isolate) &&
         length > static_cast<uint32_t>(elements->length())) {
       return Just(true);
@@ -3044,7 +3045,7 @@ class TypedElementsAccessor
 
     if (WasNeutered(*receiver)) return Just<int64_t>(-1);
 
-    BackingStore* elements = BackingStore::cast(receiver->elements());
+    BackingStore elements = BackingStore::cast(receiver->elements());
     ctype typed_search_value;
 
     if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
@@ -3093,7 +3094,7 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DCHECK(!WasNeutered(*receiver));
 
-    BackingStore* elements = BackingStore::cast(receiver->elements());
+    BackingStore elements = BackingStore::cast(receiver->elements());
     ctype typed_search_value;
 
     if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
@@ -3137,7 +3138,7 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DCHECK(!WasNeutered(receiver));
 
-    BackingStore* elements = BackingStore::cast(receiver->elements());
+    BackingStore elements = BackingStore::cast(receiver->elements());
 
     uint32_t len = elements->length();
     if (len == 0) return;
@@ -3174,9 +3175,9 @@ class TypedElementsAccessor
     size_t count = end - start;
     DCHECK_LE(count, destination->length_value());
 
-    FixedTypedArrayBase* src_elements =
+    FixedTypedArrayBase src_elements =
         FixedTypedArrayBase::cast(source->elements());
-    BackingStore* dest_elements = BackingStore::cast(destination->elements());
+    BackingStore dest_elements = BackingStore::cast(destination->elements());
 
     size_t element_size = source->element_size();
     uint8_t* source_data =
@@ -3216,9 +3217,8 @@ class TypedElementsAccessor
   }
 
   template <typename SourceTraits>
-  static void CopyBetweenBackingStores(void* source_data_ptr,
-                                       BackingStore* dest, size_t length,
-                                       uint32_t offset) {
+  static void CopyBetweenBackingStores(void* source_data_ptr, BackingStore dest,
+                                       size_t length, uint32_t offset) {
     DisallowHeapAllocation no_gc;
     for (uint32_t i = 0; i < length; i++) {
       // We use scalar accessors to avoid boxing/unboxing, so there are no
@@ -3240,9 +3240,9 @@ class TypedElementsAccessor
     CHECK(!source->WasNeutered());
     CHECK(!destination->WasNeutered());
 
-    FixedTypedArrayBase* source_elements =
+    FixedTypedArrayBase source_elements =
         FixedTypedArrayBase::cast(source->elements());
-    BackingStore* destination_elements =
+    BackingStore destination_elements =
         BackingStore::cast(destination->elements());
 
     DCHECK_LE(offset, destination->length_value());
@@ -3343,7 +3343,7 @@ class TypedElementsAccessor
     USE(dest_length);
 
     ElementsKind kind = source->GetElementsKind();
-    BackingStore* dest = BackingStore::cast(destination->elements());
+    BackingStore dest = BackingStore::cast(destination->elements());
 
     // When we find the hole, we normally have to look up the element on the
     // prototype chain, which is not handled here and we return false instead.
@@ -3381,7 +3381,7 @@ class TypedElementsAccessor
     } else if (kind == PACKED_DOUBLE_ELEMENTS) {
       // Fastpath for packed double kind. We avoid boxing and then immediately
       // unboxing the double here by using get_scalar.
-      FixedDoubleArray* source_store =
+      FixedDoubleArray source_store =
           FixedDoubleArray::cast(source->elements());
 
       for (uint32_t i = 0; i < length; i++) {
@@ -3392,7 +3392,7 @@ class TypedElementsAccessor
       }
       return true;
     } else if (kind == HOLEY_DOUBLE_ELEMENTS) {
-      FixedDoubleArray* source_store =
+      FixedDoubleArray source_store =
           FixedDoubleArray::cast(source->elements());
       for (uint32_t i = 0; i < length; i++) {
         if (source_store->is_the_hole(i)) {

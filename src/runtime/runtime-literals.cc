@@ -409,8 +409,12 @@ struct ArrayLiteralHelper {
     // Create the JSArray.
     Handle<FixedArrayBase> copied_elements_values;
     if (IsDoubleElementsKind(constant_elements_kind)) {
-      copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
-          Handle<FixedDoubleArray>::cast(constant_elements_values));
+      // TODO(3770): Drop explicit cast after migrating FixedArrayBase*.
+      copied_elements_values = Handle<FixedArrayBase>(
+          isolate->factory()
+              ->CopyFixedDoubleArray(
+                  Handle<FixedDoubleArray>::cast(constant_elements_values))
+              .location());
     } else {
       DCHECK(IsSmiOrObjectElementsKind(constant_elements_kind));
       const bool is_cow = (constant_elements_values->map() ==

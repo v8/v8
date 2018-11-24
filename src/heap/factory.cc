@@ -500,7 +500,8 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int length,
       AllocateRawWithImmortalMap(size, pretenure, map, kDoubleAligned);
   Handle<FixedDoubleArray> array(FixedDoubleArray::cast(result), isolate());
   array->set_length(length);
-  return array;
+  // TODO(3770): Drop explicit cast after migrating FixedArrayBase*.
+  return Handle<FixedArrayBase>(array.location());
 }
 
 Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
@@ -3316,7 +3317,9 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
       static_cast<int>(length), type,
       static_cast<uint8_t*>(buffer->backing_store()) + byte_offset, pretenure);
   Handle<Map> map = JSObject::GetElementsTransitionMap(obj, elements_kind);
-  JSObject::SetMapAndElements(obj, map, elements);
+  // TODO(3770): Drop explicit cast after migrating FixedArrayBase*.
+  JSObject::SetMapAndElements(obj, map,
+                              Handle<FixedArrayBase>(elements.location()));
   return obj;
 }
 

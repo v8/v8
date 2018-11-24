@@ -188,7 +188,7 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
   object->set_map_after_allocation(
       ReadOnlyRoots(this).MapForFixedTypedArray(array_type),
       SKIP_WRITE_BARRIER);
-  FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
+  FixedTypedArrayBase elements = FixedTypedArrayBase::cast(object);
   elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
       reinterpret_cast<void*>(
@@ -581,12 +581,13 @@ bool Heap::CreateInitialMaps() {
     set_empty_property_array(PropertyArray::cast(obj));
   }
 
-#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)       \
-  {                                                                     \
-    FixedTypedArrayBase* obj;                                           \
-    if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array).To(&obj)) \
-      return false;                                                     \
-    set_empty_fixed_##type##_array(obj);                                \
+#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)         \
+  {                                                                       \
+    FixedTypedArrayBase obj;                                              \
+    if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array).To(&obj)) { \
+      return false;                                                       \
+    }                                                                     \
+    set_empty_fixed_##type##_array(obj);                                  \
   }
 
   TYPED_ARRAYS(ALLOCATE_EMPTY_FIXED_TYPED_ARRAY)

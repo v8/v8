@@ -360,7 +360,9 @@ struct is_subtype {
                             (std::is_base_of<U, HeapObject>::value &&
                              std::is_base_of<HeapObjectPtr, T>::value) ||
                             (std::is_base_of<U, FixedArray>::value &&
-                             std::is_base_of<FixedArrayPtr, T>::value);
+                             std::is_base_of<FixedArrayPtr, T>::value) ||
+                            (std::is_base_of<U, FixedArrayBase>::value &&
+                             std::is_base_of<FixedArrayBasePtr, T>::value);
 };
 // TODO(3770): Temporary; remove after migration.
 template <>

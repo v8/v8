@@ -649,6 +649,11 @@ class V8_EXPORT_PRIVATE Factory {
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED);
+  // TODO(3770): Replacement for the above, temporarily separate.
+  inline Handle<JSArray> NewJSArrayWithElements(
+      Handle<FixedArrayBasePtr> elements,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      PretenureFlag pretenure = NOT_TENURED);
 
   void NewJSArrayStorage(
       Handle<JSArray> array, int length, int capacity,

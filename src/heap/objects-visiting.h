@@ -47,9 +47,9 @@ class WasmInstanceObject;
   V(FeedbackCell, FeedbackCell*)                                               \
   V(FeedbackVector, FeedbackVector*)                                           \
   V(FixedArray, FixedArray*)                                                   \
-  V(FixedDoubleArray, FixedDoubleArray*)                                       \
-  V(FixedFloat64Array, FixedFloat64Array*)                                     \
-  V(FixedTypedArrayBase, FixedTypedArrayBase*)                                 \
+  V(FixedDoubleArray, FixedDoubleArray)                                        \
+  V(FixedFloat64Array, FixedFloat64Array)                                      \
+  V(FixedTypedArrayBase, FixedTypedArrayBase)                                  \
   V(JSArrayBuffer, JSArrayBuffer*)                                             \
   V(JSDataView, JSDataView*)                                                   \
   V(JSObject, JSObject*)                                                       \

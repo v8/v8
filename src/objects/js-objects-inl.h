@@ -733,9 +733,7 @@ bool JSObject::HasFixedTypedArrayElements() {
 
 #define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype)            \
   bool JSObject::HasFixed##Type##Elements() {                          \
-    HeapObject* array = elements();                                    \
-    DCHECK_NOT_NULL(array);                                            \
-    if (!array->IsHeapObject()) return false;                          \
+    FixedArrayBase* array = elements();                                \
     return array->map()->instance_type() == FIXED_##TYPE##_ARRAY_TYPE; \
   }
 

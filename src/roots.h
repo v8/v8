@@ -184,19 +184,19 @@ class RootVisitor;
     EmptyObjectBoilerplateDescription)                                         \
   V(ArrayBoilerplateDescription*, empty_array_boilerplate_description,         \
     EmptyArrayBoilerplateDescription)                                          \
-  V(FixedTypedArrayBase*, empty_fixed_uint8_array, EmptyFixedUint8Array)       \
-  V(FixedTypedArrayBase*, empty_fixed_int8_array, EmptyFixedInt8Array)         \
-  V(FixedTypedArrayBase*, empty_fixed_uint16_array, EmptyFixedUint16Array)     \
-  V(FixedTypedArrayBase*, empty_fixed_int16_array, EmptyFixedInt16Array)       \
-  V(FixedTypedArrayBase*, empty_fixed_uint32_array, EmptyFixedUint32Array)     \
-  V(FixedTypedArrayBase*, empty_fixed_int32_array, EmptyFixedInt32Array)       \
-  V(FixedTypedArrayBase*, empty_fixed_float32_array, EmptyFixedFloat32Array)   \
-  V(FixedTypedArrayBase*, empty_fixed_float64_array, EmptyFixedFloat64Array)   \
-  V(FixedTypedArrayBase*, empty_fixed_uint8_clamped_array,                     \
+  V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
+  V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
+  V(FixedTypedArrayBase, empty_fixed_uint16_array, EmptyFixedUint16Array)      \
+  V(FixedTypedArrayBase, empty_fixed_int16_array, EmptyFixedInt16Array)        \
+  V(FixedTypedArrayBase, empty_fixed_uint32_array, EmptyFixedUint32Array)      \
+  V(FixedTypedArrayBase, empty_fixed_int32_array, EmptyFixedInt32Array)        \
+  V(FixedTypedArrayBase, empty_fixed_float32_array, EmptyFixedFloat32Array)    \
+  V(FixedTypedArrayBase, empty_fixed_float64_array, EmptyFixedFloat64Array)    \
+  V(FixedTypedArrayBase, empty_fixed_uint8_clamped_array,                      \
     EmptyFixedUint8ClampedArray)                                               \
-  V(FixedTypedArrayBase*, empty_fixed_biguint64_array,                         \
+  V(FixedTypedArrayBase, empty_fixed_biguint64_array,                          \
     EmptyFixedBigUint64Array)                                                  \
-  V(FixedTypedArrayBase*, empty_fixed_bigint64_array, EmptyFixedBigInt64Array) \
+  V(FixedTypedArrayBase, empty_fixed_bigint64_array, EmptyFixedBigInt64Array)  \
   V(FixedArray*, empty_sloppy_arguments_elements,                              \
     EmptySloppyArgumentsElements)                                              \
   V(NumberDictionary, empty_slow_element_dictionary,                           \
@@ -528,7 +528,7 @@ class ReadOnlyRoots {
 
   V8_INLINE Map MapForFixedTypedArray(ExternalArrayType array_type);
   V8_INLINE Map MapForFixedTypedArray(ElementsKind elements_kind);
-  V8_INLINE FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map map);
+  V8_INLINE FixedTypedArrayBase EmptyFixedTypedArrayForMap(const Map map);
 
   // Iterate over all the read-only roots. This is not necessary for garbage
   // collection and is usually only performed as part of (de)serialization or

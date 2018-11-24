@@ -834,7 +834,7 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
         DCHECK_EQ(FixedArray::cast(array->elements())->length(), 0);
         break;
       }
-      FixedDoubleArray* elements = FixedDoubleArray::cast(array->elements());
+      FixedDoubleArray elements = FixedDoubleArray::cast(array->elements());
       for (int i = 0; i < fast_length; i++) {
         if (!elements->is_the_hole(i)) element_count++;
       }
@@ -1258,7 +1258,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
             case PACKED_DOUBLE_ELEMENTS: {
               // Empty array is FixedArray but not FixedDoubleArray.
               if (length == 0) break;
-              FixedDoubleArray* elements =
+              FixedDoubleArray elements =
                   FixedDoubleArray::cast(array->elements());
               for (uint32_t i = 0; i < length; i++) {
                 if (elements->is_the_hole(i)) {

@@ -285,7 +285,7 @@ class ConcurrentMarkingVisitor final
     return VisitLeftTrimmableArray(map, object);
   }
 
-  int VisitFixedDoubleArray(Map map, FixedDoubleArray* object) {
+  int VisitFixedDoubleArray(Map map, FixedDoubleArray object) {
     return VisitLeftTrimmableArray(map, object);
   }
 
@@ -461,7 +461,7 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename T>
-  int VisitLeftTrimmableArray(Map map, T* object) {
+  int VisitLeftTrimmableArray(Map map, T object) {
     // The synchronized_length() function checks that the length is a Smi.
     // This is not necessarily the case if the array is being left-trimmed.
     Object* length = object->unchecked_synchronized_length();
@@ -469,9 +469,12 @@ class ConcurrentMarkingVisitor final
     // The cached length must be the actual length as the array is not black.
     // Left trimming marks the array black before over-writing the length.
     DCHECK(length->IsSmi());
-    int size = T::SizeFor(Smi::ToInt(length));
+    // TODO(3770): Drop std::remove_pointer after FixedArray* is migrated.
+    int size = std::remove_pointer<T>::type::SizeFor(Smi::ToInt(length));
     VisitMapPointer(object, object->map_slot());
-    T::BodyDescriptor::IterateBody(map, object, size, this);
+    // TODO(3770): Drop std::remove_pointer after FixedArray* is migrated.
+    std::remove_pointer<T>::type::BodyDescriptor::IterateBody(map, object, size,
+                                                              this);
     return size;
   }
 

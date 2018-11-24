@@ -516,17 +516,17 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
 namespace {
 
 template <class T>
-bool IsTheHoleAt(T* array, int index) {
+bool IsTheHoleAt(T array, int index) {
   return false;
 }
 
 template <>
-bool IsTheHoleAt(FixedDoubleArray* array, int index) {
+bool IsTheHoleAt(FixedDoubleArray array, int index) {
   return array->is_the_hole(index);
 }
 
 template <class T>
-double GetScalarElement(T* array, int index) {
+double GetScalarElement(T array, int index) {
   if (IsTheHoleAt(array, index)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
@@ -536,7 +536,7 @@ double GetScalarElement(T* array, int index) {
 template <class T>
 void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
   const bool print_the_hole = std::is_same<T, FixedDoubleArray>::value;
-  T* array = T::cast(object);
+  T array = T::cast(object);
   if (array->length() == 0) return;
   int previous_index = 0;
   double previous_value = GetScalarElement(array, 0);
@@ -1047,9 +1047,9 @@ void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
 }
 
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "FixedDoubleArray");
+  PrintHeader(os, "FixedDoubleArray");
   os << "\n - length: " << length();
-  DoPrintElements<FixedDoubleArray>(os, this);
+  DoPrintElements<FixedDoubleArray>(os, *this);
   os << "\n";
 }
 

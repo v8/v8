@@ -3292,7 +3292,7 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
       ft.Call(source_double, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  FixedDoubleArray* double_result(FixedDoubleArray::cast(*double_result_raw));
+  FixedDoubleArray double_result = FixedDoubleArray::cast(*double_result_raw);
   CHECK_EQ(2, double_result->length());
   CHECK_EQ(double_result->get_scalar(0), 11);
   CHECK_EQ(double_result->get_scalar(1), 12);

@@ -993,7 +993,10 @@ class FixedDoubleArrayData : public FixedArrayBaseData {
 FixedDoubleArrayData::FixedDoubleArrayData(JSHeapBroker* broker,
                                            ObjectData** storage,
                                            Handle<FixedDoubleArray> object)
-    : FixedArrayBaseData(broker, storage, object), contents_(broker->zone()) {}
+    // TODO(3770): Drop explicit cast after migrating FixedArrayBase*.
+    : FixedArrayBaseData(broker, storage,
+                         Handle<FixedArrayBase>(object.location())),
+      contents_(broker->zone()) {}
 
 void FixedDoubleArrayData::SerializeContents(JSHeapBroker* broker) {
   if (serialized_contents_) return;

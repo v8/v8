@@ -498,14 +498,12 @@ void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
 
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayVerify(Isolate* isolate) {
-  CHECK(IsHeapObject() &&
-        HeapObject::cast(this)->map()->instance_type() ==
-            Traits::kInstanceType);
-  if (base_pointer() == this) {
+  CHECK(IsHeapObject() && map()->instance_type() == Traits::kInstanceType);
+  if (base_pointer()->ptr() == ptr()) {
     CHECK(reinterpret_cast<Address>(external_pointer()) ==
           ExternalReference::fixed_typed_array_base_data_offset().address());
   } else {
-    CHECK_NULL(base_pointer());
+    CHECK_EQ(base_pointer(), Smi::kZero);
   }
 }
 

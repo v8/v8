@@ -152,8 +152,8 @@ bool JSTypedArray::is_on_heap() const {
   DisallowHeapAllocation no_gc;
   // Checking that buffer()->backing_store() is not nullptr is not sufficient;
   // it will be nullptr when byte_length is 0 as well.
-  FixedTypedArrayBase* fta(FixedTypedArrayBase::cast(elements()));
-  return fta->base_pointer() == fta;
+  FixedTypedArrayBase fta = FixedTypedArrayBase::cast(elements());
+  return fta->base_pointer()->ptr() == fta.ptr();
 }
 
 // static

@@ -1606,7 +1606,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
     return FixedDoubleArray::SizeFor(
-        reinterpret_cast<const FixedDoubleArray*>(this)->synchronized_length());
+        FixedDoubleArray::unchecked_cast(this)->synchronized_length());
   }
   if (instance_type == FEEDBACK_METADATA_TYPE) {
     return FeedbackMetadata::SizeFor(
@@ -1624,7 +1624,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (IsInRange(instance_type, FIRST_FIXED_TYPED_ARRAY_TYPE,
                 LAST_FIXED_TYPED_ARRAY_TYPE)) {
-    return reinterpret_cast<const FixedTypedArrayBase*>(this)->TypedArraySize(
+    return FixedTypedArrayBase::unchecked_cast(this)->TypedArraySize(
         instance_type);
   }
   if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {

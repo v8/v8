@@ -76,7 +76,7 @@ Map ReadOnlyRoots::MapForFixedTypedArray(ElementsKind elements_kind) {
   return Map::cast(roots_table_[root_index]);
 }
 
-FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map map) {
+FixedTypedArrayBase ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map map) {
   RootIndex root_index =
       RootsTable::RootIndexForEmptyFixedTypedArray(map->elements_kind());
   return FixedTypedArrayBase::cast(roots_table_[root_index]);

@@ -53,7 +53,7 @@ Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
     CHECK(state.s0 != 0 || state.s1 != 0);
   }
 
-  FixedDoubleArray* cache =
+  FixedDoubleArray cache =
       FixedDoubleArray::cast(native_context->math_random_cache());
   // Create random numbers.
   for (int i = 0; i < kCacheSize; i++) {

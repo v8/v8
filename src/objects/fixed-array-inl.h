@@ -24,6 +24,8 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(FixedArrayBasePtr, HeapObjectPtr)
 OBJECT_CONSTRUCTORS_IMPL(FixedArrayPtr, FixedArrayBasePtr)
+OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedArrayBasePtr)
+OBJECT_CONSTRUCTORS_IMPL(FixedTypedArrayBase, FixedArrayBasePtr)
 OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArrayPtr)
 OBJECT_CONSTRUCTORS_IMPL(TemplateList, FixedArrayPtr)
 
@@ -33,8 +35,8 @@ CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR2(FixedArrayPtr)
 CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR2(FixedArrayBasePtr)
-CAST_ACCESSOR(FixedDoubleArray)
-CAST_ACCESSOR(FixedTypedArrayBase)
+CAST_ACCESSOR2(FixedDoubleArray)
+CAST_ACCESSOR2(FixedTypedArrayBase)
 CAST_ACCESSOR2(TemplateList)
 CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakArrayList)
@@ -287,7 +289,7 @@ uint64_t FixedDoubleArray::get_representation(int index) {
   return READ_UINT64_FIELD(this, offset);
 }
 
-Handle<Object> FixedDoubleArray::get(FixedDoubleArray* array, int index,
+Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
                                      Isolate* isolate) {
   if (array->is_the_hole(index)) {
     return isolate->factory()->the_hole_value();
@@ -768,7 +770,7 @@ inline uint64_t FixedTypedArray<BigUint64ArrayTraits>::FromHandle(
 
 template <class Traits>
 Handle<Object> FixedTypedArray<Traits>::get(Isolate* isolate,
-                                            FixedTypedArray<Traits>* array,
+                                            FixedTypedArray<Traits> array,
                                             int index) {
   return Traits::ToHandle(isolate, array->get_scalar(index));
 }
@@ -856,20 +858,19 @@ STATIC_CONST_MEMBER_DEFINITION const InstanceType
     FixedTypedArray<Traits>::kInstanceType;
 
 template <class Traits>
-FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
-  DCHECK(object->IsHeapObject() &&
-         HeapObject::cast(object)->map()->instance_type() ==
-             Traits::kInstanceType);
-  return reinterpret_cast<FixedTypedArray<Traits>*>(object);
+FixedTypedArray<Traits>::FixedTypedArray(Address ptr)
+    : FixedTypedArrayBase(ptr) {
+  DCHECK(IsHeapObject() && map()->instance_type() == Traits::kInstanceType);
 }
 
 template <class Traits>
-const FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(
-    const Object* object) {
-  DCHECK(object->IsHeapObject() &&
-         HeapObject::cast(object)->map()->instance_type() ==
-             Traits::kInstanceType);
-  return reinterpret_cast<FixedTypedArray<Traits>*>(object);
+FixedTypedArray<Traits> FixedTypedArray<Traits>::cast(Object* object) {
+  return FixedTypedArray<Traits>(object->ptr());
+}
+
+template <class Traits>
+FixedTypedArray<Traits> FixedTypedArray<Traits>::cast(ObjectPtr object) {
+  return FixedTypedArray<Traits>(object.ptr());
 }
 
 int TemplateList::length() const {

@@ -8926,7 +8926,7 @@ bool JSObject::HasEnumerableElements() {
       // Zero-length arrays would use the empty FixedArray...
       if (length == 0) return false;
       // ...so only cast to FixedDoubleArray otherwise.
-      FixedDoubleArray* elements = FixedDoubleArray::cast(object->elements());
+      FixedDoubleArray elements = FixedDoubleArray::cast(object->elements());
       for (int i = 0; i < length; i++) {
         if (!elements->is_the_hole(i)) return true;
       }
@@ -16135,7 +16135,7 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
 }
 
 template <typename BackingStore>
-static int HoleyElementsUsage(JSObject* object, BackingStore* store) {
+static int HoleyElementsUsage(JSObject* object, BackingStore store) {
   Isolate* isolate = object->GetIsolate();
   int limit = object->IsJSArray() ? Smi::ToInt(JSArray::cast(object)->length())
                                   : store->length();

@@ -353,12 +353,12 @@ class FixedArrayPtr : public FixedArrayBasePtr {
 class FixedArrayExact final : public FixedArrayPtr {};
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
-class FixedDoubleArray : public FixedArrayBase {
+class FixedDoubleArray : public FixedArrayBasePtr {
  public:
   // Setter and getter for elements.
   inline double get_scalar(int index);
   inline uint64_t get_representation(int index);
-  static inline Handle<Object> get(FixedDoubleArray* array, int index,
+  static inline Handle<Object> get(FixedDoubleArray array, int index,
                                    Isolate* isolate);
   inline void set(int index, double value);
   inline void set_the_hole(Isolate* isolate, int index);
@@ -381,7 +381,7 @@ class FixedDoubleArray : public FixedArrayBase {
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  DECL_CAST(FixedDoubleArray)
+  DECL_CAST2(FixedDoubleArray)
 
   // Maximally allowed length of a FixedArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
@@ -394,8 +394,7 @@ class FixedDoubleArray : public FixedArrayBase {
 
   class BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
+  OBJECT_CONSTRUCTORS(FixedDoubleArray, FixedArrayBasePtr);
 };
 
 // WeakFixedArray describes fixed-sized arrays with element type
@@ -698,10 +697,10 @@ class PodArray : public ByteArray {
   DISALLOW_IMPLICIT_CONSTRUCTORS(PodArray<T>);
 };
 
-class FixedTypedArrayBase : public FixedArrayBase {
+class FixedTypedArrayBase : public FixedArrayBasePtr {
  public:
   // [base_pointer]: Either points to the FixedTypedArrayBase itself or nullptr.
-  DECL_ACCESSORS(base_pointer, Object)
+  DECL_ACCESSORS(base_pointer, Object);
 
   // [external_pointer]: Contains the offset between base_pointer and the start
   // of the data. If the base_pointer is a nullptr, the external_pointer
@@ -709,7 +708,7 @@ class FixedTypedArrayBase : public FixedArrayBase {
   DECL_ACCESSORS(external_pointer, void)
 
   // Dispatched behavior.
-  DECL_CAST(FixedTypedArrayBase)
+  DECL_CAST2(FixedTypedArrayBase)
 
 #define FIXED_TYPED_ARRAY_BASE_FIELDS(V)        \
   V(kBasePointerOffset, kTaggedSize)            \
@@ -755,7 +754,7 @@ class FixedTypedArrayBase : public FixedArrayBase {
 
   inline int DataSize(InstanceType type) const;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
+  OBJECT_CONSTRUCTORS(FixedTypedArrayBase, FixedArrayBasePtr);
 };
 
 template <class Traits>
@@ -764,11 +763,11 @@ class FixedTypedArray : public FixedTypedArrayBase {
   typedef typename Traits::ElementType ElementType;
   static const InstanceType kInstanceType = Traits::kInstanceType;
 
-  DECL_CAST(FixedTypedArray<Traits>)
+  DECL_CAST2(FixedTypedArray<Traits>)
 
   static inline ElementType get_scalar_from_data_ptr(void* data_ptr, int index);
   inline ElementType get_scalar(int index);
-  static inline Handle<Object> get(Isolate* isolate, FixedTypedArray* array,
+  static inline Handle<Object> get(Isolate* isolate, FixedTypedArray array,
                                    int index);
   inline void set(int index, ElementType value);
 
@@ -789,7 +788,7 @@ class FixedTypedArray : public FixedTypedArrayBase {
   DECL_VERIFIER(FixedTypedArray)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArray);
+  OBJECT_CONSTRUCTORS(FixedTypedArray, FixedTypedArrayBase);
 };
 
 #define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType)               \
