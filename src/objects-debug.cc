@@ -700,7 +700,7 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
   }
 }
 
-void FixedArrayPtr::FixedArrayPtrVerify(Isolate* isolate) {
+void FixedArrayPtr::FixedArrayVerify(Isolate* isolate) {
   reinterpret_cast<FixedArray*>(ptr())->FixedArrayVerify(isolate);
 }
 
@@ -744,12 +744,12 @@ void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
   }
 }
 
-void Context::ContextVerify(Isolate* isolate) { FixedArrayPtrVerify(isolate); }
+void Context::ContextVerify(Isolate* isolate) { FixedArrayVerify(isolate); }
 
 void NativeContext::NativeContextVerify(Isolate* isolate) {
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
   CHECK_EQ(kSize, map()->instance_size());
-  FixedArrayPtrVerify(isolate);
+  FixedArrayVerify(isolate);
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
@@ -1088,7 +1088,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   CHECK_EQ(expected_map_index, function_map_index());
 
   if (scope_info()->length() > 0) {
-    ScopeInfo* info = scope_info();
+    ScopeInfo info = scope_info();
     CHECK(kind() == info->function_kind());
     CHECK_EQ(kind() == kModule, info->scope_type() == MODULE_SCOPE);
   }

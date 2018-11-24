@@ -46,7 +46,7 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
 
   if (!context_->IsNativeContext()) {
     DisallowHeapAllocation no_gc;
-    ScopeInfo* closure_info = context_->closure_context()->scope_info();
+    ScopeInfo closure_info = context_->closure_context()->scope_info();
     Handle<String> debug_name(closure_info->FunctionDebugName(), isolate_);
     if (debug_name->length() > 0) return debug_name;
   }

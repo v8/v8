@@ -90,6 +90,14 @@ Map HeapObjectPtr::map() const {
   return Map::cast(READ_FIELD(this, kMapOffset));
 }
 
+void HeapObjectPtr::set_map(Map value) {
+  reinterpret_cast<HeapObject*>(ptr())->set_map(value);
+}
+
+void HeapObjectPtr::set_map_no_write_barrier(Map value) {
+  reinterpret_cast<HeapObject*>(ptr())->set_map_no_write_barrier(value);
+}
+
 void HeapObjectPtr::set_map_after_allocation(Map value, WriteBarrierMode mode) {
   reinterpret_cast<HeapObject*>(ptr())->set_map_after_allocation(value, mode);
 }

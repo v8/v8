@@ -8908,7 +8908,7 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   i::DisallowHeapAllocation no_gc;
-  i::TemplateList* listeners = isolate->heap()->message_listeners();
+  i::TemplateList listeners = isolate->heap()->message_listeners();
   for (int i = 0; i < listeners->length(); i++) {
     if (listeners->get(i)->IsUndefined(isolate)) continue;  // skip deleted ones
     i::FixedArray* listener = i::FixedArray::cast(listeners->get(i));

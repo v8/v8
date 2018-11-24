@@ -28,7 +28,7 @@ class Handle;
   V(Flags, Smi)
 
 // Container object for data collected during simple stack trace captures.
-class FrameArray : public FixedArray {
+class FrameArray : public FixedArrayPtr {
  public:
 #define DECL_FRAME_ARRAY_ACCESSORS(name, type)   \
   inline type##ArgType name(int frame_ix) const; \
@@ -64,7 +64,7 @@ class FrameArray : public FixedArray {
       Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
       int wasm_function_index, wasm::WasmCode* code, int offset, int flags);
 
-  DECL_CAST(FrameArray)
+  DECL_CAST2(FrameArray)
 
  private:
   // The underlying fixed array embodies a captured stack trace. Frame i
@@ -101,7 +101,7 @@ class FrameArray : public FixedArray {
                                         Handle<FrameArray> array, int length);
 
   friend class Factory;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FrameArray);
+  OBJECT_CONSTRUCTORS(FrameArray, FixedArrayPtr);
 };
 
 }  // namespace internal

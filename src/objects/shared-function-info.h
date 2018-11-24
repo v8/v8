@@ -220,7 +220,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   static const uint16_t kInvalidLength = static_cast<uint16_t>(-1);
 
   // [scope_info]: Scope info.
-  DECL_ACCESSORS(scope_info, ScopeInfo)
+  DECL_ACCESSORS2(scope_info, ScopeInfo)
 
   // End position of this function in the script source.
   V8_EXPORT_PRIVATE int EndPosition() const;
@@ -238,7 +238,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Get the outer scope info whether this function is compiled or not.
   inline bool HasOuterScopeInfo() const;
-  inline ScopeInfo* GetOuterScopeInfo() const;
+  inline ScopeInfo GetOuterScopeInfo() const;
 
   // [feedback metadata] Metadata template for feedback vectors of instances of
   // this function.
@@ -361,7 +361,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // Coverage infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
   bool HasCoverageInfo() const;
-  CoverageInfo* GetCoverageInfo() const;
+  CoverageInfo GetCoverageInfo() const;
 
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();

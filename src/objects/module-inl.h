@@ -31,7 +31,7 @@ SMI_ACCESSORS(Module, dfs_index, kDfsIndexOffset)
 SMI_ACCESSORS(Module, dfs_ancestor_index, kDfsAncestorIndexOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
-ModuleInfo* Module::info() const {
+ModuleInfo Module::info() const {
   return (status() >= kEvaluating)
              ? ModuleInfo::cast(code())
              : GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
@@ -49,7 +49,8 @@ SMI_ACCESSORS(ModuleInfoEntry, cell_index, kCellIndexOffset)
 SMI_ACCESSORS(ModuleInfoEntry, beg_pos, kBegPosOffset)
 SMI_ACCESSORS(ModuleInfoEntry, end_pos, kEndPosOffset)
 
-CAST_ACCESSOR(ModuleInfo)
+OBJECT_CONSTRUCTORS_IMPL(ModuleInfo, FixedArrayPtr)
+CAST_ACCESSOR2(ModuleInfo)
 
 FixedArray* ModuleInfo::module_requests() const {
   return FixedArray::cast(get(kModuleRequestsIndex));
@@ -76,7 +77,7 @@ FixedArray* ModuleInfo::module_request_positions() const {
 }
 
 #ifdef DEBUG
-bool ModuleInfo::Equals(ModuleInfo* other) const {
+bool ModuleInfo::Equals(ModuleInfo other) const {
   return regular_exports() == other->regular_exports() &&
          regular_imports() == other->regular_imports() &&
          special_exports() == other->special_exports() &&

@@ -32,9 +32,9 @@ class Zone;
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo : public FixedArray {
+class ScopeInfo : public FixedArrayPtr {
  public:
-  DECL_CAST(ScopeInfo)
+  DECL_CAST2(ScopeInfo)
   DECL_PRINTER(ScopeInfo)
 
   // Return the type of this scope.
@@ -106,7 +106,7 @@ class ScopeInfo : public FixedArray {
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
-  ModuleInfo* ModuleDescriptorInfo() const;
+  ModuleInfo ModuleDescriptorInfo() const;
 
   // Return the name of the given context local.
   String* ContextLocalName(int var) const;
@@ -167,10 +167,10 @@ class ScopeInfo : public FixedArray {
   void SetIsDebugEvaluateScope();
 
   // Return the outer ScopeInfo if present.
-  ScopeInfo* OuterScopeInfo() const;
+  ScopeInfo OuterScopeInfo() const;
 
 #ifdef DEBUG
-  bool Equals(ScopeInfo* other) const;
+  bool Equals(ScopeInfo other) const;
 #endif
 
   static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope,
@@ -182,7 +182,7 @@ class ScopeInfo : public FixedArray {
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.
-  V8_EXPORT_PRIVATE static ScopeInfo* Empty(Isolate* isolate);
+  V8_EXPORT_PRIVATE static ScopeInfo Empty(Isolate* isolate);
 
 // The layout of the static part of a ScopeInfo is as follows. Each entry is
 // numeric and occupies one array slot.
@@ -317,6 +317,8 @@ class ScopeInfo : public FixedArray {
   friend class ScopeIterator;
   friend std::ostream& operator<<(std::ostream& os,
                                   ScopeInfo::VariableAllocationInfo var);
+
+  OBJECT_CONSTRUCTORS(ScopeInfo, FixedArrayPtr)
 };
 
 std::ostream& operator<<(std::ostream& os,

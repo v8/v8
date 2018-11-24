@@ -89,7 +89,7 @@ class Module : public Struct, public NeverReadOnlySpaceObject {
   DECL_ACCESSORS(import_meta, Object)
 
   // Get the ModuleInfo associated with the code.
-  inline ModuleInfo* info() const;
+  inline ModuleInfo info() const;
 
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
@@ -253,9 +253,9 @@ class JSModuleNamespace : public JSObject {
 };
 
 // ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
-class ModuleInfo : public FixedArray {
+class ModuleInfo : public FixedArrayPtr {
  public:
-  DECL_CAST(ModuleInfo)
+  DECL_CAST2(ModuleInfo)
 
   static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
                                 ModuleDescriptor* descr);
@@ -274,7 +274,7 @@ class ModuleInfo : public FixedArray {
   FixedArray* RegularExportExportNames(int i) const;
 
 #ifdef DEBUG
-  inline bool Equals(ModuleInfo* other) const;
+  inline bool Equals(ModuleInfo other) const;
 #endif
 
  private:
@@ -295,7 +295,7 @@ class ModuleInfo : public FixedArray {
     kRegularExportExportNamesOffset,
     kRegularExportLength
   };
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfo);
+  OBJECT_CONSTRUCTORS(ModuleInfo, FixedArrayPtr);
 };
 
 class ModuleInfoEntry : public Struct {

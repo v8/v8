@@ -25,7 +25,7 @@ enum ModuleVariableEntryOffset {
 };
 
 #ifdef DEBUG
-bool ScopeInfo::Equals(ScopeInfo* other) const {
+bool ScopeInfo::Equals(ScopeInfo other) const {
   if (length() != other->length()) return false;
   for (int index = 0; index < length(); ++index) {
     Object* entry = get(index);
@@ -451,7 +451,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   return scope_info;
 }
 
-ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
+ScopeInfo ScopeInfo::Empty(Isolate* isolate) {
   return ReadOnlyRoots(isolate).empty_scope_info();
 }
 
@@ -609,12 +609,12 @@ void ScopeInfo::SetPositionInfo(int start, int end) {
   set(PositionInfoIndex() + 1, Smi::FromInt(end));
 }
 
-ScopeInfo* ScopeInfo::OuterScopeInfo() const {
+ScopeInfo ScopeInfo::OuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
   return ScopeInfo::cast(get(OuterScopeInfoIndex()));
 }
 
-ModuleInfo* ScopeInfo::ModuleDescriptorInfo() const {
+ModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
   DCHECK(scope_type() == MODULE_SCOPE);
   return ModuleInfo::cast(get(ModuleInfoIndex()));
 }

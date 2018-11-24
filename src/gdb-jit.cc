@@ -970,7 +970,7 @@ class CodeDescription {
 
   bool has_scope_info() const { return shared_info_ != nullptr; }
 
-  ScopeInfo* scope_info() const {
+  ScopeInfo scope_info() const {
     DCHECK(has_scope_info());
     return shared_info_->scope_info();
   }
@@ -1130,7 +1130,7 @@ class DebugInfoSection : public DebugSection {
     w->WriteString("v8value");
 
     if (desc_->has_scope_info()) {
-      ScopeInfo* scope = desc_->scope_info();
+      ScopeInfo scope = desc_->scope_info();
       w->WriteULEB128(2);
       w->WriteString(desc_->name());
       w->Write<intptr_t>(desc_->CodeStart());
@@ -1332,7 +1332,7 @@ class DebugAbbrevSection : public DebugSection {
     w->WriteULEB128(0);
 
     if (extra_info) {
-      ScopeInfo* scope = desc_->scope_info();
+      ScopeInfo scope = desc_->scope_info();
       int params = scope->ParameterCount();
       int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.

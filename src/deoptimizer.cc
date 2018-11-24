@@ -681,7 +681,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Determine basic deoptimization information.  The optimized frame is
   // described by the input data.
-  DeoptimizationData* input_data =
+  DeoptimizationData input_data =
       DeoptimizationData::cast(compiled_code_->deoptimization_data());
 
   {
@@ -3333,10 +3333,10 @@ int TranslatedState::CreateNextTranslatedValue(
 
 TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
-  DeoptimizationData* data =
+  DeoptimizationData data =
       static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
           &deopt_index);
-  DCHECK(data != nullptr && deopt_index != Safepoint::kNoDeoptimizationIndex);
+  DCHECK(!data.is_null() && deopt_index != Safepoint::kNoDeoptimizationIndex);
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
   Init(frame->isolate(), frame->fp(), &it, data->LiteralArray(),

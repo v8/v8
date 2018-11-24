@@ -740,7 +740,7 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
 
   SharedFunctionInfo* shared = function->shared();
   if (shared->HasCoverageInfo()) {
-    CoverageInfo* coverage_info = shared->GetCoverageInfo();
+    CoverageInfo coverage_info = shared->GetCoverageInfo();
     coverage_info->IncrementBlockCount(coverage_array_slot_index);
   }
 

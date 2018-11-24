@@ -1091,14 +1091,14 @@ typedef JSPromise* JSPromiseArgType;
 typedef JSProxy* JSProxyArgType;
 typedef Map MapArgType;
 typedef Object* ObjectArgType;
-typedef RegExpMatchInfo* RegExpMatchInfoArgType;
-typedef ScriptContextTable* ScriptContextTableArgType;
+typedef RegExpMatchInfo RegExpMatchInfoArgType;
+typedef ScriptContextTable ScriptContextTableArgType;
 typedef SharedFunctionInfo* SharedFunctionInfoArgType;
 typedef SimpleNumberDictionary SimpleNumberDictionaryArgType;
 typedef Smi SmiArgType;
 typedef String* StringArgType;
 typedef Symbol* SymbolArgType;
-typedef TemplateList* TemplateListArgType;
+typedef TemplateList TemplateListArgType;
 typedef WasmInstanceObject* WasmInstanceObjectArgType;
 typedef WasmMemoryObject* WasmMemoryObjectArgType;
 

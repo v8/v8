@@ -18,9 +18,11 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(SloppyArgumentsElements, FixedArrayPtr)
+
 CAST_ACCESSOR(AliasedArgumentsEntry)
 CAST_ACCESSOR(JSArgumentsObject)
-CAST_ACCESSOR(SloppyArgumentsElements)
+CAST_ACCESSOR2(SloppyArgumentsElements)
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
 

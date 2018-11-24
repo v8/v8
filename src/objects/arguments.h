@@ -106,7 +106,7 @@ class JSStrictArgumentsObject : public JSArgumentsObjectWithLength {
 // JSArgumentsObject:
 // - FAST_SLOPPY_ARGUMENTS_ELEMENTS: HOLEY_ELEMENTS
 // - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
-class SloppyArgumentsElements : public FixedArray {
+class SloppyArgumentsElements : public FixedArrayPtr {
  public:
   static const int kContextIndex = 0;
   static const int kArgumentsIndex = 1;
@@ -119,13 +119,12 @@ class SloppyArgumentsElements : public FixedArray {
   inline Object* get_mapped_entry(uint32_t entry);
   inline void set_mapped_entry(uint32_t entry, Object* object);
 
-  DECL_CAST(SloppyArgumentsElements)
+  DECL_CAST2(SloppyArgumentsElements)
 #ifdef VERIFY_HEAP
   void SloppyArgumentsElementsVerify(Isolate* isolate, JSObject* holder);
 #endif
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SloppyArgumentsElements);
+  OBJECT_CONSTRUCTORS(SloppyArgumentsElements, FixedArrayPtr);
 };
 
 // Representation of a slow alias as part of a sloppy arguments objects.

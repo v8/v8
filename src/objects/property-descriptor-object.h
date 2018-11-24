@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class PropertyDescriptorObject : public FixedArray {
+class PropertyDescriptorObject : public FixedArrayPtr {
  public:
 #define FLAGS_BIT_FIELDS(V, _)      \
   V(IsEnumerableBit, bool, 1, _)    \
@@ -32,7 +32,7 @@ class PropertyDescriptorObject : public FixedArray {
 
   enum { kFlagsIndex, kValueIndex, kGetIndex, kSetIndex, kLength };
 
-  DECL_CAST(PropertyDescriptorObject)
+  DECL_CAST2(PropertyDescriptorObject)
 
   static const int kRegularAccessorPropertyBits =
       HasEnumerableBit::kMask | HasConfigurableBit::kMask | HasGetBit::kMask |
@@ -55,6 +55,8 @@ class PropertyDescriptorObject : public FixedArray {
       FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kGetIndex);
   static const int kSetOffset =
       FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kSetIndex);
+
+  OBJECT_CONSTRUCTORS(PropertyDescriptorObject, FixedArrayPtr)
 };
 
 }  // namespace internal

@@ -21,7 +21,7 @@ class ClassLiteral;
 // of properties in the backing store. This number includes properties with
 // computed names that are not
 // in the list.
-class ObjectBoilerplateDescription : public FixedArray {
+class ObjectBoilerplateDescription : public FixedArrayPtr {
  public:
   Object* name(int index) const;
   Object* value(int index) const;
@@ -42,12 +42,14 @@ class ObjectBoilerplateDescription : public FixedArray {
   static const int kLiteralTypeOffset = 0;
   static const int kDescriptionStartIndex = 1;
 
-  DECL_CAST(ObjectBoilerplateDescription)
+  DECL_CAST2(ObjectBoilerplateDescription)
   DECL_VERIFIER(ObjectBoilerplateDescription)
   DECL_PRINTER(ObjectBoilerplateDescription)
 
  private:
   bool has_number_of_properties() const;
+
+  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArrayPtr)
 };
 
 class ArrayBoilerplateDescription : public Struct {
@@ -81,7 +83,7 @@ class ArrayBoilerplateDescription : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayBoilerplateDescription);
 };
 
-class ClassBoilerplate : public FixedArray {
+class ClassBoilerplate : public FixedArrayPtr {
  public:
   enum ValueKind { kData, kGetter, kSetter };
 
@@ -113,7 +115,7 @@ class ClassBoilerplate : public FixedArray {
   static const int kMinimumClassPropertiesCount = 6;
   static const int kMinimumPrototypePropertiesCount = 1;
 
-  DECL_CAST(ClassBoilerplate)
+  DECL_CAST2(ClassBoilerplate)
 
   DECL_BOOLEAN_ACCESSORS(install_class_name_accessor)
   DECL_INT_ACCESSORS(arguments_count)
@@ -152,6 +154,8 @@ class ClassBoilerplate : public FixedArray {
 
  private:
   DECL_INT_ACCESSORS(flags)
+
+  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArrayPtr)
 };
 
 }  // namespace internal

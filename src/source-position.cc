@@ -101,7 +101,7 @@ void SourcePosition::PrintJson(std::ostream& out) const {
 }
 
 void SourcePosition::Print(std::ostream& out, Code code) const {
-  DeoptimizationData* deopt_data =
+  DeoptimizationData deopt_data =
       DeoptimizationData::cast(code->deoptimization_data());
   if (!isInlined()) {
     SharedFunctionInfo* function(

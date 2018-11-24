@@ -150,9 +150,12 @@ class Handle final : public HandleBase {
            (std::is_same<S, Code>::value || std::is_same<S, Context>::value ||
             std::is_same<S, Map>::value ||
             std::is_same<S, NumberDictionary>::value ||
+            std::is_same<S, ObjectBoilerplateDescription>::value ||
             std::is_same<S, OrderedHashMap>::value ||
             std::is_same<S, OrderedHashSet>::value ||
-            std::is_same<S, OrderedNameDictionary>::value))>::type>
+            std::is_same<S, OrderedNameDictionary>::value ||
+            std::is_same<S, ScriptContextTable>::value ||
+            std::is_same<S, ScopeInfo>::value))>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
   // The NeverReadOnlySpaceObject special-case is needed for the

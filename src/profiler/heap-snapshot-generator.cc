@@ -925,7 +925,7 @@ static const struct {
 void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
                                               Context context) {
   if (!context->IsNativeContext() && context->is_declaration_context()) {
-    ScopeInfo* scope_info = context->scope_info();
+    ScopeInfo scope_info = context->scope_info();
     // Add context allocated locals.
     int context_locals = scope_info->ContextLocalCount();
     for (int i = 0; i < context_locals; ++i) {

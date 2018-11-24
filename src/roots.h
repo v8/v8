@@ -59,7 +59,7 @@ class RootVisitor;
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, transition_array_map, TransitionArrayMap)                             \
   V(Map, feedback_vector_map, FeedbackVectorMap)                               \
-  V(ScopeInfo*, empty_scope_info, EmptyScopeInfo)                              \
+  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   V(FixedArray*, empty_fixed_array, EmptyFixedArray)                           \
   V(DescriptorArray*, empty_descriptor_array, EmptyDescriptorArray)            \
   /* Entries beyond the first 32                                            */ \
@@ -180,7 +180,7 @@ class RootVisitor;
   V(EnumCache*, empty_enum_cache, EmptyEnumCache)                              \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
   V(ByteArray*, empty_byte_array, EmptyByteArray)                              \
-  V(ObjectBoilerplateDescription*, empty_object_boilerplate_description,       \
+  V(ObjectBoilerplateDescription, empty_object_boilerplate_description,        \
     EmptyObjectBoilerplateDescription)                                         \
   V(ArrayBoilerplateDescription*, empty_array_boilerplate_description,         \
     EmptyArrayBoilerplateDescription)                                          \
@@ -287,7 +287,7 @@ class RootVisitor;
     NoScriptSharedFunctionInfos)                                            \
   V(FixedArray*, serialized_objects, SerializedObjects)                     \
   V(FixedArray*, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
-  V(TemplateList*, message_listeners, MessageListeners)                     \
+  V(TemplateList, message_listeners, MessageListeners)                      \
   /* Support for async stack traces */                                      \
   V(HeapObject*, current_microtask, CurrentMicrotask)                       \
   /* JSWeakFactory objects which need cleanup */                            \

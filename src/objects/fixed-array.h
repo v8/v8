@@ -334,7 +334,7 @@ class FixedArrayPtr : public FixedArrayBasePtr {
 
   // Dispatched behavior.
   DECL_PRINTER(FixedArrayPtr)
-  DECL_VERIFIER(FixedArrayPtr)
+  DECL_VERIFIER(FixedArray)
 
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
 
@@ -350,10 +350,7 @@ class FixedArrayPtr : public FixedArrayBasePtr {
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which
 // checks for the exact instance type FIXED_ARRAY_TYPE instead of a range
 // check: [FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE].
-class FixedArrayExact final : public FixedArray {
- public:
-  DECL_CAST(FixedArrayExact)
-};
+class FixedArrayExact final : public FixedArrayPtr {};
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
 class FixedDoubleArray : public FixedArrayBase {
@@ -560,7 +557,7 @@ class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
 // the allocated size. The number of elements is stored at kLengthIndex and is
 // updated with every insertion. The elements of the ArrayList are stored in the
 // underlying FixedArray starting at kFirstIndex.
-class ArrayList : public FixedArray {
+class ArrayList : public FixedArrayPtr {
  public:
   static Handle<ArrayList> Add(Isolate* isolate, Handle<ArrayList> array,
                                Handle<Object> obj);
@@ -589,14 +586,14 @@ class ArrayList : public FixedArray {
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
   static Handle<FixedArray> Elements(Isolate* isolate, Handle<ArrayList> array);
-  DECL_CAST(ArrayList)
+  DECL_CAST2(ArrayList)
 
  private:
   static Handle<ArrayList> EnsureSpace(Isolate* isolate,
                                        Handle<ArrayList> array, int length);
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayList);
+  OBJECT_CONSTRUCTORS(ArrayList, FixedArrayPtr);
 };
 
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
@@ -813,7 +810,7 @@ TYPED_ARRAYS(FIXED_TYPED_ARRAY_TRAITS)
 
 #undef FIXED_TYPED_ARRAY_TRAITS
 
-class TemplateList : public FixedArray {
+class TemplateList : public FixedArrayPtr {
  public:
   static Handle<TemplateList> New(Isolate* isolate, int size);
   inline int length() const;
@@ -821,11 +818,12 @@ class TemplateList : public FixedArray {
   inline void set(int index, Object* value);
   static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
                                   Handle<Object> value);
-  DECL_CAST(TemplateList)
+  DECL_CAST2(TemplateList)
  private:
   static const int kLengthIndex = 0;
   static const int kFirstElementIndex = kLengthIndex + 1;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateList);
+
+  OBJECT_CONSTRUCTORS(TemplateList, FixedArrayPtr);
 };
 
 }  // namespace internal

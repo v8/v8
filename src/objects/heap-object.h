@@ -100,8 +100,13 @@ bool ObjectPtr::IsHeapObject() const {
 class HeapObjectPtr : public ObjectPtr {
  public:
   inline Map map() const;
+  inline void set_map(Map value);
   inline void set_map_after_allocation(
       Map value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  // The no-write-barrier version.  This is OK if the object is white and in
+  // new space, or if the value is an immortal immutable object, like the maps
+  // of primitive (non-JS) objects like strings, heap numbers etc.
+  inline void set_map_no_write_barrier(Map value);
 
   inline ObjectSlot map_slot();
   inline MapWord map_word() const;

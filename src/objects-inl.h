@@ -547,12 +547,15 @@ OrderedNameDictionary::OrderedNameDictionary(Address ptr)
   SLOW_DCHECK(IsOrderedNameDictionary());
 }
 
+OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArrayPtr)
+
 // ------------------------------------
 // Cast operations
 
 CAST_ACCESSOR(AccessorPair)
 CAST_ACCESSOR(BigInt)
-CAST_ACCESSOR(ObjectBoilerplateDescription)
+CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ArrayBoilerplateDescription)
 CAST_ACCESSOR(DataHandler)
@@ -577,8 +580,8 @@ CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR2(OrderedHashMap)
 CAST_ACCESSOR2(OrderedHashSet)
 CAST_ACCESSOR(PropertyCell)
-CAST_ACCESSOR(RegExpMatchInfo)
-CAST_ACCESSOR(ScopeInfo)
+CAST_ACCESSOR2(RegExpMatchInfo)
+CAST_ACCESSOR2(ScopeInfo)
 CAST_ACCESSOR2(SimpleNumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)

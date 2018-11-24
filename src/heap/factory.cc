@@ -2076,6 +2076,11 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
                                                   PretenureFlag pretenure) {
   return CopyArrayAndGrow(array, grow_by, pretenure);
 }
+// TODO(3770): Replacement for the above, temporarily separate.
+Handle<FixedArrayPtr> Factory::CopyFixedArrayAndGrow(
+    Handle<FixedArrayPtr> array, int grow_by, PretenureFlag pretenure) {
+  return CopyArrayAndGrow(array, grow_by, pretenure);
+}
 
 Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
     Handle<WeakFixedArray> src, int grow_by, PretenureFlag pretenure) {

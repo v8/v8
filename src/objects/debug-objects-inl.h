@@ -16,9 +16,11 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(CoverageInfo, FixedArrayPtr)
+
 CAST_ACCESSOR(BreakPointInfo)
 CAST_ACCESSOR(DebugInfo)
-CAST_ACCESSOR(CoverageInfo)
+CAST_ACCESSOR2(CoverageInfo)
 CAST_ACCESSOR(BreakPoint)
 
 SMI_ACCESSORS(DebugInfo, flags, kFlagsOffset)

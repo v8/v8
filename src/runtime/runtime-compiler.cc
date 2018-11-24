@@ -253,7 +253,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   Handle<Code> result;
   if (maybe_result.ToHandle(&result) &&
       result->kind() == Code::OPTIMIZED_FUNCTION) {
-    DeoptimizationData* data =
+    DeoptimizationData data =
         DeoptimizationData::cast(result->deoptimization_data());
 
     if (data->OsrPcOffset()->value() >= 0) {

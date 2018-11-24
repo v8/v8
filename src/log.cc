@@ -1366,7 +1366,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   }
   msg << kNext;
   if (hasInlined) {
-    DeoptimizationData* deopt_data =
+    DeoptimizationData deopt_data =
         DeoptimizationData::cast(Code::cast(code)->deoptimization_data());
 
     msg << std::hex;

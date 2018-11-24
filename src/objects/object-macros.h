@@ -483,20 +483,24 @@
 #define DECL_VERIFIER(Name)
 #endif
 
-#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)                             \
-  type* DeoptimizationData::name() { return type::cast(get(k##name##Index)); } \
-  void DeoptimizationData::Set##name(type* value) {                            \
-    set(k##name##Index, value);                                                \
+#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)  \
+  type* DeoptimizationData::name() const {          \
+    return type::cast(get(k##name##Index));         \
+  }                                                 \
+  void DeoptimizationData::Set##name(type* value) { \
+    set(k##name##Index, value);                     \
   }
 
 // Replacement for the above, temporarily separate for incremental transition.
 // TODO(3770): Eliminate the duplication.
-#define DEFINE_DEOPT_ELEMENT_ACCESSORS2(name, type)                           \
-  type DeoptimizationData::name() { return type::cast(get(k##name##Index)); } \
+#define DEFINE_DEOPT_ELEMENT_ACCESSORS2(name, type) \
+  type DeoptimizationData::name() const {           \
+    return type::cast(get(k##name##Index));         \
+  }                                                 \
   void DeoptimizationData::Set##name(type value) { set(k##name##Index, value); }
 
 #define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                \
-  type DeoptimizationData::name(int i) {                        \
+  type DeoptimizationData::name(int i) const {                  \
     return type::cast(get(IndexForEntry(i) + k##name##Offset)); \
   }                                                             \
   void DeoptimizationData::Set##name(int i, type value) {       \

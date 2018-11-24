@@ -811,7 +811,7 @@ class OptimizedFrame : public JavaScriptFrame {
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
-  DeoptimizationData* GetDeoptimizationData(int* deopt_index) const;
+  DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
 
   Object* receiver() const override;
 

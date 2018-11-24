@@ -21,12 +21,8 @@
 namespace v8 {
 namespace internal {
 
-
-// static
-ScriptContextTable* ScriptContextTable::cast(Object* context) {
-  DCHECK(context->IsScriptContextTable());
-  return reinterpret_cast<ScriptContextTable*>(context);
-}
+OBJECT_CONSTRUCTORS_IMPL(ScriptContextTable, FixedArrayPtr)
+CAST_ACCESSOR2(ScriptContextTable)
 
 int ScriptContextTable::used() const { return Smi::ToInt(get(kUsedSlotIndex)); }
 
@@ -49,7 +45,7 @@ NEVER_READ_ONLY_SPACE_IMPL(Context)
 CAST_ACCESSOR2(Context)
 CAST_ACCESSOR2(NativeContext)
 
-void Context::set_scope_info(ScopeInfo* scope_info) {
+void Context::set_scope_info(ScopeInfo scope_info) {
   set(SCOPE_INFO_INDEX, scope_info);
 }
 

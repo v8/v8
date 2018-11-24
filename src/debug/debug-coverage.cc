@@ -75,7 +75,7 @@ void SortBlockData(std::vector<CoverageBlock>& v) {
 std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo* shared) {
   DCHECK(shared->HasCoverageInfo());
 
-  CoverageInfo* coverage_info =
+  CoverageInfo coverage_info =
       CoverageInfo::cast(shared->GetDebugInfo()->coverage_info());
 
   std::vector<CoverageBlock> result;
@@ -386,7 +386,7 @@ void ClampToBinary(CoverageFunction* function) {
 void ResetAllBlockCounts(SharedFunctionInfo* shared) {
   DCHECK(shared->HasCoverageInfo());
 
-  CoverageInfo* coverage_info =
+  CoverageInfo coverage_info =
       CoverageInfo::cast(shared->GetDebugInfo()->coverage_info());
 
   for (int i = 0; i < coverage_info->SlotCount(); i++) {

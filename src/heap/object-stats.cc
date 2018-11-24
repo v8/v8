@@ -937,7 +937,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
                                    ObjectStats::SOURCE_POSITION_TABLE_TYPE);
   }
   if (code->kind() == Code::Kind::OPTIMIZED_FUNCTION) {
-    DeoptimizationData* input_data =
+    DeoptimizationData input_data =
         DeoptimizationData::cast(code->deoptimization_data());
     if (input_data->length() > 0) {
       RecordSimpleVirtualObjectStats(code->deoptimization_data(),

@@ -21,12 +21,14 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArrayPtr)
+
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(BytecodeArray)
 CAST_ACCESSOR2(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
-CAST_ACCESSOR(DeoptimizationData)
+CAST_ACCESSOR2(DeoptimizationData)
 CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 
 ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,

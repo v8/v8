@@ -815,7 +815,7 @@ class BytecodeArray : public FixedArrayBase {
 // the literal array will contain these functions.
 //
 // It can be empty.
-class DeoptimizationData : public FixedArray {
+class DeoptimizationData : public FixedArrayPtr {
  public:
   // Layout description.  Indices in the array.
   static const int kTranslationByteArrayIndex = 0;
@@ -836,7 +836,7 @@ class DeoptimizationData : public FixedArray {
 
 // Simple element accessors.
 #define DECL_ELEMENT_ACCESSORS(name, type) \
-  inline type name();                      \
+  inline type name() const;                \
   inline void Set##name(type value);
 
   DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray*)
@@ -852,7 +852,7 @@ class DeoptimizationData : public FixedArray {
 
 // Accessors for elements of the ith deoptimization entry.
 #define DECL_ENTRY_ACCESSORS(name, type) \
-  inline type name(int i);               \
+  inline type name(int i) const;         \
   inline void Set##name(int i, type value);
 
   DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
@@ -880,7 +880,7 @@ class DeoptimizationData : public FixedArray {
   // Return an empty DeoptimizationData.
   static Handle<DeoptimizationData> Empty(Isolate* isolate);
 
-  DECL_CAST(DeoptimizationData)
+  DECL_CAST2(DeoptimizationData)
 
 #ifdef ENABLE_DISASSEMBLER
   void DeoptimizationDataPrint(std::ostream& os);  // NOLINT
@@ -892,6 +892,8 @@ class DeoptimizationData : public FixedArray {
   }
 
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
+
+  OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArrayPtr)
 };
 
 class SourcePositionTableWithFrameCache : public Tuple2 {

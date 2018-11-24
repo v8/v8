@@ -3566,7 +3566,7 @@ class SloppyArgumentsElementsAccessor
 
   static inline void SetImpl(FixedArrayBase* store, uint32_t entry,
                              Object* value) {
-    SloppyArgumentsElements* elements = SloppyArgumentsElements::cast(store);
+    SloppyArgumentsElements elements = SloppyArgumentsElements::cast(store);
     uint32_t length = elements->parameter_map_length();
     if (entry < length) {
       // Store context mapped entry.
@@ -3601,7 +3601,7 @@ class SloppyArgumentsElementsAccessor
   }
 
   static uint32_t GetCapacityImpl(JSObject* holder, FixedArrayBase* store) {
-    SloppyArgumentsElements* elements = SloppyArgumentsElements::cast(store);
+    SloppyArgumentsElements elements = SloppyArgumentsElements::cast(store);
     FixedArray* arguments = elements->arguments();
     return elements->parameter_map_length() +
            ArgumentsAccessor::GetCapacityImpl(holder, arguments);
@@ -3609,7 +3609,7 @@ class SloppyArgumentsElementsAccessor
 
   static uint32_t GetMaxNumberOfEntries(JSObject* holder,
                                         FixedArrayBase* backing_store) {
-    SloppyArgumentsElements* elements =
+    SloppyArgumentsElements elements =
         SloppyArgumentsElements::cast(backing_store);
     FixedArrayBase* arguments = elements->arguments();
     return elements->parameter_map_length() +
@@ -3619,7 +3619,7 @@ class SloppyArgumentsElementsAccessor
   static uint32_t NumberOfElementsImpl(JSObject* receiver,
                                        FixedArrayBase* backing_store) {
     Isolate* isolate = receiver->GetIsolate();
-    SloppyArgumentsElements* elements =
+    SloppyArgumentsElements elements =
         SloppyArgumentsElements::cast(backing_store);
     FixedArrayBase* arguments = elements->arguments();
     uint32_t nof_elements = 0;
@@ -3646,7 +3646,7 @@ class SloppyArgumentsElementsAccessor
 
   static bool HasEntryImpl(Isolate* isolate, FixedArrayBase* parameters,
                            uint32_t entry) {
-    SloppyArgumentsElements* elements =
+    SloppyArgumentsElements elements =
         SloppyArgumentsElements::cast(parameters);
     uint32_t length = elements->parameter_map_length();
     if (entry < length) {
@@ -3658,7 +3658,7 @@ class SloppyArgumentsElementsAccessor
 
   static bool HasAccessorsImpl(JSObject* holder,
                                FixedArrayBase* backing_store) {
-    SloppyArgumentsElements* elements =
+    SloppyArgumentsElements elements =
         SloppyArgumentsElements::cast(backing_store);
     FixedArray* arguments = elements->arguments();
     return ArgumentsAccessor::HasAccessorsImpl(holder, arguments);
@@ -3666,7 +3666,7 @@ class SloppyArgumentsElementsAccessor
 
   static uint32_t GetIndexForEntryImpl(FixedArrayBase* parameters,
                                        uint32_t entry) {
-    SloppyArgumentsElements* elements =
+    SloppyArgumentsElements elements =
         SloppyArgumentsElements::cast(parameters);
     uint32_t length = elements->parameter_map_length();
     if (entry < length) return entry;
@@ -3677,7 +3677,7 @@ class SloppyArgumentsElementsAccessor
   static uint32_t GetEntryForIndexImpl(Isolate* isolate, JSObject* holder,
                                        FixedArrayBase* parameters,
                                        uint32_t index, PropertyFilter filter) {
-    SloppyArgumentsElements* elements =
+    SloppyArgumentsElements elements =
         SloppyArgumentsElements::cast(parameters);
     if (HasParameterMapArg(isolate, elements, index)) return index;
     FixedArray* arguments = elements->arguments();
@@ -3690,7 +3690,7 @@ class SloppyArgumentsElementsAccessor
   }
 
   static PropertyDetails GetDetailsImpl(JSObject* holder, uint32_t entry) {
-    SloppyArgumentsElements* elements =
+    SloppyArgumentsElements elements =
         SloppyArgumentsElements::cast(holder->elements());
     uint32_t length = elements->parameter_map_length();
     if (entry < length) {
@@ -3701,7 +3701,7 @@ class SloppyArgumentsElementsAccessor
   }
 
   static bool HasParameterMapArg(Isolate* isolate,
-                                 SloppyArgumentsElements* elements,
+                                 SloppyArgumentsElements elements,
                                  uint32_t index) {
     uint32_t length = elements->parameter_map_length();
     if (index >= length) return false;
@@ -4003,7 +4003,7 @@ class FastSloppyArgumentsElementsAccessor
 
   static Handle<FixedArray> GetArguments(Isolate* isolate,
                                          FixedArrayBase* store) {
-    SloppyArgumentsElements* elements = SloppyArgumentsElements::cast(store);
+    SloppyArgumentsElements elements = SloppyArgumentsElements::cast(store);
     return Handle<FixedArray>(elements->arguments(), isolate);
   }
 

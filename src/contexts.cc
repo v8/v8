@@ -23,7 +23,7 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   if (used + kFirstContextSlotIndex == length) {
     CHECK(length < Smi::kMaxValue / 2);
     Isolate* isolate = script_context->GetIsolate();
-    Handle<FixedArray> copy =
+    Handle<FixedArrayPtr> copy =
         isolate->factory()->CopyFixedArrayAndGrow(table, length);
     copy->set_map(ReadOnlyRoots(isolate).script_context_table_map());
     result = Handle<ScriptContextTable>::cast(copy);
@@ -104,7 +104,7 @@ JSReceiver* Context::extension_receiver() {
   return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
 }
 
-ScopeInfo* Context::scope_info() {
+ScopeInfo Context::scope_info() {
   return ScopeInfo::cast(get(SCOPE_INFO_INDEX));
 }
 
