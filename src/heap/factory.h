@@ -515,14 +515,9 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
-  Handle<FixedArrayPtr> CopyFixedArrayWithMap(Handle<FixedArrayPtr> array,
-                                              Handle<Map> map);
 
   Handle<FixedArray> CopyFixedArrayAndGrow(
       Handle<FixedArray> array, int grow_by,
-      PretenureFlag pretenure = NOT_TENURED);
-  Handle<FixedArrayPtr> CopyFixedArrayAndGrow(
-      Handle<FixedArrayPtr> array, int grow_by,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<WeakFixedArray> CopyWeakFixedArrayAndGrow(
@@ -647,11 +642,6 @@ class V8_EXPORT_PRIVATE Factory {
 
   inline Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
-      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
-      PretenureFlag pretenure = NOT_TENURED);
-  // TODO(3770): Replacement for the above, temporarily separate.
-  inline Handle<JSArray> NewJSArrayWithElements(
-      Handle<FixedArrayBasePtr> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED);
 

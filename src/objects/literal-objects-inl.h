@@ -15,12 +15,12 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(ObjectBoilerplateDescription, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(ObjectBoilerplateDescription, FixedArray)
 
 SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
               FixedArray::OffsetOfElementAt(kLiteralTypeOffset));
 
-OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, FixedArray)
 CAST_ACCESSOR2(ClassBoilerplate)
 
 BIT_FIELD_ACCESSORS(ClassBoilerplate, flags, install_class_name_accessor,
@@ -38,8 +38,8 @@ ACCESSORS(ClassBoilerplate, static_properties_template, Object,
 ACCESSORS(ClassBoilerplate, static_elements_template, Object,
           FixedArray::OffsetOfElementAt(kClassElementsTemplateIndex));
 
-ACCESSORS(ClassBoilerplate, static_computed_properties, FixedArray,
-          FixedArray::OffsetOfElementAt(kClassComputedPropertiesIndex));
+ACCESSORS2(ClassBoilerplate, static_computed_properties, FixedArray,
+           FixedArray::OffsetOfElementAt(kClassComputedPropertiesIndex));
 
 ACCESSORS(ClassBoilerplate, instance_properties_template, Object,
           FixedArray::OffsetOfElementAt(kPrototypePropertiesTemplateIndex));
@@ -47,13 +47,13 @@ ACCESSORS(ClassBoilerplate, instance_properties_template, Object,
 ACCESSORS(ClassBoilerplate, instance_elements_template, Object,
           FixedArray::OffsetOfElementAt(kPrototypeElementsTemplateIndex));
 
-ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
-          FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex));
+ACCESSORS2(ClassBoilerplate, instance_computed_properties, FixedArray,
+           FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex));
 
 SMI_ACCESSORS(ArrayBoilerplateDescription, flags, kFlagsOffset);
 
-ACCESSORS(ArrayBoilerplateDescription, constant_elements, FixedArrayBase,
-          kConstantElementsOffset);
+ACCESSORS2(ArrayBoilerplateDescription, constant_elements, FixedArrayBase,
+           kConstantElementsOffset);
 
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
   return static_cast<ElementsKind>(flags());

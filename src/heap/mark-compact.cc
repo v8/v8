@@ -2045,12 +2045,12 @@ void MarkCompactCollector::TrimEnumCache(Map map,
   if (live_enum == 0) return descriptors->ClearEnumCache();
   EnumCache* enum_cache = descriptors->GetEnumCache();
 
-  FixedArray* keys = enum_cache->keys();
+  FixedArray keys = enum_cache->keys();
   int to_trim = keys->length() - live_enum;
   if (to_trim <= 0) return;
   heap_->RightTrimFixedArray(keys, to_trim);
 
-  FixedArray* indices = enum_cache->indices();
+  FixedArray indices = enum_cache->indices();
   to_trim = indices->length() - live_enum;
   if (to_trim <= 0) return;
   heap_->RightTrimFixedArray(indices, to_trim);

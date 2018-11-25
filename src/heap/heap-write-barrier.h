@@ -46,7 +46,7 @@ void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
 void GenerationalBarrier(HeapObjectPtr* object, ObjectSlot slot, Object* value);
 void GenerationalBarrier(HeapObjectPtr* object, MaybeObjectSlot slot,
                          MaybeObject value);
-void GenerationalBarrierForElements(Heap* heap, FixedArray* array, int offset,
+void GenerationalBarrierForElements(Heap* heap, FixedArray array, int offset,
                                     int length);
 void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
                                 HeapObject* object);

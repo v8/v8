@@ -2204,7 +2204,7 @@ bool MaterializedObjectStore::Remove(Address fp) {
   int index = static_cast<int>(std::distance(frame_fps_.begin(), it));
 
   frame_fps_.erase(it);
-  FixedArray* array = isolate()->heap()->materialized_objects();
+  FixedArray array = isolate()->heap()->materialized_objects();
 
   CHECK_LT(index, array->length());
   int fps_size = static_cast<int>(frame_fps_.size());
@@ -2780,9 +2780,8 @@ void TranslatedFrame::Handlify() {
   }
 }
 
-
 TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
-    TranslationIterator* iterator, FixedArray* literal_array, Address fp,
+    TranslationIterator* iterator, FixedArray literal_array, Address fp,
     FILE* trace_file) {
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());
@@ -2919,7 +2918,6 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
   return TranslatedFrame::InvalidFrame();
 }
 
-
 // static
 void TranslatedFrame::AdvanceIterator(
     std::deque<TranslatedValue>::iterator* iter) {
@@ -3021,7 +3019,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 // Returns the number of expected nested translations from the
 // TranslationIterator.
 int TranslatedState::CreateNextTranslatedValue(
-    int frame_index, TranslationIterator* iterator, FixedArray* literal_array,
+    int frame_index, TranslationIterator* iterator, FixedArray literal_array,
     Address fp, RegisterValues* registers, FILE* trace_file) {
   disasm::NameConverter converter;
 
@@ -3346,7 +3344,7 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
 
 void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
                            TranslationIterator* iterator,
-                           FixedArray* literal_array, RegisterValues* registers,
+                           FixedArray literal_array, RegisterValues* registers,
                            FILE* trace_file, int formal_parameter_count) {
   DCHECK(frames_.empty());
 
@@ -4077,7 +4075,7 @@ bool TranslatedState::DoUpdateFeedback() {
 }
 
 void TranslatedState::ReadUpdateFeedback(TranslationIterator* iterator,
-                                         FixedArray* literal_array,
+                                         FixedArray literal_array,
                                          FILE* trace_file) {
   CHECK_EQ(Translation::UPDATE_FEEDBACK, iterator->Next());
   feedback_vector_ = FeedbackVector::cast(literal_array->get(iterator->Next()));

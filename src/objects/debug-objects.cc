@@ -298,7 +298,7 @@ bool BreakPointInfo::HasBreakPoint(Isolate* isolate,
                    *break_point);
   }
   // Multiple break points.
-  FixedArray* array = FixedArray::cast(break_point_info->break_points());
+  FixedArray array = FixedArray::cast(break_point_info->break_points());
   for (int i = 0; i < array->length(); i++) {
     if (IsEqual(BreakPoint::cast(array->get(i)), *break_point)) {
       return true;

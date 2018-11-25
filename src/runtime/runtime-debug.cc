@@ -480,7 +480,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
 
   Script::InitLineEnds(script);
 
-  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
+  FixedArray line_ends_array = FixedArray::cast(script->line_ends());
   const int line_count = line_ends_array->length();
   DCHECK_LT(0, line_count);
 

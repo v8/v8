@@ -21,8 +21,8 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArrayPtr)
-OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBasePtr)
+OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
 
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR2(BytecodeArray)
@@ -205,7 +205,7 @@ INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
     CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);       \
   }
 CODE_ACCESSORS2(relocation_info, ByteArray, kRelocationInfoOffset)
-CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
+CODE_ACCESSORS2(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
 // Concurrent marker needs to access kind specific flags in code data container.
 SYNCHRONIZED_CODE_ACCESSORS(code_data_container, CodeDataContainer,
@@ -731,7 +731,7 @@ int BytecodeArray::parameter_count() const {
   return READ_INT_FIELD(this, kParameterSizeOffset) >> kSystemPointerSizeLog2;
 }
 
-ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
+ACCESSORS2(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 ACCESSORS2(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
 ACCESSORS(BytecodeArray, source_position_table, Object,
           kSourcePositionTableOffset)

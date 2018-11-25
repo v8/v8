@@ -23,7 +23,7 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   if (used + kFirstContextSlotIndex == length) {
     CHECK(length < Smi::kMaxValue / 2);
     Isolate* isolate = script_context->GetIsolate();
-    Handle<FixedArrayPtr> copy =
+    Handle<FixedArray> copy =
         isolate->factory()->CopyFixedArrayAndGrow(table, length);
     copy->set_map(ReadOnlyRoots(isolate).script_context_table_map());
     result = Handle<ScriptContextTable>::cast(copy);

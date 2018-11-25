@@ -61,7 +61,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitFixedArray(Map map, FixedArray* object) {
+                   MarkingState>::VisitFixedArray(Map map, FixedArray object) {
   return (fixed_array_mode == FixedArrayVisitationMode::kRegular)
              ? Parent::VisitFixedArray(map, object)
              : VisitFixedArrayIncremental(map, object);
@@ -312,8 +312,8 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
-    VisitFixedArrayIncremental(Map map, FixedArray* object) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+    VisitFixedArrayIncremental(Map map, FixedArray object) {
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   int object_size = FixedArray::BodyDescriptor::SizeOf(map, object);
   if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
     DCHECK(!FLAG_use_marking_progress_bar ||

@@ -257,7 +257,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       os << value->Number();
       break;
     case MachineRepresentation::kSimd128: {
-      FixedArray* vector = FixedArray::cast(*value);
+      FixedArray vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
         os << Smi::cast(*vector->GetValueChecked<Smi>(isolate, lane))->value();

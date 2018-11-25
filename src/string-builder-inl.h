@@ -28,11 +28,11 @@ typedef BitField<int, kStringBuilderConcatHelperLengthBits,
 
 template <typename sinkchar>
 void StringBuilderConcatHelper(String* special, sinkchar* sink,
-                               FixedArray* fixed_array, int array_length);
+                               FixedArray fixed_array, int array_length);
 
 // Returns the result length of the concatenation.
 // On illegal argument, -1 is returned.
-int StringBuilderConcatLength(int special_length, FixedArray* fixed_array,
+int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
                               int array_length, bool* one_byte);
 
 class FixedArrayBuilder {

@@ -81,7 +81,7 @@ class BytecodeExpectationsPrinter final {
   void PrintBytecodeSequence(std::ostream& stream,  // NOLINT
                              i::Handle<i::BytecodeArray> bytecode_array) const;
   void PrintConstantPool(std::ostream& stream,  // NOLINT
-                         i::FixedArray* constant_pool) const;
+                         i::FixedArray constant_pool) const;
   void PrintCodeSnippet(std::ostream& stream,  // NOLINT
                         const std::string& body) const;
   void PrintBytecodeArray(std::ostream& stream,  // NOLINT

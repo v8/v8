@@ -13,7 +13,7 @@ namespace internal {
 
 template <typename sinkchar>
 void StringBuilderConcatHelper(String* special, sinkchar* sink,
-                               FixedArray* fixed_array, int array_length) {
+                               FixedArray fixed_array, int array_length) {
   DisallowHeapAllocation no_gc;
   int position = 0;
   for (int i = 0; i < array_length; i++) {
@@ -46,14 +46,14 @@ void StringBuilderConcatHelper(String* special, sinkchar* sink,
 }
 
 template void StringBuilderConcatHelper<uint8_t>(String* special, uint8_t* sink,
-                                                 FixedArray* fixed_array,
+                                                 FixedArray fixed_array,
                                                  int array_length);
 
 template void StringBuilderConcatHelper<uc16>(String* special, uc16* sink,
-                                              FixedArray* fixed_array,
+                                              FixedArray fixed_array,
                                               int array_length);
 
-int StringBuilderConcatLength(int special_length, FixedArray* fixed_array,
+int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
                               int array_length, bool* one_byte) {
   DisallowHeapAllocation no_gc;
   int position = 0;

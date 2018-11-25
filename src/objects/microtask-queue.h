@@ -23,7 +23,7 @@ class V8_EXPORT_PRIVATE MicrotaskQueue : public Struct {
   // A FixedArray that the queued microtasks are stored.
   // The first |pending_microtask_count| slots contains Microtask instance
   // for each, and followings are undefined_value if any.
-  DECL_ACCESSORS(queue, FixedArray)
+  DECL_ACCESSORS2(queue, FixedArray)
 
   // The number of microtasks queued in |queue|. This must be less or equal to
   // the length of |queue|.

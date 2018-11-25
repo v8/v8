@@ -18,7 +18,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(SloppyArgumentsElements, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(SloppyArgumentsElements, FixedArray)
 
 CAST_ACCESSOR(AliasedArgumentsEntry)
 CAST_ACCESSOR(JSArgumentsObject)
@@ -30,11 +30,11 @@ Context SloppyArgumentsElements::context() {
   return Context::cast(get(kContextIndex));
 }
 
-FixedArray* SloppyArgumentsElements::arguments() {
+FixedArray SloppyArgumentsElements::arguments() {
   return FixedArray::cast(get(kArgumentsIndex));
 }
 
-void SloppyArgumentsElements::set_arguments(FixedArray* arguments) {
+void SloppyArgumentsElements::set_arguments(FixedArray arguments) {
   set(kArgumentsIndex, arguments);
 }
 
@@ -70,9 +70,9 @@ bool JSSloppyArgumentsObject::GetSloppyArgumentsLength(Isolate* isolate,
   if (!len_obj->IsSmi()) return false;
   *out = Max(0, Smi::ToInt(len_obj));
 
-  FixedArray* parameters = FixedArray::cast(object->elements());
+  FixedArray parameters = FixedArray::cast(object->elements());
   if (object->HasSloppyArgumentsElements()) {
-    FixedArray* arguments = FixedArray::cast(parameters->get(1));
+    FixedArray arguments = FixedArray::cast(parameters->get(1));
     return *out <= arguments->length();
   }
   return *out <= parameters->length();

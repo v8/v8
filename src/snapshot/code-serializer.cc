@@ -172,7 +172,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
     // We don't want to serialize host options to avoid serializing unnecessary
     // object graph.
-    FixedArray* host_options = script_obj->host_defined_options();
+    FixedArray host_options = script_obj->host_defined_options();
     script_obj->set_host_defined_options(roots.empty_fixed_array());
     SerializeGeneric(obj, how_to_code, where_to_point);
     script_obj->set_host_defined_options(host_options);

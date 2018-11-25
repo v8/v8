@@ -79,11 +79,15 @@ class JSArray : public JSObject {
   // To avoid any allocations, this helper assumes the destination string is the
   // exact length necessary to write the strings and separators from the fixed
   // array.
-  static String* ArrayJoinConcatToSequentialString(Isolate* isolate,
-                                                   FixedArray* fixed_array,
+  // Since this is called via ExternalReferences, it uses raw Address values:
+  // - {raw_fixed_array} is a tagged FixedArray pointer.
+  // - {raw_separator} and {raw_dest} are tagged String pointers.
+  // - Returns a tagged String pointer.
+  static Address ArrayJoinConcatToSequentialString(Isolate* isolate,
+                                                   Address raw_fixed_array,
                                                    intptr_t length,
-                                                   String* separator,
-                                                   String* dest);
+                                                   Address raw_separator,
+                                                   Address raw_dest);
 
   // Checks whether the Array has the current realm's Array.prototype as its
   // prototype. This function is best-effort and only gives a conservative

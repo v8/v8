@@ -3622,7 +3622,7 @@ bool Isolate::IsNoElementsProtectorIntact(Context context) {
     return cell_reports_intact;
   }
 
-  FixedArrayBase* elements = initial_array_proto->elements();
+  FixedArrayBase elements = initial_array_proto->elements();
   ReadOnlyRoots roots(heap());
   if (elements != roots.empty_fixed_array() &&
       elements != roots.empty_slow_element_dictionary()) {

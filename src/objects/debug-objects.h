@@ -90,7 +90,7 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   DECL_ACCESSORS(debug_bytecode_array, Object)
 
   // Fixed array holding status information for each active break point.
-  DECL_ACCESSORS(break_points, FixedArray)
+  DECL_ACCESSORS2(break_points, FixedArray)
 
   // Check if there is a break point at a source position.
   bool HasBreakPoint(Isolate* isolate, int source_position);
@@ -225,7 +225,7 @@ class BreakPointInfo : public Tuple2 {
 };
 
 // Holds information related to block code coverage.
-class CoverageInfo : public FixedArrayPtr {
+class CoverageInfo : public FixedArray {
  public:
   int SlotCount() const;
 
@@ -260,7 +260,7 @@ class CoverageInfo : public FixedArrayPtr {
   static const int kSlotBlockCountIndex = 2;
   static const int kSlotIndexCount = 3;
 
-  OBJECT_CONSTRUCTORS(CoverageInfo, FixedArrayPtr);
+  OBJECT_CONSTRUCTORS(CoverageInfo, FixedArray);
 };
 
 // Holds breakpoint related information. This object is used by inspector.

@@ -363,18 +363,16 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   return true;
 }
 
-
-int RegExpImpl::IrregexpMaxRegisterCount(FixedArray* re) {
+int RegExpImpl::IrregexpMaxRegisterCount(FixedArray re) {
   return Smi::cast(
       re->get(JSRegExp::kIrregexpMaxRegisterCountIndex))->value();
 }
 
-
-void RegExpImpl::SetIrregexpMaxRegisterCount(FixedArray* re, int value) {
+void RegExpImpl::SetIrregexpMaxRegisterCount(FixedArray re, int value) {
   re->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::FromInt(value));
 }
 
-void RegExpImpl::SetIrregexpCaptureNameMap(FixedArray* re,
+void RegExpImpl::SetIrregexpCaptureNameMap(FixedArray re,
                                            Handle<FixedArray> value) {
   if (value.is_null()) {
     re->set(JSRegExp::kIrregexpCaptureNameMapIndex, Smi::kZero);
@@ -383,20 +381,19 @@ void RegExpImpl::SetIrregexpCaptureNameMap(FixedArray* re,
   }
 }
 
-int RegExpImpl::IrregexpNumberOfCaptures(FixedArray* re) {
+int RegExpImpl::IrregexpNumberOfCaptures(FixedArray re) {
   return Smi::ToInt(re->get(JSRegExp::kIrregexpCaptureCountIndex));
 }
 
-
-int RegExpImpl::IrregexpNumberOfRegisters(FixedArray* re) {
+int RegExpImpl::IrregexpNumberOfRegisters(FixedArray re) {
   return Smi::ToInt(re->get(JSRegExp::kIrregexpMaxRegisterCountIndex));
 }
 
-ByteArray RegExpImpl::IrregexpByteCode(FixedArray* re, bool is_one_byte) {
+ByteArray RegExpImpl::IrregexpByteCode(FixedArray re, bool is_one_byte) {
   return ByteArray::cast(re->get(JSRegExp::code_index(is_one_byte)));
 }
 
-Code RegExpImpl::IrregexpNativeCode(FixedArray* re, bool is_one_byte) {
+Code RegExpImpl::IrregexpNativeCode(FixedArray re, bool is_one_byte) {
   return Code::cast(re->get(JSRegExp::code_index(is_one_byte)));
 }
 
@@ -6778,12 +6775,11 @@ bool RegExpEngine::TooMuchRegExpCode(Isolate* isolate, Handle<String> pattern) {
   return too_much;
 }
 
-
 Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
                                    Object* key_pattern,
-                                   FixedArray** last_match_cache,
+                                   FixedArray* last_match_cache,
                                    ResultsCacheType type) {
-  FixedArray* cache;
+  FixedArray cache;
   if (!key_string->IsInternalizedString()) return Smi::kZero;
   if (type == STRING_SPLIT_SUBSTRINGS) {
     DCHECK(key_pattern->IsString());
@@ -6811,7 +6807,6 @@ Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
   *last_match_cache = FixedArray::cast(cache->get(index + kLastMatchOffset));
   return cache->get(index + kArrayOffset);
 }
-
 
 void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
                                Handle<Object> key_pattern,
@@ -6872,8 +6867,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
       ReadOnlyRoots(isolate).fixed_cow_array_map());
 }
 
-
-void RegExpResultsCache::Clear(FixedArray* cache) {
+void RegExpResultsCache::Clear(FixedArray cache) {
   for (int i = 0; i < kRegExpResultsCacheSize; i++) {
     cache->set(i, Smi::kZero);
   }

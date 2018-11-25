@@ -413,7 +413,7 @@ class Map : public HeapObjectPtr {
 
   inline Map ElementsTransitionMap();
 
-  inline FixedArrayBase* GetInitialElements() const;
+  inline FixedArrayBase GetInitialElements() const;
 
   // [raw_transitions]: Provides access to the transitions storage field.
   // Don't call set_raw_transitions() directly to overwrite transitions, use

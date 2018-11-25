@@ -895,7 +895,9 @@ class FixedArrayBaseData : public HeapObjectData {
  public:
   FixedArrayBaseData(JSHeapBroker* broker, ObjectData** storage,
                      Handle<FixedArrayBase> object)
-      : HeapObjectData(broker, storage, object), length_(object->length()) {}
+      // TODO(3770): Drop explicit cast after migrating HeapObject*.
+      : HeapObjectData(broker, storage, Handle<HeapObject>(object.location())),
+        length_(object->length()) {}
 
   int length() const { return length_; }
 
@@ -993,10 +995,7 @@ class FixedDoubleArrayData : public FixedArrayBaseData {
 FixedDoubleArrayData::FixedDoubleArrayData(JSHeapBroker* broker,
                                            ObjectData** storage,
                                            Handle<FixedDoubleArray> object)
-    // TODO(3770): Drop explicit cast after migrating FixedArrayBase*.
-    : FixedArrayBaseData(broker, storage,
-                         Handle<FixedArrayBase>(object.location())),
-      contents_(broker->zone()) {}
+    : FixedArrayBaseData(broker, storage, object), contents_(broker->zone()) {}
 
 void FixedDoubleArrayData::SerializeContents(JSHeapBroker* broker) {
   if (serialized_contents_) return;
@@ -1020,9 +1019,7 @@ class BytecodeArrayData : public FixedArrayBaseData {
 
   BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<BytecodeArray> object)
-      // TODO(3770): Drop explicit cast after migrating FixedArrayBase*.
-      : FixedArrayBaseData(broker, storage,
-                           Handle<FixedArrayBase>(object.location())),
+      : FixedArrayBaseData(broker, storage, object),
         register_count_(object->register_count()) {}
 
  private:

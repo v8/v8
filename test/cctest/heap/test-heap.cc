@@ -795,7 +795,7 @@ TEST(BytecodeArray) {
     CHECK_EQ(array->get(i), kRawBytes[i]);
   }
 
-  FixedArray* old_constant_pool_address = *constant_pool;
+  FixedArray old_constant_pool_address = *constant_pool;
 
   // Perform a full garbage collection and force the constant pool to be on an
   // evacuation candidate.
@@ -3464,7 +3464,7 @@ TEST(LargeObjectSlotRecording) {
   Handle<FixedArray> lit = isolate->factory()->NewFixedArray(4, TENURED);
   Page* evac_page = Page::FromAddress(lit->address());
   heap::ForceEvacuationCandidate(evac_page);
-  FixedArray* old_location = *lit;
+  FixedArray old_location = *lit;
 
   // Allocate a large object.
   int size = Max(1000000, kMaxRegularHeapObjectSize + KB);
@@ -5240,14 +5240,14 @@ HEAP_TEST(Regress589413) {
   // This number is close to large free list category threshold.
   const int N = 0x3EEE;
   {
-    std::vector<FixedArray*> arrays;
+    std::vector<FixedArray> arrays;
     std::set<Page*> pages;
-    FixedArray* array;
+    FixedArray array;
     // Fill all pages with fixed arrays.
     heap->set_force_oom(true);
     while (AllocateFixedArrayForTest(heap, N, TENURED).To(&array)) {
       arrays.push_back(array);
-      pages.insert(Page::FromAddress(array->address()));
+      pages.insert(Page::FromHeapObject(array));
       // Add the array in root set.
       handle(array, isolate);
     }
@@ -5255,7 +5255,7 @@ HEAP_TEST(Regress589413) {
     heap->set_force_oom(false);
     while (AllocateFixedArrayForTest(heap, N, TENURED).To(&array)) {
       arrays.push_back(array);
-      pages.insert(Page::FromAddress(array->address()));
+      pages.insert(Page::FromHeapObject(array));
       // Add the array in root set.
       handle(array, isolate);
       // Do not expand anymore.
@@ -5316,7 +5316,7 @@ TEST(Regress598319) {
       }
     }
 
-    FixedArray* get() { return FixedArray::cast(root->get(0)); }
+    FixedArray get() { return FixedArray::cast(root->get(0)); }
 
     Handle<FixedArray> root;
   } arr(isolate, kNumberOfObjects);
@@ -5571,7 +5571,7 @@ TEST(LeftTrimFixedArrayInBlackArea) {
   // Now left trim the allocated black area. A filler has to be installed
   // for the trimmed area and all mark bits of the trimmed area have to be
   // cleared.
-  FixedArrayBase* trimmed = heap->LeftTrimFixedArray(*array, 10);
+  FixedArrayBase trimmed = heap->LeftTrimFixedArray(*array, 10);
   CHECK(marking_state->IsBlack(trimmed));
 
   heap::GcAndSweep(heap, OLD_SPACE);
@@ -5616,8 +5616,8 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
       page->AddressToMarkbitIndex(end_address)));
   CHECK(heap->old_space()->Contains(*array));
 
-  FixedArrayBase* previous = *array;
-  FixedArrayBase* trimmed;
+  FixedArrayBase previous = *array;
+  FixedArrayBase trimmed;
 
   // First trim in one word steps.
   for (int i = 0; i < 10; i++) {

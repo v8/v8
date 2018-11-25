@@ -333,7 +333,7 @@ class NumberDictionary
   bool HasComplexElements();
 
   // Sorting support
-  void CopyValuesTo(FixedArray* elements);
+  void CopyValuesTo(FixedArray elements);
 
   // If slow elements are required we will never go back to fast-case
   // for the elements kept in this dictionary.  We require slow

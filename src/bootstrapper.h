@@ -6,6 +6,7 @@
 #define V8_BOOTSTRAPPER_H_
 
 #include "src/heap/factory.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/natives.h"
@@ -21,14 +22,11 @@ namespace internal {
 // generate an index for each native JS file.
 class SourceCodeCache final {
  public:
-  explicit SourceCodeCache(Script::Type type) : type_(type), cache_(nullptr) {}
+  explicit SourceCodeCache(Script::Type type) : type_(type) {}
 
   void Initialize(Isolate* isolate, bool create_heap_objects);
 
-  void Iterate(RootVisitor* v) {
-    v->VisitRootPointer(Root::kExtensions, nullptr,
-                        ObjectSlot(reinterpret_cast<Address>(&cache_)));
-  }
+  void Iterate(RootVisitor* v);
 
   bool Lookup(Isolate* isolate, Vector<const char> name,
               Handle<SharedFunctionInfo>* handle);
@@ -38,7 +36,7 @@ class SourceCodeCache final {
 
  private:
   Script::Type type_;
-  FixedArray* cache_;
+  FixedArray cache_;
   DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 

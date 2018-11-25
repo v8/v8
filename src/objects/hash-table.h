@@ -63,8 +63,7 @@ class BaseShape {
   static inline bool IsLive(ReadOnlyRoots roots, Object* key);
 };
 
-class V8_EXPORT_PRIVATE HashTableBase
-    : public NON_EXPORTED_BASE(FixedArrayPtr) {
+class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
  public:
   // Returns the number of elements in the hash table.
   inline int NumberOfElements() const;
@@ -126,7 +125,7 @@ class V8_EXPORT_PRIVATE HashTableBase
     return (last + number) & (size - 1);
   }
 
-  OBJECT_CONSTRUCTORS(HashTableBase, FixedArrayPtr)
+  OBJECT_CONSTRUCTORS(HashTableBase, FixedArray)
 };
 
 template <typename Derived, typename Shape>

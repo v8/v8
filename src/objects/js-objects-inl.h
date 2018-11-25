@@ -93,13 +93,13 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   HeapObject* prototype = HeapObject::cast(object->map()->prototype());
   ReadOnlyRoots roots(isolate);
   HeapObject* null = roots.null_value();
-  HeapObject* empty_fixed_array = roots.empty_fixed_array();
-  HeapObject* empty_slow_element_dictionary =
+  FixedArrayBase empty_fixed_array = roots.empty_fixed_array();
+  FixedArrayBase empty_slow_element_dictionary =
       roots.empty_slow_element_dictionary();
   while (prototype != null) {
     Map map = prototype->map();
     if (map->IsCustomElementsReceiverMap()) return false;
-    HeapObject* elements = JSObject::cast(prototype)->elements();
+    FixedArrayBase elements = JSObject::cast(prototype)->elements();
     if (elements != empty_fixed_array &&
         elements != empty_slow_element_dictionary) {
       return false;
@@ -111,9 +111,9 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
 
 ACCESSORS(JSReceiver, raw_properties_or_hash, Object, kPropertiesOrHashOffset)
 
-FixedArrayBase* JSObject::elements() const {
+FixedArrayBase JSObject::elements() const {
   Object* array = READ_FIELD(this, kElementsOffset);
-  return static_cast<FixedArrayBase*>(array);
+  return FixedArrayBase::cast(array);
 }
 
 void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
@@ -214,13 +214,13 @@ void JSObject::SetMapAndElements(Handle<JSObject> object, Handle<Map> new_map,
   object->set_elements(*value);
 }
 
-void JSObject::set_elements(FixedArrayBase* value, WriteBarrierMode mode) {
+void JSObject::set_elements(FixedArrayBase value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kElementsOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kElementsOffset, value, mode);
 }
 
 void JSObject::initialize_elements() {
-  FixedArrayBase* elements = map()->GetInitialElements();
+  FixedArrayBase elements = map()->GetInitialElements();
   WRITE_FIELD(this, kElementsOffset, elements);
 }
 
@@ -419,7 +419,7 @@ Object* JSBoundFunction::raw_bound_target_function() const {
 ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
           kBoundTargetFunctionOffset)
 ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
-ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
+ACCESSORS2(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, feedback_cell, FeedbackCell, kFeedbackCellOffset)
@@ -646,8 +646,8 @@ SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
 ElementsKind JSObject::GetElementsKind() const {
   ElementsKind kind = map()->elements_kind();
 #if VERIFY_HEAP && DEBUG
-  FixedArrayBase* fixed_array =
-      reinterpret_cast<FixedArrayBase*>(READ_FIELD(this, kElementsOffset));
+  FixedArrayBase fixed_array =
+      FixedArrayBase::unchecked_cast(READ_FIELD(this, kElementsOffset));
 
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
@@ -727,13 +727,13 @@ bool JSObject::HasSlowStringWrapperElements() {
 }
 
 bool JSObject::HasFixedTypedArrayElements() {
-  DCHECK_NOT_NULL(elements());
+  DCHECK(!elements().is_null());
   return map()->has_fixed_typed_array_elements();
 }
 
 #define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype)            \
   bool JSObject::HasFixed##Type##Elements() {                          \
-    FixedArrayBase* array = elements();                                \
+    FixedArrayBase array = elements();                                 \
     return array->map()->instance_type() == FIXED_##TYPE##_ARRAY_TYPE; \
   }
 

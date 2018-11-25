@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(FrameArray, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(FrameArray, FixedArray)
 CAST_ACCESSOR2(FrameArray)
 
 #define DEFINE_FRAME_ARRAY_ACCESSORS(name, type)                              \

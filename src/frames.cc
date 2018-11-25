@@ -1602,7 +1602,7 @@ void OptimizedFrame::GetFunctions(
   DeoptimizationData const data = GetDeoptimizationData(&deopt_index);
   DCHECK(!data.is_null());
   DCHECK_NE(Safepoint::kNoDeoptimizationIndex, deopt_index);
-  FixedArray* const literal_array = data->LiteralArray();
+  FixedArray const literal_array = data->LiteralArray();
 
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());

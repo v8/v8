@@ -3054,7 +3054,7 @@ TEST(DebugScriptLineEndsAreAscending) {
         v8::internal::Script::cast(instances->get(i)), CcTest::i_isolate());
 
     v8::internal::Script::InitLineEnds(script);
-    v8::internal::FixedArray* ends =
+    v8::internal::FixedArray ends =
         v8::internal::FixedArray::cast(script->line_ends());
     CHECK_GT(ends->length(), 0);
 

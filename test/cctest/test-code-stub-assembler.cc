@@ -3088,7 +3088,7 @@ TEST(CloneEmptyFixedArray) {
 
   Handle<FixedArray> source(isolate->factory()->empty_fixed_array());
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray* result(FixedArray::cast(*result_raw));
+  FixedArray result(FixedArray::cast(*result_raw));
   CHECK_EQ(0, result->length());
   CHECK_EQ(*(isolate->factory()->empty_fixed_array()), result);
 }
@@ -3106,7 +3106,7 @@ TEST(CloneFixedArray) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray* result(FixedArray::cast(*result_raw));
+  FixedArray result(FixedArray::cast(*result_raw));
   CHECK_EQ(5, result->length());
   CHECK(result->get(0)->IsTheHole(isolate));
   CHECK_EQ(Smi::cast(result->get(1))->value(), 1234);
@@ -3129,7 +3129,7 @@ TEST(CloneFixedArrayCOW) {
   source->set(1, Smi::FromInt(1234));
   source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray* result(FixedArray::cast(*result_raw));
+  FixedArray result(FixedArray::cast(*result_raw));
   CHECK_EQ(*source, result);
 }
 
@@ -3151,7 +3151,7 @@ TEST(ExtractFixedArrayCOWForceCopy) {
   source->set(1, Smi::FromInt(1234));
   source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray* result(FixedArray::cast(*result_raw));
+  FixedArray result(FixedArray::cast(*result_raw));
   CHECK_NE(*source, result);
   CHECK_EQ(5, result->length());
   CHECK(result->get(0)->IsTheHole(isolate));
@@ -3182,7 +3182,7 @@ TEST(ExtractFixedArraySimple) {
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  FixedArray* result(FixedArray::cast(*result_raw));
+  FixedArray result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
   CHECK(result->get(1)->IsTheHole(isolate));
@@ -3206,7 +3206,7 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray* result(FixedArray::cast(*result_raw));
+  FixedArray result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
   CHECK(result->get(1)->IsTheHole(isolate));
@@ -3230,7 +3230,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray* result(FixedArray::cast(*result_raw));
+  FixedArray result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
   CHECK(result->get(1)->IsTheHole(isolate));
@@ -3252,7 +3252,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
-  FixedArray* result(FixedArray::cast(*result_raw));
+  FixedArray result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
   CHECK(result->get(1)->IsTheHole(isolate));
@@ -3276,7 +3276,7 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
       ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
-  FixedArray* result(FixedArray::cast(*result_raw));
+  FixedArray result(FixedArray::cast(*result_raw));
   CHECK_EQ(2, result->length());
   CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
   CHECK(result->get(1)->IsTheHole(isolate));

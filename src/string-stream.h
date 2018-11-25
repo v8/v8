@@ -145,7 +145,7 @@ class StringStream final {
 
   // Object printing support.
   void PrintName(Object* o);
-  void PrintFixedArray(FixedArray* array, unsigned int limit);
+  void PrintFixedArray(FixedArray array, unsigned int limit);
   void PrintByteArray(ByteArray ba);
   void PrintUsingMap(JSObject* js_object);
   void PrintPrototype(JSFunction* fun, Object* receiver);

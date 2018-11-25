@@ -466,7 +466,7 @@ bool Object::IsMinusZero() const {
          i::IsMinusZero(HeapNumber::cast(this)->value());
 }
 
-OBJECT_CONSTRUCTORS_IMPL(HashTableBase, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(HashTableBase, FixedArray)
 
 template <typename Derived, typename Shape>
 HashTable<Derived, Shape>::HashTable(Address ptr) : HashTableBase(ptr) {
@@ -531,7 +531,7 @@ StringSet::StringSet(Address ptr) : HashTable<StringSet, StringSetShape>(ptr) {
 
 template <class Derived, int entrysize>
 OrderedHashTable<Derived, entrysize>::OrderedHashTable(Address ptr)
-    : FixedArrayPtr(ptr) {}
+    : FixedArray(ptr) {}
 
 OrderedHashSet::OrderedHashSet(Address ptr)
     : OrderedHashTable<OrderedHashSet, 1>(ptr) {
@@ -548,8 +548,8 @@ OrderedNameDictionary::OrderedNameDictionary(Address ptr)
   SLOW_DCHECK(IsOrderedNameDictionary());
 }
 
-OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArrayPtr)
-OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
 
 // ------------------------------------
 // Cast operations
@@ -1172,8 +1172,8 @@ Address HeapObject::GetFieldAddress(int field_offset) const {
   return FIELD_ADDR(this, field_offset);
 }
 
-ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
-ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
+ACCESSORS2(EnumCache, keys, FixedArray, kKeysOffset)
+ACCESSORS2(EnumCache, indices, FixedArray, kIndicesOffset)
 
 int DescriptorArray::number_of_descriptors() const {
   return Smi::ToInt(get(kDescriptorLengthIndex).ToSmi());
@@ -1522,7 +1522,7 @@ void NumberDictionary::set_requires_slow_elements() {
 
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(TranslationByteArray, ByteArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(InlinedFunctionCount, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(LiteralArray, FixedArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrBytecodeOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(OptimizationId, Smi)
@@ -1577,7 +1577,7 @@ int HeapObject::SizeFromMap(Map map) const {
   if (IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)) {
     if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
     return FixedArray::SizeFor(
-        reinterpret_cast<const FixedArray*>(this)->synchronized_length());
+        FixedArray::unchecked_cast(this)->synchronized_length());
   }
   if (instance_type == ONE_BYTE_STRING_TYPE ||
       instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
@@ -1666,9 +1666,10 @@ ACCESSORS(Tuple2, value1, Object, kValue1Offset)
 ACCESSORS(Tuple2, value2, Object, kValue2Offset)
 ACCESSORS(Tuple3, value3, Object, kValue3Offset)
 
-ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
-ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
-          kCookedStringsOffset)
+ACCESSORS2(TemplateObjectDescription, raw_strings, FixedArray,
+           kRawStringsOffset)
+ACCESSORS2(TemplateObjectDescription, cooked_strings, FixedArray,
+           kCookedStringsOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)

@@ -924,7 +924,7 @@ class MarkingVisitor final
 
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
-  V8_INLINE int VisitFixedArray(Map map, FixedArray* object);
+  V8_INLINE int VisitFixedArray(Map map, FixedArray object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject* object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer* object);
   V8_INLINE int VisitJSDataView(Map map, JSDataView* object);
@@ -953,7 +953,7 @@ class MarkingVisitor final
   // is true.
   static const int kProgressBarScanningChunk = 32 * 1024;
 
-  V8_INLINE int VisitFixedArrayIncremental(Map map, FixedArray* object);
+  V8_INLINE int VisitFixedArrayIncremental(Map map, FixedArray object);
 
   template <typename T>
   V8_INLINE int VisitEmbedderTracingSubclass(Map map, T* object);

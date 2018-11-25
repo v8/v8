@@ -28,7 +28,7 @@ class Handle;
   V(Flags, Smi)
 
 // Container object for data collected during simple stack trace captures.
-class FrameArray : public FixedArrayPtr {
+class FrameArray : public FixedArray {
  public:
 #define DECL_FRAME_ARRAY_ACCESSORS(name, type)   \
   inline type##ArgType name(int frame_ix) const; \
@@ -101,7 +101,7 @@ class FrameArray : public FixedArrayPtr {
                                         Handle<FrameArray> array, int length);
 
   friend class Factory;
-  OBJECT_CONSTRUCTORS(FrameArray, FixedArrayPtr);
+  OBJECT_CONSTRUCTORS(FrameArray, FixedArray);
 };
 
 }  // namespace internal

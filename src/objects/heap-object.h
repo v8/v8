@@ -58,10 +58,6 @@ class ObjectPtr {
 #undef IS_TYPE_FUNCTION_DECL
   inline bool IsHashTableBase() const;
 
-  // TODO(3770): Drop these after migrating the respective classes:
-  inline bool IsFixedArrayBasePtr() const;
-  inline bool IsFixedArrayPtr() const;
-
   inline bool IsObject() const { return true; }
   inline double Number() const;
   inline bool ToInt32(int32_t* value) const;
@@ -71,6 +67,8 @@ class ObjectPtr {
   void ObjectVerify(Isolate* isolate) {
     reinterpret_cast<Object*>(ptr())->ObjectVerify(isolate);
   }
+  // Verify a pointer is a valid object pointer.
+  static void VerifyPointer(Isolate* isolate, Object* p);
 #endif
 
   inline void ShortPrint(FILE* out = stdout);

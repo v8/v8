@@ -301,7 +301,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
 
   {
     DisallowHeapAllocation no_gc;
-    FixedArray* fixed_array = FixedArray::cast(array->elements());
+    FixedArray fixed_array = FixedArray::cast(array->elements());
     if (fixed_array->length() < array_length) {
       array_length = fixed_array->length();
     }
@@ -449,7 +449,7 @@ static void WriteRepeatToFlat(String* src, Vector<sinkchar> buffer, int cursor,
 
 // TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 template <typename Char>
-static void JoinSparseArrayWithSeparator(FixedArray* elements,
+static void JoinSparseArrayWithSeparator(FixedArray elements,
                                          int elements_length,
                                          uint32_t array_length,
                                          String* separator,
@@ -505,7 +505,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   CONVERT_NUMBER_CHECKED(int, elements_length, Int32, elements_array->length());
   CHECK(elements_length <= elements_array->elements()->length());
   CHECK_EQ(elements_length & 1, 0);  // Even length.
-  FixedArray* elements = FixedArray::cast(elements_array->elements());
+  FixedArray elements = FixedArray::cast(elements_array->elements());
   {
     DisallowHeapAllocation no_gc;
     for (int i = 0; i < elements_length; i += 2) {
@@ -574,9 +574,9 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
 // not in the cache and fills the remainder with smi zeros. Returns
 // the length of the successfully copied prefix.
 static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
-                                         FixedArray* elements, int length) {
+                                         FixedArray elements, int length) {
   DisallowHeapAllocation no_gc;
-  FixedArray* one_byte_cache = heap->single_character_string_cache();
+  FixedArray one_byte_cache = heap->single_character_string_cache();
   Object* undefined = ReadOnlyRoots(heap).undefined_value();
   int i;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);

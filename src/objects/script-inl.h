@@ -37,7 +37,7 @@ ACCESSORS(Script, shared_function_infos, WeakFixedArray,
 SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
-ACCESSORS(Script, host_defined_options, FixedArray, kHostDefinedOptionsOffset)
+ACCESSORS2(Script, host_defined_options, FixedArray, kHostDefinedOptionsOffset)
 ACCESSORS_CHECKED(Script, wasm_module_object, Object,
                   kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() == TYPE_WASM)
@@ -61,12 +61,12 @@ SharedFunctionInfo* Script::eval_from_shared() const {
   return SharedFunctionInfo::cast(eval_from_shared_or_wrapped_arguments());
 }
 
-void Script::set_wrapped_arguments(FixedArray* value, WriteBarrierMode mode) {
+void Script::set_wrapped_arguments(FixedArray value, WriteBarrierMode mode) {
   DCHECK(!has_eval_from_shared());
   set_eval_from_shared_or_wrapped_arguments(value, mode);
 }
 
-FixedArray* Script::wrapped_arguments() const {
+FixedArray Script::wrapped_arguments() const {
   DCHECK(is_wrapped());
   return FixedArray::cast(eval_from_shared_or_wrapped_arguments());
 }

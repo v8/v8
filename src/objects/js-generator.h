@@ -54,7 +54,7 @@ class JSGeneratorObject : public JSObject {
   int source_position() const;
 
   // [parameters_and_registers]: Saved interpreter register file.
-  DECL_ACCESSORS(parameters_and_registers, FixedArray)
+  DECL_ACCESSORS2(parameters_and_registers, FixedArray)
 
   DECL_CAST(JSGeneratorObject)
 

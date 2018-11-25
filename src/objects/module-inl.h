@@ -19,10 +19,10 @@ namespace internal {
 CAST_ACCESSOR(Module)
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS2(Module, exports, ObjectHashTable, kExportsOffset)
-ACCESSORS(Module, regular_exports, FixedArray, kRegularExportsOffset)
-ACCESSORS(Module, regular_imports, FixedArray, kRegularImportsOffset)
+ACCESSORS2(Module, regular_exports, FixedArray, kRegularExportsOffset)
+ACCESSORS2(Module, regular_imports, FixedArray, kRegularImportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
-ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
+ACCESSORS2(Module, requested_modules, FixedArray, kRequestedModulesOffset)
 ACCESSORS(Module, script, Script, kScriptOffset)
 ACCESSORS(Module, exception, Object, kExceptionOffset)
 ACCESSORS(Module, import_meta, Object, kImportMetaOffset)
@@ -49,30 +49,30 @@ SMI_ACCESSORS(ModuleInfoEntry, cell_index, kCellIndexOffset)
 SMI_ACCESSORS(ModuleInfoEntry, beg_pos, kBegPosOffset)
 SMI_ACCESSORS(ModuleInfoEntry, end_pos, kEndPosOffset)
 
-OBJECT_CONSTRUCTORS_IMPL(ModuleInfo, FixedArrayPtr)
+OBJECT_CONSTRUCTORS_IMPL(ModuleInfo, FixedArray)
 CAST_ACCESSOR2(ModuleInfo)
 
-FixedArray* ModuleInfo::module_requests() const {
+FixedArray ModuleInfo::module_requests() const {
   return FixedArray::cast(get(kModuleRequestsIndex));
 }
 
-FixedArray* ModuleInfo::special_exports() const {
+FixedArray ModuleInfo::special_exports() const {
   return FixedArray::cast(get(kSpecialExportsIndex));
 }
 
-FixedArray* ModuleInfo::regular_exports() const {
+FixedArray ModuleInfo::regular_exports() const {
   return FixedArray::cast(get(kRegularExportsIndex));
 }
 
-FixedArray* ModuleInfo::regular_imports() const {
+FixedArray ModuleInfo::regular_imports() const {
   return FixedArray::cast(get(kRegularImportsIndex));
 }
 
-FixedArray* ModuleInfo::namespace_imports() const {
+FixedArray ModuleInfo::namespace_imports() const {
   return FixedArray::cast(get(kNamespaceImportsIndex));
 }
 
-FixedArray* ModuleInfo::module_request_positions() const {
+FixedArray ModuleInfo::module_request_positions() const {
   return FixedArray::cast(get(kModuleRequestPositionsIndex));
 }
 

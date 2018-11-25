@@ -60,7 +60,7 @@ class RootVisitor;
   V(Map, transition_array_map, TransitionArrayMap)                             \
   V(Map, feedback_vector_map, FeedbackVectorMap)                               \
   V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
-  V(FixedArray*, empty_fixed_array, EmptyFixedArray)                           \
+  V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray*, empty_descriptor_array, EmptyDescriptorArray)            \
   /* Entries beyond the first 32                                            */ \
   /* Oddballs */                                                               \
@@ -197,12 +197,11 @@ class RootVisitor;
   V(FixedTypedArrayBase, empty_fixed_biguint64_array,                          \
     EmptyFixedBigUint64Array)                                                  \
   V(FixedTypedArrayBase, empty_fixed_bigint64_array, EmptyFixedBigInt64Array)  \
-  V(FixedArray*, empty_sloppy_arguments_elements,                              \
-    EmptySloppyArgumentsElements)                                              \
+  V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(NumberDictionary, empty_slow_element_dictionary,                           \
     EmptySlowElementDictionary)                                                \
-  V(FixedArray*, empty_ordered_hash_map, EmptyOrderedHashMap)                  \
-  V(FixedArray*, empty_ordered_hash_set, EmptyOrderedHashSet)                  \
+  V(FixedArray, empty_ordered_hash_map, EmptyOrderedHashMap)                   \
+  V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
   V(FeedbackMetadata*, empty_feedback_metadata, EmptyFeedbackMetadata)         \
   V(PropertyCell*, empty_property_cell, EmptyPropertyCell)                     \
   V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
@@ -254,47 +253,47 @@ class RootVisitor;
   V(PropertyCell*, set_iterator_protector, SetIteratorProtector)              \
   V(PropertyCell*, string_iterator_protector, StringIteratorProtector)        \
   /* Caches */                                                                \
-  V(FixedArray*, single_character_string_cache, SingleCharacterStringCache)   \
-  V(FixedArray*, string_split_cache, StringSplitCache)                        \
-  V(FixedArray*, regexp_multiple_cache, RegExpMultipleCache)                  \
+  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)    \
+  V(FixedArray, string_split_cache, StringSplitCache)                         \
+  V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                   \
   /* Lists and dictionaries */                                                \
   V(MicrotaskQueue*, default_microtask_queue, DefaultMicrotaskQueue)          \
   /* Indirection lists for isolate-independent builtins */                    \
-  V(FixedArray*, builtins_constants_table, BuiltinsConstantsTable)            \
+  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)             \
   /* JS Entries */                                                            \
   V(Code, js_entry_code, JsEntryCode)                                         \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                      \
   V(Code, js_run_microtasks_entry_code, JsRunMicrotasksEntryCode)
 
 // These root references can be updated by the mutator.
-#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \
-  /* Caches */                                                              \
-  V(FixedArray*, number_string_cache, NumberStringCache)                    \
-  /* Lists and dictionaries */                                              \
-  V(NameDictionary, public_symbol_table, PublicSymbolTable)                 \
-  V(NameDictionary, api_symbol_table, ApiSymbolTable)                       \
-  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)        \
-  V(WeakArrayList*, script_list, ScriptList)                                \
-  V(SimpleNumberDictionary, code_stubs, CodeStubs)                          \
-  V(FixedArray*, materialized_objects, MaterializedObjects)                 \
-  V(WeakArrayList*, detached_contexts, DetachedContexts)                    \
-  V(WeakArrayList*, retaining_path_targets, RetainingPathTargets)           \
-  V(WeakArrayList*, retained_maps, RetainedMaps)                            \
-  /* Feedback vectors that we need for code coverage or type profile */     \
-  V(Object*, feedback_vectors_for_profiling_tools,                          \
-    FeedbackVectorsForProfilingTools)                                       \
-  V(WeakArrayList*, noscript_shared_function_infos,                         \
-    NoScriptSharedFunctionInfos)                                            \
-  V(FixedArray*, serialized_objects, SerializedObjects)                     \
-  V(FixedArray*, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
-  V(TemplateList, message_listeners, MessageListeners)                      \
-  /* Support for async stack traces */                                      \
-  V(HeapObject*, current_microtask, CurrentMicrotask)                       \
-  /* JSWeakFactory objects which need cleanup */                            \
-  V(Object*, dirty_js_weak_factories, DirtyJSWeakFactories)                 \
-  /* KeepDuringJob set for JS WeakRefs */                                   \
-  V(HeapObject*, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
-  V(HeapObject*, interpreter_entry_trampoline_for_profiling,                \
+#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                \
+  /* Caches */                                                             \
+  V(FixedArray, number_string_cache, NumberStringCache)                    \
+  /* Lists and dictionaries */                                             \
+  V(NameDictionary, public_symbol_table, PublicSymbolTable)                \
+  V(NameDictionary, api_symbol_table, ApiSymbolTable)                      \
+  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)       \
+  V(WeakArrayList*, script_list, ScriptList)                               \
+  V(SimpleNumberDictionary, code_stubs, CodeStubs)                         \
+  V(FixedArray, materialized_objects, MaterializedObjects)                 \
+  V(WeakArrayList*, detached_contexts, DetachedContexts)                   \
+  V(WeakArrayList*, retaining_path_targets, RetainingPathTargets)          \
+  V(WeakArrayList*, retained_maps, RetainedMaps)                           \
+  /* Feedback vectors that we need for code coverage or type profile */    \
+  V(Object*, feedback_vectors_for_profiling_tools,                         \
+    FeedbackVectorsForProfilingTools)                                      \
+  V(WeakArrayList*, noscript_shared_function_infos,                        \
+    NoScriptSharedFunctionInfos)                                           \
+  V(FixedArray, serialized_objects, SerializedObjects)                     \
+  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
+  V(TemplateList, message_listeners, MessageListeners)                     \
+  /* Support for async stack traces */                                     \
+  V(HeapObject*, current_microtask, CurrentMicrotask)                      \
+  /* JSWeakFactory objects which need cleanup */                           \
+  V(Object*, dirty_js_weak_factories, DirtyJSWeakFactories)                \
+  /* KeepDuringJob set for JS WeakRefs */                                  \
+  V(HeapObject*, weak_refs_keep_during_job, WeakRefsKeepDuringJob)         \
+  V(HeapObject*, interpreter_entry_trampoline_for_profiling,               \
     InterpreterEntryTrampolineForProfiling)
 
 // Entries in this list are limited to Smis and are not visited during GC.

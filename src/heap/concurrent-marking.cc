@@ -281,7 +281,7 @@ class ConcurrentMarkingVisitor final
   // Fixed array object ========================================================
   // ===========================================================================
 
-  int VisitFixedArray(Map map, FixedArray* object) {
+  int VisitFixedArray(Map map, FixedArray object) {
     return VisitLeftTrimmableArray(map, object);
   }
 
@@ -469,12 +469,9 @@ class ConcurrentMarkingVisitor final
     // The cached length must be the actual length as the array is not black.
     // Left trimming marks the array black before over-writing the length.
     DCHECK(length->IsSmi());
-    // TODO(3770): Drop std::remove_pointer after FixedArray* is migrated.
-    int size = std::remove_pointer<T>::type::SizeFor(Smi::ToInt(length));
+    int size = T::SizeFor(Smi::ToInt(length));
     VisitMapPointer(object, object->map_slot());
-    // TODO(3770): Drop std::remove_pointer after FixedArray* is migrated.
-    std::remove_pointer<T>::type::BodyDescriptor::IterateBody(map, object, size,
-                                                              this);
+    T::BodyDescriptor::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -533,8 +530,8 @@ SeqTwoByteString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
 
 // Fixed array can become a free space during left trimming.
 template <>
-FixedArray* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
-  return reinterpret_cast<FixedArray*>(object);
+FixedArray ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return FixedArray::unchecked_cast(object);
 }
 
 class ConcurrentMarking::Task : public CancelableTask {

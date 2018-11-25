@@ -32,7 +32,7 @@ class Zone;
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo : public FixedArrayPtr {
+class ScopeInfo : public FixedArray {
  public:
   DECL_CAST2(ScopeInfo)
   DECL_PRINTER(ScopeInfo)
@@ -318,7 +318,7 @@ class ScopeInfo : public FixedArrayPtr {
   friend std::ostream& operator<<(std::ostream& os,
                                   ScopeInfo::VariableAllocationInfo var);
 
-  OBJECT_CONSTRUCTORS(ScopeInfo, FixedArrayPtr)
+  OBJECT_CONSTRUCTORS(ScopeInfo, FixedArray)
 };
 
 std::ostream& operator<<(std::ostream& os,

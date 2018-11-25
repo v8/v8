@@ -323,7 +323,7 @@ class TranslatedState {
   Isolate* isolate() { return isolate_; }
 
   void Init(Isolate* isolate, Address input_frame_pointer,
-            TranslationIterator* iterator, FixedArray* literal_array,
+            TranslationIterator* iterator, FixedArray literal_array,
             RegisterValues* registers, FILE* trace_file, int parameter_count);
 
   void VerifyMaterializedObjects();
@@ -333,11 +333,10 @@ class TranslatedState {
   friend TranslatedValue;
 
   TranslatedFrame CreateNextTranslatedFrame(TranslationIterator* iterator,
-                                            FixedArray* literal_array,
-                                            Address fp,
-                                            FILE* trace_file);
+                                            FixedArray literal_array,
+                                            Address fp, FILE* trace_file);
   int CreateNextTranslatedValue(int frame_index, TranslationIterator* iterator,
-                                FixedArray* literal_array, Address fp,
+                                FixedArray literal_array, Address fp,
                                 RegisterValues* registers, FILE* trace_file);
   Address ComputeArgumentsPosition(Address input_frame_pointer,
                                    CreateArgumentsType type, int* length);
@@ -375,7 +374,7 @@ class TranslatedState {
       Handle<Map> map, const DisallowHeapAllocation& no_allocation);
 
   void ReadUpdateFeedback(TranslationIterator* iterator,
-                          FixedArray* literal_array, FILE* trace_file);
+                          FixedArray literal_array, FILE* trace_file);
 
   TranslatedValue* ResolveCapturedObject(TranslatedValue* slot);
   TranslatedValue* GetValueByObjectIndex(int object_index);

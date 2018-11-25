@@ -353,12 +353,12 @@ class ObjectStatsCollectorImpl {
                                       ObjectStats::VirtualInstanceType type);
   // For HashTable it is possible to compute over allocated memory.
   void RecordHashTableVirtualObjectStats(HeapObject* parent,
-                                         FixedArray* hash_table,
+                                         FixedArray hash_table,
                                          ObjectStats::VirtualInstanceType type);
 
   bool SameLiveness(HeapObject* obj1, HeapObject* obj2);
-  bool CanRecordFixedArray(FixedArrayBase* array);
-  bool IsCowArray(FixedArrayBase* array);
+  bool CanRecordFixedArray(FixedArrayBase array);
+  bool IsCowArray(FixedArrayBase array);
 
   // Blacklist for objects that should not be recorded using
   // VirtualObjectStats and RecordSimpleVirtualObjectStats. For recording those
@@ -379,7 +379,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualCodeDetails(Code code);
   void RecordVirtualContext(Context context);
   void RecordVirtualFeedbackVectorDetails(FeedbackVector* vector);
-  void RecordVirtualFixedArrayDetails(FixedArray* array);
+  void RecordVirtualFixedArrayDetails(FixedArray array);
   void RecordVirtualFunctionTemplateInfoDetails(FunctionTemplateInfo* fti);
   void RecordVirtualJSGlobalObjectDetails(JSGlobalObject* object);
   void RecordVirtualJSCollectionDetails(JSObject* object);
@@ -413,7 +413,7 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
 bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject* obj,
                                                   CowMode check_cow_array) {
   if (obj->IsFixedArrayExact()) {
-    FixedArray* fixed_array = FixedArray::cast(obj);
+    FixedArray fixed_array = FixedArray::cast(obj);
     bool cow_check = check_cow_array == kIgnoreCow || !IsCowArray(fixed_array);
     return CanRecordFixedArray(fixed_array) && cow_check;
   }
@@ -422,7 +422,7 @@ bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject* obj,
 }
 
 void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
-    HeapObject* parent, FixedArray* hash_table,
+    HeapObject* parent, FixedArray hash_table,
     ObjectStats::VirtualInstanceType type) {
   CHECK(hash_table->IsHashTable());
   // TODO(mlippautz): Implement over allocation for hash tables.
@@ -484,7 +484,7 @@ void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
           site, properties, ObjectStats::BOILERPLATE_PROPERTY_DICTIONARY_TYPE);
     }
   }
-  FixedArrayBase* elements = boilerplate->elements();
+  FixedArrayBase elements = boilerplate->elements();
   RecordSimpleVirtualObjectStats(site, elements,
                                  ObjectStats::BOILERPLATE_ELEMENTS_TYPE);
 }
@@ -512,7 +512,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
   RecordHashTableVirtualObjectStats(object, properties,
                                     ObjectStats::GLOBAL_PROPERTIES_TYPE);
   // Elements.
-  FixedArrayBase* elements = object->elements();
+  FixedArrayBase elements = object->elements();
   RecordSimpleVirtualObjectStats(object, elements,
                                  ObjectStats::GLOBAL_ELEMENTS_TYPE);
 }
@@ -545,7 +545,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
         object, properties, ObjectStats::OBJECT_PROPERTY_DICTIONARY_TYPE);
   }
   // Elements.
-  FixedArrayBase* elements = object->elements();
+  FixedArrayBase elements = object->elements();
   RecordSimpleVirtualObjectStats(object, elements, ObjectStats::ELEMENTS_TYPE);
 }
 
@@ -641,7 +641,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualFixedArrayDetails(
-    FixedArray* array) {
+    FixedArray array) {
   if (IsCowArray(array)) {
     RecordVirtualObjectStats(nullptr, array, ObjectStats::COW_ARRAY_TYPE,
                              array->Size(), ObjectStats::kNoOverAllocation,
@@ -748,7 +748,7 @@ void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject* obj,
   }
 }
 
-bool ObjectStatsCollectorImpl::CanRecordFixedArray(FixedArrayBase* array) {
+bool ObjectStatsCollectorImpl::CanRecordFixedArray(FixedArrayBase array) {
   ReadOnlyRoots roots(heap_);
   return array != roots.empty_fixed_array() &&
          array != roots.empty_sloppy_arguments_elements() &&
@@ -756,7 +756,7 @@ bool ObjectStatsCollectorImpl::CanRecordFixedArray(FixedArrayBase* array) {
          array != roots.empty_property_dictionary();
 }
 
-bool ObjectStatsCollectorImpl::IsCowArray(FixedArrayBase* array) {
+bool ObjectStatsCollectorImpl::IsCowArray(FixedArrayBase array) {
   return array->map() == ReadOnlyRoots(heap_).fixed_cow_array_map();
 }
 
@@ -866,7 +866,7 @@ void ObjectStatsCollectorImpl::
         ObjectStats::VirtualInstanceType type) {
   if (!RecordSimpleVirtualObjectStats(parent, object, type)) return;
   if (object->IsFixedArrayExact()) {
-    FixedArray* array = FixedArray::cast(object);
+    FixedArray array = FixedArray::cast(object);
     for (int i = 0; i < array->length(); i++) {
       Object* entry = array->get(i);
       if (!entry->IsHeapObject()) continue;
@@ -883,7 +883,7 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
       ObjectStats::BYTECODE_ARRAY_CONSTANT_POOL_TYPE);
   // FixedArrays on constant pool are used for holding descriptor information.
   // They are shared with optimized code.
-  FixedArray* constant_pool = FixedArray::cast(bytecode->constant_pool());
+  FixedArray constant_pool = FixedArray::cast(bytecode->constant_pool());
   for (int i = 0; i < constant_pool->length(); i++) {
     Object* entry = constant_pool->get(i);
     if (entry->IsFixedArrayExact()) {

@@ -1078,7 +1078,7 @@ enum class ElementTypes { kAll, kStringAndSymbol };
 // TODO(3770): Get rid of this indirection when the migration is complete.
 typedef AbstractCode* AbstractCodeArgType;
 typedef ByteArray ByteArrayArgType;
-typedef FixedArray* FixedArrayArgType;
+typedef FixedArray FixedArrayArgType;
 typedef FixedDoubleArray FixedDoubleArrayArgType;
 typedef Foreign* ForeignArgType;
 typedef HeapObject* HeapObjectArgType;

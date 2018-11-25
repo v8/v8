@@ -685,7 +685,7 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
     debug_info->SetBreakAtEntry();
   } else {
     if (!debug_info->HasInstrumentedBytecodeArray()) return;
-    FixedArray* break_points = debug_info->break_points();
+    FixedArray break_points = debug_info->break_points();
     for (int i = 0; i < break_points->length(); i++) {
       if (break_points->get(i)->IsUndefined(isolate_)) continue;
       BreakPointInfo* info = BreakPointInfo::cast(break_points->get(i));

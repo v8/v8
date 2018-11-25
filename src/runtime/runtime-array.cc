@@ -258,7 +258,7 @@ Object* RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
       holes++;
     }
   } else {
-    FixedArray* elements = FixedArray::cast(*elements_base);
+    FixedArray elements = FixedArray::cast(*elements_base);
     DisallowHeapAllocation no_gc;
 
     // Split elements into defined, undefined and the_hole, in that order.  Only
@@ -411,7 +411,7 @@ RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSArray, array, 0);
-  FixedArrayBase* elements = array->elements();
+  FixedArrayBase elements = array->elements();
   SealHandleScope shs(isolate);
   if (elements->IsNumberDictionary()) {
     int result = NumberDictionary::cast(elements)->NumberOfElements();

@@ -146,7 +146,7 @@ void MessageHandler::ReportMessageNoExceptions(
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
       if (global_listeners->get(i)->IsUndefined(isolate)) continue;
-      FixedArray* listener = FixedArray::cast(global_listeners->get(i));
+      FixedArray listener = FixedArray::cast(global_listeners->get(i));
       Foreign* callback_obj = Foreign::cast(listener->get(0));
       int32_t message_levels =
           static_cast<int32_t>(Smi::ToInt(listener->get(2)));

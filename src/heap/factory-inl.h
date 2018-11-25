@@ -101,13 +101,6 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                 pretenure);
 }
 
-Handle<JSArray> Factory::NewJSArrayWithElements(
-    Handle<FixedArrayBasePtr> elements, ElementsKind elements_kind,
-    PretenureFlag pretenure) {
-  return NewJSArrayWithElements(Handle<FixedArrayBase>(elements.location()),
-                                elements_kind, elements->length(), pretenure);
-}
-
 Handle<Object> Factory::NewURIError() {
   return NewError(isolate()->uri_error_function(),
                   MessageTemplate::kURIMalformed);

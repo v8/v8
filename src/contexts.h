@@ -361,7 +361,7 @@ enum ContextLookupFlags {
 //
 // The table is a fixed array, its first slot is the current used count and
 // the subsequent slots 1..used contain ScriptContexts.
-class ScriptContextTable : public FixedArrayPtr {
+class ScriptContextTable : public FixedArray {
  public:
   DECL_CAST2(ScriptContextTable)
 
@@ -396,7 +396,7 @@ class ScriptContextTable : public FixedArrayPtr {
   static const int kFirstContextSlotIndex = 1;
   static const int kMinLength = kFirstContextSlotIndex;
 
-  OBJECT_CONSTRUCTORS(ScriptContextTable, FixedArrayPtr);
+  OBJECT_CONSTRUCTORS(ScriptContextTable, FixedArray);
 };
 
 // JSFunctions are pairs (context, function code), sometimes also called
@@ -444,7 +444,7 @@ class ScriptContextTable : public FixedArrayPtr {
 // Script contexts from all top-level scripts are gathered in
 // ScriptContextTable.
 
-class Context : public FixedArrayPtr {
+class Context : public FixedArray {
  public:
   NEVER_READ_ONLY_SPACE
 
@@ -636,7 +636,7 @@ class Context : public FixedArrayPtr {
   STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
                 Internals::kNativeContextEmbedderDataOffset);
 
-  OBJECT_CONSTRUCTORS(Context, FixedArrayPtr)
+  OBJECT_CONSTRUCTORS(Context, FixedArray)
 };
 
 class NativeContext : public Context {

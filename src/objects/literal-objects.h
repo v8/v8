@@ -21,7 +21,7 @@ class ClassLiteral;
 // of properties in the backing store. This number includes properties with
 // computed names that are not
 // in the list.
-class ObjectBoilerplateDescription : public FixedArrayPtr {
+class ObjectBoilerplateDescription : public FixedArray {
  public:
   Object* name(int index) const;
   Object* value(int index) const;
@@ -49,13 +49,13 @@ class ObjectBoilerplateDescription : public FixedArrayPtr {
  private:
   bool has_number_of_properties() const;
 
-  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArrayPtr)
+  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray)
 };
 
 class ArrayBoilerplateDescription : public Struct {
  public:
   // store constant_elements of a fixed array
-  DECL_ACCESSORS(constant_elements, FixedArrayBase)
+  DECL_ACCESSORS2(constant_elements, FixedArrayBase)
 
   inline ElementsKind elements_kind() const;
   inline void set_elements_kind(ElementsKind kind);
@@ -83,7 +83,7 @@ class ArrayBoilerplateDescription : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayBoilerplateDescription);
 };
 
-class ClassBoilerplate : public FixedArrayPtr {
+class ClassBoilerplate : public FixedArray {
  public:
   enum ValueKind { kData, kGetter, kSetter };
 
@@ -121,10 +121,10 @@ class ClassBoilerplate : public FixedArrayPtr {
   DECL_INT_ACCESSORS(arguments_count)
   DECL_ACCESSORS(static_properties_template, Object)
   DECL_ACCESSORS(static_elements_template, Object)
-  DECL_ACCESSORS(static_computed_properties, FixedArray)
+  DECL_ACCESSORS2(static_computed_properties, FixedArray)
   DECL_ACCESSORS(instance_properties_template, Object)
   DECL_ACCESSORS(instance_elements_template, Object)
-  DECL_ACCESSORS(instance_computed_properties, FixedArray)
+  DECL_ACCESSORS2(instance_computed_properties, FixedArray)
 
   static void AddToPropertiesTemplate(Isolate* isolate,
                                       Handle<NameDictionary> dictionary,
@@ -155,7 +155,7 @@ class ClassBoilerplate : public FixedArrayPtr {
  private:
   DECL_INT_ACCESSORS(flags)
 
-  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArrayPtr)
+  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArray)
 };
 
 }  // namespace internal

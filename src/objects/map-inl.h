@@ -192,8 +192,8 @@ void Map::SetEnumLength(int length) {
   set_bit_field3(EnumLengthBits::update(bit_field3(), length));
 }
 
-FixedArrayBase* Map::GetInitialElements() const {
-  FixedArrayBase* result = nullptr;
+FixedArrayBase Map::GetInitialElements() const {
+  FixedArrayBase result;
   if (has_fast_elements() || has_fast_string_wrapper_elements()) {
     result = GetReadOnlyRoots().empty_fixed_array();
   } else if (has_fast_sloppy_arguments_elements()) {
@@ -201,9 +201,7 @@ FixedArrayBase* Map::GetInitialElements() const {
   } else if (has_fixed_typed_array_elements()) {
     result = GetReadOnlyRoots().EmptyFixedTypedArrayForMap(*this);
   } else if (has_dictionary_elements()) {
-    // TODO(3770): Drop unsightly cast.
-    result = reinterpret_cast<FixedArrayBase*>(
-        GetReadOnlyRoots().empty_slow_element_dictionary().ptr());
+    result = GetReadOnlyRoots().empty_slow_element_dictionary();
   } else {
     UNREACHABLE();
   }

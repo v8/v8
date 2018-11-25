@@ -1004,8 +1004,8 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
       position_(data.start()),
       end_(data.start() + data.length()),
       pretenure_(data.length() > kPretenureThreshold ? TENURED : NOT_TENURED),
-      id_map_(isolate->global_handles()->Create(
-          ReadOnlyRoots(isolate_).empty_fixed_array())) {}
+      id_map_(Handle<FixedArray>::cast(isolate->global_handles()->Create(
+          ReadOnlyRoots(isolate_).empty_fixed_array()))) {}
 
 ValueDeserializer::~ValueDeserializer() {
   GlobalHandles::Destroy(id_map_.location());
@@ -2057,7 +2057,8 @@ void ValueDeserializer::AddObjectWithID(uint32_t id,
   // If the dictionary was reallocated, update the global handle.
   if (!new_array.is_identical_to(id_map_)) {
     GlobalHandles::Destroy(id_map_.location());
-    id_map_ = isolate_->global_handles()->Create(*new_array);
+    id_map_ = Handle<FixedArray>::cast(
+        isolate_->global_handles()->Create(*new_array));
   }
 }
 

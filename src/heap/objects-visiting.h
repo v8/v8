@@ -46,7 +46,7 @@ class WasmInstanceObject;
   V(EphemeronHashTable, EphemeronHashTable)                                    \
   V(FeedbackCell, FeedbackCell*)                                               \
   V(FeedbackVector, FeedbackVector*)                                           \
-  V(FixedArray, FixedArray*)                                                   \
+  V(FixedArray, FixedArray)                                                    \
   V(FixedDoubleArray, FixedDoubleArray)                                        \
   V(FixedFloat64Array, FixedFloat64Array)                                      \
   V(FixedTypedArrayBase, FixedTypedArrayBase)                                  \

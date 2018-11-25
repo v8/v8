@@ -796,7 +796,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     SetInternalReference(entry, "bound_function",
                          js_fun->bound_target_function(),
                          JSBoundFunction::kBoundTargetFunctionOffset);
-    FixedArray* bindings = js_fun->bound_arguments();
+    FixedArray bindings = js_fun->bound_arguments();
     for (int i = 0; i < bindings->length(); i++) {
       const char* reference_name = names_->GetFormatted("bound_argument_%d", i);
       SetNativeBindReference(entry, reference_name, bindings->get(i));
@@ -1223,7 +1223,7 @@ void V8HeapExplorer::ExtractJSGeneratorObjectReferences(
 }
 
 void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
-                                                 FixedArray* array) {
+                                                 FixedArray array) {
   for (int i = 0, l = array->length(); i < l; ++i) {
     DCHECK(!HasWeakHeapObjectTag(array->get(i)));
     SetInternalReference(entry, i, array->get(i), array->OffsetOfElementAt(i));
@@ -1334,7 +1334,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj,
                                               HeapEntry* entry) {
   ReadOnlyRoots roots = js_obj->GetReadOnlyRoots();
   if (js_obj->HasObjectElements()) {
-    FixedArray* elements = FixedArray::cast(js_obj->elements());
+    FixedArray elements = FixedArray::cast(js_obj->elements());
     int length = js_obj->IsJSArray()
                      ? Smi::ToInt(JSArray::cast(js_obj)->length())
                      : elements->length();

@@ -61,14 +61,14 @@ CAST_ACCESSOR(AsmWasmData)
 // WasmModuleObject
 ACCESSORS(WasmModuleObject, managed_native_module, Managed<wasm::NativeModule>,
           kNativeModuleOffset)
-ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
+ACCESSORS2(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
 ACCESSORS(WasmModuleObject, weak_instance_list, WeakArrayList,
           kWeakInstanceListOffset)
 OPTIONAL_ACCESSORS2(WasmModuleObject, asm_js_offset_table, ByteArray,
                     kAsmJsOffsetTableOffset)
-OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,
-                   kBreakPointInfosOffset)
+OPTIONAL_ACCESSORS2(WasmModuleObject, breakpoint_infos, FixedArray,
+                    kBreakPointInfosOffset)
 wasm::NativeModule* WasmModuleObject::native_module() const {
   return managed_native_module()->raw();
 }
@@ -88,9 +88,9 @@ bool WasmModuleObject::is_asm_js() {
 }
 
 // WasmTableObject
-ACCESSORS(WasmTableObject, functions, FixedArray, kFunctionsOffset)
+ACCESSORS2(WasmTableObject, functions, FixedArray, kFunctionsOffset)
 ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
-ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
+ACCESSORS2(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
@@ -179,20 +179,20 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
                    kMemoryObjectOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
                    kGlobalsBufferOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, imported_mutable_globals_buffers,
-                   FixedArray, kImportedMutableGlobalsBuffersOffset)
+OPTIONAL_ACCESSORS2(WasmInstanceObject, imported_mutable_globals_buffers,
+                    FixedArray, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, table_object, WasmTableObject,
                    kTableObjectOffset)
-ACCESSORS(WasmInstanceObject, imported_function_refs, FixedArray,
-          kImportedFunctionRefsOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
-                   kIndirectFunctionTableRefsOffset)
+ACCESSORS2(WasmInstanceObject, imported_function_refs, FixedArray,
+           kImportedFunctionRefsOffset)
+OPTIONAL_ACCESSORS2(WasmInstanceObject, indirect_function_table_refs,
+                    FixedArray, kIndirectFunctionTableRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
                    kManagedNativeAllocationsOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,
-                   kExceptionsTableOffset)
+OPTIONAL_ACCESSORS2(WasmInstanceObject, exceptions_table, FixedArray,
+                    kExceptionsTableOffset)
 ACCESSORS(WasmInstanceObject, undefined_value, Oddball, kUndefinedValueOffset)
 ACCESSORS(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
 ACCESSORS2(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
@@ -231,11 +231,11 @@ SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
 // WasmDebugInfo
 ACCESSORS(WasmDebugInfo, wasm_instance, WasmInstanceObject, kInstanceOffset)
 ACCESSORS(WasmDebugInfo, interpreter_handle, Object, kInterpreterHandleOffset)
-ACCESSORS(WasmDebugInfo, interpreted_functions, FixedArray,
-          kInterpretedFunctionsOffset)
-OPTIONAL_ACCESSORS(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
-OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entries, FixedArray,
-                   kCWasmEntriesOffset)
+ACCESSORS2(WasmDebugInfo, interpreted_functions, FixedArray,
+           kInterpretedFunctionsOffset)
+OPTIONAL_ACCESSORS2(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
+OPTIONAL_ACCESSORS2(WasmDebugInfo, c_wasm_entries, FixedArray,
+                    kCWasmEntriesOffset)
 OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
                    kCWasmEntryMapOffset)
 
@@ -251,7 +251,7 @@ bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 // AsmWasmData
 ACCESSORS(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,
           kManagedNativeModuleOffset)
-ACCESSORS(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
+ACCESSORS2(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS2(AsmWasmData, asm_js_offset_table, ByteArray, kAsmJsOffsetTableOffset)
 ACCESSORS(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
 

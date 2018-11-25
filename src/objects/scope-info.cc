@@ -931,7 +931,7 @@ int ModuleInfo::RegularExportCellIndex(int i) const {
                                            kRegularExportCellIndexOffset));
 }
 
-FixedArray* ModuleInfo::RegularExportExportNames(int i) const {
+FixedArray ModuleInfo::RegularExportExportNames(int i) const {
   return FixedArray::cast(regular_exports()->get(
       i * kRegularExportLength + kRegularExportExportNamesOffset));
 }

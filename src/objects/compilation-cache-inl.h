@@ -55,7 +55,7 @@ uint32_t CompilationCacheShape::HashForObject(Isolate* isolate,
                                               Object* object) {
   if (object->IsNumber()) return static_cast<uint32_t>(object->Number());
 
-  FixedArray* val = FixedArray::cast(object);
+  FixedArray val = FixedArray::cast(object);
   if (val->map() == val->GetReadOnlyRoots().fixed_cow_array_map()) {
     DCHECK_EQ(4, val->length());
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(val->get(0));

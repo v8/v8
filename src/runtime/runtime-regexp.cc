@@ -40,7 +40,7 @@ uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
 // Looks up the capture of the given name. Returns the (1-based) numbered
 // capture index or -1 on failure.
 int LookupNamedCapture(const std::function<bool(String*)>& name_matches,
-                       FixedArray* capture_name_map) {
+                       FixedArray capture_name_map) {
   // TODO(jgruber): Sort capture_name_map and do binary search via
   // internalized strings.
 
@@ -144,7 +144,7 @@ class CompiledReplacement {
   template <typename Char>
   bool ParseReplacementPattern(ZoneChunkList<ReplacementPart>* parts,
                                Vector<Char> characters,
-                               FixedArray* capture_name_map, int capture_count,
+                               FixedArray capture_name_map, int capture_count,
                                int subject_length) {
     // Equivalent to String::GetSubstitution, except that this method converts
     // the replacement string into an internal representation that avoids
@@ -236,7 +236,7 @@ class CompiledReplacement {
             break;
           }
           case '<': {
-            if (capture_name_map == nullptr) {
+            if (capture_name_map.is_null()) {
               i = next_index;
               break;
             }
@@ -319,7 +319,7 @@ bool CompiledReplacement::Compile(Isolate* isolate, Handle<JSRegExp> regexp,
     String::FlatContent content = replacement->GetFlatContent();
     DCHECK(content.IsFlat());
 
-    FixedArray* capture_name_map = nullptr;
+    FixedArray capture_name_map;
     if (capture_count > 0) {
       DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
       Object* maybe_capture_name_map = regexp->CaptureNameMap();
@@ -829,7 +829,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   CHECK_LT(0, pattern_length);
 
   if (limit == 0xFFFFFFFFu) {
-    FixedArray* last_match_cache_unused;
+    FixedArray last_match_cache_unused;
     Handle<Object> cached_answer(
         RegExpResultsCache::Lookup(isolate->heap(), *subject, *pattern,
                                    &last_match_cache_unused,
@@ -1137,7 +1137,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   static const int kMinLengthToCache = 0x1000;
 
   if (subject_length > kMinLengthToCache) {
-    FixedArray* last_match_cache;
+    FixedArray last_match_cache;
     Object* cached_answer = RegExpResultsCache::Lookup(
         isolate->heap(), *subject, regexp->data(), &last_match_cache,
         RegExpResultsCache::REGEXP_MULTIPLE_INDICES);

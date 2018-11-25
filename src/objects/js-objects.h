@@ -301,7 +301,7 @@ class JSObject : public JSReceiver {
   //
   // In the slow mode the elements is either a NumberDictionary, a
   // FixedArray parameter map for a (sloppy) arguments object.
-  DECL_ACCESSORS(elements, FixedArrayBase)
+  DECL_ACCESSORS2(elements, FixedArrayBase)
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
@@ -774,7 +774,7 @@ class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
       LookupIterator* it, ShouldThrow should_throw);
 
-  bool ReferencesObjectFromElements(FixedArray* elements, ElementsKind kind,
+  bool ReferencesObjectFromElements(FixedArray elements, ElementsKind kind,
                                     Object* object);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
@@ -864,7 +864,7 @@ class JSBoundFunction : public JSObject {
 
   // [bound_arguments]: A list of values whose elements are used as the first
   // arguments to any call to the wrapped function.
-  DECL_ACCESSORS(bound_arguments, FixedArray)
+  DECL_ACCESSORS2(bound_arguments, FixedArray)
 
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      Handle<JSBoundFunction> function);

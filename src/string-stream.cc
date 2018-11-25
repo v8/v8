@@ -329,8 +329,7 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
   }
 }
 
-
-void StringStream::PrintFixedArray(FixedArray* array, unsigned int limit) {
+void StringStream::PrintFixedArray(FixedArray array, unsigned int limit) {
   ReadOnlyRoots roots = array->GetReadOnlyRoots();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
     Object* element = array->get(i);

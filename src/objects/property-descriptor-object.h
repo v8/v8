@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class PropertyDescriptorObject : public FixedArrayPtr {
+class PropertyDescriptorObject : public FixedArray {
  public:
 #define FLAGS_BIT_FIELDS(V, _)      \
   V(IsEnumerableBit, bool, 1, _)    \
@@ -56,7 +56,7 @@ class PropertyDescriptorObject : public FixedArrayPtr {
   static const int kSetOffset =
       FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kSetIndex);
 
-  OBJECT_CONSTRUCTORS(PropertyDescriptorObject, FixedArrayPtr)
+  OBJECT_CONSTRUCTORS(PropertyDescriptorObject, FixedArray)
 };
 
 }  // namespace internal

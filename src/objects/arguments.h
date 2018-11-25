@@ -89,7 +89,7 @@ class JSStrictArgumentsObject : public JSArgumentsObjectWithLength {
 // +---+-----------------------+
 // | 0 | Context  context      |
 // +---------------------------+
-// | 1 | FixedArray* arguments +----+ HOLEY_ELEMENTS
+// | 1 | FixedArray arguments  +----+ HOLEY_ELEMENTS
 // +---------------------------+    v-----+-----------+
 // | 2 | Object* param_1_map   |    |  0  | the_hole  |
 // |...| ...                   |    | ... | ...       |
@@ -106,15 +106,15 @@ class JSStrictArgumentsObject : public JSArgumentsObjectWithLength {
 // JSArgumentsObject:
 // - FAST_SLOPPY_ARGUMENTS_ELEMENTS: HOLEY_ELEMENTS
 // - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
-class SloppyArgumentsElements : public FixedArrayPtr {
+class SloppyArgumentsElements : public FixedArray {
  public:
   static const int kContextIndex = 0;
   static const int kArgumentsIndex = 1;
   static const uint32_t kParameterMapStart = 2;
 
   inline Context context();
-  inline FixedArray* arguments();
-  inline void set_arguments(FixedArray* arguments);
+  inline FixedArray arguments();
+  inline void set_arguments(FixedArray arguments);
   inline uint32_t parameter_map_length();
   inline Object* get_mapped_entry(uint32_t entry);
   inline void set_mapped_entry(uint32_t entry, Object* object);
@@ -124,7 +124,7 @@ class SloppyArgumentsElements : public FixedArrayPtr {
   void SloppyArgumentsElementsVerify(Isolate* isolate, JSObject* holder);
 #endif
 
-  OBJECT_CONSTRUCTORS(SloppyArgumentsElements, FixedArrayPtr);
+  OBJECT_CONSTRUCTORS(SloppyArgumentsElements, FixedArray);
 };
 
 // Representation of a slow alias as part of a sloppy arguments objects.

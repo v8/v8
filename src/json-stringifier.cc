@@ -352,7 +352,7 @@ Handle<JSReceiver> JsonStringifier::CurrentHolder(
                           initial_holder, NONE);
     return holder;
   } else {
-    FixedArray* elements = FixedArray::cast(stack_->elements());
+    FixedArray elements = FixedArray::cast(stack_->elements());
     return Handle<JSReceiver>(JSReceiver::cast(elements->get(length - 1)),
                               isolate_);
   }
@@ -368,7 +368,7 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object) {
   int length = Smi::ToInt(stack_->length());
   {
     DisallowHeapAllocation no_allocation;
-    FixedArray* elements = FixedArray::cast(stack_->elements());
+    FixedArray elements = FixedArray::cast(stack_->elements());
     for (int i = 0; i < length; i++) {
       if (elements->get(i) == *object) {
         AllowHeapAllocation allow_to_return_error;

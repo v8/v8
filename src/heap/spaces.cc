@@ -3657,7 +3657,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
       VerifyPointersVisitor code_visitor(heap());
       object->IterateBody(map, object->Size(), &code_visitor);
     } else if (object->IsFixedArray()) {
-      FixedArray* array = FixedArray::cast(object);
+      FixedArray array = FixedArray::cast(object);
       for (int j = 0; j < array->length(); j++) {
         Object* element = array->get(j);
         if (element->IsHeapObject()) {

@@ -23,8 +23,8 @@ class MaybeObjectSlot;
 // An EnumCache is a pair used to hold keys and indices caches.
 class EnumCache : public Tuple2 {
  public:
-  DECL_ACCESSORS(keys, FixedArray)
-  DECL_ACCESSORS(indices, FixedArray)
+  DECL_ACCESSORS2(keys, FixedArray)
+  DECL_ACCESSORS2(indices, FixedArray)
 
   DECL_CAST(EnumCache)
 

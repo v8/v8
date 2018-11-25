@@ -567,7 +567,7 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
 }
 
 template <typename T>
-void PrintFixedArrayElements(std::ostream& os, T* array) {
+void PrintFixedArrayElements(std::ostream& os, T array) {
   // Print in array notation for non-sparse arrays.
   Object* previous_value = array->length() > 0 ? array->get(0) : nullptr;
   Object* value = nullptr;
@@ -590,7 +590,7 @@ void PrintFixedArrayElements(std::ostream& os, T* array) {
   }
 }
 
-void PrintDictionaryElements(std::ostream& os, FixedArrayBase* elements) {
+void PrintDictionaryElements(std::ostream& os, FixedArrayBase elements) {
   // Print some internal fields
   NumberDictionary dict = NumberDictionary::cast(elements);
   if (dict->requires_slow_elements()) {
@@ -603,7 +603,7 @@ void PrintDictionaryElements(std::ostream& os, FixedArrayBase* elements) {
 
 void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
                                  SloppyArgumentsElements elements) {
-  FixedArray* arguments_store = elements->arguments();
+  FixedArray arguments_store = elements->arguments();
   os << "\n    0: context: " << Brief(elements->context())
      << "\n    1: arguments_store: " << Brief(arguments_store)
      << "\n    parameter to context slot map:";
@@ -943,7 +943,7 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
 }
 
 namespace {
-void PrintFixedArrayWithHeader(std::ostream& os, FixedArray* array,
+void PrintFixedArrayWithHeader(std::ostream& os, FixedArray array,
                                const char* type) {
   array->PrintHeader(os, type);
   os << "\n - length: " << array->length();
@@ -1008,7 +1008,7 @@ void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
 }
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, this, "FixedArray");
+  PrintFixedArrayWithHeader(os, *this, "FixedArray");
 }
 
 void Context::ContextPrint(std::ostream& os) {
@@ -1034,15 +1034,14 @@ void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
 
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
     std::ostream& os) {
-  PrintFixedArrayWithHeader(os, reinterpret_cast<FixedArray*>(ptr()),
-                            "ObjectBoilerplateDescription");
+  PrintFixedArrayWithHeader(os, *this, "ObjectBoilerplateDescription");
 }
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "PropertyArray");
   os << "\n - length: " << length();
   os << "\n - hash: " << Hash();
-  PrintFixedArrayElements(os, this);
+  PrintFixedArrayElements(os, *this);
   os << "\n";
 }
 

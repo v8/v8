@@ -24,8 +24,7 @@ class String;
 // that there are at least two capture indices.  The array also contains
 // the subject string for the last successful match.
 // After creation the result must be treated as a FixedArray in all regards.
-class V8_EXPORT_PRIVATE RegExpMatchInfo
-    : NON_EXPORTED_BASE(public FixedArrayPtr) {
+class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
  public:
   // Returns the number of captures, which is defined as the length of the
   // matchIndices objects of the last match. matchIndices contains two indices
@@ -66,7 +65,7 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo
   // Every match info is guaranteed to have enough space to store two captures.
   static const int kInitialCaptureIndices = 2;
 
-  OBJECT_CONSTRUCTORS(RegExpMatchInfo, FixedArrayPtr);
+  OBJECT_CONSTRUCTORS(RegExpMatchInfo, FixedArray);
 };
 
 }  // namespace internal

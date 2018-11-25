@@ -53,7 +53,7 @@ namespace internal {
 //   [3 + NumberOfRemovedHoles()..length]: Not used
 //
 template <class Derived, int entrysize>
-class OrderedHashTable : public FixedArrayPtr {
+class OrderedHashTable : public FixedArray {
  public:
   // Returns an OrderedHashTable with a capacity of at least |capacity|.
   static Handle<Derived> Allocate(Isolate* isolate, int capacity,
@@ -191,7 +191,7 @@ class OrderedHashTable : public FixedArrayPtr {
     return set(kRemovedHolesIndex + index, Smi::FromInt(removed_index));
   }
 
-  OBJECT_CONSTRUCTORS(OrderedHashTable, FixedArrayPtr)
+  OBJECT_CONSTRUCTORS(OrderedHashTable, FixedArray)
 };
 
 class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {

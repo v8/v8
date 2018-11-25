@@ -1428,7 +1428,7 @@ Local<FunctionTemplate> FunctionTemplate::New(
 MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
                                                             size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::FixedArray* serialized_objects = i_isolate->heap()->serialized_objects();
+  i::FixedArray serialized_objects = i_isolate->heap()->serialized_objects();
   int int_index = static_cast<int>(index);
   if (int_index < serialized_objects->length()) {
     i::Object* info = serialized_objects->get(int_index);
@@ -1644,7 +1644,7 @@ Local<ObjectTemplate> ObjectTemplate::New(
 MaybeLocal<ObjectTemplate> ObjectTemplate::FromSnapshot(Isolate* isolate,
                                                         size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::FixedArray* serialized_objects = i_isolate->heap()->serialized_objects();
+  i::FixedArray serialized_objects = i_isolate->heap()->serialized_objects();
   int int_index = static_cast<int>(index);
   if (int_index < serialized_objects->length()) {
     i::Object* info = serialized_objects->get(int_index);
@@ -6288,7 +6288,7 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(Local<String> error) {
 
 namespace {
 i::Address* GetSerializedDataFromFixedArray(i::Isolate* isolate,
-                                            i::FixedArray* list, size_t index) {
+                                            i::FixedArray list, size_t index) {
   if (index < static_cast<size_t>(list->length())) {
     int int_index = static_cast<int>(index);
     i::Object* object = list->get(int_index);
@@ -6310,7 +6310,7 @@ i::Address* GetSerializedDataFromFixedArray(i::Isolate* isolate,
 i::Address* Context::GetDataFromSnapshotOnce(size_t index) {
   auto context = Utils::OpenHandle(this);
   i::Isolate* i_isolate = context->GetIsolate();
-  i::FixedArray* list = context->serialized_objects();
+  i::FixedArray list = context->serialized_objects();
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 
@@ -8455,7 +8455,7 @@ Isolate::SafeForTerminationScope::~SafeForTerminationScope() {
 
 i::Address* Isolate::GetDataFromSnapshotOnce(size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::FixedArray* list = i_isolate->heap()->serialized_objects();
+  i::FixedArray list = i_isolate->heap()->serialized_objects();
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 
@@ -8911,7 +8911,7 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
   i::TemplateList listeners = isolate->heap()->message_listeners();
   for (int i = 0; i < listeners->length(); i++) {
     if (listeners->get(i)->IsUndefined(isolate)) continue;  // skip deleted ones
-    i::FixedArray* listener = i::FixedArray::cast(listeners->get(i));
+    i::FixedArray listener = i::FixedArray::cast(listeners->get(i));
     i::Foreign* callback_obj = i::Foreign::cast(listener->get(0));
     if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
       listeners->set(i, i::ReadOnlyRoots(isolate).undefined_value());

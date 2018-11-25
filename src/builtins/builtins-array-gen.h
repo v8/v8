@@ -82,7 +82,7 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
     return UncheckedCast<String>(
         CallCFunction5(MachineType::AnyTagged(),  // <return> String*
                        MachineType::Pointer(),    // Isolate*
-                       MachineType::AnyTagged(),  // FixedArray* fixed_array
+                       MachineType::AnyTagged(),  // FixedArray fixed_array
                        MachineType::IntPtr(),     // intptr_t length
                        MachineType::AnyTagged(),  // String* sep
                        MachineType::AnyTagged(),  // String* dest

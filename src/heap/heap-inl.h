@@ -107,7 +107,7 @@ void Heap::SetRootCodeStubs(SimpleNumberDictionary value) {
   roots_table()[RootIndex::kCodeStubs] = value;
 }
 
-void Heap::SetRootMaterializedObjects(FixedArray* objects) {
+void Heap::SetRootMaterializedObjects(FixedArray objects) {
   roots_table()[RootIndex::kMaterializedObjects] = objects;
 }
 

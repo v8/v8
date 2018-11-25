@@ -631,7 +631,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
           if (var->is_this()) {
             value = handle(generator_->receiver(), isolate_);
           } else {
-            FixedArray* parameters_and_registers =
+            FixedArray parameters_and_registers =
                 generator_->parameters_and_registers();
             DCHECK_LT(index, parameters_and_registers->length());
             value = handle(parameters_and_registers->get(index), isolate_);
@@ -653,7 +653,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
         if (frame_inspector_ == nullptr) {
           // Get the variable from the suspended generator.
           DCHECK(!generator_.is_null());
-          FixedArray* parameters_and_registers =
+          FixedArray parameters_and_registers =
               generator_->parameters_and_registers();
           int parameter_count =
               function_->shared()->scope_info()->ParameterCount();

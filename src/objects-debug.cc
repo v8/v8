@@ -100,6 +100,10 @@ void Object::VerifyPointer(Isolate* isolate, Object* p) {
   }
 }
 
+void ObjectPtr::VerifyPointer(Isolate* isolate, Object* p) {
+  Object::VerifyPointer(isolate, p);
+}
+
 void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p) {
   HeapObject* heap_object;
   if (p->GetHeapObject(&heap_object)) {
@@ -537,7 +541,7 @@ void VerifyJSObjectElements(Isolate* isolate, JSObject* object) {
     return;
   }
 
-  FixedArray* elements = FixedArray::cast(object->elements());
+  FixedArray elements = FixedArray::cast(object->elements());
   if (object->HasSmiElements()) {
     // We might have a partially initialized backing store, in which case we
     // allow the hole + smi values.
@@ -609,8 +613,8 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 
     if (map()->EnumLength() != kInvalidEnumCacheSentinel) {
       EnumCache* enum_cache = descriptors->GetEnumCache();
-      FixedArray* keys = enum_cache->keys();
-      FixedArray* indices = enum_cache->indices();
+      FixedArray keys = enum_cache->keys();
+      FixedArray indices = enum_cache->indices();
       CHECK_LE(map()->EnumLength(), keys->length());
       CHECK_IMPLIES(indices != ReadOnlyRoots(isolate).empty_fixed_array(),
                     keys->length() == indices->length());
@@ -700,10 +704,6 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
     Object* e = get(i);
     VerifyPointer(isolate, e);
   }
-}
-
-void FixedArrayPtr::FixedArrayVerify(Isolate* isolate) {
-  reinterpret_cast<FixedArray*>(ptr())->FixedArrayVerify(isolate);
 }
 
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
@@ -844,7 +844,7 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
   CHECK_GE(length(), 2);
   CHECK_EQ(map(), ReadOnlyRoots(isolate).sloppy_arguments_elements_map());
   Context context_object = context();
-  FixedArray* arg_elements = FixedArray::cast(arguments());
+  FixedArray arg_elements = FixedArray::cast(arguments());
   if (arg_elements->length() == 0) {
     CHECK(arg_elements == ReadOnlyRoots(isolate).empty_fixed_array());
     return;
@@ -1531,14 +1531,14 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   CHECK(data()->IsUndefined(isolate) || data()->IsFixedArray());
   switch (TypeTag()) {
     case JSRegExp::ATOM: {
-      FixedArray* arr = FixedArray::cast(data());
+      FixedArray arr = FixedArray::cast(data());
       CHECK(arr->get(JSRegExp::kAtomPatternIndex)->IsString());
       break;
     }
     case JSRegExp::IRREGEXP: {
       bool is_native = RegExpImpl::UsesNativeRegExp();
 
-      FixedArray* arr = FixedArray::cast(data());
+      FixedArray arr = FixedArray::cast(data());
       Object* one_byte_data = arr->get(JSRegExp::kIrregexpLatin1CodeIndex);
       // Smi : Not compiled yet (-1).
       // Code/ByteArray: Compiled code.
@@ -2145,7 +2145,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     case FAST_STRING_WRAPPER_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;
-      FixedArray* e = FixedArray::cast(elements());
+      FixedArray e = FixedArray::cast(elements());
       int len = e->length();
       for (int i = 0; i < len; i++) {
         if (e->get(i)->IsTheHole(isolate)) holes++;
@@ -2161,7 +2161,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
 #undef TYPED_ARRAY_CASE
       {
         info->number_of_objects_with_fast_elements_++;
-        FixedArrayBase* e = FixedArrayBase::cast(elements());
+        FixedArrayBase e = FixedArrayBase::cast(elements());
         info->number_of_fast_used_elements_ += e->length();
         break;
       }

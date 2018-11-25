@@ -553,7 +553,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
       DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
     DisallowHeapAllocation no_gc;
-    FixedArray* elements = FixedArray::cast(result->elements());
+    FixedArray elements = FixedArray::cast(result->elements());
     WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {
       elements->set(i, *arguments[i + start_index], mode);

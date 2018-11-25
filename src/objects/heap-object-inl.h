@@ -48,13 +48,6 @@ ODDBALL_LIST(TYPE_CHECK_FORWARDER)
 
 bool ObjectPtr::IsHashTableBase() const { return IsHashTable(); }
 
-bool ObjectPtr::IsFixedArrayBasePtr() const {
-  return reinterpret_cast<Object*>(ptr())->IsFixedArrayBase();
-}
-bool ObjectPtr::IsFixedArrayPtr() const {
-  return reinterpret_cast<Object*>(ptr())->IsFixedArray();
-}
-
 double ObjectPtr::Number() const {
   return reinterpret_cast<Object*>(ptr())->Number();
 }

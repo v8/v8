@@ -111,11 +111,11 @@ class WasmModuleObject : public JSObject {
   DECL_CAST(WasmModuleObject)
 
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
-  DECL_ACCESSORS(export_wrappers, FixedArray)
+  DECL_ACCESSORS2(export_wrappers, FixedArray)
   DECL_ACCESSORS(script, Script)
   DECL_ACCESSORS(weak_instance_list, WeakArrayList)
   DECL_OPTIONAL_ACCESSORS2(asm_js_offset_table, ByteArray)
-  DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
+  DECL_OPTIONAL_ACCESSORS2(breakpoint_infos, FixedArray)
   inline wasm::NativeModule* native_module() const;
   inline const wasm::WasmModule* module() const;
   inline void reset_breakpoint_infos();
@@ -250,10 +250,10 @@ class WasmTableObject : public JSObject {
  public:
   DECL_CAST(WasmTableObject)
 
-  DECL_ACCESSORS(functions, FixedArray)
+  DECL_ACCESSORS2(functions, FixedArray)
   // TODO(titzer): introduce DECL_I64_ACCESSORS macro
   DECL_ACCESSORS(maximum_length, Object)
-  DECL_ACCESSORS(dispatch_tables, FixedArray)
+  DECL_ACCESSORS2(dispatch_tables, FixedArray)
 
 // Layout description.
 #define WASM_TABLE_OBJECT_FIELDS(V)      \
@@ -390,13 +390,13 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS2(native_context, Context)
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
-  DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
+  DECL_OPTIONAL_ACCESSORS2(imported_mutable_globals_buffers, FixedArray)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS(table_object, WasmTableObject)
-  DECL_ACCESSORS(imported_function_refs, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
+  DECL_ACCESSORS2(imported_function_refs, FixedArray)
+  DECL_OPTIONAL_ACCESSORS2(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
-  DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
+  DECL_OPTIONAL_ACCESSORS2(exceptions_table, FixedArray)
   DECL_ACCESSORS(undefined_value, Oddball)
   DECL_ACCESSORS(null_value, Oddball)
   DECL_ACCESSORS2(centry_stub, Code)
@@ -557,9 +557,9 @@ class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
   DECL_ACCESSORS(interpreter_handle, Object);  // Foreign or undefined
-  DECL_ACCESSORS(interpreted_functions, FixedArray);
-  DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
+  DECL_ACCESSORS2(interpreted_functions, FixedArray);
+  DECL_OPTIONAL_ACCESSORS2(locals_names, FixedArray)
+  DECL_OPTIONAL_ACCESSORS2(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
 
   DECL_CAST(WasmDebugInfo)
@@ -656,7 +656,7 @@ class AsmWasmData : public Struct {
       Handle<HeapNumber> uses_bitset);
 
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
-  DECL_ACCESSORS(export_wrappers, FixedArray)
+  DECL_ACCESSORS2(export_wrappers, FixedArray)
   DECL_ACCESSORS2(asm_js_offset_table, ByteArray)
   DECL_ACCESSORS(uses_bitset, HeapNumber)
 

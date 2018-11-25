@@ -47,6 +47,7 @@
 #include "src/objects/js-segmenter.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-weak-refs.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/templates.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
@@ -57,7 +58,11 @@ namespace internal {
 
 void SourceCodeCache::Initialize(Isolate* isolate, bool create_heap_objects) {
   cache_ = create_heap_objects ? ReadOnlyRoots(isolate).empty_fixed_array()
-                               : nullptr;
+                               : FixedArray();
+}
+
+void SourceCodeCache::Iterate(RootVisitor* v) {
+  v->VisitRootPointer(Root::kExtensions, nullptr, ObjectSlot(&cache_));
 }
 
 bool SourceCodeCache::Lookup(Isolate* isolate, Vector<const char> name,

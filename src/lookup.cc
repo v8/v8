@@ -825,7 +825,7 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
     receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements()) {
-      FixedArray* parameter_map = FixedArray::cast(receiver->elements());
+      FixedArray parameter_map = FixedArray::cast(receiver->elements());
       uint32_t length = parameter_map->length() - 2;
       if (number_ < length) {
         parameter_map->set(number_ + 2, ReadOnlyRoots(heap()).the_hole_value());
@@ -1153,7 +1153,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   if (is_element) {
     JSObject* js_object = JSObject::cast(holder);
     ElementsAccessor* accessor = js_object->GetElementsAccessor();
-    FixedArrayBase* backing_store = js_object->elements();
+    FixedArrayBase backing_store = js_object->elements();
     number_ =
         accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
     if (number_ == kMaxUInt32) {

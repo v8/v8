@@ -1403,7 +1403,7 @@ MaybeHandle<JSObject> JSObject::ObjectCreate(Isolate* isolate,
 void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
   DCHECK(object->HasSmiOrObjectElements() ||
          object->HasFastStringWrapperElements());
-  FixedArray* raw_elems = FixedArray::cast(object->elements());
+  FixedArray raw_elems = FixedArray::cast(object->elements());
   Heap* heap = object->GetHeap();
   if (raw_elems->map() != ReadOnlyRoots(heap).fixed_cow_array_map()) return;
   Isolate* isolate = heap->isolate();
@@ -6798,7 +6798,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
   bool is_sloppy_arguments = object->HasSloppyArgumentsElements();
   {
     DisallowHeapAllocation no_gc;
-    FixedArrayBase* elements = object->elements();
+    FixedArrayBase elements = object->elements();
 
     if (is_sloppy_arguments) {
       elements = SloppyArgumentsElements::cast(elements)->arguments();
@@ -8909,7 +8909,7 @@ bool JSObject::HasEnumerableElements() {
     }
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS: {
-      FixedArray* elements = FixedArray::cast(object->elements());
+      FixedArray elements = FixedArray::cast(object->elements());
       int length = object->IsJSArray()
                        ? Smi::ToInt(JSArray::cast(object)->length())
                        : elements->length();
@@ -9176,7 +9176,7 @@ bool Map::DictionaryElementsInPrototypeChainOnly(Isolate* isolate) {
     }
 
     if (current->HasSlowArgumentsElements()) {
-      FixedArray* parameter_map = FixedArray::cast(current->elements());
+      FixedArray parameter_map = FixedArray::cast(current->elements());
       Object* arguments = parameter_map->get(1);
       if (NumberDictionary::cast(arguments)->requires_slow_elements()) {
         return true;
@@ -10390,27 +10390,6 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
   new_array->set(index, *value);
   return new_array;
 }
-Handle<FixedArrayPtr> FixedArrayPtr::SetAndGrow(Isolate* isolate,
-                                                Handle<FixedArrayPtr> array,
-                                                int index, Handle<Object> value,
-                                                PretenureFlag pretenure) {
-  if (index < array->length()) {
-    array->set(index, *value);
-    return array;
-  }
-  int capacity = array->length();
-  do {
-    capacity = JSObject::NewElementsCapacity(capacity);
-  } while (capacity <= index);
-  Handle<FixedArrayPtr> new_array(
-      isolate->factory()
-          ->NewUninitializedFixedArray(capacity, pretenure)
-          .location());
-  array->CopyTo(0, *new_array, 0, array->length());
-  new_array->FillWithHoles(array->length(), new_array->length());
-  new_array->set(index, *value);
-  return new_array;
-}
 
 bool FixedArray::ContainsSortedNumbers() {
   for (int i = 1; i < length(); ++i) {
@@ -10425,9 +10404,6 @@ bool FixedArray::ContainsSortedNumbers() {
   }
   return true;
 }
-bool FixedArrayPtr::ContainsSortedNumbers() {
-  return reinterpret_cast<FixedArray*>(ptr())->ContainsSortedNumbers();
-}
 
 Handle<FixedArray> FixedArray::ShrinkOrEmpty(Isolate* isolate,
                                              Handle<FixedArray> array,
@@ -10439,46 +10415,15 @@ Handle<FixedArray> FixedArray::ShrinkOrEmpty(Isolate* isolate,
     return array;
   }
 }
-Handle<FixedArrayPtr> FixedArrayPtr::ShrinkOrEmpty(Isolate* isolate,
-                                                   Handle<FixedArrayPtr> array,
-                                                   int new_length) {
-  if (new_length == 0) {
-    // TODO(3770): Drop type conversion.
-    return Handle<FixedArrayPtr>(
-        array->GetReadOnlyRoots().empty_fixed_array_handle().location());
-  } else {
-    array->Shrink(isolate, new_length);
-    return array;
-  }
-}
 
 void FixedArray::Shrink(Isolate* isolate, int new_length) {
   DCHECK(0 < new_length && new_length <= length());
   if (new_length < length()) {
-    isolate->heap()->RightTrimFixedArray(this, length() - new_length);
-  }
-}
-void FixedArrayPtr::Shrink(Isolate* isolate, int new_length) {
-  DCHECK(0 < new_length && new_length <= length());
-  if (new_length < length()) {
-    isolate->heap()->RightTrimFixedArray(reinterpret_cast<FixedArray*>(ptr()),
-                                         length() - new_length);
+    isolate->heap()->RightTrimFixedArray(*this, length() - new_length);
   }
 }
 
-void FixedArray::CopyTo(int pos, FixedArray* dest, int dest_pos,
-                        int len) const {
-  DisallowHeapAllocation no_gc;
-  // Return early if len == 0 so that we don't try to read the write barrier off
-  // a canonical read-only empty fixed array.
-  if (len == 0) return;
-  WriteBarrierMode mode = dest->GetWriteBarrierMode(no_gc);
-  for (int index = 0; index < len; index++) {
-    dest->set(dest_pos+index, get(pos+index), mode);
-  }
-}
-void FixedArrayPtr::CopyTo(int pos, FixedArrayPtr dest, int dest_pos,
-                           int len) const {
+void FixedArray::CopyTo(int pos, FixedArray dest, int dest_pos, int len) const {
   DisallowHeapAllocation no_gc;
   // Return early if len == 0 so that we don't try to read the write barrier off
   // a canonical read-only empty fixed array.
@@ -10541,15 +10486,15 @@ Handle<FixedArray> ArrayList::Elements(Isolate* isolate,
   int length = array->Length();
   Handle<FixedArray> result = isolate->factory()->NewFixedArray(length);
   // Do not copy the first entry, i.e., the length.
-  array->CopyTo(kFirstIndex, FixedArrayPtr::cast(*result), 0, length);
+  array->CopyTo(kFirstIndex, *result, 0, length);
   return result;
 }
 
 namespace {
 
-Handle<FixedArrayPtr> EnsureSpaceInFixedArray(Isolate* isolate,
-                                              Handle<FixedArrayPtr> array,
-                                              int length) {
+Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
+                                           Handle<FixedArray> array,
+                                           int length) {
   int capacity = array->length();
   if (capacity < length) {
     int new_capacity = length;
@@ -10566,7 +10511,7 @@ Handle<FixedArrayPtr> EnsureSpaceInFixedArray(Isolate* isolate,
 Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
                                          Handle<ArrayList> array, int length) {
   const bool empty = (array->length() == 0);
-  Handle<FixedArrayPtr> ret =
+  Handle<FixedArray> ret =
       EnsureSpaceInFixedArray(isolate, array, kFirstIndex + length);
   if (empty) {
     ret->set_map_no_write_barrier(array->GetReadOnlyRoots().array_list_map());
@@ -11585,7 +11530,7 @@ Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
 namespace {
 
 template <typename sinkchar>
-void WriteFixedArrayToFlat(FixedArray* fixed_array, int length,
+void WriteFixedArrayToFlat(FixedArray fixed_array, int length,
                            String* separator, sinkchar* sink, int sink_length) {
   DisallowHeapAllocation no_allocation;
   CHECK_GT(length, 0);
@@ -11664,13 +11609,16 @@ void WriteFixedArrayToFlat(FixedArray* fixed_array, int length,
 }  // namespace
 
 // static
-String* JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
-                                                   FixedArray* fixed_array,
+Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
+                                                   Address raw_fixed_array,
                                                    intptr_t length,
-                                                   String* separator,
-                                                   String* dest) {
+                                                   Address raw_separator,
+                                                   Address raw_dest) {
   DisallowHeapAllocation no_allocation;
   DisallowJavascriptExecution no_js(isolate);
+  FixedArray fixed_array = FixedArray::cast(ObjectPtr(raw_fixed_array));
+  String* separator = reinterpret_cast<String*>(raw_separator);
+  String* dest = reinterpret_cast<String*>(raw_dest);
   DCHECK(fixed_array->IsFixedArray());
   DCHECK(StringShape(dest).IsSequentialOneByte() ||
          StringShape(dest).IsSequentialTwoByte());
@@ -11685,7 +11633,7 @@ String* JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
                           SeqTwoByteString::cast(dest)->GetChars(),
                           dest->length());
   }
-  return dest;
+  return dest->ptr();
 }
 
 // Compares the contents of two strings by reading and comparing
@@ -13784,7 +13732,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
     if (!GetPositionInfoSlow(this, position, info)) return false;
   } else {
     DCHECK(line_ends()->IsFixedArray());
-    FixedArray* ends = FixedArray::cast(line_ends());
+    FixedArray ends = FixedArray::cast(line_ends());
 
     const int ends_len = ends->length();
     if (ends_len == 0) return false;
@@ -14820,7 +14768,7 @@ bool Code::Inlines(SharedFunctionInfo* sfi) {
       DeoptimizationData::cast(deoptimization_data());
   if (data->length() == 0) return false;
   if (data->SharedFunctionInfo() == sfi) return true;
-  FixedArray* const literals = data->LiteralArray();
+  FixedArray const literals = data->LiteralArray();
   int const inlined_count = data->InlinedFunctionCount()->value();
   for (int i = 0; i < inlined_count; ++i) {
     if (SharedFunctionInfo::cast(literals->get(i)) == sfi) return true;
@@ -15891,7 +15839,7 @@ void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
   }
 
   ElementsKind kind = object->GetElementsKind();
-  FixedArrayBase* elements = object->elements();
+  FixedArrayBase elements = object->elements();
   ElementsKind dictionary_kind = DICTIONARY_ELEMENTS;
   if (IsSloppyArgumentsElementsKind(kind)) {
     elements = SloppyArgumentsElements::cast(elements)->arguments();
@@ -16147,7 +16095,7 @@ static int HoleyElementsUsage(JSObject* object, BackingStore store) {
 }
 
 int JSObject::GetFastElementsUsage() {
-  FixedArrayBase* store = elements();
+  FixedArrayBase store = elements();
   switch (GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS:
@@ -16326,7 +16274,7 @@ class StringSharedKey : public HashTableKey {
       uint32_t other_hash = static_cast<uint32_t>(other->Number());
       return Hash() == other_hash;
     }
-    FixedArray* other_array = FixedArray::cast(other);
+    FixedArray other_array = FixedArray::cast(other);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     if (shared != *shared_) return false;
     int language_unchecked = Smi::ToInt(other_array->get(2));
@@ -16779,7 +16727,7 @@ class RegExpKey : public HashTableKey {
   // compares the search key to the found object, rather than comparing
   // a key to a key.
   bool IsMatch(Object* obj) override {
-    FixedArray* val = FixedArray::cast(obj);
+    FixedArray val = FixedArray::cast(obj);
     return string_->Equals(String::cast(val->get(JSRegExp::kSourceIndex)))
         && (flags_ == val->get(JSRegExp::kFlagsIndex));
   }
@@ -18032,8 +17980,8 @@ void NumberDictionary::UpdateMaxNumberKey(uint32_t key,
   // Update max key value.
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi() || max_number_key() < key) {
-    FixedArrayPtr::set(kMaxNumberKeyIndex,
-                       Smi::FromInt(key << kRequiresSlowElementsTagSize));
+    FixedArray::set(kMaxNumberKeyIndex,
+                    Smi::FromInt(key << kRequiresSlowElementsTagSize));
   }
 }
 
@@ -18045,7 +17993,7 @@ Handle<NumberDictionary> NumberDictionary::Set(
   return AtPut(isolate, dictionary, key, value, details);
 }
 
-void NumberDictionary::CopyValuesTo(FixedArray* elements) {
+void NumberDictionary::CopyValuesTo(FixedArray elements) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   int pos = 0;
   int capacity = this->Capacity();
@@ -18123,7 +18071,7 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
   CHECK_EQ(length, properties);
   DisallowHeapAllocation no_gc;
   Derived raw_dictionary = *dictionary;
-  FixedArray* raw_storage = *storage;
+  FixedArray raw_storage = *storage;
   EnumIndexComparator<Derived> cmp(raw_dictionary);
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
