@@ -475,7 +475,7 @@ class FrameSummary {
   class JavaScriptFrameSummary : public FrameSummaryBase {
    public:
     JavaScriptFrameSummary(Isolate* isolate, Object* receiver,
-                           JSFunction* function, AbstractCode* abstract_code,
+                           JSFunction* function, AbstractCode abstract_code,
                            int code_offset, bool is_constructor);
 
     Handle<Object> receiver() const { return receiver_; }
@@ -738,7 +738,7 @@ class JavaScriptFrame : public StandardFrame {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
-  static void PrintFunctionAndOffset(JSFunction* function, AbstractCode* code,
+  static void PrintFunctionAndOffset(JSFunction* function, AbstractCode code,
                                      int code_offset, FILE* file,
                                      bool print_line_number);
 
@@ -746,7 +746,7 @@ class JavaScriptFrame : public StandardFrame {
                        bool print_line_number);
 
   static void CollectFunctionAndOffsetForICStats(JSFunction* function,
-                                                 AbstractCode* code,
+                                                 AbstractCode code,
                                                  int code_offset);
   static void CollectTopFrameForICStats(Isolate* isolate);
 

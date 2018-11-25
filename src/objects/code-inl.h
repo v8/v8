@@ -23,8 +23,11 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
+OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObjectPtr)
 
-CAST_ACCESSOR(AbstractCode)
+NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
+
+CAST_ACCESSOR2(AbstractCode)
 CAST_ACCESSOR2(BytecodeArray)
 CAST_ACCESSOR2(Code)
 CAST_ACCESSOR(CodeDataContainer)
@@ -136,10 +139,10 @@ AbstractCode::Kind AbstractCode::kind() {
   }
 }
 
-Code AbstractCode::GetCode() { return Code::cast(this); }
+Code AbstractCode::GetCode() { return Code::cast(*this); }
 
 BytecodeArray AbstractCode::GetBytecodeArray() {
-  return BytecodeArray::cast(this);
+  return BytecodeArray::cast(*this);
 }
 
 DependentCode* DependentCode::next_link() {

@@ -28,11 +28,11 @@ class CodeAddressMap : public CodeEventLogger {
     isolate_->logger()->RemoveCodeEventListener(this);
   }
 
-  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override {
+  void CodeMoveEvent(AbstractCode from, AbstractCode to) override {
     address_to_name_map_.Move(from->address(), to->address());
   }
 
-  void CodeDisableOptEvent(AbstractCode* code,
+  void CodeDisableOptEvent(AbstractCode code,
                            SharedFunctionInfo* shared) override {}
 
   const char* Lookup(Address address) {
@@ -114,7 +114,7 @@ class CodeAddressMap : public CodeEventLogger {
     DISALLOW_COPY_AND_ASSIGN(NameMap);
   };
 
-  void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
+  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo*,
                          const char* name, int length) override {
     address_to_name_map_.Insert(code->address(), name, length);
   }

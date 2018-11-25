@@ -30,27 +30,27 @@ class ProfilerListener : public CodeEventListener {
 
   void CallbackEvent(Name* name, Address entry_point) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, const char* comment) override;
+                       AbstractCode code, const char* comment) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, Name* name) override;
+                       AbstractCode code, Name* name) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, SharedFunctionInfo* shared,
+                       AbstractCode code, SharedFunctionInfo* shared,
                        Name* script_name) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, SharedFunctionInfo* shared,
+                       AbstractCode code, SharedFunctionInfo* shared,
                        Name* script_name, int line, int column) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                        const wasm::WasmCode* code,
                        wasm::WasmName name) override;
 
   void CodeMovingGCEvent() override {}
-  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
-  void CodeDisableOptEvent(AbstractCode* code,
+  void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
+  void CodeDisableOptEvent(AbstractCode code,
                            SharedFunctionInfo* shared) override;
   void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
   void GetterCallbackEvent(Name* name, Address entry_point) override;
-  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
+  void RegExpCodeCreateEvent(AbstractCode code, String* source) override;
   void SetterCallbackEvent(Name* name, Address entry_point) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
 
@@ -76,7 +76,7 @@ class ProfilerListener : public CodeEventListener {
   }
 
  private:
-  void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
+  void RecordInliningInfo(CodeEntry* entry, AbstractCode abstract_code);
   void AttachDeoptInlinedFrames(Code code, CodeDeoptEventRecord* rec);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {

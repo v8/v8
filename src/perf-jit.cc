@@ -195,7 +195,7 @@ uint64_t PerfJitLogger::GetTimestamp() {
   return (ts.tv_sec * kNsecPerSec) + ts.tv_nsec;
 }
 
-void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
+void PerfJitLogger::LogRecordedBuffer(AbstractCode abstract_code,
                                       SharedFunctionInfo* shared,
                                       const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
@@ -420,7 +420,7 @@ void PerfJitLogger::LogWriteUnwindingInfo(Code code) {
   LogWriteBytes(padding_bytes, static_cast<int>(padding_size));
 }
 
-void PerfJitLogger::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
+void PerfJitLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   // We may receive a CodeMove event if a BytecodeArray object moves. Otherwise
   // code relocation is not supported.
   CHECK(from->IsBytecodeArray());

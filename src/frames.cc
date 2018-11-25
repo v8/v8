@@ -781,7 +781,7 @@ Object* StandardFrame::context() const {
 }
 
 int StandardFrame::position() const {
-  AbstractCode* code = AbstractCode::cast(LookupCode());
+  AbstractCode code = AbstractCode::cast(LookupCode());
   int code_offset = static_cast<int>(pc() - code->InstructionStart());
   return code->SourcePosition(code_offset);
 }
@@ -1062,7 +1062,7 @@ void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   Code code = LookupCode();
   int offset = static_cast<int>(pc() - code->InstructionStart());
-  AbstractCode* abstract_code = AbstractCode::cast(code);
+  AbstractCode abstract_code = AbstractCode::cast(code);
   FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver(),
                                                function(), abstract_code,
                                                offset, IsConstructor());
@@ -1103,8 +1103,8 @@ int JavaScriptFrame::LookupExceptionHandlerInTable(
 }
 
 void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function,
-                                             AbstractCode* code,
-                                             int code_offset, FILE* file,
+                                             AbstractCode code, int code_offset,
+                                             FILE* file,
                                              bool print_line_number) {
   PrintF(file, "%s", function->IsOptimized() ? "*" : "~");
   function->PrintName(file);
@@ -1171,7 +1171,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
 }
 
 void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction* function,
-                                                         AbstractCode* code,
+                                                         AbstractCode code,
                                                          int code_offset) {
   auto ic_stats = ICStats::instance();
   ICInfo& ic_info = ic_stats->Current();
@@ -1259,7 +1259,7 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
 
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
     Isolate* isolate, Object* receiver, JSFunction* function,
-    AbstractCode* abstract_code, int code_offset, bool is_constructor)
+    AbstractCode abstract_code, int code_offset, bool is_constructor)
     : FrameSummaryBase(isolate, FrameSummary::JAVA_SCRIPT),
       receiver_(receiver, isolate),
       function_(function, isolate),
@@ -1648,7 +1648,7 @@ Object* OptimizedFrame::StackSlotAt(int index) const {
 }
 
 int InterpretedFrame::position() const {
-  AbstractCode* code = AbstractCode::cast(GetBytecodeArray());
+  AbstractCode code = AbstractCode::cast(GetBytecodeArray());
   int code_offset = GetBytecodeOffset();
   return code->SourcePosition(code_offset);
 }
@@ -1723,7 +1723,7 @@ void InterpretedFrame::WriteInterpreterRegister(int register_index,
 
 void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  AbstractCode* abstract_code = AbstractCode::cast(GetBytecodeArray());
+  AbstractCode abstract_code = AbstractCode::cast(GetBytecodeArray());
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), abstract_code, GetBytecodeOffset(),
       IsConstructor());

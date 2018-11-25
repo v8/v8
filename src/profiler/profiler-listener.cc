@@ -31,7 +31,7 @@ void ProfilerListener::CallbackEvent(Name* name, Address entry_point) {
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* code, const char* name) {
+                                       AbstractCode code, const char* name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -45,7 +45,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* code, Name* name) {
+                                       AbstractCode code, Name* name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -59,7 +59,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* code,
+                                       AbstractCode code,
                                        SharedFunctionInfo* shared,
                                        Name* script_name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
@@ -77,7 +77,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* abstract_code,
+                                       AbstractCode abstract_code,
                                        SharedFunctionInfo* shared,
                                        Name* script_name, int line,
                                        int column) {
@@ -123,7 +123,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
+void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_MOVE);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
   rec->from_instruction_start = from->InstructionStart();
@@ -131,7 +131,7 @@ void ProfilerListener::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDisableOptEvent(AbstractCode* code,
+void ProfilerListener::CodeDisableOptEvent(AbstractCode code,
                                            SharedFunctionInfo* shared) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
   CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
@@ -167,7 +167,7 @@ void ProfilerListener::GetterCallbackEvent(Name* name, Address entry_point) {
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::RegExpCodeCreateEvent(AbstractCode* code,
+void ProfilerListener::RegExpCodeCreateEvent(AbstractCode code,
                                              String* source) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -198,7 +198,7 @@ Name* ProfilerListener::InferScriptName(Name* name, SharedFunctionInfo* info) {
 }
 
 void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
-                                          AbstractCode* abstract_code) {
+                                          AbstractCode abstract_code) {
   if (!abstract_code->IsCode()) return;
   Code code = abstract_code->GetCode();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;

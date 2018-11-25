@@ -495,7 +495,7 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   }
 }
 
-AbstractCode* JSFunction::abstract_code() {
+AbstractCode JSFunction::abstract_code() {
   if (IsInterpreted()) {
     return AbstractCode::cast(shared()->GetBytecodeArray());
   } else {

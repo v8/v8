@@ -150,7 +150,7 @@ TEST(Unwind_CodeObjectPCInMiddle_Success) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
   // Put the current PC inside of the created code object.
-  AbstractCode* abstract_code = foo->abstract_code();
+  AbstractCode abstract_code = foo->abstract_code();
   // We don't produce optimized code when run with --no-opt.
   if (!abstract_code->IsCode() && FLAG_opt == false) return;
   CHECK(abstract_code->IsCode());

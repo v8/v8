@@ -131,7 +131,7 @@ void SharedFunctionInfo::SetName(String* name) {
   UpdateFunctionMapIndex();
 }
 
-AbstractCode* SharedFunctionInfo::abstract_code() {
+AbstractCode SharedFunctionInfo::abstract_code() {
   if (HasBytecodeArray()) {
     return AbstractCode::cast(GetBytecodeArray());
   } else {

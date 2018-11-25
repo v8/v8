@@ -194,7 +194,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  inline AbstractCode* abstract_code();
+  inline AbstractCode abstract_code();
 
   // Tells whether or not this shared function info is interpreted.
   //

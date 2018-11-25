@@ -1076,7 +1076,7 @@ STRUCT_LIST(STRUCT_IS_TYPE_FUNCTION_DECL)
 enum class ElementTypes { kAll, kStringAndSymbol };
 
 // TODO(3770): Get rid of this indirection when the migration is complete.
-typedef AbstractCode* AbstractCodeArgType;
+typedef AbstractCode AbstractCodeArgType;
 typedef ByteArray ByteArrayArgType;
 typedef FixedArray FixedArrayArgType;
 typedef FixedDoubleArray FixedDoubleArrayArgType;

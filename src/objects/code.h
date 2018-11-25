@@ -498,8 +498,9 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeDataContainer);
 };
 
-class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
+class AbstractCode : public HeapObjectPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   // All code kinds and INTERPRETED_FUNCTION.
   enum Kind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
@@ -561,13 +562,15 @@ class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
   // the layout of the code object into account.
   inline int ExecutableSize();
 
-  DECL_CAST(AbstractCode)
+  DECL_CAST2(AbstractCode)
   inline Code GetCode();
   inline BytecodeArray GetBytecodeArray();
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
+
+  OBJECT_CONSTRUCTORS(AbstractCode, HeapObjectPtr)
 };
 
 // Dependent code is a singly linked list of weak fixed arrays. Each array

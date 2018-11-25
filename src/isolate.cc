@@ -2029,7 +2029,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined(this))) {
-      AbstractCode* abstract_code = elements->Code(i);
+      AbstractCode abstract_code = elements->Code(i);
       const int code_offset = elements->Offset(i)->value();
       const int pos = abstract_code->SourcePosition(code_offset);
 

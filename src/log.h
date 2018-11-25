@@ -195,26 +195,26 @@ class Logger : public CodeEventListener {
   void SetterCallbackEvent(Name* name, Address entry_point) override;
   // Emits a code create event.
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, const char* source) override;
+                       AbstractCode code, const char* source) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, Name* name) override;
+                       AbstractCode code, Name* name) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, SharedFunctionInfo* shared,
+                       AbstractCode code, SharedFunctionInfo* shared,
                        Name* name) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, SharedFunctionInfo* shared,
+                       AbstractCode code, SharedFunctionInfo* shared,
                        Name* source, int line, int column) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                        const wasm::WasmCode* code,
                        wasm::WasmName name) override;
   // Emits a code deoptimization event.
-  void CodeDisableOptEvent(AbstractCode* code,
+  void CodeDisableOptEvent(AbstractCode code,
                            SharedFunctionInfo* shared) override;
   void CodeMovingGCEvent() override;
   // Emits a code create event for a RegExp.
-  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
+  void RegExpCodeCreateEvent(AbstractCode code, String* source) override;
   // Emits a code move event.
-  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
+  void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray source_position_table);
@@ -404,19 +404,19 @@ class CodeEventLogger : public CodeEventListener {
   explicit CodeEventLogger(Isolate* isolate);
   ~CodeEventLogger() override;
 
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        const char* comment) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        Name* name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        SharedFunctionInfo* shared, Name* name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        SharedFunctionInfo* shared, Name* source, int line,
                        int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name) override;
 
-  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
+  void RegExpCodeCreateEvent(AbstractCode code, String* source) override;
   void CallbackEvent(Name* name, Address entry_point) override {}
   void GetterCallbackEvent(Name* name, Address entry_point) override {}
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
@@ -431,7 +431,7 @@ class CodeEventLogger : public CodeEventListener {
  private:
   class NameBuffer;
 
-  virtual void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
+  virtual void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo* shared,
                                  const char* name, int length) = 0;
   virtual void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                  int length) = 0;
@@ -456,25 +456,25 @@ class ExternalCodeEventListener : public CodeEventListener {
   explicit ExternalCodeEventListener(Isolate* isolate);
   ~ExternalCodeEventListener() override;
 
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        const char* comment) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        Name* name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        SharedFunctionInfo* shared, Name* name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        SharedFunctionInfo* shared, Name* source, int line,
                        int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name) override;
 
-  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
+  void RegExpCodeCreateEvent(AbstractCode code, String* source) override;
   void CallbackEvent(Name* name, Address entry_point) override {}
   void GetterCallbackEvent(Name* name, Address entry_point) override {}
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
-  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override {}
-  void CodeDisableOptEvent(AbstractCode* code,
+  void CodeMoveEvent(AbstractCode from, AbstractCode to) override {}
+  void CodeDisableOptEvent(AbstractCode code,
                            SharedFunctionInfo* shared) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
