@@ -154,6 +154,7 @@ ScavengerCollector::ScavengerCollector(Heap* heap)
     : isolate_(heap->isolate()), heap_(heap), parallel_scavenge_semaphore_(0) {}
 
 void ScavengerCollector::CollectGarbage() {
+  DCHECK(surviving_new_large_objects_.empty());
   ItemParallelJob job(isolate_->cancelable_task_manager(),
                       &parallel_scavenge_semaphore_);
   const int kMainThreadId = 0;
@@ -297,6 +298,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     heap_->lo_space()->PromoteNewLargeObject(page);
   }
   DCHECK(heap_->new_lo_space()->IsEmpty());
+  surviving_new_large_objects_.clear();
 }
 
 void ScavengerCollector::MergeSurvivingNewLargeObjects(
