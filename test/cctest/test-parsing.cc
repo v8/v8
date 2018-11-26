@@ -434,6 +434,14 @@ TEST(IsCountOp) {
   }
 }
 
+TEST(IsUnaryOrCountOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsUnaryOp(token) || TokenIsCountOp(token),
+             Token::IsUnaryOrCountOp(token));
+  }
+}
+
 bool TokenIsShiftOp(Token::Value token) {
   switch (token) {
     case Token::SHL:

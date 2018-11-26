@@ -27,7 +27,8 @@ namespace internal {
 
 #define IGNORE_TOKEN(name, string, precedence)
 
-/* Binary operators sorted by precedence */
+/* Binary operators */
+/* ADD and SUB are at the end since they are UnaryOp */
 #define BINARY_OP_TOKEN_LIST(T, E) \
   E(T, BIT_OR, "|", 6)             \
   E(T, BIT_XOR, "^", 7)            \
@@ -35,12 +36,12 @@ namespace internal {
   E(T, SHL, "<<", 11)              \
   E(T, SAR, ">>", 11)              \
   E(T, SHR, ">>>", 11)             \
-  E(T, ADD, "+", 12)               \
-  E(T, SUB, "-", 12)               \
   E(T, MUL, "*", 13)               \
   E(T, DIV, "/", 13)               \
   E(T, MOD, "%", 13)               \
-  E(T, EXP, "**", 14)
+  E(T, EXP, "**", 14)              \
+  E(T, ADD, "+", 12)               \
+  E(T, SUB, "-", 12)
 
 #define EXPAND_BINOP_ASSIGN_TOKEN(T, name, string, precedence) \
   T(ASSIGN_##name, string "=", 2)
@@ -68,8 +69,6 @@ namespace internal {
   T(COLON, ":", 0)                                                 \
   T(ELLIPSIS, "...", 0)                                            \
   T(CONDITIONAL, "?", 3)                                           \
-  T(INC, "++", 0)                                                  \
-  T(DEC, "--", 0)                                                  \
   /* BEGIN AutoSemicolon */                                        \
   T(SEMICOLON, ";", 0)                                             \
   T(RBRACE, "}", 0)                                                \
@@ -94,7 +93,23 @@ namespace internal {
   T(COMMA, ",", 1)                                                 \
   T(OR, "||", 4)                                                   \
   T(AND, "&&", 5)                                                  \
+                                                                   \
+  /* Unary operators, starting at ADD in BINARY_OP_TOKEN_LIST  */  \
+  /* IsUnaryOp() relies on this block of enum values */            \
+  /* being contiguous and sorted in the same order! */             \
   BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_TOKEN)                      \
+                                                                   \
+  T(NOT, "!", 0)                                                   \
+  T(BIT_NOT, "~", 0)                                               \
+  K(DELETE, "delete", 0)                                           \
+  K(TYPEOF, "typeof", 0)                                           \
+  K(VOID, "void", 0)                                               \
+                                                                   \
+  /* BEGIN IsCountOp */                                            \
+  T(INC, "++", 0)                                                  \
+  T(DEC, "--", 0)                                                  \
+  /* END IsCountOp */                                              \
+  /* END IsUnaryOrCountOp */                                       \
                                                                    \
   /* Compare operators sorted by precedence. */                    \
   /* IsCompareOp() relies on this block of enum values */          \
@@ -109,15 +124,6 @@ namespace internal {
   T(GTE, ">=", 10)                                                 \
   K(INSTANCEOF, "instanceof", 10)                                  \
   K(IN, "in", 10)                                                  \
-                                                                   \
-  /* Unary operators. */                                           \
-  /* IsUnaryOp() relies on this block of enum values */            \
-  /* being contiguous and sorted in the same order! */             \
-  T(NOT, "!", 0)                                                   \
-  T(BIT_NOT, "~", 0)                                               \
-  K(DELETE, "delete", 0)                                           \
-  K(TYPEOF, "typeof", 0)                                           \
-  K(VOID, "void", 0)                                               \
                                                                    \
   /* Keywords (ECMA-262, section 7.5.2, page 13). */               \
   K(BREAK, "break", 0)                                             \
@@ -246,14 +252,14 @@ class Token {
   }
 
   static bool IsArrowOrAssignmentOp(Value token) {
-    return IsInRange(token, ARROW, ASSIGN_EXP);
+    return IsInRange(token, ARROW, ASSIGN_SUB);
   }
 
   static bool IsAssignmentOp(Value token) {
-    return IsInRange(token, INIT, ASSIGN_EXP);
+    return IsInRange(token, INIT, ASSIGN_SUB);
   }
 
-  static bool IsBinaryOp(Value op) { return IsInRange(op, COMMA, EXP); }
+  static bool IsBinaryOp(Value op) { return IsInRange(op, COMMA, SUB); }
 
   static bool IsCompareOp(Value op) { return IsInRange(op, EQ, IN); }
 
@@ -264,7 +270,7 @@ class Token {
   static bool IsEqualityOp(Value op) { return IsInRange(op, EQ, EQ_STRICT); }
 
   static Value BinaryOpForAssignment(Value op) {
-    DCHECK(IsInRange(op, ASSIGN_BIT_OR, ASSIGN_EXP));
+    DCHECK(IsInRange(op, ASSIGN_BIT_OR, ASSIGN_SUB));
     Value result = static_cast<Value>(op - ASSIGN_BIT_OR + BIT_OR);
     DCHECK(IsBinaryOp(result));
     return result;
@@ -274,12 +280,9 @@ class Token {
     return IsInRange(op, BIT_OR, SHR) || op == BIT_NOT;
   }
 
-  static bool IsUnaryOp(Value op) {
-    return IsInRange(op, NOT, VOID) || IsInRange(op, ADD, SUB);
-  }
-
+  static bool IsUnaryOp(Value op) { return IsInRange(op, ADD, VOID); }
   static bool IsCountOp(Value op) { return IsInRange(op, INC, DEC); }
-
+  static bool IsUnaryOrCountOp(Value op) { return IsInRange(op, ADD, DEC); }
   static bool IsShiftOp(Value op) { return IsInRange(op, SHL, SHR); }
 
   // Returns a string corresponding to the JS token string

@@ -1035,9 +1035,8 @@ class ParserBase {
   ExpressionT ParseConditionalContinuation(ExpressionT expression, int pos);
   ExpressionT ParseBinaryContinuation(ExpressionT x, int prec, int prec1);
   V8_INLINE ExpressionT ParseBinaryExpression(int prec);
-  ExpressionT ParseUnaryOpExpression();
+  ExpressionT ParseUnaryOrPrefixExpression();
   ExpressionT ParseAwaitExpression();
-  ExpressionT ParsePrefixExpression();
   V8_INLINE ExpressionT ParseUnaryExpression();
   V8_INLINE ExpressionT ParsePostfixExpression();
   V8_INLINE ExpressionT ParseLeftHandSideExpression();
@@ -2896,7 +2895,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseUnaryOpExpression() {
+ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
   Token::Value op = Next();
   int pos = position();
 
@@ -2909,40 +2908,34 @@ ParserBase<Impl>::ParseUnaryOpExpression() {
 
   ExpressionT expression = ParseUnaryExpression();
 
-  if (op == Token::DELETE) {
-    if (impl()->IsIdentifier(expression) && is_strict(language_mode())) {
-      // "delete identifier" is a syntax error in strict mode.
-      ReportMessage(MessageTemplate::kStrictDelete);
+  if (Token::IsUnaryOp(op)) {
+    if (op == Token::DELETE) {
+      if (impl()->IsIdentifier(expression) && is_strict(language_mode())) {
+        // "delete identifier" is a syntax error in strict mode.
+        ReportMessage(MessageTemplate::kStrictDelete);
+        return impl()->FailureExpression();
+      }
+
+      if (impl()->IsPropertyWithPrivateFieldKey(expression)) {
+        ReportMessage(MessageTemplate::kDeletePrivateField);
+        return impl()->FailureExpression();
+      }
+    }
+
+    if (peek() == Token::EXP) {
+      ReportUnexpectedToken(Next());
       return impl()->FailureExpression();
     }
 
-    if (impl()->IsPropertyWithPrivateFieldKey(expression)) {
-      ReportMessage(MessageTemplate::kDeletePrivateField);
-      return impl()->FailureExpression();
-    }
+    // Allow the parser's implementation to rewrite the expression.
+    return impl()->BuildUnaryExpression(expression, op, pos);
   }
 
-  if (peek() == Token::EXP) {
-    ReportUnexpectedToken(Next());
-    return impl()->FailureExpression();
-  }
+  DCHECK(Token::IsCountOp(op));
 
-  // Allow the parser's implementation to rewrite the expression.
-  return impl()->BuildUnaryExpression(expression, op, pos);
-}
-
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParsePrefixExpression() {
-  Token::Value op = Next();
-  int beg_pos = peek_position();
-
-  CheckStackOverflow();
-
-  ExpressionT expression = ParseUnaryExpression();
   if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
     expression = RewriteInvalidReferenceExpression(
-        expression, beg_pos, end_position(),
+        expression, expression->position(), end_position(),
         MessageTemplate::kInvalidLhsInPrefixOp);
   }
   impl()->MarkExpressionAsAssigned(expression);
@@ -2987,8 +2980,7 @@ ParserBase<Impl>::ParseUnaryExpression() {
   //   [+Await] AwaitExpression[?Yield]
 
   Token::Value op = peek();
-  if (Token::IsUnaryOp(op)) return ParseUnaryOpExpression();
-  if (Token::IsCountOp(op)) return ParsePrefixExpression();
+  if (Token::IsUnaryOrCountOp(op)) return ParseUnaryOrPrefixExpression();
   if (is_async_function() && op == Token::AWAIT) {
     return ParseAwaitExpression();
   }
