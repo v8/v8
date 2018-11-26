@@ -358,6 +358,7 @@ class RelocatingCharacterStream
   }
 
   void UpdateBufferPointers() {
+    DisallowHeapAllocation no_gc;
     Range<uint16_t> range = byte_stream_.GetDataAt(0, runtime_call_stats());
     if (range.start != buffer_start_) {
       buffer_cursor_ = (buffer_cursor_ - buffer_start_) + range.start;
