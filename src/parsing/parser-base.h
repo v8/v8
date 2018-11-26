@@ -2607,14 +2607,6 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   // Arrow functions.
   if (V8_UNLIKELY(op == Token::ARROW)) {
     ValidateArrowFormalParameters(expression);
-    // This reads strangely, but is correct: it checks whether any
-    // sub-expression of the parameter list failed to be a valid formal
-    // parameter initializer. Since YieldExpressions are banned anywhere
-    // in an arrow parameter list, this is correct.
-    // TODO(adamk): Rename "FormalParameterInitializerError" to refer to
-    // "YieldExpression", which is its only use.
-    ValidateFormalParameterInitializer();
-
     Scanner::Location loc(lhs_beg_pos, end_position());
     DeclarationScope* scope = NewFunctionScope(next_arrow_function_kind_);
 
@@ -3042,8 +3034,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     ParseArguments(&args, &has_spread, true);
     if (V8_LIKELY(peek() == Token::ARROW)) {
       fni_.RemoveAsyncKeywordFromEnd();
-      ValidatePattern();
-      ValidateFormalParameterInitializer();
       if (!classifier()->is_valid_async_arrow_formal_parameters()) {
         ReportClassifierError(
             classifier()->async_arrow_formal_parameters_error());
@@ -3429,7 +3419,6 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
   ExpressionT pattern = ParseBindingPattern();
   if (!impl()->IsIdentifier(pattern)) {
     parameters->is_simple = false;
-    ValidateFormalParameterInitializer();
   }
 
   ExpressionT initializer = impl()->NullExpression();
@@ -3443,8 +3432,8 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
       AcceptINScope scope(this, true);
       initializer = ParseAssignmentExpression();
       ValidateExpression();
-      ValidateFormalParameterInitializer();
       parameters->is_simple = false;
+      Accumulate(ExpressionClassifier::FormalParameterInitializerProduction);
     }
     classifier()->RecordNonSimpleParameter();
     impl()->SetFunctionNameFromIdentifierRef(initializer, pattern);

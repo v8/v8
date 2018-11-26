@@ -910,6 +910,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   V8_INLINE void DeclareFormalParameters(ParserFormalParameters* parameters) {
+    ValidateFormalParameterInitializer();
     bool is_simple = parameters->is_simple;
     DeclarationScope* scope = parameters->scope;
     if (!is_simple) scope->SetHasNonSimpleParameters();

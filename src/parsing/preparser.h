@@ -1666,12 +1666,14 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void DeclareFormalParameters(
       const PreParserFormalParameters* parameters) {
+    ValidateFormalParameterInitializer();
     if (!parameters->is_simple) parameters->scope->SetHasNonSimpleParameters();
   }
 
   V8_INLINE void DeclareArrowFunctionFormalParameters(
       PreParserFormalParameters* parameters, const PreParserExpression& params,
       const Scanner::Location& params_loc) {
+    ValidateFormalParameterInitializer();
     if (params.variables_ != nullptr) {
       Scope* scope = parameters->scope;
       for (auto variable : *params.variables_) {
