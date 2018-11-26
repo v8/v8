@@ -1837,7 +1837,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
   Consume(Token::LBRACK);
   while (!Check(Token::RBRACK)) {
     ExpressionT elem;
-    ExpressionClassifier destructuring_classifier(this);
     if (peek() == Token::COMMA) {
       elem = factory()->NewTheHoleLiteral();
     } else if (Check(Token::ELLIPSIS)) {
@@ -1852,7 +1851,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
       }
 
       if (argument->IsAssignment()) {
-        Accumulate(ExpressionClassifier::AllProductions);
         classifier()->RecordPatternError(
             Scanner::Location(start_pos, end_position()),
             MessageTemplate::kInvalidDestructuringTarget);
@@ -2025,7 +2023,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
         *name = impl()->NullIdentifier();
         Consume(Token::ELLIPSIS);
         AcceptINScope scope(this, true);
-        ExpressionClassifier destructuring_classifier(this);
         ExpressionT expression = ParseAssignmentExpression();
         *kind = ParsePropertyKind::kSpread;
 
@@ -2320,7 +2317,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(bool* has_seen_proto,
       Consume(Token::COLON);
       int beg_pos = peek_position();
       AcceptINScope scope(this, true);
-      ExpressionClassifier destructuring_classifier(this);
       ExpressionT value = ParseAssignmentExpression();
       CheckDestructuringElement(value, beg_pos, end_position());
 
@@ -2600,7 +2596,11 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   Token::Value op = peek();
 
   if (!Token::IsArrowOrAssignmentOp(op)) {
-    Accumulate(ExpressionClassifier::AllProductions);
+    if (expression->IsProperty()) {
+      Accumulate(~ExpressionClassifier::PatternProduction);
+    } else {
+      Accumulate(ExpressionClassifier::AllProductions);
+    }
     return expression;
   }
 
@@ -2660,21 +2660,15 @@ ParserBase<Impl>::ParseAssignmentExpression() {
     int pos = position();
 
     ExpressionClassifier rhs_classifier(this);
-
     ExpressionT right = ParseAssignmentExpression();
     ValidateExpression();
     AccumulateFormalParameterContainmentErrors();
-
     ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
 
     auto rewritable = factory()->NewRewritableExpression(result, scope());
     impl()->QueueDestructuringAssignmentForRewriting(rewritable);
     return rewritable;
   }
-
-  // This is definitely not an assignment pattern, so don't accumulate
-  // assignment pattern-related errors.
-  Accumulate(~ExpressionClassifier::PatternProduction);
 
   if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
     expression = RewriteInvalidReferenceExpression(
@@ -2686,9 +2680,9 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   Consume(op);
   Scanner::Location op_location = scanner()->location();
 
-  ExpressionClassifier rhs_classifier(this);
-
   ExpressionT right = ParseAssignmentExpression();
+  // This is definitely not an assignment pattern, so don't accumulate
+  // assignment pattern-related errors.
   ValidateExpression();
   AccumulateFormalParameterContainmentErrors();
 
@@ -2711,6 +2705,12 @@ ParserBase<Impl>::ParseAssignmentExpression() {
     }
 
     impl()->SetFunctionNameFromIdentifierRef(right, expression);
+
+    if (expression->IsProperty()) {
+      classifier()->RecordBindingPatternError(
+          Scanner::Location(expression->position(), end_position()),
+          MessageTemplate::kInvalidPropertyBindingPattern);
+    }
   } else {
     classifier()->RecordPatternError(
         op_location, MessageTemplate::kUnexpectedToken, Token::String(op));
@@ -4416,7 +4416,6 @@ void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
     // a larger assignment pattern, even though parenthesized patterns
     // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
     // assignment pattern errors if the parsed expression is more complex.
-    Accumulate(~ExpressionClassifier::PatternProduction);
     if (expression->IsProperty()) {
       classifier()->RecordBindingPatternError(
           Scanner::Location(begin, end),
@@ -4424,8 +4423,6 @@ void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
     }
     return;
   }
-
-  Accumulate(ExpressionClassifier::AllProductions);
   if (expression->is_parenthesized() ||
       (!expression->IsValidPattern() && !expression->IsAssignment())) {
     classifier()->RecordPatternError(

@@ -1190,3 +1190,7 @@
   assertEquals(undefined, eval('try {throw {foo: 1, bar: 2}} catch({foo}) {}'));
   assertEquals(undefined, eval('try {throw [1, 2, 3]} catch([x]) {}'));
 })();
+
+assertThrows("let [o.x=1]=[]", SyntaxError);
+assertThrows("let {x:o.f=1}={x:1}", SyntaxError);
+assertThrows("(o.f=1)=>0", SyntaxError);
