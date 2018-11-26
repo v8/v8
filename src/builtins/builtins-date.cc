@@ -128,13 +128,16 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
                                tmp->get(5)->Number(), tmp->get(6)->Number());
   double date = MakeDate(day, time);
   if (tmp->get(7)->IsNull(isolate)) {
-    if (!std::isnan(date)) {
+    if (date >= -DateCache::kMaxTimeBeforeUTCInMs &&
+        date <= DateCache::kMaxTimeBeforeUTCInMs) {
       date = isolate->date_cache()->ToUTC(static_cast<int64_t>(date));
+    } else {
+      return std::numeric_limits<double>::quiet_NaN();
     }
   } else {
     date -= tmp->get(7)->Number() * 1000.0;
   }
-  return date;
+  return DateCache::TimeClip(date);
 }
 
 enum ToDateStringMode { kDateOnly, kTimeOnly, kDateAndTime };
