@@ -729,7 +729,8 @@ class Scanner {
   Token::Value ScanNumber(bool seen_period);
   V8_INLINE Token::Value ScanIdentifierOrKeyword();
   V8_INLINE Token::Value ScanIdentifierOrKeywordInner();
-  Token::Value ScanIdentifierOrKeywordInnerSlow(bool escaped);
+  Token::Value ScanIdentifierOrKeywordInnerSlow(bool escaped,
+                                                bool can_be_keyword);
 
   Token::Value ScanString();
   Token::Value ScanPrivateName();
