@@ -11,6 +11,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_icache {
 
 using F0 = int(int);
 
@@ -189,5 +190,6 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
 
 #undef __
 
+}  // namespace test_icache
 }  // namespace internal
 }  // namespace v8
