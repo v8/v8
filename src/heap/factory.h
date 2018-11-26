@@ -962,6 +962,12 @@ class V8_EXPORT_PRIVATE Factory {
                                              int length, Object* filler,
                                              PretenureFlag pretenure);
 
+  // Allocates new context with given map, sets length and initializes the
+  // after-header part with uninitialized values and leaves the context header
+  // uninitialized.
+  Handle<Context> NewContext(RootIndex map_root_index, int size,
+                             int variadic_part_length, PretenureFlag pretenure);
+
   template <typename T>
   Handle<T> AllocateSmallOrderedHashTable(Handle<Map> map, int capacity,
                                           PretenureFlag pretenure);

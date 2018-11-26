@@ -32,8 +32,8 @@ enum ContextLookupFlags {
 
 // Heap-allocated activation contexts.
 //
-// Contexts are implemented as FixedArray objects; the Context
-// class is a convenience interface casted on a FixedArray object.
+// Contexts are implemented as FixedArray-like objects having a fixed
+// header with a set of common fields.
 //
 // Note: Context must have no virtual functions and Context objects
 // must always be allocated via Heap::AllocateContext() or
@@ -444,16 +444,64 @@ class ScriptContextTable : public FixedArray {
 // Script contexts from all top-level scripts are gathered in
 // ScriptContextTable.
 
-class Context : public FixedArray {
+class Context : public HeapObjectPtr {
  public:
   NEVER_READ_ONLY_SPACE
 
   DECL_CAST2(Context)
 
+  // [length]: length of the context.
+  V8_INLINE int length() const;
+  V8_INLINE void set_length(int value);
+
+  // Setter and getter for elements.
+  V8_INLINE Object* get(int index) const;
+  V8_INLINE void set(int index, Object* value);
+  // Setter with explicit barrier mode.
+  V8_INLINE void set(int index, Object* value, WriteBarrierMode mode);
+
+  // Layout description.
+#define CONTEXT_FIELDS(V)                                             \
+  V(kLengthOffset, kTaggedSize)                                       \
+  /* TODO(ishell): remove this fixedArray-like header size. */        \
+  V(kHeaderSize, 0)                                                   \
+  V(kStartOfTaggedFieldsOffset, 0)                                    \
+  V(kStartOfStrongFieldsOffset, 0)                                    \
+  /* Tagged fields. */                                                \
+  V(kScopeInfoOffset, kTaggedSize)                                    \
+  V(kPreviousOffset, kTaggedSize)                                     \
+  V(kExtensionOffset, kTaggedSize)                                    \
+  V(kNativeContextOffset, kTaggedSize)                                \
+  /* Header size. */                                                  \
+  /* TODO(ishell): use this as header size once MIN_CONTEXT_SLOTS */  \
+  /* is removed in favour of offset-based access to common fields. */ \
+  V(kTodoHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CONTEXT_FIELDS)
+#undef CONTEXT_FIELDS
+
+  // Garbage collection support.
+  V8_INLINE static constexpr int SizeFor(int length) {
+    // TODO(ishell): switch to kTodoHeaderSize based approach once we no longer
+    // reference common Context fields via index
+    return kHeaderSize + length * kTaggedSize;
+  }
+
+  // Code Generation support.
+  // Offset of the element from the beginning of object.
+  V8_INLINE static constexpr int OffsetOfElementAt(int index) {
+    return SizeFor(index);
+  }
+  // Offset of the element from the heap object pointer.
+  V8_INLINE static constexpr int SlotOffset(int index) {
+    return SizeFor(index) - kHeapObjectTag;
+  }
+
   // TODO(ishell): eventually migrate to the offset based access instead of
   // index-based.
   // The default context slot layout; indices are FixedArray slot indices.
   enum Field {
+    // TODO(shell): use offset-based approach for accessing common values.
     // These slots are in all contexts.
     SCOPE_INFO_INDEX,
     PREVIOUS_INDEX,
@@ -476,6 +524,7 @@ class Context : public FixedArray {
     FIRST_WEAK_SLOT = OPTIMIZED_CODE_LIST,
     FIRST_JS_ARRAY_MAP_SLOT = JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX,
 
+    // TODO(shell): Remove, once it becomes zero
     MIN_CONTEXT_SLOTS = GLOBAL_PROXY_INDEX,
 
     // This slot holds the thrown value in catch contexts.
@@ -600,11 +649,6 @@ class Context : public FixedArray {
                         VariableMode* variable_mode,
                         bool* is_sloppy_function_name = nullptr);
 
-  // Code generation support.
-  static constexpr int SlotOffset(int index) {
-    return kHeaderSize + index * kPointerSize - kHeapObjectTag;
-  }
-
   static inline int FunctionMapIndex(LanguageMode language_mode,
                                      FunctionKind kind, bool has_prototype_slot,
                                      bool has_shared_name,
@@ -623,7 +667,7 @@ class Context : public FixedArray {
   DECL_PRINTER(Context)
   DECL_VERIFIER(Context)
 
-  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
+  typedef FlexibleBodyDescriptor<kStartOfTaggedFieldsOffset> BodyDescriptor;
 
  private:
 #ifdef DEBUG
@@ -633,10 +677,7 @@ class Context : public FixedArray {
   static bool IsBootstrappingOrValidParentContext(Object* object, Context kid);
 #endif
 
-  STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
-                Internals::kNativeContextEmbedderDataOffset);
-
-  OBJECT_CONSTRUCTORS(Context, FixedArray)
+  OBJECT_CONSTRUCTORS(Context, HeapObjectPtr)
 };
 
 class NativeContext : public Context {
@@ -653,9 +694,9 @@ class NativeContext : public Context {
 
   // Layout description.
 #define NATIVE_CONTEXT_FIELDS_DEF(V)                                        \
-  V(kStartOfTaggedFieldsOffset, 0)                                          \
   /* TODO(ishell): move definition of common context offsets to Context. */ \
-  V(kStartOfStrongFieldsOffset, FIRST_WEAK_SLOT* kTaggedSize)               \
+  V(kStartOfNativeContextFieldsOffset,                                      \
+    (FIRST_WEAK_SLOT - MIN_CONTEXT_SLOTS) * kTaggedSize)                    \
   V(kEndOfStrongFieldsOffset, 0)                                            \
   V(kStartOfWeakFieldsOffset,                                               \
     (NATIVE_CONTEXT_SLOTS - FIRST_WEAK_SLOT) * kTaggedSize)                 \
@@ -667,12 +708,16 @@ class NativeContext : public Context {
   /* Total size. */                                                         \
   V(kSize, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Context::kHeaderSize, NATIVE_CONTEXT_FIELDS_DEF)
+  DEFINE_FIELD_OFFSET_CONSTANTS(Context::kTodoHeaderSize,
+                                NATIVE_CONTEXT_FIELDS_DEF)
 #undef NATIVE_CONTEXT_FIELDS_DEF
 
   class BodyDescriptor;
 
  private:
+  STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
+                Internals::kNativeContextEmbedderDataOffset);
+
   OBJECT_CONSTRUCTORS(NativeContext, Context);
 };
 

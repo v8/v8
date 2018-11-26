@@ -27,6 +27,7 @@ enum InstanceType : uint16_t;
   V(Code)                                \
   V(CodeDataContainer)                   \
   V(ConsString)                          \
+  V(Context)                             \
   V(DataHandler)                         \
   V(DataObject)                          \
   V(DescriptorArray)                     \

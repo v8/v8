@@ -794,6 +794,19 @@ void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
 void HeapObject::VerifySmiField(int offset) {
   CHECK(READ_FIELD(this, offset)->IsSmi());
 }
+
+void HeapObjectPtr::VerifyObjectField(Isolate* isolate, int offset) {
+  Object::VerifyPointer(isolate, READ_FIELD(this, offset));
+}
+
+void HeapObjectPtr::VerifyMaybeObjectField(Isolate* isolate, int offset) {
+  MaybeObject::VerifyMaybeObjectPointer(isolate, READ_WEAK_FIELD(this, offset));
+}
+
+void HeapObjectPtr::VerifySmiField(int offset) {
+  CHECK(READ_FIELD(this, offset)->IsSmi());
+}
+
 #endif
 
 ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
@@ -1507,9 +1520,13 @@ int HeapObject::SizeFromMap(Map map) const {
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
   if (IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)) {
-    if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
     return FixedArray::SizeFor(
         FixedArray::unchecked_cast(this)->synchronized_length());
+  }
+  if (IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
+    // Native context has fixed size.
+    DCHECK_NE(instance_type, NATIVE_CONTEXT_TYPE);
+    return Context::SizeFor(Context::unchecked_cast(this)->length());
   }
   if (instance_type == ONE_BYTE_STRING_TYPE ||
       instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {

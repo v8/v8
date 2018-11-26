@@ -855,7 +855,7 @@ FieldAccess AccessBuilder::ForCellValue() {
 
 // static
 FieldAccess AccessBuilder::ForContextSlot(size_t index) {
-  int offset = Context::kHeaderSize + static_cast<int>(index) * kPointerSize;
+  int offset = Context::OffsetOfElementAt(static_cast<int>(index));
   DCHECK_EQ(offset,
             Context::SlotOffset(static_cast<int>(index)) + kHeapObjectTag);
   FieldAccess access = {kTaggedBase,      offset,

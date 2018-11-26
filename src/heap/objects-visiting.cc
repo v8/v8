@@ -185,7 +185,7 @@ struct WeakListVisitor<Context> {
       // Record the slots of the weak entries in the native context.
       for (int idx = Context::FIRST_WEAK_SLOT;
            idx < Context::NATIVE_CONTEXT_SLOTS; ++idx) {
-        ObjectSlot slot = context->RawFieldOfElementAt(idx);
+        ObjectSlot slot = context->RawField(Context::OffsetOfElementAt(idx));
         MarkCompactCollector::RecordSlot(context, slot,
                                          HeapObject::cast(*slot));
       }

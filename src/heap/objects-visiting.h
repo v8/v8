@@ -41,6 +41,7 @@ class WasmInstanceObject;
   V(Code, Code)                                                                \
   V(CodeDataContainer, CodeDataContainer*)                                     \
   V(ConsString, ConsString*)                                                   \
+  V(Context, Context)                                                          \
   V(DataHandler, DataHandler*)                                                 \
   V(DescriptorArray, DescriptorArray*)                                         \
   V(EmbedderDataArray, EmbedderDataArray)                                      \
@@ -57,6 +58,7 @@ class WasmInstanceObject;
   V(JSTypedArray, JSTypedArray*)                                               \
   V(JSWeakCollection, JSWeakCollection*)                                       \
   V(Map, Map)                                                                  \
+  V(NativeContext, NativeContext)                                              \
   V(Oddball, Oddball*)                                                         \
   V(PreParsedScopeData, PreParsedScopeData*)                                   \
   V(PropertyArray, PropertyArray)                                              \
@@ -111,7 +113,6 @@ class HeapVisitor : public ObjectVisitor {
   TYPED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
   V8_INLINE ResultType VisitShortcutCandidate(Map map, ConsString* object);
-  V8_INLINE ResultType VisitNativeContext(Map map, NativeContext object);
   V8_INLINE ResultType VisitDataObject(Map map, HeapObject* object);
   V8_INLINE ResultType VisitJSObjectFast(Map map, JSObject* object);
   V8_INLINE ResultType VisitJSApiObject(Map map, JSObject* object);

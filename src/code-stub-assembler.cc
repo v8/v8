@@ -2565,17 +2565,15 @@ TNode<Object> CodeStubAssembler::LoadContextElement(
 
 TNode<Object> CodeStubAssembler::LoadContextElement(
     SloppyTNode<Context> context, SloppyTNode<IntPtrT> slot_index) {
-  Node* offset =
-      ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS, INTPTR_PARAMETERS,
-                             Context::kHeaderSize - kHeapObjectTag);
+  Node* offset = ElementOffsetFromIndex(
+      slot_index, PACKED_ELEMENTS, INTPTR_PARAMETERS, Context::SlotOffset(0));
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), context, offset));
 }
 
 TNode<Object> CodeStubAssembler::LoadContextElement(TNode<Context> context,
                                                     TNode<Smi> slot_index) {
-  Node* offset =
-      ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS, SMI_PARAMETERS,
-                             Context::kHeaderSize - kHeapObjectTag);
+  Node* offset = ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS,
+                                        SMI_PARAMETERS, Context::SlotOffset(0));
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), context, offset));
 }
 
@@ -2589,9 +2587,8 @@ void CodeStubAssembler::StoreContextElement(SloppyTNode<Context> context,
 void CodeStubAssembler::StoreContextElement(SloppyTNode<Context> context,
                                             SloppyTNode<IntPtrT> slot_index,
                                             SloppyTNode<Object> value) {
-  Node* offset =
-      IntPtrAdd(TimesPointerSize(slot_index),
-                IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
+  Node* offset = IntPtrAdd(TimesPointerSize(slot_index),
+                           IntPtrConstant(Context::SlotOffset(0)));
   Store(context, offset, value);
 }
 
@@ -10122,17 +10119,12 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
   {
     TNode<IntPtrT> mapped_index_intptr = SmiUntag(CAST(mapped_index));
     TNode<Context> the_context = CAST(LoadFixedArrayElement(elements, 0));
-    // Assert that we can use LoadFixedArrayElement/StoreFixedArrayElement
-    // methods for accessing Context.
-    STATIC_ASSERT(Context::kHeaderSize == FixedArray::kHeaderSize);
-    DCHECK_EQ(Context::SlotOffset(0) + kHeapObjectTag,
-              FixedArray::OffsetOfElementAt(0));
     if (is_load) {
-      Node* result = LoadFixedArrayElement(the_context, mapped_index_intptr);
+      Node* result = LoadContextElement(the_context, mapped_index_intptr);
       CSA_ASSERT(this, WordNotEqual(result, TheHoleConstant()));
       var_result.Bind(result);
     } else {
-      StoreFixedArrayElement(the_context, mapped_index_intptr, value);
+      StoreContextElement(the_context, mapped_index_intptr, value);
     }
     Goto(&end);
   }

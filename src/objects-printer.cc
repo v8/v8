@@ -1010,12 +1010,26 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, *this, "FixedArray");
 }
 
+namespace {
+void PrintContextWithHeader(std::ostream& os, Context context,
+                            const char* type) {
+  context->PrintHeader(os, type);
+  os << "\n - length: " << context->length();
+  os << "\n - scope_info: " << Brief(context->scope_info());
+  os << "\n - previous: " << Brief(context->previous());
+  os << "\n - extension_object: " << Brief(context->extension_object());
+  os << "\n - native_context: " << Brief(context->native_context());
+  PrintFixedArrayElements(os, context);
+  os << "\n";
+}
+}  // namespace
+
 void Context::ContextPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, *this, "Context");
+  PrintContextWithHeader(os, *this, "Context");
 }
 
 void NativeContext::NativeContextPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, *this, "NativeContext");
+  PrintContextWithHeader(os, *this, "NativeContext");
   os << " - microtask_queue: " << microtask_queue() << "\n";
 }
 

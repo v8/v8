@@ -509,6 +509,16 @@ void Context::IncrementErrorsThrown() {
 
 int Context::GetErrorsThrown() { return errors_thrown()->value(); }
 
+STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);
+STATIC_ASSERT(NativeContext::kScopeInfoOffset ==
+              Context::OffsetOfElementAt(NativeContext::SCOPE_INFO_INDEX));
+STATIC_ASSERT(NativeContext::kPreviousOffset ==
+              Context::OffsetOfElementAt(NativeContext::PREVIOUS_INDEX));
+STATIC_ASSERT(NativeContext::kExtensionOffset ==
+              Context::OffsetOfElementAt(NativeContext::EXTENSION_INDEX));
+STATIC_ASSERT(NativeContext::kNativeContextOffset ==
+              Context::OffsetOfElementAt(NativeContext::NATIVE_CONTEXT_INDEX));
+
 STATIC_ASSERT(NativeContext::kStartOfStrongFieldsOffset ==
               Context::OffsetOfElementAt(0));
 STATIC_ASSERT(NativeContext::kStartOfWeakFieldsOffset ==

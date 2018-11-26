@@ -6,6 +6,7 @@
 #define V8_OBJECTS_INSTANCE_TYPE_INL_H_
 
 #include "src/objects/map-inl.h"
+#include "src/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -29,11 +30,10 @@ STRUCT_LIST(STRUCT_INSTANCE_TYPE_CHECKER)
 #undef STRUCT_INSTANCE_TYPE_CHECKER
 
 // Define type checkers for classes with ranges of instance types.
-#define INSTANCE_TYPE_CHECKER_RANGE(type, first_instance_type, \
-                                    last_instance_type)        \
-  V8_INLINE bool Is##type(InstanceType instance_type) {        \
-    return instance_type >= first_instance_type &&             \
-           instance_type <= last_instance_type;                \
+#define INSTANCE_TYPE_CHECKER_RANGE(type, first_instance_type,                \
+                                    last_instance_type)                       \
+  V8_INLINE bool Is##type(InstanceType instance_type) {                       \
+    return IsInRange(instance_type, first_instance_type, last_instance_type); \
   }
 INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE);
 #undef INSTANCE_TYPE_CHECKER_RANGE

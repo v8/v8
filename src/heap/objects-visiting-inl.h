@@ -50,9 +50,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
     case kVisitShortcutCandidate:
       return visitor->VisitShortcutCandidate(
           map, ConcreteVisitor::template Cast<ConsString>(object));
-    case kVisitNativeContext:
-      return visitor->VisitNativeContext(
-          map, ConcreteVisitor::template Cast<NativeContext>(object));
     case kVisitDataObject:
       return visitor->VisitDataObject(map, object);
     case kVisitJSObjectFast:
@@ -107,19 +104,6 @@ template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
     Map map, ConsString* object) {
   return static_cast<ConcreteVisitor*>(this)->VisitConsString(map, object);
-}
-
-template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitNativeContext(
-    Map map, NativeContext object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
-  if (visitor->ShouldVisitMapPointer()) {
-    visitor->VisitMapPointer(object, object->map_slot());
-  }
-  int size = NativeContext::BodyDescriptor::SizeOf(map, object);
-  NativeContext::BodyDescriptor::IterateBody(map, object, size, visitor);
-  return static_cast<ResultType>(size);
 }
 
 template <typename ResultType, typename ConcreteVisitor>

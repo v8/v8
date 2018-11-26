@@ -478,7 +478,6 @@ bool Heap::CreateInitialMaps() {
                          object_boilerplate_description)
 
     ALLOCATE_MAP(NATIVE_CONTEXT_TYPE, NativeContext::kSize, native_context)
-    roots.native_context_map()->set_visitor_id(kVisitNativeContext);
 
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_call_handler_info)

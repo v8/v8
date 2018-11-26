@@ -491,10 +491,12 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
     ScriptContextTable::LookupResult lookup_result;
     if (ScriptContextTable::Lookup(isolate(), script_contexts, str_name,
                                    &lookup_result)) {
-      Handle<Object> result = FixedArray::get(
-          *ScriptContextTable::GetContext(isolate(), script_contexts,
-                                          lookup_result.context_index),
-          lookup_result.slot_index, isolate());
+      Handle<Context> script_context = ScriptContextTable::GetContext(
+          isolate(), script_contexts, lookup_result.context_index);
+
+      Handle<Object> result(script_context->get(lookup_result.slot_index),
+                            isolate());
+
       if (result->IsTheHole(isolate())) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
@@ -1351,8 +1353,8 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       return TypeError(MessageTemplate::kConstAssign, global, name);
     }
 
-    Handle<Object> previous_value =
-        FixedArray::get(*script_context, lookup_result.slot_index, isolate());
+    Handle<Object> previous_value(script_context->get(lookup_result.slot_index),
+                                  isolate());
 
     if (previous_value->IsTheHole(isolate())) {
       // Do not install stubs and stay pre-monomorphic for
@@ -2223,8 +2225,8 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
         isolate, script_contexts, lookup_result.context_index);
-    Handle<Object> result =
-        FixedArray::get(*script_context, lookup_result.slot_index, isolate);
+    Handle<Object> result(script_context->get(lookup_result.slot_index),
+                          isolate);
     if (*result == ReadOnlyRoots(isolate).the_hole_value()) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
@@ -2345,8 +2347,8 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
           isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
     }
 
-    Handle<Object> previous_value =
-        FixedArray::get(*script_context, lookup_result.slot_index, isolate);
+    Handle<Object> previous_value(script_context->get(lookup_result.slot_index),
+                                  isolate);
 
     if (previous_value->IsTheHole(isolate)) {
       THROW_NEW_ERROR_RETURN_FAILURE(

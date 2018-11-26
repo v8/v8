@@ -935,7 +935,7 @@ MaybeHandle<Object> StoreLookupSlot(
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
     if (flag == kNeedsInitialization &&
-        Handle<Context>::cast(holder)->is_the_hole(isolate, index)) {
+        Handle<Context>::cast(holder)->get(index)->IsTheHole(isolate)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name),
                       Object);

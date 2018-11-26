@@ -95,7 +95,6 @@
 //         - OrderedHashTable
 //           - OrderedHashSet
 //           - OrderedHashMap
-//         - Context
 //         - FeedbackMetadata
 //         - TemplateList
 //         - TransitionArray
@@ -123,6 +122,8 @@
 //             - ExternalOneByteInternalizedString
 //             - ExternalTwoByteInternalizedString
 //       - Symbol
+//     - Context
+//       - NativeContext
 //     - HeapNumber
 //     - BigInt
 //     - Cell

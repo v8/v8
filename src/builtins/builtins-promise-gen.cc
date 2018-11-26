@@ -2146,8 +2146,9 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
   // first time, in which case we make it point to the native context here
   // to mark this resolve element closure as done.
   GotoIf(IsNativeContext(context), &already_called);
-  CSA_ASSERT(this, SmiEqual(LoadFixedArrayBaseLength(context),
-                            SmiConstant(kPromiseAllResolveElementLength)));
+  CSA_ASSERT(this,
+             SmiEqual(LoadObjectField<Smi>(context, Context::kLengthOffset),
+                      SmiConstant(kPromiseAllResolveElementLength)));
   TNode<Context> native_context = LoadNativeContext(context);
   StoreObjectField(function, JSFunction::kContextOffset, native_context);
 
