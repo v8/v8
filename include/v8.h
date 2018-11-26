@@ -4003,10 +4003,11 @@ class V8_EXPORT Function : public Object {
       Local<Value> data = Local<Value>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
-  static V8_DEPRECATE_SOON(
-      "Use maybe version",
-      Local<Function> New(Isolate* isolate, FunctionCallback callback,
-                          Local<Value> data = Local<Value>(), int length = 0));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<Function> New(Isolate* isolate,
+                                           FunctionCallback callback,
+                                           Local<Value> data = Local<Value>(),
+                                           int length = 0));
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstance(
       Local<Context> context, int argc, Local<Value> argv[]) const;
@@ -4025,9 +4026,9 @@ class V8_EXPORT Function : public Object {
       Local<Context> context, int argc, Local<Value> argv[],
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect) const;
 
-  V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Value> Call(Local<Value> recv, int argc,
-                                      Local<Value> argv[]));
+  V8_DEPRECATED("Use maybe version",
+                Local<Value> Call(Local<Value> recv, int argc,
+                                  Local<Value> argv[]));
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Call(Local<Context> context,
                                                Local<Value> recv, int argc,
                                                Local<Value> argv[]);
