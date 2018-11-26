@@ -640,9 +640,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
                          DoubleRegister double_input, StubCallMode stub_mode);
 
-  // Call a code stub.
-  void CallStubDelayed(CodeStub* stub);
-
   void LoadConstantPoolPointerRegister();
 
   // Loads the constant pool pointer (kConstantPoolRegister).

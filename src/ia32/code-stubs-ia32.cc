@@ -29,8 +29,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
 
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   {  // NOLINT. Scope block confuses linter.
     NoRootArrayScope uninitialized_root_register(masm);
 
@@ -115,52 +113,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   // Restore frame pointer and return.
   __ pop(ebp);
-  __ ret(0);
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
-                                                     Zone* zone) {
-  if (tasm->isolate()->function_entry_hook() != nullptr) {
-    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-  }
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (masm->isolate()->function_entry_hook() != nullptr) {
-    ProfileEntryHookStub stub(masm->isolate());
-    masm->CallStub(&stub);
-  }
-}
-
-
-void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  // Save volatile registers.
-  const int kNumSavedRegisters = 3;
-  __ push(eax);
-  __ push(ecx);
-  __ push(edx);
-
-  // Calculate and push the original stack pointer.
-  __ lea(eax, Operand(esp, (kNumSavedRegisters + 1) * kPointerSize));
-  __ push(eax);
-
-  // Retrieve our return address and use it to calculate the calling
-  // function's address.
-  __ mov(eax, Operand(esp, (kNumSavedRegisters + 1) * kPointerSize));
-  __ sub(eax, Immediate(Assembler::kCallInstructionLength));
-  __ push(eax);
-
-  // Call the entry hook.
-  DCHECK_NOT_NULL(isolate()->function_entry_hook());
-  __ call(FUNCTION_ADDR(isolate()->function_entry_hook()),
-          RelocInfo::RUNTIME_ENTRY);
-  __ add(esp, Immediate(2 * kPointerSize));
-
-  // Restore ecx.
-  __ pop(edx);
-  __ pop(ecx);
-  __ pop(eax);
-
   __ ret(0);
 }
 

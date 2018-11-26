@@ -31,8 +31,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
 
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   {  // NOLINT. Scope block confuses linter.
     NoRootArrayScope uninitialized_root_register(masm);
     // Set up frame.
@@ -170,56 +168,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Restore frame pointer and return.
   __ popq(rbp);
   __ ret(0);
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (masm->isolate()->function_entry_hook() != nullptr) {
-    ProfileEntryHookStub stub(masm->isolate());
-    masm->CallStub(&stub);
-  }
-}
-
-void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
-                                                     Zone* zone) {
-  if (tasm->isolate()->function_entry_hook() != nullptr) {
-    tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-  }
-}
-
-void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  // This stub can be called from essentially anywhere, so it needs to save
-  // all volatile and callee-save registers.
-  const size_t kNumSavedRegisters = 2;
-  __ pushq(arg_reg_1);
-  __ pushq(arg_reg_2);
-
-  // Calculate the original stack pointer and store it in the second arg.
-  __ leap(arg_reg_2,
-         Operand(rsp, kNumSavedRegisters * kRegisterSize + kPCOnStackSize));
-
-  // Calculate the function address to the first arg.
-  __ movp(arg_reg_1, Operand(rsp, kNumSavedRegisters * kRegisterSize));
-  __ subp(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
-
-  // Save the remainder of the volatile registers.
-  masm->PushCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
-
-  // Call the entry hook function.
-  __ Move(rax, FUNCTION_ADDR(isolate()->function_entry_hook()),
-          RelocInfo::NONE);
-
-  AllowExternalCallThatCantCauseGC scope(masm);
-
-  const int kArgumentCount = 2;
-  __ PrepareCallCFunction(kArgumentCount);
-  __ CallCFunction(rax, kArgumentCount);
-
-  // Restore volatile regs.
-  masm->PopCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
-  __ popq(arg_reg_2);
-  __ popq(arg_reg_1);
-
-  __ Ret();
 }
 
 static int Offset(ExternalReference ref0, ExternalReference ref1) {

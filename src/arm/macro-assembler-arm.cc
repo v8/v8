@@ -1681,39 +1681,6 @@ void MacroAssembler::CallStub(CodeStub* stub,
        false);
 }
 
-void TurboAssembler::CallStubDelayed(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET, al, CAN_INLINE_TARGET_ADDRESS,
-         false);
-  } else {
-    // Block constant pool for the call instruction sequence.
-    BlockConstPoolScope block_const_pool(this);
-
-#ifdef DEBUG
-    Label start;
-    bind(&start);
-#endif
-
-    // Call sequence on V7 or later may be :
-    //  movw  ip, #... @ call address low 16
-    //  movt  ip, #... @ call address high 16
-    //  blx   ip
-    //                      @ return address
-    // Or for pre-V7 or values that may be back-patched
-    // to avoid ICache flushes:
-    //  ldr   ip, [pc, #...] @ call address
-    //  blx   ip
-    //                      @ return address
-
-    mov(ip, Operand::EmbeddedCode(stub));
-    blx(ip, al);
-
-    DCHECK_EQ(kCallStubSize, SizeOfCodeGeneratedSince(&start));
-  }
-}
-
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }

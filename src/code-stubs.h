@@ -26,8 +26,7 @@ class CodeAssemblerState;
   /* --- PlatformCodeStubs --- */       \
   V(CallApiCallback)                    \
   V(CallApiGetter)                      \
-  V(JSEntry)                            \
-  V(ProfileEntryHook)
+  V(JSEntry)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -476,30 +475,6 @@ class JSEntryStub : public PlatformCodeStub {
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
 };
-
-// TODO(jgruber): Convert this stub into a builtin.
-class ProfileEntryHookStub : public PlatformCodeStub {
- public:
-  explicit ProfileEntryHookStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  // The profile entry hook function is not allowed to cause a GC.
-  bool SometimesSetsUpAFrame() override { return false; }
-
-  // Generates a call to the entry hook if it's enabled.
-  static void MaybeCallEntryHook(MacroAssembler* masm);
-  static void MaybeCallEntryHookDelayed(TurboAssembler* tasm, Zone* zone);
-
- private:
-  static void EntryHookTrampoline(intptr_t function,
-                                  intptr_t stack_pointer,
-                                  Isolate* isolate);
-
-  // ProfileEntryHookStub is called at the start of a function, so it has the
-  // same register set.
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunction)
-  DEFINE_PLATFORM_CODE_STUB(ProfileEntryHook, PlatformCodeStub);
-};
-
 
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
 #undef DEFINE_PLATFORM_CODE_STUB

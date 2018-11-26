@@ -512,7 +512,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   //  -- a3: argc
   //  -- s0: argv
   // -----------------------------------
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Enter an internal frame.
   {
@@ -787,8 +786,6 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // The function builds an interpreter frame.  See InterpreterFrameConstants in
 // frames.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   Register closure = a1;
   Register feedback_vector = a2;
 
@@ -2315,8 +2312,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   //
   // If argv_mode == kArgvInRegister:
   // a2: pointer to the first argument
-
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   if (argv_mode == kArgvInRegister) {
     // Move argv into the correct register.

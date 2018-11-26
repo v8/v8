@@ -459,11 +459,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   inline bool AllowThisStubCall(CodeStub* stub);
 
-  // Call a code stub. This expects {stub} to be zone-allocated, as it does not
-  // trigger generation of the stub's code object but instead files a
-  // HeapObjectRequest that will be fulfilled after code assembly.
-  void CallStubDelayed(CodeStub* stub);
-
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
   void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);

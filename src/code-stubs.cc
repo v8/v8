@@ -259,13 +259,5 @@ int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
   return handler_table_offset;
 }
 
-void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
-                                               intptr_t stack_pointer,
-                                               Isolate* isolate) {
-  FunctionEntryHook entry_hook = isolate->function_entry_hook();
-  DCHECK_NOT_NULL(entry_hook);
-  entry_hook(function, stack_pointer);
-}
-
 }  // namespace internal
 }  // namespace v8

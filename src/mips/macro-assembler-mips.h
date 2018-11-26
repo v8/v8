@@ -532,8 +532,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
-
-  void CallStubDelayed(CodeStub* stub, COND_ARGS);
 #undef COND_ARGS
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry

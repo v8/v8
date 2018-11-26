@@ -1028,17 +1028,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // forwards in memory after a target is resolved and written.
   static constexpr int kSpecialTargetSize = 0;
 
-  // The sizes of the call sequences emitted by MacroAssembler::Call.
-  //
-  // A "near" call is encoded in a BL immediate instruction:
-  //  bl target
-  //
-  // whereas a "far" call will be encoded like this:
-  //  ldr temp, =target
-  //  blr temp
-  static constexpr int kNearCallSize = 1 * kInstrSize;
-  static constexpr int kFarCallSize = 2 * kInstrSize;
-
   // Size of the generated code in bytes
   uint64_t SizeOfGeneratedCode() const {
     DCHECK((pc_ >= buffer_) && (pc_ < (buffer_ + buffer_size_)));

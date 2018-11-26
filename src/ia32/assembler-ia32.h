@@ -523,8 +523,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // and the return address
   static constexpr int kCallTargetAddressOffset = kPointerSize;
 
-  static constexpr int kCallInstructionLength = 5;
-
   // One byte opcode for test al, 0xXX.
   static constexpr byte kTestAlByte = 0xA8;
   // One byte opcode for nop.

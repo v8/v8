@@ -1354,11 +1354,6 @@ class Isolate final : private HiddenFactory {
 
   void DumpAndResetStats();
 
-  FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
-  void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
-    function_entry_hook_ = function_entry_hook;
-  }
-
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
   void set_force_slow_path(bool v) { force_slow_path_ = v; }
@@ -1794,7 +1789,6 @@ class Isolate final : private HiddenFactory {
   Debug* debug_ = nullptr;
   HeapProfiler* heap_profiler_ = nullptr;
   std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
-  FunctionEntryHook function_entry_hook_ = nullptr;
 
   const AstStringConstants* ast_string_constants_ = nullptr;
 

@@ -3187,14 +3187,6 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   has_fatal_error_ = false;
 
-  if (function_entry_hook() != nullptr) {
-    // When function entry hooking is in effect, we have to create the code
-    // stubs from scratch to get entry hooks, rather than loading the previously
-    // generated stubs from disk.
-    // If this assert fires, the initialization path has regressed.
-    DCHECK_NULL(des);
-  }
-
   // The initialization process does not handle memory exhaustion.
   AlwaysAllocateScope always_allocate(this);
 

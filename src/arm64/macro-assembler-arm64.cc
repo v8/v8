@@ -1711,23 +1711,6 @@ void TurboAssembler::AssertPositiveOrZero(Register value) {
   }
 }
 
-void TurboAssembler::CallStubDelayed(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-  } else {
-    BlockPoolsScope scope(this);
-#ifdef DEBUG
-    Label start;
-    Bind(&start);
-#endif
-    Operand operand = Operand::EmbeddedCode(stub);
-    near_call(operand.heap_object_request());
-    DCHECK_EQ(kNearCallSize, SizeOfCodeGeneratedSince(&start));
-  }
-}
-
 void MacroAssembler::CallStub(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
   Call(stub->GetCode(), RelocInfo::CODE_TARGET);
@@ -2068,8 +2051,6 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
   offset = offset / static_cast<int>(kInstrSize);
   DCHECK(IsNearCallOffset(offset));
   near_call(static_cast<int>(offset), RelocInfo::RUNTIME_ENTRY);
-
-  DCHECK_EQ(kNearCallSize + kInstrSize, SizeOfCodeGeneratedSince(&start));
 }
 
 void MacroAssembler::TryRepresentDoubleAsInt(Register as_int, VRegister value,

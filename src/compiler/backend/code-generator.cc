@@ -142,11 +142,6 @@ void CodeGenerator::AssembleCode() {
     AssembleSourcePosition(start_source_position());
   }
 
-  // Place function entry hook if requested to do so.
-  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    ProfileEntryHookStub::MaybeCallEntryHookDelayed(tasm(), zone());
-  }
-
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
   if (FLAG_debug_code & (info->code_kind() == Code::OPTIMIZED_FUNCTION ||
                          info->code_kind() == Code::BYTECODE_HANDLER)) {
@@ -154,9 +149,7 @@ void CodeGenerator::AssembleCode() {
     AssembleCodeStartRegisterCheck();
   }
 
-  // TODO(jupvfranco): This should be the first thing in the code, otherwise
-  // MaybeCallEntryHookDelayed may happen twice (for optimized and deoptimized
-  // code). We want to bailout only from JS functions, which are the only ones
+  // We want to bailout only from JS functions, which are the only ones
   // that are optimized.
   if (info->IsOptimizing()) {
     DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());

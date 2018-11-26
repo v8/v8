@@ -355,8 +355,6 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   // Expects five C++ function parameters.
   // - Object* new_target
   // - JSFunction* function
@@ -857,8 +855,6 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // The function builds an interpreter frame.  See InterpreterFrameConstants in
 // frames.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   Register closure = rdi;
   Register feedback_vector = rbx;
 
@@ -2403,8 +2399,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   //
   // If argv_mode == kArgvInRegister:
   // r15: pointer to the first argument
-
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
 #ifdef _WIN64
   // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9. It requires the

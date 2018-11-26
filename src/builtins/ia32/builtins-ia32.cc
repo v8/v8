@@ -367,8 +367,6 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -818,8 +816,6 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // The function builds an interpreter frame.  See InterpreterFrameConstants in
 // frames.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
   Register closure = edi;
 
   Register feedback_vector = ecx;
@@ -2531,8 +2527,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   DCHECK(!AreAliased(kRuntimeCallArgCountRegister, kRuntimeCallArgvRegister,
                      kRuntimeCallFunctionRegister, kContextRegister,
                      kJSFunctionRegister, kRootRegister));
-
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Reserve space on the stack for the three arguments passed to the call. If
   // result size is greater than can be returned in registers, also reserve

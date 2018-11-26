@@ -4824,23 +4824,6 @@ void MacroAssembler::CallStub(CodeStub* stub,
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
-void TurboAssembler::CallStubDelayed(CodeStub* stub, Condition cond,
-                                     Register r1, const Operand& r2,
-                                     BranchDelaySlot bd) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
-  } else {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, Operand::EmbeddedCode(stub));
-    Call(scratch);
-  }
-}
-
 void MacroAssembler::TailCallStub(CodeStub* stub,
                                   Condition cond,
                                   Register r1,

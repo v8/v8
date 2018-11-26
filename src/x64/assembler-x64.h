@@ -537,8 +537,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static constexpr int kCallTargetAddressOffset = 4;  // 32-bit displacement.
   // The length of call(kScratchRegister).
   static constexpr int kCallScratchRegisterInstructionLength = 3;
-  // The length of call(Immediate32).
-  static constexpr int kShortCallInstructionLength = 5;
   // The length of movq(kScratchRegister, address).
   static constexpr int kMoveAddressIntoScratchRegisterInstructionLength =
       2 + kPointerSize;

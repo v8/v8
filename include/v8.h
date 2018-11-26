@@ -7138,6 +7138,7 @@ class V8_EXPORT Isolate {
      * generated function.
      * An entry_hook can only be provided in no-snapshot builds; in snapshot
      * builds it must be nullptr.
+     * TODO(v8:8503): Remove entry_hook.
      */
     FunctionEntryHook entry_hook;
 

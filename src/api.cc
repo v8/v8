@@ -8246,15 +8246,6 @@ void Isolate::Initialize(Isolate* isolate,
   } else {
     i_isolate->set_snapshot_blob(i::Snapshot::DefaultSnapshotBlob());
   }
-  if (params.entry_hook) {
-#ifdef V8_USE_SNAPSHOT
-    // Setting a FunctionEntryHook is only supported in no-snapshot builds.
-    Utils::ApiCheck(
-        false, "v8::Isolate::New",
-        "Setting a FunctionEntryHook is only supported in no-snapshot builds.");
-#endif
-    i_isolate->set_function_entry_hook(params.entry_hook);
-  }
   auto code_event_handler = params.code_event_handler;
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (code_event_handler == nullptr && i::FLAG_gdbjit) {
@@ -8285,7 +8276,7 @@ void Isolate::Initialize(Isolate* isolate,
   SetResourceConstraints(i_isolate, params.constraints);
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(isolate);
-  if (params.entry_hook || !i::Snapshot::Initialize(i_isolate)) {
+  if (!i::Snapshot::Initialize(i_isolate)) {
     // If snapshot data was provided and we failed to deserialize it must
     // have been corrupted.
     if (i_isolate->snapshot_blob() != nullptr) {

@@ -1293,6 +1293,7 @@ int TryInlineTruncateDoubleToILatency() {
 int CallStubDelayedLatency() { return 1 + CallLatency(); }
 
 int TruncateDoubleToIDelayedLatency() {
+  // TODO(mips): This no longer reflects how TruncateDoubleToI is called.
   return TryInlineTruncateDoubleToILatency() + 1 + SubuLatency(false) +
          Sdc1Latency() + CallStubDelayedLatency() + AdduLatency(false) + 1;
 }
