@@ -11382,6 +11382,7 @@ void String::WriteToFlat(String* src,
                          sinkchar* sink,
                          int f,
                          int t) {
+  DisallowHeapAllocation no_gc;
   String* source = src;
   int from = f;
   int to = t;
@@ -12361,6 +12362,7 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
 }
 
 uint32_t String::ComputeAndSetHash(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
   // Should only be called if hash code has not yet been computed.
   DCHECK(!HasHashCode());
 
@@ -12386,6 +12388,7 @@ bool String::ComputeArrayIndex(uint32_t* index) {
 
 
 bool String::SlowAsArrayIndex(uint32_t* index) {
+  DisallowHeapAllocation no_gc;
   if (length() <= kMaxCachedArrayIndexLength) {
     Hash();  // force computation of hash code
     uint32_t field = hash_field();
@@ -16751,6 +16754,7 @@ Handle<String> SeqOneByteSubStringKey::AsHandle(Isolate* isolate) {
 
 
 bool SeqOneByteSubStringKey::IsMatch(Object* string) {
+  DisallowHeapAllocation no_gc;
   Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
   return String::cast(string)->IsOneByteEqualTo(chars);
 }

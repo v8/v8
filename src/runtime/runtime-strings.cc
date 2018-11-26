@@ -327,6 +327,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     Handle<SeqOneByteString> answer;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawOneByteString(length));
+    DisallowHeapAllocation no_gc;
     StringBuilderConcatHelper(*special, answer->GetChars(),
                               FixedArray::cast(array->elements()),
                               array_length);
@@ -335,6 +336,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     Handle<SeqTwoByteString> answer;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawTwoByteString(length));
+    DisallowHeapAllocation no_gc;
     StringBuilderConcatHelper(*special, answer->GetChars(),
                               FixedArray::cast(array->elements()),
                               array_length);
@@ -552,6 +554,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
     Handle<SeqOneByteString> result = isolate->factory()
                                           ->NewRawOneByteString(string_length)
                                           .ToHandleChecked();
+    DisallowHeapAllocation no_gc;
     JoinSparseArrayWithSeparator<uint8_t>(
         FixedArray::cast(elements_array->elements()), elements_length,
         array_length, *separator,
@@ -561,6 +564,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
     Handle<SeqTwoByteString> result = isolate->factory()
                                           ->NewRawTwoByteString(string_length)
                                           .ToHandleChecked();
+    DisallowHeapAllocation no_gc;
     JoinSparseArrayWithSeparator<uc16>(
         FixedArray::cast(elements_array->elements()), elements_length,
         array_length, *separator,

@@ -257,6 +257,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
     buffer_start_ = &buffer_[0];
     buffer_cursor_ = buffer_start_;
 
+    DisallowHeapAllocation no_gc;
     Range<uint8_t> range =
         byte_stream_.GetDataAt(position, runtime_call_stats());
     if (range.length() == 0) {
@@ -310,6 +311,7 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
   bool ReadBlock() final {
     size_t position = pos();
     buffer_pos_ = position;
+    DisallowHeapAllocation no_gc;
     Range<uint16_t> range =
         byte_stream_.GetDataAt(position, runtime_call_stats());
     buffer_start_ = range.start;

@@ -1787,6 +1787,7 @@ TEST(OneToTwoByteStringCopy) {
       isolate->factory()->NewStringFromTwoByte(str).ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
+  DisallowHeapAllocation no_gc;
   CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[0],
            Handle<SeqTwoByteString>::cast(string2)->GetChars()[0]);
   CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[1],
@@ -1818,6 +1819,7 @@ TEST(OneToOneByteStringCopy) {
       isolate->factory()->NewStringFromOneByte(str).ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
+  DisallowHeapAllocation no_gc;
   CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[0],
            Handle<SeqOneByteString>::cast(string2)->GetChars()[0]);
   CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[1],
@@ -1849,6 +1851,7 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
       isolate->factory()->NewStringFromOneByte(str).ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
+  DisallowHeapAllocation no_gc;
   CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[0],
            Handle<SeqOneByteString>::cast(string2)->GetChars()[3]);
   CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[1],
@@ -1880,6 +1883,7 @@ TEST(TwoToTwoByteStringCopy) {
       isolate->factory()->NewStringFromTwoByte(str2).ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
+  DisallowHeapAllocation no_gc;
   CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[0],
            Handle<SeqTwoByteString>::cast(string2)->GetChars()[0]);
   CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[1],

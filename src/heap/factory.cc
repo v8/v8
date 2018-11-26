@@ -664,6 +664,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
       NewRawTwoByteString(non_ascii_start + utf16_length, pretenure), String);
 
   // Copy ASCII portion.
+  DisallowHeapAllocation no_gc;
   uint16_t* data = result->GetChars();
   for (int i = 0; i < non_ascii_start; i++) {
     *data++ = *ascii_data++;
@@ -677,23 +678,31 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
 MaybeHandle<String> Factory::NewStringFromUtf8SubString(
     Handle<SeqOneByteString> str, int begin, int length,
     PretenureFlag pretenure) {
-  const char* ascii_data =
-      reinterpret_cast<const char*>(str->GetChars() + begin);
-  int non_ascii_start = String::NonAsciiStart(ascii_data, length);
+  Access<UnicodeCache::Utf8Decoder> decoder(
+      isolate()->unicode_cache()->utf8_decoder());
+  int non_ascii_start;
+  int utf16_length = 0;
+  {
+    DisallowHeapAllocation no_gc;
+    const char* ascii_data =
+        reinterpret_cast<const char*>(str->GetChars() + begin);
+    non_ascii_start = String::NonAsciiStart(ascii_data, length);
+    if (non_ascii_start < length) {
+      // Non-ASCII and we need to decode.
+      auto non_ascii = Vector<const char>(ascii_data + non_ascii_start,
+                                          length - non_ascii_start);
+      decoder->Reset(non_ascii);
+
+      utf16_length = static_cast<int>(decoder->Utf16Length());
+    }
+  }
+
   if (non_ascii_start >= length) {
     // If the string is ASCII, we can just make a substring.
     // TODO(v8): the pretenure flag is ignored in this case.
     return NewSubString(str, begin, begin + length);
   }
 
-  // Non-ASCII and we need to decode.
-  auto non_ascii = Vector<const char>(ascii_data + non_ascii_start,
-                                      length - non_ascii_start);
-  Access<UnicodeCache::Utf8Decoder> decoder(
-      isolate()->unicode_cache()->utf8_decoder());
-  decoder->Reset(non_ascii);
-
-  int utf16_length = static_cast<int>(decoder->Utf16Length());
   DCHECK_GT(utf16_length, 0);
 
   // Allocate string.
@@ -704,9 +713,11 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
 
   // Update pointer references, since the original string may have moved after
   // allocation.
-  ascii_data = reinterpret_cast<const char*>(str->GetChars() + begin);
-  non_ascii = Vector<const char>(ascii_data + non_ascii_start,
-                                 length - non_ascii_start);
+  DisallowHeapAllocation no_gc;
+  const char* ascii_data =
+      reinterpret_cast<const char*>(str->GetChars() + begin);
+  auto non_ascii = Vector<const char>(ascii_data + non_ascii_start,
+                                      length - non_ascii_start);
 
   // Copy ASCII portion.
   uint16_t* data = result->GetChars();
@@ -728,12 +739,14 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
                                NewRawOneByteString(length, pretenure), String);
+    DisallowHeapAllocation no_gc;
     CopyChars(result->GetChars(), string, length);
     return result;
   } else {
     Handle<SeqTwoByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
                                NewRawTwoByteString(length, pretenure), String);
+    DisallowHeapAllocation no_gc;
     CopyChars(result->GetChars(), string, length);
     return result;
   }
@@ -828,6 +841,7 @@ Handle<String> Factory::AllocateTwoByteInternalizedString(
   answer->set_length(str.length());
   answer->set_hash_field(hash_field);
   DCHECK_EQ(size, answer->Size());
+  DisallowHeapAllocation no_gc;
 
   // Fill in the characters.
   MemCopy(answer->GetChars(), str.start(), str.length() * kUC16Size);
@@ -861,6 +875,7 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
   answer->set_length(chars);
   answer->set_hash_field(hash_field);
   DCHECK_EQ(size, answer->Size());
+  DisallowHeapAllocation no_gc;
 
   if (is_one_byte) {
     WriteOneByteData(t, SeqOneByteString::cast(*answer)->GetChars(), chars);
@@ -876,6 +891,7 @@ Handle<String> Factory::NewInternalizedStringFromUtf8(Vector<const char> str,
   if (IsOneByte(str, chars)) {
     Handle<SeqOneByteString> result =
         AllocateRawOneByteInternalizedString(str.length(), hash_field);
+    DisallowHeapAllocation no_allocation;
     MemCopy(result->GetChars(), str.start(), str.length());
     return result;
   }
@@ -886,6 +902,7 @@ Handle<String> Factory::NewOneByteInternalizedString(Vector<const uint8_t> str,
                                                      uint32_t hash_field) {
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), hash_field);
+  DisallowHeapAllocation no_allocation;
   MemCopy(result->GetChars(), str.start(), str.length());
   return result;
 }
@@ -895,6 +912,7 @@ Handle<String> Factory::NewOneByteInternalizedSubString(
     uint32_t hash_field) {
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(length, hash_field);
+  DisallowHeapAllocation no_allocation;
   MemCopy(result->GetChars(), string->GetChars() + offset, length);
   return result;
 }
@@ -1052,6 +1070,7 @@ static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
                                     1));  // because of this.
     Handle<SeqOneByteString> str =
         isolate->factory()->NewRawOneByteString(2).ToHandleChecked();
+    DisallowHeapAllocation no_allocation;
     uint8_t* dest = str->GetChars();
     dest[0] = static_cast<uint8_t>(c1);
     dest[1] = static_cast<uint8_t>(c2);
@@ -1059,6 +1078,7 @@ static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
   } else {
     Handle<SeqTwoByteString> str =
         isolate->factory()->NewRawTwoByteString(2).ToHandleChecked();
+    DisallowHeapAllocation no_allocation;
     uc16* dest = str->GetChars();
     dest[0] = c1;
     dest[1] = c2;
@@ -1188,6 +1208,7 @@ Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
 
   Handle<SeqTwoByteString> str =
       isolate()->factory()->NewRawTwoByteString(2).ToHandleChecked();
+  DisallowHeapAllocation no_allocation;
   uc16* dest = str->GetChars();
   dest[0] = lead;
   dest[1] = trail;
@@ -1221,15 +1242,15 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
     if (str->IsOneByteRepresentation()) {
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length).ToHandleChecked();
-      uint8_t* dest = result->GetChars();
       DisallowHeapAllocation no_gc;
+      uint8_t* dest = result->GetChars();
       String::WriteToFlat(*str, dest, begin, end);
       return result;
     } else {
       Handle<SeqTwoByteString> result =
           NewRawTwoByteString(length).ToHandleChecked();
-      uc16* dest = result->GetChars();
       DisallowHeapAllocation no_gc;
+      uc16* dest = result->GetChars();
       String::WriteToFlat(*str, dest, begin, end);
       return result;
     }

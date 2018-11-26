@@ -239,11 +239,13 @@ class SeqOneByteSubStringKey : public StringTableKey {
 #endif
   SeqOneByteSubStringKey(Isolate* isolate, Handle<SeqOneByteString> string,
                          int from, int length)
-      : StringTableKey(StringHasher::HashSequentialString(
-            string->GetChars() + from, length, isolate->heap()->HashSeed())),
-        string_(string),
-        from_(from),
-        length_(length) {
+      : StringTableKey(0), string_(string), from_(from), length_(length) {
+    // We have to set the hash later.
+    DisallowHeapAllocation no_gc;
+    uint32_t hash = StringHasher::HashSequentialString(
+        string->GetChars() + from, length, isolate->heap()->HashSeed());
+    set_hash_field(hash);
+
     DCHECK_LE(0, length_);
     DCHECK_LE(from_ + length_, string_->length());
     DCHECK(string_->IsSeqOneByteString());
@@ -384,6 +386,7 @@ String* String::GetUnderlying() {
 template <class Visitor>
 ConsString* String::VisitFlat(Visitor* visitor, String* string,
                               const int offset) {
+  DisallowHeapAllocation no_gc;
   int slice_offset = offset;
   const int length = string->length();
   DCHECK(offset <= length);
@@ -474,6 +477,7 @@ Address SeqOneByteString::GetCharsAddress() {
 }
 
 uint8_t* SeqOneByteString::GetChars() {
+  DCHECK(!AllowHeapAllocation::IsAllowed());
   return reinterpret_cast<uint8_t*>(GetCharsAddress());
 }
 
@@ -482,6 +486,7 @@ Address SeqTwoByteString::GetCharsAddress() {
 }
 
 uc16* SeqTwoByteString::GetChars() {
+  DCHECK(!AllowHeapAllocation::IsAllowed());
   return reinterpret_cast<uc16*>(FIELD_ADDR(this, kHeaderSize));
 }
 

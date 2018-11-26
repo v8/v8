@@ -154,6 +154,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     Isolate* isolate, int start_index, bool is_direct_call,
     Address* return_address, Code re_code, String** subject,
     const byte** input_start, const byte** input_end) {
+  AllowHeapAllocation allow_allocation;
   DCHECK(re_code->raw_instruction_start() <= *return_address);
   DCHECK(*return_address <= re_code->raw_instruction_end());
   int return_value = 0;
@@ -249,6 +250,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
   // String is now either Sequential or External
   int char_size_shift = is_one_byte ? 0 : 1;
 
+  DisallowHeapAllocation no_gc;
   const byte* input_start =
       StringCharacterPosition(subject_ptr, start_offset + slice_offset);
   int byte_length = char_length << char_size_shift;
@@ -287,7 +289,10 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
 
   if (result == EXCEPTION && !isolate->has_pending_exception()) {
     // We detected a stack overflow (on the backtrack stack) in RegExp code,
-    // but haven't created the exception yet.
+    // but haven't created the exception yet. Additionally, we allow heap
+    // allocation because even though it invalidates {input_start} and
+    // {input_end}, we are about to return anyway.
+    AllowHeapAllocation allow_allocation;
     isolate->StackOverflow();
   }
   return static_cast<Result>(result);

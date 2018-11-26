@@ -1336,6 +1336,7 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
 
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
+  DisallowHeapAllocation no_gc;
   memcpy(string->GetChars(), bytes.begin(), bytes.length());
   return string;
 }

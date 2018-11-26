@@ -109,6 +109,7 @@ BUILTIN(StringFromCodePoint) {
       isolate->factory()->NewRawTwoByteString(
           static_cast<int>(one_byte_buffer.size() + two_byte_buffer.size())));
 
+  DisallowHeapAllocation no_gc;
   CopyChars(result->GetChars(), one_byte_buffer.data(), one_byte_buffer.size());
   CopyChars(result->GetChars() + one_byte_buffer.size(), two_byte_buffer.data(),
             two_byte_buffer.size());
@@ -467,6 +468,7 @@ V8_WARN_UNUSED_RESULT static Object* ConvertCase(
     String::FlatContent flat_content = s->GetFlatContent();
     DCHECK(flat_content.IsFlat());
     bool has_changed_character = false;
+    DisallowHeapAllocation no_gc;
     int index_to_first_unprocessed = FastAsciiConvert<Converter::kIsToLower>(
         reinterpret_cast<char*>(result->GetChars()),
         reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
