@@ -901,6 +901,15 @@ class ParserBase {
     }
   }
 
+  void ValidatePattern(ExpressionT expression) {
+    if (expression->is_parenthesized()) {
+      impl()->ReportMessageAt(
+          Scanner::Location(expression->position(), end_position()),
+          MessageTemplate::kInvalidDestructuringTarget);
+    }
+    ValidatePattern();
+  }
+
   void ValidateFormalParameters(LanguageMode language_mode,
                                 const FormalParametersT& parameters,
                                 bool allow_duplicates) {
@@ -2635,13 +2644,8 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   }
 
   // Destructuring assignmment.
-  if (V8_UNLIKELY(expression->IsValidPattern() && op == Token::ASSIGN)) {
-    if (expression->is_parenthesized()) {
-      impl()->ReportMessageAt(
-          Scanner::Location(expression->position(), end_position()),
-          MessageTemplate::kInvalidDestructuringTarget);
-    }
-    ValidatePattern();
+  if (V8_UNLIKELY(expression->IsPattern() && op == Token::ASSIGN)) {
+    ValidatePattern(expression);
 
     // This is definitely not an expression so don't accumulate
     // expression-related errors.
@@ -4381,7 +4385,7 @@ ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
 template <typename Impl>
 void ParserBase<Impl>::CheckArrowFormalParameter(ExpressionT formal) {
   if (formal->is_parenthesized() ||
-      !(impl()->IsIdentifier(formal) || formal->IsValidPattern() ||
+      !(impl()->IsIdentifier(formal) || formal->IsPattern() ||
         formal->IsAssignment())) {
     classifier()->RecordBindingPatternError(
         Scanner::Location(formal->position(), end_position()),
@@ -4413,7 +4417,7 @@ void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
     return;
   }
   if (expression->is_parenthesized() ||
-      (!expression->IsValidPattern() && !expression->IsAssignment())) {
+      (!expression->IsPattern() && !expression->IsAssignment())) {
     classifier()->RecordPatternError(
         Scanner::Location(begin, end),
         MessageTemplate::kInvalidDestructuringTarget);
@@ -5361,10 +5365,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     int lhs_end_pos = end_position();
 
     bool is_for_each = CheckInOrOf(&for_info.mode);
-    bool is_destructuring = is_for_each && expression->IsValidPattern();
+    bool is_destructuring = is_for_each && expression->IsPattern();
 
     if (is_destructuring) {
-      ValidatePattern();
+      ValidatePattern(expression);
     } else {
       ValidateExpression();
     }
@@ -5496,8 +5500,13 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     ForInfo* for_info, ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels) {
   // Initializer is reference followed by in/of.
-  if (V8_UNLIKELY(!expression->IsValidPattern() &&
-                  !IsValidReferenceExpression(expression))) {
+  if (expression->IsPattern()) {
+    if (expression->is_parenthesized()) {
+      impl()->ReportMessageAt(
+          Scanner::Location(expression->position(), end_position()),
+          MessageTemplate::kInvalidDestructuringTarget);
+    }
+  } else if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
     expression = RewriteInvalidReferenceExpression(
         expression, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
         kSyntaxError);
@@ -5698,8 +5707,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     ExpressionT lhs = each_variable = ParseLeftHandSideExpression();
     int lhs_end_pos = end_position();
 
-    if (lhs->IsValidPattern()) {
-      ValidatePattern();
+    if (lhs->IsPattern()) {
+      ValidatePattern(lhs);
     } else {
       ValidateExpression();
       if (V8_UNLIKELY(!IsValidReferenceExpression(lhs))) {
