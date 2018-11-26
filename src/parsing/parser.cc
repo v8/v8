@@ -2497,7 +2497,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // immediately). bar can be parsed lazily, but we need to parse it in a mode
   // that tracks unresolved variables.
   DCHECK_IMPLIES(parse_lazily(), FLAG_lazy);
-  DCHECK_IMPLIES(parse_lazily(), allow_lazy_);
+  DCHECK_IMPLIES(parse_lazily(), has_error() || allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
 
   const bool is_lazy =
