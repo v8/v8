@@ -2803,6 +2803,7 @@ class InitializerRewriter final
 };
 
 void Parser::RewriteParameterInitializer(Expression* expr) {
+  if (has_error()) return;
   InitializerRewriter rewriter(stack_limit_, expr, this);
   rewriter.Run();
 }
