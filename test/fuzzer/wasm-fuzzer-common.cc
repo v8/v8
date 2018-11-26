@@ -193,19 +193,21 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
        << glob.mutability << ");\n";
   }
 
+  for (const FunctionSig* sig : module->signatures) {
+    os << "  builder.addType(makeSig(" << PrintParameters(sig) << ", "
+       << PrintReturns(sig) << "));\n";
+  }
+
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
 
   for (const WasmFunction& func : module->functions) {
     Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
     os << "  // Generate function " << (func.func_index + 1) << " (out of "
        << module->functions.size() << ").\n";
-    // Generate signature.
-    os << "  sig" << (func.func_index + 1) << " = makeSig("
-       << PrintParameters(func.sig) << ", " << PrintReturns(func.sig) << ");\n";
 
     // Add function.
-    os << "  builder.addFunction(undefined, sig" << (func.func_index + 1)
-       << ")\n";
+    os << "  builder.addFunction(undefined, " << func.sig_index
+       << " /* sig */)\n";
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);
