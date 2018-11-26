@@ -220,7 +220,7 @@ SlotCallbackResult Scavenger::RememberedSetEntryNeeded(
 bool Scavenger::HandleLargeObject(Map map, HeapObject* object,
                                   int object_size) {
   if (V8_UNLIKELY(FLAG_young_generation_large_objects &&
-                  object_size > kMaxNewSpaceHeapObjectSize)) {
+                  object_size > kMaxRegularHeapObjectSize)) {
     DCHECK_EQ(NEW_LO_SPACE,
               MemoryChunk::FromHeapObject(object)->owner()->identity());
     if (object->map_slot().Release_CompareAndSwap(

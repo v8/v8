@@ -5735,13 +5735,9 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   Isolate* isolate = heap->isolate();
   if (!isolate->serializer_enabled()) return;
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
-  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
-  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
-  CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
-
-  Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
-  chunk = MemoryChunk::FromAddress(array_small->address());
+  // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
+  Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(array_small->address());
   CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
 
@@ -5766,14 +5762,11 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
+  if (!isolate->serializer_enabled()) return;
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
-  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
-  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
-  CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
-
-  Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
-  chunk = MemoryChunk::FromAddress(array_small->address());
+  // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
+  Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(array_small->address());
   CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
 

@@ -177,9 +177,10 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   IncrementObjectCounters();
 #endif
 
-  bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
+  bool large_object = !FLAG_young_generation_large_objects &&
+                      size_in_bytes > kMaxRegularHeapObjectSize;
   bool new_large_object = FLAG_young_generation_large_objects &&
-                          size_in_bytes > kMaxNewSpaceHeapObjectSize;
+                          size_in_bytes > kMaxRegularHeapObjectSize;
   HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
