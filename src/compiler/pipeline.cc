@@ -2118,7 +2118,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
     json_of << "{\"function\":\"" << info.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
-  // TODO(rossberg): Should this really be untyped?
+
   pipeline.RunPrintAndVerify("machine", true);
   pipeline.ComputeScheduledGraph();
 
@@ -2207,7 +2207,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForWasmHeapStub(
     json_of << "{\"function\":\"" << info.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
-  // TODO(rossberg): Should this really be untyped?
+
   pipeline.RunPrintAndVerify("machine", true);
   pipeline.ComputeScheduledGraph();
 

@@ -1607,7 +1607,16 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
                 native_module->import_wrapper_cache()->GetOrCompile(
                     isolate_, kind, expected_sig);
             ImportedFunctionEntry entry(instance, func_index);
-            entry.SetWasmToJs(isolate_, js_receiver, wasm_code);
+            if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
+              // Wasm to JS wrappers are treated specially in the import table.
+              entry.SetWasmToJs(isolate_, js_receiver, wasm_code);
+            } else {
+              // Wasm math intrinsics are compiled as regular Wasm functions.
+              DCHECK(kind >=
+                         compiler::WasmImportCallKind::kFirstMathIntrinsic &&
+                     kind <= compiler::WasmImportCallKind::kLastMathIntrinsic);
+              entry.SetWasmToWasm(*instance, wasm_code->instruction_start());
+            }
             break;
           }
         }

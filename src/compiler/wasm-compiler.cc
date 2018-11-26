@@ -5058,13 +5058,65 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
   // and whether it has a sloppy receiver.
   if (target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(target);
-    if (IsClassConstructor(function->shared()->kind())) {
+    SharedFunctionInfo* shared = function->shared();
+
+// Check for math intrinsics.
+#define COMPARE_SIG_FOR_BUILTIN(name)                                         \
+  {                                                                           \
+    wasm::FunctionSig* sig = wasm::WasmOpcodes::Signature(wasm::kExpr##name); \
+    if (!sig) sig = wasm::WasmOpcodes::AsmjsSignature(wasm::kExpr##name);     \
+    DCHECK_NOT_NULL(sig);                                                     \
+    if (*expected_sig == *sig) return WasmImportCallKind::k##name;            \
+  }
+#define COMPARE_SIG_FOR_BUILTIN_F64(name) \
+  case Builtins::kMath##name:             \
+    COMPARE_SIG_FOR_BUILTIN(F64##name);   \
+    break;
+#define COMPARE_SIG_FOR_BUILTIN_F32_F64(name) \
+  case Builtins::kMath##name:                 \
+    COMPARE_SIG_FOR_BUILTIN(F64##name);       \
+    COMPARE_SIG_FOR_BUILTIN(F32##name);       \
+    break;
+
+    if (FLAG_wasm_math_intrinsics && shared->HasBuiltinId()) {
+      switch (shared->builtin_id()) {
+        COMPARE_SIG_FOR_BUILTIN_F64(Acos);
+        COMPARE_SIG_FOR_BUILTIN_F64(Asin);
+        COMPARE_SIG_FOR_BUILTIN_F64(Atan);
+        COMPARE_SIG_FOR_BUILTIN_F64(Cos);
+        COMPARE_SIG_FOR_BUILTIN_F64(Sin);
+        COMPARE_SIG_FOR_BUILTIN_F64(Tan);
+        COMPARE_SIG_FOR_BUILTIN_F64(Exp);
+        COMPARE_SIG_FOR_BUILTIN_F64(Log);
+        COMPARE_SIG_FOR_BUILTIN_F64(Atan2);
+        //===========================================================
+        // TODO(8505): Math.pow for wasm does not match JS.
+        //        COMPARE_SIG_FOR_BUILTIN_F64(Pow);
+        //===========================================================
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Min);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Max);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Abs);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Ceil);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Floor);
+        COMPARE_SIG_FOR_BUILTIN_F32_F64(Sqrt);
+        case Builtins::kMathFround:
+          COMPARE_SIG_FOR_BUILTIN(F32ConvertF64);
+          break;
+        default:
+          break;
+      }
+    }
+
+#undef COMPARE_SIG_FOR_BUILTIN
+#undef COMPARE_SIG_FOR_BUILTIN_F64
+#undef COMPARE_SIG_FOR_BUILTIN_F32_F64
+
+    if (IsClassConstructor(shared->kind())) {
       // Class constructor will throw anyway.
       return WasmImportCallKind::kUseCallBuiltin;
     }
-    bool sloppy = is_sloppy(function->shared()->language_mode()) &&
-                  !function->shared()->native();
-    if (function->shared()->internal_formal_parameter_count() ==
+    bool sloppy = is_sloppy(shared->language_mode()) && !shared->native();
+    if (shared->internal_formal_parameter_count() ==
         expected_sig->parameter_count()) {
       return sloppy ? WasmImportCallKind::kJSFunctionArityMatchSloppy
                     : WasmImportCallKind::kJSFunctionArityMatch;
@@ -5076,6 +5128,114 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
   return WasmImportCallKind::kUseCallBuiltin;
 }
 
+wasm::WasmOpcode GetMathIntrinsicOpcode(WasmImportCallKind kind,
+                                        const char** name_ptr) {
+#define CASE(name)                          \
+  case WasmImportCallKind::k##name:         \
+    *name_ptr = "WasmMathIntrinsic:" #name; \
+    return wasm::kExpr##name
+  switch (kind) {
+    CASE(F64Acos);
+    CASE(F64Asin);
+    CASE(F64Atan);
+    CASE(F64Cos);
+    CASE(F64Sin);
+    CASE(F64Tan);
+    CASE(F64Exp);
+    CASE(F64Log);
+    CASE(F64Atan2);
+    CASE(F64Pow);
+    CASE(F64Ceil);
+    CASE(F64Floor);
+    CASE(F64Sqrt);
+    CASE(F64Min);
+    CASE(F64Max);
+    CASE(F64Abs);
+    CASE(F32Min);
+    CASE(F32Max);
+    CASE(F32Abs);
+    CASE(F32Ceil);
+    CASE(F32Floor);
+    CASE(F32Sqrt);
+    CASE(F32ConvertF64);
+    default:
+      UNREACHABLE();
+      return wasm::kExprUnreachable;
+  }
+#undef CASE
+}
+
+wasm::WasmCode* CompileWasmMathIntrinsic(Isolate* isolate,
+                                         wasm::NativeModule* native_module,
+                                         WasmImportCallKind kind,
+                                         wasm::FunctionSig* sig) {
+  DCHECK_EQ(1, sig->return_count());
+
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "CompileWasmMathIntrinsic");
+
+  Zone zone(isolate->allocator(), ZONE_NAME);
+
+  // Compile a WASM function with a single bytecode and let TurboFan
+  // generate either inlined machine code or a call to a helper.
+  SourcePositionTable* source_positions = nullptr;
+  MachineGraph* mcgraph = new (&zone) MachineGraph(
+      new (&zone) Graph(&zone), new (&zone) CommonOperatorBuilder(&zone),
+      new (&zone) MachineOperatorBuilder(
+          &zone, MachineType::PointerRepresentation(),
+          InstructionSelector::SupportedMachineOperatorFlags(),
+          InstructionSelector::AlignmentRequirements()));
+
+  wasm::CompilationEnv env(
+      native_module->module(), wasm::UseTrapHandler::kNoTrapHandler,
+      wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport,
+      wasm::LowerSimd::kNoLowerSimd);
+
+  WasmGraphBuilder builder(&env, mcgraph->zone(), mcgraph, sig,
+                           source_positions);
+
+  // Set up the graph start.
+  Node* start = builder.Start(static_cast<int>(sig->parameter_count() + 1 + 1));
+  Node* effect = start;
+  Node* control = start;
+  builder.set_effect_ptr(&effect);
+  builder.set_control_ptr(&control);
+  builder.set_instance_node(builder.Param(wasm::kWasmInstanceParameterIndex));
+
+  // Generate either a unop or a binop.
+  Node* result = nullptr;
+  const char* debug_name = "WasmMathIntrinsic";
+  auto opcode = GetMathIntrinsicOpcode(kind, &debug_name);
+  switch (sig->parameter_count()) {
+    case 1:
+      result = builder.Unop(opcode, builder.Param(1));
+      break;
+    case 2:
+      result = builder.Binop(opcode, builder.Param(1), builder.Param(2));
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  builder.Return(result);
+
+  // Run the compiler pipeline to generate machine code.
+  auto call_descriptor = GetWasmCallDescriptor(&zone, sig);
+  if (mcgraph->machine()->Is32()) {
+    call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
+  }
+
+  wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
+      isolate->wasm_engine(), call_descriptor, mcgraph, Code::WASM_FUNCTION,
+      wasm::WasmCode::kFunction, debug_name, AssemblerOptions::Default(isolate),
+      native_module, source_positions);
+  CHECK_NOT_NULL(wasm_code);
+  // TODO(titzer): add counters for math intrinsic code size / allocation
+
+  return wasm_code;
+}
+
 wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
                                              wasm::NativeModule* native_module,
                                              WasmImportCallKind kind,
@@ -5083,6 +5243,13 @@ wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
                                              bool source_positions) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
+
+  // Check for math intrinsics first.
+  if (FLAG_wasm_math_intrinsics &&
+      kind >= WasmImportCallKind::kFirstMathIntrinsic &&
+      kind <= WasmImportCallKind::kLastMathIntrinsic) {
+    return CompileWasmMathIntrinsic(isolate, native_module, kind, sig);
+  }
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "CompileWasmImportCallWrapper");
