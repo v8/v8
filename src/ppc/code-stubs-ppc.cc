@@ -180,6 +180,13 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
   // GC safe. The RegExp backend also relies on this.
   __ mflr(r0);
   __ StoreP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
+
+  if (ABI_USES_FUNCTION_DESCRIPTORS && FLAG_embedded_builtins) {
+    // AIX/PPC64BE Linux use a function descriptor;
+    __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(ip, kPointerSize));
+    __ LoadP(ip, MemOperand(ip, 0));  // Instruction address
+  }
+
   __ Call(ip);  // Call the C++ function.
   __ LoadP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
   __ mtlr(r0);
@@ -201,7 +208,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
       return;
     }
   }
-  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+  if (ABI_USES_FUNCTION_DESCRIPTORS && !FLAG_embedded_builtins) {
     // AIX/PPC64BE Linux use a function descriptor.
     __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(target, kPointerSize));
     __ LoadP(ip, MemOperand(target, 0));  // Instruction address

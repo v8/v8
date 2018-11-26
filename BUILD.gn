@@ -86,8 +86,7 @@ declare_args() {
   v8_enable_fast_mksnapshot = false
 
   # Enable embedded builtins.
-  # TODO(v8:8043): Support aix.
-  v8_enable_embedded_builtins = !is_aix
+  v8_enable_embedded_builtins = true
 
   # Build-time flag for enabling nojit mode.
   # TODO(v8:7777): Remove the build-time flag once the --jitless runtime flag

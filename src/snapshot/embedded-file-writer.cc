@@ -54,6 +54,17 @@ const char* DirectiveAsString(DataDirective directive) {
     default:
       UNREACHABLE();
   }
+#elif defined(V8_OS_AIX)
+  switch (directive) {
+    case kByte:
+      return ".byte";
+    case kLong:
+      return ".long";
+    case kQuad:
+      return ".llong";
+    default:
+      UNREACHABLE();
+  }
 #else
   switch (directive) {
     case kByte:
@@ -152,16 +163,11 @@ int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
 
 #elif defined(V8_OS_AIX)
 
-// TODO(aix): Update custom logic previously contained in section header macros.
-// See
-// https://cs.chromium.org/chromium/src/v8/src/snapshot/macros.h?l=81&rcl=31b2546b348e864539ade15897eac971b3c0e402
-
 void PlatformDependentEmbeddedFileWriter::SectionText() {
   fprintf(fp_, ".csect .text[PR]\n");
 }
 
 void PlatformDependentEmbeddedFileWriter::SectionData() {
-  // TODO(aix): Confirm and update if needed.
   fprintf(fp_, ".csect .data[RW]\n");
 }
 
@@ -172,15 +178,16 @@ void PlatformDependentEmbeddedFileWriter::SectionRoData() {
 void PlatformDependentEmbeddedFileWriter::DeclareUint32(const char* name,
                                                         uint32_t value) {
   DeclareSymbolGlobal(name);
-  DeclareLabel(name);
+  fprintf(fp_, ".align 2\n");
+  fprintf(fp_, "%s:\n", name);
   IndentedDataDirective(kLong);
-  fprintf(fp_, "%d", value);
+  fprintf(fp_, "%d\n", value);
   Newline();
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclarePointerToSymbol(
     const char* name, const char* target) {
-  DeclareSymbolGlobal(name);
+  AlignToCodeAlignment();
   DeclareLabel(name);
   fprintf(fp_, "  %s %s\n", DirectiveAsString(PointerSizeDirective()), target);
   Newline();
@@ -192,7 +199,7 @@ void PlatformDependentEmbeddedFileWriter::DeclareSymbolGlobal(
 }
 
 void PlatformDependentEmbeddedFileWriter::AlignToCodeAlignment() {
-  fprintf(fp_, ".balign 32\n");
+  fprintf(fp_, ".align 5\n");
 }
 
 void PlatformDependentEmbeddedFileWriter::Comment(const char* string) {
@@ -200,12 +207,19 @@ void PlatformDependentEmbeddedFileWriter::Comment(const char* string) {
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
+  DeclareSymbolGlobal(name);
   fprintf(fp_, "%s:\n", name);
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
-  DeclareLabel(name);
+  Newline();
+  DeclareSymbolGlobal(name);
+  fprintf(fp_, ".csect %s[DS]\n", name); // function descriptor
+  fprintf(fp_, "%s:\n", name);
+  fprintf(fp_, ".llong .%s, 0, 0\n", name);
+  SectionText();
+  fprintf(fp_, ".%s:\n", name);
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionEnd(const char* name) {

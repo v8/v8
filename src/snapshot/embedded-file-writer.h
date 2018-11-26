@@ -205,13 +205,15 @@ class EmbeddedFileWriter {
 #define V8_COMPILER_IS_MSVC
 #endif
 
-#ifdef V8_COMPILER_IS_MSVC
+#if defined(V8_COMPILER_IS_MSVC) || defined(V8_OS_AIX)
   // Windows MASM doesn't have an .octa directive, use QWORDs instead.
   // Note: MASM *really* does not like large data streams. It takes over 5
   // minutes to assemble the ~350K lines of embedded.S produced when using
   // BYTE directives in a debug build. QWORD produces roughly 120KLOC and
   // reduces assembly time to ~40 seconds. Still terrible, but much better
   // than before. See also: https://crbug.com/v8/8475.
+
+  // GCC MASM on Aix doesn't have an .octa directive, use .llong instead.
 
   static constexpr DataDirective kByteChunkDirective = kQuad;
   static constexpr int kByteChunkSize = 8;
@@ -221,7 +223,7 @@ class EmbeddedFileWriter {
     const uint64_t* quad_ptr = reinterpret_cast<const uint64_t*>(data);
     return current_line_length + w->HexLiteral(*quad_ptr);
   }
-#else  // V8_COMPILER_IS_MSVC
+#else  // defined(V8_COMPILER_IS_MSVC) || defined(V8_OS_AIX)
   static constexpr DataDirective kByteChunkDirective = kOcta;
   static constexpr int kByteChunkSize = 16;
 
@@ -246,7 +248,7 @@ class EmbeddedFileWriter {
     }
     return current_line_length;
   }
-#endif  // V8_COMPILER_IS_MSVC
+#endif  // defined(V8_COMPILER_IS_MSVC) || defined(V8_OS_AIX)
 #undef V8_COMPILER_IS_MSVC
 
   static int WriteDirectiveOrSeparator(PlatformDependentEmbeddedFileWriter* w,
