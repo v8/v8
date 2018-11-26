@@ -3,5 +3,5 @@
 // found in the LICENSE file.
 
 // Verify that very large arrays can be constructed.
-assertEquals(Array.isArray(Array.of.apply(Array, Array(65536))), true);
-assertEquals(Array.isArray(Array.of.apply(null, Array(65536))), true);
+assertEquals(Array.isArray(Array.of.apply(Array, Array(65534))), true);
+assertEquals(Array.isArray(Array.of.apply(null, Array(65534))), true);

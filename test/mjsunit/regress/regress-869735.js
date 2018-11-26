@@ -10,5 +10,5 @@ function f() {
 
 var a = [];
 %OptimizeFunctionOnNextCall(f);
-a.length = 81832;
+a.length = 65534;
 f(...a);

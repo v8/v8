@@ -214,6 +214,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     Goto(&if_done);
   }
 
+  Label too_many_args(this, Label::kDeferred);
+
   // Tail call to the appropriate builtin (depending on whether we have
   // a {new_target} passed).
   BIND(&if_done);
@@ -224,6 +226,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     TNode<Int32T> length = var_length.value();
     {
       Label normalize_done(this);
+      GotoIf(Int32GreaterThan(length, Int32Constant(Code::kMaxArguments)),
+             &too_many_args);
       GotoIfNot(Word32Equal(length, Int32Constant(0)), &normalize_done);
       // Make sure we don't accidentally pass along the
       // empty_fixed_double_array since the tailed-called stubs cannot handle
@@ -258,6 +262,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
                                    Int32Constant(HOLEY_DOUBLE_ELEMENTS));
     }
   }
+
+  BIND(&too_many_args);
+  ThrowRangeError(context, MessageTemplate::kTooManyArguments);
 }
 
 // Takes a FixedArray of doubles and creates a new FixedArray with those doubles
@@ -271,6 +278,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
 
   const ElementsKind new_kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
+
+  Label too_many_args(this, Label::kDeferred);
+  GotoIf(Int32GreaterThan(length, Int32Constant(Code::kMaxArguments)),
+         &too_many_args);
+
   TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
   CSA_ASSERT(this, WordNotEqual(intptr_length, IntPtrConstant(0)));
 
@@ -303,13 +315,16 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
                    new_elements);
     }
   }
+
+  BIND(&too_many_args);
+  ThrowRangeError(context, MessageTemplate::kTooManyArguments);
 }
 
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<Object> target, TNode<Object> new_target, TNode<Object> spread,
     TNode<Int32T> args_count, TNode<Context> context) {
   Label if_smiorobject(this), if_double(this),
-      if_generic(this, Label::kDeferred);
+      if_generic(this, Label::kDeferred), too_many_args(this, Label::kDeferred);
 
   TVARIABLE(Int32T, var_length);
   TVARIABLE(FixedArrayBase, var_elements);
@@ -375,6 +390,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<FixedArrayBase> elements = var_elements.value();
     TNode<Int32T> length = var_length.value();
 
+    GotoIf(Int32GreaterThan(length, Int32Constant(Code::kMaxArguments)),
+           &too_many_args);
+
     if (new_target == nullptr) {
       Callable callable = CodeFactory::CallVarargs(isolate());
       TailCallStub(callable, context, target, args_count, length, elements);
@@ -392,6 +410,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
                                  var_length.value(), args_count, context,
                                  var_elements_kind.value());
   }
+
+  BIND(&too_many_args);
+  ThrowRangeError(context, MessageTemplate::kTooManyArguments);
 }
 
 TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
