@@ -23,6 +23,10 @@ static inline uint8_t* AllocateAssemblerBuffer(
   return static_cast<uint8_t*>(result);
 }
 
+static inline void FreeAssemblerBuffer(uint8_t* buffer, size_t size) {
+  CHECK(FreePages(GetPlatformPageAllocator(), buffer, size));
+}
+
 static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
                                                  size_t allocated) {
   // Flush the instruction cache as part of making the buffer executable.
