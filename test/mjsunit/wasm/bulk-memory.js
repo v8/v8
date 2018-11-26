@@ -20,7 +20,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestPassiveElementSegment() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('f', kSig_v_v).addBody([]);
-  builder.setTableLength(1);
+  builder.setTableBounds(1, 1);
   builder.addPassiveElementSegment([0, 0, 0]);
   builder.addPassiveElementSegment([0, 0]);
 
