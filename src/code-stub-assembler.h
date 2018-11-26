@@ -326,105 +326,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(heap_object);
   }
 
-  TNode<HeapNumber> UnsafeCastNumberToHeapNumber(TNode<Number> p_n) {
-    return CAST(p_n);
-  }
-
-  TNode<FixedArrayBase> UnsafeCastObjectToFixedArrayBase(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<FixedArray> UnsafeCastObjectToFixedArray(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<Context> UnsafeCastObjectToContext(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<FixedDoubleArray> UnsafeCastObjectToFixedDoubleArray(
-      TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<HeapNumber> UnsafeCastObjectToHeapNumber(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<HeapObject> UnsafeCastObjectToCallable(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<Smi> UnsafeCastObjectToSmi(TNode<Object> p_o) { return CAST(p_o); }
-
-  TNode<Number> UnsafeCastObjectToNumber(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<HeapObject> UnsafeCastObjectToHeapObject(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<JSArray> UnsafeCastObjectToJSArray(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<FixedTypedArrayBase> UnsafeCastObjectToFixedTypedArrayBase(
-      TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<Object> UnsafeCastObjectToCompareBuiltinFn(TNode<Object> p_o) {
-    return p_o;
-  }
-
-  TNode<Object> UnsafeCastObjectToLoadFn(TNode<Object> p_o) { return p_o; }
-  TNode<Object> UnsafeCastObjectToStoreFn(TNode<Object> p_o) { return p_o; }
-  TNode<Object> UnsafeCastObjectToCanUseSameAccessorFn(TNode<Object> p_o) {
-    return p_o;
-  }
-
-  TNode<NumberDictionary> UnsafeCastObjectToNumberDictionary(
-      TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<JSReceiver> UnsafeCastObjectToJSReceiver(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<JSObject> UnsafeCastObjectToJSObject(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<Map> UnsafeCastObjectToMap(TNode<Object> p_o) { return CAST(p_o); }
-
-  TNode<String> UnsafeCastObjectToString(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<JSArgumentsObjectWithLength> RawCastObjectToJSArgumentsObjectWithLength(
-      TNode<Object> p_o) {
-    return TNode<JSArgumentsObjectWithLength>::UncheckedCast(p_o);
-  }
-
-  TNode<JSArray> RawCastObjectToFastJSArray(TNode<Object> p_o) {
-    return TNode<JSArray>::UncheckedCast(p_o);
-  }
-
-  TNode<JSArray> RawCastObjectToFastJSArrayForCopy(TNode<Object> p_o) {
-    return TNode<JSArray>::UncheckedCast(p_o);
-  }
-
-  TNode<JSArray> RawCastObjectToFastJSArrayWithNoCustomIteration(
-      TNode<Object> p_o) {
-    return TNode<JSArray>::UncheckedCast(p_o);
-  }
-
-  TNode<JSFunction> RawCastObjectToJSFunction(TNode<Object> p_o) {
-    return TNode<JSFunction>::UncheckedCast(p_o);
-  }
-
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
@@ -803,19 +704,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void BranchIfToBooleanIsTrue(Node* value, Label* if_true, Label* if_false);
 
   void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
-
-  void BranchIfFastJSArray(Node* object, Node* context, Label* if_true,
-                           Label* if_false, bool iteration_only = false);
-  void BranchIfNotFastJSArray(Node* object, Node* context, Label* if_true,
-                              Label* if_false) {
-    BranchIfFastJSArray(object, context, if_false, if_true);
-  }
-  void BranchIfFastJSArrayForCopy(Node* object, Node* context, Label* if_true,
-                                  Label* if_false);
-  void BranchIfFastJSArrayWithNoCustomIteration(TNode<Context> context,
-                                                TNode<Object> object,
-                                                Label* if_true,
-                                                Label* if_false);
 
   // Branches to {if_true} when --force-slow-path flag has been passed.
   // It's used for testing to ensure that slow path implementation behave
@@ -2022,6 +1910,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsAllocationSite(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsAnyHeapNumber(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNoElementsProtectorCellInvalid();
+  TNode<BoolT> IsArrayIteratorProtectorCellInvalid();
   TNode<BoolT> IsBigIntInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsBigInt(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsBoolean(SloppyTNode<HeapObject> object);
@@ -2039,10 +1928,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsExtensibleMap(SloppyTNode<Map> map);
   TNode<BoolT> IsExtensibleNonPrototypeMap(TNode<Map> map);
   TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsFastJSArray(SloppyTNode<Object> object,
-                             SloppyTNode<Context> context);
-  TNode<BoolT> IsFastJSArrayWithNoCustomIteration(TNode<Context> context,
-                                                  TNode<Object> object);
   TNode<BoolT> IsFeedbackCell(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFeedbackVector(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsContext(SloppyTNode<HeapObject> object);

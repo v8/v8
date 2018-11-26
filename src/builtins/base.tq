@@ -522,59 +522,167 @@ extern macro TaggedToNumber(Object): Number
 
 macro CastHeapObject<A: type>(o: HeapObject): A
     labels CastError;
+
 CastHeapObject<HeapObject>(o: HeapObject): HeapObject
     labels CastError {
   return o;
 }
+
 CastHeapObject<FixedArray>(o: HeapObject): FixedArray
     labels CastError {
   return HeapObjectToFixedArray(o) otherwise CastError;
 }
+
 CastHeapObject<FixedDoubleArray>(o: HeapObject): FixedDoubleArray
     labels CastError {
   return HeapObjectToFixedDoubleArray(o) otherwise CastError;
 }
+
 CastHeapObject<SloppyArgumentsElements>(o: HeapObject): SloppyArgumentsElements
     labels CastError {
   return HeapObjectToSloppyArgumentsElements(o) otherwise CastError;
 }
+
 CastHeapObject<JSDataView>(o: HeapObject): JSDataView
     labels CastError {
   return HeapObjectToJSDataView(o) otherwise CastError;
 }
+
 CastHeapObject<Callable>(o: HeapObject): Callable
     labels CastError {
   return HeapObjectToCallable(o) otherwise CastError;
 }
+
 CastHeapObject<JSArray>(o: HeapObject): JSArray
     labels CastError {
   return HeapObjectToJSArray(o) otherwise CastError;
 }
+
+CastHeapObject<Context>(o: HeapObject): Context
+    labels CastError {
+  if (IsContext(o)) return %RawCast<Context>(o);
+  goto CastError;
+}
+
+CastHeapObject<JSObject>(o: HeapObject): JSObject
+    labels CastError {
+  if (IsJSObject(o)) return %RawCast<JSObject>(o);
+  goto CastError;
+}
+
+CastHeapObject<NumberDictionary>(o: HeapObject): NumberDictionary
+    labels CastError {
+  if (IsNumberDictionary(o)) return %RawCast<NumberDictionary>(o);
+  goto CastError;
+}
+
+CastHeapObject<FixedTypedArrayBase>(o: HeapObject): FixedTypedArrayBase
+    labels CastError {
+  if (IsFixedTypedArray(o)) return %RawCast<FixedTypedArrayBase>(o);
+  goto CastError;
+}
+
 CastHeapObject<String>(o: HeapObject): String
     labels CastError {
   return HeapObjectToString(o) otherwise CastError;
 }
+
 CastHeapObject<Constructor>(o: HeapObject): Constructor
     labels CastError {
   return HeapObjectToConstructor(o) otherwise CastError;
 }
 
-macro Cast<A: type>(o: HeapObject): A
+CastHeapObject<HeapNumber>(o: HeapObject): HeapNumber
+    labels CastError {
+  if (IsHeapNumber(o)) return %RawCast<HeapNumber>(o);
+  goto CastError;
+}
+
+CastHeapObject<Map>(implicit context: Context)(o: HeapObject): Map
+    labels CastError {
+  if (IsMap(o)) return %RawCast<Map>(o);
+  goto CastError;
+}
+
+CastHeapObject<JSArgumentsObjectWithLength>(implicit context: Context)(
+    o: HeapObject): JSArgumentsObjectWithLength
+    labels CastError {
+  const map: Map = o.map;
+  try {
+    if (IsFastAliasedArgumentsMap(map)) goto True;
+    if (IsSloppyArgumentsMap(map)) goto True;
+    if (IsStrictArgumentsMap(map)) goto True;
+    if (IsSlowAliasedArgumentsMap(map)) goto True;
+    goto CastError;
+  }
+  label True {
+    return %RawCast<JSArgumentsObjectWithLength>(o);
+  }
+}
+
+CastHeapObject<FastJSArray>(implicit context: Context)(o: HeapObject):
+    FastJSArray
+    labels CastError {
+  const map: Map = o.map;
+  if (!IsJSArrayMap(map)) goto CastError;
+
+  // Bailout if receiver has slow elements.
+  const elementsKind: ElementsKind = LoadMapElementsKind(map);
+  if (!IsFastElementsKind(elementsKind)) goto CastError;
+
+  // Verify that our prototype is the initial array prototype.
+  if (!IsPrototypeInitialArrayPrototype(map)) goto CastError;
+
+  if (IsNoElementsProtectorCellInvalid()) goto CastError;
+  return %RawCast<FastJSArray>(o);
+}
+
+CastHeapObject<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
+    FastJSArrayForCopy
+    labels CastError {
+  if (IsArraySpeciesProtectorCellInvalid()) goto CastError;
+  const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
+  return %RawCast<FastJSArrayForCopy>(o);
+}
+
+CastHeapObject<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
+    o: HeapObject): FastJSArrayWithNoCustomIteration
+    labels CastError {
+  if (IsArrayIteratorProtectorCellInvalid()) goto CastError;
+  const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
+  return %RawCast<FastJSArrayWithNoCustomIteration>(o);
+}
+
+CastHeapObject<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver
+    labels CastError {
+  if (IsJSReceiver(o)) return %RawCast<JSReceiver>(o);
+  goto CastError;
+}
+
+CastHeapObject<JSFunction>(implicit context: Context)(o: HeapObject): JSFunction
+    labels CastError {
+  if (IsJSFunction(o)) return %RawCast<JSFunction>(o);
+  goto CastError;
+}
+
+macro Cast<A: type>(implicit context: Context)(o: HeapObject): A
     labels CastError {
   return CastHeapObject<A>(o) otherwise CastError;
 }
 
 // CastHeapObject allows this default-implementation to be non-recursive.
 // Otherwise the generated CSA code might run into infinite recursion.
-macro Cast<A: type>(o: Object): A
+macro Cast<A: type>(implicit context: Context)(o: Object): A
     labels CastError {
   return CastHeapObject<A>(TaggedToHeapObject(o) otherwise CastError)
       otherwise CastError;
 }
+
 Cast<Smi>(o: Object): Smi
     labels CastError {
   return TaggedToSmi(o) otherwise CastError;
 }
+
 Cast<Number>(o: Object): Number
     labels CastError {
   return TaggedToNumber(o) otherwise CastError;
@@ -774,218 +882,39 @@ Convert<intptr>(r: RawPtr): intptr {
   return Signed(r);
 }
 
-extern macro UnsafeCastNumberToHeapNumber(Number): HeapNumber;
-extern macro UnsafeCastObjectToFixedArrayBase(Object): FixedArrayBase;
-extern macro UnsafeCastObjectToFixedArray(Object): FixedArray;
-extern macro UnsafeCastObjectToContext(Object): Context;
-extern macro UnsafeCastObjectToFixedDoubleArray(Object): FixedDoubleArray;
-extern macro UnsafeCastObjectToHeapNumber(Object): HeapNumber;
-extern macro UnsafeCastObjectToCallable(Object): Callable;
-extern macro UnsafeCastObjectToSmi(Object): Smi;
-extern macro UnsafeCastObjectToNumber(Object): Number;
-extern macro UnsafeCastObjectToHeapObject(Object): HeapObject;
-extern macro UnsafeCastObjectToJSArray(Object): JSArray;
-extern macro UnsafeCastObjectToFixedTypedArrayBase(Object): FixedTypedArrayBase;
-extern macro UnsafeCastObjectToNumberDictionary(Object): NumberDictionary;
-extern macro UnsafeCastObjectToJSReceiver(Object): JSReceiver;
-extern macro UnsafeCastObjectToJSObject(Object): JSObject;
-extern macro UnsafeCastObjectToMap(Object): Map;
-extern macro UnsafeCastObjectToString(Object): String;
-
-macro UnsafeCast<A: type>(n: Number): A;
-UnsafeCast<HeapNumber>(n: Number): HeapNumber {
-  return UnsafeCastNumberToHeapNumber(n);
-}
-UnsafeCast<Smi>(o: Number): Smi {
-  return UnsafeCastObjectToSmi(o);
-}
-macro UnsafeCast<A: type>(o: Object): A;
-UnsafeCast<Object>(o: Object): Object {
-  return o;
-}
-UnsafeCast<FixedArray>(o: Object): FixedArray {
-  return UnsafeCastObjectToFixedArray(o);
-}
-UnsafeCast<FixedDoubleArray>(o: Object): FixedDoubleArray {
-  return UnsafeCastObjectToFixedDoubleArray(o);
-}
-UnsafeCast<HeapNumber>(o: Object): HeapNumber {
-  return UnsafeCastObjectToHeapNumber(o);
-}
-UnsafeCast<Callable>(o: Object): Callable {
-  return UnsafeCastObjectToCallable(o);
-}
-UnsafeCast<Smi>(o: Object): Smi {
-  return UnsafeCastObjectToSmi(o);
-}
-UnsafeCast<Number>(o: Object): Number {
-  return UnsafeCastObjectToNumber(o);
-}
-UnsafeCast<HeapObject>(o: Object): HeapObject {
-  return UnsafeCastObjectToHeapObject(o);
-}
-UnsafeCast<JSArray>(o: Object): JSArray {
-  return UnsafeCastObjectToJSArray(o);
-}
-UnsafeCast<FixedTypedArrayBase>(o: Object): FixedTypedArrayBase {
-  return UnsafeCastObjectToFixedTypedArrayBase(o);
-}
-UnsafeCast<NumberDictionary>(o: Object): NumberDictionary {
-  return UnsafeCastObjectToNumberDictionary(o);
-}
-UnsafeCast<JSReceiver>(o: Object): JSReceiver {
-  return UnsafeCastObjectToJSReceiver(o);
-}
-UnsafeCast<JSObject>(o: Object): JSObject {
-  return UnsafeCastObjectToJSObject(o);
-}
-UnsafeCast<Map>(o: Object): Map {
-  return UnsafeCastObjectToMap(o);
-}
-UnsafeCast<FixedArrayBase>(o: Object): FixedArrayBase {
-  return UnsafeCastObjectToFixedArrayBase(o);
-}
-UnsafeCast<Context>(o: Object): Context {
-  return UnsafeCastObjectToContext(o);
-}
-UnsafeCast<String>(o: Object): String {
-  return UnsafeCastObjectToString(o);
-}
-
-macro BranchIfJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
-    never
+macro BranchIf<A: type, B: type>(implicit context: Context)(o: B): never
     labels True, False {
-  const heapObject: HeapObject = Cast<HeapObject>(o) otherwise False;
-  const map: Map = heapObject.map;
-  if (IsFastAliasedArgumentsMap(map)) goto True;
-  if (IsSloppyArgumentsMap(map)) goto True;
-  if (IsStrictArgumentsMap(map)) goto True;
-  if (!IsSlowAliasedArgumentsMap(map)) goto False;
+  Cast<A>(o) otherwise False;
   goto True;
 }
 
-UnsafeCast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
-    JSArgumentsObjectWithLength {
-  assert(BranchIfJSArgumentsObjectWithLength(o));
-  return %RawCast<JSArgumentsObjectWithLength>(o);
+macro BranchIfNot<A: type, B: type>(implicit context: Context)(o: B): never
+    labels True, False {
+  Cast<A>(o) otherwise True;
+  goto False;
 }
 
-Cast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
-    JSArgumentsObjectWithLength
-    labels CastError {
-  if (BranchIfJSArgumentsObjectWithLength(o)) {
-    return UnsafeCast<JSArgumentsObjectWithLength>(o);
-  } else {
-    goto CastError;
-  }
+macro Is<A: type, B: type>(implicit context: Context)(o: B): bool {
+  return (BranchIf<A, B>(o)) ? true : false;
 }
 
-UnsafeCast<FastJSArray>(implicit context: Context)(o: Object): FastJSArray {
-  assert(BranchIfFastJSArray(o, context));
-  return %RawCast<FastJSArray>(o);
+macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A {
+  assert(Is<A>(o));
+  return %RawCast<A>(o);
 }
 
-Cast<FastJSArray>(implicit context: Context)(o: Object): FastJSArray
-    labels CastError {
-  if (BranchIfFastJSArray(o, context)) {
-    return UnsafeCast<FastJSArray>(o);
-  } else {
-    goto CastError;
-  }
+UnsafeCast<Object>(o: Object): Object {
+  return o;
 }
 
-Cast<FastJSArray>(implicit context: Context)(ho: HeapObject): FastJSArray
-    labels CastError {
-  if (BranchIfFastJSArray(ho, context)) {
-    return UnsafeCast<FastJSArray>(ho);
-  } else {
-    goto CastError;
-  }
-}
-
-UnsafeCast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
-    FastJSArrayForCopy {
-  assert(BranchIfFastJSArrayForCopy(o, context));
-  return %RawCast<FastJSArrayForCopy>(o);
-}
-
-Cast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
-    FastJSArrayForCopy
-    labels CastError {
-  if (BranchIfFastJSArrayForCopy(o, context)) {
-    return UnsafeCast<FastJSArrayForCopy>(o);
-  } else {
-    goto CastError;
-  }
-}
-
-UnsafeCast<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
-    o: Object): FastJSArrayWithNoCustomIteration {
-  assert(BranchIfFastJSArrayWithNoCustomIteration(o));
-  return %RawCast<FastJSArrayWithNoCustomIteration>(o);
-}
-
-Cast<FastJSArrayWithNoCustomIteration>(implicit context: Context)(o: Object):
-    FastJSArrayWithNoCustomIteration labels CastError {
-  if (BranchIfFastJSArrayWithNoCustomIteration(o)) {
-    return UnsafeCast<FastJSArrayWithNoCustomIteration>(o);
-  } else {
-    goto CastError;
-  }
-}
-
-UnsafeCast<JSFunction>(implicit context: Context)(o: Object): JSFunction {
-  assert(IsJSFunction(Cast<HeapObject>(o) otherwise unreachable));
-  return %RawCast<JSFunction>(o);
-}
-
-Cast<JSFunction>(implicit context: Context)(o: Object): JSFunction
-    labels CastError {
-  if (IsJSFunction(Cast<HeapObject>(o) otherwise CastError)) {
-    return UnsafeCast<JSFunction>(o);
-  } else {
-    goto CastError;
-  }
-}
-
-Cast<Map>(o: Object): Map
-    labels CastError {
-  if (IsMap(Cast<HeapObject>(o) otherwise CastError)) {
-    return UnsafeCast<Map>(o);
-  } else {
-    goto CastError;
-  }
-}
-
-Cast<JSReceiver>(o: Object): JSReceiver
-    labels CastError {
-  if (IsJSReceiver(Cast<HeapObject>(o) otherwise CastError)) {
-    return UnsafeCast<JSReceiver>(o);
-  } else {
-    goto CastError;
-  }
-}
-
-const kCOWMap: Map = UnsafeCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
+const kCOWMap: Map = %RawCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
 const kEmptyFixedArray: FixedArrayBase =
-    UnsafeCast<FixedArrayBase>(LoadRoot(kEmptyFixedArrayRootIndex));
+    %RawCast<FixedArrayBase>(LoadRoot(kEmptyFixedArrayRootIndex));
 
-extern macro BranchIfFastJSArray(Object, Context): never
-    labels Taken, NotTaken;
-extern macro BranchIfFastJSArrayForCopy(Object, Context): never
-    labels Taken, NotTaken;
-extern macro BranchIfFastJSArrayWithNoCustomIteration(
-    implicit context: Context)(Object): never labels Taken,
-    NotTaken;
-extern macro BranchIfNotFastJSArray(Object, Context): never
-    labels Taken, NotTaken;
-macro BranchIfNotFastJSArrayForCopy(implicit context: Context)(o: Object): never
-    labels Taken, NotTaken {
-  BranchIfFastJSArrayForCopy(o, context) otherwise NotTaken, Taken;
-}
-
-extern macro IsPrototypeInitialArrayPrototype(Context, Map): bool;
+extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
+    bool;
 extern macro IsNoElementsProtectorCellInvalid(): bool;
+extern macro IsArrayIteratorProtectorCellInvalid(): bool;
 extern macro IsArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
@@ -1176,7 +1105,8 @@ macro TorqueCopyElements(
 transitioning macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): Object
     labels IfHole;
 
-LoadElementNoHole<FixedArray>(a: JSArray, index: Smi): Object
+LoadElementNoHole<FixedArray>(implicit context: Context)(
+    a: JSArray, index: Smi): Object
     labels IfHole {
   try {
     let elements: FixedArray =
@@ -1192,7 +1122,8 @@ LoadElementNoHole<FixedArray>(a: JSArray, index: Smi): Object
   }
 }
 
-LoadElementNoHole<FixedDoubleArray>(a: JSArray, index: Smi): Object
+LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
+    a: JSArray, index: Smi): Object
     labels IfHole {
   try {
     let elements: FixedDoubleArray =
@@ -1212,30 +1143,23 @@ extern macro IsCallable(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
+extern macro IsJSObject(HeapObject): bool;
+extern macro IsNumberDictionary(HeapObject): bool;
+extern macro IsFixedTypedArray(HeapObject): bool;
+extern macro IsContext(HeapObject): bool;
 extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;
 extern macro IsNumber(Object): bool;
+extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
-extern macro IsFastJSArray(Object, Context): bool;
 extern macro IsFastJSArrayWithNoCustomIteration(implicit context: Context)(
     Object): bool;
 extern macro Typeof(Object): Object;
 extern macro LoadTargetFromFrame(): JSFunction;
-
-macro IsJSReceiver(o: Object): bool {
-  typeswitch (o) {
-    case (JSReceiver): {
-      return true;
-    }
-    case (Object): {
-      return false;
-    }
-  }
-}
 
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {
@@ -1250,6 +1174,7 @@ macro NumberIsNaN(number: Number): bool {
   }
 }
 
+extern macro GotoIfForceSlowPath() labels Taken;
 extern macro BranchIfToBooleanIsTrue(Object): never
     labels Taken, NotTaken;
 
@@ -1310,4 +1235,44 @@ extern builtin StringRepeat(Context, String, Number): String;
 struct KeyValuePair {
   key: Object;
   value: Object;
+}
+
+// Macro definitions for compatibility that expose functionality to the CSA
+// using "legacy" APIs. In Torque code, these should not be used.
+macro IsFastJSArray(o: Object, context: Context): bool {
+  try {
+    // Long-term, it's likely not a good idea to have this slow-path test here,
+    // since it fundamentally breaks the type system.
+    GotoIfForceSlowPath() otherwise ForceSlow;
+  }
+  label ForceSlow {
+    return false;
+  }
+
+  return Is<FastJSArray>(o);
+}
+
+macro BranchIfFastJSArray(o: Object, context: Context): never
+    labels True, False {
+  // Long-term, it's likely not a good idea to have this slow-path test here,
+  // since it fundamentally breaks the type system.
+  GotoIfForceSlowPath() otherwise False;
+  BranchIf<FastJSArray>(o) otherwise True, False;
+}
+
+macro BranchIfNotFastJSArray(o: Object, context: Context): never
+    labels True, False {
+  BranchIfNot<FastJSArray>(o) otherwise True, False;
+}
+
+macro BranchIfFastJSArrayForCopy(o: Object, context: Context): never
+    labels True, False {
+  // Long-term, it's likely not a good idea to have this slow-path test here,
+  // since it fundamentally breaks the type system.
+  GotoIfForceSlowPath() otherwise False;
+  BranchIf<FastJSArrayForCopy>(o) otherwise True, False;
+}
+
+macro IsFastJSArrayWithNoCustomIteration(context: Context, o: Object): bool {
+  return Is<FastJSArrayWithNoCustomIteration>(o);
 }

@@ -323,7 +323,7 @@ namespace array {
     try {
       const array: JSArray = Cast<JSArray>(receiver) otherwise IfSlowPath;
       if (array.length != lenNumber) goto IfSlowPath;
-      if (!IsPrototypeInitialArrayPrototype(context, map)) goto IfSlowPath;
+      if (!IsPrototypeInitialArrayPrototype(map)) goto IfSlowPath;
       if (IsNoElementsProtectorCellInvalid()) goto IfSlowPath;
 
       if (IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS)) {

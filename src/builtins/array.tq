@@ -14,7 +14,7 @@ namespace array {
   type FastDoubleElements;
   type DictionaryElements;
 
-  macro EnsureWriteableFastElements(array: JSArray) {
+  macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray) {
     assert(IsFastElementsKind(array.map.elements_kind));
 
     const elements: FixedArrayBase = array.elements;
@@ -30,7 +30,7 @@ namespace array {
     assert(array.elements.map != kCOWMap);
   }
 
-  macro IsJSArray(o: Object): bool {
+  macro IsJSArray(implicit context: Context)(o: Object): bool {
     try {
       const array: JSArray = Cast<JSArray>(o) otherwise NotArray;
       return true;

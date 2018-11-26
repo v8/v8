@@ -148,7 +148,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
       Label fast(this);
       Label runtime(this);
       Label object_push_pre(this), object_push(this), double_push(this);
-      BranchIfFastJSArray(a(), context(), &fast, &runtime);
+      BranchIfFastJSArray(CAST(a()), context(), &fast, &runtime);
 
       BIND(&fast);
       {

@@ -21,7 +21,7 @@ namespace object {
           // Bail out if ToPropertyKey will attempt to load and call
           // Symbol.toPrimitive, toString, and valueOf, which could
           // invalidate assumptions about the iterable.
-          if (IsJSReceiver(pair.key)) goto IfSlow;
+          if (Is<JSReceiver>(pair.key)) goto IfSlow;
           CreateDataProperty(result, pair.key, pair.value);
         }
         return result;

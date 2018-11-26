@@ -1037,90 +1037,6 @@ void CodeStubAssembler::BranchIfJSReceiver(Node* object, Label* if_true,
   Branch(IsJSReceiver(object), if_true, if_false);
 }
 
-TNode<BoolT> CodeStubAssembler::IsFastJSArray(SloppyTNode<Object> object,
-                                              SloppyTNode<Context> context) {
-  Label if_true(this), if_false(this, Label::kDeferred), exit(this);
-  BranchIfFastJSArray(object, context, &if_true, &if_false);
-  TVARIABLE(BoolT, var_result);
-  BIND(&if_true);
-  {
-    var_result = Int32TrueConstant();
-    Goto(&exit);
-  }
-  BIND(&if_false);
-  {
-    var_result = Int32FalseConstant();
-    Goto(&exit);
-  }
-  BIND(&exit);
-  return var_result.value();
-}
-
-void CodeStubAssembler::BranchIfFastJSArrayWithNoCustomIteration(
-    TNode<Context> context, TNode<Object> object, Label* if_true,
-    Label* if_false) {
-  Label if_fast(this);
-  BranchIfFastJSArray(object, context, &if_fast, if_false, true);
-  BIND(&if_fast);
-  {
-    // Check that the Array.prototype hasn't been modified in a way that would
-    // affect iteration.
-    Node* protector_cell = LoadRoot(RootIndex::kArrayIteratorProtector);
-    DCHECK(isolate()->heap()->array_iterator_protector()->IsPropertyCell());
-    Branch(
-        WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Isolate::kProtectorValid)),
-        if_true, if_false);
-  }
-}
-
-TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
-    TNode<Context> context, TNode<Object> object) {
-  Label if_false(this, Label::kDeferred), exit(this);
-  TVARIABLE(BoolT, var_result, Int32TrueConstant());
-  BranchIfFastJSArrayWithNoCustomIteration(context, object, &exit, &if_false);
-  BIND(&if_false);
-  {
-    var_result = Int32FalseConstant();
-    Goto(&exit);
-  }
-  BIND(&exit);
-  return var_result.value();
-}
-
-void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
-                                            Label* if_true, Label* if_false,
-                                            bool iteration_only) {
-  GotoIfForceSlowPath(if_false);
-
-  // Bailout if receiver is a Smi.
-  GotoIf(TaggedIsSmi(object), if_false);
-
-  Node* map = LoadMap(object);
-  GotoIfNot(IsJSArrayMap(map), if_false);
-
-  // Bailout if receiver has slow elements.
-  Node* elements_kind = LoadMapElementsKind(map);
-  GotoIfNot(IsFastElementsKind(elements_kind), if_false);
-
-  // Verify that our prototype is the initial array prototype.
-  GotoIfNot(IsPrototypeInitialArrayPrototype(context, map), if_false);
-
-  if (iteration_only) {
-    // If we are only iterating over the array, there is no need to check
-    // the NoElements protector if the array is not holey.
-    GotoIfNot(IsHoleyFastElementsKind(elements_kind), if_true);
-  }
-  Branch(IsNoElementsProtectorCellInvalid(), if_false, if_true);
-}
-
-void CodeStubAssembler::BranchIfFastJSArrayForCopy(Node* object, Node* context,
-                                                   Label* if_true,
-                                                   Label* if_false) {
-  GotoIf(IsArraySpeciesProtectorCellInvalid(), if_false);
-  BranchIfFastJSArray(object, context, if_true, if_false);
-}
-
 void CodeStubAssembler::GotoIfForceSlowPath(Label* if_true) {
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
   Node* const force_slow_path_addr =
@@ -5954,6 +5870,13 @@ TNode<BoolT> CodeStubAssembler::IsUndetectableMap(SloppyTNode<Map> map) {
 TNode<BoolT> CodeStubAssembler::IsNoElementsProtectorCellInvalid() {
   Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
   Node* cell = LoadRoot(RootIndex::kNoElementsProtector);
+  Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  return WordEqual(cell_value, invalid);
+}
+
+TNode<BoolT> CodeStubAssembler::IsArrayIteratorProtectorCellInvalid() {
+  Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
+  Node* cell = LoadRoot(RootIndex::kArrayIteratorProtector);
   Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return WordEqual(cell_value, invalid);
 }
