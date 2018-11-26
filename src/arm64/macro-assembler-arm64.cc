@@ -1831,9 +1831,37 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
     DCHECK_LE(num_of_double_args + num_of_reg_args, 2);
   }
 
+  // Save the frame pointer and PC so that the stack layout remains iterable,
+  // even without an ExitFrame which normally exists between JS and C frames.
+  if (isolate() != nullptr) {
+    Register scratch1 = x4;
+    Register scratch2 = x5;
+    Push(scratch1, scratch2);
+
+    Label get_pc;
+    Bind(&get_pc);
+    Adr(scratch2, &get_pc);
+
+    Mov(scratch1, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    Str(scratch2, MemOperand(scratch1));
+    Mov(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    Str(fp, MemOperand(scratch1));
+
+    Pop(scratch2, scratch1);
+  }
+
   // Call directly. The function called cannot cause a GC, or allow preemption,
   // so the return address in the link register stays correct.
   Call(function);
+
+  if (isolate() != nullptr) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register scratch = x4;
+    Push(scratch, xzr);
+    Mov(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    Str(xzr, MemOperand(scratch));
+    Pop(xzr, scratch);
+  }
 
   if (num_of_reg_args > kRegisterPassedArguments) {
     // Drop the register passed arguments.

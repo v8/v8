@@ -2652,7 +2652,30 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
     CheckStackAlignment();
   }
 
+  // Save the frame pointer and PC so that the stack layout remains iterable,
+  // even without an ExitFrame which normally exists between JS and C frames.
+  if (isolate() != nullptr) {
+    Label get_pc;
+    DCHECK(!AreAliased(kScratchRegister, function));
+    leaq(kScratchRegister, Operand(&get_pc, 0));
+    bind(&get_pc);
+    movp(ExternalReferenceAsOperand(
+             ExternalReference::fast_c_call_caller_pc_address(isolate())),
+         kScratchRegister);
+    movp(ExternalReferenceAsOperand(
+             ExternalReference::fast_c_call_caller_fp_address(isolate())),
+         rbp);
+  }
+
   call(function);
+
+  if (isolate() != nullptr) {
+    // We don't unset the PC; the FP is the source of truth.
+    movp(ExternalReferenceAsOperand(
+             ExternalReference::fast_c_call_caller_fp_address(isolate())),
+         Immediate(0));
+  }
+
   DCHECK_NE(base::OS::ActivationFrameAlignment(), 0);
   DCHECK_GE(num_arguments, 0);
   int argument_slots_on_stack =
