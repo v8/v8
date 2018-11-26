@@ -3616,6 +3616,8 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 
       auto mode = INTPTR_PARAMETERS;
       var_properties = CAST(AllocatePropertyArray(length, mode));
+      FillPropertyArrayWithUndefined(var_properties.value(), IntPtrConstant(0),
+                                     length, mode);
       CopyPropertyArrayValues(source_properties, var_properties.value(), length,
                               SKIP_WRITE_BARRIER, mode, DestroySource::kNo);
     }
