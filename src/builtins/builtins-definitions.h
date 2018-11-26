@@ -334,8 +334,6 @@ namespace internal {
   /* ES6 #sec-array.prototype.shift */                                         \
   CPP(ArrayShift)                                                              \
   TFJ(ArrayPrototypeShift, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
-  /* ES6 #sec-array.prototype.slice */                                         \
-  TFJ(ArrayPrototypeSlice, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES6 #sec-array.prototype.unshift */                                       \
   CPP(ArrayUnshift)                                                            \
   /* Support for Array.from and other array-copying idioms */                  \
