@@ -1644,10 +1644,6 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
 
     case BuiltinFunctionId::kPromiseAll:
       return Type::Receiver();
-    case BuiltinFunctionId::kPromisePrototypeCatch:
-      return Type::Receiver();
-    case BuiltinFunctionId::kPromisePrototypeFinally:
-      return Type::Receiver();
     case BuiltinFunctionId::kPromisePrototypeThen:
       return Type::Receiver();
     case BuiltinFunctionId::kPromiseRace:
