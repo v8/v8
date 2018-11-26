@@ -177,21 +177,16 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   IncrementObjectCounters();
 #endif
 
-  bool large_object = !FLAG_young_generation_large_objects &&
-                      size_in_bytes > kMaxRegularHeapObjectSize;
-  bool new_large_object = FLAG_young_generation_large_objects &&
-                          size_in_bytes > kMaxRegularHeapObjectSize;
+  bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
+
   HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
     if (large_object) {
-      space = LO_SPACE;
+      // TODO(hpayer): Implement a LO tenuring strategy.
+      space = FLAG_young_generation_large_objects ? NEW_LO_SPACE : LO_SPACE;
     } else {
-      if (new_large_object) {
-        allocation = new_lo_space_->AllocateRaw(size_in_bytes);
-      } else {
-        allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
-      }
+      allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
       if (allocation.To(&object)) {
         OnAllocationEvent(object, size_in_bytes);
       }
