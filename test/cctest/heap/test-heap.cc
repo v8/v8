@@ -5784,6 +5784,34 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   CcTest::CollectAllAvailableGarbage();
 }
 
+TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
+  if (FLAG_minor_mc) return;
+  FLAG_young_generation_large_objects = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+  if (!isolate->serializer_enabled()) return;
+
+  {
+    HandleScope scope(isolate);
+    for (int i = 0; i < 10; i++) {
+      Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
+      MemoryChunk* chunk = MemoryChunk::FromAddress(array_small->address());
+      CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+      CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+    }
+  }
+
+  CcTest::CollectGarbage(NEW_SPACE);
+  CHECK(isolate->heap()->new_lo_space()->IsEmpty());
+  CHECK_EQ(0, isolate->heap()->new_lo_space()->Size());
+  CHECK_EQ(0, isolate->heap()->new_lo_space()->SizeOfObjects());
+  CHECK(isolate->heap()->lo_space()->IsEmpty());
+  CHECK_EQ(0, isolate->heap()->lo_space()->Size());
+  CHECK_EQ(0, isolate->heap()->lo_space()->SizeOfObjects());
+}
+
 TEST(UncommitUnusedLargeObjectMemory) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
