@@ -24,7 +24,6 @@ namespace internal {
 
 class AstRawString;
 class AstValueFactory;
-class DuplicateFinder;
 class ExternalOneByteString;
 class ExternalTwoByteString;
 class ParserRecorder;

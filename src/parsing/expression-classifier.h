@@ -13,7 +13,6 @@
 namespace v8 {
 namespace internal {
 
-class DuplicateFinder;
 template <typename T>
 class ZoneList;
 
