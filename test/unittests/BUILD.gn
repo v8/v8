@@ -54,7 +54,6 @@ v8_source_set("unittests_sources") {
     "api/v8-object-unittest.cc",
     "asmjs/asm-scanner-unittest.cc",
     "asmjs/asm-types-unittest.cc",
-    "asmjs/switch-logic-unittest.cc",
     "background-compile-task-unittest.cc",
     "base/address-region-unittest.cc",
     "base/atomic-utils-unittest.cc",
