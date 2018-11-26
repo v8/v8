@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+enum InstanceType : uint16_t;
+
 #define VISITOR_ID_LIST(V)               \
   V(AllocationSite)                      \
   V(BigInt)                              \

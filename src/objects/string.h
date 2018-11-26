@@ -6,6 +6,7 @@
 #define V8_OBJECTS_STRING_H_
 
 #include "src/base/bits.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/name.h"
 #include "src/objects/smi.h"
 #include "src/unicode-decoder.h"
@@ -17,6 +18,7 @@ namespace v8 {
 namespace internal {
 
 class BigInt;
+enum InstanceType : uint16_t;
 
 enum AllowNullsFlag { ALLOW_NULLS, DISALLOW_NULLS };
 enum RobustnessFlag { ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL };

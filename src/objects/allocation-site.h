@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+enum InstanceType : uint16_t;
+
 class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;

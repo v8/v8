@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 
+enum InstanceType : uint16_t;
 class JSGlobalObject;
 class JSGlobalProxy;
 
