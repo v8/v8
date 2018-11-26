@@ -285,7 +285,7 @@ Handle<FixedArray> ReduceFixedArrayTo(Isolate* isolate,
 Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
                                            Handle<JSObject> object) {
   Handle<Map> map(object->map(), isolate);
-  Handle<FixedArray> keys(map->instance_descriptors()->GetEnumCache()->keys(),
+  Handle<FixedArray> keys(map->instance_descriptors()->enum_cache()->keys(),
                           isolate);
 
   // Check if the {map} has a valid enum length, which implies that it
@@ -351,7 +351,8 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
     DCHECK_EQ(index, indices->length());
   }
 
-  DescriptorArray::SetEnumCache(descriptors, isolate, keys, indices);
+  DescriptorArray::InitializeOrChangeEnumCache(descriptors, isolate, keys,
+                                               indices);
   if (map->OnlyHasSimpleProperties()) map->SetEnumLength(enum_length);
 
   return keys;

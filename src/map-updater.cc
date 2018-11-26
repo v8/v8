@@ -442,11 +442,13 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   // descriptors, with minimally the exact same size as the old descriptor
   // array.
   int new_slack =
-      Max(old_nof_, old_descriptors_->number_of_descriptors()) - old_nof_;
+      std::max<int>(old_nof_, old_descriptors_->number_of_descriptors()) -
+      old_nof_;
   Handle<DescriptorArray> new_descriptors =
       DescriptorArray::Allocate(isolate_, old_nof_, new_slack);
-  DCHECK(new_descriptors->length() > target_descriptors->length() ||
-         new_descriptors->NumberOfSlackDescriptors() > 0 ||
+  DCHECK(new_descriptors->number_of_all_descriptors() >
+             target_descriptors->number_of_all_descriptors() ||
+         new_descriptors->number_of_slack_descriptors() > 0 ||
          new_descriptors->number_of_descriptors() ==
              old_descriptors_->number_of_descriptors());
   DCHECK(new_descriptors->number_of_descriptors() == old_nof_);

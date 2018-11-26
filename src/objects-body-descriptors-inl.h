@@ -23,6 +23,12 @@ int FlexibleBodyDescriptor<start_offset>::SizeOf(Map map, HeapObject* object) {
   return object->SizeFromMap(map);
 }
 
+template <int start_offset>
+int FlexibleWeakBodyDescriptor<start_offset>::SizeOf(Map map,
+                                                     HeapObject* object) {
+  return object->SizeFromMap(map);
+}
+
 bool BodyDescriptorBase::IsValidSlotImpl(Map map, HeapObject* obj, int offset) {
   if (!FLAG_unbox_double_fields || map->HasFastPointerLayout()) {
     return true;
@@ -378,21 +384,6 @@ class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject* object) {
     return FixedTypedArrayBase::cast(object)->size();
-  }
-};
-
-class WeakArrayBodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject* obj, int offset) { return true; }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject* obj, int object_size,
-                                 ObjectVisitor* v) {
-    IterateMaybeWeakPointers(obj, HeapObject::kHeaderSize, object_size, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject* object) {
-    return object->SizeFromMap(map);
   }
 };
 

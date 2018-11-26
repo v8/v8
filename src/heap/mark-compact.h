@@ -854,6 +854,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   int NumberOfParallelEphemeronVisitingTasks(size_t elements);
 
+  void RightTrimDescriptorArray(DescriptorArray* array,
+                                int descriptors_to_trim);
+
   base::Mutex mutex_;
   base::Semaphore page_parallel_job_semaphore_;
 

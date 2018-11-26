@@ -29,6 +29,7 @@ enum InstanceType : uint16_t;
   V(ConsString)                          \
   V(DataHandler)                         \
   V(DataObject)                          \
+  V(DescriptorArray)                     \
   V(EmbedderDataArray)                   \
   V(EphemeronHashTable)                  \
   V(FeedbackCell)                        \

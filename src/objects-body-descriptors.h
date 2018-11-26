@@ -118,6 +118,24 @@ class FlexibleBodyDescriptor final : public BodyDescriptorBase {
 
 typedef FlexibleBodyDescriptor<HeapObject::kHeaderSize> StructBodyDescriptor;
 
+template <int start_offset>
+class FlexibleWeakBodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static const int kStartOffset = start_offset;
+
+  static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
+    return (offset >= kStartOffset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IterateMaybeWeakPointers(obj, start_offset, object_size, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject* object);
+};
+
 // This class describes a body of an object which has a parent class that also
 // has a body descriptor. This represents a union of the parent's body
 // descriptor, and a new descriptor for the child -- so, both parent and child's

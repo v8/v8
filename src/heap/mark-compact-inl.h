@@ -367,15 +367,16 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   // just mark the entire descriptor array.
   if (!map->is_prototype_map()) {
     DescriptorArray* descriptors = map->instance_descriptors();
-    if (MarkObjectWithoutPush(map, descriptors) && descriptors->length() > 0) {
-      VisitPointers(descriptors, descriptors->data_start(),
-                    descriptors->GetDescriptorEndSlot(0));
+    if (MarkObjectWithoutPush(map, descriptors)) {
+      VisitPointers(descriptors, descriptors->GetFirstPointerSlot(),
+                    descriptors->GetDescriptorSlot(0));
     }
     int start = 0;
     int end = map->NumberOfOwnDescriptors();
     if (start < end) {
-      VisitPointers(descriptors, descriptors->GetDescriptorStartSlot(start),
-                    descriptors->GetDescriptorEndSlot(end));
+      VisitPointers(descriptors,
+                    MaybeObjectSlot(descriptors->GetDescriptorSlot(start)),
+                    MaybeObjectSlot(descriptors->GetDescriptorSlot(end)));
     }
   }
 

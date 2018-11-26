@@ -3150,7 +3150,6 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case WEAK_FIXED_ARRAY_TYPE:
     case WEAK_ARRAY_LIST_TYPE:
-    case DESCRIPTOR_ARRAY_TYPE:
       return kVisitWeakArray;
 
     case FIXED_DOUBLE_ARRAY_TYPE:
@@ -3179,6 +3178,9 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
+
+    case DESCRIPTOR_ARRAY_TYPE:
+      return kVisitDescriptorArray;
 
     case TRANSITION_ARRAY_TYPE:
       return kVisitTransitionArray;
@@ -3540,8 +3542,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "<BytecodeArray[" << BytecodeArray::cast(this)->length() << "]>";
       break;
     case DESCRIPTOR_ARRAY_TYPE:
-      os << "<DescriptorArray[" << DescriptorArray::cast(this)->length()
-         << "]>";
+      os << "<DescriptorArray["
+         << DescriptorArray::cast(this)->number_of_descriptors() << "]>";
       break;
     case TRANSITION_ARRAY_TYPE:
       os << "<TransitionArray[" << TransitionArray::cast(this)->length()
@@ -5575,7 +5577,7 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
 
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
   int old_size = map->NumberOfOwnDescriptors();
-  if (slack <= descriptors->NumberOfSlackDescriptors()) return;
+  if (slack <= descriptors->number_of_slack_descriptors()) return;
 
   Handle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(isolate, descriptors, old_size, slack);
@@ -6682,8 +6684,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   }
 
   // Allocate the instance descriptor.
-  Handle<DescriptorArray> descriptors = DescriptorArray::Allocate(
-      isolate, instance_descriptor_length, 0, TENURED);
+  Handle<DescriptorArray> descriptors =
+      DescriptorArray::Allocate(isolate, instance_descriptor_length, 0);
 
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;
@@ -9536,7 +9538,7 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
   }
 
   // Ensure there's space for the new descriptor in the shared descriptor array.
-  if (descriptors->NumberOfSlackDescriptors() == 0) {
+  if (descriptors->number_of_slack_descriptors() == 0) {
     int old_size = descriptors->number_of_descriptors();
     if (old_size == 0) {
       descriptors = DescriptorArray::Allocate(isolate, 0, 1);
@@ -10722,28 +10724,30 @@ Handle<FrameArray> FrameArray::EnsureSpace(Isolate* isolate,
 }
 
 Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
-                                                  int number_of_descriptors,
-                                                  int slack,
-                                                  PretenureFlag pretenure) {
-  DCHECK_LE(0, number_of_descriptors);
-  Factory* factory = isolate->factory();
-  // Do not use DescriptorArray::cast on incomplete object.
-  int size = number_of_descriptors + slack;
-  if (size == 0) return factory->empty_descriptor_array();
-  // Allocate the array of keys.
-  Handle<WeakFixedArray> result =
-      factory->NewWeakFixedArrayWithMap<DescriptorArray>(
-          RootIndex::kDescriptorArrayMap, LengthFor(size), pretenure);
-  result->Set(kDescriptorLengthIndex,
-              MaybeObject::FromObject(Smi::FromInt(number_of_descriptors)));
-  result->Set(kEnumCacheIndex, MaybeObject::FromObject(
-                                   ReadOnlyRoots(isolate).empty_enum_cache()));
-  return Handle<DescriptorArray>::cast(result);
+                                                  int nof_descriptors,
+                                                  int slack) {
+  return nof_descriptors + slack == 0
+             ? isolate->factory()->empty_descriptor_array()
+             : isolate->factory()->NewDescriptorArray(nof_descriptors, slack);
+}
+
+void DescriptorArray::Initialize(EnumCache* enum_cache,
+                                 HeapObject* undefined_value,
+                                 int nof_descriptors, int slack) {
+  DCHECK_GE(nof_descriptors, 0);
+  DCHECK_GE(slack, 0);
+  DCHECK_LE(nof_descriptors + slack, kMaxNumberOfDescriptors);
+  set_number_of_all_descriptors(nof_descriptors + slack);
+  set_number_of_descriptors(nof_descriptors);
+  set_number_of_marked_descriptors(0);
+  set_filler16bits(0);
+  set_enum_cache(enum_cache);
+  MemsetPointer(GetDescriptorSlot(0), undefined_value,
+                number_of_all_descriptors() * kEntrySize);
 }
 
 void DescriptorArray::ClearEnumCache() {
-  set(kEnumCacheIndex,
-      MaybeObject::FromObject(GetReadOnlyRoots().empty_enum_cache()));
+  set_enum_cache(GetReadOnlyRoots().empty_enum_cache());
 }
 
 void DescriptorArray::Replace(int index, Descriptor* descriptor) {
@@ -10752,13 +10756,13 @@ void DescriptorArray::Replace(int index, Descriptor* descriptor) {
 }
 
 // static
-void DescriptorArray::SetEnumCache(Handle<DescriptorArray> descriptors,
-                                   Isolate* isolate, Handle<FixedArray> keys,
-                                   Handle<FixedArray> indices) {
-  EnumCache* enum_cache = descriptors->GetEnumCache();
+void DescriptorArray::InitializeOrChangeEnumCache(
+    Handle<DescriptorArray> descriptors, Isolate* isolate,
+    Handle<FixedArray> keys, Handle<FixedArray> indices) {
+  EnumCache* enum_cache = descriptors->enum_cache();
   if (enum_cache == ReadOnlyRoots(isolate).empty_enum_cache()) {
     enum_cache = *isolate->factory()->NewEnumCache(keys, indices);
-    descriptors->set(kEnumCacheIndex, MaybeObject::FromObject(enum_cache));
+    descriptors->set_enum_cache(enum_cache);
   } else {
     enum_cache->set_keys(*keys);
     enum_cache->set_indices(*indices);
@@ -10869,8 +10873,9 @@ SharedFunctionInfo* DeoptimizationData::GetInlinedFunction(int index) {
 
 #ifdef DEBUG
 bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
-  if (length() != other->length()) return false;
-  for (int i = 0; i < length(); ++i) {
+  if (number_of_all_descriptors() != other->number_of_all_descriptors())
+    return false;
+  for (int i = 0; i < number_of_all_descriptors(); ++i) {
     if (get(i) != other->get(i)) return false;
   }
   return true;

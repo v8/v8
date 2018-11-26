@@ -922,16 +922,15 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
 
 void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   HeapObject::PrintHeader(os, "DescriptorArray");
-  os << "\n - capacity: " << length();
-  EnumCache* enum_cache = GetEnumCache();
   os << "\n - enum_cache: ";
-  if (enum_cache->keys()->length() == 0) {
+  if (enum_cache()->keys()->length() == 0) {
     os << "empty";
   } else {
-    os << enum_cache->keys()->length();
-    os << "\n   - keys: " << Brief(enum_cache->keys());
-    os << "\n   - indices: " << Brief(enum_cache->indices());
+    os << enum_cache()->keys()->length();
+    os << "\n   - keys: " << Brief(enum_cache()->keys());
+    os << "\n   - indices: " << Brief(enum_cache()->indices());
   }
+  os << "\n - nof slack descriptors: " << number_of_slack_descriptors();
   os << "\n - nof descriptors: " << number_of_descriptors();
   PrintDescriptors(os);
 }

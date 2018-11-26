@@ -47,12 +47,12 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   Comment("Check descriptor array length");
   TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
   // Minimum descriptor array length required for fast path.
-  const int min_descriptors_length = DescriptorArray::LengthFor(i::Max(
-      JSFunction::kLengthDescriptorIndex, JSFunction::kNameDescriptorIndex));
-  TNode<Smi> descriptors_length = LoadWeakFixedArrayLength(descriptors);
-  GotoIf(SmiLessThanOrEqual(descriptors_length,
-                            SmiConstant(min_descriptors_length)),
-         &slow);
+  const int min_nof_descriptors = i::Max(JSFunction::kLengthDescriptorIndex,
+                                         JSFunction::kNameDescriptorIndex);
+  TNode<Int32T> nof_descriptors = LoadNumberOfDescriptors(descriptors);
+  GotoIf(
+      Int32LessThanOrEqual(nof_descriptors, Int32Constant(min_nof_descriptors)),
+      &slow);
 
   // Check whether the length and name properties are still present as
   // AccessorInfo objects. In that case, their value can be recomputed even if

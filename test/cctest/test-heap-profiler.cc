@@ -2206,12 +2206,12 @@ TEST(AccessorInfo) {
       env->GetIsolate(), map, v8::HeapGraphEdge::kInternal, "descriptors");
   CHECK(descriptors);
   const v8::HeapGraphNode* length_name = GetProperty(
-      env->GetIsolate(), descriptors, v8::HeapGraphEdge::kInternal, "2");
+      env->GetIsolate(), descriptors, v8::HeapGraphEdge::kInternal, "0");
   CHECK(length_name);
   CHECK_EQ(0, strcmp("length", *v8::String::Utf8Value(env->GetIsolate(),
                                                       length_name->GetName())));
   const v8::HeapGraphNode* length_accessor = GetProperty(
-      env->GetIsolate(), descriptors, v8::HeapGraphEdge::kInternal, "4");
+      env->GetIsolate(), descriptors, v8::HeapGraphEdge::kInternal, "2");
   CHECK(length_accessor);
   CHECK_EQ(0, strcmp("system / AccessorInfo",
                      *v8::String::Utf8Value(env->GetIsolate(),

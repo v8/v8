@@ -756,6 +756,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject* obj) {
         entry, ArrayBoilerplateDescription::cast(obj));
   } else if (obj->IsFeedbackVector()) {
     ExtractFeedbackVectorReferences(entry, FeedbackVector::cast(obj));
+  } else if (obj->IsDescriptorArray()) {
+    ExtractDescriptorArrayReferences(entry, DescriptorArray::cast(obj));
   } else if (obj->IsWeakFixedArray()) {
     ExtractWeakArrayReferences(WeakFixedArray::kHeaderSize, entry,
                                WeakFixedArray::cast(obj));
@@ -1237,6 +1239,26 @@ void V8HeapExplorer::ExtractFeedbackVectorReferences(
   if (code->GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(entry, "optimized code", code_heap_object,
                      FeedbackVector::kOptimizedCodeOffset);
+  }
+}
+
+void V8HeapExplorer::ExtractDescriptorArrayReferences(HeapEntry* entry,
+                                                      DescriptorArray* array) {
+  SetInternalReference(entry, "enum_cache", array->enum_cache(),
+                       DescriptorArray::kEnumCacheOffset);
+  MaybeObjectSlot start = MaybeObjectSlot(array->GetDescriptorSlot(0));
+  MaybeObjectSlot end = MaybeObjectSlot(
+      array->GetDescriptorSlot(array->number_of_all_descriptors()));
+  for (int i = 0; start + i < end; ++i) {
+    MaybeObjectSlot slot = start + i;
+    int offset = static_cast<int>(slot.address() - array->address());
+    MaybeObject object = *slot;
+    HeapObject* heap_object;
+    if (object->GetHeapObjectIfWeak(&heap_object)) {
+      SetWeakReference(entry, i, heap_object, offset);
+    } else if (object->GetHeapObjectIfStrong(&heap_object)) {
+      SetInternalReference(entry, i, heap_object, offset);
+    }
   }
 }
 

@@ -343,10 +343,6 @@ Handle<T> Factory::NewWeakFixedArrayWithMap(RootIndex map_root_index,
 template Handle<FixedArray> Factory::NewFixedArrayWithMap<FixedArray>(
     RootIndex, int, PretenureFlag);
 
-template Handle<DescriptorArray>
-Factory::NewWeakFixedArrayWithMap<DescriptorArray>(RootIndex, int,
-                                                   PretenureFlag);
-
 Handle<FixedArray> Factory::NewFixedArray(int length, PretenureFlag pretenure) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_fixed_array();
@@ -1855,6 +1851,22 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
   cell->set_name(*name);
   cell->set_value(*the_hole_value());
   return cell;
+}
+
+Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
+                                                    int slack) {
+  int number_of_all_descriptors = number_of_descriptors + slack;
+  // Zero-length case must be handled outside.
+  DCHECK_LT(0, number_of_all_descriptors);
+  int size = DescriptorArray::SizeFor(number_of_all_descriptors);
+  DCHECK_LT(size, kMaxRegularHeapObjectSize);
+  HeapObject* obj =
+      isolate()->heap()->AllocateRawWithRetryOrFail(size, OLD_SPACE);
+  obj->set_map_after_allocation(*descriptor_array_map(), SKIP_WRITE_BARRIER);
+  DescriptorArray* array = DescriptorArray::cast(obj);
+  array->Initialize(*empty_enum_cache(), *undefined_value(),
+                    number_of_descriptors, slack);
+  return Handle<DescriptorArray>(array, isolate());
 }
 
 Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,

@@ -156,12 +156,12 @@ namespace internal {
   V(WITH_CONTEXT_TYPE)                                             \
                                                                    \
   V(WEAK_FIXED_ARRAY_TYPE)                                         \
-  V(DESCRIPTOR_ARRAY_TYPE)                                         \
   V(TRANSITION_ARRAY_TYPE)                                         \
                                                                    \
   V(CALL_HANDLER_INFO_TYPE)                                        \
   V(CELL_TYPE)                                                     \
   V(CODE_DATA_CONTAINER_TYPE)                                      \
+  V(DESCRIPTOR_ARRAY_TYPE)                                         \
   V(FEEDBACK_CELL_TYPE)                                            \
   V(FEEDBACK_VECTOR_TYPE)                                          \
   V(LOAD_HANDLER_TYPE)                                             \

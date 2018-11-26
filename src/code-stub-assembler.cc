@@ -1605,6 +1605,13 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagWeakFixedArrayLength(
   return LoadAndUntagObjectField(array, WeakFixedArray::kLengthOffset);
 }
 
+TNode<Int32T> CodeStubAssembler::LoadNumberOfDescriptors(
+    TNode<DescriptorArray> array) {
+  return UncheckedCast<Int32T>(
+      LoadObjectField(array, DescriptorArray::kNumberOfDescriptorsOffset,
+                      MachineType::Int16()));
+}
+
 TNode<Int32T> CodeStubAssembler::LoadMapBitField(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   return UncheckedCast<Int32T>(
@@ -1961,7 +1968,8 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<PropertyArray> array) {
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
     TNode<DescriptorArray> array) {
-  return LoadAndUntagWeakFixedArrayLength(array);
+  return IntPtrMul(ChangeInt32ToIntPtr(LoadNumberOfDescriptors(array)),
+                   IntPtrConstant(DescriptorArray::kEntrySize));
 }
 
 template <>
@@ -8701,7 +8709,8 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
                                      TVariable<IntPtrT>* var_name_index,
                                      Label* if_not_found) {
   static_assert(std::is_base_of<FixedArray, Array>::value ||
-                    std::is_base_of<WeakFixedArray, Array>::value,
+                    std::is_base_of<WeakFixedArray, Array>::value ||
+                    std::is_base_of<DescriptorArray, Array>::value,
                 "T must be a descendant of FixedArray or a WeakFixedArray");
   Comment("LookupLinear");
   TNode<IntPtrT> first_inclusive = IntPtrConstant(Array::ToKeyIndex(0));
@@ -8725,9 +8734,7 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
 template <>
 TNode<Uint32T> CodeStubAssembler::NumberOfEntries<DescriptorArray>(
     TNode<DescriptorArray> descriptors) {
-  return Unsigned(LoadAndUntagToWord32ArrayElement(
-      descriptors, WeakFixedArray::kHeaderSize,
-      IntPtrConstant(DescriptorArray::kDescriptorLengthIndex)));
+  return Unsigned(LoadNumberOfDescriptors(descriptors));
 }
 
 template <>
@@ -8780,9 +8787,9 @@ TNode<Uint32T> CodeStubAssembler::GetSortedKeyIndex<TransitionArray>(
 template <typename Array>
 TNode<Name> CodeStubAssembler::GetKey(TNode<Array> array,
                                       TNode<Uint32T> entry_index) {
-  static_assert(std::is_base_of<FixedArray, Array>::value ||
-                    std::is_base_of<WeakFixedArray, Array>::value,
-                "T must be a descendant of FixedArray or a TransitionArray");
+  static_assert(std::is_base_of<TransitionArray, Array>::value ||
+                    std::is_base_of<DescriptorArray, Array>::value,
+                "T must be a descendant of DescriptorArray or TransitionArray");
   const int key_offset = Array::ToKeyIndex(0) * kPointerSize;
   TNode<MaybeObject> element =
       LoadArrayElement(array, Array::kHeaderSize,
@@ -13703,8 +13710,8 @@ void CodeStubAssembler::GotoIfInitialPrototypePropertiesModified(
     for (int i = 0; i < properties.length(); i++) {
       // Assert the descriptor index is in-bounds.
       int descriptor = properties[i].descriptor_index;
-      CSA_ASSERT(this, SmiLessThan(SmiConstant(descriptor),
-                                   LoadWeakFixedArrayLength(descriptors)));
+      CSA_ASSERT(this, Int32LessThan(Int32Constant(descriptor),
+                                     LoadNumberOfDescriptors(descriptors)));
       // Assert that the name is correct. This essentially checks that
       // the descriptor index corresponds to the insertion order in
       // the bootstrapper.

@@ -310,19 +310,14 @@ bool Heap::CreateInitialMaps() {
 
   // Allocate the empty descriptor array.
   {
-    STATIC_ASSERT(DescriptorArray::kFirstIndex != 0);
-    int length = DescriptorArray::kFirstIndex;
-    int size = WeakFixedArray::SizeFor(length);
+    int size = DescriptorArray::SizeFor(0);
     if (!AllocateRaw(size, RO_SPACE).To(&obj)) return false;
     obj->set_map_after_allocation(roots.descriptor_array_map(),
                                   SKIP_WRITE_BARRIER);
-    DescriptorArray::cast(obj)->set_length(length);
+    DescriptorArray* array = DescriptorArray::cast(obj);
+    array->Initialize(roots.empty_enum_cache(), roots.undefined_value(), 0, 0);
   }
   set_empty_descriptor_array(DescriptorArray::cast(obj));
-  DescriptorArray::cast(obj)->SetNumberOfDescriptors(0);
-  WeakFixedArray::cast(obj)->Set(
-      DescriptorArray::kEnumCacheIndex,
-      MaybeObject::FromObject(roots.empty_enum_cache()));
 
   // Fix the instance_descriptors for the existing maps.
   FinalizePartialMap(roots.meta_map());

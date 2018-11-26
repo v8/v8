@@ -1115,22 +1115,17 @@ Address HeapObject::GetFieldAddress(int field_offset) const {
 ACCESSORS2(EnumCache, keys, FixedArray, kKeysOffset)
 ACCESSORS2(EnumCache, indices, FixedArray, kIndicesOffset)
 
-int DescriptorArray::number_of_descriptors() const {
-  return Smi::ToInt(get(kDescriptorLengthIndex).ToSmi());
-}
+ACCESSORS(DescriptorArray, enum_cache, EnumCache, kEnumCacheOffset)
+RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
+                        kNumberOfAllDescriptorsOffset)
+RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_descriptors,
+                        kNumberOfDescriptorsOffset)
+RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_marked_descriptors,
+                        kNumberOfMarkedDescriptorsOffset)
+RELAXED_INT16_ACCESSORS(DescriptorArray, filler16bits, kFiller16BitsOffset)
 
-int DescriptorArray::number_of_descriptors_storage() const {
-  return (length() - kFirstIndex) / kEntrySize;
-}
-
-int DescriptorArray::NumberOfSlackDescriptors() const {
-  return number_of_descriptors_storage() - number_of_descriptors();
-}
-
-
-void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
-  set(kDescriptorLengthIndex,
-      MaybeObject::FromObject(Smi::FromInt(number_of_descriptors)));
+inline int16_t DescriptorArray::number_of_slack_descriptors() const {
+  return number_of_all_descriptors() - number_of_descriptors();
 }
 
 inline int DescriptorArray::number_of_entries() const {
@@ -1138,11 +1133,7 @@ inline int DescriptorArray::number_of_entries() const {
 }
 
 void DescriptorArray::CopyEnumCacheFrom(DescriptorArray* array) {
-  set(kEnumCacheIndex, array->get(kEnumCacheIndex));
-}
-
-EnumCache* DescriptorArray::GetEnumCache() {
-  return EnumCache::cast(get(kEnumCacheIndex)->GetHeapObjectAssumeStrong());
+  set_enum_cache(array->enum_cache());
 }
 
 // Perform a binary search in a fixed array.
@@ -1192,7 +1183,6 @@ int BinarySearch(T* array, Name* name, int valid_entries,
   }
   return T::kNotFound;
 }
-
 
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
@@ -1247,7 +1237,6 @@ int Search(T* array, Name* name, int valid_entries, int* out_insertion_index) {
                                    out_insertion_index);
 }
 
-
 int DescriptorArray::Search(Name* name, int valid_descriptors) {
   DCHECK(name->IsUniqueName());
   return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors,
@@ -1277,20 +1266,24 @@ int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map map) {
   return number;
 }
 
-ObjectSlot DescriptorArray::GetKeySlot(int descriptor_number) {
-  DCHECK(descriptor_number < number_of_descriptors());
-  DCHECK((*RawFieldOfElementAt(ToKeyIndex(descriptor_number)))->IsObject());
-  return ObjectSlot(RawFieldOfElementAt(ToKeyIndex(descriptor_number)));
+ObjectSlot DescriptorArray::GetFirstPointerSlot() {
+  return ObjectSlot(
+      HeapObject::RawField(this, DescriptorArray::kPointersStartOffset));
 }
 
-MaybeObjectSlot DescriptorArray::GetDescriptorStartSlot(int descriptor_number) {
-  return MaybeObjectSlot(GetKeySlot(descriptor_number));
+ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
+  // Allow descriptor == number_of_all_descriptors() for computing the slot
+  // address that comes after the last descriptor (for iterating).
+  DCHECK_LE(descriptor, number_of_all_descriptors());
+  return HeapObject::RawField(this, OffsetOfDescriptorAt(descriptor));
 }
 
-MaybeObjectSlot DescriptorArray::GetDescriptorEndSlot(int descriptor_number) {
-  return GetValueSlot(descriptor_number - 1) + 1;
+ObjectSlot DescriptorArray::GetKeySlot(int descriptor) {
+  DCHECK_LE(descriptor, number_of_all_descriptors());
+  ObjectSlot slot = GetDescriptorSlot(descriptor) + kEntryKeyIndex;
+  DCHECK((*slot)->IsObject());
+  return slot;
 }
-
 
 Name* DescriptorArray::GetKey(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
@@ -1298,16 +1291,13 @@ Name* DescriptorArray::GetKey(int descriptor_number) {
       get(ToKeyIndex(descriptor_number))->GetHeapObjectAssumeStrong());
 }
 
-
 int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
   return GetDetails(descriptor_number).pointer();
 }
 
-
 Name* DescriptorArray::GetSortedKey(int descriptor_number) {
   return GetKey(GetSortedKeyIndex(descriptor_number));
 }
-
 
 void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
   PropertyDetails details = GetDetails(descriptor_index);
@@ -1315,21 +1305,15 @@ void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
       MaybeObject::FromObject(details.set_pointer(pointer).AsSmi()));
 }
 
-MaybeObjectSlot DescriptorArray::GetValueSlot(int descriptor_number) {
-  DCHECK(descriptor_number < number_of_descriptors());
-  return RawFieldOfElementAt(ToValueIndex(descriptor_number));
-}
-
-
-int DescriptorArray::GetValueOffset(int descriptor_number) {
-  return OffsetOfElementAt(ToValueIndex(descriptor_number));
+MaybeObjectSlot DescriptorArray::GetValueSlot(int descriptor) {
+  DCHECK_LT(descriptor, number_of_descriptors());
+  return MaybeObjectSlot(GetDescriptorSlot(descriptor) + kEntryValueIndex);
 }
 
 Object* DescriptorArray::GetStrongValue(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   return get(ToValueIndex(descriptor_number))->cast<Object>();
 }
-
 
 void DescriptorArray::SetValue(int descriptor_index, Object* value) {
   set(ToValueIndex(descriptor_index), MaybeObject::FromObject(value));
@@ -1377,7 +1361,8 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
 void DescriptorArray::Append(Descriptor* desc) {
   DisallowHeapAllocation no_gc;
   int descriptor_number = number_of_descriptors();
-  SetNumberOfDescriptors(descriptor_number + 1);
+  DCHECK_LE(descriptor_number + 1, number_of_all_descriptors());
+  set_number_of_descriptors(descriptor_number + 1);
   Set(descriptor_number, desc);
 
   uint32_t hash = desc->GetKey()->Hash();
@@ -1400,12 +1385,19 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
   SetSortedKey(second, first_key);
 }
 
+int DescriptorArray::length() const {
+  return number_of_all_descriptors() * kEntrySize;
+}
+
 MaybeObject DescriptorArray::get(int index) const {
-  return WeakFixedArray::Get(index);
+  DCHECK(index >= 0 && index < this->length());
+  return RELAXED_READ_WEAK_FIELD(this, offset(index));
 }
 
 void DescriptorArray::set(int index, MaybeObject value) {
-  WeakFixedArray::Set(index, value);
+  DCHECK(index >= 0 && index < this->length());
+  RELAXED_WRITE_FIELD(this, offset(index), value);
+  WEAK_WRITE_BARRIER(this, offset(index), value);
 }
 
 bool StringSetShape::IsMatch(String* key, Object* value) {
@@ -1552,6 +1544,11 @@ int HeapObject::SizeFromMap(Map map) const {
     return FeedbackMetadata::SizeFor(
         reinterpret_cast<const FeedbackMetadata*>(this)
             ->synchronized_slot_count());
+  }
+  if (instance_type == DESCRIPTOR_ARRAY_TYPE) {
+    return DescriptorArray::SizeFor(
+        reinterpret_cast<const DescriptorArray*>(this)
+            ->number_of_all_descriptors());
   }
   if (IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
                 LAST_WEAK_FIXED_ARRAY_TYPE)) {

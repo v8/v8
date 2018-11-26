@@ -15,8 +15,8 @@
 
 namespace v8 {
 namespace internal {
-
-class WeakArrayBodyDescriptor;
+typedef FlexibleWeakBodyDescriptor<HeapObject::kHeaderSize>
+    WeakArrayBodyDescriptor;
 
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
   V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
@@ -369,7 +369,6 @@ class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
   inline int synchronized_capacity() const;
   inline void synchronized_set_capacity(int value);
 
-  typedef WeakArrayBodyDescriptor BodyDescriptor;
 
   // Layout description.
 #define WEAK_ARRAY_LIST_FIELDS(V) \
@@ -380,6 +379,8 @@ class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WEAK_ARRAY_LIST_FIELDS)
 #undef WEAK_ARRAY_LIST_FIELDS
+
+  typedef WeakArrayBodyDescriptor BodyDescriptor;
 
   static const int kMaxCapacity =
       (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;

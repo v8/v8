@@ -773,7 +773,7 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   if (map->owns_descriptors() &&
       array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // DescriptorArray has its own instance type.
-    EnumCache* enum_cache = array->GetEnumCache();
+    EnumCache* enum_cache = array->enum_cache();
     RecordSimpleVirtualObjectStats(array, enum_cache->keys(),
                                    ObjectStats::ENUM_CACHE_TYPE);
     RecordSimpleVirtualObjectStats(array, enum_cache->indices(),

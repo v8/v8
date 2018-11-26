@@ -483,6 +483,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FeedbackCell> NewManyClosuresCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewNoFeedbackCell();
 
+  Handle<DescriptorArray> NewDescriptorArray(int number_of_entries,
+                                             int slack = 0);
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);
 

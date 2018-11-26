@@ -612,7 +612,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
     }
 
     if (map()->EnumLength() != kInvalidEnumCacheSentinel) {
-      EnumCache* enum_cache = descriptors->GetEnumCache();
+      EnumCache* enum_cache = descriptors->enum_cache();
       FixedArray keys = enum_cache->keys();
       FixedArray indices = enum_cache->indices();
       CHECK_LE(map()->EnumLength(), keys->length());
@@ -769,20 +769,24 @@ void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
 }
 
 void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
-  WeakFixedArrayVerify(isolate);
-  int nof_descriptors = number_of_descriptors();
-  if (number_of_descriptors_storage() == 0) {
+  for (int i = 0; i < number_of_all_descriptors(); i++) {
+    MaybeObject::VerifyMaybeObjectPointer(isolate, get(ToKeyIndex(i)));
+    MaybeObject::VerifyMaybeObjectPointer(isolate, get(ToDetailsIndex(i)));
+    MaybeObject::VerifyMaybeObjectPointer(isolate, get(ToValueIndex(i)));
+  }
+  if (number_of_all_descriptors() == 0) {
     Heap* heap = isolate->heap();
     CHECK_EQ(ReadOnlyRoots(heap).empty_descriptor_array(), this);
-    CHECK_EQ(2, length());
-    CHECK_EQ(0, nof_descriptors);
-    CHECK_EQ(ReadOnlyRoots(heap).empty_enum_cache(), GetEnumCache());
+    CHECK_EQ(0, number_of_all_descriptors());
+    CHECK_EQ(0, number_of_descriptors());
+    CHECK_EQ(ReadOnlyRoots(heap).empty_enum_cache(), enum_cache());
   } else {
-    CHECK_LT(2, length());
-    CHECK_LE(LengthFor(nof_descriptors), length());
+    CHECK_LT(0, number_of_all_descriptors());
+    CHECK_LE(number_of_descriptors(), number_of_all_descriptors());
 
     // Check that properties with private symbols names are non-enumerable.
-    for (int descriptor = 0; descriptor < nof_descriptors; descriptor++) {
+    for (int descriptor = 0; descriptor < number_of_descriptors();
+         descriptor++) {
       Object* key = get(ToKeyIndex(descriptor))->cast<Object>();
       // number_of_descriptors() may be out of sync with the actual descriptors
       // written during descriptor array construction.

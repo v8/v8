@@ -56,6 +56,10 @@
   inline uint16_t name() const;     \
   inline void set_##name(int value);
 
+#define DECL_INT16_ACCESSORS(name) \
+  inline int16_t name() const;     \
+  inline void set_##name(int16_t value);
+
 #define DECL_UINT8_ACCESSORS(name) \
   inline uint8_t name() const;     \
   inline void set_##name(int value);
@@ -282,6 +286,14 @@
     return InstanceTypeChecker::Is##type(map()->instance_type()); \
   }
 
+#define RELAXED_INT16_ACCESSORS(holder, name, offset) \
+  int16_t holder::name() const {                      \
+    return RELAXED_READ_INT16_FIELD(this, offset);    \
+  }                                                   \
+  void holder::set_##name(int16_t value) {            \
+    RELAXED_WRITE_INT16_FIELD(this, offset, value);   \
+  }
+
 #define FIELD_ADDR(p, offset) ((p)->ptr() + offset - kHeapObjectTag)
 
 #define READ_FIELD(p, offset) \
@@ -436,6 +448,15 @@
 
 #define WRITE_INT16_FIELD(p, offset, value) \
   (*reinterpret_cast<int16_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define RELAXED_READ_INT16_FIELD(p, offset) \
+  static_cast<int16_t>(base::Relaxed_Load(  \
+      reinterpret_cast<const base::Atomic16*>(FIELD_ADDR(p, offset))))
+
+#define RELAXED_WRITE_INT16_FIELD(p, offset, value)             \
+  base::Relaxed_Store(                                          \
+      reinterpret_cast<base::Atomic16*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic16>(value));
 
 #define READ_UINT32_FIELD(p, offset) \
   (*reinterpret_cast<const uint32_t*>(FIELD_ADDR(p, offset)))

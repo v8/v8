@@ -2007,6 +2007,25 @@ bool MarkCompactCollector::CompactTransitionArray(
   return descriptors_owner_died;
 }
 
+void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray* array,
+                                                    int descriptors_to_trim) {
+  int old_nof_all_descriptors = array->number_of_all_descriptors();
+  int new_nof_all_descriptors = old_nof_all_descriptors - descriptors_to_trim;
+  DCHECK_LT(0, descriptors_to_trim);
+  DCHECK_LE(0, new_nof_all_descriptors);
+  Address start = array->GetDescriptorSlot(new_nof_all_descriptors).address();
+  Address end = array->GetDescriptorSlot(old_nof_all_descriptors).address();
+  RememberedSet<OLD_TO_NEW>::RemoveRange(MemoryChunk::FromHeapObject(array),
+                                         start, end,
+                                         SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_OLD>::RemoveRange(MemoryChunk::FromHeapObject(array),
+                                         start, end,
+                                         SlotSet::PREFREE_EMPTY_BUCKETS);
+  heap()->CreateFillerObjectAt(start, static_cast<int>(end - start),
+                               ClearRecordedSlots::kNo);
+  array->set_number_of_all_descriptors(new_nof_all_descriptors);
+}
+
 void MarkCompactCollector::TrimDescriptorArray(Map map,
                                                DescriptorArray* descriptors) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
@@ -2014,13 +2033,12 @@ void MarkCompactCollector::TrimDescriptorArray(Map map,
     DCHECK(descriptors == ReadOnlyRoots(heap_).empty_descriptor_array());
     return;
   }
-
-  int number_of_descriptors = descriptors->number_of_descriptors_storage();
-  int to_trim = number_of_descriptors - number_of_own_descriptors;
+  // TODO(ulan): Trim only if slack is greater than some percentage threshold.
+  int to_trim =
+      descriptors->number_of_all_descriptors() - number_of_own_descriptors;
   if (to_trim > 0) {
-    heap_->RightTrimWeakFixedArray(descriptors,
-                                   to_trim * DescriptorArray::kEntrySize);
-    descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
+    descriptors->set_number_of_descriptors(number_of_own_descriptors);
+    RightTrimDescriptorArray(descriptors, to_trim);
 
     TrimEnumCache(map, descriptors);
     descriptors->Sort();
@@ -2043,7 +2061,7 @@ void MarkCompactCollector::TrimEnumCache(Map map,
     live_enum = map->NumberOfEnumerableProperties();
   }
   if (live_enum == 0) return descriptors->ClearEnumCache();
-  EnumCache* enum_cache = descriptors->GetEnumCache();
+  EnumCache* enum_cache = descriptors->enum_cache();
 
   FixedArray keys = enum_cache->keys();
   int to_trim = keys->length() - live_enum;

@@ -42,6 +42,7 @@ class WasmInstanceObject;
   V(CodeDataContainer, CodeDataContainer*)                                     \
   V(ConsString, ConsString*)                                                   \
   V(DataHandler, DataHandler*)                                                 \
+  V(DescriptorArray, DescriptorArray*)                                         \
   V(EmbedderDataArray, EmbedderDataArray)                                      \
   V(EphemeronHashTable, EphemeronHashTable)                                    \
   V(FeedbackCell, FeedbackCell*)                                               \

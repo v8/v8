@@ -85,7 +85,6 @@
 //       - ByteArray
 //       - BytecodeArray
 //       - FixedArray
-//         - DescriptorArray
 //         - FrameArray
 //         - HashTable
 //           - Dictionary
@@ -127,6 +126,7 @@
 //     - HeapNumber
 //     - BigInt
 //     - Cell
+//     - DescriptorArray
 //     - PropertyCell
 //     - PropertyArray
 //     - Code
@@ -1225,6 +1225,9 @@ class FixedBodyDescriptor;
 
 template <int start_offset>
 class FlexibleBodyDescriptor;
+
+template <int start_offset>
+class FlexibleWeakBodyDescriptor;
 
 template <class ParentBodyDescriptor, class ChildBodyDescriptor>
 class SubclassBodyDescriptor;
