@@ -6,7 +6,6 @@
 #define V8_PARSING_SCANNER_INL_H_
 
 #include "src/char-predicates-inl.h"
-#include "src/parsing/keywords-gen.h"
 #include "src/parsing/scanner.h"
 
 namespace v8 {
@@ -91,8 +90,44 @@ constexpr bool IsKeywordStart(char c) {
 V8_INLINE Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                                 int input_length) {
   DCHECK_GE(input_length, 1);
-  return PerfectKeywordHash::GetToken(reinterpret_cast<const char*>(input),
-                                      input_length);
+  const int kMinLength = 2;
+  const int kMaxLength = 10;
+  if (!IsInRange(input_length, kMinLength, kMaxLength)) {
+    return Token::IDENTIFIER;
+  }
+  switch (input[0]) {
+    default:
+#define KEYWORD_GROUP_CASE(ch) \
+  break;                       \
+  case ch:
+#define KEYWORD(keyword, token)                                           \
+  {                                                                       \
+    /* 'keyword' is a char array, so sizeof(keyword) is */                \
+    /* strlen(keyword) plus 1 for the NUL char. */                        \
+    const int keyword_length = sizeof(keyword) - 1;                       \
+    STATIC_ASSERT(keyword_length >= kMinLength);                          \
+    STATIC_ASSERT(keyword_length <= kMaxLength);                          \
+    DCHECK_EQ(input[0], keyword[0]);                                      \
+    DCHECK(token == Token::FUTURE_STRICT_RESERVED_WORD ||                 \
+           0 == strncmp(keyword, Token::String(token), sizeof(keyword))); \
+    if (input_length == keyword_length && input[1] == keyword[1] &&       \
+        (keyword_length <= 2 || input[2] == keyword[2]) &&                \
+        (keyword_length <= 3 || input[3] == keyword[3]) &&                \
+        (keyword_length <= 4 || input[4] == keyword[4]) &&                \
+        (keyword_length <= 5 || input[5] == keyword[5]) &&                \
+        (keyword_length <= 6 || input[6] == keyword[6]) &&                \
+        (keyword_length <= 7 || input[7] == keyword[7]) &&                \
+        (keyword_length <= 8 || input[8] == keyword[8]) &&                \
+        (keyword_length <= 9 || input[9] == keyword[9]) &&                \
+        (keyword_length <= 10 || input[10] == keyword[10])) {             \
+      return token;                                                       \
+    }                                                                     \
+  }
+      KEYWORDS(KEYWORD_GROUP_CASE, KEYWORD)
+  }
+  return Token::IDENTIFIER;
+#undef KEYWORD
+#undef KEYWORD_GROUP_CASE
 }
 
 // Recursive constexpr template magic to check if a character is in a given
