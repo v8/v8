@@ -608,7 +608,7 @@ DEFINE_BOOL(wasm_no_bounds_checks, false,
             "disable bounds checks (performance testing only)")
 DEFINE_BOOL(wasm_no_stack_checks, false,
             "disable stack checks (performance testing only)")
-DEFINE_BOOL(wasm_math_intrinsics, false,
+DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
 DEFINE_BOOL(wasm_shared_engine, true,
