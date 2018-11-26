@@ -517,6 +517,12 @@ class CFGBuilder : public ZoneObject {
       }
       schedule_->AddSwitch(switch_block, sw, successor_blocks, successor_count);
     }
+    for (size_t index = 0; index < successor_count; ++index) {
+      if (BranchHintOf(successor_blocks[index]->front()->op()) ==
+          BranchHint::kFalse) {
+        successor_blocks[index]->set_deferred(true);
+      }
+    }
   }
 
   void ConnectMerge(Node* merge) {
