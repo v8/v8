@@ -2895,6 +2895,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--thread-pool-size=", 19) == 0) {
       options.thread_pool_size = atoi(argv[i] + 19);
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--stress-delay-tasks") == 0) {
+      // Delay execution of tasks by 0-100ms randomly (based on --random-seed).
+      options.stress_delay_tasks = true;
+      argv[i] = nullptr;
     }
   }
 
@@ -3355,7 +3359,7 @@ int Shell::Main(int argc, char* argv[]) {
   if (i::FLAG_verify_predictable) {
     g_platform = MakePredictablePlatform(std::move(g_platform));
   }
-  if (i::FLAG_stress_delay_tasks) {
+  if (options.stress_delay_tasks) {
     int64_t random_seed = i::FLAG_fuzzer_random_seed;
     if (!random_seed) random_seed = i::FLAG_random_seed;
     // If random_seed is still 0 here, the {DelayedTasksPlatform} will choose a

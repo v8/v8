@@ -324,11 +324,6 @@ DEFINE_BOOL(enable_one_shot_optimization, true,
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
-// Flag to stress different interleavings of tasks.
-DEFINE_BOOL(
-    stress_delay_tasks, false,
-    "delay execution of tasks by 0-100ms randomly (based on --random-seed)")
-
 // Flags for Ignition for no-snapshot builds.
 #undef FLAG
 #ifndef V8_USE_SNAPSHOT
