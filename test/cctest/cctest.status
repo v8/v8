@@ -93,9 +93,6 @@
   'test-cpu-profiler/TracingCpuProfiler': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
-  # BUG(7202). The test is flaky.
-  'test-cpu-profiler/NativeFrameStackTrace': [SKIP],
-
   # BUG(7054)
   'test-cpu-profiler/StaticCollectSampleAPI': [SKIP],
 
