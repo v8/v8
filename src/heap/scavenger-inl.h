@@ -372,7 +372,11 @@ SlotCallbackResult Scavenger::ScavengeObject(HeapObjectSlot p,
       DCHECK((*p)->IsStrong());
       p.store(HeapObjectReference::Strong(dest));
     }
-    DCHECK(Heap::InToSpace(dest) || !Heap::InNewSpace((dest)));
+    DCHECK_IMPLIES(Heap::InNewSpace(dest),
+                   (Heap::InToSpace(dest) ||
+                    MemoryChunk::FromHeapObject(dest)->owner()->identity() ==
+                        NEW_LO_SPACE));
+
     return Heap::InToSpace(dest) ? KEEP_SLOT : REMOVE_SLOT;
   }
 
