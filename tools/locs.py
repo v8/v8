@@ -7,29 +7,34 @@
   Consult --help for more information.
 """
 
+import argparse
 import json
-import sys
-import re
 import os
+import re
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
-import argparse
 
 ARGPARSE = argparse.ArgumentParser(
-    description="A script that computes LoC for a build dir or from a compile_commands.json file",
+    description=("A script that computes LoC for a build dir or from a"
+                 "compile_commands.json file"),
     epilog="""Examples:
  Count with default settings for build in out/Default:
    locs.py --build-dir out/Default
  Count with default settings according to given compile_commands file:
    locs.py --compile-commands compile_commands.json
  Count only a custom group of files settings for build in out/Default:
-   tools/locs.py --build-dir out/Default --group src-compiler '\.\./\.\./src/compiler' --only src-compiler
+   tools/locs.py --build-dir out/Default
+                 --group src-compiler '\.\./\.\./src/compiler'
+                 --only src-compiler
  Report the 10 files with the worst expansion:
    tools/locs.py --build-dir out/Default --worst 10
  Report the 10 files with the worst expansion in src/compiler:
-   tools/locs.py --build-dir out/Default --worst 10 --group src-compiler '\.\./\.\./src/compiler' --only src-compiler
+   tools/locs.py --build-dir out/Default --worst 10
+                 --group src-compiler '\.\./\.\./src/compiler'
+                 --only src-compiler
  Report the 10 largest files after preprocessing:
    tools/locs.py --build-dir out/Default --largest 10
  Report the 10 smallest input files:
@@ -61,7 +66,7 @@ ARGPARSE.add_argument(
     '--only',
     action='append',
     default=[],
-    help="Restrict counting to specific report group (can be passed multiple times)")
+    help="Restrict counting to report group (can be passed multiple times)")
 ARGPARSE.add_argument(
     '--not',
     action='append',
@@ -117,16 +122,21 @@ def MaxWidth(strings):
   return max_width
 
 
-def GenerateCompileCommandsAndBuild(build_dir, compile_commands_file):
+def GenerateCompileCommandsAndBuild(build_dir, compile_commands_file, out):
   if not os.path.isdir(build_dir):
-    print("Error: Specified build dir {} is not a directory.".format(build_dir))
+    print("Error: Specified build dir {} is not a directory.".format(
+        build_dir), file=sys.stderr)
     exit(1)
   compile_commands_file = "{}/compile_commands.json".format(build_dir)
-  print("Generating compile commands in {}.".format(compile_commands_file))
-  subprocess.call("ninja -C {} -t compdb cxx cc > {}".format(build_dir,
-                                                             compile_commands_file), shell=True)
-  subprocess.call(
-      "autoninja -C {}".format(build_dir, compile_commands_file), shell=True)
+
+  print("Generating compile commands in {}.".format(
+      compile_commands_file), file=out)
+
+  ninja = "ninja -C {} -t compdb cxx cc > {}".format(
+      build_dir, compile_commands_file)
+  subprocess.call(ninja, shell=True, stdout=out)
+  autoninja = "autoninja -C {}".format(build_dir)
+  subprocess.call(autoninja, shell=True, stdout=out)
   return compile_commands_file
 
 
@@ -166,14 +176,8 @@ class Group(CompilationData):
       self.count += 1
 
   def to_string(self, name_width):
-    return "{:<{}} ({:>5} files): {}".format(self.name, name_width, self.count, super().to_string())
-
-
-class CompilationUnitEncoder(json.JSONEncoder):
-  def default(self, obj):
-    if isinstance(obj, File):
-      return {"file": obj.file, "loc": obj.loc, "expanded": obj.expanded}
-    return json.JSONEncoder.default(self, obj)
+    return "{:<{}} ({:>5} files): {}".format(
+        self.name, name_width, self.count, super().to_string())
 
 
 def SetupReportGroups():
@@ -217,7 +221,7 @@ class Results:
     self.groups = SetupReportGroups()
     self.units = []
 
-  def isTracked(self, filename):
+  def track(self, filename):
     is_tracked = False
     for group in self.groups.values():
       if group.regexp.match(filename):
@@ -233,24 +237,40 @@ class Results:
   def maxGroupWidth(self):
     return MaxWidth([v.name for v in self.groups.values()])
 
-  def printGroupResults(self):
+  def printGroupResults(self, file):
     for key in sorted(self.groups.keys()):
-      print(self.groups[key].to_string(self.maxGroupWidth()))
+      print(self.groups[key].to_string(self.maxGroupWidth()), file=file)
+
+  def printSorted(self, key, count, reverse, out):
+    for unit in sorted(self.units, key=key, reverse=reverse)[:count]:
+      print(unit.to_string(), file=out)
+
+
+class LocsEncoder(json.JSONEncoder):
+  def default(self, o):
+    if isinstance(o, File):
+      return {"file": o.file, "loc": o.loc, "expanded": o.expanded}
+    if isinstance(o, Group):
+      return {"name": o.name, "loc": o.loc, "expanded": o.expanded}
+    if isinstance(o, Results):
+      return {"groups": o.groups, "units": o.units}
+    return json.JSONEncoder.default(self, o)
 
 
 class StatusLine:
   def __init__(self):
     self.max_width = 0
 
-  def print(self, statusline, end="\r"):
+  def print(self, statusline, end="\r", file=sys.stdout):
     self.max_width = max(self.max_width, len(statusline))
-    print("{0:<{1}}".format(statusline, self.max_width), end=end)
+    print("{0:<{1}}".format(statusline, self.max_width), end=end, file=file)
 
 
 class CommandSplitter:
   def __init__(self):
     self.cmd_pattern = re.compile(
-        "([^\\s]*\\s+)?(?P<clangcmd>[^\\s]*clang.*) -c (?P<infile>.*) -o (?P<outfile>.*)")
+        "([^\\s]*\\s+)?(?P<clangcmd>[^\\s]*clang.*)"
+        " -c (?P<infile>.*) -o (?P<outfile>.*)")
 
   def process(self, compilation_unit, temp_file_name):
     cmd = self.cmd_pattern.match(compilation_unit['command'])
@@ -260,12 +280,16 @@ class CommandSplitter:
     outfile = Path(str(temp_file_name)).joinpath(outfilename)
     return [cmd.group('clangcmd'), infilename, infile, outfile]
 
+
 def Main():
   compile_commands_file = ARGS['compile_commands']
+  out = sys.stdout
+  if ARGS['json']:
+    out = sys.stderr
 
   if ARGS['build_dir']:
     compile_commands_file = GenerateCompileCommandsAndBuild(
-        ARGS['build_dir'], compile_commands_file)
+        ARGS['build_dir'], compile_commands_file, out)
 
   try:
     with open(compile_commands_file) as file:
@@ -283,15 +307,18 @@ def Main():
     cmd_splitter = CommandSplitter()
 
     for i, key in enumerate(data):
-      if not result.isTracked(key['file']):
+      if not result.track(key['file']):
         continue
       if not ARGS['json']:
-        status.print("[{}/{}] Counting LoCs of {}".format(i, len(data), key['file']))
+        status.print(
+            "[{}/{}] Counting LoCs of {}".format(i, len(data), key['file']))
       clangcmd, infilename, infile, outfile = cmd_splitter.process(key, temp)
       outfile.parent.mkdir(parents=True, exist_ok=True)
       if infile.is_file():
-        clangcmd = clangcmd + " -E -P " + str(infile) + " -o /dev/stdout | sed '/^\\s*$/d' | wc -l"
-        loccmd = "cat {}  | sed '\\;^\\s*//;d' | sed '\\;^/\\*;d' | sed '/^\\*/d' | sed '/^\\s*$/d' | wc -l".format(
+        clangcmd = clangcmd + " -E -P " + \
+            str(infile) + " -o /dev/stdout | sed '/^\\s*$/d' | wc -l"
+        loccmd = ("cat {}  | sed '\\;^\\s*//;d' | sed '\\;^/\\*;d'"
+                  " | sed '/^\\*/d' | sed '/^\\s*$/d' | wc -l").format(
             infile)
         runcmd = " {} ; {}".format(clangcmd, loccmd)
         if ARGS['echocmd']:
@@ -301,40 +328,41 @@ def Main():
         processes.append({'process': p, 'infile': infilename})
 
     for i, p in enumerate(processes):
-      if not ARGS['json']:
-        status.print("[{}/{}] Summing up {}".format(i, len(processes), p['infile']))
+      status.print("[{}/{}] Summing up {}".format(
+          i, len(processes), p['infile']), file=out)
       output, err = p['process'].communicate()
       expanded, loc = list(map(int, output.split()))
       result.recordFile(p['infile'], loc, expanded)
 
     end = time.time()
     if ARGS['json']:
-      print(json.dumps(result, ensure_ascii=False, cls=CompilationUnitEncoder))
-    else:
-      status.print("Processed {:,} files in {:,.2f} sec.".format(len(processes), end-start), end="\n")
-      result.printGroupResults()
+      print(json.dumps(result, ensure_ascii=False, cls=LocsEncoder))
+    status.print("Processed {:,} files in {:,.2f} sec.".format(
+        len(processes), end-start), end="\n", file=out)
+    result.printGroupResults(file=out)
 
-      if ARGS['largest']:
-        print("Largest {} files after expansion:".format(ARGS['largest']))
-        for u in sorted(result.units, key=lambda v: v.expanded, reverse=True)[:ARGS['largest']]:
-          print(u.to_string())
+    if ARGS['largest']:
+      print("Largest {} files after expansion:".format(ARGS['largest']))
+      result.printSorted(
+          lambda v: v.expanded, ARGS['largest'], reverse=True, out=out)
 
-      if ARGS['worst']:
-        print("Worst expansion ({} files):".format(ARGS['worst']))
-        for u in sorted(result.units, key=lambda v: v.ratio(), reverse=True)[:ARGS['worst']]:
-          print(u.to_string())
+    if ARGS['worst']:
+      print("Worst expansion ({} files):".format(ARGS['worst']))
+      result.printSorted(
+          lambda v: v.ratio(), ARGS['worst'], reverse=True, out=out)
 
-      if ARGS['smallest']:
-        print("Smallest {} input files:".format(ARGS['smallest']))
-        for u in sorted(result.units, key=lambda v: v.loc, reverse=False)[:ARGS['smallest']]:
-          print(u.to_string())
+    if ARGS['smallest']:
+      print("Smallest {} input files:".format(ARGS['smallest']))
+      result.printSorted(
+          lambda v: v.loc, ARGS['smallest'], reverse=False, out=out)
 
-      if ARGS['files']:
-        print("List of input files:")
-        for u in sorted(result.units, key=lambda v: v.file, reverse=False):
-          print(u.to_string())
+    if ARGS['files']:
+      print("List of input files:")
+      result.printSorted(
+          lambda v: v.file, ARGS['files'], reverse=False, out=out)
 
   return 0
+
 
 if __name__ == '__main__':
   sys.exit(Main())
