@@ -1714,9 +1714,6 @@ void Logger::MapCreate(Map map) {
 
 void Logger::MapDetails(Map map) {
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
-  // Disable logging Map details during bootstrapping since we use LogMaps() to
-  // log all creating
-  if (isolate_->bootstrapper()->IsActive()) return;
   DisallowHeapAllocation no_gc;
   Log::MessageBuilder msg(log_);
   msg << "map-details" << kNext << timer_.Elapsed().InMicroseconds() << kNext
@@ -1860,14 +1857,16 @@ void Logger::LogAccessorCallbacks() {
   }
 }
 
-void Logger::LogMaps() {
+void Logger::LogAllMaps() {
+  DisallowHeapAllocation no_gc;
   Heap* heap = isolate_->heap();
   HeapIterator iterator(heap);
-  DisallowHeapAllocation no_gc;
   for (HeapObject* obj = iterator.next(); obj != nullptr;
        obj = iterator.next()) {
     if (!obj->IsMap()) continue;
-    MapDetails(Map::cast(obj));
+    Map map = Map::cast(obj);
+    MapCreate(map);
+    MapDetails(map);
   }
 }
 

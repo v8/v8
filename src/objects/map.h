@@ -735,8 +735,8 @@ class Map : public HeapObjectPtr {
   // Returns a copy of the map, prepared for inserting into the transition
   // tree (if the |map| owns descriptors then the new one will share
   // descriptors with |map|).
-  static Handle<Map> CopyForTransition(Isolate* isolate, Handle<Map> map,
-                                       const char* reason);
+  static Handle<Map> CopyForElementsTransition(Isolate* isolate,
+                                               Handle<Map> map);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.

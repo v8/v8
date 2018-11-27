@@ -274,8 +274,8 @@ class Logger : public CodeEventListener {
   void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
   void LogCodeObjects();
-  // Logs all Mpas foind in the heap.
-  void LogMaps();
+  // Logs all Maps found on the heap.
+  void LogAllMaps();
 
   // Converts tag to a corresponding NATIVE_... if the script is native.
   V8_INLINE static CodeEventListener::LogEventsAndTags ToNativeByScript(

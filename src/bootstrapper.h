@@ -100,6 +100,9 @@ class Bootstrapper final {
   static void ExportFromRuntime(Isolate* isolate, Handle<JSObject> container);
 
  private:
+  // Log newly created Map objects if no snapshot was used.
+  void LogAllMaps();
+
   Isolate* isolate_;
   typedef int NestingCounterType;
   NestingCounterType nesting_;

@@ -46,7 +46,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
 
     // Flush the instruction cache for the entire code-space. Must happen after
     // builtins deserialization.
-    FlushICacheForNewIsolate();
+    FlushICache();
   }
 
   isolate->heap()->set_native_contexts_list(
@@ -58,11 +58,10 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
         ReadOnlyRoots(isolate).undefined_value());
   }
 
-  // Issue code events for newly deserialized code objects.
-  LOG_CODE_EVENT(isolate, LogCodeObjects());
-  LOG_CODE_EVENT(isolate, LogCompiledFunctions());
 
   isolate->builtins()->MarkInitialized();
+
+  LogNewMapEvents();
 
   if (FLAG_rehash_snapshot && can_rehash()) {
     isolate->heap()->InitializeHashSeed();
@@ -71,7 +70,11 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   }
 }
 
-void StartupDeserializer::FlushICacheForNewIsolate() {
+void StartupDeserializer::LogNewMapEvents() {
+  if (FLAG_trace_maps) LOG(isolate_, LogAllMaps());
+}
+
+void StartupDeserializer::FlushICache() {
   DCHECK(!deserializing_user_code());
   // The entire isolate is newly deserialized. Simply flush all code pages.
   for (Page* p : *isolate()->heap()->code_space()) {

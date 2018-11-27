@@ -54,6 +54,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   CHECK_EQ(start_address, code_space->top());
 
   if (FLAG_rehash_snapshot && can_rehash()) Rehash();
+  LogNewMapEvents();
 
   return Handle<Object>(root, isolate);
 }

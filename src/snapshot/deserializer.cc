@@ -8,6 +8,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/log.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -152,6 +153,34 @@ void Deserializer::DeserializeDeferredObjects() {
   }
 }
 
+void Deserializer::LogNewObjectEvents() {
+  {
+    // {new_maps_} and {new_code_objects_} are vectors containing raw
+    // pointers, hence there should be no GC happening.
+    DisallowHeapAllocation no_gc;
+    // Issue code events for newly deserialized code objects.
+    LOG_CODE_EVENT(isolate_, LogCodeObjects());
+  }
+  LOG_CODE_EVENT(isolate_, LogCompiledFunctions());
+  LogNewMapEvents();
+}
+
+void Deserializer::LogNewMapEvents() {
+  DisallowHeapAllocation no_gc;
+  for (Map map : new_maps()) {
+    DCHECK(FLAG_trace_maps);
+    LOG(isolate_, MapCreate(map));
+    LOG(isolate_, MapDetails(map));
+  }
+}
+
+void Deserializer::LogScriptEvents(Script* script) {
+  DisallowHeapAllocation no_gc;
+  LOG(isolate_,
+      ScriptEvent(Logger::ScriptEventType::kDeserialize, script->id()));
+  LOG(isolate_, ScriptDetails(script));
+}
+
 StringTableInsertionKey::StringTableInsertionKey(String string)
     : StringTableKey(ComputeHashField(string)), string_(string) {
   DCHECK(string->IsInternalizedString());
@@ -203,28 +232,29 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
       }
     } else if (obj->IsScript()) {
       new_scripts_.push_back(handle(Script::cast(obj), isolate_));
+    } else if (obj->IsAllocationSite()) {
+      // We should link new allocation sites, but we can't do this immediately
+      // because |AllocationSite::HasWeakNext()| internally accesses
+      // |Heap::roots_| that may not have been initialized yet. So defer this to
+      // |ObjectDeserializer::CommitPostProcessedObjects()|.
+      new_allocation_sites_.push_back(AllocationSite::cast(obj));
     } else {
       DCHECK(CanBeDeferred(obj));
     }
-  } else if (obj->IsScript()) {
-    LOG(isolate_, ScriptEvent(Logger::ScriptEventType::kDeserialize,
-                              Script::cast(obj)->id()));
-    LOG(isolate_, ScriptDetails(Script::cast(obj)));
   }
-
-  if (obj->IsAllocationSite()) {
-    // We should link new allocation sites, but we can't do this immediately
-    // because |AllocationSite::HasWeakNext()| internally accesses
-    // |Heap::roots_| that may not have been initialized yet. So defer this to
-    // |ObjectDeserializer::CommitPostProcessedObjects()|.
-    new_allocation_sites_.push_back(AllocationSite::cast(obj));
+  if (obj->IsScript()) {
+    LogScriptEvents(Script::cast(obj));
   } else if (obj->IsCode()) {
-    // We flush all code pages after deserializing the startup snapshot. In that
-    // case, we only need to remember code objects in the large object space.
-    // When deserializing user code, remember each individual code object.
+    // We flush all code pages after deserializing the startup snapshot.
+    // Hence we only remember each individual code object when deserializing
+    // user code.
     if (deserializing_user_code() || space == LO_SPACE) {
       new_code_objects_.push_back(Code::cast(obj));
     }
+  } else if (FLAG_trace_maps && obj->IsMap()) {
+    // Keep track of all seen Maps to log them later since they might be only
+    // partially initialized at this point.
+    new_maps_.push_back(Map::cast(obj));
   } else if (obj->IsAccessorInfo()) {
 #ifdef USE_SIMULATOR
     accessor_infos_.push_back(AccessorInfo::cast(obj));

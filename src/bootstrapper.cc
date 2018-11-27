@@ -348,8 +348,7 @@ Handle<Context> Bootstrapper::CreateEnvironment(
       return Handle<Context>();
     }
   }
-  // Log all maps created during bootstrapping.
-  if (FLAG_trace_maps) LOG(isolate_, LogMaps());
+  LogAllMaps();
   return scope.CloseAndEscape(env);
 }
 
@@ -363,9 +362,16 @@ Handle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
     global_proxy = genesis.global_proxy();
     if (global_proxy.is_null()) return Handle<JSGlobalProxy>();
   }
-  // Log all maps created during bootstrapping.
-  if (FLAG_trace_maps) LOG(isolate_, LogMaps());
+  LogAllMaps();
   return scope.CloseAndEscape(global_proxy);
+}
+
+void Bootstrapper::LogAllMaps() {
+  if (!FLAG_trace_maps || isolate_->initialized_from_snapshot()) return;
+  // Log all created Map objects that are on the heap. For snapshots the Map
+  // logging happens during deserialization in order to avoid printing Maps
+  // multiple times during partial deserialization.
+  LOG(isolate_, LogAllMaps());
 }
 
 void Bootstrapper::DetachGlobal(Handle<Context> env) {

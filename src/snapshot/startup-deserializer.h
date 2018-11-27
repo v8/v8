@@ -22,7 +22,8 @@ class StartupDeserializer final : public Deserializer {
   void DeserializeInto(Isolate* isolate);
 
  private:
-  void FlushICacheForNewIsolate();
+  void FlushICache();
+  void LogNewMapEvents();
 
   const SnapshotData* read_only_data_;
 };

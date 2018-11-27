@@ -2970,6 +2970,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   Handle<Map> new_map = Map::CopyDropDescriptors(isolate(), map);
   new_map->set_may_have_interesting_symbols(true);
   new_map->set_is_dictionary_map(true);
+  LOG(isolate(), MapDetails(*new_map));
 
   // Set up the global object as a normalized object.
   global->set_global_dictionary(*dictionary);
@@ -3507,6 +3508,7 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   // Maintain invariant expected from any JSGlobalProxy.
   map->set_is_access_check_needed(true);
   map->set_may_have_interesting_symbols(true);
+  LOG(isolate(), MapDetails(*map));
   return Handle<JSGlobalProxy>::cast(NewJSObjectFromMap(map, NOT_TENURED));
 }
 
@@ -4087,6 +4089,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
     map->AppendDescriptor(&d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
+  LOG(isolate(), MapDetails(*map));
   return map;
 }
 
@@ -4163,6 +4166,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     map->AppendDescriptor(&d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
+  LOG(isolate(), MapDetails(*map));
   return map;
 }
 
@@ -4197,6 +4201,7 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
         prototype_string(), function_prototype_accessor(), ro_attribs);
     map->AppendDescriptor(&d);
   }
+  LOG(isolate(), MapDetails(*map));
   return map;
 }
 

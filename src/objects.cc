@@ -6677,9 +6677,6 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   NotifyMapChange(old_map, new_map, isolate);
 
-  if (FLAG_trace_maps) {
-    LOG(isolate, MapEvent("SlowToFast", *old_map, *new_map, reason));
-  }
 
   if (instance_descriptor_length == 0) {
     DisallowHeapAllocation no_gc;
@@ -6690,6 +6687,9 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     object->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     // Check that it really works.
     DCHECK(object->HasFastProperties());
+    if (FLAG_trace_maps) {
+      LOG(isolate, MapEvent("SlowToFast", *old_map, *new_map, reason));
+    }
     return;
   }
 
@@ -6784,6 +6784,9 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     new_map->SetOutOfObjectUnusedPropertyFields(unused_property_fields);
   }
 
+  if (FLAG_trace_maps) {
+    LOG(isolate, MapEvent("SlowToFast", *old_map, *new_map, reason));
+  }
   // Transform the object.
   object->synchronized_set_map(*new_map);
 
@@ -9695,6 +9698,7 @@ Handle<Map> Map::AddMissingTransitions(
     Handle<Map> new_map = CopyDropDescriptors(isolate, map);
     InstallDescriptors(isolate, map, new_map, i, descriptors,
                        full_layout_descriptor);
+
     map = new_map;
   }
   map->NotifyLeafMapLayoutChange(isolate);
@@ -9775,7 +9779,7 @@ Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
       maybe_elements_transition_map.is_null();
 
   if (insert_transition) {
-    Handle<Map> new_map = CopyForTransition(isolate, map, "CopyAsElementsKind");
+    Handle<Map> new_map = CopyForElementsTransition(isolate, map);
     new_map->set_elements_kind(kind);
 
     Handle<Name> name = isolate->factory()->elements_transition_symbol();
@@ -9829,8 +9833,7 @@ Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
   return map;
 }
 
-Handle<Map> Map::CopyForTransition(Isolate* isolate, Handle<Map> map,
-                                   const char* reason) {
+Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
   DCHECK(!map->is_prototype_map());
   Handle<Map> new_map = CopyDropDescriptors(isolate, map);
 
@@ -9850,10 +9853,6 @@ Handle<Map> Map::CopyForTransition(Isolate* isolate, Handle<Map> map,
     Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
                                                    isolate);
     new_map->InitializeDescriptors(*new_descriptors, *new_layout_descriptor);
-  }
-
-  if (FLAG_trace_maps) {
-    LOG(isolate, MapEvent("CopyForTransition", *map, *new_map, reason));
   }
   return new_map;
 }
