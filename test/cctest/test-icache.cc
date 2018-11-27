@@ -53,6 +53,7 @@ static void FloodWithInc(Isolate* isolate, byte* buffer, size_t allocated) {
     __ Addu(v0, v0, Operand(1));
   }
 #elif V8_TARGET_ARCH_PPC
+  __ function_descriptor();
   for (int i = 0; i < kNumInstr; ++i) {
     __ addi(r3, r3, Operand(1));
   }
@@ -64,6 +65,8 @@ static void FloodWithInc(Isolate* isolate, byte* buffer, size_t allocated) {
 #error Unsupported architecture
 #endif
   __ Ret();
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
 }
 
 static void FloodWithNop(Isolate* isolate, byte* buffer, size_t allocated) {
@@ -77,11 +80,15 @@ static void FloodWithNop(Isolate* isolate, byte* buffer, size_t allocated) {
   __ mov(v0, a0);
 #elif V8_TARGET_ARCH_MIPS64
   __ mov(v0, a0);
+#elif V8_TARGET_ARCH_PPC
+  __ function_descriptor();
 #endif
   for (int i = 0; i < kNumInstr; ++i) {
     __ nop();
   }
   __ Ret();
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
 }
 
 // Order of operation for this test case:
