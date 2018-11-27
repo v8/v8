@@ -377,7 +377,7 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
     Node* microtask = AllocatePromiseReactionJobTask(
         var_map.value(), context, argument, var_handler.value(),
         result_promise_or_capability);
-    CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), microtask);
+    CallBuiltin(Builtins::kEnqueueMicrotask, context, microtask);
     Goto(&done);
   }
 
@@ -531,7 +531,7 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
         STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
                       PromiseReactionJobTask::kPromiseOrCapabilityOffset);
       }
-      CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), current);
+      CallBuiltin(Builtins::kEnqueueMicrotask, context, current);
       Goto(&loop);
     }
     BIND(&done_loop);

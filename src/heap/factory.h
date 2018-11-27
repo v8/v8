@@ -452,8 +452,6 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<WeakFactoryCleanupJobTask> NewWeakFactoryCleanupJobTask(
       Handle<JSWeakFactory> weak_factory);
 
-  Handle<MicrotaskQueue> NewMicrotaskQueue();
-
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
                              PretenureFlag pretenure = NOT_TENURED);

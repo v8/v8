@@ -84,6 +84,7 @@ class InnerPointerToCodeCache;
 class Logger;
 class MaterializedObjectStore;
 class Microtask;
+class MicrotaskQueue;
 class OptimizingCompileDispatcher;
 class PromiseOnStack;
 class RegExpStack;
@@ -477,6 +478,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(const intptr_t*, api_external_references, nullptr)                        \
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
+  V(MicrotaskQueue*, default_microtask_queue, nullptr)                        \
   V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(CodeTracer*, code_tracer, nullptr)                                        \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                           \
@@ -1430,6 +1432,10 @@ class Isolate final : private HiddenFactory {
     return reinterpret_cast<Address>(&promise_hook_or_async_event_delegate_);
   }
 
+  Address default_microtask_queue_address() {
+    return reinterpret_cast<Address>(&default_microtask_queue_);
+  }
+
   Address promise_hook_or_debug_is_active_or_async_event_delegate_address() {
     return reinterpret_cast<Address>(
         &promise_hook_or_debug_is_active_or_async_event_delegate_);
@@ -1817,7 +1823,7 @@ class Isolate final : private HiddenFactory {
   // preprocessor defines. Make sure the offsets of these fields agree
   // between compilation units.
 #define ISOLATE_FIELD_OFFSET(type, name, ignored) \
-  static const intptr_t name##_debug_offset_;
+  V8_EXPORT_PRIVATE static const intptr_t name##_debug_offset_;
   ISOLATE_INIT_LIST(ISOLATE_FIELD_OFFSET)
   ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET

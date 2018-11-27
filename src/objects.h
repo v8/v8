@@ -167,7 +167,6 @@
 //           - PromiseFulfillReactionJobTask
 //           - PromiseRejectReactionJobTask
 //         - PromiseResolveThenableJobTask
-//       - MicrotaskQueue
 //       - Module
 //       - ModuleInfoEntry
 //     - FeedbackCell
@@ -274,7 +273,6 @@ class LayoutDescriptor;
 class LookupIterator;
 class FieldType;
 class MaybeObjectSlot;
-class MicrotaskQueue;
 class Module;
 class ModuleInfoEntry;
 class ObjectHashTable;
