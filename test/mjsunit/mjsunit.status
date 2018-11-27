@@ -717,10 +717,12 @@
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC. We mark PASS,FAIL to not skip those tests on the endurance fuzzer.
   'array-literal-feedback': [PASS, FAIL],
+  'compiler/dataview-neutered': [PASS, FAIL],
   'compiler/native-context-specialization-hole-check': [PASS, FAIL],
   'elements-transition-hoisting': [PASS, FAIL],
   'es6/collections-constructor-custom-iterator': [PASS, FAIL],
   'harmony/weakrefs/clear-clears-factory-pointer': [PASS, FAIL],
+  'ignition/throw-if-not-hole': [PASS, FAIL],
   'keyed-load-with-symbol-key': [PASS, FAIL],
   'object-seal': [PASS, FAIL],
   'regress/regress-3709': [PASS, FAIL],
