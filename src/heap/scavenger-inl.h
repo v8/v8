@@ -240,14 +240,15 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(Map map,
                                                     HeapObjectSlot slot,
                                                     HeapObject* object,
                                                     int object_size) {
-  SLOW_DCHECK(static_cast<size_t>(object_size) <=
-              MemoryChunkLayout::AllocatableMemoryInDataPage());
   SLOW_DCHECK(object->SizeFromMap(map) == object_size);
   CopyAndForwardResult result;
 
   if (HandleLargeObject(map, object, object_size)) {
     return REMOVE_SLOT;
   }
+
+  SLOW_DCHECK(static_cast<size_t>(object_size) <=
+              MemoryChunkLayout::AllocatableMemoryInDataPage());
 
   if (!heap()->ShouldBePromoted(object->address())) {
     // A semi-space copy may fail due to fragmentation. In that case, we
@@ -396,7 +397,8 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
 
     SlotCallbackResult result =
         ScavengeObject(HeapObjectSlot(slot), heap_object);
-    DCHECK_IMPLIES(result == REMOVE_SLOT, !Heap::InNewSpace(*slot));
+    DCHECK_IMPLIES(result == REMOVE_SLOT,
+                   !heap->IsInYoungGeneration((*slot)->GetHeapObject()));
     return result;
   } else if (Heap::InToSpace(object)) {
     // Already updated slot. This can happen when processing of the work list

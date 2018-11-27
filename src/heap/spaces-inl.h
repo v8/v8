@@ -230,6 +230,10 @@ void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
                                        amount);
 }
 
+bool MemoryChunk::IsInNewLargeObjectSpace() const {
+  return owner()->identity() == NEW_LO_SPACE;
+}
+
 void Page::MarkNeverAllocateForTesting() {
   DCHECK(this->owner()->identity() != NEW_SPACE);
   DCHECK(!IsFlagSet(NEVER_ALLOCATE_ON_PAGE));

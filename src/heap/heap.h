@@ -391,6 +391,8 @@ class Heap {
   bool IsLargeObject(HeapObject* object);
   inline bool IsWithinLargeObject(Address address);
 
+  bool IsInYoungGeneration(HeapObject* object);
+
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   FixedArrayBase LeftTrimFixedArray(FixedArrayBase obj, int elements_to_trim);

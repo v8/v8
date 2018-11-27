@@ -637,6 +637,8 @@ class MemoryChunk {
 
   bool InLargeObjectSpace() const;
 
+  inline bool IsInNewLargeObjectSpace() const;
+
   Space* owner() const { return owner_; }
 
   void set_owner(Space* space) { owner_ = space; }

@@ -2513,6 +2513,13 @@ bool Heap::IsLargeObject(HeapObject* object) {
          new_lo_space()->Contains(object);
 }
 
+bool Heap::IsInYoungGeneration(HeapObject* object) {
+  if (MemoryChunk::FromHeapObject(object)->IsInNewLargeObjectSpace()) {
+    return !object->map_word().IsForwardingAddress();
+  }
+  return Heap::InNewSpace(object);
+}
+
 #ifdef ENABLE_SLOW_DCHECKS
 namespace {
 
