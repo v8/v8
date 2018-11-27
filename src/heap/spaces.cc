@@ -3752,7 +3752,6 @@ void NewLargeObjectSpace::Flip() {
 
 void NewLargeObjectSpace::FreeAllObjects() {
   LargePage* current = first_page();
-  objects_size_ = 0;
   while (current) {
     LargePage* next_current = current->next_page();
     Unregister(current, static_cast<size_t>(current->GetObject()->Size()));
