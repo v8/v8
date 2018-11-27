@@ -62,7 +62,7 @@ namespace {
 
 const int kMB = 1024 * 1024;
 
-const int kMaxWorkers = 100;
+const int kMaxWorkers = 150;
 const int kMaxSerializerMemoryUsage =
     1 * kMB;  // Arbitrary maximum for testing.
 

@@ -1443,7 +1443,7 @@ class Isolate final : private HiddenFactory {
                               void* data);
   void RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
                               Handle<JSArrayBuffer> array_buffer,
-                              size_t offset_in_bytes, int32_t value,
+                              size_t offset_in_bytes, int64_t value,
                               double timeout_in_ms,
                               AtomicsWaitWakeHandle* stop_handle);
 

@@ -283,20 +283,42 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicWake) {
   return FutexEmulation::Wake(array_buffer, address, count);
 }
 
+double WaitTimeoutInMs(double timeout_ns) {
+  return timeout_ns < 0
+             ? V8_INFINITY
+             : timeout_ns / (base::Time::kNanosecondsPerMicrosecond *
+                             base::Time::kMicrosecondsPerMillisecond);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
   CONVERT_NUMBER_CHECKED(int32_t, expected_value, Int32, args[2]);
-  CONVERT_DOUBLE_ARG_CHECKED(timeout, 3);
-  timeout = timeout < 0 ? V8_INFINITY
-                        : timeout / (base::Time::kNanosecondsPerMicrosecond *
-                                     base::Time::kMicrosecondsPerMillisecond);
+  CONVERT_DOUBLE_ARG_CHECKED(timeout_ns, 3);
+  double timeout_ms = WaitTimeoutInMs(timeout_ns);
   Handle<JSArrayBuffer> array_buffer =
       getSharedArrayBuffer(instance, isolate, address);
-  return FutexEmulation::Wait(isolate, array_buffer, address, expected_value,
-                              timeout);
+  return FutexEmulation::Wait32(isolate, array_buffer, address, expected_value,
+                                timeout_ms);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
+  CONVERT_NUMBER_CHECKED(uint32_t, expected_value_high, Uint32, args[2]);
+  CONVERT_NUMBER_CHECKED(uint32_t, expected_value_low, Uint32, args[3]);
+  CONVERT_DOUBLE_ARG_CHECKED(timeout_ns, 4);
+  int64_t expected_value = (static_cast<uint64_t>(expected_value_high) << 32) |
+                           static_cast<uint64_t>(expected_value_low);
+  double timeout_ms = WaitTimeoutInMs(timeout_ns);
+  Handle<JSArrayBuffer> array_buffer =
+      getSharedArrayBuffer(instance, isolate, address);
+  return FutexEmulation::Wait64(isolate, array_buffer, address, expected_value,
+                                timeout_ms);
 }
 
 }  // namespace internal

@@ -63,6 +63,7 @@ struct WasmException;
 #define ATOMIC_OP_LIST(V)                \
   V(AtomicWake, Uint32)                  \
   V(I32AtomicWait, Uint32)               \
+  V(I64AtomicWait, Uint32)               \
   V(I32AtomicLoad, Uint32)               \
   V(I64AtomicLoad, Uint64)               \
   V(I32AtomicLoad8U, Uint8)              \

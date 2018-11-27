@@ -28744,7 +28744,7 @@ struct AtomicsWaitCallbackInfo {
   Local<v8::SharedArrayBuffer> expected_sab;
   v8::Isolate::AtomicsWaitEvent expected_event;
   double expected_timeout;
-  int32_t expected_value;
+  int64_t expected_value;
   size_t expected_offset;
 
   size_t ncalls = 0;
@@ -28766,7 +28766,7 @@ class StopAtomicsWaitThread : public v8::base::Thread {
 
 void AtomicsWaitCallbackForTesting(
     v8::Isolate::AtomicsWaitEvent event, Local<v8::SharedArrayBuffer> sab,
-    size_t offset_in_bytes, int32_t value, double timeout_in_ms,
+    size_t offset_in_bytes, int64_t value, double timeout_in_ms,
     v8::Isolate::AtomicsWaitWakeHandle* wake_handle, void* data) {
   AtomicsWaitCallbackInfo* info = static_cast<AtomicsWaitCallbackInfo*>(data);
   info->ncalls++;
