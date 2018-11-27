@@ -765,7 +765,8 @@ int IncrementalMarking::VisitObject(Map map, HeapObject* obj) {
     //    unsafe layout change.
     // 4. The object is materizalized by the deoptimizer.
     DCHECK(obj->IsHashTable() || obj->IsPropertyArray() ||
-           obj->IsFixedArray() || obj->IsJSObject() || obj->IsString());
+           obj->IsFixedArray() || obj->IsContext() || obj->IsJSObject() ||
+           obj->IsString());
   }
   DCHECK(marking_state()->IsBlack(obj));
   WhiteToGreyAndPush(map);
