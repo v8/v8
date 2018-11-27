@@ -213,6 +213,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     return rmode != RelocInfo::EXTERNAL_REFERENCE;
   }
 
+  static bool IsNearCallOffset(int64_t offset);
+
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
@@ -1270,7 +1272,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
 
-  static bool IsNearCallOffset(int64_t offset);
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
 
   void CallRecordWriteStub(Register object, Register address,
