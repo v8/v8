@@ -4445,12 +4445,11 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
       // the target are FixedDoubleArray. That it is PACKED or HOLEY does not
       // matter.
       ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
-      TNode<FixedArrayBase> to_elements = AllocateFixedArray(
-          kind, capacity, parameter_mode, allocation_flags, source_map);
+      Node* to_elements = AllocateFixedArray(kind, capacity, parameter_mode,
+                                             allocation_flags, source_map);
       var_result.Bind(to_elements);
-      CopyElements(kind, to_elements, IntPtrConstant(0), CAST(source),
-                   ParameterToIntPtr(first, parameter_mode),
-                   ParameterToIntPtr(count, parameter_mode));
+      CopyFixedArrayElements(kind, source, kind, to_elements, first, count,
+                             capacity, SKIP_WRITE_BARRIER, parameter_mode);
     }
 
     Goto(&done);
