@@ -44,10 +44,8 @@ void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
 
-  DCHECK_EQ(
-      0, reinterpret_cast<MicrotaskQueue*>(context_->microtask_queue_pointer())
-             ->size());
-  context_->set_microtask_queue_pointer(nullptr);
+  DCHECK_EQ(0, context_->native_context()->microtask_queue()->size());
+  context_->native_context()->set_microtask_queue(nullptr);
 
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr, ObjectSlot(o));
   SerializeDeferredObjects();

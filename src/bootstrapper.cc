@@ -5884,8 +5884,7 @@ Genesis::Genesis(
     }
   }
 
-  native_context()->set_microtask_queue_pointer(
-      reinterpret_cast<Object*>(isolate->default_microtask_queue()));
+  native_context()->set_microtask_queue(isolate->default_microtask_queue());
 
   // Install experimental natives. Do not include them into the
   // snapshot as we should be able to turn them off at runtime. Re-installing

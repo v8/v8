@@ -54,11 +54,10 @@ TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetDefaultMicrotaskQueue() {
 }
 
 TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskQueue(
-    TNode<Context> context) {
-  // TODO(ishell): move microtask queue pointer to embedder data array.
-  int offset = Context::SlotOffset(Context::MICROTASK_QUEUE_POINTER);
-  return UncheckedCast<IntPtrT>(
-      Load(MachineType::Pointer(), context, IntPtrConstant(offset)));
+    TNode<Context> native_context) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+  return LoadObjectField<IntPtrT>(native_context,
+                                  NativeContext::kMicrotaskQueueOffset);
 }
 
 TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskRingBuffer(
