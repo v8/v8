@@ -110,19 +110,21 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
 }
 
 void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
-  if (!size_) {
-    return;
+  if (size_) {
+    // Iterate pending Microtasks as root objects to avoid the write barrier for
+    // all single Microtask. If this hurts the GC performance, use a FixedArray.
+    visitor->VisitRootPointers(
+        Root::kStrongRoots, nullptr, ObjectSlot(ring_buffer_ + start_),
+        ObjectSlot(ring_buffer_ + std::min(start_ + size_, capacity_)));
+    visitor->VisitRootPointers(
+        Root::kStrongRoots, nullptr, ObjectSlot(ring_buffer_),
+        ObjectSlot(ring_buffer_ + std::max(start_ + size_ - capacity_,
+                                           static_cast<intptr_t>(0))));
   }
 
-  // Iterate pending Microtasks as root objects to avoid the write barrier for
-  // all single Microtask. If this hurts the GC performance, use a FixedArray.
-  visitor->VisitRootPointers(
-      Root::kStrongRoots, nullptr, ObjectSlot(ring_buffer_ + start_),
-      ObjectSlot(ring_buffer_ + std::min(start_ + size_, capacity_)));
-  visitor->VisitRootPointers(
-      Root::kStrongRoots, nullptr, ObjectSlot(ring_buffer_),
-      ObjectSlot(ring_buffer_ + std::max(start_ + size_ - capacity_,
-                                         static_cast<intptr_t>(0))));
+  if (capacity_ <= kMinimumCapacity) {
+    return;
+  }
 
   intptr_t new_capacity = capacity_;
   while (new_capacity > 2 * size_) {
