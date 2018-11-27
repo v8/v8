@@ -18041,7 +18041,9 @@ int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
 template <typename Dictionary>
 struct EnumIndexComparator {
   explicit EnumIndexComparator(Dictionary dict) : dict(dict) {}
-  bool operator()(Address a, Address b) {
+  bool operator()(Tagged_t a, Tagged_t b) {
+    // TODO(ishell): revisit the code below
+    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
     PropertyDetails da(dict->DetailsAt(Smi(a).value()));
     PropertyDetails db(dict->DetailsAt(Smi(b).value()));
     return da.dictionary_index() < db.dictionary_index();

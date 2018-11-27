@@ -14,7 +14,6 @@
 
 #include "src/objects.h"
 
-#include "src/base/atomicops.h"
 #include "src/base/bits.h"
 #include "src/base/tsan.h"
 #include "src/builtins/builtins.h"
@@ -889,10 +888,8 @@ ObjectSlot HeapObject::map_slot() {
 }
 
 MapWord HeapObject::map_word() const {
-  return MapWord(
-      reinterpret_cast<uintptr_t>(RELAXED_READ_FIELD(this, kMapOffset)));
+  return MapWord(RELAXED_READ_FIELD(this, kMapOffset).ptr());
 }
-
 
 void HeapObject::set_map_word(MapWord map_word) {
   RELAXED_WRITE_FIELD(this, kMapOffset,
@@ -1408,7 +1405,7 @@ MaybeObject DescriptorArray::get(int index) const {
 
 void DescriptorArray::set(int index, MaybeObject value) {
   DCHECK(index >= 0 && index < this->length());
-  RELAXED_WRITE_FIELD(this, offset(index), value);
+  RELAXED_WRITE_WEAK_FIELD(this, offset(index), value);
   WEAK_WRITE_BARRIER(this, offset(index), value);
 }
 

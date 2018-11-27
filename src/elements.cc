@@ -457,9 +457,11 @@ static void SortIndices(
   // store operations that are safe for concurrent marking.
   AtomicSlot start(indices->GetFirstElementAddress());
   std::sort(start, start + sort_size,
-            [isolate](Address elementA, Address elementB) {
-              const Object* a = reinterpret_cast<Object*>(elementA);
-              const Object* b = reinterpret_cast<Object*>(elementB);
+            [isolate](Tagged_t elementA, Tagged_t elementB) {
+              // TODO(ishell): revisit the code below
+              STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+              ObjectPtr a(elementA);
+              ObjectPtr b(elementB);
               if (a->IsSmi() || !a->IsUndefined(isolate)) {
                 if (!b->IsSmi() && b->IsUndefined(isolate)) {
                   return true;

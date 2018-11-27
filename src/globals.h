@@ -12,6 +12,7 @@
 #include <ostream>
 
 #include "include/v8-internal.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/build_config.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
@@ -206,6 +207,14 @@ STATIC_ASSERT(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
 constexpr int kTaggedSize = kSystemPointerSize;
 constexpr int kTaggedSizeLog2 = kSystemPointerSizeLog2;
 STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
+
+// These types define raw and atomic storage types for tagged values stored
+// on V8 heap.
+using Tagged_t = Address;
+using AtomicTagged_t = base::AtomicWord;
+using AsAtomicTagged = base::AsAtomicPointerImpl<AtomicTagged_t>;
+STATIC_ASSERT(sizeof(Tagged_t) == kTaggedSize);
+STATIC_ASSERT(sizeof(AtomicTagged_t) == kTaggedSize);
 
 // TODO(ishell): use kTaggedSize or kSystemPointerSize instead.
 constexpr int kPointerSize = kSystemPointerSize;

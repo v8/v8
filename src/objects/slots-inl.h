@@ -18,49 +18,69 @@ namespace internal {
 ObjectSlot::ObjectSlot(ObjectPtr* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
-void ObjectSlot::store(Object* value) { *location() = value->ptr(); }
+void ObjectSlot::store(Object* value) const { *location() = value->ptr(); }
 
 ObjectPtr ObjectSlot::Acquire_Load() const {
-  return ObjectPtr(base::AsAtomicWord::Acquire_Load(location()));
+  return ObjectPtr(AsAtomicTagged::Acquire_Load(location()));
+}
+
+Object* ObjectSlot::Acquire_Load1() const {
+  return reinterpret_cast<Object*>(AsAtomicTagged::Acquire_Load(location()));
 }
 
 ObjectPtr ObjectSlot::Relaxed_Load() const {
-  return ObjectPtr(base::AsAtomicWord::Relaxed_Load(location()));
+  return ObjectPtr(AsAtomicTagged::Relaxed_Load(location()));
 }
 
 void ObjectSlot::Relaxed_Store(ObjectPtr value) const {
-  base::AsAtomicWord::Relaxed_Store(location(), value->ptr());
+  AsAtomicTagged::Relaxed_Store(location(), value->ptr());
+}
+
+void ObjectSlot::Relaxed_Store1(Object* value) const {
+  AsAtomicTagged::Relaxed_Store(location(), value->ptr());
+}
+
+void ObjectSlot::Release_Store1(Object* value) const {
+  AsAtomicTagged::Release_Store(location(), value->ptr());
 }
 
 void ObjectSlot::Release_Store(ObjectPtr value) const {
-  base::AsAtomicWord::Release_Store(location(), value->ptr());
+  AsAtomicTagged::Release_Store(location(), value->ptr());
 }
 
 ObjectPtr ObjectSlot::Release_CompareAndSwap(ObjectPtr old,
                                              ObjectPtr target) const {
-  Address result = base::AsAtomicWord::Release_CompareAndSwap(
+  Address result = AsAtomicTagged::Release_CompareAndSwap(
       location(), old->ptr(), target->ptr());
   return ObjectPtr(result);
 }
 
-MaybeObject MaybeObjectSlot::operator*() { return MaybeObject(*location()); }
+MaybeObject MaybeObjectSlot::operator*() const {
+  return MaybeObject(*location());
+}
 
-void MaybeObjectSlot::store(MaybeObject value) { *location() = value.ptr(); }
+void MaybeObjectSlot::store(MaybeObject value) const {
+  *location() = value.ptr();
+}
 
 MaybeObject MaybeObjectSlot::Relaxed_Load() const {
-  return MaybeObject(base::AsAtomicWord::Relaxed_Load(location()));
+  return MaybeObject(AsAtomicTagged::Relaxed_Load(location()));
+}
+
+void MaybeObjectSlot::Relaxed_Store(MaybeObject value) const {
+  AsAtomicTagged::Relaxed_Store(location(), value->ptr());
 }
 
 void MaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
                                              MaybeObject target) const {
-  base::AsAtomicWord::Release_CompareAndSwap(location(), old.ptr(),
-                                             target.ptr());
+  AsAtomicTagged::Release_CompareAndSwap(location(), old.ptr(), target.ptr());
 }
 
-HeapObjectReference HeapObjectSlot::operator*() {
+HeapObjectReference HeapObjectSlot::operator*() const {
   return HeapObjectReference(*location());
 }
-void HeapObjectSlot::store(HeapObjectReference value) {
+
+void HeapObjectSlot::store(HeapObjectReference value) const {
   *location() = value.ptr();
 }
 

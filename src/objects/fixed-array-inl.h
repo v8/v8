@@ -277,7 +277,7 @@ void WeakFixedArray::Set(int index, MaybeObject value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
   int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_WEAK_FIELD(this, offset, value);
   WEAK_WRITE_BARRIER(this, offset, value);
 }
 
@@ -285,7 +285,7 @@ void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
   int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_WEAK_FIELD(this, offset, value);
   CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);
 }
 
@@ -306,7 +306,7 @@ void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->capacity());
   int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_WEAK_FIELD(this, offset, value);
   CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);
 }
 

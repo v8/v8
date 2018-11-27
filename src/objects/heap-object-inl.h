@@ -118,8 +118,7 @@ ObjectSlot HeapObjectPtr::map_slot() {
 }
 
 MapWord HeapObjectPtr::map_word() const {
-  return MapWord(
-      reinterpret_cast<Address>(RELAXED_READ_FIELD(this, kMapOffset)));
+  return MapWord(RELAXED_READ_FIELD(this, kMapOffset).ptr());
 }
 
 void HeapObjectPtr::set_map_word(MapWord map_word) {

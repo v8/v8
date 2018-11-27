@@ -296,49 +296,39 @@
 
 #define FIELD_ADDR(p, offset) ((p)->ptr() + offset - kHeapObjectTag)
 
-#define READ_FIELD(p, offset) \
-  (*reinterpret_cast<Object* const*>(FIELD_ADDR(p, offset)))
+#define READ_FIELD(p, offset) (*ObjectSlot(FIELD_ADDR(p, offset)))
 
-#define READ_WEAK_FIELD(p, offset) \
-  MaybeObject(*reinterpret_cast<Address*>(FIELD_ADDR(p, offset)))
+#define READ_WEAK_FIELD(p, offset) (*MaybeObjectSlot(FIELD_ADDR(p, offset)))
 
-#define ACQUIRE_READ_FIELD(p, offset)           \
-  reinterpret_cast<Object*>(base::Acquire_Load( \
-      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
+#define ACQUIRE_READ_FIELD(p, offset) \
+  ObjectSlot(FIELD_ADDR(p, offset)).Acquire_Load1()
 
-#define RELAXED_READ_FIELD(p, offset)           \
-  reinterpret_cast<Object*>(base::Relaxed_Load( \
-      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
+#define RELAXED_READ_FIELD(p, offset) \
+  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Load()
 
 #define RELAXED_READ_WEAK_FIELD(p, offset) \
-  MaybeObject(base::Relaxed_Load(          \
-      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
+  MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Load()
 
 #ifdef V8_CONCURRENT_MARKING
-#define WRITE_FIELD(p, offset, value)                             \
-  base::Relaxed_Store(                                            \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::AtomicWord>((value)->ptr()));
-#define WRITE_WEAK_FIELD(p, offset, value)                        \
-  base::Relaxed_Store(                                            \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::AtomicWord>(value.ptr()));
+#define WRITE_FIELD(p, offset, value) \
+  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store1(value)
+#define WRITE_WEAK_FIELD(p, offset, value) \
+  MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
 #else
 #define WRITE_FIELD(p, offset, value) \
-  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
+  ObjectSlot(FIELD_ADDR(p, offset)).store(value)
 #define WRITE_WEAK_FIELD(p, offset, value) \
-  (*reinterpret_cast<Address*>(FIELD_ADDR(p, offset)) = value.ptr())
+  MaybeObjectSlot(FIELD_ADDR(p, offset)).store(value)
 #endif
 
-#define RELEASE_WRITE_FIELD(p, offset, value)                     \
-  base::Release_Store(                                            \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::AtomicWord>((value)->ptr()));
+#define RELEASE_WRITE_FIELD(p, offset, value) \
+  ObjectSlot(FIELD_ADDR(p, offset)).Release_Store1(value)
 
-#define RELAXED_WRITE_FIELD(p, offset, value)                     \
-  base::Relaxed_Store(                                            \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::AtomicWord>((value)->ptr()));
+#define RELAXED_WRITE_FIELD(p, offset, value) \
+  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store1(value)
+
+#define RELAXED_WRITE_WEAK_FIELD(p, offset, value) \
+  MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
 
 #define WRITE_BARRIER(object, offset, value)                        \
   do {                                                              \

@@ -30,7 +30,7 @@ class Object;
 // Storing heap object through this slot may require triggering write barriers
 // so this operation must be done via static store_tagged() methods.
 class EmbedderDataSlot
-    : public SlotBase<EmbedderDataSlot, kEmbedderDataSlotSize> {
+    : public SlotBase<EmbedderDataSlot, Address, kEmbedderDataSlotSize> {
  public:
   EmbedderDataSlot() : SlotBase(kNullAddress) {}
   V8_INLINE EmbedderDataSlot(EmbedderDataArray array, int entry_index);
