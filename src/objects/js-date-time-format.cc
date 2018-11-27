@@ -846,9 +846,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   // The value of the [[RelevantExtensionKeys]] internal slot is
   // « "ca", "nu", "hc" ».
   //
-  // TODO(ftang): Add "hc" to this list of keys:
-  // https://bugs.chromium.org/p/v8/issues/detail?id=7482
-  std::set<std::string> relevant_extension_keys = {"nu", "ca"};
+  std::set<std::string> relevant_extension_keys = {"nu", "ca", "hc"};
 
   // 10. Let localeData be %DateTimeFormat%.[[LocaleData]].
   // 11. Let r be ResolveLocale( %DateTimeFormat%.[[AvailableLocales]],
@@ -859,8 +857,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
       isolate, JSDateTimeFormat::GetAvailableLocales(), requested_locales,
       locale_matcher, relevant_extension_keys);
 
-  // TODO(ftang): Make sure that "nu" key doesn't have "native",
-  // "traditio" or "finance" values.
   icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
@@ -913,6 +909,40 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
     date_format = CreateICUDateFormat(isolate, icu_locale, skeleton);
     if (date_format.get() == nullptr) {
       FATAL("Failed to create ICU date format, are ICU data files missing?");
+    }
+  }
+
+  // The list that is the value of the "nu" field of any locale field of
+  // [[LocaleData]] must not include the values "native",  "traditio", or
+  // "finance".
+  //
+  // See https://tc39.github.io/ecma402/#sec-intl.datetimeformat-internal-slots
+  UErrorCode status = U_ZERO_ERROR;
+  const std::map<std::string, std::string>& extensions = r.extensions;
+  if (extensions.find("nu") != extensions.end()) {
+    const std::string& value = extensions.at("nu");
+    if (value == "native" || value == "traditio" || value == "finance") {
+      // 10. Set numberFormat.[[NumberingSystem]] to r.[[nu]].
+      // Note: setUnicodeKeywordValue is buggy with nullptr or "" as 2nd
+      // parameter now See https://unicode-org.atlassian.net/browse/ICU-20276
+      // TODO(ftang): change to use icu_locale.setUnicodeKeywordValue in ICU 64
+      // after ICU-20276 got fixed.
+      icu_locale.setKeywordValue(uloc_toLegacyKey(("nu")), nullptr, status);
+      CHECK(U_SUCCESS(status));
+    }
+  }
+  // The list that is the value of the "hc" field of any locale field of
+  // [[LocaleData]] must not include the values other than "h11", "h12", "h23",
+  // "h24"
+  if (extensions.find("hc") != extensions.end()) {
+    const std::string& value = extensions.at("hc");
+    if (value != "h11" && value != "h12" && value != "h23" && value != "h24") {
+      // Note: setUnicodeKeywordValue is buggy with nullptr or "" as 2nd
+      // parameter now See https://unicode-org.atlassian.net/browse/ICU-20276
+      // TODO(ftang): change to use icu_locale.setUnicodeKeywordValue in ICU 64
+      // after ICU-20276 got fixed.
+      icu_locale.setKeywordValue(uloc_toLegacyKey(("hc")), nullptr, status);
+      CHECK(U_SUCCESS(status));
     }
   }
 
