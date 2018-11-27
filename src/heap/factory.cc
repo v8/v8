@@ -2726,9 +2726,14 @@ MaybeHandle<Code> Factory::TryNewCode(
                    source_position_table, deopt_data, reloc_info,
                    data_container, stub_key, is_turbofanned, stack_slots,
                    safepoint_table_offset, handler_table_offset);
+
+    // Flush the instruction cache before changing the permissions.
+    // Note: we do this before setting permissions to ReadExecute because on
+    // some older ARM kernels there is a bug which causes an access error on
+    // cache flush instructions to trigger access error on non-writable memory.
+    // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
+    code->FlushICache();
   }
-  // Flush the instruction cache after changing the permissions.
-  code->FlushICache();
 
   return code;
 }
@@ -2775,9 +2780,14 @@ Handle<Code> Factory::NewCode(
                    source_position_table, deopt_data, reloc_info,
                    data_container, stub_key, is_turbofanned, stack_slots,
                    safepoint_table_offset, handler_table_offset);
+
+    // Flush the instruction cache before changing the permissions.
+    // Note: we do this before setting permissions to ReadExecute because on
+    // some older ARM kernels there is a bug which causes an access error on
+    // cache flush instructions to trigger access error on non-writable memory.
+    // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
+    code->FlushICache();
   }
-  // Flush the instruction cache after changing the permissions.
-  code->FlushICache();
 
   return code;
 }

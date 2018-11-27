@@ -116,13 +116,17 @@ TEST(TestFlushICacheOfWritable) {
   }
 }
 
-#if V8_TARGET_ARCH_ARM64
-// Note that this order of operations is not supported on ARM64 because on
-// some older Arm64 kernels there is a bug which causes an access error on
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
+// Note that this order of operations is not supported on ARM32/64 because on
+// some older ARM32/64 kernels there is a bug which causes an access error on
 // cache flush instructions to trigger access error on non-writable memory.
 // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
 //
 // Also note that this requires {kBufferSize == 8 * KB} to reproduce.
+//
+// The order of operations in V8 is akin to {TestFlushICacheOfWritable} above.
+// It is hence OK to disable the below test on some architectures. Only the
+// above test case should remain enabled on all architectures.
 #define CONDITIONAL_TEST DISABLED_TEST
 #else
 #define CONDITIONAL_TEST TEST

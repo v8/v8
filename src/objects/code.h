@@ -324,7 +324,7 @@ class Code : public HeapObjectPtr {
                                               const CodeDesc& desc);
 
   // Flushes the instruction cache for the executable instructions of this code
-  // object.
+  // object. Make sure to call this while the code is still writable.
   void FlushICache() const;
 
   // Returns the object size for a given body (used for allocation).
