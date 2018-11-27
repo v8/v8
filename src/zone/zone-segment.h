@@ -22,6 +22,9 @@ class Segment {
  public:
   void Initialize(size_t size) { size_ = size; }
 
+  Zone* zone() const { return zone_; }
+  void set_zone(Zone* const zone) { zone_ = zone; }
+
   Segment* next() const { return next_; }
   void set_next(Segment* const next) { next_ = next; }
 
@@ -47,6 +50,7 @@ class Segment {
     return reinterpret_cast<Address>(this) + n;
   }
 
+  Zone* zone_;
   Segment* next_;
   size_t size_;
 };

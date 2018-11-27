@@ -37,9 +37,12 @@ namespace internal {
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
 
+enum class SegmentSize { kLarge, kDefault };
+
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  Zone(AccountingAllocator* allocator, const char* name);
+  Zone(AccountingAllocator* allocator, const char* name,
+       SegmentSize segment_size = SegmentSize::kDefault);
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
@@ -96,7 +99,10 @@ class V8_EXPORT_PRIVATE Zone final {
   static const size_t kAlignmentInBytes = 8;
 
   // Never allocate segments smaller than this size in bytes.
-  static const size_t kDefaultSegmentSize = 32 * KB;
+  static const size_t kMinimumSegmentSize = 8 * KB;
+
+  // Never allocate segments larger than this size in bytes.
+  static const size_t kMaximumSegmentSize = 1 * MB;
 
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
@@ -115,6 +121,10 @@ class V8_EXPORT_PRIVATE Zone final {
   // room in the Zone already.
   Address NewExpand(size_t size);
 
+  // Creates a new segment, sets it size, and pushes it to the front
+  // of the segment chain. Returns the new segment.
+  inline Segment* NewSegment(size_t requested_size);
+
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
   // is guaranteed to be aligned as dictated by kAlignment.
@@ -126,6 +136,7 @@ class V8_EXPORT_PRIVATE Zone final {
   Segment* segment_head_;
   const char* name_;
   bool sealed_;
+  SegmentSize segment_size_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects

@@ -945,6 +945,7 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   set_max_semi_space_size_in_kb(
       i::Heap::ComputeMaxSemiSpaceSize(physical_memory));
   set_max_old_space_size(i::Heap::ComputeMaxOldGenerationSize(physical_memory));
+  set_max_zone_pool_size(i::AccountingAllocator::kMaxPoolSize);
 
   if (virtual_memory_limit > 0 && i::kRequiresCodeRange) {
     // Reserve no more than 1/8 of the memory for the code range, but at most
@@ -960,10 +961,12 @@ void SetResourceConstraints(i::Isolate* isolate,
   size_t semi_space_size = constraints.max_semi_space_size_in_kb();
   size_t old_space_size = constraints.max_old_space_size();
   size_t code_range_size = constraints.code_range_size();
+  size_t max_pool_size = constraints.max_zone_pool_size();
   if (semi_space_size != 0 || old_space_size != 0 || code_range_size != 0) {
     isolate->heap()->ConfigureHeap(semi_space_size, old_space_size,
                                    code_range_size);
   }
+  isolate->allocator()->ConfigureSegmentPool(max_pool_size);
 
   if (constraints.stack_limit() != nullptr) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints.stack_limit());
@@ -8465,8 +8468,8 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
       isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage();
   heap_statistics->external_memory_ = isolate->heap()->external_memory();
   heap_statistics->peak_malloced_memory_ =
-      isolate->allocator()->GetPeakMemoryUsage() +
-      isolate->wasm_engine()->allocator()->GetPeakMemoryUsage();
+      isolate->allocator()->GetMaxMemoryUsage() +
+      isolate->wasm_engine()->allocator()->GetMaxMemoryUsage();
   heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();
   heap_statistics->number_of_detached_contexts_ =
       heap->NumberOfDetachedContexts();
@@ -8755,6 +8758,7 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
           ? isolate->thread_manager()->IsLockedByCurrentThread()
           : i::ThreadId::Current().Equals(isolate->thread_id());
   isolate->heap()->MemoryPressureNotification(level, on_isolate_thread);
+  isolate->allocator()->MemoryPressureNotification(level);
 }
 
 void Isolate::EnableMemorySavingsMode() {
