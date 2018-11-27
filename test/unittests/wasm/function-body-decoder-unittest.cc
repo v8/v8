@@ -2744,6 +2744,19 @@ TEST_F(FunctionBodyDecoderTest, MemoryInit) {
   // TODO(binji): validate segment index.
 }
 
+TEST_F(FunctionBodyDecoderTest, MemoryInitInvalid) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  byte code[] = {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO),
+                 WASM_END};
+  for (size_t i = 0; i <= arraysize(code); ++i) {
+    Verify(i == arraysize(code), sigs.v_v(), code, code + i, kOmitEnd);
+  }
+}
+
 TEST_F(FunctionBodyDecoderTest, MemoryDrop) {
   EXPECT_FAILURE(v_v, WASM_MEMORY_DROP(0));
   WASM_FEATURE_SCOPE(bulk_memory);
@@ -2788,6 +2801,19 @@ TEST_F(FunctionBodyDecoderTest, TableInit) {
   WASM_FEATURE_SCOPE(bulk_memory);
   EXPECT_VERIFIES(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
   EXPECT_FAILURE(v_v, WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddPassiveElementSegment();
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  byte code[] = {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO), WASM_END};
+  for (size_t i = 0; i <= arraysize(code); ++i) {
+    Verify(i == arraysize(code), sigs.v_v(), code, code + i, kOmitEnd);
+  }
 }
 
 TEST_F(FunctionBodyDecoderTest, TableDrop) {

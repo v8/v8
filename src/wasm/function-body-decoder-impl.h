@@ -462,14 +462,16 @@ struct Simd8x16ShuffleImmediate {
 template <Decoder::ValidateFlag validate>
 struct MemoryInitImmediate {
   MemoryIndexImmediate<validate> memory;
-  uint32_t data_segment_index;
-  unsigned length;
+  uint32_t data_segment_index = 0;
+  unsigned length = 0;
 
   inline MemoryInitImmediate(Decoder* decoder, const byte* pc)
       : memory(decoder, pc + 1) {
+    if (!VALIDATE(decoder->ok())) return;
+    uint32_t len = 0;
     data_segment_index = decoder->read_i32v<validate>(
-        pc + 2 + memory.length, &length, "data segment index");
-    length += memory.length;
+        pc + 2 + memory.length, &len, "data segment index");
+    length = memory.length + len;
   }
 };
 
@@ -486,14 +488,16 @@ struct MemoryDropImmediate {
 template <Decoder::ValidateFlag validate>
 struct TableInitImmediate {
   TableIndexImmediate<validate> table;
-  uint32_t elem_segment_index;
-  unsigned length;
+  uint32_t elem_segment_index = 0;
+  unsigned length = 0;
 
   inline TableInitImmediate(Decoder* decoder, const byte* pc)
       : table(decoder, pc + 1) {
+    if (!VALIDATE(decoder->ok())) return;
+    uint32_t len = 0;
     elem_segment_index = decoder->read_i32v<validate>(
-        pc + 2 + table.length, &length, "elem segment index");
-    length += table.length;
+        pc + 2 + table.length, &len, "elem segment index");
+    length = table.length + len;
   }
 };
 
