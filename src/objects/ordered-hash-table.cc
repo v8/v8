@@ -460,8 +460,8 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
   memset(reinterpret_cast<byte*>(hashtable_start), kNotFound,
          num_buckets + num_chains);
 
-  if (Heap::InNewSpace(this)) {
-    MemsetPointer(RawField(this, kDataTableStartOffset),
+  if (Heap::InNewSpace(*this)) {
+    MemsetPointer(RawField(kDataTableStartOffset),
                   ReadOnlyRoots(isolate).the_hole_value(),
                   capacity * Derived::kEntrySize);
   } else {
@@ -604,7 +604,7 @@ bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
 }
 
 template <class Derived>
-bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate, Derived* table,
+bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate, Derived table,
                                             Object* key) {
   DisallowHeapAllocation no_gc;
   int entry = table->FindEntry(isolate, key);
@@ -748,9 +748,9 @@ template void SmallOrderedHashTable<SmallOrderedHashMap>::Initialize(
     Isolate* isolate, int capacity);
 
 template bool SmallOrderedHashTable<SmallOrderedHashMap>::Delete(
-    Isolate* isolate, SmallOrderedHashMap* table, Object* key);
+    Isolate* isolate, SmallOrderedHashMap table, Object* key);
 template bool SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
-    Isolate* isolate, SmallOrderedHashSet* table, Object* key);
+    Isolate* isolate, SmallOrderedHashSet table, Object* key);
 
 template void SmallOrderedHashTable<SmallOrderedNameDictionary>::Initialize(
     Isolate* isolate, int capacity);

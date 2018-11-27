@@ -48,6 +48,11 @@ ODDBALL_LIST(TYPE_CHECK_FORWARDER)
 
 bool ObjectPtr::IsHashTableBase() const { return IsHashTable(); }
 
+bool ObjectPtr::IsSmallOrderedHashTable() const {
+  return IsSmallOrderedHashSet() || IsSmallOrderedHashMap() ||
+         IsSmallOrderedNameDictionary();
+}
+
 double ObjectPtr::Number() const {
   return reinterpret_cast<Object*>(ptr())->Number();
 }

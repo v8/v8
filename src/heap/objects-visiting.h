@@ -68,9 +68,9 @@ class WasmInstanceObject;
   V(SeqTwoByteString, SeqTwoByteString)                                        \
   V(SharedFunctionInfo, SharedFunctionInfo*)                                   \
   V(SlicedString, SlicedString)                                                \
-  V(SmallOrderedHashMap, SmallOrderedHashMap*)                                 \
-  V(SmallOrderedHashSet, SmallOrderedHashSet*)                                 \
-  V(SmallOrderedNameDictionary, SmallOrderedNameDictionary*)                   \
+  V(SmallOrderedHashMap, SmallOrderedHashMap)                                  \
+  V(SmallOrderedHashSet, SmallOrderedHashSet)                                  \
+  V(SmallOrderedNameDictionary, SmallOrderedNameDictionary)                    \
   V(Symbol, Symbol)                                                            \
   V(ThinString, ThinString)                                                    \
   V(TransitionArray, TransitionArray*)                                         \

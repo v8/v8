@@ -276,7 +276,7 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
     : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
-    Derived* table = reinterpret_cast<Derived*>(obj);
+    Derived table = Derived::cast(obj);
     if (offset < kDataTableStartOffset) return false;
     if (offset >= table->GetBucketsStartOffset()) return false;
     return IsValidSlotImpl(map, obj, offset);
@@ -285,7 +285,7 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    Derived* table = reinterpret_cast<Derived*>(obj);
+    Derived table = Derived::cast(obj);
 
     int offset = kDataTableStartOffset;
     int entry = 0;
@@ -298,7 +298,7 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
   }
 
   static inline int SizeOf(Map map, HeapObject* obj) {
-    Derived* table = reinterpret_cast<Derived*>(obj);
+    Derived table = Derived::cast(obj);
     return table->SizeFor(table->Capacity());
   }
 };

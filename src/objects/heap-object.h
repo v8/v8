@@ -57,6 +57,7 @@ class ObjectPtr {
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
   inline bool IsHashTableBase() const;
+  V8_INLINE bool IsSmallOrderedHashTable() const;
 
   inline bool IsObject() const { return true; }
   inline double Number() const;
@@ -182,6 +183,7 @@ class HeapObjectPtr : public ObjectPtr {
 #endif
 
   static const int kMapOffset = HeapObject::kMapOffset;
+  static const int kHeaderSize = HeapObject::kHeaderSize;
 
   inline Address GetFieldAddress(int field_offset) const;
 

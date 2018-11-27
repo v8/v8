@@ -272,7 +272,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 //    [45] : empty
 //
 template <class Derived>
-class SmallOrderedHashTable : public HeapObject {
+class SmallOrderedHashTable : public HeapObjectPtr {
  public:
   // Offset points to a relative location in the table
   typedef int Offset;
@@ -291,7 +291,7 @@ class SmallOrderedHashTable : public HeapObject {
 
   // Returns a true value if the table contains the key and
   // the key has been deleted. This does not shrink the table.
-  static bool Delete(Isolate* isolate, Derived* table, Object* key);
+  static bool Delete(Isolate* isolate, Derived table, Object* key);
 
   // Returns an SmallOrderedHashTable (possibly |table|) with enough
   // space to add at least one new element. Returns empty handle if
@@ -497,11 +497,13 @@ class SmallOrderedHashTable : public HeapObject {
   friend class OrderedHashMapHandler;
   friend class OrderedHashSetHandler;
   friend class CodeStubAssembler;
+
+  OBJECT_CONSTRUCTORS(SmallOrderedHashTable, HeapObjectPtr)
 };
 
 class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
  public:
-  DECL_CAST(SmallOrderedHashSet)
+  DECL_CAST2(SmallOrderedHashSet)
 
   DECL_PRINTER(SmallOrderedHashSet)
 
@@ -516,11 +518,14 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
                                               Handle<Object> key);
   static inline bool Is(Handle<HeapObject> table);
   static inline RootIndex GetMapRootIndex();
+
+  OBJECT_CONSTRUCTORS(SmallOrderedHashSet,
+                      SmallOrderedHashTable<SmallOrderedHashSet>)
 };
 
 class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
  public:
-  DECL_CAST(SmallOrderedHashMap)
+  DECL_CAST2(SmallOrderedHashMap)
 
   DECL_PRINTER(SmallOrderedHashMap)
 
@@ -537,6 +542,9 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
                                               Handle<Object> value);
   static inline bool Is(Handle<HeapObject> table);
   static inline RootIndex GetMapRootIndex();
+
+  OBJECT_CONSTRUCTORS(SmallOrderedHashMap,
+                      SmallOrderedHashTable<SmallOrderedHashMap>)
 };
 
 // TODO(gsathya): Rename this to OrderedHashTable, after we rename
@@ -612,7 +620,7 @@ class OrderedNameDictionary
 class SmallOrderedNameDictionary
     : public SmallOrderedHashTable<SmallOrderedNameDictionary> {
  public:
-  DECL_CAST(SmallOrderedNameDictionary)
+  DECL_CAST2(SmallOrderedNameDictionary)
 
   DECL_PRINTER(SmallOrderedNameDictionary)
 
@@ -640,6 +648,9 @@ class SmallOrderedNameDictionary
       Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
       Handle<Name> key, Handle<Object> value, PropertyDetails details);
   static inline RootIndex GetMapRootIndex();
+
+  OBJECT_CONSTRUCTORS(SmallOrderedNameDictionary,
+                      SmallOrderedHashTable<SmallOrderedNameDictionary>)
 };
 
 class JSCollectionIterator : public JSObject {

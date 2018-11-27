@@ -487,6 +487,17 @@ OrderedNameDictionary::OrderedNameDictionary(Address ptr)
   SLOW_DCHECK(IsOrderedNameDictionary());
 }
 
+template <class Derived>
+SmallOrderedHashTable<Derived>::SmallOrderedHashTable(Address ptr)
+    : HeapObjectPtr(ptr) {}
+
+OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashSet,
+                         SmallOrderedHashTable<SmallOrderedHashSet>)
+OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashMap,
+                         SmallOrderedHashTable<SmallOrderedHashMap>)
+OBJECT_CONSTRUCTORS_IMPL(SmallOrderedNameDictionary,
+                         SmallOrderedHashTable<SmallOrderedNameDictionary>)
+
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
 
@@ -522,9 +533,9 @@ CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR2(RegExpMatchInfo)
 CAST_ACCESSOR2(ScopeInfo)
 CAST_ACCESSOR2(SimpleNumberDictionary)
-CAST_ACCESSOR(SmallOrderedHashMap)
-CAST_ACCESSOR(SmallOrderedHashSet)
-CAST_ACCESSOR(SmallOrderedNameDictionary)
+CAST_ACCESSOR2(SmallOrderedHashMap)
+CAST_ACCESSOR2(SmallOrderedHashSet)
+CAST_ACCESSOR2(SmallOrderedNameDictionary)
 CAST_ACCESSOR2(StringSet)
 CAST_ACCESSOR2(StringTable)
 CAST_ACCESSOR(Struct)
@@ -1579,15 +1590,15 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
     return SmallOrderedHashSet::SizeFor(
-        reinterpret_cast<const SmallOrderedHashSet*>(this)->Capacity());
+        SmallOrderedHashSet::unchecked_cast(this)->Capacity());
   }
   if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
     return SmallOrderedHashMap::SizeFor(
-        reinterpret_cast<const SmallOrderedHashMap*>(this)->Capacity());
+        SmallOrderedHashMap::unchecked_cast(this)->Capacity());
   }
   if (instance_type == SMALL_ORDERED_NAME_DICTIONARY_TYPE) {
     return SmallOrderedNameDictionary::SizeFor(
-        reinterpret_cast<const SmallOrderedNameDictionary*>(this)->Capacity());
+        SmallOrderedNameDictionary::unchecked_cast(this)->Capacity());
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(

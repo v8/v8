@@ -33,6 +33,9 @@ class ObjectPtr;
 class OrderedHashMap;
 class OrderedHashSet;
 class OrderedNameDictionary;
+class SmallOrderedHashMap;
+class SmallOrderedHashSet;
+class SmallOrderedNameDictionary;
 
 // ----------------------------------------------------------------------------
 // Base class for Handle instantiations.  Don't use directly.
@@ -160,6 +163,9 @@ class Handle final : public HandleBase {
             std::is_same<S, OrderedNameDictionary>::value ||
             std::is_same<S, ScriptContextTable>::value ||
             std::is_same<S, ScopeInfo>::value ||
+            std::is_same<S, SmallOrderedHashMap>::value ||
+            std::is_same<S, SmallOrderedHashSet>::value ||
+            std::is_same<S, SmallOrderedNameDictionary>::value ||
             std::is_same<S, String>::value ||
             std::is_same<S, Symbol>::value))>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
