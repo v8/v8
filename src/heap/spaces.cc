@@ -162,7 +162,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
     requested += RoundUp(reserved_area, MemoryChunk::kPageSize);
     // Fullfilling both reserved pages requirement and huge code area
     // alignments is not supported (requires re-implementation).
-    DCHECK_LE(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize());
+    DCHECK_LE(kMinExpectedOSPageSize, page_allocator->AllocatePageSize());
   }
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
 
@@ -171,7 +171,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
                 page_allocator->AllocatePageSize());
   VirtualMemory reservation(
       page_allocator, requested, reinterpret_cast<void*>(hint),
-      Max(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize()));
+      Max(kMinExpectedOSPageSize, page_allocator->AllocatePageSize()));
   if (!reservation.IsReserved()) {
     V8::FatalProcessOutOfMemory(isolate_,
                                 "CodeRange setup: allocate virtual memory");
@@ -198,7 +198,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
   size_t size =
       RoundDown(reservation.size() - (aligned_base - base) - reserved_area,
                 MemoryChunk::kPageSize);
-  DCHECK(IsAligned(aligned_base, kCodeRangeAreaAlignment));
+  DCHECK(IsAligned(aligned_base, kMinExpectedOSPageSize));
 
   LOG(isolate_,
       NewEvent("CodeRange", reinterpret_cast<void*>(reservation.address()),

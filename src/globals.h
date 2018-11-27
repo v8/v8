@@ -162,13 +162,13 @@ constexpr uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
 constexpr bool kRequiresCodeRange = true;
 #if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
+constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
 #elif V8_TARGET_ARCH_ARM64
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #else
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #endif
 #if V8_OS_WIN
 constexpr size_t kMinimumCodeRangeSize = 4 * MB;
@@ -186,17 +186,17 @@ constexpr uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 constexpr bool kRequiresCodeRange = true;
 constexpr size_t kMaximalCodeRangeSize = 256 * MB;
 constexpr size_t kMinimumCodeRangeSize = 3 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr bool kRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
+constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
 #else
 constexpr bool kRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #endif
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
