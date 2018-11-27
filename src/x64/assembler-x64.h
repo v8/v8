@@ -311,7 +311,7 @@ enum ScaleFactor : int8_t {
   times_pointer_size = (kPointerSize == 8) ? times_8 : times_4
 };
 
-class Operand {
+class V8_EXPORT_PRIVATE Operand {
  public:
   struct Data {
     byte rex = 0;

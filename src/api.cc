@@ -107,11 +107,13 @@
 
 #if V8_OS_LINUX || V8_OS_MACOSX
 #include <signal.h>
+#include "include/v8-wasm-trap-handler-posix.h"
 #include "src/trap-handler/handler-inside-posix.h"
 #endif
 
 #if V8_OS_WIN
 #include <windows.h>
+#include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
 #endif
 
@@ -5926,7 +5928,6 @@ void v8::V8::SetReturnAddressLocationResolver(
     ReturnAddressLocationResolver return_address_resolver) {
   i::StackFrame::SetReturnAddressLocationResolver(return_address_resolver);
 }
-
 
 bool v8::V8::Dispose() {
   i::V8::TearDown();

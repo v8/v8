@@ -255,6 +255,7 @@ v8_source_set("unittests_sources") {
     sources += [
       "assembler/turbo-assembler-x64-unittest.cc",
       "compiler/x64/instruction-selector-x64-unittest.cc",
+      "wasm/trap-handler-x64-unittest.cc",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [

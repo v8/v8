@@ -302,7 +302,7 @@ class ExternalReference {
 #undef DECL_EXTERNAL_REFERENCE
 
 #define DECL_EXTERNAL_REFERENCE(name, desc) \
-  static ExternalReference name(Isolate* isolate);
+  static V8_EXPORT_PRIVATE ExternalReference name(Isolate* isolate);
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(DECL_EXTERNAL_REFERENCE)
 #undef DECL_EXTERNAL_REFERENCE
 

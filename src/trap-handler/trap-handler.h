@@ -44,14 +44,14 @@ const int kInvalidIndex = -1;
 ///
 /// This returns a number that can be used to identify the handler data to
 /// ReleaseHandlerData, or -1 on failure.
-int RegisterHandlerData(Address base, size_t size,
-                        size_t num_protected_instructions,
-                        const ProtectedInstructionData* protected_instructions);
+int V8_EXPORT_PRIVATE RegisterHandlerData(
+    Address base, size_t size, size_t num_protected_instructions,
+    const ProtectedInstructionData* protected_instructions);
 
 /// Removes the data from the master list and frees any memory, if necessary.
 /// TODO(mtrofin): We can switch to using size_t for index and not need
 /// kInvalidIndex.
-void ReleaseHandlerData(int index);
+void V8_EXPORT_PRIVATE ReleaseHandlerData(int index);
 
 #if V8_OS_WIN
 #define THREAD_LOCAL __declspec(thread)
@@ -79,7 +79,7 @@ extern THREAD_LOCAL int g_thread_in_wasm_code;
 // Return the address of the thread-local {g_thread_in_wasm_code} variable. This
 // pointer can be accessed and modified as long as the thread calling this
 // function exists. Only use if from the same thread do avoid race conditions.
-inline int* GetThreadInWasmThreadLocalAddress() {
+inline V8_EXPORT_PRIVATE int* GetThreadInWasmThreadLocalAddress() {
   return &g_thread_in_wasm_code;
 }
 
