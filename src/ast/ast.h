@@ -2339,9 +2339,11 @@ class FunctionLiteral final : public Expression {
 
   enum IdType { kIdTypeInvalid = -1, kIdTypeTopLevel = 0 };
 
-  enum ParameterFlag { kNoDuplicateParameters, kHasDuplicateParameters };
-
-  enum EagerCompileHint { kShouldEagerCompile, kShouldLazyCompile };
+  enum ParameterFlag : uint8_t {
+    kNoDuplicateParameters,
+    kHasDuplicateParameters
+  };
+  enum EagerCompileHint : uint8_t { kShouldEagerCompile, kShouldLazyCompile };
 
   // Empty handle means that the function does not have a shared name (i.e.
   // the name will be set dynamically after creation of the function closure).

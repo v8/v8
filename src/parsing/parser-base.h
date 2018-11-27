@@ -249,9 +249,9 @@ class ParserBase {
         zone_(zone),
         classifier_(nullptr),
         scanner_(scanner),
-        default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
         function_literal_id_(0),
         script_id_(script_id),
+        default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
         allow_natives_(false),
         allow_harmony_public_fields_(false),
         allow_harmony_static_fields_(false),
@@ -266,6 +266,8 @@ class ParserBase {
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
   void set_allow_##name(bool allow) { allow_##name##_ = allow; }
+
+  void set_rewritable_length(int i) { rewritable_length_ = i; }
 
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(harmony_public_fields);
@@ -1116,12 +1118,7 @@ class ParserBase {
   }
   ExpressionT DoParseMemberExpressionContinuation(ExpressionT expression);
 
-  // `rewritable_length`: length of the destructuring_assignments_to_rewrite()
-  // queue in the parent function state, prior to parsing of formal parameters.
-  // If the arrow function is lazy, any items added during formal parameter
-  // parsing are removed from the queue.
-  ExpressionT ParseArrowFunctionLiteral(const FormalParametersT& parameters,
-                                        int rewritable_length);
+  ExpressionT ParseArrowFunctionLiteral(const FormalParametersT& parameters);
   void ParseAsyncFunctionBody(Scope* scope, StatementListT* body);
   ExpressionT ParseAsyncFunctionLiteral();
   ExpressionT ParseClassLiteral(IdentifierT name,
@@ -1451,11 +1448,17 @@ class ParserBase {
 
   Scanner* scanner_;
 
-  FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
+  Scope::Snapshot scope_snapshot_;
+  // `rewritable_length_`: length of the destructuring_assignments_to_rewrite()
+  // queue in the parent function state, prior to parsing of formal parameters.
+  // If the arrow function is lazy, any items added during formal parameter
+  // parsing are removed from the queue.
+  int rewritable_length_ = -1;
 
   int function_literal_id_;
   int script_id_;
 
+  FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
   FunctionKind next_arrow_function_kind_ = FunctionKind::kArrowFunction;
 
   bool accept_IN_ = true;
@@ -1739,6 +1742,11 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         infer = InferName::kNo;
       }
     }
+
+    if (peek() == Token::ARROW) {
+      scope_snapshot_ = std::move(Scope::Snapshot(scope()));
+      rewritable_length_ = 0;
+    }
     return impl()->ExpressionFromIdentifier(name, beg_pos, infer);
   }
   DCHECK_IMPLIES(Token::IsAnyIdentifier(token), token == Token::ENUM);
@@ -1765,10 +1773,15 @@ ParserBase<Impl>::ParsePrimaryExpression() {
 
     case Token::LPAREN: {
       Consume(Token::LPAREN);
+      Scope::Snapshot scope_snapshot(scope());
+      int rewritable_length = static_cast<int>(
+          function_state_->destructuring_assignments_to_rewrite().size());
       if (Check(Token::RPAREN)) {
         // ()=>x.  The continuation that consumes the => is in
         // ParseAssignmentExpression.
         if (peek() != Token::ARROW) ReportUnexpectedToken(Token::RPAREN);
+        scope_snapshot_ = std::move(scope_snapshot);
+        rewritable_length_ = rewritable_length;
         return factory()->NewEmptyParentheses(beg_pos);
       }
       // Heuristically try to detect immediately called functions before
@@ -1781,6 +1794,12 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       ExpressionT expr = ParseExpressionCoverGrammar();
       expr->mark_parenthesized();
       Expect(Token::RPAREN);
+
+      if (peek() == Token::ARROW) {
+        scope_snapshot_ = std::move(scope_snapshot);
+        rewritable_length_ = rewritable_length;
+      }
+
       return expr;
     }
 
@@ -2632,10 +2651,8 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   FuncNameInferrerState fni_state(&fni_);
   ExpressionClassifier arrow_formals_classifier(this);
 
-  Scope::Snapshot scope_snapshot(scope());
-  int rewritable_length = static_cast<int>(
-      function_state_->destructuring_assignments_to_rewrite().size());
-
+  DCHECK_IMPLIES(!has_error(), -1 == rewritable_length_);
+  DCHECK_IMPLIES(!has_error(), scope_snapshot_.IsCleared());
   DCHECK_IMPLIES(!has_error(),
                  FunctionKind::kArrowFunction == next_arrow_function_kind_);
   ExpressionT expression = ParseConditionalExpression();
@@ -2660,9 +2677,10 @@ ParserBase<Impl>::ParseAssignmentExpression() {
     // Reset to default.
     next_arrow_function_kind_ = FunctionKind::kArrowFunction;
 
+    if (has_error()) return impl()->FailureExpression();
     // Because the arrow's parameters were parsed in the outer scope,
     // we need to fix up the scope chain appropriately.
-    scope_snapshot.Reparent(scope);
+    scope_snapshot_.Reparent(scope);
 
     FormalParametersT parameters(scope);
     if (!classifier()->is_simple_parameter_list()) {
@@ -2673,7 +2691,7 @@ ParserBase<Impl>::ParseAssignmentExpression() {
     scope->set_start_position(lhs_beg_pos);
     impl()->DeclareArrowFunctionFormalParameters(&parameters, expression, loc);
 
-    expression = ParseArrowFunctionLiteral(parameters, rewritable_length);
+    expression = ParseArrowFunctionLiteral(parameters);
     Accumulate(ExpressionClassifier::AsyncArrowFormalParametersProduction);
 
     fni_.Infer();
@@ -3064,6 +3082,10 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
     int pos = position();
 
+    Scope::Snapshot scope_snapshot(scope());
+    int rewritable_length = static_cast<int>(
+        function_state_->destructuring_assignments_to_rewrite().size());
+
     ExpressionListT args(pointer_buffer());
     bool has_spread;
     ParseArguments(&args, &has_spread, true);
@@ -3075,6 +3097,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         return impl()->FailureExpression();
       }
       next_arrow_function_kind_ = FunctionKind::kAsyncArrowFunction;
+      scope_snapshot_ = std::move(scope_snapshot);
+      rewritable_length_ = rewritable_length;
       // async () => ...
       if (!args.length()) return factory()->NewEmptyParentheses(pos);
       // async ( Arguments ) => ...
@@ -4011,7 +4035,7 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowFunctionLiteral(
-    const FormalParametersT& formal_parameters, int rewritable_length) {
+    const FormalParametersT& formal_parameters) {
   const RuntimeCallCounterId counters[2][2] = {
       {RuntimeCallCounterId::kParseBackgroundArrowFunctionLiteral,
        RuntimeCallCounterId::kParseArrowFunctionLiteral},
@@ -4052,10 +4076,12 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     FunctionState function_state(&function_state_, &scope_,
                                  formal_parameters.scope);
 
+    DCHECK_IMPLIES(!has_error(), -1 != rewritable_length_);
     // Move any queued destructuring assignments which appeared
     // in this function's parameter list into its own function_state.
     function_state.AdoptDestructuringAssignmentsFromParentState(
-        rewritable_length);
+        rewritable_length_);
+    rewritable_length_ = -1;
 
     Consume(Token::ARROW);
 

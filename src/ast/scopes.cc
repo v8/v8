@@ -844,7 +844,7 @@ void DeclarationScope::AddLocal(Variable* var) {
   locals_.Add(var);
 }
 
-void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
+void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   DCHECK_EQ(new_parent, outer_scope_and_calls_eval_.GetPointer()->inner_scope_);
   DCHECK_EQ(new_parent->outer_scope_, outer_scope_and_calls_eval_.GetPointer());
   DCHECK_EQ(new_parent, new_parent->GetClosureScope());
@@ -888,13 +888,12 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
   outer_closure->locals_.Rewind(top_local_);
 
   // Move eval calls since Snapshot's creation into new_parent.
-  if (outer_scope_->scope_calls_eval_) {
+  if (outer_scope_and_calls_eval_.GetPayload()) {
     new_parent->scope_calls_eval_ = true;
     new_parent->inner_scope_calls_eval_ = true;
   }
-  // Reset the outer_scope's eval state. It will be restored to its
-  // original value as necessary in the destructor of this class.
-  outer_scope_->scope_calls_eval_ = false;
+
+  Clear();
 }
 
 void Scope::ReplaceOuterScope(Scope* outer) {

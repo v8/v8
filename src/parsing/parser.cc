@@ -798,11 +798,8 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         SkipFunctionLiterals(info->function_literal_id() - 1);
       }
 
-      // Any destructuring assignments in the current FunctionState
-      // actually belong to the arrow function itself.
-      const int rewritable_length = 0;
-      Expression* expression =
-          ParseArrowFunctionLiteral(formals, rewritable_length);
+      set_rewritable_length(0);
+      Expression* expression = ParseArrowFunctionLiteral(formals);
       // Scanning must end at the same position that was recorded
       // previously. If not, parsing has been interrupted due to a stack
       // overflow, at which point the partially parsed arrow function

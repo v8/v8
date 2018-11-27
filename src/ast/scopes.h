@@ -125,21 +125,72 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   class Snapshot final {
    public:
+    Snapshot()
+        : outer_scope_and_calls_eval_(nullptr, false),
+          top_unresolved_(),
+          top_local_() {}
     inline explicit Snapshot(Scope* scope);
+
     ~Snapshot() {
-      // Restore previous calls_eval bit if needed.
-      if (outer_scope_and_calls_eval_.GetPayload()) {
-        outer_scope_and_calls_eval_->scope_calls_eval_ = true;
+      // If we're still active, there was no arrow function. In that case outer
+      // calls eval if it already called eval before this snapshot started, or
+      // if the code during the snapshot called eval.
+      if (!IsCleared() && outer_scope_and_calls_eval_.GetPayload()) {
+        RestoreEvalFlag();
       }
     }
 
-    void Reparent(DeclarationScope* new_parent) const;
+    void RestoreEvalFlag() {
+      outer_scope_and_calls_eval_->scope_calls_eval_ =
+          outer_scope_and_calls_eval_.GetPayload();
+    }
+
+    Snapshot& operator=(Snapshot&& source) V8_NOEXCEPT {
+      outer_scope_and_calls_eval_.SetPointer(
+          source.outer_scope_and_calls_eval_.GetPointer());
+      outer_scope_and_calls_eval_.SetPayload(
+          outer_scope_and_calls_eval_->scope_calls_eval_);
+      top_inner_scope_ = source.top_inner_scope_;
+      top_unresolved_ = source.top_unresolved_;
+      top_local_ = source.top_local_;
+
+      // We are in the arrow function case. The calls eval we may have recorded
+      // is intended for the inner scope and we should simply restore the
+      // original "calls eval" flag of the outer scope.
+      source.RestoreEvalFlag();
+      source.Clear();
+
+      return *this;
+    }
+
+    void Reparent(DeclarationScope* new_parent);
+    bool IsCleared() const {
+      return outer_scope_and_calls_eval_.GetPointer() == nullptr;
+    }
 
    private:
+    void Clear() {
+      outer_scope_and_calls_eval_.SetPointer(nullptr);
+#ifdef DEBUG
+      outer_scope_and_calls_eval_.SetPayload(false);
+      top_inner_scope_ = nullptr;
+      top_local_ = base::ThreadedList<Variable>::Iterator();
+      top_unresolved_ = UnresolvedList::Iterator();
+#endif
+    }
+
+    // During tracking calls_eval caches whether the outer scope called eval.
+    // Upon move assignment we store whether the new inner scope calls eval into
+    // the move target calls_eval bit, and restore calls eval on the outer
+    // scope.
     PointerWithPayload<Scope, bool, 1> outer_scope_and_calls_eval_;
     Scope* top_inner_scope_;
     UnresolvedList::Iterator top_unresolved_;
     base::ThreadedList<Variable>::Iterator top_local_;
+
+    // Disallow copy and move.
+    Snapshot(const Snapshot&) = delete;
+    Snapshot(Snapshot&&) = delete;
   };
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };

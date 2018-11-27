@@ -155,6 +155,8 @@ class ThreadedListBase final : public BaseClass {
       return *this;
     }
 
+    Iterator() : entry_(nullptr) {}
+
    private:
     explicit Iterator(T** entry) : entry_(entry) {}
 
