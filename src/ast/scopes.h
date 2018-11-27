@@ -112,6 +112,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 #endif
 
+  typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
+      UnresolvedList;
+
   // TODO(verwaest): Is this needed on Scope?
   int num_parameters() const;
 
@@ -135,7 +138,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
    private:
     PointerWithPayload<Scope, bool, 1> outer_scope_and_calls_eval_;
     Scope* top_inner_scope_;
-    VariableProxy* top_unresolved_;
+    UnresolvedList::Iterator top_unresolved_;
     base::ThreadedList<Variable>::Iterator top_local_;
   };
 
@@ -226,13 +229,19 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   void AddUnresolved(VariableProxy* proxy);
 
-  // Remove a unresolved variable. During parsing, an unresolved variable
-  // may have been added optimistically, but then only the variable name
-  // was used (typically for labels). If the variable was not declared, the
-  // addition introduced a new unresolved variable which may end up being
-  // allocated globally as a "ghost" variable. RemoveUnresolved removes
-  // such a variable again if it was added; otherwise this is a no-op.
+  // Removes an unresolved variable from the list so it can be readded to
+  // another list. This is used to reparent parameter initializers that contain
+  // sloppy eval.
   bool RemoveUnresolved(VariableProxy* var);
+
+  // Deletes an unresolved variable. The variable proxy cannot be reused for
+  // another list later. During parsing, an unresolved variable may have been
+  // added optimistically, but then only the variable name was used (typically
+  // for labels and arrow function parameters). If the variable was not
+  // declared, the addition introduced a new unresolved variable which may end
+  // up being allocated globally as a "ghost" variable. DeleteUnresolved removes
+  // such a variable again if it was added; otherwise this is a no-op.
+  void DeleteUnresolved(VariableProxy* var);
 
   // Creates a new temporary variable in this scope's TemporaryScope.  The
   // name is only used for printing and cannot be used to find the variable.
@@ -546,7 +555,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   base::ThreadedList<Variable> locals_;
   // Unresolved variables referred to from this scope. The proxies themselves
   // form a linked list of all unresolved proxies.
-  base::ThreadedList<VariableProxy> unresolved_list_;
+  UnresolvedList unresolved_list_;
   // Declarations.
   base::ThreadedList<Declaration> decls_;
 
@@ -632,7 +641,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // list along the way, so full resolution cannot be done afterwards.
   void AnalyzePartially(DeclarationScope* max_outer_scope,
                         AstNodeFactory* ast_node_factory,
-                        base::ThreadedList<VariableProxy>* new_unresolved_list);
+                        UnresolvedList* new_unresolved_list);
   void CollectNonLocals(DeclarationScope* max_outer_scope, Isolate* isolate,
                         ParseInfo* info, Handle<StringSet>* non_locals);
 
@@ -1070,7 +1079,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 Scope::Snapshot::Snapshot(Scope* scope)
     : outer_scope_and_calls_eval_(scope, scope->scope_calls_eval_),
       top_inner_scope_(scope->inner_scope_),
-      top_unresolved_(scope->unresolved_list_.first()),
+      top_unresolved_(scope->unresolved_list_.end()),
       top_local_(scope->GetClosureScope()->locals_.end()) {
   // Reset in order to record eval calls during this Snapshot's lifetime.
   outer_scope_and_calls_eval_.GetPointer()->scope_calls_eval_ = false;

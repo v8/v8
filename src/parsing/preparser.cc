@@ -415,7 +415,7 @@ void PreParser::DeclareAndInitializeVariables(
     ZonePtrList<const AstRawString>* names) {
   if (declaration->pattern.variables_ != nullptr) {
     for (auto variable : *(declaration->pattern.variables_)) {
-      declaration_descriptor->scope->RemoveUnresolved(variable);
+      declaration_descriptor->scope->DeleteUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
       MarkLoopVariableAsAssigned(declaration_descriptor->scope, var,

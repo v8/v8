@@ -1639,6 +1639,13 @@ class VariableProxy final : public Expression {
   void BindTo(Variable* var);
 
   V8_INLINE VariableProxy* next_unresolved() { return next_unresolved_; }
+  V8_INLINE bool is_removed_from_unresolved() const {
+    return IsRemovedFromUnresolvedField::decode(bit_field_);
+  }
+
+  void mark_removed_from_unresolved() {
+    bit_field_ = IsRemovedFromUnresolvedField::update(bit_field_, true);
+  }
 
   // Provides an access type for the ThreadedList used by the PreParsers
   // expressions, lists, and formal parameters.
@@ -1646,6 +1653,25 @@ class VariableProxy final : public Expression {
     static VariableProxy** next(VariableProxy* t) {
       return t->pre_parser_expr_next();
     }
+
+    static VariableProxy** start(VariableProxy** head) { return head; }
+  };
+
+  // Provides an access type for the ThreadedList used by the PreParsers
+  // expressions, lists, and formal parameters.
+  struct UnresolvedNext {
+    static VariableProxy** filter(VariableProxy** t) {
+      VariableProxy** n = t;
+      // Skip over possibly removed values.
+      while (*n != nullptr && (*n)->is_removed_from_unresolved()) {
+        n = (*n)->next();
+      }
+      return n;
+    }
+
+    static VariableProxy** start(VariableProxy** head) { return filter(head); }
+
+    static VariableProxy** next(VariableProxy* t) { return filter(t->next()); }
   };
 
  private:
@@ -1662,6 +1688,7 @@ class VariableProxy final : public Expression {
     bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
                   IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
+                  IsRemovedFromUnresolvedField::encode(false) |
                   HoleCheckModeField::encode(HoleCheckMode::kElided) |
                   IsPrivateName::encode(false);
   }
@@ -1672,7 +1699,10 @@ class VariableProxy final : public Expression {
   };
   class IsAssignedField : public BitField<bool, IsThisField::kNext, 1> {};
   class IsResolvedField : public BitField<bool, IsAssignedField::kNext, 1> {};
-  class IsNewTargetField : public BitField<bool, IsResolvedField::kNext, 1> {};
+  class IsRemovedFromUnresolvedField
+      : public BitField<bool, IsResolvedField::kNext, 1> {};
+  class IsNewTargetField
+      : public BitField<bool, IsRemovedFromUnresolvedField::kNext, 1> {};
   class HoleCheckModeField
       : public BitField<HoleCheckMode, IsNewTargetField::kNext, 1> {};
   class IsPrivateName : public BitField<bool, HoleCheckModeField::kNext, 1> {};

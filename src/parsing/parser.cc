@@ -1484,7 +1484,7 @@ void Parser::DeclareLabel(ZonePtrList<const AstRawString>** labels,
   // Remove the "ghost" variable that turned out to be a label
   // from the top scope. This way, we don't try to resolve it
   // during the scope processing.
-  scope()->RemoveUnresolved(var);
+  scope()->DeleteUnresolved(var);
 }
 
 bool Parser::ContainsLabel(ZonePtrList<const AstRawString>* labels,
