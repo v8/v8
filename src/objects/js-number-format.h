@@ -122,7 +122,7 @@ class JSNumberFormat : public JSObject {
   STATIC_ASSERT(CurrencyDisplay::SYMBOL <= CurrencyDisplayBits::kMax);
   STATIC_ASSERT(CurrencyDisplay::NAME <= CurrencyDisplayBits::kMax);
 
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
   DECL_ACCESSORS(icu_number_format, Managed<icu::NumberFormat>)
   DECL_ACCESSORS(bound_format, Object)
   DECL_INT_ACCESSORS(flags)

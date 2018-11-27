@@ -48,7 +48,7 @@ class JSSegmenter : public JSObject {
   DECL_CAST(JSSegmenter)
 
   // Segmenter accessors.
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
 
   DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
 

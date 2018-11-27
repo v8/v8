@@ -24,7 +24,7 @@ namespace internal {
 // This shadows the accessor in the prototype.
 class AccessorInfo : public Struct {
  public:
-  DECL_ACCESSORS(name, Name)
+  DECL_ACCESSORS2(name, Name)
   DECL_INT_ACCESSORS(flags)
   DECL_ACCESSORS(expected_receiver_type, Object)
   // This directly points at a foreign C function to be used from the runtime.

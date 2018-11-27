@@ -565,8 +565,7 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
         DisallowHeapAllocation no_allocation;
         int start = shared->StartPosition();
         int len = shared->EndPosition() - start;
-        String::SubStringRange source(String::cast(script->source()), start,
-                                      len);
+        SubStringRange source(String::cast(script->source()), start, len);
         for (const auto& c : source) {
           os << AsReversiblyEscapedUC16(c);
         }

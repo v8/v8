@@ -212,7 +212,7 @@ void RegExpImpl::AtomCompile(Isolate* isolate, Handle<JSRegExp> re,
 
 static void SetAtomLastCapture(Isolate* isolate,
                                Handle<RegExpMatchInfo> last_match_info,
-                               String* subject, int from, int to) {
+                               String subject, int from, int to) {
   SealHandleScope shs(isolate);
   last_match_info->SetNumberOfCaptureRegisters(2);
   last_match_info->SetLastSubject(subject);
@@ -230,7 +230,7 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
   subject = String::Flatten(isolate, subject);
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
 
-  String* needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
+  String needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
   int needle_len = needle->length();
   DCHECK(needle->IsFlat());
   DCHECK_LT(0, needle_len);
@@ -519,7 +519,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
   // Prepare space for the return values.
 #if defined(V8_INTERPRETED_REGEXP) && defined(DEBUG)
   if (FLAG_trace_regexp_bytecodes) {
-    String* pattern = regexp->Pattern();
+    String pattern = regexp->Pattern();
     PrintF("\n\nRegexp match:   /%s/\n\n", pattern->ToCString().get());
     PrintF("\n\nSubject string: '%s'\n\n", subject->ToCString().get());
   }
@@ -6775,7 +6775,7 @@ bool RegExpEngine::TooMuchRegExpCode(Isolate* isolate, Handle<String> pattern) {
   return too_much;
 }
 
-Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
+Object* RegExpResultsCache::Lookup(Heap* heap, String key_string,
                                    Object* key_pattern,
                                    FixedArray* last_match_cache,
                                    ResultsCacheType type) {

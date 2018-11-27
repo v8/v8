@@ -63,6 +63,30 @@ class ObjectPtr {
   inline bool ToInt32(int32_t* value) const;
   inline bool ToUint32(uint32_t* value) const;
 
+  // ECMA-262 9.2.
+  bool BooleanValue(Isolate* isolate);
+
+  inline bool FilterKey(PropertyFilter filter);
+
+  // Returns the permanent hash code associated with this object. May return
+  // undefined if not yet created.
+  inline Object* GetHash();
+
+  // Returns the permanent hash code associated with this object depending on
+  // the actual object type. May create and store a hash code if needed and none
+  // exists.
+  Smi GetOrCreateHash(Isolate* isolate);
+
+  // Checks whether this object has the same value as the given one.  This
+  // function is implemented according to ES5, section 9.12 and can be used
+  // to implement the Object.is function.
+  V8_EXPORT_PRIVATE bool SameValue(Object* other);
+
+  // Tries to convert an object to an array index. Returns true and sets the
+  // output parameter if it succeeds. Equivalent to ToArrayLength, but does not
+  // allow kMaxUInt32.
+  V8_WARN_UNUSED_RESULT inline bool ToArrayIndex(uint32_t* index) const;
+
 #ifdef VERIFY_HEAP
   void ObjectVerify(Isolate* isolate) {
     reinterpret_cast<Object*>(ptr())->ObjectVerify(isolate);
@@ -72,6 +96,7 @@ class ObjectPtr {
 #endif
 
   inline void ShortPrint(FILE* out = stdout);
+  void ShortPrint(std::ostream& os);  // NOLINT
   inline void Print();
   inline void Print(std::ostream& os);
 
@@ -109,6 +134,10 @@ class HeapObjectPtr : public ObjectPtr {
   inline ObjectSlot map_slot();
   inline MapWord map_word() const;
   inline void set_map_word(MapWord map_word);
+
+  // Set the map using release store
+  inline void synchronized_set_map(Map value);
+  inline void synchronized_set_map_word(MapWord map_word);
 
   inline WriteBarrierMode GetWriteBarrierMode(
       const DisallowHeapAllocation& promise);
@@ -153,6 +182,8 @@ class HeapObjectPtr : public ObjectPtr {
 #endif
 
   static const int kMapOffset = HeapObject::kMapOffset;
+
+  inline Address GetFieldAddress(int field_offset) const;
 
  protected:
   // Special-purpose constructor for subclasses that have fast paths where

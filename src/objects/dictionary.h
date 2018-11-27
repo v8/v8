@@ -199,7 +199,7 @@ class NameDictionary
   static const int kEntryDetailsIndex = 2;
   static const int kInitialCapacity = 2;
 
-  inline Name* NameAt(int entry);
+  inline Name NameAt(int entry);
   inline void set_hash(int hash);
   inline int hash() const;
 
@@ -236,7 +236,7 @@ class GlobalDictionary
   inline PropertyCell* CellAt(int entry);
   inline void SetEntry(Isolate* isolate, int entry, Object* key, Object* value,
                        PropertyDetails details);
-  inline Name* NameAt(int entry);
+  inline Name NameAt(int entry);
   inline void ValueAtPut(int entry, Object* value);
 
   OBJECT_CONSTRUCTORS(

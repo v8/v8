@@ -62,8 +62,8 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
                                                        Handle<String> key);
   static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
   static Handle<String> AddKeyNoResize(Isolate* isolate, StringTableKey* key);
-  static String* ForwardStringIfExists(Isolate* isolate, StringTableKey* key,
-                                       String* string);
+  static String ForwardStringIfExists(Isolate* isolate, StringTableKey* key,
+                                      String string);
 
   // Shink the StringTable if it's very empty (kMaxEmptyFactor) to avoid the
   // performance overhead of re-allocating the StringTable over and over again.
@@ -74,8 +74,11 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   // string handle if it is found, or an empty handle otherwise.
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
       Isolate* isolate, uint16_t c1, uint16_t c2);
-  static Object* LookupStringIfExists_NoAllocate(Isolate* isolate,
-                                                 String* string);
+  // {raw_string} must be a tagged String pointer.
+  // Returns a tagged pointer: either an internalized string, or a Smi
+  // sentinel.
+  static Address LookupStringIfExists_NoAllocate(Isolate* isolate,
+                                                 Address raw_string);
 
   static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 
@@ -92,10 +95,10 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   OBJECT_CONSTRUCTORS(StringTable, HashTable<StringTable, StringTableShape>)
 };
 
-class StringSetShape : public BaseShape<String*> {
+class StringSetShape : public BaseShape<String> {
  public:
-  static inline bool IsMatch(String* key, Object* value);
-  static inline uint32_t Hash(Isolate* isolate, String* key);
+  static inline bool IsMatch(String key, Object* value);
+  static inline uint32_t Hash(Isolate* isolate, String key);
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
 
   static const int kPrefixSize = 0;

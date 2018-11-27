@@ -242,7 +242,7 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     Handle<Script> script = non_const_scripts[node->script_id_];
     if (!script.is_null()) {
       if (script->name()->IsName()) {
-        Name* name = Name::cast(script->name());
+        Name name = Name::cast(script->name());
         script_name = ToApiHandle<v8::String>(
             isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
       }

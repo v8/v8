@@ -277,13 +277,13 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(Map map,
 }
 
 SlotCallbackResult Scavenger::EvacuateThinString(Map map, HeapObjectSlot slot,
-                                                 ThinString* object,
+                                                 ThinString object,
                                                  int object_size) {
   if (!is_incremental_marking_) {
     // The ThinString should die after Scavenge, so avoid writing the proper
     // forwarding pointer and instead just signal the actual object as forwarded
     // reference.
-    String* actual = object->actual();
+    String actual = object->actual();
     // ThinStrings always refer to internalized strings, which are always in old
     // space.
     DCHECK(!Heap::InNewSpace(actual));
@@ -296,7 +296,7 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map map, HeapObjectSlot slot,
 
 SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
                                                         HeapObjectSlot slot,
-                                                        ConsString* object,
+                                                        ConsString object,
                                                         int object_size) {
   DCHECK(IsShortcutCandidate(map->instance_type()));
   if (!is_incremental_marking_ &&
@@ -342,13 +342,13 @@ SlotCallbackResult Scavenger::EvacuateObject(HeapObjectSlot slot, Map map,
     case kVisitThinString:
       // At the moment we don't allow weak pointers to thin strings.
       DCHECK(!(*slot)->IsWeak());
-      return EvacuateThinString(map, slot,
-                                reinterpret_cast<ThinString*>(source), size);
+      return EvacuateThinString(map, slot, ThinString::unchecked_cast(source),
+                                size);
     case kVisitShortcutCandidate:
       DCHECK(!(*slot)->IsWeak());
       // At the moment we don't allow weak pointers to cons strings.
       return EvacuateShortcutCandidate(
-          map, slot, reinterpret_cast<ConsString*>(source), size);
+          map, slot, ConsString::unchecked_cast(source), size);
     default:
       return EvacuateObjectDefault(map, slot, source, size);
   }

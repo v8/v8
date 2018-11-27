@@ -17,8 +17,11 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(Name)
-CAST_ACCESSOR(Symbol)
+OBJECT_CONSTRUCTORS_IMPL(Name, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Symbol, Name)
+
+CAST_ACCESSOR2(Name)
+CAST_ACCESSOR2(Symbol)
 
 ACCESSORS(Symbol, name, Object, kNameOffset)
 INT_ACCESSORS(Symbol, flags, kFlagsOffset)
@@ -56,13 +59,13 @@ void Name::set_hash_field(uint32_t value) {
   WRITE_UINT32_FIELD(this, kHashFieldOffset, value);
 }
 
-bool Name::Equals(Name* other) {
-  if (other == this) return true;
+bool Name::Equals(Name other) {
+  if (other == *this) return true;
   if ((this->IsInternalizedString() && other->IsInternalizedString()) ||
       this->IsSymbol() || other->IsSymbol()) {
     return false;
   }
-  return String::cast(this)->SlowEquals(String::cast(other));
+  return String::cast(*this)->SlowEquals(String::cast(other));
 }
 
 bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
@@ -88,27 +91,27 @@ uint32_t Name::Hash() {
   // Slow case: compute hash code and set it. Has to be a string.
   // Also the string must be writable, because read-only strings will have their
   // hash values precomputed.
-  return String::cast(this)->ComputeAndSetHash(
+  return String::cast(*this)->ComputeAndSetHash(
       Heap::FromWritableHeapObject(this)->isolate());
 }
 
 bool Name::IsInterestingSymbol() const {
-  return IsSymbol() && Symbol::cast(this)->is_interesting_symbol();
+  return IsSymbol() && Symbol::cast(*this)->is_interesting_symbol();
 }
 
 bool Name::IsPrivate() {
-  return this->IsSymbol() && Symbol::cast(this)->is_private();
+  return this->IsSymbol() && Symbol::cast(*this)->is_private();
 }
 
 bool Name::IsPrivateName() {
   bool is_private_name =
-      this->IsSymbol() && Symbol::cast(this)->is_private_name();
+      this->IsSymbol() && Symbol::cast(*this)->is_private_name();
   DCHECK_IMPLIES(is_private_name, IsPrivate());
   return is_private_name;
 }
 
 bool Name::AsArrayIndex(uint32_t* index) {
-  return IsString() && String::cast(this)->AsArrayIndex(index);
+  return IsString() && String::cast(*this)->AsArrayIndex(index);
 }
 
 // static

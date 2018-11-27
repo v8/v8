@@ -612,7 +612,7 @@ int CollectOwnPropertyNamesInternal(Handle<JSObject> object,
       if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
     }
 
-    Name* key = descs->GetKey(i);
+    Name key = descs->GetKey(i);
     if (skip_symbols == key->IsSymbol()) {
       if (first_skipped == -1) first_skipped = i;
       continue;

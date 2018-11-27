@@ -20,8 +20,8 @@ namespace internal {
 
 class ScopedExternalStringLock {
  public:
-  explicit ScopedExternalStringLock(ExternalString* string) {
-    DCHECK(string);
+  explicit ScopedExternalStringLock(ExternalString string) {
+    DCHECK(!string.is_null());
     if (string->IsExternalOneByteString()) {
       resource_ = ExternalOneByteString::cast(string)->resource();
     } else {
@@ -109,7 +109,7 @@ class ExternalStringStream {
   typedef typename CharTraits<Char>::ExternalString ExternalString;
 
  public:
-  ExternalStringStream(ExternalString* string, size_t start_offset,
+  ExternalStringStream(ExternalString string, size_t start_offset,
                        size_t length)
       : lock_(string),
         data_(string->GetChars() + start_offset),
@@ -710,9 +710,9 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
   DCHECK_LE(end_pos, data->length());
   size_t start_offset = 0;
   if (data->IsSlicedString()) {
-    SlicedString* string = SlicedString::cast(*data);
+    SlicedString string = SlicedString::cast(*data);
     start_offset = string->offset();
-    String* parent = string->parent();
+    String parent = string->parent();
     if (parent->IsThinString()) parent = ThinString::cast(parent)->actual();
     data = handle(parent, isolate);
   } else {

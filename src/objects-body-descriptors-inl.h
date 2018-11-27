@@ -577,7 +577,7 @@ class SeqOneByteString::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {}
 
   static inline int SizeOf(Map map, HeapObject* obj) {
-    SeqOneByteString* string = SeqOneByteString::cast(obj);
+    SeqOneByteString string = SeqOneByteString::cast(obj);
     return string->SizeFor(string->synchronized_length());
   }
 };
@@ -593,7 +593,7 @@ class SeqTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {}
 
   static inline int SizeOf(Map map, HeapObject* obj) {
-    SeqTwoByteString* string = SeqTwoByteString::cast(obj);
+    SeqTwoByteString string = SeqTwoByteString::cast(obj);
     return string->SizeFor(string->synchronized_length());
   }
 };

@@ -91,9 +91,9 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 
   int line_num = Script::GetLineNumber(script, shared->StartPosition()) + 1;
   int column_num = Script::GetColumnNumber(script, shared->StartPosition()) + 1;
-  String* script_name = script->name()->IsString()
-                            ? String::cast(script->name())
-                            : ReadOnlyRoots(isolate).empty_string();
+  String script_name = script->name()->IsString()
+                           ? String::cast(script->name())
+                           : ReadOnlyRoots(isolate).empty_string();
   CodeEventListener::LogEventsAndTags log_tag =
       Logger::ToNativeByScript(tag, *script);
   PROFILE(isolate, CodeCreateEvent(log_tag, *abstract_code, *shared,
@@ -331,9 +331,9 @@ void InstallBytecodeArray(Handle<BytecodeArray> bytecode_array,
       Script::GetLineNumber(script, shared_info->StartPosition()) + 1;
   int column_num =
       Script::GetColumnNumber(script, shared_info->StartPosition()) + 1;
-  String* script_name = script->name()->IsString()
-                            ? String::cast(script->name())
-                            : ReadOnlyRoots(isolate).empty_string();
+  String script_name = script->name()->IsString()
+                           ? String::cast(script->name())
+                           : ReadOnlyRoots(isolate).empty_string();
   CodeEventListener::LogEventsAndTags log_tag = Logger::ToNativeByScript(
       CodeEventListener::INTERPRETED_FUNCTION_TAG, *script);
   PROFILE(isolate, CodeCreateEvent(log_tag, *abstract_code, *shared_info,

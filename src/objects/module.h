@@ -269,7 +269,7 @@ class ModuleInfo : public FixedArray {
 
   // Accessors for [regular_exports].
   int RegularExportCount() const;
-  String* RegularExportLocalName(int i) const;
+  String RegularExportLocalName(int i) const;
   int RegularExportCellIndex(int i) const;
   FixedArray RegularExportExportNames(int i) const;
 

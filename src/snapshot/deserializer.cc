@@ -152,7 +152,7 @@ void Deserializer::DeserializeDeferredObjects() {
   }
 }
 
-StringTableInsertionKey::StringTableInsertionKey(String* string)
+StringTableInsertionKey::StringTableInsertionKey(String string)
     : StringTableKey(ComputeHashField(string)), string_(string) {
   DCHECK(string->IsInternalizedString());
 }
@@ -169,7 +169,7 @@ Handle<String> StringTableInsertionKey::AsHandle(Isolate* isolate) {
   return handle(string_, isolate);
 }
 
-uint32_t StringTableInsertionKey::ComputeHashField(String* string) {
+uint32_t StringTableInsertionKey::ComputeHashField(String string) {
   // Make sure hash_field() is computed.
   string->Hash();
   return string->hash_field();
@@ -179,7 +179,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
     if (obj->IsString()) {
       // Uninitialize hash field as we need to recompute the hash.
-      String* string = String::cast(obj);
+      String string = String::cast(obj);
       string->set_hash_field(String::kEmptyHashField);
     } else if (obj->NeedsRehashing()) {
       to_rehash_.push_back(obj);
@@ -188,15 +188,15 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
 
   if (deserializing_user_code()) {
     if (obj->IsString()) {
-      String* string = String::cast(obj);
+      String string = String::cast(obj);
       if (string->IsInternalizedString()) {
         // Canonicalize the internalized string. If it already exists in the
         // string table, set it to forward to the existing one.
         StringTableInsertionKey key(string);
-        String* canonical =
+        String canonical =
             StringTable::ForwardStringIfExists(isolate_, &key, string);
 
-        if (canonical != nullptr) return canonical;
+        if (!canonical.is_null()) return canonical;
 
         new_internalized_strings_.push_back(handle(string, isolate_));
         return string;
@@ -235,13 +235,13 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
 #endif
   } else if (obj->IsExternalString()) {
     if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
-      ExternalOneByteString* string = ExternalOneByteString::cast(obj);
+      ExternalOneByteString string = ExternalOneByteString::cast(obj);
       DCHECK(string->is_uncached());
       string->SetResource(
           isolate_, NativesExternalStringResource::DecodeForDeserialization(
                         string->resource()));
     } else {
-      ExternalString* string = ExternalString::cast(obj);
+      ExternalString string = ExternalString::cast(obj);
       uint32_t index = string->resource_as_uint32();
       Address address =
           static_cast<Address>(isolate_->api_external_references()[index]);

@@ -272,7 +272,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
-  static inline Symbol* RawUninitializedSentinel(Isolate* isolate);
+  static inline Symbol RawUninitializedSentinel(Isolate* isolate);
 
 // Layout description.
 #define FEEDBACK_VECTOR_FIELDS(V)            \
@@ -643,7 +643,7 @@ class FeedbackNexus final {
 
   // For KeyedLoad and KeyedStore ICs.
   IcCheckType GetKeyType() const;
-  Name* FindFirstName() const;
+  Name FindFirstName() const;
 
   // For Call ICs.
   int GetCallCount();

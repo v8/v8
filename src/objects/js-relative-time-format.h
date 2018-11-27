@@ -55,7 +55,7 @@ class JSRelativeTimeFormat : public JSObject {
   DECL_CAST(JSRelativeTimeFormat)
 
   // RelativeTimeFormat accessors.
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
 
   DECL_ACCESSORS(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
 

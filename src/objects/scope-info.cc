@@ -544,7 +544,7 @@ void ScopeInfo::SetFunctionName(Object* name) {
   set(FunctionNameInfoIndex(), name);
 }
 
-void ScopeInfo::SetInferredFunctionName(String* name) {
+void ScopeInfo::SetInferredFunctionName(String name) {
   DCHECK(HasInferredFunctionName());
   set(InferredFunctionNameIndex(), name);
 }
@@ -580,7 +580,7 @@ Object* ScopeInfo::InferredFunctionName() const {
   return get(InferredFunctionNameIndex());
 }
 
-String* ScopeInfo::FunctionDebugName() const {
+String ScopeInfo::FunctionDebugName() const {
   Object* name = FunctionName();
   if (name->IsString() && String::cast(name)->length() > 0) {
     return String::cast(name);
@@ -619,7 +619,7 @@ ModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
   return ModuleInfo::cast(get(ModuleInfoIndex()));
 }
 
-String* ScopeInfo::ContextLocalName(int var) const {
+String ScopeInfo::ContextLocalName(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalNamesIndex() + var;
@@ -666,7 +666,7 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
 }
 
 // static
-bool ScopeInfo::VariableIsSynthetic(String* name) {
+bool ScopeInfo::VariableIsSynthetic(String name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
   // variable is a compiler-introduced temporary. However, to avoid conflict
   // with user declarations, the current temporaries like .generator_object and
@@ -687,7 +687,7 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
   int module_vars_count = Smi::ToInt(get(ModuleVariableCountIndex()));
   int entry = ModuleVariablesIndex();
   for (int i = 0; i < module_vars_count; ++i) {
-    String* var_name = String::cast(get(entry + kModuleVariableNameOffset));
+    String var_name = String::cast(get(entry + kModuleVariableNameOffset));
     if (name->Equals(var_name)) {
       int index;
       ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag);
@@ -736,7 +736,7 @@ int ScopeInfo::ReceiverContextSlotIndex() const {
   return -1;
 }
 
-int ScopeInfo::FunctionContextSlotIndex(String* name) const {
+int ScopeInfo::FunctionContextSlotIndex(String name) const {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
     if (FunctionVariableField::decode(Flags()) == CONTEXT &&
@@ -793,7 +793,7 @@ int ScopeInfo::ModuleVariablesIndex() const {
   return ModuleVariableCountIndex() + 1;
 }
 
-void ScopeInfo::ModuleVariable(int i, String** name, int* index,
+void ScopeInfo::ModuleVariable(int i, String* name, int* index,
                                VariableMode* mode,
                                InitializationFlag* init_flag,
                                MaybeAssignedFlag* maybe_assigned_flag) {
@@ -921,7 +921,7 @@ int ModuleInfo::RegularExportCount() const {
   return regular_exports()->length() / kRegularExportLength;
 }
 
-String* ModuleInfo::RegularExportLocalName(int i) const {
+String ModuleInfo::RegularExportLocalName(int i) const {
   return String::cast(regular_exports()->get(i * kRegularExportLength +
                                              kRegularExportLocalNameOffset));
 }

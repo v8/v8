@@ -280,7 +280,7 @@ size_t GetScriptNameLength(const SourcePositionInfo& info) {
   if (!info.script.is_null()) {
     Object* name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url->IsString()) {
-      String* str = String::cast(name_or_url);
+      String str = String::cast(name_or_url);
       if (str->IsOneByteRepresentation()) return str->length();
       int length;
       str->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
@@ -295,7 +295,7 @@ Vector<const char> GetScriptName(const SourcePositionInfo& info,
   if (!info.script.is_null()) {
     Object* name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url->IsSeqOneByteString()) {
-      SeqOneByteString* str = SeqOneByteString::cast(name_or_url);
+      SeqOneByteString str = SeqOneByteString::cast(name_or_url);
       return {reinterpret_cast<char*>(str->GetChars()),
               static_cast<size_t>(str->length())};
     } else if (name_or_url->IsString()) {

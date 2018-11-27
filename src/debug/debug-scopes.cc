@@ -574,7 +574,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
     int index;
     Handle<String> name;
     {
-      String* raw_name;
+      String raw_name;
       scope_info->ModuleVariable(i, &raw_name, &index);
       CHECK(!ScopeInfo::VariableIsSynthetic(raw_name));
       name = handle(raw_name, isolate_);

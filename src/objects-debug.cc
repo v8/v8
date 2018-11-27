@@ -989,16 +989,16 @@ void JSMessageObject::JSMessageObjectVerify(Isolate* isolate) {
 void String::StringVerify(Isolate* isolate) {
   CHECK(IsString());
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
-  CHECK_IMPLIES(length() == 0, this == ReadOnlyRoots(isolate).empty_string());
+  CHECK_IMPLIES(length() == 0, *this == ReadOnlyRoots(isolate).empty_string());
   if (IsInternalizedString()) {
-    CHECK(!Heap::InNewSpace(this));
+    CHECK(!Heap::InNewSpace(*this));
   }
   if (IsConsString()) {
-    ConsString::cast(this)->ConsStringVerify(isolate);
+    ConsString::cast(*this)->ConsStringVerify(isolate);
   } else if (IsSlicedString()) {
-    SlicedString::cast(this)->SlicedStringVerify(isolate);
+    SlicedString::cast(*this)->SlicedStringVerify(isolate);
   } else if (IsThinString()) {
-    ThinString::cast(this)->ThinStringVerify(isolate);
+    ThinString::cast(*this)->ThinStringVerify(isolate);
   }
 }
 
@@ -2233,10 +2233,10 @@ void JSObject::SpillInformation::Print() {
 
 bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   if (valid_entries == -1) valid_entries = number_of_descriptors();
-  Name* current_key = nullptr;
+  Name current_key;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
-    Name* key = GetSortedKey(i);
+    Name key = GetSortedKey(i);
     if (key == current_key) {
       Print();
       return false;
@@ -2254,13 +2254,13 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   DCHECK_EQ(valid_entries, -1);
-  Name* prev_key = nullptr;
+  Name prev_key;
   PropertyKind prev_kind = kData;
   PropertyAttributes prev_attributes = NONE;
   uint32_t prev_hash = 0;
 
   for (int i = 0; i < number_of_transitions(); i++) {
-    Name* key = GetSortedKey(i);
+    Name key = GetSortedKey(i);
     uint32_t hash = key->Hash();
     PropertyKind kind = kData;
     PropertyAttributes attributes = NONE;

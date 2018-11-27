@@ -60,6 +60,18 @@ bool ObjectPtr::ToUint32(uint32_t* value) const {
   return reinterpret_cast<Object*>(ptr())->ToUint32(value);
 }
 
+bool ObjectPtr::FilterKey(PropertyFilter filter) {
+  return reinterpret_cast<Object*>(ptr())->FilterKey(filter);
+}
+
+Object* ObjectPtr::GetHash() {
+  return reinterpret_cast<Object*>(ptr())->GetHash();
+}
+
+bool ObjectPtr::ToArrayIndex(uint32_t* index) const {
+  return reinterpret_cast<Object*>(ptr())->ToArrayIndex(index);
+}
+
 void ObjectPtr::ShortPrint(FILE* out) {
   return reinterpret_cast<Object*>(ptr())->ShortPrint(out);
 }
@@ -115,6 +127,25 @@ void HeapObjectPtr::set_map_word(MapWord map_word) {
                       reinterpret_cast<Object*>(map_word.value_));
 }
 
+void HeapObjectPtr::synchronized_set_map(Map value) {
+  if (!value.is_null()) {
+#ifdef VERIFY_HEAP
+    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(*this, value);
+#endif
+  }
+  synchronized_set_map_word(MapWord::FromMap(value));
+  if (!value.is_null()) {
+    // TODO(1600) We are passing kNullAddress as a slot because maps can never
+    // be on an evacuation candidate.
+    MarkingBarrier(this, ObjectSlot(kNullAddress), value);
+  }
+}
+
+void HeapObjectPtr::synchronized_set_map_word(MapWord map_word) {
+  RELEASE_WRITE_FIELD(this, kMapOffset,
+                      reinterpret_cast<Object*>(map_word.value_));
+}
+
 WriteBarrierMode HeapObjectPtr::GetWriteBarrierMode(
     const DisallowHeapAllocation& promise) {
   Heap* heap = Heap::FromWritableHeapObject(this);
@@ -142,6 +173,10 @@ ObjectSlot HeapObjectPtr::RawField(int byte_offset) const {
 
 MaybeObjectSlot HeapObjectPtr::RawMaybeWeakField(int byte_offset) const {
   return MaybeObjectSlot(FIELD_ADDR(this, byte_offset));
+}
+
+Address HeapObjectPtr::GetFieldAddress(int field_offset) const {
+  return FIELD_ADDR(this, field_offset);
 }
 
 Heap* NeverReadOnlySpaceObjectPtr::GetHeap(const HeapObjectPtr object) {

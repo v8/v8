@@ -275,7 +275,7 @@ void BytecodeExpectationsPrinter::PrintSourcePosition(
 }
 
 void BytecodeExpectationsPrinter::PrintV8String(std::ostream& stream,
-                                                i::String* string) const {
+                                                i::String string) const {
   stream << '"';
   for (int i = 0, length = string->length(); i < length; ++i) {
     stream << i::AsEscapedUC16ForJSON(string->Get(i));

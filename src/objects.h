@@ -549,8 +549,8 @@ typedef ScriptContextTable ScriptContextTableArgType;
 typedef SharedFunctionInfo* SharedFunctionInfoArgType;
 typedef SimpleNumberDictionary SimpleNumberDictionaryArgType;
 typedef Smi SmiArgType;
-typedef String* StringArgType;
-typedef Symbol* SymbolArgType;
+typedef String StringArgType;
+typedef Symbol SymbolArgType;
 typedef TemplateList TemplateListArgType;
 typedef WasmInstanceObject* WasmInstanceObjectArgType;
 typedef WasmMemoryObject* WasmMemoryObjectArgType;
@@ -1443,13 +1443,13 @@ class Oddball: public HeapObject {
   inline void set_to_number_raw_as_bits(uint64_t bits);
 
   // [to_string]: Cached to_string computed at startup.
-  DECL_ACCESSORS(to_string, String)
+  DECL_ACCESSORS2(to_string, String)
 
   // [to_number]: Cached to_number computed at startup.
   DECL_ACCESSORS(to_number, Object)
 
   // [typeof]: Cached type_of computed at startup.
-  DECL_ACCESSORS(type_of, String)
+  DECL_ACCESSORS2(type_of, String)
 
   inline byte kind() const;
   inline void set_kind(byte kind);
@@ -1564,7 +1564,7 @@ class FeedbackCell : public Struct {
 class PropertyCell : public HeapObject {
  public:
   // [name]: the name of the global property.
-  DECL_ACCESSORS(name, Name)
+  DECL_ACCESSORS2(name, Name)
   // [property_details]: details of the global property.
   DECL_ACCESSORS(property_details_raw, Object)
   // [value]: value of the global property.

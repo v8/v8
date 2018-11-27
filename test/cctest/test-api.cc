@@ -15898,8 +15898,7 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
   i::Vector<const i::uc16> data_;
 };
 
-
-static void MorphAString(i::String* string,
+static void MorphAString(i::String string,
                          OneByteVectorResource* one_byte_resource,
                          UC16VectorResource* uc16_resource) {
   i::Isolate* isolate = CcTest::i_isolate();
@@ -15910,8 +15909,7 @@ static void MorphAString(i::String* string,
     CHECK(string->map() == roots.external_one_byte_string_map());
     // Morph external string to be TwoByte string.
     string->set_map(roots.external_string_map());
-    i::ExternalTwoByteString* morphed =
-         i::ExternalTwoByteString::cast(string);
+    i::ExternalTwoByteString morphed = i::ExternalTwoByteString::cast(string);
     CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
     morphed->SetResource(isolate, uc16_resource);
   } else {
@@ -15919,12 +15917,11 @@ static void MorphAString(i::String* string,
     CHECK(string->map() == roots.external_string_map());
     // Morph external string to be one-byte string.
     string->set_map(roots.external_one_byte_string_map());
-    i::ExternalOneByteString* morphed = i::ExternalOneByteString::cast(string);
+    i::ExternalOneByteString morphed = i::ExternalOneByteString::cast(string);
     CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
     morphed->SetResource(isolate, one_byte_resource);
   }
 }
-
 
 // Test that we can still flatten a string if the components it is built up
 // from have been turned into 16 bit strings in the mean time.
@@ -15962,8 +15959,8 @@ THREADED_TEST(MorphCompositeStringTest) {
     CHECK(lhs->IsOneByte());
     CHECK(rhs->IsOneByte());
 
-    i::String* ilhs = *v8::Utils::OpenHandle(*lhs);
-    i::String* irhs = *v8::Utils::OpenHandle(*rhs);
+    i::String ilhs = *v8::Utils::OpenHandle(*lhs);
+    i::String irhs = *v8::Utils::OpenHandle(*rhs);
     MorphAString(ilhs, &one_byte_resource, &uc16_resource);
     MorphAString(irhs, &one_byte_resource, &uc16_resource);
 
@@ -20701,7 +20698,7 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
     // one-byte characters). This is a valid sequence of steps, and it can
     // happen in real pages.
     CHECK(string->IsOneByteRepresentation());
-    i::ConsString* cons = i::ConsString::cast(*string);
+    i::ConsString cons = i::ConsString::cast(*string);
     CHECK_EQ(0, cons->second()->length());
     CHECK(cons->first()->IsTwoByteRepresentation());
   }

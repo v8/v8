@@ -267,7 +267,7 @@ class CoverageInfo : public FixedArray {
 class BreakPoint : public Tuple2 {
  public:
   DECL_INT_ACCESSORS(id)
-  DECL_ACCESSORS(condition, String)
+  DECL_ACCESSORS2(condition, String)
 
   DECL_CAST(BreakPoint)
 

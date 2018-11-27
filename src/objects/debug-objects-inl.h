@@ -48,7 +48,7 @@ SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionOffset)
 ACCESSORS(BreakPointInfo, break_points, Object, kBreakPointsOffset)
 
 SMI_ACCESSORS(BreakPoint, id, kIdOffset)
-ACCESSORS(BreakPoint, condition, String, kConditionOffset)
+ACCESSORS2(BreakPoint, condition, String, kConditionOffset)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
   DCHECK_EQ(debug_bytecode_array()->IsBytecodeArray(),

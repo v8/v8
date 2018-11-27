@@ -1118,7 +1118,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function,
       int line = script->GetLineNumber(source_pos) + 1;
       Object* script_name_raw = script->name();
       if (script_name_raw->IsString()) {
-        String* script_name = String::cast(script->name());
+        String script_name = String::cast(script->name());
         std::unique_ptr<char[]> c_script_name =
             script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
         PrintF(file, " at %s:%d", c_script_name.get(), line);

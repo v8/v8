@@ -76,7 +76,8 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
   for (Handle<String> string : new_internalized_strings()) {
     DisallowHeapAllocation no_gc;
     StringTableInsertionKey key(*string);
-    DCHECK_NULL(StringTable::ForwardStringIfExists(isolate(), &key, *string));
+    DCHECK(
+        StringTable::ForwardStringIfExists(isolate(), &key, *string).is_null());
     StringTable::AddKeyNoResize(isolate(), &key);
   }
 

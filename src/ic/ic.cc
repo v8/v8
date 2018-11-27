@@ -273,7 +273,7 @@ bool IC::RecomputeHandlerForName(Handle<Object> name) {
   if (is_keyed()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
-    Name* stub_name = nexus()->FindFirstName();
+    Name stub_name = nexus()->FindFirstName();
     if (*name != stub_name) return false;
   }
 
@@ -2469,7 +2469,7 @@ static bool CanFastCloneObject(Handle<Map> map) {
   DescriptorArray* descriptors = map->instance_descriptors();
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descriptors->GetDetails(i);
-    Name* key = descriptors->GetKey(i);
+    Name key = descriptors->GetKey(i);
     if (details.kind() != kData || !details.IsEnumerable() ||
         key->IsPrivateName()) {
       return false;

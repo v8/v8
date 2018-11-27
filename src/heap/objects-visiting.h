@@ -40,7 +40,7 @@ class WasmInstanceObject;
   V(Cell, Cell*)                                                               \
   V(Code, Code)                                                                \
   V(CodeDataContainer, CodeDataContainer*)                                     \
-  V(ConsString, ConsString*)                                                   \
+  V(ConsString, ConsString)                                                    \
   V(Context, Context)                                                          \
   V(DataHandler, DataHandler*)                                                 \
   V(DescriptorArray, DescriptorArray*)                                         \
@@ -64,15 +64,15 @@ class WasmInstanceObject;
   V(PropertyArray, PropertyArray)                                              \
   V(PropertyCell, PropertyCell*)                                               \
   V(PrototypeInfo, PrototypeInfo*)                                             \
-  V(SeqOneByteString, SeqOneByteString*)                                       \
-  V(SeqTwoByteString, SeqTwoByteString*)                                       \
+  V(SeqOneByteString, SeqOneByteString)                                        \
+  V(SeqTwoByteString, SeqTwoByteString)                                        \
   V(SharedFunctionInfo, SharedFunctionInfo*)                                   \
-  V(SlicedString, SlicedString*)                                               \
+  V(SlicedString, SlicedString)                                                \
   V(SmallOrderedHashMap, SmallOrderedHashMap*)                                 \
   V(SmallOrderedHashSet, SmallOrderedHashSet*)                                 \
   V(SmallOrderedNameDictionary, SmallOrderedNameDictionary*)                   \
-  V(Symbol, Symbol*)                                                           \
-  V(ThinString, ThinString*)                                                   \
+  V(Symbol, Symbol)                                                            \
+  V(ThinString, ThinString)                                                    \
   V(TransitionArray, TransitionArray*)                                         \
   V(UncompiledDataWithoutPreParsedScope, UncompiledDataWithoutPreParsedScope*) \
   V(UncompiledDataWithPreParsedScope, UncompiledDataWithPreParsedScope*)       \
@@ -112,7 +112,7 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE ResultType Visit##TypeName(Map map, Type object);
   TYPED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
-  V8_INLINE ResultType VisitShortcutCandidate(Map map, ConsString* object);
+  V8_INLINE ResultType VisitShortcutCandidate(Map map, ConsString object);
   V8_INLINE ResultType VisitDataObject(Map map, HeapObject* object);
   V8_INLINE ResultType VisitJSObjectFast(Map map, JSObject* object);
   V8_INLINE ResultType VisitJSApiObject(Map map, JSObject* object);

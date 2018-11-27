@@ -902,18 +902,18 @@ class Heap {
   // ===========================================================================
 
   // Registers an external string.
-  inline void RegisterExternalString(String* string);
+  inline void RegisterExternalString(String string);
 
   // Called when a string's resource is changed. The size of the payload is sent
   // as argument of the method.
-  inline void UpdateExternalString(String* string, size_t old_payload,
+  inline void UpdateExternalString(String string, size_t old_payload,
                                    size_t new_payload);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.
-  inline void FinalizeExternalString(String* string);
+  inline void FinalizeExternalString(String string);
 
-  static String* UpdateNewSpaceReferenceInExternalStringTableEntry(
+  static String UpdateNewSpaceReferenceInExternalStringTableEntry(
       Heap* heap, ObjectSlot pointer);
 
   // ===========================================================================
@@ -1297,8 +1297,8 @@ class Heap {
  private:
   class SkipStoreBufferScope;
 
-  typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
-                                                        ObjectSlot pointer);
+  typedef String (*ExternalStringTableUpdaterCallback)(Heap* heap,
+                                                       ObjectSlot pointer);
 
   // External strings table is a place where all external strings are
   // registered.  We need to keep track of such strings to properly
@@ -1308,8 +1308,8 @@ class Heap {
     explicit ExternalStringTable(Heap* heap) : heap_(heap) {}
 
     // Registers an external string.
-    inline void AddString(String* string);
-    bool Contains(HeapObject* obj);
+    inline void AddString(String string);
+    bool Contains(String string);
 
     void IterateAll(RootVisitor* v);
     void IterateNewSpaceStrings(RootVisitor* v);

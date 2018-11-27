@@ -39,7 +39,7 @@ uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
 
 // Looks up the capture of the given name. Returns the (1-based) numbered
 // capture index or -1 on failure.
-int LookupNamedCapture(const std::function<bool(String*)>& name_matches,
+int LookupNamedCapture(const std::function<bool(String)>& name_matches,
                        FixedArray capture_name_map) {
   // TODO(jgruber): Sort capture_name_map and do binary search via
   // internalized strings.
@@ -52,7 +52,7 @@ int LookupNamedCapture(const std::function<bool(String*)>& name_matches,
     const int name_ix = j * 2;
     const int index_ix = j * 2 + 1;
 
-    String* capture_name = String::cast(capture_name_map->get(name_ix));
+    String capture_name = String::cast(capture_name_map->get(name_ix));
     if (!name_matches(capture_name)) continue;
 
     maybe_capture_index = Smi::ToInt(capture_name_map->get(index_ix));
@@ -266,7 +266,7 @@ class CompiledReplacement {
             // Let capture be ? Get(namedCaptures, groupName).
 
             const int capture_index = LookupNamedCapture(
-                [=](String* capture_name) {
+                [=](String capture_name) {
                   return capture_name->IsEqualTo(requested_name);
                 },
                 capture_name_map);
@@ -450,9 +450,8 @@ void FindStringIndices(Isolate* isolate, Vector<const SubjectChar> subject,
   }
 }
 
-void FindStringIndicesDispatch(Isolate* isolate, String* subject,
-                               String* pattern, std::vector<int>* indices,
-                               unsigned int limit) {
+void FindStringIndicesDispatch(Isolate* isolate, String subject, String pattern,
+                               std::vector<int>* indices, unsigned int limit) {
   {
     DisallowHeapAllocation no_gc;
     String::FlatContent subject_content = subject->GetFlatContent();
@@ -531,7 +530,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   std::vector<int>* indices = GetRewoundRegexpIndicesList(isolate);
 
   DCHECK_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
-  String* pattern =
+  String pattern =
       String::cast(pattern_regexp->DataAt(JSRegExp::kAtomPatternIndex));
   int subject_len = subject->length();
   int pattern_len = pattern->length();
@@ -982,7 +981,7 @@ class MatchInfoBackedMatch : public String::Match {
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
     const int capture_index = LookupNamedCapture(
-        [=](String* capture_name) { return capture_name->Equals(*name); },
+        [=](String capture_name) { return capture_name->Equals(*name); },
         *capture_name_map_);
 
     if (capture_index == -1) {

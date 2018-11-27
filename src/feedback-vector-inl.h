@@ -370,7 +370,7 @@ Handle<Symbol> FeedbackVector::PremonomorphicSentinel(Isolate* isolate) {
   return isolate->factory()->premonomorphic_symbol();
 }
 
-Symbol* FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
+Symbol FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
   return ReadOnlyRoots(isolate).uninitialized_symbol();
 }
 

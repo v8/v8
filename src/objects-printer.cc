@@ -780,9 +780,9 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
       Script* script = Script::cast(fun_info->script());
       int lin = script->GetLineNumber(source_position()) + 1;
       int col = script->GetColumnNumber(source_position()) + 1;
-      String* script_name = script->name()->IsString()
-                                ? String::cast(script->name())
-                                : GetReadOnlyRoots().empty_string();
+      String script_name = script->name()->IsString()
+                               ? String::cast(script->name())
+                               : GetReadOnlyRoots().empty_string();
       os << "\n - source position: " << source_position();
       os << " (";
       script_name->PrintUC16(os);
@@ -832,7 +832,7 @@ void JSRegExpStringIterator::JSRegExpStringIteratorPrint(
 }
 
 void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "Symbol");
+  PrintHeader(os, "Symbol");
   os << "\n - hash: " << Hash();
   os << "\n - name: " << Brief(name());
   if (name()->IsUndefined()) {
@@ -1249,11 +1249,11 @@ void String::StringPrint(std::ostream& os) {  // NOLINT
   if (!HasOnlyOneByteChars()) {
     os << "u";
   }
-  if (StringShape(this).IsInternalized()) {
+  if (StringShape(*this).IsInternalized()) {
     os << "#";
-  } else if (StringShape(this).IsCons()) {
+  } else if (StringShape(*this).IsCons()) {
     os << "c\"";
-  } else if (StringShape(this).IsThin()) {
+  } else if (StringShape(*this).IsThin()) {
     os << ">\"";
   } else {
     os << "\"";
@@ -1273,15 +1273,15 @@ void String::StringPrint(std::ostream& os) {  // NOLINT
     os << truncated_epilogue;
   }
 
-  if (!StringShape(this).IsInternalized()) os << "\"";
+  if (!StringShape(*this).IsInternalized()) os << "\"";
 }
 
 
 void Name::NamePrint(std::ostream& os) {  // NOLINT
   if (IsString()) {
-    String::cast(this)->StringPrint(os);
+    String::cast(*this)->StringPrint(os);
   } else {
-    os << Brief(this);
+    os << Brief(*this);
   }
 }
 
@@ -1498,7 +1498,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   if (HasSourceCode()) {
     os << "\n - source code: ";
-    String* source = String::cast(Script::cast(script())->source());
+    String source = String::cast(Script::cast(script())->source());
     int start = StartPosition();
     int length = EndPosition() - start;
     std::unique_ptr<char[]> source_string = source->ToCString(
@@ -2395,10 +2395,10 @@ void MutableHeapNumber::MutableHeapNumberPrint(std::ostream& os) {
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {
   if (this->IsString()) {
-    PrintF("%s", String::cast(this)->ToCString().get());
+    PrintF("%s", String::cast(*this)->ToCString().get());
   } else {
     DCHECK(this->IsSymbol());
-    Symbol* s = Symbol::cast(this);
+    Symbol s = Symbol::cast(*this);
     if (s->name()->IsUndefined()) {
       PrintF("#<%s>", s->PrivateSymbolToName());
     } else {
@@ -2410,10 +2410,10 @@ void Name::NameShortPrint() {
 // TODO(cbruni): remove once the new maptracer is in place.
 int Name::NameShortPrint(Vector<char> str) {
   if (this->IsString()) {
-    return SNPrintF(str, "%s", String::cast(this)->ToCString().get());
+    return SNPrintF(str, "%s", String::cast(*this)->ToCString().get());
   } else {
     DCHECK(this->IsSymbol());
-    Symbol* s = Symbol::cast(this);
+    Symbol s = Symbol::cast(*this);
     if (s->name()->IsUndefined()) {
       return SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
     } else {
@@ -2435,7 +2435,7 @@ void Map::PrintMapDetails(std::ostream& os) {
 
 void DescriptorArray::PrintDescriptors(std::ostream& os) {
   for (int i = 0; i < number_of_descriptors(); i++) {
-    Name* key = GetKey(i);
+    Name key = GetKey(i);
     os << "\n  [" << i << "]: ";
 #ifdef OBJECT_PRINT
     key->NamePrint(os);
@@ -2481,13 +2481,13 @@ char* String::ToAsciiArray() {
   static char* buffer = nullptr;
   if (buffer != nullptr) delete[] buffer;
   buffer = new char[length() + 1];
-  WriteToFlat(this, reinterpret_cast<uint8_t*>(buffer), 0, length());
+  WriteToFlat(*this, reinterpret_cast<uint8_t*>(buffer), 0, length());
   buffer[length()] = 0;
   return buffer;
 }
 
 // static
-void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
+void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name key,
                                              Map target) {
   os << "\n     ";
 #ifdef OBJECT_PRINT
@@ -2524,7 +2524,7 @@ void TransitionArray::PrintInternal(std::ostream& os) {
   int num_transitions = number_of_transitions();
   os << "Transition array #" << num_transitions << ":";
   for (int i = 0; i < num_transitions; i++) {
-    Name* key = GetKey(i);
+    Name key = GetKey(i);
     Map target = GetTarget(i);
     TransitionsAccessor::PrintOneTransition(os, key, target);
   }
@@ -2539,7 +2539,7 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
       return;
     case kWeakRef: {
       Map target = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
-      Name* key = GetSimpleTransitionKey(target);
+      Name key = GetSimpleTransitionKey(target);
       PrintOneTransition(os, key, target);
       break;
     }
@@ -2562,7 +2562,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
   int num_transitions = NumberOfTransitions();
   if (num_transitions == 0) return;
   for (int i = 0; i < num_transitions; i++) {
-    Name* key = GetKey(i);
+    Name key = GetKey(i);
     Map target = GetTarget(i);
     os << std::endl
        << "  " << level << "/" << i << ":" << std::setw(level * 2 + 2) << " ";

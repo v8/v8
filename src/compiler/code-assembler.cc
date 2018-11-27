@@ -1930,9 +1930,10 @@ CodeAssemblerScopedExceptionHandler::~CodeAssemblerScopedExceptionHandler() {
 
 }  // namespace compiler
 
-Address CheckObjectType(Object* value, Address raw_type, String* location) {
+Address CheckObjectType(Object* value, Address raw_type, Address raw_location) {
 #ifdef DEBUG
   Smi type(raw_type);
+  String location = String::cast(ObjectPtr(raw_location));
   const char* expected;
   switch (static_cast<ObjectType>(type->value())) {
 #define TYPE_CASE(Name)                                  \

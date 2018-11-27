@@ -29,8 +29,8 @@ class JSLocale : public JSObject {
                                           Handle<JSLocale> locale_holder,
                                           Handle<String> locale,
                                           Handle<JSReceiver> options);
-  static Handle<String> Maximize(Isolate* isolate, String* locale);
-  static Handle<String> Minimize(Isolate* isolate, String* locale);
+  static Handle<String> Maximize(Isolate* isolate, String locale);
+  static Handle<String> Minimize(Isolate* isolate, String locale);
 
   Handle<String> CaseFirstAsString() const;
   Handle<String> NumericAsString() const;
@@ -43,7 +43,7 @@ class JSLocale : public JSObject {
   DECL_ACCESSORS(script, Object)
   DECL_ACCESSORS(region, Object)
   DECL_ACCESSORS(base_name, Object)
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
 
   // Unicode extension accessors.
   DECL_ACCESSORS(calendar, Object)

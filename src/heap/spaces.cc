@@ -1969,7 +1969,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       end_of_previous_object = object->address() + size;
 
       if (object->IsExternalString()) {
-        ExternalString* external_string = ExternalString::cast(object);
+        ExternalString external_string = ExternalString::cast(object);
         size_t size = external_string->ExternalPayloadSize();
         external_page_bytes[ExternalBackingStoreType::kExternalString] += size;
       } else if (object->IsJSArrayBuffer()) {
@@ -2462,7 +2462,7 @@ void NewSpace::Verify(Isolate* isolate) {
       object->IterateBody(map, size, &visitor);
 
       if (object->IsExternalString()) {
-        ExternalString* external_string = ExternalString::cast(object);
+        ExternalString external_string = ExternalString::cast(object);
         size_t size = external_string->ExternalPayloadSize();
         external_space_bytes[ExternalBackingStoreType::kExternalString] += size;
       } else if (object->IsJSArrayBuffer()) {

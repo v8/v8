@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 
 template <typename sinkchar>
-void StringBuilderConcatHelper(String* special, sinkchar* sink,
+void StringBuilderConcatHelper(String special, sinkchar* sink,
                                FixedArray fixed_array, int array_length) {
   DisallowHeapAllocation no_gc;
   int position = 0;
@@ -37,7 +37,7 @@ void StringBuilderConcatHelper(String* special, sinkchar* sink,
       String::WriteToFlat(special, sink + position, pos, pos + len);
       position += len;
     } else {
-      String* string = String::cast(element);
+      String string = String::cast(element);
       int element_length = string->length();
       String::WriteToFlat(string, sink + position, 0, element_length);
       position += element_length;
@@ -45,11 +45,11 @@ void StringBuilderConcatHelper(String* special, sinkchar* sink,
   }
 }
 
-template void StringBuilderConcatHelper<uint8_t>(String* special, uint8_t* sink,
+template void StringBuilderConcatHelper<uint8_t>(String special, uint8_t* sink,
                                                  FixedArray fixed_array,
                                                  int array_length);
 
-template void StringBuilderConcatHelper<uc16>(String* special, uc16* sink,
+template void StringBuilderConcatHelper<uc16>(String special, uc16* sink,
                                               FixedArray fixed_array,
                                               int array_length);
 
@@ -85,7 +85,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
       if (pos > special_length || len > special_length - pos) return -1;
       increment = len;
     } else if (elt->IsString()) {
-      String* element = String::cast(elt);
+      String element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
       if (*one_byte && !element->HasOnlyOneByteChars()) {

@@ -102,7 +102,7 @@ TYPED_VISITOR_ID_LIST(VISIT)
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
-    Map map, ConsString* object) {
+    Map map, ConsString object) {
   return static_cast<ConcreteVisitor*>(this)->VisitConsString(map, object);
 }
 

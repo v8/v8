@@ -178,12 +178,12 @@ class Scavenger {
                                                      int object_size);
 
   inline SlotCallbackResult EvacuateThinString(Map map, HeapObjectSlot slot,
-                                               ThinString* object,
+                                               ThinString object,
                                                int object_size);
 
   inline SlotCallbackResult EvacuateShortcutCandidate(Map map,
                                                       HeapObjectSlot slot,
-                                                      ConsString* object,
+                                                      ConsString object,
                                                       int object_size);
 
   void IterateAndScavengePromotedObject(HeapObject* target, Map map, int size);

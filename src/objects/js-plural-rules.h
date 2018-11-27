@@ -80,7 +80,7 @@ class JSPluralRules : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_PLURAL_RULES_FIELDS)
 #undef JS_PLURAL_RULES_FIELDS
 
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
   DECL_INT_ACCESSORS(flags)
   DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
   DECL_ACCESSORS(icu_decimal_format, Managed<icu::DecimalFormat>)

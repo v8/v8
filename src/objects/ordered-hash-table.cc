@@ -344,7 +344,7 @@ int OrderedHashTable<OrderedNameDictionary, 3>::FindEntry(Isolate* isolate,
   DisallowHeapAllocation no_gc;
 
   DCHECK(key->IsUniqueName());
-  Name* raw_key = Name::cast(key);
+  Name raw_key = Name::cast(key);
 
   int entry = HashToEntry(raw_key->Hash());
   while (entry != kNotFound) {
@@ -711,7 +711,7 @@ int SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(
     Isolate* isolate, Object* key) {
   DisallowHeapAllocation no_gc;
   DCHECK(key->IsUniqueName());
-  Name* raw_key = Name::cast(key);
+  Name raw_key = Name::cast(key);
 
   int entry = HashToFirstEntry(raw_key->Hash());
 

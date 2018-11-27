@@ -23,7 +23,7 @@ CAST_ACCESSOR(AccessCheckInfo)
 CAST_ACCESSOR(InterceptorInfo)
 CAST_ACCESSOR(CallHandlerInfo)
 
-ACCESSORS(AccessorInfo, name, Name, kNameOffset)
+ACCESSORS2(AccessorInfo, name, Name, kNameOffset)
 SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)

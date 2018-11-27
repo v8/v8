@@ -261,7 +261,7 @@ class Intl {
 
   static const uint8_t* ToLatin1LowerTable();
 
-  static String* ConvertOneByteToLower(String* src, String* dst);
+  static String ConvertOneByteToLower(String src, String dst);
 };
 
 }  // namespace internal

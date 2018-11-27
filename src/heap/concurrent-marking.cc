@@ -244,17 +244,17 @@ class ConcurrentMarkingVisitor final
   // Strings with pointers =====================================================
   // ===========================================================================
 
-  int VisitConsString(Map map, ConsString* object) {
+  int VisitConsString(Map map, ConsString object) {
     int size = ConsString::BodyDescriptor::SizeOf(map, object);
     return VisitWithSnapshot(map, object, size, size);
   }
 
-  int VisitSlicedString(Map map, SlicedString* object) {
+  int VisitSlicedString(Map map, SlicedString object) {
     int size = SlicedString::BodyDescriptor::SizeOf(map, object);
     return VisitWithSnapshot(map, object, size, size);
   }
 
-  int VisitThinString(Map map, ThinString* object) {
+  int VisitThinString(Map map, ThinString object) {
     int size = ThinString::BodyDescriptor::SizeOf(map, object);
     return VisitWithSnapshot(map, object, size, size);
   }
@@ -263,14 +263,14 @@ class ConcurrentMarkingVisitor final
   // Strings without pointers ==================================================
   // ===========================================================================
 
-  int VisitSeqOneByteString(Map map, SeqOneByteString* object) {
+  int VisitSeqOneByteString(Map map, SeqOneByteString object) {
     int size = SeqOneByteString::SizeFor(object->synchronized_length());
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object, object->map_slot());
     return size;
   }
 
-  int VisitSeqTwoByteString(Map map, SeqTwoByteString* object) {
+  int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
     int size = SeqTwoByteString::SizeFor(object->synchronized_length());
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object, object->map_slot());
@@ -476,7 +476,7 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename T>
-  int VisitWithSnapshot(Map map, T* object, int used_size, int size) {
+  int VisitWithSnapshot(Map map, T object, int used_size, int size) {
     const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
     if (!ShouldVisit(object)) return 0;
     VisitPointersInSnapshot(object, snapshot);
@@ -484,10 +484,12 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename T>
-  const SlotSnapshot& MakeSlotSnapshot(Map map, T* object, int size) {
+  const SlotSnapshot& MakeSlotSnapshot(Map map, T object, int size) {
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object, ObjectSlot(object->map_slot().address()));
-    T::BodyDescriptor::IterateBody(map, object, size, &visitor);
+    // TODO(3770): Drop std::remove_pointer after the migration.
+    std::remove_pointer<T>::type::BodyDescriptor::IterateBody(map, object, size,
+                                                              &visitor);
     return slot_snapshot_;
   }
 
@@ -502,30 +504,30 @@ class ConcurrentMarkingVisitor final
 };
 
 // Strings can change maps due to conversion to thin string or external strings.
-// Use reinterpret cast to avoid data race in slow dchecks.
+// Use unchecked cast to avoid data race in slow dchecks.
 template <>
-ConsString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
-  return reinterpret_cast<ConsString*>(object);
+ConsString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return ConsString::unchecked_cast(object);
 }
 
 template <>
-SlicedString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
-  return reinterpret_cast<SlicedString*>(object);
+SlicedString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return SlicedString::unchecked_cast(object);
 }
 
 template <>
-ThinString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
-  return reinterpret_cast<ThinString*>(object);
+ThinString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return ThinString::unchecked_cast(object);
 }
 
 template <>
-SeqOneByteString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
-  return reinterpret_cast<SeqOneByteString*>(object);
+SeqOneByteString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return SeqOneByteString::unchecked_cast(object);
 }
 
 template <>
-SeqTwoByteString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
-  return reinterpret_cast<SeqTwoByteString*>(object);
+SeqTwoByteString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return SeqTwoByteString::unchecked_cast(object);
 }
 
 // Fixed array can become a free space during left trimming.

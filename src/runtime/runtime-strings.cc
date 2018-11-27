@@ -75,7 +75,7 @@ MaybeHandle<String> StringReplaceOneCharWithString(
   }
   recursion_limit--;
   if (subject->IsConsString()) {
-    ConsString* cons = ConsString::cast(*subject);
+    ConsString cons = ConsString::cast(*subject);
     Handle<String> first = handle(cons->first(), isolate);
     Handle<String> second = handle(cons->second(), isolate);
     Handle<String> new_first;
@@ -381,7 +381,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   for (int i = 0; i < array_length; i++) {
     Object* element_obj = fixed_array->get(i);
     CHECK(element_obj->IsString());
-    String* element = String::cast(element_obj);
+    String element = String::cast(element_obj);
     int increment = element->length();
     if (increment > String::kMaxLength - length) {
       STATIC_ASSERT(String::kMaxLength < kMaxInt);
@@ -403,8 +403,8 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
 #endif
 
   CHECK(fixed_array->get(0)->IsString());
-  String* first = String::cast(fixed_array->get(0));
-  String* separator_raw = *separator;
+  String first = String::cast(fixed_array->get(0));
+  String separator_raw = *separator;
 
   int first_length = first->length();
   String::WriteToFlat(first, sink, 0, first_length);
@@ -416,7 +416,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     sink += separator_length;
 
     CHECK(fixed_array->get(i)->IsString());
-    String* element = String::cast(fixed_array->get(i));
+    String element = String::cast(fixed_array->get(i));
     int element_length = element->length();
     DCHECK(sink + element_length <= end);
     String::WriteToFlat(element, sink, 0, element_length);
@@ -430,7 +430,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
 }
 
 template <typename sinkchar>
-static void WriteRepeatToFlat(String* src, Vector<sinkchar> buffer, int cursor,
+static void WriteRepeatToFlat(String src, Vector<sinkchar> buffer, int cursor,
                               int repeat, int length) {
   if (repeat == 0) return;
 
@@ -454,7 +454,7 @@ template <typename Char>
 static void JoinSparseArrayWithSeparator(FixedArray elements,
                                          int elements_length,
                                          uint32_t array_length,
-                                         String* separator,
+                                         String separator,
                                          Vector<Char> buffer) {
   DisallowHeapAllocation no_gc;
   int previous_separator_position = 0;
@@ -463,7 +463,7 @@ static void JoinSparseArrayWithSeparator(FixedArray elements,
   int cursor = 0;
   for (int i = 0; i < elements_length; i += 2) {
     int position = NumberToInt32(elements->get(i));
-    String* string = String::cast(elements->get(i + 1));
+    String string = String::cast(elements->get(i + 1));
     int string_length = string->length();
     if (string->length() > 0) {
       int repeat = position - previous_separator_position;
@@ -511,7 +511,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   {
     DisallowHeapAllocation no_gc;
     for (int i = 0; i < elements_length; i += 2) {
-      String* string = String::cast(elements->get(i + 1));
+      String string = String::cast(elements->get(i + 1));
       int length = string->length();
       if (is_one_byte && !string->IsOneByteRepresentation()) {
         is_one_byte = false;

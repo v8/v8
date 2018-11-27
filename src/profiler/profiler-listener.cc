@@ -21,7 +21,7 @@ ProfilerListener::ProfilerListener(Isolate* isolate,
 
 ProfilerListener::~ProfilerListener() = default;
 
-void ProfilerListener::CallbackEvent(Name* name, Address entry_point) {
+void ProfilerListener::CallbackEvent(Name name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
@@ -45,7 +45,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode code, Name* name) {
+                                       AbstractCode code, Name name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -61,7 +61,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        AbstractCode code,
                                        SharedFunctionInfo* shared,
-                                       Name* script_name) {
+                                       Name script_name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -79,8 +79,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        AbstractCode abstract_code,
                                        SharedFunctionInfo* shared,
-                                       Name* script_name, int line,
-                                       int column) {
+                                       Name script_name, int line, int column) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = abstract_code->InstructionStart();
@@ -157,7 +156,7 @@ void ProfilerListener::CodeDeoptEvent(Code code, DeoptimizeKind kind,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::GetterCallbackEvent(Name* name, Address entry_point) {
+void ProfilerListener::GetterCallbackEvent(Name name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
@@ -167,8 +166,7 @@ void ProfilerListener::GetterCallbackEvent(Name* name, Address entry_point) {
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::RegExpCodeCreateEvent(AbstractCode code,
-                                             String* source) {
+void ProfilerListener::RegExpCodeCreateEvent(AbstractCode code, String source) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -180,7 +178,7 @@ void ProfilerListener::RegExpCodeCreateEvent(AbstractCode code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::SetterCallbackEvent(Name* name, Address entry_point) {
+void ProfilerListener::SetterCallbackEvent(Name name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
@@ -190,7 +188,7 @@ void ProfilerListener::SetterCallbackEvent(Name* name, Address entry_point) {
   DispatchCodeEvent(evt_rec);
 }
 
-Name* ProfilerListener::InferScriptName(Name* name, SharedFunctionInfo* info) {
+Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo* info) {
   if (name->IsString() && String::cast(name)->length()) return name;
   if (!info->script()->IsScript()) return name;
   Object* source_url = Script::cast(info->script())->source_url();

@@ -435,7 +435,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   // with the native source id.
   // For the rest we serialize them to look like ordinary sequential strings.
   if (object_->map() != ReadOnlyRoots(heap).native_source_string_map()) {
-    ExternalString* string = ExternalString::cast(object_);
+    ExternalString string = ExternalString::cast(object_);
     Address resource = string->resource_as_address();
     ExternalReferenceEncoder::Value reference;
     if (serializer_->external_reference_encoder_.TryEncode(resource).To(
@@ -448,7 +448,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
       SerializeExternalStringAsSequentialString();
     }
   } else {
-    ExternalOneByteString* string = ExternalOneByteString::cast(object_);
+    ExternalOneByteString string = ExternalOneByteString::cast(object_);
     DCHECK(string->is_uncached());
     const NativesExternalStringResource* resource =
         reinterpret_cast<const NativesExternalStringResource*>(
@@ -467,7 +467,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   ReadOnlyRoots roots(serializer_->isolate());
   DCHECK(object_->IsExternalString());
   DCHECK(object_->map() != roots.native_source_string_map());
-  ExternalString* string = ExternalString::cast(object_);
+  ExternalString string = ExternalString::cast(object_);
   int length = string->length();
   Map map;
   int content_size;

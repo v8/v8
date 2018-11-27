@@ -430,7 +430,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       DCHECK_EQ(scope_info->ContextLocalCount(), 1);
       DCHECK_EQ(scope_info->ContextLocalMode(0), VariableMode::kVar);
       DCHECK_EQ(scope_info->ContextLocalInitFlag(0), kCreatedInitialized);
-      String* name = scope_info->ContextLocalName(0);
+      String name = scope_info->ContextLocalName(0);
       MaybeAssignedFlag maybe_assigned =
           scope_info->ContextLocalMaybeAssignedFlag(0);
       outer_scope = new (zone)

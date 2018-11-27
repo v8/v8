@@ -40,7 +40,7 @@ class RootVisitor;
   V(Oddball*, null_value, NullValue)                                           \
   V(Oddball*, true_value, TrueValue)                                           \
   V(Oddball*, false_value, FalseValue)                                         \
-  V(String*, empty_string, empty_string)                                       \
+  V(String, empty_string, empty_string)                                        \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, byte_array_map, ByteArrayMap)                                         \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
@@ -314,16 +314,16 @@ class RootVisitor;
 
 // Adapts one INTERNALIZED_STRING_LIST_GENERATOR entry to
 // the ROOT_LIST-compatible entry
-#define INTERNALIZED_STRING_LIST_ADAPTER(V, name, ...) V(String*, name, name)
+#define INTERNALIZED_STRING_LIST_ADAPTER(V, name, ...) V(String, name, name)
 
-// Produces (String*, name, CamelCase) entries
+// Produces (String, name, CamelCase) entries
 #define INTERNALIZED_STRING_ROOT_LIST(V) \
   INTERNALIZED_STRING_LIST_GENERATOR(INTERNALIZED_STRING_LIST_ADAPTER, V)
 
 // Adapts one XXX_SYMBOL_LIST_GENERATOR entry to the ROOT_LIST-compatible entry
-#define SYMBOL_ROOT_LIST_ADAPTER(V, name, ...) V(Symbol*, name, name)
+#define SYMBOL_ROOT_LIST_ADAPTER(V, name, ...) V(Symbol, name, name)
 
-// Produces (Symbol*, name, CamelCase) entries
+// Produces (Symbol, name, CamelCase) entries
 #define PRIVATE_SYMBOL_ROOT_LIST(V) \
   PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)
 #define PUBLIC_SYMBOL_ROOT_LIST(V) \

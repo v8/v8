@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/objects/js-array.h"
+#include "src/objects/string.h"
 #include "src/snapshot/deserializer-allocator.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot-source-sink.h"
@@ -168,16 +169,16 @@ class Deserializer : public SerializerDeserializer {
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey : public StringTableKey {
  public:
-  explicit StringTableInsertionKey(String* string);
+  explicit StringTableInsertionKey(String string);
 
   bool IsMatch(Object* string) override;
 
   V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
 
  private:
-  uint32_t ComputeHashField(String* string);
+  uint32_t ComputeHashField(String string);
 
-  String* string_;
+  String string_;
   DISALLOW_HEAP_ALLOCATION(no_gc);
 };
 

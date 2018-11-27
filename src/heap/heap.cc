@@ -2039,37 +2039,37 @@ void Heap::ProtectUnprotectedMemoryChunks() {
   unprotected_memory_chunks_.clear();
 }
 
-bool Heap::ExternalStringTable::Contains(HeapObject* obj) {
+bool Heap::ExternalStringTable::Contains(String string) {
   for (size_t i = 0; i < new_space_strings_.size(); ++i) {
-    if (new_space_strings_[i] == obj) return true;
+    if (new_space_strings_[i] == string) return true;
   }
   for (size_t i = 0; i < old_space_strings_.size(); ++i) {
-    if (old_space_strings_[i] == obj) return true;
+    if (old_space_strings_[i] == string) return true;
   }
   return false;
 }
 
-String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
-                                                                ObjectSlot p) {
+String Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
+                                                               ObjectSlot p) {
   MapWord first_word = HeapObject::cast(*p)->map_word();
 
   if (!first_word.IsForwardingAddress()) {
     // Unreachable external string can be finalized.
-    String* string = String::cast(*p);
+    String string = String::cast(*p);
     if (!string->IsExternalString()) {
       // Original external string has been internalized.
       DCHECK(string->IsThinString());
-      return nullptr;
+      return String();
     }
     heap->FinalizeExternalString(string);
-    return nullptr;
+    return String();
   }
 
   // String is still reachable.
-  String* new_string = String::cast(first_word.ToForwardingAddress());
+  String new_string = String::cast(first_word.ToForwardingAddress());
   if (new_string->IsThinString()) {
     // Filtering Thin strings out of the external string table.
-    return nullptr;
+    return String();
   } else if (new_string->IsExternalString()) {
     MemoryChunk::MoveExternalBackingStoreBytes(
         ExternalBackingStoreType::kExternalString,
@@ -2080,16 +2080,16 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
   }
 
   // Internalization can replace external strings with non-external strings.
-  return new_string->IsExternalString() ? new_string : nullptr;
+  return new_string->IsExternalString() ? new_string : String();
 }
 
 void Heap::ExternalStringTable::VerifyNewSpace() {
 #ifdef DEBUG
-  std::set<String*> visited_map;
+  std::set<String> visited_map;
   std::map<MemoryChunk*, size_t> size_map;
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
   for (size_t i = 0; i < new_space_strings_.size(); ++i) {
-    String* obj = String::cast(new_space_strings_[i]);
+    String obj = String::cast(new_space_strings_[i]);
     MemoryChunk* mc = MemoryChunk::FromHeapObject(obj);
     DCHECK(mc->InNewSpace());
     DCHECK(heap_->InNewSpace(obj));
@@ -2108,12 +2108,12 @@ void Heap::ExternalStringTable::VerifyNewSpace() {
 
 void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
-  std::set<String*> visited_map;
+  std::set<String> visited_map;
   std::map<MemoryChunk*, size_t> size_map;
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
   VerifyNewSpace();
   for (size_t i = 0; i < old_space_strings_.size(); ++i) {
-    String* obj = String::cast(old_space_strings_[i]);
+    String obj = String::cast(old_space_strings_[i]);
     MemoryChunk* mc = MemoryChunk::FromHeapObject(obj);
     DCHECK(!mc->InNewSpace());
     DCHECK(!heap_->InNewSpace(obj));
@@ -2139,9 +2139,9 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
   ObjectSlot last = start;
 
   for (ObjectSlot p = start; p < end; ++p) {
-    String* target = updater_func(heap_, p);
+    String target = updater_func(heap_, p);
 
-    if (target == nullptr) continue;
+    if (target.is_null()) continue;
 
     DCHECK(target->IsExternalString());
 

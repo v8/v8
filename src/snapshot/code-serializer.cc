@@ -302,7 +302,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   bool log_code_creation = isolate->logger()->is_listening_to_code_events() ||
                            isolate->is_profiling();
   if (log_code_creation || FLAG_log_function_events) {
-    String* name = ReadOnlyRoots(isolate).empty_string();
+    String name = ReadOnlyRoots(isolate).empty_string();
     if (result->script()->IsScript()) {
       Script* script = Script::cast(result->script());
       if (script->name()->IsString()) name = String::cast(script->name());

@@ -1981,7 +1981,7 @@ bool MarkCompactCollector::CompactTransitionArray(
       }
     } else {
       if (i != transition_index) {
-        Name* key = transitions->GetKey(i);
+        Name key = transitions->GetKey(i);
         transitions->SetKey(transition_index, key);
         HeapObjectSlot key_slot = transitions->GetKeySlot(transition_index);
         RecordSlot(transitions, key_slot, key);
@@ -2329,12 +2329,12 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
   Heap* heap_;
 };
 
-static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
-                                                         ObjectSlot p) {
+static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
+                                                        ObjectSlot p) {
   MapWord map_word = HeapObject::cast(*p)->map_word();
 
   if (map_word.IsForwardingAddress()) {
-    String* new_string = String::cast(map_word.ToForwardingAddress());
+    String new_string = String::cast(map_word.ToForwardingAddress());
 
     if (new_string->IsExternalString()) {
       MemoryChunk::MoveExternalBackingStoreBytes(

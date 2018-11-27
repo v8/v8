@@ -46,7 +46,7 @@ static bool IsPropertyNameFeedback(MaybeObject feedback) {
   if (!feedback->GetHeapObjectIfStrong(&heap_object)) return false;
   if (heap_object->IsString()) return true;
   if (!heap_object->IsSymbol()) return false;
-  Symbol* symbol = Symbol::cast(heap_object);
+  Symbol symbol = Symbol::cast(heap_object);
   ReadOnlyRoots roots = symbol->GetReadOnlyRoots();
   return symbol != roots.uninitialized_symbol() &&
          symbol != roots.premonomorphic_symbol() &&
@@ -1048,14 +1048,14 @@ bool FeedbackNexus::FindHandlers(MaybeObjectHandles* code_list,
   return count == length;
 }
 
-Name* FeedbackNexus::FindFirstName() const {
+Name FeedbackNexus::FindFirstName() const {
   if (IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind())) {
     MaybeObject feedback = GetFeedback();
     if (IsPropertyNameFeedback(feedback)) {
       return Name::cast(feedback->GetHeapObjectAssumeStrong());
     }
   }
-  return nullptr;
+  return Name();
 }
 
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {

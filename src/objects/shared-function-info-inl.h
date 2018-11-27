@@ -54,7 +54,7 @@ void PreParsedScopeData::clear_padding() {
 }
 
 CAST_ACCESSOR(UncompiledData)
-ACCESSORS(UncompiledData, inferred_name, String, kInferredNameOffset)
+ACCESSORS2(UncompiledData, inferred_name, String, kInferredNameOffset)
 INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
 INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
 INT32_ACCESSORS(UncompiledData, function_literal_id, kFunctionLiteralIdOffset)
@@ -108,7 +108,7 @@ bool SharedFunctionInfo::HasSharedName() const {
   return value != kNoSharedNameSentinel;
 }
 
-String* SharedFunctionInfo::Name() const {
+String SharedFunctionInfo::Name() const {
   if (!HasSharedName()) return GetReadOnlyRoots().empty_string();
   Object* value = name_or_scope_info();
   if (value->IsScopeInfo()) {
@@ -120,7 +120,7 @@ String* SharedFunctionInfo::Name() const {
   return String::cast(value);
 }
 
-void SharedFunctionInfo::SetName(String* name) {
+void SharedFunctionInfo::SetName(String name) {
   Object* maybe_scope_info = name_or_scope_info();
   if (maybe_scope_info->IsScopeInfo()) {
     ScopeInfo::cast(maybe_scope_info)->SetFunctionName(name);
@@ -608,7 +608,7 @@ bool SharedFunctionInfo::HasInferredName() {
   return HasUncompiledData();
 }
 
-String* SharedFunctionInfo::inferred_name() {
+String SharedFunctionInfo::inferred_name() {
   Object* maybe_scope_info = name_or_scope_info();
   if (maybe_scope_info->IsScopeInfo()) {
     ScopeInfo scope_info = ScopeInfo::cast(maybe_scope_info);

@@ -259,13 +259,9 @@ bool StringStream::IsMentionedObjectCacheClear(Isolate* isolate) {
 }
 #endif
 
+bool StringStream::Put(String str) { return Put(str, 0, str->length()); }
 
-bool StringStream::Put(String* str) {
-  return Put(str, 0, str->length());
-}
-
-
-bool StringStream::Put(String* str, int start, int end) {
+bool StringStream::Put(String str, int start, int end) {
   StringCharacterStream stream(str, start);
   for (int i = start; i < end && stream.HasMore(); i++) {
     uint16_t c = stream.GetNext();
@@ -279,10 +275,9 @@ bool StringStream::Put(String* str, int start, int end) {
   return true;
 }
 
-
 void StringStream::PrintName(Object* name) {
   if (name->IsString()) {
-    String* str = String::cast(name);
+    String str = String::cast(name);
     if (str->length() > 0) {
       Put(str);
     } else {

@@ -1898,8 +1898,7 @@ TEST(GetHeapValueForDeletedObject) {
   CHECK(heap_profiler->FindObjectById(prop->GetId()).IsEmpty());
 }
 
-
-static int StringCmp(const char* ref, i::String* act) {
+static int StringCmp(const char* ref, i::String act) {
   std::unique_ptr<char[]> s_act = act->ToCString();
   int result = strcmp(ref, s_act.get());
   if (result != 0)

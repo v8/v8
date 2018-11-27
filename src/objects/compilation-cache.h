@@ -24,9 +24,9 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->Hash();
   }
 
-  static inline uint32_t RegExpHash(String* string, Smi flags);
+  static inline uint32_t RegExpHash(String string, Smi flags);
 
-  static inline uint32_t StringSharedHash(String* source,
+  static inline uint32_t StringSharedHash(String source,
                                           SharedFunctionInfo* shared,
                                           LanguageMode language_mode,
                                           int position);

@@ -119,8 +119,8 @@ class StringStream final {
   }
 
   bool Put(char c);
-  bool Put(String* str);
-  bool Put(String* str, int start, int end);
+  bool Put(String str);
+  bool Put(String str, int start, int end);
   void Add(const char* format) { Add(CStrVector(format)); }
   void Add(Vector<const char> format) { Add(format, Vector<FmtElm>()); }
 

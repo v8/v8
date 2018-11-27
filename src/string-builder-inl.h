@@ -27,7 +27,7 @@ typedef BitField<int, kStringBuilderConcatHelperLengthBits,
     StringBuilderSubstringPosition;
 
 template <typename sinkchar>
-void StringBuilderConcatHelper(String* special, sinkchar* sink,
+void StringBuilderConcatHelper(String special, sinkchar* sink,
                                FixedArray fixed_array, int array_length);
 
 // Returns the result length of the concatenation.

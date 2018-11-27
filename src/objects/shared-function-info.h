@@ -69,7 +69,7 @@ class PreParsedScopeData : public HeapObject {
 // not stored in the SharedFunctionInfo.
 class UncompiledData : public HeapObject {
  public:
-  DECL_ACCESSORS(inferred_name, String)
+  DECL_ACCESSORS2(inferred_name, String)
   DECL_INT32_ACCESSORS(start_position)
   DECL_INT32_ACCESSORS(end_position)
   DECL_INT32_ACCESSORS(function_literal_id)
@@ -186,8 +186,8 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   static constexpr ObjectPtr const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
-  inline String* Name() const;
-  inline void SetName(String* name);
+  inline String Name() const;
+  inline void SetName(String name);
 
   // Get the code object which represents the execution of this function.
   Code GetCode() const;
@@ -348,7 +348,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // code written in OO style, where almost all functions are anonymous but are
   // assigned to object properties.
   inline bool HasInferredName();
-  inline String* inferred_name();
+  inline String inferred_name();
 
   // Get the function literal id associated with this function, for parsing.
   V8_EXPORT_PRIVATE int FunctionLiteralId(Isolate* isolate) const;
@@ -364,7 +364,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   CoverageInfo GetCoverageInfo() const;
 
   // The function's name if it is non-empty, otherwise the inferred name.
-  String* DebugName();
+  String DebugName();
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);

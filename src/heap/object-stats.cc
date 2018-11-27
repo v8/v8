@@ -386,7 +386,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualJSObjectDetails(JSObject* object);
   void RecordVirtualMapDetails(Map map);
   void RecordVirtualScriptDetails(Script* script);
-  void RecordVirtualExternalStringDetails(ExternalString* script);
+  void RecordVirtualExternalStringDetails(ExternalString script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo* info);
   void RecordVirtualJSFunctionDetails(JSFunction* function);
 
@@ -803,7 +803,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
     // The contents of external strings aren't on the heap, so we have to record
     // them manually. The on-heap String object is recorded indepentendely in
     // the normal pass.
-    ExternalString* string = ExternalString::cast(raw_source);
+    ExternalString string = ExternalString::cast(raw_source);
     Address resource = string->resource_as_address();
     size_t off_heap_size = string->ExternalPayloadSize();
     RecordExternalResourceStats(
@@ -813,7 +813,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
             : ObjectStats::SCRIPT_SOURCE_EXTERNAL_TWO_BYTE_TYPE,
         off_heap_size);
   } else if (raw_source->IsString()) {
-    String* source = String::cast(raw_source);
+    String source = String::cast(raw_source);
     RecordSimpleVirtualObjectStats(
         script, source,
         source->IsOneByteRepresentation()
@@ -823,7 +823,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualExternalStringDetails(
-    ExternalString* string) {
+    ExternalString string) {
   // Track the external string resource size in a separate category.
 
   Address resource = string->resource_as_address();

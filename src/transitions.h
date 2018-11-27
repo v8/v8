@@ -54,13 +54,13 @@ class TransitionsAccessor {
   // This TransitionsAccessor instance is unusable after this operation.
   void Insert(Handle<Name> name, Handle<Map> target, SimpleTransitionFlag flag);
 
-  Map SearchTransition(Name* name, PropertyKind kind,
+  Map SearchTransition(Name name, PropertyKind kind,
                        PropertyAttributes attributes);
 
-  Map SearchSpecial(Symbol* name);
+  Map SearchSpecial(Symbol name);
   // Returns true for non-property transitions like elements kind, or
   // or frozen/sealed transitions.
-  static bool IsSpecialTransition(ReadOnlyRoots roots, Name* name);
+  static bool IsSpecialTransition(ReadOnlyRoots roots, Name name);
 
   enum RequestedLocation { kAnyLocation, kFieldOnly };
   MaybeHandle<Map> FindTransitionToDataProperty(
@@ -79,11 +79,11 @@ class TransitionsAccessor {
   // applying in-place right trimming.
   static const int kMaxNumberOfTransitions = 1024 + 512;
   bool CanHaveMoreTransitions();
-  inline Name* GetKey(int transition_number);
+  inline Name GetKey(int transition_number);
   inline Map GetTarget(int transition_number);
-  static inline PropertyDetails GetTargetDetails(Name* name, Map target);
+  static inline PropertyDetails GetTargetDetails(Name name, Map target);
 
-  static bool IsMatchingMap(Map target, Name* name, PropertyKind kind,
+  static bool IsMatchingMap(Map target, Name name, PropertyKind kind,
                             PropertyAttributes attributes);
 
   // ===== ITERATION =====
@@ -117,7 +117,7 @@ class TransitionsAccessor {
 
 #if DEBUG || OBJECT_PRINT
   void PrintTransitions(std::ostream& os);
-  static void PrintOneTransition(std::ostream& os, Name* key, Map target);
+  static void PrintOneTransition(std::ostream& os, Name key, Map target);
   void PrintTransitionTree();
   void PrintTransitionTree(std::ostream& os, int level,
                            DisallowHeapAllocation* no_gc);
@@ -156,7 +156,7 @@ class TransitionsAccessor {
 
   static inline PropertyDetails GetSimpleTargetDetails(Map transition);
 
-  static inline Name* GetSimpleTransitionKey(Map transition);
+  static inline Name GetSimpleTransitionKey(Map transition);
 
   static inline Map GetTargetFromRaw(MaybeObject raw);
 
@@ -216,8 +216,8 @@ class TransitionArray : public WeakFixedArray {
   inline bool HasPrototypeTransitions();
 
   // Accessors for fetching instance transition at transition number.
-  inline void SetKey(int transition_number, Name* value);
-  inline Name* GetKey(int transition_number);
+  inline void SetKey(int transition_number, Name value);
+  inline Name GetKey(int transition_number);
   inline HeapObjectSlot GetKeySlot(int transition_number);
 
   inline Map GetTarget(int transition_number);
@@ -230,7 +230,7 @@ class TransitionArray : public WeakFixedArray {
   // Required for templatized Search interface.
   static constexpr int kNotFound = -1;
 
-  inline Name* GetSortedKey(int transition_number);
+  inline Name GetSortedKey(int transition_number);
   int GetSortedKeyIndex(int transition_number) { return transition_number; }
   inline int number_of_entries() const;
 #ifdef DEBUG
@@ -263,7 +263,7 @@ class TransitionArray : public WeakFixedArray {
     return kFirstIndex + (transition_number * kEntrySize) + kEntryTargetIndex;
   }
 
-  inline int SearchNameForTesting(Name* name,
+  inline int SearchNameForTesting(Name name,
                                   int* out_insertion_index = nullptr);
 
  private:
@@ -299,14 +299,14 @@ class TransitionArray : public WeakFixedArray {
   }
 
   // Search a  transition for a given kind, property name and attributes.
-  int Search(PropertyKind kind, Name* name, PropertyAttributes attributes,
+  int Search(PropertyKind kind, Name name, PropertyAttributes attributes,
              int* out_insertion_index = nullptr);
 
   // Search a non-property transition (like elements kind, observe or frozen
   // transitions).
-  inline int SearchSpecial(Symbol* symbol, int* out_insertion_index = nullptr);
+  inline int SearchSpecial(Symbol symbol, int* out_insertion_index = nullptr);
   // Search a first transition for a given property name.
-  inline int SearchName(Name* name, int* out_insertion_index = nullptr);
+  inline int SearchName(Name name, int* out_insertion_index = nullptr);
   int SearchDetails(int transition, PropertyKind kind,
                     PropertyAttributes attributes, int* out_insertion_index);
 
@@ -320,14 +320,14 @@ class TransitionArray : public WeakFixedArray {
 
   // Compares two tuples <key, kind, attributes>, returns -1 if
   // tuple1 is "less" than tuple2, 0 if tuple1 equal to tuple2 and 1 otherwise.
-  static inline int CompareKeys(Name* key1, uint32_t hash1, PropertyKind kind1,
-                                PropertyAttributes attributes1, Name* key2,
+  static inline int CompareKeys(Name key1, uint32_t hash1, PropertyKind kind1,
+                                PropertyAttributes attributes1, Name key2,
                                 uint32_t hash2, PropertyKind kind2,
                                 PropertyAttributes attributes2);
 
   // Compares keys, returns -1 if key1 is "less" than key2,
   // 0 if key1 equal to key2 and 1 otherwise.
-  static inline int CompareNames(Name* key1, uint32_t hash1, Name* key2,
+  static inline int CompareNames(Name key1, uint32_t hash1, Name key2,
                                  uint32_t hash2);
 
   // Compares two details, returns -1 if details1 is "less" than details2,
@@ -337,7 +337,7 @@ class TransitionArray : public WeakFixedArray {
                                    PropertyKind kind2,
                                    PropertyAttributes attributes2);
 
-  inline void Set(int transition_number, Name* key, MaybeObject target);
+  inline void Set(int transition_number, Name key, MaybeObject target);
 
   void Zap(Isolate* isolate);
 

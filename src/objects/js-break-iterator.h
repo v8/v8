@@ -47,8 +47,8 @@ class JSV8BreakIterator : public JSObject {
                               Handle<JSV8BreakIterator> break_iterator);
   static Handle<Object> Next(Isolate* isolate,
                              Handle<JSV8BreakIterator> break_iterator);
-  static String* BreakType(Isolate* isolate,
-                           Handle<JSV8BreakIterator> break_iterator);
+  static String BreakType(Isolate* isolate,
+                          Handle<JSV8BreakIterator> break_iterator);
 
   enum class Type { CHARACTER, WORD, SENTENCE, LINE, COUNT };
   inline void set_type(Type type);
@@ -60,7 +60,7 @@ class JSV8BreakIterator : public JSObject {
   DECL_PRINTER(JSV8BreakIterator)
   DECL_VERIFIER(JSV8BreakIterator)
 
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
   DECL_ACCESSORS(break_iterator, Managed<icu::BreakIterator>)
   DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
   DECL_ACCESSORS(bound_adopt_text, Object)

@@ -668,7 +668,13 @@ FUNCTION_REFERENCE(smi_lexicographic_compare_function,
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 
 #ifdef V8_INTL_SUPPORT
-FUNCTION_REFERENCE(intl_convert_one_byte_to_lower, Intl::ConvertOneByteToLower)
+
+static Address ConvertOneByteToLower(Address raw_src, Address raw_dst) {
+  String src = String::cast(ObjectPtr(raw_src));
+  String dst = String::cast(ObjectPtr(raw_dst));
+  return Intl::ConvertOneByteToLower(src, dst).ptr();
+}
+FUNCTION_REFERENCE(intl_convert_one_byte_to_lower, ConvertOneByteToLower)
 
 ExternalReference ExternalReference::intl_to_latin1_lower_table() {
   uint8_t* ptr = const_cast<uint8_t*>(Intl::ToLatin1LowerTable());

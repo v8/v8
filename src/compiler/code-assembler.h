@@ -31,6 +31,7 @@ namespace internal {
 // Forward declarations.
 class AsmWasmData;
 class AsyncGeneratorRequest;
+class BigInt;
 class CallInterfaceDescriptor;
 class Callable;
 class Factory;
@@ -331,8 +332,10 @@ HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
 
-// {raw_type} must be a tagged Smi. The return value is also a tagged Smi.
-Address CheckObjectType(Object* value, Address raw_type, String* location);
+// {raw_type} must be a tagged Smi.
+// {raw_location} must be a tagged String.
+// Returns a tagged Smi.
+Address CheckObjectType(Object* value, Address raw_type, Address raw_location);
 
 namespace compiler {
 

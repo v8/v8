@@ -33,8 +33,8 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
   inline void SetNumberOfCaptureRegisters(int value);
 
   // Returns the subject string of the last match.
-  inline String* LastSubject();
-  inline void SetLastSubject(String* value);
+  inline String LastSubject();
+  inline void SetLastSubject(String value);
 
   // Like LastSubject, but modifiable by the user.
   inline Object* LastInput();

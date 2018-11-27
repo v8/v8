@@ -322,7 +322,7 @@ bool AddDescriptorsByTemplate(
       value = *pair;
     }
     DisallowHeapAllocation no_gc;
-    Name* name = descriptors_template->GetKey(i);
+    Name name = descriptors_template->GetKey(i);
     DCHECK(name->IsUniqueName());
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == kDescriptor) {

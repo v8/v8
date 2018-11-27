@@ -19,7 +19,7 @@ namespace v8 {
 namespace internal {
 
 // Base relative time format accessors.
-ACCESSORS(JSRelativeTimeFormat, locale, String, kLocaleOffset)
+ACCESSORS2(JSRelativeTimeFormat, locale, String, kLocaleOffset)
 ACCESSORS(JSRelativeTimeFormat, icu_formatter,
           Managed<icu::RelativeDateTimeFormatter>, kICUFormatterOffset)
 SMI_ACCESSORS(JSRelativeTimeFormat, flags, kFlagsOffset)

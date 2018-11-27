@@ -148,7 +148,7 @@ void ToUpperWithSharpS(const Vector<const Char>& src,
   }
 }
 
-inline int FindFirstUpperOrNonAscii(String* s, int length) {
+inline int FindFirstUpperOrNonAscii(String s, int length) {
   for (int index = 0; index < length; ++index) {
     uint16_t ch = s->Get(index);
     if (V8_UNLIKELY(IsASCIIUpper(ch) || ch & ~0x7F)) {
@@ -248,7 +248,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
 // strings and does not allocate. Note that {src} could still be, e.g., a
 // one-byte sliced string with a two-byte parent string.
 // Called from TF builtins.
-String* Intl::ConvertOneByteToLower(String* src, String* dst) {
+String Intl::ConvertOneByteToLower(String src, String dst) {
   DCHECK_EQ(src->length(), dst->length());
   DCHECK(src->HasOnlyOneByteChars());
   DCHECK(src->IsFlat());

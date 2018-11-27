@@ -249,7 +249,7 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
     if (shared->script()->IsScript()) {
       Script* script = Script::cast(shared->script());
       if (script->name()->IsName()) {
-        Name* name = Name::cast(script->name());
+        Name name = Name::cast(script->name());
         info->script_name = names_->GetName(name);
       }
       info->script_id = script->id();

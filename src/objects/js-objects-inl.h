@@ -892,7 +892,7 @@ ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
           kSyncIteratorOffset)
 ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 
-ACCESSORS(JSStringIterator, string, String, kStringOffset)
+ACCESSORS2(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
 }  // namespace internal

@@ -470,7 +470,7 @@ class ArrayList : public FixedArray {
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
 
 template <SearchMode search_mode, typename T>
-inline int Search(T* array, Name* name, int valid_entries = 0,
+inline int Search(T* array, Name name, int valid_entries = 0,
                   int* out_insertion_index = nullptr);
 
 // ByteArray represents fixed sized byte arrays.  Used for the relocation info

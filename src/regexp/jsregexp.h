@@ -1531,7 +1531,7 @@ class RegExpResultsCache : public AllStatic {
 
   // Attempt to retrieve a cached result.  On failure, 0 is returned as a Smi.
   // On success, the returned result is guaranteed to be a COW-array.
-  static Object* Lookup(Heap* heap, String* key_string, Object* key_pattern,
+  static Object* Lookup(Heap* heap, String key_string, Object* key_pattern,
                         FixedArray* last_match_out, ResultsCacheType type);
   // Attempt to add value_array to the cache specified by type.  On success,
   // value_array is turned into a COW-array.

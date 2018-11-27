@@ -188,7 +188,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
       Handle<JSReceiver> object);
 
   // Returns the class name ([[Class]] property in the specification).
-  V8_EXPORT_PRIVATE String* class_name();
+  V8_EXPORT_PRIVATE String class_name();
 
   // Returns the constructor (the function that was used to instantiate the
   // object).
@@ -1391,7 +1391,7 @@ class JSStringIterator : public JSObject {
   DECL_CAST(JSStringIterator)
 
   // [string]: the [[IteratedString]] inobject property.
-  DECL_ACCESSORS(string, String)
+  DECL_ACCESSORS2(string, String)
 
   // [index]: The [[StringIteratorNextIndex]] inobject property.
   inline int index() const;

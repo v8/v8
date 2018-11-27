@@ -77,7 +77,7 @@ class ScopeInfo : public FixedArray {
   bool HasInferredFunctionName() const;
 
   void SetFunctionName(Object* name);
-  void SetInferredFunctionName(String* name);
+  void SetInferredFunctionName(String name);
 
   // Does this scope belong to a function?
   bool HasPositionInfo() const;
@@ -95,7 +95,7 @@ class ScopeInfo : public FixedArray {
 
   // The function's name if it is non-empty, otherwise the inferred name or an
   // empty string.
-  String* FunctionDebugName() const;
+  String FunctionDebugName() const;
 
   // Return the function's inferred name if present.
   // See SharedFunctionInfo::function_identifier.
@@ -109,7 +109,7 @@ class ScopeInfo : public FixedArray {
   ModuleInfo ModuleDescriptorInfo() const;
 
   // Return the name of the given context local.
-  String* ContextLocalName(int var) const;
+  String ContextLocalName(int var) const;
 
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var) const;
@@ -125,7 +125,7 @@ class ScopeInfo : public FixedArray {
 
   // Return true if this local was introduced by the compiler, and should not be
   // exposed to the user in a debugger.
-  static bool VariableIsSynthetic(String* name);
+  static bool VariableIsSynthetic(String name);
 
   // Lookup support for serialized scope info. Returns the local context slot
   // index for a given slot name if the slot is present; otherwise
@@ -147,7 +147,7 @@ class ScopeInfo : public FixedArray {
   // slot index if the function name is present and context-allocated (named
   // function expressions, only), otherwise returns a value < 0. The name
   // must be an internalized string.
-  int FunctionContextSlotIndex(String* name) const;
+  int FunctionContextSlotIndex(String name) const;
 
   // Lookup support for serialized scope info.  Returns the receiver context
   // slot index if scope has a "this" binding, and the binding is
@@ -262,7 +262,7 @@ class ScopeInfo : public FixedArray {
   // Get metadata of i-th MODULE-allocated variable, where 0 <= i <
   // ModuleVariableCount.  The metadata is returned via out-arguments, which may
   // be nullptr if the corresponding information is not requested
-  void ModuleVariable(int i, String** name, int* index,
+  void ModuleVariable(int i, String* name, int* index,
                       VariableMode* mode = nullptr,
                       InitializationFlag* init_flag = nullptr,
                       MaybeAssignedFlag* maybe_assigned_flag = nullptr);

@@ -88,7 +88,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
       int len = shared->EndPosition() - start;
-      String::SubStringRange source(String::cast(script->source()), start, len);
+      SubStringRange source(String::cast(script->source()), start, len);
       for (const auto& c : source) {
         os << AsEscapedUC16ForJSON(c);
       }
@@ -191,7 +191,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
       info->shared_info()->script()->IsScript()) {
     Object* source_name = Script::cast(info->shared_info()->script())->name();
     if (source_name->IsString()) {
-      String* str = String::cast(source_name);
+      String str = String::cast(source_name);
       if (str->length() > 0) {
         SNPrintF(source_file, "%s", str->ToCString().get());
         std::replace(source_file.start(),

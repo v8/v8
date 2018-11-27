@@ -86,7 +86,7 @@ namespace internal {
  * The data up to the return address must be placed there by the calling
  * code and the remaining arguments are passed in registers, e.g. by calling the
  * code entry as cast to a function with the signature:
- * int (*match)(String* input_string,
+ * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
  *              Address end,
@@ -695,7 +695,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   __ Bind(&entry_label_);
 
   // Arguments on entry:
-  // x0:  String*  input
+  // x0:  String   input
   // x1:  int      start_offset
   // x2:  byte*    input_start
   // x3:  byte*    input_end
@@ -1333,7 +1333,7 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate), start_index,
       frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
-      frame_entry_address<String*>(re_frame, kInput), input_start, input_end);
+      frame_entry_address<Address>(re_frame, kInput), input_start, input_end);
 }
 
 

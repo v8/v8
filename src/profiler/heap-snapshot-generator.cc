@@ -568,7 +568,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     }
     return AddEntry(object, HeapEntry::kObject, name);
   } else if (object->IsString()) {
-    String* string = String::cast(object);
+    String string = String::cast(object);
     if (string->IsConsString()) {
       return AddEntry(object, HeapEntry::kConsString, "(concatenated string)");
     } else if (string->IsSlicedString()) {
@@ -587,7 +587,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   } else if (object->IsCode()) {
     return AddEntry(object, HeapEntry::kCode, "");
   } else if (object->IsSharedFunctionInfo()) {
-    String* name = SharedFunctionInfo::cast(object)->Name();
+    String name = SharedFunctionInfo::cast(object)->Name();
     return AddEntry(object, HeapEntry::kCode, names_->GetName(name));
   } else if (object->IsScript()) {
     Object* name = Script::cast(object)->name();
@@ -856,24 +856,24 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
                        JSObject::kElementsOffset);
 }
 
-void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry, String* string) {
+void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry, String string) {
   if (string->IsConsString()) {
-    ConsString* cs = ConsString::cast(string);
+    ConsString cs = ConsString::cast(string);
     SetInternalReference(entry, "first", cs->first(), ConsString::kFirstOffset);
     SetInternalReference(entry, "second", cs->second(),
                          ConsString::kSecondOffset);
   } else if (string->IsSlicedString()) {
-    SlicedString* ss = SlicedString::cast(string);
+    SlicedString ss = SlicedString::cast(string);
     SetInternalReference(entry, "parent", ss->parent(),
                          SlicedString::kParentOffset);
   } else if (string->IsThinString()) {
-    ThinString* ts = ThinString::cast(string);
+    ThinString ts = ThinString::cast(string);
     SetInternalReference(entry, "actual", ts->actual(),
                          ThinString::kActualOffset);
   }
 }
 
-void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry, Symbol* symbol) {
+void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry, Symbol symbol) {
   SetInternalReference(entry, "name", symbol->name(), Symbol::kNameOffset);
 }
 
@@ -931,13 +931,13 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
     // Add context allocated locals.
     int context_locals = scope_info->ContextLocalCount();
     for (int i = 0; i < context_locals; ++i) {
-      String* local_name = scope_info->ContextLocalName(i);
+      String local_name = scope_info->ContextLocalName(i);
       int idx = Context::MIN_CONTEXT_SLOTS + i;
       SetContextReference(entry, local_name, context->get(idx),
                           Context::OffsetOfElementAt(idx));
     }
     if (scope_info->HasFunctionName()) {
-      String* name = String::cast(scope_info->FunctionName());
+      String name = String::cast(scope_info->FunctionName());
       int idx = scope_info->FunctionContextSlotIndex(name);
       if (idx >= 0) {
         SetContextReference(entry, name, context->get(idx),
@@ -1048,7 +1048,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo* shared) {
-  String* shared_name = shared->DebugName();
+  String shared_name = shared->DebugName();
   const char* name = nullptr;
   if (shared_name != ReadOnlyRoots(heap_).empty_string()) {
     name = names_->GetName(shared_name);
@@ -1290,7 +1290,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
           Representation r = details.representation();
           if (r.IsSmi() || r.IsDouble()) break;
 
-          Name* k = descs->GetKey(i);
+          Name k = descs->GetKey(i);
           FieldIndex field_index = FieldIndex::ForDescriptor(js_obj->map(), i);
           Object* value = js_obj->RawFastPropertyAt(field_index);
           int field_offset =
@@ -1316,7 +1316,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
     for (int i = 0; i < length; ++i) {
       if (!dictionary->IsKey(roots, dictionary->KeyAt(i))) continue;
       PropertyCell* cell = dictionary->CellAt(i);
-      Name* name = cell->name();
+      Name name = cell->name();
       Object* value = cell->value();
       PropertyDetails details = cell->property_details();
       SetDataOrAccessorPropertyReference(details.kind(), entry, name, value);
@@ -1336,7 +1336,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
   }
 }
 
-void V8HeapExplorer::ExtractAccessorPairProperty(HeapEntry* entry, Name* key,
+void V8HeapExplorer::ExtractAccessorPairProperty(HeapEntry* entry, Name key,
                                                  Object* callback_obj,
                                                  int field_offset) {
   if (!callback_obj->IsAccessorPair()) return;
@@ -1399,7 +1399,7 @@ JSFunction* V8HeapExplorer::GetConstructor(JSReceiver* receiver) {
   return *maybe_constructor.ToHandleChecked();
 }
 
-String* V8HeapExplorer::GetConstructorName(JSObject* object) {
+String V8HeapExplorer::GetConstructorName(JSObject* object) {
   Isolate* isolate = object->GetIsolate();
   if (object->IsJSFunction()) return ReadOnlyRoots(isolate).closure_string();
   DisallowHeapAllocation no_gc;
@@ -1527,7 +1527,7 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object* parent,
 }
 
 void V8HeapExplorer::SetContextReference(HeapEntry* parent_entry,
-                                         String* reference_name,
+                                         String reference_name,
                                          Object* child_obj, int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == nullptr) return;
@@ -1619,7 +1619,7 @@ void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
 }
 
 void V8HeapExplorer::SetDataOrAccessorPropertyReference(
-    PropertyKind kind, HeapEntry* parent_entry, Name* reference_name,
+    PropertyKind kind, HeapEntry* parent_entry, Name reference_name,
     Object* child_obj, const char* name_format_string, int field_offset) {
   if (kind == kAccessor) {
     ExtractAccessorPairProperty(parent_entry, reference_name, child_obj,
@@ -1631,7 +1631,7 @@ void V8HeapExplorer::SetDataOrAccessorPropertyReference(
 }
 
 void V8HeapExplorer::SetPropertyReference(HeapEntry* parent_entry,
-                                          Name* reference_name,
+                                          Name reference_name,
                                           Object* child_obj,
                                           const char* name_format_string,
                                           int field_offset) {

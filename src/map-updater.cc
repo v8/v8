@@ -38,7 +38,7 @@ MapUpdater::MapUpdater(Isolate* isolate, Handle<Map> old_map)
               ->IsFunctionTemplateInfo());
 }
 
-Name* MapUpdater::GetKey(int descriptor) const {
+Name MapUpdater::GetKey(int descriptor) const {
   return old_descriptors_->GetKey(descriptor);
 }
 
@@ -617,7 +617,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Map current = *root_map_;
   for (int i = root_nof; i < old_nof_; i++) {
-    Name* name = descriptors->GetKey(i);
+    Name name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
     Map next =
         TransitionsAccessor(isolate_, current, &no_allocation)
