@@ -368,6 +368,9 @@ class Debug {
   Address restart_fp_address() {
     return reinterpret_cast<Address>(&thread_local_.restart_fp_);
   }
+  bool will_restart() const {
+    return thread_local_.restart_fp_ != kNullAddress;
+  }
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }
   bool break_on_next_function_call() const {
