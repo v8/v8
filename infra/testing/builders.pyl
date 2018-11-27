@@ -636,7 +636,7 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 3},
     ],
   },
   'V8 Linux - gc stress': {
