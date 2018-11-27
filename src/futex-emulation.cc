@@ -27,17 +27,13 @@ base::LazyInstance<FutexWaitList>::type FutexEmulation::wait_list_ =
 void FutexWaitListNode::NotifyWake() {
   // Lock the FutexEmulation mutex before notifying. We know that the mutex
   // will have been unlocked if we are currently waiting on the condition
-  // variable.
-  //
-  // The mutex may also not be locked if the other thread is currently handling
-  // interrupts, or if FutexEmulation::Wait was just called and the mutex
-  // hasn't been locked yet. In either of those cases, we set the interrupted
-  // flag to true, which will be tested after the mutex is re-locked.
+  // variable. The mutex will not be locked if FutexEmulation::Wait hasn't
+  // locked it yet. In that case, we set the interrupted_
+  // flag to true, which will be tested after the mutex locked by a future wait.
   base::MutexGuard lock_guard(FutexEmulation::mutex_.Pointer());
-  if (waiting_) {
-    cond_.NotifyOne();
-    interrupted_ = true;
-  }
+  // if not waiting, this will not have any effect.
+  cond_.NotifyOne();
+  interrupted_ = true;
 }
 
 
@@ -113,15 +109,6 @@ Object* FutexEmulation::Wait(Isolate* isolate,
                              int32_t value, double rel_timeout_ms) {
   DCHECK_LT(addr, array_buffer->byte_length());
 
-  void* backing_store = array_buffer->backing_store();
-  int32_t* p =
-      reinterpret_cast<int32_t*>(static_cast<int8_t*>(backing_store) + addr);
-
-  FutexWaitListNode* node = isolate->futex_wait_list_node();
-  node->backing_store_ = backing_store;
-  node->wait_addr_ = addr;
-  node->waiting_ = true;
-
   bool use_timeout = rel_timeout_ms != V8_INFINITY;
 
   base::TimeDelta rel_timeout;
@@ -147,7 +134,6 @@ Object* FutexEmulation::Wait(Isolate* isolate,
                                   addr, value, rel_timeout_ms, &stop_handle);
 
   if (isolate->has_scheduled_exception()) {
-    node->waiting_ = false;
     return isolate->PromoteScheduledException();
   }
 
@@ -156,10 +142,19 @@ Object* FutexEmulation::Wait(Isolate* isolate,
 
   do {  // Not really a loop, just makes it easier to break out early.
     base::MutexGuard lock_guard(mutex_.Pointer());
+    void* backing_store = array_buffer->backing_store();
+
+    FutexWaitListNode* node = isolate->futex_wait_list_node();
+    node->backing_store_ = backing_store;
+    node->wait_addr_ = addr;
+    node->waiting_ = true;
+
     // Reset node->waiting_ = false when leaving this scope (but while
     // still holding the lock).
     ResetWaitingOnScopeExit reset_waiting(node);
 
+    int32_t* p =
+        reinterpret_cast<int32_t*>(static_cast<int8_t*>(backing_store) + addr);
     if (*p != value) {
       result = Smi::FromInt(WaitReturnValue::kNotEqual);
       callback_result = AtomicsWaitEvent::kNotEqual;
