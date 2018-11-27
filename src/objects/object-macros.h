@@ -381,6 +381,10 @@
   static_cast<intptr_t>(base::Acquire_Load(  \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
 
+#define ACQUIRE_READ_INT32_FIELD(p, offset) \
+  static_cast<int32_t>(base::Acquire_Load(  \
+      reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
+
 #define RELAXED_READ_INTPTR_FIELD(p, offset) \
   static_cast<intptr_t>(base::Relaxed_Load(  \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
