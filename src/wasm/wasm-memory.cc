@@ -154,20 +154,6 @@ WasmMemoryTracker::~WasmMemoryTracker() {
   DCHECK_EQ(allocated_address_space_, 0u);
 }
 
-void* WasmMemoryTracker::TryAllocateBackingStoreForTesting(
-    Heap* heap, size_t size, void** allocation_base,
-    size_t* allocation_length) {
-  return TryAllocateBackingStore(this, heap, size, allocation_base,
-                                 allocation_length);
-}
-
-void WasmMemoryTracker::FreeBackingStoreForTesting(base::AddressRegion memory,
-                                                   void* buffer_start) {
-  ReleaseAllocation(nullptr, buffer_start);
-  CHECK(FreePages(GetPlatformPageAllocator(),
-                  reinterpret_cast<void*>(memory.begin()), memory.size()));
-}
-
 bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes,
                                             ReservationLimit limit) {
   size_t reservation_limit =
