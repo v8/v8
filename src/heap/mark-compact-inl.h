@@ -12,6 +12,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/transitions.h"
 
 namespace v8 {
 namespace internal {
@@ -168,7 +169,7 @@ template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitTransitionArray(Map map,
-                                                       TransitionArray* array) {
+                                                       TransitionArray array) {
   int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
   TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
   collector_->AddTransitionArray(array);
@@ -438,6 +439,10 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, HeapObjectSlot slot,
       !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
     RememberedSet<OLD_TO_OLD>::Insert(source_page, slot.address());
   }
+}
+
+void MarkCompactCollector::AddTransitionArray(TransitionArray array) {
+  weak_objects_.transition_arrays.Push(kMainThread, array);
 }
 
 template <LiveObjectIterationMode mode>

@@ -1939,7 +1939,7 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map map,
 }
 
 void MarkCompactCollector::ClearFullMapTransitions() {
-  TransitionArray* array;
+  TransitionArray array;
   while (weak_objects_.transition_arrays.Pop(kMainThread, &array)) {
     int num_transitions = array->number_of_entries();
     if (num_transitions > 0) {
@@ -1964,7 +1964,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
 }
 
 bool MarkCompactCollector::CompactTransitionArray(
-    Map map, TransitionArray* transitions, DescriptorArray* descriptors) {
+    Map map, TransitionArray transitions, DescriptorArray* descriptors) {
   DCHECK(!map->is_prototype_map());
   int num_transitions = transitions->number_of_entries();
   bool descriptors_owner_died = false;

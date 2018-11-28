@@ -14143,10 +14143,11 @@ int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
   Object* script_obj = script();
   if (!script_obj->IsScript()) return FunctionLiteral::kIdTypeInvalid;
 
-  WeakFixedArray* shared_info_list =
+  WeakFixedArray shared_info_list =
       Script::cast(script_obj)->shared_function_infos();
   SharedFunctionInfo::ScriptIterator iterator(
-      isolate, Handle<WeakFixedArray>(&shared_info_list));
+      isolate,
+      Handle<WeakFixedArray>(reinterpret_cast<Address*>(&shared_info_list)));
 
   for (SharedFunctionInfo shared = iterator.Next(); !shared.is_null();
        shared = iterator.Next()) {
@@ -15326,7 +15327,7 @@ void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
   array->GetElementsAccessor()->SetLength(array, new_length);
 }
 
-DependentCode* DependentCode::GetDependentCode(Handle<HeapObject> object) {
+DependentCode DependentCode::GetDependentCode(Handle<HeapObject> object) {
   if (object->IsMap()) {
     return Handle<Map>::cast(object)->dependent_code();
   } else if (object->IsPropertyCell()) {
@@ -17548,7 +17549,7 @@ int SearchLiteralsMapEntry(CompilationCacheTable cache, int cache_entry,
   // object used to be a FixedArray here).
   DCHECK(!obj->IsFixedArray());
   if (obj->IsWeakFixedArray()) {
-    WeakFixedArray* literals_map = WeakFixedArray::cast(obj);
+    WeakFixedArray literals_map = WeakFixedArray::cast(obj);
     int length = literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
       DCHECK(literals_map->Get(i + kLiteralContextOffset)->IsWeakOrCleared());
@@ -17635,8 +17636,7 @@ FeedbackCell* SearchLiteralsMap(CompilationCacheTable cache, int cache_entry,
   FeedbackCell* result = nullptr;
   int entry = SearchLiteralsMapEntry(cache, cache_entry, native_context);
   if (entry >= 0) {
-    WeakFixedArray* literals_map =
-        WeakFixedArray::cast(cache->get(cache_entry));
+    WeakFixedArray literals_map = WeakFixedArray::cast(cache->get(cache_entry));
     DCHECK_LE(entry + kLiteralEntryLength, literals_map->length());
     MaybeObject object = literals_map->Get(entry + kLiteralLiteralsOffset);
 

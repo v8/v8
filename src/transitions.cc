@@ -127,7 +127,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
 
   {
     DisallowHeapAllocation no_gc;
-    TransitionArray* array = transitions();
+    TransitionArray array = transitions();
     number_of_transitions = array->number_of_transitions();
     new_nof = number_of_transitions;
 
@@ -170,7 +170,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
   // result copy if needed, and recompute variables.
   Reload();
   DisallowHeapAllocation no_gc;
-  TransitionArray* array = transitions();
+  TransitionArray array = transitions();
   if (array->number_of_transitions() != number_of_transitions) {
     DCHECK(array->number_of_transitions() < number_of_transitions);
 
@@ -313,7 +313,7 @@ bool TransitionsAccessor::IsMatchingMap(Map target, Name name,
 
 // static
 bool TransitionArray::CompactPrototypeTransitionArray(Isolate* isolate,
-                                                      WeakFixedArray* array) {
+                                                      WeakFixedArray array) {
   const int header = kProtoTransitionHeaderSize;
   int number_of_transitions = NumberOfPrototypeTransitions(array);
   if (number_of_transitions == 0) {
@@ -343,7 +343,6 @@ bool TransitionArray::CompactPrototypeTransitionArray(Isolate* isolate,
   }
   return new_number_of_transitions < number_of_transitions;
 }
-
 
 // static
 Handle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
@@ -399,7 +398,7 @@ void TransitionsAccessor::PutPrototypeTransition(Handle<Object> prototype,
 Handle<Map> TransitionsAccessor::GetPrototypeTransition(
     Handle<Object> prototype) {
   DisallowHeapAllocation no_gc;
-  WeakFixedArray* cache = GetPrototypeTransitions();
+  WeakFixedArray cache = GetPrototypeTransitions();
   int length = TransitionArray::NumberOfPrototypeTransitions(cache);
   for (int i = 0; i < length; i++) {
     MaybeObject target =
@@ -416,7 +415,7 @@ Handle<Map> TransitionsAccessor::GetPrototypeTransition(
   return Handle<Map>();
 }
 
-WeakFixedArray* TransitionsAccessor::GetPrototypeTransitions() {
+WeakFixedArray TransitionsAccessor::GetPrototypeTransitions() {
   if (encoding() != kFullTransitionArray ||
       !transitions()->HasPrototypeTransitions()) {
     return ReadOnlyRoots(isolate_).empty_weak_fixed_array();
@@ -426,7 +425,7 @@ WeakFixedArray* TransitionsAccessor::GetPrototypeTransitions() {
 
 // static
 void TransitionArray::SetNumberOfPrototypeTransitions(
-    WeakFixedArray* proto_transitions, int value) {
+    WeakFixedArray proto_transitions, int value) {
   DCHECK_NE(proto_transitions->length(), 0);
   proto_transitions->Set(kProtoTransitionNumberOfEntriesOffset,
                          MaybeObject::FromSmi(Smi::FromInt(value)));
@@ -472,7 +471,7 @@ void TransitionArray::Zap(Isolate* isolate) {
 
 void TransitionsAccessor::ReplaceTransitions(MaybeObject new_transitions) {
   if (encoding() == kFullTransitionArray) {
-    TransitionArray* old_transitions = transitions();
+    TransitionArray old_transitions = transitions();
 #if DEBUG
     CheckNewTransitionsAreConsistent(
         old_transitions, new_transitions->GetHeapObjectAssumeStrong());
@@ -531,7 +530,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
     }
     case kFullTransitionArray: {
       if (transitions()->HasPrototypeTransitions()) {
-        WeakFixedArray* proto_trans = transitions()->GetPrototypeTransitions();
+        WeakFixedArray proto_trans = transitions()->GetPrototypeTransitions();
         int length = TransitionArray::NumberOfPrototypeTransitions(proto_trans);
         for (int i = 0; i < length; ++i) {
           int index = TransitionArray::kProtoTransitionHeaderSize + i;
@@ -557,10 +556,10 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
 
 #ifdef DEBUG
 void TransitionsAccessor::CheckNewTransitionsAreConsistent(
-    TransitionArray* old_transitions, Object* transitions) {
+    TransitionArray old_transitions, Object* transitions) {
   // This function only handles full transition arrays.
   DCHECK_EQ(kFullTransitionArray, encoding());
-  TransitionArray* new_transitions = TransitionArray::cast(transitions);
+  TransitionArray new_transitions = TransitionArray::cast(transitions);
   for (int i = 0; i < old_transitions->number_of_transitions(); i++) {
     Map target = old_transitions->GetTarget(i);
     if (target->instance_descriptors() == map_->instance_descriptors()) {

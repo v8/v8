@@ -270,9 +270,9 @@ class FixedDoubleArray : public FixedArrayBase {
 
 // WeakFixedArray describes fixed-sized arrays with element type
 // MaybeObject.
-class WeakFixedArray : public HeapObject {
+class WeakFixedArray : public HeapObjectPtr {
  public:
-  DECL_CAST(WeakFixedArray)
+  DECL_CAST2(WeakFixedArray)
 
   inline MaybeObject Get(int index) const;
 
@@ -327,7 +327,7 @@ class WeakFixedArray : public HeapObject {
 
   static const int kFirstIndex = 1;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
+  OBJECT_CONSTRUCTORS(WeakFixedArray, HeapObjectPtr);
 };
 
 // WeakArrayList is like a WeakFixedArray with static convenience methods for

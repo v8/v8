@@ -415,7 +415,7 @@ typedef Worklist<Ephemeron, 64> EphemeronWorklist;
 
 // Weak objects encountered during marking.
 struct WeakObjects {
-  Worklist<TransitionArray*, 64> transition_arrays;
+  Worklist<TransitionArray, 64> transition_arrays;
 
   // Keep track of all EphemeronHashTables in the heap to process
   // them in the atomic pause.
@@ -653,9 +653,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   WeakObjects* weak_objects() { return &weak_objects_; }
 
-  void AddTransitionArray(TransitionArray* array) {
-    weak_objects_.transition_arrays.Push(kMainThread, array);
-  }
+  inline void AddTransitionArray(TransitionArray array);
 
   void AddEphemeronHashTable(EphemeronHashTable table) {
     weak_objects_.ephemeron_hash_tables.Push(kMainThread, table);
@@ -755,9 +753,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // otherwise they can die and try to deoptimize the underlying code.
   void ProcessTopOptimizedFrame(ObjectVisitor* visitor);
 
-  // Collects a list of dependent code from maps embedded in optimize code.
-  DependentCode* DependentCodeListFromNonLiveMaps();
-
   // Drains the main thread marking work list. Will mark all pending objects
   // if no concurrent threads are running.
   void ProcessMarkingWorklist() override;
@@ -805,10 +800,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Compact every array in the global list of transition arrays and
   // trim the corresponding descriptor array if a transition target is non-live.
   void ClearFullMapTransitions();
-  bool CompactTransitionArray(Map map, TransitionArray* transitions,
-                              DescriptorArray* descriptors);
   void TrimDescriptorArray(Map map, DescriptorArray* descriptors);
   void TrimEnumCache(Map map, DescriptorArray* descriptors);
+  bool CompactTransitionArray(Map map, TransitionArray transitions,
+                              DescriptorArray* descriptors);
 
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
@@ -934,7 +929,7 @@ class MarkingVisitor final
   V8_INLINE int VisitJSDataView(Map map, JSDataView* object);
   V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray* object);
   V8_INLINE int VisitMap(Map map, Map object);
-  V8_INLINE int VisitTransitionArray(Map map, TransitionArray* object);
+  V8_INLINE int VisitTransitionArray(Map map, TransitionArray object);
   V8_INLINE int VisitJSWeakCell(Map map, JSWeakCell* object);
 
   // ObjectVisitor implementation.

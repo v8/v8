@@ -73,7 +73,7 @@ class WasmInstanceObject;
   V(SmallOrderedNameDictionary, SmallOrderedNameDictionary)                    \
   V(Symbol, Symbol)                                                            \
   V(ThinString, ThinString)                                                    \
-  V(TransitionArray, TransitionArray*)                                         \
+  V(TransitionArray, TransitionArray)                                          \
   V(UncompiledDataWithoutPreParsedScope, UncompiledDataWithoutPreParsedScope*) \
   V(UncompiledDataWithPreParsedScope, UncompiledDataWithPreParsedScope*)       \
   V(WasmInstanceObject, WasmInstanceObject*)

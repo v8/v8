@@ -328,7 +328,7 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitTransitionArray(Map map, TransitionArray* array) {
+  int VisitTransitionArray(Map map, TransitionArray array) {
     if (!ShouldVisit(array)) return 0;
     VisitMapPointer(array, array->map_slot());
     int size = TransitionArray::BodyDescriptor::SizeOf(map, array);

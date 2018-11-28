@@ -123,7 +123,7 @@ class TransitionsAccessor {
                            DisallowHeapAllocation* no_gc);
 #endif
 #if DEBUG
-  void CheckNewTransitionsAreConsistent(TransitionArray* old_transitions,
+  void CheckNewTransitionsAreConsistent(TransitionArray old_transitions,
                                         Object* transitions);
   bool IsConsistentWithBackPointers();
   bool IsSortedNoDuplicates();
@@ -177,12 +177,12 @@ class TransitionsAccessor {
 
   void EnsureHasFullTransitionArray();
   void SetPrototypeTransitions(Handle<WeakFixedArray> proto_transitions);
-  WeakFixedArray* GetPrototypeTransitions();
+  WeakFixedArray GetPrototypeTransitions();
 
   void TraverseTransitionTreeInternal(TraverseCallback callback, void* data,
                                       DisallowHeapAllocation* no_gc);
 
-  inline TransitionArray* transitions();
+  inline TransitionArray transitions();
 
   Isolate* isolate_;
   Handle<Map> map_handle_;
@@ -210,9 +210,9 @@ class TransitionsAccessor {
 // [3 + number of transitions * kTransitionSize]: start of slack
 class TransitionArray : public WeakFixedArray {
  public:
-  DECL_CAST(TransitionArray)
+  DECL_CAST2(TransitionArray)
 
-  inline WeakFixedArray* GetPrototypeTransitions();
+  inline WeakFixedArray GetPrototypeTransitions();
   inline bool HasPrototypeTransitions();
 
   // Accessors for fetching instance transition at transition number.
@@ -282,11 +282,11 @@ class TransitionArray : public WeakFixedArray {
   static const int kProtoTransitionHeaderSize = 1;
   static const int kMaxCachedPrototypeTransitions = 256;
 
-  inline void SetPrototypeTransitions(WeakFixedArray* prototype_transitions);
+  inline void SetPrototypeTransitions(WeakFixedArray prototype_transitions);
 
   static inline int NumberOfPrototypeTransitions(
-      WeakFixedArray* proto_transitions);
-  static void SetNumberOfPrototypeTransitions(WeakFixedArray* proto_transitions,
+      WeakFixedArray proto_transitions);
+  static void SetNumberOfPrototypeTransitions(WeakFixedArray proto_transitions,
                                               int value);
 
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
@@ -313,7 +313,7 @@ class TransitionArray : public WeakFixedArray {
   inline int number_of_transitions() const;
 
   static bool CompactPrototypeTransitionArray(Isolate* isolate,
-                                              WeakFixedArray* array);
+                                              WeakFixedArray array);
 
   static Handle<WeakFixedArray> GrowPrototypeTransitionArray(
       Handle<WeakFixedArray> array, int new_capacity, Isolate* isolate);
@@ -341,7 +341,7 @@ class TransitionArray : public WeakFixedArray {
 
   void Zap(Isolate* isolate);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TransitionArray);
+  OBJECT_CONSTRUCTORS(TransitionArray, WeakFixedArray);
 };
 
 }  // namespace internal

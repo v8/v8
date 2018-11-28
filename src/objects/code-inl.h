@@ -25,6 +25,7 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
@@ -32,7 +33,7 @@ CAST_ACCESSOR2(AbstractCode)
 CAST_ACCESSOR2(BytecodeArray)
 CAST_ACCESSOR2(Code)
 CAST_ACCESSOR(CodeDataContainer)
-CAST_ACCESSOR(DependentCode)
+CAST_ACCESSOR2(DependentCode)
 CAST_ACCESSOR2(DeoptimizationData)
 CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 
@@ -146,11 +147,11 @@ BytecodeArray AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(*this);
 }
 
-DependentCode* DependentCode::next_link() {
+DependentCode DependentCode::next_link() {
   return DependentCode::cast(Get(kNextLinkIndex)->GetHeapObjectAssumeStrong());
 }
 
-void DependentCode::set_next_link(DependentCode* next) {
+void DependentCode::set_next_link(DependentCode next) {
   Set(kNextLinkIndex, HeapObjectReference::Strong(next));
 }
 

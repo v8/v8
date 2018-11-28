@@ -381,7 +381,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractDescriptorArrayReferences(HeapEntry* entry,
                                         DescriptorArray* array);
   template <typename T>
-  void ExtractWeakArrayReferences(int header_size, HeapEntry* entry, T* array);
+  void ExtractWeakArrayReferences(int header_size, HeapEntry* entry, T array);
   void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractAccessorPairProperty(HeapEntry* entry, Name key,
                                    Object* callback_obj, int field_offset = -1);

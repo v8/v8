@@ -3616,7 +3616,7 @@ TEST(SerializationStats) {
   }
 }
 
-void CheckSFIsAreWeak(WeakFixedArray* sfis, Isolate* isolate) {
+void CheckSFIsAreWeak(WeakFixedArray sfis, Isolate* isolate) {
   CHECK_GT(sfis->length(), 0);
   int no_of_weak = 0;
   for (int i = 0; i < sfis->length(); ++i) {
@@ -3675,7 +3675,7 @@ TEST(WeakArraySerializizationInSnapshot) {
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*x));
 
     // Verify that the pointers in shared_function_infos are weak.
-    WeakFixedArray* sfis =
+    WeakFixedArray sfis =
         Script::cast(function->shared()->script())->shared_function_infos();
     CheckSFIsAreWeak(sfis, CcTest::i_isolate());
   }
@@ -3705,7 +3705,7 @@ TEST(WeakArraySerializationInCodeCache) {
       isolate, src, src, cache, v8::ScriptCompiler::kConsumeCodeCache);
 
   // Verify that the pointers in shared_function_infos are weak.
-  WeakFixedArray* sfis = Script::cast(copy->script())->shared_function_infos();
+  WeakFixedArray sfis = Script::cast(copy->script())->shared_function_infos();
   CheckSFIsAreWeak(sfis, isolate);
 
   delete cache;

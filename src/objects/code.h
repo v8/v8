@@ -594,7 +594,7 @@ class AbstractCode : public HeapObjectPtr {
 
 class DependentCode : public WeakFixedArray {
  public:
-  DECL_CAST(DependentCode)
+  DECL_CAST2(DependentCode)
 
   enum DependencyGroup {
     // Group of code that embed a transition to this map, and depend on being
@@ -635,13 +635,13 @@ class DependentCode : public WeakFixedArray {
   inline DependencyGroup group();
   inline MaybeObject object_at(int i);
   inline int count();
-  inline DependentCode* next_link();
+  inline DependentCode next_link();
 
  private:
   static const char* DependencyGroupName(DependencyGroup group);
 
   // Get/Set {object}'s {DependentCode}.
-  static DependentCode* GetDependentCode(Handle<HeapObject> object);
+  static DependentCode GetDependentCode(Handle<HeapObject> object);
   static void SetDependentCode(Handle<HeapObject> object,
                                Handle<DependentCode> dep);
 
@@ -669,7 +669,7 @@ class DependentCode : public WeakFixedArray {
   static const int kFlagsIndex = 1;
   static const int kCodesStartIndex = 2;
 
-  inline void set_next_link(DependentCode* next);
+  inline void set_next_link(DependentCode next);
   inline void set_count(int value);
   inline void set_object_at(int i, MaybeObject object);
   inline void clear_at(int i);
@@ -680,6 +680,8 @@ class DependentCode : public WeakFixedArray {
   class GroupField : public BitField<int, 0, 3> {};
   class CountField : public BitField<int, 3, 27> {};
   STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
+
+  OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray)
 };
 
 // BytecodeArray represents a sequence of interpreter bytecodes.

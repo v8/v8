@@ -995,7 +995,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
   } else if (maybe_raw_transitions_or_prototype_info->GetHeapObjectIfStrong(
                  &raw_transitions_or_prototype_info)) {
     if (raw_transitions_or_prototype_info->IsTransitionArray()) {
-      TransitionArray* transitions =
+      TransitionArray transitions =
           TransitionArray::cast(raw_transitions_or_prototype_info);
       if (map->CanTransition() && transitions->HasPrototypeTransitions()) {
         TagObject(transitions->GetPrototypeTransitions(),
@@ -1264,7 +1264,7 @@ void V8HeapExplorer::ExtractDescriptorArrayReferences(HeapEntry* entry,
 
 template <typename T>
 void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
-                                                HeapEntry* entry, T* array) {
+                                                HeapEntry* entry, T array) {
   for (int i = 0; i < array->length(); ++i) {
     MaybeObject object = array->Get(i);
     HeapObject* heap_object;

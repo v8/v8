@@ -3641,7 +3641,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
                 .ToLocalChecked())));
 
     int dependency_group_count = 0;
-    DependentCode* dependency = site->dependent_code();
+    DependentCode dependency = site->dependent_code();
     while (dependency != ReadOnlyRoots(heap).empty_weak_fixed_array()) {
       CHECK(dependency->group() ==
                 DependentCode::kAllocationSiteTransitionChangedGroup ||

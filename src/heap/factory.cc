@@ -14,6 +14,7 @@
 #include "src/compiler.h"
 #include "src/conversions.h"
 #include "src/counters.h"
+#include "src/heap/mark-compact-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
@@ -22,6 +23,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -2147,7 +2149,7 @@ Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
   DCHECK_EQ(old_len, src->length());
   obj->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
 
-  WeakFixedArray* result = WeakFixedArray::cast(obj);
+  WeakFixedArray result = WeakFixedArray::cast(obj);
   result->set_length(new_len);
 
   // Copy the content.

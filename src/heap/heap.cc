@@ -2668,14 +2668,14 @@ void Heap::RightTrimFixedArray(FixedArrayBase object, int elements_to_trim) {
   CreateFillerForArray<FixedArrayBase>(object, elements_to_trim, bytes_to_trim);
 }
 
-void Heap::RightTrimWeakFixedArray(WeakFixedArray* object,
+void Heap::RightTrimWeakFixedArray(WeakFixedArray object,
                                    int elements_to_trim) {
   // This function is safe to use only at the end of the mark compact
   // collection: When marking, we record the weak slots, and shrinking
   // invalidates them.
   DCHECK_EQ(gc_state(), MARK_COMPACT);
-  CreateFillerForArray<WeakFixedArray*>(object, elements_to_trim,
-                                        elements_to_trim * kPointerSize);
+  CreateFillerForArray<WeakFixedArray>(object, elements_to_trim,
+                                       elements_to_trim * kPointerSize);
 }
 
 template <typename T>

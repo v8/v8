@@ -1967,7 +1967,7 @@ void Script::ScriptVerify(Isolate* isolate) {
 }
 
 void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
-  WeakFixedArray::cast(this)->WeakFixedArrayVerify(isolate);
+  WeakFixedArray::cast(*this)->WeakFixedArrayVerify(isolate);
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
       MaybeObject e = WeakFixedArray::Get(i);

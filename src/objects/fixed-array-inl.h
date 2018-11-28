@@ -29,6 +29,7 @@ OBJECT_CONSTRUCTORS_IMPL(FixedTypedArrayBase, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ByteArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(TemplateList, FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray, HeapObjectPtr)
 
 FixedArrayBase::FixedArrayBase(Address ptr, AllowInlineSmiStorage allow_smi)
     : HeapObjectPtr(ptr, allow_smi) {
@@ -51,7 +52,7 @@ CAST_ACCESSOR2(FixedArrayBase)
 CAST_ACCESSOR2(FixedDoubleArray)
 CAST_ACCESSOR2(FixedTypedArrayBase)
 CAST_ACCESSOR2(TemplateList)
-CAST_ACCESSOR(WeakFixedArray)
+CAST_ACCESSOR2(WeakFixedArray)
 CAST_ACCESSOR(WeakArrayList)
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
@@ -290,11 +291,11 @@ void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
 }
 
 MaybeObjectSlot WeakFixedArray::data_start() {
-  return HeapObject::RawMaybeWeakField(this, kHeaderSize);
+  return RawMaybeWeakField(kHeaderSize);
 }
 
 MaybeObjectSlot WeakFixedArray::RawFieldOfElementAt(int index) {
-  return HeapObject::RawMaybeWeakField(this, OffsetOfElementAt(index));
+  return RawMaybeWeakField(OffsetOfElementAt(index));
 }
 
 MaybeObject WeakArrayList::Get(int index) const {

@@ -25,7 +25,7 @@ ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_create_count,
                 kPretenureCreateCountOffset)
-ACCESSORS(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
+ACCESSORS2(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS_CHECKED(AllocationSite, weak_next, Object, kWeakNextOffset,
                   HasWeakNext())
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)

@@ -592,7 +592,7 @@ class Map : public HeapObjectPtr {
                                     LayoutDescriptor layout_descriptor);
 
   // [dependent code]: list of optimized codes that weakly embed this map.
-  DECL_ACCESSORS(dependent_code, DependentCode)
+  DECL_ACCESSORS2(dependent_code, DependentCode)
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
   // chains or Smi(0) if uninitialized.
@@ -975,16 +975,16 @@ class Map : public HeapObjectPtr {
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
 // needs very limited number of distinct normalized maps.
-class NormalizedMapCache : public WeakFixedArray,
-                           public NeverReadOnlySpaceObject {
+class NormalizedMapCache : public WeakFixedArray {
  public:
+  NEVER_READ_ONLY_SPACE
   static Handle<NormalizedMapCache> New(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,
                                              PropertyNormalizationMode mode);
   void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
 
-  DECL_CAST(NormalizedMapCache)
+  DECL_CAST2(NormalizedMapCache)
 
   static inline bool IsNormalizedMapCache(const HeapObject* obj);
 
@@ -998,6 +998,8 @@ class NormalizedMapCache : public WeakFixedArray,
   // The following declarations hide base class methods.
   Object* get(int index);
   void set(int index, Object* value);
+
+  OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray)
 };
 
 }  // namespace internal

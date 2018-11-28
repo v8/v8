@@ -19,18 +19,20 @@
 namespace v8 {
 namespace internal {
 
-TransitionArray* TransitionsAccessor::transitions() {
+TransitionArray TransitionsAccessor::transitions() {
   DCHECK_EQ(kFullTransitionArray, encoding());
   return TransitionArray::cast(raw_transitions_->GetHeapObjectAssumeStrong());
 }
 
-CAST_ACCESSOR(TransitionArray)
+OBJECT_CONSTRUCTORS_IMPL(TransitionArray, WeakFixedArray)
+
+CAST_ACCESSOR2(TransitionArray)
 
 bool TransitionArray::HasPrototypeTransitions() {
   return Get(kPrototypeTransitionsIndex) != MaybeObject::FromSmi(Smi::zero());
 }
 
-WeakFixedArray* TransitionArray::GetPrototypeTransitions() {
+WeakFixedArray TransitionArray::GetPrototypeTransitions() {
   DCHECK(HasPrototypeTransitions());  // Callers must check first.
   Object* prototype_transitions =
       Get(kPrototypeTransitionsIndex)->GetHeapObjectAssumeStrong();
@@ -42,14 +44,14 @@ HeapObjectSlot TransitionArray::GetKeySlot(int transition_number) {
   return HeapObjectSlot(RawFieldOfElementAt(ToKeyIndex(transition_number)));
 }
 
-void TransitionArray::SetPrototypeTransitions(WeakFixedArray* transitions) {
+void TransitionArray::SetPrototypeTransitions(WeakFixedArray transitions) {
   DCHECK(transitions->IsWeakFixedArray());
   WeakFixedArray::Set(kPrototypeTransitionsIndex,
                       HeapObjectReference::Strong(transitions));
 }
 
 int TransitionArray::NumberOfPrototypeTransitions(
-    WeakFixedArray* proto_transitions) {
+    WeakFixedArray proto_transitions) {
   if (proto_transitions->length() == 0) return 0;
   MaybeObject raw =
       proto_transitions->Get(kProtoTransitionNumberOfEntriesOffset);

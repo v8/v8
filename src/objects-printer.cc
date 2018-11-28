@@ -1080,7 +1080,7 @@ void WeakArrayList::WeakArrayListPrint(std::ostream& os) {
 }
 
 void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "TransitionArray");
+  PrintHeader(os, "TransitionArray");
   PrintInternal(os);
 }
 

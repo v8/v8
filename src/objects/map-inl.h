@@ -694,7 +694,7 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   set_constructor_or_backpointer(value, mode);
 }
 
-ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
+ACCESSORS2(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
 ACCESSORS(Map, constructor_or_backpointer, Object,
           kConstructorOrBackPointerOffset)
@@ -763,6 +763,8 @@ int Map::SlackForArraySize(int old_size, int size_limit) {
   return Min(max_slack, old_size / 4);
 }
 
+NEVER_READ_ONLY_SPACE_IMPL(NormalizedMapCache)
+
 int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }
@@ -774,8 +776,7 @@ bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    NormalizedMapCache* cache =
-        reinterpret_cast<NormalizedMapCache*>(const_cast<HeapObject*>(obj));
+    NormalizedMapCache cache = NormalizedMapCache::cast(obj);
     cache->NormalizedMapCacheVerify(cache->GetIsolate());
   }
 #endif

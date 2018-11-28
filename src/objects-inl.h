@@ -501,6 +501,11 @@ OBJECT_CONSTRUCTORS_IMPL(SmallOrderedNameDictionary,
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
 
+NormalizedMapCache::NormalizedMapCache(Address ptr) : WeakFixedArray(ptr) {
+  // TODO(jkummerow): Introduce IsNormalizedMapCache() and use
+  // OBJECT_CONSTRUCTORS_IMPL macro?
+}
+
 // ------------------------------------
 // Cast operations
 
@@ -521,7 +526,7 @@ CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(MutableHeapNumber)
 CAST_ACCESSOR2(OrderedNameDictionary)
 CAST_ACCESSOR2(NameDictionary)
-CAST_ACCESSOR(NormalizedMapCache)
+CAST_ACCESSOR2(NormalizedMapCache)
 CAST_ACCESSOR2(NumberDictionary)
 CAST_ACCESSOR(Object)
 CAST_ACCESSOR2(ObjectHashSet)
@@ -965,7 +970,7 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
 
 ACCESSORS(Cell, value, Object, kValueOffset)
 ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
-ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
+ACCESSORS2(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS2(PropertyCell, name, Name, kNameOffset)
 ACCESSORS(PropertyCell, value, Object, kValueOffset)
 ACCESSORS(PropertyCell, property_details_raw, Object, kDetailsOffset)
@@ -1565,7 +1570,7 @@ int HeapObject::SizeFromMap(Map map) const {
   if (IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
                 LAST_WEAK_FIXED_ARRAY_TYPE)) {
     return WeakFixedArray::SizeFor(
-        reinterpret_cast<const WeakFixedArray*>(this)->synchronized_length());
+        WeakFixedArray::unchecked_cast(this)->synchronized_length());
   }
   if (instance_type == WEAK_ARRAY_LIST_TYPE) {
     return WeakArrayList::SizeForCapacity(

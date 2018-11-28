@@ -22194,7 +22194,7 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
 }
 
 static int CountLiveMapsInMapCache(i::Context context) {
-  i::WeakFixedArray* map_cache = i::WeakFixedArray::cast(context->map_cache());
+  i::WeakFixedArray map_cache = i::WeakFixedArray::cast(context->map_cache());
   int length = map_cache->length();
   int count = 0;
   for (int i = 0; i < length; i++) {

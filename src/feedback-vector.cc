@@ -611,7 +611,7 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
         if (heap_object->IsName()) {
           DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()));
           Object* extra = GetFeedbackExtra()->GetHeapObjectAssumeStrong();
-          WeakFixedArray* extra_array = WeakFixedArray::cast(extra);
+          WeakFixedArray extra_array = WeakFixedArray::cast(extra);
           return extra_array->length() > 2 ? POLYMORPHIC : MONOMORPHIC;
         }
       }
@@ -923,7 +923,7 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
        heap_object->IsWeakFixedArray()) ||
       is_named_feedback) {
     int found = 0;
-    WeakFixedArray* array;
+    WeakFixedArray array;
     if (is_named_feedback) {
       array =
           WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
@@ -970,7 +970,7 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
   if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
        heap_object->IsWeakFixedArray()) ||
       is_named_feedback) {
-    WeakFixedArray* array;
+    WeakFixedArray array;
     if (is_named_feedback) {
       array =
           WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
@@ -1017,7 +1017,7 @@ bool FeedbackNexus::FindHandlers(MaybeObjectHandles* code_list,
   if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
        heap_object->IsWeakFixedArray()) ||
       is_named_feedback) {
-    WeakFixedArray* array;
+    WeakFixedArray array;
     if (is_named_feedback) {
       array =
           WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());

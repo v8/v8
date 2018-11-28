@@ -48,7 +48,7 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
   DECL_INT32_ACCESSORS(pretenure_data)
 
   DECL_INT32_ACCESSORS(pretenure_create_count)
-  DECL_ACCESSORS(dependent_code, DependentCode)
+  DECL_ACCESSORS2(dependent_code, DependentCode)
 
   // heap->allocation_site_list() points to the last AllocationSite which form
   // a linked list through the weak_next property. The GC might remove elements

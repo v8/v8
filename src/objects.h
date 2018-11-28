@@ -1569,7 +1569,7 @@ class PropertyCell : public HeapObject {
   DECL_ACCESSORS(value, Object)
   // [dependent_code]: dependent code that depends on the type of the global
   // property.
-  DECL_ACCESSORS(dependent_code, DependentCode)
+  DECL_ACCESSORS2(dependent_code, DependentCode)
 
   inline PropertyDetails property_details() const;
   inline void set_property_details(PropertyDetails details);
