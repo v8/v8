@@ -13,9 +13,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '076d347a5645411e75265532ba94e37f80970bb1',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bbd67a350d745200e5798cace11a28edfd9fc3b2',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6c18a1afa1a7a30421775c8d6c1cfb7edb3f272a',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '44d4b29082f0d8bacacd623f91c4d29637b4b901',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '407b39301e71006b68bd38e770f35d32398a7b14',
   'v8/third_party/instrumented_libraries':
@@ -51,7 +51,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + 'b6e9e23e4e79249bd4f95735205ffb7c3f9f0912',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '157bec8a25cc4ebd6a16052510d08b05b6102aad',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
@@ -81,7 +81,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7fa2bdf028b016a97aeefcf147162bfb1cd8a9f8',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '8a671fec4f3f0f503ebe74aeccd25639603f422b',
   'v8/tools/luci-go': {
       'packages': [
         {
@@ -93,7 +93,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'e8222139162103144ff5263030d7e92982b4586c',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '3dc2dc2932a1643799327520fde9f9b2e2d6b263',
 }
 
 recursedeps = [
