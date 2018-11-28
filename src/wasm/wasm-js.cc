@@ -1418,11 +1418,13 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
-  int64_t delta_size = 0;
-  if (!args[0]->IntegerValue(context).To(&delta_size)) return;
+  uint32_t delta_size;
+  if (!EnforceUint32("Argument 0", args[0], context, &thrower, &delta_size)) {
+    return;
+  }
 
-  int64_t max_size64 = receiver->maximum_pages();
-  if (max_size64 < 0 || max_size64 > int64_t{i::wasm::max_mem_pages()}) {
+  uint64_t max_size64 = receiver->maximum_pages();
+  if (max_size64 > uint64_t{i::wasm::max_mem_pages()}) {
     max_size64 = i::wasm::max_mem_pages();
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(), i_isolate);
@@ -1430,15 +1432,18 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.RangeError("This memory cannot be grown");
     return;
   }
-  int64_t old_size = old_buffer->byte_length() / i::wasm::kWasmPageSize;
-  int64_t new_size64 = base::AddWithWraparound(old_size, delta_size);
-  if (delta_size < 0 || max_size64 < new_size64 || new_size64 < old_size) {
-    thrower.RangeError(new_size64 < old_size ? "trying to shrink memory"
-                                             : "maximum memory size exceeded");
+
+  DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
+
+  uint64_t old_size64 = old_buffer->byte_length() / i::wasm::kWasmPageSize;
+  uint64_t new_size64 = old_size64 + static_cast<uint64_t>(delta_size);
+
+  if (new_size64 > max_size64) {
+    thrower.RangeError("Maximum memory size exceeded");
     return;
   }
-  int32_t ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
-                                          static_cast<uint32_t>(delta_size));
+
+  int32_t ret = i::WasmMemoryObject::Grow(i_isolate, receiver, delta_size);
   if (ret == -1) {
     thrower.RangeError("Unable to grow instance memory.");
     return;

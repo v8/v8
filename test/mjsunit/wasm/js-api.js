@@ -500,10 +500,10 @@ assertErrorMessage(
 assertErrorMessage(
     () => memGrow.call({}), TypeError, /called on incompatible Object/);
 assertErrorMessage(
-    () => memGrow.call(mem1, -1), RangeError, /bad Memory grow delta/);
+    () => memGrow.call(mem1, -1), TypeError, /must be non-negative/);
 assertErrorMessage(
-    () => memGrow.call(mem1, Math.pow(2, 32)), RangeError,
-    /bad Memory grow delta/);
+    () => memGrow.call(mem1, Math.pow(2, 32)), TypeError,
+    /must be in the unsigned long range/);
 var mem = new Memory({initial: 1, maximum: 2});
 var buf = mem.buffer;
 assertEq(buf.byteLength, kPageSize);
@@ -517,7 +517,7 @@ assertTrue(buf !== mem.buffer);
 assertEq(buf.byteLength, 0);
 buf = mem.buffer;
 assertEq(buf.byteLength, 2 * kPageSize);
-assertEq(mem.grow(), 2);
+assertEq(mem.grow(0), 2);
 assertTrue(buf !== mem.buffer);
 assertEq(buf.byteLength, 0);
 buf = mem.buffer;
