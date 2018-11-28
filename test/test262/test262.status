@@ -591,8 +591,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7481
   'intl402/NumberFormat/ignore-invalid-unicode-ext-values': [FAIL],
-
-  # https://crbug.com/v8/8469
   'intl402/DateTimeFormat/ignore-invalid-unicode-ext-values': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7482

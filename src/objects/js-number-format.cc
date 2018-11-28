@@ -259,37 +259,30 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
       Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
                           requested_locales, matcher, relevant_extension_keys);
 
+  // 9. Set numberFormat.[[Locale]] to r.[[locale]].
+  Handle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  number_format->set_locale(*locale_str);
 
   icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
-  const std::map<std::string, std::string>& extensions = r.extensions;
+  std::map<std::string, std::string> extensions = r.extensions;
 
   // The list that is the value of the "nu" field of any locale field of
   // [[LocaleData]] must not include the values "native",  "traditio", or
   // "finance".
   //
   // See https://tc39.github.io/ecma402/#sec-intl.numberformat-internal-slots
-  UErrorCode status = U_ZERO_ERROR;
   if (extensions.find("nu") != extensions.end()) {
-    const std::string& value = extensions.at("nu");
+    const std::string value = extensions.at("nu");
     if (value == "native" || value == "traditio" || value == "finance") {
       // 10. Set numberFormat.[[NumberingSystem]] to r.[[nu]].
-      // Note: setUnicodeKeywordValue is buggy with nullptr or "" as 2nd
-      // parameter now See https://unicode-org.atlassian.net/browse/ICU-20276
-      // TODO(ftang): change to use icu_locale.setUnicodeKeywordValue in ICU 64
-      // after ICU-20276 got fixed.
-      icu_locale.setKeywordValue(uloc_toLegacyKey(("nu")), nullptr, status);
+      UErrorCode status = U_ZERO_ERROR;
+      icu_locale.setKeywordValue("nu", nullptr, status);
       CHECK(U_SUCCESS(status));
     }
   }
-
-  // 9. Set numberFormat.[[Locale]] to r.[[locale]].
-  status = U_ZERO_ERROR;
-  std::string locale_str = icu_locale.toLanguageTag<std::string>(status);
-  CHECK(U_SUCCESS(status));
-  number_format->set_locale(
-      *factory->NewStringFromAsciiChecked(locale_str.c_str()));
 
   // 11. Let dataLocale be r.[[dataLocale]].
   //
@@ -360,8 +353,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   CurrencyDisplay currency_display = maybe_currencyDisplay.FromJust();
   UNumberFormatStyle format_style = ToNumberFormatStyle(currency_display);
 
+  UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberFormat> icu_number_format;
-  status = U_ZERO_ERROR;
   if (style == Style::DECIMAL) {
     icu_number_format.reset(
         icu::NumberFormat::createInstance(icu_locale, status));
@@ -392,9 +385,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
     // currencyDisplay.
     number_format->set_currency_display(currency_display);
 
-    status = U_ZERO_ERROR;
     // 17.b. Set numberFormat.[[Currency]] to currency.
     if (!currency_ustr.isEmpty()) {
+      status = U_ZERO_ERROR;
       icu_number_format->setCurrency(currency_ustr.getBuffer(), status);
       CHECK(U_SUCCESS(status));
     }
