@@ -1745,7 +1745,8 @@ ParserBase<Impl>::ParsePrimaryExpression() {
 
     if (peek() == Token::ARROW) {
       scope_snapshot_ = std::move(Scope::Snapshot(scope()));
-      rewritable_length_ = 0;
+      rewritable_length_ = static_cast<int>(
+          function_state_->destructuring_assignments_to_rewrite().size());
     }
     return impl()->ExpressionFromIdentifier(name, beg_pos, infer);
   }
