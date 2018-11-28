@@ -401,7 +401,7 @@ Node* RawMachineAssembler::TargetParameter() {
 }
 
 Node* RawMachineAssembler::Parameter(size_t index) {
-  DCHECK(index < parameter_count());
+  DCHECK_LT(index, parameter_count());
   return parameters_[index];
 }
 
