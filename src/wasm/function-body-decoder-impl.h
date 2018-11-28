@@ -1822,10 +1822,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             BreakDepthImmediate<validate> imm(this, this->pc_);
             if (!this->Validate(this->pc_, imm, control_.size())) break;
             Control* c = control_at(imm.depth);
-            if (!TypeCheckBreak(c)) break;
-            if (control_.back().reachable()) {
-              CALL_INTERFACE(Br, c);
-              c->br_merge()->reached = true;
+            if (imm.depth == control_.size() - 1) {
+              DoReturn(c, false);
+            } else {
+              if (!TypeCheckBreak(c)) break;
+              if (control_.back().reachable()) {
+                CALL_INTERFACE(Br, c);
+                c->br_merge()->reached = true;
+              }
             }
             len = 1 + imm.length;
             EndControl();
