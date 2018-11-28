@@ -9,6 +9,7 @@
 #include "src/codegen.h"
 #include "src/compiler/code-assembler.h"
 #include "src/counters.h"
+#include "src/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"

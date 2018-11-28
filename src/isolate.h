@@ -20,7 +20,6 @@
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/contexts.h"
-#include "src/date.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution.h"
 #include "src/futex-emulation.h"
@@ -1189,12 +1188,7 @@ class Isolate final : private HiddenFactory {
     return date_cache_;
   }
 
-  void set_date_cache(DateCache* date_cache) {
-    if (date_cache != date_cache_) {
-      delete date_cache_;
-    }
-    date_cache_ = date_cache;
-  }
+  void set_date_cache(DateCache* date_cache);
 
 #ifdef V8_INTL_SUPPORT
 

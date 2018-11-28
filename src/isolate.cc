@@ -30,6 +30,7 @@
 #include "src/compilation-statistics.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
+#include "src/date.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -3576,6 +3577,13 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
       ArrayList::New(this, static_cast<int>(vectors.size()));
   for (const auto& vector : vectors) list = ArrayList::Add(this, list, vector);
   SetFeedbackVectorsForProfilingTools(*list);
+}
+
+void Isolate::set_date_cache(DateCache* date_cache) {
+  if (date_cache != date_cache_) {
+    delete date_cache_;
+  }
+  date_cache_ = date_cache;
 }
 
 bool Isolate::IsArrayOrObjectOrStringPrototype(Object* object) {
