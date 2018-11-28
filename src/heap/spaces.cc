@@ -3558,6 +3558,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* current = first_page();
   IncrementalMarking::NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
+  // Right-trimming does not update the objects_size_ counter. We are lazily
+  // updating it after every GC.
   objects_size_ = 0;
   while (current) {
     LargePage* next_current = current->next_page();
@@ -3759,7 +3761,9 @@ void NewLargeObjectSpace::FreeAllObjects() {
         current);
     current = next_current;
   }
-  DCHECK_EQ(objects_size_, 0);
+  // Right-trimming does not update the objects_size_ counter. We are lazily
+  // updating it after every GC.
+  objects_size_ = 0;
 }
 
 CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
