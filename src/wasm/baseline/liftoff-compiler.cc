@@ -104,13 +104,8 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
                            : call_desc;
 }
 
-// TODO(arm): Add support for F32 registers. Fix arm32 FP registers alias.
-#if V8_TARGET_ARCH_ARM
-constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF64};
-#else
 constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF32,
                                             kWasmF64};
-#endif
 constexpr Vector<const ValueType> kSupportedTypes =
     ArrayVector(kSupportedTypesArr);
 
@@ -257,6 +252,16 @@ class LiftoffCompiler {
       if (param_loc.IsRegister()) {
         DCHECK(!param_loc.IsAnyRegister());
         int reg_code = param_loc.AsRegister();
+#if V8_TARGET_ARCH_ARM
+        // Liftoff assumes a one-to-one mapping between float registers and
+        // double registers, and so does not distinguish between f32 and f64
+        // registers. The f32 register code must therefore be halved in order to
+        // pass the f64 code to Liftoff.
+        DCHECK_IMPLIES(type == kWasmF32, (reg_code % 2) == 0);
+        if (type == kWasmF32) {
+          reg_code /= 2;
+        }
+#endif
         RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
                                           : kLiftoffAssemblerFpCacheRegs;
         if (cache_regs & (1ULL << reg_code)) {
