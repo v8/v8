@@ -621,10 +621,6 @@ UNIMPLEMENTED_FP_BINOP(f32_max)
 UNIMPLEMENTED_FP_BINOP(f32_copysign)
 UNIMPLEMENTED_FP_UNOP(f32_abs)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
-UNIMPLEMENTED_FP_UNOP(f32_ceil)
-UNIMPLEMENTED_FP_UNOP(f32_floor)
-UNIMPLEMENTED_FP_UNOP(f32_trunc)
-UNIMPLEMENTED_FP_UNOP(f32_nearest_int)
 UNIMPLEMENTED_FP_UNOP(f32_sqrt)
 FP64_BINOP(f64_add, vadd)
 FP64_BINOP(f64_sub, vsub)
@@ -793,6 +789,23 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister lhs,
                                     int amount) {
   BAILOUT("i64_shr");
+}
+
+bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  return false;
 }
 
 bool LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
