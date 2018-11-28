@@ -1136,7 +1136,7 @@ static void TickLines(bool optimize) {
 
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
-  CHECK(func->shared());
+  CHECK(!func->shared().is_null());
   CHECK(!func->shared()->abstract_code().is_null());
   CHECK(!optimize || func->IsOptimized() ||
         !CcTest::i_isolate()->use_optimizer());

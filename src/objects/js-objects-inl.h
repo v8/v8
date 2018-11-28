@@ -421,7 +421,7 @@ ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
 ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS2(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
-ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
+ACCESSORS2(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
 ACCESSORS2(JSGlobalObject, native_context, Context, kNativeContextOffset)

@@ -91,7 +91,7 @@ class CodeEntry {
   void mark_used() { bit_field_ = UsedField::update(bit_field_, true); }
   bool used() const { return UsedField::decode(bit_field_); }
 
-  void FillFunctionInfo(SharedFunctionInfo* shared);
+  void FillFunctionInfo(SharedFunctionInfo shared);
 
   void SetBuiltinId(Builtins::Name id);
   Builtins::Name builtin_id() const {

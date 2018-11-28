@@ -114,7 +114,7 @@ bool FunctionTemplateInfo::instantiated() {
 bool FunctionTemplateInfo::BreakAtEntry() {
   Object* maybe_shared = shared_function_info();
   if (maybe_shared->IsSharedFunctionInfo()) {
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(maybe_shared);
+    SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
     return shared->BreakAtEntry();
   }
   return false;

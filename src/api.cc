@@ -756,8 +756,7 @@ StartupData SnapshotCreator::CreateBlob(
     i::HeapIterator heap_iterator(isolate->heap());
     while (i::HeapObject* current_obj = heap_iterator.next()) {
       if (current_obj->IsSharedFunctionInfo()) {
-        i::SharedFunctionInfo* shared =
-            i::SharedFunctionInfo::cast(current_obj);
+        i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(current_obj);
         if (shared->CanDiscardCompiled()) {
           sfis_to_clear.emplace_back(shared, isolate);
         }
@@ -2143,7 +2142,7 @@ Local<PrimitiveArray> ScriptOrModule::GetHostDefinedOptions() {
 
 Local<UnboundScript> Script::GetUnboundScript() {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::SharedFunctionInfo* sfi = i::JSFunction::cast(*obj)->shared();
+  i::SharedFunctionInfo sfi = i::JSFunction::cast(*obj)->shared();
   i::Isolate* isolate = sfi->GetIsolate();
   return ToApiHandle<UnboundScript>(i::handle(sfi, isolate));
 }
@@ -9578,7 +9577,8 @@ void debug::ResetBlackboxedStateCache(Isolate* v8_isolate,
   i::DisallowHeapAllocation no_gc;
   i::SharedFunctionInfo::ScriptIterator iter(isolate,
                                              *Utils::OpenHandle(*script));
-  while (i::SharedFunctionInfo* info = iter.Next()) {
+  for (i::SharedFunctionInfo info = iter.Next(); !info.is_null();
+       info = iter.Next()) {
     if (info->HasDebugInfo()) {
       info->GetDebugInfo()->set_computed_debug_is_blackboxed(false);
     }

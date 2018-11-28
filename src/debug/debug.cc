@@ -895,7 +895,7 @@ void Debug::PrepareStepOnThrow() {
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) break;
-    std::vector<SharedFunctionInfo*> infos;
+    std::vector<SharedFunctionInfo> infos;
     frame->GetFunctions(&infos);
     current_frame_count -= infos.size();
     it.Advance();
@@ -1138,7 +1138,7 @@ void Debug::ClearOneShot() {
 
 class RedirectActiveFunctions : public ThreadVisitor {
  public:
-  explicit RedirectActiveFunctions(SharedFunctionInfo* shared)
+  explicit RedirectActiveFunctions(SharedFunctionInfo shared)
       : shared_(shared) {
     DCHECK(shared->HasBytecodeArray());
   }
@@ -1157,7 +1157,7 @@ class RedirectActiveFunctions : public ThreadVisitor {
   }
 
  private:
-  SharedFunctionInfo* shared_;
+  SharedFunctionInfo shared_;
   DisallowHeapAllocation no_gc_;
 };
 
@@ -1258,7 +1258,7 @@ void Debug::InstallDebugBreakTrampoline() {
         continue;
       } else if (obj->IsJSFunction()) {
         JSFunction* fun = JSFunction::cast(obj);
-        SharedFunctionInfo* shared = fun->shared();
+        SharedFunctionInfo shared = fun->shared();
         if (!shared->HasDebugInfo()) continue;
         if (!shared->GetDebugInfo()->CanBreakAtEntry()) continue;
         if (!fun->is_compiled()) {
@@ -1321,7 +1321,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     HandleScope scope(isolate_);
     std::vector<Handle<SharedFunctionInfo>> candidates;
     SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
-    for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
+    for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
          info = iterator.Next()) {
       if (info->EndPosition() < start_position ||
           info->StartPosition() >= end_position) {
@@ -1362,12 +1362,11 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
 class SharedFunctionInfoFinder {
  public:
   explicit SharedFunctionInfoFinder(int target_position)
-      : current_candidate_(nullptr),
-        current_candidate_closure_(nullptr),
+      : current_candidate_closure_(nullptr),
         current_start_position_(kNoSourcePosition),
         target_position_(target_position) {}
 
-  void NewCandidate(SharedFunctionInfo* shared, JSFunction* closure = nullptr) {
+  void NewCandidate(SharedFunctionInfo shared, JSFunction* closure = nullptr) {
     if (!shared->IsSubjectToDebugging()) return;
     int start_position = shared->function_token_position();
     if (start_position == kNoSourcePosition) {
@@ -1377,7 +1376,7 @@ class SharedFunctionInfoFinder {
     if (start_position > target_position_) return;
     if (target_position_ > shared->EndPosition()) return;
 
-    if (current_candidate_ != nullptr) {
+    if (!current_candidate_.is_null()) {
       if (current_start_position_ == start_position &&
           shared->EndPosition() == current_candidate_->EndPosition()) {
         // If we already have a matching closure, do not throw it away.
@@ -1397,12 +1396,12 @@ class SharedFunctionInfoFinder {
     current_candidate_closure_ = closure;
   }
 
-  SharedFunctionInfo* Result() { return current_candidate_; }
+  SharedFunctionInfo Result() { return current_candidate_; }
 
   JSFunction* ResultClosure() { return current_candidate_closure_; }
 
  private:
-  SharedFunctionInfo* current_candidate_;
+  SharedFunctionInfo current_candidate_;
   JSFunction* current_candidate_closure_;
   int current_start_position_;
   int target_position_;
@@ -1424,16 +1423,16 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     // If there is no shared function info for this script at all, there is
     // no point in looking for it by walking the heap.
 
-    SharedFunctionInfo* shared;
+    SharedFunctionInfo shared;
     {
       SharedFunctionInfoFinder finder(position);
       SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
-      for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
+      for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
            info = iterator.Next()) {
         finder.NewCandidate(info);
       }
       shared = finder.Result();
-      if (shared == nullptr) break;
+      if (shared.is_null()) break;
       // We found it if it's already compiled.
       if (shared->is_compiled()) {
         Handle<SharedFunctionInfo> shared_handle(shared, isolate_);
@@ -1886,7 +1885,7 @@ int Debug::CurrentFrameCount() {
   int counter = 0;
   while (!it.done()) {
     if (it.frame()->is_optimized()) {
-      std::vector<SharedFunctionInfo*> infos;
+      std::vector<SharedFunctionInfo> infos;
       OptimizedFrame::cast(it.frame())->GetFunctions(&infos);
       counter += infos.size();
     } else {
@@ -2242,7 +2241,7 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
   using interpreter::Bytecode;
 
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
-  SharedFunctionInfo* shared = frame->function()->shared();
+  SharedFunctionInfo shared = frame->function()->shared();
   BytecodeArray bytecode_array = shared->GetBytecodeArray();
   int offset = frame->GetBytecodeOffset();
   interpreter::BytecodeArrayAccessor bytecode_accessor(

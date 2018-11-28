@@ -179,6 +179,21 @@ MaybeObjectSlot HeapObjectPtr::RawMaybeWeakField(int byte_offset) const {
   return MaybeObjectSlot(FIELD_ADDR(this, byte_offset));
 }
 
+#ifdef VERIFY_HEAP
+void HeapObjectPtr::VerifyObjectField(Isolate* isolate, int offset) {
+  HeapObject::VerifyPointer(isolate, READ_FIELD(this, offset));
+}
+
+void HeapObjectPtr::VerifyMaybeObjectField(Isolate* isolate, int offset) {
+  MaybeObject::VerifyMaybeObjectPointer(isolate, READ_WEAK_FIELD(this, offset));
+}
+
+void HeapObjectPtr::VerifySmiField(int offset) {
+  CHECK(READ_FIELD(this, offset)->IsSmi());
+}
+
+#endif
+
 Address HeapObjectPtr::GetFieldAddress(int field_offset) const {
   return FIELD_ADDR(this, field_offset);
 }

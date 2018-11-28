@@ -71,8 +71,7 @@ static v8::CodeEventType GetCodeEventTypeForTag(
     PROFILE(isolate_, Call);          \
   }
 
-static const char* ComputeMarker(SharedFunctionInfo* shared,
-                                 AbstractCode code) {
+static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
   switch (code->kind()) {
     case AbstractCode::INTERPRETED_FUNCTION:
       return shared->optimization_disabled() ? "" : "~";
@@ -188,19 +187,21 @@ void CodeEventLogger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                       AbstractCode code, const char* comment) {
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(comment);
-  LogRecordedBuffer(code, nullptr, name_buffer_->get(), name_buffer_->size());
+  LogRecordedBuffer(code, SharedFunctionInfo(), name_buffer_->get(),
+                    name_buffer_->size());
 }
 
 void CodeEventLogger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                       AbstractCode code, Name name) {
   name_buffer_->Init(tag);
   name_buffer_->AppendName(name);
-  LogRecordedBuffer(code, nullptr, name_buffer_->get(), name_buffer_->size());
+  LogRecordedBuffer(code, SharedFunctionInfo(), name_buffer_->get(),
+                    name_buffer_->size());
 }
 
 void CodeEventLogger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                       AbstractCode code,
-                                      SharedFunctionInfo* shared, Name name) {
+                                      SharedFunctionInfo shared, Name name) {
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(ComputeMarker(shared, code));
   name_buffer_->AppendName(name);
@@ -209,7 +210,7 @@ void CodeEventLogger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 
 void CodeEventLogger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                       AbstractCode code,
-                                      SharedFunctionInfo* shared, Name source,
+                                      SharedFunctionInfo shared, Name source,
                                       int line, int column) {
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(ComputeMarker(shared, code));
@@ -248,7 +249,8 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
 void CodeEventLogger::RegExpCodeCreateEvent(AbstractCode code, String source) {
   name_buffer_->Init(CodeEventListener::REG_EXP_TAG);
   name_buffer_->AppendString(source);
-  LogRecordedBuffer(code, nullptr, name_buffer_->get(), name_buffer_->size());
+  LogRecordedBuffer(code, SharedFunctionInfo(), name_buffer_->get(),
+                    name_buffer_->size());
 }
 
 // Linux perf tool logging support
@@ -259,10 +261,10 @@ class PerfBasicLogger : public CodeEventLogger {
 
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override {}
   void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo* shared) override {}
+                           SharedFunctionInfo shared) override {}
 
  private:
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo* shared,
+  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
                          const char* name, int length) override;
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
@@ -315,7 +317,7 @@ void PerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address, int size,
                    size, name_length, name);
 }
 
-void PerfBasicLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo*,
+void PerfBasicLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo,
                                         const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
       (code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
@@ -411,7 +413,7 @@ void ExternalCodeEventListener::CodeCreateEvent(
 
 void ExternalCodeEventListener::CodeCreateEvent(
     CodeEventListener::LogEventsAndTags tag, AbstractCode code,
-    SharedFunctionInfo* shared, Name name) {
+    SharedFunctionInfo shared, Name name) {
   Handle<String> name_string =
       Name::ToFunctionName(isolate_, Handle<Name>(name, isolate_))
           .ToHandleChecked();
@@ -432,7 +434,7 @@ void ExternalCodeEventListener::CodeCreateEvent(
 
 void ExternalCodeEventListener::CodeCreateEvent(
     CodeEventListener::LogEventsAndTags tag, AbstractCode code,
-    SharedFunctionInfo* shared, Name source, int line, int column) {
+    SharedFunctionInfo shared, Name source, int line, int column) {
   Handle<String> name_string =
       Name::ToFunctionName(isolate_, Handle<Name>(shared->Name(), isolate_))
           .ToHandleChecked();
@@ -484,12 +486,12 @@ class LowLevelLogger : public CodeEventLogger {
 
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo* shared) override {}
+                           SharedFunctionInfo shared) override {}
   void SnapshotPositionEvent(HeapObject* obj, int pos);
   void CodeMovingGCEvent() override;
 
  private:
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo* shared,
+  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
                          const char* name, int length) override;
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
@@ -577,7 +579,7 @@ void LowLevelLogger::LogCodeInfo() {
   LogWriteBytes(arch, sizeof(arch));
 }
 
-void LowLevelLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo*,
+void LowLevelLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo,
                                        const char* name, int length) {
   CodeCreateStruct event;
   event.name_size = length;
@@ -627,7 +629,7 @@ class JitLogger : public CodeEventLogger {
 
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo* shared) override {}
+                           SharedFunctionInfo shared) override {}
   void AddCodeLinePosInfoEvent(void* jit_handler_data, int pc_offset,
                                int position,
                                JitCodeEvent::PositionType position_type);
@@ -636,7 +638,7 @@ class JitLogger : public CodeEventLogger {
   void EndCodePosInfoEvent(Address start_address, void* jit_handler_data);
 
  private:
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo* shared,
+  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
                          const char* name, int length) override;
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
@@ -648,7 +650,7 @@ class JitLogger : public CodeEventLogger {
 JitLogger::JitLogger(Isolate* isolate, JitCodeEventHandler code_event_handler)
     : CodeEventLogger(isolate), code_event_handler_(code_event_handler) {}
 
-void JitLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo* shared,
+void JitLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
                                   const char* name, int length) {
   JitCodeEvent event;
   memset(static_cast<void*>(&event), 0, sizeof(event));
@@ -658,7 +660,7 @@ void JitLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo* shared,
       code->IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
   event.code_len = code->InstructionSize();
   Handle<SharedFunctionInfo> shared_function_handle;
-  if (shared && shared->script()->IsScript()) {
+  if (!shared.is_null() && shared->script()->IsScript()) {
     shared_function_handle =
         Handle<SharedFunctionInfo>(shared, shared->GetIsolate());
   }
@@ -1235,7 +1237,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                             AbstractCode code, SharedFunctionInfo* shared,
+                             AbstractCode code, SharedFunctionInfo shared,
                              Name name) {
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code || !log_->IsEnabled()) return;
@@ -1279,7 +1281,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 // the SharedFunctionInfo object, we left it to caller
 // to leave logging functions free from heap allocations.
 void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                             AbstractCode code, SharedFunctionInfo* shared,
+                             AbstractCode code, SharedFunctionInfo shared,
                              Name source, int line, int column) {
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code || !log_->IsEnabled()) return;
@@ -1373,8 +1375,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   msg.WriteToLogFile();
 }
 
-void Logger::CodeDisableOptEvent(AbstractCode code,
-                                 SharedFunctionInfo* shared) {
+void Logger::CodeDisableOptEvent(AbstractCode code, SharedFunctionInfo shared) {
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
@@ -1525,7 +1526,7 @@ void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
 }
 
 void Logger::CompilationCacheEvent(const char* action, const char* cache_type,
-                                   SharedFunctionInfo* sfi) {
+                                   SharedFunctionInfo sfi) {
   if (!log_->IsEnabled() || !FLAG_log_function_events) return;
   Log::MessageBuilder msg(log_);
   int script_id = -1;
@@ -1693,7 +1694,7 @@ void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
     if (name_or_sfi->IsName()) {
       msg << Name::cast(name_or_sfi);
     } else if (name_or_sfi->IsSharedFunctionInfo()) {
-      SharedFunctionInfo* sfi = SharedFunctionInfo::cast(name_or_sfi);
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(name_or_sfi);
       msg << sfi->DebugName();
 #if V8_SFI_HAS_UNIQUE_ID
       msg << " " << sfi->unique_id();
@@ -1741,8 +1742,7 @@ void Logger::LogFailure() {
   StopProfiler();
 }
 
-static void AddFunctionAndCode(SharedFunctionInfo* sfi,
-                               AbstractCode code_object,
+static void AddFunctionAndCode(SharedFunctionInfo sfi, AbstractCode code_object,
                                Handle<SharedFunctionInfo>* sfis,
                                Handle<AbstractCode>* code_objects, int offset) {
   if (sfis != nullptr) {
@@ -1765,7 +1765,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
   for (HeapObject* obj = iterator.next(); obj != nullptr;
        obj = iterator.next()) {
     if (obj->IsSharedFunctionInfo()) {
-      SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
       if (sfi->is_compiled() &&
           (!sfi->script()->IsScript() ||
            Script::cast(sfi->script())->HasValidSource())) {
@@ -1777,7 +1777,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
       // Given that we no longer iterate over all optimized JSFunctions, we need
       // to take care of this here.
       JSFunction* function = JSFunction::cast(obj);
-      SharedFunctionInfo* sfi = SharedFunctionInfo::cast(function->shared());
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(function->shared());
       Object* maybe_script = sfi->script();
       if (maybe_script->IsScript() &&
           !Script::cast(maybe_script)->HasValidSource()) {

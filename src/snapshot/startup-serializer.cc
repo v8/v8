@@ -87,7 +87,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         ReadOnlyRoots(isolate()).uninitialized_symbol());
   } else if (obj->IsSharedFunctionInfo()) {
     // Clear inferred name for native functions.
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+    SharedFunctionInfo shared = SharedFunctionInfo::cast(obj);
     if (!shared->IsSubjectToDebugging() && shared->HasUncompiledData()) {
       shared->uncompiled_data()->set_inferred_name(
           ReadOnlyRoots(isolate()).empty_string());

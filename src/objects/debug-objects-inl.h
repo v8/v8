@@ -26,7 +26,7 @@ CAST_ACCESSOR2(CoverageInfo)
 CAST_ACCESSOR(BreakPoint)
 
 SMI_ACCESSORS(DebugInfo, flags, kFlagsOffset)
-ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
+ACCESSORS2(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 SMI_ACCESSORS(DebugInfo, debugger_hints, kDebuggerHintsOffset)
 ACCESSORS(DebugInfo, script, Object, kScriptOffset)
 ACCESSORS(DebugInfo, original_bytecode_array, Object,

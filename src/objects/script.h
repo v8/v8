@@ -64,7 +64,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
 
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
-  DECL_ACCESSORS(eval_from_shared, SharedFunctionInfo)
+  DECL_ACCESSORS2(eval_from_shared, SharedFunctionInfo)
 
   // [wrapped_arguments]: for the list of arguments in a wrapped script.
   DECL_ACCESSORS2(wrapped_arguments, FixedArray)

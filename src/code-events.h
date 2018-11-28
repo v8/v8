@@ -11,6 +11,7 @@
 #include "src/globals.h"
 #include "src/objects/code.h"
 #include "src/objects/name.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/vector.h"
 
@@ -76,10 +77,10 @@ class CodeEventListener {
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                                Name name) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                               SharedFunctionInfo* shared, Name source) = 0;
+                               SharedFunctionInfo shared, Name source) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                               SharedFunctionInfo* shared, Name source,
-                               int line, int column) = 0;
+                               SharedFunctionInfo shared, Name source, int line,
+                               int column) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                                wasm::WasmName name) = 0;
   virtual void CallbackEvent(Name name, Address entry_point) = 0;
@@ -90,7 +91,7 @@ class CodeEventListener {
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
   virtual void CodeDisableOptEvent(AbstractCode code,
-                                   SharedFunctionInfo* shared) = 0;
+                                   SharedFunctionInfo shared) = 0;
   virtual void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                               int fp_to_sp_delta) = 0;
 
@@ -132,11 +133,11 @@ class CodeEventDispatcher {
     CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, name));
   }
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                       SharedFunctionInfo* shared, Name name) {
+                       SharedFunctionInfo shared, Name name) {
     CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, shared, name));
   }
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                       SharedFunctionInfo* shared, Name source, int line,
+                       SharedFunctionInfo shared, Name source, int line,
                        int column) {
     CODE_EVENT_DISPATCH(
         CodeCreateEvent(tag, code, shared, source, line, column));
@@ -164,7 +165,7 @@ class CodeEventDispatcher {
     CODE_EVENT_DISPATCH(SharedFunctionInfoMoveEvent(from, to));
   }
   void CodeMovingGCEvent() { CODE_EVENT_DISPATCH(CodeMovingGCEvent()); }
-  void CodeDisableOptEvent(AbstractCode code, SharedFunctionInfo* shared) {
+  void CodeDisableOptEvent(AbstractCode code, SharedFunctionInfo shared) {
     CODE_EVENT_DISPATCH(CodeDisableOptEvent(code, shared));
   }
   void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,

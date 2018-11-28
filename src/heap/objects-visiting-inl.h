@@ -179,6 +179,13 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitJSApiObject(Map map,
   return visitor->VisitJSObject(map, object);
 }
 
+template <typename ConcreteVisitor>
+int NewSpaceVisitor<ConcreteVisitor>::VisitSharedFunctionInfo(
+    Map map, SharedFunctionInfo object) {
+  UNREACHABLE();
+  return 0;
+}
+
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitWeakArray(
     Map map, HeapObject* object) {

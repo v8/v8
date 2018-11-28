@@ -7,6 +7,7 @@
 
 #include "src/objects/hash-table.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/shared-function-info.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -27,7 +28,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
   static inline uint32_t RegExpHash(String string, Smi flags);
 
   static inline uint32_t StringSharedHash(String source,
-                                          SharedFunctionInfo* shared,
+                                          SharedFunctionInfo shared,
                                           LanguageMode language_mode,
                                           int position);
 
@@ -39,18 +40,18 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 
 class InfoCellPair {
  public:
-  InfoCellPair() : shared_(nullptr), feedback_cell_(nullptr) {}
-  InfoCellPair(SharedFunctionInfo* shared, FeedbackCell* feedback_cell)
+  InfoCellPair() : feedback_cell_(nullptr) {}
+  InfoCellPair(SharedFunctionInfo shared, FeedbackCell* feedback_cell)
       : shared_(shared), feedback_cell_(feedback_cell) {}
 
   FeedbackCell* feedback_cell() const { return feedback_cell_; }
-  SharedFunctionInfo* shared() const { return shared_; }
+  SharedFunctionInfo shared() const { return shared_; }
 
   bool has_feedback_cell() const { return feedback_cell_ != nullptr; }
-  bool has_shared() const { return shared_ != nullptr; }
+  bool has_shared() const { return !shared_.is_null(); }
 
  private:
-  SharedFunctionInfo* shared_;
+  SharedFunctionInfo shared_;
   FeedbackCell* feedback_cell_;
 };
 

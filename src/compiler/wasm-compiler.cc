@@ -5092,7 +5092,7 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
   // and whether it has a sloppy receiver.
   if (target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(target);
-    SharedFunctionInfo* shared = function->shared();
+    SharedFunctionInfo shared = function->shared();
 
 // Check for math intrinsics.
 #define COMPARE_SIG_FOR_BUILTIN(name)                                         \

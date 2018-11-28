@@ -3563,7 +3563,7 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
       if (!current_obj->IsFeedbackVector()) continue;
 
       FeedbackVector* vector = FeedbackVector::cast(current_obj);
-      SharedFunctionInfo* shared = vector->shared_function_info();
+      SharedFunctionInfo shared = vector->shared_function_info();
 
       // No need to preserve the feedback vector for non-user-visible functions.
       if (!shared->IsSubjectToDebugging()) continue;

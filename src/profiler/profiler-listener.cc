@@ -60,7 +60,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        AbstractCode code,
-                                       SharedFunctionInfo* shared,
+                                       SharedFunctionInfo shared,
                                        Name script_name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -78,7 +78,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        AbstractCode abstract_code,
-                                       SharedFunctionInfo* shared,
+                                       SharedFunctionInfo shared,
                                        Name script_name, int line, int column) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -131,7 +131,7 @@ void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
 }
 
 void ProfilerListener::CodeDisableOptEvent(AbstractCode code,
-                                           SharedFunctionInfo* shared) {
+                                           SharedFunctionInfo shared) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
   CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -188,7 +188,7 @@ void ProfilerListener::SetterCallbackEvent(Name name, Address entry_point) {
   DispatchCodeEvent(evt_rec);
 }
 
-Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo* info) {
+Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
   if (name->IsString() && String::cast(name)->length()) return name;
   if (!info->script()->IsScript()) return name;
   Object* source_url = Script::cast(info->script())->source_url();
@@ -226,7 +226,7 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
       it.Next();  // Skip height
       it.Next();  // Skip return value offset
       it.Next();  // Skip return value count
-      SharedFunctionInfo* shared_info = SharedFunctionInfo::cast(
+      SharedFunctionInfo shared_info = SharedFunctionInfo::cast(
           deopt_input_data->LiteralArray()->get(shared_info_id));
       if (!depth++) continue;  // Skip the current function itself.
 

@@ -326,7 +326,7 @@ void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    SharedFunctionInfo* shared, const char* reason) {
+    SharedFunctionInfo shared, const char* reason) {
   MaybeObject slot = optimized_code_weak_or_smi();
   if (slot->IsSmi()) {
     return;

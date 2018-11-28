@@ -173,8 +173,8 @@ class TranslatedFrame {
   int return_value_offset() const { return return_value_offset_; }
   int return_value_count() const { return return_value_count_; }
 
-  SharedFunctionInfo* raw_shared_info() const {
-    CHECK_NOT_NULL(raw_shared_info_);
+  SharedFunctionInfo raw_shared_info() const {
+    CHECK(!raw_shared_info_.is_null());
     return raw_shared_info_;
   }
 
@@ -231,29 +231,30 @@ class TranslatedFrame {
 
   // Constructor static methods.
   static TranslatedFrame InterpretedFrame(BailoutId bytecode_offset,
-                                          SharedFunctionInfo* shared_info,
+                                          SharedFunctionInfo shared_info,
                                           int height, int return_value_offset,
                                           int return_value_count);
   static TranslatedFrame AccessorFrame(Kind kind,
-                                       SharedFunctionInfo* shared_info);
-  static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
+                                       SharedFunctionInfo shared_info);
+  static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo shared_info,
                                                int height);
   static TranslatedFrame ConstructStubFrame(BailoutId bailout_id,
-                                            SharedFunctionInfo* shared_info,
+                                            SharedFunctionInfo shared_info,
                                             int height);
   static TranslatedFrame BuiltinContinuationFrame(
-      BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
+      BailoutId bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
-      BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
+      BailoutId bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
-      BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
+      BailoutId bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame InvalidFrame() {
-    return TranslatedFrame(kInvalid, nullptr);
+    return TranslatedFrame(kInvalid, SharedFunctionInfo());
   }
 
   static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
 
-  TranslatedFrame(Kind kind, SharedFunctionInfo* shared_info = nullptr,
+  TranslatedFrame(Kind kind,
+                  SharedFunctionInfo shared_info = SharedFunctionInfo(),
                   int height = 0, int return_value_offset = 0,
                   int return_value_count = 0)
       : kind_(kind),
@@ -269,7 +270,7 @@ class TranslatedFrame {
 
   Kind kind_;
   BailoutId node_id_;
-  SharedFunctionInfo* raw_shared_info_;
+  SharedFunctionInfo raw_shared_info_;
   Handle<SharedFunctionInfo> shared_info_;
   int height_;
   int return_value_offset_;
@@ -422,7 +423,7 @@ class Deoptimizer : public Malloced {
 
   static DeoptInfo GetDeoptInfo(Code code, Address from);
 
-  static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
+  static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo shared,
                                                     BailoutId node_id);
 
   struct JumpTableEntry : public ZoneObject {
@@ -586,9 +587,9 @@ class Deoptimizer : public Malloced {
 
   unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
-  static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo* shared);
+  static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo shared);
 
-  static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo* shared);
+  static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo shared);
   static unsigned ComputeOutgoingArgumentSize(Code code, unsigned bailout_id);
 
   static void GenerateDeoptimizationEntries(MacroAssembler* masm, int count,

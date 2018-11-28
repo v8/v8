@@ -181,8 +181,9 @@ class InterpreterData : public Struct {
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
+class SharedFunctionInfo : public HeapObjectPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   static constexpr ObjectPtr const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
@@ -546,7 +547,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
     ScriptIterator(Isolate* isolate, Script* script);
     ScriptIterator(Isolate* isolate,
                    Handle<WeakFixedArray> shared_function_infos);
-    SharedFunctionInfo* Next();
+    SharedFunctionInfo Next();
     int CurrentIndex() const { return index_ - 1; }
 
     // Reset the iterator to run on |script|.
@@ -563,7 +564,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   class GlobalIterator {
    public:
     explicit GlobalIterator(Isolate* isolate);
-    SharedFunctionInfo* Next();
+    SharedFunctionInfo Next();
 
    private:
     Script::Iterator script_iterator_;
@@ -573,7 +574,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
     DISALLOW_COPY_AND_ASSIGN(GlobalIterator);
   };
 
-  DECL_CAST(SharedFunctionInfo)
+  DECL_CAST2(SharedFunctionInfo)
 
   // Constants.
   static const uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
@@ -679,14 +680,14 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // FunctionLiteralId.
   int FindIndexInScript(Isolate* isolate) const;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
+  OBJECT_CONSTRUCTORS(SharedFunctionInfo, HeapObjectPtr);
 };
 
 // Printing support.
 struct SourceCodeOf {
-  explicit SourceCodeOf(SharedFunctionInfo* v, int max = -1)
+  explicit SourceCodeOf(SharedFunctionInfo v, int max = -1)
       : value(v), max_length(max) {}
-  const SharedFunctionInfo* value;
+  const SharedFunctionInfo value;
   int max_length;
 };
 

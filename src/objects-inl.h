@@ -805,18 +805,6 @@ void HeapObject::VerifySmiField(int offset) {
   CHECK(READ_FIELD(this, offset)->IsSmi());
 }
 
-void HeapObjectPtr::VerifyObjectField(Isolate* isolate, int offset) {
-  Object::VerifyPointer(isolate, READ_FIELD(this, offset));
-}
-
-void HeapObjectPtr::VerifyMaybeObjectField(Isolate* isolate, int offset) {
-  MaybeObject::VerifyMaybeObjectPointer(isolate, READ_WEAK_FIELD(this, offset));
-}
-
-void HeapObjectPtr::VerifySmiField(int offset) {
-  CHECK(READ_FIELD(this, offset)->IsSmi());
-}
-
 #endif
 
 ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {

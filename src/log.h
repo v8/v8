@@ -173,7 +173,7 @@ class Logger : public CodeEventListener {
                      size_t function_name_length = 0);
 
   void CompilationCacheEvent(const char* action, const char* cache_type,
-                             SharedFunctionInfo* sfi);
+                             SharedFunctionInfo sfi);
   void ScriptEvent(ScriptEventType type, int script_id);
   void ScriptDetails(Script* script);
 
@@ -200,17 +200,17 @@ class Logger : public CodeEventListener {
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                        AbstractCode code, Name name) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode code, SharedFunctionInfo* shared,
+                       AbstractCode code, SharedFunctionInfo shared,
                        Name name) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode code, SharedFunctionInfo* shared,
+                       AbstractCode code, SharedFunctionInfo shared,
                        Name source, int line, int column) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                        const wasm::WasmCode* code,
                        wasm::WasmName name) override;
   // Emits a code deoptimization event.
   void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo* shared) override;
+                           SharedFunctionInfo shared) override;
   void CodeMovingGCEvent() override;
   // Emits a code create event for a RegExp.
   void RegExpCodeCreateEvent(AbstractCode code, String source) override;
@@ -409,9 +409,9 @@ class CodeEventLogger : public CodeEventListener {
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        Name name) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                       SharedFunctionInfo* shared, Name name) override;
+                       SharedFunctionInfo shared, Name name) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                       SharedFunctionInfo* shared, Name source, int line,
+                       SharedFunctionInfo shared, Name source, int line,
                        int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name) override;
@@ -431,7 +431,7 @@ class CodeEventLogger : public CodeEventListener {
  private:
   class NameBuffer;
 
-  virtual void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo* shared,
+  virtual void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
                                  const char* name, int length) = 0;
   virtual void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                  int length) = 0;
@@ -461,9 +461,9 @@ class ExternalCodeEventListener : public CodeEventListener {
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        Name name) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                       SharedFunctionInfo* shared, Name name) override;
+                       SharedFunctionInfo shared, Name name) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                       SharedFunctionInfo* shared, Name source, int line,
+                       SharedFunctionInfo shared, Name source, int line,
                        int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name) override;
@@ -475,7 +475,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override {}
   void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo* shared) override {}
+                           SharedFunctionInfo shared) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}

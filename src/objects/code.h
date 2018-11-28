@@ -367,7 +367,7 @@ class Code : public HeapObjectPtr {
   static inline bool IsWeakObjectInOptimizedCode(HeapObject* object);
 
   // Return true if the function is inlined in the code.
-  bool Inlines(SharedFunctionInfo* sfi);
+  bool Inlines(SharedFunctionInfo sfi);
 
   class OptimizedCodeIterator;
 
@@ -873,7 +873,7 @@ class DeoptimizationData : public FixedArray {
 
   // Returns the inlined function at the given position in LiteralArray, or the
   // outer function if index == kNotInlinedIndex.
-  class SharedFunctionInfo* GetInlinedFunction(int index);
+  class SharedFunctionInfo GetInlinedFunction(int index);
 
   // Allocates a DeoptimizationData.
   static Handle<DeoptimizationData> New(Isolate* isolate, int deopt_entry_count,

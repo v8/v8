@@ -902,7 +902,7 @@ class JSFunction : public JSObject {
 
   // [shared]: The information about the function that
   // can be shared by instances.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
+  DECL_ACCESSORS2(shared, SharedFunctionInfo)
 
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;

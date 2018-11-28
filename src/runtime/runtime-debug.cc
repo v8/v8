@@ -65,7 +65,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   DCHECK(it.frame()->is_interpreted());
   InterpretedFrame* interpreted_frame =
       reinterpret_cast<InterpretedFrame*>(it.frame());
-  SharedFunctionInfo* shared = interpreted_frame->function()->shared();
+  SharedFunctionInfo shared = interpreted_frame->function()->shared();
   BytecodeArray bytecode_array = shared->GetBytecodeArray();
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
   Bytecode bytecode = Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
@@ -746,7 +746,7 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
   // coverage collection mode, which triggers deletion of all coverage infos in
   // order to avoid memory leaks.
 
-  SharedFunctionInfo* shared = function->shared();
+  SharedFunctionInfo shared = function->shared();
   if (shared->HasCoverageInfo()) {
     CoverageInfo coverage_info = shared->GetCoverageInfo();
     coverage_info->IncrementBlockCount(coverage_array_slot_index);

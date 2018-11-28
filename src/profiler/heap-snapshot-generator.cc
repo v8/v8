@@ -547,7 +547,7 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
 HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
-    SharedFunctionInfo* shared = func->shared();
+    SharedFunctionInfo shared = func->shared();
     const char* name = names_->GetName(shared->Name());
     return AddEntry(object, HeapEntry::kClosure, name);
   } else if (object->IsJSBoundFunction()) {
@@ -820,7 +820,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
         }
       }
     }
-    SharedFunctionInfo* shared_info = js_fun->shared();
+    SharedFunctionInfo shared_info = js_fun->shared();
     TagObject(js_fun->feedback_cell(), "(function feedback cell)");
     SetInternalReference(entry, "feedback_cell", js_fun->feedback_cell(),
                          JSFunction::kFeedbackCellOffset);
@@ -1047,7 +1047,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 }
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
-    HeapEntry* entry, SharedFunctionInfo* shared) {
+    HeapEntry* entry, SharedFunctionInfo shared) {
   String shared_name = shared->DebugName();
   const char* name = nullptr;
   if (shared_name != ReadOnlyRoots(heap_).empty_string()) {

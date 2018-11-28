@@ -79,7 +79,7 @@ const char* ICStats::GetOrCacheFunctionName(JSFunction* function) {
   if (function_name_map_.find(function) != function_name_map_.end()) {
     return function_name_map_[function].get();
   }
-  SharedFunctionInfo* shared = function->shared();
+  SharedFunctionInfo shared = function->shared();
   ic_infos_[pos_].is_optimized = function->IsOptimized();
   char* function_name = shared->DebugName()->ToCString().release();
   function_name_map_.insert(

@@ -213,7 +213,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   JavaScriptFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
     JavaScriptFrame* frame = it.frame();
-    SharedFunctionInfo* shared = frame->function()->shared();
+    SharedFunctionInfo shared = frame->function()->shared();
     SnapshotObjectId id = ids_->FindOrAddEntry(
         shared->address(), shared->Size(), false);
     allocation_trace_buffer_[length++] = AddFunctionInfo(shared, id);
@@ -237,8 +237,7 @@ static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
   return ComputeUnseededHash(static_cast<uint32_t>(id));
 }
 
-
-unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
+unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo shared,
                                             SnapshotObjectId id) {
   base::HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
@@ -263,7 +262,6 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
   }
   return static_cast<unsigned>(reinterpret_cast<intptr_t>((entry->value)));
 }
-
 
 unsigned AllocationTracker::functionInfoIndexForVMState(StateTag state) {
   if (state != OTHER) return 0;

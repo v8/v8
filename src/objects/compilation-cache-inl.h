@@ -32,7 +32,7 @@ uint32_t CompilationCacheShape::RegExpHash(String string, Smi flags) {
 }
 
 uint32_t CompilationCacheShape::StringSharedHash(String source,
-                                                 SharedFunctionInfo* shared,
+                                                 SharedFunctionInfo shared,
                                                  LanguageMode language_mode,
                                                  int position) {
   uint32_t hash = source->Hash();
@@ -58,7 +58,7 @@ uint32_t CompilationCacheShape::HashForObject(Isolate* isolate,
   FixedArray val = FixedArray::cast(object);
   if (val->map() == val->GetReadOnlyRoots().fixed_cow_array_map()) {
     DCHECK_EQ(4, val->length());
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(val->get(0));
+    SharedFunctionInfo shared = SharedFunctionInfo::cast(val->get(0));
     String source = String::cast(val->get(1));
     int language_unchecked = Smi::ToInt(val->get(2));
     DCHECK(is_valid_language_mode(language_unchecked));

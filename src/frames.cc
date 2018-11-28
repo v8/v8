@@ -1031,7 +1031,7 @@ bool JavaScriptFrame::IsConstructor() const {
 
 
 bool JavaScriptFrame::HasInlinedFrames() const {
-  std::vector<SharedFunctionInfo*> functions;
+  std::vector<SharedFunctionInfo> functions;
   GetFunctions(&functions);
   return functions.size() > 1;
 }
@@ -1059,7 +1059,7 @@ Address JavaScriptFrame::GetCallerStackPointer() const {
 }
 
 void JavaScriptFrame::GetFunctions(
-    std::vector<SharedFunctionInfo*>* functions) const {
+    std::vector<SharedFunctionInfo>* functions) const {
   DCHECK(functions->empty());
   functions->push_back(function()->shared());
 }
@@ -1067,7 +1067,7 @@ void JavaScriptFrame::GetFunctions(
 void JavaScriptFrame::GetFunctions(
     std::vector<Handle<SharedFunctionInfo>>* functions) const {
   DCHECK(functions->empty());
-  std::vector<SharedFunctionInfo*> raw_functions;
+  std::vector<SharedFunctionInfo> raw_functions;
   GetFunctions(&raw_functions);
   for (const auto& raw_function : raw_functions) {
     functions->push_back(
@@ -1127,7 +1127,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function,
   function->PrintName(file);
   PrintF(file, "+%d", code_offset);
   if (print_line_number) {
-    SharedFunctionInfo* shared = function->shared();
+    SharedFunctionInfo shared = function->shared();
     int source_pos = code->SourcePosition(code_offset);
     Object* maybe_script = shared->script();
     if (maybe_script->IsScript()) {
@@ -1192,7 +1192,7 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction* function,
                                                          int code_offset) {
   auto ic_stats = ICStats::instance();
   ICInfo& ic_info = ic_stats->Current();
-  SharedFunctionInfo* shared = function->shared();
+  SharedFunctionInfo shared = function->shared();
 
   ic_info.function_name = ic_stats->GetOrCacheFunctionName(function);
   ic_info.script_offset = code_offset;
@@ -1603,7 +1603,7 @@ Object* OptimizedFrame::receiver() const {
 }
 
 void OptimizedFrame::GetFunctions(
-    std::vector<SharedFunctionInfo*>* functions) const {
+    std::vector<SharedFunctionInfo>* functions) const {
   DCHECK(functions->empty());
   DCHECK(is_optimized());
 
@@ -1652,7 +1652,6 @@ void OptimizedFrame::GetFunctions(
     }
   }
 }
-
 
 int OptimizedFrame::StackSlotOffsetRelativeToFp(int slot_index) {
   return StandardFrameConstants::kCallerSPOffset -
@@ -1959,7 +1958,7 @@ Address WasmCompileLazyFrame::GetCallerStackPointer() const {
 
 namespace {
 
-void PrintFunctionSource(StringStream* accumulator, SharedFunctionInfo* shared,
+void PrintFunctionSource(StringStream* accumulator, SharedFunctionInfo shared,
                          Code code) {
   if (FLAG_max_stack_trace_source_length != 0 && !code.is_null()) {
     std::ostringstream os;
@@ -1969,7 +1968,6 @@ void PrintFunctionSource(StringStream* accumulator, SharedFunctionInfo* shared,
     accumulator->Add(os.str().c_str());
   }
 }
-
 
 }  // namespace
 
@@ -1993,7 +1991,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   // doesn't contain scope info, scope_info will return 0 for the number of
   // parameters, stack local variables, context local variables, stack slots,
   // or context slots.
-  SharedFunctionInfo* shared = function->shared();
+  SharedFunctionInfo shared = function->shared();
   ScopeInfo scope_info = shared->scope_info();
   Object* script_obj = shared->script();
   if (script_obj->IsScript()) {

@@ -43,7 +43,7 @@ class PerfJitLogger : public CodeEventLogger {
 
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo* shared) override {}
+                           SharedFunctionInfo shared) override {}
 
  private:
   void OpenJitDumpFile();
@@ -52,7 +52,7 @@ class PerfJitLogger : public CodeEventLogger {
   void CloseMarkerFile(void* marker_address);
 
   uint64_t GetTimestamp();
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo* shared,
+  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
                          const char* name, int length) override;
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
@@ -70,7 +70,7 @@ class PerfJitLogger : public CodeEventLogger {
 
   void LogWriteBytes(const char* bytes, int size);
   void LogWriteHeader();
-  void LogWriteDebugInfo(Code code, SharedFunctionInfo* shared);
+  void LogWriteDebugInfo(Code code, SharedFunctionInfo shared);
   void LogWriteUnwindingInfo(Code code);
 
   static const uint32_t kElfMachIA32 = 3;
@@ -125,11 +125,11 @@ class PerfJitLogger : public CodeEventLogger {
   }
 
   void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo* shared) override {
+                           SharedFunctionInfo shared) override {
     UNIMPLEMENTED();
   }
 
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo* shared,
+  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
                          const char* name, int length) override {
     UNIMPLEMENTED();
   }

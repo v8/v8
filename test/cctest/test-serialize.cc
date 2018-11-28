@@ -2124,7 +2124,8 @@ void CheckDeserializedFlag(v8::Local<v8::UnboundScript> script) {
   i::Handle<i::SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
   i::SharedFunctionInfo::ScriptIterator iterator(sfi->GetIsolate(),
                                                  Script::cast(sfi->script()));
-  while (SharedFunctionInfo* next = iterator.Next()) {
+  for (SharedFunctionInfo next = iterator.Next(); !next.is_null();
+       next = iterator.Next()) {
     CHECK_EQ(next->is_compiled(), next->deserialized());
   }
 }

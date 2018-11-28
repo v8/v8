@@ -93,8 +93,8 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   return 1;
 }
 
-ACCESSORS(FeedbackVector, shared_function_info, SharedFunctionInfo,
-          kSharedFunctionInfoOffset)
+ACCESSORS2(FeedbackVector, shared_function_info, SharedFunctionInfo,
+           kSharedFunctionInfoOffset)
 WEAK_ACCESSORS(FeedbackVector, optimized_code_weak_or_smi, kOptimizedCodeOffset)
 INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)
 INT32_ACCESSORS(FeedbackVector, invocation_count, kInvocationCountOffset)

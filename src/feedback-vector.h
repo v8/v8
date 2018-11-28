@@ -159,7 +159,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 
   // [shared_function_info]: The shared function info for the function with this
   // feedback vector.
-  DECL_ACCESSORS(shared_function_info, SharedFunctionInfo)
+  DECL_ACCESSORS2(shared_function_info, SharedFunctionInfo)
 
   // [optimized_code_weak_or_smi]: weak reference to optimized code or a Smi
   // marker defining optimization behaviour.
@@ -187,7 +187,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
   inline bool has_optimized_code() const;
   inline bool has_optimization_marker() const;
   void ClearOptimizedCode();
-  void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo* shared,
+  void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
                                                  const char* reason);
   static void SetOptimizedCode(Handle<FeedbackVector> vector,
                                Handle<Code> code);

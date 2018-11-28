@@ -2965,7 +2965,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
         }
       }
       accumulator->Add(" (sfi = %p)",
-                       reinterpret_cast<void*>(function->shared()));
+                       reinterpret_cast<void*>(function->shared().ptr()));
       accumulator->Put('>');
       break;
     }
@@ -3620,7 +3620,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     }
 
     case SHARED_FUNCTION_INFO_TYPE: {
-      SharedFunctionInfo* shared = SharedFunctionInfo::cast(this);
+      SharedFunctionInfo shared = SharedFunctionInfo::cast(this);
       std::unique_ptr<char[]> debug_name = shared->DebugName()->ToCString();
       if (debug_name[0] != 0) {
         os << "<SharedFunctionInfo " << debug_name.get() << ">";
@@ -10872,7 +10872,7 @@ Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
       isolate->factory()->empty_fixed_array());
 }
 
-SharedFunctionInfo* DeoptimizationData::GetInlinedFunction(int index) {
+SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
   if (index == -1) {
     return SharedFunctionInfo::cast(SharedFunctionInfo());
   } else {
@@ -13651,7 +13651,7 @@ int Script::GetEvalPosition() {
     if (!has_eval_from_shared()) {
       position = 0;
     } else {
-      SharedFunctionInfo* shared = eval_from_shared();
+      SharedFunctionInfo shared = eval_from_shared();
       position = shared->abstract_code()->SourcePosition(-position);
     }
     DCHECK_GE(position, 0);
@@ -13693,7 +13693,8 @@ bool Script::IsUserJavaScript() { return type() == Script::TYPE_NORMAL; }
 bool Script::ContainsAsmModule() {
   DisallowHeapAllocation no_gc;
   SharedFunctionInfo::ScriptIterator iter(this->GetIsolate(), this);
-  while (SharedFunctionInfo* info = iter.Next()) {
+  for (SharedFunctionInfo info = iter.Next(); !info.is_null();
+       info = iter.Next()) {
     if (info->HasAsmWasmData()) return true;
   }
   return false;
@@ -13924,7 +13925,7 @@ SharedFunctionInfo::ScriptIterator::ScriptIterator(
       shared_function_infos_(shared_function_infos),
       index_(0) {}
 
-SharedFunctionInfo* SharedFunctionInfo::ScriptIterator::Next() {
+SharedFunctionInfo SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
     MaybeObject raw = shared_function_infos_->Get(index_++);
     HeapObject* heap_object;
@@ -13934,7 +13935,7 @@ SharedFunctionInfo* SharedFunctionInfo::ScriptIterator::Next() {
     }
     return SharedFunctionInfo::cast(heap_object);
   }
-  return nullptr;
+  return SharedFunctionInfo();
 }
 
 void SharedFunctionInfo::ScriptIterator::Reset(Script* script) {
@@ -13947,14 +13948,14 @@ SharedFunctionInfo::GlobalIterator::GlobalIterator(Isolate* isolate)
       noscript_sfi_iterator_(isolate->heap()->noscript_shared_function_infos()),
       sfi_iterator_(isolate, script_iterator_.Next()) {}
 
-SharedFunctionInfo* SharedFunctionInfo::GlobalIterator::Next() {
+SharedFunctionInfo SharedFunctionInfo::GlobalIterator::Next() {
   HeapObject* next = noscript_sfi_iterator_.Next();
   if (next != nullptr) return SharedFunctionInfo::cast(next);
   for (;;) {
     next = sfi_iterator_.Next();
     if (next != nullptr) return SharedFunctionInfo::cast(next);
     Script* next_script = script_iterator_.Next();
-    if (next_script == nullptr) return nullptr;
+    if (next_script == nullptr) return SharedFunctionInfo();
     sfi_iterator_.Reset(next_script);
   }
 }
@@ -14147,9 +14148,9 @@ int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
   SharedFunctionInfo::ScriptIterator iterator(
       isolate, Handle<WeakFixedArray>(&shared_info_list));
 
-  for (SharedFunctionInfo* shared = iterator.Next(); shared != nullptr;
+  for (SharedFunctionInfo shared = iterator.Next(); !shared.is_null();
        shared = iterator.Next()) {
-    if (shared == this) {
+    if (shared == *this) {
       return iterator.CurrentIndex();
     }
   }
@@ -14226,7 +14227,7 @@ bool JSFunction::CalculateInstanceSizeForDerivedClass(
 
 // Output the source code without any allocation in the heap.
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
-  const SharedFunctionInfo* s = v.value;
+  const SharedFunctionInfo s = v.value;
   // For some native functions there is no source.
   if (!s->HasSourceCode()) return os << "<No Source>";
 
@@ -14265,7 +14266,7 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   // Code should be the lazy compilation stub or else interpreted.
   DCHECK(abstract_code()->kind() == AbstractCode::INTERPRETED_FUNCTION ||
          abstract_code()->kind() == AbstractCode::BUILTIN);
-  PROFILE(GetIsolate(), CodeDisableOptEvent(abstract_code(), this));
+  PROFILE(GetIsolate(), CodeDisableOptEvent(abstract_code(), *this));
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for ");
     ShortPrint();
@@ -14772,7 +14773,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
   return is_process_independent;
 }
 
-bool Code::Inlines(SharedFunctionInfo* sfi) {
+bool Code::Inlines(SharedFunctionInfo sfi) {
   // We can only check for inlining for optimized code.
   DCHECK(is_optimized_code());
   DisallowHeapAllocation no_gc;
@@ -16287,7 +16288,7 @@ class StringSharedKey : public HashTableKey {
       return Hash() == other_hash;
     }
     FixedArray other_array = FixedArray::cast(other);
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
+    SharedFunctionInfo shared = SharedFunctionInfo::cast(other_array->get(0));
     if (shared != *shared_) return false;
     int language_unchecked = Smi::ToInt(other_array->get(2));
     DCHECK(is_valid_language_mode(language_unchecked));
@@ -17793,7 +17794,7 @@ void CompilationCacheTable::Age() {
         NoWriteBarrierSet(*this, value_index, count);
       }
     } else if (get(entry_index)->IsFixedArray()) {
-      SharedFunctionInfo* info = SharedFunctionInfo::cast(get(value_index));
+      SharedFunctionInfo info = SharedFunctionInfo::cast(get(value_index));
       if (info->IsInterpreted() && info->GetBytecodeArray()->IsOld()) {
         for (int i = 0; i < kEntrySize; i++) {
           NoWriteBarrierSet(*this, entry_index + i, the_hole_value);

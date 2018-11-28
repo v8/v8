@@ -358,7 +358,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractContextReferences(HeapEntry* entry, Context context);
   void ExtractMapReferences(HeapEntry* entry, Map map);
   void ExtractSharedFunctionInfoReferences(HeapEntry* entry,
-                                           SharedFunctionInfo* shared);
+                                           SharedFunctionInfo shared);
   void ExtractScriptReferences(HeapEntry* entry, Script* script);
   void ExtractAccessorInfoReferences(HeapEntry* entry,
                                      AccessorInfo* accessor_info);

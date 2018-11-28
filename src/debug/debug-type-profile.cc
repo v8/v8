@@ -38,7 +38,7 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
     // the list multiple times.
     for (int i = 0; i < list->Length(); i++) {
       FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
-      SharedFunctionInfo* info = vector->shared_function_info();
+      SharedFunctionInfo info = vector->shared_function_info();
       DCHECK(info->IsSubjectToDebugging());
 
       // Match vectors with script.
@@ -87,7 +87,7 @@ void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode) {
 
       for (int i = 0; i < list->Length(); i++) {
         FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
-        SharedFunctionInfo* info = vector->shared_function_info();
+        SharedFunctionInfo info = vector->shared_function_info();
         DCHECK(info->IsSubjectToDebugging());
         if (info->feedback_metadata()->HasTypeProfileSlot()) {
           FeedbackSlot slot = vector->GetTypeProfileSlot();

@@ -66,7 +66,7 @@ class WasmInstanceObject;
   V(PrototypeInfo, PrototypeInfo*)                                             \
   V(SeqOneByteString, SeqOneByteString)                                        \
   V(SeqTwoByteString, SeqTwoByteString)                                        \
-  V(SharedFunctionInfo, SharedFunctionInfo*)                                   \
+  V(SharedFunctionInfo, SharedFunctionInfo)                                    \
   V(SlicedString, SlicedString)                                                \
   V(SmallOrderedHashMap, SmallOrderedHashMap)                                  \
   V(SmallOrderedHashSet, SmallOrderedHashSet)                                  \
@@ -144,10 +144,7 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
     return 0;
   }
 
-  int VisitSharedFunctionInfo(Map map, SharedFunctionInfo* object) {
-    UNREACHABLE();
-    return 0;
-  }
+  int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
 
   int VisitJSWeakCell(Map map, JSWeakCell* js_weak_cell) {
     UNREACHABLE();

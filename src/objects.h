@@ -544,7 +544,7 @@ typedef Map MapArgType;
 typedef Object* ObjectArgType;
 typedef RegExpMatchInfo RegExpMatchInfoArgType;
 typedef ScriptContextTable ScriptContextTableArgType;
-typedef SharedFunctionInfo* SharedFunctionInfoArgType;
+typedef SharedFunctionInfo SharedFunctionInfoArgType;
 typedef SimpleNumberDictionary SimpleNumberDictionaryArgType;
 typedef Smi SmiArgType;
 typedef String StringArgType;

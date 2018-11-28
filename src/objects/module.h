@@ -70,7 +70,7 @@ class Module : public Struct, public NeverReadOnlySpaceObject {
 
   // The shared function info in case {status} is not kEvaluating, kEvaluated or
   // kErrored.
-  SharedFunctionInfo* GetSharedFunctionInfo() const;
+  SharedFunctionInfo GetSharedFunctionInfo() const;
 
   // The namespace object (or undefined).
   DECL_ACCESSORS(module_namespace, HeapObject)

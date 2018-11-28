@@ -1040,7 +1040,7 @@ inline void TrySetNative(Handle<Object> maybe_func) {
 
 inline void TrySetNativeAndLength(Handle<Object> maybe_func, int length) {
   if (!maybe_func->IsJSFunction()) return;
-  SharedFunctionInfo* shared = JSFunction::cast(*maybe_func)->shared();
+  SharedFunctionInfo shared = JSFunction::cast(*maybe_func)->shared();
   shared->set_native(true);
   if (length >= 0) {
     shared->set_length(length);

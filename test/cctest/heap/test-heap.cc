@@ -5147,7 +5147,7 @@ TEST(SharedFunctionInfoIterator) {
 
   {
     SharedFunctionInfo::GlobalIterator iterator(isolate);
-    while (iterator.Next()) sfi_count--;
+    while (!iterator.Next().is_null()) sfi_count--;
   }
 
   CHECK_EQ(0, sfi_count);

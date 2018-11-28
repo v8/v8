@@ -196,7 +196,7 @@ uint64_t PerfJitLogger::GetTimestamp() {
 }
 
 void PerfJitLogger::LogRecordedBuffer(AbstractCode abstract_code,
-                                      SharedFunctionInfo* shared,
+                                      SharedFunctionInfo shared,
                                       const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
       (abstract_code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
@@ -214,7 +214,7 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode abstract_code,
   DCHECK(code->raw_instruction_start() == code->address() + Code::kHeaderSize);
 
   // Debug info has to be emitted first.
-  if (FLAG_perf_prof && shared != nullptr) {
+  if (FLAG_perf_prof && !shared.is_null()) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
     if (code->kind() != Code::JS_TO_WASM_FUNCTION &&
         code->kind() != Code::WASM_TO_JS_FUNCTION) {
@@ -322,7 +322,7 @@ SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
 
 }  // namespace
 
-void PerfJitLogger::LogWriteDebugInfo(Code code, SharedFunctionInfo* shared) {
+void PerfJitLogger::LogWriteDebugInfo(Code code, SharedFunctionInfo shared) {
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
   for (SourcePositionTableIterator iterator(code->SourcePositionTable());

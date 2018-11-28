@@ -50,13 +50,13 @@ bool Script::has_eval_from_shared() const {
   return eval_from_shared_or_wrapped_arguments()->IsSharedFunctionInfo();
 }
 
-void Script::set_eval_from_shared(SharedFunctionInfo* shared,
+void Script::set_eval_from_shared(SharedFunctionInfo shared,
                                   WriteBarrierMode mode) {
   DCHECK(!is_wrapped());
   set_eval_from_shared_or_wrapped_arguments(shared, mode);
 }
 
-SharedFunctionInfo* Script::eval_from_shared() const {
+SharedFunctionInfo Script::eval_from_shared() const {
   DCHECK(has_eval_from_shared());
   return SharedFunctionInfo::cast(eval_from_shared_or_wrapped_arguments());
 }

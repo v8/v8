@@ -181,7 +181,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   if (obj->IsSharedFunctionInfo()) {
-    SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+    SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
     // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
     // is context independent.
     DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());

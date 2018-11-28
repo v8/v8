@@ -774,7 +774,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
   if (is_suspended()) os << " (suspended)";
   if (is_suspended()) {
     DisallowHeapAllocation no_gc;
-    SharedFunctionInfo* fun_info = function()->shared();
+    SharedFunctionInfo fun_info = function()->shared();
     if (fun_info->HasSourceCode()) {
       Script* script = Script::cast(fun_info->script());
       int lin = script->GetLineNumber(source_position()) + 1;
@@ -1507,7 +1507,7 @@ void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
 }
 
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "SharedFunctionInfo");
+  PrintHeader(os, "SharedFunctionInfo");
   os << "\n - name: ";
   if (HasSharedName()) {
     os << Brief(Name());

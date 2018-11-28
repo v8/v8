@@ -1833,7 +1833,8 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, top_level, maybe_result, JSFunction);
 
     SharedFunctionInfo::ScriptIterator infos(isolate, *script);
-    while (SharedFunctionInfo* info = infos.Next()) {
+    for (SharedFunctionInfo info = infos.Next(); !info.is_null();
+         info = infos.Next()) {
       if (info->is_wrapped()) {
         wrapped = Handle<SharedFunctionInfo>(info, isolate);
         break;

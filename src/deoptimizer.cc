@@ -823,7 +823,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
                                             int frame_index,
                                             bool goto_catch_handler) {
-  SharedFunctionInfo* shared = translated_frame->raw_shared_info();
+  SharedFunctionInfo shared = translated_frame->raw_shared_info();
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   bool is_bottommost = (0 == frame_index);
@@ -1833,7 +1833,7 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
 }
 
 // static
-unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
+unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo shared) {
   // The fixed part of the frame consists of the return address, frame
   // pointer, function, context, bytecode offset and all the incoming arguments.
   return ComputeIncomingArgumentSize(shared) +
@@ -1841,7 +1841,7 @@ unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
 }
 
 // static
-unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo* shared) {
+unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
   int parameter_slots = shared->internal_formal_parameter_count() + 1;
   if (kPadArguments) parameter_slots = RoundUp(parameter_slots, 2);
   return parameter_slots * kPointerSize;
@@ -2351,7 +2351,7 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
 
 // static
 int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
-    SharedFunctionInfo* shared, BailoutId node_id) {
+    SharedFunctionInfo shared, BailoutId node_id) {
   DCHECK(shared->HasBytecodeArray());
   return AbstractCode::cast(shared->GetBytecodeArray())
       ->SourcePosition(node_id.ToInt());
@@ -2702,7 +2702,7 @@ void TranslatedValue::Handlify() {
 }
 
 TranslatedFrame TranslatedFrame::InterpretedFrame(
-    BailoutId bytecode_offset, SharedFunctionInfo* shared_info, int height,
+    BailoutId bytecode_offset, SharedFunctionInfo shared_info, int height,
     int return_value_offset, int return_value_count) {
   TranslatedFrame frame(kInterpretedFunction, shared_info, height,
                         return_value_offset, return_value_count);
@@ -2710,35 +2710,34 @@ TranslatedFrame TranslatedFrame::InterpretedFrame(
   return frame;
 }
 
-
 TranslatedFrame TranslatedFrame::ArgumentsAdaptorFrame(
-    SharedFunctionInfo* shared_info, int height) {
+    SharedFunctionInfo shared_info, int height) {
   return TranslatedFrame(kArgumentsAdaptor, shared_info, height);
 }
 
 TranslatedFrame TranslatedFrame::ConstructStubFrame(
-    BailoutId bailout_id, SharedFunctionInfo* shared_info, int height) {
+    BailoutId bailout_id, SharedFunctionInfo shared_info, int height) {
   TranslatedFrame frame(kConstructStub, shared_info, height);
   frame.node_id_ = bailout_id;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
-    BailoutId bailout_id, SharedFunctionInfo* shared_info, int height) {
+    BailoutId bailout_id, SharedFunctionInfo shared_info, int height) {
   TranslatedFrame frame(kBuiltinContinuation, shared_info, height);
   frame.node_id_ = bailout_id;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
-    BailoutId bailout_id, SharedFunctionInfo* shared_info, int height) {
+    BailoutId bailout_id, SharedFunctionInfo shared_info, int height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuation, shared_info, height);
   frame.node_id_ = bailout_id;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
-    BailoutId bailout_id, SharedFunctionInfo* shared_info, int height) {
+    BailoutId bailout_id, SharedFunctionInfo shared_info, int height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuationWithCatch, shared_info,
                         height);
   frame.node_id_ = bailout_id;
@@ -2770,10 +2769,10 @@ int TranslatedFrame::GetValueCount() {
 
 
 void TranslatedFrame::Handlify() {
-  if (raw_shared_info_ != nullptr) {
+  if (!raw_shared_info_.is_null()) {
     shared_info_ = Handle<SharedFunctionInfo>(raw_shared_info_,
                                               raw_shared_info_->GetIsolate());
-    raw_shared_info_ = nullptr;
+    raw_shared_info_ = SharedFunctionInfo();
   }
   for (auto& value : values_) {
     value.Handlify();
@@ -2788,7 +2787,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
   switch (opcode) {
     case Translation::INTERPRETED_FRAME: {
       BailoutId bytecode_offset = BailoutId(iterator->Next());
-      SharedFunctionInfo* shared_info =
+      SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       int return_value_offset = iterator->Next();
@@ -2809,7 +2808,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case Translation::ARGUMENTS_ADAPTOR_FRAME: {
-      SharedFunctionInfo* shared_info =
+      SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
@@ -2822,7 +2821,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 
     case Translation::CONSTRUCT_STUB_FRAME: {
       BailoutId bailout_id = BailoutId(iterator->Next());
-      SharedFunctionInfo* shared_info =
+      SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
@@ -2837,7 +2836,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 
     case Translation::BUILTIN_CONTINUATION_FRAME: {
       BailoutId bailout_id = BailoutId(iterator->Next());
-      SharedFunctionInfo* shared_info =
+      SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
@@ -2856,7 +2855,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {
       BailoutId bailout_id = BailoutId(iterator->Next());
-      SharedFunctionInfo* shared_info =
+      SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
@@ -2874,7 +2873,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME: {
       BailoutId bailout_id = BailoutId(iterator->Next());
-      SharedFunctionInfo* shared_info =
+      SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {

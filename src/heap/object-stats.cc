@@ -387,7 +387,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualMapDetails(Map map);
   void RecordVirtualScriptDetails(Script* script);
   void RecordVirtualExternalStringDetails(ExternalString script);
-  void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo* info);
+  void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo info);
   void RecordVirtualJSFunctionDetails(JSFunction* function);
 
   void RecordVirtualArrayBoilerplateDescription(
@@ -837,7 +837,7 @@ void ObjectStatsCollectorImpl::RecordVirtualExternalStringDetails(
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
-    SharedFunctionInfo* info) {
+    SharedFunctionInfo info) {
   // Uncompiled SharedFunctionInfo gets its own category.
   if (!info->is_compiled()) {
     RecordSimpleVirtualObjectStats(

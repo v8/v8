@@ -37,7 +37,7 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   DECL_INT_ACCESSORS(flags)
 
   // The shared function info for the source being debugged.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
+  DECL_ACCESSORS2(shared, SharedFunctionInfo)
 
   // Bit field containing various information collected for debugging.
   DECL_INT_ACCESSORS(debugger_hints)

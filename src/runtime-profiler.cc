@@ -115,7 +115,7 @@ void RuntimeProfiler::Optimize(JSFunction* function,
 void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
                                                 int loop_nesting_levels) {
   JSFunction* function = frame->function();
-  SharedFunctionInfo* shared = function->shared();
+  SharedFunctionInfo shared = function->shared();
   if (!FLAG_use_osr || !function->shared()->IsUserJavaScript()) {
     return;
   }

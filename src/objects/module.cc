@@ -265,7 +265,7 @@ Object* Module::GetException() {
   return exception();
 }
 
-SharedFunctionInfo* Module::GetSharedFunctionInfo() const {
+SharedFunctionInfo Module::GetSharedFunctionInfo() const {
   DisallowHeapAllocation no_alloc;
   DCHECK_NE(status(), Module::kEvaluating);
   DCHECK_NE(status(), Module::kEvaluated);

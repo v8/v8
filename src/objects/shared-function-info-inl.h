@@ -78,7 +78,9 @@ ACCESSORS2(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
 ACCESSORS2(InterpreterData, interpreter_trampoline, Code,
            kInterpreterTrampolineOffset)
 
-CAST_ACCESSOR(SharedFunctionInfo)
+OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo, HeapObjectPtr)
+NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
+CAST_ACCESSOR2(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
