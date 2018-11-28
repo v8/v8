@@ -124,6 +124,46 @@ inline Condition MakeUnsigned(Condition cond) {
   }
 }
 
+template <void (Assembler::*op)(Register, Register, Register, SBit, Condition),
+          void (Assembler::*op_with_carry)(Register, Register, const Operand&,
+                                           SBit, Condition)>
+inline void I64Binop(LiftoffAssembler* assm, LiftoffRegister dst,
+                     LiftoffRegister lhs, LiftoffRegister rhs) {
+  UseScratchRegisterScope temps(assm);
+  Register scratch = dst.low_gp();
+  bool can_use_dst =
+      dst.low_gp() != lhs.high_gp() && dst.low_gp() != rhs.high_gp();
+  if (!can_use_dst) {
+    scratch = temps.Acquire();
+  }
+  (assm->*op)(scratch, lhs.low_gp(), rhs.low_gp(), SetCC, al);
+  (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(), Operand(rhs.high_gp()),
+                         LeaveCC, al);
+  if (!can_use_dst) {
+    assm->mov(dst.low_gp(), scratch);
+  }
+}
+
+// safe_amount_reg is the register in which the register holding the shift
+// amount can be held without being clobbered, thus the original register
+// holding the shift amount can be moved into it if required.
+template <void (TurboAssembler::*op)(Register, Register, Register, Register,
+                                     Register)>
+inline void I64Shiftop(LiftoffAssembler* assm, LiftoffRegister dst,
+                       LiftoffRegister src, Register amount,
+                       Register safe_amount_reg, LiftoffRegList pinned) {
+  DCHECK(safe_amount_reg == dst.low_gp() || safe_amount_reg == dst.high_gp());
+  Register other_reg =
+      (safe_amount_reg == dst.low_gp()) ? dst.high_gp() : dst.low_gp();
+  pinned.set(other_reg);
+  pinned.set(src.low_gp());
+  pinned.set(src.high_gp());
+  Register scratch = assm->GetUnusedRegister(kGpReg, pinned).gp();
+  assm->and_(scratch, amount, Operand(0x3F));
+  (assm->*op)(dst.low_gp(), dst.high_gp(), src.low_gp(), src.high_gp(),
+              scratch);
+}
+
 enum class MinOrMax : uint8_t { kMin, kMax };
 inline void EmitFloatMinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
                               DoubleRegister lhs, DoubleRegister rhs,
@@ -548,6 +588,11 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
   ldr(reg, liftoff::GetHalfStackSlot(half_index));
 }
 
+#define I32_BINOP(name, instruction)                             \
+  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
+                                     Register rhs) {             \
+    instruction(dst, lhs, rhs);                                  \
+  }
 #define I32_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_##name(Register dst, Register src,               \
                                      Register amount, LiftoffRegList pinned) { \
@@ -555,22 +600,6 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
     Register scratch = temps.Acquire();                                        \
     and_(scratch, amount, Operand(0x1f));                                      \
     instruction(dst, src, Operand(scratch));                                   \
-  }
-#define I32_SHIFTOP_I(name, instruction)                                       \
-  void LiftoffAssembler::emit_##name(Register dst, Register src, int amount) { \
-    DCHECK(is_uint5(amount));                                                  \
-    instruction(dst, src, Operand(amount));                                    \
-  }
-#define I32_BINOP(name, instruction)                             \
-  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
-                                     Register rhs) {             \
-    instruction(dst, lhs, rhs);                                  \
-  }
-
-#define UNIMPLEMENTED_I64_BINOP(name)                                          \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
-                                     LiftoffRegister rhs) {                    \
-    BAILOUT("i64 binop: " #name);                                              \
   }
 #define FP64_UNOP(name, instruction)                                           \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
@@ -590,11 +619,6 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     BAILOUT("fp unop: " #name);                                                \
   }
-#define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
-                                     Register amount, LiftoffRegList pinned) { \
-    BAILOUT("i64 shiftop: " #name);                                            \
-  }
 
 I32_BINOP(i32_add, add)
 I32_BINOP(i32_sub, sub)
@@ -605,13 +629,6 @@ I32_BINOP(i32_xor, eor)
 I32_SHIFTOP(i32_shl, lsl)
 I32_SHIFTOP(i32_sar, asr)
 I32_SHIFTOP(i32_shr, lsr)
-I32_SHIFTOP_I(i32_shr, lsr)
-UNIMPLEMENTED_I64_BINOP(i64_add)
-UNIMPLEMENTED_I64_BINOP(i64_sub)
-UNIMPLEMENTED_I64_BINOP(i64_mul)
-UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
-UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
-UNIMPLEMENTED_I64_SHIFTOP(i64_shr)
 UNIMPLEMENTED_FP_BINOP(f32_add)
 UNIMPLEMENTED_FP_BINOP(f32_sub)
 UNIMPLEMENTED_FP_BINOP(f32_mul)
@@ -632,11 +649,8 @@ FP64_UNOP(f64_sqrt, vsqrt)
 
 #undef I32_BINOP
 #undef I32_SHIFTOP
-#undef I32_SHIFTOP_I
-#undef UNIMPLEMENTED_I64_BINOP
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_FP_UNOP
-#undef UNIMPLEMENTED_I64_SHIFTOP
 
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   clz(dst, src);
@@ -761,6 +775,41 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   mls(dst, scratch, rhs, lhs);
 }
 
+void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
+  DCHECK(is_uint5(amount));
+  lsr(dst, src, Operand(amount));
+}
+
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::I64Binop<&Assembler::add, &Assembler::adc>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::I64Binop<&Assembler::sub, &Assembler::sbc>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  // Idea:
+  //        [           lhs_hi  |           lhs_lo  ] * [  rhs_hi  |  rhs_lo  ]
+  //    =   [  lhs_hi * rhs_lo  |                   ]  (32 bit mul, shift 32)
+  //      + [  lhs_lo * rhs_hi  |                   ]  (32 bit mul, shift 32)
+  //      + [             lhs_lo * rhs_lo           ]  (32x32->64 mul, shift 0)
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  // scratch = lhs_hi * rhs_lo
+  mul(scratch, lhs.high_gp(), rhs.low_gp());
+  // scratch += lhs_lo * rhs_hi
+  mla(scratch, lhs.low_gp(), rhs.high_gp(), scratch);
+  // TODO(arm): use umlal once implemented correctly in the simulator.
+  // [dst_hi|dst_lo] = lhs_lo * rhs_lo
+  umull(dst.low_gp(), dst.high_gp(), lhs.low_gp(), rhs.low_gp());
+  // dst_hi += scratch
+  add(dst.high_gp(), dst.high_gp(), scratch);
+}
+
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero,
@@ -786,9 +835,28 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   return false;
 }
 
-void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister lhs,
+void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount, LiftoffRegList pinned) {
+  liftoff::I64Shiftop<&TurboAssembler::LslPair>(this, dst, src, amount,
+                                                dst.low_gp(), pinned);
+}
+
+void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount, LiftoffRegList pinned) {
+  liftoff::I64Shiftop<&TurboAssembler::AsrPair>(this, dst, src, amount,
+                                                dst.high_gp(), pinned);
+}
+
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount, LiftoffRegList pinned) {
+  liftoff::I64Shiftop<&TurboAssembler::LsrPair>(this, dst, src, amount,
+                                                dst.high_gp(), pinned);
+}
+
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     int amount) {
-  BAILOUT("i64_shr");
+  DCHECK(is_uint6(amount));
+  LsrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src.high_gp(), amount);
 }
 
 bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
@@ -1042,13 +1110,51 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
-  BAILOUT("emit_i64_eqz");
+  orr(dst, src.low_gp(), src.high_gp());
+  clz(dst, dst);
+  mov(dst, Operand(dst, LSR, 5));
 }
 
 void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  BAILOUT("emit_i64_set_cond");
+  // For signed i64 comparisons, we still need to use unsigned comparison for
+  // the low word (the only bit carrying signedness information is the MSB in
+  // the high word).
+  Condition unsigned_cond = liftoff::MakeUnsigned(cond);
+  Label set_cond;
+  Label cont;
+  LiftoffRegister dest = LiftoffRegister(dst);
+  bool speculative_move = !dest.overlaps(lhs) && !dest.overlaps(rhs);
+  if (speculative_move) {
+    mov(dst, Operand(0));
+  }
+  // Compare high word first. If it differs, use it for the set_cond. If it's
+  // equal, compare the low word and use that for set_cond.
+  cmp(lhs.high_gp(), rhs.high_gp());
+  if (unsigned_cond == cond) {
+    cmp(lhs.low_gp(), rhs.low_gp(), kEqual);
+    if (!speculative_move) {
+      mov(dst, Operand(0));
+    }
+    mov(dst, Operand(1), LeaveCC, cond);
+  } else {
+    // If the condition predicate for the low differs from that for the high
+    // word, the conditional move instructions must be separated.
+    b(ne, &set_cond);
+    cmp(lhs.low_gp(), rhs.low_gp());
+    if (!speculative_move) {
+      mov(dst, Operand(0));
+    }
+    mov(dst, Operand(1), LeaveCC, unsigned_cond);
+    b(&cont);
+    bind(&set_cond);
+    if (!speculative_move) {
+      mov(dst, Operand(0));
+    }
+    mov(dst, Operand(1), LeaveCC, cond);
+    bind(&cont);
+  }
 }
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
