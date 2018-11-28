@@ -398,7 +398,7 @@ TEST(IsPropertyOrCall) {
   }
 }
 
-bool TokenIsProperty(Token::Value token) {
+bool TokenIsMember(Token::Value token) {
   switch (token) {
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
@@ -407,6 +407,40 @@ bool TokenIsProperty(Token::Value token) {
       return true;
     default:
       return false;
+  }
+}
+
+bool TokenIsTemplate(Token::Value token) {
+  switch (token) {
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool TokenIsProperty(Token::Value token) {
+  switch (token) {
+    case Token::PERIOD:
+    case Token::LBRACK:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsMember) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsMember(token), Token::IsMember(token));
+  }
+}
+
+TEST(IsTemplate) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsTemplate(token), Token::IsTemplate(token));
   }
 }
 

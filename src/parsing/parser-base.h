@@ -855,8 +855,7 @@ class ParserBase {
   // either returns false or reports an error, depending on should_throw.
   // Otherwise returns true.
   inline bool CheckTemplateEscapes(bool should_throw) {
-    DCHECK(scanner()->current_token() == Token::TEMPLATE_SPAN ||
-           scanner()->current_token() == Token::TEMPLATE_TAIL);
+    DCHECK(Token::IsTemplate(scanner()->current_token()));
     if (!scanner()->has_invalid_template_escape()) return true;
 
     // Handle error case(s)
@@ -1113,7 +1112,7 @@ class ParserBase {
   V8_INLINE ExpressionT ParseMemberExpression();
   V8_INLINE ExpressionT
   ParseMemberExpressionContinuation(ExpressionT expression) {
-    if (!Token::IsProperty(peek())) return expression;
+    if (!Token::IsMember(peek())) return expression;
     return DoParseMemberExpressionContinuation(expression);
   }
   ExpressionT DoParseMemberExpressionContinuation(ExpressionT expression);
@@ -3188,8 +3187,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
 
       /* Call */
       default:
-        DCHECK(peek() == Token::TEMPLATE_SPAN ||
-               peek() == Token::TEMPLATE_TAIL);
+        DCHECK(Token::IsTemplate(peek()));
         result = ParseTemplateLiteral(result, position(), true);
         break;
     }
@@ -3377,7 +3375,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
   FunctionKind kind = scope->function_kind();
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
       IsClassConstructor(kind)) {
-    if (peek() == Token::PERIOD || peek() == Token::LBRACK) {
+    if (Token::IsProperty(peek())) {
       scope->RecordSuperPropertyUsage();
       return impl()->NewSuperPropertyReference(pos);
     }
@@ -3425,7 +3423,7 @@ ParserBase<Impl>::ParseNewTargetExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
-  DCHECK(Token::IsProperty(peek()));
+  DCHECK(Token::IsMember(peek()));
   // Parses this part of MemberExpression:
   // ('[' Expression ']' | '.' Identifier | TemplateLiteral)*
   do {
@@ -3448,8 +3446,7 @@ ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
         break;
       }
       default: {
-        DCHECK(peek() == Token::TEMPLATE_SPAN ||
-               peek() == Token::TEMPLATE_TAIL);
+        DCHECK(Token::IsTemplate(peek()));
         int pos;
         if (scanner()->current_token() == Token::IDENTIFIER) {
           pos = position();
@@ -3465,7 +3462,7 @@ ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
         break;
       }
     }
-  } while (Token::IsProperty(peek()));
+  } while (Token::IsMember(peek()));
   return expression;
 }
 

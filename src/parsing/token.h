@@ -51,16 +51,20 @@ namespace internal {
 
 #define TOKEN_LIST(T, K, C)                                        \
                                                                    \
-  /* BEGIN Property */                                             \
   /* BEGIN PropertyOrCall */                                       \
+  /* BEGIN Member */                                               \
+  /* BEGIN Template */                                             \
   /* ES6 Template Literals */                                      \
   T(TEMPLATE_SPAN, nullptr, 0)                                     \
   T(TEMPLATE_TAIL, nullptr, 0)                                     \
+  /* END Template */                                               \
                                                                    \
   /* Punctuators (ECMA-262, section 7.7, page 15). */              \
+  /* BEGIN Property */                                             \
   T(PERIOD, ".", 0)                                                \
   T(LBRACK, "[", 0)                                                \
   /* END Property */                                               \
+  /* END Member */                                                 \
   T(LPAREN, "(", 0)                                                \
   /* END PropertyOrCall */                                         \
   T(RPAREN, ")", 0)                                                \
@@ -243,8 +247,16 @@ class Token {
     return IsInRange(token, NULL_LITERAL, STRING);
   }
 
-  static bool IsProperty(Value token) {
+  static bool IsTemplate(Value token) {
+    return IsInRange(token, TEMPLATE_SPAN, TEMPLATE_TAIL);
+  }
+
+  static bool IsMember(Value token) {
     return IsInRange(token, TEMPLATE_SPAN, LBRACK);
+  }
+
+  static bool IsProperty(Value token) {
+    return IsInRange(token, PERIOD, LBRACK);
   }
 
   static bool IsPropertyOrCall(Value token) {
