@@ -64,7 +64,6 @@ let kStartSectionCode = 8;       // Start function declaration
 let kElementSectionCode = 9;     // Elements section
 let kCodeSectionCode = 10;       // Function code
 let kDataSectionCode = 11;       // Data segments
-let kNameSectionCode = 12;       // Name section (encoded as string)
 let kExceptionSectionCode = 13;  // Exception section (must appear before code section)
 
 // Name section types
