@@ -44,7 +44,6 @@ namespace internal {
 // If you see this error, please report a bug to <bug-gperf@gnu.org>.
 #endif
 
-#line 16 "src/parsing/keywords.txt"
 struct PerfectKeywordHashTableEntry {
   const char* name;
   Token::Value value;
@@ -91,102 +90,55 @@ static const unsigned char kPerfectKeywordLengthTable[64] = {
 static const struct PerfectKeywordHashTableEntry kPerfectKeywordHashTable[64] =
     {{"", Token::IDENTIFIER},
      {"", Token::IDENTIFIER},
-#line 41 "src/parsing/keywords.txt"
      {"in", Token::IN},
-#line 45 "src/parsing/keywords.txt"
      {"new", Token::NEW},
-#line 31 "src/parsing/keywords.txt"
      {"enum", Token::ENUM},
-#line 29 "src/parsing/keywords.txt"
      {"do", Token::DO},
-#line 28 "src/parsing/keywords.txt"
      {"delete", Token::DELETE},
-#line 27 "src/parsing/keywords.txt"
      {"default", Token::DEFAULT},
-#line 26 "src/parsing/keywords.txt"
      {"debugger", Token::DEBUGGER},
-#line 43 "src/parsing/keywords.txt"
      {"interface", Token::FUTURE_STRICT_RESERVED_WORD},
-#line 42 "src/parsing/keywords.txt"
      {"instanceof", Token::INSTANCEOF},
-#line 38 "src/parsing/keywords.txt"
      {"if", Token::IF},
-#line 32 "src/parsing/keywords.txt"
      {"export", Token::EXPORT},
-#line 33 "src/parsing/keywords.txt"
      {"extends", Token::EXTENDS},
-#line 24 "src/parsing/keywords.txt"
      {"const", Token::CONST},
-#line 36 "src/parsing/keywords.txt"
      {"for", Token::FOR},
-#line 35 "src/parsing/keywords.txt"
      {"finally", Token::FINALLY},
-#line 25 "src/parsing/keywords.txt"
      {"continue", Token::CONTINUE},
-#line 21 "src/parsing/keywords.txt"
      {"case", Token::CASE},
-#line 22 "src/parsing/keywords.txt"
      {"catch", Token::CATCH},
-#line 46 "src/parsing/keywords.txt"
      {"null", Token::NULL_LITERAL},
-#line 47 "src/parsing/keywords.txt"
      {"package", Token::FUTURE_STRICT_RESERVED_WORD},
-#line 34 "src/parsing/keywords.txt"
      {"false", Token::FALSE_LITERAL},
-#line 51 "src/parsing/keywords.txt"
      {"return", Token::RETURN},
-#line 20 "src/parsing/keywords.txt"
      {"break", Token::BREAK},
      {"", Token::IDENTIFIER},
-#line 18 "src/parsing/keywords.txt"
      {"async", Token::ASYNC},
      {"", Token::IDENTIFIER},
-#line 50 "src/parsing/keywords.txt"
      {"public", Token::FUTURE_STRICT_RESERVED_WORD},
-#line 63 "src/parsing/keywords.txt"
      {"with", Token::WITH},
-#line 48 "src/parsing/keywords.txt"
      {"private", Token::FUTURE_STRICT_RESERVED_WORD},
-#line 64 "src/parsing/keywords.txt"
      {"yield", Token::YIELD},
-#line 49 "src/parsing/keywords.txt"
      {"protected", Token::FUTURE_STRICT_RESERVED_WORD},
-#line 37 "src/parsing/keywords.txt"
      {"function", Token::FUNCTION},
-#line 53 "src/parsing/keywords.txt"
      {"super", Token::SUPER},
-#line 52 "src/parsing/keywords.txt"
      {"static", Token::STATIC},
-#line 58 "src/parsing/keywords.txt"
      {"try", Token::TRY},
-#line 57 "src/parsing/keywords.txt"
      {"true", Token::TRUE_LITERAL},
-#line 19 "src/parsing/keywords.txt"
      {"await", Token::AWAIT},
-#line 44 "src/parsing/keywords.txt"
      {"let", Token::LET},
-#line 30 "src/parsing/keywords.txt"
      {"else", Token::ELSE},
-#line 55 "src/parsing/keywords.txt"
      {"this", Token::THIS},
-#line 56 "src/parsing/keywords.txt"
      {"throw", Token::THROW},
      {"", Token::IDENTIFIER},
-#line 54 "src/parsing/keywords.txt"
      {"switch", Token::SWITCH},
-#line 61 "src/parsing/keywords.txt"
      {"void", Token::VOID},
-#line 40 "src/parsing/keywords.txt"
      {"import", Token::IMPORT},
-#line 23 "src/parsing/keywords.txt"
      {"class", Token::CLASS},
-#line 59 "src/parsing/keywords.txt"
      {"typeof", Token::TYPEOF},
-#line 60 "src/parsing/keywords.txt"
      {"var", Token::VAR},
-#line 39 "src/parsing/keywords.txt"
      {"implements", Token::FUTURE_STRICT_RESERVED_WORD},
-#line 62 "src/parsing/keywords.txt"
      {"while", Token::WHILE},
      {"", Token::IDENTIFIER},
      {"", Token::IDENTIFIER},

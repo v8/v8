@@ -8,7 +8,6 @@ import sys
 import subprocess
 import re
 import math
-import datetime
 
 INPUT_PATH = "src/parsing/keywords.txt"
 OUTPUT_PATH = "src/parsing/keywords-gen.h"
@@ -41,6 +40,11 @@ def checked_sub(pattern, sub, out, count=1, flags=0):
 def change_sizet_to_int(out):
   # Literal buffer lengths are given as ints, not size_t
   return checked_sub(r'\bsize_t\b', 'int', out, count=4)
+
+
+def drop_line_directives(out):
+  # #line causes gcov issue, so drop it
+  return re.sub(r'^#\s*line .*$\n', '', out, flags=re.MULTILINE)
 
 
 def trim_and_dcheck_char_table(out):
@@ -220,6 +224,7 @@ def main():
 
     # And now some munging of the generated file.
     out = change_sizet_to_int(out)
+    out = drop_line_directives(out)
     out = trim_and_dcheck_char_table(out)
     out = use_isinrange(out)
     out = pad_tables(out)
