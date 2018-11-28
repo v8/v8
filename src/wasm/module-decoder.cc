@@ -361,7 +361,7 @@ class ModuleDecoderImpl : public Decoder {
         } else if (next_ordered_section_ > kExportSectionCode) {
           errorf(pc(), "Exception section must appear before export section");
           return;
-        } else if (next_ordered_section_ < kImportSectionCode) {
+        } else if (next_ordered_section_ <= kImportSectionCode) {
           next_ordered_section_ = kImportSectionCode + 1;
         }
         seen_unordered_sections_ |= 1 << kExceptionSectionCode;

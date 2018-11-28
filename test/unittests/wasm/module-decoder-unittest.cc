@@ -585,6 +585,18 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
   EXPECT_NOT_OK(result, "unexpected section: Import");
 }
 
+TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterTypeBeforeImport) {
+  STATIC_ASSERT(kTypeSectionCode + 1 == kImportSectionCode);
+  static const byte data[] = {SECTION(Type, ENTRY_COUNT(0)),
+                              SECTION(Exception, ENTRY_COUNT(0)),
+                              SECTION(Import, ENTRY_COUNT(0))};
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
+
+  WASM_FEATURE_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "unexpected section: Import");
+}
+
 TEST_F(WasmModuleVerifyTest, ExceptionImport) {
   static const byte data[] = {
       SIGNATURES_SECTION_VOID_VOID,
