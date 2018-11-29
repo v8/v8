@@ -339,8 +339,8 @@
   'v8_linux_arm64_dbg': {
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
     ],
@@ -1264,8 +1264,8 @@
   'V8 Linux - arm64 - sim - debug': {
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
     ],
