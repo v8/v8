@@ -883,23 +883,10 @@ void WasmTableObject::ClearDispatchTables(Isolate* isolate,
 namespace {
 MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
                                             Handle<JSArrayBuffer> old_buffer,
-                                            uint32_t pages,
-                                            uint32_t maximum_pages) {
-  CHECK_GE(wasm::max_mem_pages(), maximum_pages);
-  if (!old_buffer->is_growable()) return {};
-  void* old_mem_start = old_buffer->backing_store();
+                                            size_t new_size) {
+  CHECK_EQ(0, new_size % wasm::kWasmPageSize);
   size_t old_size = old_buffer->byte_length();
-  CHECK_EQ(0, old_size % wasm::kWasmPageSize);
-  size_t old_pages = old_size / wasm::kWasmPageSize;
-  CHECK_GE(wasm::max_mem_pages(), old_pages);
-
-  if ((pages > maximum_pages - old_pages) ||          // exceeds remaining
-      (pages > wasm::max_mem_pages() - old_pages)) {  // exceeds limit
-    return {};
-  }
-  size_t new_size =
-      static_cast<size_t>(old_pages + pages) * wasm::kWasmPageSize;
-
+  void* old_mem_start = old_buffer->backing_store();
   // Reusing the backing store from externalized buffers causes problems with
   // Blink's array buffers. The connection between the two is lost, which can
   // lead to Blink not knowing about the other reference to the buffer and
@@ -914,8 +901,9 @@ MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
                              new_size, PageAllocator::kReadWrite)) {
         return {};
       }
+      DCHECK_GE(new_size, old_size);
       reinterpret_cast<v8::Isolate*>(isolate)
-          ->AdjustAmountOfExternalAllocatedMemory(pages * wasm::kWasmPageSize);
+          ->AdjustAmountOfExternalAllocatedMemory(new_size - old_size);
     }
     // NOTE: We must allocate a new array buffer here because the spec
     // assumes that ArrayBuffers do not change size.
@@ -1055,20 +1043,32 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
   if (!old_buffer->is_growable()) return -1;
-  size_t old_size = old_buffer->byte_length();
-  DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
-  Handle<JSArrayBuffer> new_buffer;
 
+  // Checks for maximum memory size, compute new size.
   uint32_t maximum_pages = wasm::max_mem_pages();
   if (memory_object->has_maximum_pages()) {
     maximum_pages = std::min(
         maximum_pages, static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  if (!MemoryGrowBuffer(isolate, old_buffer, pages, maximum_pages)
-           .ToHandle(&new_buffer)) {
+  CHECK_GE(wasm::max_mem_pages(), maximum_pages);
+  size_t old_size = old_buffer->byte_length();
+  CHECK_EQ(0, old_size % wasm::kWasmPageSize);
+  size_t old_pages = old_size / wasm::kWasmPageSize;
+  CHECK_GE(wasm::max_mem_pages(), old_pages);
+  if ((pages > maximum_pages - old_pages) ||          // exceeds remaining
+      (pages > wasm::max_mem_pages() - old_pages)) {  // exceeds limit
+    return -1;
+  }
+  size_t new_size =
+      static_cast<size_t>(old_pages + pages) * wasm::kWasmPageSize;
+
+  // Grow the buffer.
+  Handle<JSArrayBuffer> new_buffer;
+  if (!MemoryGrowBuffer(isolate, old_buffer, new_size).ToHandle(&new_buffer)) {
     return -1;
   }
 
+  // Update instances if any.
   if (memory_object->has_instances()) {
     Handle<WeakArrayList> instances(memory_object->instances(), isolate);
     for (int i = 0; i < instances->length(); i++) {
