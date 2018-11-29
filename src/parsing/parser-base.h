@@ -952,7 +952,7 @@ class ParserBase {
   V8_NOINLINE void ReportClassifierError(
       const typename ExpressionClassifier::Error& error) {
     if (classifier()->does_error_reporting()) {
-      impl()->ReportMessageAt(error.location, error.message(), error.arg);
+      impl()->ReportMessageAt(error.location, error.message());
     } else {
       impl()->ReportUnidentifiableError();
     }
@@ -2731,7 +2731,7 @@ ParserBase<Impl>::ParseAssignmentExpression() {
   impl()->MarkExpressionAsAssigned(expression);
 
   Consume(op);
-  Scanner::Location op_location = scanner()->location();
+  int op_position = position();
 
   ExpressionT right = ParseAssignmentExpression();
   // This is definitely not an assignment pattern, so don't accumulate
@@ -2766,11 +2766,12 @@ ParserBase<Impl>::ParseAssignmentExpression() {
     }
   } else {
     classifier()->RecordPatternError(
-        op_location, MessageTemplate::kUnexpectedToken, Token::String(op));
+        Scanner::Location(expression->position(), end_position()),
+        MessageTemplate::kInvalidDestructuringTarget);
     fni_.RemoveLastFunction();
   }
 
-  return factory()->NewAssignment(op, expression, right, op_location.beg_pos);
+  return factory()->NewAssignment(op, expression, right, op_position);
 }
 
 template <typename Impl>

@@ -85,11 +85,10 @@ class ExpressionClassifierBase {
     V8_INLINE Error()
         : location(Scanner::Location::invalid()),
           message_(static_cast<int>(MessageTemplate::kNone)),
-          kind(kUnusedError),
-          arg(nullptr) {}
+          kind(kUnusedError) {}
     V8_INLINE explicit Error(Scanner::Location loc, MessageTemplate msg,
                              ErrorKind k, const char* a = nullptr)
-        : location(loc), message_(static_cast<int>(msg)), kind(k), arg(a) {}
+        : location(loc), message_(static_cast<int>(msg)), kind(k) {}
 
     Scanner::Location location;
     // GCC doesn't like storing the enum class directly in 28 bits, so we
@@ -101,7 +100,6 @@ class ExpressionClassifierBase {
     }
     int message_ : 28;
     unsigned kind : 4;
-    const char* arg;
   };
 
   // clang-format off
@@ -398,57 +396,51 @@ class ExpressionClassifier
   V8_INLINE bool does_error_reporting() { return ReportErrors; }
 
   void RecordExpressionError(const Scanner::Location& loc,
-                             MessageTemplate message,
-                             const char* arg = nullptr) {
+                             MessageTemplate message) {
     this->Add(TP::ExpressionProduction,
-              Error(loc, message, ErrorKind::kExpressionProduction, arg));
+              Error(loc, message, ErrorKind::kExpressionProduction));
   }
 
   void RecordFormalParameterInitializerError(const Scanner::Location& loc,
-                                             MessageTemplate message,
-                                             const char* arg = nullptr) {
-    this->Add(TP::FormalParameterInitializerProduction,
-              Error(loc, message,
-                    ErrorKind::kFormalParameterInitializerProduction, arg));
+                                             MessageTemplate message) {
+    this->Add(
+        TP::FormalParameterInitializerProduction,
+        Error(loc, message, ErrorKind::kFormalParameterInitializerProduction));
   }
 
-  void RecordPatternError(const Scanner::Location& loc, MessageTemplate message,
-                          const char* arg = nullptr) {
+  void RecordPatternError(const Scanner::Location& loc,
+                          MessageTemplate message) {
     this->Add(TP::PatternProduction,
-              Error(loc, message, ErrorKind::kPatternProduction, arg));
+              Error(loc, message, ErrorKind::kPatternProduction));
   }
 
   void RecordBindingPatternError(const Scanner::Location& loc,
-                                 MessageTemplate message,
-                                 const char* arg = nullptr) {
+                                 MessageTemplate message) {
     this->Add(TP::BindingPatternProduction,
-              Error(loc, message, ErrorKind::kBindingPatternProduction, arg));
+              Error(loc, message, ErrorKind::kBindingPatternProduction));
   }
 
   void RecordAsyncArrowFormalParametersError(const Scanner::Location& loc,
-                                             MessageTemplate message,
-                                             const char* arg = nullptr) {
-    this->Add(TP::AsyncArrowFormalParametersProduction,
-              Error(loc, message,
-                    ErrorKind::kAsyncArrowFormalParametersProduction, arg));
+                                             MessageTemplate message) {
+    this->Add(
+        TP::AsyncArrowFormalParametersProduction,
+        Error(loc, message, ErrorKind::kAsyncArrowFormalParametersProduction));
   }
 
   // Record a binding that would be invalid in strict mode.  Confusingly this
   // is not the same as StrictFormalParameterList, which simply forbids
   // duplicate bindings.
   void RecordStrictModeFormalParameterError(const Scanner::Location& loc,
-                                            MessageTemplate message,
-                                            const char* arg = nullptr) {
-    this->Add(TP::StrictModeFormalParametersProduction,
-              Error(loc, message,
-                    ErrorKind::kStrictModeFormalParametersProduction, arg));
+                                            MessageTemplate message) {
+    this->Add(
+        TP::StrictModeFormalParametersProduction,
+        Error(loc, message, ErrorKind::kStrictModeFormalParametersProduction));
   }
 
   void RecordLetPatternError(const Scanner::Location& loc,
-                             MessageTemplate message,
-                             const char* arg = nullptr) {
+                             MessageTemplate message) {
     this->Add(TP::LetPatternProduction,
-              Error(loc, message, ErrorKind::kLetPatternProduction, arg));
+              Error(loc, message, ErrorKind::kLetPatternProduction));
   }
 
   ExpressionClassifier* previous() const { return previous_; }

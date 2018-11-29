@@ -256,9 +256,9 @@ class Scanner {
     Location() : beg_pos(0), end_pos(0) { }
 
     int length() const { return end_pos - beg_pos; }
-    bool IsValid() const { return beg_pos >= 0 && end_pos >= beg_pos; }
+    bool IsValid() const { return IsInRange(beg_pos, 0, end_pos); }
 
-    static Location invalid() { return Location(-1, -1); }
+    static Location invalid() { return Location(-1, 0); }
 
     int beg_pos;
     int end_pos;
