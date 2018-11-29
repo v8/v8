@@ -164,68 +164,30 @@ inline void I64Shiftop(LiftoffAssembler* assm, LiftoffRegister dst,
               scratch);
 }
 
+inline FloatRegister GetFloatRegister(DoubleRegister reg) {
+  DCHECK_LT(reg.code(), kDoubleCode_d16);
+  return LowDwVfpRegister::from_code(reg.code()).low();
+}
+
 enum class MinOrMax : uint8_t { kMin, kMax };
-inline void EmitFloatMinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
-                              DoubleRegister lhs, DoubleRegister rhs,
+template <typename RegisterType>
+inline void EmitFloatMinOrMax(LiftoffAssembler* assm, RegisterType dst,
+                              RegisterType lhs, RegisterType rhs,
                               MinOrMax min_or_max) {
-  Label is_nan;
-  Label lhs_below_rhs;
-  Label lhs_above_rhs;
-  Label done;
-  // Check the easy cases first: nan (e.g. unordered), smaller and greater.
-  assm->VFPCompareAndSetFlags(lhs, rhs);
-  assm->b(&is_nan, vs);
-
-  if (CpuFeatures::IsSupported(ARMv8)) {
-    CpuFeatureScope scope(assm, ARMv8);
-    if (min_or_max == MinOrMax::kMin) {
-      assm->vminnm(dst, lhs, rhs);
-    } else {
-      assm->vmaxnm(dst, lhs, rhs);
-    }
-    assm->b(&done);
-    assm->bind(&is_nan);
-    // Create a NaN output.
-    assm->vadd(dst, lhs, rhs);
+  DCHECK(RegisterType::kSizeInBytes == 4 || RegisterType::kSizeInBytes == 8);
+  Label done, is_nan;
+  if (min_or_max == MinOrMax::kMin) {
+    assm->TurboAssembler::FloatMin(dst, lhs, rhs, &is_nan);
   } else {
-    assm->b(&lhs_below_rhs, lt);
-    assm->b(&lhs_above_rhs, gt);
-
-    UseScratchRegisterScope temps(assm);
-    Register scratch = temps.Acquire();
-
-    // If we get here, then either
-    // a) {lhs == rhs},
-    // b) {lhs == -0.0} and {rhs == 0.0}, or
-    // c) {lhs == 0.0} and {rhs == -0.0}.
-    // For a), it does not matter whether we return {lhs} or {rhs}. Check the
-    // sign bit of {rhs} to differentiate b) and c).
-    assm->VmovHigh(scratch, lhs);
-    assm->cmp(scratch, Operand(0));
-    assm->b(&lhs_below_rhs, mi);
-    assm->b(&lhs_above_rhs);
-    assm->bind(&is_nan);
-    // Create a NaN output.
-    assm->vadd(dst, lhs, rhs);
-
-    assm->b(&done);
-    assm->bind(&lhs_below_rhs);
-    DoubleRegister lhs_below_rhs_src =
-        (min_or_max == MinOrMax::kMin) ? lhs : rhs;
-    if (dst != lhs_below_rhs_src) {
-      assm->vmov(dst, lhs_below_rhs_src);
-    }
-    assm->b(&done);
-
-    assm->bind(&lhs_above_rhs);
-    DoubleRegister lhs_above_rhs_src =
-        (min_or_max == MinOrMax::kMin) ? rhs : lhs;
-    if (dst != lhs_above_rhs_src) {
-      assm->vmov(dst, lhs_above_rhs_src);
-    }
+    assm->TurboAssembler::FloatMax(dst, lhs, rhs, &is_nan);
   }
+  assm->b(&done);
+  assm->bind(&is_nan);
+  // Create a NaN output.
+  assm->vadd(dst, lhs, rhs);
   assm->bind(&done);
 }
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -283,7 +245,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       break;
     }
     case kWasmF32:
-      BAILOUT("Load f32 Constant");
+      vmov(liftoff::GetFloatRegister(reg.fp()), value.to_f32_boxed());
       break;
     case kWasmF64: {
       Register extra_scratch = GetUnusedRegister(kGpReg).gp();
@@ -324,12 +286,26 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     return;
   }
   UseScratchRegisterScope temps(this);
-  if (type.value() == LoadType::kF64Load) {
-    // Armv6 is not supported so Neon can be used to avoid alignment issues.
-    CpuFeatureScope scope(this, NEON);
+  if (type.value() == LoadType::kF64Load ||
+      type.value() == LoadType::kF32Load) {
     Register actual_src_addr = liftoff::CalculateActualAddress(
         this, &temps, src_addr, offset_reg, offset_imm);
-    vld1(Neon64, NeonListOperand(dst.fp()), NeonMemOperand(actual_src_addr));
+    if (type.value() == LoadType::kF64Load) {
+      // Armv6 is not supported so Neon can be used to avoid alignment issues.
+      CpuFeatureScope scope(this, NEON);
+      vld1(Neon64, NeonListOperand(dst.fp()), NeonMemOperand(actual_src_addr));
+    } else {
+      // TODO(arm): Use vld1 for f32 when implemented in simulator as used for
+      // f64. It supports unaligned access.
+      Register scratch = no_reg;
+      if (temps.CanAcquire()) {
+        scratch = temps.Acquire();
+      } else {
+        scratch = GetUnusedRegister(kGpReg, pinned).gp();
+      }
+      ldr(scratch, MemOperand(actual_src_addr));
+      vmov(liftoff::GetFloatRegister(dst.fp()), scratch);
+    }
   } else {
     MemOperand src_op =
         liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
@@ -387,9 +363,6 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
         }
         ldr(dst.high_gp(), src_op);
         break;
-      case LoadType::kF32Load:
-        BAILOUT("Load f32");
-        break;
       default:
         UNREACHABLE();
     }
@@ -408,12 +381,26 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     return;
   }
   UseScratchRegisterScope temps(this);
-  if (type.value() == StoreType::kF64Store) {
-    // Armv6 is not supported so Neon can be used to avoid alignment issues.
-    CpuFeatureScope scope(this, NEON);
+  if (type.value() == StoreType::kF64Store ||
+      type.value() == StoreType::kF32Store) {
     Register actual_dst_addr = liftoff::CalculateActualAddress(
         this, &temps, dst_addr, offset_reg, offset_imm);
-    vst1(Neon64, NeonListOperand(src.fp()), NeonMemOperand(actual_dst_addr));
+    if (type.value() == StoreType::kF64Store) {
+      // Armv6 is not supported so Neon can be used to avoid alignment issues.
+      CpuFeatureScope scope(this, NEON);
+      vst1(Neon64, NeonListOperand(src.fp()), NeonMemOperand(actual_dst_addr));
+    } else {
+      // TODO(arm): Use vst1 for f32 when implemented in simulator as used for
+      // f64. It supports unaligned access.
+      Register scratch = no_reg;
+      if (temps.CanAcquire()) {
+        scratch = temps.Acquire();
+      } else {
+        scratch = GetUnusedRegister(kGpReg, pinned).gp();
+      }
+      vmov(scratch, liftoff::GetFloatRegister(src.fp()));
+      str(scratch, MemOperand(actual_dst_addr));
+    }
   } else {
     MemOperand dst_op =
         liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
@@ -450,9 +437,6 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
         }
         str(src.high_gp(), dst_op);
         break;
-      case StoreType::kF32Store:
-        BAILOUT("Store f32");
-        break;
       default:
         UNREACHABLE();
     }
@@ -473,7 +457,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
       ldr(dst.high_gp(), MemOperand(fp, offset + kRegisterSize));
       break;
     case kWasmF32:
-      BAILOUT("Load Caller Frame Slot for f32");
+      vldr(liftoff::GetFloatRegister(dst.fp()), src);
       break;
     case kWasmF64:
       vldr(dst.fp(), src);
@@ -501,7 +485,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
                             ValueType type) {
   DCHECK_NE(dst, src);
   if (type == kWasmF32) {
-    BAILOUT("Move DoubleRegister");
+    vmov(liftoff::GetFloatRegister(dst), liftoff::GetFloatRegister(src));
   } else {
     DCHECK_EQ(kWasmF64, type);
     vmov(dst, src);
@@ -521,7 +505,7 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
       str(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
-      BAILOUT("Spill Register f32");
+      vstr(liftoff::GetFloatRegister(reg.fp()), dst);
       break;
     case kWasmF64:
       vstr(reg.fp(), dst);
@@ -574,7 +558,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
       ldr(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
-      BAILOUT("Fill Register");
+      vldr(liftoff::GetFloatRegister(reg.fp()), liftoff::GetStackSlot(index));
       break;
     case kWasmF64:
       vldr(reg.fp(), liftoff::GetStackSlot(index));
@@ -601,6 +585,18 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
     and_(scratch, amount, Operand(0x1f));                                      \
     instruction(dst, src, Operand(scratch));                                   \
   }
+#define FP32_UNOP(name, instruction)                                           \
+  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    instruction(liftoff::GetFloatRegister(dst),                                \
+                liftoff::GetFloatRegister(src));                               \
+  }
+#define FP32_BINOP(name, instruction)                                        \
+  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
+                                     DoubleRegister rhs) {                   \
+    instruction(liftoff::GetFloatRegister(dst),                              \
+                liftoff::GetFloatRegister(lhs),                              \
+                liftoff::GetFloatRegister(rhs));                             \
+  }
 #define FP64_UNOP(name, instruction)                                           \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     instruction(dst, src);                                                     \
@@ -609,15 +605,6 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
     instruction(dst, lhs, rhs);                                              \
-  }
-#define UNIMPLEMENTED_FP_BINOP(name)                                         \
-  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
-                                     DoubleRegister rhs) {                   \
-    BAILOUT("fp binop: " #name);                                             \
-  }
-#define UNIMPLEMENTED_FP_UNOP(name)                                            \
-  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    BAILOUT("fp unop: " #name);                                                \
   }
 
 I32_BINOP(i32_add, add)
@@ -629,16 +616,13 @@ I32_BINOP(i32_xor, eor)
 I32_SHIFTOP(i32_shl, lsl)
 I32_SHIFTOP(i32_sar, asr)
 I32_SHIFTOP(i32_shr, lsr)
-UNIMPLEMENTED_FP_BINOP(f32_add)
-UNIMPLEMENTED_FP_BINOP(f32_sub)
-UNIMPLEMENTED_FP_BINOP(f32_mul)
-UNIMPLEMENTED_FP_BINOP(f32_div)
-UNIMPLEMENTED_FP_BINOP(f32_min)
-UNIMPLEMENTED_FP_BINOP(f32_max)
-UNIMPLEMENTED_FP_BINOP(f32_copysign)
-UNIMPLEMENTED_FP_UNOP(f32_abs)
-UNIMPLEMENTED_FP_UNOP(f32_neg)
-UNIMPLEMENTED_FP_UNOP(f32_sqrt)
+FP32_BINOP(f32_add, vadd)
+FP32_BINOP(f32_sub, vsub)
+FP32_BINOP(f32_mul, vmul)
+FP32_BINOP(f32_div, vdiv)
+FP32_UNOP(f32_abs, vabs)
+FP32_UNOP(f32_neg, vneg)
+FP32_UNOP(f32_sqrt, vsqrt)
 FP64_BINOP(f64_add, vadd)
 FP64_BINOP(f64_sub, vsub)
 FP64_BINOP(f64_mul, vmul)
@@ -649,8 +633,10 @@ FP64_UNOP(f64_sqrt, vsqrt)
 
 #undef I32_BINOP
 #undef I32_SHIFTOP
-#undef UNIMPLEMENTED_FP_BINOP
-#undef UNIMPLEMENTED_FP_UNOP
+#undef FP32_UNOP
+#undef FP32_BINOP
+#undef FP64_UNOP
+#undef FP64_BINOP
 
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   clz(dst, src);
@@ -860,20 +846,54 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
 }
 
 bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    vrintp(liftoff::GetFloatRegister(dst), liftoff::GetFloatRegister(src));
+    return true;
+  }
   return false;
 }
 
 bool LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    vrintm(liftoff::GetFloatRegister(dst), liftoff::GetFloatRegister(src));
+    return true;
+  }
   return false;
 }
 
 bool LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    vrintz(liftoff::GetFloatRegister(dst), liftoff::GetFloatRegister(src));
+    return true;
+  }
   return false;
 }
 
 bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    vrintn(liftoff::GetFloatRegister(dst), liftoff::GetFloatRegister(src));
+    return true;
+  }
   return false;
+}
+
+void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  liftoff::EmitFloatMinOrMax(
+      this, liftoff::GetFloatRegister(dst), liftoff::GetFloatRegister(lhs),
+      liftoff::GetFloatRegister(rhs), liftoff::MinOrMax::kMin);
+}
+
+void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  liftoff::EmitFloatMinOrMax(
+      this, liftoff::GetFloatRegister(dst), liftoff::GetFloatRegister(lhs),
+      liftoff::GetFloatRegister(rhs), liftoff::MinOrMax::kMax);
 }
 
 bool LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
@@ -927,6 +947,23 @@ void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   // This is a nop on arm.
 }
 
+void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  constexpr uint32_t kF32SignBit = uint32_t{1} << 31;
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Register scratch2 = GetUnusedRegister(kGpReg).gp();
+  VmovLow(scratch, lhs);
+  // Clear sign bit in {scratch}.
+  bic(scratch, scratch, Operand(kF32SignBit));
+  VmovLow(scratch2, rhs);
+  // Isolate sign bit in {scratch2}.
+  and_(scratch2, scratch2, Operand(kF32SignBit));
+  // Combine {scratch2} into {scratch}.
+  orr(scratch, scratch, scratch2);
+  VmovLow(dst, scratch);
+}
+
 void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
   constexpr uint32_t kF64SignBitHighWord = uint32_t{1} << 31;
@@ -955,11 +992,35 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::Move(dst.gp(), src.low_gp());
       return true;
     case kExprI32SConvertF32: {
-      BAILOUT("kExprI32SConvertF32");
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_s32_f32(
+          scratch_f,
+          liftoff::GetFloatRegister(src.fp()));  // f32 -> i32 round to zero.
+      vmov(dst.gp(), scratch_f);
+      // Check underflow and NaN.
+      vmov(scratch_f, Float32(static_cast<float>(INT32_MIN)));
+      VFPCompareAndSetFlags(liftoff::GetFloatRegister(src.fp()), scratch_f);
+      b(trap, lt);
+      // Check overflow.
+      cmp(dst.gp(), Operand(-1));
+      b(trap, vs);
       return true;
     }
     case kExprI32UConvertF32: {
-      BAILOUT("kExprI32UConvertF32");
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_u32_f32(
+          scratch_f,
+          liftoff::GetFloatRegister(src.fp()));  // f32 -> i32 round to zero.
+      vmov(dst.gp(), scratch_f);
+      // Check underflow and NaN.
+      vmov(scratch_f, Float32(-1.0f));
+      VFPCompareAndSetFlags(liftoff::GetFloatRegister(src.fp()), scratch_f);
+      b(trap, le);
+      // Check overflow.
+      cmp(dst.gp(), Operand(-1));
+      b(trap, eq);
       return true;
     }
     case kExprI32SConvertF64: {
@@ -995,7 +1056,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI32ReinterpretF32:
-      BAILOUT("kExprI32ReinterpretF32");
+      vmov(dst.gp(), liftoff::GetFloatRegister(src.fp()));
       return true;
     case kExprI64SConvertI32:
       if (dst.low_gp() != src.gp()) mov(dst.low_gp(), src.gp());
@@ -1008,34 +1069,36 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI64ReinterpretF64:
       vmov(dst.low_gp(), dst.high_gp(), src.fp());
       return true;
-    case kExprF32SConvertI32:
-      BAILOUT("kExprF32SConvertI32");
+    case kExprF32SConvertI32: {
+      SwVfpRegister dst_float = liftoff::GetFloatRegister(dst.fp());
+      vmov(dst_float, src.gp());
+      vcvt_f32_s32(dst_float, dst_float);
       return true;
-    case kExprF32UConvertI32:
-      BAILOUT("kExprF32UConvertI32");
+    }
+    case kExprF32UConvertI32: {
+      SwVfpRegister dst_float = liftoff::GetFloatRegister(dst.fp());
+      vmov(dst_float, src.gp());
+      vcvt_f32_u32(dst_float, dst_float);
       return true;
+    }
     case kExprF32ConvertF64:
-      BAILOUT("kExprF32ConvertF64");
+      vcvt_f32_f64(liftoff::GetFloatRegister(dst.fp()), src.fp());
       return true;
     case kExprF32ReinterpretI32:
-      BAILOUT("kExprF32ReinterpretI32");
+      vmov(liftoff::GetFloatRegister(dst.fp()), src.gp());
       return true;
     case kExprF64SConvertI32: {
-      UseScratchRegisterScope temps(this);
-      SwVfpRegister scratch = temps.AcquireS();
-      vmov(scratch, src.gp());
-      vcvt_f64_s32(dst.fp(), scratch);
+      vmov(liftoff::GetFloatRegister(dst.fp()), src.gp());
+      vcvt_f64_s32(dst.fp(), liftoff::GetFloatRegister(dst.fp()));
       return true;
     }
     case kExprF64UConvertI32: {
-      UseScratchRegisterScope temps(this);
-      SwVfpRegister scratch = temps.AcquireS();
-      vmov(scratch, src.gp());
-      vcvt_f64_u32(dst.fp(), scratch);
+      vmov(liftoff::GetFloatRegister(dst.fp()), src.gp());
+      vcvt_f64_u32(dst.fp(), liftoff::GetFloatRegister(dst.fp()));
       return true;
     }
     case kExprF64ConvertF32:
-      BAILOUT("kExprF64ConvertF32");
+      vcvt_f64_f32(dst.fp(), liftoff::GetFloatRegister(src.fp()));
       return true;
     case kExprF64ReinterpretI64:
       vmov(dst.fp(), src.low_gp(), src.high_gp());
@@ -1160,7 +1223,14 @@ void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("emit_f32_set_cond");
+  VFPCompareAndSetFlags(liftoff::GetFloatRegister(lhs),
+                        liftoff::GetFloatRegister(rhs));
+  mov(dst, Operand(0), LeaveCC);
+  mov(dst, Operand(1), LeaveCC, cond);
+  if (cond != ne) {
+    // If V flag set, at least one of the arguments was a Nan -> false.
+    mov(dst, Operand(0), LeaveCC, vs);
+  }
 }
 
 void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
@@ -1264,7 +1334,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
         str(args->high_gp(), MemOperand(sp, arg_bytes + kRegisterSize));
         break;
       case kWasmF32:
-        BAILOUT("Call C for f32 parameter");
+        vstr(liftoff::GetFloatRegister(args->fp()), MemOperand(sp, arg_bytes));
         break;
       case kWasmF64:
         vstr(args->fp(), MemOperand(sp, arg_bytes));
@@ -1307,7 +1377,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
         ldr(result_reg->high_gp(), MemOperand(sp, kPointerSize));
         break;
       case kWasmF32:
-        BAILOUT("Call C for f32 parameter");
+        vldr(liftoff::GetFloatRegister(result_reg->fp()), MemOperand(sp));
         break;
       case kWasmF64:
         vldr(result_reg->fp(), MemOperand(sp));
@@ -1354,16 +1424,14 @@ void LiftoffStackSlots::Construct() {
           // i32 and i64 can be treated as similar cases, i64 being previously
           // split into two i32 registers
           case kWasmI32:
-          case kWasmI64: {
+          case kWasmI64:
+          case kWasmF32: {
             UseScratchRegisterScope temps(asm_);
             Register scratch = temps.Acquire();
             asm_->ldr(scratch,
                       liftoff::GetHalfStackSlot(slot.src_index_, slot.half_));
             asm_->Push(scratch);
           } break;
-          case kWasmF32:
-            asm_->BAILOUT("Construct f32 from kStack");
-            break;
           case kWasmF64: {
             UseScratchRegisterScope temps(asm_);
             DwVfpRegister scratch = temps.AcquireD();
@@ -1386,7 +1454,7 @@ void LiftoffStackSlots::Construct() {
             asm_->push(src.reg().gp());
             break;
           case kWasmF32:
-            asm_->BAILOUT("Construct f32 from kRegister");
+            asm_->vpush(liftoff::GetFloatRegister(src.reg().fp()));
             break;
           case kWasmF64:
             asm_->vpush(src.reg().fp());
