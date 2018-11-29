@@ -4159,3 +4159,19 @@ v8_source_set("wasm_compile_fuzzer") {
 
 v8_fuzzer("wasm_compile_fuzzer") {
 }
+
+# Target to build all generated .cc files.
+group("v8_generated_cc_files") {
+  testonly = true
+
+  deps = [
+    ":d8_js2c",
+    ":generate_bytecode_builtins_list",
+    ":js2c",
+    ":js2c_experimental_extras",
+    ":js2c_extras",
+    ":run_torque",
+    "src/inspector:v8_generated_cc_files",
+    "test/cctest:v8_generated_cc_files",
+  ]
+}
