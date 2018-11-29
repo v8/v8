@@ -181,7 +181,8 @@ class LiftoffCompiler {
   void unsupported(FullDecoder* decoder, const char* reason) {
     ok_ = false;
     TRACE("unsupported: %s\n", reason);
-    decoder->errorf(decoder->pc(), "unsupported liftoff operation: %s", reason);
+    decoder->errorf(decoder->pc_offset(), "unsupported liftoff operation: %s",
+                    reason);
     BindUnboundLabels(decoder);
   }
 
