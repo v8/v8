@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/heap-object.h"
 #include "src/utils.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -21,7 +22,7 @@ class ValueSerializer;
 
 // BigIntBase is just the raw data object underlying a BigInt. Use with care!
 // Most code should be using BigInts instead.
-class BigIntBase : public HeapObject {
+class BigIntBase : public HeapObjectPtr {
  public:
   inline int length() const {
     int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
@@ -34,6 +35,9 @@ class BigIntBase : public HeapObject {
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
+  static inline BigIntBase unchecked_cast(ObjectPtr o) {
+    return bit_cast<BigIntBase>(o);
+  }
   // Increasing kMaxLength will require code changes.
   static const int kMaxLengthBits =
       kMaxInt - kSystemPointerSize * kBitsPerByte - 1;
@@ -86,7 +90,10 @@ class BigIntBase : public HeapObject {
 
   bool is_zero() const { return length() == 0; }
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(BigIntBase);
+  // Only serves to make macros happy; other code should use IsBigInt.
+  bool IsBigIntBase() const { return true; }
+
+  OBJECT_CONSTRUCTORS(BigIntBase, HeapObjectPtr);
 };
 
 class FreshlyAllocatedBigInt : public BigIntBase {
@@ -102,7 +109,10 @@ class FreshlyAllocatedBigInt : public BigIntBase {
   //   (and no explicit operator is provided either).
 
  public:
-  inline static FreshlyAllocatedBigInt* cast(Object* object);
+  inline static FreshlyAllocatedBigInt cast(Object* object);
+  inline static FreshlyAllocatedBigInt unchecked_cast(ObjectPtr o) {
+    return bit_cast<FreshlyAllocatedBigInt>(o);
+  }
 
   // Clear uninitialized padding space.
   inline void clear_padding() {
@@ -114,10 +124,12 @@ class FreshlyAllocatedBigInt : public BigIntBase {
   }
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FreshlyAllocatedBigInt);
+  // Only serves to make macros happy; other code should use IsBigInt.
+  bool IsFreshlyAllocatedBigInt() const { return true; }
+
+  OBJECT_CONSTRUCTORS(FreshlyAllocatedBigInt, BigIntBase);
 };
 
-// UNDER CONSTRUCTION!
 // Arbitrary precision integers in JavaScript.
 class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
  public:
@@ -148,7 +160,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
                                                 Handle<BigInt> y);
   // More convenient version of "bool LessThan(x, y)".
   static ComparisonResult CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y);
-  static bool EqualToBigInt(BigInt* x, BigInt* y);
+  static bool EqualToBigInt(BigInt x, BigInt y);
   static MaybeHandle<BigInt> BitwiseAnd(Isolate* isolate, Handle<BigInt> x,
                                         Handle<BigInt> y);
   static MaybeHandle<BigInt> BitwiseXor(Isolate* isolate, Handle<BigInt> x,
@@ -189,7 +201,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   int Words64Count();
   void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
 
-  DECL_CAST(BigInt)
+  DECL_CAST2(BigInt)
   DECL_VERIFIER(BigInt)
   DECL_PRINTER(BigInt)
   void BigIntShortPrint(std::ostream& os);
@@ -239,7 +251,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
       Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
       PretenureFlag pretenure);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(BigInt);
+  OBJECT_CONSTRUCTORS(BigInt, BigIntBase);
 };
 
 }  // namespace internal

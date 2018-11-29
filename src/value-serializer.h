@@ -110,7 +110,7 @@ class ValueSerializer {
   void WriteZigZag(T value);
   void WriteOneByteString(Vector<const uint8_t> chars);
   void WriteTwoByteString(Vector<const uc16> chars);
-  void WriteBigIntContents(BigInt* bigint);
+  void WriteBigIntContents(BigInt bigint);
   Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
@@ -118,7 +118,7 @@ class ValueSerializer {
   void WriteSmi(Smi smi);
   void WriteHeapNumber(HeapNumber* number);
   void WriteMutableHeapNumber(MutableHeapNumber* number);
-  void WriteBigInt(BigInt* bigint);
+  void WriteBigInt(BigInt bigint);
   void WriteString(Handle<String> string);
   Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver)
       V8_WARN_UNUSED_RESULT;

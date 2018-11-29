@@ -265,7 +265,7 @@ void ValueSerializer::WriteTwoByteString(Vector<const uc16> chars) {
   WriteRawBytes(chars.begin(), chars.length() * sizeof(uc16));
 }
 
-void ValueSerializer::WriteBigIntContents(BigInt* bigint) {
+void ValueSerializer::WriteBigIntContents(BigInt bigint) {
   uint32_t bitfield = bigint->GetBitfieldForSerialization();
   int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
   WriteVarint<uint32_t>(bitfield);
@@ -435,7 +435,7 @@ void ValueSerializer::WriteMutableHeapNumber(MutableHeapNumber* number) {
   WriteDouble(number->value());
 }
 
-void ValueSerializer::WriteBigInt(BigInt* bigint) {
+void ValueSerializer::WriteBigInt(BigInt bigint) {
   WriteTag(SerializationTag::kBigInt);
   WriteBigIntContents(bigint);
 }

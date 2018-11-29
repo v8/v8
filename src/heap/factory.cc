@@ -2313,7 +2313,7 @@ Handle<FreshlyAllocatedBigInt> Factory::NewBigInt(int length,
   }
   HeapObject* result = AllocateRawWithImmortalMap(BigInt::SizeFor(length),
                                                   pretenure, *bigint_map());
-  FreshlyAllocatedBigInt* bigint = FreshlyAllocatedBigInt::cast(result);
+  FreshlyAllocatedBigInt bigint = FreshlyAllocatedBigInt::cast(result);
   bigint->clear_padding();
   return handle(bigint, isolate());
 }

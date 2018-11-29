@@ -508,11 +508,15 @@ NormalizedMapCache::NormalizedMapCache(Address ptr) : WeakFixedArray(ptr) {
   // OBJECT_CONSTRUCTORS_IMPL macro?
 }
 
+OBJECT_CONSTRUCTORS_IMPL(BigIntBase, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
+OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
+
 // ------------------------------------
 // Cast operations
 
 CAST_ACCESSOR(AccessorPair)
-CAST_ACCESSOR(BigInt)
+CAST_ACCESSOR2(BigInt)
 CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ArrayBoilerplateDescription)
@@ -1602,7 +1606,7 @@ int HeapObject::SizeFromMap(Map map) const {
         reinterpret_cast<const FeedbackVector*>(this)->length());
   }
   if (instance_type == BIGINT_TYPE) {
-    return BigInt::SizeFor(reinterpret_cast<const BigInt*>(this)->length());
+    return BigInt::SizeFor(BigInt::unchecked_cast(this)->length());
   }
   if (instance_type == PRE_PARSED_SCOPE_DATA_TYPE) {
     return PreParsedScopeData::SizeFor(
@@ -2063,9 +2067,9 @@ bool ScopeInfo::HasSimpleParameters() const {
 FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
 #undef FIELD_ACCESSORS
 
-FreshlyAllocatedBigInt* FreshlyAllocatedBigInt::cast(Object* object) {
+FreshlyAllocatedBigInt FreshlyAllocatedBigInt::cast(Object* object) {
   SLOW_DCHECK(object->IsBigInt());
-  return reinterpret_cast<FreshlyAllocatedBigInt*>(object);
+  return FreshlyAllocatedBigInt(object->ptr());
 }
 
 }  // namespace internal
