@@ -7664,7 +7664,8 @@ class V8_EXPORT Isolate {
   Local<Context> GetCurrentContext();
 
   /** Returns the last context entered through V8's C++ API. */
-  Local<Context> GetEnteredContext();
+  V8_DEPRECATED("Use GetEnteredOrMicrotaskContext().",
+                Local<Context> GetEnteredContext());
 
   /**
    * Returns either the last context entered through V8's C++ API, or the

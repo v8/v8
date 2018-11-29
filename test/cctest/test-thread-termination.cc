@@ -855,11 +855,11 @@ TEST(TerminateInMicrotask) {
   {
     v8::Context::Scope context_scope(context2);
     CHECK(context2 == isolate->GetCurrentContext());
-    CHECK(context2 == isolate->GetEnteredContext());
+    CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
     CHECK(!isolate->IsExecutionTerminating());
     isolate->RunMicrotasks();
     CHECK(context2 == isolate->GetCurrentContext());
-    CHECK(context2 == isolate->GetEnteredContext());
+    CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
     CHECK(try_catch.HasCaught());
     CHECK(try_catch.HasTerminated());
   }

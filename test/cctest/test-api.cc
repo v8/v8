@@ -22828,7 +22828,6 @@ static void Regress808911_MicrotaskCallback(void* data) {
   // So here we expect "current context" to be context1 and
   // "entered or microtask context" to be context2.
   v8::Isolate* isolate = static_cast<v8::Isolate*>(data);
-  CHECK(isolate->GetCurrentContext() != isolate->GetEnteredContext());
   CHECK(isolate->GetCurrentContext() !=
         isolate->GetEnteredOrMicrotaskContext());
 }
@@ -22838,7 +22837,6 @@ static void Regress808911_CurrentContextWrapper(
   // So here we expect "current context" to be context1 and
   // "entered or microtask context" to be context2.
   v8::Isolate* isolate = info.GetIsolate();
-  CHECK(isolate->GetCurrentContext() != isolate->GetEnteredContext());
   CHECK(isolate->GetCurrentContext() !=
         isolate->GetEnteredOrMicrotaskContext());
   isolate->EnqueueMicrotask(Regress808911_MicrotaskCallback, isolate);
@@ -28316,7 +28314,7 @@ void CheckContexts(v8::Isolate* isolate) {
                                ->GetEmbedderData(1)
                                .As<v8::Integer>()
                                ->Value());
-  CHECK_EQ(EnteredContext, isolate->GetEnteredContext()
+  CHECK_EQ(EnteredContext, isolate->GetEnteredOrMicrotaskContext()
                                ->GetEmbedderData(1)
                                .As<v8::Integer>()
                                ->Value());
