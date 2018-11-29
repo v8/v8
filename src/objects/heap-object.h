@@ -25,6 +25,8 @@ class ObjectPtr {
 
   // Enable incremental transition.
   operator Object*() const { return reinterpret_cast<Object*>(ptr()); }
+  // Make clang on Linux catch what MSVC complains about on Windows:
+  operator bool() const = delete;
 
   bool operator==(const ObjectPtr other) const {
     return this->ptr() == other.ptr();

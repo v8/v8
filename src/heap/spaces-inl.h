@@ -167,6 +167,11 @@ bool PagedSpace::Contains(Object* o) {
   return Page::FromAddress(HeapObject::cast(o)->address())->owner() == this;
 }
 
+bool PagedSpace::Contains(ObjectPtr o) {
+  if (!o.IsHeapObject()) return false;
+  return Page::FromAddress(o.ptr())->owner() == this;
+}
+
 void PagedSpace::UnlinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
   page->ForAllFreeListCategories([this](FreeListCategory* category) {

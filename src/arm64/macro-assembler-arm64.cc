@@ -402,6 +402,10 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
   }
 }
 
+void TurboAssembler::Mov(const Register& rd, Smi smi) {
+  return Mov(rd, Operand(smi));
+}
+
 void TurboAssembler::Movi16bitHelper(const VRegister& vd, uint64_t imm) {
   DCHECK(is_uint16(imm));
   int byte1 = (imm & 0xFF);

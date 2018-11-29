@@ -312,6 +312,14 @@ class SaveFlags {
   DISALLOW_COPY_AND_ASSIGN(SaveFlags);
 };
 
+// For GTest.
+inline void PrintTo(ObjectPtr o, ::std::ostream* os) {
+  *os << reinterpret_cast<void*>(o.ptr());
+}
+inline void PrintTo(Smi o, ::std::ostream* os) {
+  *os << reinterpret_cast<void*>(o.ptr());
+}
+
 }  // namespace internal
 }  // namespace v8
 

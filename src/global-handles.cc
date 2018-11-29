@@ -74,9 +74,9 @@ class GlobalHandles::Node {
     *first_free = this;
   }
 
-  void Acquire(Object* object) {
+  void Acquire(ObjectPtr object) {
     DCHECK(state() == FREE);
-    object_ = object->ptr();
+    object_ = object.ptr();
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_active(false);
@@ -526,8 +526,7 @@ GlobalHandles::~GlobalHandles() {
   first_block_ = nullptr;
 }
 
-
-Handle<Object> GlobalHandles::Create(Object* value) {
+Handle<Object> GlobalHandles::Create(ObjectPtr value) {
   if (first_free_ == nullptr) {
     first_block_ = new NodeBlock(this, first_block_);
     first_block_->PutNodesOnFreeList(&first_free_);
@@ -544,8 +543,12 @@ Handle<Object> GlobalHandles::Create(Object* value) {
   return result->handle();
 }
 
+Handle<Object> GlobalHandles::Create(Object* value) {
+  return Create(ObjectPtr(reinterpret_cast<Address>(value)));
+}
+
 Handle<Object> GlobalHandles::Create(Address value) {
-  return Create(reinterpret_cast<Object*>(value));
+  return Create(ObjectPtr(value));
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
