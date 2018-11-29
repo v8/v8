@@ -1436,6 +1436,13 @@ wasm::FunctionSig* WasmExportedFunction::sig() {
   return instance()->module()->functions[function_index()].sig;
 }
 
+Handle<WasmExceptionTag> WasmExceptionTag::New(Isolate* isolate, int index) {
+  Handle<WasmExceptionTag> result = Handle<WasmExceptionTag>::cast(
+      isolate->factory()->NewStruct(WASM_EXCEPTION_TAG_TYPE, TENURED));
+  result->set_index(index);
+  return result;
+}
+
 Handle<AsmWasmData> AsmWasmData::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
     Handle<FixedArray> export_wrappers, Handle<ByteArray> asm_js_offset_table,

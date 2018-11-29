@@ -1832,6 +1832,12 @@ void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void WasmExceptionTag::WasmExceptionTagPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "WasmExceptionTag");
+  os << "\n - index: " << index();
+  os << "\n";
+}
+
 void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "WasmInstanceObject");
   os << "\n - module_object: " << Brief(module_object());

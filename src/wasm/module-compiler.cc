@@ -2247,11 +2247,8 @@ void InstanceBuilder::InitializeExceptions(
   Handle<FixedArray> exceptions_table(instance->exceptions_table(), isolate_);
   for (int index = 0; index < exceptions_table->length(); ++index) {
     if (!exceptions_table->get(index)->IsUndefined(isolate_)) continue;
-    // TODO(mstarzinger): Tags provide an object identity for each exception,
-    // using {JSObject} here is gigantic hack and we should use a dedicated
-    // object with a much lighter footprint for this purpose here.
-    Handle<HeapObject> exception_tag =
-        isolate_->factory()->NewJSObjectWithNullProto();
+    Handle<WasmExceptionTag> exception_tag =
+        WasmExceptionTag::New(isolate_, index);
     exceptions_table->set(index, *exception_tag);
   }
 }

@@ -23,6 +23,7 @@ namespace internal {
 
 CAST_ACCESSOR(WasmDebugInfo)
 CAST_ACCESSOR(WasmExceptionObject)
+CAST_ACCESSOR(WasmExceptionTag)
 CAST_ACCESSOR(WasmExportedFunctionData)
 CAST_ACCESSOR(WasmGlobalObject)
 CAST_ACCESSOR(WasmInstanceObject)
@@ -247,6 +248,9 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 uint32_t WasmTableObject::current_length() { return functions()->length(); }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
+
+// WasmExceptionTag
+SMI_ACCESSORS(WasmExceptionTag, index, kIndexOffset)
 
 // AsmWasmData
 ACCESSORS(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,

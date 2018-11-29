@@ -648,6 +648,33 @@ class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
                                           wasm::FunctionSig*);
 };
 
+// Tags provide an object identity for each exception defined in a wasm module
+// header. They are referenced by the following fields:
+//  - {WasmExceptionObject::exception_tag}  : The tag of the exception object.
+//  - {WasmInstanceObject::exceptions_table}: List of tags used by an instance.
+class WasmExceptionTag : public Struct {
+ public:
+  static Handle<WasmExceptionTag> New(Isolate* isolate, int index);
+
+  // Note that this index is only useful for debugging purposes and it is not
+  // unique across modules. The GC however does not allow objects without at
+  // least one field, hence this also serves as a padding field for now.
+  DECL_INT_ACCESSORS(index);
+
+  DECL_CAST(WasmExceptionTag)
+  DECL_PRINTER(WasmExceptionTag)
+  DECL_VERIFIER(WasmExceptionTag)
+
+// Layout description.
+#define WASM_EXCEPTION_TAG_FIELDS(V) \
+  V(kIndexOffset, kPointerSize)      \
+  /* Total size. */                  \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, WASM_EXCEPTION_TAG_FIELDS)
+#undef WASM_EXCEPTION_TAG_FIELDS
+};
+
 class AsmWasmData : public Struct {
  public:
   static Handle<AsmWasmData> New(

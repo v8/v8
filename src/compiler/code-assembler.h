@@ -299,6 +299,7 @@ class SymbolWrapper;
 class Undetectable;
 class UniqueName;
 class WasmExceptionObject;
+class WasmExceptionTag;
 class WasmExportedFunctionData;
 class WasmGlobalObject;
 class WasmMemoryObject;

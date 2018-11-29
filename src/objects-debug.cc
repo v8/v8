@@ -1799,6 +1799,11 @@ void WasmDebugInfo::WasmDebugInfoVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kCWasmEntryMapOffset);
 }
 
+void WasmExceptionTag::WasmExceptionTagVerify(Isolate* isolate) {
+  CHECK(IsWasmExceptionTag());
+  VerifySmiField(kIndexOffset);
+}
+
 void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsWasmInstanceObject());
