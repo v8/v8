@@ -348,11 +348,16 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP_EXT(load_linked, store_conditional, sign_extend, \
-                                  size, bin_instr)                             \
+                                  size, bin_instr, representation)             \
   do {                                                                         \
     Label binop;                                                               \
     __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
-    __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                        \
+    if (representation == 32) {                                                \
+      __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                      \
+    } else {                                                                   \
+      DCHECK_EQ(representation, 64);                                           \
+      __ andi(i.TempRegister(3), i.TempRegister(0), 0x7);                      \
+    }                                                                          \
     __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(3)));                                      \
     __ sll(i.TempRegister(3), i.TempRegister(3), 3);                           \
@@ -383,12 +388,17 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ sync();                                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(load_linked, store_conditional,   \
-                                             sign_extend, size)                \
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(                                  \
+    load_linked, store_conditional, sign_extend, size, representation)         \
   do {                                                                         \
     Label exchange;                                                            \
     __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
-    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                        \
+    if (representation == 32) {                                                \
+      __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                      \
+    } else {                                                                   \
+      DCHECK_EQ(representation, 64);                                           \
+      __ andi(i.TempRegister(1), i.TempRegister(0), 0x7);                      \
+    }                                                                          \
     __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(1)));                                      \
     __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
@@ -424,12 +434,17 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   } while (0)
 
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(                          \
-    load_linked, store_conditional, sign_extend, size)                         \
+    load_linked, store_conditional, sign_extend, size, representation)         \
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
     __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
-    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                        \
+    if (representation == 32) {                                                \
+      __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                      \
+    } else {                                                                   \
+      DCHECK_EQ(representation, 64);                                           \
+      __ andi(i.TempRegister(1), i.TempRegister(0), 0x7);                      \
+    }                                                                          \
     __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(1)));                                      \
     __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
@@ -1868,75 +1883,75 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sd);
       break;
     case kWord32AtomicExchangeInt8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8, 32);
       break;
     case kWord32AtomicExchangeUint8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8, 32);
       break;
     case kWord32AtomicExchangeInt16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16, 32);
       break;
     case kWord32AtomicExchangeUint16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16, 32);
       break;
     case kWord32AtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Ll, Sc);
       break;
     case kMips64Word64AtomicExchangeUint8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8, 64);
       break;
     case kMips64Word64AtomicExchangeUint16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16, 64);
       break;
     case kMips64Word64AtomicExchangeUint32:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32, 64);
       break;
     case kMips64Word64AtomicExchangeUint64:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
       break;
     case kWord32AtomicCompareExchangeInt8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8, 32);
       break;
     case kWord32AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8, 32);
       break;
     case kWord32AtomicCompareExchangeInt16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16, 32);
       break;
     case kWord32AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16, 32);
       break;
     case kWord32AtomicCompareExchangeWord32:
       __ sll(i.InputRegister(2), i.InputRegister(2), 0);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
       break;
     case kMips64Word64AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8, 64);
       break;
     case kMips64Word64AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16, 64);
       break;
     case kMips64Word64AtomicCompareExchangeUint32:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32, 64);
       break;
     case kMips64Word64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd);
       break;
-#define ATOMIC_BINOP_CASE(op, inst)                     \
-  case kWord32Atomic##op##Int8:                         \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst);   \
-    break;                                              \
-  case kWord32Atomic##op##Uint8:                        \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst);  \
-    break;                                              \
-  case kWord32Atomic##op##Int16:                        \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst);  \
-    break;                                              \
-  case kWord32Atomic##op##Uint16:                       \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst); \
-    break;                                              \
-  case kWord32Atomic##op##Word32:                       \
-    ASSEMBLE_ATOMIC_BINOP(Ll, Sc, inst);                \
+#define ATOMIC_BINOP_CASE(op, inst)                         \
+  case kWord32Atomic##op##Int8:                             \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst, 32);   \
+    break;                                                  \
+  case kWord32Atomic##op##Uint8:                            \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst, 32);  \
+    break;                                                  \
+  case kWord32Atomic##op##Int16:                            \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst, 32);  \
+    break;                                                  \
+  case kWord32Atomic##op##Uint16:                           \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst, 32); \
+    break;                                                  \
+  case kWord32Atomic##op##Word32:                           \
+    ASSEMBLE_ATOMIC_BINOP(Ll, Sc, inst);                    \
     break;
       ATOMIC_BINOP_CASE(Add, Addu)
       ATOMIC_BINOP_CASE(Sub, Subu)
@@ -1944,18 +1959,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
-#define ATOMIC_BINOP_CASE(op, inst)                       \
-  case kMips64Word64Atomic##op##Uint8:                    \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst);  \
-    break;                                                \
-  case kMips64Word64Atomic##op##Uint16:                   \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst); \
-    break;                                                \
-  case kMips64Word64Atomic##op##Uint32:                   \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst); \
-    break;                                                \
-  case kMips64Word64Atomic##op##Uint64:                   \
-    ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst);                \
+#define ATOMIC_BINOP_CASE(op, inst)                           \
+  case kMips64Word64Atomic##op##Uint8:                        \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst, 64);  \
+    break;                                                    \
+  case kMips64Word64Atomic##op##Uint16:                       \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst, 64); \
+    break;                                                    \
+  case kMips64Word64Atomic##op##Uint32:                       \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst, 64); \
+    break;                                                    \
+  case kMips64Word64Atomic##op##Uint64:                       \
+    ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst);                    \
     break;
       ATOMIC_BINOP_CASE(Add, Daddu)
       ATOMIC_BINOP_CASE(Sub, Dsubu)
