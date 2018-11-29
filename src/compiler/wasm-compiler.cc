@@ -4114,40 +4114,6 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
       break;
     }
 
-    case wasm::kExprI64AtomicWait: {
-      Node* index = CheckBoundsAndAlignment(
-          wasm::ValueTypes::MemSize(MachineType::Uint32()), inputs[0], offset,
-          position);
-      // Now that we've bounds-checked, compute the effective address.
-      Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),
-                                       Uint32Constant(offset), index);
-      Node* timeout;
-      if (mcgraph()->machine()->Is32()) {
-        timeout = BuildF64SConvertI64(inputs[2]);
-      } else {
-        timeout = graph()->NewNode(mcgraph()->machine()->RoundInt64ToFloat64(),
-                                   inputs[2]);
-      }
-      Node* expected_value_low = graph()->NewNode(
-          mcgraph()->machine()->TruncateInt64ToInt32(), inputs[1]);
-      Node* tmp = graph()->NewNode(mcgraph()->machine()->Word64Shr(), inputs[1],
-                                   Int64Constant(32));
-      Node* expected_value_high =
-          graph()->NewNode(mcgraph()->machine()->TruncateInt64ToInt32(), tmp);
-      WasmI64AtomicWaitDescriptor interface_descriptor;
-      auto call_descriptor = Linkage::GetStubCallDescriptor(
-          mcgraph()->zone(), interface_descriptor,
-          interface_descriptor.GetStackParameterCount(),
-          CallDescriptor::kNoFlags, Operator::kNoProperties,
-          StubCallMode::kCallWasmRuntimeStub);
-      Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-          wasm::WasmCode::kWasmI64AtomicWait, RelocInfo::WASM_STUB_CALL);
-      node = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
-                              call_target, address, expected_value_high,
-                              expected_value_low, timeout, Effect(), Control());
-      break;
-    }
-
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }

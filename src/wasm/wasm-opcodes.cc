@@ -264,7 +264,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 
     // Atomic operations.
     CASE_OP(AtomicWake, "atomic_wake")
-    CASE_INT_OP(AtomicWait, "atomic_wait")
+    CASE_I32_OP(AtomicWait, "atomic_wait")
     CASE_UNSIGNED_ALL_OP(AtomicLoad, "atomic_load")
     CASE_UNSIGNED_ALL_OP(AtomicStore, "atomic_store")
     CASE_UNSIGNED_ALL_OP(AtomicAdd, "atomic_add")

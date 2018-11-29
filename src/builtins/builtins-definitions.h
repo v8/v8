@@ -1239,7 +1239,6 @@ namespace internal {
   TFC(WasmAllocateHeapNumber, AllocateHeapNumber, 1)                           \
   TFC(WasmAtomicWake, WasmAtomicWake, 1)                                       \
   TFC(WasmI32AtomicWait, WasmI32AtomicWait, 1)                                 \
-  TFC(WasmI64AtomicWait, WasmI64AtomicWait, 1)                                 \
   TFC(WasmCallJavaScript, CallTrampoline, 1)                                   \
   TFC(WasmMemoryGrow, WasmMemoryGrow, 1)                                       \
   TFC(WasmRecordWrite, RecordWrite, 1)                                         \
@@ -1540,7 +1539,6 @@ namespace internal {
   V(WasmAllocateHeapNumber)              \
   V(WasmAtomicWake)                      \
   V(WasmI32AtomicWait)                   \
-  V(WasmI64AtomicWait)                   \
   V(WasmCallJavaScript)                  \
   V(WasmMemoryGrow)                      \
   V(WasmRecordWrite)                     \

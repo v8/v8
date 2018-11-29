@@ -87,7 +87,7 @@ enum WaitReturnValue : int { kOk = 0, kNotEqual = 1, kTimedOut = 2 };
 Object* FutexEmulation::WaitJs(Isolate* isolate,
                                Handle<JSArrayBuffer> array_buffer, size_t addr,
                                int32_t value, double rel_timeout_ms) {
-  Object* res = Wait32(isolate, array_buffer, addr, value, rel_timeout_ms);
+  Object* res = Wait(isolate, array_buffer, addr, value, rel_timeout_ms);
   if (res->IsSmi()) {
     int val = Smi::ToInt(res);
     switch (val) {
@@ -104,22 +104,9 @@ Object* FutexEmulation::WaitJs(Isolate* isolate,
   return res;
 }
 
-Object* FutexEmulation::Wait32(Isolate* isolate,
-                               Handle<JSArrayBuffer> array_buffer, size_t addr,
-                               int32_t value, double rel_timeout_ms) {
-  return Wait<int32_t>(isolate, array_buffer, addr, value, rel_timeout_ms);
-}
-
-Object* FutexEmulation::Wait64(Isolate* isolate,
-                               Handle<JSArrayBuffer> array_buffer, size_t addr,
-                               int64_t value, double rel_timeout_ms) {
-  return Wait<int64_t>(isolate, array_buffer, addr, value, rel_timeout_ms);
-}
-
-template <typename T>
 Object* FutexEmulation::Wait(Isolate* isolate,
                              Handle<JSArrayBuffer> array_buffer, size_t addr,
-                             T value, double rel_timeout_ms) {
+                             int32_t value, double rel_timeout_ms) {
   DCHECK_LT(addr, array_buffer->byte_length());
 
   bool use_timeout = rel_timeout_ms != V8_INFINITY;
@@ -166,7 +153,8 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     // still holding the lock).
     ResetWaitingOnScopeExit reset_waiting(node);
 
-    T* p = reinterpret_cast<T*>(static_cast<int8_t*>(backing_store) + addr);
+    int32_t* p =
+        reinterpret_cast<int32_t*>(static_cast<int8_t*>(backing_store) + addr);
     if (*p != value) {
       result = Smi::FromInt(WaitReturnValue::kNotEqual);
       callback_result = AtomicsWaitEvent::kNotEqual;

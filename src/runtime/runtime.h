@@ -532,7 +532,6 @@ namespace internal {
   F(ThrowWasmError, 1, 1)             \
   F(ThrowWasmStackOverflow, 0, 1)     \
   F(WasmI32AtomicWait, 4, 1)          \
-  F(WasmI64AtomicWait, 5, 1)          \
   F(WasmAtomicWake, 3, 1)             \
   F(WasmExceptionGetValues, 1, 1)     \
   F(WasmExceptionGetTag, 1, 1)        \
