@@ -34,8 +34,6 @@ enum class WrapMode { kForceValue, kNoPreview, kWithPreview };
 enum class V8InternalValueType { kNone, kEntry, kScope, kScopeList };
 
 using protocol::Response;
-using ScheduleStepIntoAsyncCallback =
-    protocol::Debugger::Backend::ScheduleStepIntoAsyncCallback;
 using TerminateExecutionCallback =
     protocol::Runtime::Backend::TerminateExecutionCallback;
 
@@ -62,9 +60,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void stepIntoStatement(int targetContextGroupId, bool breakOnAsyncCall);
   void stepOverStatement(int targetContextGroupId);
   void stepOutOfFunction(int targetContextGroupId);
-  void scheduleStepIntoAsync(
-      std::unique_ptr<ScheduleStepIntoAsyncCallback> callback,
-      int targetContextGroupId);
   void pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
                         const String16& debuggerId);
 
@@ -242,7 +237,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void* m_taskWithScheduledBreak = nullptr;
   String16 m_taskWithScheduledBreakDebuggerId;
 
-  std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;
   bool m_breakRequested = false;
 
   v8::debug::ExceptionBreakState m_pauseOnExceptionsState;

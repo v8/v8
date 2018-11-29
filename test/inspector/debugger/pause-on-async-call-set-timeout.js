@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-let {session, contextGroup, Protocol} = InspectorTest.start('Checks Debugger.scheduleStepIntoAsync with setTimeout.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks Debugger.pauseOnAsynCall with setTimeout.');
 session.setupScriptMap();
 Protocol.Debugger.enable();
 InspectorTest.runAsyncTestSuite([
@@ -11,8 +11,10 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Debugger.oncePaused();
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
-    Protocol.Debugger.scheduleStepIntoAsync();
-    Protocol.Debugger.stepOver();
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
+    Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
   },
@@ -23,8 +25,10 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Debugger.oncePaused();
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
-    Protocol.Debugger.scheduleStepIntoAsync();
-    Protocol.Debugger.stepOver();
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
+    await Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
@@ -38,8 +42,10 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Debugger.oncePaused();
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
-    Protocol.Debugger.scheduleStepIntoAsync();
-    Protocol.Debugger.stepOver();
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
+    Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
     await InspectorTest.waitForPendingTasks();
@@ -50,8 +56,10 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Debugger.oncePaused();
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
-    Protocol.Debugger.scheduleStepIntoAsync();
-    Protocol.Debugger.stepOver();
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
+    Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
   },
@@ -60,7 +68,9 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Debugger.pause();
     Protocol.Runtime.evaluate({expression: 'setTimeout(() => 42, 0)'});
     await waitPauseAndDumpLocation();
-    Protocol.Debugger.scheduleStepIntoAsync();
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
@@ -68,8 +78,11 @@ InspectorTest.runAsyncTestSuite([
 ]);
 
 async function waitPauseAndDumpLocation() {
-  var message = await Protocol.Debugger.oncePaused();
-  InspectorTest.log('paused at:');
-  await session.logSourceLocation(message.params.callFrames[0].location);
-  return message;
+  var {params: {callFrames, asyncCallStackTraceId}} =
+      await Protocol.Debugger.oncePaused();
+  if (!asyncCallStackTraceId) {
+    InspectorTest.log('paused at:');
+    await session.logSourceLocation(callFrames[0].location);
+  }
+  return asyncCallStackTraceId;
 }

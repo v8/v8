@@ -1,4 +1,4 @@
-Checks Debugger.scheduleStepIntoAsync with setTimeout.
+Checks Debugger.pauseOnAsynCall with setTimeout.
 
 Running test: testSetTimeout
 paused at:

@@ -279,19 +279,6 @@ bool V8Debugger::asyncStepOutOfFunction(int targetContextGroupId,
   return true;
 }
 
-void V8Debugger::scheduleStepIntoAsync(
-    std::unique_ptr<ScheduleStepIntoAsyncCallback> callback,
-    int targetContextGroupId) {
-  DCHECK(isPaused());
-  DCHECK(targetContextGroupId);
-  if (m_stepIntoAsyncCallback) {
-    m_stepIntoAsyncCallback->sendFailure(Response::Error(
-        "Current scheduled step into async was overriden with new one."));
-  }
-  m_targetContextGroupId = targetContextGroupId;
-  m_stepIntoAsyncCallback = std::move(callback);
-}
-
 void V8Debugger::pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
                                   const String16& debuggerId) {
   DCHECK(targetContextGroupId);
@@ -393,11 +380,6 @@ void V8Debugger::handleProgramBreak(
     return;
   }
   m_targetContextGroupId = 0;
-  if (m_stepIntoAsyncCallback) {
-    m_stepIntoAsyncCallback->sendFailure(
-        Response::Error("No async tasks were scheduled before pause."));
-    m_stepIntoAsyncCallback.reset();
-  }
   m_breakRequested = false;
   m_pauseOnAsyncCall = false;
   m_taskWithScheduledBreak = nullptr;
@@ -973,26 +955,18 @@ void V8Debugger::asyncTaskFinishedForStack(void* task) {
 }
 
 void V8Debugger::asyncTaskCandidateForStepping(void* task, bool isLocal) {
+  if (!m_pauseOnAsyncCall) return;
   int contextGroupId = currentContextGroupId();
-  if (m_pauseOnAsyncCall && contextGroupId) {
-    if (isLocal) {
-      m_scheduledAsyncCall = v8_inspector::V8StackTraceId(
-          reinterpret_cast<uintptr_t>(task), std::make_pair(0, 0));
-    } else {
-      m_scheduledAsyncCall = v8_inspector::V8StackTraceId(
-          reinterpret_cast<uintptr_t>(task), debuggerIdFor(contextGroupId));
-    }
-    breakProgram(m_targetContextGroupId);
-    m_scheduledAsyncCall = v8_inspector::V8StackTraceId();
-    return;
-  }
-  if (!m_stepIntoAsyncCallback) return;
-  DCHECK(m_targetContextGroupId);
   if (contextGroupId != m_targetContextGroupId) return;
-  m_taskWithScheduledBreak = task;
-  v8::debug::ClearStepping(m_isolate);
-  m_stepIntoAsyncCallback->sendSuccess();
-  m_stepIntoAsyncCallback.reset();
+  if (isLocal) {
+    m_scheduledAsyncCall = v8_inspector::V8StackTraceId(
+        reinterpret_cast<uintptr_t>(task), std::make_pair(0, 0));
+  } else {
+    m_scheduledAsyncCall = v8_inspector::V8StackTraceId(
+        reinterpret_cast<uintptr_t>(task), debuggerIdFor(contextGroupId));
+  }
+  breakProgram(m_targetContextGroupId);
+  m_scheduledAsyncCall = v8_inspector::V8StackTraceId();
 }
 
 void V8Debugger::asyncTaskStartedForStepping(void* task) {
