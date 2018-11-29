@@ -1100,10 +1100,10 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
         DCHECK_IMPLIES(p->InToSpace(),
                        p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
-            Page::FromAddress(slot), slot);
+            MemoryChunk::FromHeapObject(host), slot);
       } else if (p->IsEvacuationCandidate()) {
         RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
-            Page::FromAddress(slot), slot);
+            MemoryChunk::FromHeapObject(host), slot);
       }
     }
   }
@@ -2780,13 +2780,22 @@ void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
                                                 IterationMode iteration_mode) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "LiveObjectVisitor::VisitBlackObjectsNoFail");
-  for (auto object_and_size :
-       LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
-    HeapObject* const object = object_and_size.first;
+  DCHECK_NE(chunk->owner()->identity(), NEW_LO_SPACE);
+  if (chunk->owner()->identity() == LO_SPACE) {
+    HeapObject* object = reinterpret_cast<LargePage*>(chunk)->GetObject();
     DCHECK(marking_state->IsBlack(object));
-    const bool success = visitor->Visit(object, object_and_size.second);
+    const bool success = visitor->Visit(object, object->Size());
     USE(success);
     DCHECK(success);
+  } else {
+    for (auto object_and_size :
+         LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
+      HeapObject* const object = object_and_size.first;
+      DCHECK(marking_state->IsBlack(object));
+      const bool success = visitor->Visit(object, object_and_size.second);
+      USE(success);
+      DCHECK(success);
+    }
   }
   if (iteration_mode == kClearMarkbits) {
     marking_state->ClearLiveness(chunk);

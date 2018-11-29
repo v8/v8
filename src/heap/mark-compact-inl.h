@@ -302,8 +302,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   int object_size = FixedArray::BodyDescriptor::SizeOf(map, object);
   if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
-    DCHECK(!FLAG_use_marking_progress_bar ||
-           chunk->owner()->identity() == LO_SPACE);
+    DCHECK(!FLAG_use_marking_progress_bar || heap_->IsLargeObject(object));
     // When using a progress bar for large fixed arrays, scan only a chunk of
     // the array and try to push it onto the marking deque again until it is
     // fully scanned. Fall back to scanning it through to the end in case this

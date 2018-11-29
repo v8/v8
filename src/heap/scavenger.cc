@@ -112,7 +112,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
       if (result == KEEP_SLOT) {
         SLOW_DCHECK(target->IsHeapObject());
-        RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot.address()),
+        RememberedSet<OLD_TO_NEW>::Insert(MemoryChunk::FromHeapObject(host),
                                           slot.address());
       }
       SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(
