@@ -413,27 +413,27 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
   return REMOVE_SLOT;
 }
 
-void ScavengeVisitor::VisitPointers(HeapObject* host, ObjectSlot start,
-                                    ObjectSlot end) {
-  for (ObjectSlot p = start; p < end; ++p) {
-    Object* object = *p;
-    if (!Heap::InNewSpace(object)) continue;
-    scavenger_->ScavengeObject(HeapObjectSlot(p),
-                               reinterpret_cast<HeapObject*>(object));
-  }
+V8_INLINE void ScavengeVisitor::VisitPointers(HeapObject* host,
+                                              ObjectSlot start,
+                                              ObjectSlot end) {
+  return VisitPointersImpl(host, start, end);
 }
 
-void ScavengeVisitor::VisitPointers(HeapObject* host, MaybeObjectSlot start,
-                                    MaybeObjectSlot end) {
-  for (MaybeObjectSlot p = start; p < end; ++p) {
-    MaybeObject object = *p;
-    if (!Heap::InNewSpace(object)) continue;
-    // Treat the weak reference as strong.
+V8_INLINE void ScavengeVisitor::VisitPointers(HeapObject* host,
+                                              MaybeObjectSlot start,
+                                              MaybeObjectSlot end) {
+  return VisitPointersImpl(host, start, end);
+}
+
+template <typename TSlot>
+void ScavengeVisitor::VisitPointersImpl(HeapObject* host, TSlot start,
+                                        TSlot end) {
+  for (TSlot slot = start; slot < end; ++slot) {
+    typename TSlot::TObject object = slot.load();
     HeapObject* heap_object;
-    if (object->GetHeapObject(&heap_object)) {
-      scavenger_->ScavengeObject(HeapObjectSlot(p), heap_object);
-    } else {
-      UNREACHABLE();
+    // Treat weak references as strong.
+    if (object.GetHeapObject(&heap_object) && Heap::InNewSpace(heap_object)) {
+      scavenger_->ScavengeObject(HeapObjectSlot(slot), heap_object);
     }
   }
 }

@@ -932,12 +932,20 @@ class MarkingVisitor final
   V8_INLINE int VisitJSWeakCell(Map map, JSWeakCell* object);
 
   // ObjectVisitor implementation.
-  V8_INLINE void VisitPointer(HeapObject* host, ObjectSlot p) final;
-  V8_INLINE void VisitPointer(HeapObject* host, MaybeObjectSlot p) final;
+  V8_INLINE void VisitPointer(HeapObject* host, ObjectSlot p) final {
+    VisitPointerImpl(host, p);
+  }
+  V8_INLINE void VisitPointer(HeapObject* host, MaybeObjectSlot p) final {
+    VisitPointerImpl(host, p);
+  }
   V8_INLINE void VisitPointers(HeapObject* host, ObjectSlot start,
-                               ObjectSlot end) final;
+                               ObjectSlot end) final {
+    VisitPointersImpl(host, start, end);
+  }
   V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
-                               MaybeObjectSlot end) final;
+                               MaybeObjectSlot end) final {
+    VisitPointersImpl(host, start, end);
+  }
   V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
 
@@ -950,6 +958,12 @@ class MarkingVisitor final
   // Granularity in which FixedArrays are scanned if |fixed_array_mode|
   // is true.
   static const int kProgressBarScanningChunk = 32 * 1024;
+
+  template <typename TSlot>
+  V8_INLINE void VisitPointerImpl(HeapObject* host, TSlot p);
+
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end);
 
   V8_INLINE int VisitFixedArrayIncremental(Map map, FixedArray object);
 

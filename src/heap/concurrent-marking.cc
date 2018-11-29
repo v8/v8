@@ -140,26 +140,26 @@ class ConcurrentMarkingVisitor final
 
   void VisitPointers(HeapObject* host, ObjectSlot start,
                      ObjectSlot end) override {
-    for (ObjectSlot slot = start; slot < end; ++slot) {
-      Object* object = slot.Relaxed_Load();
-      DCHECK(!HasWeakHeapObjectTag(object));
-      if (object->IsHeapObject()) {
-        ProcessStrongHeapObject(host, slot, HeapObject::cast(object));
-      }
-    }
+    VisitPointersImpl(host, start, end);
   }
 
   void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
-    for (MaybeObjectSlot slot = start; slot < end; ++slot) {
-      MaybeObject object = slot.Relaxed_Load();
+    VisitPointersImpl(host, start, end);
+  }
+
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end) {
+    for (TSlot slot = start; slot < end; ++slot) {
+      typename TSlot::TObject object = slot.Relaxed_Load();
       HeapObject* heap_object;
-      if (object->GetHeapObjectIfStrong(&heap_object)) {
+      if (object.GetHeapObjectIfStrong(&heap_object)) {
         // If the reference changes concurrently from strong to weak, the write
         // barrier will treat the weak reference as strong, so we won't miss the
         // weak reference.
         ProcessStrongHeapObject(host, ObjectSlot(slot), heap_object);
-      } else if (object->GetHeapObjectIfWeak(&heap_object)) {
+      } else if (TSlot::kCanBeWeek &&
+                 object.GetHeapObjectIfWeak(&heap_object)) {
         ProcessWeakHeapObject(host, HeapObjectSlot(slot), heap_object);
       }
     }

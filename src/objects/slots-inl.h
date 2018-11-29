@@ -18,6 +18,8 @@ namespace internal {
 ObjectSlot::ObjectSlot(ObjectPtr* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
+ObjectPtr ObjectSlot::load() const { return ObjectPtr(*location()); }
+
 void ObjectSlot::store(Object* value) const { *location() = value->ptr(); }
 
 ObjectPtr ObjectSlot::Acquire_Load() const {
@@ -58,6 +60,8 @@ ObjectPtr ObjectSlot::Release_CompareAndSwap(ObjectPtr old,
 MaybeObject MaybeObjectSlot::operator*() const {
   return MaybeObject(*location());
 }
+
+MaybeObject MaybeObjectSlot::load() const { return MaybeObject(*location()); }
 
 void MaybeObjectSlot::store(MaybeObject value) const {
   *location() = value.ptr();

@@ -16,6 +16,7 @@ template <typename Subclass, typename Data, size_t SlotDataSize>
 class SlotBase {
  public:
   using TData = Data;
+
   // TODO(ishell): This should eventually become just sizeof(TData) once
   // pointer compression is implemented.
   static constexpr size_t kSlotDataSize = SlotDataSize;
@@ -84,11 +85,16 @@ class SlotBase {
 };
 
 // An ObjectSlot instance describes a kTaggedSize-sized field ("slot") holding
-// a tagged pointer (smi or heap object).
+// a tagged pointer (smi or strong heap object).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
 class ObjectSlot : public SlotBase<ObjectSlot, Tagged_t, kTaggedSize> {
  public:
+  using TObject = ObjectPtr;
+
+  // Tagged value stored in this slot is guaranteed to never be a weak pointer.
+  static constexpr bool kCanBeWeek = false;
+
   ObjectSlot() : SlotBase(kNullAddress) {}
   explicit ObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit ObjectSlot(Address* ptr)
@@ -101,6 +107,8 @@ class ObjectSlot : public SlotBase<ObjectSlot, Tagged_t, kTaggedSize> {
       : SlotBase(slot.address()) {}
 
   Object* operator*() const { return *reinterpret_cast<Object**>(address()); }
+  // TODO(3770): drop this in favor of operator* once migration is complete.
+  inline ObjectPtr load() const;
   inline void store(Object* value) const;
 
   inline ObjectPtr Acquire_Load() const;
@@ -124,6 +132,11 @@ class ObjectSlot : public SlotBase<ObjectSlot, Tagged_t, kTaggedSize> {
 class MaybeObjectSlot
     : public SlotBase<MaybeObjectSlot, Tagged_t, kTaggedSize> {
  public:
+  using TObject = MaybeObject;
+
+  // Tagged value stored in this slot can be a weak pointer.
+  static constexpr bool kCanBeWeek = true;
+
   explicit MaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit MaybeObjectSlot(Object** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
@@ -132,6 +145,8 @@ class MaybeObjectSlot
       : SlotBase(slot.address()) {}
 
   inline MaybeObject operator*() const;
+  // TODO(3770): drop this once ObjectSlot::load() is dropped.
+  inline MaybeObject load() const;
   inline void store(MaybeObject value) const;
 
   inline MaybeObject Relaxed_Load() const;

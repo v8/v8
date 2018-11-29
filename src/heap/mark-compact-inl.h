@@ -200,58 +200,42 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
   return size;
 }
 
+// class template arguments
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+// method template arguments
+template <typename TSlot>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitPointer(HeapObject* host,
-                                                ObjectSlot p) {
-  if (!(*p)->IsHeapObject()) return;
-  HeapObject* target_object = HeapObject::cast(*p);
-  collector_->RecordSlot(host, p, target_object);
-  MarkObject(host, target_object);
-}
-
-template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitPointer(HeapObject* host,
-                                                MaybeObjectSlot p) {
+                    MarkingState>::VisitPointerImpl(HeapObject* host,
+                                                    TSlot slot) {
+  typename TSlot::TObject object = slot.load();
   HeapObject* target_object;
-  if ((*p)->GetHeapObjectIfStrong(&target_object)) {
-    collector_->RecordSlot(host, HeapObjectSlot(p), target_object);
+  if (object.GetHeapObjectIfStrong(&target_object)) {
+    collector_->RecordSlot(host, HeapObjectSlot(slot), target_object);
     MarkObject(host, target_object);
-  } else if ((*p)->GetHeapObjectIfWeak(&target_object)) {
+  } else if (TSlot::kCanBeWeek && object.GetHeapObjectIfWeak(&target_object)) {
     if (marking_state()->IsBlackOrGrey(target_object)) {
       // Weak references with live values are directly processed here to reduce
       // the processing time of weak cells during the main GC pause.
-      collector_->RecordSlot(host, HeapObjectSlot(p), target_object);
+      collector_->RecordSlot(host, HeapObjectSlot(slot), target_object);
     } else {
       // If we do not know about liveness of values of weak cells, we have to
       // process them when we know the liveness of the whole transitive
       // closure.
-      collector_->AddWeakReference(host, HeapObjectSlot(p));
+      collector_->AddWeakReference(host, HeapObjectSlot(slot));
     }
   }
 }
 
+// class template arguments
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+// method template arguments
+template <typename TSlot>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitPointers(HeapObject* host,
-                                                 ObjectSlot start,
-                                                 ObjectSlot end) {
-  for (ObjectSlot p = start; p < end; ++p) {
-    VisitPointer(host, p);
-  }
-}
-
-template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitPointers(HeapObject* host,
-                                                 MaybeObjectSlot start,
-                                                 MaybeObjectSlot end) {
-  for (MaybeObjectSlot p = start; p < end; ++p) {
+                    MarkingState>::VisitPointersImpl(HeapObject* host,
+                                                     TSlot start, TSlot end) {
+  for (TSlot p = start; p < end; ++p) {
     VisitPointer(host, p);
   }
 }

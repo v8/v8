@@ -191,21 +191,11 @@ class FullMarkingVerifier : public MarkingVerifier {
   }
 
   void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
-    for (ObjectSlot current = start; current < end; ++current) {
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        CHECK(marking_state_->IsBlackOrGrey(object));
-      }
-    }
+    VerifyPointersImpl(start, end);
   }
 
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
-    for (MaybeObjectSlot current = start; current < end; ++current) {
-      HeapObject* object;
-      if ((*current)->GetHeapObjectIfStrong(&object)) {
-        CHECK(marking_state_->IsBlackOrGrey(object));
-      }
-    }
+    VerifyPointersImpl(start, end);
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
@@ -217,6 +207,17 @@ class FullMarkingVerifier : public MarkingVerifier {
   }
 
  private:
+  template <typename TSlot>
+  V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end) {
+    for (TSlot slot = start; slot < end; ++slot) {
+      typename TSlot::TObject object = slot.load();
+      HeapObject* heap_object;
+      if (object.GetHeapObjectIfStrong(&heap_object)) {
+        CHECK(marking_state_->IsBlackOrGrey(heap_object));
+      }
+    }
+  }
+
   MarkCompactCollector::NonAtomicMarkingState* marking_state_;
 };
 
@@ -305,27 +306,25 @@ class FullEvacuationVerifier : public EvacuationVerifier {
   }
 
  protected:
-  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
-    for (ObjectSlot current = start; current < end; ++current) {
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        if (Heap::InNewSpace(object)) {
-          CHECK(Heap::InToSpace(object));
+  template <typename TSlot>
+  void VerifyPointersImpl(TSlot start, TSlot end) {
+    for (TSlot current = start; current < end; ++current) {
+      typename TSlot::TObject object = current.load();
+      HeapObject* heap_object;
+      if (object.GetHeapObjectIfStrong(&heap_object)) {
+        if (Heap::InNewSpace(heap_object)) {
+          CHECK(Heap::InToSpace(heap_object));
         }
-        CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
+        CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(heap_object));
       }
     }
   }
+
+  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
+    VerifyPointersImpl(start, end);
+  }
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
-    for (MaybeObjectSlot current = start; current < end; ++current) {
-      HeapObject* object;
-      if ((*current)->GetHeapObjectIfStrong(&object)) {
-        if (Heap::InNewSpace(object)) {
-          CHECK(Heap::InToSpace(object));
-        }
-        CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
-      }
-    }
+    VerifyPointersImpl(start, end);
   }
 };
 
@@ -3556,30 +3555,26 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
   }
 
   void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
-    for (ObjectSlot current = start; current < end; ++current) {
-      DCHECK(!HasWeakHeapObjectTag(*current));
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        if (!Heap::InNewSpace(object)) return;
-        CHECK(IsMarked(object));
-      }
-    }
+    VerifyPointersImpl(start, end);
   }
 
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
-    for (MaybeObjectSlot current = start; current < end; ++current) {
-      HeapObject* object;
+    VerifyPointersImpl(start, end);
+  }
+
+ private:
+  template <typename TSlot>
+  V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end) {
+    for (TSlot slot = start; slot < end; ++slot) {
+      typename TSlot::TObject object = slot.load();
+      HeapObject* heap_object;
       // Minor MC treats weak references as strong.
-      if ((*current)->GetHeapObject(&object)) {
-        if (!Heap::InNewSpace(object)) {
-          continue;
-        }
-        CHECK(IsMarked(object));
+      if (object.GetHeapObject(&heap_object)) {
+        CHECK_IMPLIES(Heap::InNewSpace(heap_object), IsMarked(heap_object));
       }
     }
   }
 
- private:
   MinorMarkCompactCollector::NonAtomicMarkingState* marking_state_;
 };
 
@@ -3597,21 +3592,23 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   }
 
  protected:
-  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
-    for (ObjectSlot current = start; current < end; ++current) {
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        CHECK_IMPLIES(Heap::InNewSpace(object), Heap::InToSpace(object));
+  template <typename TSlot>
+  void VerifyPointersImpl(TSlot start, TSlot end) {
+    for (TSlot current = start; current < end; ++current) {
+      typename TSlot::TObject object = current.load();
+      HeapObject* heap_object;
+      if (object.GetHeapObject(&heap_object)) {
+        CHECK_IMPLIES(Heap::InNewSpace(heap_object),
+                      Heap::InToSpace(heap_object));
       }
     }
   }
+
+  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
+    VerifyPointersImpl(start, end);
+  }
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
-    for (MaybeObjectSlot current = start; current < end; ++current) {
-      HeapObject* object;
-      if ((*current)->GetHeapObject(&object)) {
-        CHECK_IMPLIES(Heap::InNewSpace(object), Heap::InToSpace(object));
-      }
-    }
+    VerifyPointersImpl(start, end);
   }
 };
 
@@ -3650,40 +3647,41 @@ class YoungGenerationMarkingVisitor final
 
   V8_INLINE void VisitPointers(HeapObject* host, ObjectSlot start,
                                ObjectSlot end) final {
-    for (ObjectSlot p = start; p < end; ++p) {
-      VisitPointer(host, p);
-    }
+    VisitPointersImpl(host, start, end);
   }
 
   V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final {
-    for (MaybeObjectSlot p = start; p < end; ++p) {
-      VisitPointer(host, p);
-    }
+    VisitPointersImpl(host, start, end);
   }
 
   V8_INLINE void VisitPointer(HeapObject* host, ObjectSlot slot) final {
-    Object* target = *slot;
-    DCHECK(!HasWeakHeapObjectTag(target));
+    VisitPointerImpl(host, slot);
+  }
+
+  V8_INLINE void VisitPointer(HeapObject* host, MaybeObjectSlot slot) final {
+    VisitPointerImpl(host, slot);
+  }
+
+ private:
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end) {
+    for (TSlot slot = start; slot < end; ++slot) {
+      VisitPointer(host, slot);
+    }
+  }
+
+  template <typename TSlot>
+  V8_INLINE void VisitPointerImpl(HeapObject* host, TSlot slot) {
+    typename TSlot::TObject target = slot.load();
     if (Heap::InNewSpace(target)) {
-      HeapObject* target_object = HeapObject::cast(target);
+      // Treat weak references as strong.
+      // TODO(marja): Proper weakness handling for minor-mcs.
+      HeapObject* target_object = target.GetHeapObject();
       MarkObjectViaMarkingWorklist(target_object);
     }
   }
 
-  V8_INLINE void VisitPointer(HeapObject* host, MaybeObjectSlot slot) final {
-    MaybeObject target = *slot;
-    if (Heap::InNewSpace(target)) {
-      HeapObject* target_object;
-      // Treat weak references as strong. TODO(marja): Proper weakness handling
-      // for minor-mcs.
-      if (target->GetHeapObject(&target_object)) {
-        MarkObjectViaMarkingWorklist(target_object);
-      }
-    }
-  }
-
- private:
   inline void MarkObjectViaMarkingWorklist(HeapObject* object) {
     if (marking_state_->WhiteToGrey(object)) {
       // Marking deque overflow is unsupported for the young generation.

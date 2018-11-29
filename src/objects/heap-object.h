@@ -90,6 +90,31 @@ class ObjectPtr {
   // allow kMaxUInt32.
   V8_WARN_UNUSED_RESULT inline bool ToArrayIndex(uint32_t* index) const;
 
+  //
+  // The following GetHeapObjectXX methods mimic corresponding functionality
+  // in MaybeObject. Having them here allows us to unify code that processes
+  // ObjectSlots and MaybeObjectSlots.
+  //
+
+  // If this Object is a strong pointer to a HeapObject, returns true and
+  // sets *result. Otherwise returns false.
+  inline bool GetHeapObjectIfStrong(HeapObject** result) const;
+
+  // If this Object is a strong pointer to a HeapObject (weak pointers are not
+  // expected), returns true and sets *result. Otherwise returns false.
+  inline bool GetHeapObject(HeapObject** result) const;
+
+  // DCHECKs that this Object is a strong pointer to a HeapObject and returns
+  // the HeapObject.
+  inline HeapObject* GetHeapObject() const;
+
+  // Always returns false because Object is not expected to be a weak pointer
+  // to a HeapObject.
+  inline bool GetHeapObjectIfWeak(HeapObject** result) const {
+    DCHECK(!HasWeakHeapObjectTag(ptr()));
+    return false;
+  }
+
 #ifdef VERIFY_HEAP
   void ObjectVerify(Isolate* isolate) {
     reinterpret_cast<Object*>(ptr())->ObjectVerify(isolate);

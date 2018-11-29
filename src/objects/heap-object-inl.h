@@ -53,6 +53,21 @@ bool ObjectPtr::IsSmallOrderedHashTable() const {
          IsSmallOrderedNameDictionary();
 }
 
+bool ObjectPtr::GetHeapObjectIfStrong(HeapObject** result) const {
+  return GetHeapObject(result);
+}
+
+bool ObjectPtr::GetHeapObject(HeapObject** result) const {
+  if (!IsHeapObject()) return false;
+  *result = reinterpret_cast<HeapObject*>(ptr());
+  return true;
+}
+
+HeapObject* ObjectPtr::GetHeapObject() const {
+  DCHECK(IsHeapObject());
+  return reinterpret_cast<HeapObject*>(ptr());
+}
+
 double ObjectPtr::Number() const {
   return reinterpret_cast<Object*>(ptr())->Number();
 }

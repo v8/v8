@@ -78,23 +78,23 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
   inline void VisitPointers(HeapObject* host, ObjectSlot start,
                             ObjectSlot end) final {
-    for (ObjectSlot slot = start; slot < end; ++slot) {
-      Object* target = *slot;
-      DCHECK(!HasWeakHeapObjectTag(target));
-      if (target->IsHeapObject()) {
-        HandleSlot(host, HeapObjectSlot(slot), HeapObject::cast(target));
-      }
-    }
+    VisitPointersImpl(host, start, end);
   }
 
   inline void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                             MaybeObjectSlot end) final {
-    // Treat weak references as strong. TODO(marja): Proper weakness handling in
-    // the young generation.
-    for (MaybeObjectSlot slot = start; slot < end; ++slot) {
-      MaybeObject target = *slot;
+    VisitPointersImpl(host, start, end);
+  }
+
+ private:
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end) {
+    // Treat weak references as strong.
+    // TODO(marja): Proper weakness handling in the young generation.
+    for (TSlot slot = start; slot < end; ++slot) {
+      typename TSlot::TObject object = slot.load();
       HeapObject* heap_object;
-      if (target->GetHeapObject(&heap_object)) {
+      if (object.GetHeapObject(&heap_object)) {
         HandleSlot(host, HeapObjectSlot(slot), heap_object);
       }
     }
@@ -124,7 +124,6 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     }
   }
 
- private:
   Heap* const heap_;
   Scavenger* const scavenger_;
   const bool record_slots_;
