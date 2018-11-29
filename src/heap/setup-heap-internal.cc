@@ -313,7 +313,7 @@ bool Heap::CreateInitialMaps() {
     if (!AllocateRaw(size, RO_SPACE).To(&obj)) return false;
     obj->set_map_after_allocation(roots.descriptor_array_map(),
                                   SKIP_WRITE_BARRIER);
-    DescriptorArray* array = DescriptorArray::cast(obj);
+    DescriptorArray array = DescriptorArray::cast(obj);
     array->Initialize(roots.empty_enum_cache(), roots.undefined_value(), 0, 0);
   }
   set_empty_descriptor_array(DescriptorArray::cast(obj));

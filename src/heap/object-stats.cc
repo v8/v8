@@ -107,7 +107,7 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
   stats.embedded_fields_count_ = JSObject::GetEmbedderFieldCount(map);
   if (!map->is_dictionary_map()) {
     int nof = map->NumberOfOwnDescriptors();
-    DescriptorArray* descriptors = map->instance_descriptors();
+    DescriptorArray descriptors = map->instance_descriptors();
     for (int descriptor = 0; descriptor < nof; descriptor++) {
       PropertyDetails details = descriptors->GetDetails(descriptor);
       if (details.location() == kField) {
@@ -769,7 +769,7 @@ bool ObjectStatsCollectorImpl::SameLiveness(HeapObject* obj1,
 void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   // TODO(mlippautz): map->dependent_code(): DEPENDENT_CODE_TYPE.
 
-  DescriptorArray* array = map->instance_descriptors();
+  DescriptorArray array = map->instance_descriptors();
   if (map->owns_descriptors() &&
       array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // DescriptorArray has its own instance type.

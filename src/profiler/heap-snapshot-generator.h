@@ -379,7 +379,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractFeedbackVectorReferences(HeapEntry* entry,
                                        FeedbackVector* feedback_vector);
   void ExtractDescriptorArrayReferences(HeapEntry* entry,
-                                        DescriptorArray* array);
+                                        DescriptorArray array);
   template <typename T>
   void ExtractWeakArrayReferences(int header_size, HeapEntry* entry, T array);
   void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);

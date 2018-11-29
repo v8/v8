@@ -36,7 +36,7 @@ namespace test_unboxed_doubles {
 //
 
 static void InitializeVerifiedMapDescriptors(
-    Map map, DescriptorArray* descriptors, LayoutDescriptor layout_descriptor) {
+    Map map, DescriptorArray descriptors, LayoutDescriptor layout_descriptor) {
   map->InitializeDescriptors(descriptors, layout_descriptor);
   CHECK(layout_descriptor->IsConsistentWithMap(map, true));
 }
@@ -76,7 +76,7 @@ static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
 }
 
 void WriteToField(JSObject* object, int descriptor, Object* value) {
-  DescriptorArray* descriptors = object->map()->instance_descriptors();
+  DescriptorArray descriptors = object->map()->instance_descriptors();
   PropertyDetails details = descriptors->GetDetails(descriptor);
   object->WriteToField(descriptor, details, value);
 }

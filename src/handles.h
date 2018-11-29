@@ -152,6 +152,7 @@ class Handle final : public HandleBase {
           (std::is_same<T, HeapObject>::value &&
            (std::is_same<S, ByteArray>::value || std::is_same<S, Code>::value ||
             std::is_same<S, Context>::value ||
+            std::is_same<S, DescriptorArray>::value ||
             std::is_same<S, FixedArray>::value ||
             std::is_same<S, FixedArrayBase>::value ||
             std::is_same<S, FixedDoubleArray>::value ||

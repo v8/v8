@@ -53,7 +53,7 @@ class EnumCache : public Tuple2 {
 // The "value" fields store either values or field types. A field type is either
 // FieldType::None(), FieldType::Any() or a weak reference to a Map. All other
 // references are strong.
-class DescriptorArray : public HeapObject {
+class DescriptorArray : public HeapObjectPtr {
  public:
   DECL_INT16_ACCESSORS(number_of_all_descriptors)
   DECL_INT16_ACCESSORS(number_of_descriptors)
@@ -62,14 +62,14 @@ class DescriptorArray : public HeapObject {
   DECL_ACCESSORS(enum_cache, EnumCache)
 
   void ClearEnumCache();
-  inline void CopyEnumCacheFrom(DescriptorArray* array);
+  inline void CopyEnumCacheFrom(DescriptorArray array);
   static void InitializeOrChangeEnumCache(Handle<DescriptorArray> descriptors,
                                           Isolate* isolate,
                                           Handle<FixedArray> keys,
                                           Handle<FixedArray> indices);
 
   // Accessors for fetching instance descriptor at descriptor number.
-  inline Name GetKey(int descriptor_number);
+  inline Name GetKey(int descriptor_number) const;
   inline Object* GetStrongValue(int descriptor_number);
   inline void SetValue(int descriptor_number, Object* value);
   inline MaybeObject GetValue(int descriptor_number);
@@ -119,7 +119,7 @@ class DescriptorArray : public HeapObject {
   // necessary.
   V8_INLINE int SearchWithCache(Isolate* isolate, Name name, Map map);
 
-  bool IsEqualUpTo(DescriptorArray* desc, int nof_descriptors);
+  bool IsEqualUpTo(DescriptorArray desc, int nof_descriptors);
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
@@ -129,7 +129,7 @@ class DescriptorArray : public HeapObject {
   void Initialize(EnumCache* enum_cache, HeapObject* undefined_value,
                   int nof_descriptors, int slack);
 
-  DECL_CAST(DescriptorArray)
+  DECL_CAST2(DescriptorArray)
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
@@ -186,7 +186,7 @@ class DescriptorArray : public HeapObject {
   bool IsSortedNoDuplicates(int valid_descriptors = -1);
 
   // Are two DescriptorArrays equal?
-  bool IsEqualTo(DescriptorArray* other);
+  bool IsEqualTo(DescriptorArray other);
 #endif
 
   static constexpr int ToDetailsIndex(int descriptor_number) {
@@ -214,12 +214,12 @@ class DescriptorArray : public HeapObject {
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
-  void CopyFrom(int index, DescriptorArray* src);
+  void CopyFrom(int index, DescriptorArray src);
 
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(DescriptorArray);
+  OBJECT_CONSTRUCTORS(DescriptorArray, HeapObjectPtr);
 };
 
 }  // namespace internal

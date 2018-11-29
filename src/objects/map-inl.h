@@ -29,7 +29,7 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObjectPtr)
 CAST_ACCESSOR2(Map)
 
-ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
+ACCESSORS2(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
 // A freshly allocated layout descriptor can be set on an existing map.
 // We need to use release-store and acquire-load accessor pairs to ensure
 // that the concurrent marking thread observes initializing stores of the
@@ -576,7 +576,7 @@ bool Map::HasFastPointerLayout() const {
   return LayoutDescriptor::IsFastPointerLayout(layout_desc);
 }
 
-void Map::UpdateDescriptors(DescriptorArray* descriptors,
+void Map::UpdateDescriptors(DescriptorArray descriptors,
                             LayoutDescriptor layout_desc) {
   set_instance_descriptors(descriptors);
   if (FLAG_unbox_double_fields) {
@@ -596,7 +596,7 @@ void Map::UpdateDescriptors(DescriptorArray* descriptors,
   }
 }
 
-void Map::InitializeDescriptors(DescriptorArray* descriptors,
+void Map::InitializeDescriptors(DescriptorArray descriptors,
                                 LayoutDescriptor layout_desc) {
   int len = descriptors->number_of_descriptors();
   set_instance_descriptors(descriptors);
@@ -633,7 +633,7 @@ LayoutDescriptor Map::GetLayoutDescriptor() const {
 }
 
 void Map::AppendDescriptor(Descriptor* desc) {
-  DescriptorArray* descriptors = instance_descriptors();
+  DescriptorArray descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
   descriptors->Append(desc);

@@ -573,7 +573,7 @@ class Map : public HeapObjectPtr {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
-  DECL_ACCESSORS(instance_descriptors, DescriptorArray)
+  DECL_ACCESSORS2(instance_descriptors, DescriptorArray)
 
   // [layout descriptor]: describes the object layout.
   DECL_ACCESSORS2(layout_descriptor, LayoutDescriptor)
@@ -586,9 +586,9 @@ class Map : public HeapObjectPtr {
   // |layout_descriptor| field at all).
   inline LayoutDescriptor GetLayoutDescriptor() const;
 
-  inline void UpdateDescriptors(DescriptorArray* descriptors,
+  inline void UpdateDescriptors(DescriptorArray descriptors,
                                 LayoutDescriptor layout_descriptor);
-  inline void InitializeDescriptors(DescriptorArray* descriptors,
+  inline void InitializeDescriptors(DescriptorArray descriptors,
                                     LayoutDescriptor layout_descriptor);
 
   // [dependent code]: list of optimized codes that weakly embed this map.
@@ -943,7 +943,7 @@ class Map : public HeapObjectPtr {
 
   void DeprecateTransitionTree(Isolate* isolate);
 
-  void ReplaceDescriptors(Isolate* isolate, DescriptorArray* new_descriptors,
+  void ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
                           LayoutDescriptor new_layout_descriptor);
 
   // Update field type of the given descriptor to new representation and new

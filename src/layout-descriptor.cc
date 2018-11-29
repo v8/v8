@@ -229,7 +229,7 @@ bool LayoutDescriptorHelper::IsTagged(
 }
 
 LayoutDescriptor LayoutDescriptor::Trim(Heap* heap, Map map,
-                                        DescriptorArray* descriptors,
+                                        DescriptorArray descriptors,
                                         int num_descriptors) {
   DisallowHeapAllocation no_allocation;
   // Fast mode descriptors are never shared and therefore always fully
@@ -260,7 +260,7 @@ LayoutDescriptor LayoutDescriptor::Trim(Heap* heap, Map map,
 
 bool LayoutDescriptor::IsConsistentWithMap(Map map, bool check_tail) {
   if (FLAG_unbox_double_fields) {
-    DescriptorArray* descriptors = map->instance_descriptors();
+    DescriptorArray descriptors = map->instance_descriptors();
     int nof_descriptors = map->NumberOfOwnDescriptors();
     int last_field_index = 0;
     for (int i = 0; i < nof_descriptors; i++) {

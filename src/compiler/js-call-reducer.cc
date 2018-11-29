@@ -4319,7 +4319,7 @@ namespace {
 bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
   Handle<Name> length_string = isolate->factory()->length_string();
-  DescriptorArray* descriptors = jsarray_map->instance_descriptors();
+  DescriptorArray descriptors = jsarray_map->instance_descriptors();
   int number = descriptors->Search(*length_string, *jsarray_map);
   DCHECK_NE(DescriptorArray::kNotFound, number);
   return descriptors->GetDetails(number).IsReadOnly();

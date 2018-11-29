@@ -1930,7 +1930,7 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map map,
   DCHECK_EQ(map->raw_transitions(), HeapObjectReference::Weak(dead_target));
   // Take ownership of the descriptor array.
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  DescriptorArray* descriptors = map->instance_descriptors();
+  DescriptorArray descriptors = map->instance_descriptors();
   if (descriptors == dead_target->instance_descriptors() &&
       number_of_own_descriptors > 0) {
     TrimDescriptorArray(map, descriptors);
@@ -1951,8 +1951,9 @@ void MarkCompactCollector::ClearFullMapTransitions() {
         Map parent = Map::cast(map->constructor_or_backpointer());
         bool parent_is_alive =
             non_atomic_marking_state()->IsBlackOrGrey(parent);
-        DescriptorArray* descriptors =
-            parent_is_alive ? parent->instance_descriptors() : nullptr;
+        DescriptorArray descriptors = parent_is_alive
+                                          ? parent->instance_descriptors()
+                                          : DescriptorArray();
         bool descriptors_owner_died =
             CompactTransitionArray(parent, array, descriptors);
         if (descriptors_owner_died) {
@@ -1963,8 +1964,9 @@ void MarkCompactCollector::ClearFullMapTransitions() {
   }
 }
 
-bool MarkCompactCollector::CompactTransitionArray(
-    Map map, TransitionArray transitions, DescriptorArray* descriptors) {
+bool MarkCompactCollector::CompactTransitionArray(Map map,
+                                                  TransitionArray transitions,
+                                                  DescriptorArray descriptors) {
   DCHECK(!map->is_prototype_map());
   int num_transitions = transitions->number_of_entries();
   bool descriptors_owner_died = false;
@@ -1974,7 +1976,7 @@ bool MarkCompactCollector::CompactTransitionArray(
     Map target = transitions->GetTarget(i);
     DCHECK_EQ(target->constructor_or_backpointer(), map);
     if (non_atomic_marking_state()->IsWhite(target)) {
-      if (descriptors != nullptr &&
+      if (!descriptors.is_null() &&
           target->instance_descriptors() == descriptors) {
         DCHECK(!target->is_prototype_map());
         descriptors_owner_died = true;
@@ -2012,7 +2014,7 @@ bool MarkCompactCollector::CompactTransitionArray(
   return descriptors_owner_died;
 }
 
-void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray* array,
+void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
                                                     int descriptors_to_trim) {
   int old_nof_all_descriptors = array->number_of_all_descriptors();
   int new_nof_all_descriptors = old_nof_all_descriptors - descriptors_to_trim;
@@ -2032,7 +2034,7 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray* array,
 }
 
 void MarkCompactCollector::TrimDescriptorArray(Map map,
-                                               DescriptorArray* descriptors) {
+                                               DescriptorArray descriptors) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) {
     DCHECK(descriptors == ReadOnlyRoots(heap_).empty_descriptor_array());
@@ -2059,8 +2061,7 @@ void MarkCompactCollector::TrimDescriptorArray(Map map,
   map->set_owns_descriptors(true);
 }
 
-void MarkCompactCollector::TrimEnumCache(Map map,
-                                         DescriptorArray* descriptors) {
+void MarkCompactCollector::TrimEnumCache(Map map, DescriptorArray descriptors) {
   int live_enum = map->EnumLength();
   if (live_enum == kInvalidEnumCacheSentinel) {
     live_enum = map->NumberOfEnumerableProperties();

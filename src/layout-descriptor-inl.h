@@ -154,7 +154,7 @@ int LayoutDescriptor::GetSlowModeBackingStoreLength(int length) {
   return RoundUp(length, kBitsPerByte * kPointerSize) / kBitsPerByte;
 }
 
-int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray* descriptors,
+int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray descriptors,
                                         int num_descriptors) {
   int inobject_properties = map->GetInObjectProperties();
   if (inobject_properties == 0) return 0;
@@ -186,7 +186,7 @@ int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray* descriptors,
 }
 
 LayoutDescriptor LayoutDescriptor::Initialize(
-    LayoutDescriptor layout_descriptor, Map map, DescriptorArray* descriptors,
+    LayoutDescriptor layout_descriptor, Map map, DescriptorArray descriptors,
     int num_descriptors) {
   DisallowHeapAllocation no_allocation;
   int inobject_properties = map->GetInObjectProperties();

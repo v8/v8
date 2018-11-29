@@ -1115,7 +1115,7 @@ namespace {
 void ReplaceAccessors(Isolate* isolate, Handle<Map> map, Handle<String> name,
                       PropertyAttributes attributes,
                       Handle<AccessorPair> accessor_pair) {
-  DescriptorArray* descriptors = map->instance_descriptors();
+  DescriptorArray descriptors = map->instance_descriptors();
   int idx = descriptors->SearchWithCache(isolate, *name, *map);
   Descriptor d = Descriptor::AccessorConstant(name, accessor_pair, attributes);
   descriptors->Replace(idx, &d);

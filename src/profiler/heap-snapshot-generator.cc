@@ -1017,7 +1017,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
                            Map::kTransitionsOrPrototypeInfoOffset);
     }
   }
-  DescriptorArray* descriptors = map->instance_descriptors();
+  DescriptorArray descriptors = map->instance_descriptors();
   TagObject(descriptors, "(map descriptors)");
   SetInternalReference(entry, "descriptors", descriptors,
                        Map::kDescriptorsOffset);
@@ -1243,7 +1243,7 @@ void V8HeapExplorer::ExtractFeedbackVectorReferences(
 }
 
 void V8HeapExplorer::ExtractDescriptorArrayReferences(HeapEntry* entry,
-                                                      DescriptorArray* array) {
+                                                      DescriptorArray array) {
   SetInternalReference(entry, "enum_cache", array->enum_cache(),
                        DescriptorArray::kEnumCacheOffset);
   MaybeObjectSlot start = MaybeObjectSlot(array->GetDescriptorSlot(0));
@@ -1281,7 +1281,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
                                                HeapEntry* entry) {
   Isolate* isolate = js_obj->GetIsolate();
   if (js_obj->HasFastProperties()) {
-    DescriptorArray* descs = js_obj->map()->instance_descriptors();
+    DescriptorArray descs = js_obj->map()->instance_descriptors();
     int real_size = js_obj->map()->NumberOfOwnDescriptors();
     for (int i = 0; i < real_size; i++) {
       PropertyDetails details = descs->GetDetails(i);

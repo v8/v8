@@ -61,7 +61,7 @@ class RootVisitor;
   V(Map, feedback_vector_map, FeedbackVectorMap)                               \
   V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
-  V(DescriptorArray*, empty_descriptor_array, EmptyDescriptorArray)            \
+  V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   /* Entries beyond the first 32                                            */ \
   /* Oddballs */                                                               \
   V(Oddball*, arguments_marker, ArgumentsMarker)                               \

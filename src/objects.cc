@@ -3397,8 +3397,8 @@ void JSObject::PrintInstanceMigration(FILE* file, Map original_map,
     return;
   }
   PrintF(file, "[migrating]");
-  DescriptorArray* o = original_map->instance_descriptors();
-  DescriptorArray* n = new_map->instance_descriptors();
+  DescriptorArray o = original_map->instance_descriptors();
+  DescriptorArray n = new_map->instance_descriptors();
   for (int i = 0; i < original_map->NumberOfOwnDescriptors(); i++) {
     Representation o_r = o->GetDetails(i).representation();
     Representation n_r = n->GetDetails(i).representation();
@@ -4171,8 +4171,8 @@ bool Map::InstancesNeedRewriting(Map target, int target_number_of_fields,
   if (target_number_of_fields != *old_number_of_fields) return true;
 
   // If smi descriptors were replaced by double descriptors, rewrite.
-  DescriptorArray* old_desc = instance_descriptors();
-  DescriptorArray* new_desc = target->instance_descriptors();
+  DescriptorArray old_desc = instance_descriptors();
+  DescriptorArray new_desc = target->instance_descriptors();
   int limit = NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
     if (new_desc->GetDetails(i).representation().IsDouble() !=
@@ -4650,7 +4650,7 @@ void JSObject::ForceSetPrototype(Handle<JSObject> object,
 }
 
 int Map::NumberOfFields() const {
-  DescriptorArray* descriptors = instance_descriptors();
+  DescriptorArray descriptors = instance_descriptors();
   int result = 0;
   for (int i = 0; i < NumberOfOwnDescriptors(); i++) {
     if (descriptors->GetDetails(i).location() == kField) result++;
@@ -4659,7 +4659,7 @@ int Map::NumberOfFields() const {
 }
 
 Map::FieldCounts Map::GetFieldCounts() const {
-  DescriptorArray* descriptors = instance_descriptors();
+  DescriptorArray descriptors = instance_descriptors();
   int mutable_count = 0;
   int const_count = 0;
   for (int i = 0; i < NumberOfOwnDescriptors(); i++) {
@@ -4771,14 +4771,14 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
 
 // Installs |new_descriptors| over the current instance_descriptors to ensure
 // proper sharing of descriptor arrays.
-void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray* new_descriptors,
+void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
                              LayoutDescriptor new_layout_descriptor) {
   // Don't overwrite the empty descriptor array or initial map's descriptors.
   if (NumberOfOwnDescriptors() == 0 || GetBackPointer()->IsUndefined(isolate)) {
     return;
   }
 
-  DescriptorArray* to_replace = instance_descriptors();
+  DescriptorArray to_replace = instance_descriptors();
   // Replace descriptors by new_descriptors in all maps that share it. The old
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
@@ -4849,7 +4849,7 @@ void Map::UpdateFieldType(Isolate* isolate, int descriptor, Handle<Name> name,
       Map target = transitions.GetTarget(i);
       backlog.push(target);
     }
-    DescriptorArray* descriptors = current->instance_descriptors();
+    DescriptorArray descriptors = current->instance_descriptors();
     PropertyDetails details = descriptors->GetDetails(descriptor);
 
     // Currently constness change implies map change.
@@ -4999,7 +4999,7 @@ Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
   // Go to slow map updating if the old_map has fast properties with cleared
   // field types.
   int old_nof = old_map->NumberOfOwnDescriptors();
-  DescriptorArray* old_descriptors = old_map->instance_descriptors();
+  DescriptorArray old_descriptors = old_map->instance_descriptors();
   for (int i = 0; i < old_nof; i++) {
     PropertyDetails old_details = old_descriptors->GetDetails(i);
     if (old_details.location() == kField && old_details.kind() == kData) {
@@ -5075,7 +5075,7 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map) {
   int root_nof = NumberOfOwnDescriptors();
 
   int old_nof = old_map->NumberOfOwnDescriptors();
-  DescriptorArray* old_descriptors = old_map->instance_descriptors();
+  DescriptorArray old_descriptors = old_map->instance_descriptors();
 
   Map new_map = *this;
   for (int i = root_nof; i < old_nof; ++i) {
@@ -5086,7 +5086,7 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map) {
                               old_details.attributes());
     if (transition.is_null()) return Map();
     new_map = transition;
-    DescriptorArray* new_descriptors = new_map->instance_descriptors();
+    DescriptorArray new_descriptors = new_map->instance_descriptors();
 
     PropertyDetails new_details = new_descriptors->GetDetails(i);
     DCHECK_EQ(old_details.kind(), new_details.kind());
@@ -8380,7 +8380,7 @@ bool TestFastPropertiesIntegrityLevel(Map map, PropertyAttributes level) {
   DCHECK(!map->IsCustomElementsReceiverMap());
   DCHECK(!map->is_dictionary_map());
 
-  DescriptorArray* descriptors = map->instance_descriptors();
+  DescriptorArray descriptors = map->instance_descriptors();
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   for (int i = 0; i < number_of_own_descriptors; i++) {
     if (descriptors->GetKey(i)->IsPrivate()) continue;
@@ -8977,7 +8977,7 @@ bool JSObject::HasEnumerableElements() {
 
 int Map::NumberOfEnumerableProperties() const {
   int result = 0;
-  DescriptorArray* descs = instance_descriptors();
+  DescriptorArray descs = instance_descriptors();
   int limit = NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
     if ((descs->GetDetails(i).attributes() & ONLY_ENUMERABLE) == 0 &&
@@ -8991,7 +8991,7 @@ int Map::NumberOfEnumerableProperties() const {
 int Map::NextFreePropertyIndex() const {
   int free_index = 0;
   int number_of_own_descriptors = NumberOfOwnDescriptors();
-  DescriptorArray* descs = instance_descriptors();
+  DescriptorArray descs = instance_descriptors();
   for (int i = 0; i < number_of_own_descriptors; i++) {
     PropertyDetails details = descs->GetDetails(i);
     if (details.location() == kField) {
@@ -9292,7 +9292,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 Object* JSObject::SlowReverseLookup(Object* value) {
   if (HasFastProperties()) {
     int number_of_own_descriptors = map()->NumberOfOwnDescriptors();
-    DescriptorArray* descs = map()->instance_descriptors();
+    DescriptorArray descs = map()->instance_descriptors();
     bool value_is_number = value->IsNumber();
     for (int i = 0; i < number_of_own_descriptors; i++) {
       PropertyDetails details = descs->GetDetails(i);
@@ -9919,7 +9919,7 @@ Handle<Map> Map::CopyForPreventExtensions(Isolate* isolate, Handle<Map> map,
 
 namespace {
 
-bool CanHoldValue(DescriptorArray* descriptors, int descriptor,
+bool CanHoldValue(DescriptorArray descriptors, int descriptor,
                   PropertyConstness constness, Object* value) {
   PropertyDetails details = descriptors->GetDetails(descriptor);
   if (details.location() == kField) {
@@ -10126,7 +10126,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                              .SearchTransition(*name, kAccessor, attributes);
   if (!maybe_transition.is_null()) {
     Handle<Map> transition(maybe_transition, isolate);
-    DescriptorArray* descriptors = transition->instance_descriptors();
+    DescriptorArray descriptors = transition->instance_descriptors();
     int descriptor = transition->LastAdded();
     DCHECK(descriptors->GetKey(descriptor)->Equals(*name));
 
@@ -10149,7 +10149,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
   }
 
   Handle<AccessorPair> pair;
-  DescriptorArray* old_descriptors = map->instance_descriptors();
+  DescriptorArray old_descriptors = map->instance_descriptors();
   if (descriptor != DescriptorArray::kNotFound) {
     if (descriptor != map->LastAdded()) {
       return Map::Normalize(isolate, map, mode, "AccessorsOverwritingNonLast");
@@ -10338,7 +10338,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
   return descriptors;
 }
 
-bool DescriptorArray::IsEqualUpTo(DescriptorArray* desc, int nof_descriptors) {
+bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
   for (int i = 0; i < nof_descriptors; i++) {
     if (GetKey(i) != desc->GetKey(i) || GetValue(i) != desc->GetValue(i)) {
       return false;
@@ -10778,7 +10778,7 @@ void DescriptorArray::InitializeOrChangeEnumCache(
   }
 }
 
-void DescriptorArray::CopyFrom(int index, DescriptorArray* src) {
+void DescriptorArray::CopyFrom(int index, DescriptorArray src) {
   PropertyDetails details = src->GetDetails(index);
   Set(index, src->GetKey(index), src->GetValue(index), details);
 }
@@ -10881,9 +10881,10 @@ SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
 }
 
 #ifdef DEBUG
-bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
-  if (number_of_all_descriptors() != other->number_of_all_descriptors())
+bool DescriptorArray::IsEqualTo(DescriptorArray other) {
+  if (number_of_all_descriptors() != other->number_of_all_descriptors()) {
     return false;
+  }
   for (int i = 0; i < number_of_all_descriptors(); ++i) {
     if (get(i) != other->get(i)) return false;
   }
@@ -12614,7 +12615,7 @@ bool Map::EquivalentToForElementsKindTransition(const Map other) const {
   // Ensure that we don't try to generate elements kind transitions from maps
   // with fields that may be generalized in-place. This must already be handled
   // during addition of a new field.
-  DescriptorArray* descriptors = instance_descriptors();
+  DescriptorArray descriptors = instance_descriptors();
   int nof = NumberOfOwnDescriptors();
   for (int i = 0; i < nof; i++) {
     PropertyDetails details = descriptors->GetDetails(i);

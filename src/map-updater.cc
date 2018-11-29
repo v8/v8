@@ -375,7 +375,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   if (target_nof == old_nof_) {
 #ifdef DEBUG
     if (modified_descriptor_ >= 0) {
-      DescriptorArray* target_descriptors = target_map_->instance_descriptors();
+      DescriptorArray target_descriptors = target_map_->instance_descriptors();
       PropertyDetails details =
           target_descriptors->GetDetails(modified_descriptor_);
       DCHECK_EQ(new_kind_, details.kind());
@@ -623,7 +623,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
         TransitionsAccessor(isolate_, current, &no_allocation)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next.is_null()) break;
-    DescriptorArray* next_descriptors = next->instance_descriptors();
+    DescriptorArray next_descriptors = next->instance_descriptors();
 
     PropertyDetails next_details = next_descriptors->GetDetails(i);
     DCHECK_EQ(details.kind(), next_details.kind());

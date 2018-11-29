@@ -2466,7 +2466,7 @@ static bool CanFastCloneObject(Handle<Map> map) {
     return false;
   }
 
-  DescriptorArray* descriptors = map->instance_descriptors();
+  DescriptorArray descriptors = map->instance_descriptors();
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descriptors->GetDetails(i);
     Name key = descriptors->GetKey(i);

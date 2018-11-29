@@ -578,7 +578,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       int delta = actual_unused_property_fields - map()->UnusedPropertyFields();
       CHECK_EQ(0, delta % JSObject::kFieldsAdded);
     }
-    DescriptorArray* descriptors = map()->instance_descriptors();
+    DescriptorArray descriptors = map()->instance_descriptors();
     bool is_transitionable_fast_elements_kind =
         IsTransitionableFastElementsKind(map()->elements_kind());
 
@@ -657,7 +657,7 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());
     CHECK(!is_access_check_needed());
-    DescriptorArray* const descriptors = instance_descriptors();
+    DescriptorArray const descriptors = instance_descriptors();
     for (int i = 0; i < NumberOfOwnDescriptors(); ++i) {
       CHECK(!descriptors->GetKey(i)->IsInterestingSymbol());
     }
@@ -785,7 +785,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
   }
   if (number_of_all_descriptors() == 0) {
     Heap* heap = isolate->heap();
-    CHECK_EQ(ReadOnlyRoots(heap).empty_descriptor_array(), this);
+    CHECK_EQ(ReadOnlyRoots(heap).empty_descriptor_array(), *this);
     CHECK_EQ(0, number_of_all_descriptors());
     CHECK_EQ(0, number_of_descriptors());
     CHECK_EQ(ReadOnlyRoots(heap).empty_enum_cache(), enum_cache());

@@ -472,7 +472,7 @@ void FixedTypedArray<Traits>::FixedTypedArrayPrint(
 
 bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
-    DescriptorArray* descs = map()->instance_descriptors();
+    DescriptorArray descs = map()->instance_descriptors();
     int nof_inobject_properties = map()->GetInObjectProperties();
     int i = 0;
     for (; i < map()->NumberOfOwnDescriptors(); i++) {
@@ -920,7 +920,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
 }
 
 void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
-  HeapObject::PrintHeader(os, "DescriptorArray");
+  PrintHeader(os, "DescriptorArray");
   os << "\n - enum_cache: ";
   if (enum_cache()->keys()->length() == 0) {
     os << "empty";
@@ -2504,7 +2504,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name key,
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
     int descriptor = target->LastAdded();
-    DescriptorArray* descriptors = target->instance_descriptors();
+    DescriptorArray descriptors = target->instance_descriptors();
     descriptors->PrintDescriptorDetails(os, descriptor,
                                         PropertyDetails::kForTransitions);
     os << ")";
@@ -2582,7 +2582,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
       DCHECK(!IsSpecialTransition(ReadOnlyRoots(isolate_), key));
       os << "to ";
       int descriptor = target->LastAdded();
-      DescriptorArray* descriptors = target->instance_descriptors();
+      DescriptorArray descriptors = target->instance_descriptors();
       descriptors->PrintDescriptorDetails(os, descriptor,
                                           PropertyDetails::kForTransitions);
     }

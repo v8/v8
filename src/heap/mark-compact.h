@@ -800,10 +800,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Compact every array in the global list of transition arrays and
   // trim the corresponding descriptor array if a transition target is non-live.
   void ClearFullMapTransitions();
-  void TrimDescriptorArray(Map map, DescriptorArray* descriptors);
-  void TrimEnumCache(Map map, DescriptorArray* descriptors);
+  void TrimDescriptorArray(Map map, DescriptorArray descriptors);
+  void TrimEnumCache(Map map, DescriptorArray descriptors);
   bool CompactTransitionArray(Map map, TransitionArray transitions,
-                              DescriptorArray* descriptors);
+                              DescriptorArray descriptors);
 
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
@@ -850,8 +850,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   int NumberOfParallelEphemeronVisitingTasks(size_t elements);
 
-  void RightTrimDescriptorArray(DescriptorArray* array,
-                                int descriptors_to_trim);
+  void RightTrimDescriptorArray(DescriptorArray array, int descriptors_to_trim);
 
   base::Mutex mutex_;
   base::Semaphore page_parallel_job_semaphore_;

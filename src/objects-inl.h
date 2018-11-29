@@ -501,6 +501,8 @@ OBJECT_CONSTRUCTORS_IMPL(SmallOrderedNameDictionary,
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
 
+OBJECT_CONSTRUCTORS_IMPL(DescriptorArray, HeapObjectPtr)
+
 NormalizedMapCache::NormalizedMapCache(Address ptr) : WeakFixedArray(ptr) {
   // TODO(jkummerow): Introduce IsNormalizedMapCache() and use
   // OBJECT_CONSTRUCTORS_IMPL macro?
@@ -515,7 +517,7 @@ CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ArrayBoilerplateDescription)
 CAST_ACCESSOR(DataHandler)
-CAST_ACCESSOR(DescriptorArray)
+CAST_ACCESSOR2(DescriptorArray)
 CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(FeedbackCell)
@@ -1145,7 +1147,7 @@ inline int DescriptorArray::number_of_entries() const {
   return number_of_descriptors();
 }
 
-void DescriptorArray::CopyEnumCacheFrom(DescriptorArray* array) {
+void DescriptorArray::CopyEnumCacheFrom(DescriptorArray array) {
   set_enum_cache(array->enum_cache());
 }
 
@@ -1280,15 +1282,14 @@ int DescriptorArray::SearchWithCache(Isolate* isolate, Name name, Map map) {
 }
 
 ObjectSlot DescriptorArray::GetFirstPointerSlot() {
-  return ObjectSlot(
-      HeapObject::RawField(this, DescriptorArray::kPointersStartOffset));
+  return RawField(DescriptorArray::kPointersStartOffset);
 }
 
 ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
   // Allow descriptor == number_of_all_descriptors() for computing the slot
   // address that comes after the last descriptor (for iterating).
   DCHECK_LE(descriptor, number_of_all_descriptors());
-  return HeapObject::RawField(this, OffsetOfDescriptorAt(descriptor));
+  return RawField(OffsetOfDescriptorAt(descriptor));
 }
 
 ObjectSlot DescriptorArray::GetKeySlot(int descriptor) {
@@ -1298,7 +1299,7 @@ ObjectSlot DescriptorArray::GetKeySlot(int descriptor) {
   return slot;
 }
 
-Name DescriptorArray::GetKey(int descriptor_number) {
+Name DescriptorArray::GetKey(int descriptor_number) const {
   DCHECK(descriptor_number < number_of_descriptors());
   return Name::cast(
       get(ToKeyIndex(descriptor_number))->GetHeapObjectAssumeStrong());
@@ -1564,8 +1565,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == DESCRIPTOR_ARRAY_TYPE) {
     return DescriptorArray::SizeFor(
-        reinterpret_cast<const DescriptorArray*>(this)
-            ->number_of_all_descriptors());
+        DescriptorArray::unchecked_cast(this)->number_of_all_descriptors());
   }
   if (IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
                 LAST_WEAK_FIXED_ARRAY_TYPE)) {

@@ -368,7 +368,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   // this map are visited.  Prototype maps don't keep track of transitions, so
   // just mark the entire descriptor array.
   if (!map->is_prototype_map()) {
-    DescriptorArray* descriptors = map->instance_descriptors();
+    DescriptorArray descriptors = map->instance_descriptors();
     if (MarkObjectWithoutPush(map, descriptors)) {
       VisitPointers(descriptors, descriptors->GetFirstPointerSlot(),
                     descriptors->GetDescriptorSlot(0));
