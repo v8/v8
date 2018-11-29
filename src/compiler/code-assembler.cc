@@ -20,9 +20,9 @@
 #include "src/lsan.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
+#include "src/memcopy.h"
 #include "src/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/utils.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

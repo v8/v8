@@ -21,6 +21,7 @@
 #include "src/libsampler/sampler.h"
 #include "src/log-inl.h"
 #include "src/macro-assembler.h"
+#include "src/memcopy.h"
 #include "src/objects/api-callbacks.h"
 #include "src/perf-jit.h"
 #include "src/profiler/tick-sample.h"
@@ -34,7 +35,6 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects-inl.h"
 
-#include "src/utils.h"
 #include "src/version.h"
 
 namespace v8 {

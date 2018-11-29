@@ -2252,6 +2252,8 @@ v8_source_set("v8_base") {
     "src/math-random.h",
     "src/maybe-handles-inl.h",
     "src/maybe-handles.h",
+    "src/memcopy.cc",
+    "src/memcopy.h",
     "src/message-template.h",
     "src/messages.cc",
     "src/messages.h",

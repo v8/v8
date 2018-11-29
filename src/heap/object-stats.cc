@@ -15,13 +15,13 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/isolate.h"
+#include "src/memcopy.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/templates.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
