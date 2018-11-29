@@ -29,7 +29,7 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObjectPtr)
 CAST_ACCESSOR2(Map)
 
-ACCESSORS2(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
+ACCESSORS2(Map, raw_instance_descriptors, DescriptorArray, kDescriptorsOffset)
 // A freshly allocated layout descriptor can be set on an existing map.
 // We need to use release-store and acquire-load accessor pairs to ensure
 // that the concurrent marking thread observes initializing stores of the
@@ -75,6 +75,10 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
                     Map::MayHaveInterestingSymbolsBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
                     Map::ConstructionCounterBits)
+
+DescriptorArray Map::instance_descriptors() const {
+  return raw_instance_descriptors();
+}
 
 InterceptorInfo* Map::GetNamedInterceptor() {
   DCHECK(has_named_interceptor());
@@ -576,9 +580,10 @@ bool Map::HasFastPointerLayout() const {
   return LayoutDescriptor::IsFastPointerLayout(layout_desc);
 }
 
-void Map::UpdateDescriptors(DescriptorArray descriptors,
-                            LayoutDescriptor layout_desc) {
-  set_instance_descriptors(descriptors);
+void Map::UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
+                            LayoutDescriptor layout_desc,
+                            int number_of_own_descriptors) {
+  SetInstanceDescriptors(isolate, descriptors, number_of_own_descriptors);
   if (FLAG_unbox_double_fields) {
     if (layout_descriptor()->IsSlowLayout()) {
       set_layout_descriptor(layout_desc);
@@ -596,11 +601,10 @@ void Map::UpdateDescriptors(DescriptorArray descriptors,
   }
 }
 
-void Map::InitializeDescriptors(DescriptorArray descriptors,
+void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors,
                                 LayoutDescriptor layout_desc) {
-  int len = descriptors->number_of_descriptors();
-  set_instance_descriptors(descriptors);
-  SetNumberOfOwnDescriptors(len);
+  SetInstanceDescriptors(isolate, descriptors,
+                         descriptors->number_of_descriptors());
 
   if (FLAG_unbox_double_fields) {
     set_layout_descriptor(layout_desc);
@@ -632,7 +636,7 @@ LayoutDescriptor Map::GetLayoutDescriptor() const {
                                   : LayoutDescriptor::FastPointerLayout();
 }
 
-void Map::AppendDescriptor(Descriptor* desc) {
+void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
   DescriptorArray descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);

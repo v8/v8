@@ -573,7 +573,9 @@ class Map : public HeapObjectPtr {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
-  DECL_ACCESSORS2(instance_descriptors, DescriptorArray)
+  inline DescriptorArray instance_descriptors() const;
+  void SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
+                              int number_of_own_descriptors);
 
   // [layout descriptor]: describes the object layout.
   DECL_ACCESSORS2(layout_descriptor, LayoutDescriptor)
@@ -586,9 +588,11 @@ class Map : public HeapObjectPtr {
   // |layout_descriptor| field at all).
   inline LayoutDescriptor GetLayoutDescriptor() const;
 
-  inline void UpdateDescriptors(DescriptorArray descriptors,
-                                LayoutDescriptor layout_descriptor);
-  inline void InitializeDescriptors(DescriptorArray descriptors,
+  inline void UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
+                                LayoutDescriptor layout_descriptor,
+                                int number_of_own_descriptors);
+  inline void InitializeDescriptors(Isolate* isolate,
+                                    DescriptorArray descriptors,
                                     LayoutDescriptor layout_descriptor);
 
   // [dependent code]: list of optimized codes that weakly embed this map.
@@ -730,7 +734,7 @@ class Map : public HeapObjectPtr {
                                                  PropertyKind kind,
                                                  PropertyAttributes attributes);
 
-  inline void AppendDescriptor(Descriptor* desc);
+  inline void AppendDescriptor(Isolate* isolate, Descriptor* desc);
 
   // Returns a copy of the map, prepared for inserting into the transition
   // tree (if the |map| owns descriptors then the new one will share
@@ -964,6 +968,10 @@ class Map : public HeapObjectPtr {
       Representation old_representation, Representation new_representation,
       MaybeHandle<FieldType> old_field_type, MaybeHandle<Object> old_value,
       MaybeHandle<FieldType> new_field_type, MaybeHandle<Object> new_value);
+
+  // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
+  DECL_ACCESSORS2(raw_instance_descriptors, DescriptorArray)
+
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;
 

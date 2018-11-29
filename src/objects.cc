@@ -4788,7 +4788,8 @@ void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
     Object* next = current->GetBackPointer();
     if (next->IsUndefined(isolate)) break;  // Stop overwriting at initial map.
     current->SetEnumLength(kInvalidEnumCacheSentinel);
-    current->UpdateDescriptors(new_descriptors, new_layout_descriptor);
+    current->UpdateDescriptors(isolate, new_descriptors, new_layout_descriptor,
+                               current->NumberOfOwnDescriptors());
     current = Map::cast(next);
   }
   set_owns_descriptors(false);
@@ -5597,7 +5598,8 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   LayoutDescriptor layout_descriptor = map->GetLayoutDescriptor();
 
   if (old_size == 0) {
-    map->UpdateDescriptors(*new_descriptors, layout_descriptor);
+    map->UpdateDescriptors(isolate, *new_descriptors, layout_descriptor,
+                           map->NumberOfOwnDescriptors());
     return;
   }
 
@@ -5617,10 +5619,12 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   while (current->instance_descriptors() == *descriptors) {
     Object* next = current->GetBackPointer();
     if (next->IsUndefined(isolate)) break;  // Stop overwriting at initial map.
-    current->UpdateDescriptors(*new_descriptors, layout_descriptor);
+    current->UpdateDescriptors(isolate, *new_descriptors, layout_descriptor,
+                               current->NumberOfOwnDescriptors());
     current = Map::cast(next);
   }
-  map->UpdateDescriptors(*new_descriptors, layout_descriptor);
+  map->UpdateDescriptors(isolate, *new_descriptors, layout_descriptor,
+                         map->NumberOfOwnDescriptors());
 }
 
 // static
@@ -6777,7 +6781,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
       isolate, new_map, descriptors, descriptors->number_of_descriptors());
 
   DisallowHeapAllocation no_gc;
-  new_map->InitializeDescriptors(*descriptors, *layout_descriptor);
+  new_map->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
   if (number_of_allocated_fields == 0) {
     new_map->SetInObjectUnusedPropertyFields(unused_property_fields);
   } else {
@@ -9509,9 +9513,9 @@ Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map,
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors > 0) {
     // The copy will use the same descriptors array.
-    result->UpdateDescriptors(map->instance_descriptors(),
-                              map->GetLayoutDescriptor());
-    result->SetNumberOfOwnDescriptors(number_of_own_descriptors);
+    result->UpdateDescriptors(isolate, map->instance_descriptors(),
+                              map->GetLayoutDescriptor(),
+                              number_of_own_descriptors);
 
     DCHECK_EQ(result->NumberOfFields(),
               result->GetInObjectProperties() - result->UnusedPropertyFields());
@@ -9571,7 +9575,7 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
   {
     DisallowHeapAllocation no_gc;
     descriptors->Append(descriptor);
-    result->InitializeDescriptors(*descriptors, *layout_descriptor);
+    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
   }
 
   DCHECK(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
@@ -9637,17 +9641,17 @@ Handle<Map> Map::CopyReplaceDescriptors(
   if (!map->is_prototype_map()) {
     if (flag == INSERT_TRANSITION &&
         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
-      result->InitializeDescriptors(*descriptors, *layout_descriptor);
+      result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
 
       DCHECK(!maybe_name.is_null());
       ConnectTransition(isolate, map, result, name, simple_flag);
     } else {
       descriptors->GeneralizeAllFields();
-      result->InitializeDescriptors(*descriptors,
+      result->InitializeDescriptors(isolate, *descriptors,
                                     LayoutDescriptor::FastPointerLayout());
     }
   } else {
-    result->InitializeDescriptors(*descriptors, *layout_descriptor);
+    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
   }
   if (FLAG_trace_maps &&
       // Mirror conditions above that did not call ConnectTransition().
@@ -9684,7 +9688,8 @@ Handle<Map> Map::AddMissingTransitions(
   // the flag and clear it right before the descriptors are installed. This
   // makes heap verification happy and ensures the flag ends up accurate.
   Handle<Map> last_map = CopyDropDescriptors(isolate, split_map);
-  last_map->InitializeDescriptors(*descriptors, *full_layout_descriptor);
+  last_map->InitializeDescriptors(isolate, *descriptors,
+                                  *full_layout_descriptor);
   last_map->SetInObjectUnusedPropertyFields(0);
   last_map->set_may_have_interesting_symbols(true);
 
@@ -9717,8 +9722,7 @@ void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
                              Handle<LayoutDescriptor> full_layout_descriptor) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
-  child->set_instance_descriptors(*descriptors);
-  child->SetNumberOfOwnDescriptors(new_descriptor + 1);
+  child->SetInstanceDescriptors(isolate, *descriptors, new_descriptor + 1);
   child->CopyUnusedPropertyFields(*parent);
   PropertyDetails details = descriptors->GetDetails(new_descriptor);
   if (details.location() == kField) {
@@ -9841,7 +9845,7 @@ Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
     // In case the map owned its own descriptors, share the descriptors and
     // transfer ownership to the new map.
     // The properties did not change, so reuse descriptors.
-    new_map->InitializeDescriptors(map->instance_descriptors(),
+    new_map->InitializeDescriptors(isolate, map->instance_descriptors(),
                                    map->GetLayoutDescriptor());
   } else {
     // In case the map did not own its own descriptors, a split is forced by
@@ -9852,7 +9856,8 @@ Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
         isolate, descriptors, number_of_own_descriptors);
     Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
                                                    isolate);
-    new_map->InitializeDescriptors(*new_descriptors, *new_layout_descriptor);
+    new_map->InitializeDescriptors(isolate, *new_descriptors,
+                                   *new_layout_descriptor);
   }
   return new_map;
 }
@@ -12748,6 +12753,12 @@ void Map::CompleteInobjectSlackTracking(Isolate* isolate) {
   }
 }
 
+void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
+                                 int number_of_own_descriptors) {
+  set_raw_instance_descriptors(descriptors);
+  SetNumberOfOwnDescriptors(number_of_own_descriptors);
+  // TODO(ulan): Add marking write barrier.
+}
 
 static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;

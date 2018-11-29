@@ -1974,7 +1974,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
                           SKIP_WRITE_BARRIER);
   map->set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map->SetInObjectUnusedPropertyFields(inobject_properties);
-  map->set_instance_descriptors(*empty_descriptor_array());
+  map->SetInstanceDescriptors(isolate(), *empty_descriptor_array(), 0);
   if (FLAG_unbox_double_fields) {
     map->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
   }
@@ -4056,7 +4056,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   {  // Add length accessor.
     Descriptor d = Descriptor::AccessorConstant(
         length_string(), function_length_accessor(), roc_attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
 
   STATIC_ASSERT(JSFunction::kNameDescriptorIndex == 1);
@@ -4065,23 +4065,23 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
     Handle<Name> name = isolate()->factory()->name_string();
     Descriptor d = Descriptor::DataField(isolate(), name, field_index++,
                                          roc_attribs, Representation::Tagged());
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
 
   } else {
     // Add name accessor.
     Descriptor d = Descriptor::AccessorConstant(
         name_string(), function_name_accessor(), roc_attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
   {  // Add arguments accessor.
     Descriptor d = Descriptor::AccessorConstant(
         arguments_string(), function_arguments_accessor(), ro_attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
   {  // Add caller accessor.
     Descriptor d = Descriptor::AccessorConstant(
         caller_string(), function_caller_accessor(), ro_attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
     // Add prototype accessor.
@@ -4090,7 +4090,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
                                                            : ro_attribs;
     Descriptor d = Descriptor::AccessorConstant(
         prototype_string(), function_prototype_accessor(), attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
   LOG(isolate(), MapDetails(*map));
@@ -4133,7 +4133,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
   {  // Add length accessor.
     Descriptor d = Descriptor::AccessorConstant(
         length_string(), function_length_accessor(), roc_attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
 
   STATIC_ASSERT(JSFunction::kNameDescriptorIndex == 1);
@@ -4142,13 +4142,13 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     Handle<Name> name = isolate()->factory()->name_string();
     Descriptor d = Descriptor::DataField(isolate(), name, field_index++,
                                          roc_attribs, Representation::Tagged());
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
 
   } else {
     // Add name accessor.
     Descriptor d = Descriptor::AccessorConstant(
         name_string(), function_name_accessor(), roc_attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
 
   STATIC_ASSERT(JSFunction::kMaybeHomeObjectDescriptorIndex == 2);
@@ -4157,7 +4157,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     Handle<Name> name = isolate()->factory()->home_object_symbol();
     Descriptor d = Descriptor::DataField(isolate(), name, field_index++,
                                          DONT_ENUM, Representation::Tagged());
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
 
   if (IsFunctionModeWithPrototype(function_mode)) {
@@ -4167,7 +4167,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
                                                            : ro_attribs;
     Descriptor d = Descriptor::AccessorConstant(
         prototype_string(), function_prototype_accessor(), attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
   LOG(isolate(), MapDetails(*map));
@@ -4196,14 +4196,14 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
   {  // Add length accessor.
     Descriptor d = Descriptor::AccessorConstant(
         length_string(), function_length_accessor(), roc_attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
 
   {
     // Add prototype accessor.
     Descriptor d = Descriptor::AccessorConstant(
         prototype_string(), function_prototype_accessor(), ro_attribs);
-    map->AppendDescriptor(&d);
+    map->AppendDescriptor(isolate(), &d);
   }
   LOG(isolate(), MapDetails(*map));
   return map;

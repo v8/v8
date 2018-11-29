@@ -36,8 +36,9 @@ namespace test_unboxed_doubles {
 //
 
 static void InitializeVerifiedMapDescriptors(
-    Map map, DescriptorArray descriptors, LayoutDescriptor layout_descriptor) {
-  map->InitializeDescriptors(descriptors, layout_descriptor);
+    Isolate* isolate, Map map, DescriptorArray descriptors,
+    LayoutDescriptor layout_descriptor) {
+  map->InitializeDescriptors(isolate, descriptors, layout_descriptor);
   CHECK(layout_descriptor->IsConsistentWithMap(map, true));
 }
 
@@ -192,7 +193,8 @@ TEST(LayoutDescriptorBasicSlow) {
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK_EQ(kBitsInSmiLayout, layout_descriptor->capacity());
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   props[0] = PROP_DOUBLE;
@@ -216,7 +218,8 @@ TEST(LayoutDescriptorBasicSlow) {
     for (int i = 1; i < kPropsCount; i++) {
       CHECK(layout_descriptor->IsTagged(i));
     }
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -236,7 +239,8 @@ TEST(LayoutDescriptorBasicSlow) {
       CHECK(layout_descriptor->IsTagged(i));
     }
 
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
 
     // Here we have truly slow layout descriptor, so play with the bits.
     CHECK(layout_descriptor->IsTagged(-1));
@@ -516,7 +520,8 @@ TEST(LayoutDescriptorCreateNewFast) {
     layout_descriptor =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -524,7 +529,8 @@ TEST(LayoutDescriptorCreateNewFast) {
     layout_descriptor =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -537,7 +543,8 @@ TEST(LayoutDescriptorCreateNewFast) {
     CHECK(!layout_descriptor->IsTagged(1));
     CHECK(layout_descriptor->IsTagged(2));
     CHECK(layout_descriptor->IsTagged(125));
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 }
 
@@ -562,7 +569,8 @@ TEST(LayoutDescriptorCreateNewSlow) {
     layout_descriptor =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -570,7 +578,8 @@ TEST(LayoutDescriptorCreateNewSlow) {
     layout_descriptor =
         LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -583,7 +592,8 @@ TEST(LayoutDescriptorCreateNewSlow) {
     CHECK(!layout_descriptor->IsTagged(1));
     CHECK(layout_descriptor->IsTagged(2));
     CHECK(layout_descriptor->IsTagged(125));
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
   }
 
   {
@@ -602,7 +612,8 @@ TEST(LayoutDescriptorCreateNewSlow) {
     for (int i = inobject_properties; i < kPropsCount; i++) {
       CHECK(layout_descriptor->IsTagged(i));
     }
-    InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+    InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                     *layout_descriptor);
 
     // Now test LayoutDescriptor::cast_gc_safe().
     Handle<LayoutDescriptor> layout_descriptor_copy =
@@ -636,7 +647,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
       DescriptorArray::Allocate(isolate, 0, kPropsCount);
 
   Handle<Map> map = Map::Create(isolate, inobject_properties);
-  map->InitializeDescriptors(*descriptors,
+  map->InitializeDescriptors(isolate, *descriptors,
                              LayoutDescriptor::FastPointerLayout());
 
   int next_field_offset = 0;
@@ -672,7 +683,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
       }
       CHECK(layout_descriptor->IsTagged(next_field_offset));
     }
-    map->InitializeDescriptors(*descriptors, *layout_descriptor);
+    map->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
   }
   Handle<LayoutDescriptor> layout_descriptor(map->layout_descriptor(), isolate);
   CHECK(layout_descriptor->IsConsistentWithMap(*map, true));
@@ -940,7 +951,7 @@ TEST(Regress436816) {
   Handle<Map> map = Map::Create(isolate, kPropsCount);
   Handle<LayoutDescriptor> layout_descriptor =
       LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
-  map->InitializeDescriptors(*descriptors, *layout_descriptor);
+  map->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
 
   Handle<JSObject> object = factory->NewJSObjectFromMap(map, TENURED);
 
@@ -1222,7 +1233,8 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
 
   Handle<LayoutDescriptor> layout_descriptor = LayoutDescriptor::New(
       isolate, map, descriptors, descriptors->number_of_descriptors());
-  InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
+  InitializeVerifiedMapDescriptors(isolate, *map, *descriptors,
+                                   *layout_descriptor);
 
   LayoutDescriptorHelper helper(*map);
   bool all_fields_tagged = true;

@@ -2523,7 +2523,7 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate,
       isolate, source_descriptors, size, slack);
   Handle<LayoutDescriptor> layout =
       LayoutDescriptor::New(isolate, map, descriptors, size);
-  map->InitializeDescriptors(*descriptors, *layout);
+  map->InitializeDescriptors(isolate, *descriptors, *layout);
   map->CopyUnusedPropertyFieldsAdjustedForInstanceSize(*source_map);
 
   // Update bitfields
