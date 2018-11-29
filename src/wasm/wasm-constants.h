@@ -71,8 +71,8 @@ enum SectionCode : int8_t {
   kElementSectionCode = 9,     // Elements section
   kCodeSectionCode = 10,       // Function code
   kDataSectionCode = 11,       // Data segments
-  kNameSectionCode = 12,       // Name section (encoded as a string)
-  kExceptionSectionCode = 13,  // Exception section
+  kExceptionSectionCode = 12,  // Exception (aka. event) section
+  kNameSectionCode = 13,       // Name section (encoded as a string)
   kSourceMappingURLSectionCode = 14,  // Source Map URL section
 
   // Helper values
