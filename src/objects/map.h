@@ -794,7 +794,7 @@ class Map : public HeapObjectPtr {
   bool IsMapInArrayPrototypeChain(Isolate* isolate) const;
 
   // Dispatched behavior.
-  DECL_PRINTER(Map)
+  void MapPrint(std::ostream& os);
   DECL_VERIFIER(Map)
 
 #ifdef VERIFY_HEAP

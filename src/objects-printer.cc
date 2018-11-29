@@ -845,84 +845,6 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   os << "\n - private: " << is_private();
 }
 
-void Map::MapPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "Map");
-  os << "\n - type: " << instance_type();
-  os << "\n - instance size: ";
-  if (instance_size() == kVariableSizeSentinel) {
-    os << "variable";
-  } else {
-    os << instance_size();
-  }
-  if (IsJSObjectMap()) {
-    os << "\n - inobject properties: " << GetInObjectProperties();
-  }
-  os << "\n - elements kind: " << ElementsKindToString(elements_kind());
-  os << "\n - unused property fields: " << UnusedPropertyFields();
-  os << "\n - enum length: ";
-  if (EnumLength() == kInvalidEnumCacheSentinel) {
-    os << "invalid";
-  } else {
-    os << EnumLength();
-  }
-  if (is_deprecated()) os << "\n - deprecated_map";
-  if (is_stable()) os << "\n - stable_map";
-  if (is_migration_target()) os << "\n - migration_target";
-  if (is_dictionary_map()) os << "\n - dictionary_map";
-  if (has_hidden_prototype()) os << "\n - has_hidden_prototype";
-  if (has_named_interceptor()) os << "\n - named_interceptor";
-  if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
-  if (may_have_interesting_symbols()) os << "\n - may_have_interesting_symbols";
-  if (is_undetectable()) os << "\n - undetectable";
-  if (is_callable()) os << "\n - callable";
-  if (is_constructor()) os << "\n - constructor";
-  if (has_prototype_slot()) {
-    os << "\n - has_prototype_slot";
-    if (has_non_instance_prototype()) os << " (non-instance prototype)";
-  }
-  if (is_access_check_needed()) os << "\n - access_check_needed";
-  if (!is_extensible()) os << "\n - non-extensible";
-  if (is_prototype_map()) {
-    os << "\n - prototype_map";
-    os << "\n - prototype info: " << Brief(prototype_info());
-  } else {
-    os << "\n - back pointer: " << Brief(GetBackPointer());
-  }
-  os << "\n - prototype_validity cell: " << Brief(prototype_validity_cell());
-  os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
-     << "#" << NumberOfOwnDescriptors() << ": "
-     << Brief(instance_descriptors());
-  if (FLAG_unbox_double_fields) {
-    os << "\n - layout descriptor: ";
-    layout_descriptor()->ShortPrint(os);
-  }
-
-  Isolate* isolate;
-  // Read-only maps can't have transitions, which is fortunate because we need
-  // the isolate to iterate over the transitions.
-  if (Isolate::FromWritableHeapObject(reinterpret_cast<HeapObject*>(ptr()),
-                                      &isolate)) {
-    DisallowHeapAllocation no_gc;
-    TransitionsAccessor transitions(isolate, *this, &no_gc);
-    int nof_transitions = transitions.NumberOfTransitions();
-    if (nof_transitions > 0) {
-      os << "\n - transitions #" << nof_transitions << ": ";
-      HeapObject* heap_object;
-      Smi smi;
-      if (raw_transitions()->ToSmi(&smi)) {
-        os << Brief(smi);
-      } else if (raw_transitions()->GetHeapObject(&heap_object)) {
-        os << Brief(heap_object);
-      }
-      transitions.PrintTransitions(os);
-    }
-  }
-  os << "\n - prototype: " << Brief(prototype());
-  os << "\n - constructor: " << Brief(GetConstructor());
-  os << "\n - dependent code: " << Brief(dependent_code());
-  os << "\n - construction counter: " << construction_counter();
-  os << "\n";
-}
 
 void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   PrintHeader(os, "DescriptorArray");
@@ -2427,13 +2349,93 @@ int Name::NameShortPrint(Vector<char> str) {
 
 void Map::PrintMapDetails(std::ostream& os) {
   DisallowHeapAllocation no_gc;
-#ifdef OBJECT_PRINT
   this->MapPrint(os);
+  instance_descriptors()->PrintDescriptors(os);
+}
+
+void Map::MapPrint(std::ostream& os) {  // NOLINT
+#ifdef OBJECT_PRINT
+  PrintHeader(os, "Map");
 #else
   os << "Map=" << reinterpret_cast<void*>(ptr());
 #endif
+  os << "\n - type: " << instance_type();
+  os << "\n - instance size: ";
+  if (instance_size() == kVariableSizeSentinel) {
+    os << "variable";
+  } else {
+    os << instance_size();
+  }
+  if (IsJSObjectMap()) {
+    os << "\n - inobject properties: " << GetInObjectProperties();
+  }
+  os << "\n - elements kind: " << ElementsKindToString(elements_kind());
+  os << "\n - unused property fields: " << UnusedPropertyFields();
+  os << "\n - enum length: ";
+  if (EnumLength() == kInvalidEnumCacheSentinel) {
+    os << "invalid";
+  } else {
+    os << EnumLength();
+  }
+  if (is_deprecated()) os << "\n - deprecated_map";
+  if (is_stable()) os << "\n - stable_map";
+  if (is_migration_target()) os << "\n - migration_target";
+  if (is_dictionary_map()) os << "\n - dictionary_map";
+  if (has_hidden_prototype()) os << "\n - has_hidden_prototype";
+  if (has_named_interceptor()) os << "\n - named_interceptor";
+  if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
+  if (may_have_interesting_symbols()) os << "\n - may_have_interesting_symbols";
+  if (is_undetectable()) os << "\n - undetectable";
+  if (is_callable()) os << "\n - callable";
+  if (is_constructor()) os << "\n - constructor";
+  if (has_prototype_slot()) {
+    os << "\n - has_prototype_slot";
+    if (has_non_instance_prototype()) os << " (non-instance prototype)";
+  }
+  if (is_access_check_needed()) os << "\n - access_check_needed";
+  if (!is_extensible()) os << "\n - non-extensible";
+  if (is_prototype_map()) {
+    os << "\n - prototype_map";
+    os << "\n - prototype info: " << Brief(prototype_info());
+  } else {
+    os << "\n - back pointer: " << Brief(GetBackPointer());
+  }
+  os << "\n - prototype_validity cell: " << Brief(prototype_validity_cell());
+  os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
+     << "#" << NumberOfOwnDescriptors() << ": "
+     << Brief(instance_descriptors());
+  if (FLAG_unbox_double_fields) {
+    os << "\n - layout descriptor: ";
+    layout_descriptor()->ShortPrint(os);
+  }
+
+  Isolate* isolate;
+  // Read-only maps can't have transitions, which is fortunate because we need
+  // the isolate to iterate over the transitions.
+  if (Isolate::FromWritableHeapObject(reinterpret_cast<HeapObject*>(ptr()),
+                                      &isolate)) {
+    DisallowHeapAllocation no_gc;
+    TransitionsAccessor transitions(isolate, *this, &no_gc);
+    int nof_transitions = transitions.NumberOfTransitions();
+    if (nof_transitions > 0) {
+      os << "\n - transitions #" << nof_transitions << ": ";
+      HeapObject* heap_object;
+      Smi smi;
+      if (raw_transitions()->ToSmi(&smi)) {
+        os << Brief(smi);
+      } else if (raw_transitions()->GetHeapObject(&heap_object)) {
+        os << Brief(heap_object);
+      }
+#ifdef OBJECT_PRINT
+      transitions.PrintTransitions(os);
+#endif  // OBJECT_PRINT
+    }
+  }
+  os << "\n - prototype: " << Brief(prototype());
+  os << "\n - constructor: " << Brief(GetConstructor());
+  os << "\n - dependent code: " << Brief(dependent_code());
+  os << "\n - construction counter: " << construction_counter();
   os << "\n";
-  instance_descriptors()->PrintDescriptors(os);
 }
 
 void DescriptorArray::PrintDescriptors(std::ostream& os) {
