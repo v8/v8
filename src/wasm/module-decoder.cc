@@ -83,6 +83,8 @@ const char* SectionName(SectionCode code) {
       return "Data";
     case kExceptionSectionCode:
       return "Exception";
+    case kDataCountSectionCode:
+      return "DataCount";
     case kNameSectionCode:
       return kNameString;
     case kSourceMappingURLSectionCode:
@@ -331,6 +333,40 @@ class ModuleDecoderImpl : public Decoder {
 #undef BYTES
   }
 
+  bool CheckSectionOrder(SectionCode section_code,
+                         SectionCode prev_section_code,
+                         SectionCode next_section_code) {
+    if (next_ordered_section_ > next_section_code) {
+      errorf(pc(), "The %s section must appear before the %s section",
+             SectionName(section_code), SectionName(next_section_code));
+      return false;
+    }
+    if (next_ordered_section_ <= prev_section_code) {
+      next_ordered_section_ = prev_section_code + 1;
+    }
+    return true;
+  }
+
+  bool CheckUnorderedSection(SectionCode section_code) {
+    if (has_seen_unordered_section(section_code)) {
+      errorf(pc(), "Multiple %s sections not allowed",
+             SectionName(section_code));
+      return false;
+    }
+    set_seen_unordered_section(section_code);
+
+    switch (section_code) {
+      case kDataCountSectionCode:
+        return CheckSectionOrder(section_code, kElementSectionCode,
+                                 kCodeSectionCode);
+      case kExceptionSectionCode:
+        return CheckSectionOrder(section_code, kImportSectionCode,
+                                 kExportSectionCode);
+      default:
+        UNREACHABLE();
+    }
+  }
+
   void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
                      uint32_t offset, bool verify_functions = true) {
     if (failed()) return;
@@ -349,20 +385,12 @@ class ModuleDecoderImpl : public Decoder {
     switch (section_code) {
       case kUnknownSectionCode:
         break;
+      case kDataCountSectionCode:
       case kExceptionSectionCode:
-        // Note: kExceptionSectionCode > kExportSectionCode, but must appear
-        // before the export (and code) section, as well as after the import
-        // section. Hence, treat it as a special case.
-        if (seen_unordered_sections_ & (1 << kExceptionSectionCode)) {
-          errorf(pc(), "Multiple exception sections not allowed");
-          return;
-        } else if (next_ordered_section_ > kExportSectionCode) {
-          errorf(pc(), "Exception section must appear before export section");
-          return;
-        } else if (next_ordered_section_ <= kImportSectionCode) {
-          next_ordered_section_ = kImportSectionCode + 1;
-        }
-        seen_unordered_sections_ |= 1 << kExceptionSectionCode;
+        // Note: These sections have a section code that is numerically
+        // out-of-order with respect to their required location. So they are
+        // treated as a special case.
+        if (!CheckUnorderedSection(section_code)) return;
         break;
       case kSourceMappingURLSectionCode:
         // sourceMappingURL is a custom section and currently can occur anywhere
@@ -419,6 +447,13 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kSourceMappingURLSectionCode:
         DecodeSourceMappingURLSection();
+        break;
+      case kDataCountSectionCode:
+        if (enabled_features_.bulk_memory) {
+          DecodeDataCountSection();
+        } else {
+          errorf(pc(), "unexpected section: %s", SectionName(section_code));
+        }
         break;
       case kExceptionSectionCode:
         if (enabled_features_.eh) {
@@ -833,9 +868,21 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
+  bool CheckDataSegmentsCount(uint32_t data_segments_count) {
+    if (has_seen_unordered_section(kDataCountSectionCode) &&
+        data_segments_count != num_declared_data_segments_) {
+      errorf(pc(), "data segments count %u mismatch (%u expected)",
+             data_segments_count, num_declared_data_segments_);
+      return false;
+    }
+    return true;
+  }
+
   void DecodeDataSection() {
     uint32_t data_segments_count =
         consume_count("data segments count", kV8MaxWasmDataSegments);
+    if (!CheckDataSegmentsCount(data_segments_count)) return;
+
     module_->data_segments.reserve(data_segments_count);
     for (uint32_t i = 0; ok() && i < data_segments_count; ++i) {
       const byte* pos = pc();
@@ -879,8 +926,8 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeNameSection() {
     // TODO(titzer): find a way to report name errors as warnings.
     // ignore all but the first occurrence of name section.
-    if (!(seen_unordered_sections_ & (1 << kNameSectionCode))) {
-      seen_unordered_sections_ |= 1 << kNameSectionCode;
+    if (!has_seen_unordered_section(kNameSectionCode)) {
+      set_seen_unordered_section(kNameSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
       // Decode all name subsections.
@@ -910,14 +957,19 @@ class ModuleDecoderImpl : public Decoder {
     Decoder inner(start_, pc_, end_, buffer_offset_);
     WireBytesRef url = wasm::consume_string(inner, true, "module name");
     if (inner.ok() &&
-        !(seen_unordered_sections_ & (1 << kSourceMappingURLSectionCode))) {
+        !has_seen_unordered_section(kSourceMappingURLSectionCode)) {
       const byte* url_start =
           inner.start() + inner.GetBufferRelativeOffset(url.offset());
       module_->source_map_url.assign(reinterpret_cast<const char*>(url_start),
                                      url.length());
-      seen_unordered_sections_ |= 1 << kSourceMappingURLSectionCode;
+      set_seen_unordered_section(kSourceMappingURLSectionCode);
     }
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeDataCountSection() {
+    num_declared_data_segments_ =
+        consume_count("data segments count", kV8MaxWasmDataSegments);
   }
 
   void DecodeExceptionSection() {
@@ -933,25 +985,32 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  ModuleResult FinishDecoding(bool verify_functions = true) {
-    if (ok()) {
-      // The declared vs. defined function count is normally checked when
-      // decoding the code section, but we have to check it here too in case the
-      // code section is absent.
-      if (module_->num_declared_functions != 0) {
-        DCHECK_LT(module_->num_imported_functions, module_->functions.size());
-        // We know that the code section has been decoded if the first
-        // non-imported function has its code set.
-        if (!module_->functions[module_->num_imported_functions]
-                 .code.is_set()) {
-          errorf(pc(), "function count is %u, but code section is absent",
-                 module_->num_declared_functions);
-        }
+  bool CheckMismatchedCounts() {
+    // The declared vs. defined function count is normally checked when
+    // decoding the code section, but we have to check it here too in case the
+    // code section is absent.
+    if (module_->num_declared_functions != 0) {
+      DCHECK_LT(module_->num_imported_functions, module_->functions.size());
+      // We know that the code section has been decoded if the first
+      // non-imported function has its code set.
+      if (!module_->functions[module_->num_imported_functions].code.is_set()) {
+        errorf(pc(), "function count is %u, but code section is absent",
+               module_->num_declared_functions);
+        return false;
       }
+    }
+    // Perform a similar check for the DataCount and Data sections, where data
+    // segments are declared but the Data section is absent.
+    if (!CheckDataSegmentsCount(
+            static_cast<uint32_t>(module_->data_segments.size()))) {
+      return false;
+    }
+    return true;
+  }
 
-      if (ok()) {
-        CalculateGlobalOffsets(module_.get());
-      }
+  ModuleResult FinishDecoding(bool verify_functions = true) {
+    if (ok() && CheckMismatchedCounts()) {
+      CalculateGlobalOffsets(module_.get());
     }
     ModuleResult result = toResult(std::move(module_));
     if (verify_functions && result.ok() && intermediate_result_.failed()) {
@@ -1061,6 +1120,16 @@ class ModuleDecoderImpl : public Decoder {
                 "not enough bits");
   VoidResult intermediate_result_;
   ModuleOrigin origin_;
+  // The number of data segments as specified by the DataCount section.
+  uint32_t num_declared_data_segments_ = 0;
+
+  bool has_seen_unordered_section(SectionCode section_code) {
+    return seen_unordered_sections_ & (1 << section_code);
+  }
+
+  void set_seen_unordered_section(SectionCode section_code) {
+    seen_unordered_sections_ |= 1 << section_code;
+  }
 
   uint32_t off(const byte* ptr) {
     return static_cast<uint32_t>(ptr - start_) + buffer_offset_;

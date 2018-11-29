@@ -572,7 +572,8 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterExport) {
 
   WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result, "Exception section must appear before export section");
+  EXPECT_NOT_OK(result,
+                "The Exception section must appear before the Export section");
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
@@ -2268,6 +2269,99 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegment) {
   WASM_FEATURE_SCOPE(bulk_memory);
   EXPECT_VERIFIES(data);
   EXPECT_OFF_END_FAILURE(data, arraysize(data) - 5);
+}
+
+TEST_F(WasmModuleVerifyTest, DataCountSectionCorrectPlacement) {
+  static const byte data[] = {SECTION(Element, ENTRY_COUNT(0)),
+                              SECTION(DataCount, ENTRY_COUNT(0)),
+                              SECTION(Code, ENTRY_COUNT(0))};
+  EXPECT_FAILURE(data);
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, DataCountSectionAfterCode) {
+  static const byte data[] = {SECTION(Code, ENTRY_COUNT(0)),
+                              SECTION(DataCount, ENTRY_COUNT(0))};
+  WASM_FEATURE_SCOPE(bulk_memory);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result,
+                "The DataCount section must appear before the Code section");
+}
+
+TEST_F(WasmModuleVerifyTest, DataCountSectionBeforeElement) {
+  static const byte data[] = {SECTION(DataCount, ENTRY_COUNT(0)),
+                              SECTION(Element, ENTRY_COUNT(0))};
+  WASM_FEATURE_SCOPE(bulk_memory);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "unexpected section: Element");
+}
+
+TEST_F(WasmModuleVerifyTest, DataCountSectionAfterStartBeforeElement) {
+  STATIC_ASSERT(kStartSectionCode + 1 == kElementSectionCode);
+  static const byte data[] = {
+      // We need the start section for this test, but the start section must
+      // reference a valid function, which requires the type and function
+      // sections too.
+      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // Type section.
+      FUNCTION_SIGNATURES_SECTION(1, 0),     // Function section.
+
+      SECTION(Start, U32V_1(0)),           // Start section.
+      SECTION(DataCount, ENTRY_COUNT(0)),  // DataCount section.
+      SECTION(Element, ENTRY_COUNT(0))     // Element section.
+  };
+  WASM_FEATURE_SCOPE(bulk_memory);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "unexpected section: Element");
+}
+
+TEST_F(WasmModuleVerifyTest, MultipleDataCountSections) {
+  static const byte data[] = {SECTION(DataCount, ENTRY_COUNT(0)),
+                              SECTION(DataCount, ENTRY_COUNT(0))};
+  WASM_FEATURE_SCOPE(bulk_memory);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "Multiple DataCount sections not allowed");
+}
+
+TEST_F(WasmModuleVerifyTest, DataCountSegmentCountMatch) {
+  static const byte data[] = {
+      SECTION(Memory, ENTRY_COUNT(1), 0, 1),  // Memory section.
+      SECTION(DataCount, ENTRY_COUNT(1)),     // DataCount section.
+      SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,  // Data section.
+              WASM_INIT_EXPR_I32V_1(12), ADD_COUNT('h', 'i'))};
+
+  EXPECT_FAILURE(data);
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_greater) {
+  static const byte data[] = {
+      SECTION(Memory, ENTRY_COUNT(1), 0, 1),  // Memory section.
+      SECTION(DataCount, ENTRY_COUNT(3)),     // DataCount section.
+      SECTION(Data, ENTRY_COUNT(0))};         // Data section.
+  WASM_FEATURE_SCOPE(bulk_memory);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "data segments count 0 mismatch (3 expected)");
+}
+
+TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_less) {
+  static const byte data[] = {
+      SECTION(Memory, ENTRY_COUNT(1), 0, 1),  // Memory section.
+      SECTION(DataCount, ENTRY_COUNT(0)),     // DataCount section.
+      SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,  // Data section.
+              WASM_INIT_EXPR_I32V_1(12), ADD_COUNT('a', 'b', 'c'))};
+  WASM_FEATURE_SCOPE(bulk_memory);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "data segments count 1 mismatch (0 expected)");
+}
+
+TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_omitted) {
+  static const byte data[] = {SECTION(Memory, ENTRY_COUNT(1), 0, 1),
+                              SECTION(DataCount, ENTRY_COUNT(1))};
+  WASM_FEATURE_SCOPE(bulk_memory);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "data segments count 0 mismatch (1 expected)");
 }
 
 #undef WASM_FEATURE_SCOPE
