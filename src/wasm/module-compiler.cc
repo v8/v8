@@ -2899,7 +2899,10 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
 void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   TRACE_STREAMING("Finish stream...\n");
   ModuleResult result = decoder_.FinishDecoding(false);
-  DCHECK(result.ok());
+  if (result.failed()) {
+    FinishAsyncCompileJobWithError(std::move(result));
+    return;
+  }
   bool needs_finish = job_->DecrementAndCheckFinisherCount();
   if (job_->native_module_ == nullptr) {
     // We are processing a WebAssembly module without code section. Create the

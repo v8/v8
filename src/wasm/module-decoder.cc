@@ -935,7 +935,23 @@ class ModuleDecoderImpl : public Decoder {
 
   ModuleResult FinishDecoding(bool verify_functions = true) {
     if (ok()) {
-      CalculateGlobalOffsets(module_.get());
+      // The declared vs. defined function count is normally checked when
+      // decoding the code section, but we have to check it here too in case the
+      // code section is absent.
+      if (module_->num_declared_functions != 0) {
+        DCHECK_LT(module_->num_imported_functions, module_->functions.size());
+        // We know that the code section has been decoded if the first
+        // non-imported function has its code set.
+        if (!module_->functions[module_->num_imported_functions]
+                 .code.is_set()) {
+          errorf(pc(), "function count is %u, but code section is absent",
+                 module_->num_declared_functions);
+        }
+      }
+
+      if (ok()) {
+        CalculateGlobalOffsets(module_.get());
+      }
     }
     ModuleResult result = toResult(std::move(module_));
     if (verify_functions && result.ok() && intermediate_result_.failed()) {

@@ -1086,6 +1086,32 @@ STREAM_TEST(TestDeserializationFails) {
   CHECK(tester.IsPromiseFulfilled());
 }
 
+// Test that a non-empty function section with a missing code section fails.
+STREAM_TEST(TestFunctionSectionWithoutCodeSection) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,                   // module header
+      kTypeSectionCode,                     // section code
+      U32V_1(1 + SIZEOF_SIG_ENTRY_x_x),     // section size
+      U32V_1(1),                            // type count
+      SIG_ENTRY_x_x(kLocalI32, kLocalI32),  // signature entry
+      kFunctionSectionCode,                 // section code
+      U32V_1(1 + 3),                        // section size
+      U32V_1(3),                            // functions count
+      0,                                    // signature index
+      0,                                    // signature index
+      0,                                    // signature index
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseRejected());
+}
+
 #undef STREAM_TEST
 
 }  // namespace wasm
