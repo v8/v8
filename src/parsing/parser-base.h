@@ -263,11 +263,11 @@ class ParserBase {
     pointer_buffer_.reserve(128);
   }
 
+  ~ParserBase() { scope_snapshot_.Clear(); }
+
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
   void set_allow_##name(bool allow) { allow_##name##_ = allow; }
-
-  void set_rewritable_length(int i) { rewritable_length_ = i; }
 
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(harmony_public_fields);
@@ -279,6 +279,7 @@ class ParserBase {
 
 #undef ALLOW_ACCESSORS
 
+  void set_rewritable_length(int i) { rewritable_length_ = i; }
   V8_INLINE bool has_error() const { return scanner()->has_parser_error(); }
   bool allow_harmony_numeric_separator() const {
     return scanner()->allow_harmony_numeric_separator();

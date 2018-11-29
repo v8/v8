@@ -128,7 +128,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     Snapshot()
         : outer_scope_and_calls_eval_(nullptr, false),
           top_unresolved_(),
-          top_local_() {}
+          top_local_() {
+      DCHECK(IsCleared());
+    }
     inline explicit Snapshot(Scope* scope);
 
     ~Snapshot() {
@@ -168,7 +170,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
       return outer_scope_and_calls_eval_.GetPointer() == nullptr;
     }
 
-   private:
     void Clear() {
       outer_scope_and_calls_eval_.SetPointer(nullptr);
 #ifdef DEBUG
@@ -179,6 +180,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 #endif
     }
 
+   private:
     // During tracking calls_eval caches whether the outer scope called eval.
     // Upon move assignment we store whether the new inner scope calls eval into
     // the move target calls_eval bit, and restore calls eval on the outer
