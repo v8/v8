@@ -2344,37 +2344,10 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   }
 #endif
 
-  // Save the frame pointer and PC so that the stack layout remains iterable,
-  // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr) {
-    Register scratch = r4;
-    Push(scratch);
-
-    Move(scratch, ExternalReference::fast_c_call_caller_pc_address(isolate()));
-    str(pc, MemOperand(scratch));
-    Move(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    str(fp, MemOperand(scratch));
-    Pop(scratch);
-  }
-
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
   Call(function);
-
-  if (isolate() != nullptr) {
-    // We don't unset the PC; the FP is the source of truth.
-    Register scratch1 = r4;
-    Register scratch2 = r5;
-    Push(scratch1);
-    Push(scratch2);
-    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    mov(scratch2, Operand::Zero());
-    str(scratch2, MemOperand(scratch1));
-    Pop(scratch2);
-    Pop(scratch1);
-  }
-
   int stack_passed_arguments = CalculateStackPassedWords(
       num_reg_arguments, num_double_arguments);
   if (ActivationFrameAlignment() > kPointerSize) {

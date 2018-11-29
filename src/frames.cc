@@ -226,24 +226,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
   StackFrame::Type type;
   ThreadLocalTop* top = isolate->thread_local_top();
   bool advance_frame = true;
-
-  Address fast_c_fp = isolate->isolate_data()->fast_c_call_caller_fp();
-  // 'Fast C calls' are a special type of C call where we call directly from JS
-  // to C without an exit frame inbetween. The CEntryStub is responsible for
-  // setting Isolate::c_entry_fp, meaning that it won't be set for fast C calls.
-  // To keep the stack iterable, we store the FP and PC of the caller of the
-  // fast C call on the isolate. This is guaranteed to be the topmost JS frame,
-  // because fast C calls cannot call back into JS. We start iterating the stack
-  // from this topmost JS frame.
-  if (fast_c_fp) {
-    DCHECK_NE(kNullAddress, isolate->isolate_data()->fast_c_call_caller_pc());
-    type = StackFrame::Type::OPTIMIZED;
-    top_frame_type_ = type;
-    state.fp = fast_c_fp;
-    state.sp = sp;
-    state.pc_address = isolate->isolate_data()->fast_c_call_caller_pc_address();
-    advance_frame = false;
-  } else if (IsValidTop(top)) {
+  if (IsValidTop(top)) {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
     top_frame_type_ = type;
   } else if (IsValidStackAddress(fp)) {
