@@ -758,10 +758,6 @@ size_t MemoryChunk::CommittedPhysicalMemory() {
   return high_water_mark_;
 }
 
-bool MemoryChunk::IsPagedSpace() const {
-  return owner()->identity() != LO_SPACE;
-}
-
 bool MemoryChunk::InOldSpace() const {
   return owner()->identity() == OLD_SPACE;
 }
@@ -1284,7 +1280,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
   if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
 
-  if (IsPagedSpace()) {
+  if (!heap_->IsLargeMemoryChunk(this)) {
     Page* page = static_cast<Page*>(this);
     page->ReleaseFreeListCategories();
   }

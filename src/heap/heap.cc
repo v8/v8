@@ -2511,8 +2511,13 @@ bool Heap::IsImmovable(HeapObject* object) {
 }
 
 bool Heap::IsLargeObject(HeapObject* object) {
-  return lo_space()->Contains(object) || code_lo_space()->Contains(object) ||
-         new_lo_space()->Contains(object);
+  return IsLargeMemoryChunk(MemoryChunk::FromHeapObject(object));
+}
+
+bool Heap::IsLargeMemoryChunk(MemoryChunk* chunk) {
+  return chunk->owner()->identity() == NEW_LO_SPACE ||
+         chunk->owner()->identity() == LO_SPACE ||
+         chunk->owner()->identity() == CODE_LO_SPACE;
 }
 
 bool Heap::IsInYoungGeneration(HeapObject* object) {

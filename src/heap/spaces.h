@@ -643,8 +643,6 @@ class MemoryChunk {
 
   void set_owner(Space* space) { owner_ = space; }
 
-  bool IsPagedSpace() const;
-
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
   // MemoryChunk::synchronized_heap() to simulate the barrier.
   void InitializationMemoryFence();
@@ -1179,7 +1177,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     }
 
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
-      if (chunk->IsPagedSpace() && chunk->executable() != EXECUTABLE) {
+      if (!heap_->IsLargeMemoryChunk(chunk) &&
+          chunk->executable() != EXECUTABLE) {
         AddMemoryChunkSafe<kRegular>(chunk);
       } else {
         AddMemoryChunkSafe<kNonRegular>(chunk);

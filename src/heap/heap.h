@@ -389,6 +389,7 @@ class Heap {
   bool IsImmovable(HeapObject* object);
 
   bool IsLargeObject(HeapObject* object);
+  bool IsLargeMemoryChunk(MemoryChunk* chunk);
   inline bool IsWithinLargeObject(Address address);
 
   bool IsInYoungGeneration(HeapObject* object);
