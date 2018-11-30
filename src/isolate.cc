@@ -1889,9 +1889,17 @@ void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
 void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
   DCHECK(has_scheduled_exception());
   if (scheduled_exception() == handler->exception_) {
-    DCHECK(scheduled_exception() !=
-           ReadOnlyRoots(heap()).termination_exception());
+    DCHECK_NE(scheduled_exception(),
+              ReadOnlyRoots(heap()).termination_exception());
     clear_scheduled_exception();
+  } else {
+    DCHECK_EQ(scheduled_exception(),
+              ReadOnlyRoots(heap()).termination_exception());
+    // Clear termination once we returned from all V8 frames.
+    if (handle_scope_implementer()->CallDepthIsZero()) {
+      thread_local_top()->external_caught_exception_ = false;
+      clear_scheduled_exception();
+    }
   }
   if (thread_local_top_.pending_message_obj_ == handler->message_obj_) {
     clear_pending_message();
@@ -2258,19 +2266,15 @@ MessageLocation Isolate::GetMessageLocation() {
   return MessageLocation();
 }
 
-
-bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
+bool Isolate::OptionalRescheduleException(bool clear_exception) {
   DCHECK(has_pending_exception());
   PropagatePendingExceptionToExternalTryCatch();
 
   bool is_termination_exception =
       pending_exception() == ReadOnlyRoots(this).termination_exception();
 
-  // Do not reschedule the exception if this is the bottom call.
-  bool clear_exception = is_bottom_call;
-
   if (is_termination_exception) {
-    if (is_bottom_call) {
+    if (clear_exception) {
       thread_local_top()->external_caught_exception_ = false;
       clear_pending_exception();
       return false;

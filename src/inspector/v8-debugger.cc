@@ -305,19 +305,22 @@ void V8Debugger::terminateExecution(
   m_isolate->TerminateExecution();
 }
 
+void V8Debugger::reportTermination() {
+  if (!m_terminateExecutionCallback) return;
+  m_isolate->RemoveCallCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallback);
+  m_isolate->RemoveMicrotasksCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallback);
+  m_isolate->CancelTerminateExecution();
+  m_terminateExecutionCallback->sendSuccess();
+  m_terminateExecutionCallback.reset();
+}
+
 void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
-  isolate->RemoveCallCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallback);
-  isolate->RemoveMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallback);
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   V8Debugger* debugger = inspector->debugger();
-  debugger->m_isolate->CancelTerminateExecution();
-  if (debugger->m_terminateExecutionCallback) {
-    debugger->m_terminateExecutionCallback->sendSuccess();
-    debugger->m_terminateExecutionCallback.reset();
-  }
+  debugger->reportTermination();
 }
 
 Response V8Debugger::continueToLocation(

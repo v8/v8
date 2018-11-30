@@ -273,8 +273,6 @@ class CallDepthScope {
                                      ? i::InterruptsScope::kRunInterrupts
                                      : i::InterruptsScope::kPostponeInterrupts)
                               : i::InterruptsScope::kNoop) {
-    // TODO(dcarney): remove this when blink stops crashing.
-    DCHECK(!isolate_->external_caught_exception());
     isolate_->handle_scope_implementer()->IncrementCallDepth();
     isolate_->set_next_v8_call_is_safe_for_termination(false);
     if (!context.IsEmpty()) {
@@ -309,8 +307,10 @@ class CallDepthScope {
     escaped_ = true;
     auto handle_scope_implementer = isolate_->handle_scope_implementer();
     handle_scope_implementer->DecrementCallDepth();
-    bool call_depth_is_zero = handle_scope_implementer->CallDepthIsZero();
-    isolate_->OptionalRescheduleException(call_depth_is_zero);
+    bool clear_exception =
+        handle_scope_implementer->CallDepthIsZero() &&
+        isolate_->thread_local_top()->try_catch_handler() == nullptr;
+    isolate_->OptionalRescheduleException(clear_exception);
   }
 
  private:
@@ -8994,7 +8994,6 @@ MicrotasksScope::~MicrotasksScope() {
 
 void MicrotasksScope::PerformCheckpoint(Isolate* v8Isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8Isolate);
-  if (IsExecutionTerminatingCheck(isolate)) return;
   auto handle_scope_implementer = isolate->handle_scope_implementer();
   if (!handle_scope_implementer->GetMicrotasksScopeDepth() &&
       !handle_scope_implementer->HasMicrotasksSuppressions()) {

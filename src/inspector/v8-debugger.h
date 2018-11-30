@@ -138,6 +138,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
   V8InternalValueType getInternalType(v8::Local<v8::Context> context,
                                       v8::Local<v8::Object> object);
 
+  void reportTermination();
+
  private:
   void clearContinueToLocation();
   bool shouldContinueToCurrentLocation();
@@ -145,7 +147,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   static size_t nearHeapLimitCallback(void* data, size_t current_heap_limit,
                                       size_t initial_heap_limit);
   static void terminateExecutionCompletedCallback(v8::Isolate* isolate);
-
   void handleProgramBreak(
       v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
       const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
@@ -203,6 +204,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
   int m_enableCount;
+
   int m_breakpointsActiveCount = 0;
   int m_ignoreScriptParsedEventsCounter;
   size_t m_originalHeapLimit = 0;
