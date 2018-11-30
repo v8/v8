@@ -173,20 +173,26 @@ class Decoder {
     return true;
   }
 
-  void error(const char* msg) { errorf(pc_offset(), "%s", msg); }
-  void error(const uint8_t* pc, const char* msg) {
+  // Do not inline error methods. This has measurable impact on validation time,
+  // see https://crbug.com/910432.
+  void V8_NOINLINE error(const char* msg) { errorf(pc_offset(), "%s", msg); }
+  void V8_NOINLINE error(const uint8_t* pc, const char* msg) {
     errorf(pc_offset(pc), "%s", msg);
   }
-  void error(uint32_t offset, const char* msg) { errorf(offset, "%s", msg); }
+  void V8_NOINLINE error(uint32_t offset, const char* msg) {
+    errorf(offset, "%s", msg);
+  }
 
-  void PRINTF_FORMAT(3, 4) errorf(uint32_t offset, const char* format, ...) {
+  void V8_NOINLINE PRINTF_FORMAT(3, 4)
+      errorf(uint32_t offset, const char* format, ...) {
     va_list args;
     va_start(args, format);
     verrorf(offset, format, args);
     va_end(args);
   }
 
-  void PRINTF_FORMAT(3, 4) errorf(const uint8_t* pc, const char* format, ...) {
+  void V8_NOINLINE PRINTF_FORMAT(3, 4)
+      errorf(const uint8_t* pc, const char* format, ...) {
     va_list args;
     va_start(args, format);
     verrorf(pc_offset(pc), format, args);
@@ -240,8 +246,11 @@ class Decoder {
 
   const byte* start() const { return start_; }
   const byte* pc() const { return pc_; }
-  uint32_t position() const { return static_cast<uint32_t>(pc_ - start_); }
-  uint32_t pc_offset(const uint8_t* pc) const {
+  uint32_t V8_INLINE position() const {
+    return static_cast<uint32_t>(pc_ - start_);
+  }
+  // This needs to be inlined for performance (see https://crbug.com/910432).
+  uint32_t V8_INLINE pc_offset(const uint8_t* pc) const {
     DCHECK_LE(start_, pc);
     DCHECK_GE(kMaxUInt32 - buffer_offset_, pc - start_);
     return static_cast<uint32_t>(pc - start_) + buffer_offset_;
