@@ -167,6 +167,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
                                                 Handle<Object> receiver,
                                                 int argc, Handle<Object> args[],
                                                 Handle<HeapObject> new_target) {
+  RuntimeCallTimerScope timer(isolate,
+                              RuntimeCallCounterId::kInvokeApiFunction);
   DCHECK(function->IsFunctionTemplateInfo() ||
          (function->IsJSFunction() &&
           JSFunction::cast(*function)->shared()->IsApiFunction()));

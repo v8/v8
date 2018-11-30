@@ -54,6 +54,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
     Handle<Object> receiver, int argc, Handle<Object> args[],
     Handle<Object> new_target, Execution::MessageHandling message_handling,
     Execution::Target execution_target) {
+  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kInvoke);
   DCHECK(!receiver->IsJSGlobalObject());
 
 #ifdef USE_SIMULATOR

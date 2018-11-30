@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/bootstrapper.h"
+#include "src/counters.h"
 #include "src/date.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
@@ -84,6 +85,7 @@ namespace internal {
 #ifdef VERIFY_HEAP
 
 void Object::ObjectVerify(Isolate* isolate) {
+  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kObjectVerify);
   if (IsSmi()) {
     Smi::cast(this)->SmiVerify(isolate);
   } else {

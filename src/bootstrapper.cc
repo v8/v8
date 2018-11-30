@@ -5799,6 +5799,7 @@ Genesis::Genesis(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     GlobalContextType context_type)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
+  RuntimeCallTimerScope rcs_timer(isolate, RuntimeCallCounterId::kGenesis);
   result_ = Handle<Context>::null();
   global_proxy_ = Handle<JSGlobalProxy>::null();
 

@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/api-inl.h"
+#include "src/counters.h"
 #include "src/execution.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
@@ -157,6 +158,8 @@ void MessageHandler::ReportMessageNoExceptions(
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
       Handle<Object> callback_data(listener->get(1), isolate);
       {
+        RuntimeCallTimerScope timer(
+            isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
         callback(api_message_obj, callback_data->IsUndefined(isolate)
