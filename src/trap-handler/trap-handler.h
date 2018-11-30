@@ -79,9 +79,7 @@ extern THREAD_LOCAL int g_thread_in_wasm_code;
 // Return the address of the thread-local {g_thread_in_wasm_code} variable. This
 // pointer can be accessed and modified as long as the thread calling this
 // function exists. Only use if from the same thread do avoid race conditions.
-inline V8_EXPORT_PRIVATE int* GetThreadInWasmThreadLocalAddress() {
-  return &g_thread_in_wasm_code;
-}
+V8_NOINLINE V8_EXPORT_PRIVATE int* GetThreadInWasmThreadLocalAddress();
 
 // On Windows, asan installs its own exception handler which maps shadow
 // memory. Since our exception handler may be executed before the asan exception
