@@ -308,9 +308,9 @@ shouldBe("arrayApplyChangeLength3()", "2");
 shouldBe("arrayApplyChangeLength4()", "0");
 
 shouldBe("var a = []; a.length = 0xFFFE; [].constructor.apply('', a).length", "0xFFFE");
-shouldThrow("var a = []; a.length = 0xFFFF; [].constructor.apply('', a).length");
-shouldThrow("var a = []; a.length = 0x10000; [].constructor.apply('', a).length");
-shouldThrow("var a = []; a.length = 0x10001; [].constructor.apply('', a).length");
+shouldBe("var a = []; a.length = 0xFFFF; [].constructor.apply('', a).length", "0xFFFF");
+shouldBe("var a = []; a.length = 0x10000; [].constructor.apply('', a).length", "0x10000");
+shouldBe("var a = []; a.length = 0x10001; [].constructor.apply('', a).length", "0x10001");
 shouldThrow("var a = []; a.length = 0xFFFFFFFE; [].constructor.apply('', a).length");
 shouldThrow("var a = []; a.length = 0xFFFFFFFF; [].constructor.apply('', a).length");
 
