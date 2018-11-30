@@ -586,7 +586,7 @@ TEST(LogAll) {
   SETUP_FLAGS();
   i::FLAG_log_all = true;
   i::FLAG_turbo_inlining = false;
-  i::FLAG_enable_one_shot_optimization = false;
+  i::FLAG_allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -594,12 +594,27 @@ TEST(LogAll) {
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
 
-    const char* source_text =
-        "function testAddFn(a,b) { return a + b };"
-        "let result;"
-        "for (let i = 0; i < 100000; i++) { result = testAddFn(i, i); };"
-        "testAddFn('1', 1);"
-        "for (let i = 0; i < 100000; i++) { result = testAddFn('1', i); }";
+    const char* source_text = R"(
+        function testAddFn(a,b) {
+          return a + b
+        };
+        let result;
+
+        // Warm up the ICs.
+        for (let i = 0; i < 100000; i++) {
+          result = testAddFn(i, i);
+        };
+
+        // Enforce optimization.
+        %OptimizeFunctionOnNextCall(testAddFn);
+        result = testAddFn(1, 1);
+
+        // Cause deopt.
+        testAddFn('1', 1)
+        for (let i = 0; i < 100000; i++) {
+          result = testAddFn('1', i);
+        }
+      )";
     CompileRun(source_text);
 
     logger.StopLogging();
@@ -611,10 +626,9 @@ TEST(LogAll) {
     CHECK(logger.ContainsLine({"code-creation,Script", ":1:1"}));
     CHECK(logger.ContainsLine({"api,v8::Script::Run"}));
     CHECK(logger.ContainsLine({"code-creation,LazyCompile,", "testAddFn"}));
+
     if (i::FLAG_opt && !i::FLAG_always_opt) {
       CHECK(logger.ContainsLine({"code-deopt,", "not a Smi"}));
-      if (i::FLAG_enable_one_shot_optimization)
-        CHECK(logger.ContainsLine({"code-deopt,", "DeoptimizeNow"}));
       CHECK(logger.ContainsLine({"timer-event-start", "V8.DeoptimizeCode"}));
       CHECK(logger.ContainsLine({"timer-event-end", "V8.DeoptimizeCode"}));
     }
