@@ -3491,8 +3491,8 @@ class V8_EXPORT Object : public Value {
                                                    Local<Name> key);
   V8_WARN_UNUSED_RESULT Maybe<bool> HasOwnProperty(Local<Context> context,
                                                    uint32_t index);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    bool HasRealNamedProperty(Local<String> key));
+  V8_DEPRECATED("Use maybe version",
+                bool HasRealNamedProperty(Local<String> key));
   /**
    * Use HasRealNamedProperty() if you want to check if an object has an own
    * property without causing side effects, i.e., without calling interceptors.
@@ -3508,12 +3508,12 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> HasRealNamedProperty(Local<Context> context,
                                                          Local<Name> key);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    bool HasRealIndexedProperty(uint32_t index));
+  V8_DEPRECATED("Use maybe version",
+                bool HasRealIndexedProperty(uint32_t index));
   V8_WARN_UNUSED_RESULT Maybe<bool> HasRealIndexedProperty(
       Local<Context> context, uint32_t index);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    bool HasRealNamedCallbackProperty(Local<String> key));
+  V8_DEPRECATED("Use maybe version",
+                bool HasRealNamedCallbackProperty(Local<String> key));
   V8_WARN_UNUSED_RESULT Maybe<bool> HasRealNamedCallbackProperty(
       Local<Context> context, Local<Name> key);
 
