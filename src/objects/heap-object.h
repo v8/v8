@@ -211,6 +211,8 @@ class HeapObjectPtr : public ObjectPtr {
 
   inline Address GetFieldAddress(int field_offset) const;
 
+  DECL_CAST2(HeapObjectPtr)
+
  protected:
   // Special-purpose constructor for subclasses that have fast paths where
   // their ptr() is a Smi.

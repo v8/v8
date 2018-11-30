@@ -1564,8 +1564,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == FEEDBACK_METADATA_TYPE) {
     return FeedbackMetadata::SizeFor(
-        reinterpret_cast<const FeedbackMetadata*>(this)
-            ->synchronized_slot_count());
+        FeedbackMetadata::unchecked_cast(this)->synchronized_slot_count());
   }
   if (instance_type == DESCRIPTOR_ARRAY_TYPE) {
     return DescriptorArray::SizeFor(
@@ -1603,7 +1602,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
-        reinterpret_cast<const FeedbackVector*>(this)->length());
+        FeedbackVector::unchecked_cast(this)->length());
   }
   if (instance_type == BIGINT_TYPE) {
     return BigInt::SizeFor(BigInt::unchecked_cast(this)->length());

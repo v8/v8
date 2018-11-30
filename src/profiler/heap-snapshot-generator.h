@@ -377,7 +377,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                                           JSGeneratorObject* generator);
   void ExtractFixedArrayReferences(HeapEntry* entry, FixedArray array);
   void ExtractFeedbackVectorReferences(HeapEntry* entry,
-                                       FeedbackVector* feedback_vector);
+                                       FeedbackVector feedback_vector);
   void ExtractDescriptorArrayReferences(HeapEntry* entry,
                                         DescriptorArray array);
   template <typename T>

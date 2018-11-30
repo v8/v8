@@ -1054,10 +1054,10 @@ void FeedbackVectorSpec::FeedbackVectorSpecPrint(std::ostream& os) {  // NOLINT
 }
 
 void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
-  HeapObject::PrintHeader(os, "FeedbackMetadata");
+  PrintHeader(os, "FeedbackMetadata");
   os << "\n - slot_count: " << slot_count();
 
-  FeedbackMetadataIterator iter(this);
+  FeedbackMetadataIterator iter(*this);
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
     FeedbackSlotKind kind = iter.kind();
@@ -1067,7 +1067,7 @@ void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
 }
 
 void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "FeedbackVector");
+  PrintHeader(os, "FeedbackVector");
   os << "\n - length: " << length();
   if (length() == 0) {
     os << " (empty)\n";
@@ -1105,7 +1105,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
 
 void FeedbackVector::FeedbackSlotPrint(std::ostream& os,
                                        FeedbackSlot slot) {  // NOLINT
-  FeedbackNexus nexus(this, slot);
+  FeedbackNexus nexus(*this, slot);
   nexus.Print(os);
 }
 

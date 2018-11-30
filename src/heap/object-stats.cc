@@ -378,7 +378,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualBytecodeArrayDetails(BytecodeArray bytecode);
   void RecordVirtualCodeDetails(Code code);
   void RecordVirtualContext(Context context);
-  void RecordVirtualFeedbackVectorDetails(FeedbackVector* vector);
+  void RecordVirtualFeedbackVectorDetails(FeedbackVector vector);
   void RecordVirtualFixedArrayDetails(FixedArray array);
   void RecordVirtualFunctionTemplateInfoDetails(FunctionTemplateInfo* fti);
   void RecordVirtualJSGlobalObjectDetails(JSGlobalObject* object);
@@ -595,7 +595,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
-    FeedbackVector* vector) {
+    FeedbackVector vector) {
   if (virtual_objects_.find(vector) == virtual_objects_.end()) {
     // Manually insert the feedback vector into the virtual object list, since
     // we're logging its component parts separately.

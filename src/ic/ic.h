@@ -62,7 +62,7 @@ class IC {
   static inline bool IsHandler(MaybeObject object);
 
   // Nofity the IC system that a feedback has changed.
-  static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
+  static void OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
                                 FeedbackSlot slot, JSFunction* host_function,
                                 const char* reason);
 

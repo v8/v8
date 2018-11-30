@@ -990,7 +990,7 @@ class JSFunction : public JSObject {
   DECL_ACCESSORS(feedback_cell, FeedbackCell)
 
   // feedback_vector() can be used once the function is compiled.
-  inline FeedbackVector* feedback_vector() const;
+  inline FeedbackVector feedback_vector() const;
   inline bool has_feedback_vector() const;
   static void EnsureFeedbackVector(Handle<JSFunction> function);
 

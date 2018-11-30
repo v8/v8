@@ -499,7 +499,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
       Handle<ArrayList> list = Handle<ArrayList>::cast(
           isolate->factory()->feedback_vectors_for_profiling_tools());
       for (int i = 0; i < list->Length(); i++) {
-        FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
+        FeedbackVector vector = FeedbackVector::cast(list->Get(i));
         SharedFunctionInfo shared = vector->shared_function_info();
         DCHECK(shared->IsSubjectToDebugging());
         uint32_t count = static_cast<uint32_t>(vector->invocation_count());
@@ -516,7 +516,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
       HeapIterator heap_iterator(isolate->heap());
       while (HeapObject* current_obj = heap_iterator.next()) {
         if (!current_obj->IsFeedbackVector()) continue;
-        FeedbackVector* vector = FeedbackVector::cast(current_obj);
+        FeedbackVector vector = FeedbackVector::cast(current_obj);
         SharedFunctionInfo shared = vector->shared_function_info();
         if (!shared->IsSubjectToDebugging()) continue;
         uint32_t count = static_cast<uint32_t>(vector->invocation_count());
@@ -639,8 +639,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
           shared->set_has_reported_binary_coverage(false);
         } else if (o->IsFeedbackVector()) {
           // In any case, clear any collected invocation counts.
-          FeedbackVector* vector = FeedbackVector::cast(o);
-          vector->clear_invocation_count();
+          FeedbackVector::cast(o)->clear_invocation_count();
         }
       }
 

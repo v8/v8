@@ -364,7 +364,7 @@ bool FeedbackVector::ClearSlots(Isolate* isolate) {
 
     MaybeObject obj = Get(slot);
     if (obj != uninitialized_sentinel) {
-      FeedbackNexus nexus(this, slot);
+      FeedbackNexus nexus(*this, slot);
       feedback_updated |= nexus.Clear();
     }
   }

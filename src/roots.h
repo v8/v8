@@ -202,7 +202,7 @@ class RootVisitor;
     EmptySlowElementDictionary)                                                \
   V(FixedArray, empty_ordered_hash_map, EmptyOrderedHashMap)                   \
   V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
-  V(FeedbackMetadata*, empty_feedback_metadata, EmptyFeedbackMetadata)         \
+  V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
   V(PropertyCell*, empty_property_cell, EmptyPropertyCell)                     \
   V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
   V(InterceptorInfo*, noop_interceptor_info, NoOpInterceptorInfo)              \

@@ -767,9 +767,9 @@ void NativeContext::NativeContextVerify(Isolate* isolate) {
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
   if (slot_count() == 0) {
-    CHECK_EQ(ReadOnlyRoots(isolate).empty_feedback_metadata(), this);
+    CHECK_EQ(ReadOnlyRoots(isolate).empty_feedback_metadata(), *this);
   } else {
-    FeedbackMetadataIterator iter(this);
+    FeedbackMetadataIterator iter(*this);
     while (iter.HasNext()) {
       iter.Next();
       FeedbackSlotKind kind = iter.kind();

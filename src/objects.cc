@@ -14685,7 +14685,7 @@ int AbstractCode::SourceStatementPosition(int offset) {
 
 void JSFunction::ClearTypeFeedbackInfo() {
   if (feedback_cell()->value()->IsFeedbackVector()) {
-    FeedbackVector* vector = feedback_vector();
+    FeedbackVector vector = feedback_vector();
     Isolate* isolate = GetIsolate();
     if (vector->ClearSlots(isolate)) {
       IC::OnFeedbackChanged(isolate, vector, FeedbackSlot::Invalid(), this,

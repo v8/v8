@@ -235,7 +235,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
 
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
-  DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata, HeapObject)
+  DECL_ACCESSORS2(raw_outer_scope_info_or_feedback_metadata, HeapObjectPtr)
 
   // Get the outer scope info whether this function is compiled or not.
   inline bool HasOuterScopeInfo() const;
@@ -244,7 +244,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
   // [feedback metadata] Metadata template for feedback vectors of instances of
   // this function.
   inline bool HasFeedbackMetadata() const;
-  DECL_ACCESSORS(feedback_metadata, FeedbackMetadata)
+  DECL_ACCESSORS2(feedback_metadata, FeedbackMetadata)
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled() const;
@@ -664,7 +664,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
 
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
-  DECL_ACCESSORS(outer_scope_info, HeapObject)
+  DECL_ACCESSORS2(outer_scope_info, HeapObjectPtr)
 
   inline void set_kind(FunctionKind kind);
 

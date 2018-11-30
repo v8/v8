@@ -4393,7 +4393,7 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
 
 void CheckIC(Handle<JSFunction> function, int slot_index,
              InlineCacheState state) {
-  FeedbackVector* vector = function->feedback_vector();
+  FeedbackVector vector = function->feedback_vector();
   FeedbackSlot slot(slot_index);
   FeedbackNexus nexus(vector, slot);
   CHECK_EQ(nexus.StateFromFeedback(), state);

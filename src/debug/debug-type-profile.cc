@@ -37,7 +37,7 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
     // TODO(franzih): Sort the vectors by script first instead of iterating
     // the list multiple times.
     for (int i = 0; i < list->Length(); i++) {
-      FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
+      FeedbackVector vector = FeedbackVector::cast(list->Get(i));
       SharedFunctionInfo info = vector->shared_function_info();
       DCHECK(info->IsSubjectToDebugging());
 
@@ -86,7 +86,7 @@ void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode) {
           isolate->factory()->feedback_vectors_for_profiling_tools());
 
       for (int i = 0; i < list->Length(); i++) {
-        FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
+        FeedbackVector vector = FeedbackVector::cast(list->Get(i));
         SharedFunctionInfo info = vector->shared_function_info();
         DCHECK(info->IsSubjectToDebugging());
         if (info->feedback_metadata()->HasTypeProfileSlot()) {

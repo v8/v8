@@ -311,13 +311,13 @@ MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackNexus* nexus,
                            JSFunction* host_function, const char* reason) {
-  FeedbackVector* vector = nexus->vector();
+  FeedbackVector vector = nexus->vector();
   FeedbackSlot slot = nexus->slot();
   OnFeedbackChanged(isolate, vector, slot, host_function, reason);
 }
 
 // static
-void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
+void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
                            FeedbackSlot slot, JSFunction* host_function,
                            const char* reason) {
   if (FLAG_trace_opt_verbose) {

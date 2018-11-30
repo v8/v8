@@ -311,10 +311,10 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
   CONDITIONAL_WRITE_BARRIER(this, kNameOrScopeInfoOffset, scope_info, mode);
 }
 
-ACCESSORS(SharedFunctionInfo, raw_outer_scope_info_or_feedback_metadata,
-          HeapObject, kOuterScopeInfoOrFeedbackMetadataOffset)
+ACCESSORS2(SharedFunctionInfo, raw_outer_scope_info_or_feedback_metadata,
+           HeapObjectPtr, kOuterScopeInfoOrFeedbackMetadataOffset)
 
-HeapObject* SharedFunctionInfo::outer_scope_info() const {
+HeapObjectPtr SharedFunctionInfo::outer_scope_info() const {
   DCHECK(!is_compiled());
   DCHECK(!HasFeedbackMetadata());
   return raw_outer_scope_info_or_feedback_metadata();
@@ -338,28 +338,28 @@ ScopeInfo SharedFunctionInfo::GetOuterScopeInfo() const {
   return scope_info()->OuterScopeInfo();
 }
 
-void SharedFunctionInfo::set_outer_scope_info(HeapObject* value,
+void SharedFunctionInfo::set_outer_scope_info(HeapObjectPtr value,
                                               WriteBarrierMode mode) {
   DCHECK(!is_compiled());
   DCHECK(raw_outer_scope_info_or_feedback_metadata()->IsTheHole());
   DCHECK(value->IsScopeInfo() || value->IsTheHole());
-  return set_raw_outer_scope_info_or_feedback_metadata(value, mode);
+  set_raw_outer_scope_info_or_feedback_metadata(value, mode);
 }
 
 bool SharedFunctionInfo::HasFeedbackMetadata() const {
   return raw_outer_scope_info_or_feedback_metadata()->IsFeedbackMetadata();
 }
 
-FeedbackMetadata* SharedFunctionInfo::feedback_metadata() const {
+FeedbackMetadata SharedFunctionInfo::feedback_metadata() const {
   DCHECK(HasFeedbackMetadata());
   return FeedbackMetadata::cast(raw_outer_scope_info_or_feedback_metadata());
 }
 
-void SharedFunctionInfo::set_feedback_metadata(FeedbackMetadata* value,
+void SharedFunctionInfo::set_feedback_metadata(FeedbackMetadata value,
                                                WriteBarrierMode mode) {
   DCHECK(!HasFeedbackMetadata());
   DCHECK(value->IsFeedbackMetadata());
-  return set_raw_outer_scope_info_or_feedback_metadata(value, mode);
+  set_raw_outer_scope_info_or_feedback_metadata(value, mode);
 }
 
 bool SharedFunctionInfo::is_compiled() const {
@@ -653,11 +653,13 @@ void SharedFunctionInfo::DiscardCompiled(
   if (shared_info->is_compiled()) {
     DisallowHeapAllocation no_gc;
 
-    HeapObject* outer_scope_info;
+    HeapObjectPtr outer_scope_info;
     if (shared_info->scope_info()->HasOuterScopeInfo()) {
       outer_scope_info = shared_info->scope_info()->OuterScopeInfo();
     } else {
-      outer_scope_info = ReadOnlyRoots(isolate).the_hole_value();
+      // TODO(3770): Drop explicit cast when migrating Oddball*.
+      outer_scope_info =
+          HeapObjectPtr::cast(ReadOnlyRoots(isolate).the_hole_value());
     }
     // Raw setter to avoid validity checks, since we're performing the unusual
     // task of decompiling.

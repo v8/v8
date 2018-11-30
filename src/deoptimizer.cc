@@ -3422,10 +3422,10 @@ void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
 void TranslatedState::Prepare(Address stack_frame_pointer) {
   for (auto& frame : frames_) frame.Handlify();
 
-  if (feedback_vector_ != nullptr) {
+  if (!feedback_vector_.is_null()) {
     feedback_vector_handle_ =
         Handle<FeedbackVector>(feedback_vector_, isolate());
-    feedback_vector_ = nullptr;
+    feedback_vector_ = FeedbackVector();
   }
   stack_frame_pointer_ = stack_frame_pointer;
 

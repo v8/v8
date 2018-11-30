@@ -20,17 +20,19 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(FeedbackVector, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObjectPtr)
+
+NEVER_READ_ONLY_SPACE_IMPL(FeedbackVector)
+
+CAST_ACCESSOR2(FeedbackVector)
+CAST_ACCESSOR2(FeedbackMetadata)
+
 INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
 int32_t FeedbackMetadata::synchronized_slot_count() const {
   return base::Acquire_Load(reinterpret_cast<const base::Atomic32*>(
       FIELD_ADDR(this, kSlotCountOffset)));
-}
-
-// static
-FeedbackMetadata* FeedbackMetadata::cast(Object* obj) {
-  DCHECK(obj->IsFeedbackMetadata());
-  return reinterpret_cast<FeedbackMetadata*>(obj);
 }
 
 int32_t FeedbackMetadata::get(int index) const {
@@ -49,12 +51,6 @@ bool FeedbackMetadata::is_empty() const { return slot_count() == 0; }
 
 int FeedbackMetadata::length() const {
   return FeedbackMetadata::length(slot_count());
-}
-
-// static
-FeedbackVector* FeedbackVector::cast(Object* obj) {
-  DCHECK(obj->IsFeedbackVector());
-  return reinterpret_cast<FeedbackVector*>(obj);
 }
 
 int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
@@ -103,7 +99,7 @@ INT32_ACCESSORS(FeedbackVector, deopt_count, kDeoptCountOffset)
 
 bool FeedbackVector::is_empty() const { return length() == 0; }
 
-FeedbackMetadata* FeedbackVector::metadata() const {
+FeedbackMetadata FeedbackVector::metadata() const {
   return shared_function_info()->feedback_metadata();
 }
 
@@ -180,7 +176,7 @@ void FeedbackVector::set(int index, Object* value, WriteBarrierMode mode) {
 }
 
 inline MaybeObjectSlot FeedbackVector::slots_start() {
-  return HeapObject::RawMaybeWeakField(this, kFeedbackSlotsOffset);
+  return RawMaybeWeakField(kFeedbackSlotsOffset);
 }
 
 // Helper function to transform the feedback to BinaryOperationHint.

@@ -1233,7 +1233,7 @@ void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
-    HeapEntry* entry, FeedbackVector* feedback_vector) {
+    HeapEntry* entry, FeedbackVector feedback_vector) {
   MaybeObject code = feedback_vector->optimized_code_weak_or_smi();
   HeapObject* code_heap_object;
   if (code->GetHeapObjectIfWeak(&code_heap_object)) {

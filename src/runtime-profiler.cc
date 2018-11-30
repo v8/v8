@@ -73,8 +73,7 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
 static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
                         int* ic_generic_count, int* ic_total_count,
                         int* type_info_percentage, int* generic_percentage) {
-  // Harvest vector-ics.
-  FeedbackVector* vector = function->feedback_vector();
+  FeedbackVector vector = function->feedback_vector();
   vector->ComputeCounts(ic_with_type_info_count, ic_generic_count,
                         ic_total_count);
 

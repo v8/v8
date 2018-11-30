@@ -429,7 +429,7 @@ ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
-FeedbackVector* JSFunction::feedback_vector() const {
+FeedbackVector JSFunction::feedback_vector() const {
   DCHECK(has_feedback_vector());
   return FeedbackVector::cast(feedback_cell()->value());
 }

@@ -3634,8 +3634,9 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     // from a FunctionLiteral. Those can just reset this field to keep the
     // SharedFunctionInfo in a consistent state.
     if (maybe_builtin_index == Builtins::kCompileLazy) {
-      share->set_raw_outer_scope_info_or_feedback_metadata(*the_hole_value(),
-                                                           SKIP_WRITE_BARRIER);
+      // TODO(3770): Drop explicit cast when migrating Oddball*.
+      share->set_raw_outer_scope_info_or_feedback_metadata(
+          HeapObjectPtr::cast(*the_hole_value()), SKIP_WRITE_BARRIER);
     } else {
       share->set_raw_outer_scope_info_or_feedback_metadata(
           *empty_feedback_metadata(), SKIP_WRITE_BARRIER);

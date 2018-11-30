@@ -110,6 +110,8 @@ HeapObjectPtr::HeapObjectPtr(Address ptr, AllowInlineSmiStorage allow_smi)
       IsHeapObject());
 }
 
+CAST_ACCESSOR2(HeapObjectPtr)
+
 #define TYPE_CHECK_FORWARDER(Type)                           \
   bool HeapObjectPtr::Is##Type() const {                     \
     return reinterpret_cast<HeapObject*>(ptr())->Is##Type(); \

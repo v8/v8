@@ -601,7 +601,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
   DisallowHeapAllocation no_gc;
   if (osr_offset.IsNone()) {
     if (function->feedback_cell()->value()->IsFeedbackVector()) {
-      FeedbackVector* feedback_vector = function->feedback_vector();
+      FeedbackVector feedback_vector = function->feedback_vector();
       feedback_vector->EvictOptimizedCodeMarkedForDeoptimization(
           function->shared(), "GetCodeFromOptimizedCodeCache");
       Code code = feedback_vector->optimized_code();

@@ -397,7 +397,7 @@ class TranslatedState {
   };
   std::deque<ObjectPosition> object_positions_;
   Handle<FeedbackVector> feedback_vector_handle_;
-  FeedbackVector* feedback_vector_ = nullptr;
+  FeedbackVector feedback_vector_;
   FeedbackSlot feedback_slot_;
 };
 
