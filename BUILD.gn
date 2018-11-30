@@ -98,7 +98,6 @@ declare_args() {
 
   # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
   v8_enable_pointer_compression = false
-  v8_enable_31bit_smis_on_64bit_arch = false
 
   # Interpreted regexp engine exists as platform-independent alternative
   # based where the regular expression is compiled to a bytecode.
@@ -343,9 +342,6 @@ config("features") {
   }
   if (v8_enable_pointer_compression) {
     defines += [ "V8_COMPRESS_POINTERS" ]
-  }
-  if (v8_enable_31bit_smis_on_64bit_arch) {
-    defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
   }
   if (v8_enable_object_print) {
     defines += [ "OBJECT_PRINT" ]
