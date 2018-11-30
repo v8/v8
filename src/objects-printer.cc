@@ -2253,7 +2253,7 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
 }
 
 void PreParsedScopeData::PreParsedScopeDataPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PreParsedScopeData");
+  PrintHeader(os, "PreParsedScopeData");
   os << "\n - scope_data: " << Brief(scope_data());
   os << "\n - length: " << length();
   for (int i = 0; i < length(); ++i) {
@@ -2264,7 +2264,7 @@ void PreParsedScopeData::PreParsedScopeDataPrint(std::ostream& os) {  // NOLINT
 
 void UncompiledDataWithoutPreParsedScope::
     UncompiledDataWithoutPreParsedScopePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "UncompiledDataWithoutPreParsedScope");
+  PrintHeader(os, "UncompiledDataWithoutPreParsedScope");
   os << "\n - start position: " << start_position();
   os << "\n - end position: " << end_position();
   os << "\n";
@@ -2272,7 +2272,7 @@ void UncompiledDataWithoutPreParsedScope::
 
 void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopePrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "UncompiledDataWithPreParsedScope");
+  PrintHeader(os, "UncompiledDataWithPreParsedScope");
   os << "\n - start position: " << start_position();
   os << "\n - end position: " << end_position();
   os << "\n - pre_parsed_scope_data: " << Brief(pre_parsed_scope_data());

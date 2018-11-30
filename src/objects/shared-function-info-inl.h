@@ -21,7 +21,9 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(PreParsedScopeData)
+OBJECT_CONSTRUCTORS_IMPL(PreParsedScopeData, HeapObjectPtr)
+
+CAST_ACCESSOR2(PreParsedScopeData)
 ACCESSORS2(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
 INT_ACCESSORS(PreParsedScopeData, length, kLengthOffset)
 
@@ -42,7 +44,7 @@ void PreParsedScopeData::set_child_data(int index, Object* value,
 }
 
 ObjectSlot PreParsedScopeData::child_data_start() const {
-  return HeapObject::RawField(this, kChildDataStartOffset);
+  return RawField(kChildDataStartOffset);
 }
 
 void PreParsedScopeData::clear_padding() {
@@ -53,7 +55,10 @@ void PreParsedScopeData::clear_padding() {
   }
 }
 
-CAST_ACCESSOR(UncompiledData)
+OBJECT_CONSTRUCTORS_IMPL(UncompiledData, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreParsedScope, UncompiledData)
+OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreParsedScope, UncompiledData)
+CAST_ACCESSOR2(UncompiledData)
 ACCESSORS2(UncompiledData, inferred_name, String, kInferredNameOffset)
 INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
 INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
@@ -67,11 +72,11 @@ void UncompiledData::clear_padding() {
   }
 }
 
-CAST_ACCESSOR(UncompiledDataWithoutPreParsedScope)
+CAST_ACCESSOR2(UncompiledDataWithoutPreParsedScope)
 
-CAST_ACCESSOR(UncompiledDataWithPreParsedScope)
-ACCESSORS(UncompiledDataWithPreParsedScope, pre_parsed_scope_data,
-          PreParsedScopeData, kPreParsedScopeDataOffset)
+CAST_ACCESSOR2(UncompiledDataWithPreParsedScope)
+ACCESSORS2(UncompiledDataWithPreParsedScope, pre_parsed_scope_data,
+           PreParsedScopeData, kPreParsedScopeDataOffset)
 
 CAST_ACCESSOR(InterpreterData)
 ACCESSORS2(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
@@ -503,12 +508,12 @@ bool SharedFunctionInfo::HasUncompiledData() const {
   return function_data()->IsUncompiledData();
 }
 
-UncompiledData* SharedFunctionInfo::uncompiled_data() const {
+UncompiledData SharedFunctionInfo::uncompiled_data() const {
   DCHECK(HasUncompiledData());
   return UncompiledData::cast(function_data());
 }
 
-void SharedFunctionInfo::set_uncompiled_data(UncompiledData* uncompiled_data) {
+void SharedFunctionInfo::set_uncompiled_data(UncompiledData uncompiled_data) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
   DCHECK(uncompiled_data->IsUncompiledData());
   set_function_data(uncompiled_data);
@@ -518,14 +523,14 @@ bool SharedFunctionInfo::HasUncompiledDataWithPreParsedScope() const {
   return function_data()->IsUncompiledDataWithPreParsedScope();
 }
 
-UncompiledDataWithPreParsedScope*
+UncompiledDataWithPreParsedScope
 SharedFunctionInfo::uncompiled_data_with_pre_parsed_scope() const {
   DCHECK(HasUncompiledDataWithPreParsedScope());
   return UncompiledDataWithPreParsedScope::cast(function_data());
 }
 
 void SharedFunctionInfo::set_uncompiled_data_with_pre_parsed_scope(
-    UncompiledDataWithPreParsedScope* uncompiled_data_with_pre_parsed_scope) {
+    UncompiledDataWithPreParsedScope uncompiled_data_with_pre_parsed_scope) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
   DCHECK(uncompiled_data_with_pre_parsed_scope
              ->IsUncompiledDataWithPreParsedScope());
@@ -538,7 +543,7 @@ bool SharedFunctionInfo::HasUncompiledDataWithoutPreParsedScope() const {
 
 void SharedFunctionInfo::ClearPreParsedScopeData() {
   DCHECK(HasUncompiledDataWithPreParsedScope());
-  UncompiledDataWithPreParsedScope* data =
+  UncompiledDataWithPreParsedScope data =
       uncompiled_data_with_pre_parsed_scope();
 
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the

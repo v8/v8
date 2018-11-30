@@ -1609,7 +1609,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == PRE_PARSED_SCOPE_DATA_TYPE) {
     return PreParsedScopeData::SizeFor(
-        reinterpret_cast<const PreParsedScopeData*>(this)->length());
+        PreParsedScopeData::unchecked_cast(this)->length());
   }
   if (instance_type == CODE_TYPE) {
     return Code::unchecked_cast(this)->CodeSize();

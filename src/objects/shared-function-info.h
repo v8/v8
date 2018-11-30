@@ -26,7 +26,7 @@ class WasmExportedFunctionData;
 
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
-class PreParsedScopeData : public HeapObject {
+class PreParsedScopeData : public HeapObjectPtr {
  public:
   DECL_ACCESSORS2(scope_data, PodArray<uint8_t>)
   DECL_INT_ACCESSORS(length)
@@ -40,7 +40,7 @@ class PreParsedScopeData : public HeapObject {
   // Clear uninitialized padding space.
   inline void clear_padding();
 
-  DECL_CAST(PreParsedScopeData)
+  DECL_CAST2(PreParsedScopeData)
   DECL_PRINTER(PreParsedScopeData)
   DECL_VERIFIER(PreParsedScopeData)
 
@@ -62,20 +62,19 @@ class PreParsedScopeData : public HeapObject {
     return kChildDataStartOffset + length * kTaggedSize;
   }
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PreParsedScopeData);
+  OBJECT_CONSTRUCTORS(PreParsedScopeData, HeapObjectPtr);
 };
 
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
-class UncompiledData : public HeapObject {
+class UncompiledData : public HeapObjectPtr {
  public:
   DECL_ACCESSORS2(inferred_name, String)
   DECL_INT32_ACCESSORS(start_position)
   DECL_INT32_ACCESSORS(end_position)
   DECL_INT32_ACCESSORS(function_literal_id)
 
-  DECL_CAST(UncompiledData)
+  DECL_CAST2(UncompiledData)
 
 // Layout description.
 #define UNCOMPILED_DATA_FIELDS(V)                                         \
@@ -100,8 +99,7 @@ class UncompiledData : public HeapObject {
   // Clear uninitialized padding space.
   inline void clear_padding();
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledData);
+  OBJECT_CONSTRUCTORS(UncompiledData, HeapObjectPtr);
 };
 
 // Class representing data for an uncompiled function that does not have any
@@ -109,7 +107,7 @@ class UncompiledData : public HeapObject {
 // pre-parser bailed out.
 class UncompiledDataWithoutPreParsedScope : public UncompiledData {
  public:
-  DECL_CAST(UncompiledDataWithoutPreParsedScope)
+  DECL_CAST2(UncompiledDataWithoutPreParsedScope)
   DECL_PRINTER(UncompiledDataWithoutPreParsedScope)
   DECL_VERIFIER(UncompiledDataWithoutPreParsedScope)
 
@@ -118,17 +116,16 @@ class UncompiledDataWithoutPreParsedScope : public UncompiledData {
   // No extra fields compared to UncompiledData.
   typedef UncompiledData::BodyDescriptor BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithoutPreParsedScope);
+  OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreParsedScope, UncompiledData);
 };
 
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data.
 class UncompiledDataWithPreParsedScope : public UncompiledData {
  public:
-  DECL_ACCESSORS(pre_parsed_scope_data, PreParsedScopeData)
+  DECL_ACCESSORS2(pre_parsed_scope_data, PreParsedScopeData)
 
-  DECL_CAST(UncompiledDataWithPreParsedScope)
+  DECL_CAST2(UncompiledDataWithPreParsedScope)
   DECL_PRINTER(UncompiledDataWithPreParsedScope)
   DECL_VERIFIER(UncompiledDataWithPreParsedScope)
 
@@ -153,8 +150,7 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
                           kSize>>
       BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithPreParsedScope);
+  OBJECT_CONSTRUCTORS(UncompiledDataWithPreParsedScope, UncompiledData);
 };
 
 class InterpreterData : public Struct {
@@ -325,13 +321,13 @@ class SharedFunctionInfo : public HeapObjectPtr {
   inline int builtin_id() const;
   inline void set_builtin_id(int builtin_id);
   inline bool HasUncompiledData() const;
-  inline UncompiledData* uncompiled_data() const;
-  inline void set_uncompiled_data(UncompiledData* data);
+  inline UncompiledData uncompiled_data() const;
+  inline void set_uncompiled_data(UncompiledData data);
   inline bool HasUncompiledDataWithPreParsedScope() const;
-  inline UncompiledDataWithPreParsedScope*
+  inline UncompiledDataWithPreParsedScope
   uncompiled_data_with_pre_parsed_scope() const;
   inline void set_uncompiled_data_with_pre_parsed_scope(
-      UncompiledDataWithPreParsedScope* data);
+      UncompiledDataWithPreParsedScope data);
   inline bool HasUncompiledDataWithoutPreParsedScope() const;
   inline bool HasWasmExportedFunctionData() const;
   WasmExportedFunctionData* wasm_exported_function_data() const;

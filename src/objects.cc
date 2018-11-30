@@ -3597,13 +3597,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 #undef TYPED_ARRAY_SHORT_PRINT
 
     case PRE_PARSED_SCOPE_DATA_TYPE: {
-      PreParsedScopeData* data = PreParsedScopeData::cast(this);
+      PreParsedScopeData data = PreParsedScopeData::cast(this);
       os << "<PreParsedScopeData[" << data->length() << "]>";
       break;
     }
 
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE: {
-      UncompiledDataWithoutPreParsedScope* data =
+      UncompiledDataWithoutPreParsedScope data =
           UncompiledDataWithoutPreParsedScope::cast(this);
       os << "<UncompiledDataWithoutPreParsedScope (" << data->start_position()
          << ", " << data->end_position() << ")]>";
@@ -3611,7 +3611,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     }
 
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE: {
-      UncompiledDataWithPreParsedScope* data =
+      UncompiledDataWithPreParsedScope data =
           UncompiledDataWithPreParsedScope::cast(this);
       os << "<UncompiledDataWithPreParsedScope (" << data->start_position()
          << ", " << data->end_position()
