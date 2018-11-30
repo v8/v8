@@ -28,6 +28,8 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner,
   // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
   // - 'contextual' keywords, but may not be escaped (3rd switch).
   switch (scanner->current_token()) {
+    case Token::LET:
+      return PreParserIdentifier::Let();
     case Token::AWAIT:
       return PreParserIdentifier::Await();
     case Token::ASYNC:
@@ -44,6 +46,9 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner,
     return PreParserIdentifier::Name();
   }
   if (scanner->literal_contains_escapes()) {
+    if (string == avf->let_string()) {
+      return PreParserIdentifier::Let();
+    }
     return PreParserIdentifier::Default();
   }
   if (string == avf->eval_string()) {

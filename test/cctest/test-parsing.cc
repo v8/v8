@@ -98,7 +98,6 @@ bool TokenIsAnyIdentifier(Token::Value token) {
     case Token::STATIC:
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::ESCAPED_STRICT_RESERVED_WORD:
-    case Token::ENUM:
       return true;
     default:
       return false;
@@ -109,6 +108,31 @@ TEST(AnyIdentifierToken) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsAnyIdentifier(token), Token::IsAnyIdentifier(token));
+  }
+}
+
+bool TokenIsAnyIdentifierOrEnum(Token::Value token) {
+  switch (token) {
+    case Token::IDENTIFIER:
+    case Token::ASYNC:
+    case Token::AWAIT:
+    case Token::YIELD:
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::ENUM:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(AnyIdentifierOrEnumToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAnyIdentifierOrEnum(token),
+             Token::IsAnyIdentifierOrEnum(token));
   }
 }
 
@@ -137,8 +161,8 @@ TEST(CallableToken) {
   }
 }
 
-bool TokenIsIdentifier(Token::Value token, LanguageMode language_mode,
-                       bool is_generator, bool disallow_await) {
+bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
+                            bool is_generator, bool disallow_await) {
   switch (token) {
     case Token::IDENTIFIER:
     case Token::ASYNC:
@@ -158,7 +182,7 @@ bool TokenIsIdentifier(Token::Value token, LanguageMode language_mode,
   UNREACHABLE();
 }
 
-TEST(IsIdentifierToken) {
+TEST(IsValidIdentifierToken) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     for (size_t raw_language_mode = 0; raw_language_mode < LanguageModeSize;
@@ -167,17 +191,30 @@ TEST(IsIdentifierToken) {
       for (int is_generator = 0; is_generator < 2; is_generator++) {
         for (int disallow_await = 0; disallow_await < 2; disallow_await++) {
           CHECK_EQ(
-              TokenIsIdentifier(token, mode, is_generator, disallow_await),
-              Token::IsIdentifier(token, mode, is_generator, disallow_await));
+              TokenIsValidIdentifier(token, mode, is_generator, disallow_await),
+              Token::IsValidIdentifier(token, mode, is_generator,
+                                       disallow_await));
         }
       }
     }
   }
 }
 
+bool TokenIsAwaitOrYield(Token::Value token) {
+  return token == Token::AWAIT || token == Token::YIELD;
+}
+
+TEST(IsAwaitOrYield) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAwaitOrYield(token), Token::IsAwaitOrYield(token));
+  }
+}
+
 bool TokenIsStrictReservedWord(Token::Value token) {
   switch (token) {
     case Token::LET:
+    case Token::YIELD:
     case Token::STATIC:
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::ESCAPED_STRICT_RESERVED_WORD:

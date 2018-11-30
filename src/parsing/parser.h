@@ -595,6 +595,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return identifier == ast_value_factory()->arguments_string();
   }
 
+  V8_INLINE bool IsLet(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->let_string();
+  }
+
   V8_INLINE bool IsEvalOrArguments(const AstRawString* identifier) const {
     return IsEval(identifier) || IsArguments(identifier);
   }

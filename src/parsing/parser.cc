@@ -916,8 +916,8 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
     // Keep track of the first reserved word encountered in case our
     // caller needs to report an error.
     if (!reserved_loc->IsValid() &&
-        !Token::IsIdentifier(name_tok, LanguageMode::kStrict, false,
-                             parsing_module_)) {
+        !Token::IsValidIdentifier(name_tok, LanguageMode::kStrict, false,
+                                  parsing_module_)) {
       *reserved_loc = scanner()->location();
     }
     const AstRawString* local_name = ParseIdentifierName();
@@ -971,8 +971,9 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
     if (CheckContextualKeyword(ast_value_factory()->as_string())) {
       local_name = ParseIdentifierName();
     }
-    if (!Token::IsIdentifier(scanner()->current_token(), LanguageMode::kStrict,
-                             false, parsing_module_)) {
+    if (!Token::IsValidIdentifier(scanner()->current_token(),
+                                  LanguageMode::kStrict, false,
+                                  parsing_module_)) {
       ReportMessage(MessageTemplate::kUnexpectedReserved);
       return nullptr;
     } else if (IsEvalOrArguments(local_name)) {

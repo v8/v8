@@ -518,7 +518,8 @@ class Scanner {
              token == Token::UNINITIALIZED || token == Token::REGEXP_LITERAL ||
              token == Token::ESCAPED_KEYWORD ||
              IsInRange(token, Token::NUMBER, Token::STRING) ||
-             (Token::IsAnyIdentifier(token) && !Token::IsKeyword(token)) ||
+             (Token::IsAnyIdentifierOrEnum(token) &&
+              !Token::IsKeyword(token)) ||
              IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
     }
     bool CanAccessRawLiteral() const {
