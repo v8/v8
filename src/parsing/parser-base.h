@@ -869,7 +869,8 @@ class ParserBase {
   }
 
   void CheckDestructuringElement(ExpressionT element, int beg_pos, int end_pos);
-  void CheckArrowFormalParameter(ExpressionT formal);
+  void ClassifyFormalParameter(IdentifierT formal, int beg_pos, int end_pos);
+  void ClassifyArrowFormalParameter(ExpressionT formal);
 
   // Checking the name of a function literal. This has to be done after parsing
   // the function, since the function can declare itself strict.
@@ -1543,20 +1544,10 @@ ParserBase<Impl>::ParseAndClassifyIdentifier() {
   if (IsInRange(next, Token::IDENTIFIER, Token::ASYNC)) {
     IdentifierT name = impl()->GetSymbol();
 
-    // When this function is used to read a formal parameter, we don't always
-    // know whether the function is going to be strict or sloppy.  Indeed for
-    // arrow functions we don't always know that the identifier we are reading
-    // is actually a formal parameter.  Therefore besides the errors that we
-    // must detect because we know we're in strict mode, we also record any
-    // error that we might make in the future once we know the language mode.
-    if (V8_UNLIKELY(impl()->IsEvalOrArguments(name))) {
-      if (impl()->IsArguments(name) && scope()->ShouldBanArguments()) {
-        ReportMessage(MessageTemplate::kArgumentsDisallowedInInitializer);
-        return impl()->EmptyIdentifierString();
-      }
-
-      classifier()->RecordStrictModeFormalParameterError(
-          scanner()->location(), MessageTemplate::kStrictEvalArguments);
+    if (V8_UNLIKELY(impl()->IsArguments(name) &&
+                    scope()->ShouldBanArguments())) {
+      ReportMessage(MessageTemplate::kArgumentsDisallowedInInitializer);
+      return impl()->EmptyIdentifierString();
     }
 
     return name;
@@ -1730,6 +1721,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       }
       // async Identifier => AsyncConciseBody
       if (peek_any_identifier() && PeekAhead() == Token::ARROW) {
+        beg_pos = peek_position();
         name = ParseAndClassifyIdentifier();
 
         if (!classifier()->is_valid_async_arrow_formal_parameters()) {
@@ -1744,6 +1736,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     }
 
     if (peek() == Token::ARROW) {
+      ClassifyFormalParameter(name, beg_pos, end_position());
       scope_snapshot_ = std::move(Scope::Snapshot(scope()));
       rewritable_length_ = static_cast<int>(
           function_state_->destructuring_assignments_to_rewrite().size());
@@ -1866,7 +1859,7 @@ ParserBase<Impl>::ParseExpressionCoverGrammar() {
     }
 
     expression = ParseAssignmentExpression();
-    CheckArrowFormalParameter(expression);
+    ClassifyArrowFormalParameter(expression);
     list.Add(expression);
 
     if (!Check(Token::COMMA)) break;
@@ -2602,7 +2595,7 @@ void ParserBase<Impl>::ParseArguments(
     ExpressionT argument = ParseAssignmentExpression();
 
     if (V8_UNLIKELY(maybe_arrow)) {
-      CheckArrowFormalParameter(argument);
+      ClassifyArrowFormalParameter(argument);
       if (is_spread) {
         classifier()->RecordNonSimpleParameter();
         if (argument->IsAssignment()) {
@@ -3476,7 +3469,10 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
 
   FuncNameInferrerState fni_state(&fni_);
   ExpressionT pattern = ParseBindingPattern();
-  if (!impl()->IsIdentifier(pattern)) {
+  if (impl()->IsIdentifier(pattern)) {
+    ClassifyFormalParameter(impl()->AsIdentifier(pattern), pattern->position(),
+                            end_position());
+  } else {
     parameters->is_simple = false;
   }
 
@@ -4440,14 +4436,26 @@ ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
 }
 
 template <typename Impl>
-void ParserBase<Impl>::CheckArrowFormalParameter(ExpressionT formal) {
+void ParserBase<Impl>::ClassifyFormalParameter(IdentifierT formal, int begin,
+                                               int end) {
+  if (impl()->IsEvalOrArguments(formal)) {
+    classifier()->RecordStrictModeFormalParameterError(
+        Scanner::Location(begin, end), MessageTemplate::kStrictEvalArguments);
+  }
+}
+
+template <typename Impl>
+void ParserBase<Impl>::ClassifyArrowFormalParameter(ExpressionT formal) {
   if (formal->is_parenthesized() ||
       !(impl()->IsIdentifier(formal) || formal->IsPattern() ||
         formal->IsAssignment())) {
     classifier()->RecordBindingPatternError(
         Scanner::Location(formal->position(), end_position()),
         MessageTemplate::kInvalidDestructuringTarget);
-  } else if (!impl()->IsIdentifier(formal)) {
+  } else if (impl()->IsIdentifier(formal)) {
+    ClassifyFormalParameter(impl()->AsIdentifier(formal), formal->position(),
+                            end_position());
+  } else {
     classifier()->RecordNonSimpleParameter();
   }
 }
@@ -4470,6 +4478,10 @@ void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
       classifier()->RecordBindingPatternError(
           Scanner::Location(begin, end),
           MessageTemplate::kInvalidPropertyBindingPattern);
+    } else if (is_strict(language_mode()) && impl()->IsIdentifier(expression)) {
+      // Only classify if we are already in strict mode since the language mode
+      // cannot change in the presence of non-simple parameters.
+      ClassifyFormalParameter(impl()->AsIdentifier(expression), begin, end);
     }
     return;
   }
