@@ -13131,6 +13131,8 @@ namespace {
 bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
                               Handle<JSFunction> constructor,
                               Handle<Map> constructor_initial_map) {
+  // Use the default intrinsic prototype instead.
+  if (!new_target->has_prototype_slot()) return false;
   // Check that |function|'s initial map still in sync with the |constructor|,
   // otherwise we must create a new initial map for |function|.
   if (new_target->has_initial_map() &&
@@ -13205,9 +13207,14 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   Handle<Object> prototype;
   if (new_target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
-    // Make sure the new.target.prototype is cached.
-    EnsureHasInitialMap(function);
-    prototype = handle(function->prototype(), isolate);
+    if (function->has_prototype_slot()) {
+      // Make sure the new.target.prototype is cached.
+      EnsureHasInitialMap(function);
+      prototype = handle(function->prototype(), isolate);
+    } else {
+      // No prototype property, use the intrinsict default proto further down.
+      prototype = isolate->factory()->undefined_value();
+    }
   } else {
     Handle<String> prototype_string = isolate->factory()->prototype_string();
     ASSIGN_RETURN_ON_EXCEPTION(
