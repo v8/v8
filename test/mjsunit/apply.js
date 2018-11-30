@@ -122,10 +122,7 @@ for (var j = 1; j < 0x400000; j <<= 1) {
     a[j - 1] = 42;
     assertEquals(42 + j, al.apply(345, a));
   } catch (e) {
-    assertTrue(
-        e.toString().indexOf('Maximum call stack size exceeded') != -1 ||
-        e.toString().indexOf(
-            'Too many arguments in function call (only 65534 allowed)') != -1);
+    assertTrue(e.toString().indexOf("Maximum call stack size exceeded") != -1);
     for (; j < 0x400000; j <<= 1) {
       var caught = false;
       try {
@@ -136,10 +133,7 @@ for (var j = 1; j < 0x400000; j <<= 1) {
         assertUnreachable("Apply of array with length " + a.length +
                           " should have thrown");
       } catch (e) {
-        assertTrue(
-          e.toString().indexOf('Maximum call stack size exceeded') != -1 ||
-          e.toString().indexOf(
-            'Too many arguments in function call (only 65534 allowed)') != -1);
+        assertTrue(e.toString().indexOf("Maximum call stack size exceeded") != -1);
         caught = true;
       }
       assertTrue(caught, "exception not caught");

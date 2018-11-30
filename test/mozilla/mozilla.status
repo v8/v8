@@ -460,9 +460,6 @@
   'js1_5/Regress/regress-313967-02': [FAIL_OK],
   'js1_5/extensions/regress-459606': [FAIL_OK],
 
-  # We restrict the number of apply arguments.
-  'js1_5/Array/regress-350256-01': [SKIP],
-
   # This fails because we don't have stack space for Function.prototype.apply
   # with very large numbers of arguments.  The test uses 2^24 arguments.
   'js1_5/Array/regress-350256-03': [FAIL_OK],

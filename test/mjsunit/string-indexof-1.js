@@ -133,7 +133,7 @@ assertEquals(-1, asciiString.indexOf("\x2061"));
 
 // Search in string containing many non-ASCII chars.
 var allCodePoints = [];
-for (var i = 0; i < 65534; i++) allCodePoints[i] = i;
+for (var i = 0; i < 65536; i++) allCodePoints[i] = i;
 var allCharsString = String.fromCharCode.apply(String, allCodePoints);
 // Search for string long enough to trigger complex search with ASCII pattern
 // and UC16 subject.
