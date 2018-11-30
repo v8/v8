@@ -38,9 +38,12 @@ class BigIntBase : public HeapObjectPtr {
   static inline BigIntBase unchecked_cast(ObjectPtr o) {
     return bit_cast<BigIntBase>(o);
   }
-  // Increasing kMaxLength will require code changes.
-  static const int kMaxLengthBits =
-      kMaxInt - kSystemPointerSize * kBitsPerByte - 1;
+
+  // The maximum kMaxLengthBits that the current implementation supports
+  // would be kMaxInt - kSystemPointerSize * kBitsPerByte - 1.
+  // Since we want a platform independent limit, choose a nice round number
+  // somewhere below that maximum.
+  static const int kMaxLengthBits = 1 << 30;  // ~1 billion.
   static const int kMaxLength =
       kMaxLengthBits / (kSystemPointerSize * kBitsPerByte);
 
