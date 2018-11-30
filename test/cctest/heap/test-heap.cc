@@ -5307,7 +5307,7 @@ TEST(Regress598319) {
         // Temporary scope to avoid getting any other objects into the root set.
         v8::HandleScope scope(CcTest::isolate());
         Handle<FixedArray> tmp =
-            isolate->factory()->NewFixedArray(number_of_objects);
+            isolate->factory()->NewFixedArray(number_of_objects, TENURED);
         root->set(0, *tmp);
         for (int i = 0; i < get()->length(); i++) {
           tmp = isolate->factory()->NewFixedArray(100, TENURED);
@@ -5818,7 +5818,7 @@ TEST(UncommitUnusedLargeObjectMemory) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000, TENURED);
   MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
   CHECK(chunk->owner()->identity() == LO_SPACE);
 
@@ -5841,8 +5841,8 @@ TEST(RememberedSetRemoveRange) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(Page::kPageSize /
-                                                              kPointerSize);
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(
+      Page::kPageSize / kPointerSize, TENURED);
   MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
   CHECK(chunk->owner()->identity() == LO_SPACE);
   Address start = array->address();
@@ -5933,7 +5933,8 @@ HEAP_TEST(Regress670675) {
   for (size_t i = 0; i < n + 40; i++) {
     {
       HandleScope inner_scope(isolate);
-      isolate->factory()->NewFixedArray(static_cast<int>(array_length));
+      isolate->factory()->NewFixedArray(static_cast<int>(array_length),
+                                        TENURED);
     }
     if (marking->IsStopped()) break;
     double deadline = heap->MonotonicallyIncreasingTimeInMs() + 1;

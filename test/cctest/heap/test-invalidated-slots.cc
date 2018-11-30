@@ -246,8 +246,8 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
   Handle<FixedArray> trimmed;
   {
     AlwaysAllocateScope always_allocate(isolate);
-    trimmed =
-        factory->NewFixedArray(kMaxRegularHeapObjectSize / kPointerSize + 100);
+    trimmed = factory->NewFixedArray(
+        kMaxRegularHeapObjectSize / kPointerSize + 100, TENURED);
     DCHECK(MemoryChunk::FromHeapObject(*trimmed)->InLargeObjectSpace());
   }
   heap::SimulateIncrementalMarking(heap);
