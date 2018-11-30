@@ -89,7 +89,7 @@ class Code : public HeapObjectPtr {
   inline ByteArray SourcePositionTable() const;
 
   // [code_data_container]: A container indirection for all mutable fields.
-  DECL_ACCESSORS(code_data_container, CodeDataContainer)
+  DECL_ACCESSORS2(code_data_container, CodeDataContainer)
 
   // [stub_key]: The major/minor key of a code stub.
   inline uint32_t stub_key() const;
@@ -462,8 +462,9 @@ class Code::OptimizedCodeIterator {
 // pages within the heap, its header fields need to be immutable. There always
 // is a 1-to-1 relation between {Code} and {CodeDataContainer}, the referencing
 // field {Code::code_data_container} itself is immutable.
-class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
+class CodeDataContainer : public HeapObjectPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(next_code_link, Object)
   DECL_INT_ACCESSORS(kind_specific_flags)
 
@@ -471,7 +472,7 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
   // is deterministic.
   inline void clear_padding();
 
-  DECL_CAST(CodeDataContainer)
+  DECL_CAST2(CodeDataContainer)
 
   // Dispatched behavior.
   DECL_PRINTER(CodeDataContainer)
@@ -494,8 +495,7 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
 
   class BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CodeDataContainer);
+  OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObjectPtr);
 };
 
 class AbstractCode : public HeapObjectPtr {

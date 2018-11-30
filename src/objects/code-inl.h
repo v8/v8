@@ -26,13 +26,14 @@ OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObjectPtr)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
+OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObjectPtr)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
 CAST_ACCESSOR2(AbstractCode)
 CAST_ACCESSOR2(BytecodeArray)
 CAST_ACCESSOR2(Code)
-CAST_ACCESSOR(CodeDataContainer)
+CAST_ACCESSOR2(CodeDataContainer)
 CAST_ACCESSOR2(DependentCode)
 CAST_ACCESSOR2(DeoptimizationData)
 CAST_ACCESSOR(SourcePositionTableWithFrameCache)
@@ -197,18 +198,10 @@ INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
   ACCESSORS_CHECKED2(Code, name, type, offset, true, !Heap::InNewSpace(value))
 #define CODE_ACCESSORS2(name, type, offset) \
   ACCESSORS_CHECKED3(Code, name, type, offset, true, !Heap::InNewSpace(value))
-// TODO(3770): Use shared SYNCHRONIZED_ACCESSORS_CHECKED2 when migrating
-// CodeDataContainer*.
-#define SYNCHRONIZED_CODE_ACCESSORS(name, type, offset)         \
-  type* Code::name() const {                                    \
-    type* value = type::cast(ACQUIRE_READ_FIELD(this, offset)); \
-    return value;                                               \
-  }                                                             \
-  void Code::set_##name(type* value, WriteBarrierMode mode) {   \
-    DCHECK(!Heap::InNewSpace(value));                           \
-    RELEASE_WRITE_FIELD(this, offset, value);                   \
-    CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);       \
-  }
+#define SYNCHRONIZED_CODE_ACCESSORS(name, type, offset)           \
+  SYNCHRONIZED_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
+                                  !Heap::InNewSpace(value))
+
 CODE_ACCESSORS2(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS2(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)

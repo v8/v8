@@ -1571,7 +1571,7 @@ void Code::CodePrint(std::ostream& os) {  // NOLINT
 }
 
 void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "CodeDataContainer");
+  PrintHeader(os, "CodeDataContainer");
   os << "\n - kind_specific_flags: " << kind_specific_flags();
   os << "\n";
 }
