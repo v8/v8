@@ -1788,16 +1788,16 @@ TEST(OneToTwoByteStringCopy) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowHeapAllocation no_gc;
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[0],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[0]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[1],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[1]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[2],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[2]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[3],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[3]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[4],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[4]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[0],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[1],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[2],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[3],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[4],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[4]);
 }
 
 TEST(OneToOneByteStringCopy) {
@@ -1820,16 +1820,16 @@ TEST(OneToOneByteStringCopy) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowHeapAllocation no_gc;
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[0],
-           Handle<SeqOneByteString>::cast(string2)->GetChars()[0]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[1],
-           Handle<SeqOneByteString>::cast(string2)->GetChars()[1]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[2],
-           Handle<SeqOneByteString>::cast(string2)->GetChars()[2]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[3],
-           Handle<SeqOneByteString>::cast(string2)->GetChars()[3]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[4],
-           Handle<SeqOneByteString>::cast(string2)->GetChars()[4]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[0],
+           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[1],
+           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[2],
+           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[3],
+           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[4],
+           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[4]);
 }
 
 TEST(OneToOneByteStringCopyNonZeroStart) {
@@ -1852,13 +1852,13 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowHeapAllocation no_gc;
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[0],
-           Handle<SeqOneByteString>::cast(string2)->GetChars()[3]);
-  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars()[1],
-           Handle<SeqOneByteString>::cast(string2)->GetChars()[4]);
-  CHECK_EQ(100, Handle<SeqOneByteString>::cast(string2)->GetChars()[0]);
-  CHECK_EQ(101, Handle<SeqOneByteString>::cast(string2)->GetChars()[1]);
-  CHECK_EQ(102, Handle<SeqOneByteString>::cast(string2)->GetChars()[2]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[0],
+           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Handle<SeqOneByteString>::cast(string1)->GetChars(no_gc)[1],
+           Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[4]);
+  CHECK_EQ(100, Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(101, Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(102, Handle<SeqOneByteString>::cast(string2)->GetChars(no_gc)[2]);
 }
 
 TEST(TwoToTwoByteStringCopy) {
@@ -1884,16 +1884,16 @@ TEST(TwoToTwoByteStringCopy) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowHeapAllocation no_gc;
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[0],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[0]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[1],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[1]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[2],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[2]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[3],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[3]);
-  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars()[4],
-           Handle<SeqTwoByteString>::cast(string2)->GetChars()[4]);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[0],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[0]);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[1],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[1]);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[2],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[2]);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[3],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[3]);
+  CHECK_EQ(Handle<SeqTwoByteString>::cast(string1)->GetChars(no_gc)[4],
+           Handle<SeqTwoByteString>::cast(string2)->GetChars(no_gc)[4]);
 }
 
 TEST(Arguments) {

@@ -88,9 +88,12 @@ class OnHeapStream {
     UNREACHABLE();
   }
 
-  Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats) {
-    return {&string_->GetChars()[start_offset_ + Min(length_, pos)],
-            &string_->GetChars()[start_offset_ + length_]};
+  // The no_gc argument is only here because of the templated way this class
+  // is used along with other implementations that require V8 heap access.
+  Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
+                        DisallowHeapAllocation* no_gc) {
+    return {&string_->GetChars(*no_gc)[start_offset_ + Min(length_, pos)],
+            &string_->GetChars(*no_gc)[start_offset_ + length_]};
   }
 
   static const bool kCanBeCloned = false;
@@ -118,7 +121,10 @@ class ExternalStringStream {
   ExternalStringStream(const ExternalStringStream& other)
       : lock_(other.lock_), data_(other.data_), length_(other.length_) {}
 
-  Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats) {
+  // The no_gc argument is only here because of the templated way this class
+  // is used along with other implementations that require V8 heap access.
+  Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
+                        DisallowHeapAllocation* no_gc = nullptr) {
     return {&data_[Min(length_, pos)], &data_[length_]};
   }
 
@@ -137,7 +143,10 @@ class TestingStream {
  public:
   TestingStream(const Char* data, size_t length)
       : data_(data), length_(length) {}
-  Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats) {
+  // The no_gc argument is only here because of the templated way this class
+  // is used along with other implementations that require V8 heap access.
+  Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
+                        DisallowHeapAllocation* no_gc = nullptr) {
     return {&data_[Min(length_, pos)], &data_[length_]};
   }
 
@@ -161,7 +170,10 @@ class ChunkedStream {
     UNREACHABLE();
   }
 
-  Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats) {
+  // The no_gc argument is only here because of the templated way this class
+  // is used along with other implementations that require V8 heap access.
+  Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
+                        DisallowHeapAllocation* no_gc = nullptr) {
     Chunk chunk = FindChunk(pos, stats);
     size_t buffer_end = chunk.length;
     size_t buffer_pos = Min(buffer_end, pos - chunk.position);
@@ -259,7 +271,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
 
     DisallowHeapAllocation no_gc;
     Range<uint8_t> range =
-        byte_stream_.GetDataAt(position, runtime_call_stats());
+        byte_stream_.GetDataAt(position, runtime_call_stats(), &no_gc);
     if (range.length() == 0) {
       buffer_end_ = buffer_start_;
       return false;
@@ -313,7 +325,7 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
     buffer_pos_ = position;
     DisallowHeapAllocation no_gc;
     Range<uint16_t> range =
-        byte_stream_.GetDataAt(position, runtime_call_stats());
+        byte_stream_.GetDataAt(position, runtime_call_stats(), &no_gc);
     buffer_start_ = range.start;
     buffer_end_ = range.end;
     buffer_cursor_ = buffer_start_;
@@ -359,7 +371,8 @@ class RelocatingCharacterStream
 
   void UpdateBufferPointers() {
     DisallowHeapAllocation no_gc;
-    Range<uint16_t> range = byte_stream_.GetDataAt(0, runtime_call_stats());
+    Range<uint16_t> range =
+        byte_stream_.GetDataAt(0, runtime_call_stats(), &no_gc);
     if (range.start != buffer_start_) {
       buffer_cursor_ = (buffer_cursor_ - buffer_start_) + range.start;
       buffer_start_ = range.start;

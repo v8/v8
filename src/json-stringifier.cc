@@ -809,9 +809,9 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
   // part, or we might need to allocate.
   if (int worst_case_length = builder_.EscapedLengthIfCurrentPartFits(length)) {
     DisallowHeapAllocation no_gc;
-    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>();
+    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
     IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
-        &builder_, worst_case_length);
+        &builder_, worst_case_length, no_gc);
     SerializeStringUnchecked_(vector, &no_extend);
   } else {
     FlatStringReader reader(isolate_, string);

@@ -88,7 +88,8 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
       int len = shared->EndPosition() - start;
-      SubStringRange source(String::cast(script->source()), start, len);
+      SubStringRange source(String::cast(script->source()), no_allocation,
+                            start, len);
       for (const auto& c : source) {
         os << AsEscapedUC16ForJSON(c);
       }

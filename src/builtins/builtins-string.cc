@@ -110,9 +110,10 @@ BUILTIN(StringFromCodePoint) {
           static_cast<int>(one_byte_buffer.size() + two_byte_buffer.size())));
 
   DisallowHeapAllocation no_gc;
-  CopyChars(result->GetChars(), one_byte_buffer.data(), one_byte_buffer.size());
-  CopyChars(result->GetChars() + one_byte_buffer.size(), two_byte_buffer.data(),
-            two_byte_buffer.size());
+  CopyChars(result->GetChars(no_gc), one_byte_buffer.data(),
+            one_byte_buffer.size());
+  CopyChars(result->GetChars(no_gc) + one_byte_buffer.size(),
+            two_byte_buffer.data(), two_byte_buffer.size());
 
   return *result;
 }
@@ -158,8 +159,8 @@ BUILTIN(StringPrototypeEndsWith) {
   search_string = String::Flatten(isolate, search_string);
 
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
-  String::FlatContent str_content = str->GetFlatContent();
-  String::FlatContent search_content = search_string->GetFlatContent();
+  String::FlatContent str_content = str->GetFlatContent(no_gc);
+  String::FlatContent search_content = search_string->GetFlatContent(no_gc);
 
   if (str_content.IsOneByte() && search_content.IsOneByte()) {
     Vector<const uint8_t> str_vector = str_content.ToOneByteVector();
@@ -240,8 +241,8 @@ BUILTIN(StringPrototypeLocaleCompare) {
   str2 = String::Flatten(isolate, str2);
 
   DisallowHeapAllocation no_gc;
-  String::FlatContent flat1 = str1->GetFlatContent();
-  String::FlatContent flat2 = str2->GetFlatContent();
+  String::FlatContent flat1 = str1->GetFlatContent(no_gc);
+  String::FlatContent flat2 = str2->GetFlatContent(no_gc);
 
   for (int i = 0; i < end; i++) {
     if (flat1.Get(i) != flat2.Get(i)) {
@@ -465,11 +466,11 @@ V8_WARN_UNUSED_RESULT static Object* ConvertCase(
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
     DisallowHeapAllocation no_gc;
-    String::FlatContent flat_content = s->GetFlatContent();
+    String::FlatContent flat_content = s->GetFlatContent(no_gc);
     DCHECK(flat_content.IsFlat());
     bool has_changed_character = false;
     int index_to_first_unprocessed = FastAsciiConvert<Converter::kIsToLower>(
-        reinterpret_cast<char*>(result->GetChars()),
+        reinterpret_cast<char*>(result->GetChars(no_gc)),
         reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
         length, &has_changed_character);
     // If not ASCII, we discard the result and take the 2 byte path.

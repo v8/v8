@@ -291,12 +291,13 @@ size_t GetScriptNameLength(const SourcePositionInfo& info) {
 }
 
 Vector<const char> GetScriptName(const SourcePositionInfo& info,
-                                 std::unique_ptr<char[]>* storage) {
+                                 std::unique_ptr<char[]>* storage,
+                                 const DisallowHeapAllocation& no_gc) {
   if (!info.script.is_null()) {
     Object* name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url->IsSeqOneByteString()) {
       SeqOneByteString str = SeqOneByteString::cast(name_or_url);
-      return {reinterpret_cast<char*>(str->GetChars()),
+      return {reinterpret_cast<char*>(str->GetChars(no_gc)),
               static_cast<size_t>(str->length())};
     } else if (name_or_url->IsString()) {
       int length;
@@ -377,7 +378,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code code, SharedFunctionInfo shared) {
     // The extracted name may point into heap-objects, thus disallow GC.
     DisallowHeapAllocation no_gc;
     std::unique_ptr<char[]> name_storage;
-    Vector<const char> name_string = GetScriptName(info, &name_storage);
+    Vector<const char> name_string = GetScriptName(info, &name_storage, no_gc);
     LogWriteBytes(name_string.start(),
                   static_cast<uint32_t>(name_string.size()) + 1);
   }

@@ -203,7 +203,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
         String);
 
     DisallowHeapAllocation no_gc;
-    uint8_t* char_buffer = seq->GetChars();
+    uint8_t* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
                               array_builder_.length());
     joined_string = Handle<String>::cast(seq);
@@ -215,7 +215,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
         String);
 
     DisallowHeapAllocation no_gc;
-    uc16* char_buffer = seq->GetChars();
+    uc16* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
                               array_builder_.length());
     joined_string = Handle<String>::cast(seq);

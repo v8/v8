@@ -256,10 +256,10 @@ bool JsonParser<seq_one_byte>::ParseJsonString(Handle<String> expected) {
   int length = expected->length();
   if (source_->length() - position_ - 1 > length) {
     DisallowHeapAllocation no_gc;
-    String::FlatContent content = expected->GetFlatContent();
+    String::FlatContent content = expected->GetFlatContent(no_gc);
     if (content.IsOneByte()) {
       DCHECK_EQ('"', c0_);
-      const uint8_t* input_chars = seq_source_->GetChars() + position_ + 1;
+      const uint8_t* input_chars = seq_source_->GetChars(no_gc) + position_ + 1;
       const uint8_t* expected_chars = content.ToOneByteVector().start();
       for (int i = 0; i < length; i++) {
         uint8_t c0 = input_chars[i];
@@ -668,7 +668,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
   double number;
   if (seq_one_byte) {
     DisallowHeapAllocation no_gc;
-    Vector<const uint8_t> chars(seq_source_->GetChars() + beg_pos, length);
+    Vector<const uint8_t> chars(seq_source_->GetChars(no_gc) + beg_pos, length);
     number = StringToDouble(chars,
                             NO_FLAGS,  // Hex, octal or trailing junk.
                             std::numeric_limits<double>::quiet_NaN());
@@ -731,7 +731,7 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
   {
     DisallowHeapAllocation no_gc;
     // Copy prefix into seq_str.
-    SinkChar* dest = seq_string->GetChars();
+    SinkChar* dest = seq_string->GetChars(no_gc);
     String::WriteToFlat(*prefix, dest, start, end);
   }
 
@@ -899,8 +899,8 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
       }
       if (!element->IsTheHole(isolate())) {
         DisallowHeapAllocation no_gc;
-        Vector<const uint8_t> string_vector(seq_source_->GetChars() + position_,
-                                            length);
+        Vector<const uint8_t> string_vector(
+            seq_source_->GetChars(no_gc) + position_, length);
         if (String::cast(element)->IsOneByteEqualTo(string_vector)) {
           result = Handle<String>(String::cast(element), isolate());
           DCHECK_EQ(result->Hash(),
@@ -937,7 +937,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   Handle<String> result =
       factory()->NewRawOneByteString(length, pretenure_).ToHandleChecked();
   DisallowHeapAllocation no_gc;
-  uint8_t* dest = SeqOneByteString::cast(*result)->GetChars();
+  uint8_t* dest = SeqOneByteString::cast(*result)->GetChars(no_gc);
   String::WriteToFlat(*source_, dest, beg_pos, position_);
 
   DCHECK_EQ('"', c0_);

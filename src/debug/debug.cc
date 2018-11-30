@@ -2004,7 +2004,7 @@ void Debug::PrintBreakLocation() {
     int line_start = line == 0 ? 0 : Smi::ToInt(line_ends->get(line - 1)) + 1;
     int line_end = Smi::ToInt(line_ends->get(line));
     DisallowHeapAllocation no_gc;
-    String::FlatContent content = source->GetFlatContent();
+    String::FlatContent content = source->GetFlatContent(no_gc);
     if (content.IsOneByte()) {
       PrintF("[debug] %.*s\n", line_end - line_start,
              content.ToOneByteVector().start() + line_start);

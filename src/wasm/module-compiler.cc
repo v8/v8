@@ -2143,7 +2143,8 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
     v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
         isolate_, export_to, name, &desc, kThrowOnError);
     if (!status.IsJust()) {
-      TruncatedUserString<> trunc_name(name->GetCharVector<uint8_t>());
+      DisallowHeapAllocation no_gc;
+      TruncatedUserString<> trunc_name(name->GetCharVector<uint8_t>(no_gc));
       thrower_->LinkError("export of %.*s failed.", trunc_name.length(),
                           trunc_name.start());
       return;
