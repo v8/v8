@@ -36,9 +36,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
     return isolate->StackOverflow();
   }
-  IsCompiledScope is_compiled_scope;
-  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
-                         &is_compiled_scope)) {
+  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
     return ReadOnlyRoots(isolate).exception();
   }
   DCHECK(function->is_compiled());

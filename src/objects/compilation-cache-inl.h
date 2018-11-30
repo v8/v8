@@ -71,13 +71,6 @@ uint32_t CompilationCacheShape::HashForObject(Isolate* isolate,
                     Smi::cast(val->get(JSRegExp::kFlagsIndex)));
 }
 
-InfoCellPair::InfoCellPair(SharedFunctionInfo shared,
-                           FeedbackCell* feedback_cell)
-    : is_compiled_scope_(!shared.is_null() ? shared->is_compiled_scope()
-                                           : IsCompiledScope()),
-      shared_(shared),
-      feedback_cell_(feedback_cell) {}
-
 }  // namespace internal
 }  // namespace v8
 

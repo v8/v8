@@ -41,29 +41,16 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 class InfoCellPair {
  public:
   InfoCellPair() : feedback_cell_(nullptr) {}
-  inline InfoCellPair(SharedFunctionInfo shared, FeedbackCell* feedback_cell);
+  InfoCellPair(SharedFunctionInfo shared, FeedbackCell* feedback_cell)
+      : shared_(shared), feedback_cell_(feedback_cell) {}
 
-  FeedbackCell* feedback_cell() const {
-    DCHECK(is_compiled_scope_.is_compiled());
-    return feedback_cell_;
-  }
-  SharedFunctionInfo shared() const {
-    DCHECK(is_compiled_scope_.is_compiled());
-    return shared_;
-  }
+  FeedbackCell* feedback_cell() const { return feedback_cell_; }
+  SharedFunctionInfo shared() const { return shared_; }
 
-  bool has_feedback_cell() const {
-    return feedback_cell_ != nullptr && is_compiled_scope_.is_compiled();
-  }
-  bool has_shared() const {
-    // Only return true if SFI is compiled - the bytecode could have been
-    // flushed while it's in the compilation cache, and not yet have been
-    // removed form the compilation cache.
-    return !shared_.is_null() && is_compiled_scope_.is_compiled();
-  }
+  bool has_feedback_cell() const { return feedback_cell_ != nullptr; }
+  bool has_shared() const { return !shared_.is_null(); }
 
  private:
-  IsCompiledScope is_compiled_scope_;
   SharedFunctionInfo shared_;
   FeedbackCell* feedback_cell_;
 };

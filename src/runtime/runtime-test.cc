@@ -225,10 +225,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   }
 
   // If function isn't compiled, compile it now.
-  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
-  if (!is_compiled_scope.is_compiled() &&
-      !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
-                         &is_compiled_scope)) {
+  if (!function->shared()->is_compiled() &&
+      !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -717,9 +715,8 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   DCHECK_EQ(1, args.length());
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  IsCompiledScope is_compiled_scope;
   if (!func->is_compiled() &&
-      !Compiler::Compile(func, Compiler::KEEP_EXCEPTION, &is_compiled_scope)) {
+      !Compiler::Compile(func, Compiler::KEEP_EXCEPTION)) {
     return ReadOnlyRoots(isolate).exception();
   }
   StdoutStream os;

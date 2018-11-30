@@ -452,10 +452,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  IsCompiledScope is_compiled_scope(shared_info->is_compiled_scope());
-  if (!is_compiled_scope.is_compiled() &&
-      !Compiler::Compile(shared_info, Compiler::CLEAR_EXCEPTION,
-                         &is_compiled_scope)) {
+  if (!shared_info->is_compiled() &&
+      !Compiler::Compile(shared_info, Compiler::CLEAR_EXCEPTION)) {
     TRACE("Not inlining %s into %s because bytecode generation failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
