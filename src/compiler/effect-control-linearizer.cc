@@ -3926,6 +3926,9 @@ Node* EffectControlLinearizer::SmiMaxValueConstant() {
 }
 
 Node* EffectControlLinearizer::SmiShiftBitsConstant() {
+  if (machine()->Is64() && SmiValuesAre31Bits()) {
+    return __ Int32Constant(kSmiShiftSize + kSmiTagSize);
+  }
   return __ IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
