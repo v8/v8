@@ -21257,7 +21257,6 @@ TEST(IsolateDifferentContexts) {
 class InitDefaultIsolateThread : public v8::base::Thread {
  public:
   enum TestCase {
-    SetResourceConstraints,
     SetFatalHandler,
     SetCounterFunction,
     SetCreateHistogramFunction,
@@ -21272,22 +21271,9 @@ class InitDefaultIsolateThread : public v8::base::Thread {
   void Run() override {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-    switch (testCase_) {
-      case SetResourceConstraints: {
-        create_params.constraints.set_max_semi_space_size_in_kb(1024);
-        create_params.constraints.set_max_old_space_size(8);
-        break;
-      }
-      default:
-        break;
-    }
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     isolate->Enter();
     switch (testCase_) {
-      case SetResourceConstraints:
-        // Already handled in pre-Isolate-creation block.
-        break;
-
       case SetFatalHandler:
         isolate->SetFatalErrorHandler(nullptr);
         break;
@@ -21322,10 +21308,6 @@ static void InitializeTestHelper(InitDefaultIsolateThread::TestCase testCase) {
   thread.Start();
   thread.Join();
   CHECK(thread.result());
-}
-
-TEST(InitializeDefaultIsolateOnSecondaryThread_ResourceConstraints) {
-  InitializeTestHelper(InitDefaultIsolateThread::SetResourceConstraints);
 }
 
 TEST(InitializeDefaultIsolateOnSecondaryThread_FatalHandler) {

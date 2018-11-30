@@ -238,9 +238,6 @@
   'test-serialize/CustomSnapshotDataBlobWithWarmup': [SKIP],
   'test-serialize/SnapshotDataBlobWithWarmup': [SKIP],
 
-  # https://crbug.com/v8/8521
-  'test-api/InitializeDefaultIsolateOnSecondaryThread_ResourceConstraints': [SKIP],
-
   # https://crbug.com/v8/7763
   'test-lockers/ExtensionsRegistration': [SKIP],
 }],  # 'no_snap == True'
