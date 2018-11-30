@@ -73,12 +73,6 @@ void TypeofDescriptor::InitializePlatformSpecific(
 // static
 const Register TypeConversionDescriptor::ArgumentRegister() { return rax; }
 
-void CallFunctionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {rdi};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void CallTrampolineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // rax : number of arguments

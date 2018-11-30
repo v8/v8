@@ -6807,21 +6807,6 @@ class V8_EXPORT HeapCodeStatistics {
 
 class RetainedObjectInfo;
 
-
-/**
- * FunctionEntryHook is the type of the profile entry hook called at entry to
- * any generated function when function-level profiling is enabled.
- *
- * \param function the address of the function that's being entered.
- * \param return_addr_location points to a location on stack where the machine
- *    return address resides. This can be used to identify the caller of
- *    \p function, and/or modified to divert execution when \p function exits.
- *
- * \note the entry hook must not cause garbage collection.
- */
-typedef void (*FunctionEntryHook)(uintptr_t function,
-                                  uintptr_t return_addr_location);
-
 /**
  * A JIT code event is issued each time code is added, moved or removed.
  *
@@ -7121,8 +7106,7 @@ class V8_EXPORT Isolate {
    */
   struct CreateParams {
     CreateParams()
-        : entry_hook(nullptr),
-          code_event_handler(nullptr),
+        : code_event_handler(nullptr),
           snapshot_blob(nullptr),
           counter_lookup_callback(nullptr),
           create_histogram_callback(nullptr),
@@ -7131,17 +7115,6 @@ class V8_EXPORT Isolate {
           external_references(nullptr),
           allow_atomics_wait(true),
           only_terminate_in_safe_scope(false) {}
-
-    /**
-     * The optional entry_hook allows the host application to provide the
-     * address of a function that's invoked on entry to every V8-generated
-     * function.  Note that entry_hook is invoked at the very start of each
-     * generated function.
-     * An entry_hook can only be provided in no-snapshot builds; in snapshot
-     * builds it must be nullptr.
-     * TODO(v8:8503): Remove entry_hook.
-     */
-    FunctionEntryHook entry_hook;
 
     /**
      * Allows the host application to provide the address of a function that is

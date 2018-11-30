@@ -38,7 +38,6 @@ namespace internal {
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
   V(AsyncFunctionStackParameter)      \
-  V(CallFunction)                     \
   V(CallVarargs)                      \
   V(CallForwardVarargs)               \
   V(CallWithSpread)                   \
@@ -807,13 +806,6 @@ class ConstructStubDescriptor : public CallInterfaceDescriptor {
 
   // TODO(ishell): Use DECLARE_JS_COMPATIBLE_DESCRIPTOR if registers match
   DECLARE_DESCRIPTOR(ConstructStubDescriptor, CallInterfaceDescriptor)
-};
-
-class CallFunctionDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kTarget)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
-  DECLARE_DESCRIPTOR(CallFunctionDescriptor, CallInterfaceDescriptor)
 };
 
 class AbortDescriptor : public CallInterfaceDescriptor {
