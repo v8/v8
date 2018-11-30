@@ -3,5 +3,5 @@
 // found in the LICENSE file.
 
 function f() {}
-var a = Array(65534);
+var a = Array(2 ** 16);  // Elements in large-object-space.
 f.bind(...a);
