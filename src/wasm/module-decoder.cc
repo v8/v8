@@ -360,7 +360,7 @@ class ModuleDecoderImpl : public Decoder {
         return CheckSectionOrder(section_code, kElementSectionCode,
                                  kCodeSectionCode);
       case kExceptionSectionCode:
-        return CheckSectionOrder(section_code, kImportSectionCode,
+        return CheckSectionOrder(section_code, kGlobalSectionCode,
                                  kExportSectionCode);
       default:
         UNREACHABLE();

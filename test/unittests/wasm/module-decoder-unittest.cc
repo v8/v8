@@ -576,26 +576,26 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterExport) {
                 "The Exception section must appear before the Export section");
 }
 
-TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
+TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeGlobal) {
   static const byte data[] = {SECTION(Exception, ENTRY_COUNT(0)),
-                              SECTION(Import, ENTRY_COUNT(0))};
+                              SECTION(Global, ENTRY_COUNT(0))};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result, "unexpected section: Import");
+  EXPECT_NOT_OK(result, "unexpected section: Global");
 }
 
-TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterTypeBeforeImport) {
-  STATIC_ASSERT(kTypeSectionCode + 1 == kImportSectionCode);
-  static const byte data[] = {SECTION(Type, ENTRY_COUNT(0)),
+TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterMemoryBeforeGlobal) {
+  STATIC_ASSERT(kMemorySectionCode + 1 == kGlobalSectionCode);
+  static const byte data[] = {SECTION(Memory, ENTRY_COUNT(0)),
                               SECTION(Exception, ENTRY_COUNT(0)),
-                              SECTION(Import, ENTRY_COUNT(0))};
+                              SECTION(Global, ENTRY_COUNT(0))};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result, "unexpected section: Import");
+  EXPECT_NOT_OK(result, "unexpected section: Global");
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionImport) {
