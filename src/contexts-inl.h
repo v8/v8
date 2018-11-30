@@ -9,6 +9,7 @@
 
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects-inl.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/regexp-match-info.h"

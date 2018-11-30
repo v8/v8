@@ -10,6 +10,7 @@
 #include "src/code-factory.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects.h"
+#include "src/objects/property-cell.h"
 
 namespace v8 {
 namespace internal {

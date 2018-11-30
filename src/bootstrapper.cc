@@ -47,6 +47,7 @@
 #include "src/objects/js-segmenter.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-weak-refs.h"
+#include "src/objects/property-cell.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/templates.h"
 #include "src/snapshot/natives.h"

@@ -22,6 +22,7 @@ class Handle;
 class Heap;
 class Isolate;
 class Map;
+class PropertyCell;
 class String;
 class Symbol;
 class RootVisitor;

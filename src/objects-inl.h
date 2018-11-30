@@ -36,6 +36,7 @@
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/slots-inl.h"
@@ -431,73 +432,6 @@ ObjectHashSet::ObjectHashSet(Address ptr)
   SLOW_DCHECK(IsObjectHashSet());
 }
 
-template <typename Derived, typename Shape>
-Dictionary<Derived, Shape>::Dictionary(Address ptr)
-    : HashTable<Derived, Shape>(ptr) {}
-
-template <typename Derived, typename Shape>
-BaseNameDictionary<Derived, Shape>::BaseNameDictionary(Address ptr)
-    : Dictionary<Derived, Shape>(ptr) {}
-
-GlobalDictionary::GlobalDictionary(Address ptr)
-    : BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsGlobalDictionary());
-}
-
-NameDictionary::NameDictionary(Address ptr)
-    : BaseNameDictionary<NameDictionary, NameDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsNameDictionary());
-}
-
-NumberDictionary::NumberDictionary(Address ptr)
-    : Dictionary<NumberDictionary, NumberDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsNumberDictionary());
-}
-
-SimpleNumberDictionary::SimpleNumberDictionary(Address ptr)
-    : Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsSimpleNumberDictionary());
-}
-
-StringTable::StringTable(Address ptr)
-    : HashTable<StringTable, StringTableShape>(ptr) {
-  SLOW_DCHECK(IsStringTable());
-}
-
-StringSet::StringSet(Address ptr) : HashTable<StringSet, StringSetShape>(ptr) {
-  SLOW_DCHECK(IsStringSet());
-}
-
-template <class Derived, int entrysize>
-OrderedHashTable<Derived, entrysize>::OrderedHashTable(Address ptr)
-    : FixedArray(ptr) {}
-
-OrderedHashSet::OrderedHashSet(Address ptr)
-    : OrderedHashTable<OrderedHashSet, 1>(ptr) {
-  SLOW_DCHECK(IsOrderedHashSet());
-}
-
-OrderedHashMap::OrderedHashMap(Address ptr)
-    : OrderedHashTable<OrderedHashMap, 2>(ptr) {
-  SLOW_DCHECK(IsOrderedHashMap());
-}
-
-OrderedNameDictionary::OrderedNameDictionary(Address ptr)
-    : OrderedHashTable<OrderedNameDictionary, 3>(ptr) {
-  SLOW_DCHECK(IsOrderedNameDictionary());
-}
-
-template <class Derived>
-SmallOrderedHashTable<Derived>::SmallOrderedHashTable(Address ptr)
-    : HeapObjectPtr(ptr) {}
-
-OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashSet,
-                         SmallOrderedHashTable<SmallOrderedHashSet>)
-OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashMap,
-                         SmallOrderedHashTable<SmallOrderedHashMap>)
-OBJECT_CONSTRUCTORS_IMPL(SmallOrderedNameDictionary,
-                         SmallOrderedHashTable<SmallOrderedNameDictionary>)
-
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
 
@@ -526,29 +460,16 @@ CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(FeedbackCell)
 CAST_ACCESSOR(Foreign)
-CAST_ACCESSOR2(GlobalDictionary)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(MutableHeapNumber)
-CAST_ACCESSOR2(OrderedNameDictionary)
-CAST_ACCESSOR2(NameDictionary)
 CAST_ACCESSOR2(NormalizedMapCache)
-CAST_ACCESSOR2(NumberDictionary)
 CAST_ACCESSOR(Object)
 CAST_ACCESSOR2(ObjectHashSet)
 CAST_ACCESSOR2(ObjectHashTable)
 CAST_ACCESSOR(Oddball)
-CAST_ACCESSOR2(OrderedHashMap)
-CAST_ACCESSOR2(OrderedHashSet)
-CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR2(RegExpMatchInfo)
 CAST_ACCESSOR2(ScopeInfo)
-CAST_ACCESSOR2(SimpleNumberDictionary)
-CAST_ACCESSOR2(SmallOrderedHashMap)
-CAST_ACCESSOR2(SmallOrderedHashSet)
-CAST_ACCESSOR2(SmallOrderedNameDictionary)
-CAST_ACCESSOR2(StringSet)
-CAST_ACCESSOR2(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
@@ -976,19 +897,6 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
 
 ACCESSORS(Cell, value, Object, kValueOffset)
 ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
-ACCESSORS2(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
-ACCESSORS2(PropertyCell, name, Name, kNameOffset)
-ACCESSORS(PropertyCell, value, Object, kValueOffset)
-ACCESSORS(PropertyCell, property_details_raw, Object, kDetailsOffset)
-
-PropertyDetails PropertyCell::property_details() const {
-  return PropertyDetails(Smi::cast(property_details_raw()));
-}
-
-
-void PropertyCell::set_property_details(PropertyDetails details) {
-  set_property_details_raw(details.AsSmi());
-}
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
   return instance_type <= LAST_SPECIAL_RECEIVER_TYPE;
@@ -1418,58 +1326,6 @@ void DescriptorArray::set(int index, MaybeObject value) {
   WEAK_WRITE_BARRIER(this, offset(index), value);
 }
 
-bool StringSetShape::IsMatch(String key, Object* value) {
-  DCHECK(value->IsString());
-  return key->Equals(String::cast(value));
-}
-
-uint32_t StringSetShape::Hash(Isolate* isolate, String key) {
-  return key->Hash();
-}
-
-uint32_t StringSetShape::HashForObject(Isolate* isolate, Object* object) {
-  return String::cast(object)->Hash();
-}
-
-StringTableKey::StringTableKey(uint32_t hash_field)
-    : HashTableKey(hash_field >> Name::kHashShift), hash_field_(hash_field) {}
-
-void StringTableKey::set_hash_field(uint32_t hash_field) {
-  hash_field_ = hash_field;
-  set_hash(hash_field >> Name::kHashShift);
-}
-
-Handle<Object> StringTableShape::AsHandle(Isolate* isolate,
-                                          StringTableKey* key) {
-  return key->AsHandle(isolate);
-}
-
-uint32_t StringTableShape::HashForObject(Isolate* isolate, Object* object) {
-  return String::cast(object)->Hash();
-}
-
-RootIndex StringTableShape::GetMapRootIndex() {
-  return RootIndex::kStringTableMap;
-}
-
-bool NumberDictionary::requires_slow_elements() {
-  Object* max_index_object = get(kMaxNumberKeyIndex);
-  if (!max_index_object->IsSmi()) return false;
-  return 0 != (Smi::ToInt(max_index_object) & kRequiresSlowElementsMask);
-}
-
-uint32_t NumberDictionary::max_number_key() {
-  DCHECK(!requires_slow_elements());
-  Object* max_index_object = get(kMaxNumberKeyIndex);
-  if (!max_index_object->IsSmi()) return 0;
-  uint32_t value = static_cast<uint32_t>(Smi::ToInt(max_index_object));
-  return value >> kRequiresSlowElementsTagSize;
-}
-
-void NumberDictionary::set_requires_slow_elements() {
-  set(kMaxNumberKeyIndex, Smi::FromInt(kRequiresSlowElementsMask));
-}
-
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(TranslationByteArray, ByteArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS2(LiteralArray, FixedArray)
@@ -1645,15 +1501,6 @@ void Foreign::set_foreign_address(Address value) {
   WRITE_UINTPTR_FIELD(this, kForeignAddressOffset, value);
 }
 
-template <class Derived>
-void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
-                                                  Object* value) {
-  DCHECK_NE(kNotFound, entry);
-  Address entry_offset = GetDataEntryOffset(entry, relative_index);
-  RELAXED_WRITE_FIELD(this, entry_offset, value);
-  WRITE_BARRIER(this, static_cast<int>(entry_offset), value);
-}
-
 // static
 Maybe<bool> Object::GreaterThan(Isolate* isolate, Handle<Object> x,
                                 Handle<Object> y) {
@@ -1791,157 +1638,6 @@ bool AccessorPair::IsJSAccessor(Object* obj) {
   return obj->IsCallable() || obj->IsUndefined();
 }
 
-template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::ClearEntry(Isolate* isolate, int entry) {
-  Object* the_hole = this->GetReadOnlyRoots().the_hole_value();
-  PropertyDetails details = PropertyDetails::Empty();
-  Derived::cast(*this)->SetEntry(isolate, entry, the_hole, the_hole, details);
-}
-
-template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::SetEntry(Isolate* isolate, int entry,
-                                          Object* key, Object* value,
-                                          PropertyDetails details) {
-  DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
-  DCHECK(!key->IsName() || details.dictionary_index() > 0);
-  int index = DerivedHashTable::EntryToIndex(entry);
-  DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
-  this->set(index + Derived::kEntryKeyIndex, key, mode);
-  this->set(index + Derived::kEntryValueIndex, value, mode);
-  if (Shape::kHasDetails) DetailsAtPut(isolate, entry, details);
-}
-
-Object* GlobalDictionaryShape::Unwrap(Object* object) {
-  return PropertyCell::cast(object)->name();
-}
-
-RootIndex GlobalDictionaryShape::GetMapRootIndex() {
-  return RootIndex::kGlobalDictionaryMap;
-}
-
-Name NameDictionary::NameAt(int entry) { return Name::cast(KeyAt(entry)); }
-
-RootIndex NameDictionaryShape::GetMapRootIndex() {
-  return RootIndex::kNameDictionaryMap;
-}
-
-PropertyCell* GlobalDictionary::CellAt(int entry) {
-  DCHECK(KeyAt(entry)->IsPropertyCell());
-  return PropertyCell::cast(KeyAt(entry));
-}
-
-bool GlobalDictionaryShape::IsLive(ReadOnlyRoots roots, Object* k) {
-  DCHECK_NE(roots.the_hole_value(), k);
-  return k != roots.undefined_value();
-}
-
-bool GlobalDictionaryShape::IsKey(ReadOnlyRoots roots, Object* k) {
-  return IsLive(roots, k) && !PropertyCell::cast(k)->value()->IsTheHole(roots);
-}
-
-Name GlobalDictionary::NameAt(int entry) { return CellAt(entry)->name(); }
-Object* GlobalDictionary::ValueAt(int entry) { return CellAt(entry)->value(); }
-
-void GlobalDictionary::SetEntry(Isolate* isolate, int entry, Object* key,
-                                Object* value, PropertyDetails details) {
-  DCHECK_EQ(key, PropertyCell::cast(value)->name());
-  set(EntryToIndex(entry) + kEntryKeyIndex, value);
-  DetailsAtPut(isolate, entry, details);
-}
-
-void GlobalDictionary::ValueAtPut(int entry, Object* value) {
-  set(EntryToIndex(entry), value);
-}
-
-bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Object* other) {
-  DCHECK(other->IsNumber());
-  return key == static_cast<uint32_t>(other->Number());
-}
-
-uint32_t NumberDictionaryBaseShape::Hash(Isolate* isolate, uint32_t key) {
-  return ComputeSeededHash(key, isolate->heap()->HashSeed());
-}
-
-uint32_t NumberDictionaryBaseShape::HashForObject(Isolate* isolate,
-                                                  Object* other) {
-  DCHECK(other->IsNumber());
-  return ComputeSeededHash(static_cast<uint32_t>(other->Number()),
-                           isolate->heap()->HashSeed());
-}
-
-Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
-                                                   uint32_t key) {
-  return isolate->factory()->NewNumberFromUint(key);
-}
-
-RootIndex NumberDictionaryShape::GetMapRootIndex() {
-  return RootIndex::kNumberDictionaryMap;
-}
-
-RootIndex SimpleNumberDictionaryShape::GetMapRootIndex() {
-  return RootIndex::kSimpleNumberDictionaryMap;
-}
-
-bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {
-  DCHECK(other->IsTheHole() || Name::cast(other)->IsUniqueName());
-  DCHECK(key->IsUniqueName());
-  return *key == other;
-}
-
-uint32_t NameDictionaryShape::Hash(Isolate* isolate, Handle<Name> key) {
-  return key->Hash();
-}
-
-uint32_t NameDictionaryShape::HashForObject(Isolate* isolate, Object* other) {
-  return Name::cast(other)->Hash();
-}
-
-bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object* other) {
-  DCHECK(PropertyCell::cast(other)->name()->IsUniqueName());
-  return *key == PropertyCell::cast(other)->name();
-}
-
-uint32_t GlobalDictionaryShape::HashForObject(Isolate* isolate, Object* other) {
-  return PropertyCell::cast(other)->name()->Hash();
-}
-
-Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
-                                             Handle<Name> key) {
-  DCHECK(key->IsUniqueName());
-  return key;
-}
-
-template <typename Dictionary>
-PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary dict, int entry) {
-  DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
-  return dict->CellAt(entry)->property_details();
-}
-
-template <typename Dictionary>
-void GlobalDictionaryShape::DetailsAtPut(Isolate* isolate, Dictionary dict,
-                                         int entry, PropertyDetails value) {
-  DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
-  PropertyCell* cell = dict->CellAt(entry);
-  if (cell->property_details().IsReadOnly() != value.IsReadOnly()) {
-    cell->dependent_code()->DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPropertyCellChangedGroup);
-  }
-  cell->set_property_details(value);
-}
-
-bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object* other) {
-  return key->SameValue(other);
-}
-
-uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
-  return Smi::ToInt(key->GetHash());
-}
-
-uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
-  return Smi::ToInt(other->GetHash());
-}
-
 // static
 Object* Object::GetSimpleHash(Object* object) {
   DisallowHeapAllocation no_gc;
@@ -2003,16 +1699,6 @@ Relocatable::Relocatable(Isolate* isolate) {
 Relocatable::~Relocatable() {
   DCHECK_EQ(isolate_->relocatable_top(), this);
   isolate_->set_relocatable_top(prev_);
-}
-
-
-template<class Derived, class TableType>
-Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
-  TableType table = TableType::cast(this->table());
-  int index = Smi::ToInt(this->index());
-  Object* key = table->KeyAt(index);
-  DCHECK(!key->IsTheHole());
-  return key;
 }
 
 // Predictably converts HeapObject* or Address to uint32 by calculating

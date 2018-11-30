@@ -10,6 +10,7 @@
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects/arguments.h"
+#include "src/objects/property-cell.h"
 
 namespace v8 {
 namespace internal {

@@ -131,6 +131,18 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
   return FindEntry(ReadOnlyRoots(isolate), key, Smi::ToInt(hash)) != kNotFound;
 }
 
+bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object* other) {
+  return key->SameValue(other);
+}
+
+uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
+  return Smi::ToInt(key->GetHash());
+}
+
+uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
+  return Smi::ToInt(other->GetHash());
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -13,6 +13,7 @@
 #include "src/frame-constants.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/arguments-inl.h"
+#include "src/objects/property-cell.h"
 
 namespace v8 {
 namespace internal {

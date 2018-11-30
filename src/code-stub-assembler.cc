@@ -11,6 +11,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/ordered-hash-table-inl.h"
+#include "src/objects/property-cell.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {

@@ -16,6 +16,43 @@
 namespace v8 {
 namespace internal {
 
+CAST_ACCESSOR2(OrderedNameDictionary)
+CAST_ACCESSOR2(SmallOrderedNameDictionary)
+CAST_ACCESSOR2(OrderedHashMap)
+CAST_ACCESSOR2(OrderedHashSet)
+CAST_ACCESSOR2(SmallOrderedHashMap)
+CAST_ACCESSOR2(SmallOrderedHashSet)
+
+template <class Derived, int entrysize>
+OrderedHashTable<Derived, entrysize>::OrderedHashTable(Address ptr)
+    : FixedArray(ptr) {}
+
+OrderedHashSet::OrderedHashSet(Address ptr)
+    : OrderedHashTable<OrderedHashSet, 1>(ptr) {
+  SLOW_DCHECK(IsOrderedHashSet());
+}
+
+OrderedHashMap::OrderedHashMap(Address ptr)
+    : OrderedHashTable<OrderedHashMap, 2>(ptr) {
+  SLOW_DCHECK(IsOrderedHashMap());
+}
+
+OrderedNameDictionary::OrderedNameDictionary(Address ptr)
+    : OrderedHashTable<OrderedNameDictionary, 3>(ptr) {
+  SLOW_DCHECK(IsOrderedNameDictionary());
+}
+
+template <class Derived>
+SmallOrderedHashTable<Derived>::SmallOrderedHashTable(Address ptr)
+    : HeapObjectPtr(ptr) {}
+
+OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashSet,
+                         SmallOrderedHashTable<SmallOrderedHashSet>)
+OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashMap,
+                         SmallOrderedHashTable<SmallOrderedHashMap>)
+OBJECT_CONSTRUCTORS_IMPL(SmallOrderedNameDictionary,
+                         SmallOrderedHashTable<SmallOrderedNameDictionary>)
+
 RootIndex OrderedHashSet::GetMapRootIndex() {
   return RootIndex::kOrderedHashSetMap;
 }
@@ -114,6 +151,25 @@ inline bool SmallOrderedHashSet::Is(Handle<HeapObject> table) {
 inline bool SmallOrderedHashMap::Is(Handle<HeapObject> table) {
   return table->IsSmallOrderedHashMap();
 }
+
+template <class Derived>
+void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
+                                                  Object* value) {
+  DCHECK_NE(kNotFound, entry);
+  Address entry_offset = GetDataEntryOffset(entry, relative_index);
+  RELAXED_WRITE_FIELD(this, entry_offset, value);
+  WRITE_BARRIER(this, static_cast<int>(entry_offset), value);
+}
+
+template <class Derived, class TableType>
+Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
+  TableType table = TableType::cast(this->table());
+  int index = Smi::ToInt(this->index());
+  Object* key = table->KeyAt(index);
+  DCHECK(!key->IsTheHole());
+  return key;
+}
+
 }  // namespace internal
 }  // namespace v8
 
