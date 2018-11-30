@@ -1272,7 +1272,9 @@ void Debug::InstallDebugBreakTrampoline() {
   // By overwriting the function code with DebugBreakTrampoline, which tailcalls
   // to shared code, we bypass CompileLazy. Perform CompileLazy here instead.
   for (Handle<JSFunction> fun : needs_compile) {
-    Compiler::Compile(fun, Compiler::CLEAR_EXCEPTION);
+    IsCompiledScope is_compiled_scope;
+    Compiler::Compile(fun, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
+    DCHECK(is_compiled_scope.is_compiled());
     fun->set_code(*trampoline);
   }
 }
@@ -1320,6 +1322,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
   while (true) {
     HandleScope scope(isolate_);
     std::vector<Handle<SharedFunctionInfo>> candidates;
+    std::vector<IsCompiledScope> compiled_scopes;
     SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
     for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
          info = iterator.Next()) {
@@ -1336,13 +1339,17 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     for (const auto& candidate : candidates) {
       // Code that cannot be compiled lazily are internal and not debuggable.
       DCHECK(candidate->allows_lazy_compilation());
-      if (!candidate->is_compiled()) {
-        if (!Compiler::Compile(candidate, Compiler::CLEAR_EXCEPTION)) {
+      IsCompiledScope is_compiled_scope(candidate->is_compiled_scope());
+      if (!is_compiled_scope.is_compiled()) {
+        if (!Compiler::Compile(candidate, Compiler::CLEAR_EXCEPTION,
+                               &is_compiled_scope)) {
           return false;
         } else {
           was_compiled = true;
         }
       }
+      DCHECK(is_compiled_scope.is_compiled());
+      compiled_scopes.push_back(is_compiled_scope);
       if (!EnsureBreakInfo(candidate)) return false;
       PrepareFunctionForDebugExecution(candidate);
     }
@@ -1424,6 +1431,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     // no point in looking for it by walking the heap.
 
     SharedFunctionInfo shared;
+    IsCompiledScope is_compiled_scope;
     {
       SharedFunctionInfoFinder finder(position);
       SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
@@ -1434,7 +1442,8 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       shared = finder.Result();
       if (shared.is_null()) break;
       // We found it if it's already compiled.
-      if (shared->is_compiled()) {
+      is_compiled_scope = shared->is_compiled_scope();
+      if (is_compiled_scope.is_compiled()) {
         Handle<SharedFunctionInfo> shared_handle(shared, isolate_);
         // If the iteration count is larger than 1, we had to compile the outer
         // function in order to create this shared function info. So there can
@@ -1451,8 +1460,10 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     HandleScope scope(isolate_);
     // Code that cannot be compiled lazily are internal and not debuggable.
     DCHECK(shared->allows_lazy_compilation());
-    if (!Compiler::Compile(handle(shared, isolate_), Compiler::CLEAR_EXCEPTION))
+    if (!Compiler::Compile(handle(shared, isolate_), Compiler::CLEAR_EXCEPTION,
+                           &is_compiled_scope)) {
       break;
+    }
   }
   return isolate_->factory()->undefined_value();
 }
@@ -1465,8 +1476,10 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
   if (!shared->IsSubjectToDebugging() && !CanBreakAtEntry(shared)) {
     return false;
   }
-  if (!shared->is_compiled() &&
-      !Compiler::Compile(shared, Compiler::CLEAR_EXCEPTION)) {
+  IsCompiledScope is_compiled_scope = shared->is_compiled_scope();
+  if (!is_compiled_scope.is_compiled() &&
+      !Compiler::Compile(shared, Compiler::CLEAR_EXCEPTION,
+                         &is_compiled_scope)) {
     return false;
   }
   CreateBreakInfo(shared);
@@ -2137,10 +2150,13 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
                                    Handle<Object> receiver) {
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   DisallowJavascriptExecution no_js(isolate_);
+  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
   if (!function->is_compiled() &&
-      !Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
+      !Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
+                         &is_compiled_scope)) {
     return false;
   }
+  DCHECK(is_compiled_scope.is_compiled());
   Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
   Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
   DebugInfo::SideEffectState side_effect_state =

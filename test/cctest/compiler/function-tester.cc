@@ -142,8 +142,10 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  CHECK(function->is_compiled() ||
-        Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
+  IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+  CHECK(is_compiled_scope.is_compiled() ||
+        Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
+                          &is_compiled_scope));
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function);
