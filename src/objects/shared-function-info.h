@@ -21,6 +21,7 @@ class AsmWasmData;
 class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
+class IsCompiledScope;
 class WasmExportedFunctionData;
 
 // Data collected by the pre-parser storing information about scopes and inner
@@ -246,8 +247,16 @@ class SharedFunctionInfo : public HeapObjectPtr {
   inline bool HasFeedbackMetadata() const;
   DECL_ACCESSORS2(feedback_metadata, FeedbackMetadata)
 
-  // Returns if this function has been compiled to native code yet.
+  // Returns if this function has been compiled yet. Note: with bytecode
+  // flushing, any GC after this call is made could cause the function
+  // to become uncompiled. If you need to ensure the function remains compiled
+  // for some period of time, use IsCompiledScope instead.
   inline bool is_compiled() const;
+
+  // Returns an IsCompiledScope which reports whether the function is compiled,
+  // and if compiled, will avoid the function becoming uncompiled while it is
+  // held.
+  inline IsCompiledScope is_compiled_scope() const;
 
   // [length]: The function length - usually the number of declared parameters.
   // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
@@ -689,6 +698,21 @@ struct SourceCodeOf {
       : value(v), max_length(max) {}
   const SharedFunctionInfo value;
   int max_length;
+};
+
+// IsCompiledScope enables a caller to check if a function is compiled, and
+// ensure it remains compiled (i.e., doesn't have it's bytecode flushed) while
+// the scope is retained.
+class IsCompiledScope {
+ public:
+  inline IsCompiledScope(const SharedFunctionInfo shared, Isolate* isolate);
+  inline IsCompiledScope() : retain_bytecode_(), is_compiled_(false) {}
+
+  inline bool is_compiled() const { return is_compiled_; }
+
+ private:
+  MaybeHandle<BytecodeArray> retain_bytecode_;
+  bool is_compiled_;
 };
 
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v);

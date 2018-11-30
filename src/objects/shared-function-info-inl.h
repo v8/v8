@@ -368,6 +368,19 @@ bool SharedFunctionInfo::is_compiled() const {
          !data->IsUncompiledData();
 }
 
+IsCompiledScope SharedFunctionInfo::is_compiled_scope() const {
+  return IsCompiledScope(*this, GetIsolate());
+}
+
+IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
+                                 Isolate* isolate)
+    : retain_bytecode_(shared->HasBytecodeArray()
+                           ? handle(shared->GetBytecodeArray(), isolate)
+                           : MaybeHandle<BytecodeArray>()),
+      is_compiled_(shared->is_compiled()) {
+  DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
+}
+
 uint16_t SharedFunctionInfo::GetLength() const {
   DCHECK(is_compiled());
   DCHECK(HasLength());

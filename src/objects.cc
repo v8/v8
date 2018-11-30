@@ -6237,12 +6237,14 @@ Handle<Object> JSFunction::GetName(Isolate* isolate,
 Maybe<int> JSFunction::GetLength(Isolate* isolate,
                                  Handle<JSFunction> function) {
   int length = 0;
-  if (function->shared()->is_compiled()) {
+  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
+  if (is_compiled_scope.is_compiled()) {
     length = function->shared()->GetLength();
   } else {
     // If the function isn't compiled yet, the length is not computed
     // correctly yet. Compile it now and return the right length.
-    if (Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
+    if (Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
+                          &is_compiled_scope)) {
       length = function->shared()->GetLength();
     }
     if (isolate->has_pending_exception()) return Nothing<int>();
@@ -12683,9 +12685,11 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
 // static
 void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
   Isolate* const isolate = function->GetIsolate();
+  DCHECK(function->shared()->is_compiled());
   if (function->feedback_cell()->value()->IsUndefined(isolate)) {
     Handle<SharedFunctionInfo> shared(function->shared(), isolate);
     if (!shared->HasAsmWasmData()) {
+      DCHECK(function->shared()->HasBytecodeArray());
       Handle<FeedbackVector> feedback_vector =
           FeedbackVector::New(isolate, shared);
       if (function->feedback_cell() == isolate->heap()->many_closures_cell()) {
@@ -13360,8 +13364,10 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   // The constructor should be compiled for the optimization hints to be
   // available.
   int expected_nof_properties = 0;
-  if (function->shared()->is_compiled() ||
-      Compiler::Compile(function, Compiler::CLEAR_EXCEPTION)) {
+  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
+  if (is_compiled_scope.is_compiled() ||
+      Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
+                        &is_compiled_scope)) {
     DCHECK(function->shared()->is_compiled());
     expected_nof_properties = function->shared()->expected_nof_properties();
   }
@@ -14214,8 +14220,10 @@ bool JSFunction::CalculateInstanceSizeForDerivedClass(
     // The super constructor should be compiled for the number of expected
     // properties to be available.
     Handle<SharedFunctionInfo> shared(func->shared(), isolate);
-    if (shared->is_compiled() ||
-        Compiler::Compile(func, Compiler::CLEAR_EXCEPTION)) {
+    IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+    if (is_compiled_scope.is_compiled() ||
+        Compiler::Compile(func, Compiler::CLEAR_EXCEPTION,
+                          &is_compiled_scope)) {
       DCHECK(shared->is_compiled());
       int count = shared->expected_nof_properties();
       // Check that the estimate is sane.
@@ -14224,7 +14232,7 @@ bool JSFunction::CalculateInstanceSizeForDerivedClass(
       } else {
         expected_nof_properties = JSObject::kMaxInObjectProperties;
       }
-    } else if (!shared->is_compiled()) {
+    } else {
       // In case there was a compilation error for the constructor we will
       // throw an error during instantiation. Hence we directly return 0;
       return false;
