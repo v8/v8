@@ -111,31 +111,6 @@ TEST(AnyIdentifierToken) {
   }
 }
 
-bool TokenIsAnyIdentifierOrEnum(Token::Value token) {
-  switch (token) {
-    case Token::IDENTIFIER:
-    case Token::ASYNC:
-    case Token::AWAIT:
-    case Token::YIELD:
-    case Token::LET:
-    case Token::STATIC:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-    case Token::ESCAPED_STRICT_RESERVED_WORD:
-    case Token::ENUM:
-      return true;
-    default:
-      return false;
-  }
-}
-
-TEST(AnyIdentifierOrEnumToken) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value token = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsAnyIdentifierOrEnum(token),
-             Token::IsAnyIdentifierOrEnum(token));
-  }
-}
-
 bool TokenIsCallable(Token::Value token) {
   switch (token) {
     case Token::SUPER:
@@ -147,7 +122,6 @@ bool TokenIsCallable(Token::Value token) {
     case Token::STATIC:
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::ESCAPED_STRICT_RESERVED_WORD:
-    case Token::ENUM:
       return true;
     default:
       return false;
@@ -197,17 +171,6 @@ TEST(IsValidIdentifierToken) {
         }
       }
     }
-  }
-}
-
-bool TokenIsAwaitOrYield(Token::Value token) {
-  return token == Token::AWAIT || token == Token::YIELD;
-}
-
-TEST(IsAwaitOrYield) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value token = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsAwaitOrYield(token), Token::IsAwaitOrYield(token));
   }
 }
 

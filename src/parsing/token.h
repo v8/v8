@@ -173,18 +173,16 @@ namespace internal {
   T(IDENTIFIER, nullptr, 0)                                        \
   K(ASYNC, "async", 0)                                             \
   /* `await` is a reserved word in module code only */             \
-  /* BEGIN AwaitOrYield */                                         \
   K(AWAIT, "await", 0)                                             \
   K(YIELD, "yield", 0)                                             \
-  /* END AwaitOrYield */                                           \
   K(LET, "let", 0)                                                 \
   K(STATIC, "static", 0)                                           \
   /* Future reserved words (ECMA-262, section 7.6.1.2). */         \
   T(FUTURE_STRICT_RESERVED_WORD, nullptr, 0)                       \
   T(ESCAPED_STRICT_RESERVED_WORD, nullptr, 0)                      \
-  K(ENUM, "enum", 0)                                               \
-  /* END Callable */                                               \
   /* END AnyIdentifier */                                          \
+  /* END Callable */                                               \
+  K(ENUM, "enum", 0)                                               \
   K(CLASS, "class", 0)                                             \
   K(CONST, "const", 0)                                             \
   K(EXPORT, "export", 0)                                           \
@@ -230,7 +228,9 @@ class Token {
     return IsStrictReservedWord(token) && is_sloppy(language_mode);
   }
 
-  static bool IsCallable(Value token) { return IsInRange(token, SUPER, ENUM); }
+  static bool IsCallable(Value token) {
+    return IsInRange(token, SUPER, ESCAPED_STRICT_RESERVED_WORD);
+  }
 
   static bool IsAutoSemicolon(Value token) {
     return IsInRange(token, SEMICOLON, EOS);
@@ -238,14 +238,6 @@ class Token {
 
   static bool IsAnyIdentifier(Value token) {
     return IsInRange(token, IDENTIFIER, ESCAPED_STRICT_RESERVED_WORD);
-  }
-
-  static bool IsAnyIdentifierOrEnum(Value token) {
-    return IsInRange(token, IDENTIFIER, ENUM);
-  }
-
-  static bool IsAwaitOrYield(Value token) {
-    return IsInRange(token, AWAIT, YIELD);
   }
 
   static bool IsStrictReservedWord(Value token) {

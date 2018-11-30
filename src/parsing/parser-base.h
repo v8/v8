@@ -1551,7 +1551,7 @@ ParserBase<Impl>::ParseAndClassifyIdentifier() {
     return name;
   }
 
-  if (!Token::IsValidIdentifier(next, language_mode(), this->is_generator(),
+  if (!Token::IsValidIdentifier(next, language_mode(), is_generator(),
                                 parsing_module_ || is_async_function())) {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
@@ -1590,7 +1590,7 @@ ParserBase<Impl>::ParseIdentifierOrStrictReservedWord(
 template <typename Impl>
 typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifierName() {
   Token::Value next = Next();
-  if (!Token::IsAnyIdentifierOrEnum(next) && next != Token::ESCAPED_KEYWORD &&
+  if (!Token::IsAnyIdentifier(next) && next != Token::ESCAPED_KEYWORD &&
       !Token::IsKeyword(next)) {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
@@ -2385,8 +2385,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
       //    IdentifierReference Initializer?
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
-      if (!Token::IsValidIdentifier(name_token, language_mode(),
-                                    this->is_generator(),
+      if (!Token::IsValidIdentifier(name_token, language_mode(), is_generator(),
                                     parsing_module_ || is_async_function())) {
         ReportUnexpectedToken(Next());
         return impl()->NullLiteralProperty();
