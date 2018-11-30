@@ -7791,7 +7791,7 @@ class V8_EXPORT Isolate {
    */
   typedef void (*AtomicsWaitCallback)(AtomicsWaitEvent event,
                                       Local<SharedArrayBuffer> array_buffer,
-                                      size_t offset_in_bytes, int32_t value,
+                                      size_t offset_in_bytes, int64_t value,
                                       double timeout_in_ms,
                                       AtomicsWaitWakeHandle* stop_handle,
                                       void* data);

@@ -357,6 +357,7 @@ let kAtomicPrefix = 0xfe;
 
 let kExprAtomicWake = 0x00;
 let kExprI32AtomicWait = 0x01;
+let kExprI64AtomicWait = 0x02;
 let kExprI32AtomicLoad = 0x10;
 let kExprI32AtomicLoad8U = 0x12;
 let kExprI32AtomicLoad16U = 0x13;

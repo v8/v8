@@ -78,6 +78,7 @@ namespace internal {
   V(WasmThrow)                        \
   V(WasmAtomicWake)                   \
   V(WasmI32AtomicWait)                \
+  V(WasmI64AtomicWait)                \
   V(CloneObjectWithVector)            \
   BUILTIN_LIST_TFS(V)
 
@@ -1123,6 +1124,19 @@ class WasmI32AtomicWaitDescriptor final : public CallInterfaceDescriptor {
                                     MachineType::Int32(),    // kExpectedValue
                                     MachineType::Float64())  // kTimeout
   DECLARE_DESCRIPTOR(WasmI32AtomicWaitDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmI64AtomicWaitDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValueHigh, kExpectedValueLow,
+                               kTimeout)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::Uint32(),   // result 1
+      MachineType::Uint32(),   // kAddress
+      MachineType::Uint32(),   // kExpectedValueHigh
+      MachineType::Uint32(),   // kExpectedValueLow
+      MachineType::Float64())  // kTimeout
+  DECLARE_DESCRIPTOR(WasmI64AtomicWaitDescriptor, CallInterfaceDescriptor)
 };
 
 class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {
