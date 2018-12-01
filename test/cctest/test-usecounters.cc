@@ -93,7 +93,8 @@ TEST(OverrideReadOnlyPropertyOnPrototype) {
   // Initial setup
   CompileRun(
       "Object.defineProperty(Object.prototype, 'readonly', "
-      "{ readonly: true, value: 'readonly', configurable: false });");
+      "{ enumerable: true, configurable: true, writable: false, "
+      "  value: 'readonly' });");
   CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy]);
   CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
 
