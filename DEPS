@@ -13,9 +13,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e066ef73ba5b24cf41354d64321f6099c976fb2d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fe88ff746376d6b71395d7d536644da95c53e3c9',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'dd530811aba99d0ae85136dbd01bcf81ce3e3b5f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '61ea30737c65fb3a6ad7096f447465e58f8b915c',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '407b39301e71006b68bd38e770f35d32398a7b14',
   'v8/third_party/instrumented_libraries':
@@ -33,7 +33,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '63d69d7792c1ef8f18d8b620ff025de767849514',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '6f862e54f2a096450b7c32fb7c807e8932c01099',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -51,7 +51,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '157bec8a25cc4ebd6a16052510d08b05b6102aad',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '0e3e1c4dc4e79f25a5b58fcbc135dc93183c0c54',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
@@ -81,7 +81,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5422fcee63e02b7715869c8e1baab8d013faf60a',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '558f684ffbadcf6c4e1e89c6792c801f1f84ce3d',
   'v8/tools/luci-go': {
       'packages': [
         {
@@ -93,7 +93,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '2e948dd17f06eb9a3b8ed84bc34b44c6497f7133',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '76d26bbc70c51729536243bbd7c64241a6d993d3',
 }
 
 recursedeps = [
