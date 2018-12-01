@@ -145,7 +145,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  private:
   bool IsInitializedPlatformSpecific() const {
     const bool initialized =
-        register_param_count_ >= 0 && register_params_ != nullptr;
+        (register_param_count_ == 0 && register_params_ == nullptr) ||
+        (register_param_count_ > 0 && register_params_ != nullptr);
     // Platform-specific initialization happens before platform-independent.
     return initialized;
   }
