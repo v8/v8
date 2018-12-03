@@ -324,11 +324,6 @@ class ParserBase {
  protected:
   friend class v8::internal::ExpressionClassifier<ParserTypes<Impl>>;
 
-  enum AllowRestrictedIdentifiers {
-    kAllowRestrictedIdentifiers,
-    kDontAllowRestrictedIdentifiers
-  };
-
   enum LazyParsingResult { kLazyParsingComplete, kLazyParsingAborted };
 
   enum VariableDeclarationContext {
@@ -1027,25 +1022,18 @@ class ParserBase {
     }
   }
 
-  // Parses an identifier that is valid for the current scope, in particular it
-  // fails on strict mode future reserved keywords in a strict scope. If
-  // allow_eval_or_arguments is kAllowEvalOrArguments, we allow "eval" or
-  // "arguments" as identifier even in strict mode (this is needed in cases like
-  // "var foo = eval;").
-  IdentifierT ParseIdentifier(AllowRestrictedIdentifiers);
   V8_INLINE IdentifierT ParseAndClassifyIdentifier();
-  // Parses an identifier or a strict mode future reserved word, and indicate
-  // whether it is strict mode future reserved. Allows passing in function_kind
-  // for the case of parsing the identifier in a function expression, where the
-  // relevant "function_kind" bit is of the function being parsed, not the
-  // containing function.
-  V8_INLINE IdentifierT ParseIdentifierOrStrictReservedWord(
-      FunctionKind function_kind, bool* is_strict_reserved);
-  V8_INLINE IdentifierT
-  ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved) {
-    return ParseIdentifierOrStrictReservedWord(function_state_->kind(),
-                                               is_strict_reserved);
+  // Parses an identifier or a strict mode future reserved word. Allows passing
+  // in function_kind for the case of parsing the identifier in a function
+  // expression, where the relevant "function_kind" bit is of the function being
+  // parsed, not the containing function.
+  V8_INLINE IdentifierT ParseIdentifier(FunctionKind function_kind);
+  V8_INLINE IdentifierT ParseIdentifier() {
+    return ParseIdentifier(function_state_->kind());
   }
+  // Same as above but additionally disallows 'eval' and 'arguments' in strict
+  // mode.
+  IdentifierT ParseNonRestrictedIdentifier();
 
   V8_INLINE IdentifierT ParsePropertyName();
 
@@ -1521,21 +1509,6 @@ void ParserBase<Impl>::ReportUnexpectedTokenAt(
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
-    AllowRestrictedIdentifiers allow_restricted_identifiers) {
-  ExpressionClassifier classifier(this);
-  auto result = ParseAndClassifyIdentifier();
-
-  if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers &&
-      is_strict(language_mode()) && impl()->IsEvalOrArguments(result)) {
-    impl()->ReportMessageAt(scanner()->location(),
-                            MessageTemplate::kStrictEvalArguments);
-  }
-
-  return result;
-}
-
-template <typename Impl>
 typename ParserBase<Impl>::IdentifierT
 ParserBase<Impl>::ParseAndClassifyIdentifier() {
   Token::Value next = Next();
@@ -1570,12 +1543,9 @@ ParserBase<Impl>::ParseAndClassifyIdentifier() {
 }
 
 template <class Impl>
-typename ParserBase<Impl>::IdentifierT
-ParserBase<Impl>::ParseIdentifierOrStrictReservedWord(
-    FunctionKind function_kind, bool* is_strict_reserved) {
+typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
+    FunctionKind function_kind) {
   Token::Value next = Next();
-
-  *is_strict_reserved = Token::IsStrictReservedWord(next);
 
   if (!Token::IsValidIdentifier(
           next, language_mode(), IsGeneratorFunction(function_kind),
@@ -1585,6 +1555,20 @@ ParserBase<Impl>::ParseIdentifierOrStrictReservedWord(
   }
 
   return impl()->GetSymbol();
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::IdentifierT
+ParserBase<Impl>::ParseNonRestrictedIdentifier() {
+  IdentifierT result = ParseIdentifier();
+
+  if (is_strict(language_mode()) &&
+      V8_UNLIKELY(impl()->IsEvalOrArguments(result))) {
+    impl()->ReportMessageAt(scanner()->location(),
+                            MessageTemplate::kStrictEvalArguments);
+  }
+
+  return result;
 }
 
 template <typename Impl>
@@ -3258,7 +3242,7 @@ ParserBase<Impl>::ParseFunctionExpression() {
                                    ? FunctionKind::kGeneratorFunction
                                    : FunctionKind::kNormalFunction;
   IdentifierT name = impl()->NullIdentifier();
-  bool is_strict_reserved_name = false;
+  bool is_strict_reserved_name = Token::IsStrictReservedWord(peek());
   Scanner::Location function_name_location = Scanner::Location::invalid();
   FunctionLiteral::FunctionType function_type =
       FunctionLiteral::kAnonymousExpression;
@@ -3270,8 +3254,7 @@ ParserBase<Impl>::ParseFunctionExpression() {
                    scanner()->CurrentSymbol(ast_value_factory()) ==
                        ast_value_factory()->anonymous_string());
   } else if (peek_any_identifier()) {
-    name = ParseIdentifierOrStrictReservedWord(function_kind,
-                                               &is_strict_reserved_name);
+    name = ParseIdentifier(function_kind);
     function_name_location = scanner()->location();
     function_type = FunctionLiteral::kNamedExpression;
   }
@@ -3740,8 +3723,8 @@ ParserBase<Impl>::ParseHoistableDeclaration(
     impl()->GetDefaultStrings(&name, &variable_name);
     name_validity = kSkipFunctionNameCheck;
   } else {
-    bool is_strict_reserved = false;
-    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved);
+    bool is_strict_reserved = Token::IsStrictReservedWord(peek());
+    name = ParseIdentifier();
     name_validity = is_strict_reserved ? kFunctionNameIsStrictReserved
                                        : kFunctionNameValidityUnknown;
     variable_name = name;
@@ -3798,12 +3781,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseClassDeclaration(
 
   int class_token_pos = position();
   IdentifierT name = impl()->NullIdentifier();
-  bool is_strict_reserved = false;
+  bool is_strict_reserved = Token::IsStrictReservedWord(peek());
   IdentifierT variable_name = impl()->NullIdentifier();
   if (default_export && (peek() == Token::EXTENDS || peek() == Token::LBRACE)) {
     impl()->GetDefaultStrings(&name, &variable_name);
   } else {
-    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved);
+    name = ParseIdentifier();
     variable_name = name;
   }
 
@@ -3828,11 +3811,11 @@ ParserBase<Impl>::ParseNativeDeclaration() {
   int pos = peek_position();
   Consume(Token::FUNCTION);
   // Allow "eval" or "arguments" for backward compatibility.
-  IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers);
+  IdentifierT name = ParseIdentifier();
   Expect(Token::LPAREN);
   if (peek() != Token::RPAREN) {
     do {
-      ParseIdentifier(kAllowRestrictedIdentifiers);
+      ParseIdentifier();
     } while (Check(Token::COMMA));
   }
   Expect(Token::RPAREN);
@@ -4278,13 +4261,13 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral() {
   DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
   int pos = position();
   Consume(Token::FUNCTION);
-  bool is_strict_reserved = false;
   IdentifierT name = impl()->NullIdentifier();
   FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
 
   ParseFunctionFlags flags = ParseFunctionFlag::kIsAsync;
   if (Check(Token::MUL)) flags |= ParseFunctionFlag::kIsGenerator;
   const FunctionKind kind = FunctionKindFor(flags);
+  bool is_strict_reserved = Token::IsStrictReservedWord(peek());
 
   if (impl()->ParsingDynamicFunctionDeclaration()) {
     // We don't want dynamic functions to actually declare their name
@@ -4298,7 +4281,7 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral() {
                        ast_value_factory()->anonymous_string());
   } else if (peek_any_identifier()) {
     type = FunctionLiteral::kNamedExpression;
-    name = ParseIdentifierOrStrictReservedWord(kind, &is_strict_reserved);
+    name = ParseIdentifier(kind);
   }
   FunctionLiteralT result = impl()->ParseFunctionLiteral(
       name, scanner()->location(),
@@ -4493,7 +4476,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic() {
   int pos = peek_position();
   Consume(Token::MOD);
   // Allow "eval" or "arguments" for backward compatibility.
-  IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers);
+  IdentifierT name = ParseIdentifier();
   if (peek() != Token::LPAREN) {
     impl()->ReportUnexpectedToken(peek());
     return impl()->FailureExpression();
@@ -4957,7 +4940,7 @@ ParserBase<Impl>::ParseContinueStatement() {
   if (!scanner()->HasLineTerminatorBeforeNext() &&
       !Token::IsAutoSemicolon(tok)) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
-    label = ParseIdentifier(kAllowRestrictedIdentifiers);
+    label = ParseIdentifier();
   }
   IterationStatementT target = impl()->LookupContinueTarget(label);
   if (impl()->IsNull(target)) {
@@ -4991,7 +4974,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
   if (!scanner()->HasLineTerminatorBeforeNext() &&
       !Token::IsAutoSemicolon(tok)) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
-    label = ParseIdentifier(kAllowRestrictedIdentifiers);
+    label = ParseIdentifier();
   }
   // Parse labeled break statements that target themselves into
   // empty statements, e.g. 'l1: l2: l3: break l2;'
@@ -5293,8 +5276,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
             // branch, which would introduce an unresolved symbol and mess
             // with arrow function names.
             if (peek_any_identifier()) {
-              catch_info.name =
-                  ParseIdentifier(kDontAllowRestrictedIdentifiers);
+              catch_info.name = ParseNonRestrictedIdentifier();
             } else {
               ExpressionClassifier pattern_classifier(this);
               catch_info.pattern = ParseBindingPattern();

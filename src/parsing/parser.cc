@@ -1027,7 +1027,7 @@ void Parser::ParseImportDeclaration() {
   const AstRawString* import_default_binding = nullptr;
   Scanner::Location import_default_binding_loc;
   if (tok != Token::MUL && tok != Token::LBRACE) {
-    import_default_binding = ParseIdentifier(kDontAllowRestrictedIdentifiers);
+    import_default_binding = ParseNonRestrictedIdentifier();
     import_default_binding_loc = scanner()->location();
     DeclareVariable(import_default_binding, VariableMode::kConst,
                     kNeedsInitialization, pos);
@@ -1042,8 +1042,7 @@ void Parser::ParseImportDeclaration() {
       case Token::MUL: {
         Consume(Token::MUL);
         ExpectContextualKeyword(ast_value_factory()->as_string());
-        module_namespace_binding =
-            ParseIdentifier(kDontAllowRestrictedIdentifiers);
+        module_namespace_binding = ParseNonRestrictedIdentifier();
         module_namespace_binding_loc = scanner()->location();
         DeclareVariable(module_namespace_binding, VariableMode::kConst,
                         kCreatedInitialized, pos);
