@@ -241,7 +241,12 @@ constexpr int kExternalAllocationSoftLimit =
 // account.
 //
 // Current value: Page::kAllocatableMemory (on 32-bit arch) - 512 (slack).
+#ifdef V8_HOST_ARCH_PPC
+// Reduced kMaxRegularHeapObjectSize due to larger page size(64k) on ppc64le
+constexpr int kMaxRegularHeapObjectSize = 327680;
+#else
 constexpr int kMaxRegularHeapObjectSize = 507136;
+#endif
 
 constexpr int kBitsPerByte = 8;
 constexpr int kBitsPerByteLog2 = 3;
