@@ -175,6 +175,10 @@ inline void EmitFloatMinOrMax(LiftoffAssembler* assm, RegisterType dst,
                               RegisterType lhs, RegisterType rhs,
                               MinOrMax min_or_max) {
   DCHECK(RegisterType::kSizeInBytes == 4 || RegisterType::kSizeInBytes == 8);
+  if (lhs == rhs) {
+    assm->TurboAssembler::Move(dst, lhs);
+    return;
+  }
   Label done, is_nan;
   if (min_or_max == MinOrMax::kMin) {
     assm->TurboAssembler::FloatMin(dst, lhs, rhs, &is_nan);
