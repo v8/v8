@@ -1055,7 +1055,8 @@ action("generate_bytecode_builtins_list") {
                     ":bytecode_builtins_list_generator($v8_generator_toolchain)",
                     "root_out_dir") + "/bytecode_builtins_list_generator",
             root_build_dir),
-    rebase_path("$target_gen_dir/builtins-generated/bytecodes-builtins-list.h"),
+    rebase_path("$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
+                root_build_dir),
   ]
 }
 
