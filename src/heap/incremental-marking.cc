@@ -499,7 +499,7 @@ void IncrementalMarking::RetainMaps() {
   // - GC is requested by tests or dev-tools (abort_incremental_marking_).
   bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
                                    FLAG_retain_maps_for_n_gc == 0;
-  WeakArrayList* retained_maps = heap()->retained_maps();
+  WeakArrayList retained_maps = heap()->retained_maps();
   int length = retained_maps->length();
   // The number_of_disposed_maps separates maps in the retained_maps
   // array that were created before and after context disposal.

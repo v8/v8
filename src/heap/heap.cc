@@ -438,7 +438,7 @@ void Heap::AddRetainingPathTarget(Handle<HeapObject> object,
 
 bool Heap::IsRetainingPathTarget(HeapObject* object,
                                  RetainingPathOption* option) {
-  WeakArrayList* targets = retaining_path_targets();
+  WeakArrayList targets = retaining_path_targets();
   int length = targets->length();
   MaybeObject object_to_check = HeapObjectReference::Weak(object);
   for (int i = 0; i < length; i++) {
@@ -4824,7 +4824,7 @@ void Heap::CompactWeakArrayLists(PretenureFlag pretenure) {
     DCHECK_IMPLIES(pretenure == TENURED,
                    InOldSpace(*array) ||
                        *array == ReadOnlyRoots(this).empty_weak_array_list());
-    WeakArrayList* new_array = PrototypeUsers::Compact(
+    WeakArrayList new_array = PrototypeUsers::Compact(
         array, this, JSObject::PrototypeRegistryCompactionCallback, pretenure);
     prototype_info->set_prototype_users(new_array);
   }
@@ -4861,7 +4861,7 @@ void Heap::AddRetainedMap(Handle<Map> map) {
   map->set_is_in_retained_map_list(true);
 }
 
-void Heap::CompactRetainedMaps(WeakArrayList* retained_maps) {
+void Heap::CompactRetainedMaps(WeakArrayList retained_maps) {
   DCHECK_EQ(retained_maps, this->retained_maps());
   int length = retained_maps->length();
   int new_length = 0;

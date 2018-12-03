@@ -759,7 +759,7 @@ TEST(PrototypeUsersCompacted) {
   CHECK(array->Get(3)->IsCleared());
 
   CHECK_EQ(array->length(), 3 + PrototypeUsers::kFirstIndex);
-  WeakArrayList* new_array =
+  WeakArrayList new_array =
       PrototypeUsers::Compact(array, heap, TestCompactCallback);
   CHECK_EQ(new_array->length(), 1 + PrototypeUsers::kFirstIndex);
   CHECK_EQ(saved_heap_object, *live_map);

@@ -1711,7 +1711,7 @@ void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
   }
 }
 
-void PrototypeUsers::Verify(WeakArrayList* array) {
+void PrototypeUsers::Verify(WeakArrayList array) {
   if (array->length() == 0) {
     // Allow empty & uninitialized lists.
     return;

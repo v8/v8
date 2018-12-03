@@ -64,8 +64,8 @@ ACCESSORS(WasmModuleObject, managed_native_module, Managed<wasm::NativeModule>,
           kNativeModuleOffset)
 ACCESSORS2(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
-ACCESSORS(WasmModuleObject, weak_instance_list, WeakArrayList,
-          kWeakInstanceListOffset)
+ACCESSORS2(WasmModuleObject, weak_instance_list, WeakArrayList,
+           kWeakInstanceListOffset)
 OPTIONAL_ACCESSORS2(WasmModuleObject, asm_js_offset_table, ByteArray,
                     kAsmJsOffsetTableOffset)
 OPTIONAL_ACCESSORS2(WasmModuleObject, breakpoint_infos, FixedArray,
@@ -96,7 +96,8 @@ ACCESSORS2(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
-OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakArrayList, kInstancesOffset)
+OPTIONAL_ACCESSORS2(WasmMemoryObject, instances, WeakArrayList,
+                    kInstancesOffset)
 
 // WasmGlobalObject
 ACCESSORS(WasmGlobalObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)

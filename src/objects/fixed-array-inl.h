@@ -30,6 +30,7 @@ OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ByteArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(TemplateList, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(WeakArrayList, HeapObjectPtr)
 
 FixedArrayBase::FixedArrayBase(Address ptr, AllowInlineSmiStorage allow_smi)
     : HeapObjectPtr(ptr, allow_smi) {
@@ -45,6 +46,8 @@ ByteArray::ByteArray(Address ptr, AllowInlineSmiStorage allow_smi)
       IsByteArray());
 }
 
+NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
+
 CAST_ACCESSOR2(ArrayList)
 CAST_ACCESSOR2(ByteArray)
 CAST_ACCESSOR2(FixedArray)
@@ -53,7 +56,7 @@ CAST_ACCESSOR2(FixedDoubleArray)
 CAST_ACCESSOR2(FixedTypedArrayBase)
 CAST_ACCESSOR2(TemplateList)
 CAST_ACCESSOR2(WeakFixedArray)
-CAST_ACCESSOR(WeakArrayList)
+CAST_ACCESSOR2(WeakArrayList)
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
@@ -312,17 +315,17 @@ void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
 }
 
 MaybeObjectSlot WeakArrayList::data_start() {
-  return HeapObject::RawMaybeWeakField(this, kHeaderSize);
+  return RawMaybeWeakField(kHeaderSize);
 }
 
 HeapObject* WeakArrayList::Iterator::Next() {
-  if (array_ != nullptr) {
+  if (!array_.is_null()) {
     while (index_ < array_->length()) {
       MaybeObject item = array_->Get(index_++);
       DCHECK(item->IsWeakOrCleared());
       if (!item->IsCleared()) return item->GetHeapObjectAssumeWeak();
     }
-    array_ = nullptr;
+    array_ = WeakArrayList();
   }
   return nullptr;
 }

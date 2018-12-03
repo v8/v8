@@ -1525,7 +1525,7 @@ class Heap {
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
 
-  void CompactRetainedMaps(WeakArrayList* retained_maps);
+  void CompactRetainedMaps(WeakArrayList retained_maps);
 
   void CollectGarbageOnMemoryPressure();
 

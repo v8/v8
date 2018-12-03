@@ -113,7 +113,7 @@ class WasmModuleObject : public JSObject {
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS2(export_wrappers, FixedArray)
   DECL_ACCESSORS(script, Script)
-  DECL_ACCESSORS(weak_instance_list, WeakArrayList)
+  DECL_ACCESSORS2(weak_instance_list, WeakArrayList)
   DECL_OPTIONAL_ACCESSORS2(asm_js_offset_table, ByteArray)
   DECL_OPTIONAL_ACCESSORS2(breakpoint_infos, FixedArray)
   inline wasm::NativeModule* native_module() const;
@@ -295,7 +295,7 @@ class WasmMemoryObject : public JSObject {
 
   DECL_ACCESSORS(array_buffer, JSArrayBuffer)
   DECL_INT_ACCESSORS(maximum_pages)
-  DECL_OPTIONAL_ACCESSORS(instances, WeakArrayList)
+  DECL_OPTIONAL_ACCESSORS2(instances, WeakArrayList)
 
 // Layout description.
 #define WASM_MEMORY_OBJECT_FIELDS(V)   \

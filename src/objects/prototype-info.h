@@ -80,19 +80,19 @@ class PrototypeUsers : public WeakArrayList {
                                    Handle<WeakArrayList> array,
                                    Handle<Map> value, int* assigned_index);
 
-  static inline void MarkSlotEmpty(WeakArrayList* array, int index);
+  static inline void MarkSlotEmpty(WeakArrayList array, int index);
 
   // The callback is called when a weak pointer to HeapObject "object" is moved
   // from index "from_index" to index "to_index" during compaction. The callback
   // must not cause GC.
   typedef void (*CompactionCallback)(HeapObject* object, int from_index,
                                      int to_index);
-  static WeakArrayList* Compact(Handle<WeakArrayList> array, Heap* heap,
-                                CompactionCallback callback,
-                                PretenureFlag pretenure = NOT_TENURED);
+  static WeakArrayList Compact(Handle<WeakArrayList> array, Heap* heap,
+                               CompactionCallback callback,
+                               PretenureFlag pretenure = NOT_TENURED);
 
 #ifdef VERIFY_HEAP
-  static void Verify(WeakArrayList* array);
+  static void Verify(WeakArrayList array);
 #endif  // VERIFY_HEAP
 
   static const int kEmptySlotIndex = 0;
@@ -101,10 +101,10 @@ class PrototypeUsers : public WeakArrayList {
   static const int kNoEmptySlotsMarker = 0;
 
  private:
-  static inline Smi empty_slot_index(WeakArrayList* array);
-  static inline void set_empty_slot_index(WeakArrayList* array, int index);
+  static inline Smi empty_slot_index(WeakArrayList array);
+  static inline void set_empty_slot_index(WeakArrayList array, int index);
 
-  static void IsSlotEmpty(WeakArrayList* array, int index);
+  static void IsSlotEmpty(WeakArrayList array, int index);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeUsers);
 };

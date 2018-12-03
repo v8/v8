@@ -2169,7 +2169,7 @@ Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
   HeapObject* obj = AllocateRawWeakArrayList(new_capacity, pretenure);
   obj->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
 
-  WeakArrayList* result = WeakArrayList::cast(obj);
+  WeakArrayList result = WeakArrayList::cast(obj);
   result->set_length(src->length());
   result->set_capacity(new_capacity);
 

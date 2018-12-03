@@ -1577,7 +1577,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == WEAK_ARRAY_LIST_TYPE) {
     return WeakArrayList::SizeForCapacity(
-        reinterpret_cast<const WeakArrayList*>(this)->synchronized_capacity());
+        WeakArrayList::unchecked_cast(this)->synchronized_capacity());
   }
   if (IsInRange(instance_type, FIRST_FIXED_TYPED_ARRAY_TYPE,
                 LAST_FIXED_TYPED_ARRAY_TYPE)) {

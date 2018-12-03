@@ -335,9 +335,10 @@ class WeakFixedArray : public HeapObjectPtr {
 // capacity() returns the allocated size. The number of elements is stored at
 // kLengthOffset and is updated with every insertion. The array grows
 // dynamically with O(1) amortized insertion.
-class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
+class WeakArrayList : public HeapObjectPtr {
  public:
-  DECL_CAST(WeakArrayList)
+  NEVER_READ_ONLY_SPACE
+  DECL_CAST2(WeakArrayList)
   DECL_VERIFIER(WeakArrayList)
   DECL_PRINTER(WeakArrayList)
 
@@ -398,27 +399,29 @@ class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
   // duplicates.
   bool RemoveOne(const MaybeObjectHandle& value);
 
-  class Iterator {
-   public:
-    explicit Iterator(WeakArrayList* array) : index_(0), array_(array) {}
-
-    inline HeapObject* Next();
-
-   private:
-    int index_;
-    WeakArrayList* array_;
-#ifdef DEBUG
-    DisallowHeapAllocation no_gc_;
-#endif  // DEBUG
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
-  };
+  class Iterator;
 
  private:
   static int OffsetOfElementAt(int index) {
     return kHeaderSize + index * kTaggedSize;
   }
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakArrayList);
+  OBJECT_CONSTRUCTORS(WeakArrayList, HeapObjectPtr);
+};
+
+class WeakArrayList::Iterator {
+ public:
+  explicit Iterator(WeakArrayList array) : index_(0), array_(array) {}
+
+  inline HeapObject* Next();
+
+ private:
+  int index_;
+  WeakArrayList array_;
+#ifdef DEBUG
+  DisallowHeapAllocation no_gc_;
+#endif  // DEBUG
+  DISALLOW_COPY_AND_ASSIGN(Iterator);
 };
 
 // Generic array grows dynamically with O(1) amortized insertion.

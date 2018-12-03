@@ -10647,9 +10647,9 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
   return array;
 }
 
-WeakArrayList* PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
-                                       CompactionCallback callback,
-                                       PretenureFlag pretenure) {
+WeakArrayList PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
+                                      CompactionCallback callback,
+                                      PretenureFlag pretenure) {
   if (array->length() == 0) {
     return *array;
   }
@@ -12953,7 +12953,7 @@ void InvalidatePrototypeChainsInternal(Map map) {
   if (!proto_info->prototype_users()->IsWeakArrayList()) {
     return;
   }
-  WeakArrayList* prototype_users =
+  WeakArrayList prototype_users =
       WeakArrayList::cast(proto_info->prototype_users());
   // For now, only maps register themselves as users.
   for (int i = PrototypeUsers::kFirstIndex; i < prototype_users->length();
@@ -14010,7 +14010,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     list->Set(function_literal_id, HeapObjectReference::Weak(*shared));
 
     // Remove shared function info from root array.
-    WeakArrayList* noscript_list =
+    WeakArrayList noscript_list =
         isolate->heap()->noscript_shared_function_infos();
     CHECK(noscript_list->RemoveOne(MaybeObjectHandle::Weak(shared)));
   } else {

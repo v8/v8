@@ -207,7 +207,7 @@ class RootVisitor;
   V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
   V(InterceptorInfo*, noop_interceptor_info, NoOpInterceptorInfo)              \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
-  V(WeakArrayList*, empty_weak_array_list, EmptyWeakArrayList)                 \
+  V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   /* Special numbers */                                                        \
   V(HeapNumber*, nan_value, NanValue)                                          \
   V(HeapNumber*, hole_nan_value, HoleNanValue)                                 \
@@ -271,16 +271,16 @@ class RootVisitor;
   V(NameDictionary, public_symbol_table, PublicSymbolTable)                \
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                      \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)       \
-  V(WeakArrayList*, script_list, ScriptList)                               \
+  V(WeakArrayList, script_list, ScriptList)                                \
   V(SimpleNumberDictionary, code_stubs, CodeStubs)                         \
   V(FixedArray, materialized_objects, MaterializedObjects)                 \
-  V(WeakArrayList*, detached_contexts, DetachedContexts)                   \
-  V(WeakArrayList*, retaining_path_targets, RetainingPathTargets)          \
-  V(WeakArrayList*, retained_maps, RetainedMaps)                           \
+  V(WeakArrayList, detached_contexts, DetachedContexts)                    \
+  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)           \
+  V(WeakArrayList, retained_maps, RetainedMaps)                            \
   /* Feedback vectors that we need for code coverage or type profile */    \
   V(Object*, feedback_vectors_for_profiling_tools,                         \
     FeedbackVectorsForProfilingTools)                                      \
-  V(WeakArrayList*, noscript_shared_function_infos,                        \
+  V(WeakArrayList, noscript_shared_function_infos,                         \
     NoScriptSharedFunctionInfos)                                           \
   V(FixedArray, serialized_objects, SerializedObjects)                     \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
