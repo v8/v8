@@ -2987,20 +2987,6 @@ bool StackFrame::IsWasm() const { return Utils::OpenHandle(this)->is_wasm(); }
 
 // --- J S O N ---
 
-MaybeLocal<Value> JSON::Parse(Isolate* v8_isolate, Local<String> json_string) {
-  PREPARE_FOR_EXECUTION(v8_isolate->GetCurrentContext(), JSON, Parse, Value);
-  i::Handle<i::String> string = Utils::OpenHandle(*json_string);
-  i::Handle<i::String> source = i::String::Flatten(isolate, string);
-  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
-  auto maybe = source->IsSeqOneByteString()
-                   ? i::JsonParser<true>::Parse(isolate, source, undefined)
-                   : i::JsonParser<false>::Parse(isolate, source, undefined);
-  Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(maybe, &result);
-  RETURN_ON_FAILED_EXECUTION(Value);
-  RETURN_ESCAPED(result);
-}
-
 MaybeLocal<Value> JSON::Parse(Local<Context> context,
                               Local<String> json_string) {
   PREPARE_FOR_EXECUTION(context, JSON, Parse, Value);
@@ -3106,10 +3092,6 @@ Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
   return result;
 }
 
-std::vector<uint8_t> ValueSerializer::ReleaseBuffer() {
-  return private_->serializer.ReleaseBuffer();
-}
-
 std::pair<uint8_t*, size_t> ValueSerializer::Release() {
   return private_->serializer.Release();
 }
@@ -3118,12 +3100,6 @@ void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
                                           Local<ArrayBuffer> array_buffer) {
   private_->serializer.TransferArrayBuffer(transfer_id,
                                            Utils::OpenHandle(*array_buffer));
-}
-
-void ValueSerializer::TransferSharedArrayBuffer(
-    uint32_t transfer_id, Local<SharedArrayBuffer> shared_array_buffer) {
-  private_->serializer.TransferArrayBuffer(
-      transfer_id, Utils::OpenHandle(*shared_array_buffer));
 }
 
 void ValueSerializer::WriteUint32(uint32_t value) {
@@ -4490,11 +4466,6 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
   }
 }
 
-bool v8::Object::Delete(v8::Local<Value> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return Delete(context, key).FromMaybe(false);
-}
-
 Maybe<bool> v8::Object::DeletePrivate(Local<Context> context,
                                       Local<Private> key) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
@@ -4531,12 +4502,6 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   has_pending_exception = maybe.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return maybe;
-}
-
-
-bool v8::Object::Has(v8::Local<Value> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return Has(context, key).FromMaybe(false);
 }
 
 
@@ -6891,12 +6856,6 @@ MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
       &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
-}
-
-
-Local<v8::Value> v8::Date::New(Isolate* isolate, double time) {
-  auto context = isolate->GetCurrentContext();
-  RETURN_TO_LOCAL_UNCHECKED(New(context, time), Value);
 }
 
 

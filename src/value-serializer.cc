@@ -327,10 +327,6 @@ void ValueSerializer::WriteUint64(uint64_t value) {
   WriteVarint<uint64_t>(value);
 }
 
-std::vector<uint8_t> ValueSerializer::ReleaseBuffer() {
-  return std::vector<uint8_t>(buffer_, buffer_ + buffer_size_);
-}
-
 std::pair<uint8_t*, size_t> ValueSerializer::Release() {
   auto result = std::make_pair(buffer_, buffer_size_);
   buffer_ = nullptr;

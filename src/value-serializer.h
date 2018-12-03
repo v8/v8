@@ -61,12 +61,6 @@ class ValueSerializer {
   Maybe<bool> WriteObject(Handle<Object> object) V8_WARN_UNUSED_RESULT;
 
   /*
-   * Returns the stored data. This serializer should not be used once the buffer
-   * is released. The contents are undefined if a previous write has failed.
-   */
-  std::vector<uint8_t> ReleaseBuffer();
-
-  /*
    * Returns the buffer, allocated via the delegate, and its size.
    * Caller assumes ownership of the buffer.
    */

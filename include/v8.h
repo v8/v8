@@ -1392,10 +1392,6 @@ class V8_EXPORT ScriptCompiler {
     StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     ~StreamedSource();
 
-    V8_DEPRECATED("No longer used", const CachedData* GetCachedData() const) {
-      return nullptr;
-    }
-
     internal::ScriptStreamingData* impl() const { return impl_.get(); }
 
     // Prevent copying.
@@ -1845,12 +1841,10 @@ class V8_EXPORT JSON {
    * Tries to parse the string |json_string| and returns it as value if
    * successful.
    *
+   * \param the context in which to parse and create the value.
    * \param json_string The string to parse.
    * \return The corresponding value if successfully parsed.
    */
-  static V8_DEPRECATED("Use the maybe version taking context",
-                       MaybeLocal<Value> Parse(Isolate* isolate,
-                                               Local<String> json_string));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Value> Parse(
       Local<Context> context, Local<String> json_string);
 
@@ -1947,12 +1941,6 @@ class V8_EXPORT ValueSerializer {
                                                Local<Value> value);
 
   /**
-   * Returns the stored data. This serializer should not be used once the buffer
-   * is released. The contents are undefined if a previous write has failed.
-   */
-  V8_DEPRECATED("Use Release()", std::vector<uint8_t> ReleaseBuffer());
-
-  /**
    * Returns the stored data (allocated using the delegate's
    * ReallocateBufferMemory) and its size. This serializer should not be used
    * once the buffer is released. The contents are undefined if a previous write
@@ -1968,13 +1956,6 @@ class V8_EXPORT ValueSerializer {
   void TransferArrayBuffer(uint32_t transfer_id,
                            Local<ArrayBuffer> array_buffer);
 
-  /**
-   * Similar to TransferArrayBuffer, but for SharedArrayBuffer.
-   */
-  V8_DEPRECATED("Use Delegate::GetSharedArrayBufferId",
-                void TransferSharedArrayBuffer(
-                    uint32_t transfer_id,
-                    Local<SharedArrayBuffer> shared_array_buffer));
 
   /**
    * Indicate whether to treat ArrayBufferView objects as host objects,
@@ -3310,7 +3291,6 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> GetOwnPropertyDescriptor(
       Local<Context> context, Local<Name> key);
 
-  V8_DEPRECATED("Use maybe version", bool Has(Local<Value> key));
   /**
    * Object::Has() calls the abstract operation HasProperty(O, P) described
    * in ECMA-262, 7.3.10. Has() returns
@@ -3329,7 +3309,6 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> Has(Local<Context> context,
                                         Local<Value> key);
 
-  V8_DEPRECATED("Use maybe version", bool Delete(Local<Value> key));
   V8_WARN_UNUSED_RESULT Maybe<bool> Delete(Local<Context> context,
                                            Local<Value> key);
 
@@ -5089,8 +5068,6 @@ class V8_EXPORT SharedArrayBuffer : public Object {
  */
 class V8_EXPORT Date : public Object {
  public:
-  static V8_DEPRECATED("Use maybe version.",
-                       Local<Value> New(Isolate* isolate, double time));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Value> New(Local<Context> context,
                                                      double time);
 
@@ -6350,18 +6327,6 @@ class V8_EXPORT ResourceConstraints {
   void ConfigureDefaults(uint64_t physical_memory,
                          uint64_t virtual_memory_limit);
 
-  // Returns the max semi-space size in MB.
-  V8_DEPRECATED("Use max_semi_space_size_in_kb()",
-                size_t max_semi_space_size()) {
-    return max_semi_space_size_in_kb_ / 1024;
-  }
-
-  // Sets the max semi-space size in MB.
-  V8_DEPRECATED("Use set_max_semi_space_size_in_kb(size_t limit_in_kb)",
-                void set_max_semi_space_size(size_t limit_in_mb)) {
-    max_semi_space_size_in_kb_ = limit_in_mb * 1024;
-  }
-
   // Returns the max semi-space size in KB.
   size_t max_semi_space_size_in_kb() const {
     return max_semi_space_size_in_kb_;
@@ -6375,14 +6340,6 @@ class V8_EXPORT ResourceConstraints {
   size_t max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(size_t limit_in_mb) {
     max_old_space_size_ = limit_in_mb;
-  }
-  V8_DEPRECATED("max_executable_size_ is subsumed by max_old_space_size_",
-                size_t max_executable_size() const) {
-    return max_executable_size_;
-  }
-  V8_DEPRECATED("max_executable_size_ is subsumed by max_old_space_size_",
-                void set_max_executable_size(size_t limit_in_mb)) {
-    max_executable_size_ = limit_in_mb;
   }
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
@@ -6400,7 +6357,6 @@ class V8_EXPORT ResourceConstraints {
 
   // The remaining limits are in MB
   size_t max_old_space_size_;
-  size_t max_executable_size_;
   uint32_t* stack_limit_;
   size_t code_range_size_;
   size_t max_zone_pool_size_;
