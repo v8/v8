@@ -835,6 +835,13 @@
       {'name': 'v8testing', 'shards': 2},
     ],
   },
+  'V8 Linux64 - shared': {
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262'},
+      {'name': 'v8testing'},
+    ],
+  },
   'V8 Linux64 - verify csa': {
     'tests': [
       {'name': 'v8testing'},
