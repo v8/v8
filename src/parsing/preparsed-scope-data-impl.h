@@ -170,7 +170,7 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
 #endif
 
  private:
-  void RestoreData(Scope* scope);
+  void RestoreDataForScope(Scope* scope);
   void RestoreDataForVariable(Variable* var);
   void RestoreDataForInnerScopes(Scope* scope);
 

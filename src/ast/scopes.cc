@@ -1512,9 +1512,8 @@ void Scope::SavePreParsedScopeData() {
 }
 
 void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
-  if (preparsed_scope_data_builder_ != nullptr) {
-    preparsed_scope_data_builder_->SaveScopeAllocationData(this);
-  }
+  if (preparsed_scope_data_builder_ == nullptr) return;
+  preparsed_scope_data_builder_->SaveScopeAllocationData(this);
 }
 
 void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {

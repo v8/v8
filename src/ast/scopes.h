@@ -333,9 +333,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     inner_scope_calls_eval_ = true;
     for (Scope* scope = outer_scope(); scope != nullptr;
          scope = scope->outer_scope()) {
-      if (scope->inner_scope_calls_eval_) {
-        return;
-      }
+      if (scope->inner_scope_calls_eval_) return;
       scope->inner_scope_calls_eval_ = true;
     }
   }
@@ -590,77 +588,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // SavePreParsedScopeDataForDeclarationScope for each.
   void SavePreParsedScopeData();
 
-  Zone* zone_;
-
-  // Scope tree.
-  Scope* outer_scope_;  // the immediately enclosing outer scope, or nullptr
-  Scope* inner_scope_;  // an inner scope of this scope
-  Scope* sibling_;  // a sibling inner scope of the outer scope of this scope.
-
-  // The variables declared in this scope:
-  //
-  // All user-declared variables (incl. parameters).  For script scopes
-  // variables may be implicitly 'declared' by being used (possibly in
-  // an inner scope) with no intervening with statements or eval calls.
-  VariableMap variables_;
-  // In case of non-scopeinfo-backed scopes, this contains the variables of the
-  // map above in order of addition.
-  base::ThreadedList<Variable> locals_;
-  // Unresolved variables referred to from this scope. The proxies themselves
-  // form a linked list of all unresolved proxies.
-  UnresolvedList unresolved_list_;
-  // Declarations.
-  base::ThreadedList<Declaration> decls_;
-
-  // Serialized scope info support.
-  Handle<ScopeInfo> scope_info_;
-// Debugging support.
-#ifdef DEBUG
-  const AstRawString* scope_name_;
-
-  // True if it doesn't need scope resolution (e.g., if the scope was
-  // constructed based on a serialized scope info or a catch context).
-  bool already_resolved_;
-  // True if this scope may contain objects from a temp zone that needs to be
-  // fixed up.
-  bool needs_migration_;
-#endif
-
-  // Source positions.
-  int start_position_;
-  int end_position_;
-
-  // Computed via AllocateVariables.
-  int num_stack_slots_;
-  int num_heap_slots_;
-
-  // The scope type.
-  const ScopeType scope_type_;
-
-  // Scope-specific information computed during parsing.
-  //
-  // The language mode of this scope.
-  STATIC_ASSERT(LanguageModeSize == 2);
-  bool is_strict_ : 1;
-  // This scope or a nested catch scope or with scope contain an 'eval' call. At
-  // the 'eval' call site this scope is the declaration scope.
-  bool scope_calls_eval_ : 1;
-  // This scope's declarations might not be executed in order (e.g., switch).
-  bool scope_nonlinear_ : 1;
-  bool is_hidden_ : 1;
-  // Temporary workaround that allows masking of 'this' in debug-evalute scopes.
-  bool is_debug_evaluate_scope_ : 1;
-
-  // True if one of the inner scopes or the scope itself calls eval.
-  bool inner_scope_calls_eval_ : 1;
-  bool force_context_allocation_ : 1;
-  bool force_context_allocation_for_parameters_ : 1;
-
-  // True if it holds 'var' declarations.
-  bool is_declaration_scope_ : 1;
-
-  bool must_use_preparsed_scope_data_ : 1;
-
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
   Variable* NonLocal(const AstRawString* name, VariableMode mode);
@@ -732,6 +659,77 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   friend class DeclarationScope;
   friend class ScopeTestHelper;
+
+  Zone* zone_;
+
+  // Scope tree.
+  Scope* outer_scope_;  // the immediately enclosing outer scope, or nullptr
+  Scope* inner_scope_;  // an inner scope of this scope
+  Scope* sibling_;  // a sibling inner scope of the outer scope of this scope.
+
+  // The variables declared in this scope:
+  //
+  // All user-declared variables (incl. parameters).  For script scopes
+  // variables may be implicitly 'declared' by being used (possibly in
+  // an inner scope) with no intervening with statements or eval calls.
+  VariableMap variables_;
+  // In case of non-scopeinfo-backed scopes, this contains the variables of the
+  // map above in order of addition.
+  base::ThreadedList<Variable> locals_;
+  // Unresolved variables referred to from this scope. The proxies themselves
+  // form a linked list of all unresolved proxies.
+  UnresolvedList unresolved_list_;
+  // Declarations.
+  base::ThreadedList<Declaration> decls_;
+
+  // Serialized scope info support.
+  Handle<ScopeInfo> scope_info_;
+// Debugging support.
+#ifdef DEBUG
+  const AstRawString* scope_name_;
+
+  // True if it doesn't need scope resolution (e.g., if the scope was
+  // constructed based on a serialized scope info or a catch context).
+  bool already_resolved_;
+  // True if this scope may contain objects from a temp zone that needs to be
+  // fixed up.
+  bool needs_migration_;
+#endif
+
+  // Source positions.
+  int start_position_;
+  int end_position_;
+
+  // Computed via AllocateVariables.
+  int num_stack_slots_;
+  int num_heap_slots_;
+
+  // The scope type.
+  const ScopeType scope_type_;
+
+  // Scope-specific information computed during parsing.
+  //
+  // The language mode of this scope.
+  STATIC_ASSERT(LanguageModeSize == 2);
+  bool is_strict_ : 1;
+  // This scope or a nested catch scope or with scope contain an 'eval' call. At
+  // the 'eval' call site this scope is the declaration scope.
+  bool scope_calls_eval_ : 1;
+  // This scope's declarations might not be executed in order (e.g., switch).
+  bool scope_nonlinear_ : 1;
+  bool is_hidden_ : 1;
+  // Temporary workaround that allows masking of 'this' in debug-evalute scopes.
+  bool is_debug_evaluate_scope_ : 1;
+
+  // True if one of the inner scopes or the scope itself calls eval.
+  bool inner_scope_calls_eval_ : 1;
+  bool force_context_allocation_ : 1;
+  bool force_context_allocation_for_parameters_ : 1;
+
+  // True if it holds 'var' declarations.
+  bool is_declaration_scope_ : 1;
+
+  bool must_use_preparsed_scope_data_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
