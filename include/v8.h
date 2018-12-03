@@ -2751,7 +2751,7 @@ class V8_EXPORT String : public Name {
   };
 
   /** Allocates a new string from UTF-8 data.*/
-  static V8_DEPRECATE_SOON(
+  static V8_DEPRECATED(
       "Use maybe version",
       Local<String> NewFromUtf8(Isolate* isolate, const char* data,
                                 NewStringType type = kNormalString,
