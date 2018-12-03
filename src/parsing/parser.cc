@@ -329,9 +329,7 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
       return factory()->NewBigIntLiteral(
           AstBigInt(scanner()->CurrentLiteralAsCString(zone())), pos);
     case Token::STRING: {
-      const AstRawString* symbol = GetSymbol();
-      fni_.PushLiteralName(symbol);
-      return factory()->NewStringLiteral(symbol, pos);
+      return factory()->NewStringLiteral(GetSymbol(), pos);
     }
     default:
       DCHECK(false);
