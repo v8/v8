@@ -722,10 +722,8 @@ Reduction TypedOptimization::ReduceSpeculativeNumberAdd(Node* node) {
       NeitherCanBe(lhs_type, rhs_type, Type::StringOrReceiver())) {
     // SpeculativeNumberAdd(x:-string, y:-string) =>
     //     NumberAdd(ToNumber(x), ToNumber(y))
-    Node* const toNum_lhs =
-        graph()->NewNode(simplified()->PlainPrimitiveToNumber(), lhs);
-    Node* const toNum_rhs =
-        graph()->NewNode(simplified()->PlainPrimitiveToNumber(), rhs);
+    Node* const toNum_lhs = ConvertPlainPrimitiveToNumber(lhs);
+    Node* const toNum_rhs = ConvertPlainPrimitiveToNumber(rhs);
     Node* const value =
         graph()->NewNode(simplified()->NumberAdd(), toNum_lhs, toNum_rhs);
     ReplaceWithValue(node, value);
