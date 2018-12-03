@@ -342,18 +342,20 @@ class BitFieldBase {
   }
 
   // Returns a type U with the bit field value encoded.
-  static U encode(T value) {
+  static constexpr U encode(T value) {
+#if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
     DCHECK(is_valid(value));
+#endif
     return static_cast<U>(value) << shift;
   }
 
   // Returns a type U with the bit field value updated.
-  static U update(U previous, T value) {
+  static constexpr U update(U previous, T value) {
     return (previous & ~kMask) | encode(value);
   }
 
   // Extracts the bit field from the value.
-  static T decode(U value) {
+  static constexpr T decode(U value) {
     return static_cast<T>((value & kMask) >> shift);
   }
 

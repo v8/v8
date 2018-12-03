@@ -502,7 +502,7 @@ TEST(ScanKeywords) {
 
   static const KeywordToken keywords[] = {
 #define KEYWORD(t, s, d) { s, i::Token::t },
-      TOKEN_LIST(IGNORE_TOKEN, KEYWORD, IGNORE_TOKEN)
+      TOKEN_LIST(IGNORE_TOKEN, KEYWORD)
 #undef KEYWORD
           {nullptr, i::Token::IDENTIFIER}};
 

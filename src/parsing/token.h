@@ -49,7 +49,7 @@ namespace internal {
 #define EXPAND_BINOP_TOKEN(T, name, string, precedence) \
   T(name, string, precedence)
 
-#define TOKEN_LIST(T, K, C)                                        \
+#define TOKEN_LIST(T, K)                                           \
                                                                    \
   /* BEGIN PropertyOrCall */                                       \
   /* BEGIN Member */                                               \
@@ -203,7 +203,7 @@ class Token {
  public:
   // All token values.
 #define T(name, string, precedence) name,
-  enum Value : uint8_t { TOKEN_LIST(T, T, T) NUM_TOKENS };
+  enum Value : uint8_t { TOKEN_LIST(T, T) NUM_TOKENS };
 #undef T
 
   // Returns a string corresponding to the C++ token name
@@ -213,10 +213,17 @@ class Token {
     return name_[token];
   }
 
-  static char TypeForTesting(Value token) { return token_type[token]; }
+  class IsKeywordBits : public BitField8<bool, 0, 1> {};
+  class IsPropertyNameBits : public BitField8<bool, IsKeywordBits::kNext, 1> {};
 
   // Predicates
-  static bool IsKeyword(Value token) { return token_type[token] == 'K'; }
+  static bool IsKeyword(Value token) {
+    return IsKeywordBits::decode(token_flags[token]);
+  }
+
+  static bool IsPropertyName(Value token) {
+    return IsPropertyNameBits::decode(token_flags[token]);
+  }
 
   V8_INLINE static bool IsValidIdentifier(Value token,
                                           LanguageMode language_mode,
@@ -323,7 +330,7 @@ class Token {
   static const char* const string_[NUM_TOKENS];
   static const uint8_t string_length_[NUM_TOKENS];
   static const int8_t precedence_[2][NUM_TOKENS];
-  static const char token_type[NUM_TOKENS];
+  static const uint8_t token_flags[NUM_TOKENS];
 };
 
 }  // namespace internal

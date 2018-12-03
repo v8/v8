@@ -1047,9 +1047,9 @@ class ParserBase {
                                                is_strict_reserved);
   }
 
-  V8_INLINE IdentifierT ParseIdentifierName();
+  V8_INLINE IdentifierT ParsePropertyName();
 
-  ExpressionT ParseIdentifierNameOrPrivateName();
+  ExpressionT ParsePropertyOrPrivatePropertyName();
 
   ExpressionT ParseRegExpLiteral();
 
@@ -1077,7 +1077,7 @@ class ParserBase {
                      ParsePropertyKind::kAccessorSetter);
   }
 
-  ExpressionT ParsePropertyName(ParsePropertyInfo* prop_info);
+  ExpressionT ParseProperty(ParsePropertyInfo* prop_info);
   ExpressionT ParseObjectLiteral();
   ClassLiteralPropertyT ParseClassPropertyDefinition(
       ClassInfo* class_info, ParsePropertyInfo* prop_info, bool has_extends);
@@ -1588,32 +1588,33 @@ ParserBase<Impl>::ParseIdentifierOrStrictReservedWord(
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifierName() {
+typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParsePropertyName() {
   Token::Value next = Next();
-  if (!Token::IsAnyIdentifier(next) && next != Token::ESCAPED_KEYWORD &&
-      !Token::IsKeyword(next)) {
-    ReportUnexpectedToken(next);
-    return impl()->EmptyIdentifierString();
-  }
+  if (V8_LIKELY(Token::IsPropertyName(next))) return impl()->GetSymbol();
 
-  return impl()->GetSymbol();
+  ReportUnexpectedToken(next);
+  return impl()->EmptyIdentifierString();
 }
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseIdentifierNameOrPrivateName() {
+ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
   int pos = position();
   IdentifierT name;
   ExpressionT key;
-  if (allow_harmony_private_fields() && Check(Token::PRIVATE_NAME)) {
+  Token::Value next = Next();
+  if (V8_LIKELY(Token::IsPropertyName(next))) {
+    name = impl()->GetSymbol();
+    key = factory()->NewStringLiteral(name, pos);
+  } else if (allow_harmony_private_fields() && next == Token::PRIVATE_NAME) {
     name = impl()->GetSymbol();
     auto key_proxy =
         impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
     key_proxy->set_is_private_name();
     key = key_proxy;
   } else {
-    name = ParseIdentifierName();
-    key = factory()->NewStringLiteral(name, pos);
+    ReportUnexpectedToken(next);
+    return impl()->FailureExpression();
   }
   impl()->PushLiteralName(name);
   return key;
@@ -1963,7 +1964,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
 }
 
 template <class Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
     ParsePropertyInfo* prop_info) {
   DCHECK_EQ(prop_info->kind, ParsePropertyKind::kNotSet);
   DCHECK_EQ(prop_info->function_flags, ParseFunctionFlag::kIsNormal);
@@ -2100,7 +2101,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
       V8_FALLTHROUGH;
 
     default:
-      prop_info->name = ParseIdentifierName();
+      prop_info->name = ParsePropertyName();
       is_array_index = false;
       break;
   }
@@ -2149,10 +2150,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
       return impl()->NullLiteralProperty();
     } else {
       prop_info->is_static = true;
-      name_expression = ParsePropertyName(prop_info);
+      name_expression = ParseProperty(prop_info);
     }
   } else {
-    name_expression = ParsePropertyName(prop_info);
+    name_expression = ParseProperty(prop_info);
   }
 
   if (!class_info->has_name_static_property && prop_info->is_static &&
@@ -2333,7 +2334,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
   Token::Value name_token = peek();
   Scanner::Location next_loc = scanner()->peek_location();
 
-  ExpressionT name_expression = ParsePropertyName(prop_info);
+  ExpressionT name_expression = ParseProperty(prop_info);
   IdentifierT name = prop_info->name;
   ParseFunctionFlags function_flags = prop_info->function_flags;
   ParsePropertyKind kind = prop_info->kind;
@@ -3116,7 +3117,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       case Token::PERIOD: {
         Consume(Token::PERIOD);
         int pos = position();
-        ExpressionT key = ParseIdentifierNameOrPrivateName();
+        ExpressionT key = ParsePropertyOrPrivatePropertyName();
         result = factory()->NewProperty(result, key, pos);
         break;
       }
@@ -3422,7 +3423,7 @@ ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
       case Token::PERIOD: {
         Consume(Token::PERIOD);
         int pos = peek_position();
-        ExpressionT key = ParseIdentifierNameOrPrivateName();
+        ExpressionT key = ParsePropertyOrPrivatePropertyName();
         expression = factory()->NewProperty(expression, key, pos);
         break;
       }

@@ -918,11 +918,11 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
                                   parsing_module_)) {
       *reserved_loc = scanner()->location();
     }
-    const AstRawString* local_name = ParseIdentifierName();
+    const AstRawString* local_name = ParsePropertyName();
     const AstRawString* export_name = nullptr;
     Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(ast_value_factory()->as_string())) {
-      export_name = ParseIdentifierName();
+      export_name = ParsePropertyName();
       // Set the location to the whole "a as b" string, so that it makes sense
       // both for errors due to "a" and for errors due to "b".
       location.end_pos = scanner()->location().end_pos;
@@ -960,14 +960,14 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
 
   auto result = new (zone()) ZonePtrList<const NamedImport>(1, zone());
   while (peek() != Token::RBRACE) {
-    const AstRawString* import_name = ParseIdentifierName();
+    const AstRawString* import_name = ParsePropertyName();
     const AstRawString* local_name = import_name;
     Scanner::Location location = scanner()->location();
     // In the presence of 'as', the left-side of the 'as' can
     // be any IdentifierName. But without 'as', it must be a valid
     // BindingIdentifier.
     if (CheckContextualKeyword(ast_value_factory()->as_string())) {
-      local_name = ParseIdentifierName();
+      local_name = ParsePropertyName();
     }
     if (!Token::IsValidIdentifier(scanner()->current_token(),
                                   LanguageMode::kStrict, false,
@@ -1199,7 +1199,7 @@ void Parser::ParseExportStar() {
   //   import * as .x from "..."; export {.x as x};
 
   ExpectContextualKeyword(ast_value_factory()->as_string());
-  const AstRawString* export_name = ParseIdentifierName();
+  const AstRawString* export_name = ParsePropertyName();
   Scanner::Location export_name_loc = scanner()->location();
   const AstRawString* local_name = NextInternalNamespaceExportName();
   Scanner::Location local_name_loc = Scanner::Location::invalid();
