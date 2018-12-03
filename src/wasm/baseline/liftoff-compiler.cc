@@ -1075,25 +1075,17 @@ class LiftoffCompiler {
     __ cache_state()->stack_state.pop_back();
   }
 
-  void DoReturn(FullDecoder* decoder, Vector<Value> values, bool implicit) {
+  void DoReturn(FullDecoder* decoder, Vector<Value> /*values*/, bool implicit) {
     if (implicit) {
       DCHECK_EQ(1, decoder->control_depth());
       Control* func_block = decoder->control_at(0);
       __ bind(func_block->label.get());
       __ cache_state()->Steal(func_block->label_state);
+      TraceCacheState(decoder);
     }
-    if (!values.is_empty()) {
-      if (values.size() > 1) return unsupported(decoder, "multi-return");
-      LiftoffRegister reg = __ PopToRegister();
-      LiftoffRegister return_reg =
-          kNeedI64RegPair && values[0].type == kWasmI64
-              ? LiftoffRegister::ForPair(kGpReturnRegisters[0],
-                                         kGpReturnRegisters[1])
-              : reg_class_for(values[0].type) == kGpReg
-                    ? LiftoffRegister(kGpReturnRegisters[0])
-                    : LiftoffRegister(kFpReturnRegisters[0]);
-      if (reg != return_reg) __ Move(return_reg, reg, values[0].type);
-    }
+    size_t num_returns = decoder->sig_->return_count();
+    if (num_returns > 1) return unsupported(decoder, "multi-return");
+    if (num_returns > 0) __ MoveToReturnRegisters(decoder->sig_);
     __ LeaveFrame(StackFrame::WASM_COMPILED);
     __ DropStackSlotsAndRet(
         static_cast<uint32_t>(descriptor_->StackParameterCount()));

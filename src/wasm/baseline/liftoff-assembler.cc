@@ -11,6 +11,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/macro-assembler-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -618,6 +619,22 @@ void LiftoffAssembler::ParallelRegisterMove(
     if (tuple.dst == tuple.src) continue;
     stack_transfers.MoveRegister(tuple.dst, tuple.src, tuple.type);
   }
+}
+
+void LiftoffAssembler::MoveToReturnRegisters(FunctionSig* sig) {
+  // We do not support multi-value yet.
+  DCHECK_EQ(1, sig->return_count());
+  ValueType return_type = sig->GetReturn(0);
+  StackTransferRecipe stack_transfers(this);
+  LiftoffRegister return_reg =
+      needs_reg_pair(return_type)
+          ? LiftoffRegister::ForPair(kGpReturnRegisters[0],
+                                     kGpReturnRegisters[1])
+          : reg_class_for(return_type) == kGpReg
+                ? LiftoffRegister(kGpReturnRegisters[0])
+                : LiftoffRegister(kFpReturnRegisters[0]);
+  stack_transfers.LoadIntoRegister(return_reg, cache_state_.stack_state.back(),
+                                   cache_state_.stack_height() - 1);
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
