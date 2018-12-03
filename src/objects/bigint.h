@@ -81,7 +81,7 @@ class BigIntBase : public HeapObjectPtr {
 
   // sign() == true means negative.
   inline bool sign() const {
-    intptr_t bitfield = RELAXED_READ_INTPTR_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
     return SignBits::decode(static_cast<uint32_t>(bitfield));
   }
 

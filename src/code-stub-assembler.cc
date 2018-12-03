@@ -2024,7 +2024,7 @@ TNode<BigInt> CodeStubAssembler::BigIntFromInt32Pair(TNode<IntPtrT> low,
                                                      TNode<IntPtrT> high) {
   DCHECK(!Is64());
   TVARIABLE(BigInt, var_result);
-  TVARIABLE(WordT, var_sign, IntPtrConstant(BigInt::SignBits::encode(false)));
+  TVARIABLE(Word32T, var_sign, Int32Constant(BigInt::SignBits::encode(false)));
   TVARIABLE(IntPtrT, var_high, high);
   TVARIABLE(IntPtrT, var_low, low);
   Label high_zero(this), negative(this), allocate_one_digit(this),
@@ -2040,7 +2040,7 @@ TNode<BigInt> CodeStubAssembler::BigIntFromInt32Pair(TNode<IntPtrT> low,
 
   BIND(&negative);
   {
-    var_sign = IntPtrConstant(BigInt::SignBits::encode(true));
+    var_sign = Int32Constant(BigInt::SignBits::encode(true));
     // We must negate the value by computing "0 - (high|low)", performing
     // both parts of the subtraction separately and manually taking care
     // of the carry bit (which is 1 iff low != 0).
@@ -2062,8 +2062,8 @@ TNode<BigInt> CodeStubAssembler::BigIntFromInt32Pair(TNode<IntPtrT> low,
   {
     var_result = AllocateRawBigInt(IntPtrConstant(1));
     StoreBigIntBitfield(var_result.value(),
-                        WordOr(var_sign.value(),
-                               IntPtrConstant(BigInt::LengthBits::encode(1))));
+                        Word32Or(var_sign.value(),
+                                 Int32Constant(BigInt::LengthBits::encode(1))));
     StoreBigIntDigit(var_result.value(), 0, Unsigned(var_low.value()));
     Goto(&done);
   }
@@ -2072,8 +2072,8 @@ TNode<BigInt> CodeStubAssembler::BigIntFromInt32Pair(TNode<IntPtrT> low,
   {
     var_result = AllocateRawBigInt(IntPtrConstant(2));
     StoreBigIntBitfield(var_result.value(),
-                        WordOr(var_sign.value(),
-                               IntPtrConstant(BigInt::LengthBits::encode(2))));
+                        Word32Or(var_sign.value(),
+                                 Int32Constant(BigInt::LengthBits::encode(2))));
     StoreBigIntDigit(var_result.value(), 0, Unsigned(var_low.value()));
     StoreBigIntDigit(var_result.value(), 1, Unsigned(var_high.value()));
     Goto(&done);
@@ -2099,8 +2099,8 @@ TNode<BigInt> CodeStubAssembler::BigIntFromInt64(TNode<IntPtrT> value) {
   BIND(&if_positive);
   {
     StoreBigIntBitfield(var_result.value(),
-                        IntPtrConstant(BigInt::SignBits::encode(false) |
-                                       BigInt::LengthBits::encode(1)));
+                        Int32Constant(BigInt::SignBits::encode(false) |
+                                      BigInt::LengthBits::encode(1)));
     StoreBigIntDigit(var_result.value(), 0, Unsigned(value));
     Goto(&done);
   }
@@ -2108,8 +2108,8 @@ TNode<BigInt> CodeStubAssembler::BigIntFromInt64(TNode<IntPtrT> value) {
   BIND(&if_negative);
   {
     StoreBigIntBitfield(var_result.value(),
-                        IntPtrConstant(BigInt::SignBits::encode(true) |
-                                       BigInt::LengthBits::encode(1)));
+                        Int32Constant(BigInt::SignBits::encode(true) |
+                                      BigInt::LengthBits::encode(1)));
     StoreBigIntDigit(var_result.value(), 0,
                      Unsigned(IntPtrSub(IntPtrConstant(0), value)));
     Goto(&done);
@@ -3045,7 +3045,9 @@ TNode<MutableHeapNumber> CodeStubAssembler::AllocateMutableHeapNumberWithValue(
 
 TNode<BigInt> CodeStubAssembler::AllocateBigInt(TNode<IntPtrT> length) {
   TNode<BigInt> result = AllocateRawBigInt(length);
-  StoreBigIntBitfield(result, WordShl(length, BigInt::LengthBits::kShift));
+  StoreBigIntBitfield(result,
+                      Word32Shl(TruncateIntPtrToInt32(length),
+                                Int32Constant(BigInt::LengthBits::kShift)));
   return result;
 }
 
@@ -3054,17 +3056,24 @@ TNode<BigInt> CodeStubAssembler::AllocateRawBigInt(TNode<IntPtrT> length) {
   // applicability is required, a large-object check must be added.
   CSA_ASSERT(this, UintPtrLessThan(length, IntPtrConstant(3)));
 
-  TNode<IntPtrT> size = IntPtrAdd(IntPtrConstant(BigInt::kHeaderSize),
-                                  Signed(WordShl(length, kPointerSizeLog2)));
+  TNode<IntPtrT> size =
+      IntPtrAdd(IntPtrConstant(BigInt::kHeaderSize),
+                Signed(WordShl(length, kSystemPointerSizeLog2)));
   Node* raw_result = Allocate(size, kNone);
   StoreMapNoWriteBarrier(raw_result, RootIndex::kBigIntMap);
+  if (FIELD_SIZE(BigInt::kOptionalPaddingOffset)) {
+    DCHECK_EQ(4, FIELD_SIZE(BigInt::kOptionalPaddingOffset));
+    StoreObjectFieldNoWriteBarrier(raw_result, BigInt::kOptionalPaddingOffset,
+                                   Int32Constant(0),
+                                   MachineRepresentation::kWord32);
+  }
   return UncheckedCast<BigInt>(raw_result);
 }
 
 void CodeStubAssembler::StoreBigIntBitfield(TNode<BigInt> bigint,
-                                            TNode<WordT> bitfield) {
+                                            TNode<Word32T> bitfield) {
   StoreObjectFieldNoWriteBarrier(bigint, BigInt::kBitfieldOffset, bitfield,
-                                 MachineType::PointerRepresentation());
+                                 MachineRepresentation::kWord32);
 }
 
 void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint, int digit_index,
@@ -3074,9 +3083,9 @@ void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint, int digit_index,
       UintPtrT::kMachineRepresentation);
 }
 
-TNode<WordT> CodeStubAssembler::LoadBigIntBitfield(TNode<BigInt> bigint) {
-  return UncheckedCast<WordT>(
-      LoadObjectField(bigint, BigInt::kBitfieldOffset, MachineType::UintPtr()));
+TNode<Word32T> CodeStubAssembler::LoadBigIntBitfield(TNode<BigInt> bigint) {
+  return UncheckedCast<Word32T>(
+      LoadObjectField(bigint, BigInt::kBitfieldOffset, MachineType::Uint32()));
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
@@ -10282,19 +10291,19 @@ void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
   Label done(this);
   *var_low = Unsigned(IntPtrConstant(0));
   *var_high = Unsigned(IntPtrConstant(0));
-  TNode<WordT> bitfield = LoadBigIntBitfield(bigint);
-  TNode<UintPtrT> length = DecodeWord<BigIntBase::LengthBits>(bitfield);
-  TNode<UintPtrT> sign = DecodeWord<BigIntBase::SignBits>(bitfield);
-  GotoIf(WordEqual(length, IntPtrConstant(0)), &done);
+  TNode<Word32T> bitfield = LoadBigIntBitfield(bigint);
+  TNode<Uint32T> length = DecodeWord32<BigIntBase::LengthBits>(bitfield);
+  TNode<Uint32T> sign = DecodeWord32<BigIntBase::SignBits>(bitfield);
+  GotoIf(Word32Equal(length, Int32Constant(0)), &done);
   *var_low = LoadBigIntDigit(bigint, 0);
   if (!Is64()) {
     Label load_done(this);
-    GotoIf(WordEqual(length, IntPtrConstant(1)), &load_done);
+    GotoIf(Word32Equal(length, Int32Constant(1)), &load_done);
     *var_high = LoadBigIntDigit(bigint, 1);
     Goto(&load_done);
     BIND(&load_done);
   }
-  GotoIf(WordEqual(sign, IntPtrConstant(0)), &done);
+  GotoIf(Word32Equal(sign, Int32Constant(0)), &done);
   // Negative value. Simulate two's complement.
   if (!Is64()) {
     *var_high = Unsigned(IntPtrSub(IntPtrConstant(0), var_high->value()));

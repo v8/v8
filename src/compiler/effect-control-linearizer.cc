@@ -1297,9 +1297,9 @@ void EffectControlLinearizer::TruncateTaggedPointerToBit(
   __ Bind(&if_bigint);
   {
     Node* bitfield = __ LoadField(AccessBuilder::ForBigIntBitfield(), value);
-    Node* length_is_zero = __ WordEqual(
-        __ WordAnd(bitfield, __ IntPtrConstant(BigInt::LengthBits::kMask)),
-        __ IntPtrConstant(0));
+    Node* length_is_zero = __ Word32Equal(
+        __ Word32And(bitfield, __ Int32Constant(BigInt::LengthBits::kMask)),
+        __ Int32Constant(0));
     __ Goto(done, __ Word32Equal(length_is_zero, zero));
   }
 }

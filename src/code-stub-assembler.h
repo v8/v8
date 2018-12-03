@@ -1288,10 +1288,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BigInt> AllocateBigInt(TNode<IntPtrT> length);
   // Like above, but allowing custom bitfield initialization.
   TNode<BigInt> AllocateRawBigInt(TNode<IntPtrT> length);
-  void StoreBigIntBitfield(TNode<BigInt> bigint, TNode<WordT> bitfield);
+  void StoreBigIntBitfield(TNode<BigInt> bigint, TNode<Word32T> bitfield);
   void StoreBigIntDigit(TNode<BigInt> bigint, int digit_index,
                         TNode<UintPtrT> digit);
-  TNode<WordT> LoadBigIntBitfield(TNode<BigInt> bigint);
+  TNode<Word32T> LoadBigIntBitfield(TNode<BigInt> bigint);
   TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint, int digit_index);
 
   // Allocate a SeqOneByteString with the given length.

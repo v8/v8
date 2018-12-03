@@ -473,6 +473,11 @@
       reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
       static_cast<base::Atomic32>(value));
 
+#define RELEASE_WRITE_INT32_FIELD(p, offset, value)             \
+  base::Release_Store(                                          \
+      reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic32>(value));
+
 #define READ_FLOAT_FIELD(p, offset) \
   (*reinterpret_cast<const float*>(FIELD_ADDR(p, offset)))
 

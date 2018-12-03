@@ -346,9 +346,13 @@ extern runtime ReThrow(Context, Object): never;
 extern runtime ThrowInvalidStringLength(Context): never;
 
 extern operator '<' macro Int32LessThan(int32, int32): bool;
+extern operator '<' macro Uint32LessThan(uint32, uint32): bool;
 extern operator '>' macro Int32GreaterThan(int32, int32): bool;
+extern operator '>' macro Uint32GreaterThan(uint32, uint32): bool;
 extern operator '<=' macro Int32LessThanOrEqual(int32, int32): bool;
+extern operator '<=' macro Uint32LessThanOrEqual(uint32, uint32): bool;
 extern operator '>=' macro Int32GreaterThanOrEqual(int32, int32): bool;
+extern operator '>=' macro Uint32GreaterThanOrEqual(uint32, uint32): bool;
 
 extern operator '==' macro SmiEqual(Smi, Smi): bool;
 extern operator '!=' macro SmiNotEqual(Smi, Smi): bool;

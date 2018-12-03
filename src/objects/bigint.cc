@@ -184,18 +184,18 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
 // Internal field setters. Non-mutable BigInts don't have these.
 #include "src/objects/object-macros.h"
   inline void set_sign(bool new_sign) {
-    intptr_t bitfield = RELAXED_READ_INTPTR_FIELD(this, kBitfieldOffset);
-    bitfield = SignBits::update(static_cast<uint32_t>(bitfield), new_sign);
-    RELAXED_WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    bitfield = SignBits::update(bitfield, new_sign);
+    RELAXED_WRITE_INT32_FIELD(this, kBitfieldOffset, bitfield);
   }
   inline void synchronized_set_length(int new_length) {
-    intptr_t bitfield = RELAXED_READ_INTPTR_FIELD(this, kBitfieldOffset);
-    bitfield = LengthBits::update(static_cast<uint32_t>(bitfield), new_length);
-    RELEASE_WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    bitfield = LengthBits::update(bitfield, new_length);
+    RELEASE_WRITE_INT32_FIELD(this, kBitfieldOffset, bitfield);
   }
   inline void initialize_bitfield(bool sign, int length) {
-    intptr_t bitfield = LengthBits::encode(length) | SignBits::encode(sign);
-    WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+    int32_t bitfield = LengthBits::encode(length) | SignBits::encode(sign);
+    WRITE_INT32_FIELD(this, kBitfieldOffset, bitfield);
   }
   inline void set_digit(int n, digit_t value) {
     SLOW_DCHECK(0 <= n && n < length());
