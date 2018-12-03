@@ -3013,7 +3013,7 @@ bool ProcessMessages(
     SealHandleScope shs(isolate);
     while (v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                          behavior())) {
-      isolate->RunMicrotasks();
+      MicrotasksScope::PerformCheckpoint(isolate);
     }
     if (g_default_platform->IdleTasksEnabled(isolate)) {
       v8::platform::RunIdleTasks(g_default_platform, isolate,

@@ -4310,6 +4310,8 @@ void Isolate::EnqueueMicrotask(Handle<Microtask> microtask) {
 
 
 void Isolate::RunMicrotasks() {
+  DCHECK(!is_running_microtasks_);
+
   // TODO(tzik): Move the suppression, |is_running_microtask_|, and the
   // completion callbacks into MicrotaskQueue.
 
