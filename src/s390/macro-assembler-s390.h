@@ -1006,6 +1006,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void ResetSpeculationPoisonRegister();
   void ComputeCodeStartAddress(Register dst);
+  void LoadPC(Register dst);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

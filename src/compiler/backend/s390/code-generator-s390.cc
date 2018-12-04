@@ -1336,11 +1336,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
 void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   Register scratch = r1;
 
-  Label current_pc;
-  __ larl(scratch, &current_pc);
-
-  __ bind(&current_pc);
-  __ SubP(scratch, Operand(__ pc_offset()));
+  __ ComputeCodeStartAddress(scratch);
 
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
