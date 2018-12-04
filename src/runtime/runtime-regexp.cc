@@ -316,7 +316,7 @@ bool CompiledReplacement::Compile(Isolate* isolate, Handle<JSRegExp> regexp,
                                   int subject_length) {
   {
     DisallowHeapAllocation no_gc;
-    String::FlatContent content = replacement->GetFlatContent();
+    String::FlatContent content = replacement->GetFlatContent(no_gc);
     DCHECK(content.IsFlat());
 
     FixedArray capture_name_map;
@@ -454,8 +454,8 @@ void FindStringIndicesDispatch(Isolate* isolate, String subject, String pattern,
                                std::vector<int>* indices, unsigned int limit) {
   {
     DisallowHeapAllocation no_gc;
-    String::FlatContent subject_content = subject->GetFlatContent();
-    String::FlatContent pattern_content = pattern->GetFlatContent();
+    String::FlatContent subject_content = subject->GetFlatContent(no_gc);
+    String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
     DCHECK(subject_content.IsFlat());
     DCHECK(pattern_content.IsFlat());
     if (subject_content.IsOneByte()) {
@@ -573,14 +573,14 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   for (int index : *indices) {
     // Copy non-matched subject content.
     if (subject_pos < index) {
-      String::WriteToFlat(*subject, result->GetChars() + result_pos,
+      String::WriteToFlat(*subject, result->GetChars(no_gc) + result_pos,
                           subject_pos, index);
       result_pos += index - subject_pos;
     }
 
     // Replace match.
     if (replacement_len > 0) {
-      String::WriteToFlat(*replacement, result->GetChars() + result_pos, 0,
+      String::WriteToFlat(*replacement, result->GetChars(no_gc) + result_pos, 0,
                           replacement_len);
       result_pos += replacement_len;
     }
@@ -589,8 +589,8 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   }
   // Add remaining subject content at the end.
   if (subject_pos < subject_len) {
-    String::WriteToFlat(*subject, result->GetChars() + result_pos, subject_pos,
-                        subject_len);
+    String::WriteToFlat(*subject, result->GetChars(no_gc) + result_pos,
+                        subject_pos, subject_len);
   }
 
   int32_t match_indices[] = {indices->back(), indices->back() + pattern_len};
@@ -745,7 +745,8 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
     end = current_match[1];
     if (prev < start) {
       // Add substring subject[prev;start] to answer string.
-      String::WriteToFlat(*subject, answer->GetChars() + position, prev, start);
+      String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
+                          start);
       position += start - prev;
     }
     prev = end;
@@ -760,7 +761,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
 
   if (prev < subject_length) {
     // Add substring subject[prev;length] to answer string.
-    String::WriteToFlat(*subject, answer->GetChars() + position, prev,
+    String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
                         subject_length);
     position += subject_length - prev;
   }

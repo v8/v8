@@ -1976,7 +1976,7 @@ MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(
           ->NewRawOneByteString(static_cast<int>(chars_required))
           .ToHandleChecked();
   DisallowHeapAllocation no_gc;
-  uint8_t* buffer = result->GetChars();
+  uint8_t* buffer = result->GetChars(no_gc);
   // Print the number into the string, starting from the last position.
   int pos = static_cast<int>(chars_required - 1);
   digit_t digit = 0;
@@ -2053,7 +2053,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
   // Zap the string first.
   {
     DisallowHeapAllocation no_gc;
-    uint8_t* chars = result->GetChars();
+    uint8_t* chars = result->GetChars(no_gc);
     for (int i = 0; i < static_cast<int>(chars_required); i++) chars[i] = '?';
   }
 #endif
@@ -2086,7 +2086,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
       DCHECK(!rest.is_null());
       dividend = reinterpret_cast<Handle<BigIntBase>*>(&rest);
       DisallowHeapAllocation no_gc;
-      uint8_t* chars = result->GetChars();
+      uint8_t* chars = result->GetChars(no_gc);
       for (int i = 0; i < chunk_chars; i++) {
         chars[pos++] = kConversionChars[chunk % radix];
         chunk /= radix;
@@ -2100,7 +2100,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
     last_digit = rest->digit(0);
   }
   DisallowHeapAllocation no_gc;
-  uint8_t* chars = result->GetChars();
+  uint8_t* chars = result->GetChars(no_gc);
   do {
     chars[pos++] = kConversionChars[last_digit % radix];
     last_digit /= radix;

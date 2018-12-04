@@ -115,7 +115,7 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
   Handle<FixedArray> tmp =
       isolate->factory()->NewFixedArray(DateParser::OUTPUT_SIZE);
   DisallowHeapAllocation no_gc;
-  String::FlatContent str_content = str->GetFlatContent();
+  String::FlatContent str_content = str->GetFlatContent(no_gc);
   bool result;
   if (str_content.IsOneByte()) {
     result = DateParser::Parse(isolate, str_content.ToOneByteVector(), *tmp);

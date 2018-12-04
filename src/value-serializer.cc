@@ -439,7 +439,7 @@ void ValueSerializer::WriteBigInt(BigInt bigint) {
 void ValueSerializer::WriteString(Handle<String> string) {
   string = String::Flatten(isolate_, string);
   DisallowHeapAllocation no_gc;
-  String::FlatContent flat = string->GetFlatContent();
+  String::FlatContent flat = string->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
     Vector<const uint8_t> chars = flat.ToOneByteVector();
@@ -1332,7 +1332,7 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
   DisallowHeapAllocation no_gc;
-  memcpy(string->GetChars(), bytes.begin(), bytes.length());
+  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
   return string;
 }
 
@@ -1352,7 +1352,7 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
     return false;
   }
 
-  String::FlatContent flat = expected->GetFlatContent();
+  String::FlatContent flat = expected->GetFlatContent(no_gc);
 
   // If the bytes are verbatim what is in the flattened string, then the string
   // is successfully consumed.

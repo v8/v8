@@ -240,8 +240,8 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
   }
 
   for (int i = 0; i < output_size; i += 2) {
-    String::FlatContent needle_content = needle->GetFlatContent();
-    String::FlatContent subject_content = subject->GetFlatContent();
+    String::FlatContent needle_content = needle->GetFlatContent(no_gc);
+    String::FlatContent subject_content = subject->GetFlatContent(no_gc);
     DCHECK(needle_content.IsFlat());
     DCHECK(subject_content.IsFlat());
     // dispatch on type of strings

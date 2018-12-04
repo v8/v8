@@ -328,7 +328,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawOneByteString(length));
     DisallowHeapAllocation no_gc;
-    StringBuilderConcatHelper(*special, answer->GetChars(),
+    StringBuilderConcatHelper(*special, answer->GetChars(no_gc),
                               FixedArray::cast(array->elements()),
                               array_length);
     return *answer;
@@ -337,7 +337,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawTwoByteString(length));
     DisallowHeapAllocation no_gc;
-    StringBuilderConcatHelper(*special, answer->GetChars(),
+    StringBuilderConcatHelper(*special, answer->GetChars(no_gc),
                               FixedArray::cast(array->elements()),
                               array_length);
     return *answer;
@@ -397,7 +397,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
 
   DisallowHeapAllocation no_gc;
 
-  uc16* sink = answer->GetChars();
+  uc16* sink = answer->GetChars(no_gc);
 #ifdef DEBUG
   uc16* end = sink + length;
 #endif
@@ -558,7 +558,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
     JoinSparseArrayWithSeparator<uint8_t>(
         FixedArray::cast(elements_array->elements()), elements_length,
         array_length, *separator,
-        Vector<uint8_t>(result->GetChars(), string_length));
+        Vector<uint8_t>(result->GetChars(no_gc), string_length));
     return *result;
   } else {
     Handle<SeqTwoByteString> result = isolate->factory()
@@ -568,7 +568,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
     JoinSparseArrayWithSeparator<uc16>(
         FixedArray::cast(elements_array->elements()), elements_length,
         array_length, *separator,
-        Vector<uc16>(result->GetChars(), string_length));
+        Vector<uc16>(result->GetChars(no_gc), string_length));
     return *result;
   }
 }
@@ -623,7 +623,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
     elements = isolate->factory()->NewUninitializedFixedArray(length);
 
     DisallowHeapAllocation no_gc;
-    String::FlatContent content = s->GetFlatContent();
+    String::FlatContent content = s->GetFlatContent(no_gc);
     if (content.IsOneByte()) {
       Vector<const uint8_t> chars = content.ToOneByteVector();
       // Note, this will initialize all elements (not only the prefix)

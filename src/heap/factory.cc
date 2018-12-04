@@ -629,7 +629,7 @@ MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
 
   DisallowHeapAllocation no_gc;
   // Copy the characters into the new object.
-  CopyChars(SeqOneByteString::cast(*result)->GetChars(), string.start(),
+  CopyChars(SeqOneByteString::cast(*result)->GetChars(no_gc), string.start(),
             length);
   return result;
 }
@@ -663,7 +663,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
 
   // Copy ASCII portion.
   DisallowHeapAllocation no_gc;
-  uint16_t* data = result->GetChars();
+  uint16_t* data = result->GetChars(no_gc);
   for (int i = 0; i < non_ascii_start; i++) {
     *data++ = *ascii_data++;
   }
@@ -683,7 +683,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
   {
     DisallowHeapAllocation no_gc;
     const char* ascii_data =
-        reinterpret_cast<const char*>(str->GetChars() + begin);
+        reinterpret_cast<const char*>(str->GetChars(no_gc) + begin);
     non_ascii_start = String::NonAsciiStart(ascii_data, length);
     if (non_ascii_start < length) {
       // Non-ASCII and we need to decode.
@@ -713,12 +713,12 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
   // allocation.
   DisallowHeapAllocation no_gc;
   const char* ascii_data =
-      reinterpret_cast<const char*>(str->GetChars() + begin);
+      reinterpret_cast<const char*>(str->GetChars(no_gc) + begin);
   auto non_ascii = Vector<const char>(ascii_data + non_ascii_start,
                                       length - non_ascii_start);
 
   // Copy ASCII portion.
-  uint16_t* data = result->GetChars();
+  uint16_t* data = result->GetChars(no_gc);
   for (int i = 0; i < non_ascii_start; i++) {
     *data++ = *ascii_data++;
   }
@@ -738,14 +738,14 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
                                NewRawOneByteString(length, pretenure), String);
     DisallowHeapAllocation no_gc;
-    CopyChars(result->GetChars(), string, length);
+    CopyChars(result->GetChars(no_gc), string, length);
     return result;
   } else {
     Handle<SeqTwoByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
                                NewRawTwoByteString(length, pretenure), String);
     DisallowHeapAllocation no_gc;
-    CopyChars(result->GetChars(), string, length);
+    CopyChars(result->GetChars(no_gc), string, length);
     return result;
   }
 }
@@ -842,7 +842,7 @@ Handle<String> Factory::AllocateTwoByteInternalizedString(
   DisallowHeapAllocation no_gc;
 
   // Fill in the characters.
-  MemCopy(answer->GetChars(), str.start(), str.length() * kUC16Size);
+  MemCopy(answer->GetChars(no_gc), str.start(), str.length() * kUC16Size);
 
   return answer;
 }
@@ -876,9 +876,11 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
   DisallowHeapAllocation no_gc;
 
   if (is_one_byte) {
-    WriteOneByteData(t, SeqOneByteString::cast(*answer)->GetChars(), chars);
+    WriteOneByteData(t, SeqOneByteString::cast(*answer)->GetChars(no_gc),
+                     chars);
   } else {
-    WriteTwoByteData(t, SeqTwoByteString::cast(*answer)->GetChars(), chars);
+    WriteTwoByteData(t, SeqTwoByteString::cast(*answer)->GetChars(no_gc),
+                     chars);
   }
   return answer;
 }
@@ -890,7 +892,7 @@ Handle<String> Factory::NewInternalizedStringFromUtf8(Vector<const char> str,
     Handle<SeqOneByteString> result =
         AllocateRawOneByteInternalizedString(str.length(), hash_field);
     DisallowHeapAllocation no_allocation;
-    MemCopy(result->GetChars(), str.start(), str.length());
+    MemCopy(result->GetChars(no_allocation), str.start(), str.length());
     return result;
   }
   return AllocateInternalizedStringImpl<false>(str, chars, hash_field);
@@ -901,7 +903,7 @@ Handle<String> Factory::NewOneByteInternalizedString(Vector<const uint8_t> str,
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_allocation;
-  MemCopy(result->GetChars(), str.start(), str.length());
+  MemCopy(result->GetChars(no_allocation), str.start(), str.length());
   return result;
 }
 
@@ -911,7 +913,8 @@ Handle<String> Factory::NewOneByteInternalizedSubString(
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(length, hash_field);
   DisallowHeapAllocation no_allocation;
-  MemCopy(result->GetChars(), string->GetChars() + offset, length);
+  MemCopy(result->GetChars(no_allocation),
+          string->GetChars(no_allocation) + offset, length);
   return result;
 }
 
@@ -1069,7 +1072,7 @@ static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
     Handle<SeqOneByteString> str =
         isolate->factory()->NewRawOneByteString(2).ToHandleChecked();
     DisallowHeapAllocation no_allocation;
-    uint8_t* dest = str->GetChars();
+    uint8_t* dest = str->GetChars(no_allocation);
     dest[0] = static_cast<uint8_t>(c1);
     dest[1] = static_cast<uint8_t>(c2);
     return str;
@@ -1077,7 +1080,7 @@ static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
     Handle<SeqTwoByteString> str =
         isolate->factory()->NewRawTwoByteString(2).ToHandleChecked();
     DisallowHeapAllocation no_allocation;
-    uc16* dest = str->GetChars();
+    uc16* dest = str->GetChars(no_allocation);
     dest[0] = c1;
     dest[1] = c2;
     return str;
@@ -1089,7 +1092,7 @@ Handle<String> ConcatStringContent(Handle<StringType> result,
                                    Handle<String> first,
                                    Handle<String> second) {
   DisallowHeapAllocation pointer_stays_valid;
-  SinkChar* sink = result->GetChars();
+  SinkChar* sink = result->GetChars(pointer_stays_valid);
   String::WriteToFlat(*first, sink, 0, first->length());
   String::WriteToFlat(*second, sink + first->length(), 0, second->length());
   return result;
@@ -1149,17 +1152,17 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length).ToHandleChecked();
       DisallowHeapAllocation no_gc;
-      uint8_t* dest = result->GetChars();
+      uint8_t* dest = result->GetChars(no_gc);
       // Copy left part.
       const uint8_t* src =
           left->IsExternalString()
               ? Handle<ExternalOneByteString>::cast(left)->GetChars()
-              : Handle<SeqOneByteString>::cast(left)->GetChars();
+              : Handle<SeqOneByteString>::cast(left)->GetChars(no_gc);
       for (int i = 0; i < left_length; i++) *dest++ = src[i];
       // Copy right part.
       src = right->IsExternalString()
                 ? Handle<ExternalOneByteString>::cast(right)->GetChars()
-                : Handle<SeqOneByteString>::cast(right)->GetChars();
+                : Handle<SeqOneByteString>::cast(right)->GetChars(no_gc);
       for (int i = 0; i < right_length; i++) *dest++ = src[i];
       return result;
     }
@@ -1207,7 +1210,7 @@ Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
   Handle<SeqTwoByteString> str =
       isolate()->factory()->NewRawTwoByteString(2).ToHandleChecked();
   DisallowHeapAllocation no_allocation;
-  uc16* dest = str->GetChars();
+  uc16* dest = str->GetChars(no_allocation);
   dest[0] = lead;
   dest[1] = trail;
   return str;
@@ -1241,14 +1244,14 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length).ToHandleChecked();
       DisallowHeapAllocation no_gc;
-      uint8_t* dest = result->GetChars();
+      uint8_t* dest = result->GetChars(no_gc);
       String::WriteToFlat(*str, dest, begin, end);
       return result;
     } else {
       Handle<SeqTwoByteString> result =
           NewRawTwoByteString(length).ToHandleChecked();
       DisallowHeapAllocation no_gc;
-      uc16* dest = result->GetChars();
+      uc16* dest = result->GetChars(no_gc);
       String::WriteToFlat(*str, dest, begin, end);
       return result;
     }
