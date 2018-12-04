@@ -8,7 +8,6 @@
 #include "src/builtins/constants-table-builder.h"
 #include "src/isolate-data.h"
 #include "src/isolate-inl.h"
-#include "src/lsan.h"
 #include "src/snapshot/serializer-common.h"
 
 namespace v8 {
@@ -118,14 +117,9 @@ bool TurboAssemblerBase::IsAddressableThroughRootRegister(
 
 void TurboAssemblerBase::RecordCommentForOffHeapTrampoline(int builtin_index) {
   if (!FLAG_code_comments) return;
-  size_t len = strlen("-- Inlined Trampoline to  --") +
-               strlen(Builtins::name(builtin_index)) + 1;
-  Vector<char> buffer = Vector<char>::New(static_cast<int>(len));
-  char* buffer_start = buffer.start();
-  LSAN_IGNORE_OBJECT(buffer_start);
-  SNPrintF(buffer, "-- Inlined Trampoline to %s --",
-           Builtins::name(builtin_index));
-  RecordComment(buffer_start);
+  std::ostringstream str;
+  str << "-- Inlined Trampoline to " << Builtins::name(builtin_index) << " --";
+  RecordComment(str.str().c_str());
 }
 
 }  // namespace internal

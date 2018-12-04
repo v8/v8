@@ -1722,9 +1722,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return pc_offset() - label->pos();
   }
 
-  // Use --code-comments to enable.
-  void RecordComment(const char* msg);
-
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
@@ -1848,6 +1845,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   bool is_optimizable_farjmp(int idx);
 
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  int WriteCodeComments();
 
   friend class EnsureSpace;
 

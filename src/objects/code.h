@@ -105,6 +105,11 @@ class Code : public HeapObjectPtr {
   inline int constant_pool_offset() const;
   inline void set_constant_pool_offset(int offset);
 
+  // [code_comments_offset]: Offset of the code comment section.
+  inline int code_comments_offset() const;
+  inline void set_code_comments_offset(int offset);
+  inline Address code_comments() const;
+
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
 
@@ -387,7 +392,7 @@ class Code : public HeapObjectPtr {
   V(kHandlerTableOffsetOffset, kIntSize)                                    \
   V(kStubKeyOffset, kIntSize)                                               \
   V(kConstantPoolOffset, FLAG_enable_embedded_constant_pool ? kIntSize : 0) \
-  V(kBuiltinIndexOffset, kIntSize)                                          \
+  V(kBuiltinIndexAndCodeCommentsOffset, kIntSize)                           \
   /* Add padding to align the instruction start following right after */    \
   /* the Code object header. */                                             \
   V(kHeaderPaddingStart, CODE_POINTER_PADDING(kHeaderPaddingStart))         \
@@ -425,6 +430,18 @@ class Code : public HeapObjectPtr {
   DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
 #undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
   static_assert(IsExceptionCaughtField::kNext <= 32, "KindSpecificFlags full");
+
+// BuiltinIndexAndCodeComments field
+#define BUILTIN_INDEX_AND_CODE_COMMENTS_BIT_FIELDS(V, _) \
+  V(BuiltinIndexField, int, 11, _)                       \
+  V(CodeCommentsOffsetField, int, 21, _)
+  DEFINE_BIT_FIELDS(BUILTIN_INDEX_AND_CODE_COMMENTS_BIT_FIELDS)
+#undef BUILTIN_INDEX_AND_CODE_COMMENTS_BIT_FIELDS
+  static_assert(CodeCommentsOffsetField::kNext <= 32,
+                "BuiltinIndexAndCodeCommentsFlags full");
+
+  // Code comment offset must be a multiple of {kCodeCommentsOffsetFactor}.
+  static constexpr uint8_t kCodeCommentsOffsetFactor = 128;
 
   // The {marked_for_deoptimization} field is accessed from generated code.
   static const int kMarkedForDeoptimizationBit =

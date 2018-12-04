@@ -4,6 +4,7 @@
 
 #include "src/objects.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iomanip>
 #include <memory>
@@ -14752,13 +14753,10 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
   constexpr int all_real_modes_mask =
       (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
   constexpr int mode_mask = all_real_modes_mask &
-                            ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
                             ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
                             ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
                             ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
   STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
-                (1 << RelocInfo::COMMENT));
   STATIC_ASSERT(mode_mask ==
                 (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
@@ -15141,23 +15139,26 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
     int size = InstructionSize();
     int safepoint_offset =
         has_safepoint_info() ? safepoint_table_offset() : size;
-    int constant_pool_offset = this->constant_pool_offset();
+    int const_pool_offset =
+        constant_pool_offset() ? constant_pool_offset() : size;
     int handler_offset = handler_table_offset() ? handler_table_offset() : size;
+    int comments_offset =
+        code_comments_offset() ? code_comments_offset() : size;
 
     // Stop before reaching any embedded tables
-    int code_size =
-        Min(handler_offset, Min(safepoint_offset, constant_pool_offset));
+    int code_size = std::min(
+        {handler_offset, safepoint_offset, const_pool_offset, comments_offset});
     os << "Instructions (size = " << code_size << ")\n";
     DisassembleCodeRange(isolate, os, *this, InstructionStart(), code_size,
                          current_pc);
 
-    if (constant_pool_offset < size) {
-      int constant_pool_size = safepoint_offset - constant_pool_offset;
+    if (const_pool_offset != size) {
+      int constant_pool_size = comments_offset - const_pool_offset;
       DCHECK_EQ(constant_pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << constant_pool_size << ")\n";
       Vector<char> buf = Vector<char>::New(50);
-      intptr_t* ptr = reinterpret_cast<intptr_t*>(InstructionStart() +
-                                                  constant_pool_offset);
+      intptr_t* ptr =
+          reinterpret_cast<intptr_t*>(InstructionStart() + const_pool_offset);
       for (int i = 0; i < constant_pool_size; i += kPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.start() << "\n";
@@ -15233,6 +15234,10 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
         reinterpret_cast<byte*>(unwinding_info_end()));
     eh_frame_disassembler.DisassembleToStream(os);
     os << "\n";
+  }
+
+  if (code_comments_offset() > 0) {
+    PrintCodeCommentsSection(os, code_comments());
   }
 }
 #endif  // ENABLE_DISASSEMBLER

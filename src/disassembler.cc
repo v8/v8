@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/assembler-inl.h"
+#include "src/code-comments.h"
 #include "src/code-reference.h"
 #include "src/code-stubs.h"
 #include "src/debug/debug.h"
@@ -274,6 +275,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
                     std::ostream* os, CodeReference code,
                     const V8NameConverter& converter, byte* begin, byte* end,
                     Address current_pc) {
+  CHECK(!code.is_null());
   v8::internal::EmbeddedVector<char, 128> decode_buffer;
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
   StringBuilder out(out_buffer.start(), out_buffer.length());
@@ -281,7 +283,11 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   disasm::Disassembler d(converter,
                          disasm::Disassembler::kContinueOnUnimplementedOpcode);
   RelocIterator* it = nullptr;
-  if (!code.is_null()) {
+  CodeCommentsIterator cit(code.code_comments());
+  // Relocation exists if we either have no isolate (wasm code),
+  // or we have an isolate and it is not an off-heap instruction stream.
+  if (!isolate ||
+      !InstructionStream::PcIsOffHeap(isolate, bit_cast<Address>(begin))) {
     it = new RelocIterator(code);
   } else {
     // No relocation information when printing code stubs.
@@ -327,18 +333,17 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     std::vector<intptr_t> datas;
     if (it != nullptr) {
       while (!it->done() && it->rinfo()->pc() < reinterpret_cast<Address>(pc)) {
-        if (RelocInfo::IsComment(it->rinfo()->rmode())) {
-          // For comments just collect the text.
-          comments.push_back(
-              reinterpret_cast<const char*>(it->rinfo()->data()));
-        } else {
-          // For other reloc info collect all data.
-          pcs.push_back(it->rinfo()->pc());
-          rmodes.push_back(it->rinfo()->rmode());
-          datas.push_back(it->rinfo()->data());
-        }
+        // Collect all data.
+        pcs.push_back(it->rinfo()->pc());
+        rmodes.push_back(it->rinfo()->rmode());
+        datas.push_back(it->rinfo()->data());
         it->next();
       }
+    }
+    while (cit.HasCurrent() &&
+           cit.GetPCOffset() < static_cast<Address>(pc - begin)) {
+      comments.push_back(cit.GetComment());
+      cit.Next();
     }
 
     // Comments.
@@ -402,14 +407,11 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   }
 
   // Emit comments following the last instruction (if any).
-  if (it != nullptr) {
-    for ( ; !it->done(); it->next()) {
-      if (RelocInfo::IsComment(it->rinfo()->rmode())) {
-        out.AddFormatted("                  %s",
-                         reinterpret_cast<const char*>(it->rinfo()->data()));
-        DumpBuffer(os, &out);
-      }
-    }
+  while (cit.HasCurrent() &&
+         cit.GetPCOffset() < static_cast<Address>(pc - begin)) {
+    out.AddFormatted("                  %s", cit.GetComment());
+    DumpBuffer(os, &out);
+    cit.Next();
   }
 
   delete it;
@@ -419,19 +421,16 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
                          byte* end, CodeReference code, Address current_pc) {
   V8NameConverter v8NameConverter(isolate, code);
-  bool decode_off_heap = isolate && InstructionStream::PcIsOffHeap(
-                                        isolate, bit_cast<Address>(begin));
-  CodeReference code_ref = decode_off_heap ? CodeReference() : code;
   if (isolate) {
     // We have an isolate, so support external reference names.
     SealHandleScope shs(isolate);
     DisallowHeapAllocation no_alloc;
     ExternalReferenceEncoder ref_encoder(isolate);
-    return DecodeIt(isolate, &ref_encoder, os, code_ref, v8NameConverter, begin,
+    return DecodeIt(isolate, &ref_encoder, os, code, v8NameConverter, begin,
                     end, current_pc);
   } else {
     // No isolate => isolate-independent code. No external reference names.
-    return DecodeIt(nullptr, nullptr, os, code_ref, v8NameConverter, begin, end,
+    return DecodeIt(nullptr, nullptr, os, code, v8NameConverter, begin, end,
                     current_pc);
   }
 }
