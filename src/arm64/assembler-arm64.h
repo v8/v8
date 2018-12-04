@@ -1086,6 +1086,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     EndBlockVeneerPool();
   }
 
+  // Debugging ----------------------------------------------------------------
+  void RecordComment(const char* msg);
+
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
@@ -3584,8 +3587,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
 
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
-
-  int WriteCodeComments();
 
   friend class EnsureSpace;
   friend class ConstPool;
