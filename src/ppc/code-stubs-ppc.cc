@@ -331,7 +331,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&leave_exit_frame);
   // LeaveExitFrame expects unwind space to be in a register.
   if (stack_space_operand != nullptr) {
-    __ lwz(r14, *stack_space_operand);
+    __ LoadP(r14, *stack_space_operand);
   } else {
     __ mov(r14, Operand(stack_space));
   }
@@ -363,20 +363,32 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
 void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r7                  : call_data
-  //  -- r5                  : holder
-  //  -- r4                  : api_function_address
-  //  -- cp                  : context
+  //  -- cp                  : kTargetContext
+  //  -- r4                  : kApiFunctionAddress
+  //  -- r5                  : kArgc
   //  --
   //  -- sp[0]               : last argument
   //  -- ...
   //  -- sp[(argc - 1)* 4]   : first argument
-  //  -- sp[argc * 4]        : receiver
+  //  -- sp[(argc + 0) * 4]  : receiver
+  //  -- sp[(argc + 1) * 4]  : kHolder
+  //  -- sp[(argc + 2) * 4]  : kCallData
   // -----------------------------------
 
-  Register call_data = r7;
-  Register holder = r5;
   Register api_function_address = r4;
+  Register argc = r5;
+  Register scratch = r7;
+  Register index = r8;  // For indexing MemOperands.
+
+  DCHECK(!AreAliased(api_function_address, argc, scratch, index));
+
+  // Stack offsets (without argc).
+  static constexpr int kReceiverOffset = 0;
+  static constexpr int kHolderOffset = kReceiverOffset + 1;
+  static constexpr int kCallDataOffset = kHolderOffset + 1;
+
+  // Extra stack arguments are: the receiver, kHolder, kCallData.
+  static constexpr int kExtraStackArgumentCount = 3;
 
   typedef FunctionCallbackArguments FCA;
 
@@ -388,25 +400,43 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
 
-  // new target
-  __ PushRoot(RootIndex::kUndefinedValue);
+  // Set up FunctionCallbackInfo's implicit_args on the stack as follows:
+  //
+  // Target state:
+  //   sp[0 * kPointerSize]: kHolder
+  //   sp[1 * kPointerSize]: kIsolate
+  //   sp[2 * kPointerSize]: undefined (kReturnValueDefaultValue)
+  //   sp[3 * kPointerSize]: undefined (kReturnValue)
+  //   sp[4 * kPointerSize]: kData
+  //   sp[5 * kPointerSize]: undefined (kNewTarget)
 
-  // call data
-  __ push(call_data);
+  // Reserve space on the stack.
+  __ subi(sp, sp, Operand(FCA::kArgsLength * kPointerSize));
 
-  Register scratch = call_data;
-  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  // return value
-  __ push(scratch);
-  // return value default
-  __ push(scratch);
-  // isolate
+  // kHolder.
+  __ addi(index, argc, Operand(FCA::kArgsLength + kHolderOffset));
+  __ ShiftLeftImm(ip, index, Operand(kPointerSizeLog2));
+  __ LoadPX(scratch, MemOperand(sp, ip));
+  __ StoreP(scratch, MemOperand(sp, 0 * kPointerSize));
+
+  // kIsolate.
   __ Move(scratch, ExternalReference::isolate_address(masm->isolate()));
-  __ push(scratch);
-  // holder
-  __ push(holder);
+  __ StoreP(scratch, MemOperand(sp, 1 * kPointerSize));
 
-  // Prepare arguments.
+  // kReturnValueDefaultValue, kReturnValue, and kNewTarget.
+  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
+  __ StoreP(scratch, MemOperand(sp, 2 * kPointerSize));
+  __ StoreP(scratch, MemOperand(sp, 3 * kPointerSize));
+  __ StoreP(scratch, MemOperand(sp, 5 * kPointerSize));
+
+  // kData.
+  __ addi(index, argc, Operand(FCA::kArgsLength + kCallDataOffset));
+  __ ShiftLeftImm(ip, index, Operand(kPointerSizeLog2));
+  __ LoadPX(scratch, MemOperand(sp, ip));
+  __ StoreP(scratch, MemOperand(sp, 4 * kPointerSize));
+
+  // Keep a pointer to kHolder (= implicit_args) in a scratch register.
+  // We use it below to set up the FunctionCallbackInfo object.
   __ mr(scratch, sp);
 
   // Allocate the v8::Arguments structure in the arguments' space since
@@ -416,36 +446,58 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // Create 4 extra slots on stack:
   //    [0] space for DirectCEntryStub's LR save
   //    [1-3] FunctionCallbackInfo
-  const int kApiStackSpace = 4;
-  const int kFunctionCallbackInfoOffset =
-      (kStackFrameExtraParamSlot + 1) * kPointerSize;
+  //    [4] number of bytes to drop from the stack after returning
+  static constexpr int kApiStackSpace = 5;
+  static constexpr bool kDontSaveDoubles = false;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(false, kApiStackSpace);
+  __ EnterExitFrame(kDontSaveDoubles, kApiStackSpace);
 
-  DCHECK(api_function_address != r3 && scratch != r3);
-  // r3 = FunctionCallbackInfo&
-  // Arguments is after the return address.
-  __ addi(r3, sp, Operand(kFunctionCallbackInfoOffset));
-  // FunctionCallbackInfo::implicit_args_
-  __ StoreP(scratch, MemOperand(r3, 0 * kPointerSize));
-  // FunctionCallbackInfo::values_
-  __ addi(ip, scratch, Operand((FCA::kArgsLength - 1 + argc()) * kPointerSize));
-  __ StoreP(ip, MemOperand(r3, 1 * kPointerSize));
-  // FunctionCallbackInfo::length_ = argc
-  __ li(ip, Operand(argc()));
-  __ stw(ip, MemOperand(r3, 2 * kPointerSize));
+  // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up above).
+  // Arguments are after the return address (pushed by EnterExitFrame()).
+  __ StoreP(scratch,
+            MemOperand(sp, (kStackFrameExtraParamSlot + 1) * kPointerSize));
+
+  // FunctionCallbackInfo::values_ (points at the first varargs argument passed
+  // on the stack).
+  __ addi(scratch, scratch, Operand((FCA::kArgsLength - 1) * kPointerSize));
+  __ ShiftLeftImm(ip, argc, Operand(kPointerSizeLog2));
+  __ add(scratch, scratch, ip);
+  __ StoreP(scratch,
+            MemOperand(sp, (kStackFrameExtraParamSlot + 2) * kPointerSize));
+
+  // FunctionCallbackInfo::length_.
+  __ StoreP(argc,
+            MemOperand(sp, (kStackFrameExtraParamSlot + 3) * kPointerSize));
+
+  // We also store the number of bytes to drop from the stack after returning
+  // from the API function here.
+  __ mov(scratch,
+         Operand((FCA::kArgsLength + kExtraStackArgumentCount) * kPointerSize));
+  __ ShiftLeftImm(ip, argc, Operand(kPointerSizeLog2));
+  __ add(scratch, scratch, ip);
+  __ StoreP(scratch,
+            MemOperand(sp, (kStackFrameExtraParamSlot + 4) * kPointerSize));
+
+  // v8::InvocationCallback's argument.
+  __ addi(r3, sp, Operand((kStackFrameExtraParamSlot + 1) * kPointerSize));
 
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
 
+  // There are two stack slots above the arguments we constructed on the stack.
+  // TODO(jgruber): Document what these arguments are.
+  static constexpr int kStackSlotsAboveFCA = 2;
+  MemOperand return_value_operand(
+      fp, (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kPointerSize);
+
+  static constexpr int kUseStackSpaceOperand = 0;
+  MemOperand stack_space_operand(
+      sp, (kStackFrameExtraParamSlot + 4) * kPointerSize);
+
   AllowExternalCallThatCantCauseGC scope(masm);
-  // Stores return the first js argument
-  int return_value_offset = 2 + FCA::kReturnValueOffset;
-  MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
-  const int stack_space = argc() + FCA::kArgsLength + 1;
-  MemOperand* stack_space_operand = nullptr;
-  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
-                           stack_space_operand, return_value_operand);
+  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
+                           kUseStackSpaceOperand, &stack_space_operand,
+                           return_value_operand);
 }
 
 
@@ -537,8 +589,10 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // +3 is to skip prolog, return address and name handle.
   MemOperand return_value_operand(
       fp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
+  MemOperand* const kUseStackSpaceConstant = nullptr;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
-                           kStackUnwindSpace, nullptr, return_value_operand);
+                           kStackUnwindSpace, kUseStackSpaceConstant,
+                           return_value_operand);
 }
 
 #undef __

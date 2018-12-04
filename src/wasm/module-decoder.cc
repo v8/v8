@@ -870,9 +870,9 @@ class ModuleDecoderImpl : public Decoder {
 
   bool CheckDataSegmentsCount(uint32_t data_segments_count) {
     if (has_seen_unordered_section(kDataCountSectionCode) &&
-        data_segments_count != num_declared_data_segments_) {
+        data_segments_count != module_->num_declared_data_segments) {
       errorf(pc(), "data segments count %u mismatch (%u expected)",
-             data_segments_count, num_declared_data_segments_);
+             data_segments_count, module_->num_declared_data_segments);
       return false;
     }
     return true;
@@ -968,7 +968,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeDataCountSection() {
-    num_declared_data_segments_ =
+    module_->num_declared_data_segments =
         consume_count("data segments count", kV8MaxWasmDataSegments);
   }
 
@@ -1120,8 +1120,6 @@ class ModuleDecoderImpl : public Decoder {
                 "not enough bits");
   VoidResult intermediate_result_;
   ModuleOrigin origin_;
-  // The number of data segments as specified by the DataCount section.
-  uint32_t num_declared_data_segments_ = 0;
 
   bool has_seen_unordered_section(SectionCode section_code) {
     return seen_unordered_sections_ & (1 << section_code);
