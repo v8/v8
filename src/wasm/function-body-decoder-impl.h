@@ -1508,11 +1508,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return static_cast<uint32_t>(stack_.size());
   }
 
-  inline Value* stack_value(uint32_t depth) {
-    DCHECK_GT(stack_.size(), depth);
-    return &stack_[stack_.size() - depth - 1];
-  }
-
   inline Value& GetMergeValueFromStack(
       Control* c, Merge<Value>* merge, uint32_t i) {
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
@@ -1522,8 +1517,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
  private:
-  static constexpr size_t kErrorMsgSize = 128;
-
   Zone* zone_;
 
   Interface interface_;
