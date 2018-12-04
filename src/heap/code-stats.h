@@ -8,11 +8,11 @@
 namespace v8 {
 namespace internal {
 
-class CodeCommentsIterator;
-class HeapObject;
 class Isolate;
+class HeapObject;
 class LargeObjectSpace;
 class PagedSpace;
+class RelocIterator;
 
 class CodeStatistics {
  public:
@@ -35,8 +35,7 @@ class CodeStatistics {
                                               Isolate* isolate);
 
 #ifdef DEBUG
-  static void CollectCommentStatistics(Isolate* isolate,
-                                       CodeCommentsIterator* it);
+  static void CollectCommentStatistics(Isolate* isolate, RelocIterator* it);
   static void CollectCodeCommentStatistics(HeapObject* obj, Isolate* isolate);
   static void EnterComment(Isolate* isolate, const char* comment, int delta);
   static void ResetCodeStatistics(Isolate* isolate);

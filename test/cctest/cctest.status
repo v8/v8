@@ -131,9 +131,6 @@
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
-
-  # Bug(v8:8548).
-  'test-code-assembler/TestCodeAssemblerCodeComment' : [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

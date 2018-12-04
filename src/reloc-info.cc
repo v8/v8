@@ -159,7 +159,9 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteShortTaggedPC(pc_delta, kWasmStubCallTag);
   } else {
     WriteModeAndPC(pc_delta, rmode);
-    if (RelocInfo::IsDeoptReason(rmode)) {
+    if (RelocInfo::IsComment(rmode)) {
+      WriteData(rinfo->data());
+    } else if (RelocInfo::IsDeoptReason(rmode)) {
       DCHECK_LT(rinfo->data(), 1 << kBitsPerByte);
       WriteShortData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
@@ -248,7 +250,13 @@ void RelocIterator::next() {
         AdvanceReadLongPCJump();
       } else {
         AdvanceReadPC();
-        if (RelocInfo::IsDeoptReason(rmode)) {
+        if (RelocInfo::IsComment(rmode)) {
+          if (SetMode(rmode)) {
+            AdvanceReadData();
+            return;
+          }
+          Advance(kIntptrSize);
+        } else if (RelocInfo::IsDeoptReason(rmode)) {
           Advance();
           if (SetMode(rmode)) {
             ReadShortData();
@@ -396,6 +404,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "relative code target";
     case RUNTIME_ENTRY:
       return "runtime entry";
+    case COMMENT:
+      return "comment";
     case EXTERNAL_REFERENCE:
       return "external reference";
     case INTERNAL_REFERENCE:
@@ -429,7 +439,9 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 
 void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   os << reinterpret_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
-  if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
+  if (IsComment(rmode_)) {
+    os << "  (" << reinterpret_cast<char*>(data_) << ")";
+  } else if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
     os << "  (" << data() << ")";
   } else if (rmode_ == DEOPT_REASON) {
     os << "  ("
@@ -506,6 +518,7 @@ void RelocInfo::Verify(Isolate* isolate) {
       break;
     }
     case RUNTIME_ENTRY:
+    case COMMENT:
     case EXTERNAL_REFERENCE:
     case DEOPT_SCRIPT_OFFSET:
     case DEOPT_INLINING_ID:

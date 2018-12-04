@@ -483,21 +483,14 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
 }
 
 int Code::builtin_index() const {
-  int data = READ_UINT32_FIELD(this, kBuiltinIndexAndCodeCommentsOffset);
-  int index = BuiltinIndexField::decode(data);
-  if (index == BuiltinIndexField::kMax) index = -1;
+  int index = READ_INT_FIELD(this, kBuiltinIndexOffset);
   DCHECK(index == -1 || Builtins::IsBuiltinId(index));
   return index;
 }
 
 void Code::set_builtin_index(int index) {
   DCHECK(index == -1 || Builtins::IsBuiltinId(index));
-  static_assert(Builtins::builtin_count <= BuiltinIndexField::kMax,
-                "BuiltinIndexField too small");
-  int data = READ_UINT32_FIELD(this, kBuiltinIndexAndCodeCommentsOffset);
-  if (index == -1) index = BuiltinIndexField::kMax;
-  data = BuiltinIndexField::update(data, index);
-  WRITE_INT_FIELD(this, kBuiltinIndexAndCodeCommentsOffset, data);
+  WRITE_INT_FIELD(this, kBuiltinIndexOffset, index);
 }
 
 bool Code::is_builtin() const { return builtin_index() != -1; }
@@ -570,46 +563,23 @@ bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
-  if (!FLAG_enable_embedded_constant_pool) return 0;
+  if (!FLAG_enable_embedded_constant_pool) return InstructionSize();
   return READ_INT_FIELD(this, kConstantPoolOffset);
 }
 
 void Code::set_constant_pool_offset(int value) {
   if (!FLAG_enable_embedded_constant_pool) return;
-  DCHECK_LT(value, InstructionSize());
   WRITE_INT_FIELD(this, kConstantPoolOffset, value);
 }
 
 Address Code::constant_pool() const {
   if (FLAG_enable_embedded_constant_pool) {
     int offset = constant_pool_offset();
-    DCHECK(offset < InstructionSize());
-    if (offset != 0) {
+    if (offset < InstructionSize()) {
       return InstructionStart() + offset;
     }
   }
   return kNullAddress;
-}
-
-int Code::code_comments_offset() const {
-  int data = READ_UINT32_FIELD(this, kBuiltinIndexAndCodeCommentsOffset);
-  int offset = CodeCommentsOffsetField::decode(data);
-  return offset * kCodeCommentsOffsetFactor;
-}
-
-void Code::set_code_comments_offset(int offset) {
-  DCHECK_EQ(offset % kCodeCommentsOffsetFactor, 0);
-  offset /= kCodeCommentsOffsetFactor;
-  int data = READ_UINT32_FIELD(this, kBuiltinIndexAndCodeCommentsOffset);
-  DCHECK_LE(offset, CodeCommentsOffsetField::kMax);
-  data = CodeCommentsOffsetField::update(data, offset);
-  WRITE_INT_FIELD(this, kBuiltinIndexAndCodeCommentsOffset, data);
-}
-
-Address Code::code_comments() const {
-  int offset = code_comments_offset();
-  CHECK(offset < InstructionSize());
-  return offset == 0 ? kNullAddress : InstructionStart() + offset;
 }
 
 Code Code::GetCodeFromTargetAddress(Address address) {

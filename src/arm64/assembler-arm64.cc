@@ -332,7 +332,8 @@ bool ConstPool::AddSharedEntry(SharedEntryMap& entry_map, uint64_t data,
 
 // Constant Pool.
 bool ConstPool::RecordEntry(intptr_t data, RelocInfo::Mode mode) {
-  DCHECK(mode != RelocInfo::CONST_POOL && mode != RelocInfo::VENEER_POOL &&
+  DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::CONST_POOL &&
+         mode != RelocInfo::VENEER_POOL &&
          mode != RelocInfo::DEOPT_SCRIPT_OFFSET &&
          mode != RelocInfo::DEOPT_INLINING_ID &&
          mode != RelocInfo::DEOPT_REASON && mode != RelocInfo::DEOPT_ID);
@@ -616,8 +617,6 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   CheckConstPool(true, false);
   DCHECK(constpool_.IsEmpty());
 
-  int code_comments_size = WriteCodeComments();
-
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
@@ -632,7 +631,6 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
     desc->constant_pool_size = 0;
     desc->unwinding_info_size = 0;
     desc->unwinding_info = nullptr;
-    desc->code_comments_size = code_comments_size;
   }
 }
 
@@ -4767,14 +4765,15 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
                                 ConstantPoolMode constant_pool_mode) {
-  if ((rmode == RelocInfo::INTERNAL_REFERENCE) ||
+  if ((rmode == RelocInfo::COMMENT) ||
+      (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) ||
       (rmode == RelocInfo::DEOPT_INLINING_ID) ||
       (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID)) {
     // Adjust code for new modes.
-    DCHECK(RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
-           RelocInfo::IsDeoptPosition(rmode) ||
+    DCHECK(RelocInfo::IsComment(rmode) || RelocInfo::IsDeoptReason(rmode) ||
+           RelocInfo::IsDeoptId(rmode) || RelocInfo::IsDeoptPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.

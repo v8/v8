@@ -87,8 +87,7 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
   code->set_deoptimization_data(*deopt_data);
   code->set_stub_key(stub_key);
   code->set_source_position_table(*source_position_table);
-  code->set_constant_pool_offset(desc.constant_pool_offset());
-  code->set_code_comments_offset(desc.code_comments_offset());
+  code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(builtin_index);
 
   // Allow self references to created code object by patching the handle to
@@ -2830,7 +2829,6 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     if (code->has_safepoint_info()) {
       result->set_safepoint_table_offset(code->safepoint_table_offset());
     }
-    result->set_code_comments_offset(code->code_comments_offset());
 
     // Replace the newly generated trampoline's RelocInfo ByteArray with the
     // canonical one stored in the roots to avoid duplicating it for every
