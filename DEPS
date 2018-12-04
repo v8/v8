@@ -51,7 +51,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '157bec8a25cc4ebd6a16052510d08b05b6102aad',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '0e3e1c4dc4e79f25a5b58fcbc135dc93183c0c54',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
