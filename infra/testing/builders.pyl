@@ -896,7 +896,7 @@
   },
   'V8 Linux64 TSAN - isolates': {
     'tests': [
-      {'name': 'v8testing', 'test_args': ['--isolates'], 'shards': 5},
+      {'name': 'v8testing', 'test_args': ['--isolates'], 'shards': 7},
     ],
   },
   'V8 Linux64 UBSan': {
