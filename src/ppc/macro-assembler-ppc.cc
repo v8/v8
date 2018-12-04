@@ -2011,6 +2011,23 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
+  // Save the frame pointer and PC so that the stack layout remains iterable,
+  // even without an ExitFrame which normally exists between JS and C frames.
+  if (isolate() != nullptr) {
+    Register scratch1 = r7;
+    Register scratch2 = r8;
+    Push(scratch1, scratch2);
+
+    mflr(scratch2);
+    Move(scratch1, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    LoadPC(r0);
+    StoreP(r0, MemOperand(scratch1));
+    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(fp, MemOperand(scratch1));
+    mtlr(scratch2);
+    Pop(scratch1, scratch2);
+  }
+
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
@@ -2027,6 +2044,17 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   }
 
   Call(dest);
+
+  if (isolate() != nullptr) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register scratch1 = r7;
+    Register scratch2 = r8;
+    Push(scratch1, scratch2);
+    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    mov(scratch2, Operand::Zero());
+    StoreP(scratch2, MemOperand(scratch1));
+    Pop(scratch1, scratch2);
+  }
 
   // Remove frame bought in PrepareCallCFunction
   int stack_passed_arguments =
