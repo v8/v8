@@ -1750,10 +1750,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               this->error(this->pc_, "else already present for if");
               break;
             }
-            if (!TypeCheckFallThru(c)) break;
+            FallThruTo(c);
             c->kind = kControlIfElse;
             CALL_INTERFACE_IF_PARENT_REACHABLE(Else, c);
-            if (c->reachable()) c->end_merge.reached = true;
             PushMergeValues(c, &c->start_merge);
             c->reachability = control_at(1)->innerReachability();
             break;
@@ -1761,7 +1760,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprEnd: {
             if (!VALIDATE(!control_.empty())) {
               this->error("end does not match any if, try, or block");
-              break;
+              return;
             }
             Control* c = &control_.back();
             if (!VALIDATE(!c->is_incomplete_try())) {
@@ -1769,12 +1768,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               break;
             }
             if (c->is_onearmed_if()) {
-              if (!VALIDATE(c->end_merge.arity == c->start_merge.arity)) {
-                this->error(
-                    c->pc,
-                    "start-arity and end-arity of one-armed if must match");
-                break;
-              }
+              // Emulate empty else arm.
+              FallThruTo(c);
+              if (this->failed()) break;
+              CALL_INTERFACE_IF_PARENT_REACHABLE(Else, c);
+              PushMergeValues(c, &c->start_merge);
+              c->reachability = control_at(1)->innerReachability();
             }
             if (c->is_try_catch()) {
               // Emulate catch-all + re-throw.
@@ -2304,7 +2303,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   void PopControl(Control* c) {
     DCHECK_EQ(c, &control_.back());
     CALL_INTERFACE_IF_PARENT_REACHABLE(PopControl, c);
-    bool reached = c->end_merge.reached || c->is_onearmed_if();
+    bool reached = c->end_merge.reached;
     control_.pop_back();
     // If the parent block was reachable before, but the popped control does not
     // return to here, this block becomes indirectly unreachable.

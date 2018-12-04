@@ -200,11 +200,6 @@ class WasmGraphBuildingInterface {
   }
 
   void PopControl(FullDecoder* decoder, Control* block) {
-    if (block->is_onearmed_if()) {
-      // Merge the else branch into the end merge.
-      SetEnv(block->false_env);
-      MergeValuesInto(decoder, block, &block->end_merge);
-    }
     if (!block->is_loop()) SetEnv(block->end_env);
   }
 
@@ -343,10 +338,6 @@ class WasmGraphBuildingInterface {
   }
 
   void Else(FullDecoder* decoder, Control* if_block) {
-    if (if_block->reachable()) {
-      // Merge the if branch into the end merge.
-      MergeValuesInto(decoder, if_block, &if_block->end_merge);
-    }
     SetEnv(if_block->false_env);
   }
 
