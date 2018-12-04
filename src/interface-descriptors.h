@@ -949,15 +949,18 @@ class CEntry1ArgvOnStackDescriptor : public CallInterfaceDescriptor {
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
-  // TODO(jgruber): This could be simplified to pass call data on the stack
-  // since this is what the CallApiCallbackStub anyways. This would free a
-  // register.
-  DEFINE_PARAMETERS_NO_CONTEXT(kTargetContext, kCallData, kHolder,
-                               kApiFunctionAddress)
+  DEFINE_PARAMETERS_NO_CONTEXT(kTargetContext,       // register argument
+                               kApiFunctionAddress,  // register argument
+                               kArgc,                // register argument
+                               kCallData,            // stack argument 1
+                               kHolder)              // stack argument 2
+  //                           receiver is implicit stack argument 3
+  //                           argv are implicit stack arguments [4, 4 + kArgc[
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTargetContext
+                         MachineType::Pointer(),    // kApiFunctionAddress
+                         MachineType::IntPtr(),     // kArgc
                          MachineType::AnyTagged(),  // kCallData
-                         MachineType::AnyTagged(),  // kHolder
-                         MachineType::Pointer())    // kApiFunctionAddress
+                         MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(ApiCallbackDescriptor, CallInterfaceDescriptor)
 };
 

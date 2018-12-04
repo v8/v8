@@ -273,8 +273,9 @@ void AccessorAssembler::HandleLoadAccessor(
 
     BIND(&load);
     Callable callable = CodeFactory::CallApiCallback(isolate(), 0);
-    exit_point->Return(CallStub(callable, nullptr, context, data,
-                                api_holder.value(), callback, p->receiver));
+    TNode<IntPtrT> argc = IntPtrConstant(0);
+    exit_point->Return(CallStub(callable, nullptr, context, callback, argc,
+                                data, api_holder.value(), p->receiver));
   }
 
   BIND(&runtime);
@@ -1415,8 +1416,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
       BIND(&store);
       Callable callable = CodeFactory::CallApiCallback(isolate(), 1);
-      Return(CallStub(callable, nullptr, context, data, api_holder.value(),
-                      callback, p->receiver, p->value));
+      TNode<IntPtrT> argc = IntPtrConstant(1);
+      Return(CallStub(callable, nullptr, context, callback, argc, data,
+                      api_holder.value(), p->receiver, p->value));
     }
 
     BIND(&if_store_global_proxy);

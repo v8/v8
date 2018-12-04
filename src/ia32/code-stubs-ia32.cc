@@ -294,22 +294,32 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
 void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- eax                 : call_data
-  //  -- ecx                 : holder
-  //  -- edx                 : api_function_address
-  //  -- esi                 : context
+  //  -- esi                 : kTargetContext
+  //  -- edx                 : kApiFunctionAddress
+  //  -- ecx                 : kArgc
   //  --
   //  -- esp[0]              : return address
   //  -- esp[4]              : last argument
   //  -- ...
   //  -- esp[argc * 4]       : first argument
   //  -- esp[(argc + 1) * 4] : receiver
+  //  -- esp[(argc + 2) * 4] : kHolder
+  //  -- esp[(argc + 3) * 4] : kCallData
   // -----------------------------------
 
-  Register call_data = eax;
-  Register holder = ecx;
   Register api_function_address = edx;
-  Register return_address = edi;
+  Register argc = ecx;
+  Register scratch = eax;
+
+  DCHECK(!AreAliased(api_function_address, argc, scratch));
+
+  // Stack offsets (without argc).
+  static constexpr int kReceiverOffset = kPointerSize;
+  static constexpr int kHolderOffset = kReceiverOffset + kPointerSize;
+  static constexpr int kCallDataOffset = kHolderOffset + kPointerSize;
+
+  // Extra stack arguments are: the receiver, kHolder, kCallData.
+  static constexpr int kExtraStackArgumentCount = 3;
 
   typedef FunctionCallbackArguments FCA;
 
@@ -321,64 +331,100 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
 
-  __ pop(return_address);
+  // Set up FunctionCallbackInfo's implicit_args on the stack as follows:
+  //
+  // Current state:
+  //   esp[0]: return address
+  //
+  // Target state:
+  //   esp[0 * kPointerSize]: return address
+  //   esp[1 * kPointerSize]: kHolder
+  //   esp[2 * kPointerSize]: kIsolate
+  //   esp[3 * kPointerSize]: undefined (kReturnValueDefaultValue)
+  //   esp[4 * kPointerSize]: undefined (kReturnValue)
+  //   esp[5 * kPointerSize]: kData
+  //   esp[6 * kPointerSize]: undefined (kNewTarget)
 
-  // new target
-  __ PushRoot(RootIndex::kUndefinedValue);
+  // Reserve space on the stack.
+  __ sub(esp, Immediate(FCA::kArgsLength * kPointerSize));
 
-  // call data
-  __ push(call_data);
+  // Return address (the old stack location is overwritten later on).
+  __ mov(scratch, Operand(esp, FCA::kArgsLength * kPointerSize));
+  __ mov(Operand(esp, 0 * kPointerSize), scratch);
 
-  // return value
-  __ PushRoot(RootIndex::kUndefinedValue);
-  // return value default
-  __ PushRoot(RootIndex::kUndefinedValue);
-  // isolate
-  __ Push(Immediate(ExternalReference::isolate_address(isolate())));
-  // holder
-  __ push(holder);
+  // kHolder.
+  __ mov(scratch, Operand(esp, argc, times_pointer_size,
+                          FCA::kArgsLength * kPointerSize + kHolderOffset));
+  __ mov(Operand(esp, 1 * kPointerSize), scratch);
 
-  Register scratch = call_data;
+  // kIsolate.
+  __ Move(scratch,
+          Immediate(ExternalReference::isolate_address(masm->isolate())));
+  __ mov(Operand(esp, 2 * kPointerSize), scratch);
 
-  __ mov(scratch, esp);
+  // kReturnValueDefaultValue, kReturnValue, and kNewTarget.
+  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
+  __ mov(Operand(esp, 3 * kPointerSize), scratch);
+  __ mov(Operand(esp, 4 * kPointerSize), scratch);
+  __ mov(Operand(esp, 6 * kPointerSize), scratch);
 
-  // push return address
-  __ push(return_address);
+  // kData.
+  __ mov(scratch, Operand(esp, argc, times_pointer_size,
+                          FCA::kArgsLength * kPointerSize + kCallDataOffset));
+  __ mov(Operand(esp, 5 * kPointerSize), scratch);
 
-  // API function gets reference to the v8::Arguments. If CPU profiler
-  // is enabled wrapper function will be called and we need to pass
-  // address of the callback as additional parameter, always allocate
+  // Keep a pointer to kHolder (= implicit_args) in a scratch register.
+  // We use it below to set up the FunctionCallbackInfo object.
+  __ lea(scratch, Operand(esp, 1 * kPointerSize));
+
+  // The API function takes a reference to v8::Arguments. If the CPU profiler
+  // is enabled, a wrapper function will be called and we need to pass
+  // the address of the callback as an additional parameter. Always allocate
   // space for it.
-  const int kApiArgc = 1 + 1;
+  static constexpr int kApiArgc = 1 + 1;
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
-  const int kApiStackSpace = 3;
+  static constexpr int kApiStackSpace = 4;
 
   PrepareCallApiFunction(masm, kApiArgc + kApiStackSpace, edi);
 
-  // FunctionCallbackInfo::implicit_args_.
-  __ mov(ApiParameterOperand(2), scratch);
-  __ add(scratch, Immediate((argc() + FCA::kArgsLength - 1) * kPointerSize));
-  // FunctionCallbackInfo::values_.
-  __ mov(ApiParameterOperand(3), scratch);
+  // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up above).
+  __ mov(ApiParameterOperand(kApiArgc + 0), scratch);
+
+  // FunctionCallbackInfo::values_ (points at the first varargs argument passed
+  // on the stack).
+  __ lea(scratch, Operand(scratch, argc, times_pointer_size,
+                          (FCA::kArgsLength - 1) * kPointerSize));
+  __ mov(ApiParameterOperand(kApiArgc + 1), scratch);
+
   // FunctionCallbackInfo::length_.
-  __ Move(ApiParameterOperand(4), Immediate(argc()));
+  __ mov(ApiParameterOperand(kApiArgc + 2), argc);
+
+  // We also store the number of bytes to drop from the stack after returning
+  // from the API function here.
+  __ lea(scratch,
+         Operand(argc, times_pointer_size,
+                 (FCA::kArgsLength + kExtraStackArgumentCount) * kPointerSize));
+  __ mov(ApiParameterOperand(kApiArgc + 3), scratch);
 
   // v8::InvocationCallback's argument.
-  __ lea(scratch, ApiParameterOperand(2));
+  __ lea(scratch, ApiParameterOperand(kApiArgc + 0));
   __ mov(ApiParameterOperand(0), scratch);
 
   ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
 
-  // Stores return the first js argument
-  int return_value_offset = 2 + FCA::kReturnValueOffset;
-  Operand return_value_operand(ebp, return_value_offset * kPointerSize);
-  const int stack_space = argc() + FCA::kArgsLength + 1;
-  Operand* stack_space_operand = nullptr;
+  // There are two stack slots above the arguments we constructed on the stack:
+  // the stored ebp (pushed by EnterApiExitFrame), and the return address.
+  static constexpr int kStackSlotsAboveFCA = 2;
+  Operand return_value_operand(
+      ebp, (kStackSlotsAboveFCA + FCA::kReturnValueOffset) * kPointerSize);
+
+  static constexpr int kUseStackSpaceOperand = 0;
+  Operand stack_space_operand = ApiParameterOperand(kApiArgc + 3);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
-                           ApiParameterOperand(1), stack_space,
-                           stack_space_operand, return_value_operand);
+                           ApiParameterOperand(1), kUseStackSpaceOperand,
+                           &stack_space_operand, return_value_operand);
 }
 
 
@@ -449,8 +495,10 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // +3 is to skip prolog, return address and name handle.
   Operand return_value_operand(
       ebp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
+  Operand* const kUseStackSpaceConstant = nullptr;
   CallApiFunctionAndReturn(masm, function_address, thunk_ref, thunk_last_arg,
-                           kStackUnwindSpace, nullptr, return_value_operand);
+                           kStackUnwindSpace, kUseStackSpaceConstant,
+                           return_value_operand);
 }
 
 #undef __

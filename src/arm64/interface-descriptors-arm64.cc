@@ -206,10 +206,9 @@ void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      JavaScriptFrame::context_register(),  // callee context
-      x4,                                   // call_data
-      x2,                                   // holder
-      x1,                                   // api_function_address
+      JavaScriptFrame::context_register(),  // kTargetContext
+      x1,                                   // kApiFunctionAddress
+      x2,                                   // kArgc
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
