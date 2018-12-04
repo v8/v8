@@ -1508,12 +1508,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return static_cast<uint32_t>(stack_.size());
   }
 
-  inline Value& GetMergeValueFromStack(
-      Control* c, Merge<Value>* merge, uint32_t i) {
-    DCHECK(merge == &c->start_merge || merge == &c->end_merge);
-    DCHECK_GT(merge->arity, i);
-    DCHECK_GE(stack_.size(), c->stack_depth + merge->arity);
-    return stack_[stack_.size() - merge->arity + i];
+  inline Value* stack_value(uint32_t depth) {
+    DCHECK_LT(0, depth);
+    DCHECK_GE(stack_.size(), depth);
+    return &*(stack_.end() - depth);
   }
 
  private:
@@ -2645,10 +2643,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool TypeCheckMergeValues(Control* c, Merge<Value>* merge) {
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
     DCHECK_GE(stack_.size(), c->stack_depth + merge->arity);
+    // The computation of {stack_values} is only valid if {merge->arity} is >0.
+    DCHECK_LT(0, merge->arity);
+    Value* stack_values = &*(stack_.end() - merge->arity);
     // Typecheck the topmost {merge->arity} values on the stack.
     for (uint32_t i = 0; i < merge->arity; ++i) {
-      auto& val = GetMergeValueFromStack(c, merge, i);
-      auto& old = (*merge)[i];
+      Value& val = stack_values[i];
+      Value& old = (*merge)[i];
       if (val.type != old.type) {
         // If {val.type} is polymorphic, which results from unreachable, make
         // it more specific by using the merge value's expected type.
@@ -2680,6 +2681,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           expected, startrel(c->pc), actual);
       return false;
     }
+    if (expected == 0) return true;  // Fast path.
 
     return TypeCheckMergeValues(c, &c->end_merge);
   }
@@ -2687,6 +2689,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool TypeCheckBreak(Control* c) {
     // Breaks must have at least the number of values expected; can have more.
     uint32_t expected = c->br_merge()->arity;
+    if (expected == 0) return true;  // Fast path.
     DCHECK_GE(stack_.size(), control_.back().stack_depth);
     uint32_t actual =
         static_cast<uint32_t>(stack_.size()) - control_.back().stack_depth;

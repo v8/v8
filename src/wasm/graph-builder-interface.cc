@@ -649,12 +649,16 @@ class WasmGraphBuildingInterface {
     const bool first = target->state == SsaEnv::kUnreachable;
     Goto(decoder, ssa_env_, target);
 
+    if (merge->arity == 0) return;
+
     uint32_t avail =
         decoder->stack_size() - decoder->control_at(0)->stack_depth;
+    DCHECK_GE(avail, merge->arity);
     uint32_t start = avail >= merge->arity ? 0 : merge->arity - avail;
+    Value* stack_values = decoder->stack_value(merge->arity);
     for (uint32_t i = start; i < merge->arity; ++i) {
-      auto& val = decoder->GetMergeValueFromStack(c, merge, i);
-      auto& old = (*merge)[i];
+      Value& val = stack_values[i];
+      Value& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
       DCHECK(val.type == old.type || val.type == kWasmVar);
       old.node = first ? val.node
