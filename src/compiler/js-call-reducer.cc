@@ -2868,8 +2868,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Handle<FunctionTemplateInfo> function_template_info(
       FunctionTemplateInfo::cast(shared.object()->function_data()), isolate());
 
-  if (argc > CallApiCallbackStub::kArgMax) return NoChange();
-
   // Infer the {receiver} maps, and check if we can inline the API function
   // callback based on those.
   ZoneHandleSet<Map> receiver_maps;
@@ -2927,7 +2925,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Handle<CallHandlerInfo> call_handler_info(
       CallHandlerInfo::cast(function_template_info->call_code()), isolate());
   Handle<Object> data(call_handler_info->data(), isolate());
-  Callable call_api_callback = CodeFactory::CallApiCallback(isolate(), argc);
+  Callable call_api_callback = CodeFactory::CallApiCallback(isolate());
   CallInterfaceDescriptor cid = call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), cid,

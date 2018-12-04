@@ -155,6 +155,8 @@ namespace internal {
   ASM(ContinueToJavaScriptBuiltinWithResult)                                   \
                                                                                \
   /* API callback handling */                                                  \
+  ASM(CallApiCallback)                                                         \
+  ASM(CallApiGetter)                                                           \
   API(HandleApiCall)                                                           \
   API(HandleApiCallAsFunction)                                                 \
   API(HandleApiCallAsConstructor)                                              \
@@ -1341,9 +1343,6 @@ namespace internal {
   TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* Miscellaneous */                                                          \
-  ASM(CallApiCallback_Argc0)                                                   \
-  ASM(CallApiCallback_Argc1)                                                   \
-  ASM(CallApiGetter)                                                           \
   ASM(DoubleToI)                                                               \
   TFC(GetProperty, GetProperty, 1)                                             \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
