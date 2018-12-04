@@ -2638,13 +2638,13 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     Handle<SeqOneByteString> flat = isolate->factory()->NewRawOneByteString(
         length, tenure).ToHandleChecked();
     DisallowHeapAllocation no_gc;
-    WriteToFlat(*cons, flat->GetChars(), 0, length);
+    WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
   } else {
     Handle<SeqTwoByteString> flat = isolate->factory()->NewRawTwoByteString(
         length, tenure).ToHandleChecked();
     DisallowHeapAllocation no_gc;
-    WriteToFlat(*cons, flat->GetChars(), 0, length);
+    WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
   }
   cons->set_first(isolate, *result);
@@ -11005,7 +11005,8 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
     if (len == 0) return handle(Smi::kZero, isolate);
 
     DisallowHeapAllocation no_gc;
-    uint8_t const* data = Handle<SeqOneByteString>::cast(subject)->GetChars();
+    uint8_t const* data =
+        Handle<SeqOneByteString>::cast(subject)->GetChars(no_gc);
     bool minus = (data[0] == '-');
     int start_pos = (minus ? 1 : 0);
 
@@ -11047,9 +11048,9 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
   return isolate->factory()->NewNumber(StringToDouble(isolate, subject, flags));
 }
 
-
-String::FlatContent String::GetFlatContent() {
-  DCHECK(!AllowHeapAllocation::IsAllowed());
+String::FlatContent String::GetFlatContent(
+    const DisallowHeapAllocation& no_gc) {
+  USE(no_gc);
   int length = this->length();
   StringShape shape(*this);
   String string = *this;
@@ -11079,7 +11080,7 @@ String::FlatContent String::GetFlatContent() {
   if (shape.encoding_tag() == kOneByteStringTag) {
     const uint8_t* start;
     if (shape.representation_tag() == kSeqStringTag) {
-      start = SeqOneByteString::cast(string)->GetChars();
+      start = SeqOneByteString::cast(string)->GetChars(no_gc);
     } else {
       start = ExternalOneByteString::cast(string)->GetChars();
     }
@@ -11088,7 +11089,7 @@ String::FlatContent String::GetFlatContent() {
     DCHECK_EQ(shape.encoding_tag(), kTwoByteStringTag);
     const uc16* start;
     if (shape.representation_tag() == kSeqStringTag) {
-      start = SeqTwoByteString::cast(string)->GetChars();
+      start = SeqTwoByteString::cast(string)->GetChars(no_gc);
     } else {
       start = ExternalTwoByteString::cast(string)->GetChars();
     }
@@ -11216,7 +11217,7 @@ void FlatStringReader::PostGarbageCollection() {
   DCHECK(str->IsFlat());
   DisallowHeapAllocation no_gc;
   // This does not actually prevent the vector from being relocated later.
-  String::FlatContent content = str->GetFlatContent();
+  String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsFlat());
   is_one_byte_ = content.IsOneByte();
   if (is_one_byte_) {
@@ -11416,14 +11417,12 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
         return;
       }
       case kOneByteStringTag | kSeqStringTag: {
-        CopyChars(sink,
-                  SeqOneByteString::cast(source)->GetChars() + from,
+        CopyChars(sink, SeqOneByteString::cast(source)->GetChars(no_gc) + from,
                   to - from);
         return;
       }
       case kTwoByteStringTag | kSeqStringTag: {
-        CopyChars(sink,
-                  SeqTwoByteString::cast(source)->GetChars() + from,
+        CopyChars(sink, SeqTwoByteString::cast(source)->GetChars(no_gc) + from,
                   to - from);
         return;
       }
@@ -11458,7 +11457,7 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
               sink[boundary - from] = static_cast<sinkchar>(second->Get(0));
             } else if (second->IsSeqOneByteString()) {
               CopyChars(sink + boundary - from,
-                        SeqOneByteString::cast(second)->GetChars(),
+                        SeqOneByteString::cast(second)->GetChars(no_gc),
                         to - boundary);
             } else {
               WriteToFlat(second,
@@ -11519,7 +11518,7 @@ Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
   line_ends.reserve(line_count_estimate);
   { DisallowHeapAllocation no_allocation;  // ensure vectors stay valid.
     // Dispatch on type of strings.
-    String::FlatContent content = src->GetFlatContent();
+    String::FlatContent content = src->GetFlatContent(no_allocation);
     DCHECK(content.IsFlat());
     if (content.IsOneByte()) {
       CalculateLineEndsImpl(isolate,
@@ -11561,7 +11560,8 @@ void WriteFixedArrayToFlat(FixedArray fixed_array, int length, String separator,
   if (use_one_byte_separator_fast_path) {
     CHECK(StringShape(separator).IsSequentialOneByte());
     CHECK_EQ(separator->length(), 1);
-    separator_one_char = SeqOneByteString::cast(separator)->GetChars()[0];
+    separator_one_char =
+        SeqOneByteString::cast(separator)->GetChars(no_allocation)[0];
   }
 
   uint32_t num_separators = 0;
@@ -11639,12 +11639,12 @@ Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
 
   if (StringShape(dest).IsSequentialOneByte()) {
     WriteFixedArrayToFlat(fixed_array, static_cast<int>(length), separator,
-                          SeqOneByteString::cast(dest)->GetChars(),
+                          SeqOneByteString::cast(dest)->GetChars(no_allocation),
                           dest->length());
   } else {
     DCHECK(StringShape(dest).IsSequentialTwoByte());
     WriteFixedArrayToFlat(fixed_array, static_cast<int>(length), separator,
-                          SeqTwoByteString::cast(dest)->GetChars(),
+                          SeqTwoByteString::cast(dest)->GetChars(no_allocation),
                           dest->length());
   }
   return dest->ptr();
@@ -11843,8 +11843,8 @@ bool String::SlowEquals(String other) {
   if (this->Get(0) != other->Get(0)) return false;
 
   if (IsSeqOneByteString() && other->IsSeqOneByteString()) {
-    const uint8_t* str1 = SeqOneByteString::cast(*this)->GetChars();
-    const uint8_t* str2 = SeqOneByteString::cast(other)->GetChars();
+    const uint8_t* str1 = SeqOneByteString::cast(*this)->GetChars(no_gc);
+    const uint8_t* str2 = SeqOneByteString::cast(other)->GetChars(no_gc);
     return CompareRawStringContents(str1, str2, len);
   }
 
@@ -11897,8 +11897,8 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
   two = String::Flatten(isolate, two);
 
   DisallowHeapAllocation no_gc;
-  String::FlatContent flat1 = one->GetFlatContent();
-  String::FlatContent flat2 = two->GetFlatContent();
+  String::FlatContent flat1 = one->GetFlatContent(no_gc);
+  String::FlatContent flat2 = two->GetFlatContent(no_gc);
 
   if (flat1.IsOneByte() && flat2.IsOneByte()) {
       return CompareRawStringContents(flat1.ToOneByteVector().start(),
@@ -11947,8 +11947,8 @@ ComparisonResult String::Compare(Isolate* isolate, Handle<String> x,
     result = ComparisonResult::kLessThan;
   }
   int r;
-  String::FlatContent x_content = x->GetFlatContent();
-  String::FlatContent y_content = y->GetFlatContent();
+  String::FlatContent x_content = x->GetFlatContent(no_gc);
+  String::FlatContent y_content = y->GetFlatContent(no_gc);
   if (x_content.IsOneByte()) {
     Vector<const uint8_t> x_chars = x_content.ToOneByteVector();
     if (y_content.IsOneByte()) {
@@ -12031,8 +12031,8 @@ int String::IndexOf(Isolate* isolate, Handle<String> receiver,
 
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
   // Extract flattened substrings of cons strings before getting encoding.
-  String::FlatContent receiver_content = receiver->GetFlatContent();
-  String::FlatContent search_content = search->GetFlatContent();
+  String::FlatContent receiver_content = receiver->GetFlatContent(no_gc);
+  String::FlatContent search_content = search->GetFlatContent(no_gc);
 
   // dispatch on type of strings
   if (search_content.IsOneByte()) {
@@ -12293,8 +12293,8 @@ Object* String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
   int last_index = -1;
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
 
-  String::FlatContent receiver_content = receiver_string->GetFlatContent();
-  String::FlatContent search_content = search_string->GetFlatContent();
+  String::FlatContent receiver_content = receiver_string->GetFlatContent(no_gc);
+  String::FlatContent search_content = search_string->GetFlatContent(no_gc);
 
   if (search_content.IsOneByte()) {
     Vector<const uint8_t> pat_vector = search_content.ToOneByteVector();
@@ -12352,7 +12352,7 @@ bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
   int slen = length();
   if (str.length() != slen) return false;
   DisallowHeapAllocation no_gc;
-  FlatContent content = GetFlatContent();
+  FlatContent content = GetFlatContent(no_gc);
   if (content.IsOneByte()) {
     return CompareChars(content.ToOneByteVector().start(),
                         str.start(), slen) == 0;
@@ -12365,7 +12365,7 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   int slen = length();
   if (str.length() != slen) return false;
   DisallowHeapAllocation no_gc;
-  FlatContent content = GetFlatContent();
+  FlatContent content = GetFlatContent(no_gc);
   if (content.IsOneByte()) {
     return CompareChars(content.ToOneByteVector().start(), str.start(), slen) ==
            0;
@@ -16625,7 +16625,7 @@ template <typename Char>
 inline int CountRequiredEscapes(Handle<String> source) {
   DisallowHeapAllocation no_gc;
   int escapes = 0;
-  Vector<const Char> src = source->GetCharVector<Char>();
+  Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   for (int i = 0; i < src.length(); i++) {
     if (src[i] == '\\') {
       // Escape. Skip next character;
@@ -16643,8 +16643,8 @@ template <typename Char, typename StringType>
 inline Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
                                                    Handle<StringType> result) {
   DisallowHeapAllocation no_gc;
-  Vector<const Char> src = source->GetCharVector<Char>();
-  Vector<Char> dst(result->GetChars(), result->length());
+  Vector<const Char> src = source->GetCharVector<Char>(no_gc);
+  Vector<Char> dst(result->GetChars(no_gc), result->length());
   int s = 0;
   int d = 0;
   while (s < src.length()) {
@@ -16786,7 +16786,7 @@ Handle<String> SeqOneByteSubStringKey::AsHandle(Isolate* isolate) {
 
 bool SeqOneByteSubStringKey::IsMatch(Object* string) {
   DisallowHeapAllocation no_gc;
-  Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
+  Vector<const uint8_t> chars(string_->GetChars(no_gc) + from_, length_);
   return String::cast(string)->IsOneByteEqualTo(chars);
 }
 
@@ -17396,6 +17396,7 @@ class StringTableNoAllocateKey : public StringTableKey {
     int len = string_->length();
     if (len != other->length()) return false;
 
+    DisallowHeapAllocation no_gc;
     if (!special_flattening_) {
       if (string_->Get(0) != other->Get(0)) return false;
       if (string_->IsFlat()) {
@@ -17403,15 +17404,15 @@ class StringTableNoAllocateKey : public StringTableKey {
         StringShape shape2(other);
         if (shape1.encoding_tag() == kOneByteStringTag &&
             shape2.encoding_tag() == kOneByteStringTag) {
-          String::FlatContent flat1 = string_->GetFlatContent();
-          String::FlatContent flat2 = other->GetFlatContent();
+          String::FlatContent flat1 = string_->GetFlatContent(no_gc);
+          String::FlatContent flat2 = other->GetFlatContent(no_gc);
           return CompareRawStringContents(flat1.ToOneByteVector().start(),
                                           flat2.ToOneByteVector().start(), len);
         }
         if (shape1.encoding_tag() == kTwoByteStringTag &&
             shape2.encoding_tag() == kTwoByteStringTag) {
-          String::FlatContent flat1 = string_->GetFlatContent();
-          String::FlatContent flat2 = other->GetFlatContent();
+          String::FlatContent flat1 = string_->GetFlatContent(no_gc);
+          String::FlatContent flat2 = other->GetFlatContent(no_gc);
           return CompareRawStringContents(flat1.ToUC16Vector().start(),
                                           flat2.ToUC16Vector().start(), len);
         }
@@ -17420,7 +17421,7 @@ class StringTableNoAllocateKey : public StringTableKey {
       return comparator.Equals(string_, other);
     }
 
-    String::FlatContent flat_content = other->GetFlatContent();
+    String::FlatContent flat_content = other->GetFlatContent(no_gc);
     if (one_byte_) {
       if (flat_content.IsOneByte()) {
         return CompareRawStringContents(

@@ -5270,7 +5270,7 @@ int String::Utf8Length(Isolate* isolate) const {
   int length = str->length();
   if (length == 0) return 0;
   i::DisallowHeapAllocation no_gc;
-  i::String::FlatContent flat = str->GetFlatContent();
+  i::String::FlatContent flat = str->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
   int utf8_length = 0;
   if (flat.IsOneByte()) {

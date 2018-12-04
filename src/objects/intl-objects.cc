@@ -193,9 +193,10 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
   {
     DisallowHeapAllocation no_gc;
     std::unique_ptr<uc16[]> sap;
-    return icu::UnicodeString(GetUCharBufferFromFlat(string->GetFlatContent(),
-                                                     &sap, string->length()),
-                              string->length());
+    return icu::UnicodeString(
+        GetUCharBufferFromFlat(string->GetFlatContent(no_gc), &sap,
+                               string->length()),
+        string->length());
   }
 }
 
@@ -221,11 +222,12 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
         String);
     DisallowHeapAllocation no_gc;
     DCHECK(s->IsFlat());
-    String::FlatContent flat = s->GetFlatContent();
+    String::FlatContent flat = s->GetFlatContent(no_gc);
     const UChar* src = GetUCharBufferFromFlat(flat, &sap, src_length);
     status = U_ZERO_ERROR;
-    dest_length = case_converter(reinterpret_cast<UChar*>(result->GetChars()),
-                                 dest_length, src, src_length, lang, &status);
+    dest_length =
+        case_converter(reinterpret_cast<UChar*>(result->GetChars(no_gc)),
+                       dest_length, src, src_length, lang, &status);
     if (status != U_BUFFER_OVERFLOW_ERROR) break;
   }
 
@@ -257,8 +259,8 @@ String Intl::ConvertOneByteToLower(String src, String dst) {
   DisallowHeapAllocation no_gc;
 
   const int length = src->length();
-  String::FlatContent src_flat = src->GetFlatContent();
-  uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars();
+  String::FlatContent src_flat = src->GetFlatContent(no_gc);
+  uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars(no_gc);
 
   if (src_flat.IsOneByte()) {
     const uint8_t* src_data = src_flat.ToOneByteVector().start();
@@ -335,15 +337,15 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
     bool is_result_single_byte;
     {
       DisallowHeapAllocation no_gc;
-      String::FlatContent flat = s->GetFlatContent();
-      uint8_t* dest = result->GetChars();
+      String::FlatContent flat = s->GetFlatContent(no_gc);
+      uint8_t* dest = result->GetChars(no_gc);
       if (flat.IsOneByte()) {
         Vector<const uint8_t> src = flat.ToOneByteVector();
         bool has_changed_character = false;
-        int index_to_first_unprocessed =
-            FastAsciiConvert<false>(reinterpret_cast<char*>(result->GetChars()),
-                                    reinterpret_cast<const char*>(src.start()),
-                                    length, &has_changed_character);
+        int index_to_first_unprocessed = FastAsciiConvert<false>(
+            reinterpret_cast<char*>(result->GetChars(no_gc)),
+            reinterpret_cast<const char*>(src.start()), length,
+            &has_changed_character);
         if (index_to_first_unprocessed == length) {
           return has_changed_character ? result : s;
         }
@@ -375,7 +377,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
         isolate->factory()->NewRawOneByteString(length + sharp_s_count),
         String);
     DisallowHeapAllocation no_gc;
-    String::FlatContent flat = s->GetFlatContent();
+    String::FlatContent flat = s->GetFlatContent(no_gc);
     if (flat.IsOneByte()) {
       ToUpperWithSharpS(flat.ToOneByteVector(), result);
     } else {

@@ -2751,7 +2751,7 @@ class V8_EXPORT String : public Name {
   };
 
   /** Allocates a new string from UTF-8 data.*/
-  static V8_DEPRECATE_SOON(
+  static V8_DEPRECATED(
       "Use maybe version",
       Local<String> NewFromUtf8(Isolate* isolate, const char* data,
                                 NewStringType type = kNormalString,
@@ -9270,7 +9270,11 @@ class V8_EXPORT Unwinder {
    * \param unwind_state Input state for the Isolate that the stack comes from.
    * \param register_state The current registers. This is an in-out param that
    * will be overwritten with the register values after unwinding, on success.
-   * \param stack_base Currently unused.
+   * \param stack_base The resulting stack pointer and frame pointer values are
+   * bounds-checked against the stack_base and the original stack pointer value
+   * to ensure that they are valid locations in the given stack. If these values
+   * or any intermediate frame pointer values used during unwinding are ever out
+   * of these bounds, unwinding will fail.
    *
    * \return True on success.
    */

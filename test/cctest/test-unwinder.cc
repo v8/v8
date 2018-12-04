@@ -347,6 +347,88 @@ TEST(Unwind_JSEntryStub_Fail) {
   CHECK_EQ(start + 10, register_state.pc);
 }
 
+TEST(Unwind_StackBounds_Basic) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+
+  UnwindState unwind_state = isolate->GetUnwindState();
+  RegisterState register_state;
+
+  const size_t code_length = 10;
+  uintptr_t code[code_length] = {0};
+  unwind_state.code_range.start = code;
+  unwind_state.code_range.length_in_bytes = code_length * sizeof(uintptr_t);
+
+  uintptr_t stack[3];
+  stack[0] = reinterpret_cast<uintptr_t>(stack + 2);  // saved FP (rbp).
+  stack[1] = 202;  // Return address into C++ code.
+  stack[2] = 303;  // The SP points here in the caller's frame.
+
+  register_state.sp = stack;
+  register_state.fp = stack;
+  register_state.pc = code;
+
+  void* wrong_stack_base = reinterpret_cast<void*>(
+      reinterpret_cast<uintptr_t>(stack) - sizeof(uintptr_t));
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
+                                                 wrong_stack_base);
+  CHECK(!unwound);
+
+  // Correct the stack base and unwinding should succeed.
+  void* correct_stack_base = stack + arraysize(stack);
+  unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
+                                            correct_stack_base);
+  CHECK(unwound);
+}
+
+TEST(Unwind_StackBounds_WithUnwinding) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+
+  UnwindState unwind_state = isolate->GetUnwindState();
+  RegisterState register_state;
+
+  // Use a fake code range so that we can initialize it to 0s.
+  const size_t code_length = 40;
+  uintptr_t code[code_length] = {0};
+  unwind_state.code_range.start = code;
+  unwind_state.code_range.length_in_bytes = code_length * sizeof(uintptr_t);
+
+  // Our fake stack has two frames - one C++ frame and one JS frame (on top).
+  // The stack grows from high addresses to low addresses.
+  uintptr_t stack[11];
+  void* stack_base = stack + arraysize(stack);
+  stack[0] = 101;
+  stack[1] = 111;
+  stack[2] = 121;
+  stack[3] = 131;
+  stack[4] = 141;
+  stack[5] = reinterpret_cast<uintptr_t>(stack + 9);  // saved FP (rbp).
+  stack[6] = reinterpret_cast<uintptr_t>(code + 20);  // JS code.
+  stack[7] = 303;  // The SP points here in the caller's frame.
+  stack[8] = 404;
+  stack[9] = reinterpret_cast<uintptr_t>(stack) +
+             (12 * sizeof(uintptr_t));                 // saved FP (OOB).
+  stack[10] = reinterpret_cast<uintptr_t>(code + 20);  // JS code.
+
+  register_state.sp = stack;
+  register_state.fp = stack + 5;
+
+  // Put the current PC inside of the code range so it looks valid.
+  register_state.pc = code + 30;
+
+  // Unwind will fail because stack[9] FP points outside of the stack.
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
+                                                 stack_base);
+  CHECK(!unwound);
+
+  // Change the return address so that it is not in range.
+  stack[10] = 202;
+  unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
+                                            stack_base);
+  CHECK(!unwound);
+}
+
 TEST(PCIsInV8_BadState_Fail) {
   UnwindState unwind_state;
   void* pc = nullptr;

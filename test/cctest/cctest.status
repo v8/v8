@@ -199,9 +199,6 @@
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
 
-  # BUG(v8:5193): Flaky.
-  'test-cpu-profiler/TickEvents': [SKIP],
-
   # BUG(v8:7587): Strange breakage on Mac.
   'test-log-stack-tracer/PureJSStackTrace': [SKIP],
 }],  # 'asan == True'
@@ -214,8 +211,6 @@
 
 ##############################################################################
 ['tsan == True', {
-  # BUG(v8:6133).
-  'test-cpu-profiler/TickEvents': [SKIP],
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
 }],  # 'tsan == True'

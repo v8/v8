@@ -143,7 +143,8 @@ class String : public Name {
   };
 
   template <typename Char>
-  V8_INLINE Vector<const Char> GetCharVector();
+  V8_INLINE Vector<const Char> GetCharVector(
+      const DisallowHeapAllocation& no_gc);
 
   // Get and set the length of the string.
   inline int length() const;
@@ -201,7 +202,7 @@ class String : public Name {
   // If the string isn't flat, and therefore doesn't have flat content, the
   // returned structure will report so, and can't provide a vector of either
   // kind.
-  FlatContent GetFlatContent();
+  FlatContent GetFlatContent(const DisallowHeapAllocation& no_gc);
 
   // Returns the parent of a sliced string or first part of a flat cons string.
   // Requires: StringShape(this).IsIndirect() && this->IsFlat()
@@ -456,7 +457,8 @@ class String : public Name {
 
 class SubStringRange {
  public:
-  explicit inline SubStringRange(String string, int first = 0, int length = -1);
+  inline SubStringRange(String string, const DisallowHeapAllocation& no_gc,
+                        int first = 0, int length = -1);
   class iterator;
   inline iterator begin();
   inline iterator end();
@@ -465,6 +467,7 @@ class SubStringRange {
   String string_;
   int first_;
   int length_;
+  const DisallowHeapAllocation& no_gc_;
 };
 
 // The SeqString abstract class captures sequential string values.
@@ -502,7 +505,7 @@ class SeqOneByteString : public SeqString {
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
-  inline uint8_t* GetChars();
+  inline uint8_t* GetChars(const DisallowHeapAllocation& no_gc);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -543,7 +546,7 @@ class SeqTwoByteString : public SeqString {
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
-  inline uc16* GetChars();
+  inline uc16* GetChars(const DisallowHeapAllocation& no_gc);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.

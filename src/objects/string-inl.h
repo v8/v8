@@ -256,7 +256,7 @@ class SeqOneByteSubStringKey : public StringTableKey {
     // We have to set the hash later.
     DisallowHeapAllocation no_gc;
     uint32_t hash = StringHasher::HashSequentialString(
-        string->GetChars() + from, length, isolate->heap()->HashSeed());
+        string->GetChars(no_gc) + from, length, isolate->heap()->HashSeed());
     set_hash_field(hash);
 
     DCHECK_LE(0, length_);
@@ -410,13 +410,13 @@ ConsString String::VisitFlat(Visitor* visitor, String string,
     switch (type & (kStringRepresentationMask | kStringEncodingMask)) {
       case kSeqStringTag | kOneByteStringTag:
         visitor->VisitOneByteString(
-            SeqOneByteString::cast(string)->GetChars() + slice_offset,
+            SeqOneByteString::cast(string)->GetChars(no_gc) + slice_offset,
             length - offset);
         return ConsString();
 
       case kSeqStringTag | kTwoByteStringTag:
         visitor->VisitTwoByteString(
-            SeqTwoByteString::cast(string)->GetChars() + slice_offset,
+            SeqTwoByteString::cast(string)->GetChars(no_gc) + slice_offset,
             length - offset);
         return ConsString();
 
@@ -456,15 +456,17 @@ ConsString String::VisitFlat(Visitor* visitor, String string,
 }
 
 template <>
-inline Vector<const uint8_t> String::GetCharVector() {
-  String::FlatContent flat = GetFlatContent();
+inline Vector<const uint8_t> String::GetCharVector(
+    const DisallowHeapAllocation& no_gc) {
+  String::FlatContent flat = GetFlatContent(no_gc);
   DCHECK(flat.IsOneByte());
   return flat.ToOneByteVector();
 }
 
 template <>
-inline Vector<const uc16> String::GetCharVector() {
-  String::FlatContent flat = GetFlatContent();
+inline Vector<const uc16> String::GetCharVector(
+    const DisallowHeapAllocation& no_gc) {
+  String::FlatContent flat = GetFlatContent(no_gc);
   DCHECK(flat.IsTwoByte());
   return flat.ToUC16Vector();
 }
@@ -491,8 +493,8 @@ Address SeqOneByteString::GetCharsAddress() {
   return FIELD_ADDR(this, kHeaderSize);
 }
 
-uint8_t* SeqOneByteString::GetChars() {
-  DCHECK(!AllowHeapAllocation::IsAllowed());
+uint8_t* SeqOneByteString::GetChars(const DisallowHeapAllocation& no_gc) {
+  USE(no_gc);
   return reinterpret_cast<uint8_t*>(GetCharsAddress());
 }
 
@@ -500,8 +502,8 @@ Address SeqTwoByteString::GetCharsAddress() {
   return FIELD_ADDR(this, kHeaderSize);
 }
 
-uc16* SeqTwoByteString::GetChars() {
-  DCHECK(!AllowHeapAllocation::IsAllowed());
+uc16* SeqTwoByteString::GetChars(const DisallowHeapAllocation& no_gc) {
+  USE(no_gc);
   return reinterpret_cast<uc16*>(FIELD_ADDR(this, kHeaderSize));
 }
 
@@ -750,10 +752,13 @@ bool String::AsArrayIndex(uint32_t* index) {
   return SlowAsArrayIndex(index);
 }
 
-SubStringRange::SubStringRange(String string, int first, int length)
+SubStringRange::SubStringRange(String string,
+                               const DisallowHeapAllocation& no_gc, int first,
+                               int length)
     : string_(string),
       first_(first),
-      length_(length == -1 ? string->length() : length) {}
+      length_(length == -1 ? string->length() : length),
+      no_gc_(no_gc) {}
 
 class SubStringRange::iterator final {
  public:
@@ -781,18 +786,18 @@ class SubStringRange::iterator final {
  private:
   friend class String;
   friend class SubStringRange;
-  iterator(String from, int offset)
-      : content_(from->GetFlatContent()), offset_(offset) {}
+  iterator(String from, int offset, const DisallowHeapAllocation& no_gc)
+      : content_(from->GetFlatContent(no_gc)), offset_(offset) {}
   String::FlatContent content_;
   int offset_;
 };
 
 SubStringRange::iterator SubStringRange::begin() {
-  return SubStringRange::iterator(string_, first_);
+  return SubStringRange::iterator(string_, first_, no_gc_);
 }
 
 SubStringRange::iterator SubStringRange::end() {
-  return SubStringRange::iterator(string_, first_ + length_);
+  return SubStringRange::iterator(string_, first_ + length_, no_gc_);
 }
 
 }  // namespace internal
