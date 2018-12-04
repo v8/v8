@@ -121,7 +121,7 @@ bool NativeRegExpMacroAssembler::CanReadUnaligned() {
 }
 
 const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
-    String subject, int start_index) {
+    String subject, int start_index, const DisallowHeapAllocation& no_gc) {
   if (subject->IsConsString()) {
     subject = ConsString::cast(subject)->first();
   } else if (subject->IsSlicedString()) {
@@ -135,10 +135,10 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   DCHECK_LE(start_index, subject->length());
   if (subject->IsSeqOneByteString()) {
     return reinterpret_cast<const byte*>(
-        SeqOneByteString::cast(subject)->GetChars() + start_index);
+        SeqOneByteString::cast(subject)->GetChars(no_gc) + start_index);
   } else if (subject->IsSeqTwoByteString()) {
     return reinterpret_cast<const byte*>(
-        SeqTwoByteString::cast(subject)->GetChars() + start_index);
+        SeqTwoByteString::cast(subject)->GetChars(no_gc) + start_index);
   } else if (subject->IsExternalOneByteString()) {
     return reinterpret_cast<const byte*>(
         ExternalOneByteString::cast(subject)->GetChars() + start_index);
@@ -200,7 +200,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     } else {
       *subject = subject_handle->ptr();
       intptr_t byte_length = *input_end - *input_start;
-      *input_start = StringCharacterPosition(*subject_handle, start_index);
+      *input_start =
+          StringCharacterPosition(*subject_handle, start_index, no_gc);
       *input_end = *input_start + byte_length;
     }
   }
@@ -250,7 +251,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
 
   DisallowHeapAllocation no_gc;
   const byte* input_start =
-      StringCharacterPosition(subject_ptr, start_offset + slice_offset);
+      StringCharacterPosition(subject_ptr, start_offset + slice_offset, no_gc);
   int byte_length = char_length << char_size_shift;
   const byte* input_end = input_start + byte_length;
   Result res = Execute(*regexp_code,

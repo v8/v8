@@ -18,6 +18,7 @@
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#include "testing/gmock-support.h"
 
 namespace v8 {
 namespace internal {
@@ -146,6 +147,9 @@ class FunctionBodyDecoderTest : public TestWithZone {
       str << "Verification successed, expected failure; pc = +" << pc;
     }
     EXPECT_EQ(result.ok(), expected_success) << str.str();
+    if (!expected_success && message) {
+      EXPECT_THAT(result.error_msg(), ::testing::HasSubstr(message));
+    }
   }
 
   void TestBinop(WasmOpcode opcode, FunctionSig* success) {
@@ -784,6 +788,13 @@ TEST_F(FunctionBodyDecoderTest, IfElseUnreachable2) {
       EXPECT_FAILURE_SC(&sig, code);
     }
   }
+}
+
+TEST_F(FunctionBodyDecoderTest, OneArmedIfWithArity) {
+  static const byte code[] = {WASM_ZERO, kExprIf, kLocalI32, WASM_ONE,
+                              kExprEnd};
+  EXPECT_FAILURE_C(i_v, code,
+                   "start-arity and end-arity of one-armed if must match");
 }
 
 TEST_F(FunctionBodyDecoderTest, IfBreak) {

@@ -1813,7 +1813,7 @@ TEST(Regress876759) {
     Handle<SeqTwoByteString> raw =
         factory->NewRawTwoByteString(kLength).ToHandleChecked();
     DisallowHeapAllocation no_gc;
-    CopyChars(raw->GetChars(), two_byte_buf, kLength);
+    CopyChars(raw->GetChars(no_gc), two_byte_buf, kLength);
     parent = raw;
   }
   CHECK(parent->IsTwoByteRepresentation());

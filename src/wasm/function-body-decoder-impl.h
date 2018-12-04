@@ -1508,12 +1508,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return static_cast<uint32_t>(stack_.size());
   }
 
-  inline Value& GetMergeValueFromStack(
-      Control* c, Merge<Value>* merge, uint32_t i) {
-    DCHECK(merge == &c->start_merge || merge == &c->end_merge);
-    DCHECK_GT(merge->arity, i);
-    DCHECK_GE(stack_.size(), c->stack_depth + merge->arity);
-    return stack_[stack_.size() - merge->arity + i];
+  inline Value* stack_value(uint32_t depth) {
+    DCHECK_LT(0, depth);
+    DCHECK_GE(stack_.size(), depth);
+    return &*(stack_.end() - depth);
   }
 
  private:
@@ -1750,9 +1748,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               this->error(this->pc_, "else already present for if");
               break;
             }
-            FallThruTo(c);
+            if (!TypeCheckFallThru(c)) break;
             c->kind = kControlIfElse;
             CALL_INTERFACE_IF_PARENT_REACHABLE(Else, c);
+            if (c->reachable()) c->end_merge.reached = true;
             PushMergeValues(c, &c->start_merge);
             c->reachability = control_at(1)->innerReachability();
             break;
@@ -1760,7 +1759,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprEnd: {
             if (!VALIDATE(!control_.empty())) {
               this->error("end does not match any if, try, or block");
-              return;
+              break;
             }
             Control* c = &control_.back();
             if (!VALIDATE(!c->is_incomplete_try())) {
@@ -1768,12 +1767,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               break;
             }
             if (c->is_onearmed_if()) {
-              // Emulate empty else arm.
-              FallThruTo(c);
-              if (this->failed()) break;
-              CALL_INTERFACE_IF_PARENT_REACHABLE(Else, c);
-              PushMergeValues(c, &c->start_merge);
-              c->reachability = control_at(1)->innerReachability();
+              if (!VALIDATE(c->end_merge.arity == c->start_merge.arity)) {
+                this->error(
+                    c->pc,
+                    "start-arity and end-arity of one-armed if must match");
+                break;
+              }
             }
             if (c->is_try_catch()) {
               // Emulate catch-all + re-throw.
@@ -2303,7 +2302,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   void PopControl(Control* c) {
     DCHECK_EQ(c, &control_.back());
     CALL_INTERFACE_IF_PARENT_REACHABLE(PopControl, c);
-    bool reached = c->end_merge.reached;
+    bool reached = c->end_merge.reached || c->is_onearmed_if();
     control_.pop_back();
     // If the parent block was reachable before, but the popped control does not
     // return to here, this block becomes indirectly unreachable.
@@ -2645,10 +2644,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool TypeCheckMergeValues(Control* c, Merge<Value>* merge) {
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
     DCHECK_GE(stack_.size(), c->stack_depth + merge->arity);
+    // The computation of {stack_values} is only valid if {merge->arity} is >0.
+    DCHECK_LT(0, merge->arity);
+    Value* stack_values = &*(stack_.end() - merge->arity);
     // Typecheck the topmost {merge->arity} values on the stack.
     for (uint32_t i = 0; i < merge->arity; ++i) {
-      auto& val = GetMergeValueFromStack(c, merge, i);
-      auto& old = (*merge)[i];
+      Value& val = stack_values[i];
+      Value& old = (*merge)[i];
       if (val.type != old.type) {
         // If {val.type} is polymorphic, which results from unreachable, make
         // it more specific by using the merge value's expected type.
@@ -2680,6 +2682,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           expected, startrel(c->pc), actual);
       return false;
     }
+    if (expected == 0) return true;  // Fast path.
 
     return TypeCheckMergeValues(c, &c->end_merge);
   }
@@ -2687,6 +2690,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool TypeCheckBreak(Control* c) {
     // Breaks must have at least the number of values expected; can have more.
     uint32_t expected = c->br_merge()->arity;
+    if (expected == 0) return true;  // Fast path.
     DCHECK_GE(stack_.size(), control_.back().stack_depth);
     uint32_t actual =
         static_cast<uint32_t>(stack_.size()) - control_.back().stack_depth;
