@@ -1335,10 +1335,6 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstantPoolEntrySharingScope);
   };
 
-  // Record a comment relocation entry that can be used by a disassembler.
-  // Use --code-comments to enable.
-  void RecordComment(const char* msg);
-
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
@@ -1621,6 +1617,8 @@ class Assembler : public AssemblerBase {
   bool internal_trampoline_exception_;
 
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  int WriteCodeComments();
 
   friend class RegExpMacroAssemblerPPC;
   friend class RelocInfo;

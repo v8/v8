@@ -1491,10 +1491,6 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
     return pc_offset() - label->pos();
   }
 
-  // Record a comment relocation entry that can be used by a disassembler.
-  // Use --code-comments to enable.
-  void RecordComment(const char* msg);
-
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
@@ -1654,6 +1650,8 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
   void next(Label* L);
 
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  int WriteCodeComments();
 
   friend class RegExpMacroAssemblerS390;
   friend class RelocInfo;

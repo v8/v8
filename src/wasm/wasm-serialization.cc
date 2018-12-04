@@ -191,6 +191,7 @@ constexpr size_t kCodeHeaderSize =
     sizeof(size_t) +         // offset of constant pool
     sizeof(size_t) +         // offset of safepoint table
     sizeof(size_t) +         // offset of handler table
+    sizeof(size_t) +         // offset of code comments
     sizeof(uint32_t) +       // stack slots
     sizeof(size_t) +         // code size
     sizeof(size_t) +         // reloc size
@@ -286,6 +287,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->constant_pool_offset());
   writer->Write(code->safepoint_table_offset());
   writer->Write(code->handler_table_offset());
+  writer->Write(code->code_comments_offset());
   writer->Write(code->stack_slots());
   writer->Write(code->instructions().size());
   writer->Write(code->reloc_info().size());
@@ -450,6 +452,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t constant_pool_offset = reader->Read<size_t>();
   size_t safepoint_table_offset = reader->Read<size_t>();
   size_t handler_table_offset = reader->Read<size_t>();
+  size_t code_comment_offset = reader->Read<size_t>();
   uint32_t stack_slot_count = reader->Read<uint32_t>();
   size_t code_size = reader->Read<size_t>();
   size_t reloc_size = reader->Read<size_t>();
@@ -471,7 +474,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
 
   WasmCode* code = native_module_->AddDeserializedCode(
       fn_index, code_buffer, stack_slot_count, safepoint_table_offset,
-      handler_table_offset, constant_pool_offset,
+      handler_table_offset, constant_pool_offset, code_comment_offset,
       std::move(protected_instructions), std::move(reloc_info),
       std::move(source_pos), tier);
 

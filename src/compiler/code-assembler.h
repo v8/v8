@@ -846,7 +846,18 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void DebugAbort(Node* message);
   void DebugBreak();
   void Unreachable();
-  void Comment(const char* format, ...);
+  void Comment(const char* msg) {
+    if (!FLAG_code_comments) return;
+    Comment(std::string(msg));
+  }
+  void Comment(std::string msg);
+  template <class... Args>
+  void Comment(Args&&... args) {
+    if (!FLAG_code_comments) return;
+    std::ostringstream s;
+    USE((s << std::forward<Args>(args))...);
+    Comment(s.str());
+  }
 
   void Bind(Label* label);
 #if DEBUG
