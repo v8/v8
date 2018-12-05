@@ -97,21 +97,21 @@ class IsolateData final {
 
  private:
 // Static layout definition.
-#define FIELDS(V)                                                         \
-  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kPointerSize)   \
-  V(kExternalMemoryOffset, kInt64Size)                                    \
-  V(kExternalMemoryLlimitOffset, kInt64Size)                              \
-  V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                   \
-  V(kRootsTableOffset, RootsTable::kEntriesCount* kPointerSize)           \
-  V(kExternalReferenceTableOffset, ExternalReferenceTable::SizeInBytes()) \
-  V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)          \
-  V(kVirtualCallTargetRegisterOffset, kPointerSize)                       \
-  V(kFastCCallCallerFPOffset, kPointerSize)                               \
-  V(kFastCCallCallerPCOffset, kPointerSize)                               \
-  /* This padding aligns IsolateData size by 8 bytes. */                  \
-  V(kPaddingOffset,                                                       \
-    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)    \
-  /* Total size. */                                                       \
+#define FIELDS(V)                                                        \
+  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kPointerSize)  \
+  V(kExternalMemoryOffset, kInt64Size)                                   \
+  V(kExternalMemoryLlimitOffset, kInt64Size)                             \
+  V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                  \
+  V(kRootsTableOffset, RootsTable::kEntriesCount* kPointerSize)          \
+  V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes) \
+  V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)         \
+  V(kVirtualCallTargetRegisterOffset, kPointerSize)                      \
+  V(kFastCCallCallerFPOffset, kPointerSize)                              \
+  V(kFastCCallCallerPCOffset, kPointerSize)                              \
+  /* This padding aligns IsolateData size by 8 bytes. */                 \
+  V(kPaddingOffset,                                                      \
+    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)   \
+  /* Total size. */                                                      \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(0, FIELDS)

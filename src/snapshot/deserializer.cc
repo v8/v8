@@ -91,8 +91,7 @@ void Deserializer::Initialize(Isolate* isolate) {
     }
   }
 #endif  // DEBUG
-  CHECK_EQ(magic_number_,
-           SerializedData::ComputeMagicNumber(external_reference_table_));
+  CHECK_EQ(magic_number_, SerializedData::kMagicNumber);
 }
 
 void Deserializer::Rehash() {

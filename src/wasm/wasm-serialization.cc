@@ -119,9 +119,8 @@ class Reader {
 
 constexpr size_t kVersionSize = 4 * sizeof(uint32_t);
 
-void WriteVersion(Isolate* isolate, Writer* writer) {
-  writer->Write(
-      SerializedData::ComputeMagicNumber(isolate->external_reference_table()));
+void WriteVersion(Writer* writer) {
+  writer->Write(SerializedData::kMagicNumber);
   writer->Write(Version::Hash());
   writer->Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer->Write(FlagList::Hash());
@@ -244,7 +243,7 @@ NativeModuleSerializer::NativeModuleSerializer(
     wasm_stub_targets_lookup_.insert(std::make_pair(addr, i));
   }
   ExternalReferenceTable* table = isolate_->external_reference_table();
-  for (uint32_t i = 0; i < table->size(); ++i) {
+  for (uint32_t i = 0; i < ExternalReferenceTable::kSize; ++i) {
     Address addr = table->address(i);
     reference_table_lookup_.insert(std::make_pair(addr, i));
   }
@@ -395,7 +394,7 @@ bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
   if (buffer.size() < measured_size) return false;
 
   Writer writer(buffer);
-  WriteVersion(isolate_, &writer);
+  WriteVersion(&writer);
 
   if (!serializer.Write(&writer)) return false;
   DCHECK_EQ(measured_size, writer.bytes_written());
@@ -531,22 +530,19 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   return true;
 }
 
-bool IsSupportedVersion(Isolate* isolate, Vector<const byte> version) {
+bool IsSupportedVersion(Vector<const byte> version) {
   if (version.size() < kVersionSize) return false;
   byte current_version[kVersionSize];
   Writer writer({current_version, kVersionSize});
-  WriteVersion(isolate, &writer);
+  WriteVersion(&writer);
   return memcmp(version.start(), current_version, kVersionSize) == 0;
 }
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes) {
-  if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
-    return {};
-  }
-  if (!IsSupportedVersion(isolate, data)) {
-    return {};
-  }
+  if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
+  if (!IsSupportedVersion(data)) return {};
+
   // TODO(titzer): module features should be part of the serialization format.
   WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(

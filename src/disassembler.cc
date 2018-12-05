@@ -63,7 +63,7 @@ void V8NameConverter::InitExternalRefsCache() const {
       isolate_->root_register_addressable_region();
   Address isolate_root = isolate_->isolate_root();
 
-  for (uint32_t i = 0; i < external_reference_table->size(); i++) {
+  for (uint32_t i = 0; i < ExternalReferenceTable::kSize; i++) {
     Address address = external_reference_table->address(i);
     if (addressable_region.contains(address)) {
       int offset = static_cast<int>(address - isolate_root);
@@ -119,7 +119,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
   const int kRootsTableStart = IsolateData::roots_table_offset();
   const unsigned kRootsTableSize = sizeof(RootsTable);
   const int kExtRefsTableStart = IsolateData::external_reference_table_offset();
-  const unsigned kExtRefsTableSize = ExternalReferenceTable::SizeInBytes();
+  const unsigned kExtRefsTableSize = ExternalReferenceTable::kSizeInBytes;
   const int kBuiltinsTableStart = IsolateData::builtins_table_offset();
   const unsigned kBuiltinsTableSize = Builtins::builtin_count * kPointerSize;
 
@@ -140,7 +140,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
     uint32_t offset_in_extref_table = offset - kExtRefsTableStart;
 
     // Fail safe in the unlikely case of an arbitrary root-relative offset.
-    if (offset_in_extref_table % ExternalReferenceTable::EntrySize() != 0) {
+    if (offset_in_extref_table % ExternalReferenceTable::kEntrySize != 0) {
       return nullptr;
     }
 

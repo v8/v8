@@ -33,7 +33,7 @@ class WasmSerializer {
 
 // Support for deserializing WebAssembly {NativeModule} objects.
 // Checks the version header of the data against the current version.
-bool IsSupportedVersion(Isolate* isolate, Vector<const byte> data);
+bool IsSupportedVersion(Vector<const byte> data);
 
 // Deserializes the given data to create a compiled Wasm module.
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(

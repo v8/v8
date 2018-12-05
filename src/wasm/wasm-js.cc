@@ -71,9 +71,7 @@ class WasmStreaming::WasmStreamingImpl {
   }
 
   bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
-    if (!i::wasm::IsSupportedVersion(reinterpret_cast<i::Isolate*>(isolate_),
-                                     {bytes, size}))
-      return false;
+    if (!i::wasm::IsSupportedVersion({bytes, size})) return false;
     return streaming_decoder_->SetCompiledModuleBytes({bytes, size});
   }
 

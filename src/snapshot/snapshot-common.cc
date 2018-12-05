@@ -316,7 +316,7 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
   memset(data_, 0, padded_payload_offset);
 
   // Set header values.
-  SetMagicNumber(serializer->isolate());
+  SetMagicNumber();
   SetHeaderValue(kNumReservationsOffset, static_cast<int>(reservations.size()));
   SetHeaderValue(kPayloadLengthOffset, static_cast<int>(payload->size()));
 
