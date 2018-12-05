@@ -89,7 +89,7 @@ void KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
     // The keys_ Set is converted directly to a FixedArray in GetKeys which can
     // be left-trimmer. Hence the previous Set should not keep a pointer to the
     // new one.
-    keys_->set(OrderedHashSet::kNextTableIndex, Smi::kZero);
+    keys_->set(OrderedHashSet::NextTableIndex(), Smi::kZero);
     // TODO(3770): Drop explicit conversion.
     keys_ = Handle<FixedArray>(new_set.location());
   }

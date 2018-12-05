@@ -5233,7 +5233,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
   Node* first_entry = ChangeSmiToIntPtr(__ Load(
       MachineType::TaggedSigned(), table,
       __ IntAdd(__ WordShl(hash, __ IntPtrConstant(kPointerSizeLog2)),
-                __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset -
+                __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() -
                                   kHeapObjectTag))));
 
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
@@ -5252,7 +5252,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
     Node* candidate_key = __ Load(
         MachineType::AnyTagged(), table,
         __ IntAdd(__ WordShl(entry, __ IntPtrConstant(kPointerSizeLog2)),
-                  __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset -
+                  __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() -
                                     kHeapObjectTag)));
 
     auto if_match = __ MakeLabel();
@@ -5281,7 +5281,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
           MachineType::TaggedSigned(), table,
           __ IntAdd(
               __ WordShl(entry, __ IntPtrConstant(kPointerSizeLog2)),
-              __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset +
+              __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() +
                                 OrderedHashMap::kChainOffset * kPointerSize -
                                 kHeapObjectTag))));
       __ Goto(&loop, next_entry);

@@ -28,30 +28,35 @@ namespace internal {
 // Originally attributed to Tyler Close.
 //
 // Memory layout:
-//   [0]: element count
-//   [1]: deleted element count
-//   [2]: bucket count
-//   [3..(3 + NumberOfBuckets() - 1)]: "hash table", where each item is an
-//                            offset into the data table (see below) where the
-//                            first item in this bucket is stored.
-//   [3 + NumberOfBuckets()..length]: "data table", an array of length
-//                            Capacity() * kEntrySize, where the first entrysize
-//                            items are handled by the derived class and the
-//                            item at kChainOffset is another entry into the
-//                            data table indicating the next entry in this hash
-//                            bucket.
+//   [0] : Prefix
+//   [kPrefixSize]: element count
+//   [kPrefixSize + 1]: deleted element count
+//   [kPrefixSize + 2]: bucket count
+//   [kPrefixSize + 3..(3 + NumberOfBuckets() - 1)]: "hash table",
+//                            where each item is an offset into the
+//                            data table (see below) where the first
+//                            item in this bucket is stored.
+//   [kPrefixSize + 3 + NumberOfBuckets()..length]: "data table", an
+//                            array of length Capacity() * kEntrySize,
+//                            where the first entrysize items are
+//                            handled by the derived class and the
+//                            item at kChainOffset is another entry
+//                            into the data table indicating the next
+//                            entry in this hash bucket.
 //
 // When we transition the table to a new version we obsolete it and reuse parts
 // of the memory to store information how to transition an iterator to the new
 // table:
 //
 // Memory layout for obsolete table:
-//   [0]: bucket count
-//   [1]: Next newer table
-//   [2]: Number of removed holes or -1 when the table was cleared.
-//   [3..(3 + NumberOfRemovedHoles() - 1)]: The indexes of the removed holes.
-//   [3 + NumberOfRemovedHoles()..length]: Not used
-//
+//   [0] : Prefix
+//   [kPrefixSize + 0]: bucket count
+//   [kPrefixSize + 1]: Next newer table
+//   [kPrefixSize + 2]: Number of removed holes or -1 when the table was
+//                      cleared.
+//   [kPrefixSize + 3..(3 + NumberOfRemovedHoles() - 1)]: The indexes
+//                      of the removed holes.
+//   [kPrefixSize + 3 + NumberOfRemovedHoles()..length]: Not used
 template <class Derived, int entrysize>
 class OrderedHashTable : public FixedArray {
  public:
@@ -82,11 +87,11 @@ class OrderedHashTable : public FixedArray {
   int FindEntry(Isolate* isolate, Object* key);
 
   int NumberOfElements() const {
-    return Smi::ToInt(get(kNumberOfElementsIndex));
+    return Smi::ToInt(get(NumberOfElementsIndex()));
   }
 
   int NumberOfDeletedElements() const {
-    return Smi::ToInt(get(kNumberOfDeletedElementsIndex));
+    return Smi::ToInt(get(NumberOfDeletedElementsIndex()));
   }
 
   // Returns the number of contiguous entries in the data table, starting at 0,
@@ -95,18 +100,20 @@ class OrderedHashTable : public FixedArray {
     return NumberOfElements() + NumberOfDeletedElements();
   }
 
-  int NumberOfBuckets() const { return Smi::ToInt(get(kNumberOfBucketsIndex)); }
+  int NumberOfBuckets() const {
+    return Smi::ToInt(get(NumberOfBucketsIndex()));
+  }
 
   // Returns an index into |this| for the given entry.
   int EntryToIndex(int entry) {
-    return kHashTableStartIndex + NumberOfBuckets() + (entry * kEntrySize);
+    return HashTableStartIndex() + NumberOfBuckets() + (entry * kEntrySize);
   }
 
   int HashToBucket(int hash) { return hash & (NumberOfBuckets() - 1); }
 
   int HashToEntry(int hash) {
     int bucket = HashToBucket(hash);
-    Object* entry = this->get(kHashTableStartIndex + bucket);
+    Object* entry = this->get(HashTableStartIndex() + bucket);
     return Smi::ToInt(entry);
   }
 
@@ -121,14 +128,14 @@ class OrderedHashTable : public FixedArray {
     return get(EntryToIndex(entry));
   }
 
-  bool IsObsolete() { return !get(kNextTableIndex)->IsSmi(); }
+  bool IsObsolete() { return !get(NextTableIndex())->IsSmi(); }
 
   // The next newer table. This is only valid if the table is obsolete.
-  Derived NextTable() { return Derived::cast(get(kNextTableIndex)); }
+  Derived NextTable() { return Derived::cast(get(NextTableIndex())); }
 
   // When the table is obsolete we store the indexes of the removed holes.
   int RemovedIndexAt(int index) {
-    return Smi::ToInt(get(kRemovedHolesIndex + index));
+    return Smi::ToInt(get(RemovedHolesIndex() + index));
   }
 
   static const int kEntrySize = entrysize + 1;
@@ -137,24 +144,46 @@ class OrderedHashTable : public FixedArray {
   static const int kNotFound = -1;
   static const int kMinCapacity = 4;
 
-  static const int kNumberOfElementsIndex = 0;
-  // The next table is stored at the same index as the nof elements.
-  static const int kNextTableIndex = kNumberOfElementsIndex;
-  static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
-  static const int kNumberOfBucketsIndex = kNumberOfDeletedElementsIndex + 1;
-  static const int kHashTableStartIndex = kNumberOfBucketsIndex + 1;
-  static const int kRemovedHolesIndex = kHashTableStartIndex;
+  static constexpr int PrefixIndex() { return 0; }
 
-  static constexpr const int kNumberOfElementsOffset =
-      FixedArray::OffsetOfElementAt(kNumberOfElementsIndex);
-  static constexpr const int kNextTableOffset =
-      FixedArray::OffsetOfElementAt(kNextTableIndex);
-  static constexpr const int kNumberOfDeletedElementsOffset =
-      FixedArray::OffsetOfElementAt(kNumberOfDeletedElementsIndex);
-  static constexpr const int kNumberOfBucketsOffset =
-      FixedArray::OffsetOfElementAt(kNumberOfBucketsIndex);
-  static constexpr const int kHashTableStartOffset =
-      FixedArray::OffsetOfElementAt(kHashTableStartIndex);
+  static constexpr int NumberOfElementsIndex() { return Derived::kPrefixSize; }
+
+  // The next table is stored at the same index as the nof elements.
+  static constexpr int NextTableIndex() { return NumberOfElementsIndex(); }
+
+  static constexpr int NumberOfDeletedElementsIndex() {
+    return NumberOfElementsIndex() + 1;
+  }
+
+  static constexpr int NumberOfBucketsIndex() {
+    return NumberOfDeletedElementsIndex() + 1;
+  }
+
+  static constexpr int HashTableStartIndex() {
+    return NumberOfBucketsIndex() + 1;
+  }
+
+  static constexpr int RemovedHolesIndex() { return HashTableStartIndex(); }
+
+  static constexpr int NumberOfElementsOffset() {
+    return FixedArray::OffsetOfElementAt(NumberOfElementsIndex());
+  }
+
+  static constexpr int NextTableOffset() {
+    return FixedArray::OffsetOfElementAt(NextTableIndex());
+  }
+
+  static constexpr int NumberOfDeletedElementsOffset() {
+    return FixedArray::OffsetOfElementAt(NumberOfDeletedElementsIndex());
+  }
+
+  static constexpr int NumberOfBucketsOffset() {
+    return FixedArray::OffsetOfElementAt(NumberOfBucketsIndex());
+  }
+
+  static constexpr int HashTableStartOffset() {
+    return FixedArray::OffsetOfElementAt(HashTableStartIndex());
+  }
 
   static const int kLoadFactor = 2;
 
@@ -162,33 +191,34 @@ class OrderedHashTable : public FixedArray {
   // the table is cleared, which allows iterator transitions to
   // optimize that case.
   static const int kClearedTableSentinel = -1;
-  static const int kMaxCapacity =
-      (FixedArray::kMaxLength - kHashTableStartIndex) /
-      (1 + (kEntrySize * kLoadFactor));
+  static constexpr int MaxCapacity() {
+    return (FixedArray::kMaxLength - HashTableStartIndex()) /
+           (1 + (kEntrySize * kLoadFactor));
+  }
 
  protected:
   static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
                                 int new_capacity);
 
   void SetNumberOfBuckets(int num) {
-    set(kNumberOfBucketsIndex, Smi::FromInt(num));
+    set(NumberOfBucketsIndex(), Smi::FromInt(num));
   }
 
   void SetNumberOfElements(int num) {
-    set(kNumberOfElementsIndex, Smi::FromInt(num));
+    set(NumberOfElementsIndex(), Smi::FromInt(num));
   }
 
   void SetNumberOfDeletedElements(int num) {
-    set(kNumberOfDeletedElementsIndex, Smi::FromInt(num));
+    set(NumberOfDeletedElementsIndex(), Smi::FromInt(num));
   }
 
   // Returns the number elements that can fit into the allocated buffer.
   int Capacity() { return NumberOfBuckets() * kLoadFactor; }
 
-  void SetNextTable(Derived next_table) { set(kNextTableIndex, next_table); }
+  void SetNextTable(Derived next_table) { set(NextTableIndex(), next_table); }
 
   void SetRemovedIndexAt(int index, int removed_index) {
-    return set(kRemovedHolesIndex + index, Smi::FromInt(removed_index));
+    return set(RemovedHolesIndex() + index, Smi::FromInt(removed_index));
   }
 
   OBJECT_CONSTRUCTORS(OrderedHashTable, FixedArray)
@@ -207,6 +237,7 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
   static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
   static inline bool Is(Handle<HeapObject> table);
+  static const int kPrefixSize = 0;
 
   OBJECT_CONSTRUCTORS(OrderedHashSet, OrderedHashTable<OrderedHashSet, 1>)
 };
@@ -229,6 +260,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
   static inline bool Is(Handle<HeapObject> table);
 
   static const int kValueOffset = 1;
+  static const int kPrefixSize = 0;
 
   OBJECT_CONSTRUCTORS(OrderedHashMap, OrderedHashTable<OrderedHashMap, 2>)
 };
@@ -242,10 +274,19 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 // that the DataTable entries start aligned. A bucket or chain value
 // of 255 is used to denote an unknown entry.
 //
-// Memory layout: [ Header ]  [ Padding ] [ DataTable ] [ HashTable ] [ Chains ]
+// The prefix size is calculated as the kPrefixSize * kPointerSize.
+//
+// Memory layout: [ Prefix ] [ Header ]  [ Padding ] [ DataTable ] [ HashTable ]
+// [ Chains ]
 //
 // The index are represented as bytes, on a 64 bit machine with
 // kEntrySize = 1, capacity = 4 and entries = 2:
+//
+// [ 0 ] : Prefix
+//
+// Note: For the sake of brevity, the following start with index 0
+// but, they actually start from kPrefixSize * kPointerSize to
+// account for the the prefix.
 //
 // [ Header ]  :
 //    [0] : Number of elements
@@ -315,8 +356,8 @@ class SmallOrderedHashTable : public HeapObjectPtr {
     int data_table_size = DataTableSizeFor(capacity);
     int hash_table_size = capacity / kLoadFactor;
     int chain_table_size = capacity;
-    int total_size = kDataTableStartOffset + data_table_size + hash_table_size +
-                     chain_table_size;
+    int total_size = DataTableStartOffset() + data_table_size +
+                     hash_table_size + chain_table_size;
 
     return RoundUp(total_size, kPointerSize);
   }
@@ -332,20 +373,20 @@ class SmallOrderedHashTable : public HeapObjectPtr {
 
   // Returns the number elements that are present in the table.
   int NumberOfElements() const {
-    int nof_elements = getByte(kNumberOfElementsOffset, 0);
+    int nof_elements = getByte(NumberOfElementsOffset(), 0);
     DCHECK_LE(nof_elements, Capacity());
 
     return nof_elements;
   }
 
   int NumberOfDeletedElements() const {
-    int nof_deleted_elements = getByte(kNumberOfDeletedElementsOffset, 0);
+    int nof_deleted_elements = getByte(NumberOfDeletedElementsOffset(), 0);
     DCHECK_LE(nof_deleted_elements, Capacity());
 
     return nof_deleted_elements;
   }
 
-  int NumberOfBuckets() const { return getByte(kNumberOfBucketsOffset, 0); }
+  int NumberOfBuckets() const { return getByte(NumberOfBucketsOffset(), 0); }
 
   DECL_VERIFIER(SmallOrderedHashTable)
 
@@ -380,11 +421,12 @@ class SmallOrderedHashTable : public HeapObjectPtr {
   Offset GetBucketsStartOffset() const {
     int capacity = Capacity();
     int data_table_size = DataTableSizeFor(capacity);
-    return kDataTableStartOffset + data_table_size;
+    return DataTableStartOffset() + data_table_size;
   }
 
   Address GetHashTableStartAddress(int capacity) const {
-    return FIELD_ADDR(this, kDataTableStartOffset + DataTableSizeFor(capacity));
+    return FIELD_ADDR(this,
+                      DataTableStartOffset() + DataTableSizeFor(capacity));
   }
 
   void SetFirstEntry(int bucket, byte value) {
@@ -406,7 +448,7 @@ class SmallOrderedHashTable : public HeapObjectPtr {
 
     int data_table_size = DataTableSizeFor(capacity);
     int hash_table_size = nof_buckets;
-    return kDataTableStartOffset + data_table_size + hash_table_size;
+    return DataTableStartOffset() + data_table_size + hash_table_size;
   }
 
   void SetNextEntry(int entry, int next_entry) {
@@ -443,25 +485,35 @@ class SmallOrderedHashTable : public HeapObjectPtr {
     return entry;
   }
 
-  void SetNumberOfBuckets(int num) { setByte(kNumberOfBucketsOffset, 0, num); }
+  void SetNumberOfBuckets(int num) { setByte(NumberOfBucketsOffset(), 0, num); }
 
   void SetNumberOfElements(int num) {
     DCHECK_LE(static_cast<unsigned>(num), Capacity());
-    setByte(kNumberOfElementsOffset, 0, num);
+    setByte(NumberOfElementsOffset(), 0, num);
   }
 
   void SetNumberOfDeletedElements(int num) {
     DCHECK_LE(static_cast<unsigned>(num), Capacity());
-    setByte(kNumberOfDeletedElementsOffset, 0, num);
+    setByte(NumberOfDeletedElementsOffset(), 0, num);
   }
 
-  static const Offset kNumberOfElementsOffset = kHeaderSize;
-  static const Offset kNumberOfDeletedElementsOffset =
-      kNumberOfElementsOffset + kOneByteSize;
-  static const Offset kNumberOfBucketsOffset =
-      kNumberOfDeletedElementsOffset + kOneByteSize;
-  static const constexpr Offset kDataTableStartOffset =
-      RoundUp<kPointerSize>(kNumberOfBucketsOffset);
+  static constexpr Offset PrefixOffset() { return kHeaderSize; }
+
+  static constexpr Offset NumberOfElementsOffset() {
+    return PrefixOffset() + (Derived::kPrefixSize * kPointerSize);
+  }
+
+  static constexpr Offset NumberOfDeletedElementsOffset() {
+    return NumberOfElementsOffset() + kOneByteSize;
+  }
+
+  static constexpr Offset NumberOfBucketsOffset() {
+    return NumberOfDeletedElementsOffset() + kOneByteSize;
+  }
+
+  static constexpr Offset DataTableStartOffset() {
+    return RoundUp<kPointerSize>(NumberOfBucketsOffset());
+  }
 
   static constexpr int DataTableSizeFor(int capacity) {
     return capacity * Derived::kEntrySize * kPointerSize;
@@ -470,12 +522,14 @@ class SmallOrderedHashTable : public HeapObjectPtr {
   // This is used for accessing the non |DataTable| part of the
   // structure.
   byte getByte(Offset offset, ByteIndex index) const {
-    DCHECK(offset < kDataTableStartOffset || offset >= GetBucketsStartOffset());
+    DCHECK(offset < DataTableStartOffset() ||
+           offset >= GetBucketsStartOffset());
     return READ_BYTE_FIELD(this, offset + (index * kOneByteSize));
   }
 
   void setByte(Offset offset, ByteIndex index, byte value) {
-    DCHECK(offset < kDataTableStartOffset || offset >= GetBucketsStartOffset());
+    DCHECK(offset < DataTableStartOffset() ||
+           offset >= GetBucketsStartOffset());
     WRITE_BYTE_FIELD(this, offset + (index * kOneByteSize), value);
   }
 
@@ -483,7 +537,7 @@ class SmallOrderedHashTable : public HeapObjectPtr {
     DCHECK_LT(entry, Capacity());
     int offset_in_datatable = entry * Derived::kEntrySize * kPointerSize;
     int offset_in_entry = relative_index * kPointerSize;
-    return kDataTableStartOffset + offset_in_datatable + offset_in_entry;
+    return DataTableStartOffset() + offset_in_datatable + offset_in_entry;
   }
 
   int UsedCapacity() const {
@@ -509,6 +563,7 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
 
   static const int kKeyIndex = 0;
   static const int kEntrySize = 1;
+  static const int kPrefixSize = 0;
 
   // Adds |value| to |table|, if the capacity isn't enough, a new
   // table is created. The original |table| is returned if there is
@@ -532,6 +587,7 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
   static const int kKeyIndex = 0;
   static const int kValueIndex = 1;
   static const int kEntrySize = 2;
+  static const int kPrefixSize = 0;
 
   // Adds |value| to |table|, if the capacity isn't enough, a new
   // table is created. The original |table| is returned if there is
@@ -612,6 +668,7 @@ class OrderedNameDictionary
 
   static const int kValueOffset = 1;
   static const int kPropertyDetailsOffset = 2;
+  static const int kPrefixSize = 1;
 
   OBJECT_CONSTRUCTORS(OrderedNameDictionary,
                       OrderedHashTable<OrderedNameDictionary, 3>)
@@ -640,6 +697,7 @@ class SmallOrderedNameDictionary
   static const int kValueIndex = 1;
   static const int kPropertyDetailsIndex = 2;
   static const int kEntrySize = 3;
+  static const int kPrefixSize = 1;
 
   // Adds |value| to |table|, if the capacity isn't enough, a new
   // table is created. The original |table| is returned if there is

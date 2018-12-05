@@ -277,7 +277,7 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
  public:
   static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
     Derived table = Derived::cast(obj);
-    if (offset < kDataTableStartOffset) return false;
+    if (offset < DataTableStartOffset()) return false;
     if (offset >= table->GetBucketsStartOffset()) return false;
     return IsValidSlotImpl(map, obj, offset);
   }
@@ -287,7 +287,7 @@ class SmallOrderedHashTable<Derived>::BodyDescriptor final
                                  ObjectVisitor* v) {
     Derived table = Derived::cast(obj);
 
-    int offset = kDataTableStartOffset;
+    int offset = DataTableStartOffset();
     int entry = 0;
     for (int i = 0; i < table->Capacity(); i++) {
       for (int j = 0; j < Derived::kEntrySize; j++) {

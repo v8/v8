@@ -21,16 +21,16 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   // to something other than 2, capacity should be stored as another
   // field of this object.
   capacity = base::bits::RoundUpToPowerOfTwo32(Max(kMinCapacity, capacity));
-  if (capacity > kMaxCapacity) {
+  if (capacity > MaxCapacity()) {
     isolate->heap()->FatalProcessOutOfMemory("invalid table size");
   }
   int num_buckets = capacity / kLoadFactor;
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
       Derived::GetMapRootIndex(),
-      kHashTableStartIndex + num_buckets + (capacity * kEntrySize), pretenure);
+      HashTableStartIndex() + num_buckets + (capacity * kEntrySize), pretenure);
   Handle<Derived> table = Handle<Derived>::cast(backing_store);
   for (int i = 0; i < num_buckets; ++i) {
-    table->set(kHashTableStartIndex + i, Smi::FromInt(kNotFound));
+    table->set(HashTableStartIndex() + i, Smi::FromInt(kNotFound));
   }
   table->SetNumberOfBuckets(num_buckets);
   table->SetNumberOfElements(0);
@@ -141,7 +141,7 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
   table->set(new_index, *key);
   table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
   // and point the bucket to the new entry.
-  table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+  table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
   table->SetNumberOfElements(nof + 1);
   return table;
 }
@@ -157,7 +157,7 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   int const kMaxStringTableEntries =
       isolate->heap()->MaxNumberToStringCacheSize();
   for (int i = 0; i < length; i++) {
-    int index = kHashTableStartIndex + nof_buckets + (i * kEntrySize);
+    int index = HashTableStartIndex() + nof_buckets + (i * kEntrySize);
     Object* key = table->get(index);
     if (convert == GetKeysConversion::kConvertToString) {
       uint32_t index_value;
@@ -205,8 +205,8 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
 
     Object* hash = key->GetHash();
     int bucket = Smi::ToInt(hash) & (new_buckets - 1);
-    Object* chain_entry = new_table->get(kHashTableStartIndex + bucket);
-    new_table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+    Object* chain_entry = new_table->get(HashTableStartIndex() + bucket);
+    new_table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
     int new_index = new_table->EntryToIndex(new_entry);
     int old_index = table->EntryToIndex(old_entry);
     for (int i = 0; i < entrysize; ++i) {
@@ -288,7 +288,7 @@ Handle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   table->set(new_index + kValueOffset, *value);
   table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
   // and point the bucket to the new entry.
-  table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+  table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
   table->SetNumberOfElements(nof + 1);
   return table;
 }
@@ -333,7 +333,7 @@ Handle<OrderedNameDictionary> OrderedNameDictionary::Add(
 
   table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
   // and point the bucket to the new entry.
-  table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+  table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
   table->SetNumberOfElements(nof + 1);
   return table;
 }
@@ -461,7 +461,7 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
          num_buckets + num_chains);
 
   if (Heap::InNewSpace(*this)) {
-    MemsetTagged(RawField(kDataTableStartOffset),
+    MemsetTagged(RawField(DataTableStartOffset()),
                  ReadOnlyRoots(isolate).the_hole_value(),
                  capacity * Derived::kEntrySize);
   } else {
