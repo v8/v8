@@ -1471,7 +1471,9 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
     if (version_ < 11 && element->IsUndefined(isolate_)) continue;
 
     // Safety check.
-    CHECK_LT(i, static_cast<uint32_t>(elements->length()));
+    if (i >= static_cast<uint32_t>(elements->length())) {
+      return MaybeHandle<JSArray>();
+    }
 
     elements->set(i, *element);
   }
@@ -1985,8 +1987,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       bool success;
       LookupIterator it = LookupIterator::PropertyOrElement(
           isolate_, object, key, &success, LookupIterator::OWN);
-      CHECK_EQ(LookupIterator::NOT_FOUND, it.state());
-      if (!success ||
+      if (!success || it.state() != LookupIterator::NOT_FOUND ||
           JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
               .is_null()) {
         return Nothing<uint32_t>();
@@ -2020,8 +2021,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     bool success;
     LookupIterator it = LookupIterator::PropertyOrElement(
         isolate_, object, key, &success, LookupIterator::OWN);
-    CHECK_EQ(LookupIterator::NOT_FOUND, it.state());
-    if (!success ||
+    if (!success || it.state() != LookupIterator::NOT_FOUND ||
         JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
             .is_null()) {
       return Nothing<uint32_t>();
@@ -2068,8 +2068,7 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
     bool success;
     LookupIterator it = LookupIterator::PropertyOrElement(
         isolate, object, key, &success, LookupIterator::OWN);
-    CHECK_EQ(LookupIterator::NOT_FOUND, it.state());
-    if (!success ||
+    if (!success || it.state() != LookupIterator::NOT_FOUND ||
         JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
             .is_null()) {
       return Nothing<bool>();
