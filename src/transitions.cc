@@ -305,8 +305,8 @@ bool TransitionsAccessor::IsMatchingMap(Map target, Name name,
   DescriptorArray descriptors = target->instance_descriptors();
   Name key = descriptors->GetKey(descriptor);
   if (key != name) return false;
-  PropertyDetails details = descriptors->GetDetails(descriptor);
-  return (details.kind() == kind && details.attributes() == attributes);
+  return descriptors->GetDetails(descriptor)
+      .HasKindAndAttributes(kind, attributes);
 }
 
 // static
