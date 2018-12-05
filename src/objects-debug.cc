@@ -1209,6 +1209,8 @@ void Code::CodeVerify(Isolate* isolate) {
   CHECK_LE(constant_pool_offset(), InstructionSize());
   CHECK(IsAligned(raw_instruction_start(), kCodeAlignment));
   relocation_info()->ObjectVerify(isolate);
+  CHECK(Code::SizeFor(body_size()) <= kMaxRegularHeapObjectSize ||
+        isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
 
   for (RelocIterator it(*this); !it.done(); it.next()) {

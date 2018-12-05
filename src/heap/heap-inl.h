@@ -202,7 +202,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
       allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
     }
   } else if (CODE_SPACE == space) {
-    if (size_in_bytes <= code_space()->AreaSize()) {
+    if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
       allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
     } else {
       allocation = code_lo_space_->AllocateRaw(size_in_bytes);
@@ -214,6 +214,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     DCHECK(FLAG_young_generation_large_objects);
     allocation = new_lo_space_->AllocateRaw(size_in_bytes);
   } else if (CODE_LO_SPACE == space) {
+    DCHECK(large_object);
     allocation = code_lo_space_->AllocateRaw(size_in_bytes);
   } else if (MAP_SPACE == space) {
     allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
