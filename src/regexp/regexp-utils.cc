@@ -131,7 +131,18 @@ Maybe<bool> RegExpUtils::IsRegExp(Isolate* isolate, Handle<Object> object) {
                             isolate->factory()->match_symbol()),
       Nothing<bool>());
 
-  if (!match->IsUndefined(isolate)) return Just(match->BooleanValue(isolate));
+  if (!match->IsUndefined(isolate)) {
+    const bool match_as_boolean = match->BooleanValue(isolate);
+
+    if (match_as_boolean && !object->IsJSRegExp()) {
+      isolate->CountUsage(v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp);
+    } else if (!match_as_boolean && object->IsJSRegExp()) {
+      isolate->CountUsage(v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp);
+    }
+
+    return Just(match_as_boolean);
+  }
+
   return Just(object->IsJSRegExp());
 }
 
