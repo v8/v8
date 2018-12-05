@@ -1897,7 +1897,7 @@ Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
   int size = DescriptorArray::SizeFor(number_of_all_descriptors);
   DCHECK_LT(size, kMaxRegularHeapObjectSize);
   HeapObject* obj =
-      isolate()->heap()->AllocateRawWithRetryOrFail(size, OLD_SPACE);
+      isolate()->heap()->AllocateRawWithRetryOrFail(size, NEW_SPACE);
   obj->set_map_after_allocation(*descriptor_array_map(), SKIP_WRITE_BARRIER);
   DescriptorArray array = DescriptorArray::cast(obj);
   array->Initialize(*empty_enum_cache(), *undefined_value(),
