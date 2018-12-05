@@ -4400,6 +4400,12 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   larl(dst, Operand(-pc_offset() / 2));
 }
 
+void TurboAssembler::LoadPC(Register dst) {
+  Label current_pc;
+  larl(dst, &current_pc);
+  bind(&current_pc);
+}
+
 void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
   Cmp32(x, Operand(y));
   beq(dest);
