@@ -2834,10 +2834,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ bind(&leave_exit_frame);
 
   if (stack_space_operand == nullptr) {
-    CHECK_NE(stack_space, 0);
+    DCHECK_NE(stack_space, 0);
     __ li(s0, Operand(stack_space));
   } else {
-    CHECK_EQ(stack_space, 0);
+    DCHECK_EQ(stack_space, 0);
     // The ExitFrame contains four MIPS argument slots after the call so this
     // must be accounted for.
     // TODO(jgruber): Investigate if this is needed by the direct call.

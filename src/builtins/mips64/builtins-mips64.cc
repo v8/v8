@@ -2856,10 +2856,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ bind(&leave_exit_frame);
 
   if (stack_space_operand == nullptr) {
-    CHECK_NE(stack_space, 0);
+    DCHECK_NE(stack_space, 0);
     __ li(s0, Operand(stack_space));
   } else {
-    CHECK_EQ(stack_space, 0);
+    DCHECK_EQ(stack_space, 0);
     STATIC_ASSERT(kCArgSlotCount == 0);
     __ Ld(s0, *stack_space_operand);
   }

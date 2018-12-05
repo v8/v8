@@ -3328,7 +3328,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Peek(x22, (spill_offset + 3) * kXRegSize);
 
   if (stack_space_operand != nullptr) {
-    CHECK_EQ(stack_space, 0);
+    DCHECK_EQ(stack_space, 0);
     // Load the number of stack slots to drop before LeaveExitFrame modifies sp.
     __ Ldr(x19, *stack_space_operand);
   }
@@ -3341,10 +3341,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ JumpIfNotRoot(x5, RootIndex::kTheHoleValue, &promote_scheduled_exception);
 
   if (stack_space_operand == nullptr) {
-    CHECK_NE(stack_space, 0);
+    DCHECK_NE(stack_space, 0);
     __ DropSlots(stack_space);
   } else {
-    CHECK_EQ(stack_space, 0);
+    DCHECK_EQ(stack_space, 0);
     __ DropArguments(x19);
   }
 

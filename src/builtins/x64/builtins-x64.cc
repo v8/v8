@@ -2945,6 +2945,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // Leave the API exit frame.
   __ bind(&leave_exit_frame);
   if (stack_space_operand != nullptr) {
+    DCHECK_EQ(stack_space, 0);
     __ movp(rbx, *stack_space_operand);
   }
   __ LeaveApiExitFrame();
@@ -2989,13 +2990,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ bind(&ok);
 #endif
 
-  if (stack_space_operand != nullptr) {
+  if (stack_space_operand == nullptr) {
+    DCHECK_NE(stack_space, 0);
+    __ ret(stack_space * kPointerSize);
+  } else {
     DCHECK_EQ(stack_space, 0);
     __ PopReturnAddressTo(rcx);
     __ addq(rsp, rbx);
     __ jmp(rcx);
-  } else {
-    __ ret(stack_space * kPointerSize);
   }
 
   // Re-throw by promoting a scheduled exception.
