@@ -3150,19 +3150,33 @@ Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(
     uint8_t access_size, Node* index, uint32_t offset,
     wasm::WasmCodePosition position) {
-  // Atomic operations access the memory, need to be bound checked till
-  // TrapHandlers are enabled on atomic operations
+  // Atomic operations need bounds checks until the backend can emit protected
+  // loads.
   index =
       BoundsCheckMem(access_size, index, offset, position, kNeedsBoundsCheck);
-  Node* effective_address =
-      graph()->NewNode(mcgraph()->machine()->IntAdd(), MemBuffer(offset),
-                       Uint32ToUintptr(index));
-  // Unlike regular memory accesses, unaligned memory accesses for atomic
-  // operations should trap
-  // Access sizes are in powers of two, calculate mod without using division
-  Node* cond =
-      graph()->NewNode(mcgraph()->machine()->WordAnd(), effective_address,
-                       IntPtrConstant(access_size - 1));
+
+  const uintptr_t align_mask = access_size - 1;
+
+  // Don't emit an alignment check if the index is a constant.
+  // TODO(wasm): a constant match is also done above in {BoundsCheckMem}.
+  UintPtrMatcher match(index);
+  if (match.HasValue()) {
+    uintptr_t effective_offset = match.Value() + offset;
+    if ((effective_offset & align_mask) != 0) {
+      // statically known to be unaligned; trap.
+      TrapIfEq32(wasm::kTrapUnalignedAccess, Int32Constant(0), 0, position);
+    }
+    return index;
+  }
+
+  // Unlike regular memory accesses, atomic memory accesses should trap if
+  // the effective offset is misaligned.
+  // TODO(wasm): this addition is redundant with one inserted by {MemBuffer}.
+  Node* effective_offset = graph()->NewNode(mcgraph()->machine()->IntAdd(),
+                                            MemBuffer(offset), index);
+
+  Node* cond = graph()->NewNode(mcgraph()->machine()->WordAnd(),
+                                effective_offset, IntPtrConstant(align_mask));
   TrapIfFalse(wasm::kTrapUnalignedAccess,
               graph()->NewNode(mcgraph()->machine()->Word32Equal(), cond,
                                mcgraph()->Int32Constant(0)),
@@ -3170,6 +3184,9 @@ Node* WasmGraphBuilder::CheckBoundsAndAlignment(
   return index;
 }
 
+// Insert code to bounds check a memory access if necessary. Return the
+// bounds-checked index, which is guaranteed to have (the equivalent of)
+// {uintptr_t} representation.
 Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
                                        uint32_t offset,
                                        wasm::WasmCodePosition position,
