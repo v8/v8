@@ -441,7 +441,7 @@ ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS2(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
 ACCESSORS2(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS(JSFunction, feedback_cell, FeedbackCell, kFeedbackCellOffset)
+ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
 ACCESSORS2(JSGlobalObject, native_context, Context, kNativeContextOffset)
 ACCESSORS2(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
@@ -450,7 +450,7 @@ ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
 FeedbackVector JSFunction::feedback_vector() const {
   DCHECK(has_feedback_vector());
-  return FeedbackVector::cast(feedback_cell()->value());
+  return FeedbackVector::cast(raw_feedback_cell()->value());
 }
 
 // Code objects that are marked for deoptimization are not considered to be
@@ -460,7 +460,7 @@ FeedbackVector JSFunction::feedback_vector() const {
 // TODO(jupvfranco): rename this function. Maybe RunOptimizedCode,
 // or IsValidOptimizedCode.
 bool JSFunction::IsOptimized() {
-  return code()->kind() == Code::OPTIMIZED_FUNCTION &&
+  return is_compiled() && code()->kind() == Code::OPTIMIZED_FUNCTION &&
          !code()->marked_for_deoptimization();
 }
 
@@ -482,9 +482,9 @@ void JSFunction::ClearOptimizationMarker() {
 // Optimized code marked for deoptimization will tier back down to running
 // interpreted on its next activation, and already doesn't count as IsOptimized.
 bool JSFunction::IsInterpreted() {
-  return code()->is_interpreter_trampoline_builtin() ||
-         (code()->kind() == Code::OPTIMIZED_FUNCTION &&
-          code()->marked_for_deoptimization());
+  return is_compiled() && (code()->is_interpreter_trampoline_builtin() ||
+                           (code()->kind() == Code::OPTIMIZED_FUNCTION &&
+                            code()->marked_for_deoptimization()));
 }
 
 bool JSFunction::ChecksOptimizationMarker() {
@@ -558,7 +558,8 @@ void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
 }
 
 bool JSFunction::has_feedback_vector() const {
-  return !feedback_cell()->value()->IsUndefined();
+  return shared()->is_compiled() &&
+         !raw_feedback_cell()->value()->IsUndefined();
 }
 
 Context JSFunction::context() {
@@ -634,8 +635,23 @@ Object* JSFunction::prototype() {
   return instance_prototype();
 }
 
-bool JSFunction::is_compiled() {
-  return code()->builtin_index() != Builtins::kCompileLazy;
+bool JSFunction::is_compiled() const {
+  return code()->builtin_index() != Builtins::kCompileLazy &&
+         shared()->is_compiled();
+}
+
+void JSFunction::ResetIfBytecodeFlushed() {
+  if (!shared()->is_compiled()) {
+    // Bytecode was flushed and function is now uncompiled, reset JSFunction
+    // by setting code to CompileLazy and clearing the feedback vector.
+    if (code()->builtin_index() != Builtins::kCompileLazy) {
+      set_code(GetIsolate()->builtins()->builtin(i::Builtins::kCompileLazy));
+    }
+    if (raw_feedback_cell()->value()->IsFeedbackVector()) {
+      raw_feedback_cell()->set_value(
+          ReadOnlyRoots(GetIsolate()).undefined_value());
+    }
+  }
 }
 
 ACCESSORS(JSValue, value, Object, kValueOffset)

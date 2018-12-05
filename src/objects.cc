@@ -12685,18 +12685,19 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
 void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
   Isolate* const isolate = function->GetIsolate();
   DCHECK(function->shared()->is_compiled());
-  if (function->feedback_cell()->value()->IsUndefined(isolate)) {
+  if (!function->has_feedback_vector()) {
     Handle<SharedFunctionInfo> shared(function->shared(), isolate);
     if (!shared->HasAsmWasmData()) {
       DCHECK(function->shared()->HasBytecodeArray());
       Handle<FeedbackVector> feedback_vector =
           FeedbackVector::New(isolate, shared);
-      if (function->feedback_cell() == isolate->heap()->many_closures_cell()) {
+      if (function->raw_feedback_cell() ==
+          isolate->heap()->many_closures_cell()) {
         Handle<FeedbackCell> feedback_cell =
             isolate->factory()->NewOneClosureCell(feedback_vector);
-        function->set_feedback_cell(*feedback_cell);
+        function->set_raw_feedback_cell(*feedback_cell);
       } else {
-        function->feedback_cell()->set_value(*feedback_vector);
+        function->raw_feedback_cell()->set_value(*feedback_vector);
       }
     }
   }
@@ -14675,7 +14676,8 @@ int AbstractCode::SourceStatementPosition(int offset) {
 }
 
 void JSFunction::ClearTypeFeedbackInfo() {
-  if (feedback_cell()->value()->IsFeedbackVector()) {
+  ResetIfBytecodeFlushed();
+  if (has_feedback_vector()) {
     FeedbackVector vector = feedback_vector();
     Isolate* isolate = GetIsolate();
     if (vector->ClearSlots(isolate)) {

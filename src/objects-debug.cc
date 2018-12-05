@@ -1046,8 +1046,8 @@ void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
 void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK(IsJSFunction());
   JSObjectVerify(isolate);
-  VerifyHeapPointer(isolate, feedback_cell());
-  CHECK(feedback_cell()->IsFeedbackCell());
+  VerifyHeapPointer(isolate, raw_feedback_cell());
+  CHECK(raw_feedback_cell()->IsFeedbackCell());
   CHECK(code()->IsCode());
   CHECK(map()->is_callable());
   Handle<JSFunction> function(*this, isolate);

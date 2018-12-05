@@ -913,7 +913,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     compilation_info()->MarkAsAllocationFoldingEnabled();
   }
 
-  if (compilation_info()->closure()->feedback_cell()->map() ==
+  if (compilation_info()->closure()->raw_feedback_cell()->map() ==
       ReadOnlyRoots(isolate).one_closure_cell_map()) {
     compilation_info()->MarkAsFunctionContextSpecializing();
   }

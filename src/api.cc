@@ -800,8 +800,8 @@ StartupData SnapshotCreator::CreateBlob(
       fun->CompleteInobjectSlackTrackingIfActive();
 
       // Also, clear out feedback vectors, or any optimized code.
-      if (fun->has_feedback_vector()) {
-        fun->feedback_cell()->set_value(
+      if (!fun->raw_feedback_cell()->value()->IsUndefined()) {
+        fun->raw_feedback_cell()->set_value(
             i::ReadOnlyRoots(isolate).undefined_value());
         fun->set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
       }

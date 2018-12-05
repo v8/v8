@@ -2410,7 +2410,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_shared(*info);
   function->set_code(info->GetCode());
   function->set_context(*context);
-  function->set_feedback_cell(*many_closures_cell());
+  function->set_raw_feedback_cell(*many_closures_cell());
   int header_size;
   if (map->has_prototype_slot()) {
     header_size = JSFunction::kSizeWithPrototype;
@@ -2604,7 +2604,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
         ->EvictOptimizedCodeMarkedForDeoptimization(
             *info, "new function from shared function info");
   }
-  result->set_feedback_cell(*feedback_cell);
+  result->set_raw_feedback_cell(*feedback_cell);
 
   // Give compiler a chance to pre-initialize.
   Compiler::PostInstantiation(result, pretenure);

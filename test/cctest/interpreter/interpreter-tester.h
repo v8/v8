@@ -122,7 +122,7 @@ class InterpreterTester {
       function->shared()->set_function_data(*bytecode_.ToHandleChecked());
     }
     if (!feedback_metadata_.is_null()) {
-      function->set_feedback_cell(isolate_->heap()->many_closures_cell());
+      function->set_raw_feedback_cell(isolate_->heap()->many_closures_cell());
       // Set the raw feedback metadata to circumvent checks that we are not
       // overwriting existing metadata.
       function->shared()->set_raw_outer_scope_info_or_feedback_metadata(

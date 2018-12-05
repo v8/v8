@@ -607,7 +607,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
   DisallowHeapAllocation no_gc;
   if (osr_offset.IsNone()) {
-    if (function->feedback_cell()->value()->IsFeedbackVector()) {
+    if (function->has_feedback_vector()) {
       FeedbackVector feedback_vector = function->feedback_vector();
       feedback_vector->EvictOptimizedCodeMarkedForDeoptimization(
           function->shared(), "GetCodeFromOptimizedCodeCache");
@@ -1196,6 +1196,10 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   DCHECK(!function->HasOptimizationMarker());
   DCHECK(!function->HasOptimizedCode());
 
+  // Reset the JSFunction if we are recompiling due to the bytecode having been
+  // flushed.
+  function->ResetIfBytecodeFlushed();
+
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared_info = handle(function->shared(), isolate);
 
@@ -1406,7 +1410,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       JSFunction::EnsureFeedbackVector(result);
       if (allow_eval_cache) {
         // Make sure to cache this result.
-        Handle<FeedbackCell> new_feedback_cell(result->feedback_cell(),
+        Handle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
                                                isolate);
         compilation_cache->PutEval(source, outer_info, context, shared_info,
                                    new_feedback_cell, eval_scope_position);
@@ -1419,7 +1423,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     if (allow_eval_cache) {
       // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
       // we didn't retrieve from there.
-      Handle<FeedbackCell> new_feedback_cell(result->feedback_cell(), isolate);
+      Handle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
+                                             isolate);
       compilation_cache->PutEval(source, outer_info, context, shared_info,
                                  new_feedback_cell, eval_scope_position);
     }

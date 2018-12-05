@@ -1022,9 +1022,11 @@ class JSFunction : public JSObject {
   // Completes inobject slack tracking on initial map if it is active.
   inline void CompleteInobjectSlackTrackingIfActive();
 
-  // [feedback_cell]: The FeedbackCell used to hold the FeedbackVector
-  // eventually.
-  DECL_ACCESSORS(feedback_cell, FeedbackCell)
+  // [raw_feedback_cell]: Gives raw access to the FeedbackCell used to hold the
+  /// FeedbackVector eventually. Generally this shouldn't be used to get the
+  // feedback_vector, instead use feedback_vector() which correctly deals with
+  // the JSFunction's bytecode being flushed.
+  DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
 
   // feedback_vector() can be used once the function is compiled.
   inline FeedbackVector feedback_vector() const;
@@ -1033,6 +1035,9 @@ class JSFunction : public JSObject {
 
   // Unconditionally clear the type feedback vector.
   void ClearTypeFeedbackInfo();
+
+  // Resets function to clear compiled data after bytecode has been flushed.
+  inline void ResetIfBytecodeFlushed();
 
   inline bool has_prototype_slot() const;
 
@@ -1063,7 +1068,7 @@ class JSFunction : public JSObject {
   static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
 
   // Returns if this function has been compiled to native code yet.
-  inline bool is_compiled();
+  inline bool is_compiled() const;
 
   static int GetHeaderSize(bool function_has_prototype_slot) {
     return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
