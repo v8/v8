@@ -215,17 +215,15 @@ class TrapHandlerTest : public TestWithIsolate,
 
   void GenerateSetThreadInWasmFlagCode(MacroAssembler* masm) {
     masm->Move(scratch,
-               ExternalReference::wasm_thread_in_wasm_flag_address_address(
-                   i_isolate()));
-    masm->movp(scratch, MemOperand(scratch, 0));
+               i_isolate()->thread_local_top()->thread_in_wasm_flag_address_,
+               RelocInfo::NONE);
     masm->movl(MemOperand(scratch, 0), Immediate(1));
   }
 
   void GenerateResetThreadInWasmFlagCode(MacroAssembler* masm) {
     masm->Move(scratch,
-               ExternalReference::wasm_thread_in_wasm_flag_address_address(
-                   i_isolate()));
-    masm->movp(scratch, MemOperand(scratch, 0));
+               i_isolate()->thread_local_top()->thread_in_wasm_flag_address_,
+               RelocInfo::NONE);
     masm->movl(MemOperand(scratch, 0), Immediate(0));
   }
 
@@ -240,13 +238,17 @@ class TrapHandlerTest : public TestWithIsolate,
     GeneratedCode<void>::FromAddress(i_isolate(),
                                      reinterpret_cast<Address>(buffer.start()))
         .Call();
+    CHECK(!g_test_handler_executed);
   }
 
   // Execute the code in buffer. We expect a crash which we recover from in the
   // test handler.
   void ExecuteExpectCrash(Vector<byte> buffer, bool check_wasm_flag = true) {
     CHECK(!g_test_handler_executed);
-    ExecuteBuffer(buffer);
+    MakeAssemblerBufferExecutable(buffer.start(), buffer.size());
+    GeneratedCode<void>::FromAddress(i_isolate(),
+                                     reinterpret_cast<Address>(buffer.start()))
+        .Call();
     CHECK(g_test_handler_executed);
     g_test_handler_executed = false;
     if (check_wasm_flag) CHECK(!GetThreadInWasmFlag());

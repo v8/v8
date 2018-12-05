@@ -70,8 +70,6 @@ class StatsCounter;
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
   V(debug_restart_fp_address, "Debug::restart_fp_address()")                   \
-  V(wasm_thread_in_wasm_flag_address_address,                                  \
-    "&Isolate::thread_in_wasm_flag_address")                                   \
   V(fast_c_call_caller_fp_address,                                             \
     "IsolateData::fast_c_call_caller_fp_address")                              \
   V(fast_c_call_caller_pc_address,                                             \

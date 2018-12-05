@@ -826,12 +826,6 @@ ExternalReference ExternalReference::debug_restart_fp_address(
   return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
-ExternalReference ExternalReference::wasm_thread_in_wasm_flag_address_address(
-    Isolate* isolate) {
-  return ExternalReference(reinterpret_cast<Address>(
-      &isolate->thread_local_top()->thread_in_wasm_flag_address_));
-}
-
 ExternalReference ExternalReference::fast_c_call_caller_fp_address(
     Isolate* isolate) {
   return ExternalReference(
