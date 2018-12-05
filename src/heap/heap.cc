@@ -2631,9 +2631,9 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
     // we need pointer granularity writes to avoid race with the concurrent
     // marking.
     if (filler->Size() > FreeSpace::kSize) {
-      MemsetPointer(HeapObject::RawField(filler, FreeSpace::kSize),
-                    ReadOnlyRoots(this).undefined_value(),
-                    (filler->Size() - FreeSpace::kSize) / kPointerSize);
+      MemsetTagged(HeapObject::RawField(filler, FreeSpace::kSize),
+                   ReadOnlyRoots(this).undefined_value(),
+                   (filler->Size() - FreeSpace::kSize) / kTaggedSize);
     }
   }
   // Notify the heap profiler of change in object layout.

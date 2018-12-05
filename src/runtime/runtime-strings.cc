@@ -631,8 +631,8 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
       position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.start(),
                                                *elements, length);
     } else {
-      MemsetPointer(elements->data_start(),
-                    ReadOnlyRoots(isolate).undefined_value(), length);
+      MemsetTagged(elements->data_start(),
+                   ReadOnlyRoots(isolate).undefined_value(), length);
     }
   } else {
     elements = isolate->factory()->NewFixedArray(length);

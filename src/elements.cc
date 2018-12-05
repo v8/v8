@@ -148,8 +148,8 @@ void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase from_base,
       int start = to_start + copy_size;
       int length = to_base->length() - start;
       if (length > 0) {
-        MemsetPointer(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
-                      roots.the_hole_value(), length);
+        MemsetTagged(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
+                     roots.the_hole_value(), length);
       }
     }
   }
@@ -186,8 +186,8 @@ static void CopyDictionaryToObjectElements(
       int start = to_start + copy_size;
       int length = to_base->length() - start;
       if (length > 0) {
-        MemsetPointer(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
-                      ReadOnlyRoots(isolate).the_hole_value(), length);
+        MemsetTagged(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
+                     ReadOnlyRoots(isolate).the_hole_value(), length);
       }
     }
   }
@@ -234,8 +234,8 @@ static void CopyDoubleToObjectElements(Isolate* isolate,
       int start = to_start;
       int length = to_base->length() - start;
       if (length > 0) {
-        MemsetPointer(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
-                      ReadOnlyRoots(isolate).the_hole_value(), length);
+        MemsetTagged(FixedArray::cast(to_base)->RawFieldOfElementAt(start),
+                     ReadOnlyRoots(isolate).the_hole_value(), length);
       }
     }
   }

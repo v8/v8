@@ -461,9 +461,9 @@ Map TransitionsAccessor::GetMigrationTarget() {
 }
 
 void TransitionArray::Zap(Isolate* isolate) {
-  MemsetPointer(ObjectSlot(data_start() + kPrototypeTransitionsIndex),
-                ReadOnlyRoots(isolate).the_hole_value(),
-                length() - kPrototypeTransitionsIndex);
+  MemsetTagged(ObjectSlot(RawFieldOfElementAt(kPrototypeTransitionsIndex)),
+               ReadOnlyRoots(isolate).the_hole_value(),
+               length() - kPrototypeTransitionsIndex);
   SetNumberOfTransitions(0);
 }
 

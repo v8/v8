@@ -117,6 +117,15 @@ void FullHeapObjectSlot::store(HeapObjectReference value) const {
 // Utils.
 //
 
+// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
+inline void MemsetTagged(ObjectSlot start, Object* value, size_t counter) {
+  // TODO(ishell): revisit this implementation, maybe use "rep stosl"
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  MemsetPointer(start.location(), reinterpret_cast<Address>(value), counter);
+}
+
+// Sets |counter| number of kSystemPointerSize-sized values starting at |start|
+// slot.
 inline void MemsetPointer(FullObjectSlot start, Object* value, size_t counter) {
   MemsetPointer(start.location(), reinterpret_cast<Address>(value), counter);
 }

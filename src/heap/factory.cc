@@ -290,7 +290,7 @@ Handle<PropertyArray> Factory::NewPropertyArray(int length,
   result->set_map_after_allocation(*property_array_map(), SKIP_WRITE_BARRIER);
   Handle<PropertyArray> array(PropertyArray::cast(result), isolate());
   array->initialize_length(length);
-  MemsetPointer(array->data_start(), *undefined_value(), length);
+  MemsetTagged(array->data_start(), *undefined_value(), length);
   return array;
 }
 
@@ -303,7 +303,7 @@ Handle<FixedArray> Factory::NewFixedArrayWithFiller(RootIndex map_root_index,
   result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   Handle<FixedArray> array(FixedArray::cast(result), isolate());
   array->set_length(length);
-  MemsetPointer(array->data_start(), filler, length);
+  MemsetTagged(array->data_start(), filler, length);
   return array;
 }
 
@@ -336,7 +336,7 @@ Handle<T> Factory::NewWeakFixedArrayWithMap(RootIndex map_root_index,
 
   Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
   array->set_length(length);
-  MemsetPointer(ObjectSlot(array->data_start()), *undefined_value(), length);
+  MemsetTagged(ObjectSlot(array->data_start()), *undefined_value(), length);
 
   return Handle<T>::cast(array);
 }
@@ -361,7 +361,7 @@ Handle<WeakFixedArray> Factory::NewWeakFixedArray(int length,
   result->set_map_after_allocation(*weak_fixed_array_map(), SKIP_WRITE_BARRIER);
   Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
   array->set_length(length);
-  MemsetPointer(ObjectSlot(array->data_start()), *undefined_value(), length);
+  MemsetTagged(ObjectSlot(array->data_start()), *undefined_value(), length);
   return array;
 }
 
@@ -383,8 +383,8 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(int length,
   result->set_map_after_allocation(*fixed_array_map(), SKIP_WRITE_BARRIER);
   Handle<FixedArray> array(FixedArray::cast(result), isolate());
   array->set_length(length);
-  MemsetPointer(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
-                length);
+  MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
+               length);
   return array;
 }
 
@@ -426,7 +426,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector->set_profiler_ticks(0);
   vector->set_deopt_count(0);
   // TODO(leszeks): Initialize based on the feedback metadata.
-  MemsetPointer(ObjectSlot(vector->slots_start()), *undefined_value(), length);
+  MemsetTagged(ObjectSlot(vector->slots_start()), *undefined_value(), length);
   return vector;
 }
 
@@ -444,7 +444,7 @@ Handle<EmbedderDataArray> Factory::NewEmbedderDataArray(
     ObjectSlot start(array->slots_start());
     ObjectSlot end(array->slots_end());
     size_t slot_count = end - start;
-    MemsetPointer(start, *undefined_value(), slot_count);
+    MemsetTagged(start, *undefined_value(), slot_count);
   }
   return array;
 }
@@ -1418,7 +1418,7 @@ Handle<Context> Factory::NewContext(RootIndex map_root_index, int size,
     ObjectSlot start = context->RawField(Context::kTodoHeaderSize);
     ObjectSlot end = context->RawField(size);
     size_t slot_count = end - start;
-    MemsetPointer(start, *undefined_value(), slot_count);
+    MemsetTagged(start, *undefined_value(), slot_count);
   }
   return context;
 }
@@ -2126,7 +2126,7 @@ Handle<T> Factory::CopyArrayAndGrow(Handle<T> src, int grow_by,
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < old_len; i++) result->set(i, src->get(i), mode);
-  MemsetPointer(result->data_start() + old_len, *undefined_value(), grow_by);
+  MemsetTagged(result->data_start() + old_len, *undefined_value(), grow_by);
   return result;
 }
 
@@ -2159,8 +2159,8 @@ Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < old_len; i++) result->Set(i, src->Get(i), mode);
-  MemsetPointer(ObjectSlot(result->RawFieldOfElementAt(old_len)),
-                ReadOnlyRoots(isolate()).undefined_value(), grow_by);
+  MemsetTagged(ObjectSlot(result->RawFieldOfElementAt(old_len)),
+               ReadOnlyRoots(isolate()).undefined_value(), grow_by);
   return Handle<WeakFixedArray>(result, isolate());
 }
 
@@ -2180,8 +2180,8 @@ Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < old_capacity; i++) result->Set(i, src->Get(i), mode);
-  MemsetPointer(ObjectSlot(result->data_start() + old_capacity),
-                ReadOnlyRoots(isolate()).undefined_value(), grow_by);
+  MemsetTagged(ObjectSlot(result->data_start() + old_capacity),
+               ReadOnlyRoots(isolate()).undefined_value(), grow_by);
   return Handle<WeakArrayList>(result, isolate());
 }
 
@@ -2628,7 +2628,7 @@ Handle<PreParsedScopeData> Factory::NewPreParsedScopeData(int length) {
       isolate());
   result->set_scope_data(PodArray<uint8_t>::cast(*empty_byte_array()));
   result->set_length(length);
-  MemsetPointer(result->child_data_start(), *null_value(), length);
+  MemsetTagged(result->child_data_start(), *null_value(), length);
 
   result->clear_padding();
   return result;
