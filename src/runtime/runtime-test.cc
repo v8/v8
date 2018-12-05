@@ -68,8 +68,8 @@ bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
   if (!module_or_bytes->IsWebAssemblyCompiledModule()) {
     return IsWasmCompileAllowed(isolate, module_or_bytes, is_async);
   }
-  v8::Local<v8::WasmCompiledModule> module =
-      v8::Local<v8::WasmCompiledModule>::Cast(module_or_bytes);
+  v8::Local<v8::WasmModuleObject> module =
+      v8::Local<v8::WasmModuleObject>::Cast(module_or_bytes);
   return static_cast<uint32_t>(module->GetWasmWireBytesRef().size) <=
          ctrls.MaxWasmBufferSize;
 }

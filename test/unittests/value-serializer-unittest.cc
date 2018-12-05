@@ -2382,7 +2382,7 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   class ThrowingSerializer : public ValueSerializer::Delegate {
    public:
     Maybe<uint32_t> GetWasmModuleTransferId(
-        Isolate* isolate, Local<WasmCompiledModule> module) override {
+        Isolate* isolate, Local<WasmModuleObject> module) override {
       isolate->ThrowException(Exception::Error(
           String::NewFromOneByte(
               isolate,
@@ -2398,10 +2398,10 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   class SerializeToTransfer : public ValueSerializer::Delegate {
    public:
     SerializeToTransfer(
-        std::vector<WasmCompiledModule::TransferrableModule>* modules)
+        std::vector<WasmModuleObject::TransferrableModule>* modules)
         : modules_(modules) {}
     Maybe<uint32_t> GetWasmModuleTransferId(
-        Isolate* isolate, Local<WasmCompiledModule> module) override {
+        Isolate* isolate, Local<WasmModuleObject> module) override {
       modules_->push_back(module->GetTransferrableModule());
       return Just(static_cast<uint32_t>(modules_->size()) - 1);
     }
@@ -2409,23 +2409,23 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
     void ThrowDataCloneError(Local<String> message) override { UNREACHABLE(); }
 
    private:
-    std::vector<WasmCompiledModule::TransferrableModule>* modules_;
+    std::vector<WasmModuleObject::TransferrableModule>* modules_;
   };
 
   class DeserializeFromTransfer : public ValueDeserializer::Delegate {
    public:
     DeserializeFromTransfer(
-        std::vector<WasmCompiledModule::TransferrableModule>* modules)
+        std::vector<WasmModuleObject::TransferrableModule>* modules)
         : modules_(modules) {}
 
-    MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(Isolate* isolate,
-                                                       uint32_t id) override {
-      return WasmCompiledModule::FromTransferrableModule(isolate,
-                                                         modules_->at(id));
+    MaybeLocal<WasmModuleObject> GetWasmModuleFromId(Isolate* isolate,
+                                                     uint32_t id) override {
+      return WasmModuleObject::FromTransferrableModule(isolate,
+                                                       modules_->at(id));
     }
 
    private:
-    std::vector<WasmCompiledModule::TransferrableModule>* modules_;
+    std::vector<WasmModuleObject::TransferrableModule>* modules_;
   };
 
   ValueSerializer::Delegate* GetSerializerDelegate() override {
@@ -2436,9 +2436,9 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
     return current_deserializer_delegate_;
   }
 
-  Local<WasmCompiledModule> MakeWasm() {
+  Local<WasmModuleObject> MakeWasm() {
     Context::Scope scope(serialization_context());
-    return WasmCompiledModule::DeserializeOrCompile(
+    return WasmModuleObject::DeserializeOrCompile(
                isolate(), {nullptr, 0},
                {kIncrementerWasm, sizeof(kIncrementerWasm)})
         .ToLocalChecked();
@@ -2505,7 +2505,7 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
  private:
   static bool g_saved_flag;
-  std::vector<WasmCompiledModule::TransferrableModule> transfer_modules_;
+  std::vector<WasmModuleObject::TransferrableModule> transfer_modules_;
   SerializeToTransfer serialize_delegate_;
   DeserializeFromTransfer deserialize_delegate_;
   ValueSerializer::Delegate* current_serializer_delegate_ = nullptr;

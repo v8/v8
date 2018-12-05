@@ -3121,7 +3121,7 @@ class Serializer : public ValueSerializer::Delegate {
   }
 
   Maybe<uint32_t> GetWasmModuleTransferId(
-      Isolate* isolate, Local<WasmCompiledModule> module) override {
+      Isolate* isolate, Local<WasmModuleObject> module) override {
     DCHECK_NOT_NULL(data_);
     for (size_t index = 0; index < wasm_modules_.size(); ++index) {
       if (wasm_modules_[index] == module) {
@@ -3220,7 +3220,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> data_;
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
-  std::vector<Global<WasmCompiledModule>> wasm_modules_;
+  std::vector<Global<WasmModuleObject>> wasm_modules_;
   std::vector<ExternalizedContents> externalized_contents_;
   size_t current_memory_usage_;
 
@@ -3264,14 +3264,14 @@ class Deserializer : public ValueDeserializer::Delegate {
     return MaybeLocal<SharedArrayBuffer>();
   }
 
-  MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
+  MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
       Isolate* isolate, uint32_t transfer_id) override {
     DCHECK_NOT_NULL(data_);
     if (transfer_id < data_->transferrable_modules().size()) {
-      return WasmCompiledModule::FromTransferrableModule(
+      return WasmModuleObject::FromTransferrableModule(
           isolate_, data_->transferrable_modules().at(transfer_id));
     }
-    return MaybeLocal<WasmCompiledModule>();
+    return MaybeLocal<WasmModuleObject>();
   }
 
  private:

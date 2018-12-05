@@ -62,10 +62,10 @@ class WasmStreaming::WasmStreamingImpl {
   void SetModuleCompiledCallback(ModuleCompiledCallback callback,
                                  intptr_t data) {
     // Wrap the embedder callback here so we can also wrap the result as a
-    // Local<WasmCompiledModule> here.
+    // Local<WasmModuleObject> here.
     streaming_decoder_->SetModuleCompiledCallback(
         [callback, data](i::Handle<i::WasmModuleObject> module_object) {
-          callback(data, Local<WasmCompiledModule>::Cast(Utils::ToLocal(
+          callback(data, Local<WasmModuleObject>::Cast(Utils::ToLocal(
                              i::Handle<i::JSObject>::cast(module_object))));
         });
   }

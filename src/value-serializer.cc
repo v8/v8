@@ -874,7 +874,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
     // TODO(titzer): introduce a Utils::ToLocal for WasmModuleObject.
     Maybe<uint32_t> transfer_id = delegate_->GetWasmModuleTransferId(
         reinterpret_cast<v8::Isolate*>(isolate_),
-        v8::Local<v8::WasmCompiledModule>::Cast(
+        v8::Local<v8::WasmModuleObject>::Cast(
             Utils::ToLocal(Handle<JSObject>::cast(object))));
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
     uint32_t id = 0;

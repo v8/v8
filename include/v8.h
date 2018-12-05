@@ -81,7 +81,7 @@ class Private;
 class Uint32;
 class Utils;
 class Value;
-class WasmCompiledModule;
+class WasmModuleObject;
 template <class T> class Local;
 template <class T>
 class MaybeLocal;
@@ -1902,7 +1902,7 @@ class V8_EXPORT ValueSerializer {
         Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer);
 
     virtual Maybe<uint32_t> GetWasmModuleTransferId(
-        Isolate* isolate, Local<WasmCompiledModule> module);
+        Isolate* isolate, Local<WasmModuleObject> module);
     /**
      * Allocates memory for the buffer of at least the size provided. The actual
      * size (which may be greater or equal) is written to |actual_size|. If no
@@ -2006,10 +2006,10 @@ class V8_EXPORT ValueDeserializer {
     virtual MaybeLocal<Object> ReadHostObject(Isolate* isolate);
 
     /**
-     * Get a WasmCompiledModule given a transfer_id previously provided
+     * Get a WasmModuleObject given a transfer_id previously provided
      * by ValueSerializer::GetWasmModuleTransferId
      */
-    virtual MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
+    virtual MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
         Isolate* isolate, uint32_t transfer_id);
 
     /**
@@ -4253,9 +4253,8 @@ class V8_EXPORT Proxy : public Object {
   static void CheckCast(Value* obj);
 };
 
-// TODO(mtrofin): rename WasmCompiledModule to WasmModuleObject, for
-// consistency with internal APIs.
-class V8_EXPORT WasmCompiledModule : public Object {
+// An instance of WebAssembly.Module.
+class V8_EXPORT WasmModuleObject : public Object {
  public:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
 
@@ -4284,7 +4283,7 @@ class V8_EXPORT WasmCompiledModule : public Object {
    private:
     typedef std::shared_ptr<internal::wasm::NativeModule> SharedModule;
     typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> OwnedBuffer;
-    friend class WasmCompiledModule;
+    friend class WasmModuleObject;
     explicit TransferrableModule(SharedModule shared_module)
         : shared_module_(std::move(shared_module)) {}
     TransferrableModule(OwnedBuffer serialized, OwnedBuffer bytes)
@@ -4303,10 +4302,10 @@ class V8_EXPORT WasmCompiledModule : public Object {
   TransferrableModule GetTransferrableModule();
 
   /**
-   * Efficiently re-create a WasmCompiledModule, without recompiling, from
+   * Efficiently re-create a WasmModuleObject, without recompiling, from
    * a TransferrableModule.
    */
-  static MaybeLocal<WasmCompiledModule> FromTransferrableModule(
+  static MaybeLocal<WasmModuleObject> FromTransferrableModule(
       Isolate* isolate, const TransferrableModule&);
 
   /**
@@ -4324,26 +4323,29 @@ class V8_EXPORT WasmCompiledModule : public Object {
    * If possible, deserialize the module, otherwise compile it from the provided
    * uncompiled bytes.
    */
-  static MaybeLocal<WasmCompiledModule> DeserializeOrCompile(
+  static MaybeLocal<WasmModuleObject> DeserializeOrCompile(
       Isolate* isolate, BufferReference serialized_module,
       BufferReference wire_bytes);
-  V8_INLINE static WasmCompiledModule* Cast(Value* obj);
+  V8_INLINE static WasmModuleObject* Cast(Value* obj);
 
  private:
-  static MaybeLocal<WasmCompiledModule> Deserialize(
+  static MaybeLocal<WasmModuleObject> Deserialize(
       Isolate* isolate, BufferReference serialized_module,
       BufferReference wire_bytes);
-  static MaybeLocal<WasmCompiledModule> Compile(Isolate* isolate,
-                                                const uint8_t* start,
-                                                size_t length);
+  static MaybeLocal<WasmModuleObject> Compile(Isolate* isolate,
+                                              const uint8_t* start,
+                                              size_t length);
   static BufferReference AsReference(
       const TransferrableModule::OwnedBuffer& buff) {
     return {buff.first.get(), buff.second};
   }
 
-  WasmCompiledModule();
+  WasmModuleObject();
   static void CheckCast(Value* obj);
 };
+
+V8_DEPRECATE_SOON("Use WasmModuleObject",
+                  typedef WasmModuleObject WasmCompiledModule);
 
 /**
  * The V8 interface for WebAssembly streaming compilation. When streaming
@@ -4384,7 +4386,7 @@ class V8_EXPORT WasmStreaming final {
    * passed to {SetModuleCompiledCallback}, |compiled_module| is the result.
    */
   typedef void (*ModuleCompiledCallback)(
-      intptr_t data, Local<WasmCompiledModule> compiled_module);
+      intptr_t data, Local<WasmModuleObject> compiled_module);
 
   /**
    * Sets a callback for when compilation of the Wasm module has been completed
@@ -10140,11 +10142,11 @@ Proxy* Proxy::Cast(v8::Value* value) {
   return static_cast<Proxy*>(value);
 }
 
-WasmCompiledModule* WasmCompiledModule::Cast(v8::Value* value) {
+WasmModuleObject* WasmModuleObject::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
 #endif
-  return static_cast<WasmCompiledModule*>(value);
+  return static_cast<WasmModuleObject*>(value);
 }
 
 Promise::Resolver* Promise::Resolver::Cast(v8::Value* value) {

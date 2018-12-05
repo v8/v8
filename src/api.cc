@@ -3043,7 +3043,7 @@ Maybe<uint32_t> ValueSerializer::Delegate::GetSharedArrayBufferId(
 }
 
 Maybe<uint32_t> ValueSerializer::Delegate::GetWasmModuleTransferId(
-    Isolate* v8_isolate, Local<WasmCompiledModule> module) {
+    Isolate* v8_isolate, Local<WasmModuleObject> module) {
   return Nothing<uint32_t>();
 }
 
@@ -3127,13 +3127,13 @@ MaybeLocal<Object> ValueDeserializer::Delegate::ReadHostObject(
   return MaybeLocal<Object>();
 }
 
-MaybeLocal<WasmCompiledModule> ValueDeserializer::Delegate::GetWasmModuleFromId(
+MaybeLocal<WasmModuleObject> ValueDeserializer::Delegate::GetWasmModuleFromId(
     Isolate* v8_isolate, uint32_t id) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   isolate->ScheduleThrow(*isolate->factory()->NewError(
       isolate->error_function(),
       i::MessageTemplate::kDataCloneDeserializationError));
-  return MaybeLocal<WasmCompiledModule>();
+  return MaybeLocal<WasmModuleObject>();
 }
 
 MaybeLocal<SharedArrayBuffer>
@@ -3745,10 +3745,10 @@ void v8::Proxy::CheckCast(Value* that) {
                   "Could not convert to proxy");
 }
 
-void v8::WasmCompiledModule::CheckCast(Value* that) {
+void v8::WasmModuleObject::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsWebAssemblyCompiledModule(),
-                  "v8::WasmCompiledModule::Cast",
-                  "Could not convert to wasm compiled module");
+                  "v8::WasmModuleObject::Cast",
+                  "Could not convert to wasm module object");
 }
 
 void v8::ArrayBuffer::CheckCast(Value* that) {
@@ -7352,21 +7352,21 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   RETURN_ESCAPED(result);
 }
 
-WasmCompiledModule::BufferReference WasmCompiledModule::GetWasmWireBytesRef() {
+WasmModuleObject::BufferReference WasmModuleObject::GetWasmWireBytesRef() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
   i::Vector<const uint8_t> bytes_vec = obj->native_module()->wire_bytes();
   return {bytes_vec.start(), bytes_vec.size()};
 }
 
-WasmCompiledModule::TransferrableModule
-WasmCompiledModule::GetTransferrableModule() {
+WasmModuleObject::TransferrableModule
+WasmModuleObject::GetTransferrableModule() {
   if (i::FLAG_wasm_shared_code) {
     i::Handle<i::WasmModuleObject> obj =
         i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
     return TransferrableModule(obj->managed_native_module()->get());
   } else {
-    WasmCompiledModule::SerializedModule serialized_module = Serialize();
+    WasmModuleObject::SerializedModule serialized_module = Serialize();
     BufferReference wire_bytes_ref = GetWasmWireBytesRef();
     size_t wire_size = wire_bytes_ref.size;
     std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
@@ -7376,15 +7376,15 @@ WasmCompiledModule::GetTransferrableModule() {
   }
 }
 
-MaybeLocal<WasmCompiledModule> WasmCompiledModule::FromTransferrableModule(
+MaybeLocal<WasmModuleObject> WasmModuleObject::FromTransferrableModule(
     Isolate* isolate,
-    const WasmCompiledModule::TransferrableModule& transferrable_module) {
+    const WasmModuleObject::TransferrableModule& transferrable_module) {
   if (i::FLAG_wasm_shared_code) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::Handle<i::WasmModuleObject> module_object =
         i_isolate->wasm_engine()->ImportNativeModule(
             i_isolate, transferrable_module.shared_module_);
-    return Local<WasmCompiledModule>::Cast(
+    return Local<WasmModuleObject>::Cast(
         Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
   } else {
     return Deserialize(isolate, AsReference(transferrable_module.serialized_),
@@ -7392,7 +7392,7 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::FromTransferrableModule(
   }
 }
 
-WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
+WasmModuleObject::SerializedModule WasmModuleObject::Serialize() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
   i::wasm::NativeModule* native_module = obj->native_module();
@@ -7404,9 +7404,9 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   return {};
 }
 
-MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
-    Isolate* isolate, WasmCompiledModule::BufferReference serialized_module,
-    WasmCompiledModule::BufferReference wire_bytes) {
+MaybeLocal<WasmModuleObject> WasmModuleObject::Deserialize(
+    Isolate* isolate, WasmModuleObject::BufferReference serialized_module,
+    WasmModuleObject::BufferReference wire_bytes) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::MaybeHandle<i::WasmModuleObject> maybe_module_object =
       i::wasm::DeserializeNativeModule(
@@ -7414,16 +7414,16 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
           {wire_bytes.start, wire_bytes.size});
   i::Handle<i::WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
-    return MaybeLocal<WasmCompiledModule>();
+    return MaybeLocal<WasmModuleObject>();
   }
-  return Local<WasmCompiledModule>::Cast(
+  return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
 }
 
-MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(
-    Isolate* isolate, WasmCompiledModule::BufferReference serialized_module,
-    WasmCompiledModule::BufferReference wire_bytes) {
-  MaybeLocal<WasmCompiledModule> ret =
+MaybeLocal<WasmModuleObject> WasmModuleObject::DeserializeOrCompile(
+    Isolate* isolate, WasmModuleObject::BufferReference serialized_module,
+    WasmModuleObject::BufferReference wire_bytes) {
+  MaybeLocal<WasmModuleObject> ret =
       Deserialize(isolate, serialized_module, wire_bytes);
   if (!ret.IsEmpty()) {
     return ret;
@@ -7431,21 +7431,21 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(
   return Compile(isolate, wire_bytes.start, wire_bytes.size);
 }
 
-MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
-                                                           const uint8_t* start,
-                                                           size_t length) {
+MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(Isolate* isolate,
+                                                       const uint8_t* start,
+                                                       size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::wasm::ErrorThrower thrower(i_isolate, "WasmCompiledModule::Compile()");
+  i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
-    return MaybeLocal<WasmCompiledModule>();
+    return MaybeLocal<WasmModuleObject>();
   }
   auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   i::MaybeHandle<i::JSObject> maybe_compiled =
       i_isolate->wasm_engine()->SyncCompile(
           i_isolate, enabled_features, &thrower,
           i::wasm::ModuleWireBytes(start, start + length));
-  if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
-  return Local<WasmCompiledModule>::Cast(
+  if (maybe_compiled.is_null()) return MaybeLocal<WasmModuleObject>();
+  return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
 }
 
