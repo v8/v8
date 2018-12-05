@@ -268,6 +268,13 @@ class TestModuleBuilder {
     return static_cast<byte>(mod.table_inits.size() - 1);
   }
 
+  // Set the number of data segments as declared by the DataCount section.
+  void SetDataSegmentCount(uint32_t data_segment_count) {
+    // The Data section occurs after the Code section, so we don't need to
+    // update mod.data_segments, as it is always empty.
+    mod.num_declared_data_segments = data_segment_count;
+  }
+
   WasmModule* module() { return &mod; }
 
  private:
@@ -2738,17 +2745,19 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
 TEST_F(FunctionBodyDecoderTest, MemoryInit) {
   TestModuleBuilder builder;
   builder.InitializeMemory();
+  builder.SetDataSegmentCount(1);
   module = builder.module();
 
   EXPECT_FAILURE(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
   WASM_FEATURE_SCOPE(bulk_memory);
   EXPECT_VERIFIES(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
-  // TODO(binji): validate segment index.
+  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO));
 }
 
 TEST_F(FunctionBodyDecoderTest, MemoryInitInvalid) {
   TestModuleBuilder builder;
   builder.InitializeMemory();
+  builder.SetDataSegmentCount(1);
   module = builder.module();
 
   WASM_FEATURE_SCOPE(bulk_memory);
@@ -2760,10 +2769,15 @@ TEST_F(FunctionBodyDecoderTest, MemoryInitInvalid) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MemoryDrop) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  builder.SetDataSegmentCount(1);
+  module = builder.module();
+
   EXPECT_FAILURE(v_v, WASM_MEMORY_DROP(0));
   WASM_FEATURE_SCOPE(bulk_memory);
   EXPECT_VERIFIES(v_v, WASM_MEMORY_DROP(0));
-  // TODO(binji): validate segment index.
+  EXPECT_FAILURE(v_v, WASM_MEMORY_DROP(1));
 }
 
 TEST_F(FunctionBodyDecoderTest, MemoryCopy) {

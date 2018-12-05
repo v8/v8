@@ -1077,12 +1077,21 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(MemoryInitImmediate<validate>& imm) {
     if (!Validate(imm.memory)) return false;
-    // TODO(binji): validate imm.data_segment_index
+    if (!VALIDATE(module_ != nullptr &&
+                  imm.data_segment_index <
+                      module_->num_declared_data_segments)) {
+      errorf(pc_ + 2, "invalid data segment index: %u", imm.data_segment_index);
+      return false;
+    }
     return true;
   }
 
   inline bool Validate(MemoryDropImmediate<validate>& imm) {
-    // TODO(binji): validate imm.data_segment_index
+    if (!VALIDATE(module_ != nullptr &&
+                  imm.index < module_->num_declared_data_segments)) {
+      errorf(pc_ + 2, "invalid data segment index: %u", imm.index);
+      return false;
+    }
     return true;
   }
 
