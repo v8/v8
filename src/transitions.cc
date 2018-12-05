@@ -224,9 +224,7 @@ Map TransitionsAccessor::SearchTransition(Name name, PropertyKind kind,
       return map;
     }
     case kFullTransitionArray: {
-      int transition = transitions()->Search(kind, name, attributes);
-      if (transition == kNotFound) return Map();
-      return transitions()->GetTarget(transition);
+      return transitions()->SearchAndGetTarget(kind, name, attributes);
     }
   }
   UNREACHABLE();
@@ -605,12 +603,44 @@ int TransitionArray::SearchDetails(int transition, PropertyKind kind,
   return kNotFound;
 }
 
+Map TransitionArray::SearchDetailsAndGetTarget(int transition,
+                                               PropertyKind kind,
+                                               PropertyAttributes attributes) {
+  int nof_transitions = number_of_transitions();
+  DCHECK(transition < nof_transitions);
+  Name key = GetKey(transition);
+  for (; transition < nof_transitions && GetKey(transition) == key;
+       transition++) {
+    Map target = GetTarget(transition);
+    PropertyDetails target_details =
+        TransitionsAccessor::GetTargetDetails(key, target);
+
+    int cmp = CompareDetails(kind, attributes, target_details.kind(),
+                             target_details.attributes());
+    if (cmp == 0) {
+      return target;
+    } else if (cmp < 0) {
+      break;
+    }
+  }
+  return Map();
+}
+
 int TransitionArray::Search(PropertyKind kind, Name name,
                             PropertyAttributes attributes,
                             int* out_insertion_index) {
   int transition = SearchName(name, out_insertion_index);
   if (transition == kNotFound) return kNotFound;
   return SearchDetails(transition, kind, attributes, out_insertion_index);
+}
+
+Map TransitionArray::SearchAndGetTarget(PropertyKind kind, Name name,
+                                        PropertyAttributes attributes) {
+  int transition = SearchName(name, nullptr);
+  if (transition == kNotFound) {
+    return Map();
+  }
+  return SearchDetailsAndGetTarget(transition, kind, attributes);
 }
 
 void TransitionArray::Sort() {
