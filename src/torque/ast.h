@@ -65,7 +65,8 @@ namespace torque {
   V(ExternConstDeclaration)               \
   V(StructDeclaration)                    \
   V(NamespaceDeclaration)                 \
-  V(ConstDeclaration)
+  V(ConstDeclaration)                     \
+  V(CppIncludeDeclaration)
 
 #define AST_CALLABLE_NODE_KIND_LIST(V) \
   V(TorqueMacroDeclaration)            \
@@ -823,6 +824,13 @@ struct StructDeclaration : Declaration {
         fields(std::move(fields)) {}
   std::string name;
   std::vector<NameAndTypeExpression> fields;
+};
+
+struct CppIncludeDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(CppIncludeDeclaration)
+  CppIncludeDeclaration(SourcePosition pos, std::string include_path)
+      : Declaration(kKind, pos), include_path(std::move(include_path)) {}
+  std::string include_path;
 };
 
 #define ENUM_ITEM(name)                     \

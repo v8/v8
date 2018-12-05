@@ -237,6 +237,10 @@ void DeclarationVisitor::Visit(StructDeclaration* decl) {
   Declarations::DeclareStruct(decl->name, fields);
 }
 
+void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {
+  GlobalContext::AddCppInclude(decl->include_path);
+}
+
 void DeclarationVisitor::Visit(TypeDeclaration* decl) {
   std::string generates = decl->generates ? *decl->generates : std::string("");
   if (decl->generates) {

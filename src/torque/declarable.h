@@ -20,6 +20,7 @@ namespace internal {
 namespace torque {
 
 class Scope;
+class Namespace;
 
 DECLARE_CONTEXTUAL_VARIABLE(CurrentScope, Scope*);
 

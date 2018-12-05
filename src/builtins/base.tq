@@ -2,6 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-utils-gen.h'
+#include 'src/builtins/builtins.h'
+#include 'src/code-factory.h'
+#include 'src/elements-kind.h'
+#include 'src/heap/factory-inl.h'
+#include 'src/objects.h'
+#include 'src/objects/arguments.h'
+#include 'src/objects/bigint.h'
+
 type Arguments constexpr 'CodeStubArguments*';
 type void;
 type never;

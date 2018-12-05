@@ -680,8 +680,8 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
     out << "}";
   } else {
     DCHECK_EQ(1, result.stack_range().Size());
-    out << "TNode<" << result.type()->GetGeneratedTNodeTypeName() << ">{"
-        << values.Peek(result.stack_range().begin()) << "}";
+    out << "compiler::TNode<" << result.type()->GetGeneratedTNodeTypeName()
+        << ">{" << values.Peek(result.stack_range().begin()) << "}";
   }
 }
 

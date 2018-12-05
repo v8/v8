@@ -553,6 +553,14 @@ base::Optional<ParseResult> MakeStructDeclaration(
   return ParseResult{result};
 }
 
+base::Optional<ParseResult> MakeCppIncludeDeclaration(
+    ParseResultIterator* child_results) {
+  auto include_path = child_results->NextAs<std::string>();
+  Declaration* result =
+      MakeNode<CppIncludeDeclaration>(std::move(include_path));
+  return ParseResult{result};
+}
+
 base::Optional<ParseResult> MakeExternalBuiltin(
     ParseResultIterator* child_results) {
   auto transitioning = child_results->NextAs<bool>();
@@ -1524,7 +1532,8 @@ struct TorqueGrammar : Grammar {
       Rule({Token("struct"), &identifier, Token("{"),
             List<NameAndTypeExpression>(Sequence({&nameAndType, Token(";")})),
             Token("}")},
-           MakeStructDeclaration)};
+           MakeStructDeclaration),
+      Rule({Token("#include"), &externalString}, MakeCppIncludeDeclaration)};
 
   // Result: Declaration*
   Symbol namespaceDeclaration = {

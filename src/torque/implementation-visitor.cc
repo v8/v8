@@ -49,22 +49,13 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
   std::ostream& source = nspace->source_stream();
   std::ostream& header = nspace->header_stream();
 
-  source << "#include \"src/objects/arguments.h\"\n";
-  source << "#include \"src/builtins/builtins-utils-gen.h\"\n";
-  source << "#include \"src/builtins/builtins.h\"\n";
-  source << "#include \"src/code-factory.h\"\n";
-  source << "#include \"src/elements-kind.h\"\n";
-  source << "#include \"src/heap/factory-inl.h\"\n";
-  source << "#include \"src/objects.h\"\n";
-  source << "#include \"src/objects/bigint.h\"\n";
+  for (const std::string& include_path : GlobalContext::CppIncludes()) {
+    source << "#include " << StringLiteralQuote(include_path) << "\n";
+  }
 
   for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
     source << "#include \"torque-generated/builtins-" +
                   DashifyString(n->name()) + "-from-dsl-gen.h\"\n";
-    if (n != GlobalContext::GetDefaultNamespace()) {
-      source << "#include \"src/builtins/builtins-" + DashifyString(n->name()) +
-                    "-gen.h\"\n";
-    }
   }
   source << "\n";
 

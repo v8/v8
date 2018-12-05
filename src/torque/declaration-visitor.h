@@ -81,6 +81,7 @@ class DeclarationVisitor : public FileVisitor {
   void Visit(SpecializationDeclaration* decl);
   void Visit(ExternConstDeclaration* decl);
   void Visit(StructDeclaration* decl);
+  void Visit(CppIncludeDeclaration* decl);
 
   Signature MakeSpecializedSignature(const SpecializationKey& key);
   Callable* SpecializeImplicit(const SpecializationKey& key);
