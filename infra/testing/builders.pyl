@@ -1208,7 +1208,7 @@
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing', 'shards': 7},
+      {'name': 'v8testing', 'shards': 8},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       # Armv8-a.
       {
@@ -1225,7 +1225,7 @@
         'name': 'v8testing',
         'suffix': 'armv8-a',
         'test_args': ['--extra-flags', '--enable-armv8'],
-        'shards': 7
+        'shards': 8
       },
       # Novfp3.
       {
@@ -1245,7 +1245,7 @@
         'suffix': 'novfp3',
         'variant': 'default',
         'test_args': ['--novfp3'],
-        'shards': 7
+        'shards': 8
       },
     ],
   },
