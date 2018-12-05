@@ -24,8 +24,6 @@ class CodeAssemblerState;
 // List of code stubs used on all platforms.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V) \
   /* --- PlatformCodeStubs --- */       \
-  V(CallApiCallback)                    \
-  V(CallApiGetter)                      \
   V(JSEntry)
 
 // List of code stubs only used on ARM 32 bits platforms.
@@ -382,44 +380,6 @@ class CodeStubDescriptor {
 
 namespace v8 {
 namespace internal {
-
-class CommonStoreModeBits : public BitField<KeyedAccessStoreMode, 0, 3> {};
-
-class CallApiCallbackStub : public PlatformCodeStub {
- public:
-  static const int kArgBits = 7;
-  static const int kArgMax = (1 << kArgBits) - 1;
-
-  CallApiCallbackStub(Isolate* isolate, int argc)
-      : PlatformCodeStub(isolate) {
-    CHECK_LE(0, argc);  // The argc in {0, 1} cases are covered by builtins.
-    CHECK_LE(argc, kArgMax);
-    minor_key_ = ArgumentBits::encode(argc);
-  }
-
- private:
-  int argc() const { return ArgumentBits::decode(minor_key_); }
-
-  class ArgumentBits : public BitField<int, 0, kArgBits> {};
-
-  friend class Builtins;  // For generating the related builtin.
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiCallback);
-  DEFINE_PLATFORM_CODE_STUB(CallApiCallback, PlatformCodeStub);
-};
-
-// TODO(jgruber): This stub only exists to avoid code duplication between
-// code-stubs-<arch>.cc and builtins-<arch>.cc. If CallApiCallbackStub is ever
-// completely removed, CallApiGetterStub can also be deleted.
-class CallApiGetterStub : public PlatformCodeStub {
- private:
-  // For generating the related builtin.
-  explicit CallApiGetterStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-  friend class Builtins;
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiGetter);
-  DEFINE_PLATFORM_CODE_STUB(CallApiGetter, PlatformCodeStub);
-};
 
 class JSEntryStub : public PlatformCodeStub {
  public:

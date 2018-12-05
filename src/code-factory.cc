@@ -74,20 +74,9 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::CallApiCallback(Isolate* isolate, int argc) {
-  switch (argc) {
-    case 0:
-      return Callable(BUILTIN_CODE(isolate, CallApiCallback_Argc0),
-                      ApiCallbackDescriptor{});
-    case 1:
-      return Callable(BUILTIN_CODE(isolate, CallApiCallback_Argc1),
-                      ApiCallbackDescriptor{});
-    default: {
-      CallApiCallbackStub stub(isolate, argc);
-      return make_callable(stub);
-    }
-  }
-  UNREACHABLE();
+Callable CodeFactory::CallApiCallback(Isolate* isolate) {
+  return Callable(BUILTIN_CODE(isolate, CallApiCallback),
+                  ApiCallbackDescriptor{});
 }
 
 // static
