@@ -5,7 +5,6 @@
 [
 [ALWAYS, {
   # https://bugs.chromium.org/p/v8/issues/detail?id=8319
-  'interface': [FAIL],
   'memory/grow': [FAIL],
   'memory/constructor': [FAIL],
   'table/grow': [FAIL],
