@@ -199,8 +199,7 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_await_optimization, "harmony await taking 1 tick")            \
   V(harmony_private_methods, "harmony private methods in class literals") \
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")        \
-  V(harmony_weak_refs, "harmony weak references")                         \
-  V(harmony_object_from_entries, "harmony Object.fromEntries()")
+  V(harmony_weak_refs, "harmony weak references")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
@@ -214,7 +213,8 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
 #define HARMONY_STAGED_BASE(V)                                             \
   V(harmony_private_fields, "harmony private fields in class literals")    \
   V(harmony_numeric_separator, "harmony numeric separator between digits") \
-  V(harmony_string_matchall, "harmony String.prototype.matchAll")
+  V(harmony_string_matchall, "harmony String.prototype.matchAll")          \
+  V(harmony_object_from_entries, "harmony Object.fromEntries()")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                        \
