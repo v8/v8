@@ -20,8 +20,6 @@
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
 
-#include "src/s390/code-stubs-s390.h"  // Cannot be the first include.
-
 namespace v8 {
 namespace internal {
 
@@ -206,39 +204,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 #endif
 
   __ b(r14);
-}
-
-// This stub is paired with DirectCEntryStub::GenerateCall
-void DirectCEntryStub::Generate(MacroAssembler* masm) {
-  __ CleanseP(r14);
-
-  __ b(ip);  // Callee will return to R14 directly
-}
-
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
-  if (FLAG_embedded_builtins) {
-    if (masm->root_array_available() &&
-        isolate()->ShouldLoadConstantsFromRootList()) {
-      // This is basically an inlined version of Call(Handle<Code>) that loads
-      // the code object into lr instead of ip.
-      __ Move(ip, target);
-      __ IndirectLoadConstant(r1, GetCode());
-      __ AddP(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(r1);
-      return;
-    }
-  }
-#if ABI_USES_FUNCTION_DESCRIPTORS && !defined(USE_SIMULATOR)
-  // Native AIX/S390X Linux use a function descriptor.
-  __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(target, kPointerSize));
-  __ LoadP(target, MemOperand(target, 0));  // Instruction address
-#else
-  // ip needs to be set for DirectCEentryStub::Generate, and also
-  // for ABI_CALL_VIA_IP.
-  __ Move(ip, target);
-#endif
-
-  __ call(GetCode(), RelocInfo::CODE_TARGET);  // Call the stub.
 }
 
 #undef __

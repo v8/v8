@@ -2403,20 +2403,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     target = ip;
   }
 
-  // To let the GC traverse the return address of the exit frames, we need to
-  // know where the return address is. The CEntryStub is unmovable, so
-  // we can store the address on the stack to be able to find it again and
-  // we never have to restore it, because it will not change.
-  Label start_call;
-  constexpr int after_call_offset = 5 * kInstrSize;
-  DCHECK_NE(r7, target);
-  __ LoadPC(r7);
-  __ bind(&start_call);
-  __ addi(r7, r7, Operand(after_call_offset));
-  __ StoreP(r7, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
-  __ Call(target);
-  DCHECK_EQ(after_call_offset - kInstrSize,
-            __ SizeOfCodeGeneratedSince(&start_call));
+  __ StoreReturnAddressAndCall(target);
 
   // If return value is on the stack, pop it to registers.
   if (needs_return_buffer) {
@@ -2885,11 +2872,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ PopSafepointRegisters();
   }
 
-  // Native call returns to the DirectCEntry stub which redirects to the
-  // return address pushed on stack (could have moved after GC).
-  // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub(isolate);
-  stub.GenerateCall(masm, scratch);
+  __ StoreReturnAddressAndCall(scratch);
 
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
@@ -3190,6 +3173,11 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kUseStackSpaceConstant,
                            return_value_operand);
+}
+
+void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
+  // Unused.
+  __ stop(0);
 }
 
 #undef __

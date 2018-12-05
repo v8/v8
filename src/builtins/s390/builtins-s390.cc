@@ -2406,24 +2406,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Call C built-in.
   __ Move(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
 
-  Register target = r7;
-
-  // To let the GC traverse the return address of the exit frames, we need to
-  // know where the return address is. The CEntryStub is unmovable, so
-  // we can store the address on the stack to be able to find it again and
-  // we never have to restore it, because it will not change.
-  {
-    Label return_label;
-    __ larl(r14, &return_label);  // Generate the return addr of call later.
-    __ StoreP(r14, MemOperand(sp, kStackFrameRASlot * kPointerSize));
-
-    // zLinux ABI requires caller's frame to have sufficient space for callee
-    // preserved regsiter save area.
-    // __ lay(sp, MemOperand(sp, -kCalleeRegisterSaveAreaSize));
-    __ b(target);
-    __ bind(&return_label);
-    // __ la(sp, MemOperand(sp, +kCalleeRegisterSaveAreaSize));
-  }
+  __ StoreReturnAddressAndCall(r7);
 
   // If return value is on the stack, pop it to registers.
   if (needs_return_buffer) {
@@ -2869,11 +2852,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ PopSafepointRegisters();
   }
 
-  // Native call returns to the DirectCEntry stub which redirects to the
-  // return address pushed on stack (could have moved after GC).
-  // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub(isolate);
-  stub.GenerateCall(masm, scratch);
+  __ StoreReturnAddressAndCall(scratch);
 
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
@@ -3172,6 +3151,11 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kUseStackSpaceConstant,
                            return_value_operand);
+}
+
+void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
+  // Unused.
+  __ stop(0);
 }
 
 #undef __

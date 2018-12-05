@@ -1008,6 +1008,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ComputeCodeStartAddress(Register dst);
   void LoadPC(Register dst);
 
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 

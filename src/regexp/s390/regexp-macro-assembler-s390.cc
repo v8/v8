@@ -13,6 +13,7 @@
 #include "src/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/regexp/s390/regexp-macro-assembler-s390.h"
 #include "src/unicode.h"
 
@@ -1071,7 +1072,10 @@ void RegExpMacroAssemblerS390::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
-  static const int num_arguments = 3;
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!masm_->options().isolate_independent_code);
+
+  static constexpr int num_arguments = 3;
   __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
   __ LoadRR(r4, frame_pointer());
@@ -1081,7 +1085,17 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
   __ lay(r2, MemOperand(sp, kStackFrameRASlot * kPointerSize));
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(isolate());
-  CallCFunctionUsingStub(stack_guard_check, num_arguments);
+
+  __ mov(ip, Operand(stack_guard_check));
+  __ StoreReturnAddressAndCall(ip);
+
+  if (base::OS::ActivationFrameAlignment() > kPointerSize) {
+    __ LoadP(sp, MemOperand(sp, (kNumRequiredStackFrameSlots * kPointerSize)));
+  } else {
+    __ la(sp, MemOperand(sp, (kNumRequiredStackFrameSlots * kPointerSize)));
+  }
+
+  __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }
 
 // Helper function for reading a value out of a stack frame.

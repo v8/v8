@@ -4416,6 +4416,24 @@ void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
   blt(dest);
 }
 
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  Label return_label;
+  larl(r14, &return_label);  // Generate the return addr of call later.
+  StoreP(r14, MemOperand(sp, kStackFrameRASlot * kPointerSize));
+
+  // zLinux ABI requires caller's frame to have sufficient space for callee
+  // preserved regsiter save area.
+  b(target);
+  bind(&return_label);
+}
+
 }  // namespace internal
 }  // namespace v8
 

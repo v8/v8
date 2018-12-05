@@ -21,8 +21,6 @@
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
 
-#include "src/ppc/code-stubs-ppc.h"  // Cannot be the first include.
-
 namespace v8 {
 namespace internal {
 
@@ -172,55 +170,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ LoadP(r0, MemOperand(sp, kStackFrameLRSlot * kPointerSize));
   __ mtlr(r0);
   __ blr();
-}
-
-// This stub is paired with DirectCEntryStub::GenerateCall
-void DirectCEntryStub::Generate(MacroAssembler* masm) {
-  // Place the return address on the stack, making the call
-  // GC safe. The RegExp backend also relies on this.
-  __ mflr(r0);
-  __ StoreP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
-
-  if (ABI_USES_FUNCTION_DESCRIPTORS && FLAG_embedded_builtins) {
-    // AIX/PPC64BE Linux use a function descriptor;
-    __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(ip, kPointerSize));
-    __ LoadP(ip, MemOperand(ip, 0));  // Instruction address
-  }
-
-  __ Call(ip);  // Call the C++ function.
-  __ LoadP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
-  __ mtlr(r0);
-  __ blr();
-}
-
-
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
-  if (FLAG_embedded_builtins) {
-    if (masm->root_array_available() &&
-        isolate()->ShouldLoadConstantsFromRootList()) {
-      // This is basically an inlined version of Call(Handle<Code>) that loads
-      // the code object into lr instead of ip.
-      DCHECK_NE(ip, target);
-      __ IndirectLoadConstant(ip, GetCode());
-      __ addi(r0, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Move(ip, target);
-      __ Call(r0);
-      return;
-    }
-  }
-  if (ABI_USES_FUNCTION_DESCRIPTORS && !FLAG_embedded_builtins) {
-    // AIX/PPC64BE Linux use a function descriptor.
-    __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(target, kPointerSize));
-    __ LoadP(ip, MemOperand(target, 0));  // Instruction address
-  } else {
-    // ip needs to be set for DirectCEentryStub::Generate, and also
-    // for ABI_CALL_VIA_IP.
-    __ Move(ip, target);
-  }
-
-  intptr_t code = reinterpret_cast<intptr_t>(GetCode().location());
-  __ mov(r0, Operand(code, RelocInfo::CODE_TARGET));
-  __ Call(r0);  // Call the stub.
 }
 
 #undef __

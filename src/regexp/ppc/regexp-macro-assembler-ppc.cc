@@ -13,6 +13,7 @@
 #include "src/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/unicode.h"
 
 namespace v8 {
@@ -1091,6 +1092,9 @@ void RegExpMacroAssemblerPPC::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!masm_->options().isolate_independent_code);
+
   int frame_alignment = masm_->ActivationFrameAlignment();
   int stack_space = kNumRequiredStackFrameSlots;
   int stack_passed_arguments = 1;  // space for return address pointer
@@ -1125,8 +1129,7 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(isolate());
   __ mov(ip, Operand(stack_guard_check));
-  DirectCEntryStub stub(isolate());
-  stub.GenerateCall(masm_, ip);
+  __ StoreReturnAddressAndCall(ip);
 
   // Restore the stack pointer
   stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;

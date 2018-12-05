@@ -3044,6 +3044,25 @@ void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
   blt(dest);
 }
 
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  Label start_call;
+  static constexpr int after_call_offset = 5 * kInstrSize;
+  LoadPC(r7);
+  bind(&start_call);
+  addi(r7, r7, Operand(after_call_offset));
+  StoreP(r7, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
+  Call(target);
+  DCHECK_EQ(after_call_offset - kInstrSize,
+            __ SizeOfCodeGeneratedSince(&start_call));
+}
+
 }  // namespace internal
 }  // namespace v8
 
