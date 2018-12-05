@@ -502,6 +502,42 @@ TEST(PCIsInV8_InJSEntryStubRange) {
   CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
 }
 
+// Large code objects can be allocated in large object space. Check that this is
+// inside the CodeRange.
+TEST(PCIsInV8_LargeCodeObject) {
+  FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  HandleScope scope(i_isolate);
+
+  UnwindState unwind_state = isolate->GetUnwindState();
+
+  // Create a big function that ends up in CODE_LO_SPACE.
+  const int instruction_size = Page::kPageSize + 1;
+  STATIC_ASSERT(instruction_size > kMaxRegularHeapObjectSize);
+  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+
+  CodeDesc desc;
+  desc.buffer = instructions.get();
+  desc.buffer_size = instruction_size;
+  desc.instr_size = instruction_size;
+  desc.reloc_size = 0;
+  desc.constant_pool_size = 0;
+  desc.unwinding_info = nullptr;
+  desc.unwinding_info_size = 0;
+  desc.origin = nullptr;
+  Handle<Object> self_ref;
+  Handle<Code> foo_code =
+      i_isolate->factory()->NewCode(desc, Code::WASM_FUNCTION, self_ref);
+
+  CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
+  byte* start = reinterpret_cast<byte*>(foo_code->InstructionStart());
+
+  void* pc = start;
+  CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
+}
+
 }  // namespace test_unwinder
 }  // namespace internal
 }  // namespace v8
