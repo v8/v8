@@ -23,8 +23,6 @@
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
 
-#include "src/arm/code-stubs-arm.h"  // Cannot be the first include.
-
 namespace v8 {
 namespace internal {
 
@@ -187,36 +185,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ vldm(ia_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
 
   __ ldm(ia_w, sp, kCalleeSaved | pc.bit());
-}
-
-void DirectCEntryStub::Generate(MacroAssembler* masm) {
-  // Place the return address on the stack, making the call
-  // GC safe. The RegExp backend also relies on this.
-  __ str(lr, MemOperand(sp, 0));
-  __ blx(ip);  // Call the C++ function.
-  __ ldr(pc, MemOperand(sp, 0));
-}
-
-
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-                                    Register target) {
-  if (FLAG_embedded_builtins) {
-    if (masm->root_array_available() &&
-        isolate()->ShouldLoadConstantsFromRootList()) {
-      // This is basically an inlined version of Call(Handle<Code>) that loads
-      // the code object into lr instead of ip.
-      __ Move(ip, target);
-      __ IndirectLoadConstant(lr, GetCode());
-      __ add(lr, lr, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ blx(lr);
-      return;
-    }
-  }
-  intptr_t code =
-      reinterpret_cast<intptr_t>(GetCode().location());
-  __ Move(ip, target);
-  __ mov(lr, Operand(code, RelocInfo::CODE_TARGET));
-  __ blx(lr);  // Call the stub.
 }
 
 #undef __

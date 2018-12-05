@@ -1335,6 +1335,7 @@ namespace internal {
   ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit)              \
   ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit)                     \
   ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit)                       \
+  ASM(DirectCEntry)                                                            \
                                                                                \
   /* String helpers */                                                         \
   TFS(StringAdd_CheckNone, kLeft, kRight)                                      \

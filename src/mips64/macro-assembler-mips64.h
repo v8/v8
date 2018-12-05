@@ -284,6 +284,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
             COND_ARGS);
   void Call(Label* target);
 
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
+
   void CallForDeoptimization(Address target, int deopt_id,
                              RelocInfo::Mode rmode) {
     USE(deopt_id);

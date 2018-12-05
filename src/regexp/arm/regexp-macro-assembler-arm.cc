@@ -14,6 +14,7 @@
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/unicode.h"
 
 namespace v8 {
@@ -1046,6 +1047,9 @@ void RegExpMacroAssemblerARM::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!masm_->options().isolate_independent_code);
+
   __ PrepareCallCFunction(3);
 
   // RegExp code frame pointer.
@@ -1064,8 +1068,19 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(isolate());
   __ mov(ip, Operand(stack_guard_check));
-  DirectCEntryStub stub(isolate());
-  stub.GenerateCall(masm_, ip);
+
+  if (FLAG_embedded_builtins) {
+    EmbeddedData d = EmbeddedData::FromBlob();
+    CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
+    Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+    __ mov(lr, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+  } else {
+    // TODO(v8:8519): Remove this once embedded builtins are on unconditionally.
+    Handle<Code> code = BUILTIN_CODE(isolate(), DirectCEntry);
+    __ mov(lr, Operand(reinterpret_cast<intptr_t>(code.location()),
+                       RelocInfo::CODE_TARGET));
+  }
+  __ Call(lr);
 
   // Drop the return address from the stack.
   __ add(sp, sp, Operand(stack_alignment));

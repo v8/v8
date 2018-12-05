@@ -13,6 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/unicode.h"
 
 namespace v8 {
@@ -1353,6 +1354,9 @@ void RegExpMacroAssemblerARM64::CheckPosition(int cp_offset,
 // Private methods:
 
 void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!masm_->options().isolate_independent_code);
+
   // Allocate space on the stack to store the return address. The
   // CheckStackGuardState C++ function will override it if the code
   // moved. Allocate extra space for 2 arguments passed by pointers.
@@ -1377,15 +1381,30 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
   __ Mov(x1, Operand(masm_->CodeObject()));
 
   // We need to pass a pointer to the return address as first argument.
-  // The DirectCEntry stub will place the return address on the stack before
-  // calling so the stack pointer will point to it.
+  // DirectCEntry will place the return address on the stack before calling so
+  // the stack pointer will point to it.
   __ Mov(x0, sp);
 
+  DCHECK_EQ(scratch, x10);
   ExternalReference check_stack_guard_state =
       ExternalReference::re_check_stack_guard_state(isolate());
   __ Mov(scratch, check_stack_guard_state);
-  DirectCEntryStub stub(isolate());
-  stub.GenerateCall(masm_, scratch);
+
+  if (FLAG_embedded_builtins) {
+    UseScratchRegisterScope temps(masm_);
+    Register scratch = temps.AcquireX();
+
+    EmbeddedData d = EmbeddedData::FromBlob();
+    CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
+    Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+
+    __ Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    __ Call(scratch);
+  } else {
+    // TODO(v8:8519): Remove this once embedded builtins are on unconditionally.
+    Handle<Code> code = BUILTIN_CODE(isolate(), DirectCEntry);
+    __ Call(code, RelocInfo::CODE_TARGET);
+  }
 
   // The input string may have been moved in memory, we need to reload it.
   __ Peek(input_start(), kPointerSize);

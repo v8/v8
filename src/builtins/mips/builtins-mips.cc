@@ -2341,40 +2341,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ li(a2, ExternalReference::isolate_address(masm->isolate()));
   __ mov(a1, s1);
 
-  // To let the GC traverse the return address of the exit frames, we need to
-  // know where the return address is. The CEntry is unmovable, so
-  // we can store the address on the stack to be able to find it again and
-  // we never have to restore it, because it will not change.
-  {
-    Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
-    int kNumInstructionsToJump = 4;
-    Label find_ra;
-    // Adjust the value in ra to point to the correct return location, 2nd
-    // instruction past the real call into C code (the jalr(t9)), and push it.
-    // This is the return address of the exit frame.
-    if (kArchVariant >= kMips32r6) {
-      __ addiupc(ra, kNumInstructionsToJump + 1);
-    } else {
-      // This no-op-and-link sequence saves PC + 8 in ra register on pre-r6 MIPS
-      __ nal();  // nal has branch delay slot.
-      __ Addu(ra, ra, kNumInstructionsToJump * kInstrSize);
-    }
-    __ bind(&find_ra);
-
-    // This spot was reserved in EnterExitFrame.
-    __ sw(ra, MemOperand(sp));
-    // Stack space reservation moved to the branch delay slot below.
-    // Stack is still aligned.
-
-    // Call the C routine.
-    __ mov(t9, s2);  // Function pointer to t9 to conform to ABI for PIC.
-    __ jalr(t9);
-    // Set up sp in the delay slot.
-    __ addiu(sp, sp, -kCArgsSlotsSize);
-    // Make sure the stored 'ra' points to this position.
-    DCHECK_EQ(kNumInstructionsToJump,
-              masm->InstructionsGeneratedSince(&find_ra));
-  }
+  __ StoreReturnAddressAndCall(s2);
 
   // Result returned in v0 or v1:v0 - do not destroy these registers!
 
@@ -2830,11 +2797,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ PopSafepointRegisters();
   }
 
-  // Native call returns to the DirectCEntry stub which redirects to the
-  // return address pushed on stack (could have moved after GC).
-  // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub(isolate);
-  stub.GenerateCall(masm, t9);
+  __ StoreReturnAddressAndCall(t9);
 
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
@@ -2875,9 +2838,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ li(s0, Operand(stack_space));
   } else {
     CHECK_EQ(stack_space, 0);
-    // The ExitFrame contains four MIPS argument slots after the
-    // DirectCEntryStub call so this must be accounted for.
-    // TODO(jgruber): Remove once the DirectCEntryStub is gone.
+    // The ExitFrame contains four MIPS argument slots after the call so this
+    // must be accounted for.
+    // TODO(jgruber): Investigate if this is needed by the direct call.
     __ Drop(kCArgSlotCount);
     __ lw(s0, *stack_space_operand);
   }
@@ -3108,6 +3071,36 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kUseStackSpaceConstant,
                            return_value_operand);
+}
+
+void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
+  // The sole purpose of DirectCEntry is for movable callers (e.g. any general
+  // purpose Code object) to be able to call into C functions that may trigger
+  // GC and thus move the caller.
+  //
+  // DirectCEntry places the return address on the stack (updated by the GC),
+  // making the call GC safe. The irregexp backend relies on this.
+
+  // Make place for arguments to fit C calling convention. Callers use
+  // EnterExitFrame/LeaveExitFrame so they handle stack restoring and we don't
+  // have to do that here. Any caller must drop kCArgsSlotsSize stack space
+  // after the call.
+  __ Subu(sp, sp, Operand(kCArgsSlotsSize));
+
+  __ sw(ra, MemOperand(sp, kCArgsSlotsSize));  // Store the return address.
+  __ Call(t9);                                 // Call the C++ function.
+  __ lw(t9, MemOperand(sp, kCArgsSlotsSize));  // Return to calling code.
+
+  if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+    // In case of an error the return address may point to a memory area
+    // filled with kZapValue by the GC. Dereference the address and check for
+    // this.
+    __ lw(t0, MemOperand(t9));
+    __ Assert(ne, AbortReason::kReceivedInvalidReturnAddress, t0,
+              Operand(reinterpret_cast<uint32_t>(kZapValue)));
+  }
+
+  __ Jump(t9);
 }
 
 #undef __

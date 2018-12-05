@@ -2862,24 +2862,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ Mov(x1, argv);
   __ Mov(x2, ExternalReference::isolate_address(masm->isolate()));
 
-  Label return_location;
-  __ Adr(x12, &return_location);
-  __ Poke(x12, 0);
-
-  if (__ emit_debug_code()) {
-    // Verify that the slot below fp[kSPOffset]-8 points to the return location
-    // (currently in x12).
-    UseScratchRegisterScope temps(masm);
-    Register temp = temps.AcquireX();
-    __ Ldr(temp, MemOperand(fp, ExitFrameConstants::kSPOffset));
-    __ Ldr(temp, MemOperand(temp, -static_cast<int64_t>(kXRegSize)));
-    __ Cmp(temp, x12);
-    __ Check(eq, AbortReason::kReturnAddressNotFoundInFrame);
-  }
-
-  // Call the builtin.
-  __ Blr(target);
-  __ Bind(&return_location);
+  __ StoreReturnAddressAndCall(target);
 
   // Result returned in x0 or x1:x0 - do not destroy these registers!
 
@@ -3303,11 +3286,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ PopSafepointRegisters();
   }
 
-  // Native call returns to the DirectCEntry stub which redirects to the
-  // return address pushed on stack (could have moved after GC).
-  // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub(isolate);
-  stub.GenerateCall(masm, x3);
+  __ Mov(x10, x3);  // TODO(arm64): Load target into x10 directly.
+  __ StoreReturnAddressAndCall(x10);
 
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
@@ -3590,6 +3570,21 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kUseStackSpaceConstant,
                            spill_offset, return_value_operand);
+}
+
+void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
+  // The sole purpose of DirectCEntry is for movable callers (e.g. any general
+  // purpose Code object) to be able to call into C functions that may trigger
+  // GC and thus move the caller.
+  //
+  // DirectCEntry places the return address on the stack (updated by the GC),
+  // making the call GC safe. The irregexp backend relies on this.
+
+  __ Poke(lr, 0);  // Store the return address.
+  __ Blr(x10);     // Call the C++ function.
+  __ Peek(lr, 0);  // Return to calling code.
+  __ AssertFPCRState();
+  __ Ret();
 }
 
 #undef __

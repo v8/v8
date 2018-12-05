@@ -19,8 +19,6 @@
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
 
-#include "src/mips/code-stubs-mips.h"  // Cannot be the first include.
-
 namespace v8 {
 namespace internal {
 
@@ -177,51 +175,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ MultiPop(kCalleeSaved | ra.bit());
   // Return.
   __ Jump(ra);
-}
-
-void DirectCEntryStub::Generate(MacroAssembler* masm) {
-  // Make place for arguments to fit C calling convention. Most of the callers
-  // of DirectCEntryStub::GenerateCall are using EnterExitFrame/LeaveExitFrame
-  // so they handle stack restoring and we don't have to do that here.
-  // Any caller of DirectCEntryStub::GenerateCall must take care of dropping
-  // kCArgsSlotsSize stack space after the call.
-  __ Subu(sp, sp, Operand(kCArgsSlotsSize));
-  // Place the return address on the stack, making the call
-  // GC safe. The RegExp backend also relies on this.
-  __ sw(ra, MemOperand(sp, kCArgsSlotsSize));
-  __ Call(t9);  // Call the C++ function.
-  __ lw(t9, MemOperand(sp, kCArgsSlotsSize));
-
-  if (FLAG_debug_code && FLAG_enable_slow_asserts) {
-    // In case of an error the return address may point to a memory area
-    // filled with kZapValue by the GC.
-    // Dereference the address and check for this.
-    __ lw(t0, MemOperand(t9));
-    __ Assert(ne, AbortReason::kReceivedInvalidReturnAddress, t0,
-              Operand(reinterpret_cast<uint32_t>(kZapValue)));
-  }
-  __ Jump(t9);
-}
-
-
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-                                    Register target) {
-  if (FLAG_embedded_builtins) {
-    if (masm->root_array_available() &&
-        isolate()->ShouldLoadConstantsFromRootList()) {
-      // This is basically an inlined version of Call(Handle<Code>) that loads
-      // the code object into kScratchReg instead of t9.
-      __ Move(t9, target);
-      __ IndirectLoadConstant(kScratchReg, GetCode());
-      __ Call(kScratchReg, Code::kHeaderSize - kHeapObjectTag);
-      return;
-    }
-  }
-  intptr_t loc =
-      reinterpret_cast<intptr_t>(GetCode().location());
-  __ Move(t9, target);
-  __ li(kScratchReg, Operand(loc, RelocInfo::CODE_TARGET), CONSTANT_SIZE);
-  __ Call(kScratchReg);
 }
 
 #undef __

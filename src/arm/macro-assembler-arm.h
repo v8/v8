@@ -329,6 +329,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
             bool check_constant_pool = true);
   void Call(Label* target);
 
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
+
   // This should only be used when assembling a deoptimizer call because of
   // the CheckConstPool invocation, which is only needed for deoptimization.
   void CallForDeoptimization(Address target, int deopt_id,

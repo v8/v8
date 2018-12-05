@@ -22,8 +22,6 @@
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
 
-#include "src/arm64/code-stubs-arm64.h"  // Cannot be the first include.
-
 namespace v8 {
 namespace internal {
 
@@ -209,24 +207,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Restore the callee-saved registers and return.
   __ PopCalleeSavedRegisters();
   __ Ret();
-}
-
-void DirectCEntryStub::Generate(MacroAssembler* masm) {
-  // Put return address on the stack (accessible to GC through exit frame pc).
-  __ Poke(lr, 0);
-  // Call the C++ function.
-  __ Blr(x10);
-  // Return to calling code.
-  __ Peek(lr, 0);
-  __ AssertFPCRState();
-  __ Ret();
-}
-
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-                                    Register target) {
-  // Branch to the stub.
-  __ Mov(x10, target);
-  __ Call(GetCode(), RelocInfo::CODE_TARGET);
 }
 
 #undef __

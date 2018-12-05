@@ -3983,6 +3983,43 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, rs, rt, bd);
 }
 
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
+  static constexpr int kNumInstructionsToJump = 4;
+  Label find_ra;
+  // Adjust the value in ra to point to the correct return location, 2nd
+  // instruction past the real call into C code (the jalr(t9)), and push it.
+  // This is the return address of the exit frame.
+  if (kArchVariant >= kMips32r6) {
+    addiupc(ra, kNumInstructionsToJump + 1);
+  } else {
+    // This no-op-and-link sequence saves PC + 8 in ra register on pre-r6 MIPS
+    nal();  // nal has branch delay slot.
+    Addu(ra, ra, kNumInstructionsToJump * kInstrSize);
+  }
+  bind(&find_ra);
+
+  // This spot was reserved in EnterExitFrame.
+  sw(ra, MemOperand(sp));
+  // Stack space reservation moved to the branch delay slot below.
+  // Stack is still aligned.
+
+  // Call the C routine.
+  mov(t9, target);  // Function pointer to t9 to conform to ABI for PIC.
+  jalr(t9);
+  // Set up sp in the delay slot.
+  addiu(sp, sp, -kCArgsSlotsSize);
+  // Make sure the stored 'ra' points to this position.
+  DCHECK_EQ(kNumInstructionsToJump, masm->InstructionsGeneratedSince(&find_ra));
+}
+
 void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt,
                          BranchDelaySlot bd) {
   Jump(ra, 0, cond, rs, rt, bd);
@@ -4838,7 +4875,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   }
 
   // Reserve place for the return address, stack space and an optional slot
-  // (used by the DirectCEntryStub to hold the return value if a struct is
+  // (used by DirectCEntry to hold the return value if a struct is
   // returned) and align the frame preparing for calling the runtime function.
   DCHECK_GE(stack_space, 0);
   Subu(sp, sp, Operand((stack_space + 2) * kPointerSize));

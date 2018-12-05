@@ -302,6 +302,23 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, mode);
 }
 
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  // Compute the return address in lr to return to after the jump below. The pc
+  // is already at '+ 8' from the current instruction; but return is after three
+  // instructions, so add another 4 to pc to get the return address.
+  Assembler::BlockConstPoolScope block_const_pool(this);
+  add(lr, pc, Operand(4));
+  str(lr, MemOperand(sp));
+  Call(target);
+}
+
 void TurboAssembler::Ret(Condition cond) { bx(lr, cond); }
 
 void TurboAssembler::Drop(int count, Condition cond) {

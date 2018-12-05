@@ -2049,6 +2049,34 @@ void TurboAssembler::Call(ExternalReference target) {
   Call(temp);
 }
 
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  UseScratchRegisterScope temps(this);
+  Register scratch1 = temps.AcquireX();
+
+  Label return_location;
+  Adr(scratch1, &return_location);
+  Poke(scratch1, 0);
+
+  if (emit_debug_code()) {
+    // Verify that the slot below fp[kSPOffset]-8 points to the return location.
+    Register scratch2 = temps.AcquireX();
+    Ldr(scratch2, MemOperand(fp, ExitFrameConstants::kSPOffset));
+    Ldr(scratch2, MemOperand(scratch2, -static_cast<int64_t>(kXRegSize)));
+    Cmp(scratch2, scratch1);
+    Check(eq, AbortReason::kReturnAddressNotFoundInFrame);
+  }
+
+  Blr(target);
+  Bind(&return_location);
+}
+
 void TurboAssembler::IndirectCall(Address target, RelocInfo::Mode rmode) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();

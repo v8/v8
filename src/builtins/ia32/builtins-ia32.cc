@@ -3348,6 +3348,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
                            return_value_operand);
 }
 
+void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
+  __ int3();  // Unused on this architecture.
+}
+
 #undef __
 
 }  // namespace internal

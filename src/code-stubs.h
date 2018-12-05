@@ -22,57 +22,7 @@ class CodeAssemblerState;
 }
 
 // List of code stubs used on all platforms.
-#define CODE_STUB_LIST_ALL_PLATFORMS(V) \
-  /* --- PlatformCodeStubs --- */       \
-  V(JSEntry)
-
-// List of code stubs only used on ARM 32 bits platforms.
-#if V8_TARGET_ARCH_ARM
-#define CODE_STUB_LIST_ARM(V) V(DirectCEntry)
-
-#else
-#define CODE_STUB_LIST_ARM(V)
-#endif
-
-// List of code stubs only used on ARM 64 bits platforms.
-#if V8_TARGET_ARCH_ARM64
-#define CODE_STUB_LIST_ARM64(V) V(DirectCEntry)
-
-#else
-#define CODE_STUB_LIST_ARM64(V)
-#endif
-
-// List of code stubs only used on PPC platforms.
-#ifdef V8_TARGET_ARCH_PPC
-#define CODE_STUB_LIST_PPC(V) V(DirectCEntry)
-#else
-#define CODE_STUB_LIST_PPC(V)
-#endif
-
-// List of code stubs only used on MIPS platforms.
-#if V8_TARGET_ARCH_MIPS
-#define CODE_STUB_LIST_MIPS(V) V(DirectCEntry)
-#elif V8_TARGET_ARCH_MIPS64
-#define CODE_STUB_LIST_MIPS(V) V(DirectCEntry)
-#else
-#define CODE_STUB_LIST_MIPS(V)
-#endif
-
-// List of code stubs only used on S390 platforms.
-#ifdef V8_TARGET_ARCH_S390
-#define CODE_STUB_LIST_S390(V) V(DirectCEntry)
-#else
-#define CODE_STUB_LIST_S390(V)
-#endif
-
-// Combined list of code stubs.
-#define CODE_STUB_LIST(V)         \
-  CODE_STUB_LIST_ALL_PLATFORMS(V) \
-  CODE_STUB_LIST_ARM(V)           \
-  CODE_STUB_LIST_ARM64(V)         \
-  CODE_STUB_LIST_PPC(V)           \
-  CODE_STUB_LIST_MIPS(V)          \
-  CODE_STUB_LIST_S390(V)
+#define CODE_STUB_LIST(V) V(JSEntry)
 
 static const int kHasReturnedMinusZeroSentinel = 1;
 
@@ -359,24 +309,6 @@ class CodeStubDescriptor {
 
 }  // namespace internal
 }  // namespace v8
-
-#if V8_TARGET_ARCH_IA32
-#elif V8_TARGET_ARCH_X64
-#elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/code-stubs-arm64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "src/arm/code-stubs-arm.h"
-#elif V8_TARGET_ARCH_PPC
-#include "src/ppc/code-stubs-ppc.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/mips/code-stubs-mips.h"
-#elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/code-stubs-mips64.h"
-#elif V8_TARGET_ARCH_S390
-#include "src/s390/code-stubs-s390.h"
-#else
-#error Unsupported target architecture.
-#endif
 
 namespace v8 {
 namespace internal {
