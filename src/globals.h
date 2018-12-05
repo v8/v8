@@ -574,7 +574,9 @@ class NewSpace;
 class NewLargeObjectSpace;
 class NumberDictionary;
 class Object;
-class ObjectSlot;
+class FullObjectSlot;
+class FullMaybeObjectSlot;
+class FullHeapObjectSlot;
 class OldSpace;
 class ParameterCount;
 class ReadOnlySpace;
@@ -590,6 +592,41 @@ class String;
 class Struct;
 class Symbol;
 class Variable;
+
+enum class SlotLocation { kOnHeap, kOffHeap };
+
+template <SlotLocation slot_location>
+struct SlotTraits;
+
+// Off-heap slots are always full-pointer slots.
+template <>
+struct SlotTraits<SlotLocation::kOffHeap> {
+  using TObjectSlot = FullObjectSlot;
+  using TMaybeObjectSlot = FullMaybeObjectSlot;
+  using THeapObjectSlot = FullHeapObjectSlot;
+};
+
+// On-heap slots are either full-pointer slots or compressed slots depending
+// on whether the pointer compression is enabled or not.
+template <>
+struct SlotTraits<SlotLocation::kOnHeap> {
+  using TObjectSlot = FullObjectSlot;
+  using TMaybeObjectSlot = FullMaybeObjectSlot;
+  using THeapObjectSlot = FullHeapObjectSlot;
+};
+
+// An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")
+// holding ObjectPtr value (smi or strong heap object).
+using ObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TObjectSlot;
+
+// A MaybeObjectSlot instance describes a kTaggedSize-sized on-heap field
+// ("slot") holding MaybeObject (smi or weak heap object or strong heap object).
+using MaybeObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TMaybeObjectSlot;
+
+// A HeapObjectSlot instance describes a kTaggedSize-sized field ("slot")
+// holding a weak or strong pointer to a heap object (think:
+// HeapObjectReference).
+using HeapObjectSlot = SlotTraits<SlotLocation::kOnHeap>::THeapObjectSlot;
 
 typedef bool (*WeakSlotCallback)(ObjectSlot pointer);
 

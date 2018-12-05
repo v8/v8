@@ -272,7 +272,6 @@ class KeyAccumulator;
 class LayoutDescriptor;
 class LookupIterator;
 class FieldType;
-class MaybeObjectSlot;
 class Module;
 class ModuleInfoEntry;
 class ObjectHashTable;

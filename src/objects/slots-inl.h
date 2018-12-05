@@ -16,80 +16,108 @@
 namespace v8 {
 namespace internal {
 
-ObjectSlot::ObjectSlot(ObjectPtr* object)
+//
+// FullObjectSlot implementation.
+//
+
+FullObjectSlot::FullObjectSlot(ObjectPtr* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
-ObjectPtr ObjectSlot::load() const { return ObjectPtr(*location()); }
-
-void ObjectSlot::store(Object* value) const { *location() = value->ptr(); }
-
-ObjectPtr ObjectSlot::Acquire_Load() const {
-  return ObjectPtr(AsAtomicTagged::Acquire_Load(location()));
+bool FullObjectSlot::contains_value(Address raw_value) const {
+  return *location() == raw_value;
 }
 
-Object* ObjectSlot::Acquire_Load1() const {
-  return reinterpret_cast<Object*>(AsAtomicTagged::Acquire_Load(location()));
+Object* FullObjectSlot::operator*() const {
+  return reinterpret_cast<Object*>(*location());
 }
 
-ObjectPtr ObjectSlot::Relaxed_Load() const {
-  return ObjectPtr(AsAtomicTagged::Relaxed_Load(location()));
+ObjectPtr FullObjectSlot::load() const { return ObjectPtr(*location()); }
+
+void FullObjectSlot::store(Object* value) const { *location() = value->ptr(); }
+void FullObjectSlot::store(ObjectPtr value) const { *location() = value.ptr(); }
+
+ObjectPtr FullObjectSlot::Acquire_Load() const {
+  return ObjectPtr(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
-void ObjectSlot::Relaxed_Store(ObjectPtr value) const {
-  AsAtomicTagged::Relaxed_Store(location(), value->ptr());
+Object* FullObjectSlot::Acquire_Load1() const {
+  return reinterpret_cast<Object*>(
+      base::AsAtomicPointer::Acquire_Load(location()));
 }
 
-void ObjectSlot::Relaxed_Store1(Object* value) const {
-  AsAtomicTagged::Relaxed_Store(location(), value->ptr());
+ObjectPtr FullObjectSlot::Relaxed_Load() const {
+  return ObjectPtr(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
-void ObjectSlot::Release_Store1(Object* value) const {
-  AsAtomicTagged::Release_Store(location(), value->ptr());
+void FullObjectSlot::Relaxed_Store(ObjectPtr value) const {
+  base::AsAtomicPointer::Relaxed_Store(location(), value->ptr());
 }
 
-void ObjectSlot::Release_Store(ObjectPtr value) const {
-  AsAtomicTagged::Release_Store(location(), value->ptr());
+void FullObjectSlot::Relaxed_Store1(Object* value) const {
+  base::AsAtomicPointer::Relaxed_Store(location(), value->ptr());
 }
 
-ObjectPtr ObjectSlot::Release_CompareAndSwap(ObjectPtr old,
-                                             ObjectPtr target) const {
-  Address result = AsAtomicTagged::Release_CompareAndSwap(
+void FullObjectSlot::Release_Store1(Object* value) const {
+  base::AsAtomicPointer::Release_Store(location(), value->ptr());
+}
+
+void FullObjectSlot::Release_Store(ObjectPtr value) const {
+  base::AsAtomicPointer::Release_Store(location(), value->ptr());
+}
+
+ObjectPtr FullObjectSlot::Release_CompareAndSwap(ObjectPtr old,
+                                                 ObjectPtr target) const {
+  Address result = base::AsAtomicPointer::Release_CompareAndSwap(
       location(), old->ptr(), target->ptr());
   return ObjectPtr(result);
 }
 
-MaybeObject MaybeObjectSlot::operator*() const {
+//
+// FullMaybeObjectSlot implementation.
+//
+
+MaybeObject FullMaybeObjectSlot::operator*() const {
   return MaybeObject(*location());
 }
 
-MaybeObject MaybeObjectSlot::load() const { return MaybeObject(*location()); }
+MaybeObject FullMaybeObjectSlot::load() const {
+  return MaybeObject(*location());
+}
 
-void MaybeObjectSlot::store(MaybeObject value) const {
+void FullMaybeObjectSlot::store(MaybeObject value) const {
   *location() = value.ptr();
 }
 
-MaybeObject MaybeObjectSlot::Relaxed_Load() const {
+MaybeObject FullMaybeObjectSlot::Relaxed_Load() const {
   return MaybeObject(AsAtomicTagged::Relaxed_Load(location()));
 }
 
-void MaybeObjectSlot::Relaxed_Store(MaybeObject value) const {
+void FullMaybeObjectSlot::Relaxed_Store(MaybeObject value) const {
   AsAtomicTagged::Relaxed_Store(location(), value->ptr());
 }
 
-void MaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
-                                             MaybeObject target) const {
+void FullMaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
+                                                 MaybeObject target) const {
   AsAtomicTagged::Release_CompareAndSwap(location(), old.ptr(), target.ptr());
 }
 
-HeapObjectReference HeapObjectSlot::operator*() const {
+//
+// FullHeapObjectSlot implementation.
+//
+
+HeapObjectReference FullHeapObjectSlot::operator*() const {
   return HeapObjectReference(*location());
 }
 
-void HeapObjectSlot::store(HeapObjectReference value) const {
+void FullHeapObjectSlot::store(HeapObjectReference value) const {
   *location() = value.ptr();
 }
 
-inline void MemsetPointer(ObjectSlot start, Object* value, size_t counter) {
+//
+// Utils.
+//
+
+inline void MemsetPointer(FullObjectSlot start, Object* value, size_t counter) {
   MemsetPointer(start.location(), reinterpret_cast<Address>(value), counter);
 }
 

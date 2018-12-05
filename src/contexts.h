@@ -17,7 +17,6 @@ class JSGlobalObject;
 class JSGlobalProxy;
 class MicrotaskQueue;
 class NativeContext;
-class ObjectSlot;
 class RegExpMatchInfo;
 
 enum ContextLookupFlags {

@@ -6,6 +6,7 @@
 #define V8_HEAP_HEAP_WRITE_BARRIER_H_
 
 #include "include/v8-internal.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -16,9 +17,7 @@ class Heap;
 class HeapObject;
 class HeapObjectPtr;
 class MaybeObject;
-class MaybeObjectSlot;
 class Object;
-class ObjectSlot;
 class RelocInfo;
 
 // Note: In general it is preferred to use the macros defined in

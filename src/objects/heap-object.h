@@ -136,7 +136,7 @@ class ObjectPtr {
   };
 
  private:
-  friend class ObjectSlot;
+  friend class FullObjectSlot;
   Address ptr_;
 };
 

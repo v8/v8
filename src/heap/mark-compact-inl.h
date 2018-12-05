@@ -213,7 +213,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   if (object.GetHeapObjectIfStrong(&target_object)) {
     collector_->RecordSlot(host, HeapObjectSlot(slot), target_object);
     MarkObject(host, target_object);
-  } else if (TSlot::kCanBeWeek && object.GetHeapObjectIfWeak(&target_object)) {
+  } else if (TSlot::kCanBeWeak && object.GetHeapObjectIfWeak(&target_object)) {
     if (marking_state()->IsBlackOrGrey(target_object)) {
       // Weak references with live values are directly processed here to reduce
       // the processing time of weak cells during the main GC pause.

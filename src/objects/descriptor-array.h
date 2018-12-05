@@ -18,7 +18,6 @@ template <typename T>
 class Handle;
 
 class Isolate;
-class MaybeObjectSlot;
 
 // An EnumCache is a pair used to hold keys and indices caches.
 class EnumCache : public Tuple2 {

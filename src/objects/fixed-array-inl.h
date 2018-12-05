@@ -74,7 +74,7 @@ Object* FixedArrayBase::unchecked_synchronized_length() const {
 ACCESSORS(FixedTypedArrayBase, base_pointer, Object, kBasePointerOffset)
 
 ObjectSlot FixedArray::GetFirstElementAddress() {
-  return ObjectSlot(FIELD_ADDR(this, OffsetOfElementAt(0)));
+  return RawField(OffsetOfElementAt(0));
 }
 
 bool FixedArray::ContainsOnlySmisOrHoles() {

@@ -61,9 +61,7 @@ class SlotSnapshot {
   Object* value(int i) const { return snapshot_[i].second; }
   void clear() { number_of_slots_ = 0; }
   void add(ObjectSlot slot, Object* value) {
-    snapshot_[number_of_slots_].first = slot;
-    snapshot_[number_of_slots_].second = value;
-    ++number_of_slots_;
+    snapshot_[number_of_slots_++] = {slot, value};
   }
 
  private:
@@ -158,7 +156,7 @@ class ConcurrentMarkingVisitor final
         // barrier will treat the weak reference as strong, so we won't miss the
         // weak reference.
         ProcessStrongHeapObject(host, ObjectSlot(slot), heap_object);
-      } else if (TSlot::kCanBeWeek &&
+      } else if (TSlot::kCanBeWeak &&
                  object.GetHeapObjectIfWeak(&heap_object)) {
         ProcessWeakHeapObject(host, HeapObjectSlot(slot), heap_object);
       }
