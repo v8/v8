@@ -22,10 +22,10 @@ namespace typed_array {
   // would try to check this through an assert(Is<>), so the test
   // is bypassed in this specialization.
   UnsafeCast<LoadFn>(implicit context: Context)(o: Object): LoadFn {
-    return %RawCast<LoadFn>(o);
+    return %RawObjectCast<LoadFn>(o);
   }
   UnsafeCast<StoreFn>(implicit context: Context)(o: Object): StoreFn {
-    return %RawCast<StoreFn>(o);
+    return %RawObjectCast<StoreFn>(o);
   }
 
   macro KindForArrayType<T: type>(): constexpr ElementsKind;

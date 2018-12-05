@@ -1810,10 +1810,25 @@ VisitResult ImplementationVisitor::GenerateCall(
       return VisitResult(return_type, assembler().TopRange(slot_count));
     }
   } else if (auto* intrinsic = Intrinsic::DynamicCast(callable)) {
-    assembler().Emit(CallIntrinsicInstruction{intrinsic, constexpr_arguments});
-    size_t return_slot_count =
-        LoweredSlotCount(intrinsic->signature().return_type);
-    return VisitResult(return_type, assembler().TopRange(return_slot_count));
+    if (intrinsic->ExternalName() == "%RawConstexprCast") {
+      if (intrinsic->signature().parameter_types.types.size() != 1 ||
+          constexpr_arguments.size() != 1) {
+        ReportError(
+            "%RawConstexprCast must take a single parameter with constexpr "
+            "type");
+      }
+      std::stringstream result;
+      result << "static_cast<" << return_type->GetGeneratedTypeName() << ">(";
+      result << constexpr_arguments[0];
+      result << ")";
+      return VisitResult(return_type, result.str());
+    } else {
+      assembler().Emit(
+          CallIntrinsicInstruction{intrinsic, constexpr_arguments});
+      size_t return_slot_count =
+          LoweredSlotCount(intrinsic->signature().return_type);
+      return VisitResult(return_type, assembler().TopRange(return_slot_count));
+    }
   } else {
     UNREACHABLE();
   }
@@ -1896,7 +1911,7 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
   if (TypeOracle::IsImplicitlyConvertableFrom(destination_type,
                                               source.type())) {
     return scope.Yield(GenerateCall(kFromConstexprMacroName, {{source}, {}},
-                                    {destination_type}, false));
+                                    {destination_type, source.type()}, false));
   } else if (IsAssignableFrom(destination_type, source.type())) {
     source.SetType(destination_type);
     return scope.Yield(GenerateCopy(source));

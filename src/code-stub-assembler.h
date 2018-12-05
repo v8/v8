@@ -374,9 +374,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #undef HEAP_CONSTANT_TEST
 
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
-  TNode<Smi> LanguageModeConstant(LanguageMode mode) {
-    return SmiConstant(static_cast<int>(mode));
-  }
 
   bool IsIntPtrOrSmiConstantZero(Node* test, ParameterMode mode);
   bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value,
