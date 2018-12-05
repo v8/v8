@@ -248,10 +248,12 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   HeapObject* object = HeapObject::cast(rinfo->target_object());
   collector_->RecordRelocSlot(host, rinfo, object);
-  if (!host->IsWeakObject(object)) {
-    MarkObject(host, object);
-  } else if (!marking_state()->IsBlackOrGrey(object)) {
-    collector_->AddWeakObjectInCode(object, host);
+  if (!marking_state()->IsBlackOrGrey(object)) {
+    if (host->IsWeakObject(object)) {
+      collector_->AddWeakObjectInCode(object, host);
+    } else {
+      MarkObject(host, object);
+    }
   }
 }
 

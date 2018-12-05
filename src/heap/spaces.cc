@@ -2260,7 +2260,7 @@ void NewSpace::ResetLinearAllocationArea() {
   for (Page* p : to_space_) {
     marking_state->ClearLiveness(p);
     // Concurrent marking may have local live bytes for this page.
-    heap()->concurrent_marking()->ClearLiveness(p);
+    heap()->concurrent_marking()->ClearMemoryChunkData(p);
   }
 }
 

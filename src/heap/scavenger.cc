@@ -253,7 +253,7 @@ void ScavengerCollector::CollectGarbage() {
     // going to be unmapped.
     for (Page* p :
          PageRange(heap_->new_space()->from_space().first_page(), nullptr)) {
-      heap_->concurrent_marking()->ClearLiveness(p);
+      heap_->concurrent_marking()->ClearMemoryChunkData(p);
     }
   }
 

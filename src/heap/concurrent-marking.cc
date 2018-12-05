@@ -31,8 +31,8 @@ namespace internal {
 class ConcurrentMarkingState final
     : public MarkingStateBase<ConcurrentMarkingState, AccessMode::ATOMIC> {
  public:
-  explicit ConcurrentMarkingState(LiveBytesMap* live_bytes)
-      : live_bytes_(live_bytes) {}
+  explicit ConcurrentMarkingState(MemoryChunkDataMap* memory_chunk_data)
+      : memory_chunk_data_(memory_chunk_data) {}
 
   Bitmap* bitmap(const MemoryChunk* chunk) {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
@@ -42,14 +42,14 @@ class ConcurrentMarkingState final
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    (*live_bytes_)[chunk] += by;
+    (*memory_chunk_data_)[chunk].live_bytes += by;
   }
 
   // The live_bytes and SetLiveBytes methods of the marking state are
   // not used by the concurrent marker.
 
  private:
-  LiveBytesMap* live_bytes_;
+  MemoryChunkDataMap* memory_chunk_data_;
 };
 
 // Helper class for storing in-object slot addresses and values.
@@ -78,15 +78,16 @@ class ConcurrentMarkingVisitor final
 
   explicit ConcurrentMarkingVisitor(
       ConcurrentMarking::MarkingWorklist* shared,
-      ConcurrentMarking::MarkingWorklist* bailout, LiveBytesMap* live_bytes,
-      WeakObjects* weak_objects,
+      ConcurrentMarking::MarkingWorklist* bailout,
+      MemoryChunkDataMap* memory_chunk_data, WeakObjects* weak_objects,
       ConcurrentMarking::EmbedderTracingWorklist* embedder_objects, int task_id,
       bool embedder_tracing_enabled)
       : shared_(shared, task_id),
         bailout_(bailout, task_id),
         weak_objects_(weak_objects),
         embedder_objects_(embedder_objects, task_id),
-        marking_state_(live_bytes),
+        marking_state_(memory_chunk_data),
+        memory_chunk_data_(memory_chunk_data),
         task_id_(task_id),
         embedder_tracing_enabled_(embedder_tracing_enabled) {}
 
@@ -166,7 +167,28 @@ class ConcurrentMarkingVisitor final
   // Weak list pointers should be ignored during marking. The lists are
   // reconstructed after GC.
   void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
-                               ObjectSlot end) override {}
+                               ObjectSlot end) final {}
+
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
+    DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+    HeapObject* object = HeapObject::cast(rinfo->target_object());
+    RecordRelocSlot(host, rinfo, object);
+    if (!marking_state_.IsBlackOrGrey(object)) {
+      if (host->IsWeakObject(object)) {
+        weak_objects_->weak_objects_in_code.Push(task_id_,
+                                                 std::make_pair(object, host));
+      } else {
+        MarkObject(object);
+      }
+    }
+  }
+
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
+    DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    RecordRelocSlot(host, rinfo, target);
+    MarkObject(target);
+  }
 
   void VisitPointersInSnapshot(HeapObject* host, const SlotSnapshot& snapshot) {
     for (int i = 0; i < snapshot.number_of_slots(); i++) {
@@ -285,15 +307,6 @@ class ConcurrentMarkingVisitor final
 
   int VisitFixedDoubleArray(Map map, FixedDoubleArray object) {
     return VisitLeftTrimmableArray(map, object);
-  }
-
-  // ===========================================================================
-  // Code object ===============================================================
-  // ===========================================================================
-
-  int VisitCode(Map map, Code object) {
-    bailout_.Push(object);
-    return 0;
   }
 
   // ===========================================================================
@@ -491,11 +504,24 @@ class ConcurrentMarkingVisitor final
     return slot_snapshot_;
   }
 
+  void RecordRelocSlot(Code host, RelocInfo* rinfo, Object* target) {
+    auto info =
+        MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
+    if (info.should_record) {
+      MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
+      if (!data.typed_slots) {
+        data.typed_slots.reset(new TypedSlots());
+      }
+      data.typed_slots->Insert(info.slot_type, info.host_offset, info.offset);
+    }
+  }
+
   ConcurrentMarking::MarkingWorklist::View shared_;
   ConcurrentMarking::MarkingWorklist::View bailout_;
   WeakObjects* weak_objects_;
   ConcurrentMarking::EmbedderTracingWorklist::View embedder_objects_;
   ConcurrentMarkingState marking_state_;
+  MemoryChunkDataMap* memory_chunk_data_;
   int task_id_;
   SlotSnapshot slot_snapshot_;
   bool embedder_tracing_enabled_;
@@ -580,7 +606,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   ConcurrentMarkingVisitor visitor(
-      shared_, bailout_, &task_state->live_bytes, weak_objects_,
+      shared_, bailout_, &task_state->memory_chunk_data, weak_objects_,
       embedder_objects_, task_id, heap_->local_embedder_heap_tracer()->InUse());
   double time_ms;
   size_t marked_bytes = 0;
@@ -658,6 +684,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     weak_objects_->discovered_ephemerons.FlushToGlobal(task_id);
     weak_objects_->weak_references.FlushToGlobal(task_id);
     weak_objects_->js_weak_cells.FlushToGlobal(task_id);
+    weak_objects_->weak_objects_in_code.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
 
@@ -769,28 +796,36 @@ bool ConcurrentMarking::IsStopped() {
   return pending_task_count_ == 0;
 }
 
-void ConcurrentMarking::FlushLiveBytes(
+void ConcurrentMarking::FlushMemoryChunkData(
     MajorNonAtomicMarkingState* marking_state) {
   DCHECK_EQ(pending_task_count_, 0);
   for (int i = 1; i <= task_count_; i++) {
-    LiveBytesMap& live_bytes = task_state_[i].live_bytes;
-    for (auto pair : live_bytes) {
+    MemoryChunkDataMap& memory_chunk_data = task_state_[i].memory_chunk_data;
+    for (auto& pair : memory_chunk_data) {
       // ClearLiveness sets the live bytes to zero.
       // Pages with zero live bytes might be already unmapped.
-      if (pair.second != 0) {
-        marking_state->IncrementLiveBytes(pair.first, pair.second);
+      MemoryChunk* memory_chunk = pair.first;
+      MemoryChunkData& data = pair.second;
+      if (data.live_bytes) {
+        marking_state->IncrementLiveBytes(memory_chunk, data.live_bytes);
+      }
+      if (data.typed_slots) {
+        RememberedSet<OLD_TO_OLD>::MergeTyped(memory_chunk,
+                                              std::move(data.typed_slots));
       }
     }
-    live_bytes.clear();
+    memory_chunk_data.clear();
     task_state_[i].marked_bytes = 0;
   }
   total_marked_bytes_ = 0;
 }
 
-void ConcurrentMarking::ClearLiveness(MemoryChunk* chunk) {
+void ConcurrentMarking::ClearMemoryChunkData(MemoryChunk* chunk) {
   for (int i = 1; i <= task_count_; i++) {
-    if (task_state_[i].live_bytes.count(chunk)) {
-      task_state_[i].live_bytes[chunk] = 0;
+    auto it = task_state_[i].memory_chunk_data.find(chunk);
+    if (it != task_state_[i].memory_chunk_data.end()) {
+      it->second.live_bytes = 0;
+      it->second.typed_slots.reset();
     }
   }
 }

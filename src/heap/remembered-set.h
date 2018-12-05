@@ -190,21 +190,22 @@ class RememberedSet : public AllStatic {
 
   // Given a page and a typed slot in that page, this function adds the slot
   // to the remembered set.
-  static void InsertTyped(Page* page, Address host_addr, SlotType slot_type,
-                          Address slot_addr) {
+  static void InsertTyped(MemoryChunk* memory_chunk, SlotType slot_type,
+                          uint32_t host_offset, uint32_t offset) {
+    TypedSlotSet* slot_set = memory_chunk->typed_slot_set<type>();
+    if (slot_set == nullptr) {
+      slot_set = memory_chunk->AllocateTypedSlotSet<type>();
+    }
+    slot_set->Insert(slot_type, static_cast<uint32_t>(host_offset),
+                     static_cast<uint32_t>(offset));
+  }
+
+  static void MergeTyped(MemoryChunk* page, std::unique_ptr<TypedSlots> slots) {
     TypedSlotSet* slot_set = page->typed_slot_set<type>();
     if (slot_set == nullptr) {
       slot_set = page->AllocateTypedSlotSet<type>();
     }
-    if (host_addr == kNullAddress) {
-      host_addr = page->address();
-    }
-    uintptr_t offset = slot_addr - page->address();
-    uintptr_t host_offset = host_addr - page->address();
-    DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-    DCHECK_LT(host_offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-    slot_set->Insert(slot_type, static_cast<uint32_t>(host_offset),
-                     static_cast<uint32_t>(offset));
+    slot_set->Merge(slots.get());
   }
 
   // Given a page and a range of typed slots in that page, this function removes

@@ -5615,8 +5615,14 @@ void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
       slot_type = OBJECT_SLOT;
     }
   }
-  RememberedSet<OLD_TO_NEW>::InsertTyped(source_page, host.ptr(), slot_type,
-                                         addr);
+  Address host_addr = host.ptr();
+  uintptr_t offset = addr - source_page->address();
+  uintptr_t host_offset = host_addr - source_page->address();
+  DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+  DCHECK_LT(host_offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+  RememberedSet<OLD_TO_NEW>::InsertTyped(source_page, slot_type,
+                                         static_cast<uint32_t>(host_offset),
+                                         static_cast<uint32_t>(offset));
 }
 
 void Heap::MarkingBarrierSlow(HeapObject* object, Address slot,

@@ -796,7 +796,8 @@ void MarkCompactCollector::FinishConcurrentMarking(
   // marking. It is safe to call this function when tasks are already finished.
   if (FLAG_parallel_marking || FLAG_concurrent_marking) {
     heap()->concurrent_marking()->Stop(stop_request);
-    heap()->concurrent_marking()->FlushLiveBytes(non_atomic_marking_state());
+    heap()->concurrent_marking()->FlushMemoryChunkData(
+        non_atomic_marking_state());
   }
 }
 
@@ -2182,8 +2183,11 @@ bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {
   return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
 }
 
-void MarkCompactCollector::RecordRelocSlot(Code host, RelocInfo* rinfo,
-                                           Object* target) {
+MarkCompactCollector::RecordRelocSlotInfo
+MarkCompactCollector::PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
+                                             Object* target) {
+  RecordRelocSlotInfo result;
+  result.should_record = false;
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
   Page* source_page = Page::FromAddress(host.ptr());
   if (target_page->IsEvacuationCandidate() &&
@@ -2201,8 +2205,26 @@ void MarkCompactCollector::RecordRelocSlot(Code host, RelocInfo* rinfo,
         slot_type = OBJECT_SLOT;
       }
     }
-    RememberedSet<OLD_TO_OLD>::InsertTyped(source_page, host.ptr(), slot_type,
-                                           addr);
+    Address host_addr = host.ptr();
+    uintptr_t offset = addr - source_page->address();
+    uintptr_t host_offset = host_addr - source_page->address();
+    DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+    DCHECK_LT(host_offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+    result.should_record = true;
+    result.memory_chunk = source_page;
+    result.slot_type = slot_type;
+    result.host_offset = static_cast<uint32_t>(host_offset);
+    result.offset = static_cast<uint32_t>(offset);
+  }
+  return result;
+}
+
+void MarkCompactCollector::RecordRelocSlot(Code host, RelocInfo* rinfo,
+                                           Object* target) {
+  auto info = PrepareRecordRelocSlot(host, rinfo, target);
+  if (info.should_record) {
+    RememberedSet<OLD_TO_OLD>::InsertTyped(info.memory_chunk, info.slot_type,
+                                           info.host_offset, info.offset);
   }
 }
 
@@ -3931,7 +3953,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
       if (FLAG_concurrent_marking) {
         // Ensure that concurrent marker does not track pages that are
         // going to be unmapped.
-        heap()->concurrent_marking()->ClearLiveness(p);
+        heap()->concurrent_marking()->ClearMemoryChunkData(p);
       }
     }
   }
