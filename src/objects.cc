@@ -16530,7 +16530,8 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
     Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(task);
     reactions = handle(reaction->next(), isolate);
 
-    STATIC_ASSERT(PromiseReaction::kSize == PromiseReactionJobTask::kSize);
+    STATIC_ASSERT(static_cast<int>(PromiseReaction::kSize) ==
+                  static_cast<int>(PromiseReactionJobTask::kSize));
     if (type == PromiseReaction::kFulfill) {
       task->synchronized_set_map(
           ReadOnlyRoots(isolate).promise_fulfill_reaction_job_task_map());
@@ -16538,10 +16539,13 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
           *argument);
       Handle<PromiseFulfillReactionJobTask>::cast(task)->set_context(
           *isolate->native_context());
-      STATIC_ASSERT(PromiseReaction::kFulfillHandlerOffset ==
-                    PromiseFulfillReactionJobTask::kHandlerOffset);
-      STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
-                    PromiseFulfillReactionJobTask::kPromiseOrCapabilityOffset);
+      STATIC_ASSERT(
+          static_cast<int>(PromiseReaction::kFulfillHandlerOffset) ==
+          static_cast<int>(PromiseFulfillReactionJobTask::kHandlerOffset));
+      STATIC_ASSERT(
+          static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
+          static_cast<int>(
+              PromiseFulfillReactionJobTask::kPromiseOrCapabilityOffset));
     } else {
       DisallowHeapAllocation no_gc;
       HeapObject* handler = reaction->reject_handler();
@@ -16551,8 +16555,10 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
       Handle<PromiseRejectReactionJobTask>::cast(task)->set_context(
           *isolate->native_context());
       Handle<PromiseRejectReactionJobTask>::cast(task)->set_handler(handler);
-      STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
-                    PromiseRejectReactionJobTask::kPromiseOrCapabilityOffset);
+      STATIC_ASSERT(
+          static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
+          static_cast<int>(
+              PromiseRejectReactionJobTask::kPromiseOrCapabilityOffset));
     }
 
     isolate->EnqueueMicrotask(Handle<PromiseReactionJobTask>::cast(task));

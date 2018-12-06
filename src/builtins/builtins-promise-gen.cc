@@ -505,7 +505,8 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
       // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
       // and schedule that on the microtask queue. We try to minimize the number
       // of stores here to avoid screwing up the store buffer.
-      STATIC_ASSERT(PromiseReaction::kSize == PromiseReactionJobTask::kSize);
+      STATIC_ASSERT(static_cast<int>(PromiseReaction::kSize) ==
+                    static_cast<int>(PromiseReactionJobTask::kSize));
       if (type == PromiseReaction::kFulfill) {
         StoreMapNoWriteBarrier(current,
                                RootIndex::kPromiseFulfillReactionJobTaskMap);
@@ -513,10 +514,13 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
                          argument);
         StoreObjectField(current, PromiseReactionJobTask::kContextOffset,
                          context);
-        STATIC_ASSERT(PromiseReaction::kFulfillHandlerOffset ==
-                      PromiseReactionJobTask::kHandlerOffset);
-        STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
-                      PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+        STATIC_ASSERT(
+            static_cast<int>(PromiseReaction::kFulfillHandlerOffset) ==
+            static_cast<int>(PromiseReactionJobTask::kHandlerOffset));
+        STATIC_ASSERT(
+            static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
+            static_cast<int>(
+                PromiseReactionJobTask::kPromiseOrCapabilityOffset));
       } else {
         Node* handler =
             LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
@@ -528,8 +532,10 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
                          context);
         StoreObjectField(current, PromiseReactionJobTask::kHandlerOffset,
                          handler);
-        STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
-                      PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+        STATIC_ASSERT(
+            static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
+            static_cast<int>(
+                PromiseReactionJobTask::kPromiseOrCapabilityOffset));
       }
       CallBuiltin(Builtins::kEnqueueMicrotask, context, current);
       Goto(&loop);

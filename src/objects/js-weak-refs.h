@@ -51,13 +51,19 @@ class JSWeakFactory : public JSObject {
   // calls the user's cleanup function.
   static void Cleanup(Handle<JSWeakFactory> weak_factory, Isolate* isolate);
 
-  static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kCleanupOffset = kNativeContextOffset + kPointerSize;
-  static const int kActiveCellsOffset = kCleanupOffset + kPointerSize;
-  static const int kClearedCellsOffset = kActiveCellsOffset + kPointerSize;
-  static const int kNextOffset = kClearedCellsOffset + kPointerSize;
-  static const int kFlagsOffset = kNextOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+// Layout description.
+#define JS_WEAK_FACTORY_FIELDS(V)      \
+  V(kNativeContextOffset, kTaggedSize) \
+  V(kCleanupOffset, kTaggedSize)       \
+  V(kActiveCellsOffset, kTaggedSize)   \
+  V(kClearedCellsOffset, kTaggedSize)  \
+  V(kNextOffset, kTaggedSize)          \
+  V(kFlagsOffset, kTaggedSize)         \
+  /* Header size. */                   \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_WEAK_FACTORY_FIELDS)
+#undef JS_WEAK_FACTORY_FIELDS
 
   // Bitfields in flags.
   class ScheduledForCleanupField : public BitField<bool, 0, 1> {};
@@ -81,12 +87,18 @@ class JSWeakCell : public JSObject {
   DECL_ACCESSORS(prev, Object)
   DECL_ACCESSORS(next, Object)
 
-  static const int kFactoryOffset = JSObject::kHeaderSize;
-  static const int kTargetOffset = kFactoryOffset + kPointerSize;
-  static const int kHoldingsOffset = kTargetOffset + kPointerSize;
-  static const int kPrevOffset = kHoldingsOffset + kPointerSize;
-  static const int kNextOffset = kPrevOffset + kPointerSize;
-  static const int kSize = kNextOffset + kPointerSize;
+// Layout description.
+#define JS_WEAK_CELL_FIELDS(V)    \
+  V(kFactoryOffset, kTaggedSize)  \
+  V(kTargetOffset, kTaggedSize)   \
+  V(kHoldingsOffset, kTaggedSize) \
+  V(kPrevOffset, kTaggedSize)     \
+  V(kNextOffset, kTaggedSize)     \
+  /* Header size. */              \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_WEAK_CELL_FIELDS)
+#undef JS_WEAK_CELL_FIELDS
 
   class BodyDescriptor;
 
@@ -120,8 +132,15 @@ class WeakFactoryCleanupJobTask : public Microtask {
   DECL_VERIFIER(WeakFactoryCleanupJobTask)
   DECL_PRINTER(WeakFactoryCleanupJobTask)
 
-  static const int kFactoryOffset = Microtask::kHeaderSize;
-  static const int kSize = kFactoryOffset + kPointerSize;
+// Layout description.
+#define WEAK_FACTORY_CLEANUP_JOB_TASK_FIELDS(V) \
+  V(kFactoryOffset, kTaggedSize)                \
+  /* Total size. */                             \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
+                                WEAK_FACTORY_CLEANUP_JOB_TASK_FIELDS)
+#undef WEAK_FACTORY_CLEANUP_JOB_TASK_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFactoryCleanupJobTask);
@@ -135,8 +154,15 @@ class JSWeakFactoryCleanupIterator : public JSObject {
 
   DECL_ACCESSORS(factory, JSWeakFactory)
 
-  static const int kFactoryOffset = JSObject::kHeaderSize;
-  static const int kSize = kFactoryOffset + kPointerSize;
+// Layout description.
+#define JS_WEAK_FACTORY_CLEANUP_ITERATOR_FIELDS(V) \
+  V(kFactoryOffset, kTaggedSize)                   \
+  /* Header size. */                               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_WEAK_FACTORY_CLEANUP_ITERATOR_FIELDS)
+#undef JS_WEAK_FACTORY_CLEANUP_ITERATOR_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakFactoryCleanupIterator);

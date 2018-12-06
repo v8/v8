@@ -187,26 +187,28 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   DECL_PRINTER(Script)
   DECL_VERIFIER(Script)
 
-  static const int kSourceOffset = HeapObject::kHeaderSize;
-  static const int kNameOffset = kSourceOffset + kPointerSize;
-  static const int kLineOffsetOffset = kNameOffset + kPointerSize;
-  static const int kColumnOffsetOffset = kLineOffsetOffset + kPointerSize;
-  static const int kContextOffset = kColumnOffsetOffset + kPointerSize;
-  static const int kTypeOffset = kContextOffset + kPointerSize;
-  static const int kLineEndsOffset = kTypeOffset + kPointerSize;
-  static const int kIdOffset = kLineEndsOffset + kPointerSize;
-  static const int kEvalFromSharedOrWrappedArgumentsOffset =
-      kIdOffset + kPointerSize;
-  static const int kEvalFromPositionOffset =
-      kEvalFromSharedOrWrappedArgumentsOffset + kPointerSize;
-  static const int kSharedFunctionInfosOffset =
-      kEvalFromPositionOffset + kPointerSize;
-  static const int kFlagsOffset = kSharedFunctionInfosOffset + kPointerSize;
-  static const int kSourceUrlOffset = kFlagsOffset + kPointerSize;
-  static const int kSourceMappingUrlOffset = kSourceUrlOffset + kPointerSize;
-  static const int kHostDefinedOptionsOffset =
-      kSourceMappingUrlOffset + kPointerSize;
-  static const int kSize = kHostDefinedOptionsOffset + kPointerSize;
+// Layout description.
+#define SCRIPTS_FIELDS(V)                                 \
+  V(kSourceOffset, kTaggedSize)                           \
+  V(kNameOffset, kTaggedSize)                             \
+  V(kLineOffsetOffset, kTaggedSize)                       \
+  V(kColumnOffsetOffset, kTaggedSize)                     \
+  V(kContextOffset, kTaggedSize)                          \
+  V(kTypeOffset, kTaggedSize)                             \
+  V(kLineEndsOffset, kTaggedSize)                         \
+  V(kIdOffset, kTaggedSize)                               \
+  V(kEvalFromSharedOrWrappedArgumentsOffset, kTaggedSize) \
+  V(kEvalFromPositionOffset, kTaggedSize)                 \
+  V(kSharedFunctionInfosOffset, kTaggedSize)              \
+  V(kFlagsOffset, kTaggedSize)                            \
+  V(kSourceUrlOffset, kTaggedSize)                        \
+  V(kSourceMappingUrlOffset, kTaggedSize)                 \
+  V(kHostDefinedOptionsOffset, kTaggedSize)               \
+  /* Total size. */                                       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, SCRIPTS_FIELDS)
+#undef SCRIPTS_FIELDS
 
  private:
   // Bit positions in the flags field.

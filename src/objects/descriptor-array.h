@@ -205,7 +205,7 @@ class DescriptorArray : public HeapObjectPtr {
   DECL_INT16_ACCESSORS(filler16bits)
   // Low-level per-element accessors.
   static constexpr int offset(int index) {
-    return kHeaderSize + index * kPointerSize;
+    return kHeaderSize + index * kTaggedSize;
   }
   inline int length() const;
   inline MaybeObject get(int index) const;

@@ -52,14 +52,19 @@ class PrototypeInfo : public Struct {
   DECL_PRINTER(PrototypeInfo)
   DECL_VERIFIER(PrototypeInfo)
 
-  static const int kJSModuleNamespaceOffset = HeapObject::kHeaderSize;
-  static const int kPrototypeUsersOffset =
-      kJSModuleNamespaceOffset + kPointerSize;
-  static const int kRegistrySlotOffset = kPrototypeUsersOffset + kPointerSize;
-  static const int kValidityCellOffset = kRegistrySlotOffset + kPointerSize;
-  static const int kObjectCreateMapOffset = kValidityCellOffset + kPointerSize;
-  static const int kBitFieldOffset = kObjectCreateMapOffset + kPointerSize;
-  static const int kSize = kBitFieldOffset + kPointerSize;
+// Layout description.
+#define PROTOTYPE_INFO_FIELDS(V)           \
+  V(kJSModuleNamespaceOffset, kTaggedSize) \
+  V(kPrototypeUsersOffset, kTaggedSize)    \
+  V(kRegistrySlotOffset, kTaggedSize)      \
+  V(kValidityCellOffset, kTaggedSize)      \
+  V(kObjectCreateMapOffset, kTaggedSize)   \
+  V(kBitFieldOffset, kTaggedSize)          \
+  /* Total size. */                        \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PROTOTYPE_INFO_FIELDS)
+#undef PROTOTYPE_INFO_FIELDS
 
   // Bit field usage.
   static const int kShouldBeFastBit = 0;

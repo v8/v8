@@ -2745,7 +2745,8 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
   DCHECK_EQ(additional_offset % kPointerSize, 0);
-  STATIC_ASSERT(FixedArray::kHeaderSize == PropertyArray::kHeaderSize);
+  STATIC_ASSERT(static_cast<int>(FixedArray::kHeaderSize) ==
+                static_cast<int>(PropertyArray::kHeaderSize));
   int header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
@@ -13401,7 +13402,8 @@ void CodeStubAssembler::CheckPrototypeEnumCache(Node* receiver,
     // The following relies on the elements only aliasing with JSProxy::target,
     // which is a Javascript value and hence cannot be confused with an elements
     // backing store.
-    STATIC_ASSERT(JSObject::kElementsOffset == JSProxy::kTargetOffset);
+    STATIC_ASSERT(static_cast<int>(JSObject::kElementsOffset) ==
+                  static_cast<int>(JSProxy::kTargetOffset));
     Node* object_elements = LoadObjectField(object, JSObject::kElementsOffset);
     GotoIf(IsEmptyFixedArray(object_elements), &if_no_elements);
     GotoIf(IsEmptySlowElementDictionary(object_elements), &if_no_elements);

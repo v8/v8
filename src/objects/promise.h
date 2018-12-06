@@ -33,11 +33,18 @@ class PromiseReactionJobTask : public Microtask {
   // a PromiseCapability (general case), or undefined (in case of await).
   DECL_ACCESSORS(promise_or_capability, HeapObject)
 
-  static const int kArgumentOffset = Microtask::kHeaderSize;
-  static const int kContextOffset = kArgumentOffset + kPointerSize;
-  static const int kHandlerOffset = kContextOffset + kPointerSize;
-  static const int kPromiseOrCapabilityOffset = kHandlerOffset + kPointerSize;
-  static const int kSize = kPromiseOrCapabilityOffset + kPointerSize;
+// Layout description.
+#define PROMISE_REACTION_JOB_FIELDS(V)       \
+  V(kArgumentOffset, kTaggedSize)            \
+  V(kContextOffset, kTaggedSize)             \
+  V(kHandlerOffset, kTaggedSize)             \
+  V(kPromiseOrCapabilityOffset, kTaggedSize) \
+  /* Total size. */                          \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
+                                PROMISE_REACTION_JOB_FIELDS)
+#undef PROMISE_REACTION_JOB_FIELDS
 
   // Dispatched behavior.
   DECL_CAST(PromiseReactionJobTask)
@@ -79,11 +86,18 @@ class PromiseResolveThenableJobTask : public Microtask {
   DECL_ACCESSORS(then, JSReceiver)
   DECL_ACCESSORS(thenable, JSReceiver)
 
-  static const int kContextOffset = Microtask::kHeaderSize;
-  static const int kPromiseToResolveOffset = kContextOffset + kPointerSize;
-  static const int kThenOffset = kPromiseToResolveOffset + kPointerSize;
-  static const int kThenableOffset = kThenOffset + kPointerSize;
-  static const int kSize = kThenableOffset + kPointerSize;
+// Layout description.
+#define PROMISE_RESOLVE_THENABLE_JOB_FIELDS(V) \
+  V(kContextOffset, kTaggedSize)               \
+  V(kPromiseToResolveOffset, kTaggedSize)      \
+  V(kThenOffset, kTaggedSize)                  \
+  V(kThenableOffset, kTaggedSize)              \
+  /* Total size. */                            \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
+                                PROMISE_RESOLVE_THENABLE_JOB_FIELDS)
+#undef PROMISE_RESOLVE_THENABLE_JOB_FIELDS
 
   // Dispatched behavior.
   DECL_CAST(PromiseResolveThenableJobTask)
@@ -101,10 +115,16 @@ class PromiseCapability : public Struct {
   DECL_ACCESSORS(resolve, Object)
   DECL_ACCESSORS(reject, Object)
 
-  static const int kPromiseOffset = Struct::kHeaderSize;
-  static const int kResolveOffset = kPromiseOffset + kPointerSize;
-  static const int kRejectOffset = kResolveOffset + kPointerSize;
-  static const int kSize = kRejectOffset + kPointerSize;
+// Layout description.
+#define PROMISE_CAPABILITY_FIELDS(V) \
+  V(kPromiseOffset, kTaggedSize)     \
+  V(kResolveOffset, kTaggedSize)     \
+  V(kRejectOffset, kTaggedSize)      \
+  /* Total size. */                  \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, PROMISE_CAPABILITY_FIELDS)
+#undef PROMISE_CAPABILITY_FIELDS
 
   // Dispatched behavior.
   DECL_CAST(PromiseCapability)
@@ -143,12 +163,17 @@ class PromiseReaction : public Struct {
   // a PromiseCapability (general case), or undefined (in case of await).
   DECL_ACCESSORS(promise_or_capability, HeapObject)
 
-  static const int kNextOffset = Struct::kHeaderSize;
-  static const int kRejectHandlerOffset = kNextOffset + kPointerSize;
-  static const int kFulfillHandlerOffset = kRejectHandlerOffset + kPointerSize;
-  static const int kPromiseOrCapabilityOffset =
-      kFulfillHandlerOffset + kPointerSize;
-  static const int kSize = kPromiseOrCapabilityOffset + kPointerSize;
+// Layout description.
+#define PROMISE_REACTION_FIELDS(V)           \
+  V(kNextOffset, kTaggedSize)                \
+  V(kRejectHandlerOffset, kTaggedSize)       \
+  V(kFulfillHandlerOffset, kTaggedSize)      \
+  V(kPromiseOrCapabilityOffset, kTaggedSize) \
+  /* Total size. */                          \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, PROMISE_REACTION_FIELDS)
+#undef PROMISE_REACTION_FIELDS
 
   // Dispatched behavior.
   DECL_CAST(PromiseReaction)

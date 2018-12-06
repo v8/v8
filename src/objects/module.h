@@ -123,21 +123,26 @@ class Module : public Struct, public NeverReadOnlySpaceObject {
   static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,
                                                       Handle<Module> module);
 
-  static const int kCodeOffset = HeapObject::kHeaderSize;
-  static const int kExportsOffset = kCodeOffset + kPointerSize;
-  static const int kRegularExportsOffset = kExportsOffset + kPointerSize;
-  static const int kRegularImportsOffset = kRegularExportsOffset + kPointerSize;
-  static const int kHashOffset = kRegularImportsOffset + kPointerSize;
-  static const int kModuleNamespaceOffset = kHashOffset + kPointerSize;
-  static const int kRequestedModulesOffset =
-      kModuleNamespaceOffset + kPointerSize;
-  static const int kStatusOffset = kRequestedModulesOffset + kPointerSize;
-  static const int kDfsIndexOffset = kStatusOffset + kPointerSize;
-  static const int kDfsAncestorIndexOffset = kDfsIndexOffset + kPointerSize;
-  static const int kExceptionOffset = kDfsAncestorIndexOffset + kPointerSize;
-  static const int kScriptOffset = kExceptionOffset + kPointerSize;
-  static const int kImportMetaOffset = kScriptOffset + kPointerSize;
-  static const int kSize = kImportMetaOffset + kPointerSize;
+// Layout description.
+#define MODULE_FIELDS(V)                  \
+  V(kCodeOffset, kTaggedSize)             \
+  V(kExportsOffset, kTaggedSize)          \
+  V(kRegularExportsOffset, kTaggedSize)   \
+  V(kRegularImportsOffset, kTaggedSize)   \
+  V(kHashOffset, kTaggedSize)             \
+  V(kModuleNamespaceOffset, kTaggedSize)  \
+  V(kRequestedModulesOffset, kTaggedSize) \
+  V(kStatusOffset, kTaggedSize)           \
+  V(kDfsIndexOffset, kTaggedSize)         \
+  V(kDfsAncestorIndexOffset, kTaggedSize) \
+  V(kExceptionOffset, kTaggedSize)        \
+  V(kScriptOffset, kTaggedSize)           \
+  V(kImportMetaOffset, kTaggedSize)       \
+  /* Total size. */                       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, MODULE_FIELDS)
+#undef MODULE_FIELDS
 
  private:
   friend class Factory;
@@ -243,10 +248,18 @@ class JSModuleNamespace : public JSObject {
     kInObjectFieldCount,
   };
 
-  static const int kModuleOffset = JSObject::kHeaderSize;
-  static const int kHeaderSize = kModuleOffset + kPointerSize;
+// Layout description.
+#define JS_MODULE_NAMESPACE_FIELDS(V)                        \
+  V(kModuleOffset, kTaggedSize)                              \
+  /* Header size. */                                         \
+  V(kHeaderSize, 0)                                          \
+  V(kInObjectFieldsOffset, kTaggedSize* kInObjectFieldCount) \
+  /* Total size. */                                          \
+  V(kSize, 0)
 
-  static const int kSize = kHeaderSize + kPointerSize * kInObjectFieldCount;
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_MODULE_NAMESPACE_FIELDS)
+#undef JS_MODULE_NAMESPACE_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSModuleNamespace);
@@ -319,14 +332,20 @@ class ModuleInfoEntry : public Struct {
                                      int module_request, int cell_index,
                                      int beg_pos, int end_pos);
 
-  static const int kExportNameOffset = HeapObject::kHeaderSize;
-  static const int kLocalNameOffset = kExportNameOffset + kPointerSize;
-  static const int kImportNameOffset = kLocalNameOffset + kPointerSize;
-  static const int kModuleRequestOffset = kImportNameOffset + kPointerSize;
-  static const int kCellIndexOffset = kModuleRequestOffset + kPointerSize;
-  static const int kBegPosOffset = kCellIndexOffset + kPointerSize;
-  static const int kEndPosOffset = kBegPosOffset + kPointerSize;
-  static const int kSize = kEndPosOffset + kPointerSize;
+// Layout description.
+#define MODULE_INFO_FIELDS(V)          \
+  V(kExportNameOffset, kTaggedSize)    \
+  V(kLocalNameOffset, kTaggedSize)     \
+  V(kImportNameOffset, kTaggedSize)    \
+  V(kModuleRequestOffset, kTaggedSize) \
+  V(kCellIndexOffset, kTaggedSize)     \
+  V(kBegPosOffset, kTaggedSize)        \
+  V(kEndPosOffset, kTaggedSize)        \
+  /* Total size. */                    \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, MODULE_INFO_FIELDS)
+#undef MODULE_INFO_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfoEntry);

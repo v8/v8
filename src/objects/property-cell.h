@@ -56,12 +56,17 @@ class PropertyCell : public HeapObject {
   DECL_PRINTER(PropertyCell)
   DECL_VERIFIER(PropertyCell)
 
-  // Layout description.
-  static const int kDetailsOffset = HeapObject::kHeaderSize;
-  static const int kNameOffset = kDetailsOffset + kPointerSize;
-  static const int kValueOffset = kNameOffset + kPointerSize;
-  static const int kDependentCodeOffset = kValueOffset + kPointerSize;
-  static const int kSize = kDependentCodeOffset + kPointerSize;
+// Layout description.
+#define PROPERTY_CELL_FIELDS(V)        \
+  V(kDetailsOffset, kTaggedSize)       \
+  V(kNameOffset, kTaggedSize)          \
+  V(kValueOffset, kTaggedSize)         \
+  V(kDependentCodeOffset, kTaggedSize) \
+  /* Total size. */                    \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PROPERTY_CELL_FIELDS)
+#undef PROPERTY_CELL_FIELDS
 
   typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
 

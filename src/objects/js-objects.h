@@ -254,9 +254,14 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   static const int kHashMask = PropertyArray::HashField::kMask;
 
-  // Layout description.
-  static const int kPropertiesOrHashOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = HeapObject::kHeaderSize + kPointerSize;
+// Layout description.
+#define JS_RECEIVER_FIELDS(V)             \
+  V(kPropertiesOrHashOffset, kTaggedSize) \
+  /* Header size. */                      \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, JS_RECEIVER_FIELDS)
+#undef JS_RECEIVER_FIELDS
 
   bool HasProxyInPrototype(Isolate* isolate);
 
@@ -727,7 +732,7 @@ class JSObject : public JSReceiver {
   // not to arbitrary other JSObject maps.
   static const int kInitialGlobalObjectUnusedPropertiesCount = 4;
 
-  static const int kMaxInstanceSize = 255 * kPointerSize;
+  static const int kMaxInstanceSize = 255 * kTaggedSize;
 
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
@@ -736,18 +741,23 @@ class JSObject : public JSReceiver {
   STATIC_ASSERT(kMaxNumberOfDescriptors + kFieldsAdded <=
                 PropertyArray::kMaxLength);
 
-  // Layout description.
-  static const int kElementsOffset = JSReceiver::kHeaderSize;
-  static const int kHeaderSize = kElementsOffset + kPointerSize;
+// Layout description.
+#define JS_OBJECT_FIELDS(V)       \
+  V(kElementsOffset, kTaggedSize) \
+  /* Header size. */              \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize, JS_OBJECT_FIELDS)
+#undef JS_OBJECT_FIELDS
 
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
   static const int kMaxInObjectProperties =
-      (kMaxInstanceSize - kHeaderSize) >> kPointerSizeLog2;
+      (kMaxInstanceSize - kHeaderSize) >> kTaggedSizeLog2;
   STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
   // TODO(cbruni): Revisit calculation of the max supported embedder fields.
   static const int kMaxEmbedderFields =
       (((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
-       kPointerSizeLog2) /
+       kTaggedSizeLog2) /
       kEmbedderDataSlotSizeInTaggedSlots;
   STATIC_ASSERT(kMaxEmbedderFields <= kMaxInObjectProperties);
 
@@ -793,12 +803,19 @@ class JSObject : public JSReceiver {
 // FromPropertyDescriptor function for regular accessor properties.
 class JSAccessorPropertyDescriptor : public JSObject {
  public:
-  // Offsets of object fields.
-  static const int kGetOffset = JSObject::kHeaderSize;
-  static const int kSetOffset = kGetOffset + kPointerSize;
-  static const int kEnumerableOffset = kSetOffset + kPointerSize;
-  static const int kConfigurableOffset = kEnumerableOffset + kPointerSize;
-  static const int kSize = kConfigurableOffset + kPointerSize;
+  // Layout description.
+#define JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS(V) \
+  V(kGetOffset, kTaggedSize)                      \
+  V(kSetOffset, kTaggedSize)                      \
+  V(kEnumerableOffset, kTaggedSize)               \
+  V(kConfigurableOffset, kTaggedSize)             \
+  /* Total size. */                               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
+#undef JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS
+
   // Indices of in-object properties.
   static const int kGetIndex = 0;
   static const int kSetIndex = 1;
@@ -815,12 +832,19 @@ class JSAccessorPropertyDescriptor : public JSObject {
 // FromPropertyDescriptor function for regular data properties.
 class JSDataPropertyDescriptor : public JSObject {
  public:
-  // Offsets of object fields.
-  static const int kValueOffset = JSObject::kHeaderSize;
-  static const int kWritableOffset = kValueOffset + kPointerSize;
-  static const int kEnumerableOffset = kWritableOffset + kPointerSize;
-  static const int kConfigurableOffset = kEnumerableOffset + kPointerSize;
-  static const int kSize = kConfigurableOffset + kPointerSize;
+  // Layout description.
+#define JS_DATA_PROPERTY_DESCRIPTOR_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)                \
+  V(kWritableOffset, kTaggedSize)             \
+  V(kEnumerableOffset, kTaggedSize)           \
+  V(kConfigurableOffset, kTaggedSize)         \
+  /* Total size. */                           \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_DATA_PROPERTY_DESCRIPTOR_FIELDS)
+#undef JS_DATA_PROPERTY_DESCRIPTOR_FIELDS
+
   // Indices of in-object properties.
   static const int kValueIndex = 0;
   static const int kWritableIndex = 1;
@@ -840,10 +864,17 @@ class JSIteratorResult : public JSObject {
 
   DECL_ACCESSORS(done, Object)
 
-  // Offsets of object fields.
-  static const int kValueOffset = JSObject::kHeaderSize;
-  static const int kDoneOffset = kValueOffset + kPointerSize;
-  static const int kSize = kDoneOffset + kPointerSize;
+  // Layout description.
+#define JS_ITERATOR_RESULT_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)       \
+  V(kDoneOffset, kTaggedSize)        \
+  /* Total size. */                  \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ITERATOR_RESULT_FIELDS)
+#undef JS_ITERATOR_RESULT_FIELDS
+
   // Indices of in-object properties.
   static const int kValueIndex = 0;
   static const int kDoneIndex = 1;
@@ -885,10 +916,15 @@ class JSBoundFunction : public JSObject {
   static Handle<String> ToString(Handle<JSBoundFunction> function);
 
   // Layout description.
-  static const int kBoundTargetFunctionOffset = JSObject::kHeaderSize;
-  static const int kBoundThisOffset = kBoundTargetFunctionOffset + kPointerSize;
-  static const int kBoundArgumentsOffset = kBoundThisOffset + kPointerSize;
-  static const int kSize = kBoundArgumentsOffset + kPointerSize;
+#define JS_BOUND_FUNCTION_FIELDS(V)          \
+  V(kBoundTargetFunctionOffset, kTaggedSize) \
+  V(kBoundThisOffset, kTaggedSize)           \
+  V(kBoundArgumentsOffset, kTaggedSize)      \
+  /* Header size. */                         \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_BOUND_FUNCTION_FIELDS)
+#undef JS_BOUND_FUNCTION_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSBoundFunction);
@@ -1080,14 +1116,14 @@ class JSFunction : public JSObject {
 // Layout description.
 #define JS_FUNCTION_FIELDS(V)                              \
   /* Pointer fields. */                                    \
-  V(kSharedFunctionInfoOffset, kPointerSize)               \
-  V(kContextOffset, kPointerSize)                          \
-  V(kFeedbackCellOffset, kPointerSize)                     \
+  V(kSharedFunctionInfoOffset, kTaggedSize)                \
+  V(kContextOffset, kTaggedSize)                           \
+  V(kFeedbackCellOffset, kTaggedSize)                      \
   V(kEndOfStrongFieldsOffset, 0)                           \
-  V(kCodeOffset, kPointerSize)                             \
+  V(kCodeOffset, kTaggedSize)                              \
   /* Size of JSFunction object without prototype field. */ \
   V(kSizeWithoutPrototype, 0)                              \
-  V(kPrototypeOrInitialMapOffset, kPointerSize)            \
+  V(kPrototypeOrInitialMapOffset, kTaggedSize)             \
   /* Size of JSFunction object with prototype field. */    \
   V(kSizeWithPrototype, 0)
 
@@ -1123,8 +1159,13 @@ class JSGlobalProxy : public JSObject {
   DECL_VERIFIER(JSGlobalProxy)
 
   // Layout description.
-  static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kSize = kNativeContextOffset + kPointerSize;
+#define JS_GLOBAL_PROXY_FIELDS(V)      \
+  V(kNativeContextOffset, kTaggedSize) \
+  /* Header size. */                   \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GLOBAL_PROXY_FIELDS)
+#undef JS_GLOBAL_PROXY_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
@@ -1159,10 +1200,15 @@ class JSGlobalObject : public JSObject {
   DECL_VERIFIER(JSGlobalObject)
 
   // Layout description.
-  static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kGlobalProxyOffset = kNativeContextOffset + kPointerSize;
-  static const int kHeaderSize = kGlobalProxyOffset + kPointerSize;
-  static const int kSize = kHeaderSize;
+#define JS_GLOBAL_OBJECT_FIELDS(V)     \
+  V(kNativeContextOffset, kTaggedSize) \
+  V(kGlobalProxyOffset, kTaggedSize)   \
+  /* Header size. */                   \
+  V(kHeaderSize, 0)                    \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GLOBAL_OBJECT_FIELDS)
+#undef JS_GLOBAL_OBJECT_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalObject);
@@ -1181,8 +1227,13 @@ class JSValue : public JSObject {
   DECL_VERIFIER(JSValue)
 
   // Layout description.
-  static const int kValueOffset = JSObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
+#define JS_VALUE_FIELDS(V)     \
+  V(kValueOffset, kTaggedSize) \
+  /* Header size. */           \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_VALUE_FIELDS)
+#undef JS_VALUE_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSValue);
@@ -1265,16 +1316,21 @@ class JSDate : public JSObject {
   };
 
   // Layout description.
-  static const int kValueOffset = JSObject::kHeaderSize;
-  static const int kYearOffset = kValueOffset + kPointerSize;
-  static const int kMonthOffset = kYearOffset + kPointerSize;
-  static const int kDayOffset = kMonthOffset + kPointerSize;
-  static const int kWeekdayOffset = kDayOffset + kPointerSize;
-  static const int kHourOffset = kWeekdayOffset + kPointerSize;
-  static const int kMinOffset = kHourOffset + kPointerSize;
-  static const int kSecOffset = kMinOffset + kPointerSize;
-  static const int kCacheStampOffset = kSecOffset + kPointerSize;
-  static const int kSize = kCacheStampOffset + kPointerSize;
+#define JS_DATE_FIELDS(V)           \
+  V(kValueOffset, kTaggedSize)      \
+  V(kYearOffset, kTaggedSize)       \
+  V(kMonthOffset, kTaggedSize)      \
+  V(kDayOffset, kTaggedSize)        \
+  V(kWeekdayOffset, kTaggedSize)    \
+  V(kHourOffset, kTaggedSize)       \
+  V(kMinOffset, kTaggedSize)        \
+  V(kSecOffset, kTaggedSize)        \
+  V(kCacheStampOffset, kTaggedSize) \
+  /* Header size. */                \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_DATE_FIELDS)
+#undef JS_DATE_FIELDS
 
  private:
   inline Object* DoGetField(FieldIndex index);
@@ -1337,17 +1393,26 @@ class JSMessageObject : public JSObject {
   DECL_VERIFIER(JSMessageObject)
 
   // Layout description.
-  static const int kTypeOffset = JSObject::kHeaderSize;
-  static const int kArgumentsOffset = kTypeOffset + kPointerSize;
-  static const int kScriptOffset = kArgumentsOffset + kPointerSize;
-  static const int kStackFramesOffset = kScriptOffset + kPointerSize;
-  static const int kStartPositionOffset = kStackFramesOffset + kPointerSize;
-  static const int kEndPositionOffset = kStartPositionOffset + kPointerSize;
-  static const int kErrorLevelOffset = kEndPositionOffset + kPointerSize;
-  static const int kSize = kErrorLevelOffset + kPointerSize;
+#define JS_MESSAGE_FIELDS(V)                         \
+  /* Tagged fields. */                               \
+  V(kTypeOffset, kTaggedSize)                        \
+  V(kArgumentsOffset, kTaggedSize)                   \
+  V(kScriptOffset, kTaggedSize)                      \
+  V(kStackFramesOffset, kTaggedSize)                 \
+  V(kPointerFieldsEndOffset, 0)                      \
+  /* Raw data fields. */                             \
+  /* TODO(ishell): store as int32 instead of Smi. */ \
+  V(kStartPositionOffset, kTaggedSize)               \
+  V(kEndPositionOffset, kTaggedSize)                 \
+  V(kErrorLevelOffset, kTaggedSize)                  \
+  /* Total size. */                                  \
+  V(kSize, 0)
 
-  typedef FixedBodyDescriptor<HeapObject::kMapOffset,
-                              kStackFramesOffset + kPointerSize, kSize>
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_MESSAGE_FIELDS)
+#undef JS_MESSAGE_FIELDS
+
+  typedef FixedBodyDescriptor<HeapObject::kMapOffset, kPointerFieldsEndOffset,
+                              kSize>
       BodyDescriptor;
 };
 
@@ -1373,10 +1438,16 @@ class JSAsyncFromSyncIterator : public JSObject {
   // subsequent "next" invocations.
   DECL_ACCESSORS(next, Object)
 
-  // Offsets of object fields.
-  static const int kSyncIteratorOffset = JSObject::kHeaderSize;
-  static const int kNextOffset = kSyncIteratorOffset + kPointerSize;
-  static const int kSize = kNextOffset + kPointerSize;
+  // Layout description.
+#define JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS(V) \
+  V(kSyncIteratorOffset, kTaggedSize)         \
+  V(kNextOffset, kTaggedSize)                 \
+  /* Total size. */                           \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS)
+#undef JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncFromSyncIterator);
@@ -1397,9 +1468,16 @@ class JSStringIterator : public JSObject {
   inline int index() const;
   inline void set_index(int value);
 
-  static const int kStringOffset = JSObject::kHeaderSize;
-  static const int kNextIndexOffset = kStringOffset + kPointerSize;
-  static const int kSize = kNextIndexOffset + kPointerSize;
+  // Layout description.
+#define JS_STRING_ITERATOR_FIELDS(V) \
+  V(kStringOffset, kTaggedSize)      \
+  V(kNextIndexOffset, kTaggedSize)   \
+  /* Total size. */                  \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_STRING_ITERATOR_FIELDS)
+#undef JS_STRING_ITERATOR_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStringIterator);

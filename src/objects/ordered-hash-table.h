@@ -274,7 +274,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 // that the DataTable entries start aligned. A bucket or chain value
 // of 255 is used to denote an unknown entry.
 //
-// The prefix size is calculated as the kPrefixSize * kPointerSize.
+// The prefix size is calculated as the kPrefixSize * kTaggedSize.
 //
 // Memory layout: [ Prefix ] [ Header ]  [ Padding ] [ DataTable ] [ HashTable ]
 // [ Chains ]
@@ -285,7 +285,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 // [ 0 ] : Prefix
 //
 // Note: For the sake of brevity, the following start with index 0
-// but, they actually start from kPrefixSize * kPointerSize to
+// but, they actually start from kPrefixSize * kTaggedSize to
 // account for the the prefix.
 //
 // [ Header ]  :
@@ -359,7 +359,7 @@ class SmallOrderedHashTable : public HeapObjectPtr {
     int total_size = DataTableStartOffset() + data_table_size +
                      hash_table_size + chain_table_size;
 
-    return RoundUp(total_size, kPointerSize);
+    return RoundUp(total_size, kTaggedSize);
   }
 
   // Returns the number elements that can fit into the allocated table.
@@ -500,7 +500,7 @@ class SmallOrderedHashTable : public HeapObjectPtr {
   static constexpr Offset PrefixOffset() { return kHeaderSize; }
 
   static constexpr Offset NumberOfElementsOffset() {
-    return PrefixOffset() + (Derived::kPrefixSize * kPointerSize);
+    return PrefixOffset() + (Derived::kPrefixSize * kTaggedSize);
   }
 
   static constexpr Offset NumberOfDeletedElementsOffset() {
@@ -512,11 +512,11 @@ class SmallOrderedHashTable : public HeapObjectPtr {
   }
 
   static constexpr Offset DataTableStartOffset() {
-    return RoundUp<kPointerSize>(NumberOfBucketsOffset());
+    return RoundUp<kTaggedSize>(NumberOfBucketsOffset());
   }
 
   static constexpr int DataTableSizeFor(int capacity) {
-    return capacity * Derived::kEntrySize * kPointerSize;
+    return capacity * Derived::kEntrySize * kTaggedSize;
   }
 
   // This is used for accessing the non |DataTable| part of the
@@ -535,8 +535,8 @@ class SmallOrderedHashTable : public HeapObjectPtr {
 
   Offset GetDataEntryOffset(int entry, int relative_index) const {
     DCHECK_LT(entry, Capacity());
-    int offset_in_datatable = entry * Derived::kEntrySize * kPointerSize;
-    int offset_in_entry = relative_index * kPointerSize;
+    int offset_in_datatable = entry * Derived::kEntrySize * kTaggedSize;
+    int offset_in_entry = relative_index * kTaggedSize;
     return DataTableStartOffset() + offset_in_datatable + offset_in_entry;
   }
 
@@ -721,9 +721,16 @@ class JSCollectionIterator : public JSObject {
 
   void JSCollectionIteratorPrint(std::ostream& os, const char* name);
 
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kIndexOffset = kTableOffset + kPointerSize;
-  static const int kSize = kIndexOffset + kPointerSize;
+// Layout description.
+#define JS_COLLECTION_ITERATOR_FIELDS(V) \
+  V(kTableOffset, kTaggedSize)           \
+  V(kIndexOffset, kTaggedSize)           \
+  /* Header size. */                     \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_COLLECTION_ITERATOR_FIELDS)
+#undef JS_COLLECTION_ITERATOR_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSCollectionIterator);
