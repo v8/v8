@@ -723,21 +723,19 @@ void Heap::CreateInitialObjects() {
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(_, name, description)                                 \
-  Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);            \
-  Handle<String> name##d =                                                \
-      factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
-  name->set_name(*name##d);                                               \
+#define SYMBOL_INIT(_, name, description)                                \
+  Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);           \
+  Handle<String> name##d = factory->InternalizeUtf8String(#description); \
+  name->set_name(*name##d);                                              \
   roots_table()[RootIndex::k##name] = *name;
     PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
 
-#define SYMBOL_INIT(_, name, description)                                 \
-  Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);            \
-  Handle<String> name##d =                                                \
-      factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
-  name->set_is_well_known_symbol(true);                                   \
-  name->set_name(*name##d);                                               \
+#define SYMBOL_INIT(_, name, description)                                \
+  Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);           \
+  Handle<String> name##d = factory->InternalizeUtf8String(#description); \
+  name->set_is_well_known_symbol(true);                                  \
+  name->set_name(*name##d);                                              \
   roots_table()[RootIndex::k##name] = *name;
     WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT

@@ -619,6 +619,7 @@ Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
 
 MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
                                                   PretenureFlag pretenure) {
+  DCHECK_NE(pretenure, TENURED_READ_ONLY);
   int length = string.length();
   if (length == 0) return empty_string();
   if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
@@ -636,6 +637,7 @@ MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
 
 MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
                                                PretenureFlag pretenure) {
+  DCHECK_NE(pretenure, TENURED_READ_ONLY);
   // Check for ASCII first since this is the common case.
   const char* ascii_data = string.start();
   int length = string.length();
@@ -731,6 +733,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
 MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
                                                   int length,
                                                   PretenureFlag pretenure) {
+  DCHECK_NE(pretenure, TENURED_READ_ONLY);
   if (length == 0) return empty_string();
   if (String::IsOneByte(string, length)) {
     if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
