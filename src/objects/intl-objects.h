@@ -62,8 +62,6 @@ class Intl {
       const std::set<std::string>& available_locales, Handle<Object> locales_in,
       Handle<Object> options_in);
 
-  static std::string DefaultLocale(Isolate* isolate);
-
   // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
   // ecma402/#sec-getoption
   //

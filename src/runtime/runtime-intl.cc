@@ -52,14 +52,6 @@ RUNTIME_FUNCTION(Runtime_FormatListToParts) {
       isolate, JSListFormat::FormatListToParts(isolate, list_format, list));
 }
 
-RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(0, args.length());
-  return *isolate->factory()->NewStringFromAsciiChecked(
-      Intl::DefaultLocale(isolate).c_str());
-}
-
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
