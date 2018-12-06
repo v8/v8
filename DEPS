@@ -9,6 +9,9 @@ vars = {
   'download_jsfunfuzz': False,
   'download_mips_toolchain': False,
   'check_v8_header_includes': False,
+
+  # luci-go CIPD package version.
+  'luci_go': 'git_revision:fdf05508e8a66c773a41521e0243c9d11b9a2a1c',
 }
 
 deps = {
@@ -86,7 +89,15 @@ deps = {
       'packages': [
         {
           'package': 'infra/tools/luci/isolate/${{platform}}',
-          'version': 'git_revision:fdf05508e8a66c773a41521e0243c9d11b9a2a1c',
+          'version': Var('luci_go'),
+        },
+        {
+          'package': 'infra/tools/luci/isolated/${{platform}}',
+          'version': Var('luci_go'),
+        },
+        {
+          'package': 'infra/tools/luci/swarming/${{platform}}',
+          'version': Var('luci_go'),
         },
       ],
       'condition': 'host_cpu != "s390"',
