@@ -985,11 +985,6 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
   return memory_obj;
 }
 
-uint32_t WasmMemoryObject::current_pages() {
-  return static_cast<uint32_t>(array_buffer()->byte_length() /
-                               wasm::kWasmPageSize);
-}
-
 bool WasmMemoryObject::has_full_guard_region(Isolate* isolate) {
   const wasm::WasmMemoryTracker::AllocationData* allocation =
       isolate->wasm_engine()->memory_tracker()->FindAllocationData(
@@ -1027,13 +1022,6 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
   memory->set_instances(*new_instances);
   Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate);
   SetInstanceMemory(instance, buffer);
-}
-
-void WasmMemoryObject::RemoveInstance(Handle<WasmMemoryObject> memory,
-                                      Handle<WasmInstanceObject> instance) {
-  if (memory->has_instances()) {
-    memory->instances()->RemoveOne(MaybeObjectHandle::Weak(instance));
-  }
 }
 
 // static
