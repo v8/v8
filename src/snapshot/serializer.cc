@@ -309,7 +309,9 @@ Code Serializer::CopyCode(Code code) {
   code_buffer_.insert(code_buffer_.end(),
                       reinterpret_cast<byte*>(code->address()),
                       reinterpret_cast<byte*>(code->address() + size));
-  return Code::cast(HeapObject::FromAddress(
+  // When pointer compression is enabled the checked cast will try to
+  // decompress map field of off-heap Code object.
+  return Code::unchecked_cast(HeapObject::FromAddress(
       reinterpret_cast<Address>(&code_buffer_.front())));
 }
 
