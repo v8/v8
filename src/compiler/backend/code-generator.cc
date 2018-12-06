@@ -289,7 +289,7 @@ void CodeGenerator::AssembleCode() {
 
   // Emit the jump tables.
   if (jump_tables_) {
-    tasm()->Align(kPointerSize);
+    tasm()->Align(kSystemPointerSize);
     for (JumpTable* table = jump_tables_; table; table = table->next()) {
       tasm()->bind(table->label());
       AssembleJumpTable(table->targets(), table->target_count());
@@ -1136,7 +1136,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         if (type.representation() == MachineRepresentation::kTagged) {
           // When pointers are 4 bytes, we can use int32 constants to represent
           // Smis.
-          DCHECK_EQ(4, kPointerSize);
+          DCHECK_EQ(4, kSystemPointerSize);
           Smi smi(static_cast<Address>(constant.ToInt32()));
           DCHECK(smi->IsSmi());
           literal = DeoptimizationLiteral(smi->value());
@@ -1164,7 +1164,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         }
         break;
       case Constant::kInt64:
-        DCHECK_EQ(8, kPointerSize);
+        DCHECK_EQ(8, kSystemPointerSize);
         if (type.representation() == MachineRepresentation::kWord64) {
           literal =
               DeoptimizationLiteral(static_cast<double>(constant.ToInt64()));

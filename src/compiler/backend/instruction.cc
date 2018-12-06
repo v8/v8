@@ -90,10 +90,12 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
     // the gap resolver may break a move into 2 or 4 equivalent smaller moves.
     DCHECK_EQ(LocationOperand::STACK_SLOT, kind);
     int index_hi = loc.index();
-    int index_lo = index_hi - (1 << ElementSizeLog2Of(rep)) / kPointerSize + 1;
+    int index_lo =
+        index_hi - (1 << ElementSizeLog2Of(rep)) / kSystemPointerSize + 1;
     int other_index_hi = other_loc.index();
     int other_index_lo =
-        other_index_hi - (1 << ElementSizeLog2Of(other_rep)) / kPointerSize + 1;
+        other_index_hi -
+        (1 << ElementSizeLog2Of(other_rep)) / kSystemPointerSize + 1;
     return other_index_hi >= index_lo && index_hi >= other_index_lo;
   }
   return false;
