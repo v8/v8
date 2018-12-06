@@ -508,12 +508,13 @@ AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
     return nullptr;
   }
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
-  Map candidate_map = candidate->map();
+  MapWordSlot candidate_map_slot = candidate->map_slot();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
-  MSAN_MEMORY_IS_INITIALIZED(&candidate_map, sizeof(candidate_map));
-  if (candidate_map != ReadOnlyRoots(this).allocation_memento_map()) {
+  MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
+  if (!candidate_map_slot.contains_value(
+          ReadOnlyRoots(this).allocation_memento_map().ptr())) {
     return nullptr;
   }
 

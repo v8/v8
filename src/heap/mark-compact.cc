@@ -1188,8 +1188,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
     }
-    base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(src_addr),
-                        static_cast<base::AtomicWord>(dst_addr));
+    src->set_map_word(MapWord::FromForwardingAddress(dst));
   }
 
   EvacuateVisitorBase(Heap* heap, LocalAllocator* local_allocator,

@@ -2485,7 +2485,8 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
 
   // At this point, we may be deserializing the heap from a snapshot, and
   // none of the maps have been created yet and are nullptr.
-  DCHECK((filler->map().is_null() && !deserialization_complete_) ||
+  DCHECK((filler->map_slot().contains_value(kNullAddress) &&
+          !deserialization_complete_) ||
          filler->map()->IsMap());
   return filler;
 }

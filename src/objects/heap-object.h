@@ -159,7 +159,7 @@ class HeapObjectPtr : public ObjectPtr {
   // of primitive (non-JS) objects like strings, heap numbers etc.
   inline void set_map_no_write_barrier(Map value);
 
-  inline ObjectSlot map_slot();
+  inline MapWordSlot map_slot() const;
   inline MapWord map_word() const;
   inline void set_map_word(MapWord map_word);
 

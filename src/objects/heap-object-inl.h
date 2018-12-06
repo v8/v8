@@ -135,17 +135,16 @@ void HeapObjectPtr::set_map_after_allocation(Map value, WriteBarrierMode mode) {
   reinterpret_cast<HeapObject*>(ptr())->set_map_after_allocation(value, mode);
 }
 
-ObjectSlot HeapObjectPtr::map_slot() {
-  return ObjectSlot(FIELD_ADDR(this, kMapOffset));
+MapWordSlot HeapObjectPtr::map_slot() const {
+  return MapWordSlot(FIELD_ADDR(this, kMapOffset));
 }
 
 MapWord HeapObjectPtr::map_word() const {
-  return MapWord(RELAXED_READ_FIELD(this, kMapOffset).ptr());
+  return MapWord(map_slot().Relaxed_Load().ptr());
 }
 
 void HeapObjectPtr::set_map_word(MapWord map_word) {
-  RELAXED_WRITE_FIELD(this, kMapOffset,
-                      reinterpret_cast<Object*>(map_word.value_));
+  map_slot().Relaxed_Store(ObjectPtr(map_word.value_));
 }
 
 void HeapObjectPtr::synchronized_set_map(Map value) {
@@ -163,8 +162,7 @@ void HeapObjectPtr::synchronized_set_map(Map value) {
 }
 
 void HeapObjectPtr::synchronized_set_map_word(MapWord map_word) {
-  RELEASE_WRITE_FIELD(this, kMapOffset,
-                      reinterpret_cast<Object*>(map_word.value_));
+  map_slot().Release_Store(ObjectPtr(map_word.value_));
 }
 
 WriteBarrierMode HeapObjectPtr::GetWriteBarrierMode(

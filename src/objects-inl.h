@@ -814,29 +814,25 @@ void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
   }
 }
 
-ObjectSlot HeapObject::map_slot() {
-  return ObjectSlot(FIELD_ADDR(this, kMapOffset));
+MapWordSlot HeapObject::map_slot() const {
+  return MapWordSlot(FIELD_ADDR(this, kMapOffset));
 }
 
 MapWord HeapObject::map_word() const {
-  return MapWord(RELAXED_READ_FIELD(this, kMapOffset).ptr());
+  return MapWord(map_slot().Relaxed_Load().ptr());
 }
 
 void HeapObject::set_map_word(MapWord map_word) {
-  RELAXED_WRITE_FIELD(this, kMapOffset,
-                      reinterpret_cast<Object*>(map_word.value_));
+  map_slot().Relaxed_Store(ObjectPtr(map_word.value_));
 }
 
 
 MapWord HeapObject::synchronized_map_word() const {
-  return MapWord(
-      reinterpret_cast<Address>(ACQUIRE_READ_FIELD(this, kMapOffset)));
+  return MapWord(map_slot().Acquire_Load().ptr());
 }
 
-
 void HeapObject::synchronized_set_map_word(MapWord map_word) {
-  RELEASE_WRITE_FIELD(
-      this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
+  map_slot().Release_Store(ObjectPtr(map_word.value_));
 }
 
 int HeapObject::Size() const { return SizeFromMap(map()); }
@@ -1348,8 +1344,10 @@ int FreeSpace::Size() { return size(); }
 FreeSpace* FreeSpace::next() {
 #ifdef DEBUG
   Heap* heap = Heap::FromWritableHeapObject(this);
-  DCHECK_IMPLIES(map() != heap->isolate()->root(RootIndex::kFreeSpaceMap),
-                 !heap->deserialization_complete() && map().is_null());
+  Object* free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
+  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
+                 !heap->deserialization_complete() &&
+                     map_slot().contains_value(kNullAddress));
 #endif
   DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
   return reinterpret_cast<FreeSpace*>(Memory<Address>(address() + kNextOffset));
@@ -1359,8 +1357,10 @@ FreeSpace* FreeSpace::next() {
 void FreeSpace::set_next(FreeSpace* next) {
 #ifdef DEBUG
   Heap* heap = Heap::FromWritableHeapObject(this);
-  DCHECK_IMPLIES(map() != heap->isolate()->root(RootIndex::kFreeSpaceMap),
-                 !heap->deserialization_complete() && map().is_null());
+  Object* free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
+  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
+                 !heap->deserialization_complete() &&
+                     map_slot().contains_value(kNullAddress));
 #endif
   DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
   base::Relaxed_Store(
