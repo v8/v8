@@ -194,7 +194,7 @@ assertEq(Object.getPrototypeOf(emptyModule), moduleProto);
 let moduleImportsDesc = Object.getOwnPropertyDescriptor(Module, 'imports');
 assertEq(typeof moduleImportsDesc.value, 'function');
 assertTrue(moduleImportsDesc.writable);
-assertTrue(moduleImportsDesc.enumerable);
+assertFalse(moduleImportsDesc.enumerable);
 assertTrue(moduleImportsDesc.configurable);
 
 // 'WebAssembly.Module.imports' method
@@ -241,7 +241,7 @@ assertEq(arr[3].name, 'x');
 let moduleExportsDesc = Object.getOwnPropertyDescriptor(Module, 'exports');
 assertEq(typeof moduleExportsDesc.value, 'function');
 assertTrue(moduleExportsDesc.writable);
-assertTrue(moduleExportsDesc.enumerable);
+assertFalse(moduleExportsDesc.enumerable);
 assertTrue(moduleExportsDesc.configurable);
 
 // 'WebAssembly.Module.exports' method
@@ -286,9 +286,9 @@ assertEq(arr[3].name, 'x');
 let moduleCustomSectionsDesc =
     Object.getOwnPropertyDescriptor(Module, 'customSections');
 assertEq(typeof moduleCustomSectionsDesc.value, 'function');
-assertTrue(moduleCustomSectionsDesc.writable);
-assertTrue(moduleCustomSectionsDesc.enumerable);
-assertTrue(moduleCustomSectionsDesc.configurable);
+assertEq(moduleCustomSectionsDesc.writable, true);
+assertEq(moduleCustomSectionsDesc.enumerable, false);
+assertEq(moduleCustomSectionsDesc.configurable, true);
 
 let moduleCustomSections = moduleCustomSectionsDesc.value;
 assertEq(moduleCustomSections.length, 2);
@@ -397,7 +397,7 @@ let instanceExportsDesc =
     Object.getOwnPropertyDescriptor(instanceProto, 'exports');
 assertEq(typeof instanceExportsDesc.get, 'function');
 assertEq(instanceExportsDesc.set, undefined);
-assertTrue(instanceExportsDesc.enumerable);
+assertFalse(instanceExportsDesc.enumerable);
 assertTrue(instanceExportsDesc.configurable);
 
 exportsObj = exportingInstance.exports;
@@ -473,7 +473,7 @@ assertEq(Object.getPrototypeOf(mem1), memoryProto);
 let bufferDesc = Object.getOwnPropertyDescriptor(memoryProto, 'buffer');
 assertEq(typeof bufferDesc.get, 'function');
 assertEq(bufferDesc.set, undefined);
-assertTrue(bufferDesc.enumerable);
+assertFalse(bufferDesc.enumerable);
 assertTrue(bufferDesc.configurable);
 
 // 'WebAssembly.Memory.prototype.buffer' getter
@@ -488,7 +488,7 @@ assertEq(bufferGetter.call(mem1).byteLength, kPageSize);
 // 'WebAssembly.Memory.prototype.grow' data property
 let memGrowDesc = Object.getOwnPropertyDescriptor(memoryProto, 'grow');
 assertEq(typeof memGrowDesc.value, 'function');
-assertTrue(memGrowDesc.enumerable);
+assertFalse(memGrowDesc.enumerable);
 assertTrue(memGrowDesc.configurable);
 
 // 'WebAssembly.Memory.prototype.grow' method
@@ -625,7 +625,7 @@ assertEq(Object.getPrototypeOf(tbl1), tableProto);
 let lengthDesc = Object.getOwnPropertyDescriptor(tableProto, 'length');
 assertEq(typeof lengthDesc.get, 'function');
 assertEq(lengthDesc.set, undefined);
-assertTrue(lengthDesc.enumerable);
+assertFalse(lengthDesc.enumerable);
 assertTrue(lengthDesc.configurable);
 
 // 'WebAssembly.Table.prototype.length' getter
@@ -641,7 +641,7 @@ assertEq(lengthGetter.call(tbl1), 2);
 // 'WebAssembly.Table.prototype.get' data property
 let getDesc = Object.getOwnPropertyDescriptor(tableProto, 'get');
 assertEq(typeof getDesc.value, 'function');
-assertTrue(getDesc.enumerable);
+assertFalse(getDesc.enumerable);
 assertTrue(getDesc.configurable);
 
 // 'WebAssembly.Table.prototype.get' method
@@ -668,7 +668,7 @@ assertErrorMessage(
 // 'WebAssembly.Table.prototype.set' data property
 let setDesc = Object.getOwnPropertyDescriptor(tableProto, 'set');
 assertEq(typeof setDesc.value, 'function');
-assertTrue(setDesc.enumerable);
+assertFalse(setDesc.enumerable);
 assertTrue(setDesc.configurable);
 
 // 'WebAssembly.Table.prototype.set' method
@@ -718,7 +718,7 @@ assertEq(set.call(tbl1, undefined, null), undefined);
 // 'WebAssembly.Table.prototype.grow' data property
 let tblGrowDesc = Object.getOwnPropertyDescriptor(tableProto, 'grow');
 assertEq(typeof tblGrowDesc.value, 'function');
-assertTrue(tblGrowDesc.enumerable);
+assertFalse(tblGrowDesc.enumerable);
 assertTrue(tblGrowDesc.configurable);
 
 // 'WebAssembly.Table.prototype.grow' method
@@ -763,7 +763,7 @@ assertFalse(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport));
 let compileDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'compile');
 assertEq(typeof compileDesc.value, 'function');
 assertTrue(compileDesc.writable);
-assertTrue(compileDesc.enumerable);
+assertFalse(compileDesc.enumerable);
 assertTrue(compileDesc.configurable);
 
 // 'WebAssembly.compile' function
@@ -809,7 +809,7 @@ let instantiateDesc =
     Object.getOwnPropertyDescriptor(WebAssembly, 'instantiate');
 assertEq(typeof instantiateDesc.value, 'function');
 assertTrue(instantiateDesc.writable);
-assertTrue(instantiateDesc.enumerable);
+assertFalse(instantiateDesc.enumerable);
 assertTrue(instantiateDesc.configurable);
 
 // 'WebAssembly.instantiate' function

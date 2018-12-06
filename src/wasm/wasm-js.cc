@@ -1434,20 +1434,13 @@ Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
 
 Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
                                const char* str, FunctionCallback func,
-                               int length = 0,
-                               PropertyAttributes attributes = NONE) {
+                               int length = 0) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function = CreateFunc(isolate, name, func);
   function->shared()->set_length(length);
+  PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
-}
-
-Handle<JSFunction> InstallConstructorFunc(Isolate* isolate,
-                                         Handle<JSObject> object,
-                                         const char* str,
-                                         FunctionCallback func) {
-  return InstallFunc(isolate, object, str, func, 1, DONT_ENUM);
 }
 
 Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
@@ -1455,15 +1448,17 @@ Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
       .ToHandleChecked();
 }
 
-void InstallGetter(Isolate* isolate, Handle<JSObject> object, const char* str,
-                   FunctionCallback func) {
+void InstallGetter(Isolate* isolate, Handle<JSObject> object,
+                   const char* str, FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function =
       CreateFunc(isolate, GetterName(isolate, name), func);
 
+  v8::PropertyAttribute attributes =
+      static_cast<v8::PropertyAttribute>(v8::DontEnum);
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
-                                              Local<Function>(), v8::None);
+                                              Local<Function>(), attributes);
 }
 
 Handle<String> SetterName(Isolate* isolate, Handle<String> name) {
@@ -1481,7 +1476,8 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
       CreateFunc(isolate, SetterName(isolate, name), setter);
   setter_func->shared()->set_length(1);
 
-  v8::PropertyAttribute attributes = v8::None;
+  v8::PropertyAttribute attributes =
+      static_cast<v8::PropertyAttribute>(v8::DontEnum);
 
   Utils::ToLocal(object)->SetAccessorProperty(
       Utils::ToLocal(name), Utils::ToLocal(getter_func),
@@ -1519,6 +1515,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSFunction> cons = factory->NewFunction(args);
   JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
   Handle<JSObject> webassembly = factory->NewJSObject(cons, TENURED);
+  PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
 
   PropertyAttributes ro_attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
@@ -1537,12 +1534,12 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Expose the API on the global object if configured to do so.
   if (exposed_on_global_object) {
-    JSObject::AddProperty(isolate, global, name, webassembly, DONT_ENUM);
+    JSObject::AddProperty(isolate, global, name, webassembly, attributes);
   }
 
   // Setup Module
   Handle<JSFunction> module_constructor =
-      InstallConstructorFunc(isolate, webassembly, "Module", WebAssemblyModule);
+      InstallFunc(isolate, webassembly, "Module", WebAssemblyModule, 1);
   context->set_wasm_module_constructor(*module_constructor);
   SetDummyInstanceTemplate(isolate, module_constructor);
   JSFunction::EnsureHasInitialMap(module_constructor);
@@ -1561,8 +1558,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                         v8_str(isolate, "WebAssembly.Module"), ro_attributes);
 
   // Setup Instance
-  Handle<JSFunction> instance_constructor = InstallConstructorFunc(
-      isolate, webassembly, "Instance", WebAssemblyInstance);
+  Handle<JSFunction> instance_constructor =
+      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance, 1);
   context->set_wasm_instance_constructor(*instance_constructor);
   SetDummyInstanceTemplate(isolate, instance_constructor);
   JSFunction::EnsureHasInitialMap(instance_constructor);
@@ -1579,7 +1576,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Table
   Handle<JSFunction> table_constructor =
-      InstallConstructorFunc(isolate, webassembly, "Table", WebAssemblyTable);
+      InstallFunc(isolate, webassembly, "Table", WebAssemblyTable, 1);
   context->set_wasm_table_constructor(*table_constructor);
   SetDummyInstanceTemplate(isolate, table_constructor);
   JSFunction::EnsureHasInitialMap(table_constructor);
@@ -1597,7 +1594,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Memory
   Handle<JSFunction> memory_constructor =
-      InstallConstructorFunc(isolate, webassembly, "Memory", WebAssemblyMemory);
+      InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory, 1);
   context->set_wasm_memory_constructor(*memory_constructor);
   SetDummyInstanceTemplate(isolate, memory_constructor);
   JSFunction::EnsureHasInitialMap(memory_constructor);
@@ -1617,8 +1614,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Global
   if (enabled_features.mut_global) {
-    Handle<JSFunction> global_constructor = InstallConstructorFunc(
-        isolate, webassembly, "Global", WebAssemblyGlobal);
+    Handle<JSFunction> global_constructor =
+        InstallFunc(isolate, webassembly, "Global", WebAssemblyGlobal, 1);
     context->set_wasm_global_constructor(*global_constructor);
     SetDummyInstanceTemplate(isolate, global_constructor);
     JSFunction::EnsureHasInitialMap(global_constructor);
@@ -1637,8 +1634,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Exception
   if (enabled_features.eh) {
-    Handle<JSFunction> exception_constructor = InstallConstructorFunc(
-        isolate, webassembly, "Exception", WebAssemblyException);
+    Handle<JSFunction> exception_constructor =
+        InstallFunc(isolate, webassembly, "Exception", WebAssemblyException, 1);
     context->set_wasm_exception_constructor(*exception_constructor);
     SetDummyInstanceTemplate(isolate, exception_constructor);
     JSFunction::EnsureHasInitialMap(exception_constructor);
@@ -1651,21 +1648,22 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   }
 
   // Setup errors
+  attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   Handle<JSFunction> compile_error(
       isolate->native_context()->wasm_compile_error_function(), isolate);
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->CompileError_string(),
-                        compile_error, DONT_ENUM);
+                        compile_error, attributes);
   Handle<JSFunction> link_error(
       isolate->native_context()->wasm_link_error_function(), isolate);
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->LinkError_string(), link_error,
-                        DONT_ENUM);
+                        attributes);
   Handle<JSFunction> runtime_error(
       isolate->native_context()->wasm_runtime_error_function(), isolate);
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->RuntimeError_string(),
-                        runtime_error, DONT_ENUM);
+                        runtime_error, attributes);
 }
 
 #undef ASSIGN
