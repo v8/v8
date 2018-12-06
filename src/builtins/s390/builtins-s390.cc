@@ -2887,10 +2887,12 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // Leave the API exit frame.
   __ bind(&leave_exit_frame);
   // LeaveExitFrame expects unwind space to be in a register.
-  if (stack_space_operand != nullptr) {
-    __ LoadP(r6, *stack_space_operand);
-  } else {
+  if (stack_space_operand == nullptr) {
+    DCHECK_NE(stack_space, 0);
     __ mov(r6, Operand(stack_space));
+  } else {
+    DCHECK_EQ(stack_space, 0);
+    __ LoadP(r6, *stack_space_operand);
   }
   __ LeaveExitFrame(false, r6, stack_space_operand != nullptr);
 
