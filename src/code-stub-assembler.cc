@@ -6775,11 +6775,11 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
          &original_string_or_invalid_length);
 
   // A real substring (substr_length < string_length).
+  Label empty(this);
+  GotoIf(IntPtrEqual(substr_length, IntPtrConstant(0)), &empty);
 
   Label single_char(this);
   GotoIf(IntPtrEqual(substr_length, IntPtrConstant(1)), &single_char);
-
-  // TODO(jgruber): Add an additional case for substring of length == 0?
 
   // Deal with different string types: update the index if necessary
   // and extract the underlying string.
@@ -6852,6 +6852,12 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
 
+    Goto(&end);
+  }
+
+  BIND(&empty);
+  {
+    var_result = EmptyStringConstant();
     Goto(&end);
   }
 
