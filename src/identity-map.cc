@@ -23,7 +23,7 @@ IdentityMapBase::~IdentityMapBase() {
 void IdentityMapBase::Clear() {
   if (keys_) {
     DCHECK(!is_iterable());
-    heap_->UnregisterStrongRoots(ObjectSlot(keys_));
+    heap_->UnregisterStrongRoots(FullObjectSlot(keys_));
     DeleteArray(keys_);
     DeleteArray(values_);
     keys_ = nullptr;
@@ -164,8 +164,8 @@ IdentityMapBase::RawEntry IdentityMapBase::GetEntry(Address key) {
     values_ = NewPointerArray(capacity_);
     memset(values_, 0, sizeof(void*) * capacity_);
 
-    heap_->RegisterStrongRoots(ObjectSlot(keys_),
-                               ObjectSlot(keys_ + capacity_));
+    heap_->RegisterStrongRoots(FullObjectSlot(keys_),
+                               FullObjectSlot(keys_ + capacity_));
   }
   int index = LookupOrInsert(key);
   return &values_[index];
@@ -284,8 +284,9 @@ void IdentityMapBase::Resize(int new_capacity) {
   }
 
   // Unregister old keys and register new keys.
-  heap_->UnregisterStrongRoots(ObjectSlot(old_keys));
-  heap_->RegisterStrongRoots(ObjectSlot(keys_), ObjectSlot(keys_ + capacity_));
+  heap_->UnregisterStrongRoots(FullObjectSlot(old_keys));
+  heap_->RegisterStrongRoots(FullObjectSlot(keys_),
+                             FullObjectSlot(keys_ + capacity_));
 
   // Delete old storage;
   DeleteArray(old_keys);

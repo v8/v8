@@ -383,11 +383,12 @@ int Debug::ArchiveSpacePerThread() { return sizeof(ThreadLocal); }
 
 void Debug::Iterate(RootVisitor* v) {
   v->VisitRootPointer(Root::kDebug, nullptr,
-                      ObjectSlot(&thread_local_.return_value_));
+                      FullObjectSlot(&thread_local_.return_value_));
   v->VisitRootPointer(Root::kDebug, nullptr,
-                      ObjectSlot(&thread_local_.suspended_generator_));
-  v->VisitRootPointer(Root::kDebug, nullptr,
-                      ObjectSlot(&thread_local_.ignore_step_into_function_));
+                      FullObjectSlot(&thread_local_.suspended_generator_));
+  v->VisitRootPointer(
+      Root::kDebug, nullptr,
+      FullObjectSlot(&thread_local_.ignore_step_into_function_));
 }
 
 DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo* debug_info)

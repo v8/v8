@@ -100,8 +100,8 @@ void Serializer::SerializeDeferredObjects() {
 bool Serializer::MustBeDeferred(HeapObject* object) { return false; }
 
 void Serializer::VisitRootPointers(Root root, const char* description,
-                                   ObjectSlot start, ObjectSlot end) {
-  for (ObjectSlot current = start; current < end; ++current) {
+                                   FullObjectSlot start, FullObjectSlot end) {
+  for (FullObjectSlot current = start; current < end; ++current) {
     SerializeRootObject(*current);
   }
 }

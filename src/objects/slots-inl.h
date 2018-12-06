@@ -34,6 +34,7 @@ Object* FullObjectSlot::operator*() const {
 ObjectPtr FullObjectSlot::load() const { return ObjectPtr(*location()); }
 
 void FullObjectSlot::store(Object* value) const { *location() = value->ptr(); }
+
 void FullObjectSlot::store(ObjectPtr value) const { *location() = value.ptr(); }
 
 ObjectPtr FullObjectSlot::Acquire_Load() const {

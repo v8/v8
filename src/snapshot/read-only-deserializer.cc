@@ -44,7 +44,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
       // During deserialization, the visitor populates the read-only object
       // cache and eventually terminates the cache with undefined.
       VisitRootPointer(Root::kReadOnlyObjectCache, nullptr,
-                       ObjectSlot(&cache->at(i)));
+                       FullObjectSlot(&cache->at(i)));
       if (cache->at(i)->IsUndefined(isolate)) break;
     }
     DeserializeDeferredObjects();

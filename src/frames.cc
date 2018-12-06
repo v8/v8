@@ -427,7 +427,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   DCHECK(holder->GetHeap()->GcSafeCodeContains(holder, pc));
   unsigned pc_offset = static_cast<unsigned>(pc - holder->InstructionStart());
   ObjectPtr code = holder;
-  v->VisitRootPointer(Root::kTop, nullptr, ObjectSlot(&code));
+  v->VisitRootPointer(Root::kTop, nullptr, FullObjectSlot(&code));
   if (code == holder) return;
   holder = Code::unchecked_cast(code);
   pc = holder->InstructionStart() + pc_offset;
@@ -639,7 +639,7 @@ void ExitFrame::Iterate(RootVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
-  v->VisitRootPointer(Root::kTop, nullptr, ObjectSlot(&code_slot()));
+  v->VisitRootPointer(Root::kTop, nullptr, FullObjectSlot(&code_slot()));
 }
 
 
@@ -920,11 +920,11 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   slot_space -=
       (frame_header_size + StandardFrameConstants::kFixedFrameSizeAboveFp);
 
-  ObjectSlot frame_header_base(&Memory<Object*>(fp() - frame_header_size));
-  ObjectSlot frame_header_limit(
+  FullObjectSlot frame_header_base(&Memory<Object*>(fp() - frame_header_size));
+  FullObjectSlot frame_header_limit(
       &Memory<Object*>(fp() - StandardFrameConstants::kCPSlotSize));
-  ObjectSlot parameters_base(&Memory<Object*>(sp()));
-  ObjectSlot parameters_limit(frame_header_base.address() - slot_space);
+  FullObjectSlot parameters_base(&Memory<Object*>(sp()));
+  FullObjectSlot parameters_limit(frame_header_base.address() - slot_space);
 
   // Visit the parameters that may be on top of the saved registers.
   if (safepoint_entry.argument_count() > 0) {
@@ -1596,7 +1596,7 @@ Object* OptimizedFrame::receiver() const {
     intptr_t args_size =
         (StandardFrameConstants::kFixedSlotCountAboveFp + argc) * kPointerSize;
     Address receiver_ptr = fp() + args_size;
-    return *ObjectSlot(receiver_ptr);
+    return *FullObjectSlot(receiver_ptr);
   } else {
     return JavaScriptFrame::receiver();
   }
@@ -1939,15 +1939,15 @@ WasmInstanceObject* WasmCompileLazyFrame::wasm_instance() const {
   return WasmInstanceObject::cast(*wasm_instance_slot());
 }
 
-ObjectSlot WasmCompileLazyFrame::wasm_instance_slot() const {
+FullObjectSlot WasmCompileLazyFrame::wasm_instance_slot() const {
   const int offset = WasmCompileLazyFrameConstants::kWasmInstanceOffset;
-  return ObjectSlot(&Memory<Object*>(fp() + offset));
+  return FullObjectSlot(&Memory<Object*>(fp() + offset));
 }
 
 void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
   const int header_size = WasmCompileLazyFrameConstants::kFixedFrameSizeFromFp;
-  ObjectSlot base(&Memory<Object*>(sp()));
-  ObjectSlot limit(&Memory<Object*>(fp() - header_size));
+  FullObjectSlot base(&Memory<Object*>(sp()));
+  FullObjectSlot limit(&Memory<Object*>(fp() - header_size));
   v->VisitRootPointers(Root::kTop, nullptr, base, limit);
   v->VisitRootPointer(Root::kTop, nullptr, wasm_instance_slot());
 }
@@ -2122,8 +2122,8 @@ void EntryFrame::Iterate(RootVisitor* v) const {
 
 void StandardFrame::IterateExpressions(RootVisitor* v) const {
   const int offset = StandardFrameConstants::kLastObjectOffset;
-  ObjectSlot base(&Memory<Object*>(sp()));
-  ObjectSlot limit(&Memory<Object*>(fp() + offset) + 1);
+  FullObjectSlot base(&Memory<Object*>(sp()));
+  FullObjectSlot limit(&Memory<Object*>(fp() + offset) + 1);
   v->VisitRootPointers(Root::kTop, nullptr, base, limit);
 }
 

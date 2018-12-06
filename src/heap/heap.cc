@@ -111,8 +111,8 @@ Heap::GCCallbackTuple& Heap::GCCallbackTuple::operator=(
     const Heap::GCCallbackTuple& other) = default;
 
 struct Heap::StrongRootsList {
-  ObjectSlot start;
-  ObjectSlot end;
+  FullObjectSlot start;
+  FullObjectSlot end;
   StrongRootsList* next;
 };
 
@@ -2051,8 +2051,8 @@ bool Heap::ExternalStringTable::Contains(String string) {
   return false;
 }
 
-String Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
-                                                               ObjectSlot p) {
+String Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(
+    Heap* heap, FullObjectSlot p) {
   MapWord first_word = HeapObject::cast(*p)->map_word();
 
   if (!first_word.IsForwardingAddress()) {
@@ -2136,11 +2136,11 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
   if (new_space_strings_.empty()) return;
 
-  ObjectSlot start(new_space_strings_.data());
-  ObjectSlot end(new_space_strings_.data() + new_space_strings_.size());
-  ObjectSlot last = start;
+  FullObjectSlot start(&new_space_strings_[0]);
+  FullObjectSlot end(&new_space_strings_[new_space_strings_.size()]);
+  FullObjectSlot last = start;
 
-  for (ObjectSlot p = start; p < end; ++p) {
+  for (FullObjectSlot p = start; p < end; ++p) {
     String target = updater_func(heap_, p);
 
     if (target.is_null()) continue;
@@ -2178,8 +2178,8 @@ void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
   if (!new_space_strings_.empty()) {
     v->VisitRootPointers(
         Root::kExternalStringsTable, nullptr,
-        ObjectSlot(new_space_strings_.data()),
-        ObjectSlot(new_space_strings_.data() + new_space_strings_.size()));
+        FullObjectSlot(&new_space_strings_[0]),
+        FullObjectSlot(&new_space_strings_[new_space_strings_.size()]));
   }
 }
 
@@ -2188,8 +2188,8 @@ void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
   if (!old_space_strings_.empty()) {
     v->VisitRootPointers(
         Root::kExternalStringsTable, nullptr,
-        ObjectSlot(old_space_strings_.data()),
-        ObjectSlot(old_space_strings_.data() + old_space_strings_.size()));
+        FullObjectSlot(&old_space_strings_[0]),
+        FullObjectSlot(&old_space_strings_[old_space_strings_.size()]));
   }
 }
 
@@ -2201,9 +2201,10 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 void Heap::ExternalStringTable::UpdateReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
   if (old_space_strings_.size() > 0) {
-    ObjectSlot start(old_space_strings_.data());
-    ObjectSlot end(old_space_strings_.data() + old_space_strings_.size());
-    for (ObjectSlot p = start; p < end; ++p) p.store(updater_func(heap_, p));
+    FullObjectSlot start(&old_space_strings_[0]);
+    FullObjectSlot end(&old_space_strings_[old_space_strings_.size()]);
+    for (FullObjectSlot p = start; p < end; ++p)
+      p.store(updater_func(heap_, p));
   }
 
   UpdateNewSpaceReferences(updater_func);
@@ -2312,9 +2313,9 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
     explicit ExternalStringTableVisitorAdapter(
         Isolate* isolate, v8::ExternalResourceVisitor* visitor)
         : isolate_(isolate), visitor_(visitor) {}
-    void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                           ObjectSlot end) override {
-      for (ObjectSlot p = start; p < end; ++p) {
+    void VisitRootPointers(Root root, const char* description,
+                           FullObjectSlot start, FullObjectSlot end) override {
+      for (FullObjectSlot p = start; p < end; ++p) {
         DCHECK((*p)->IsExternalString());
         visitor_->VisitExternalString(
             Utils::ToLocal(Handle<String>(String::cast(*p), isolate_)));
@@ -2498,9 +2499,9 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
   explicit LeftTrimmerVerifierRootVisitor(FixedArrayBase to_check)
       : to_check_(to_check) {}
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    for (ObjectSlot p = start; p < end; ++p) {
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot p = start; p < end; ++p) {
       DCHECK_NE(*p, to_check_);
     }
   }
@@ -3675,6 +3676,7 @@ void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #endif
 }
 
+// TODO(ishell): move builtin accessors out from Heap.
 Code Heap::builtin(int index) {
   DCHECK(Builtins::IsBuiltinId(index));
   return Code::cast(ObjectPtr(isolate()->builtins_table()[index]));
@@ -3703,7 +3705,7 @@ void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
   v->VisitRootPointer(Root::kStringTable, nullptr,
-                      ObjectSlot(&roots_table()[RootIndex::kStringTable]));
+                      FullObjectSlot(&roots_table()[RootIndex::kStringTable]));
   v->Synchronize(VisitorSynchronization::kStringTable);
   if (!isMinorGC && mode != VISIT_ALL_IN_SWEEP_NEWSPACE &&
       mode != VISIT_FOR_SERIALIZATION) {
@@ -3735,17 +3737,17 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
   }
 
   void VisitRootPointer(Root root, const char* description,
-                        ObjectSlot p) override {
+                        FullObjectSlot p) override {
     FixHandle(p);
   }
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    for (ObjectSlot p = start; p < end; ++p) FixHandle(p);
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot p = start; p < end; ++p) FixHandle(p);
   }
 
  private:
-  inline void FixHandle(ObjectSlot p) {
+  inline void FixHandle(FullObjectSlot p) {
     if (!(*p)->IsHeapObject()) return;
     HeapObject* current = reinterpret_cast<HeapObject*>(*p);
     const MapWord map_word = current->map_word();
@@ -3891,7 +3893,7 @@ void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
 void Heap::IterateBuiltins(RootVisitor* v) {
   for (int i = 0; i < Builtins::builtin_count; i++) {
     v->VisitRootPointer(Root::kBuiltins, Builtins::name(i),
-                        ObjectSlot(builtin_address(i)));
+                        FullObjectSlot(builtin_address(i)));
   }
 }
 
@@ -4865,9 +4867,9 @@ void Heap::FatalProcessOutOfMemory(const char* location) {
 
 class PrintHandleVisitor : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    for (ObjectSlot p = start; p < end; ++p)
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot p = start; p < end; ++p)
       PrintF("  handle %p to %p\n", p.ToVoidPtr(), reinterpret_cast<void*>(*p));
   }
 };
@@ -4887,8 +4889,8 @@ class CheckHandleCountVisitor : public RootVisitor {
   ~CheckHandleCountVisitor() override {
     CHECK_GT(HandleScope::kCheckHandleThreshold, handle_count_);
   }
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
     handle_count_ += end - start;
   }
 
@@ -5031,9 +5033,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       MarkPointers(start, end);
     }
 
-    void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                           ObjectSlot end) override {
-      MarkPointers(MaybeObjectSlot(start), MaybeObjectSlot(end));
+    void VisitRootPointers(Root root, const char* description,
+                           FullObjectSlot start, FullObjectSlot end) override {
+      MarkPointersImpl(start, end);
     }
 
     void TransitiveClosure() {
@@ -5046,10 +5048,16 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
    private:
     void MarkPointers(MaybeObjectSlot start, MaybeObjectSlot end) {
+      MarkPointersImpl(start, end);
+    }
+
+    template <typename TSlot>
+    V8_INLINE void MarkPointersImpl(TSlot start, TSlot end) {
       // Treat weak references as strong.
-      for (MaybeObjectSlot p = start; p < end; ++p) {
+      for (TSlot p = start; p < end; ++p) {
+        typename TSlot::TObject object = p.load();
         HeapObject* heap_object;
-        if ((*p)->GetHeapObject(&heap_object)) {
+        if (object.GetHeapObject(&heap_object)) {
           if (filter_->MarkAsReachable(heap_object)) {
             marking_stack_.push_back(heap_object);
           }
@@ -5221,7 +5229,7 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
 }
 
-void Heap::RegisterStrongRoots(ObjectSlot start, ObjectSlot end) {
+void Heap::RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end) {
   StrongRootsList* list = new StrongRootsList();
   list->next = strong_roots_list_;
   list->start = start;
@@ -5229,7 +5237,7 @@ void Heap::RegisterStrongRoots(ObjectSlot start, ObjectSlot end) {
   strong_roots_list_ = list;
 }
 
-void Heap::UnregisterStrongRoots(ObjectSlot start) {
+void Heap::UnregisterStrongRoots(FullObjectSlot start) {
   StrongRootsList* prev = nullptr;
   StrongRootsList* list = strong_roots_list_;
   while (list != nullptr) {
@@ -5389,9 +5397,12 @@ void VerifyPointersVisitor::VisitPointers(HeapObject* host,
 
 void VerifyPointersVisitor::VisitRootPointers(Root root,
                                               const char* description,
-                                              ObjectSlot start,
-                                              ObjectSlot end) {
-  VerifyPointers(nullptr, MaybeObjectSlot(start), MaybeObjectSlot(end));
+                                              FullObjectSlot start,
+                                              FullObjectSlot end) {
+  // TODO(ishell): visiting off-heap pointer
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  VerifyPointers(nullptr, MaybeObjectSlot(start.address()),
+                 MaybeObjectSlot(end.address()));
 }
 
 void VerifyPointersVisitor::VerifyPointers(HeapObject* host,
@@ -5409,8 +5420,9 @@ void VerifyPointersVisitor::VerifyPointers(HeapObject* host,
 }
 
 void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,
-                                          ObjectSlot start, ObjectSlot end) {
-  for (ObjectSlot current = start; current < end; ++current) {
+                                          FullObjectSlot start,
+                                          FullObjectSlot end) {
+  for (FullObjectSlot current = start; current < end; ++current) {
     CHECK((*current)->IsSmi());
   }
 }

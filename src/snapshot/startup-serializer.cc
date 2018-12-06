@@ -109,7 +109,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // one entry with 'undefined' to terminate the partial snapshot cache.
   Object* undefined = ReadOnlyRoots(isolate()).undefined_value();
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                   ObjectSlot(&undefined));
+                   FullObjectSlot(&undefined));
   isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
   SerializeDeferredObjects();
   Pad();
@@ -166,9 +166,9 @@ void SerializedHandleChecker::AddToSet(FixedArray serialized) {
 
 void SerializedHandleChecker::VisitRootPointers(Root root,
                                                 const char* description,
-                                                ObjectSlot start,
-                                                ObjectSlot end) {
-  for (ObjectSlot p = start; p < end; ++p) {
+                                                FullObjectSlot start,
+                                                FullObjectSlot end) {
+  for (FullObjectSlot p = start; p < end; ++p) {
     if (serialized_.find(*p) != serialized_.end()) continue;
     PrintF("%s handle not serialized: ",
            root == Root::kGlobalHandles ? "global" : "eternal");

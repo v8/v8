@@ -67,6 +67,7 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
 
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
   virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
+  virtual void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) = 0;
 
   virtual bool IsMarked(HeapObject* object) = 0;
 
@@ -82,9 +83,9 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
     VerifyPointers(start, end);
   }
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    VerifyPointers(start, end);
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    VerifyRootPointers(start, end);
   }
 
   void VerifyRoots(VisitMode mode);
@@ -198,10 +199,16 @@ class FullMarkingVerifier : public MarkingVerifier {
     VerifyPointersImpl(start, end);
   }
 
+  void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
+    VerifyPointersImpl(start, end);
+  }
+
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     if (!host->IsWeakObject(rinfo->target_object())) {
       Object* p = rinfo->target_object();
+      // TODO(ishell): visiting off-heap pointer
+      STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
       VisitPointer(host, ObjectSlot(&p));
     }
   }
@@ -235,9 +242,9 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
     VerifyPointers(start, end);
   }
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    VerifyPointers(start, end);
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    VerifyRootPointers(start, end);
   }
 
  protected:
@@ -247,6 +254,7 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
 
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
   virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
+  virtual void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) = 0;
 
   void VerifyRoots(VisitMode mode);
   void VerifyEvacuationOnPage(Address start, Address end);
@@ -324,6 +332,9 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     VerifyPointersImpl(start, end);
   }
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
+    VerifyPointersImpl(start, end);
+  }
+  void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
 };
@@ -863,17 +874,17 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
       : collector_(collector) {}
 
   void VisitRootPointer(Root root, const char* description,
-                        ObjectSlot p) final {
+                        FullObjectSlot p) final {
     MarkObjectByPointer(root, p);
   }
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) final {
-    for (ObjectSlot p = start; p < end; ++p) MarkObjectByPointer(root, p);
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final {
+    for (FullObjectSlot p = start; p < end; ++p) MarkObjectByPointer(root, p);
   }
 
  private:
-  V8_INLINE void MarkObjectByPointer(Root root, ObjectSlot p) {
+  V8_INLINE void MarkObjectByPointer(Root root, FullObjectSlot p) {
     if (!(*p)->IsHeapObject()) return;
 
     collector_->MarkRootObject(root, HeapObject::cast(*p));
@@ -972,13 +983,13 @@ class ExternalStringTableCleaner : public RootVisitor {
  public:
   explicit ExternalStringTableCleaner(Heap* heap) : heap_(heap) {}
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
     Object* the_hole = ReadOnlyRoots(heap_).the_hole_value();
-    for (ObjectSlot p = start; p < end; ++p) {
+    for (FullObjectSlot p = start; p < end; ++p) {
       Object* o = *p;
       if (o->IsHeapObject()) {
         HeapObject* heap_object = HeapObject::cast(o);
@@ -1420,7 +1431,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   Heap* heap_;
 };
 
-bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, ObjectSlot p) {
+bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
   Object* o = *p;
   if (!o->IsHeapObject()) return false;
   HeapObject* heap_object = HeapObject::cast(o);
@@ -2227,20 +2238,56 @@ void MarkCompactCollector::RecordRelocSlot(Code host, RelocInfo* rinfo,
   }
 }
 
-template <AccessMode access_mode>
-static inline SlotCallbackResult UpdateSlot(
-    MaybeObjectSlot slot, MaybeObject old, HeapObject* heap_obj,
-    HeapObjectReferenceType reference_type) {
+namespace {
+
+// Missing specialization MakeSlotValue<FullObjectSlot, WEAK>() will turn
+// attempt to store a weak reference to strong-only slot to a compilation error.
+template <typename TSlot, HeapObjectReferenceType reference_type>
+typename TSlot::TObject MakeSlotValue(HeapObject* heap_object);
+
+template <>
+ObjectPtr MakeSlotValue<FullObjectSlot, HeapObjectReferenceType::STRONG>(
+    HeapObject* heap_object) {
+  return ObjectPtr(heap_object->ptr());
+}
+
+#ifdef V8_COMPRESS_POINTERS
+template <>
+ObjectPtr MakeSlotValue<CompressedObjectSlot, HeapObjectReferenceType::STRONG>(
+    HeapObject* heap_object) {
+  return ObjectPtr(heap_object->ptr());
+}
+#endif
+
+template <>
+MaybeObject MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::STRONG>(
+    HeapObject* heap_object) {
+  return HeapObjectReference::Strong(heap_object);
+}
+
+template <>
+MaybeObject MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::WEAK>(
+    HeapObject* heap_object) {
+  return HeapObjectReference::Weak(heap_object);
+}
+
+template <AccessMode access_mode, HeapObjectReferenceType reference_type,
+          typename TSlot>
+static inline SlotCallbackResult UpdateSlot(TSlot slot,
+                                            typename TSlot::TObject old,
+                                            HeapObject* heap_obj) {
+  static_assert(std::is_same<TSlot, FullObjectSlot>::value ||
+                    std::is_same<TSlot, ObjectSlot>::value ||
+                    std::is_same<TSlot, MaybeObjectSlot>::value,
+                "Only FullObjectSlot and MaybeObjectSlot are expected here");
   MapWord map_word = heap_obj->map_word();
   if (map_word.IsForwardingAddress()) {
     DCHECK(Heap::InFromSpace(heap_obj) ||
            MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
            Page::FromAddress(heap_obj->address())
                ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
-    MaybeObject target =
-        reference_type == HeapObjectReferenceType::WEAK
-            ? HeapObjectReference::Weak(map_word.ToForwardingAddress())
-            : HeapObjectReference::Strong(map_word.ToForwardingAddress());
+    typename TSlot::TObject target =
+        MakeSlotValue<TSlot, reference_type>(map_word.ToForwardingAddress());
     if (access_mode == AccessMode::NON_ATOMIC) {
       slot.store(target);
     } else {
@@ -2255,31 +2302,33 @@ static inline SlotCallbackResult UpdateSlot(
   return REMOVE_SLOT;
 }
 
-template <AccessMode access_mode>
-static inline SlotCallbackResult UpdateSlot(MaybeObjectSlot slot) {
-  MaybeObject obj = slot.Relaxed_Load();
+// TODO(ishell): TSlot-ify this function
+template <AccessMode access_mode, typename TSlot>
+static inline SlotCallbackResult UpdateSlot(TSlot slot) {
+  typename TSlot::TObject obj = slot.Relaxed_Load();
   HeapObject* heap_obj;
-  if (obj->GetHeapObjectIfWeak(&heap_obj)) {
-    UpdateSlot<access_mode>(slot, obj, heap_obj, HeapObjectReferenceType::WEAK);
+  if (TSlot::kCanBeWeak && obj->GetHeapObjectIfWeak(&heap_obj)) {
+    UpdateSlot<access_mode, HeapObjectReferenceType::WEAK>(slot, obj, heap_obj);
   } else if (obj->GetHeapObjectIfStrong(&heap_obj)) {
-    return UpdateSlot<access_mode>(slot, obj, heap_obj,
-                                   HeapObjectReferenceType::STRONG);
+    return UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(slot, obj,
+                                                                    heap_obj);
   }
   return REMOVE_SLOT;
 }
 
-template <AccessMode access_mode>
-static inline SlotCallbackResult UpdateStrongSlot(MaybeObjectSlot maybe_slot) {
-  DCHECK((*maybe_slot)->IsSmi() || (*maybe_slot)->IsStrong());
-  ObjectSlot slot(maybe_slot);
-  Object* obj = slot.Relaxed_Load();
-  if (obj->IsHeapObject()) {
-    HeapObject* heap_obj = HeapObject::cast(obj);
-    return UpdateSlot<access_mode>(maybe_slot, MaybeObject::FromObject(obj),
-                                   heap_obj, HeapObjectReferenceType::STRONG);
+template <AccessMode access_mode, typename TSlot>
+static inline SlotCallbackResult UpdateStrongSlot(TSlot slot) {
+  DCHECK(!HasWeakHeapObjectTag(slot.load().ptr()));
+  typename TSlot::TObject obj = slot.Relaxed_Load();
+  HeapObject* heap_obj;
+  if (obj.GetHeapObject(&heap_obj)) {
+    return UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(slot, obj,
+                                                                    heap_obj);
   }
   return REMOVE_SLOT;
 }
+
+}  // namespace
 
 // Visitor for updating root pointers and to-space pointers.
 // It does not expect to encounter pointers to dead objects.
@@ -2312,13 +2361,15 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
   }
 
   void VisitRootPointer(Root root, const char* description,
-                        ObjectSlot p) override {
-    UpdateStrongSlotInternal(p);
+                        FullObjectSlot p) override {
+    UpdateRootSlotInternal(p);
   }
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    for (ObjectSlot p = start; p < end; ++p) UpdateStrongSlotInternal(p);
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot p = start; p < end; ++p) {
+      UpdateRootSlotInternal(p);
+    }
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
@@ -2332,15 +2383,17 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
   }
 
  private:
+  static inline SlotCallbackResult UpdateRootSlotInternal(FullObjectSlot slot) {
+    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(slot);
+  }
+
   static inline SlotCallbackResult UpdateStrongMaybeObjectSlotInternal(
       MaybeObjectSlot slot) {
-    DCHECK(!(*slot)->IsWeakOrCleared());
     return UpdateStrongSlot<AccessMode::NON_ATOMIC>(slot);
   }
 
   static inline SlotCallbackResult UpdateStrongSlotInternal(ObjectSlot slot) {
-    DCHECK(!HasWeakHeapObjectTag(*slot));
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(MaybeObjectSlot(slot));
+    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(slot);
   }
 
   static inline SlotCallbackResult UpdateSlotInternal(MaybeObjectSlot slot) {
@@ -2351,7 +2404,7 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
 };
 
 static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
-                                                        ObjectSlot p) {
+                                                        FullObjectSlot p) {
   MapWord map_word = HeapObject::cast(*p)->map_word();
 
   if (map_word.IsForwardingAddress()) {
@@ -3132,7 +3185,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             // typed slots.
             return UpdateTypedSlotHelper::UpdateTypedSlot(
                 heap_, slot_type, slot,
-                UpdateStrongSlot<AccessMode::NON_ATOMIC>);
+                UpdateStrongSlot<AccessMode::NON_ATOMIC, MaybeObjectSlot>);
           });
     }
   }
@@ -3592,6 +3645,10 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     VerifyPointersImpl(start, end);
   }
 
+  void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
+    VerifyPointersImpl(start, end);
+  }
+
  private:
   template <typename TSlot>
   V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end) {
@@ -3640,6 +3697,9 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
+  void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
+    VerifyPointersImpl(start, end);
+  }
 };
 
 #endif  // VERIFY_HEAP
@@ -3658,7 +3718,7 @@ void SeedGlobalHandles(Heap* heap, GlobalHandles* global_handles,
   }
 }
 
-bool IsUnmarkedObjectForYoungGeneration(Heap* heap, ObjectSlot p) {
+bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
   DCHECK_IMPLIES(Heap::InNewSpace(*p), Heap::InToSpace(*p));
   return Heap::InNewSpace(*p) && !heap->minor_mark_compact_collector()
                                       ->non_atomic_marking_state()
@@ -3895,19 +3955,19 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
       : collector_(collector) {}
 
   void VisitRootPointer(Root root, const char* description,
-                        ObjectSlot p) final {
+                        FullObjectSlot p) final {
     MarkObjectByPointer(p);
   }
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) final {
-    for (ObjectSlot p = start; p < end; ++p) {
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final {
+    for (FullObjectSlot p = start; p < end; ++p) {
       MarkObjectByPointer(p);
     }
   }
 
  private:
-  V8_INLINE void MarkObjectByPointer(ObjectSlot p) {
+  V8_INLINE void MarkObjectByPointer(FullObjectSlot p) {
     if (!(*p)->IsHeapObject()) return;
     collector_->MarkRootObject(HeapObject::cast(*p));
   }
@@ -4028,12 +4088,12 @@ class YoungGenerationExternalStringTableCleaner : public RootVisitor {
       : heap_(collector->heap()),
         marking_state_(collector->non_atomic_marking_state()) {}
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
     DCHECK_EQ(static_cast<int>(root),
               static_cast<int>(Root::kExternalStringsTable));
     // Visit all HeapObject pointers in [start, end).
-    for (ObjectSlot p = start; p < end; ++p) {
+    for (FullObjectSlot p = start; p < end; ++p) {
       Object* o = *p;
       if (o->IsHeapObject()) {
         HeapObject* heap_object = HeapObject::cast(o);
@@ -4305,15 +4365,15 @@ class GlobalHandlesMarkingItem : public MarkingItem {
         : task_(task) {}
 
     void VisitRootPointer(Root root, const char* description,
-                          ObjectSlot p) override {
+                          FullObjectSlot p) override {
       DCHECK_EQ(Root::kGlobalHandles, root);
       task_->MarkObject(*p);
     }
 
-    void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                           ObjectSlot end) override {
+    void VisitRootPointers(Root root, const char* description,
+                           FullObjectSlot start, FullObjectSlot end) override {
       DCHECK_EQ(Root::kGlobalHandles, root);
-      for (ObjectSlot p = start; p < end; ++p) {
+      for (FullObjectSlot p = start; p < end; ++p) {
         task_->MarkObject(*p);
       }
     }

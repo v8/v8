@@ -488,7 +488,7 @@ class ParameterArguments {
  public:
   explicit ParameterArguments(Address parameters) : parameters_(parameters) {}
   Object* operator[](int index) {
-    return *ObjectSlot(parameters_ - (index + 1) * kPointerSize);
+    return *FullObjectSlot(parameters_ - (index + 1) * kPointerSize);
   }
 
  private:

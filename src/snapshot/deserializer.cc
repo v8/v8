@@ -113,7 +113,7 @@ Deserializer::~Deserializer() {
 // This is called on the roots.  It is the driver of the deserialization
 // process.  It is also called on the body of each function.
 void Deserializer::VisitRootPointers(Root root, const char* description,
-                                     ObjectSlot start, ObjectSlot end) {
+                                     FullObjectSlot start, FullObjectSlot end) {
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using nullptr as the address.
   ReadData(UnalignedSlot(start), UnalignedSlot(end), NEW_SPACE, kNullAddress);

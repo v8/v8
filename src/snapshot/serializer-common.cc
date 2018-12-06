@@ -118,7 +118,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
     visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                              ObjectSlot(&cache->at(i)));
+                              FullObjectSlot(&cache->at(i)));
     if (cache->at(i)->IsUndefined(isolate)) break;
   }
 }

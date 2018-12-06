@@ -45,11 +45,12 @@ class CustomArguments : public CustomArgumentsBase {
     return reinterpret_cast<Isolate*>(*slot_at(T::kIsolateIndex));
   }
 
-  inline ObjectSlot slot_at(int index) {
+  inline FullObjectSlot slot_at(int index) {
     // This allows index == T::kArgsLength so "one past the end" slots
     // can be retrieved for iterating purposes.
-    DCHECK(index >= 0 && index <= T::kArgsLength);
-    return ObjectSlot(values_ + index);
+    DCHECK_LE(static_cast<unsigned>(index),
+              static_cast<unsigned>(T::kArgsLength));
+    return FullObjectSlot(values_ + index);
   }
   Address values_[T::kArgsLength];
 };

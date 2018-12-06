@@ -47,7 +47,7 @@ void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   DCHECK_EQ(0, context_->native_context()->microtask_queue()->size());
   context_->native_context()->set_microtask_queue(nullptr);
 
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, ObjectSlot(o));
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(o));
   SerializeDeferredObjects();
 
   // Add section for embedder-serialized embedder fields.

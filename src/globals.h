@@ -634,9 +634,9 @@ using MaybeObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TMaybeObjectSlot;
 // HeapObjectReference).
 using HeapObjectSlot = SlotTraits<SlotLocation::kOnHeap>::THeapObjectSlot;
 
-typedef bool (*WeakSlotCallback)(ObjectSlot pointer);
+typedef bool (*WeakSlotCallback)(FullObjectSlot pointer);
 
-typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, ObjectSlot pointer);
+typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, FullObjectSlot pointer);
 
 // -----------------------------------------------------------------------------
 // Miscellaneous

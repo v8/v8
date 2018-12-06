@@ -129,7 +129,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
   const bool record_slots_;
 };
 
-static bool IsUnscavengedHeapObject(Heap* heap, ObjectSlot p) {
+static bool IsUnscavengedHeapObject(Heap* heap, FullObjectSlot p) {
   return Heap::InFromSpace(*p) &&
          !HeapObject::cast(*p)->map_word().IsForwardingAddress();
 }
@@ -426,18 +426,19 @@ void Scavenger::Finalize() {
 }
 
 void RootScavengeVisitor::VisitRootPointer(Root root, const char* description,
-                                           ObjectSlot p) {
+                                           FullObjectSlot p) {
   DCHECK(!HasWeakHeapObjectTag(*p));
   ScavengePointer(p);
 }
 
 void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
-                                            ObjectSlot start, ObjectSlot end) {
+                                            FullObjectSlot start,
+                                            FullObjectSlot end) {
   // Copy all HeapObject pointers in [start, end)
-  for (ObjectSlot p = start; p < end; ++p) ScavengePointer(p);
+  for (FullObjectSlot p = start; p < end; ++p) ScavengePointer(p);
 }
 
-void RootScavengeVisitor::ScavengePointer(ObjectSlot p) {
+void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
   Object* object = *p;
   DCHECK(!HasWeakHeapObjectTag(object));
   if (!Heap::InNewSpace(object)) return;

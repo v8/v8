@@ -106,7 +106,7 @@ class GlobalHandles::Node {
 
   // Object slot accessors.
   ObjectPtr object() const { return ObjectPtr(object_); }
-  ObjectSlot location() { return ObjectSlot(&object_); }
+  FullObjectSlot location() { return FullObjectSlot(&object_); }
   const char* label() { return state() == NORMAL ? data_.label : nullptr; }
   Handle<Object> handle() { return Handle<Object>(&object_); }
 
@@ -1095,8 +1095,8 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
   for (Address* block : blocks_) {
     DCHECK_GT(limit, 0);
     visitor->VisitRootPointers(Root::kEternalHandles, nullptr,
-                               ObjectSlot(block),
-                               ObjectSlot(block + Min(limit, kSize)));
+                               FullObjectSlot(block),
+                               FullObjectSlot(block + Min(limit, kSize)));
     limit -= kSize;
   }
 }
@@ -1104,7 +1104,7 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
 void EternalHandles::IterateNewSpaceRoots(RootVisitor* visitor) {
   for (int index : new_space_indices_) {
     visitor->VisitRootPointer(Root::kEternalHandles, nullptr,
-                              ObjectSlot(GetLocation(index)));
+                              FullObjectSlot(GetLocation(index)));
   }
 }
 
@@ -1130,7 +1130,7 @@ void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
   // Need to resize.
   if (offset == 0) {
     Address* next_block = new Address[kSize];
-    MemsetPointer(ObjectSlot(next_block), the_hole, kSize);
+    MemsetPointer(FullObjectSlot(next_block), the_hole, kSize);
     blocks_.push_back(next_block);
   }
   DCHECK_EQ(the_hole->ptr(), blocks_[block][offset]);

@@ -220,17 +220,17 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
       : heap_(incremental_marking->heap()) {}
 
   void VisitRootPointer(Root root, const char* description,
-                        ObjectSlot p) override {
+                        FullObjectSlot p) override {
     MarkObjectByPointer(p);
   }
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    for (ObjectSlot p = start; p < end; ++p) MarkObjectByPointer(p);
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot p = start; p < end; ++p) MarkObjectByPointer(p);
   }
 
  private:
-  void MarkObjectByPointer(ObjectSlot p) {
+  void MarkObjectByPointer(FullObjectSlot p) {
     Object* obj = *p;
     if (!obj->IsHeapObject()) return;
 

@@ -63,7 +63,7 @@ void SourceCodeCache::Initialize(Isolate* isolate, bool create_heap_objects) {
 }
 
 void SourceCodeCache::Iterate(RootVisitor* v) {
-  v->VisitRootPointer(Root::kExtensions, nullptr, ObjectSlot(&cache_));
+  v->VisitRootPointer(Root::kExtensions, nullptr, FullObjectSlot(&cache_));
 }
 
 bool SourceCodeCache::Lookup(Isolate* isolate, Vector<const char> name,

@@ -331,22 +331,22 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
 void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
   v->VisitRootPointer(Root::kTop, nullptr,
-                      ObjectSlot(&thread->pending_exception_));
+                      FullObjectSlot(&thread->pending_exception_));
   v->VisitRootPointer(Root::kTop, nullptr,
-                      ObjectSlot(&thread->pending_message_obj_));
-  v->VisitRootPointer(Root::kTop, nullptr, ObjectSlot(&thread->context_));
+                      FullObjectSlot(&thread->pending_message_obj_));
+  v->VisitRootPointer(Root::kTop, nullptr, FullObjectSlot(&thread->context_));
   v->VisitRootPointer(Root::kTop, nullptr,
-                      ObjectSlot(&thread->scheduled_exception_));
+                      FullObjectSlot(&thread->scheduled_exception_));
 
   for (v8::TryCatch* block = thread->try_catch_handler(); block != nullptr;
        block = block->next_) {
     // TODO(3770): Make TryCatch::exception_ an Address (and message_obj_ too).
     v->VisitRootPointer(
         Root::kTop, nullptr,
-        ObjectSlot(reinterpret_cast<Address>(&(block->exception_))));
+        FullObjectSlot(reinterpret_cast<Address>(&(block->exception_))));
     v->VisitRootPointer(
         Root::kTop, nullptr,
-        ObjectSlot(reinterpret_cast<Address>(&(block->message_obj_))));
+        FullObjectSlot(reinterpret_cast<Address>(&(block->message_obj_))));
   }
 
   // Iterate over pointers on native execution stack.

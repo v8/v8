@@ -795,7 +795,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
-  static bool IsUnmarkedHeapObject(Heap* heap, ObjectSlot p);
+  static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
 
   // Clear non-live references in weak cells, transition and descriptor arrays,
   // and deoptimize dependent code of non-live maps.

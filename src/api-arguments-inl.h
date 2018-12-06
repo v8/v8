@@ -29,7 +29,7 @@ template <typename T>
 template <typename V>
 Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   // Check the ReturnValue.
-  ObjectSlot slot = slot_at(kReturnValueOffset);
+  FullObjectSlot slot = slot_at(kReturnValueOffset);
   // Nothing was set, return empty handle as per previous behaviour.
   if ((*slot)->IsTheHole(isolate)) return Handle<V>();
   Handle<V> result = Handle<V>::cast(Handle<Object>(slot.location()));

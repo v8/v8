@@ -444,50 +444,52 @@ class RootsTable {
   }
 
  private:
-  ObjectSlot begin() {
-    return ObjectSlot(&roots_[static_cast<size_t>(RootIndex::kFirstRoot)]);
+  FullObjectSlot begin() {
+    return FullObjectSlot(&roots_[static_cast<size_t>(RootIndex::kFirstRoot)]);
   }
-  ObjectSlot end() {
-    return ObjectSlot(&roots_[static_cast<size_t>(RootIndex::kLastRoot) + 1]);
+  FullObjectSlot end() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kLastRoot) + 1]);
   }
 
   // Used for iterating over all of the read-only and mutable strong roots.
-  ObjectSlot strong_or_read_only_roots_begin() {
+  FullObjectSlot strong_or_read_only_roots_begin() {
     STATIC_ASSERT(static_cast<size_t>(RootIndex::kLastReadOnlyRoot) ==
                   static_cast<size_t>(RootIndex::kFirstStrongRoot) - 1);
-    return ObjectSlot(
+    return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kFirstStrongOrReadOnlyRoot)]);
   }
-  ObjectSlot strong_or_read_only_roots_end() {
-    return ObjectSlot(
+  FullObjectSlot strong_or_read_only_roots_end() {
+    return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kLastStrongOrReadOnlyRoot) + 1]);
   }
 
   // The read-only, strong and Smi roots as defined by these accessors are all
   // disjoint.
-  ObjectSlot read_only_roots_begin() {
-    return ObjectSlot(
+  FullObjectSlot read_only_roots_begin() {
+    return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kFirstReadOnlyRoot)]);
   }
-  ObjectSlot read_only_roots_end() {
-    return ObjectSlot(
+  FullObjectSlot read_only_roots_end() {
+    return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kLastReadOnlyRoot) + 1]);
   }
 
-  ObjectSlot strong_roots_begin() {
-    return ObjectSlot(
+  FullObjectSlot strong_roots_begin() {
+    return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)]);
   }
-  ObjectSlot strong_roots_end() {
-    return ObjectSlot(
+  FullObjectSlot strong_roots_end() {
+    return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kLastStrongRoot) + 1]);
   }
 
-  ObjectSlot smi_roots_begin() {
-    return ObjectSlot(&roots_[static_cast<size_t>(RootIndex::kFirstSmiRoot)]);
+  FullObjectSlot smi_roots_begin() {
+    return FullObjectSlot(
+        &roots_[static_cast<size_t>(RootIndex::kFirstSmiRoot)]);
   }
-  ObjectSlot smi_roots_end() {
-    return ObjectSlot(
+  FullObjectSlot smi_roots_end() {
+    return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kLastSmiRoot) + 1]);
   }
 

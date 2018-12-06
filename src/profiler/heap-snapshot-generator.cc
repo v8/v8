@@ -1419,7 +1419,7 @@ class RootsReferencesExtractor : public RootVisitor {
   void SetVisitingWeakRoots() { visiting_weak_roots_ = true; }
 
   void VisitRootPointer(Root root, const char* description,
-                        ObjectSlot object) override {
+                        FullObjectSlot object) override {
     if (root == Root::kBuiltins) {
       explorer_->TagBuiltinCodeObject(Code::cast(*object), description);
     }
@@ -1427,10 +1427,11 @@ class RootsReferencesExtractor : public RootVisitor {
                                      *object);
   }
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    for (ObjectSlot p = start; p < end; ++p)
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot p = start; p < end; ++p) {
       VisitRootPointer(root, description, p);
+    }
   }
 
  private:
@@ -1724,9 +1725,9 @@ void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
 
 class GlobalObjectsEnumerator : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    for (ObjectSlot p = start; p < end; ++p) {
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot p = start; p < end; ++p) {
       if (!(*p)->IsNativeContext()) continue;
       JSObject* proxy = Context::cast(*p)->global_proxy();
       if (!proxy->IsJSGlobalProxy()) continue;

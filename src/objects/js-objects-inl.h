@@ -128,9 +128,13 @@ void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
   }
 }
 
-void JSObject::EnsureCanContainElements(Handle<JSObject> object,
-                                        ObjectSlot objects, uint32_t count,
+template <typename TSlot>
+void JSObject::EnsureCanContainElements(Handle<JSObject> object, TSlot objects,
+                                        uint32_t count,
                                         EnsureElementsMode mode) {
+  static_assert(std::is_same<TSlot, FullObjectSlot>::value ||
+                    std::is_same<TSlot, ObjectSlot>::value,
+                "Only ObjectSlot and FullObjectSlot are expected here");
   ElementsKind current_kind = object->GetElementsKind();
   ElementsKind target_kind = current_kind;
   {

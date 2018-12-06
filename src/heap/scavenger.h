@@ -214,12 +214,13 @@ class RootScavengeVisitor final : public RootVisitor {
  public:
   explicit RootScavengeVisitor(Scavenger* scavenger);
 
-  void VisitRootPointer(Root root, const char* description, ObjectSlot p) final;
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) final;
+  void VisitRootPointer(Root root, const char* description,
+                        FullObjectSlot p) final;
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final;
 
  private:
-  void ScavengePointer(ObjectSlot p);
+  void ScavengePointer(FullObjectSlot p);
 
   Scavenger* const scavenger_;
 };

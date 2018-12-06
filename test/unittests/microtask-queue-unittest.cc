@@ -45,9 +45,9 @@ class RecordingVisitor : public RootVisitor {
   RecordingVisitor() = default;
   ~RecordingVisitor() override = default;
 
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {
-    for (ObjectSlot current = start; current != end; ++current) {
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot current = start; current != end; ++current) {
       visited_.push_back(*current);
     }
   }

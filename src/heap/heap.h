@@ -686,8 +686,8 @@ class Heap {
   // snapshot blob, we need to reset it before serializing.
   void ClearStackLimits();
 
-  void RegisterStrongRoots(ObjectSlot start, ObjectSlot end);
-  void UnregisterStrongRoots(ObjectSlot start);
+  void RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end);
+  void UnregisterStrongRoots(FullObjectSlot start);
 
   void SetBuiltinsConstantsTable(FixedArray cache);
 
@@ -917,7 +917,7 @@ class Heap {
   inline void FinalizeExternalString(String string);
 
   static String UpdateNewSpaceReferenceInExternalStringTableEntry(
-      Heap* heap, ObjectSlot pointer);
+      Heap* heap, FullObjectSlot pointer);
 
   // ===========================================================================
   // Methods checking/returning the space of a given object/address. ===========
@@ -1301,7 +1301,7 @@ class Heap {
   class SkipStoreBufferScope;
 
   typedef String (*ExternalStringTableUpdaterCallback)(Heap* heap,
-                                                       ObjectSlot pointer);
+                                                       FullObjectSlot pointer);
 
   // External strings table is a place where all external strings are
   // registered.  We need to keep track of such strings to properly
@@ -2163,8 +2163,8 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
                      ObjectSlot end) override;
   void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override;
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override;
 
  protected:
   virtual void VerifyPointers(HeapObject* host, MaybeObjectSlot start,
@@ -2177,8 +2177,8 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
 // Verify that all objects are Smis.
 class VerifySmisVisitor : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override;
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override;
 };
 
 // Space iterator for iterating over all the paged spaces of the heap: Map

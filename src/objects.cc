@@ -3423,7 +3423,7 @@ void JSObject::PrintInstanceMigration(FILE* file, Map original_map,
   PrintF(file, "\n");
 }
 
-bool JSObject::IsUnmodifiedApiObject(ObjectSlot o) {
+bool JSObject::IsUnmodifiedApiObject(FullObjectSlot o) {
   Object* object = *o;
   if (object->IsSmi()) return false;
   HeapObject* heap_object = HeapObject::cast(object);
@@ -14493,7 +14493,9 @@ void ObjectVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   Object* old_pointer = Code::GetCodeFromTargetAddress(rinfo->target_address());
   Object* new_pointer = old_pointer;
-  VisitPointer(host, ObjectSlot(&new_pointer));
+  // TODO(ishell): we are actually visiting off-heap slot here.
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  VisitPointer(host, FullObjectSlot(&new_pointer));
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
@@ -14501,7 +14503,9 @@ void ObjectVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   Object* old_pointer = rinfo->target_object();
   Object* new_pointer = old_pointer;
-  VisitPointer(host, ObjectSlot(&new_pointer));
+  // TODO(ishell): we are actually visiting off-heap slot here.
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  VisitPointer(host, FullObjectSlot(&new_pointer));
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
