@@ -1730,7 +1730,7 @@ IGNITION_HANDLER(ConstructWithSpread, InterpreterAssembler) {
   Node* constructor = LoadRegisterAtOperandIndex(0);
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   Node* slot_id = BytecodeOperandIdx(3);
-  Node* feedback_vector = LoadFeedbackVector();
+  Node* feedback_vector = LoadFeedbackVectorUnchecked();
   Node* context = GetContext();
   Node* result = ConstructWithSpread(constructor, context, new_target, args,
                                      slot_id, feedback_vector);
@@ -1749,7 +1749,7 @@ IGNITION_HANDLER(Construct, InterpreterAssembler) {
   Node* constructor = LoadRegisterAtOperandIndex(0);
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   Node* slot_id = BytecodeOperandIdx(3);
-  Node* feedback_vector = LoadFeedbackVector();
+  Node* feedback_vector = LoadFeedbackVectorUnchecked();
   Node* context = GetContext();
   Node* result = Construct(constructor, context, new_target, args, slot_id,
                            feedback_vector);
