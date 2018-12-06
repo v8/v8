@@ -24,7 +24,7 @@ FullObjectSlot::FullObjectSlot(ObjectPtr* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
 bool FullObjectSlot::contains_value(Address raw_value) const {
-  return *location() == raw_value;
+  return base::AsAtomicPointer::Relaxed_Load(location()) == raw_value;
 }
 
 Object* FullObjectSlot::operator*() const {
