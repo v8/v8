@@ -23,6 +23,12 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+// Called with the native C calling convention. The corresponding function
+// signature is:
+//
+//  using JSEntryFunction = GeneratedCode<Object*(
+//      Object * new_target, Object * target, Object * receiver, int argc,
+//      Object*** args, Address root_register_value)>;
 void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Isolate* isolate = masm->isolate();
@@ -36,11 +42,11 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     // a1: function
     // a2: receiver
     // a3: argc
-    // a4 (a4): on mips64
-
+    // a4: argv
+    // a5: root register value
+    //
     // Stack:
     // 0 arg slots on mips64 (4 args slots on mips)
-    // args -- in a4/a4 on mips64, on stack on mips
 
     // Save callee saved registers on the stack.
     __ MultiPush(kCalleeSaved | ra.bit());
@@ -50,11 +56,13 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     // Set up the reserved register for 0.0.
     __ Move(kDoubleRegZero, 0.0);
 
-    // Load argv in s0 register.
-    __ mov(s0, a4);  // 5th parameter in mips64 a4 (a4) register.
-
-    __ InitializeRootRegister();
+    // Initialize the root register.
+    // C calling convention. The sixth argument is passed in a5.
+    __ mov(kRootRegister, a5);
   }
+
+  // Load argv in s0.
+  __ mov(s0, a4);  // The 5th argument is passed in a4.
 
   // We build an EntryFrame.
   __ li(a7, Operand(-1));  // Push a bad frame pointer to fail if it is used.

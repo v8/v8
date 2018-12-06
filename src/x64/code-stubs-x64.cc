@@ -27,6 +27,12 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+// Called with the native C calling convention. The corresponding function
+// signature is:
+//
+//  using JSEntryFunction = GeneratedCode<Object*(
+//      Object * new_target, Object * target, Object * receiver, int argc,
+//      Object*** args, Address root_register_value)>;
 void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
@@ -55,7 +61,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ pushq(rbx);
 
 #ifdef _WIN64
-    // On Win64 XMM6-XMM15 are callee-save
+    // On Win64 XMM6-XMM15 are callee-save.
     __ subp(rsp, Immediate(EntryFrameConstants::kXMMRegistersBlockSize));
     __ movdqu(Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 0), xmm6);
     __ movdqu(Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 1), xmm7);
@@ -67,9 +73,22 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ movdqu(Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 7), xmm13);
     __ movdqu(Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 8), xmm14);
     __ movdqu(Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 9), xmm15);
+    STATIC_ASSERT(EntryFrameConstants::kCalleeSaveXMMRegisters == 10);
+    STATIC_ASSERT(EntryFrameConstants::kXMMRegistersBlockSize ==
+                  EntryFrameConstants::kXMMRegisterSize *
+                      EntryFrameConstants::kCalleeSaveXMMRegisters);
 #endif
 
-    __ InitializeRootRegister();
+#ifdef _WIN64
+    // Initialize the root register.
+    // C calling convention. The sixth argument is passed on the stack.
+    __ movp(kRootRegister,
+            Operand(rbp, EntryFrameConstants::kRootRegisterValueOffset));
+#else
+    // Initialize the root register.
+    // C calling convention. The sixth argument is passed in r9.
+    __ movp(kRootRegister, r9);
+#endif
   }
 
   // Save copies of the top frame descriptor on the stack.

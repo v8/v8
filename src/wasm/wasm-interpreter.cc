@@ -2793,9 +2793,9 @@ class ThreadImpl {
           maybe_retval.is_null() ? " with exception" : "");
 
     if (maybe_retval.is_null()) {
-      // JSEntryStub may through a stack overflow before we actually get to wasm
-      // code or back to the interpreter, meaning the thread-in-wasm flag won't
-      // be cleared.
+      // JSEntry may throw a stack overflow before we actually get to wasm code
+      // or back to the interpreter, meaning the thread-in-wasm flag won't be
+      // cleared.
       if (trap_handler::IsThreadInWasm()) {
         trap_handler::ClearThreadInWasm();
       }

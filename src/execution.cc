@@ -118,9 +118,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
   // Placeholder for return value.
   Object* value = nullptr;
 
-  using JSEntryFunction =
-      GeneratedCode<Object*(Object * new_target, Object * target,
-                            Object * receiver, int argc, Object*** args)>;
+  using JSEntryFunction = GeneratedCode<Object*(
+      Object * new_target, Object * target, Object * receiver, int argc,
+      Object*** args, Address root_register_value)>;
 
   Handle<Code> code;
   switch (execution_target) {
@@ -154,7 +154,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(target));
     }
     RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
-    value = stub_entry.Call(orig_func, func, recv, argc, argv);
+    value = stub_entry.Call(orig_func, func, recv, argc, argv,
+                            isolate->isolate_data()->isolate_root());
   }
 
 #ifdef VERIFY_HEAP

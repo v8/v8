@@ -25,6 +25,12 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+// Called with the native C calling convention. The corresponding function
+// signature is:
+//
+//  using JSEntryFunction = GeneratedCode<Object*(
+//      Object * new_target, Object * target, Object * receiver, int argc,
+//      Object*** args, Address root_register_value)>;
 void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
@@ -48,7 +54,10 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ push(esi);
     __ push(ebx);
 
-    __ InitializeRootRegister();
+    // Initialize the root register based on the given Isolate* argument.
+    // C calling convention. The sixth argument is passed on the stack.
+    __ mov(kRootRegister,
+           Operand(ebp, EntryFrameConstants::kRootRegisterValueOffset));
   }
 
   // Save copies of the top frame descriptor on the stack.

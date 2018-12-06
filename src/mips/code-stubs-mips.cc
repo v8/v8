@@ -24,9 +24,18 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+// Called with the native C calling convention. The corresponding function
+// signature is:
+//
+//  using JSEntryFunction = GeneratedCode<Object*(
+//      Object * new_target, Object * target, Object * receiver, int argc,
+//      Object*** args, Address root_register_value)>;
 void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Isolate* isolate = masm->isolate();
+
+  static constexpr int kPushedStackSpace =
+      (kNumCalleeSaved + 1) * kPointerSize + kNumCalleeSavedFPU * kDoubleSize;
 
   {
     NoRootArrayScope no_root_array(masm);
@@ -38,8 +47,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     // a3: argc
     //
     // Stack:
-    // 4 args slots
-    // args
+    // 4 arg slots
+    // argv
+    // root register value
 
     // Save callee saved registers on the stack.
     __ MultiPush(kCalleeSaved | ra.bit());
@@ -49,14 +59,18 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     // Set up the reserved register for 0.0.
     __ Move(kDoubleRegZero, 0.0);
 
-    __ InitializeRootRegister();
+    // Initialize the root register.
+    // C calling convention. The sixth argument is passed on the stack.
+    static constexpr int kOffsetToRootRegisterValue =
+        kPushedStackSpace + kCArgsSlotsSize +
+        EntryFrameConstants::kRootRegisterValueOffset;
+    __ lw(kRootRegister, MemOperand(sp, kOffsetToRootRegisterValue));
   }
 
   // Load argv in s0 register.
-  int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
-  offset_to_argv += kNumCalleeSavedFPU * kDoubleSize;
-
-  __ lw(s0, MemOperand(sp, offset_to_argv + kCArgsSlotsSize));
+  static constexpr int kOffsetToArgv =
+      kPushedStackSpace + kCArgsSlotsSize + EntryFrameConstants::kArgvOffset;
+  __ lw(s0, MemOperand(sp, kOffsetToArgv));
 
   // We build an EntryFrame.
   __ li(t3, Operand(-1));  // Push a bad frame pointer to fail if it is used.

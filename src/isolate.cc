@@ -1560,7 +1560,7 @@ Object* Isolate::UnwindAndFindHandler() {
     switch (frame->type()) {
       case StackFrame::ENTRY:
       case StackFrame::CONSTRUCT_ENTRY: {
-        // For JSEntryStub frames we always have a handler.
+        // For JSEntry frames we always have a handler.
         StackHandler* handler = frame->top_handler();
 
         // Restore the next handler.

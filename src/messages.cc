@@ -1298,10 +1298,9 @@ MaybeHandle<Object> ErrorUtils::MakeGenericError(
     Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
     FrameSkipMode mode) {
   if (FLAG_clear_exceptions_on_js_entry) {
-    // This function used to be implemented in JavaScript, and JSEntryStub
-    // clears
-    // any pending exceptions - so whenever we'd call this from C++, pending
-    // exceptions would be cleared. Preserve this behavior.
+    // This function used to be implemented in JavaScript, and JSEntry
+    // clears any pending exceptions - so whenever we'd call this from C++,
+    // pending exceptions would be cleared. Preserve this behavior.
     isolate->clear_pending_exception();
   }
 

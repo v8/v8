@@ -27,14 +27,20 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-// This is the entry point from C++. 5 arguments are provided in x0-x4.
-// See use of the JSEntryFunction for example in src/execution.cc.
+// Called with the native C calling convention. The corresponding function
+// signature is:
+//
+//  using JSEntryFunction = GeneratedCode<Object*(
+//      Object * new_target, Object * target, Object * receiver, int argc,
+//      Object*** args, Address root_register_value)>;
+//
 // Input:
 //   x0: code entry.
 //   x1: function.
 //   x2: receiver.
 //   x3: argc.
 //   x4: argv.
+//   x5: root register value.
 // Output:
 //   x0: result.
 void JSEntryStub::Generate(MacroAssembler* masm) {
@@ -54,8 +60,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     // Set up the reserved register for 0.0.
     __ Fmov(fp_zero, 0.0);
 
-    // Initialize the root array register
-    __ InitializeRootRegister();
+    // Initialize the root register.
+    // C calling convention. The sixth argument is passed in x5.
+    __ Mov(kRootRegister, x5);
   }
 
   // Build an entry frame (see layout below).

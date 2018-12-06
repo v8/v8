@@ -28,14 +28,25 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+// Called with the native C calling convention. The corresponding function
+// signature is:
+//
+//  using JSEntryFunction = GeneratedCode<Object*(
+//      Object * new_target, Object * target, Object * receiver, int argc,
+//      Object*** args, Address root_register_value)>;
 void JSEntryStub::Generate(MacroAssembler* masm) {
-  // r0: code entry
-  // r1: function
-  // r2: receiver
-  // r3: argc
-  // [sp+0]: argv
+  // r0:                            code entry
+  // r1:                            function
+  // r2:                            receiver
+  // r3:                            argc
+  // [sp + 0 * kSystemPointerSize]: argv
+  // [sp + 1 * kSystemPointerSize]: root register value
 
   Label invoke, handler_entry, exit;
+
+  static constexpr int kPushedStackSpace =
+      (kNumCalleeSaved + 1) * kPointerSize +
+      kNumDoubleCalleeSaved * kDoubleSize;
 
   {
     NoRootArrayScope no_root_array(masm);
@@ -50,7 +61,11 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     // Set up the reserved register for 0.0.
     __ vmov(kDoubleRegZero, Double(0.0));
 
-    __ InitializeRootRegister();
+    // Initialize the root register.
+    // C calling convention. The sixth argument is passed on the stack.
+    static constexpr int kOffsetToRootRegisterValue =
+        kPushedStackSpace + EntryFrameConstants::kRootRegisterValueOffset;
+    __ ldr(kRootRegister, MemOperand(sp, kOffsetToRootRegisterValue));
   }
 
   // Get address of argv, see stm above.
@@ -60,9 +75,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // r3: argc
 
   // Set up argv in r4.
-  int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
-  offset_to_argv += kNumDoubleCalleeSaved * kDoubleSize;
-  __ ldr(r4, MemOperand(sp, offset_to_argv));
+  static constexpr int kOffsetToArgv =
+      kPushedStackSpace + EntryFrameConstants::kArgvOffset;
+  __ ldr(r4, MemOperand(sp, kOffsetToArgv));
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r0: code entry
