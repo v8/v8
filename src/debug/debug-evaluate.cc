@@ -337,6 +337,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(Call)                                     \
   V(CompleteInobjectSlackTrackingForMap)      \
   V(HasInPrototypeChain)                      \
+  V(IncrementUseCounter)                      \
   V(MaxSmi)                                   \
   V(NewObject)                                \
   V(SmiLexicographicCompare)                  \
