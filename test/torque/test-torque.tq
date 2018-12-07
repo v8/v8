@@ -670,4 +670,23 @@ namespace test {
     }
     label Fail {}
   }
+
+  macro TestFrame1(implicit context: Context)() {
+    const f: Frame = LoadFramePointer();
+    const frameType: FrameType =
+        Cast<FrameType>(f.context_or_frame_type) otherwise unreachable;
+    assert(frameType == STUB_FRAME);
+    assert(f.caller == LoadParentFramePointer());
+    typeswitch (f) {
+      case (f: StandardFrame): {
+        unreachable;
+      }
+      case (f: ArgumentsAdapterFrame): {
+        unreachable;
+      }
+      case (f: StubFrame): {
+      }
+    }
+  }
+
 }

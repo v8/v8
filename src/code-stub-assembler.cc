@@ -1307,20 +1307,9 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
   }
 }
 
-Node* CodeStubAssembler::LoadFromFrame(int offset, MachineType rep) {
-  Node* frame_pointer = LoadFramePointer();
-  return Load(rep, frame_pointer, IntPtrConstant(offset));
-}
-
 Node* CodeStubAssembler::LoadFromParentFrame(int offset, MachineType rep) {
   Node* frame_pointer = LoadParentFramePointer();
   return Load(rep, frame_pointer, IntPtrConstant(offset));
-}
-
-TNode<JSFunction> CodeStubAssembler::LoadTargetFromFrame() {
-  DCHECK(IsJSFunctionCall());
-  return CAST(LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                            MachineType::TaggedPointer()));
 }
 
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,

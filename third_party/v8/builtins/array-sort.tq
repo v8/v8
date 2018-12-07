@@ -676,7 +676,7 @@ namespace array {
 
         // Find pivot insertion point.
         while (left < right) {
-          const mid: Smi = left + ((right - left) >>> 1);
+          const mid: Smi = left + ((right - left) >> 1);
           const midElement: Object =
               CallLoad(context, sortState, load, elements, mid)
               otherwise Bailout;
@@ -999,7 +999,7 @@ namespace array {
       //   a[base + lastOfs - 1] < key <= a[base + offset].
       lastOfs++;
       while (lastOfs < offset) {
-        const m: Smi = lastOfs + ((offset - lastOfs) >>> 1);
+        const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
 
         const baseMElement: Object = CallLoad(
             context, sortState, load,
@@ -1120,7 +1120,7 @@ namespace array {
       // a[base + lastOfs - 1] < key <= a[base + ofs].
       lastOfs++;
       while (lastOfs < offset) {
-        const m: Smi = lastOfs + ((offset - lastOfs) >>> 1);
+        const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
 
         const baseMElement: Object = CallLoad(
             context, sortState, load,
@@ -1531,7 +1531,7 @@ namespace array {
     assert(n >= 0);
     while (n >= 64) {
       r = r | (n & 1);
-      n = n >>> 1;
+      n = n >> 1;
     }
 
     const minRunLength: Smi = n + r;

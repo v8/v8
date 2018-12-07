@@ -226,6 +226,8 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
           "String or Number");
     } else if (return_type->IsSubtypeOf(TypeOracle::GetIntPtrType())) {
       out_ << "ca_.IntPtrConstant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
+      out_ << "ca_.UintPtrConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
       out_ << "ca_.Int32Constant";
     } else {

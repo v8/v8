@@ -959,6 +959,7 @@ torque_files = [
   "src/builtins/array-unshift.tq",
   "src/builtins/collections.tq",
   "src/builtins/data-view.tq",
+  "src/builtins/frames.tq",
   "src/builtins/object.tq",
   "src/builtins/object-fromentries.tq",
   "src/builtins/iterator.tq",

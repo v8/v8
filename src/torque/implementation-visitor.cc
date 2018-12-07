@@ -1808,6 +1808,12 @@ VisitResult ImplementationVisitor::GenerateCall(
             "%RawConstexprCast must take a single parameter with constexpr "
             "type");
       }
+      if (!return_type->IsConstexpr()) {
+        std::stringstream s;
+        s << *return_type
+          << " return type for %RawConstexprCast is not constexpr";
+        ReportError(s.str());
+      }
       std::stringstream result;
       result << "static_cast<" << return_type->GetGeneratedTypeName() << ">(";
       result << constexpr_arguments[0];

@@ -16,6 +16,7 @@
 #include "src/objects.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 #include "src/roots.h"
 
@@ -352,6 +353,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                   SmiAboveOrEqual)
 #undef PARAMETER_BINOP
 
+  uintptr_t ConstexprUintPtrShl(uintptr_t a, int32_t b) { return a << b; }
+  uintptr_t ConstexprUintPtrShr(uintptr_t a, int32_t b) { return a >> b; }
+
   TNode<Object> NoContextConstant();
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)  \
@@ -457,6 +461,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> SmiShr(TNode<Smi> a, int shift) {
     return BitcastWordToTaggedSigned(
         WordAnd(WordShr(BitcastTaggedToWord(a), shift),
+                BitcastTaggedToWord(SmiConstant(-1))));
+  }
+
+  TNode<Smi> SmiSar(TNode<Smi> a, int shift) {
+    return BitcastWordToTaggedSigned(
+        WordAnd(WordSar(BitcastTaggedToWord(a), shift),
                 BitcastTaggedToWord(SmiConstant(-1))));
   }
 
@@ -713,23 +723,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Branches to {if_true} when Debug::ExecutionMode is DebugInfo::kSideEffect.
   void GotoIfDebugExecutionModeChecksSideEffects(Label* if_true);
 
-  // Load value from current frame by given offset in bytes.
-  Node* LoadFromFrame(int offset, MachineType rep = MachineType::AnyTagged());
   // Load value from current parent frame by given offset in bytes.
   Node* LoadFromParentFrame(int offset,
                             MachineType rep = MachineType::AnyTagged());
 
-  // Load target function from the current JS frame.
-  // This is an alternative way of getting the target function in addition to
-  // Parameter(Descriptor::kJSTarget). The latter should be used near the
-  // beginning of builtin code while the target value is still in the register
-  // and the former should be used in slow paths in order to reduce register
-  // pressure on the fast path.
-  TNode<JSFunction> LoadTargetFromFrame();
-
   // Load an object pointer from a buffer that isn't in the heap.
   Node* LoadBufferObject(Node* buffer, int offset,
                          MachineType rep = MachineType::AnyTagged());
+  TNode<RawPtrT> LoadBufferPointer(TNode<RawPtrT> buffer, int offset) {
+    return UncheckedCast<RawPtrT>(
+        LoadBufferObject(buffer, offset, MachineType::Pointer()));
+  }
+  TNode<Smi> LoadBufferSmi(TNode<RawPtrT> buffer, int offset) {
+    return CAST(LoadBufferObject(buffer, offset, MachineType::TaggedSigned()));
+  }
   // Load a field from an object on the heap.
   Node* LoadObjectField(SloppyTNode<HeapObject> object, int offset,
                         MachineType rep);
@@ -1127,6 +1134,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadJSFunctionPrototypeOrInitialMap(
       TNode<JSFunction> function) {
     return LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
+  }
+
+  TNode<SharedFunctionInfo> LoadJSFunctionSharedFunctionInfo(
+      TNode<JSFunction> function) {
+    return CAST(
+        LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
+  }
+
+  TNode<Int32T> LoadSharedFunctionInfoFormalParameterCount(
+      TNode<SharedFunctionInfo> function) {
+    return TNode<Int32T>::UncheckedCast(LoadObjectField(
+        function, SharedFunctionInfo::kFormalParameterCountOffset,
+        MachineType::Uint16()));
   }
 
   void StoreObjectByteNoWriteBarrier(TNode<HeapObject> object, int offset,

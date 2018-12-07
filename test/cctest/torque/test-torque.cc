@@ -375,6 +375,22 @@ TEST(TestLookup) {
   ft.Call();
 }
 
+TEST(TestFrame1) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestFrame1(m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -124,6 +124,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(INTPTR_TYPE_STRING);
   }
 
+  static const Type* GetUIntPtrType() {
+    return Get().GetBuiltinType(UINTPTR_TYPE_STRING);
+  }
+
   static const Type* GetInt32Type() {
     return Get().GetBuiltinType(INT32_TYPE_STRING);
   }

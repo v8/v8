@@ -146,7 +146,7 @@ namespace typed_array {
 
       // TODO(szuend): Check if a more involved thirdIndex calculation is
       //               worth it for very large arrays.
-      const thirdIndex: Smi = from + ((to - from) >>> 1);
+      const thirdIndex: Smi = from + ((to - from) >> 1);
 
       if (IsDetachedBuffer(array.buffer)) goto Detached;
 

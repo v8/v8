@@ -15,8 +15,8 @@ type Arguments constexpr 'CodeStubArguments*';
 type void;
 type never;
 
-type Tagged generates 'TNode<Object>' constexpr 'Object*';
-type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi*';
+type Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';
+type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
 type HeapObject extends Tagged generates 'TNode<HeapObject>';
 type Object = Smi | HeapObject;
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
@@ -127,6 +127,8 @@ type MessageTemplate constexpr 'MessageTemplate';
 type ToIntegerTruncationMode
 constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
 type AllocationFlags constexpr 'AllocationFlags';
+
+const kSmiTagSize: constexpr int31 generates 'kSmiTagSize';
 
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
 
@@ -345,6 +347,10 @@ extern transitioning runtime TransitionElementsKindWithKind(
 extern transitioning runtime CreateDataProperty(implicit context: Context)(
     JSReceiver, Object, Object);
 
+extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
+extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
+extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
+
 extern macro LoadRoot(constexpr RootIndex): Object;
 extern macro StoreRoot(constexpr RootIndex, Object): Object;
 extern macro LoadAndUntagToWord32Root(constexpr RootIndex): int32;
@@ -356,6 +362,9 @@ extern macro StrictEqual(Object, Object): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
 extern runtime ReThrow(Context, Object): never;
 extern runtime ThrowInvalidStringLength(Context): never;
+
+extern operator '==' macro WordEqual(RawPtr, RawPtr): bool;
+extern operator '!=' macro WordNotEqual(RawPtr, RawPtr): bool;
 
 extern operator '<' macro Int32LessThan(int32, int32): bool;
 extern operator '<' macro Uint32LessThan(uint32, uint32): bool;
@@ -433,21 +442,21 @@ extern operator '+' macro SmiAdd(Smi, Smi): Smi;
 extern operator '-' macro SmiSub(Smi, Smi): Smi;
 extern operator '&' macro SmiAnd(Smi, Smi): Smi;
 extern operator '|' macro SmiOr(Smi, Smi): Smi;
-extern operator '>>>' macro SmiShr(Smi, constexpr int31): Smi;
 extern operator '<<' macro SmiShl(Smi, constexpr int31): Smi;
+extern operator '>>' macro SmiSar(Smi, constexpr int31): Smi;
 
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
 extern operator '*' macro IntPtrMul(intptr, intptr): intptr;
 extern operator '/' macro IntPtrDiv(intptr, intptr): intptr;
 extern operator '<<' macro WordShl(intptr, intptr): intptr;
+extern operator '>>' macro WordSar(intptr, intptr): intptr;
 extern operator '&' macro WordAnd(intptr, intptr): intptr;
 extern operator '|' macro WordOr(intptr, intptr): intptr;
 
 extern operator '+' macro UintPtrAdd(uintptr, uintptr): uintptr;
 extern operator '-' macro UintPtrSub(uintptr, uintptr): uintptr;
 extern operator '>>>' macro WordShr(uintptr, uintptr): uintptr;
-extern operator '<<' macro WordShl(uintptr, uintptr): uintptr;
 extern operator '&' macro WordAnd(uintptr, uintptr): uintptr;
 extern operator '|' macro WordOr(uintptr, uintptr): uintptr;
 
@@ -486,6 +495,11 @@ macro Min(x: Number, y: Number): Number {
 macro Max(x: Number, y: Number): Number {
   return NumberMax(x, y);
 }
+
+extern operator '<<' macro ConstexprUintPtrShl(
+    constexpr uintptr, constexpr int31): constexpr uintptr;
+extern operator '>>>' macro ConstexprUintPtrShr(
+    constexpr uintptr, constexpr int31): constexpr uintptr;
 
 extern macro SmiMax(Smi, Smi): Smi;
 extern macro SmiMin(Smi, Smi): Smi;
@@ -740,6 +754,7 @@ extern macro Int32Constant(constexpr int31): int31;
 extern macro Int32Constant(constexpr int32): int32;
 extern macro Float64Constant(constexpr int31): float64;
 extern macro SmiConstant(constexpr int31): Smi;
+extern macro SmiConstant(constexpr Smi): Smi;
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
 extern macro LanguageModeConstant(constexpr LanguageMode): LanguageMode;
@@ -748,7 +763,10 @@ extern macro IntPtrConstant(constexpr NativeContextSlot): NativeContextSlot;
 extern macro IntPtrConstant(constexpr intptr): intptr;
 
 extern macro BitcastWordToTaggedSigned(intptr): Smi;
+extern macro BitcastWordToTaggedSigned(uintptr): Smi;
 extern macro BitcastWordToTagged(intptr): Object;
+extern macro BitcastWordToTagged(uintptr): Object;
+extern macro BitcastTaggedToWord(Tagged): intptr;
 
 intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
 macro FromConstexpr<To: type, From: type>(o: From): To;
@@ -767,6 +785,12 @@ FromConstexpr<intptr, constexpr int31>(i: constexpr int31): intptr {
 FromConstexpr<intptr, constexpr int32>(i: constexpr int32): intptr {
   return %FromConstexpr<intptr>(i);
 }
+FromConstexpr<intptr, constexpr intptr>(i: constexpr intptr): intptr {
+  return %FromConstexpr<intptr>(i);
+}
+FromConstexpr<uintptr, constexpr uintptr>(i: constexpr uintptr): uintptr {
+  return %FromConstexpr<uintptr>(i);
+}
 FromConstexpr<Smi, constexpr int31>(i: constexpr int31): Smi {
   return %FromConstexpr<Smi>(i);
 }
@@ -784,6 +808,12 @@ FromConstexpr<Number, constexpr float64>(f: constexpr float64): Number {
 }
 FromConstexpr<Number, constexpr int31>(i: constexpr int31): Number {
   return %FromConstexpr<Number>(i);
+}
+FromConstexpr<Number, constexpr Smi>(s: constexpr Smi): Number {
+  return SmiConstant(s);
+}
+FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
+  return SmiConstant(s);
 }
 
 FromConstexpr<uint32, constexpr int31>(i: constexpr int31): uint32 {
@@ -889,6 +919,9 @@ Convert<Number>(ui: uintptr): Number {
 }
 Convert<uintptr>(d: float64): uintptr {
   return ChangeFloat64ToUintPtr(d);
+}
+Convert<uintptr>(i: intptr): uintptr {
+  return Unsigned(i);
 }
 macro Convert<A: type>(r: RawPtr): A;
 Convert<uintptr>(r: RawPtr): uintptr {
@@ -1175,7 +1208,6 @@ extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro IsFastJSArrayWithNoCustomIteration(implicit context: Context)(
     Object): bool;
 extern macro Typeof(Object): Object;
-extern macro LoadTargetFromFrame(): JSFunction;
 
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {
