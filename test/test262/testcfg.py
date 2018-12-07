@@ -63,7 +63,8 @@ FEATURE_FLAGS = {
 SKIPPED_FEATURES = set(['class-fields-private',
                         'class-static-fields-private',
                         'class-methods-private',
-                        'class-static-methods-private'])
+                        'class-static-methods-private',
+                        'Intl.NumberFormat-unified'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
