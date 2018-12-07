@@ -10,6 +10,7 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
+#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
@@ -79,7 +80,6 @@ MacroAssembler::MacroAssembler(Isolate* isolate,
     // marker in order to disambiguate between self-references during nested
     // code generation (e.g.: codegen of the current object triggers stub
     // compilation through CodeStub::GetCode()).
-    // TODO(jgruber): We can likely remove this now that code stubs are gone.
     code_object_ = Handle<HeapObject>::New(
         *isolate->factory()->NewSelfReferenceMarker(), isolate);
   }
@@ -551,6 +551,20 @@ void TurboAssembler::Abort(AbortReason reason) {
   }
   // Control will not return here.
   int3();
+}
+
+void MacroAssembler::CallStub(CodeStub* stub) {
+  DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void MacroAssembler::TailCallStub(CodeStub* stub) {
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
+  return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
 void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,

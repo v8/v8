@@ -6,6 +6,7 @@
 
 #include "src/ast/ast.h"
 #include "src/code-factory.h"
+#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"
@@ -2304,6 +2305,15 @@ void AccessorAssembler::TryProbeStubCacheTable(
     Node* name, Node* map, Label* if_handler,
     TVariable<MaybeObject>* var_handler, Label* if_miss) {
   StubCache::Table table = static_cast<StubCache::Table>(table_id);
+#ifdef DEBUG
+  if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
+    Goto(if_miss);
+    return;
+  } else if (FLAG_test_primary_stub_cache && table == StubCache::kSecondary) {
+    Goto(if_miss);
+    return;
+  }
+#endif
   // The {table_offset} holds the entry offset times four (due to masking
   // and shifting optimizations).
   const int kMultiplier = sizeof(StubCache::Entry) >> Name::kHashShift;

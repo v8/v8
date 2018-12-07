@@ -10,6 +10,7 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
+#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
@@ -1714,6 +1715,15 @@ void TurboAssembler::AssertPositiveOrZero(Register value) {
   }
 }
 
+void MacroAssembler::CallStub(CodeStub* stub) {
+  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+void MacroAssembler::TailCallStub(CodeStub* stub) {
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
 void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
                                            Register centry) {
   const Runtime::Function* f = Runtime::FunctionForId(fid);
@@ -2743,6 +2753,10 @@ void MacroAssembler::TestAndSplit(const Register& reg,
     TestAndBranchIfAnySet(reg, bit_pattern, if_any_set);
     B(if_all_clear);
   }
+}
+
+bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
+  return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
 void MacroAssembler::PopSafepointRegisters() {

@@ -322,6 +322,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
   void TagGlobalObjects();
+  void TagCodeObject(Code code);
   void TagBuiltinCodeObject(Code code, const char* name);
   HeapEntry* AddEntry(Address address,
                       HeapEntry::Type type,

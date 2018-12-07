@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"
+#include "src/code-stubs.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder.h"

@@ -409,6 +409,7 @@ class Operand {
   }
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedCode(CodeStub* stub);
   static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Register.

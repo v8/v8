@@ -399,7 +399,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
 
   MaybeHandle<Code> maybe_code = isolate()->factory()->TryNewCode(
       desc, info()->code_kind(), Handle<Object>(), info()->builtin_index(),
-      source_positions, deopt_data, kMovable, true,
+      source_positions, deopt_data, kMovable, info()->stub_key(), true,
       frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset(),
       handler_table_offset_);
 
@@ -719,7 +719,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
                                              source_position, false);
   if (FLAG_code_comments) {
     OptimizedCompilationInfo* info = this->info();
-    if (info->IsNotOptimizedFunctionOrWasmFunction()) return;
+    if (info->IsStub()) return;
     std::ostringstream buffer;
     buffer << "-- ";
     // Turbolizer only needs the source position, as it can reconstruct

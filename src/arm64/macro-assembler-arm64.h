@@ -555,6 +555,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Isb();
   inline void Csdb();
 
+  bool AllowThisStubCall(CodeStub* stub);
+
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
   void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
@@ -1157,6 +1159,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   //
   // On successful conversion, the least significant 32 bits of the result are
   // equivalent to the ECMA-262 operation "ToInt32".
+  //
+  // Only public for the test code in test-code-stubs-arm64.cc.
   void TryConvertDoubleToInt64(Register result, DoubleRegister input,
                                Label* done);
 
@@ -1247,6 +1251,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // of instructions is called.
   bool allow_macro_instructions_ = true;
 #endif
+
 
   // Scratch registers available for use by the MacroAssembler.
   CPURegList tmp_list_ = DefaultTmpList();
@@ -1744,6 +1749,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   // ---- Calling / Jumping helpers ----
+
+  void CallStub(CodeStub* stub);
+  void TailCallStub(CodeStub* stub);
 
   void CallRuntime(const Runtime::Function* f,
                    int num_arguments,

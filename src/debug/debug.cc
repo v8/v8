@@ -13,6 +13,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
+#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/counters.h"

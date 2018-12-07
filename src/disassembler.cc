@@ -10,6 +10,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/code-reference.h"
+#include "src/code-stubs.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
@@ -233,7 +234,16 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(
         relocinfo->target_address());
     Code::Kind kind = code->kind();
-    if (code->is_builtin()) {
+    if (kind == Code::STUB) {
+      // Get the STUB key and extract major and minor key.
+      uint32_t key = code->stub_key();
+      uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
+      CodeStub::Major major_key = CodeStub::GetMajorKey(code);
+      DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
+      out->AddFormatted(" %s, %s, ", Code::Kind2String(kind),
+                        CodeStub::MajorName(major_key));
+      out->AddFormatted("minor: %d", minor_key);
+    } else if (code->is_builtin()) {
       out->AddFormatted(" Builtin::%s", Builtins::name(code->builtin_index()));
     } else {
       out->AddFormatted(" %s", Code::Kind2String(kind));

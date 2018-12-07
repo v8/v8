@@ -35,6 +35,7 @@
 #include "src/assembler.h"
 
 #include "src/assembler-inl.h"
+#include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
 #include "src/isolate.h"
@@ -170,6 +171,12 @@ HeapObjectRequest::HeapObjectRequest(double heap_number, int offset)
     : kind_(kHeapNumber), offset_(offset) {
   value_.heap_number = heap_number;
   DCHECK(!IsSmiDouble(value_.heap_number));
+}
+
+HeapObjectRequest::HeapObjectRequest(CodeStub* code_stub, int offset)
+    : kind_(kCodeStub), offset_(offset) {
+  value_.code_stub = code_stub;
+  DCHECK_NOT_NULL(value_.code_stub);
 }
 
 HeapObjectRequest::HeapObjectRequest(const StringConstantBase* string,

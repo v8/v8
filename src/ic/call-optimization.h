@@ -5,7 +5,7 @@
 #ifndef V8_IC_CALL_OPTIMIZATION_H_
 #define V8_IC_CALL_OPTIMIZATION_H_
 
-#include "src/api-arguments.h"
+#include "src/code-stubs.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
 

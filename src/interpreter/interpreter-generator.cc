@@ -3219,7 +3219,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
       FLAG_untrusted_code_mitigations
           ? PoisoningMitigationLevel::kPoisonCriticalOnly
           : PoisoningMitigationLevel::kDontPoison,
-      builtin_index);
+      0, builtin_index);
 
   switch (bytecode) {
 #define CALL_GENERATOR(Name, ...)                     \

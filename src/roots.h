@@ -269,6 +269,7 @@ class RootVisitor;
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                      \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)       \
   V(WeakArrayList, script_list, ScriptList)                                \
+  V(SimpleNumberDictionary, code_stubs, CodeStubs)                         \
   V(FixedArray, materialized_objects, MaterializedObjects)                 \
   V(WeakArrayList, detached_contexts, DetachedContexts)                    \
   V(WeakArrayList, retaining_path_targets, RetainingPathTargets)           \

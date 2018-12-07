@@ -5,6 +5,7 @@
 #include "src/compiler/linkage.h"
 
 #include "src/assembler-inl.h"
+#include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/node.h"
@@ -140,7 +141,7 @@ int CallDescriptor::CalculateFixedFrameSize() const {
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
                                          OptimizedCompilationInfo* info) {
-  DCHECK(!info->IsNotOptimizedFunctionOrWasmFunction());
+  DCHECK(!info->IsStub());
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.

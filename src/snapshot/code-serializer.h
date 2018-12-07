@@ -52,6 +52,8 @@ class CodeSerializer : public Serializer {
       Isolate* isolate, ScriptData* cached_data, Handle<String> source,
       ScriptOriginOptions origin_options);
 
+  const std::vector<uint32_t>* stub_keys() const { return &stub_keys_; }
+
   uint32_t source_hash() const { return source_hash_; }
 
  protected:
@@ -71,11 +73,15 @@ class CodeSerializer : public Serializer {
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
+  void SerializeCodeStub(Code code_stub, HowToCode how_to_code,
+                         WhereToPoint where_to_point);
+
   bool SerializeReadOnlyObject(HeapObject* obj, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip);
 
   DISALLOW_HEAP_ALLOCATION(no_gc_);
   uint32_t source_hash_;
+  std::vector<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
 

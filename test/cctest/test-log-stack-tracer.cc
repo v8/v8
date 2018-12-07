@@ -31,6 +31,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/api-inl.h"
+#include "src/code-stubs.h"
 #include "src/disassembler.h"
 #include "src/isolate.h"
 #include "src/log.h"

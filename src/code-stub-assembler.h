@@ -10,7 +10,6 @@
 #include "src/bailout-reason.h"
 #include "src/base/macros.h"
 #include "src/compiler/code-assembler.h"
-#include "src/frames.h"
 #include "src/globals.h"
 #include "src/message-template.h"
 #include "src/objects.h"

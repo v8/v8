@@ -5,6 +5,7 @@
 #include "src/snapshot/object-deserializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/code-stubs.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/slots.h"
@@ -22,6 +23,12 @@ ObjectDeserializer::DeserializeSharedFunctionInfo(
   ObjectDeserializer d(data);
 
   d.AddAttachedObject(source);
+
+  Vector<const uint32_t> code_stub_keys = data->CodeStubKeys();
+  for (int i = 0; i < code_stub_keys.length(); i++) {
+    d.AddAttachedObject(
+        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked());
+  }
 
   Handle<HeapObject> result;
   return d.Deserialize(isolate).ToHandle(&result)

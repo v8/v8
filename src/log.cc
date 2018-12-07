@@ -12,6 +12,7 @@
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
+#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
@@ -2046,7 +2047,9 @@ void ExistingCodeLogger::LogCodeObject(Object* object) {
     case AbstractCode::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
     case AbstractCode::STUB:
-      description = "STUB code";
+      description =
+          CodeStub::MajorName(CodeStub::GetMajorKey(abstract_code->GetCode()));
+      if (description == nullptr) description = "A stub from before profiling";
       tag = CodeEventListener::STUB_TAG;
       break;
     case AbstractCode::REGEXP:

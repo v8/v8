@@ -1399,6 +1399,10 @@ class RuntimeCallTimerScope {
   SC(store_buffer_overflows, V8.StoreBufferOverflows)
 
 #define STATS_COUNTER_LIST_2(SC)                                               \
+  /* Number of code stubs. */                                                  \
+  SC(code_stubs, V8.CodeStubs)                                                 \
+  /* Amount of stub code. */                                                   \
+  SC(total_stubs_code_size, V8.TotalStubsCodeSize)                             \
   /* Amount of (JS) compiled code. */                                          \
   SC(total_compiled_code_size, V8.TotalCompiledCodeSize)                       \
   SC(gc_compactor_caused_by_request, V8.GCCompactorCausedByRequest)            \

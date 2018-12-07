@@ -4,6 +4,7 @@
 
 #include "src/heap/incremental-marking.h"
 
+#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/conversions.h"
 #include "src/heap/concurrent-marking.h"

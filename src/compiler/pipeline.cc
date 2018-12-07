@@ -622,7 +622,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 #ifdef ENABLE_DISASSEMBLER
   AllowDeferredHandleDereference allow_deference_for_print_code;
   bool print_code =
-      FLAG_print_code ||
+      FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
       (info->IsOptimizing() && FLAG_print_opt_code &&
        info->shared_info()->PassesFilter(FLAG_print_opt_code_filter));
   if (print_code) {
@@ -2024,10 +2024,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     Schedule* schedule, Code::Kind kind, const char* debug_name,
-    int32_t builtin_index, JumpOptimizationInfo* jump_opt,
+    uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options) {
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   info.set_builtin_index(builtin_index);
+  info.set_stub_key(stub_key);
 
   if (poisoning_level != PoisoningMitigationLevel::kDontPoison) {
     info.SetPoisoningMitigationLevel(poisoning_level);
@@ -2468,10 +2469,9 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
          << "--------------------------------------------------\n";
     }
     Zone temp_zone(data->allocator(), ZONE_NAME);
-    MachineGraphVerifier::Run(
-        data->graph(), data->schedule(), linkage,
-        data->info()->IsNotOptimizedFunctionOrWasmFunction(),
-        data->debug_name(), &temp_zone);
+    MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage,
+                              data->info()->IsStub(), data->debug_name(),
+                              &temp_zone);
   }
 
   data->InitializeInstructionSequence(call_descriptor);

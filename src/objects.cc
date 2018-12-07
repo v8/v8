@@ -24,6 +24,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
+#include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/counters-inl.h"
 #include "src/counters.h"
@@ -3655,7 +3656,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case CODE_TYPE: {
       Code code = Code::cast(this);
       os << "<Code " << Code::Kind2String(code->kind());
-      if (code->is_builtin()) {
+      if (code->is_stub()) {
+        os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
+      } else if (code->is_builtin()) {
         os << " " << Builtins::name(code->builtin_index());
       }
       os << ">";
@@ -15081,7 +15084,9 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
 }
 
 const char* Code::GetName(Isolate* isolate) const {
-  if (kind() == BYTECODE_HANDLER) {
+  if (is_stub()) {
+    return CodeStub::MajorName(CodeStub::GetMajorKey(*this));
+  } else if (kind() == BYTECODE_HANDLER) {
     return isolate->interpreter()->LookupNameOfBytecodeHandler(*this);
   } else {
     // There are some handlers and ICs that we can also find names for with
@@ -15111,6 +15116,11 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
 void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   Isolate* isolate = GetIsolate();
   os << "kind = " << Kind2String(kind()) << "\n";
+  if (is_stub()) {
+    const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(*this));
+    os << "major_key = " << (n == nullptr ? "null" : n) << "\n";
+    os << "minor_key = " << CodeStub::MinorKeyFromKey(this->stub_key()) << "\n";
+  }
   if (name == nullptr) {
     name = GetName(isolate);
   }

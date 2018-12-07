@@ -26,6 +26,7 @@
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/char-predicates-inl.h"
+#include "src/code-stubs.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler.h"
 #include "src/contexts.h"

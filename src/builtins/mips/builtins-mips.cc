@@ -6,6 +6,7 @@
 
 #include "src/api-arguments.h"
 #include "src/code-factory.h"
+#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"

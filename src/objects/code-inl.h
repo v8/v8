@@ -236,6 +236,16 @@ ByteArray Code::SourcePositionTable() const {
       ->source_position_table();
 }
 
+uint32_t Code::stub_key() const {
+  DCHECK(is_stub());
+  return READ_UINT32_FIELD(this, kStubKeyOffset);
+}
+
+void Code::set_stub_key(uint32_t key) {
+  DCHECK(is_stub() || key == 0);  // Allow zero initialization.
+  WRITE_UINT32_FIELD(this, kStubKeyOffset, key);
+}
+
 Object* Code::next_code_link() const {
   return code_data_container()->next_code_link();
 }
@@ -420,6 +430,19 @@ inline void Code::set_can_have_weak_objects(bool value) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   int32_t previous = code_data_container()->kind_specific_flags();
   int32_t updated = CanHaveWeakObjectsField::update(previous, value);
+  code_data_container()->set_kind_specific_flags(updated);
+}
+
+inline bool Code::is_construct_stub() const {
+  DCHECK(kind() == BUILTIN);
+  int32_t flags = code_data_container()->kind_specific_flags();
+  return IsConstructStubField::decode(flags);
+}
+
+inline void Code::set_is_construct_stub(bool value) {
+  DCHECK(kind() == BUILTIN);
+  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t updated = IsConstructStubField::update(previous, value);
   code_data_container()->set_kind_specific_flags(updated);
 }
 

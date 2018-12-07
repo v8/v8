@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 
+#include "src/code-stubs.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/compiler-source-position-table.h"

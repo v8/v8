@@ -705,6 +705,10 @@ void Heap::CreateInitialObjects() {
 
   set_interpreter_entry_trampoline_for_profiling(roots.undefined_value());
 
+  // Create the code_stubs dictionary. The initial size is set to avoid
+  // expanding the dictionary during bootstrapping.
+  set_code_stubs(*SimpleNumberDictionary::New(isolate(), 128));
+
   {
     HandleScope scope(isolate());
 #define SYMBOL_INIT(_, name)                                        \

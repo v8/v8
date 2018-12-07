@@ -30,6 +30,7 @@
 
 #include "src/api-inl.h"
 #include "src/assembler-inl.h"
+#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"

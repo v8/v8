@@ -737,6 +737,7 @@ class Operand {
                  unsigned shift_amount = 0);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedCode(CodeStub* stub);
   static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   inline bool IsHeapObjectRequest() const;

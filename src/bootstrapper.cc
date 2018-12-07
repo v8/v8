@@ -8,6 +8,7 @@
 #include "src/api-inl.h"
 #include "src/api-natives.h"
 #include "src/base/ieee754.h"
+#include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"

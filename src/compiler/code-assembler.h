@@ -64,7 +64,6 @@ class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
-class WasmDebugInfo;
 class WeakFactoryCleanupJobTask;
 class Zone;
 
@@ -1606,6 +1605,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      const CallInterfaceDescriptor& descriptor, Code::Kind kind,
                      const char* name, PoisoningMitigationLevel poisoning_level,
+                     uint32_t stub_key = 0,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   // Create with JSCall linkage.
@@ -1636,7 +1636,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,
                      const char* name, PoisoningMitigationLevel poisoning_level,
-                     int32_t builtin_index);
+                     uint32_t stub_key, int32_t builtin_index);
 
   void PushExceptionHandler(CodeAssemblerExceptionHandlerLabel* label);
   void PopExceptionHandler();
@@ -1644,6 +1644,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   std::unique_ptr<RawMachineAssembler> raw_assembler_;
   Code::Kind kind_;
   const char* name_;
+  uint32_t stub_key_;
   int32_t builtin_index_;
   bool code_generated_;
   ZoneSet<CodeAssemblerVariable::Impl*, CodeAssemblerVariable::ImplComparator>
