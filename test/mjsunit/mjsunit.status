@@ -570,6 +570,10 @@
   'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
   'harmony/bigint/regressions': [SKIP],
+
+  # Pre-r6 MIPS32 doesn't have instructions needed to properly handle 64-bit
+  # atomic instructions.
+  'wasm/atomics64-stress': [PASS, ['mips_arch_variant != r6', SKIP]],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -623,6 +627,11 @@
   'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
+
+['(arch == mips64el or arch == mips64) and simulator_run', {
+  # Slow tests which have flaky timeout on simulator.
+  'wasm/atomics64-stress': [SKIP],
+}],  # '(arch == mips64el or arch == mips64) and simulator_run'
 
 ##############################################################################
 ['system == windows', {
