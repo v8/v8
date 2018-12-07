@@ -1039,49 +1039,59 @@ void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
   TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
 
+  double embedder_step_time_ms = 0.0;
   if (ShouldDoEmbedderStep() && trace_wrappers_toggle_) {
+    double start = heap_->MonotonicallyIncreasingTimeInMs();
     EmbedderStep(kMaxStepSizeInMs);
-  } else {
-    size_t bytes_to_process =
-        StepSizeToKeepUpWithAllocations() + StepSizeToMakeProgress();
-    if (bytes_to_process >= IncrementalMarking::kMinStepSizeInBytes) {
-      // The first step after Scavenge will see many allocated bytes.
-      // Cap the step size to distribute the marking work more uniformly.
-      size_t max_step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-          kMaxStepSizeInMs,
-          heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
-      bytes_to_process = Min(bytes_to_process, max_step_size);
-      size_t bytes_processed = 0;
-      if (FLAG_concurrent_marking) {
-        bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
-                               StepOrigin::kV8, WorklistToProcess::kBailout);
-        bytes_to_process = (bytes_processed >= bytes_to_process)
-                               ? 0
-                               : bytes_to_process - bytes_processed;
-        size_t current_bytes_marked_concurrently =
-            heap()->concurrent_marking()->TotalMarkedBytes();
-        // The concurrent_marking()->TotalMarkedBytes() is not monothonic for a
-        // short period of time when a concurrent marking task is finishing.
-        if (current_bytes_marked_concurrently > bytes_marked_concurrently_) {
-          bytes_marked_ahead_of_schedule_ +=
-              current_bytes_marked_concurrently - bytes_marked_concurrently_;
-          bytes_marked_concurrently_ = current_bytes_marked_concurrently;
-        }
-      }
-      if (bytes_marked_ahead_of_schedule_ >= bytes_to_process) {
-        // Steps performed in tasks and concurrently have put us ahead of
-        // schedule. We skip processing of marking dequeue here and thus shift
-        // marking time from inside V8 to standalone tasks.
-        bytes_marked_ahead_of_schedule_ -= bytes_to_process;
-        bytes_processed += bytes_to_process;
-        bytes_to_process = IncrementalMarking::kMinStepSizeInBytes;
-      }
-      bytes_processed += Step(bytes_to_process, GC_VIA_STACK_GUARD,
-                              StepOrigin::kV8, WorklistToProcess::kAll);
-      bytes_allocated_ -= Min(bytes_allocated_, bytes_processed);
-    }
+    embedder_step_time_ms = heap_->MonotonicallyIncreasingTimeInMs() - start;
   }
   trace_wrappers_toggle_ = !trace_wrappers_toggle_;
+
+  size_t bytes_to_process =
+      StepSizeToKeepUpWithAllocations() + StepSizeToMakeProgress();
+  if (bytes_to_process >= IncrementalMarking::kMinStepSizeInBytes &&
+      embedder_step_time_ms < kMaxStepSizeInMs) {
+    StepOnAllocation(bytes_to_process,
+                     kMaxStepSizeInMs - embedder_step_time_ms);
+  }
+}
+
+void IncrementalMarking::StepOnAllocation(size_t bytes_to_process,
+                                          double max_step_size) {
+  // The first step after Scavenge will see many allocated bytes.
+  // Cap the step size to distribute the marking work more uniformly.
+  size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
+      max_step_size,
+      heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
+  bytes_to_process = Min(bytes_to_process, step_size);
+  size_t bytes_processed = 0;
+  if (FLAG_concurrent_marking) {
+    bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
+                           StepOrigin::kV8, WorklistToProcess::kBailout);
+    bytes_to_process = (bytes_processed >= bytes_to_process)
+                           ? 0
+                           : bytes_to_process - bytes_processed;
+    size_t current_bytes_marked_concurrently =
+        heap()->concurrent_marking()->TotalMarkedBytes();
+    // The concurrent_marking()->TotalMarkedBytes() is not monothonic for a
+    // short period of time when a concurrent marking task is finishing.
+    if (current_bytes_marked_concurrently > bytes_marked_concurrently_) {
+      bytes_marked_ahead_of_schedule_ +=
+          current_bytes_marked_concurrently - bytes_marked_concurrently_;
+      bytes_marked_concurrently_ = current_bytes_marked_concurrently;
+    }
+  }
+  if (bytes_marked_ahead_of_schedule_ >= bytes_to_process) {
+    // Steps performed in tasks and concurrently have put us ahead of
+    // schedule. We skip processing of marking dequeue here and thus shift
+    // marking time from inside V8 to standalone tasks.
+    bytes_marked_ahead_of_schedule_ -= bytes_to_process;
+    bytes_processed += bytes_to_process;
+    bytes_to_process = IncrementalMarking::kMinStepSizeInBytes;
+  }
+  bytes_processed += Step(bytes_to_process, GC_VIA_STACK_GUARD, StepOrigin::kV8,
+                          WorklistToProcess::kAll);
+  bytes_allocated_ -= Min(bytes_allocated_, bytes_processed);
 }
 
 size_t IncrementalMarking::Step(size_t bytes_to_process,
