@@ -2628,7 +2628,7 @@ VISIT_ATOMIC_BINOP(Xor)
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64S128Zero, g.DefineAsRegister(node));
+  Emit(kX64S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
 }
 
 #define VISIT_SIMD_SPLAT(Type)                               \
