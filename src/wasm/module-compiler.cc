@@ -2465,7 +2465,7 @@ class AsyncCompileJob::CompilationStateCallback {
           error = handle(*error, job_->isolate());
           job_->deferred_handles_.push_back(deferred.Detach());
 
-          job_->DoSync<CompileFailed>(error);
+          job_->DoSync<CompileFailed, kUseExistingForegroundTask>(error);
         }
 
         break;
@@ -2580,9 +2580,12 @@ void AsyncCompileJob::StartBackgroundTask() {
   }
 }
 
-template <typename Step, typename... Args>
+template <typename Step,
+          AsyncCompileJob::UseExistingForegroundTask use_existing_fg_task,
+          typename... Args>
 void AsyncCompileJob::DoSync(Args&&... args) {
   NextStep<Step>(std::forward<Args>(args)...);
+  if (use_existing_fg_task && pending_foreground_task_ != nullptr) return;
   StartForegroundTask();
 }
 
@@ -2782,11 +2785,9 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
   if (job_->native_module_) {
     Impl(job_->native_module_->compilation_state())->Abort();
 
-    if (job_->pending_foreground_task_ == nullptr) {
-      job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
-    } else {
-      job_->NextStep<AsyncCompileJob::DecodeFail>(std::move(result));
-    }
+    job_->DoSync<AsyncCompileJob::DecodeFail,
+                 AsyncCompileJob::kUseExistingForegroundTask>(
+        std::move(result));
 
     // Clear the {compilation_unit_builder_} if it exists. This is needed
     // because there is a check in the destructor of the
