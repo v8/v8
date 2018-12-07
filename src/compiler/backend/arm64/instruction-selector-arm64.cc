@@ -3009,7 +3009,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+  Emit(kArm64S128Zero, g.DefineAsRegister(node));
 }
 
 #define SIMD_VISIT_SPLAT(Type)                               \

@@ -2101,8 +2101,8 @@ uint32_t WasmGraphBuilder::GetExceptionEncodedSize(
         encoded_size += 4;
         break;
       case wasm::kWasmS128:
-        // TODO(mstarzinger): Implement and test this case.
-        UNIMPLEMENTED();
+        DCHECK_EQ(8, ComputeEncodedElementSize(sig->GetParam(i)));
+        encoded_size += 8;
         break;
       case wasm::kWasmAnyRef:
         encoded_size += 1;
@@ -2151,6 +2151,20 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         BuildEncodeException32BitValue(values_array, &index, lower32);
         break;
       }
+      case wasm::kWasmS128:
+        BuildEncodeException32BitValue(
+            values_array, &index,
+            graph()->NewNode(m->I32x4ExtractLane(0), value));
+        BuildEncodeException32BitValue(
+            values_array, &index,
+            graph()->NewNode(m->I32x4ExtractLane(1), value));
+        BuildEncodeException32BitValue(
+            values_array, &index,
+            graph()->NewNode(m->I32x4ExtractLane(2), value));
+        BuildEncodeException32BitValue(
+            values_array, &index,
+            graph()->NewNode(m->I32x4ExtractLane(3), value));
+        break;
       case wasm::kWasmAnyRef:
         STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
         ++index;
@@ -2269,6 +2283,20 @@ Node** WasmGraphBuilder::GetExceptionValues(
                      BuildDecodeException64BitValue(values_array, &index));
         break;
       }
+      case wasm::kWasmS128:
+        value = graph()->NewNode(
+            mcgraph()->machine()->I32x4Splat(),
+            BuildDecodeException32BitValue(values_array, &index));
+        value = graph()->NewNode(
+            mcgraph()->machine()->I32x4ReplaceLane(1), value,
+            BuildDecodeException32BitValue(values_array, &index));
+        value = graph()->NewNode(
+            mcgraph()->machine()->I32x4ReplaceLane(2), value,
+            BuildDecodeException32BitValue(values_array, &index));
+        value = graph()->NewNode(
+            mcgraph()->machine()->I32x4ReplaceLane(3), value,
+            BuildDecodeException32BitValue(values_array, &index));
+        break;
       case wasm::kWasmAnyRef:
         value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
