@@ -1643,8 +1643,8 @@ void MacroAssembler::PushStackHandler() {
 
   Push(Smi::zero());  // Padding.
   // Link the current handler as the next handler.
-  mov(r6, Operand(ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                            isolate())));
+  Move(r6,
+       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
   ldr(r5, MemOperand(r6));
   push(r5);
   // Set this new handler as the current one.
@@ -1657,8 +1657,8 @@ void MacroAssembler::PopStackHandler() {
   Register scratch = temps.Acquire();
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(r1);
-  mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kHandlerAddress, isolate())));
+  Move(scratch,
+       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
   str(r1, MemOperand(scratch));
   add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
 }

@@ -3316,8 +3316,6 @@ bool Isolate::Init(StartupDeserializer* des) {
     CreateAndSetEmbeddedBlob();
   }
 
-  if (create_heap_objects) heap_.CreateFixedStubs();
-
   if (FLAG_log_internal_timer_events) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);
   }

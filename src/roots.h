@@ -258,11 +258,7 @@ class RootVisitor;
   V(FixedArray, string_split_cache, StringSplitCache)                         \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                   \
   /* Indirection lists for isolate-independent builtins */                    \
-  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)             \
-  /* JS Entries */                                                            \
-  V(Code, js_entry_code, JsEntryCode)                                         \
-  V(Code, js_construct_entry_code, JsConstructEntryCode)                      \
-  V(Code, js_run_microtasks_entry_code, JsRunMicrotasksEntryCode)
+  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)
 
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                \

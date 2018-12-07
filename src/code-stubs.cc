@@ -253,11 +253,5 @@ MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
   return scope.CloseAndEscape(code);
 }
 
-int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
-  int handler_table_offset = HandlerTable::EmitReturnTableStart(masm, 1);
-  HandlerTable::EmitReturnEntry(masm, 0, handler_offset_);
-  return handler_table_offset;
-}
-
 }  // namespace internal
 }  // namespace v8

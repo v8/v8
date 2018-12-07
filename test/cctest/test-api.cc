@@ -28744,8 +28744,9 @@ TEST(TestGetUnwindState) {
 
   v8::JSEntryStub js_entry_stub = unwind_state.js_entry_stub;
 
-  CHECK_EQ(i_isolate->heap()->js_entry_code()->InstructionStart(),
-           reinterpret_cast<i::Address>(js_entry_stub.code.start));
+  CHECK_EQ(
+      i_isolate->heap()->builtin(i::Builtins::kJSEntry)->InstructionStart(),
+      reinterpret_cast<i::Address>(js_entry_stub.code.start));
 }
 
 TEST(MicrotaskContextShouldBeNativeContext) {

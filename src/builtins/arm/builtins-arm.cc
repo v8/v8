@@ -525,6 +525,203 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
+namespace {
+
+// Called with the native C calling convention. The corresponding function
+// signature is:
+//
+//  using JSEntryFunction = GeneratedCode<Object*(
+//      Object * new_target, Object * target, Object * receiver, int argc,
+//      Object*** args, Address root_register_value)>;
+void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
+                             Builtins::Name entry_trampoline) {
+  // r0:                            code entry
+  // r1:                            function
+  // r2:                            receiver
+  // r3:                            argc
+  // [sp + 0 * kSystemPointerSize]: argv
+  // [sp + 1 * kSystemPointerSize]: root register value
+
+  Label invoke, handler_entry, exit;
+
+  static constexpr int kPushedStackSpace =
+      (kNumCalleeSaved + 1) * kPointerSize +
+      kNumDoubleCalleeSaved * kDoubleSize;
+
+  {
+    NoRootArrayScope no_root_array(masm);
+
+    // Called from C, so do not pop argc and args on exit (preserve sp)
+    // No need to save register-passed args
+    // Save callee-saved registers (incl. cp and fp), sp, and lr
+    __ stm(db_w, sp, kCalleeSaved | lr.bit());
+
+    // Save callee-saved vfp registers.
+    __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
+    // Set up the reserved register for 0.0.
+    __ vmov(kDoubleRegZero, Double(0.0));
+
+    // Initialize the root register.
+    // C calling convention. The sixth argument is passed on the stack.
+    static constexpr int kOffsetToRootRegisterValue =
+        kPushedStackSpace + EntryFrameConstants::kRootRegisterValueOffset;
+    __ ldr(kRootRegister, MemOperand(sp, kOffsetToRootRegisterValue));
+  }
+
+  // Get address of argv, see stm above.
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+
+  // Set up argv in r4.
+  static constexpr int kOffsetToArgv =
+      kPushedStackSpace + EntryFrameConstants::kArgvOffset;
+  __ ldr(r4, MemOperand(sp, kOffsetToArgv));
+
+  // Push a frame with special values setup to mark it as an entry frame.
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+  // r4: argv
+  __ mov(r7, Operand(StackFrame::TypeToMarker(type)));
+  __ mov(r6, Operand(StackFrame::TypeToMarker(type)));
+  __ Move(r5, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                        masm->isolate()));
+  __ ldr(r5, MemOperand(r5));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+
+    // Push a bad frame pointer to fail if it is used.
+    __ mov(scratch, Operand(-1));
+    __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | scratch.bit());
+  }
+
+  Register scratch = r6;
+
+  // Set up frame pointer for the frame to be pushed.
+  __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
+
+  // If this is the outermost JS call, set js_entry_sp value.
+  Label non_outermost_js;
+  ExternalReference js_entry_sp = ExternalReference::Create(
+      IsolateAddressId::kJSEntrySPAddress, masm->isolate());
+  __ Move(r5, js_entry_sp);
+  __ ldr(scratch, MemOperand(r5));
+  __ cmp(scratch, Operand::Zero());
+  __ b(ne, &non_outermost_js);
+  __ str(fp, MemOperand(r5));
+  __ mov(scratch, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  Label cont;
+  __ b(&cont);
+  __ bind(&non_outermost_js);
+  __ mov(scratch, Operand(StackFrame::INNER_JSENTRY_FRAME));
+  __ bind(&cont);
+  __ push(scratch);
+
+  // Jump to a faked try block that does the invoke, with a faked catch
+  // block that sets the pending exception.
+  __ jmp(&invoke);
+
+  // Block literal pool emission whilst taking the position of the handler
+  // entry. This avoids making the assumption that literal pools are always
+  // emitted after an instruction is emitted, rather than before.
+  {
+    Assembler::BlockConstPoolScope block_const_pool(masm);
+    __ bind(&handler_entry);
+
+    // Store the current pc as the handler offset. It's used later to create the
+    // handler table.
+    masm->isolate()->builtins()->SetJSEntryHandlerOffset(handler_entry.pos());
+
+    // Caught exception: Store result (exception) in the pending exception
+    // field in the JSEnv and return a failure sentinel.  Coming in here the
+    // fp will be invalid because the PushStackHandler below sets it to 0 to
+    // signal the existence of the JSEntry frame.
+    __ Move(scratch,
+            ExternalReference::Create(
+                IsolateAddressId::kPendingExceptionAddress, masm->isolate()));
+  }
+  __ str(r0, MemOperand(scratch));
+  __ LoadRoot(r0, RootIndex::kException);
+  __ b(&exit);
+
+  // Invoke: Link this frame into the handler chain.
+  __ bind(&invoke);
+  // Must preserve r0-r4, r5-r6 are available.
+  __ PushStackHandler();
+  // If an exception not caught by another handler occurs, this handler
+  // returns control to the code after the bl(&invoke) above, which
+  // restores all kCalleeSaved registers (including cp and fp) to their
+  // saved values before returning a failure to C.
+  //
+  // Expected registers by Builtins::JSEntryTrampoline
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+  // r4: argv
+  //
+  // Invoke the function by calling through JS entry trampoline builtin and
+  // pop the faked function when we return.
+  Handle<Code> trampoline_code =
+      masm->isolate()->builtins()->builtin_handle(entry_trampoline);
+  __ Call(trampoline_code, RelocInfo::CODE_TARGET);
+
+  // Unlink this frame from the handler chain.
+  __ PopStackHandler();
+
+  __ bind(&exit);  // r0 holds result
+  // Check if the current stack frame is marked as the outermost JS frame.
+  Label non_outermost_js_2;
+  __ pop(r5);
+  __ cmp(r5, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ b(ne, &non_outermost_js_2);
+  __ mov(r6, Operand::Zero());
+  __ Move(r5, js_entry_sp);
+  __ str(r6, MemOperand(r5));
+  __ bind(&non_outermost_js_2);
+
+  // Restore the top frame descriptors from the stack.
+  __ pop(r3);
+  __ Move(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                             masm->isolate()));
+  __ str(r3, MemOperand(scratch));
+
+  // Reset the stack to the callee saved registers.
+  __ add(sp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
+
+  // Restore callee-saved registers and return.
+#ifdef DEBUG
+  if (FLAG_debug_code) {
+    __ mov(lr, Operand(pc));
+  }
+#endif
+
+  // Restore callee-saved vfp registers.
+  __ vldm(ia_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
+
+  __ ldm(ia_w, sp, kCalleeSaved | pc.bit());
+}
+
+}  // namespace
+
+void Builtins::Generate_JSEntry(MacroAssembler* masm) {
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY,
+                          Builtins::kJSEntryTrampoline);
+}
+
+void Builtins::Generate_JSConstructEntry(MacroAssembler* masm) {
+  Generate_JSEntryVariant(masm, StackFrame::CONSTRUCT_ENTRY,
+                          Builtins::kJSConstructEntryTrampoline);
+}
+
+void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY, Builtins::kRunMicrotasks);
+}
+
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Called from Generate_JS_Entry

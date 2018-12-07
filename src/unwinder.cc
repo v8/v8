@@ -23,9 +23,9 @@ bool IsInUnsafeJSEntryRange(const v8::JSEntryStub& js_entry_stub, void* pc) {
   return PCIsInCodeRange(js_entry_stub.code, pc);
 
   // TODO(petermarshall): We can be more precise by checking whether we are
-  // in the JSEntryStub but after frame setup and before frame teardown, in
-  // which case we are safe to unwind the stack. For now, we bail out if the PC
-  // is anywhere within the JSEntryStub.
+  // in JSEntry but after frame setup and before frame teardown, in which case
+  // we are safe to unwind the stack. For now, we bail out if the PC is anywhere
+  // within JSEntry.
 }
 
 i::Address Load(i::Address address) {

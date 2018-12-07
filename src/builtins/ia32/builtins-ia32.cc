@@ -365,6 +365,133 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
+namespace {
+
+// Called with the native C calling convention. The corresponding function
+// signature is:
+//
+//  using JSEntryFunction = GeneratedCode<Object*(
+//      Object * new_target, Object * target, Object * receiver, int argc,
+//      Object*** args, Address root_register_value)>;
+void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
+                             Builtins::Name entry_trampoline) {
+  Label invoke, handler_entry, exit;
+  Label not_outermost_js, not_outermost_js_2;
+
+  {  // NOLINT. Scope block confuses linter.
+    NoRootArrayScope uninitialized_root_register(masm);
+
+    // Set up frame.
+    __ push(ebp);
+    __ mov(ebp, esp);
+
+    // Push marker in two places.
+    __ push(Immediate(StackFrame::TypeToMarker(type)));
+    // Reserve a slot for the context. It is filled after the root register has
+    // been set up.
+    __ sub(esp, Immediate(kPointerSize));
+    // Save callee-saved registers (C calling conventions).
+    __ push(edi);
+    __ push(esi);
+    __ push(ebx);
+
+    // Initialize the root register based on the given Isolate* argument.
+    // C calling convention. The sixth argument is passed on the stack.
+    __ mov(kRootRegister,
+           Operand(ebp, EntryFrameConstants::kRootRegisterValueOffset));
+  }
+
+  // Save copies of the top frame descriptor on the stack.
+  ExternalReference c_entry_fp = ExternalReference::Create(
+      IsolateAddressId::kCEntryFPAddress, masm->isolate());
+  __ push(__ ExternalReferenceAsOperand(c_entry_fp, edi));
+
+  // Store the context address in the previously-reserved slot.
+  ExternalReference context_address = ExternalReference::Create(
+      IsolateAddressId::kContextAddress, masm->isolate());
+  __ mov(edi, __ ExternalReferenceAsOperand(context_address, edi));
+  static constexpr int kOffsetToContextSlot = -2 * kPointerSize;
+  __ mov(Operand(ebp, kOffsetToContextSlot), edi);
+
+  // If this is the outermost JS call, set js_entry_sp value.
+  ExternalReference js_entry_sp = ExternalReference::Create(
+      IsolateAddressId::kJSEntrySPAddress, masm->isolate());
+  __ cmp(__ ExternalReferenceAsOperand(js_entry_sp, edi), Immediate(0));
+  __ j(not_equal, &not_outermost_js, Label::kNear);
+  __ mov(__ ExternalReferenceAsOperand(js_entry_sp, edi), ebp);
+  __ push(Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ jmp(&invoke, Label::kNear);
+  __ bind(&not_outermost_js);
+  __ push(Immediate(StackFrame::INNER_JSENTRY_FRAME));
+
+  // Jump to a faked try block that does the invoke, with a faked catch
+  // block that sets the pending exception.
+  __ jmp(&invoke);
+  __ bind(&handler_entry);
+
+  // Store the current pc as the handler offset. It's used later to create the
+  // handler table.
+  masm->isolate()->builtins()->SetJSEntryHandlerOffset(handler_entry.pos());
+
+  // Caught exception: Store result (exception) in the pending exception
+  // field in the JSEnv and return a failure sentinel.
+  ExternalReference pending_exception = ExternalReference::Create(
+      IsolateAddressId::kPendingExceptionAddress, masm->isolate());
+  __ mov(__ ExternalReferenceAsOperand(pending_exception, edi), eax);
+  __ Move(eax, masm->isolate()->factory()->exception());
+  __ jmp(&exit);
+
+  // Invoke: Link this frame into the handler chain.
+  __ bind(&invoke);
+  __ PushStackHandler(edi);
+
+  // Invoke the function by calling through JS entry trampoline builtin and
+  // pop the faked function when we return.
+  Handle<Code> trampoline_code =
+      masm->isolate()->builtins()->builtin_handle(entry_trampoline);
+  __ Call(trampoline_code, RelocInfo::CODE_TARGET);
+
+  // Unlink this frame from the handler chain.
+  __ PopStackHandler(edi);
+
+  __ bind(&exit);
+
+  // Check if the current stack frame is marked as the outermost JS frame.
+  __ pop(edi);
+  __ cmp(edi, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ j(not_equal, &not_outermost_js_2);
+  __ mov(__ ExternalReferenceAsOperand(js_entry_sp, edi), Immediate(0));
+  __ bind(&not_outermost_js_2);
+
+  // Restore the top frame descriptor from the stack.
+  __ pop(__ ExternalReferenceAsOperand(c_entry_fp, edi));
+
+  // Restore callee-saved registers (C calling conventions).
+  __ pop(ebx);
+  __ pop(esi);
+  __ pop(edi);
+  __ add(esp, Immediate(2 * kPointerSize));  // remove markers
+
+  // Restore frame pointer and return.
+  __ pop(ebp);
+  __ ret(0);
+}
+
+}  // namespace
+
+void Builtins::Generate_JSEntry(MacroAssembler* masm) {
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY,
+                          Builtins::kJSEntryTrampoline);
+}
+
+void Builtins::Generate_JSConstructEntry(MacroAssembler* masm) {
+  Generate_JSEntryVariant(masm, StackFrame::CONSTRUCT_ENTRY,
+                          Builtins::kJSConstructEntryTrampoline);
+}
+
+void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY, Builtins::kRunMicrotasks);
+}
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {

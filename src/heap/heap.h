@@ -1458,14 +1458,6 @@ class Heap {
   void CreateInternalAccessorInfoObjects();
   void CreateInitialObjects();
 
-  // These five Create*EntryStub functions are here and forced to not be inlined
-  // because of a gcc-4.4 bug that assigns wrong vtable entries.
-  V8_NOINLINE void CreateJSEntryStub();
-  V8_NOINLINE void CreateJSConstructEntryStub();
-  V8_NOINLINE void CreateJSRunMicrotasksEntryStub();
-
-  void CreateFixedStubs();
-
   // Commits from space if it is uncommitted.
   void EnsureFromSpaceIsCommitted();
 

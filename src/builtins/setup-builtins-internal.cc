@@ -96,10 +96,33 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   generator(&masm);
+
+  int handler_table_offset = 0;
+
+  // JSEntry builtins are a special case and need to generate a handler table.
+  DCHECK_EQ(Builtins::KindOf(Builtins::kJSEntry), Builtins::ASM);
+  DCHECK_EQ(Builtins::KindOf(Builtins::kJSConstructEntry), Builtins::ASM);
+  DCHECK_EQ(Builtins::KindOf(Builtins::kJSRunMicrotasksEntry), Builtins::ASM);
+  if (Builtins::IsJSEntryVariant(builtin_index)) {
+    static constexpr int kJSEntryHandlerCount = 1;
+    handler_table_offset =
+        HandlerTable::EmitReturnTableStart(&masm, kJSEntryHandlerCount);
+    HandlerTable::EmitReturnEntry(
+        &masm, 0, isolate->builtins()->js_entry_handler_offset());
+  }
+
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
+
+  static constexpr bool kIsNotTurbofanned = false;
+  static constexpr int kStackSlots = 0;
+  static constexpr int kSafepointTableOffset = 0;
+
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::BUILTIN, masm.CodeObject(), builtin_index);
+      desc, Code::BUILTIN, masm.CodeObject(), builtin_index,
+      MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kMovable, 0,
+      kIsNotTurbofanned, kStackSlots, kSafepointTableOffset,
+      handler_table_offset);
   PostBuildProfileAndTracing(isolate, *code, s_name);
   return *code;
 }

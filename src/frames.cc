@@ -592,7 +592,7 @@ void NativeFrame::ComputeCallerState(State* state) const {
 }
 
 Code EntryFrame::unchecked_code() const {
-  return isolate()->heap()->js_entry_code();
+  return isolate()->heap()->builtin(Builtins::kJSEntry);
 }
 
 
@@ -608,7 +608,7 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
 }
 
 Code ConstructEntryFrame::unchecked_code() const {
-  return isolate()->heap()->js_construct_entry_code();
+  return isolate()->heap()->builtin(Builtins::kJSConstructEntry);
 }
 
 

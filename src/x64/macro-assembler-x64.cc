@@ -95,18 +95,10 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
     }
   }
   // Safe code.
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadExternalReference(kScratchRegister, source);
-      movp(destination, Operand(kScratchRegister, 0));
-      return;
-    }
-  }
-  if (destination == rax) {
+  if (destination == rax && !options().isolate_independent_code) {
     load_rax(source);
   } else {
-    Move(kScratchRegister, source);
-    movp(destination, Operand(kScratchRegister, 0));
+    movp(destination, ExternalReferenceAsOperand(source));
   }
 }
 
@@ -121,11 +113,10 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
     }
   }
   // Safe code.
-  if (source == rax) {
+  if (source == rax && !options().isolate_independent_code) {
     store_rax(destination);
   } else {
-    Move(kScratchRegister, destination);
-    movp(Operand(kScratchRegister, 0), source);
+    movp(ExternalReferenceAsOperand(destination), source);
   }
 }
 

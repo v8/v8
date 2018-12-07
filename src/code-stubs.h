@@ -22,7 +22,7 @@ class CodeAssemblerState;
 }
 
 // List of code stubs used on all platforms.
-#define CODE_STUB_LIST(V) V(JSEntry)
+#define CODE_STUB_LIST(V)
 
 static const int kHasReturnedMinusZeroSentinel = 1;
 
@@ -310,70 +310,9 @@ class CodeStubDescriptor {
 }  // namespace internal
 }  // namespace v8
 
-namespace v8 {
-namespace internal {
-
-class JSEntryStub : public PlatformCodeStub {
- public:
-  enum class SpecialTarget { kNone, kRunMicrotasks };
-  JSEntryStub(Isolate* isolate, StackFrame::Type type)
-      : PlatformCodeStub(isolate) {
-    DCHECK(type == StackFrame::ENTRY || type == StackFrame::CONSTRUCT_ENTRY);
-    minor_key_ = StackFrameTypeBits::encode(type) |
-                 SpecialTargetBits::encode(SpecialTarget::kNone);
-  }
-
-  JSEntryStub(Isolate* isolate, SpecialTarget target)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = StackFrameTypeBits::encode(StackFrame::ENTRY) |
-                 SpecialTargetBits::encode(target);
-  }
-
- private:
-  int GenerateHandlerTable(MacroAssembler* masm) override;
-
-  void PrintName(std::ostream& os) const override {  // NOLINT
-    os << (type() == StackFrame::ENTRY ? "JSEntryStub"
-                                       : "JSConstructEntryStub");
-  }
-
-  StackFrame::Type type() const {
-    return StackFrameTypeBits::decode(minor_key_);
-  }
-
-  SpecialTarget special_target() const {
-    return SpecialTargetBits::decode(minor_key_);
-  }
-
-  Handle<Code> EntryTrampoline() {
-    switch (special_target()) {
-      case SpecialTarget::kNone:
-        return (type() == StackFrame::CONSTRUCT_ENTRY)
-                   ? BUILTIN_CODE(isolate(), JSConstructEntryTrampoline)
-                   : BUILTIN_CODE(isolate(), JSEntryTrampoline);
-      case SpecialTarget::kRunMicrotasks:
-        return BUILTIN_CODE(isolate(), RunMicrotasks);
-    }
-    UNREACHABLE();
-    return Handle<Code>();
-  }
-
-  class StackFrameTypeBits : public BitField<StackFrame::Type, 0, 5> {};
-  class SpecialTargetBits
-      : public BitField<SpecialTarget, StackFrameTypeBits::kNext, 1> {};
-
-  int handler_offset_;
-
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
-};
-
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
 #undef DEFINE_PLATFORM_CODE_STUB
 #undef DEFINE_CODE_STUB
 #undef DEFINE_CODE_STUB_BASE
-
-}  // namespace internal
-}  // namespace v8
 
 #endif  // V8_CODE_STUBS_H_

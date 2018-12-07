@@ -87,6 +87,9 @@ namespace internal {
   TFC(ConstructProxy, JSTrampoline, 1)                                         \
                                                                                \
   /* Apply and entries */                                                      \
+  ASM(JSEntry)                                                                 \
+  ASM(JSConstructEntry)                                                        \
+  ASM(JSRunMicrotasksEntry)                                                    \
   ASM(JSEntryTrampoline)                                                       \
   ASM(JSConstructEntryTrampoline)                                              \
   ASM(ResumeGeneratorTrampoline)                                               \

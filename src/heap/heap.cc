@@ -2405,44 +2405,6 @@ void Heap::ConfigureInitialOldGenerationSize() {
   }
 }
 
-void Heap::CreateJSEntryStub() {
-  JSEntryStub stub(isolate(), StackFrame::ENTRY);
-  set_js_entry_code(*stub.GetCode());
-}
-
-
-void Heap::CreateJSConstructEntryStub() {
-  JSEntryStub stub(isolate(), StackFrame::CONSTRUCT_ENTRY);
-  set_js_construct_entry_code(*stub.GetCode());
-}
-
-void Heap::CreateJSRunMicrotasksEntryStub() {
-  JSEntryStub stub(isolate(), JSEntryStub::SpecialTarget::kRunMicrotasks);
-  set_js_run_microtasks_entry_code(*stub.GetCode());
-}
-
-void Heap::CreateFixedStubs() {
-  // Here we create roots for fixed stubs. They are needed at GC
-  // for cooking and uncooking (check out frames.cc).
-  // The eliminates the need for doing dictionary lookup in the
-  // stub cache for these stubs.
-  HandleScope scope(isolate());
-  // Canonicalize handles, so that we can share constant pool entries pointing
-  // to code targets without dereferencing their handles.
-  CanonicalHandleScope canonical(isolate());
-  // gcc-4.4 has problem generating correct code of following snippet:
-  // {  JSEntryStub stub;
-  //    js_entry_code_ = *stub.GetCode();
-  // }
-  // {  JSConstructEntryStub stub;
-  //    js_construct_entry_code_ = *stub.GetCode();
-  // }
-  // To workaround the problem, make separate functions without inlining.
-  Heap::CreateJSEntryStub();
-  Heap::CreateJSConstructEntryStub();
-  Heap::CreateJSRunMicrotasksEntryStub();
-}
-
 void Heap::FlushNumberStringCache() {
   // Flush the number to string cache.
   int len = number_string_cache()->length();

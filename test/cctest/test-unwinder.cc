@@ -63,7 +63,7 @@ TEST(Unwind_BuiltinPCInMiddle_Success) {
 
 // The unwinder should be able to unwind even if we haven't properly set up the
 // current frame, as long as there is another JS frame underneath us (i.e. as
-// long as the PC isn't in the JSEntryStub). This test puts the PC at the start
+// long as the PC isn't in JSEntry). This test puts the PC at the start
 // of a JS builtin and creates a fake JSEntry frame before it on the stack. The
 // unwinder should be able to unwind to the C++ frame before the JSEntry frame.
 TEST(Unwind_BuiltinPCAtStart_Success) {
@@ -83,7 +83,7 @@ TEST(Unwind_BuiltinPCAtStart_Success) {
   void* stack_base = stack + arraysize(stack);
   stack[0] = 101;
   // Return address into JS code. It doesn't matter that this is not actually in
-  // the JSEntryStub, because we only check that for the top frame.
+  // JSEntry, because we only check that for the top frame.
   stack[1] = reinterpret_cast<uintptr_t>(code + 10);
   stack[2] = reinterpret_cast<uintptr_t>(stack + 5);  // saved FP (rbp).
   stack[3] = 303;  // Return address into C++ code.
@@ -177,8 +177,8 @@ TEST(Unwind_CodeObjectPCInMiddle_Success) {
   CHECK_EQ(reinterpret_cast<void*>(202), register_state.pc);
 }
 
-// If the PC is within the JSEntryStub but we haven't set up the frame yet,
-// then we cannot unwind.
+// If the PC is within JSEntry but we haven't set up the frame yet, then we
+// cannot unwind.
 TEST(Unwind_JSEntryBeforeFrame_Fail) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -191,7 +191,7 @@ TEST(Unwind_JSEntryBeforeFrame_Fail) {
   unwind_state.code_range.start = code;
   unwind_state.code_range.length_in_bytes = code_length * sizeof(uintptr_t);
 
-  // Pretend that it takes 5 instructions to set up the frame in JSEntryStub.
+  // Pretend that it takes 5 instructions to set up the frame in JSEntry.
   unwind_state.js_entry_stub.code.start = code + 10;
   unwind_state.js_entry_stub.code.length_in_bytes = 10 * sizeof(uintptr_t);
 
@@ -211,7 +211,7 @@ TEST(Unwind_JSEntryBeforeFrame_Fail) {
   register_state.sp = stack + 5;
   register_state.fp = stack + 9;
 
-  // Put the current PC inside of the JSEntryStub, before the frame is set up.
+  // Put the current PC inside of JSEntry, before the frame is set up.
   register_state.pc = code + 12;
   bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
                                                  stack_base);
@@ -225,8 +225,8 @@ TEST(Unwind_JSEntryBeforeFrame_Fail) {
   register_state.pc = code + 16;
   unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
                                             stack_base);
-  // TODO(petermarshall): More precisely check position within the JSEntryStub
-  // rather than just assuming the frame is unreadable.
+  // TODO(petermarshall): More precisely check position within JSEntry rather
+  // than just assuming the frame is unreadable.
   CHECK(!unwound);
   // The register state should not change when unwinding fails.
   CHECK_EQ(reinterpret_cast<void*>(stack + 9), register_state.fp);
@@ -324,9 +324,9 @@ TEST(Unwind_TwoJSFrames_Success) {
   CHECK_EQ(reinterpret_cast<void*>(100), register_state.pc);
 }
 
-// If the PC is in the JSEntryStub then the frame might not be set up correctly,
-// meaning we can't unwind the stack properly.
-TEST(Unwind_JSEntryStub_Fail) {
+// If the PC is in JSEntry then the frame might not be set up correctly, meaning
+// we can't unwind the stack properly.
+TEST(Unwind_JSEntry_Fail) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -334,7 +334,7 @@ TEST(Unwind_JSEntryStub_Fail) {
   UnwindState unwind_state = isolate->GetUnwindState();
   RegisterState register_state;
 
-  Code js_entry = i_isolate->heap()->js_entry_code();
+  Code js_entry = i_isolate->heap()->builtin(Builtins::kJSEntry);
   byte* start = reinterpret_cast<byte*>(js_entry->InstructionStart());
   register_state.pc = start + 10;
 
@@ -481,16 +481,16 @@ TEST(PCIsInV8_InCodeOrEmbeddedRange) {
                       embedded_range_length);
 }
 
-// PCIsInV8 doesn't check if the PC is in the JSEntryStub directly. It's assumed
-// that the CodeRange or EmbeddedCodeRange contain the JSEntryStub.
-TEST(PCIsInV8_InJSEntryStubRange) {
+// PCIsInV8 doesn't check if the PC is in JSEntrydirectly. It's assumed that the
+// CodeRange or EmbeddedCodeRange contain JSEntry.
+TEST(PCIsInV8_InJSEntryRange) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   UnwindState unwind_state = isolate->GetUnwindState();
 
-  Code js_entry = i_isolate->heap()->js_entry_code();
+  Code js_entry = i_isolate->heap()->builtin(Builtins::kJSEntry);
   byte* start = reinterpret_cast<byte*>(js_entry->InstructionStart());
   size_t length = js_entry->InstructionSize();
 
