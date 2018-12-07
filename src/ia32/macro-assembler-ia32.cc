@@ -10,7 +10,6 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
@@ -958,20 +957,6 @@ void MacroAssembler::PopStackHandler(Register scratch) {
       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
   pop(ExternalReferenceAsOperand(handler_address, scratch));
   add(esp, Immediate(StackHandlerConstants::kSize - kPointerSize));
-}
-
-
-void MacroAssembler::CallStub(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
-  return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,

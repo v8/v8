@@ -90,20 +90,14 @@ class JumpOptimizationInfo {
 class HeapObjectRequest {
  public:
   explicit HeapObjectRequest(double heap_number, int offset = -1);
-  explicit HeapObjectRequest(CodeStub* code_stub, int offset = -1);
   explicit HeapObjectRequest(const StringConstantBase* string, int offset = -1);
 
-  enum Kind { kHeapNumber, kCodeStub, kStringConstant };
+  enum Kind { kHeapNumber, kStringConstant };
   Kind kind() const { return kind_; }
 
   double heap_number() const {
     DCHECK_EQ(kind(), kHeapNumber);
     return value_.heap_number;
-  }
-
-  CodeStub* code_stub() const {
-    DCHECK_EQ(kind(), kCodeStub);
-    return value_.code_stub;
   }
 
   const StringConstantBase* string() const {
@@ -127,7 +121,6 @@ class HeapObjectRequest {
 
   union {
     double heap_number;
-    CodeStub* code_stub;
     const StringConstantBase* string;
   } value_;
 

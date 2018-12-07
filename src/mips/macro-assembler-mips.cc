@@ -12,7 +12,6 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
@@ -4503,27 +4502,6 @@ void MacroAssembler::GetObjectType(Register object,
 
 // -----------------------------------------------------------------------------
 // Runtime calls.
-
-void MacroAssembler::CallStub(CodeStub* stub,
-                              Condition cond,
-                              Register r1,
-                              const Operand& r2,
-                              BranchDelaySlot bd) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
-}
-
-void MacroAssembler::TailCallStub(CodeStub* stub,
-                                  Condition cond,
-                                  Register r1,
-                                  const Operand& r2,
-                                  BranchDelaySlot bd) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
-}
-
-bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
-  return has_frame() || !stub->SometimesSetsUpAFrame();
-}
 
 void TurboAssembler::AddOverflow(Register dst, Register left,
                                  const Operand& right, Register overflow) {

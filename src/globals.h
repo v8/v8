@@ -531,7 +531,6 @@ class Arguments;
 class Assembler;
 class Code;
 class CodeSpace;
-class CodeStub;
 class Context;
 class DeclarationScope;
 class Debug;

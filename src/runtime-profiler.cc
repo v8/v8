@@ -7,7 +7,6 @@
 #include "src/assembler.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
-#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/execution.h"

@@ -13,7 +13,6 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/double.h"
@@ -1689,21 +1688,6 @@ void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   DCHECK(obj != scratch);
   LoadRoot(scratch, index);
   cmp(obj, scratch);
-}
-
-void MacroAssembler::CallStub(CodeStub* stub,
-                              Condition cond) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, CAN_INLINE_TARGET_ADDRESS,
-       false);
-}
-
-void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
-}
-
-bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
-  return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
 void MacroAssembler::TryDoubleToInt32Exact(Register result,

@@ -120,7 +120,7 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
 
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::BUILTIN, masm.CodeObject(), builtin_index,
-      MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kMovable, 0,
+      MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kMovable,
       kIsNotTurbofanned, kStackSlots, kSafepointTableOffset,
       handler_table_offset);
   PostBuildProfileAndTracing(isolate, *code, s_name);
@@ -195,7 +195,7 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
   DCHECK_LE(0, descriptor.GetRegisterParameterCount());
   compiler::CodeAssemblerState state(
       isolate, &zone, descriptor, Code::BUILTIN, name,
-      PoisoningMitigationLevel::kDontPoison, 0, builtin_index);
+      PoisoningMitigationLevel::kDontPoison, builtin_index);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin_index));

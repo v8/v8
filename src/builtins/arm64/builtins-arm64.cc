@@ -7,7 +7,6 @@
 #include "src/api-arguments.h"
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"

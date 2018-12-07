@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "src/api-inl.h"
-#include "src/code-stubs.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/global-handles.h"
@@ -830,7 +829,6 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     TagObject(js_fun->context(), "(context)");
     SetInternalReference(entry, "context", js_fun->context(),
                          JSFunction::kContextOffset);
-    TagCodeObject(js_fun->code());
     SetInternalReference(entry, "code", js_fun->code(),
                          JSFunction::kCodeOffset);
   } else if (obj->IsJSGlobalObject()) {
@@ -1114,16 +1112,7 @@ void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
   TagObject(code, names_->GetFormatted("(%s builtin)", name));
 }
 
-void V8HeapExplorer::TagCodeObject(Code code) {
-  if (code->kind() == Code::STUB) {
-    TagObject(code, names_->GetFormatted(
-                        "(%s code)",
-                        CodeStub::MajorName(CodeStub::GetMajorKey(code))));
-  }
-}
-
 void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
-  TagCodeObject(code);
   TagObject(code->relocation_info(), "(code relocation info)");
   SetInternalReference(entry, "relocation_info", code->relocation_info(),
                        Code::kRelocationInfoOffset);

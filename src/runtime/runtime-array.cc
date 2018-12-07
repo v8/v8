@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/arguments-inl.h"
-#include "src/code-stubs.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"

@@ -294,8 +294,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
 
-  inline bool AllowThisStubCall(CodeStub* stub);
-
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, Register shift);
   void LslPair(Register dst_low, Register dst_high, Register src_low,
@@ -512,8 +510,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
   // succeeds, otherwise falls through if result is saturated. On return
   // 'result' either holds answer, or is clobbered on fall through.
-  //
-  // Only public for the test code in test-code-stubs-arm.cc.
   void TryInlineTruncateDoubleToI(Register result, DwVfpRegister input,
                                   Label* done);
 
@@ -763,13 +759,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Runtime calls
-
-  // Call a code stub.
-  void CallStub(CodeStub* stub,
-                Condition cond = al);
-
-  // Call a code stub.
-  void TailCallStub(CodeStub* stub, Condition cond = al);
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f,
