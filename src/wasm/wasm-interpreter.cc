@@ -2714,8 +2714,11 @@ class ThreadImpl {
                                               Handle<Object> object_ref,
                                               const WasmCode* code,
                                               FunctionSig* sig) {
+    wasm::WasmFeatures enabled_features =
+        wasm::WasmFeaturesFromIsolate(isolate);
+
     if (code->kind() == WasmCode::kWasmToJsWrapper &&
-        !IsJSCompatibleSignature(sig)) {
+        !IsJSCompatibleSignature(sig, enabled_features.bigint)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kWasmTrapTypeError));
       return TryHandleException(isolate);

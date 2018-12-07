@@ -201,6 +201,8 @@ namespace internal {
   TFC(ToLength, TypeConversion, 1)                                             \
   TFC(Typeof, Typeof, 1)                                                       \
   TFC(GetSuperConstructor, Typeof, 1)                                          \
+  TFC(BigIntToI64, BigIntToI64, 1)                                             \
+  TFC(I64ToBigInt, BigIntToWasmI64, 1)                                         \
                                                                                \
   /* Type conversions continuations */                                         \
   TFC(ToBooleanLazyDeoptContinuation, TypeConversionStackParameter, 1)         \
@@ -1260,6 +1262,7 @@ namespace internal {
   TFS(ThrowWasmTrapFloatUnrepresentable)                                       \
   TFS(ThrowWasmTrapFuncInvalid)                                                \
   TFS(ThrowWasmTrapFuncSigMismatch)                                            \
+  TFC(BigIntToWasmI64, BigIntToWasmI64, 1)                                     \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
@@ -1550,7 +1553,8 @@ namespace internal {
   V(WasmStackGuard)                      \
   V(WasmToNumber)                        \
   V(WasmThrow)                           \
-  V(DoubleToI)
+  V(DoubleToI)                           \
+  V(BigIntToWasmI64)
 
 // The exception thrown in the following builtins are caught internally and will
 // not be propagated further or re-thrown

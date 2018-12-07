@@ -1102,6 +1102,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
 
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+
   // The descriptor's type, called 'value'. It is called 'value' because this
   // descriptor is planned to be re-used as the global's type for reflection,
   // so calling it 'type' is redundant.
@@ -1118,11 +1120,20 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       type = i::wasm::kWasmI32;
     } else if (string->StringEquals(v8_str(isolate, "f32"))) {
       type = i::wasm::kWasmF32;
+    } else if (enabled_features.bigint &&
+               string->StringEquals(v8_str(isolate, "i64"))) {
+      type = i::wasm::kWasmI64;
     } else if (string->StringEquals(v8_str(isolate, "f64"))) {
       type = i::wasm::kWasmF64;
     } else {
-      thrower.TypeError(
-          "Descriptor property 'value' must be 'i32', 'f32', or 'f64'");
+      if (enabled_features.bigint) {
+        thrower.TypeError(
+            "Descriptor property 'value' must be 'i32', 'i64', 'f32' or 'f64'");
+      } else {
+        thrower.TypeError(
+            "Descriptor property 'value' must be 'i32', 'f32' or 'f64'");
+      }
+
       return;
     }
   }
@@ -1149,6 +1160,18 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
         if (!int32_value->Int32Value(context).To(&i32_value)) return;
       }
       global_obj->SetI32(i32_value);
+      break;
+    }
+    case i::wasm::kWasmI64: {
+      DCHECK(enabled_features.bigint);
+
+      int64_t i64_value = 0;
+      if (!value->IsUndefined()) {
+        v8::Local<v8::BigInt> bigint_value;
+        if (!value->ToBigInt(context).ToLocal(&bigint_value)) return;
+        i64_value = bigint_value->Int64Value();
+      }
+      global_obj->SetI64(i64_value);
       break;
     }
     case i::wasm::kWasmF32: {
@@ -1403,9 +1426,17 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kWasmI32:
       return_value.Set(receiver->GetI32());
       break;
-    case i::wasm::kWasmI64:
-      thrower.TypeError("Can't get the value of i64 WebAssembly.Global");
+    case i::wasm::kWasmI64: {
+      auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+      if (enabled_features.bigint) {
+        Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
+
+        return_value.Set(value);
+      } else {
+        thrower.TypeError("Can't get the value of i64 WebAssembly.Global");
+      }
       break;
+    }
     case i::wasm::kWasmF32:
       return_value.Set(receiver->GetF32());
       break;
@@ -1450,9 +1481,17 @@ void WebAssemblyGlobalSetValue(
       receiver->SetI32(i32_value);
       break;
     }
-    case i::wasm::kWasmI64:
-      thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
+    case i::wasm::kWasmI64: {
+      auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+      if (enabled_features.bigint) {
+        v8::Local<v8::BigInt> bigint_value;
+        if (!args[0]->ToBigInt(context).ToLocal(&bigint_value)) return;
+        receiver->SetI64(bigint_value->Int64Value());
+      } else {
+        thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
+      }
       break;
+    }
     case i::wasm::kWasmF32: {
       double f64_value = 0;
       if (!args[0]->NumberValue(context).To(&f64_value)) return;

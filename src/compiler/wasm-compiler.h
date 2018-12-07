@@ -108,7 +108,8 @@ enum class WasmImportCallKind : uint8_t {
 };
 
 WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> callable,
-                                         wasm::FunctionSig* sig);
+                                         wasm::FunctionSig* sig,
+                                         bool has_bigint_feature);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
 wasm::WasmCode* CompileWasmImportCallWrapper(Isolate*, wasm::NativeModule*,
