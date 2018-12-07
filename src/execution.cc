@@ -71,6 +71,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
     Execution::Target execution_target) {
   RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kInvoke);
   DCHECK(!receiver->IsJSGlobalObject());
+  DCHECK_LE(argc, FixedArray::kMaxLength);
 
 #ifdef USE_SIMULATOR
   // Simulators use separate stacks for C++ and JS. JS stack overflow checks
