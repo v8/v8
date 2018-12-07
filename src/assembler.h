@@ -476,8 +476,13 @@ class RegisterBase {
   }
 
   template <RegisterCode reg_code>
+  static constexpr int is_valid() {
+    return static_cast<int>(reg_code) != kCode_no_reg;
+  }
+
+  template <RegisterCode reg_code>
   static constexpr RegList bit() {
-    return RegList{1} << code<reg_code>();
+    return is_valid<reg_code>() ? RegList{1} << code<reg_code>() : RegList{};
   }
 
   static SubType from_code(int code) {
@@ -498,14 +503,14 @@ class RegisterBase {
     return CombineRegLists(regs.bit()...);
   }
 
-  bool is_valid() const { return reg_code_ != kCode_no_reg; }
+  constexpr bool is_valid() const { return reg_code_ != kCode_no_reg; }
 
   int code() const {
     DCHECK(is_valid());
     return reg_code_;
   }
 
-  RegList bit() const { return RegList{1} << code(); }
+  RegList bit() const { return is_valid() ? RegList{1} << code() : RegList{}; }
 
   inline constexpr bool operator==(SubType other) const {
     return reg_code_ == other.reg_code_;
