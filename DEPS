@@ -9,6 +9,9 @@ vars = {
   'download_jsfunfuzz': False,
   'download_mips_toolchain': False,
   'check_v8_header_includes': False,
+
+  # luci-go CIPD package version.
+  'luci_go': 'git_revision:fdf05508e8a66c773a41521e0243c9d11b9a2a1c',
 }
 
 deps = {
@@ -82,8 +85,24 @@ deps = {
   },
   'v8/tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7792d28b069af6dd3a86d1ba83b7f5c4ede605dc',
-  'v8/tools/luci-go':
-    Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '445d7c4b6a4f10e188edb395b132e3996b127691',
+  'v8/tools/luci-go': {
+      'packages': [
+        {
+          'package': 'infra/tools/luci/isolate/${{platform}}',
+          'version': Var('luci_go'),
+        },
+        {
+          'package': 'infra/tools/luci/isolated/${{platform}}',
+          'version': Var('luci_go'),
+        },
+        {
+          'package': 'infra/tools/luci/swarming/${{platform}}',
+          'version': Var('luci_go'),
+        },
+      ],
+      'condition': 'host_cpu != "s390"',
+      'dep_type': 'cipd',
+  },
   'v8/test/wasm-js':
     Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'db9cd40808a90ecc5f4a23e88fb375c8f60b8d52',
 }
