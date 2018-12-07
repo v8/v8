@@ -109,7 +109,6 @@ class Code : public HeapObjectPtr {
   // [kind]: Access to specific code kind.
   inline Kind kind() const;
 
-  inline bool is_stub() const;
   inline bool is_optimized_code() const;
   inline bool is_wasm_code() const;
 
@@ -375,6 +374,36 @@ class Code : public HeapObjectPtr {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_FIELDS)
 #undef CODE_FIELDS
+
+  // This documents the amount of free space we have in each Code object header
+  // due to padding for code alignment.
+#if V8_TARGET_ARCH_ARM64
+  static constexpr int kHeaderPaddingSize = 4;
+  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
+#elif V8_TARGET_ARCH_MIPS64
+  static constexpr int kHeaderPaddingSize = 4;
+  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
+#elif V8_TARGET_ARCH_X64
+  static constexpr int kHeaderPaddingSize = 4;
+  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
+#elif V8_TARGET_ARCH_ARM
+  static constexpr int kHeaderPaddingSize = 24;
+  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
+#elif V8_TARGET_ARCH_IA32
+  static constexpr int kHeaderPaddingSize = 24;
+  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
+#elif V8_TARGET_ARCH_MIPS
+  static constexpr int kHeaderPaddingSize = 24;
+  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
+#elif V8_TARGET_ARCH_PPC
+  // No static assert possible since padding size depends on the
+  // FLAG_enable_embedded_constant_pool runtime flag.
+#elif V8_TARGET_ARCH_S390
+  static constexpr int kHeaderPaddingSize = 24;
+  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
+#else
+#error Unknown architecture.
+#endif
 
   inline int GetUnwindingInfoSizeOffset() const;
 

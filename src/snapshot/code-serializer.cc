@@ -334,7 +334,6 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kNumReservationsOffset,
                  static_cast<uint32_t>(reservations.size()));
-  SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
 
   // Zero out any padding in the header.
@@ -375,8 +374,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   uint32_t max_payload_length =
       this->size_ -
       POINTER_SIZE_ALIGN(kHeaderSize +
-                         GetHeaderValue(kNumReservationsOffset) * kInt32Size +
-                         GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size);
+                         GetHeaderValue(kNumReservationsOffset) * kInt32Size);
   if (payload_length > max_payload_length) return LENGTH_MISMATCH;
   if (!Checksum(ChecksummedContent()).Check(c1, c2)) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
@@ -414,22 +412,13 @@ std::vector<SerializedData::Reservation> SerializedCodeData::Reservations()
 
 Vector<const byte> SerializedCodeData::Payload() const {
   int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
-  int code_stubs_size = GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size;
-  int payload_offset = kHeaderSize + reservations_size + code_stubs_size;
+  int payload_offset = kHeaderSize + reservations_size;
   int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
   const byte* payload = data_ + padded_payload_offset;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
   int length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
   return Vector<const byte>(payload, length);
-}
-
-Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
-  // TODO(jgruber): Remove.
-  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
-  const byte* start = data_ + kHeaderSize + reservations_size;
-  return Vector<const uint32_t>(reinterpret_cast<const uint32_t*>(start),
-                                GetHeaderValue(kNumCodeStubKeysOffset));
 }
 
 SerializedCodeData::SerializedCodeData(ScriptData* data)

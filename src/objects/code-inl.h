@@ -535,7 +535,6 @@ void Code::set_deopt_already_counted(bool flag) {
   code_data_container()->set_kind_specific_flags(updated);
 }
 
-bool Code::is_stub() const { return kind() == STUB; }
 bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
 

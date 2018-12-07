@@ -72,19 +72,7 @@ StackArgumentsAccessor::StackArgumentsAccessor(
 MacroAssembler::MacroAssembler(Isolate* isolate,
                                const AssemblerOptions& options, void* buffer,
                                int size, CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    // Unlike TurboAssembler, which can be used off the main thread and may not
-    // allocate, macro assembler creates its own copy of the self-reference
-    // marker in order to disambiguate between self-references during nested
-    // code generation (e.g.: codegen of the current object triggers stub
-    // compilation through CodeStub::GetCode()).
-    // TODO(jgruber): We can likely remove this now that code stubs are gone.
-    code_object_ = Handle<HeapObject>::New(
-        *isolate->factory()->NewSelfReferenceMarker(), isolate);
-  }
-}
-
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {}
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && options().enable_root_array_delta_access) {

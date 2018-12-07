@@ -69,11 +69,6 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
   DCHECK(self_reference->IsOddball());
   DCHECK(Oddball::cast(*self_reference)->kind() ==
          Oddball::kSelfReferenceMarker);
-
-  // During indirection generation, we always create a distinct marker for each
-  // macro assembler. The canonical marker is only used when not generating a
-  // snapshot.
-  DCHECK(*self_reference != ReadOnlyRoots(isolate_).self_reference_marker());
 #endif
 
   uint32_t key;
