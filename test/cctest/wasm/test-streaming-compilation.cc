@@ -212,8 +212,7 @@ ZoneBuffer GetValidCompiledModuleBytes(Zone* zone, ZoneBuffer wire_bytes) {
   // Serialize the NativeModule.
   std::shared_ptr<NativeModule> native_module = tester.native_module();
   CHECK(native_module);
-  i::wasm::WasmSerializer serializer(
-      reinterpret_cast<i::Isolate*>(CcTest::i_isolate()), native_module.get());
+  i::wasm::WasmSerializer serializer(native_module.get());
   size_t size = serializer.GetSerializedNativeModuleSize();
   std::vector<byte> buffer(size);
   CHECK(serializer.SerializeNativeModule({buffer.data(), size}));

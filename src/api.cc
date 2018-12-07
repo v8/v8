@@ -7402,7 +7402,7 @@ WasmModuleObject::SerializedModule WasmModuleObject::Serialize() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
   i::wasm::NativeModule* native_module = obj->native_module();
-  i::wasm::WasmSerializer wasm_serializer(obj->GetIsolate(), native_module);
+  i::wasm::WasmSerializer wasm_serializer(native_module);
   size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
   std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
   if (wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size}))

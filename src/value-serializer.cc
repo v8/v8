@@ -897,7 +897,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
     memcpy(destination, wire_bytes.start(), wire_bytes.size());
   }
 
-  wasm::WasmSerializer wasm_serializer(isolate_, native_module);
+  wasm::WasmSerializer wasm_serializer(native_module);
   size_t module_size = wasm_serializer.GetSerializedNativeModuleSize();
   CHECK_GE(std::numeric_limits<uint32_t>::max(), module_size);
   WriteVarint<uint32_t>(static_cast<uint32_t>(module_size));
