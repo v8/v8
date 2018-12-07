@@ -12,17 +12,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
-// TODO(ishell): make it (const Stub& stub) once CodeStub::GetCode() is const.
-template <typename Stub>
-Callable make_callable(Stub& stub) {
-  typedef typename Stub::Descriptor Descriptor;
-  return Callable(stub.GetCode(), Descriptor{});
-}
-
-}  // namespace
-
 // static
 Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
   return CodeFactory::CEntry(isolate, result_size);

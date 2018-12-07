@@ -8,7 +8,6 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/scopes.h"
 #include "src/builtins/builtins-constructor.h"
-#include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-jump-table.h"

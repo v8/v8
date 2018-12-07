@@ -91,10 +91,6 @@ class Code : public HeapObjectPtr {
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_ACCESSORS2(code_data_container, CodeDataContainer)
 
-  // [stub_key]: The major/minor key of a code stub.
-  inline uint32_t stub_key() const;
-  inline void set_stub_key(uint32_t key);
-
   // [next_code_link]: Link for lists of optimized or deoptimized code.
   // Note that this field is stored in the {CodeDataContainer} to be mutable.
   inline Object* next_code_link() const;
@@ -135,12 +131,6 @@ class Code : public HeapObjectPtr {
   // embedded objects in code should be treated weakly.
   inline bool can_have_weak_objects() const;
   inline void set_can_have_weak_objects(bool value);
-
-  // [is_construct_stub]: For kind BUILTIN, tells whether the code object
-  // represents a hand-written construct stub
-  // (e.g., NumberConstructor_ConstructStub).
-  inline bool is_construct_stub() const;
-  inline void set_is_construct_stub(bool value);
 
   // [builtin_index]: For builtins, tells which builtin index the code object
   // has. The builtin index is a non-negative integer for builtins, and -1
@@ -352,12 +342,6 @@ class Code : public HeapObjectPtr {
 
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction();
 
-#ifdef DEBUG
-  enum VerifyMode { kNoContextSpecificPointers, kNoContextRetainingPointers };
-  void VerifyEmbeddedObjects(Isolate* isolate,
-                             VerifyMode mode = kNoContextRetainingPointers);
-#endif  // DEBUG
-
   bool IsIsolateIndependent(Isolate* isolate);
 
   inline bool CanContainWeakObjects();
@@ -385,7 +369,6 @@ class Code : public HeapObjectPtr {
   V(kFlagsOffset, kIntSize)                                                 \
   V(kSafepointTableOffsetOffset, kIntSize)                                  \
   V(kHandlerTableOffsetOffset, kIntSize)                                    \
-  V(kStubKeyOffset, kIntSize)                                               \
   V(kConstantPoolOffset, FLAG_enable_embedded_constant_pool ? kIntSize : 0) \
   V(kBuiltinIndexOffset, kIntSize)                                          \
   /* Add padding to align the instruction start following right after */    \
@@ -419,7 +402,6 @@ class Code : public HeapObjectPtr {
   V(EmbeddedObjectsClearedField, bool, 1, _)      \
   V(DeoptAlreadyCountedField, bool, 1, _)         \
   V(CanHaveWeakObjectsField, bool, 1, _)          \
-  V(IsConstructStubField, bool, 1, _)             \
   V(IsPromiseRejectionField, bool, 1, _)          \
   V(IsExceptionCaughtField, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)

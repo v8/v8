@@ -875,6 +875,9 @@ DEFINE_BOOL(expose_async_hooks, false, "expose async_hooks object")
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
             "allow invoking the function constructor without security checks")
 DEFINE_BOOL(force_slow_path, false, "always take the slow path for builtins")
+DEFINE_BOOL(test_small_max_function_context_stub_size, false,
+            "enable testing the function context size overflow path "
+            "by making the maximum size smaller")
 
 // builtins-ia32.cc
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")
@@ -1347,18 +1350,6 @@ DEFINE_BOOL(trace_elements_transitions, false, "trace elements transitions")
 DEFINE_BOOL(trace_creation_allocation_sites, false,
             "trace the creation of allocation sites")
 
-// code-stubs.cc
-DEFINE_BOOL(print_code_stubs, false, "print code stubs")
-DEFINE_BOOL(test_secondary_stub_cache, false,
-            "test secondary stub cache by disabling the primary one")
-
-DEFINE_BOOL(test_primary_stub_cache, false,
-            "test primary stub cache by disabling the secondary one")
-
-DEFINE_BOOL(test_small_max_function_context_stub_size, false,
-            "enable testing the function context size overflow path "
-            "by making the maximum size smaller")
-
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(print_code, false, "print generated code")
 DEFINE_BOOL(print_opt_code, false, "print optimized code")
@@ -1374,7 +1365,6 @@ DEFINE_BOOL(sodium, false,
             "print generated code output suitable for use with "
             "the Sodium code viewer")
 
-DEFINE_IMPLICATION(sodium, print_code_stubs)
 DEFINE_IMPLICATION(sodium, print_code)
 DEFINE_IMPLICATION(sodium, print_opt_code)
 DEFINE_IMPLICATION(sodium, code_comments)
@@ -1384,7 +1374,6 @@ DEFINE_IMPLICATION(print_all_code, print_code)
 DEFINE_IMPLICATION(print_all_code, print_opt_code)
 DEFINE_IMPLICATION(print_all_code, print_code_verbose)
 DEFINE_IMPLICATION(print_all_code, print_builtin_code)
-DEFINE_IMPLICATION(print_all_code, print_code_stubs)
 DEFINE_IMPLICATION(print_all_code, code_comments)
 #endif
 

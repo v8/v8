@@ -223,7 +223,6 @@ class Immediate {
       : Immediate(static_cast<intptr_t>(value.ptr())) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Immediate EmbeddedCode(CodeStub* code);
   static Immediate EmbeddedStringConstant(const StringConstantBase* str);
 
   static Immediate CodeRelativeOffset(Label* label) {
@@ -840,7 +839,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void call(Register reg) { call(Operand(reg)); }
   void call(Operand adr);
   void call(Handle<Code> code, RelocInfo::Mode rmode);
-  void call(CodeStub* stub);
   void wasm_call(Address address, RelocInfo::Mode rmode);
 
   // Jumps

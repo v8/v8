@@ -163,8 +163,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
 
-  inline bool AllowThisStubCall(CodeStub* stub);
-
   // Arguments macros.
 #define COND_TYPED_ARGS Condition cond, Register r1, const Operand& r2
 #define COND_ARGS cond, r1, r2
@@ -544,15 +542,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
 
   // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
-  // succeeds, otherwise falls through if result is saturated. On return
-  // 'result' either holds answer, or is clobbered on fall through.
-  //
-  // Only public for the test code in test-code-stubs-arm.cc.
-  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
-                                  Label* done);
-
-  // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
   // Exits with 'result' holding the answer.
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
@@ -863,6 +852,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  private:
   bool has_double_zero_reg_set_ = false;
 
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
+  // succeeds, otherwise falls through if result is saturated. On return
+  // 'result' either holds answer, or is clobbered on fall through.
+  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
+                                  Label* done);
+
   void CallCFunctionHelper(Register function_base, int16_t function_offset,
                            int num_reg_arguments, int num_double_arguments);
 
@@ -1066,18 +1062,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // -------------------------------------------------------------------------
   // Runtime calls.
-
-#define COND_ARGS Condition cond = al, Register rs = zero_reg, \
-const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
-
-  // Call a code stub.
-  void CallStub(CodeStub* stub,
-                COND_ARGS);
-
-  // Tail call a code stub (jump).
-  void TailCallStub(CodeStub* stub, COND_ARGS);
-
-#undef COND_ARGS
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f, int num_arguments,

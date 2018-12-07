@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/feedback-vector.h"
-#include "src/code-stubs.h"
 #include "src/feedback-vector-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/objects.h"
@@ -1175,9 +1174,6 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
       mode = KeyedAccessStoreModeForBuiltin(builtin_index);
       break;
-    } else {
-      CHECK(CodeStub::MajorKeyFromKey(handler->stub_key()) ==
-            CodeStub::NoCache);
     }
   }
 

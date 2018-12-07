@@ -8,7 +8,6 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/cancelable-task.h"
-#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"

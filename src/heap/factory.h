@@ -779,7 +779,7 @@ class V8_EXPORT_PRIVATE Factory {
                            MaybeHandle<ByteArray>(),
                        MaybeHandle<DeoptimizationData> maybe_deopt_data =
                            MaybeHandle<DeoptimizationData>(),
-                       Movability movability = kMovable, uint32_t stub_key = 0,
+                       Movability movability = kMovable,
                        bool is_turbofanned = false, int stack_slots = 0,
                        int safepoint_table_offset = 0,
                        int handler_table_offset = 0);
@@ -794,9 +794,9 @@ class V8_EXPORT_PRIVATE Factory {
           MaybeHandle<ByteArray>(),
       MaybeHandle<DeoptimizationData> maybe_deopt_data =
           MaybeHandle<DeoptimizationData>(),
-      Movability movability = kMovable, uint32_t stub_key = 0,
-      bool is_turbofanned = false, int stack_slots = 0,
-      int safepoint_table_offset = 0, int handler_table_offset = 0);
+      Movability movability = kMovable, bool is_turbofanned = false,
+      int stack_slots = 0, int safepoint_table_offset = 0,
+      int handler_table_offset = 0);
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.

@@ -734,10 +734,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   RecordSimpleVirtualObjectStats(nullptr,
                                  WeakArrayList::cast(heap_->script_list()),
                                  ObjectStats::SCRIPT_LIST_TYPE);
-
-  // HashTable.
-  RecordHashTableVirtualObjectStats(nullptr, heap_->code_stubs(),
-                                    ObjectStats::CODE_STUBS_TABLE_TYPE);
 }
 
 void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject* obj,

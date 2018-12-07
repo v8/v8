@@ -4,7 +4,6 @@
 
 #include "src/snapshot/code-serializer.h"
 
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/log.h"
@@ -142,11 +141,6 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       case Code::BYTECODE_HANDLER:    // No direct references to handlers.
         break;                        // hit UNREACHABLE below.
       case Code::STUB:
-        if (code_object->builtin_index() == -1) {
-          return SerializeCodeStub(code_object, how_to_code, where_to_point);
-        } else {
-          return SerializeCodeObject(code_object, how_to_code, where_to_point);
-        }
       case Code::BUILTIN:
       default:
         return SerializeCodeObject(code_object, how_to_code, where_to_point);
@@ -242,25 +236,6 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
   serializer.Serialize();
 }
 
-void CodeSerializer::SerializeCodeStub(Code code_stub, HowToCode how_to_code,
-                                       WhereToPoint where_to_point) {
-  // We only arrive here if we have not encountered this code stub before.
-  DCHECK(!reference_map()->LookupReference(code_stub).is_valid());
-  uint32_t stub_key = code_stub->stub_key();
-  DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
-  DCHECK(!CodeStub::GetCode(isolate(), stub_key).is_null());
-  stub_keys_.push_back(stub_key);
-
-  SerializerReference reference =
-      reference_map()->AddAttachedReference(code_stub);
-  if (FLAG_trace_serializer) {
-    PrintF(" Encoding code stub %s as attached reference %d\n",
-           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key)),
-           reference.attached_reference_index());
-  }
-  PutAttachedReference(reference, how_to_code, where_to_point);
-}
-
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, ScriptData* cached_data, Handle<String> source,
     ScriptOriginOptions origin_options) {
@@ -331,13 +306,12 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
   DisallowHeapAllocation no_gc;
-  const std::vector<uint32_t>* stub_keys = cs->stub_keys();
   std::vector<Reservation> reservations = cs->EncodeReservations();
 
   // Calculate sizes.
   uint32_t reservation_size =
       static_cast<uint32_t>(reservations.size()) * kUInt32Size;
-  uint32_t num_stub_keys = static_cast<uint32_t>(stub_keys->size());
+  uint32_t num_stub_keys = 0;  // TODO(jgruber): Remove.
   uint32_t stub_keys_size = num_stub_keys * kUInt32Size;
   uint32_t payload_offset = kHeaderSize + reservation_size + stub_keys_size;
   uint32_t padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
@@ -370,10 +344,6 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   CopyBytes(data_ + kHeaderSize,
             reinterpret_cast<const byte*>(reservations.data()),
             reservation_size);
-
-  // Copy code stub keys.
-  CopyBytes(data_ + kHeaderSize + reservation_size,
-            reinterpret_cast<const byte*>(stub_keys->data()), stub_keys_size);
 
   // Copy serialized data.
   CopyBytes(data_ + padded_payload_offset, payload->data(),
@@ -455,6 +425,7 @@ Vector<const byte> SerializedCodeData::Payload() const {
 }
 
 Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
+  // TODO(jgruber): Remove.
   int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
   const byte* start = data_ + kHeaderSize + reservations_size;
   return Vector<const uint32_t>(reinterpret_cast<const uint32_t*>(start),

@@ -25,7 +25,6 @@
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/cancelable-task.h"
-#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/compilation-statistics.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
@@ -534,13 +533,7 @@ class FrameArrayBuilder {
     Handle<AbstractCode> abstract_code = summary.abstract_code();
     const int offset = summary.code_offset();
 
-    bool is_constructor = summary.is_constructor();
-    // Help CallSite::IsConstructor correctly detect hand-written
-    // construct stubs.
-    if (abstract_code->IsCode() &&
-        Code::cast(*abstract_code)->is_construct_stub()) {
-      is_constructor = true;
-    }
+    const bool is_constructor = summary.is_constructor();
 
     int flags = 0;
     Handle<JSFunction> function = summary.function();

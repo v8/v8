@@ -6,7 +6,6 @@
 
 #include "src/assembler-inl.h"
 #include "src/code-reference.h"
-#include "src/code-stubs.h"
 #include "src/deoptimize-reason.h"
 #include "src/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -464,8 +463,6 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     os << " (" << Code::Kind2String(code->kind());
     if (Builtins::IsBuiltin(code)) {
       os << " " << Builtins::name(code->builtin_index());
-    } else if (code->kind() == Code::STUB) {
-      os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
     }
     os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
