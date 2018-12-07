@@ -113,6 +113,7 @@ namespace internal {
   T(MethodInvokedOnNullOrUndefined,                                            \
     "Method invoked on undefined or null value.")                              \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
+  T(MissingBraceAfterFunctionBody, "missing '}' after function body")          \
   T(NoAccess, "no access")                                                     \
   T(NonCallableInInstanceOfCheck,                                              \
     "Right-hand side of 'instanceof' is not callable")                         \

@@ -1,0 +1,4 @@
+*%(basename)s:6: SyntaxError: missing '}' after function body
+  const x = 42;
+              ^
+SyntaxError: missing '}' after function body
