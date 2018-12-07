@@ -2279,6 +2279,7 @@ v8_source_set("v8_base") {
     "src/objects/debug-objects-inl.h",
     "src/objects/debug-objects.cc",
     "src/objects/debug-objects.h",
+    "src/objects/descriptor-array-inl.h",
     "src/objects/descriptor-array.h",
     "src/objects/dictionary-inl.h",
     "src/objects/dictionary.h",

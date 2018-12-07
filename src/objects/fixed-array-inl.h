@@ -203,6 +203,107 @@ void FixedArray::MoveElements(Heap* heap, int dst_index, int src_index, int len,
   heap->MoveElements(*this, dst_index, src_index, len, mode);
 }
 
+// Perform a binary search in a fixed array.
+template <SearchMode search_mode, typename T>
+int BinarySearch(T* array, Name name, int valid_entries,
+                 int* out_insertion_index) {
+  DCHECK(search_mode == ALL_ENTRIES || out_insertion_index == nullptr);
+  int low = 0;
+  int high = array->number_of_entries() - 1;
+  uint32_t hash = name->hash_field();
+  int limit = high;
+
+  DCHECK(low <= high);
+
+  while (low != high) {
+    int mid = low + (high - low) / 2;
+    Name mid_name = array->GetSortedKey(mid);
+    uint32_t mid_hash = mid_name->hash_field();
+
+    if (mid_hash >= hash) {
+      high = mid;
+    } else {
+      low = mid + 1;
+    }
+  }
+
+  for (; low <= limit; ++low) {
+    int sort_index = array->GetSortedKeyIndex(low);
+    Name entry = array->GetKey(sort_index);
+    uint32_t current_hash = entry->hash_field();
+    if (current_hash != hash) {
+      if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
+        *out_insertion_index = sort_index + (current_hash > hash ? 0 : 1);
+      }
+      return T::kNotFound;
+    }
+    if (entry == name) {
+      if (search_mode == ALL_ENTRIES || sort_index < valid_entries) {
+        return sort_index;
+      }
+      return T::kNotFound;
+    }
+  }
+
+  if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
+    *out_insertion_index = limit + 1;
+  }
+  return T::kNotFound;
+}
+
+// Perform a linear search in this fixed array. len is the number of entry
+// indices that are valid.
+template <SearchMode search_mode, typename T>
+int LinearSearch(T* array, Name name, int valid_entries,
+                 int* out_insertion_index) {
+  if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
+    uint32_t hash = name->hash_field();
+    int len = array->number_of_entries();
+    for (int number = 0; number < len; number++) {
+      int sorted_index = array->GetSortedKeyIndex(number);
+      Name entry = array->GetKey(sorted_index);
+      uint32_t current_hash = entry->hash_field();
+      if (current_hash > hash) {
+        *out_insertion_index = sorted_index;
+        return T::kNotFound;
+      }
+      if (entry == name) return sorted_index;
+    }
+    *out_insertion_index = len;
+    return T::kNotFound;
+  } else {
+    DCHECK_LE(valid_entries, array->number_of_entries());
+    DCHECK_NULL(out_insertion_index);  // Not supported here.
+    for (int number = 0; number < valid_entries; number++) {
+      if (array->GetKey(number) == name) return number;
+    }
+    return T::kNotFound;
+  }
+}
+
+template <SearchMode search_mode, typename T>
+int Search(T* array, Name name, int valid_entries, int* out_insertion_index) {
+  SLOW_DCHECK(array->IsSortedNoDuplicates());
+
+  if (valid_entries == 0) {
+    if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
+      *out_insertion_index = 0;
+    }
+    return T::kNotFound;
+  }
+
+  // Fast case: do linear search for small arrays.
+  const int kMaxElementsForLinearSearch = 8;
+  if (valid_entries <= kMaxElementsForLinearSearch) {
+    return LinearSearch<search_mode>(array, name, valid_entries,
+                                     out_insertion_index);
+  }
+
+  // Slow case: perform binary search.
+  return BinarySearch<search_mode>(array, name, valid_entries,
+                                   out_insertion_index);
+}
+
 double FixedDoubleArray::get_scalar(int index) {
   DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
          map() != GetReadOnlyRoots().fixed_array_map());
