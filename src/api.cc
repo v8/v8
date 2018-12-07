@@ -1182,6 +1182,10 @@ Context::BackupIncumbentScope::BackupIncumbentScope(
 
   i::Handle<i::Context> env = Utils::OpenHandle(*backup_incumbent_context_);
   i::Isolate* isolate = env->GetIsolate();
+
+  js_stack_comparable_address_ =
+      i::SimulatorStack::RegisterJSStackComparableAddress(isolate);
+
   prev_ = isolate->top_backup_incumbent_scope();
   isolate->set_top_backup_incumbent_scope(this);
 }
@@ -1189,6 +1193,9 @@ Context::BackupIncumbentScope::BackupIncumbentScope(
 Context::BackupIncumbentScope::~BackupIncumbentScope() {
   i::Handle<i::Context> env = Utils::OpenHandle(*backup_incumbent_context_);
   i::Isolate* isolate = env->GetIsolate();
+
+  i::SimulatorStack::UnregisterJSStackComparableAddress(isolate);
+
   isolate->set_top_backup_incumbent_scope(prev_);
 }
 
@@ -2629,9 +2636,8 @@ v8::TryCatch::TryCatch(v8::Isolate* isolate)
       has_terminated_(false) {
   ResetInternal();
   // Special handling for simulators which have a separate JS stack.
-  js_stack_comparable_address_ =
-      reinterpret_cast<void*>(i::SimulatorStack::RegisterCTryCatch(
-          isolate_, i::GetCurrentStackPosition()));
+  js_stack_comparable_address_ = reinterpret_cast<void*>(
+      i::SimulatorStack::RegisterJSStackComparableAddress(isolate_));
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -2650,7 +2656,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->RestorePendingMessageFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    i::SimulatorStack::UnregisterCTryCatch(isolate_);
+    i::SimulatorStack::UnregisterJSStackComparableAddress(isolate_);
     reinterpret_cast<Isolate*>(isolate_)->ThrowException(exc);
     DCHECK(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
@@ -2661,7 +2667,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->CancelScheduledExceptionFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    i::SimulatorStack::UnregisterCTryCatch(isolate_);
+    i::SimulatorStack::UnregisterJSStackComparableAddress(isolate_);
   }
 }
 

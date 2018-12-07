@@ -9096,7 +9096,7 @@ class V8_EXPORT Context {
    * stack.
    * https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
    */
-  class V8_EXPORT BackupIncumbentScope {
+  class V8_EXPORT BackupIncumbentScope final {
    public:
     /**
      * |backup_incumbent_context| is pushed onto the backup incumbent settings
@@ -9105,10 +9105,20 @@ class V8_EXPORT Context {
     explicit BackupIncumbentScope(Local<Context> backup_incumbent_context);
     ~BackupIncumbentScope();
 
+    /**
+     * Returns address that is comparable with JS stack address.  Note that JS
+     * stack may be allocated separately from the native stack.  See also
+     * |TryCatch::JSStackComparableAddress| for details.
+     */
+    uintptr_t JSStackComparableAddress() const {
+      return js_stack_comparable_address_;
+    }
+
    private:
     friend class internal::Isolate;
 
     Local<Context> backup_incumbent_context_;
+    uintptr_t js_stack_comparable_address_ = 0;
     const BackupIncumbentScope* prev_ = nullptr;
   };
 

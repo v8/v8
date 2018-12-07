@@ -76,10 +76,6 @@
 #include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
 
-#if defined(V8_USE_ADDRESS_SANITIZER)
-#include <sanitizer/asan_interface.h>
-#endif
-
 extern "C" const uint8_t* v8_Default_embedded_blob_;
 extern "C" uint32_t v8_Default_embedded_blob_size_;
 
@@ -2506,21 +2502,10 @@ Handle<Context> Isolate::GetIncumbentContext() {
   // if it's newer than the last Context::BackupIncumbentScope entry.
   //
   // NOTE: This code assumes that the stack grows downward.
-#if defined(V8_USE_ADDRESS_SANITIZER)
-  // |it.frame()->sp()| points to an address in the real stack frame, but
-  // |top_backup_incumbent_scope()| points to an address in a fake stack frame.
-  // In order to compare them, convert the latter into the address in the real
-  // stack frame.
-  void* maybe_fake_top = const_cast<void*>(
-      reinterpret_cast<const void*>(top_backup_incumbent_scope()));
-  void* maybe_real_top = __asan_addr_is_in_fake_stack(
-      __asan_get_current_fake_stack(), maybe_fake_top, nullptr, nullptr);
-  Address top_backup_incumbent = reinterpret_cast<Address>(
-      maybe_real_top ? maybe_real_top : maybe_fake_top);
-#else
   Address top_backup_incumbent =
-      reinterpret_cast<Address>(top_backup_incumbent_scope());
-#endif
+      top_backup_incumbent_scope()
+          ? top_backup_incumbent_scope()->JSStackComparableAddress()
+          : 0;
   if (!it.done() &&
       (!top_backup_incumbent || it.frame()->sp() < top_backup_incumbent)) {
     Context context = Context::cast(it.frame()->context());
