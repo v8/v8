@@ -999,7 +999,8 @@ std::unique_ptr<NativeModule> CompileToNativeModule(
   // Compile JS->wasm wrappers for exported functions.
   *export_wrappers_out =
       isolate->factory()->NewFixedArray(export_wrapper_size, TENURED);
-  CompileJsToWasmWrappers(isolate, native_module.get(), *export_wrappers_out);
+  CompileJsToWasmWrappers(isolate, native_module->module(),
+                          *export_wrappers_out);
 
   // Log the code within the generated module for profiling.
   native_module->LogWasmCodes(isolate);
@@ -2732,7 +2733,7 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
     TRACE_COMPILE("(5) Compile wrappers...\n");
     // Compile JS->wasm wrappers for exported functions.
     CompileJsToWasmWrappers(
-        job->isolate_, job->module_object_->native_module(),
+        job->isolate_, job->module_object_->native_module()->module(),
         handle(job->module_object_->export_wrappers(), job->isolate_));
     job->DoSync<FinishModule>();
   }
@@ -3213,11 +3214,10 @@ void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
   if (callback_) callback_(event, error_result);
 }
 
-void CompileJsToWasmWrappers(Isolate* isolate, NativeModule* native_module,
+void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray> export_wrappers) {
   JSToWasmWrapperCache js_to_wasm_cache;
   int wrapper_index = 0;
-  const WasmModule* module = native_module->module();
 
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
   // optimization we keep the code space unlocked to avoid repeated unlocking

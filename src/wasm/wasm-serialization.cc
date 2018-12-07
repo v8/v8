@@ -606,7 +606,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};
 
-  CompileJsToWasmWrappers(isolate, native_module,
+  CompileJsToWasmWrappers(isolate, native_module->module(),
                           handle(module_object->export_wrappers(), isolate));
 
   // Log the code within the generated module for profiling.

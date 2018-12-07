@@ -48,7 +48,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     MaybeHandle<JSArrayBuffer> memory);
 
 V8_EXPORT_PRIVATE
-void CompileJsToWasmWrappers(Isolate* isolate, NativeModule* native_module,
+void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray> export_wrappers);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(

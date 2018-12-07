@@ -249,7 +249,7 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   size_t code_size = shared_module->committed_code_space();
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, std::move(shared_module), script, code_size);
-  CompileJsToWasmWrappers(isolate, module_object->native_module(),
+  CompileJsToWasmWrappers(isolate, module_object->native_module()->module(),
                           handle(module_object->export_wrappers(), isolate));
   return module_object;
 }
