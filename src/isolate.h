@@ -1030,6 +1030,18 @@ class Isolate final : private HiddenFactory {
     deoptimizer_lazy_throw_ = value;
   }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
+
+  static uint32_t thread_in_wasm_flag_address_offset() {
+    // For WebAssembly trap handlers there is a flag in thread-local storage
+    // which indicates that the executing thread executes WebAssembly code. To
+    // access this flag directly from generated code, we store a pointer to the
+    // flag in ThreadLocalTop in thread_in_wasm_flag_address_. This function
+    // here returns the offset of that member from {isolate_root()}.
+    return static_cast<uint32_t>(
+        OFFSET_OF(Isolate, thread_local_top_.thread_in_wasm_flag_address_) -
+        isolate_root_bias());
+  }
+
   MaterializedObjectStore* materialized_object_store() {
     return materialized_object_store_;
   }

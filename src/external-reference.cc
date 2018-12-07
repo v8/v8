@@ -826,12 +826,6 @@ ExternalReference ExternalReference::debug_restart_fp_address(
   return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
-ExternalReference ExternalReference::wasm_thread_in_wasm_flag_address_address(
-    Isolate* isolate) {
-  return ExternalReference(reinterpret_cast<Address>(
-      &isolate->thread_local_top()->thread_in_wasm_flag_address_));
-}
-
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
   return ExternalReference(reinterpret_cast<void*>(
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
