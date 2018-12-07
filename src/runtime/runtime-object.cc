@@ -836,21 +836,25 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(flag, 3);
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 4);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 4);
   CONVERT_SMI_ARG_CHECKED(index, 5);
 
-  FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
-  if (nexus.ic_state() == UNINITIALIZED) {
-    if (name->IsUniqueName()) {
-      nexus.ConfigureMonomorphic(name, handle(object->map(), isolate),
-                                 MaybeObjectHandle());
-    } else {
-      nexus.ConfigureMegamorphic(PROPERTY);
-    }
-  } else if (nexus.ic_state() == MONOMORPHIC) {
-    if (nexus.FindFirstMap() != object->map() ||
-        nexus.GetFeedbackExtra() != MaybeObject::FromObject(*name)) {
-      nexus.ConfigureMegamorphic(PROPERTY);
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
+    FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
+    if (nexus.ic_state() == UNINITIALIZED) {
+      if (name->IsUniqueName()) {
+        nexus.ConfigureMonomorphic(name, handle(object->map(), isolate),
+                                   MaybeObjectHandle());
+      } else {
+        nexus.ConfigureMegamorphic(PROPERTY);
+      }
+    } else if (nexus.ic_state() == MONOMORPHIC) {
+      if (nexus.FindFirstMap() != object->map() ||
+          nexus.GetFeedbackExtra() != MaybeObject::FromObject(*name)) {
+        nexus.ConfigureMegamorphic(PROPERTY);
+      }
     }
   }
 
