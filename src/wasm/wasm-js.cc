@@ -409,6 +409,39 @@ class AsyncInstantiateCompileResultResolver
 
 }  // namespace
 
+// Web IDL: '[EnforceRange] unsigned long'
+// Previously called ToNonWrappingUint32 in the draft WebAssembly JS spec.
+// https://heycam.github.io/webidl/#EnforceRange
+bool EnforceUint32(i::Handle<i::String> argument_name, Local<v8::Value> v,
+                   Local<Context> context, ErrorThrower* thrower,
+                   uint32_t* res) {
+  double double_number;
+
+  if (!v->NumberValue(context).To(&double_number)) {
+    thrower->TypeError("Property '%s' must be convertible to a number",
+                       argument_name->ToCString().get());
+    return false;
+  }
+  if (!std::isfinite(double_number)) {
+    thrower->TypeError("Property '%s' must be convertible to a valid number",
+                       argument_name->ToCString().get());
+    return false;
+  }
+  if (double_number < 0) {
+    thrower->TypeError("Property '%s' must be non-negative",
+                       argument_name->ToCString().get());
+    return false;
+  }
+  if (double_number > std::numeric_limits<uint32_t>::max()) {
+    thrower->TypeError("Property '%s' must be in the unsigned long range",
+                       argument_name->ToCString().get());
+    return false;
+  }
+
+  *res = static_cast<uint32_t>(double_number);
+  return true;
+}
+
 // WebAssembly.compile(bytes) -> Promise
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -847,30 +880,74 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
-                        Local<Context> context, Local<v8::Object> object,
-                        Local<String> property, int64_t* result,
+                        Local<Context> context, v8::Local<v8::Value> value,
+                        i::Handle<i::String> property_name, int64_t* result,
                         int64_t lower_bound, uint64_t upper_bound) {
-  v8::MaybeLocal<v8::Value> maybe = object->Get(context, property);
+  uint32_t number;
+  if (!EnforceUint32(property_name, value, context, thrower, &number)) {
+    return false;
+  }
+  if (number < lower_bound) {
+    thrower->RangeError("Property '%s': value %" PRIu32
+                        " is below the lower bound %" PRIx64,
+                        property_name->ToCString().get(), number, lower_bound);
+    return false;
+  }
+  if (number > upper_bound) {
+    thrower->RangeError("Property '%s': value %" PRIu32
+                        " is above the upper bound %" PRIu64,
+                        property_name->ToCString().get(), number, upper_bound);
+    return false;
+  }
+
+  *result = static_cast<int64_t>(number);
+  return true;
+}
+
+bool GetRequiredIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
+                                Local<Context> context,
+                                Local<v8::Object> object,
+                                Local<String> property, int64_t* result,
+                                int64_t lower_bound, uint64_t upper_bound) {
   v8::Local<v8::Value> value;
-  if (maybe.ToLocal(&value)) {
-    int64_t number;
-    if (!value->IntegerValue(context).To(&number)) return false;
-    if (number < lower_bound) {
-      thrower->RangeError("Property value %" PRId64
-                          " is below the lower bound %" PRIx64,
-                          number, lower_bound);
-      return false;
-    }
-    if (number > static_cast<int64_t>(upper_bound)) {
-      thrower->RangeError("Property value %" PRId64
-                          " is above the upper bound %" PRIu64,
-                          number, upper_bound);
-      return false;
-    }
-    *result = static_cast<int>(number);
+  if (!object->Get(context, property).ToLocal(&value)) {
+    return false;
+  }
+
+  i::Handle<i::String> property_name = v8::Utils::OpenHandle(*property);
+
+  // Web IDL: dictionary presence
+  // https://heycam.github.io/webidl/#dfn-present
+  if (value->IsUndefined()) {
+    thrower->TypeError("Property '%s' is required",
+                       property_name->ToCString().get());
+    return false;
+  }
+
+  return GetIntegerProperty(isolate, thrower, context, value, property_name,
+                            result, lower_bound, upper_bound);
+}
+
+bool GetOptionalIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
+                                Local<Context> context,
+                                Local<v8::Object> object,
+                                Local<String> property, int64_t* result,
+                                int64_t lower_bound, uint64_t upper_bound) {
+  v8::Local<v8::Value> value;
+  if (!object->Get(context, property).ToLocal(&value)) {
+    return false;
+  }
+
+  // Web IDL: dictionary presence
+  // https://heycam.github.io/webidl/#dfn-present
+  if (value->IsUndefined()) {
     return true;
   }
-  return false;
+
+  i::Handle<i::String> property_name = v8::Utils::OpenHandle(*property);
+
+  return GetIntegerProperty(isolate, thrower, context, value, property_name,
+                            result, lower_bound, upper_bound);
 }
 
 // new WebAssembly.Table(args) -> WebAssembly.Table
@@ -904,27 +981,23 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   // The descriptor's 'initial'.
   int64_t initial = 0;
-  if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
-                          v8_str(isolate, "initial"), &initial, 0,
-                          i::FLAG_wasm_max_table_size)) {
+  if (!GetRequiredIntegerProperty(isolate, &thrower, context, descriptor,
+                                  v8_str(isolate, "initial"), &initial, 0,
+                                  i::FLAG_wasm_max_table_size)) {
     return;
   }
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
-  Local<String> maximum_key = v8_str(isolate, "maximum");
-  Maybe<bool> has_maximum = descriptor->Has(context, maximum_key);
-
-  if (!has_maximum.IsNothing() && has_maximum.FromJust()) {
-    if (!GetIntegerProperty(isolate, &thrower, context, descriptor, maximum_key,
-                            &maximum, initial,
-                            i::wasm::kSpecMaxWasmTableSize)) {
-      return;
-    }
+  if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
+                                  v8_str(isolate, "maximum"), &maximum, initial,
+                                  i::wasm::kSpecMaxWasmTableSize)) {
+    return;
   }
 
   i::Handle<i::FixedArray> fixed_array;
-  i::Handle<i::JSObject> table_obj = i::WasmTableObject::New(
-      i_isolate, static_cast<uint32_t>(initial), maximum, &fixed_array);
+  i::Handle<i::JSObject> table_obj =
+      i::WasmTableObject::New(i_isolate, static_cast<uint32_t>(initial),
+                              static_cast<uint32_t>(maximum), &fixed_array);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(table_obj));
 }
@@ -946,22 +1019,17 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
   // The descriptor's 'initial'.
   int64_t initial = 0;
-  if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
-                          v8_str(isolate, "initial"), &initial, 0,
-                          i::wasm::max_mem_pages())) {
+  if (!GetRequiredIntegerProperty(isolate, &thrower, context, descriptor,
+                                  v8_str(isolate, "initial"), &initial, 0,
+                                  i::wasm::max_mem_pages())) {
     return;
   }
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
-  Local<String> maximum_key = v8_str(isolate, "maximum");
-  Maybe<bool> has_maximum = descriptor->Has(context, maximum_key);
-
-  if (!has_maximum.IsNothing() && has_maximum.FromJust()) {
-    if (!GetIntegerProperty(isolate, &thrower, context, descriptor, maximum_key,
-                            &maximum, initial,
-                            i::wasm::kSpecMaxWasmMemoryPages)) {
-      return;
-    }
+  if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
+                                  v8_str(isolate, "maximum"), &maximum, initial,
+                                  i::wasm::kSpecMaxWasmMemoryPages)) {
+    return;
   }
 
   bool is_shared_memory = false;
@@ -1003,7 +1071,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
   i::Handle<i::JSObject> memory_obj = i::WasmMemoryObject::New(
-      i_isolate, buffer, static_cast<int32_t>(maximum));
+      i_isolate, buffer, static_cast<uint32_t>(maximum));
   args.GetReturnValue().Set(Utils::ToLocal(memory_obj));
 }
 

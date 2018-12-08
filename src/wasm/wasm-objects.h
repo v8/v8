@@ -271,7 +271,7 @@ class WasmTableObject : public JSObject {
   void Grow(Isolate* isolate, uint32_t count);
 
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
-                                     int64_t maximum,
+                                     uint32_t maximum,
                                      Handle<FixedArray>* js_functions);
   static void AddDispatchTable(Isolate* isolate, Handle<WasmTableObject> table,
                                Handle<WasmInstanceObject> instance,
@@ -322,7 +322,7 @@ class WasmMemoryObject : public JSObject {
   bool has_full_guard_region(Isolate* isolate);
 
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
-      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, int32_t maximum);
+      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, uint32_t maximum);
 
   static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
 

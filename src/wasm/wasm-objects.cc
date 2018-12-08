@@ -748,7 +748,7 @@ bool WasmModuleObject::GetPositionInfo(uint32_t position,
 }
 
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
-                                             int64_t maximum,
+                                             uint32_t maximum,
                                              Handle<FixedArray>* js_functions) {
   Handle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor(), isolate);
@@ -761,8 +761,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
     (*js_functions)->set(i, null);
   }
   table_obj->set_functions(**js_functions);
-  DCHECK_EQ(maximum, static_cast<int>(maximum));
-  Handle<Object> max = isolate->factory()->NewNumber(maximum);
+  Handle<Object> max = isolate->factory()->NewNumberFromUint(maximum);
   table_obj->set_maximum_length(*max);
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
@@ -964,7 +963,7 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
 
 Handle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
-    int32_t maximum) {
+    uint32_t maximum) {
   // TODO(kschimpf): Do we need to add an argument that defines the
   // style of memory the user prefers (with/without trap handling), so
   // that the memory will match the style of the compiled wasm module.
