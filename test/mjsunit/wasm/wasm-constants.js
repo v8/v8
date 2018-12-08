@@ -353,8 +353,19 @@ let kExprF32ReinterpretI32 = 0xbe;
 let kExprF64ReinterpretI64 = 0xbf;
 
 // Prefix opcodes
+let kNumericPrefix = 0xfc;
 let kAtomicPrefix = 0xfe;
 
+// Numeric opcodes.
+let kExprMemoryInit = 0x08;
+let kExprMemoryDrop = 0x09;
+let kExprMemoryCopy = 0x0a;
+let kExprMemoryFill = 0x0b;
+let kExprTableInit = 0x0c;
+let kExprTableDrop = 0x0d;
+let kExprTableCopy = 0x0e;
+
+// Atomic opcodes.
 let kExprAtomicWake = 0x00;
 let kExprI32AtomicWait = 0x01;
 let kExprI64AtomicWait = 0x02;

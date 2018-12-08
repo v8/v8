@@ -349,6 +349,11 @@ class WasmGraphBuilder {
                  uint32_t alignment, uint32_t offset,
                  wasm::WasmCodePosition position);
 
+  Node* MemoryCopy(Node* dst, Node* src, Node* size,
+                   wasm::WasmCodePosition position);
+  Node* MemoryFill(Node* dst, Node* fill, Node* size,
+                   wasm::WasmCodePosition position);
+
   bool has_simd() const { return has_simd_; }
 
   const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
@@ -401,6 +406,9 @@ class WasmGraphBuilder {
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
   Node* BoundsCheckMem(uint8_t access_size, Node* index, uint32_t offset,
                        wasm::WasmCodePosition, EnforceBoundsCheck);
+  // BoundsCheckMemRange receives a uint32 {index} and {size} and returns
+  // a pointer into memory at that index, if it is in bounds.
+  Node* BoundsCheckMemRange(Node* index, Node* size, wasm::WasmCodePosition);
   Node* CheckBoundsAndAlignment(uint8_t access_size, Node* index,
                                 uint32_t offset, wasm::WasmCodePosition);
   Node* Uint32ToUintptr(Node*);

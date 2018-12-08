@@ -665,77 +665,79 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
 // This is the list of callback functions that an interface for the
 // WasmFullDecoder should implement.
 // F(Name, args...)
-#define INTERFACE_FUNCTIONS(F)                                                 \
-  /* General: */                                                               \
-  F(StartFunction)                                                             \
-  F(StartFunctionBody, Control* block)                                         \
-  F(FinishFunction)                                                            \
-  F(OnFirstError)                                                              \
-  F(NextInstruction, WasmOpcode)                                               \
-  /* Control: */                                                               \
-  F(Block, Control* block)                                                     \
-  F(Loop, Control* block)                                                      \
-  F(Try, Control* block)                                                       \
-  F(If, const Value& cond, Control* if_block)                                  \
-  F(FallThruTo, Control* c)                                                    \
-  F(PopControl, Control* block)                                                \
-  F(EndControl, Control* block)                                                \
-  /* Instructions: */                                                          \
-  F(UnOp, WasmOpcode opcode, FunctionSig*, const Value& value, Value* result)  \
-  F(BinOp, WasmOpcode opcode, FunctionSig*, const Value& lhs,                  \
-    const Value& rhs, Value* result)                                           \
-  F(I32Const, Value* result, int32_t value)                                    \
-  F(I64Const, Value* result, int64_t value)                                    \
-  F(F32Const, Value* result, float value)                                      \
-  F(F64Const, Value* result, double value)                                     \
-  F(RefNull, Value* result)                                                    \
-  F(Drop, const Value& value)                                                  \
-  F(DoReturn, Vector<Value> values, bool implicit)                             \
-  F(GetLocal, Value* result, const LocalIndexImmediate<validate>& imm)         \
-  F(SetLocal, const Value& value, const LocalIndexImmediate<validate>& imm)    \
-  F(TeeLocal, const Value& value, Value* result,                               \
-    const LocalIndexImmediate<validate>& imm)                                  \
-  F(GetGlobal, Value* result, const GlobalIndexImmediate<validate>& imm)       \
-  F(SetGlobal, const Value& value, const GlobalIndexImmediate<validate>& imm)  \
-  F(Unreachable)                                                               \
-  F(Select, const Value& cond, const Value& fval, const Value& tval,           \
-    Value* result)                                                             \
-  F(Br, Control* target)                                                       \
-  F(BrIf, const Value& cond, Control* target)                                  \
-  F(BrTable, const BranchTableImmediate<validate>& imm, const Value& key)      \
-  F(Else, Control* if_block)                                                   \
-  F(LoadMem, LoadType type, const MemoryAccessImmediate<validate>& imm,        \
-    const Value& index, Value* result)                                         \
-  F(StoreMem, StoreType type, const MemoryAccessImmediate<validate>& imm,      \
-    const Value& index, const Value& value)                                    \
-  F(CurrentMemoryPages, Value* result)                                         \
-  F(MemoryGrow, const Value& value, Value* result)                             \
-  F(CallDirect, const CallFunctionImmediate<validate>& imm,                    \
-    const Value args[], Value returns[])                                       \
-  F(CallIndirect, const Value& index,                                          \
-    const CallIndirectImmediate<validate>& imm, const Value args[],            \
-    Value returns[])                                                           \
-  F(SimdOp, WasmOpcode opcode, Vector<Value> args, Value* result)              \
-  F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,     \
-    const Vector<Value> inputs, Value* result)                                 \
-  F(SimdShiftOp, WasmOpcode opcode, const SimdShiftImmediate<validate>& imm,   \
-    const Value& input, Value* result)                                         \
-  F(Simd8x16ShuffleOp, const Simd8x16ShuffleImmediate<validate>& imm,          \
-    const Value& input0, const Value& input1, Value* result)                   \
-  F(Throw, const ExceptionIndexImmediate<validate>& imm,                       \
-    const Vector<Value>& args)                                                 \
-  F(Rethrow, Control* block)                                                   \
-  F(CatchException, const ExceptionIndexImmediate<validate>& imm,              \
-    Control* block, Vector<Value> caught_values)                               \
-  F(CatchAll, Control* block)                                                  \
-  F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                           \
-    const MemoryAccessImmediate<validate>& imm, Value* result)                 \
-  F(MemoryInit, const MemoryInitImmediate<validate>& imm, Vector<Value> args)  \
-  F(MemoryDrop, const MemoryDropImmediate<validate>& imm)                      \
-  F(MemoryCopy, const MemoryIndexImmediate<validate>& imm, Vector<Value> args) \
-  F(MemoryFill, const MemoryIndexImmediate<validate>& imm, Vector<Value> args) \
-  F(TableInit, const TableInitImmediate<validate>& imm, Vector<Value> args)    \
-  F(TableDrop, const TableDropImmediate<validate>& imm)                        \
+#define INTERFACE_FUNCTIONS(F)                                                \
+  /* General: */                                                              \
+  F(StartFunction)                                                            \
+  F(StartFunctionBody, Control* block)                                        \
+  F(FinishFunction)                                                           \
+  F(OnFirstError)                                                             \
+  F(NextInstruction, WasmOpcode)                                              \
+  /* Control: */                                                              \
+  F(Block, Control* block)                                                    \
+  F(Loop, Control* block)                                                     \
+  F(Try, Control* block)                                                      \
+  F(If, const Value& cond, Control* if_block)                                 \
+  F(FallThruTo, Control* c)                                                   \
+  F(PopControl, Control* block)                                               \
+  F(EndControl, Control* block)                                               \
+  /* Instructions: */                                                         \
+  F(UnOp, WasmOpcode opcode, FunctionSig*, const Value& value, Value* result) \
+  F(BinOp, WasmOpcode opcode, FunctionSig*, const Value& lhs,                 \
+    const Value& rhs, Value* result)                                          \
+  F(I32Const, Value* result, int32_t value)                                   \
+  F(I64Const, Value* result, int64_t value)                                   \
+  F(F32Const, Value* result, float value)                                     \
+  F(F64Const, Value* result, double value)                                    \
+  F(RefNull, Value* result)                                                   \
+  F(Drop, const Value& value)                                                 \
+  F(DoReturn, Vector<Value> values, bool implicit)                            \
+  F(GetLocal, Value* result, const LocalIndexImmediate<validate>& imm)        \
+  F(SetLocal, const Value& value, const LocalIndexImmediate<validate>& imm)   \
+  F(TeeLocal, const Value& value, Value* result,                              \
+    const LocalIndexImmediate<validate>& imm)                                 \
+  F(GetGlobal, Value* result, const GlobalIndexImmediate<validate>& imm)      \
+  F(SetGlobal, const Value& value, const GlobalIndexImmediate<validate>& imm) \
+  F(Unreachable)                                                              \
+  F(Select, const Value& cond, const Value& fval, const Value& tval,          \
+    Value* result)                                                            \
+  F(Br, Control* target)                                                      \
+  F(BrIf, const Value& cond, Control* target)                                 \
+  F(BrTable, const BranchTableImmediate<validate>& imm, const Value& key)     \
+  F(Else, Control* if_block)                                                  \
+  F(LoadMem, LoadType type, const MemoryAccessImmediate<validate>& imm,       \
+    const Value& index, Value* result)                                        \
+  F(StoreMem, StoreType type, const MemoryAccessImmediate<validate>& imm,     \
+    const Value& index, const Value& value)                                   \
+  F(CurrentMemoryPages, Value* result)                                        \
+  F(MemoryGrow, const Value& value, Value* result)                            \
+  F(CallDirect, const CallFunctionImmediate<validate>& imm,                   \
+    const Value args[], Value returns[])                                      \
+  F(CallIndirect, const Value& index,                                         \
+    const CallIndirectImmediate<validate>& imm, const Value args[],           \
+    Value returns[])                                                          \
+  F(SimdOp, WasmOpcode opcode, Vector<Value> args, Value* result)             \
+  F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,    \
+    const Vector<Value> inputs, Value* result)                                \
+  F(SimdShiftOp, WasmOpcode opcode, const SimdShiftImmediate<validate>& imm,  \
+    const Value& input, Value* result)                                        \
+  F(Simd8x16ShuffleOp, const Simd8x16ShuffleImmediate<validate>& imm,         \
+    const Value& input0, const Value& input1, Value* result)                  \
+  F(Throw, const ExceptionIndexImmediate<validate>& imm,                      \
+    const Vector<Value>& args)                                                \
+  F(Rethrow, Control* block)                                                  \
+  F(CatchException, const ExceptionIndexImmediate<validate>& imm,             \
+    Control* block, Vector<Value> caught_values)                              \
+  F(CatchAll, Control* block)                                                 \
+  F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                          \
+    const MemoryAccessImmediate<validate>& imm, Value* result)                \
+  F(MemoryInit, const MemoryInitImmediate<validate>& imm, Vector<Value> args) \
+  F(MemoryDrop, const MemoryDropImmediate<validate>& imm)                     \
+  F(MemoryCopy, const MemoryIndexImmediate<validate>& imm, const Value& dst,  \
+    const Value& src, const Value& size)                                      \
+  F(MemoryFill, const MemoryIndexImmediate<validate>& imm, const Value& dst,  \
+    const Value& value, const Value& size)                                    \
+  F(TableInit, const TableInitImmediate<validate>& imm, Vector<Value> args)   \
+  F(TableDrop, const TableDropImmediate<validate>& imm)                       \
   F(TableCopy, const TableIndexImmediate<validate>& imm, Vector<Value> args)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -2520,16 +2522,20 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           MemoryIndexImmediate<validate> imm(this, this->pc_ + 1);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          PopArgs(sig);
-          CALL_INTERFACE_IF_REACHABLE(MemoryCopy, imm, VectorOf(args_));
+          auto size = Pop(2, sig->GetParam(2));
+          auto src = Pop(1, sig->GetParam(1));
+          auto dst = Pop(0, sig->GetParam(0));
+          CALL_INTERFACE_IF_REACHABLE(MemoryCopy, imm, dst, src, size);
           break;
         }
         case kExprMemoryFill: {
           MemoryIndexImmediate<validate> imm(this, this->pc_ + 1);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          PopArgs(sig);
-          CALL_INTERFACE_IF_REACHABLE(MemoryFill, imm, VectorOf(args_));
+          auto size = Pop(2, sig->GetParam(2));
+          auto value = Pop(1, sig->GetParam(1));
+          auto dst = Pop(0, sig->GetParam(0));
+          CALL_INTERFACE_IF_REACHABLE(MemoryFill, imm, dst, value, size);
           break;
         }
         case kExprTableInit: {

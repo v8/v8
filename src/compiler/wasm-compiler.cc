@@ -3284,6 +3284,34 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   return index;
 }
 
+Node* WasmGraphBuilder::BoundsCheckMemRange(Node* start, Node* size,
+                                            wasm::WasmCodePosition position) {
+  // TODO(binji): Support trap handler.
+  auto m = mcgraph()->machine();
+  if (!FLAG_wasm_no_bounds_checks) {
+    // The accessed memory is [start, end), where {end} is {start + size}.
+    // We want to check that {start + size <= mem_size}, making sure that
+    // {start + size} doesn't overflow. This can be expressed as
+    // {start <= mem_size - size} as long as {mem_size - size} isn't negative,
+    // which is true if {size <= mem_size}.
+    Node* mem_size = instance_cache_->mem_size;
+    Node* cond = graph()->NewNode(m->Uint32LessThanOrEqual(), size, mem_size);
+    TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
+
+    // This produces a positive number, since {size <= mem_size}.
+    Node* effective_size = graph()->NewNode(m->Int32Sub(), mem_size, size);
+
+    // Introduce the actual bounds check.
+    Node* check =
+        graph()->NewNode(m->Uint32LessThanOrEqual(), start, effective_size);
+    TrapIfFalse(wasm::kTrapMemOutOfBounds, check, position);
+
+    // TODO(binji): Does this need addtional untrusted_code_mitigations_ mask
+    // like BoundsCheckMem above?
+  }
+  return graph()->NewNode(m->IntAdd(), MemBuffer(0), Uint32ToUintptr(start));
+}
+
 const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
                                                       wasm::ValueType type) {
   int alignment = offset % (wasm::ValueTypes::ElementSizeInBytes(type));
@@ -4203,6 +4231,29 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 #undef ATOMIC_CMP_EXCHG_LIST
 #undef ATOMIC_LOAD_LIST
 #undef ATOMIC_STORE_LIST
+
+Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
+                                   wasm::WasmCodePosition position) {
+  dst = BoundsCheckMemRange(dst, size, position);
+  src = BoundsCheckMemRange(src, size, position);
+  Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
+      ExternalReference::wasm_memory_copy()));
+  MachineType sig_types[] = {MachineType::Pointer(), MachineType::Pointer(),
+                             MachineType::Uint32()};
+  MachineSignature sig(0, 3, sig_types);
+  return BuildCCall(&sig, function, dst, src, size);
+}
+
+Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
+                                   wasm::WasmCodePosition position) {
+  dst = BoundsCheckMemRange(dst, size, position);
+  Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
+      ExternalReference::wasm_memory_fill()));
+  MachineType sig_types[] = {MachineType::Pointer(), MachineType::Uint32(),
+                             MachineType::Uint32()};
+  MachineSignature sig(0, 3, sig_types);
+  return BuildCCall(&sig, function, dst, value, size);
+}
 
 class WasmDecorator final : public GraphDecorator {
  public:
