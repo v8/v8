@@ -1832,9 +1832,8 @@ TEST(Regress876759) {
   CHECK(grandparent->IsOneByteRepresentation());
   CHECK(parent->IsTwoByteRepresentation());
   CHECK(sliced->IsTwoByteRepresentation());
-  // The *Underneath versions return the correct representation.
-  CHECK(sliced->IsOneByteRepresentationUnderneath());
-  CHECK(!sliced->IsTwoByteRepresentationUnderneath());
+  // The *Underneath version returns the correct representation.
+  CHECK(String::IsOneByteRepresentationUnderneath(*sliced));
 }
 
 }  // namespace test_strings

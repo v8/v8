@@ -164,9 +164,9 @@ class String : public Name {
 
   // Cons and slices have an encoding flag that may not represent the actual
   // encoding of the underlying string.  This is taken into account here.
-  // Requires: this->IsFlat()
-  inline bool IsOneByteRepresentationUnderneath();
-  inline bool IsTwoByteRepresentationUnderneath();
+  // This function is static because that helps it get inlined.
+  // Requires: string.IsFlat()
+  static inline bool IsOneByteRepresentationUnderneath(String string);
 
   // NOTE: this should be considered only a hint.  False negatives are
   // possible.

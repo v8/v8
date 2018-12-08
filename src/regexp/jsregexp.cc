@@ -410,7 +410,7 @@ int RegExpImpl::IrregexpPrepare(Isolate* isolate, Handle<JSRegExp> regexp,
   DCHECK(subject->IsFlat());
 
   // Check representation of the underlying storage.
-  bool is_one_byte = subject->IsOneByteRepresentationUnderneath();
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
   if (!EnsureCompiledIrregexp(isolate, regexp, subject, is_one_byte)) return -1;
 
 #ifdef V8_INTERPRETED_REGEXP
@@ -436,7 +436,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
   DCHECK_LE(index, subject->length());
   DCHECK(subject->IsFlat());
 
-  bool is_one_byte = subject->IsOneByteRepresentationUnderneath();
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
 
 #ifndef V8_INTERPRETED_REGEXP
   DCHECK(output_size >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
@@ -472,7 +472,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
     // being internal and external, and even between being Latin1 and UC16,
     // but the characters are always the same).
     IrregexpPrepare(isolate, regexp, subject);
-    is_one_byte = subject->IsOneByteRepresentationUnderneath();
+    is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
   } while (true);
   UNREACHABLE();
 #else  // V8_INTERPRETED_REGEXP

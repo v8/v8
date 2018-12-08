@@ -162,33 +162,20 @@ bool String::IsTwoByteRepresentation() const {
   return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
 
-bool String::IsOneByteRepresentationUnderneath() {
-  uint32_t type = map()->instance_type();
-  STATIC_ASSERT(kIsIndirectStringTag != 0);
-  STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
-  DCHECK(IsFlat());
-  switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
-    case kOneByteStringTag:
-      return true;
-    case kTwoByteStringTag:
-      return false;
-    default:  // Cons, sliced, thin, strings need to go deeper.
-      return GetUnderlying()->IsOneByteRepresentationUnderneath();
-  }
-}
-
-bool String::IsTwoByteRepresentationUnderneath() {
-  uint32_t type = map()->instance_type();
-  STATIC_ASSERT(kIsIndirectStringTag != 0);
-  STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
-  DCHECK(IsFlat());
-  switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
-    case kOneByteStringTag:
-      return false;
-    case kTwoByteStringTag:
-      return true;
-    default:  // Cons, sliced, thin, strings need to go deeper.
-      return GetUnderlying()->IsTwoByteRepresentationUnderneath();
+bool String::IsOneByteRepresentationUnderneath(String string) {
+  while (true) {
+    uint32_t type = string.map()->instance_type();
+    STATIC_ASSERT(kIsIndirectStringTag != 0);
+    STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
+    DCHECK(string.IsFlat());
+    switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
+      case kOneByteStringTag:
+        return true;
+      case kTwoByteStringTag:
+        return false;
+      default:  // Cons, sliced, thin, strings need to go deeper.
+        string = string.GetUnderlying();
+    }
   }
 }
 

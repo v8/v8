@@ -161,7 +161,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   HandleScope handles(isolate);
   Handle<Code> code_handle(re_code, isolate);
   Handle<String> subject_handle(String::cast(ObjectPtr(*subject)), isolate);
-  bool is_one_byte = subject_handle->IsOneByteRepresentationUnderneath();
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
 
   StackLimitCheck check(isolate);
   bool js_has_overflowed = check.JsHasOverflowed();
@@ -192,7 +192,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   // If we continue, we need to update the subject string addresses.
   if (return_value == 0) {
     // String encoding might have changed.
-    if (subject_handle->IsOneByteRepresentationUnderneath() != is_one_byte) {
+    if (String::IsOneByteRepresentationUnderneath(*subject_handle) !=
+        is_one_byte) {
       // If we changed between an LATIN1 and an UC16 string, the specialized
       // code cannot be used, and we need to restart regexp matching from
       // scratch (including, potentially, compiling a new version of the code).

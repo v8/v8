@@ -209,7 +209,7 @@ class StringToIntHelper {
 
   bool IsOneByte() const {
     return raw_one_byte_subject_ != nullptr ||
-           subject_->IsOneByteRepresentationUnderneath();
+           String::IsOneByteRepresentationUnderneath(*subject_);
   }
 
   Vector<const uint8_t> GetOneByteVector() {

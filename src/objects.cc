@@ -16725,7 +16725,7 @@ MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
                                        Handle<String> source) {
   DCHECK(source->IsFlat());
   if (source->length() == 0) return isolate->factory()->query_colon_string();
-  bool one_byte = source->IsOneByteRepresentationUnderneath();
+  bool one_byte = String::IsOneByteRepresentationUnderneath(*source);
   int escapes = one_byte ? CountRequiredEscapes<uint8_t>(source)
                          : CountRequiredEscapes<uc16>(source);
   if (escapes == 0) return source;
