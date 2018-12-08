@@ -2384,12 +2384,11 @@ HeapObject* Heap::AlignWithFiller(HeapObject* object, int object_size,
   return object;
 }
 
-void Heap::RegisterNewArrayBuffer(JSArrayBuffer* buffer) {
+void Heap::RegisterNewArrayBuffer(JSArrayBuffer buffer) {
   ArrayBufferTracker::RegisterNew(this, buffer);
 }
 
-
-void Heap::UnregisterArrayBuffer(JSArrayBuffer* buffer) {
+void Heap::UnregisterArrayBuffer(JSArrayBuffer buffer) {
   ArrayBufferTracker::Unregister(this, buffer);
 }
 
@@ -5265,7 +5264,7 @@ void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
 }
 
 void Heap::AddDirtyJSWeakFactory(
-    JSWeakFactory* weak_factory,
+    JSWeakFactory weak_factory,
     std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
         gc_notify_updated_slot) {
   DCHECK(dirty_js_weak_factories()->IsUndefined(isolate()) ||
@@ -5274,10 +5273,9 @@ void Heap::AddDirtyJSWeakFactory(
   DCHECK(!weak_factory->scheduled_for_cleanup());
   weak_factory->set_scheduled_for_cleanup(true);
   weak_factory->set_next(dirty_js_weak_factories());
-  gc_notify_updated_slot(
-      weak_factory,
-      HeapObject::RawField(weak_factory, JSWeakFactory::kNextOffset),
-      dirty_js_weak_factories());
+  gc_notify_updated_slot(weak_factory,
+                         weak_factory.RawField(JSWeakFactory::kNextOffset),
+                         dirty_js_weak_factories());
   set_dirty_js_weak_factories(weak_factory);
   // Roots are rescanned after objects are moved, so no need to record a slot
   // for the root pointing to the first JSWeakFactory.

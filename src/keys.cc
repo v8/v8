@@ -226,7 +226,7 @@ void KeyAccumulator::AddShadowingKey(Handle<Object> key) {
 
 namespace {
 
-void TrySettingEmptyEnumCache(JSReceiver* object) {
+void TrySettingEmptyEnumCache(JSReceiver object) {
   Map map = object->map();
   DCHECK_EQ(kInvalidEnumCacheSentinel, map->EnumLength());
   if (!map->OnlyHasSimpleProperties()) return;
@@ -236,7 +236,7 @@ void TrySettingEmptyEnumCache(JSReceiver* object) {
   map->SetEnumLength(0);
 }
 
-bool CheckAndInitalizeEmptyEnumCache(JSReceiver* object) {
+bool CheckAndInitalizeEmptyEnumCache(JSReceiver object) {
   if (object->map()->EnumLength() == kInvalidEnumCacheSentinel) {
     TrySettingEmptyEnumCache(object);
   }
@@ -253,10 +253,10 @@ void FastKeyAccumulator::Prepare() {
   // Fully walk the prototype chain and find the last prototype with keys.
   is_receiver_simple_enum_ = false;
   has_empty_prototype_ = true;
-  JSReceiver* last_prototype = nullptr;
+  JSReceiver last_prototype;
   for (PrototypeIterator iter(isolate_, *receiver_); !iter.IsAtEnd();
        iter.Advance()) {
-    JSReceiver* current = iter.GetCurrent<JSReceiver>();
+    JSReceiver current = iter.GetCurrent<JSReceiver>();
     bool has_no_properties = CheckAndInitalizeEmptyEnumCache(current);
     if (has_no_properties) continue;
     last_prototype = current;
@@ -266,7 +266,7 @@ void FastKeyAccumulator::Prepare() {
     is_receiver_simple_enum_ =
         receiver_->map()->EnumLength() != kInvalidEnumCacheSentinel &&
         !JSObject::cast(*receiver_)->HasEnumerableElements();
-  } else if (last_prototype != nullptr) {
+  } else if (!last_prototype.is_null()) {
     last_non_empty_prototype_ = handle(last_prototype, isolate_);
   }
 }

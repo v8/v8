@@ -1931,37 +1931,37 @@ TEST(GetConstructor) {
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj1 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
-  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj1));
+  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj1).is_null());
   v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj2 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
-  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj2));
+  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj2).is_null());
   v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj3 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
-  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj3));
+  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj3).is_null());
   v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj4 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
-  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj4));
+  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj4).is_null());
   v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj5 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj5));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj5).is_null());
   v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj6 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj6));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj6).is_null());
 }
 
 TEST(GetConstructorName) {

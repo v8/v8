@@ -55,7 +55,7 @@ class JSPluralRules : public JSObject {
 
   Handle<String> TypeAsString() const;
 
-  DECL_CAST(JSPluralRules)
+  DECL_CAST2(JSPluralRules)
   DECL_PRINTER(JSPluralRules)
   DECL_VERIFIER(JSPluralRules)
 
@@ -85,8 +85,7 @@ class JSPluralRules : public JSObject {
   DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
   DECL_ACCESSORS(icu_decimal_format, Managed<icu::DecimalFormat>)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSPluralRules);
+  OBJECT_CONSTRUCTORS(JSPluralRules, JSObject);
 };
 
 }  // namespace internal

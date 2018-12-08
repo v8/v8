@@ -125,8 +125,8 @@ Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
       // bet set to 'undefined'. If we delete the element now and later set it
       // to undefined, the set operation would throw an exception.
       RETURN_FAILURE_ON_EXCEPTION(
-          isolate, JSReceiver::SetElement(isolate, receiver, current_pos,
-                                          element, LanguageMode::kStrict));
+          isolate, Object::SetElement(isolate, receiver, current_pos, element,
+                                      LanguageMode::kStrict));
       ++current_pos;
     }
   }
@@ -135,9 +135,9 @@ Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
   uint32_t result = current_pos;
   for (uint32_t i = 0; i < num_undefined; ++i) {
     RETURN_FAILURE_ON_EXCEPTION(
-        isolate, JSReceiver::SetElement(isolate, receiver, current_pos++,
-                                        isolate->factory()->undefined_value(),
-                                        LanguageMode::kStrict));
+        isolate, Object::SetElement(isolate, receiver, current_pos++,
+                                    isolate->factory()->undefined_value(),
+                                    LanguageMode::kStrict));
   }
   // TODO(szuend): Re-enable when we also copy from the prototype chain for
   //               JSArrays. Then we can use HasOwnProperty instead of
@@ -328,8 +328,8 @@ Maybe<bool> ConditionalCopy(Isolate* isolate, Handle<JSReceiver> source,
   Handle<Object> set_result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, set_result,
-      JSReceiver::SetElement(isolate, target, index, source_element,
-                             LanguageMode::kStrict),
+      Object::SetElement(isolate, target, index, source_element,
+                         LanguageMode::kStrict),
       Nothing<bool>());
 
   return Just(true);
@@ -388,7 +388,7 @@ RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
   // Array.prototype.
   if (object->IsJSArray() &&
       !Handle<JSArray>::cast(object)->HasFastPackedElements()) {
-    JSObject* initial_array_proto = JSObject::cast(
+    JSObject initial_array_proto = JSObject::cast(
         isolate->native_context()->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
     if (!isolate->IsNoElementsProtectorIntact() ||
         object->map()->prototype() != initial_array_proto) {

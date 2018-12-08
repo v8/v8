@@ -58,7 +58,7 @@ class CallbackTask : public Microtask {
 // for various tests of the microtask queue.
 class CallableTask : public Microtask {
  public:
-  DECL_ACCESSORS(callable, JSReceiver)
+  DECL_ACCESSORS2(callable, JSReceiver)
   DECL_ACCESSORS2(context, Context)
 
 // Layout description.

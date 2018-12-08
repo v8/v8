@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSV8BreakIterator, JSObject)
+
 inline void JSV8BreakIterator::set_type(Type type) {
   DCHECK_GT(JSV8BreakIterator::Type::COUNT, type);
   WRITE_FIELD(this, kTypeOffset, Smi::FromInt(static_cast<int>(type)));
@@ -39,7 +41,7 @@ ACCESSORS(JSV8BreakIterator, bound_next, Object, kBoundNextOffset)
 ACCESSORS(JSV8BreakIterator, bound_current, Object, kBoundCurrentOffset)
 ACCESSORS(JSV8BreakIterator, bound_break_type, Object, kBoundBreakTypeOffset)
 
-CAST_ACCESSOR(JSV8BreakIterator)
+CAST_ACCESSOR2(JSV8BreakIterator)
 
 }  // namespace internal
 }  // namespace v8

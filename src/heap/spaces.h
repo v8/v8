@@ -2573,6 +2573,7 @@ class NewSpace : public SpaceWithLinearArea {
   inline bool Contains(HeapObject* o);
   inline bool ContainsSlow(Address a);
   inline bool Contains(Object* o);
+  inline bool Contains(HeapObjectPtr o);
 
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.

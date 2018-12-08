@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSRegExpStringIterator, JSObject)
+
 ACCESSORS(JSRegExpStringIterator, iterating_regexp, Object,
           kIteratingRegExpOffset)
 ACCESSORS2(JSRegExpStringIterator, iterating_string, String,
@@ -25,7 +27,7 @@ BOOL_ACCESSORS(JSRegExpStringIterator, flags, done, kDoneBit)
 BOOL_ACCESSORS(JSRegExpStringIterator, flags, global, kGlobalBit)
 BOOL_ACCESSORS(JSRegExpStringIterator, flags, unicode, kUnicodeBit)
 
-CAST_ACCESSOR(JSRegExpStringIterator)
+CAST_ACCESSOR2(JSRegExpStringIterator)
 
 }  // namespace internal
 }  // namespace v8

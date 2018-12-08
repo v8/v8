@@ -181,7 +181,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Context native_context() const;
 
   bool has_global_object() const;
-  JSGlobalObject* global_object() const;
+  JSGlobalObject global_object() const;
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return code_kind() == Code::OPTIMIZED_FUNCTION; }

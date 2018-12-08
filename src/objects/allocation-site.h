@@ -36,7 +36,7 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
   // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the
   // AllocationSite is for a constructed Array.
   DECL_ACCESSORS(transition_info_or_boilerplate, Object)
-  DECL_ACCESSORS(boilerplate, JSObject)
+  DECL_ACCESSORS2(boilerplate, JSObject)
   DECL_INT_ACCESSORS(transition_info)
 
   // nested_site threads a list of sites that represent nested literals

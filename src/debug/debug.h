@@ -92,7 +92,7 @@ class BreakLocation {
 
   debug::BreakLocationType type() const;
 
-  JSGeneratorObject* GetGeneratorObjectForSuspendedFrame(
+  JSGeneratorObject GetGeneratorObjectForSuspendedFrame(
       JavaScriptFrame* frame) const;
 
  private:

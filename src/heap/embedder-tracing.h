@@ -25,7 +25,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     explicit ProcessingScope(LocalEmbedderHeapTracer* tracer);
     ~ProcessingScope();
 
-    void TracePossibleWrapper(JSObject* js_object);
+    void TracePossibleWrapper(JSObject js_object);
 
     void AddWrapperInfoForTesting(WrapperInfo info);
 

@@ -17,7 +17,9 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(JSRegExp)
+OBJECT_CONSTRUCTORS_IMPL(JSRegExp, JSObject)
+
+CAST_ACCESSOR2(JSRegExp)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)

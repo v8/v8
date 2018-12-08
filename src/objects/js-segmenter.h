@@ -45,7 +45,7 @@ class JSSegmenter : public JSObject {
   const char* LineBreakStyleAsCString() const;
   Handle<String> GranularityAsString() const;
 
-  DECL_CAST(JSSegmenter)
+  DECL_CAST2(JSSegmenter)
 
   // Segmenter accessors.
   DECL_ACCESSORS2(locale, String)
@@ -118,7 +118,7 @@ class JSSegmenter : public JSObject {
   static LineBreakStyle GetLineBreakStyle(const char* str);
   static Granularity GetGranularity(const char* str);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSSegmenter);
+  OBJECT_CONSTRUCTORS(JSSegmenter, JSObject);
 };
 
 }  // namespace internal

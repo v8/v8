@@ -22,7 +22,7 @@ class JSWeakFactory : public JSObject {
  public:
   DECL_PRINTER(JSWeakFactory)
   DECL_VERIFIER(JSWeakFactory)
-  DECL_CAST(JSWeakFactory)
+  DECL_CAST2(JSWeakFactory)
 
   DECL_ACCESSORS2(native_context, Context)
   DECL_ACCESSORS(cleanup, Object)
@@ -35,7 +35,7 @@ class JSWeakFactory : public JSObject {
   DECL_INT_ACCESSORS(flags)
 
   // Adds a newly constructed JSWeakCell object into this JSWeakFactory.
-  inline void AddWeakCell(JSWeakCell* weak_cell);
+  inline void AddWeakCell(JSWeakCell weak_cell);
 
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
@@ -45,7 +45,7 @@ class JSWeakFactory : public JSObject {
 
   // Get and remove the first cleared JSWeakCell from the cleared_cells
   // list. (Assumes there is one.)
-  inline JSWeakCell* PopClearedCell(Isolate* isolate);
+  inline JSWeakCell PopClearedCell(Isolate* isolate);
 
   // Constructs an iterator for the WeakCells in the cleared_cells list and
   // calls the user's cleanup function.
@@ -68,8 +68,7 @@ class JSWeakFactory : public JSObject {
   // Bitfields in flags.
   class ScheduledForCleanupField : public BitField<bool, 0, 1> {};
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakFactory);
+  OBJECT_CONSTRUCTORS(JSWeakFactory, JSObject);
 };
 
 // WeakCell object from the JS Weak Refs spec proposal.
@@ -77,7 +76,7 @@ class JSWeakCell : public JSObject {
  public:
   DECL_PRINTER(JSWeakCell)
   DECL_VERIFIER(JSWeakCell)
-  DECL_CAST(JSWeakCell)
+  DECL_CAST2(JSWeakCell)
 
   DECL_ACCESSORS(factory, Object)
   DECL_ACCESSORS(target, Object)
@@ -113,20 +112,18 @@ class JSWeakCell : public JSObject {
 
   inline void Clear(Isolate* isolate);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCell);
+  OBJECT_CONSTRUCTORS(JSWeakCell, JSObject);
 };
 
 class JSWeakRef : public JSWeakCell {
  public:
-  DECL_CAST(JSWeakRef)
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakRef);
+  DECL_CAST2(JSWeakRef)
+  OBJECT_CONSTRUCTORS(JSWeakRef, JSWeakCell);
 };
 
 class WeakFactoryCleanupJobTask : public Microtask {
  public:
-  DECL_ACCESSORS(factory, JSWeakFactory)
+  DECL_ACCESSORS2(factory, JSWeakFactory)
 
   DECL_CAST(WeakFactoryCleanupJobTask)
   DECL_VERIFIER(WeakFactoryCleanupJobTask)
@@ -150,9 +147,9 @@ class JSWeakFactoryCleanupIterator : public JSObject {
  public:
   DECL_PRINTER(JSWeakFactoryCleanupIterator)
   DECL_VERIFIER(JSWeakFactoryCleanupIterator)
-  DECL_CAST(JSWeakFactoryCleanupIterator)
+  DECL_CAST2(JSWeakFactoryCleanupIterator)
 
-  DECL_ACCESSORS(factory, JSWeakFactory)
+  DECL_ACCESSORS2(factory, JSWeakFactory)
 
 // Layout description.
 #define JS_WEAK_FACTORY_CLEANUP_ITERATOR_FIELDS(V) \
@@ -164,8 +161,7 @@ class JSWeakFactoryCleanupIterator : public JSObject {
                                 JS_WEAK_FACTORY_CLEANUP_ITERATOR_FIELDS)
 #undef JS_WEAK_FACTORY_CLEANUP_ITERATOR_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakFactoryCleanupIterator);
+  OBJECT_CONSTRUCTORS(JSWeakFactoryCleanupIterator, JSObject);
 };
 
 }  // namespace internal

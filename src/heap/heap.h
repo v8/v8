@@ -699,7 +699,7 @@ class Heap {
 
   // Add weak_factory into the dirty_js_weak_factories list.
   void AddDirtyJSWeakFactory(
-      JSWeakFactory* weak_factory,
+      JSWeakFactory weak_factory,
       std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
           gc_notify_updated_slot);
 
@@ -1180,8 +1180,8 @@ class Heap {
   // in the registration/unregistration APIs. Consider dropping the "New" from
   // "RegisterNewArrayBuffer" because one can re-register a previously
   // unregistered buffer, too, and the name is confusing.
-  void RegisterNewArrayBuffer(JSArrayBuffer* buffer);
-  void UnregisterArrayBuffer(JSArrayBuffer* buffer);
+  void RegisterNewArrayBuffer(JSArrayBuffer buffer);
+  void UnregisterArrayBuffer(JSArrayBuffer buffer);
 
   // ===========================================================================
   // Allocation site tracking. =================================================

@@ -215,7 +215,7 @@ class FunctionTemplateInfo : public TemplateInfo {
   // Returns parent function template or null.
   inline FunctionTemplateInfo* GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.
-  inline bool IsTemplateFor(JSObject* object);
+  inline bool IsTemplateFor(JSObject object);
   bool IsTemplateFor(Map map);
   inline bool instantiated();
 

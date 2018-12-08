@@ -26,7 +26,7 @@ namespace internal {
 
 namespace {
 
-WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
+WasmInstanceObject GetWasmInstanceOnStackTop(Isolate* isolate) {
   StackFrameIterator it(isolate, isolate->thread_local_top());
   // On top: C entry stub.
   DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
@@ -112,16 +112,14 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   Handle<Object> tag(tag_raw, isolate);
   Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
       MessageTemplate::kWasmExceptionError);
-  CHECK(
-      !JSReceiver::SetProperty(isolate, exception,
-                               isolate->factory()->wasm_exception_tag_symbol(),
-                               tag, LanguageMode::kStrict)
-           .is_null());
+  CHECK(!Object::SetProperty(isolate, exception,
+                             isolate->factory()->wasm_exception_tag_symbol(),
+                             tag, LanguageMode::kStrict)
+             .is_null());
   Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
-  CHECK(!JSReceiver::SetProperty(
-             isolate, exception,
-             isolate->factory()->wasm_exception_values_symbol(), values,
-             LanguageMode::kStrict)
+  CHECK(!Object::SetProperty(isolate, exception,
+                             isolate->factory()->wasm_exception_values_symbol(),
+                             values, LanguageMode::kStrict)
              .is_null());
   return *exception;
 }

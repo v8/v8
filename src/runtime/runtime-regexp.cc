@@ -1896,7 +1896,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
       DCHECK(!functional_replace);
       if (!groups_obj->IsUndefined(isolate)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, groups_obj, JSReceiver::ToObject(isolate, groups_obj));
+            isolate, groups_obj, Object::ToObject(isolate, groups_obj));
       }
       VectorBackedMatch m(isolate, string, match, position, &captures,
                           groups_obj);

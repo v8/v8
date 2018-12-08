@@ -153,7 +153,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
 
   if (!obj->IsJSReceiver()) return false;
 
-  JSReceiver* recv = JSReceiver::cast(*obj);
+  JSReceiver recv = JSReceiver::cast(*obj);
 
   // Check the receiver's map.
   Handle<JSFunction> regexp_function = isolate->regexp_function();

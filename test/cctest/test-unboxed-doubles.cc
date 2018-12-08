@@ -65,8 +65,7 @@ Handle<JSObject> GetObject(const char* name) {
               .ToLocalChecked())));
 }
 
-
-static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
+static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
   if (obj->IsUnboxedDoubleField(field_index)) {
     return obj->RawFastDoublePropertyAt(field_index);
   } else {
@@ -76,7 +75,7 @@ static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
   }
 }
 
-void WriteToField(JSObject* object, int descriptor, Object* value) {
+void WriteToField(JSObject object, int descriptor, Object* value) {
   DescriptorArray descriptors = object->map()->instance_descriptors();
   PropertyDetails details = descriptors->GetDetails(descriptor);
   object->WriteToField(descriptor, details, value);
@@ -1113,7 +1112,7 @@ TEST(DoScavenge) {
 
   // Construct a double value that looks like a pointer to the new space object
   // and store it into the obj.
-  Address fake_object = reinterpret_cast<Address>(*temp) + kPointerSize;
+  Address fake_object = temp->ptr() + kPointerSize;
   double boom_value = bit_cast<double>(fake_object);
 
   FieldIndex field_index = FieldIndex::ForDescriptor(obj->map(), 0);

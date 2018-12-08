@@ -13,6 +13,7 @@
 #include "src/heap/spaces.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/worklist.h"
+#include "src/objects/js-weak-refs.h"  // For Worklist<JSWeakCell, ...>
 
 namespace v8 {
 namespace internal {
@@ -21,7 +22,6 @@ namespace internal {
 class EvacuationJobTraits;
 class HeapObjectVisitor;
 class ItemParallelJob;
-class JSWeakCell;
 class MigrationObserver;
 class RecordMigratedSlotVisitor;
 class UpdatingItem;
@@ -444,7 +444,7 @@ struct WeakObjects {
   Worklist<std::pair<HeapObject*, HeapObjectSlot>, 64> weak_references;
   Worklist<std::pair<HeapObject*, Code>, 64> weak_objects_in_code;
 
-  Worklist<JSWeakCell*, 64> js_weak_cells;
+  Worklist<JSWeakCell, 64> js_weak_cells;
 };
 
 struct EphemeronMarking {
@@ -682,7 +682,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                             std::make_pair(object, code));
   }
 
-  void AddWeakCell(JSWeakCell* weak_cell) {
+  void AddWeakCell(JSWeakCell weak_cell) {
     weak_objects_.js_weak_cells.Push(kMainThread, weak_cell);
   }
 
@@ -932,13 +932,13 @@ class MarkingVisitor final
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
   V8_INLINE int VisitFixedArray(Map map, FixedArray object);
-  V8_INLINE int VisitJSApiObject(Map map, JSObject* object);
-  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer* object);
-  V8_INLINE int VisitJSDataView(Map map, JSDataView* object);
-  V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray* object);
+  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
+  V8_INLINE int VisitJSDataView(Map map, JSDataView object);
+  V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
   V8_INLINE int VisitMap(Map map, Map object);
   V8_INLINE int VisitTransitionArray(Map map, TransitionArray object);
-  V8_INLINE int VisitJSWeakCell(Map map, JSWeakCell* object);
+  V8_INLINE int VisitJSWeakCell(Map map, JSWeakCell object);
 
   // ObjectVisitor implementation.
   V8_INLINE void VisitPointer(HeapObject* host, ObjectSlot p) final {
@@ -977,7 +977,7 @@ class MarkingVisitor final
   V8_INLINE int VisitFixedArrayIncremental(Map map, FixedArray object);
 
   template <typename T>
-  V8_INLINE int VisitEmbedderTracingSubclass(Map map, T* object);
+  V8_INLINE int VisitEmbedderTracingSubclass(Map map, T object);
 
   V8_INLINE void MarkMapContents(Map map);
 

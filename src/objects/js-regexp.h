@@ -110,7 +110,7 @@ class JSRegExp : public JSObject {
     }
   }
 
-  DECL_CAST(JSRegExp)
+  DECL_CAST2(JSRegExp)
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
@@ -174,6 +174,8 @@ class JSRegExp : public JSObject {
 
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
+
+  OBJECT_CONSTRUCTORS(JSRegExp, JSObject)
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)

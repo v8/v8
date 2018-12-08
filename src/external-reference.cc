@@ -641,7 +641,8 @@ Address GetOrCreateHash(Isolate* isolate, Object* key) {
 
 FUNCTION_REFERENCE(get_or_create_hash_raw, GetOrCreateHash)
 
-static Address JSReceiverCreateIdentityHash(Isolate* isolate, JSReceiver* key) {
+static Address JSReceiverCreateIdentityHash(Isolate* isolate, Address raw_key) {
+  JSReceiver key = JSReceiver::cast(ObjectPtr(raw_key));
   return JSReceiver::CreateIdentityHash(isolate, key).ptr();
 }
 

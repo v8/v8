@@ -720,7 +720,7 @@ struct ManuallyExternalizedBuffer {
   size_t allocation_length_;
   bool const should_free_;
 
-  ManuallyExternalizedBuffer(JSArrayBuffer* buffer, Isolate* isolate)
+  ManuallyExternalizedBuffer(JSArrayBuffer buffer, Isolate* isolate)
       : isolate_(isolate),
         buffer_(buffer, isolate),
         allocation_base_(buffer->allocation_base()),

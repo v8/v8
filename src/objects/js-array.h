@@ -95,7 +95,7 @@ class JSArray : public JSObject {
   // to Proxies and objects with a hidden prototype.
   inline bool HasArrayPrototype(Isolate* isolate);
 
-  DECL_CAST(JSArray)
+  DECL_CAST2(JSArray)
 
   // Dispatched behavior.
   DECL_PRINTER(JSArray)
@@ -132,8 +132,7 @@ class JSArray : public JSObject {
   // Valid array indices range from +0 <= i < 2^32 - 1 (kMaxUInt32).
   static const uint32_t kMaxArrayIndex = kMaxUInt32 - 1;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArray);
+  OBJECT_CONSTRUCTORS(JSArray, JSObject);
 };
 
 Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
@@ -146,7 +145,7 @@ class JSArrayIterator : public JSObject {
   DECL_PRINTER(JSArrayIterator)
   DECL_VERIFIER(JSArrayIterator)
 
-  DECL_CAST(JSArrayIterator)
+  DECL_CAST2(JSArrayIterator)
 
   // [iterated_object]: the [[IteratedObject]] inobject property.
   DECL_ACCESSORS(iterated_object, Object)
@@ -191,8 +190,7 @@ class JSArrayIterator : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_ARRAY_ITERATOR_FIELDS)
 #undef JS_ARRAY_ITERATOR_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayIterator);
+  OBJECT_CONSTRUCTORS(JSArrayIterator, JSObject);
 };
 
 }  // namespace internal

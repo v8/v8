@@ -82,9 +82,9 @@ class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
 class PromiseResolveThenableJobTask : public Microtask {
  public:
   DECL_ACCESSORS2(context, Context)
-  DECL_ACCESSORS(promise_to_resolve, JSPromise)
-  DECL_ACCESSORS(then, JSReceiver)
-  DECL_ACCESSORS(thenable, JSReceiver)
+  DECL_ACCESSORS2(promise_to_resolve, JSPromise)
+  DECL_ACCESSORS2(then, JSReceiver)
+  DECL_ACCESSORS2(thenable, JSReceiver)
 
 // Layout description.
 #define PROMISE_RESOLVE_THENABLE_JOB_FIELDS(V) \

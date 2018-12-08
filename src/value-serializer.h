@@ -119,14 +119,14 @@ class ValueSerializer {
   Maybe<bool> WriteJSObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArray(Handle<JSArray> array) V8_WARN_UNUSED_RESULT;
-  void WriteJSDate(JSDate* date);
+  void WriteJSDate(JSDate date);
   Maybe<bool> WriteJSValue(Handle<JSValue> value) V8_WARN_UNUSED_RESULT;
-  void WriteJSRegExp(JSRegExp* regexp);
+  void WriteJSRegExp(JSRegExp regexp);
   Maybe<bool> WriteJSMap(Handle<JSMap> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSet(Handle<JSSet> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
       V8_WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView* array_buffer);
+  Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView array_buffer);
   Maybe<bool> WriteWasmModule(Handle<WasmModuleObject> object)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteWasmMemory(Handle<WasmMemoryObject> object)

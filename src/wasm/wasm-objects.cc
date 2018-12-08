@@ -137,7 +137,7 @@ size_t EstimateNativeAllocationsSize(const WasmModule* module) {
 }
 
 WasmInstanceNativeAllocations* GetNativeAllocations(
-    WasmInstanceObject* instance) {
+    WasmInstanceObject instance) {
   return reinterpret_cast<Managed<WasmInstanceNativeAllocations>*>(
              instance->managed_native_allocations())
       ->raw();
@@ -1124,7 +1124,8 @@ void IndirectFunctionTableEntry::Set(int sig_id,
   TRACE_IFT(
       "IFT entry %p[%d] = {sig_id=%d, target_instance=%p, "
       "target_func_index=%d}\n",
-      *instance_, index_, sig_id, *target_instance, target_func_index);
+      reinterpret_cast<void*>(instance_->ptr()), index_, sig_id,
+      reinterpret_cast<void*>(target_instance->ptr()), target_func_index);
 
   Object* ref = nullptr;
   Address call_target = 0;
@@ -1162,8 +1163,10 @@ Address IndirectFunctionTableEntry::target() {
 void ImportedFunctionEntry::SetWasmToJs(
     Isolate* isolate, Handle<JSReceiver> callable,
     const wasm::WasmCode* wasm_to_js_wrapper) {
-  TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n", *instance_,
-            index_, *callable, wasm_to_js_wrapper->instructions().start());
+  TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n",
+            reinterpret_cast<void*>(instance_->ptr()), index_,
+            reinterpret_cast<void*>(callable->ptr()),
+            wasm_to_js_wrapper->instructions().start());
   DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_to_js_wrapper->kind());
   Handle<Tuple2> tuple =
       isolate->factory()->NewTuple2(instance_, callable, TENURED);
@@ -1172,15 +1175,16 @@ void ImportedFunctionEntry::SetWasmToJs(
       wasm_to_js_wrapper->instruction_start();
 }
 
-void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject* instance,
+void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject instance,
                                           Address call_target) {
   TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%" PRIuPTR "}\n",
-            *instance_, index_, instance, call_target);
+            reinterpret_cast<void*>(instance_->ptr()), index_,
+            reinterpret_cast<void*>(instance->ptr()), call_target);
   instance_->imported_function_refs()->set(index_, instance);
   instance_->imported_function_targets()[index_] = call_target;
 }
 
-WasmInstanceObject* ImportedFunctionEntry::instance() {
+WasmInstanceObject ImportedFunctionEntry::instance() {
   // The imported reference entry is either a target instance or a tuple
   // of this instance and the target callable.
   Object* value = instance_->imported_function_refs()->get(index_);
@@ -1191,7 +1195,7 @@ WasmInstanceObject* ImportedFunctionEntry::instance() {
   return WasmInstanceObject::cast(tuple->value1());
 }
 
-JSReceiver* ImportedFunctionEntry::callable() {
+JSReceiver ImportedFunctionEntry::callable() {
   return JSReceiver::cast(Tuple2::cast(object_ref())->value2());
 }
 
@@ -1259,7 +1263,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->factory()->NewJSObject(instance_cons, TENURED);
 
   Handle<WasmInstanceObject> instance(
-      reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
+      WasmInstanceObject::cast(*instance_object), isolate);
 
   // Initialize the imported function arrays.
   auto module = module_object->module();
@@ -1356,18 +1360,13 @@ bool WasmExceptionObject::IsSignatureEqual(const wasm::FunctionSig* sig) {
 
 bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
   if (!object->IsJSFunction()) return false;
-  JSFunction* js_function = JSFunction::cast(object);
+  JSFunction js_function = JSFunction::cast(object);
   if (Code::JS_TO_WASM_FUNCTION != js_function->code()->kind()) return false;
   DCHECK(js_function->shared()->HasWasmExportedFunctionData());
   return true;
 }
 
-WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
-  DCHECK(IsWasmExportedFunction(object));
-  return reinterpret_cast<WasmExportedFunction*>(object);
-}
-
-WasmInstanceObject* WasmExportedFunction::instance() {
+WasmInstanceObject WasmExportedFunction::instance() {
   return shared()->wasm_exported_function_data()->instance();
 }
 

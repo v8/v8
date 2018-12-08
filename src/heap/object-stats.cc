@@ -381,14 +381,14 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualFeedbackVectorDetails(FeedbackVector vector);
   void RecordVirtualFixedArrayDetails(FixedArray array);
   void RecordVirtualFunctionTemplateInfoDetails(FunctionTemplateInfo* fti);
-  void RecordVirtualJSGlobalObjectDetails(JSGlobalObject* object);
-  void RecordVirtualJSCollectionDetails(JSObject* object);
-  void RecordVirtualJSObjectDetails(JSObject* object);
+  void RecordVirtualJSGlobalObjectDetails(JSGlobalObject object);
+  void RecordVirtualJSCollectionDetails(JSObject object);
+  void RecordVirtualJSObjectDetails(JSObject object);
   void RecordVirtualMapDetails(Map map);
   void RecordVirtualScriptDetails(Script* script);
   void RecordVirtualExternalStringDetails(ExternalString script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo info);
-  void RecordVirtualJSFunctionDetails(JSFunction* function);
+  void RecordVirtualJSFunctionDetails(JSFunction function);
 
   void RecordVirtualArrayBoilerplateDescription(
       ArrayBoilerplateDescription* description);
@@ -463,7 +463,7 @@ void ObjectStatsCollectorImpl::RecordExternalResourceStats(
 void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
     AllocationSite* site) {
   if (!site->PointsToLiteral()) return;
-  JSObject* boilerplate = site->boilerplate();
+  JSObject boilerplate = site->boilerplate();
   if (boilerplate->IsJSArray()) {
     RecordSimpleVirtualObjectStats(site, boilerplate,
                                    ObjectStats::JS_ARRAY_BOILERPLATE_TYPE);
@@ -506,7 +506,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
-    JSGlobalObject* object) {
+    JSGlobalObject object) {
   // Properties.
   GlobalDictionary properties = object->global_dictionary();
   RecordHashTableVirtualObjectStats(object, properties,
@@ -518,7 +518,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualJSCollectionDetails(
-    JSObject* object) {
+    JSObject object) {
   if (object->IsJSMap()) {
     RecordSimpleVirtualObjectStats(
         object, FixedArray::cast(JSMap::cast(object)->table()),
@@ -531,7 +531,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSCollectionDetails(
   }
 }
 
-void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
+void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
   // JSGlobalObject is recorded separately.
   if (object->IsJSGlobalObject()) return;
 
@@ -842,7 +842,7 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualJSFunctionDetails(
-    JSFunction* function) {
+    JSFunction function) {
   // Uncompiled JSFunctions get their own category.
   if (!function->is_compiled()) {
     RecordSimpleVirtualObjectStats(nullptr, function,

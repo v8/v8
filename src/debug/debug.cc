@@ -132,7 +132,7 @@ void BreakLocation::AllAtCurrentStatement(
   }
 }
 
-JSGeneratorObject* BreakLocation::GetGeneratorObjectForSuspendedFrame(
+JSGeneratorObject BreakLocation::GetGeneratorObjectForSuspendedFrame(
     JavaScriptFrame* frame) const {
   DCHECK(IsSuspend());
   DCHECK_GE(generator_obj_reg_index_, 0);
@@ -1146,7 +1146,7 @@ class RedirectActiveFunctions : public ThreadVisitor {
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
-      JSFunction* function = frame->function();
+      JSFunction function = frame->function();
       if (!frame->is_interpreted()) continue;
       if (function->shared() != shared_) continue;
       InterpretedFrame* interpreted_frame =
@@ -1257,7 +1257,7 @@ void Debug::InstallDebugBreakTrampoline() {
         FeedbackVector::cast(obj)->ClearSlots(isolate_);
         continue;
       } else if (obj->IsJSFunction()) {
-        JSFunction* fun = JSFunction::cast(obj);
+        JSFunction fun = JSFunction::cast(obj);
         SharedFunctionInfo shared = fun->shared();
         if (!shared->HasDebugInfo()) continue;
         if (!shared->GetDebugInfo()->CanBreakAtEntry()) continue;
@@ -1369,11 +1369,11 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
 class SharedFunctionInfoFinder {
  public:
   explicit SharedFunctionInfoFinder(int target_position)
-      : current_candidate_closure_(nullptr),
-        current_start_position_(kNoSourcePosition),
+      : current_start_position_(kNoSourcePosition),
         target_position_(target_position) {}
 
-  void NewCandidate(SharedFunctionInfo shared, JSFunction* closure = nullptr) {
+  void NewCandidate(SharedFunctionInfo shared,
+                    JSFunction closure = JSFunction()) {
     if (!shared->IsSubjectToDebugging()) return;
     int start_position = shared->function_token_position();
     if (start_position == kNoSourcePosition) {
@@ -1387,7 +1387,7 @@ class SharedFunctionInfoFinder {
       if (current_start_position_ == start_position &&
           shared->EndPosition() == current_candidate_->EndPosition()) {
         // If we already have a matching closure, do not throw it away.
-        if (current_candidate_closure_ != nullptr && closure == nullptr) return;
+        if (!current_candidate_closure_.is_null() && closure.is_null()) return;
         // If a top-level function contains only one function
         // declaration the source for the top-level and the function
         // is the same. In that case prefer the non top-level function.
@@ -1405,11 +1405,11 @@ class SharedFunctionInfoFinder {
 
   SharedFunctionInfo Result() { return current_candidate_; }
 
-  JSFunction* ResultClosure() { return current_candidate_closure_; }
+  JSFunction ResultClosure() { return current_candidate_closure_; }
 
  private:
   SharedFunctionInfo current_candidate_;
-  JSFunction* current_candidate_closure_;
+  JSFunction current_candidate_closure_;
   int current_start_position_;
   int target_position_;
   DisallowHeapAllocation no_gc_;
@@ -1725,7 +1725,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     Handle<JSObject> jspromise = Handle<JSObject>::cast(promise);
     // Mark the promise as already having triggered a message.
     Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
-    JSObject::SetProperty(isolate_, jspromise, key, key, LanguageMode::kStrict)
+    Object::SetProperty(isolate_, jspromise, key, key, LanguageMode::kStrict)
         .Assert();
     // Check whether the promise reject is considered an uncaught exception.
     uncaught = !isolate_->PromiseHasUserDefinedRejectHandler(jspromise);

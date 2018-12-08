@@ -698,7 +698,7 @@ bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
 bool IsBuiltinFunction(Isolate* isolate, HeapObject* object,
                        Builtins::Name builtin_index) {
   if (!object->IsJSFunction()) return false;
-  JSFunction* const function = JSFunction::cast(object);
+  JSFunction const function = JSFunction::cast(object);
   return function->code() == isolate->builtins()->builtin(builtin_index);
 }
 
@@ -926,11 +926,10 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
     Handle<FixedArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
-    RETURN_ON_EXCEPTION(
-        this,
-        JSReceiver::SetProperty(this, error_object, key, stack_trace,
-                                LanguageMode::kStrict),
-        JSReceiver);
+    RETURN_ON_EXCEPTION(this,
+                        Object::SetProperty(this, error_object, key,
+                                            stack_trace, LanguageMode::kStrict),
+                        JSReceiver);
   }
   return error_object;
 }
@@ -942,11 +941,10 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> stack_trace =
       CaptureSimpleStackTrace(error_object, mode, caller);
-  RETURN_ON_EXCEPTION(
-      this,
-      JSReceiver::SetProperty(this, error_object, key, stack_trace,
-                              LanguageMode::kStrict),
-      JSReceiver);
+  RETURN_ON_EXCEPTION(this,
+                      Object::SetProperty(this, error_object, key, stack_trace,
+                                          LanguageMode::kStrict),
+                      JSReceiver);
   return error_object;
 }
 
@@ -3604,11 +3602,11 @@ bool Isolate::IsNoElementsProtectorIntact(Context context) {
 
   Map root_array_map =
       native_context->GetInitialJSArrayMap(GetInitialFastElementsKind());
-  JSObject* initial_array_proto = JSObject::cast(
+  JSObject initial_array_proto = JSObject::cast(
       native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
-  JSObject* initial_object_proto = JSObject::cast(
+  JSObject initial_object_proto = JSObject::cast(
       native_context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX));
-  JSObject* initial_string_proto = JSObject::cast(
+  JSObject initial_string_proto = JSObject::cast(
       native_context->get(Context::INITIAL_STRING_PROTOTYPE_INDEX));
 
   if (root_array_map.is_null() || initial_array_proto == initial_object_proto) {
@@ -3705,7 +3703,7 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
   return !is_is_concat_spreadable_set;
 }
 
-bool Isolate::IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver) {
+bool Isolate::IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver) {
   if (!IsIsConcatSpreadableLookupChainIntact()) return false;
   return !receiver->HasProxyInPrototype(this);
 }

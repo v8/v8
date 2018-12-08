@@ -1369,7 +1369,7 @@ Handle<JSObject> ConvertToJSObject(Isolate* isolate,
 }
 }  // namespace
 
-JSObject* FeedbackNexus::GetTypeProfile() const {
+JSObject FeedbackNexus::GetTypeProfile() const {
   DCHECK(IsTypeProfileKind(kind()));
   Isolate* isolate = GetIsolate();
 

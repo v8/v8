@@ -3090,7 +3090,7 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
   NativeContext native_context = isolate()->raw_native_context();
   Map map = native_context->GetInitialJSArrayMap(elements_kind);
   if (map.is_null()) {
-    JSFunction* array_function = native_context->array_function();
+    JSFunction array_function = native_context->array_function();
     map = array_function->initial_map();
   }
   return Handle<JSArray>::cast(
@@ -3304,7 +3304,7 @@ static void ForFixedTypedArray(ExternalArrayType array_type,
   UNREACHABLE();
 }
 
-JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
+JSFunction GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
   NativeContext native_context = isolate->context()->native_context();
   switch (type) {
 #define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \
@@ -3317,7 +3317,7 @@ JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
   UNREACHABLE();
 }
 
-JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
+JSFunction GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
   NativeContext native_context = isolate->context()->native_context();
   switch (elements_kind) {
 #define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \

@@ -200,7 +200,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
                                        GetIsolate());
     return array_buffer;
   }
-  Handle<JSTypedArray> self(this, GetIsolate());
+  Handle<JSTypedArray> self(*this, GetIsolate());
   return MaterializeArrayBuffer(self);
 }
 

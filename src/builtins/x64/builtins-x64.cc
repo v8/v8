@@ -548,7 +548,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Expects five C++ function parameters.
   // - Object* new_target
-  // - JSFunction* function
+  // - JSFunction function
   // - Object* receiver
   // - int argc
   // - Object*** argv

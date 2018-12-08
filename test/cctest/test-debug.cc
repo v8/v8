@@ -4228,7 +4228,7 @@ TEST(DebugEvaluateNoSideEffect) {
     i::HeapIterator iterator(isolate->heap());
     while (i::HeapObject* obj = iterator.next()) {
       if (!obj->IsJSFunction()) continue;
-      i::JSFunction* fun = i::JSFunction::cast(obj);
+      i::JSFunction fun = i::JSFunction::cast(obj);
       all_functions.emplace_back(fun, isolate);
     }
   }

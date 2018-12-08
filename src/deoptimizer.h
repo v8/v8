@@ -404,7 +404,7 @@ class TranslatedState {
 class OptimizedFunctionVisitor {
  public:
   virtual ~OptimizedFunctionVisitor() = default;
-  virtual void VisitFunction(JSFunction* function) = 0;
+  virtual void VisitFunction(JSFunction function) = 0;
 };
 
 class Deoptimizer : public Malloced {
@@ -458,7 +458,7 @@ class Deoptimizer : public Malloced {
   // Number of created JS frames. Not all created frames are necessarily JS.
   int jsframe_count() const { return jsframe_count_; }
 
-  static Deoptimizer* New(JSFunction* function, DeoptimizeKind kind,
+  static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           unsigned bailout_id, Address from, int fp_to_sp_delta,
                           Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
@@ -473,7 +473,7 @@ class Deoptimizer : public Malloced {
   // again and any activations of the optimized code will get deoptimized when
   // execution returns. If {code} is specified then the given code is targeted
   // instead of the function code (e.g. OSR code not installed on function).
-  static void DeoptimizeFunction(JSFunction* function, Code code = Code());
+  static void DeoptimizeFunction(JSFunction function, Code code = Code());
 
   // Deoptimize all code in the given isolate.
   static void DeoptimizeAll(Isolate* isolate);
@@ -551,7 +551,7 @@ class Deoptimizer : public Malloced {
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
 
-  Deoptimizer(Isolate* isolate, JSFunction* function, DeoptimizeKind kind,
+  Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
               unsigned bailout_id, Address from, int fp_to_sp_delta);
   Code FindOptimizedCode();
   void PrintFunctionName();
@@ -611,7 +611,7 @@ class Deoptimizer : public Malloced {
   Code FindDeoptimizingCode(Address addr);
 
   Isolate* isolate_;
-  JSFunction* function_;
+  JSFunction function_;
   Code compiled_code_;
   unsigned bailout_id_;
   DeoptimizeKind deopt_kind_;

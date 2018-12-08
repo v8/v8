@@ -125,8 +125,8 @@ Handle<Name> KeyToName<NumberDictionary>(Isolate* isolate, Handle<Object> key) {
   return isolate->factory()->NumberToString(key);
 }
 
-inline void SetHomeObject(Isolate* isolate, JSFunction* method,
-                          JSObject* home_object) {
+inline void SetHomeObject(Isolate* isolate, JSFunction method,
+                          JSObject home_object) {
   if (method->shared()->needs_home_object()) {
     const int kPropertyIndex = JSFunction::kMaybeHomeObjectDescriptorIndex;
     CHECK_EQ(method->map()->instance_descriptors()->GetKey(kPropertyIndex),
@@ -185,7 +185,7 @@ MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
 // shared name.
 Object* GetMethodWithSharedNameAndSetHomeObject(Isolate* isolate,
                                                 Arguments& args, Object* index,
-                                                JSObject* home_object) {
+                                                JSObject home_object) {
   DisallowHeapAllocation no_gc;
   int int_index = Smi::ToInt(index);
 

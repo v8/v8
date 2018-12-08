@@ -88,17 +88,17 @@ Context Context::closure_context() {
   return current;
 }
 
-JSObject* Context::extension_object() {
+JSObject Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   HeapObject* object = extension();
-  if (object->IsTheHole()) return nullptr;
+  if (object->IsTheHole()) return JSObject();
   DCHECK(object->IsJSContextExtensionObject() ||
          (IsNativeContext() && object->IsJSGlobalObject()));
   return JSObject::cast(object);
 }
 
-JSReceiver* Context::extension_receiver() {
+JSReceiver Context::extension_receiver() {
   DCHECK(IsNativeContext() || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
   return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
@@ -116,7 +116,7 @@ Module* Context::module() {
   return Module::cast(current->extension());
 }
 
-JSGlobalObject* Context::global_object() {
+JSGlobalObject Context::global_object() {
   return JSGlobalObject::cast(native_context()->extension());
 }
 
@@ -128,14 +128,13 @@ Context Context::script_context() {
   return current;
 }
 
-JSGlobalProxy* Context::global_proxy() {
+JSGlobalProxy Context::global_proxy() {
   return native_context()->global_proxy_object();
 }
 
-void Context::set_global_proxy(JSGlobalProxy* object) {
+void Context::set_global_proxy(JSGlobalProxy object) {
   native_context()->set_global_proxy_object(object);
 }
-
 
 /**
  * Lookups a property in an object environment, taking the unscopables into
@@ -208,7 +207,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     if ((context->IsNativeContext() ||
          (context->IsWithContext() && ((flags & SKIP_WITH_CONTEXT) == 0)) ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
-        context->extension_receiver() != nullptr) {
+        !context->extension_receiver().is_null()) {
       Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
       if (context->IsNativeContext()) {
@@ -276,7 +275,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       if (maybe.FromJust() != ABSENT) {
         if (FLAG_trace_contexts) {
           PrintF("=> found property in context object %p\n",
-                 reinterpret_cast<void*>(*object));
+                 reinterpret_cast<void*>(object->ptr()));
         }
         return object;
       }

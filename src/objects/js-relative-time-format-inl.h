@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSRelativeTimeFormat, JSObject)
+
 // Base relative time format accessors.
 ACCESSORS2(JSRelativeTimeFormat, locale, String, kLocaleOffset)
 ACCESSORS(JSRelativeTimeFormat, icu_formatter,
@@ -46,7 +48,7 @@ inline JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::numeric() const {
   return NumericBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSRelativeTimeFormat);
+CAST_ACCESSOR2(JSRelativeTimeFormat);
 
 }  // namespace internal
 }  // namespace v8

@@ -280,7 +280,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     }
     isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj->IsJSTypedArray()) {
-    JSTypedArray* typed_array = JSTypedArray::cast(obj);
+    JSTypedArray typed_array = JSTypedArray::cast(obj);
     CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
     int32_t byte_offset = static_cast<int32_t>(typed_array->byte_offset());
     if (byte_offset > 0) {
@@ -295,7 +295,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
       elements->set_external_pointer(pointer_with_offset);
     }
   } else if (obj->IsJSArrayBuffer()) {
-    JSArrayBuffer* buffer = JSArrayBuffer::cast(obj);
+    JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
     // Only fixup for the off-heap case.
     if (buffer->backing_store() != nullptr) {
       Smi store_index(reinterpret_cast<Address>(buffer->backing_store()));

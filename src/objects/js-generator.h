@@ -19,7 +19,7 @@ class JSPromise;
 class JSGeneratorObject : public JSObject {
  public:
   // [function]: The function corresponding to this generator object.
-  DECL_ACCESSORS(function, JSFunction)
+  DECL_ACCESSORS2(function, JSFunction)
 
   // [context]: The context of the suspended computation.
   DECL_ACCESSORS2(context, Context)
@@ -56,7 +56,7 @@ class JSGeneratorObject : public JSObject {
   // [parameters_and_registers]: Saved interpreter register file.
   DECL_ACCESSORS2(parameters_and_registers, FixedArray)
 
-  DECL_CAST(JSGeneratorObject)
+  DECL_CAST2(JSGeneratorObject)
 
   // Dispatched behavior.
   DECL_PRINTER(JSGeneratorObject)
@@ -81,19 +81,18 @@ class JSGeneratorObject : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GENERATOR_FIELDS)
 #undef JS_GENERATOR_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
+  OBJECT_CONSTRUCTORS(JSGeneratorObject, JSObject);
 };
 
 class JSAsyncFunctionObject : public JSGeneratorObject {
  public:
-  DECL_CAST(JSAsyncFunctionObject)
+  DECL_CAST2(JSAsyncFunctionObject)
 
   // Dispatched behavior.
   DECL_VERIFIER(JSAsyncFunctionObject)
 
   // [promise]: The promise of the async function.
-  DECL_ACCESSORS(promise, JSPromise)
+  DECL_ACCESSORS2(promise, JSPromise)
 
   // Layout description.
 #define JS_ASYNC_FUNCTION_FIELDS(V) \
@@ -105,13 +104,12 @@ class JSAsyncFunctionObject : public JSGeneratorObject {
                                 JS_ASYNC_FUNCTION_FIELDS)
 #undef JS_ASYNC_FUNCTION_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncFunctionObject);
+  OBJECT_CONSTRUCTORS(JSAsyncFunctionObject, JSGeneratorObject);
 };
 
 class JSAsyncGeneratorObject : public JSGeneratorObject {
  public:
-  DECL_CAST(JSAsyncGeneratorObject)
+  DECL_CAST2(JSAsyncGeneratorObject)
 
   // Dispatched behavior.
   DECL_VERIFIER(JSAsyncGeneratorObject)
@@ -136,8 +134,7 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
                                 JS_ASYNC_GENERATOR_FIELDS)
 #undef JS_ASYNC_GENERATOR_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncGeneratorObject);
+  OBJECT_CONSTRUCTORS(JSAsyncGeneratorObject, JSGeneratorObject);
 };
 
 class AsyncGeneratorRequest : public Struct {

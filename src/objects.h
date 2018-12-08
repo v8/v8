@@ -532,13 +532,13 @@ typedef FixedArray FixedArrayArgType;
 typedef FixedDoubleArray FixedDoubleArrayArgType;
 typedef Foreign* ForeignArgType;
 typedef HeapObject* HeapObjectArgType;
-typedef JSArray* JSArrayArgType;
-typedef JSAsyncGeneratorObject* JSAsyncGeneratorObjectArgType;
-typedef JSFunction* JSFunctionArgType;
-typedef JSGlobalProxy* JSGlobalProxyArgType;
-typedef JSObject* JSObjectArgType;
-typedef JSPromise* JSPromiseArgType;
-typedef JSProxy* JSProxyArgType;
+typedef JSArray JSArrayArgType;
+typedef JSAsyncGeneratorObject JSAsyncGeneratorObjectArgType;
+typedef JSFunction JSFunctionArgType;
+typedef JSGlobalProxy JSGlobalProxyArgType;
+typedef JSObject JSObjectArgType;
+typedef JSPromise JSPromiseArgType;
+typedef JSProxy JSProxyArgType;
 typedef Map MapArgType;
 typedef Object* ObjectArgType;
 typedef RegExpMatchInfo RegExpMatchInfoArgType;
@@ -549,8 +549,8 @@ typedef Smi SmiArgType;
 typedef String StringArgType;
 typedef Symbol SymbolArgType;
 typedef TemplateList TemplateListArgType;
-typedef WasmInstanceObject* WasmInstanceObjectArgType;
-typedef WasmMemoryObject* WasmMemoryObjectArgType;
+typedef WasmInstanceObject WasmInstanceObjectArgType;
+typedef WasmMemoryObject WasmMemoryObjectArgType;
 
 // Object is the abstract superclass for all classes in the
 // object hierarchy.

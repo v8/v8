@@ -62,7 +62,7 @@ class JSPromise : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Resolve(
       Handle<JSPromise> promise, Handle<Object> resolution);
 
-  DECL_CAST(JSPromise)
+  DECL_CAST2(JSPromise)
 
   // Dispatched behavior.
   DECL_PRINTER(JSPromise)
@@ -99,6 +99,8 @@ class JSPromise : public JSObject {
                                                 Handle<Object> reactions,
                                                 Handle<Object> argument,
                                                 PromiseReaction::Type type);
+
+  OBJECT_CONSTRUCTORS(JSPromise, JSObject)
 };
 
 }  // namespace internal

@@ -164,7 +164,7 @@ void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
       IsImmutablePrototype::update(Smi::ToInt(data()), immutable)));
 }
 
-bool FunctionTemplateInfo::IsTemplateFor(JSObject* object) {
+bool FunctionTemplateInfo::IsTemplateFor(JSObject object) {
   return IsTemplateFor(object->map());
 }
 

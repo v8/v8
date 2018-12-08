@@ -20,7 +20,7 @@ EmbedderDataSlot::EmbedderDataSlot(EmbedderDataArray array, int entry_index)
     : SlotBase(FIELD_ADDR(array,
                           EmbedderDataArray::OffsetOfElementAt(entry_index))) {}
 
-EmbedderDataSlot::EmbedderDataSlot(JSObject* object, int embedder_field_index)
+EmbedderDataSlot::EmbedderDataSlot(JSObject object, int embedder_field_index)
     : SlotBase(FIELD_ADDR(
           object, object->GetEmbedderFieldOffset(embedder_field_index))) {}
 
@@ -42,7 +42,7 @@ void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
 }
 
 // static
-void EmbedderDataSlot::store_tagged(JSObject* object, int embedder_field_index,
+void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
                                     Object* value) {
   int slot_offset = object->GetEmbedderFieldOffset(embedder_field_index);
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))

@@ -1115,7 +1115,7 @@ void Logger::LeaveExternal(Isolate* isolate) {
 TIMER_EVENTS_LIST(V)
 #undef V
 
-void Logger::ApiNamedPropertyAccess(const char* tag, JSObject* holder,
+void Logger::ApiNamedPropertyAccess(const char* tag, JSObject holder,
                                     Object* property_name) {
   DCHECK(property_name->IsName());
   if (!log_->IsEnabled() || !FLAG_log_api) return;
@@ -1125,8 +1125,7 @@ void Logger::ApiNamedPropertyAccess(const char* tag, JSObject* holder,
   msg.WriteToLogFile();
 }
 
-void Logger::ApiIndexedPropertyAccess(const char* tag,
-                                      JSObject* holder,
+void Logger::ApiIndexedPropertyAccess(const char* tag, JSObject holder,
                                       uint32_t index) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   Log::MessageBuilder msg(log_);
@@ -1135,14 +1134,12 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
   msg.WriteToLogFile();
 }
 
-
-void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
+void Logger::ApiObjectAccess(const char* tag, JSObject object) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   Log::MessageBuilder msg(log_);
   msg << "api" << kNext << tag << kNext << object->class_name();
   msg.WriteToLogFile();
 }
-
 
 void Logger::ApiEntryCall(const char* name) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
@@ -1775,7 +1772,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
     } else if (obj->IsJSFunction()) {
       // Given that we no longer iterate over all optimized JSFunctions, we need
       // to take care of this here.
-      JSFunction* function = JSFunction::cast(obj);
+      JSFunction function = JSFunction::cast(obj);
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(function->shared());
       Object* maybe_script = sfi->script();
       if (maybe_script->IsScript() &&
@@ -1804,7 +1801,7 @@ static int EnumerateWasmModuleObjects(
   for (HeapObject* obj = iterator.next(); obj != nullptr;
        obj = iterator.next()) {
     if (obj->IsWasmModuleObject()) {
-      WasmModuleObject* module = WasmModuleObject::cast(obj);
+      WasmModuleObject module = WasmModuleObject::cast(obj);
       if (module_objects != nullptr) {
         module_objects[module_objects_count] = handle(module, heap->isolate());
       }

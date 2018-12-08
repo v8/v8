@@ -75,14 +75,12 @@ static inline Handle<T> CompileRunI(const char* script) {
   return OpenHandle<T>(CompileRun(script));
 }
 
-
-static Object* GetFieldValue(JSObject* obj, int property_index) {
+static Object* GetFieldValue(JSObject obj, int property_index) {
   FieldIndex index = FieldIndex::ForPropertyIndex(obj->map(), property_index);
   return obj->RawFastPropertyAt(index);
 }
 
-
-static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
+static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
   if (obj->IsUnboxedDoubleField(field_index)) {
     return obj->RawFastDoublePropertyAt(field_index);
   } else {
@@ -92,14 +90,12 @@ static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
   }
 }
 
-
-static double GetDoubleFieldValue(JSObject* obj, int property_index) {
+static double GetDoubleFieldValue(JSObject obj, int property_index) {
   FieldIndex index = FieldIndex::ForPropertyIndex(obj->map(), property_index);
   return GetDoubleFieldValue(obj, index);
 }
 
-
-bool IsObjectShrinkable(JSObject* obj) {
+bool IsObjectShrinkable(JSObject obj) {
   Handle<Map> filler_map =
       CcTest::i_isolate()->factory()->one_pointer_filler_map();
 
@@ -114,7 +110,6 @@ bool IsObjectShrinkable(JSObject* obj) {
   }
   return true;
 }
-
 
 TEST(JSObjectBasic) {
   // Avoid eventual completion of in-object slack tracking.

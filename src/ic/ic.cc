@@ -127,7 +127,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   Object* maybe_function =
       Memory<Object*>(fp_ + JavaScriptFrameConstants::kFunctionOffset);
   DCHECK(maybe_function->IsJSFunction());
-  JSFunction* function = JSFunction::cast(maybe_function);
+  JSFunction function = JSFunction::cast(maybe_function);
   int code_offset = 0;
   if (function->IsInterpreted()) {
     code_offset = InterpretedFrame::GetBytecodeOffset(fp());
@@ -200,7 +200,7 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
   old_state_ = state_;
 }
 
-JSFunction* IC::GetHostFunction() const {
+JSFunction IC::GetHostFunction() const {
   // Compute the JavaScript frame for the frame pointer of this IC
   // structure. We need this to be able to find the function
   // corresponding to the frame.
@@ -310,7 +310,7 @@ MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
 
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackNexus* nexus,
-                           JSFunction* host_function, const char* reason) {
+                           JSFunction host_function, const char* reason) {
   FeedbackVector vector = nexus->vector();
   FeedbackSlot slot = nexus->slot();
   OnFeedbackChanged(isolate, vector, slot, host_function, reason);
@@ -318,7 +318,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackNexus* nexus,
 
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
-                           FeedbackSlot slot, JSFunction* host_function,
+                           FeedbackSlot slot, JSFunction host_function,
                            const char* reason) {
   if (FLAG_trace_opt_verbose) {
     // TODO(leszeks): The host function is only needed for this print, we could

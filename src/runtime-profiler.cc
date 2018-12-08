@@ -69,7 +69,7 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
       any_ic_changed_(false) {
 }
 
-static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
+static void GetICCounts(JSFunction function, int* ic_with_type_info_count,
                         int* ic_generic_count, int* ic_total_count,
                         int* type_info_percentage, int* generic_percentage) {
   FeedbackVector vector = function->feedback_vector();
@@ -85,7 +85,7 @@ static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
   }
 }
 
-static void TraceRecompile(JSFunction* function, const char* reason,
+static void TraceRecompile(JSFunction function, const char* reason,
                            const char* type) {
   if (FLAG_trace_opt) {
     PrintF("[marking ");
@@ -103,8 +103,7 @@ static void TraceRecompile(JSFunction* function, const char* reason,
   }
 }
 
-void RuntimeProfiler::Optimize(JSFunction* function,
-                               OptimizationReason reason) {
+void RuntimeProfiler::Optimize(JSFunction function, OptimizationReason reason) {
   DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
   TraceRecompile(function, OptimizationReasonToString(reason), "optimized");
   function->MarkForOptimization(ConcurrencyMode::kConcurrent);
@@ -112,9 +111,9 @@ void RuntimeProfiler::Optimize(JSFunction* function,
 
 void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
                                                 int loop_nesting_levels) {
-  JSFunction* function = frame->function();
+  JSFunction function = frame->function();
   SharedFunctionInfo shared = function->shared();
-  if (!FLAG_use_osr || !function->shared()->IsUserJavaScript()) {
+  if (!FLAG_use_osr || !shared->IsUserJavaScript()) {
     return;
   }
 
@@ -136,7 +135,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
       Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
 }
 
-void RuntimeProfiler::MaybeOptimize(JSFunction* function,
+void RuntimeProfiler::MaybeOptimize(JSFunction function,
                                     InterpretedFrame* frame) {
   if (function->IsInOptimizationQueue()) {
     if (FLAG_trace_opt_verbose) {
@@ -164,7 +163,7 @@ void RuntimeProfiler::MaybeOptimize(JSFunction* function,
   }
 }
 
-bool RuntimeProfiler::MaybeOSR(JSFunction* function, InterpretedFrame* frame) {
+bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
   int ticks = function->feedback_vector()->profiler_ticks();
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
@@ -185,7 +184,7 @@ bool RuntimeProfiler::MaybeOSR(JSFunction* function, InterpretedFrame* frame) {
   return false;
 }
 
-OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction* function,
+OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
   int ticks = function->feedback_vector()->profiler_ticks();
   if (bytecode->length() > kMaxBytecodeSizeForOpt) {
@@ -235,7 +234,7 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
     JavaScriptFrame* frame = it.frame();
     if (!frame->is_interpreted()) continue;
 
-    JSFunction* function = frame->function();
+    JSFunction function = frame->function();
     DCHECK(function->shared()->is_compiled());
     if (!function->shared()->IsInterpreted()) continue;
 

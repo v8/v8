@@ -14241,7 +14241,7 @@ static int GetGlobalObjectsCount() {
   i::HeapIterator it(CcTest::heap());
   for (i::HeapObject* object = it.next(); object != nullptr; object = it.next())
     if (object->IsJSGlobalObject()) {
-      i::JSGlobalObject* g = i::JSGlobalObject::cast(object);
+      i::JSGlobalObject g = i::JSGlobalObject::cast(object);
       // Skip dummy global object.
       if (g->global_dictionary()->NumberOfElements() != 0) {
         count++;

@@ -146,6 +146,10 @@ bool NewSpace::Contains(Object* o) {
   return o->IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
+bool NewSpace::Contains(HeapObjectPtr o) {
+  return MemoryChunk::FromHeapObject(o)->InNewSpace();
+}
+
 bool NewSpace::ContainsSlow(Address a) {
   return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
 }

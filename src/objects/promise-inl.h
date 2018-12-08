@@ -28,10 +28,10 @@ ACCESSORS(PromiseReaction, promise_or_capability, HeapObject,
           kPromiseOrCapabilityOffset)
 
 ACCESSORS2(PromiseResolveThenableJobTask, context, Context, kContextOffset)
-ACCESSORS(PromiseResolveThenableJobTask, promise_to_resolve, JSPromise,
-          kPromiseToResolveOffset)
-ACCESSORS(PromiseResolveThenableJobTask, then, JSReceiver, kThenOffset)
-ACCESSORS(PromiseResolveThenableJobTask, thenable, JSReceiver, kThenableOffset)
+ACCESSORS2(PromiseResolveThenableJobTask, promise_to_resolve, JSPromise,
+           kPromiseToResolveOffset)
+ACCESSORS2(PromiseResolveThenableJobTask, then, JSReceiver, kThenOffset)
+ACCESSORS2(PromiseResolveThenableJobTask, thenable, JSReceiver, kThenableOffset)
 
 ACCESSORS2(PromiseReactionJobTask, context, Context, kContextOffset)
 ACCESSORS(PromiseReactionJobTask, argument, Object, kArgumentOffset);

@@ -288,8 +288,7 @@ void StringStream::PrintName(Object* name) {
   }
 }
 
-
-void StringStream::PrintUsingMap(JSObject* js_object) {
+void StringStream::PrintUsingMap(JSObject js_object) {
   Map map = js_object->map();
   int real_size = map->NumberOfOwnDescriptors();
   DescriptorArray descs = map->instance_descriptors();
@@ -376,7 +375,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
       }
       PrintUsingMap(JSObject::cast(printee));
       if (printee->IsJSArray()) {
-        JSArray* array = JSArray::cast(printee);
+        JSArray array = JSArray::cast(printee);
         if (array->HasObjectElements()) {
           unsigned int limit = FixedArray::cast(array->elements())->length();
           unsigned int length =
@@ -394,7 +393,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
   }
 }
 
-void StringStream::PrintSecurityTokenIfChanged(JSFunction* fun) {
+void StringStream::PrintSecurityTokenIfChanged(JSFunction fun) {
   Object* token = fun->native_context()->security_token();
   Isolate* isolate = fun->GetIsolate();
   if (token != isolate->string_stream_current_security_token()) {
@@ -403,14 +402,12 @@ void StringStream::PrintSecurityTokenIfChanged(JSFunction* fun) {
   }
 }
 
-void StringStream::PrintFunction(JSFunction* fun, Object* receiver,
-                                 Code* code) {
+void StringStream::PrintFunction(JSFunction fun, Object* receiver, Code* code) {
   PrintPrototype(fun, receiver);
   *code = fun->code();
 }
 
-
-void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
+void StringStream::PrintPrototype(JSFunction fun, Object* receiver) {
   Object* name = fun->shared()->Name();
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();
@@ -450,7 +447,6 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
     Put(')');
   }
 }
-
 
 char* HeapStringAllocator::grow(unsigned* bytes) {
   unsigned new_bytes = *bytes * 2;

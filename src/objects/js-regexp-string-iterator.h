@@ -32,7 +32,7 @@ class JSRegExpStringIterator : public JSObject {
   // [boolean]: The [[Unicode]] internal property.
   DECL_BOOLEAN_ACCESSORS(unicode)
 
-  DECL_CAST(JSRegExpStringIterator)
+  DECL_CAST2(JSRegExpStringIterator)
   DECL_PRINTER(JSRegExpStringIterator)
   DECL_VERIFIER(JSRegExpStringIterator)
 
@@ -52,8 +52,7 @@ class JSRegExpStringIterator : public JSObject {
   static const int kGlobalBit = 1;
   static const int kUnicodeBit = 2;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSRegExpStringIterator);
+  OBJECT_CONSTRUCTORS(JSRegExpStringIterator, JSObject);
 };
 
 }  // namespace internal

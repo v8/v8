@@ -147,11 +147,11 @@ class StringStream final {
   void PrintName(Object* o);
   void PrintFixedArray(FixedArray array, unsigned int limit);
   void PrintByteArray(ByteArray ba);
-  void PrintUsingMap(JSObject* js_object);
-  void PrintPrototype(JSFunction* fun, Object* receiver);
-  void PrintSecurityTokenIfChanged(JSFunction* function);
+  void PrintUsingMap(JSObject js_object);
+  void PrintPrototype(JSFunction fun, Object* receiver);
+  void PrintSecurityTokenIfChanged(JSFunction function);
   // NOTE: Returns the code in the output parameter.
-  void PrintFunction(JSFunction* function, Object* receiver, Code* code);
+  void PrintFunction(JSFunction function, Object* receiver, Code* code);
 
   // Reset the stream.
   void Reset() {

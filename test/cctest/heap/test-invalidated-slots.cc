@@ -330,27 +330,24 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
   // Start incremental marking.
   heap::SimulateIncrementalMarking(heap);
   // Set properties to point to the evacuation candidate.
-  JSReceiver::SetProperty(isolate, obj, prop_name1, evacuated,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, obj, prop_name1, evacuated,
+                      LanguageMode::kSloppy)
       .Check();
-  JSReceiver::SetProperty(isolate, obj, prop_name2, evacuated,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, obj, prop_name2, evacuated,
+                      LanguageMode::kSloppy)
       .Check();
-  JSReceiver::SetProperty(isolate, obj, prop_name3, evacuated,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, obj, prop_name3, evacuated,
+                      LanguageMode::kSloppy)
       .Check();
 
   {
     HandleScope scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
-    JSReceiver::SetProperty(isolate, obj, prop_name1, dead,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_name1, dead, LanguageMode::kSloppy)
         .Check();
-    JSReceiver::SetProperty(isolate, obj, prop_name2, dead,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_name2, dead, LanguageMode::kSloppy)
         .Check();
-    JSReceiver::SetProperty(isolate, obj, prop_name3, dead,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_name3, dead, LanguageMode::kSloppy)
         .Check();
     Handle<Map> map(obj->map(), isolate);
     Handle<Map> normalized_map =

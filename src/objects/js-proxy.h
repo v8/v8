@@ -27,7 +27,7 @@ class JSProxy : public JSReceiver {
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSProxy> proxy);
 
-  DECL_CAST(JSProxy)
+  DECL_CAST2(JSProxy)
 
   V8_INLINE bool IsRevoked() const;
   static void Revoke(Handle<JSProxy> proxy);
@@ -130,8 +130,7 @@ class JSProxy : public JSReceiver {
                                       PropertyDescriptor* desc,
                                       ShouldThrow should_throw);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
+  OBJECT_CONSTRUCTORS(JSProxy, JSReceiver);
 };
 
 // JSProxyRevocableResult is just a JSObject with a specific initial map.

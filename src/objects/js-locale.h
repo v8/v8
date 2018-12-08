@@ -36,7 +36,7 @@ class JSLocale : public JSObject {
   Handle<String> NumericAsString() const;
   Handle<String> HourCycleAsString() const;
 
-  DECL_CAST(JSLocale)
+  DECL_CAST2(JSLocale)
 
   // Locale accessors.
   DECL_ACCESSORS(language, Object)
@@ -128,8 +128,7 @@ class JSLocale : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_LOCALE_FIELDS)
 #undef JS_LOCALE_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSLocale);
+  OBJECT_CONSTRUCTORS(JSLocale, JSObject);
 };
 
 }  // namespace internal

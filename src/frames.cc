@@ -695,7 +695,7 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->constant_pool_address = nullptr;
 }
 
-JSFunction* BuiltinExitFrame::function() const {
+JSFunction BuiltinExitFrame::function() const {
   return JSFunction::cast(target_slot_object());
 }
 
@@ -753,7 +753,7 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
                              int index) const {
   DisallowHeapAllocation no_gc;
   Object* receiver = this->receiver();
-  JSFunction* function = this->function();
+  JSFunction function = this->function();
 
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
@@ -1086,7 +1086,7 @@ void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions) const {
   functions->push_back(summary);
 }
 
-JSFunction* JavaScriptFrame::function() const {
+JSFunction JavaScriptFrame::function() const {
   return JSFunction::cast(function_slot_object());
 }
 
@@ -1119,7 +1119,7 @@ int JavaScriptFrame::LookupExceptionHandlerInTable(
   return -1;
 }
 
-void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function,
+void JavaScriptFrame::PrintFunctionAndOffset(JSFunction function,
                                              AbstractCode code, int code_offset,
                                              FILE* file,
                                              bool print_line_number) {
@@ -1157,7 +1157,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
     if (it.frame()->is_java_script()) {
       JavaScriptFrame* frame = it.frame();
       if (frame->IsConstructor()) PrintF(file, "new ");
-      JSFunction* function = frame->function();
+      JSFunction function = frame->function();
       int code_offset = 0;
       if (frame->is_interpreted()) {
         InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
@@ -1187,7 +1187,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
   }
 }
 
-void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction* function,
+void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
                                                          AbstractCode code,
                                                          int code_offset) {
   auto ic_stats = ICStats::instance();
@@ -1215,7 +1215,7 @@ void JavaScriptFrame::CollectTopFrameForICStats(Isolate* isolate) {
     if (it.frame()->is_java_script()) {
       JavaScriptFrame* frame = it.frame();
       if (frame->IsConstructor()) ic_info.is_constructor = true;
-      JSFunction* function = frame->function();
+      JSFunction function = frame->function();
       int code_offset = 0;
       if (frame->is_interpreted()) {
         InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
@@ -1275,7 +1275,7 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
 }
 
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
-    Isolate* isolate, Object* receiver, JSFunction* function,
+    Isolate* isolate, Object* receiver, JSFunction function,
     AbstractCode abstract_code, int code_offset, bool is_constructor)
     : FrameSummaryBase(isolate, FrameSummary::JAVA_SCRIPT),
       receiver_(receiver, isolate),
@@ -1568,7 +1568,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
     int* deopt_index) const {
   DCHECK(is_optimized());
 
-  JSFunction* opt_function = function();
+  JSFunction opt_function = function();
   Code code = opt_function->code();
 
   // The code object may have been replaced by lazy deoptimization. Fall
@@ -1815,13 +1815,13 @@ wasm::WasmCode* WasmCompiledFrame::wasm_code() const {
   return isolate()->wasm_engine()->code_manager()->LookupCode(pc());
 }
 
-WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
+WasmInstanceObject WasmCompiledFrame::wasm_instance() const {
   const int offset = WasmCompiledFrameConstants::kWasmInstanceOffset;
   Object* instance = Memory<Object*>(fp() + offset);
   return WasmInstanceObject::cast(instance);
 }
 
-WasmModuleObject* WasmCompiledFrame::module_object() const {
+WasmModuleObject WasmCompiledFrame::module_object() const {
   return wasm_instance()->module_object();
 }
 
@@ -1903,7 +1903,7 @@ void WasmInterpreterEntryFrame::Summarize(
 
 Code WasmInterpreterEntryFrame::unchecked_code() const { UNREACHABLE(); }
 
-WasmInstanceObject* WasmInterpreterEntryFrame::wasm_instance() const {
+WasmInstanceObject WasmInterpreterEntryFrame::wasm_instance() const {
   const int offset = WasmCompiledFrameConstants::kWasmInstanceOffset;
   Object* instance = Memory<Object*>(fp() + offset);
   return WasmInstanceObject::cast(instance);
@@ -1913,7 +1913,7 @@ WasmDebugInfo* WasmInterpreterEntryFrame::debug_info() const {
   return wasm_instance()->debug_info();
 }
 
-WasmModuleObject* WasmInterpreterEntryFrame::module_object() const {
+WasmModuleObject WasmInterpreterEntryFrame::module_object() const {
   return wasm_instance()->module_object();
 }
 
@@ -1935,7 +1935,7 @@ Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
 
 Code WasmCompileLazyFrame::unchecked_code() const { return Code(); }
 
-WasmInstanceObject* WasmCompileLazyFrame::wasm_instance() const {
+WasmInstanceObject WasmCompileLazyFrame::wasm_instance() const {
   return WasmInstanceObject::cast(*wasm_instance_slot());
 }
 
@@ -1977,7 +1977,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
                             int index) const {
   DisallowHeapAllocation no_gc;
   Object* receiver = this->receiver();
-  JSFunction* function = this->function();
+  JSFunction function = this->function();
 
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
@@ -2092,7 +2092,7 @@ void ArgumentsAdaptorFrame::Print(StringStream* accumulator,
                                   int index) const {
   int actual = ComputeParametersCount();
   int expected = -1;
-  JSFunction* function = this->function();
+  JSFunction function = this->function();
   expected = function->shared()->internal_formal_parameter_count();
 
   PrintIndex(accumulator, mode, index);

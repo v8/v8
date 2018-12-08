@@ -172,16 +172,16 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
 
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
-Deoptimizer* Deoptimizer::New(JSFunction* function, DeoptimizeKind kind,
+Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
                               unsigned bailout_id, Address from,
                               int fp_to_sp_delta, Isolate* isolate) {
+  JSFunction function = JSFunction::cast(ObjectPtr(raw_function));
   Deoptimizer* deoptimizer = new Deoptimizer(isolate, function, kind,
                                              bailout_id, from, fp_to_sp_delta);
   CHECK_NULL(isolate->deoptimizer_data()->current_);
   isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
 }
-
 
 Deoptimizer* Deoptimizer::Grab(Isolate* isolate) {
   Deoptimizer* result = isolate->deoptimizer_data()->current_;
@@ -293,14 +293,13 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
     StackFrame::Type type = it.frame()->type();
     if (type == StackFrame::OPTIMIZED) {
       Code code = it.frame()->LookupCode();
-      JSFunction* function =
+      JSFunction function =
           static_cast<OptimizedFrame*>(it.frame())->function();
       if (FLAG_trace_deopt) {
         CodeTracer::Scope scope(isolate->GetCodeTracer());
         PrintF(scope.file(), "[deoptimizer found activation of function: ");
         function->PrintName(scope.file());
-        PrintF(scope.file(),
-               " / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+        PrintF(scope.file(), " / %" V8PRIxPTR "]\n", function.ptr());
       }
       SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
       int deopt_index = safepoint.deoptimization_index();
@@ -423,7 +422,7 @@ void Deoptimizer::MarkAllCodeForContext(Context context) {
   }
 }
 
-void Deoptimizer::DeoptimizeFunction(JSFunction* function, Code code) {
+void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
   Isolate* isolate = function->GetIsolate();
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      RuntimeCallCounterId::kDeoptimizeCode);
@@ -448,7 +447,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function, Code code) {
   }
 }
 
-
 void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
@@ -466,7 +464,7 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
   return nullptr;
 }
 
-Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
+Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
                          DeoptimizeKind kind, unsigned bailout_id, Address from,
                          int fp_to_sp_delta)
     : isolate_(isolate),
@@ -516,7 +514,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       // Soft deopts shouldn't count against the overall deoptimization count
       // that can eventually lead to disabling optimization for a function.
       isolate->counters()->soft_deopts_executed()->Increment();
-    } else if (function != nullptr) {
+    } else if (!function.is_null()) {
       function->feedback_vector()->increment_deopt_count();
     }
   }
@@ -1810,6 +1808,8 @@ void Deoptimizer::QueueValueForMaterialization(
 
 unsigned Deoptimizer::ComputeInputFrameAboveFpFixedSize() const {
   unsigned fixed_size = CommonFrameConstants::kFixedFrameSizeAboveFp;
+  // TODO(jkummerow): If {function_->IsSmi()} can indeed be true, then
+  // {function_} should not have type {JSFunction}.
   if (!function_->IsSmi()) {
     fixed_size += ComputeIncomingArgumentSize(function_->shared());
   }

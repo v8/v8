@@ -30,12 +30,12 @@ ACCESSORS_CHECKED(AllocationSite, weak_next, Object, kWeakNextOffset,
                   HasWeakNext())
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
-JSObject* AllocationSite::boilerplate() const {
+JSObject AllocationSite::boilerplate() const {
   DCHECK(PointsToLiteral());
   return JSObject::cast(transition_info_or_boilerplate());
 }
 
-void AllocationSite::set_boilerplate(JSObject* object, WriteBarrierMode mode) {
+void AllocationSite::set_boilerplate(JSObject object, WriteBarrierMode mode) {
   set_transition_info_or_boilerplate(object, mode);
 }
 

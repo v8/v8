@@ -16,9 +16,15 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(JSArrayBuffer)
-CAST_ACCESSOR(JSArrayBufferView)
-CAST_ACCESSOR(JSTypedArray)
+OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSTypedArray, JSArrayBufferView)
+OBJECT_CONSTRUCTORS_IMPL(JSDataView, JSArrayBufferView)
+
+CAST_ACCESSOR2(JSArrayBuffer)
+CAST_ACCESSOR2(JSArrayBufferView)
+CAST_ACCESSOR2(JSTypedArray)
+CAST_ACCESSOR2(JSDataView)
 
 size_t JSArrayBuffer::byte_length() const {
   return READ_UINTPTR_FIELD(this, kByteLengthOffset);

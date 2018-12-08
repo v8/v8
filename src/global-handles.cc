@@ -268,7 +268,7 @@ class GlobalHandles::Node {
     void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
     if (weakness_type() != PHANTOM_WEAK && object()->IsJSObject()) {
-      JSObject* jsobject = JSObject::cast(object());
+      JSObject jsobject = JSObject::cast(object());
       int field_count = jsobject->GetEmbedderFieldCount();
       for (int i = 0; i < v8::kEmbedderFieldsInWeakCallback; ++i) {
         if (field_count == i) break;

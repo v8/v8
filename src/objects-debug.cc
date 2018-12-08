@@ -524,7 +524,7 @@ bool JSObject::ElementsAreSafeToExamine() const {
 }
 
 namespace {
-void VerifyJSObjectElements(Isolate* isolate, JSObject* object) {
+void VerifyJSObjectElements(Isolate* isolate, JSObject object) {
   // Only TypedArrays can have these specialized elements.
   if (object->IsJSTypedArray()) {
     // TODO(cbruni): Fix CreateTypedArray to either not instantiate the object
@@ -632,7 +632,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
              (elements()->map() == GetReadOnlyRoots().fixed_array_map() ||
               elements()->map() == GetReadOnlyRoots().fixed_cow_array_map()));
     CHECK_EQ(map()->has_fast_object_elements(), HasObjectElements());
-    VerifyJSObjectElements(isolate, this);
+    VerifyJSObjectElements(isolate, *this);
   }
 }
 
@@ -830,7 +830,7 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
 void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
   if (IsSloppyArgumentsElementsKind(GetElementsKind())) {
     SloppyArgumentsElements::cast(elements())
-        ->SloppyArgumentsElementsVerify(isolate, this);
+        ->SloppyArgumentsElementsVerify(isolate, *this);
   }
   if (isolate->IsInAnyContext(map(), Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
       isolate->IsInAnyContext(map(),
@@ -847,7 +847,7 @@ void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
 }
 
 void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
-                                                            JSObject* holder) {
+                                                            JSObject holder) {
   FixedArrayVerify(isolate);
   // Abort verification if only partially initialized (can't use arguments()
   // getter because it does FixedArray::cast()).
@@ -1050,7 +1050,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK(feedback_cell()->IsFeedbackCell());
   CHECK(code()->IsCode());
   CHECK(map()->is_callable());
-  Handle<JSFunction> function(this, isolate);
+  Handle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (has_prototype_slot()) {
@@ -1302,11 +1302,11 @@ void JSWeakCell::JSWeakCellVerify(Isolate* isolate) {
 
   CHECK(next()->IsJSWeakCell() || next()->IsUndefined(isolate));
   if (next()->IsJSWeakCell()) {
-    CHECK_EQ(JSWeakCell::cast(next())->prev(), this);
+    CHECK_EQ(JSWeakCell::cast(next())->prev(), *this);
   }
   CHECK(prev()->IsJSWeakCell() || prev()->IsUndefined(isolate));
   if (prev()->IsJSWeakCell()) {
-    CHECK_EQ(JSWeakCell::cast(prev())->next(), this);
+    CHECK_EQ(JSWeakCell::cast(prev())->next(), *this);
   }
 
   CHECK(factory()->IsUndefined(isolate) || factory()->IsJSWeakFactory());
@@ -2139,7 +2139,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->UnusedPropertyFields();
   } else if (IsJSGlobalObject()) {
-    GlobalDictionary dict = JSGlobalObject::cast(this)->global_dictionary();
+    GlobalDictionary dict = JSGlobalObject::cast(*this)->global_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict->Capacity() - dict->NumberOfElements();

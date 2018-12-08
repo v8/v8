@@ -832,13 +832,13 @@ class FunctionDataMap : public ThreadVisitor {
           if (!Lookup(sfi, &data)) continue;
           data->shared = handle(sfi, isolate);
         } else if (obj->IsJSFunction()) {
-          JSFunction* js_function = JSFunction::cast(obj);
+          JSFunction js_function = JSFunction::cast(obj);
           SharedFunctionInfo sfi = js_function->shared();
           FunctionData* data = nullptr;
           if (!Lookup(sfi, &data)) continue;
           data->js_functions.emplace_back(js_function, isolate);
         } else if (obj->IsJSGeneratorObject()) {
-          JSGeneratorObject* gen = JSGeneratorObject::cast(obj);
+          JSGeneratorObject gen = JSGeneratorObject::cast(obj);
           if (gen->is_closed()) continue;
           SharedFunctionInfo sfi = gen->function()->shared();
           FunctionData* data = nullptr;

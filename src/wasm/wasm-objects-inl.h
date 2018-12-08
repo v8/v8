@@ -21,15 +21,22 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(WasmTableObject, JSObject)
+
 CAST_ACCESSOR(WasmDebugInfo)
-CAST_ACCESSOR(WasmExceptionObject)
+CAST_ACCESSOR2(WasmExceptionObject)
 CAST_ACCESSOR(WasmExceptionTag)
 CAST_ACCESSOR(WasmExportedFunctionData)
-CAST_ACCESSOR(WasmGlobalObject)
-CAST_ACCESSOR(WasmInstanceObject)
-CAST_ACCESSOR(WasmMemoryObject)
-CAST_ACCESSOR(WasmModuleObject)
-CAST_ACCESSOR(WasmTableObject)
+CAST_ACCESSOR2(WasmGlobalObject)
+CAST_ACCESSOR2(WasmInstanceObject)
+CAST_ACCESSOR2(WasmMemoryObject)
+CAST_ACCESSOR2(WasmModuleObject)
+CAST_ACCESSOR2(WasmTableObject)
 CAST_ACCESSOR(AsmWasmData)
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset) \
@@ -94,13 +101,13 @@ ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
 ACCESSORS2(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 
 // WasmMemoryObject
-ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
+ACCESSORS2(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
 OPTIONAL_ACCESSORS2(WasmMemoryObject, instances, WeakArrayList,
                     kInstancesOffset)
 
 // WasmGlobalObject
-ACCESSORS(WasmGlobalObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
+ACCESSORS2(WasmGlobalObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
 SMI_ACCESSORS(WasmGlobalObject, flags, kFlagsOffset)
 BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, type, WasmGlobalObject::TypeBits)
@@ -173,20 +180,20 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
 PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_start, Address,
                     kJumpTableStartOffset)
 
-ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
-          kModuleObjectOffset)
-ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
+ACCESSORS2(WasmInstanceObject, module_object, WasmModuleObject,
+           kModuleObjectOffset)
+ACCESSORS2(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
 ACCESSORS2(WasmInstanceObject, native_context, Context, kNativeContextOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
-                   kMemoryObjectOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
-                   kGlobalsBufferOffset)
+OPTIONAL_ACCESSORS2(WasmInstanceObject, memory_object, WasmMemoryObject,
+                    kMemoryObjectOffset)
+OPTIONAL_ACCESSORS2(WasmInstanceObject, globals_buffer, JSArrayBuffer,
+                    kGlobalsBufferOffset)
 OPTIONAL_ACCESSORS2(WasmInstanceObject, imported_mutable_globals_buffers,
                     FixedArray, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, table_object, WasmTableObject,
-                   kTableObjectOffset)
+OPTIONAL_ACCESSORS2(WasmInstanceObject, table_object, WasmTableObject,
+                    kTableObjectOffset)
 ACCESSORS2(WasmInstanceObject, imported_function_refs, FixedArray,
            kImportedFunctionRefsOffset)
 OPTIONAL_ACCESSORS2(WasmInstanceObject, indirect_function_table_refs,
@@ -222,16 +229,22 @@ ACCESSORS2(WasmExceptionObject, serialized_signature, PodArray<wasm::ValueType>,
            kSerializedSignatureOffset)
 ACCESSORS(WasmExceptionObject, exception_tag, HeapObject, kExceptionTagOffset)
 
+// WasmExportedFunction
+WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {
+  SLOW_DCHECK(IsWasmExportedFunction(*this));
+}
+CAST_ACCESSOR2(WasmExportedFunction)
+
 // WasmExportedFunctionData
 ACCESSORS2(WasmExportedFunctionData, wrapper_code, Code, kWrapperCodeOffset)
-ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
-          kInstanceOffset)
+ACCESSORS2(WasmExportedFunctionData, instance, WasmInstanceObject,
+           kInstanceOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, jump_table_offset,
               kJumpTableOffsetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
 
 // WasmDebugInfo
-ACCESSORS(WasmDebugInfo, wasm_instance, WasmInstanceObject, kInstanceOffset)
+ACCESSORS2(WasmDebugInfo, wasm_instance, WasmInstanceObject, kInstanceOffset)
 ACCESSORS(WasmDebugInfo, interpreter_handle, Object, kInterpreterHandleOffset)
 ACCESSORS2(WasmDebugInfo, interpreted_functions, FixedArray,
            kInterpretedFunctionsOffset)

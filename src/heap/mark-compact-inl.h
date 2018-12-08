@@ -73,7 +73,7 @@ template <FixedArrayVisitationMode fixed_array_mode,
 template <typename T>
 V8_INLINE int
 MarkingVisitor<fixed_array_mode, retaining_path_mode,
-               MarkingState>::VisitEmbedderTracingSubclass(Map map, T* object) {
+               MarkingState>::VisitEmbedderTracingSubclass(Map map, T object) {
   if (heap_->local_embedder_heap_tracer()->InUse()) {
     marking_worklist()->embedder()->Push(MarkCompactCollectorBase::kMainThread,
                                          object);
@@ -86,7 +86,7 @@ MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitJSApiObject(Map map, JSObject* object) {
+                   MarkingState>::VisitJSApiObject(Map map, JSObject object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
 
@@ -94,14 +94,14 @@ template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitJSArrayBuffer(Map map,
-                                                     JSArrayBuffer* object) {
+                                                     JSArrayBuffer object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitJSDataView(Map map, JSDataView* object) {
+                   MarkingState>::VisitJSDataView(Map map, JSDataView object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
 
@@ -109,7 +109,7 @@ template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitJSTypedArray(Map map,
-                                                    JSTypedArray* object) {
+                                                    JSTypedArray object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
 
@@ -180,7 +180,7 @@ template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitJSWeakCell(Map map,
-                                                  JSWeakCell* weak_cell) {
+                                                  JSWeakCell weak_cell) {
   if (weak_cell->target()->IsHeapObject()) {
     HeapObject* target = HeapObject::cast(weak_cell->target());
     if (marking_state()->IsBlackOrGrey(target)) {

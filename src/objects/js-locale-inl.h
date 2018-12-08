@@ -19,6 +19,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSLocale, JSObject)
+
 // Base locale accessors.
 ACCESSORS(JSLocale, language, Object, kLanguageOffset);
 ACCESSORS(JSLocale, script, Object, kScriptOffset);
@@ -32,7 +34,7 @@ ACCESSORS(JSLocale, collation, Object, kCollationOffset);
 ACCESSORS(JSLocale, numbering_system, Object, kNumberingSystemOffset);
 SMI_ACCESSORS(JSLocale, flags, kFlagsOffset)
 
-CAST_ACCESSOR(JSLocale);
+CAST_ACCESSOR2(JSLocale);
 
 inline void JSLocale::set_case_first(CaseFirst case_first) {
   DCHECK_GT(CaseFirst::COUNT, case_first);

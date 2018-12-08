@@ -22,6 +22,7 @@ class ObjectPtr {
  public:
   constexpr ObjectPtr() : ptr_(kNullAddress) {}
   explicit constexpr ObjectPtr(Address ptr) : ptr_(ptr) {}
+  static ObjectPtr cast(Object* obj) { return ObjectPtr(obj->ptr()); }
 
   // Enable incremental transition.
   operator Object*() const { return reinterpret_cast<Object*>(ptr()); }
@@ -123,6 +124,8 @@ class ObjectPtr {
   static void VerifyPointer(Isolate* isolate, Object* p);
 #endif
 
+  inline void VerifyApiCallResultType();
+
   inline void ShortPrint(FILE* out = stdout);
   void ShortPrint(std::ostream& os);  // NOLINT
   inline void Print();
@@ -186,6 +189,8 @@ class HeapObjectPtr : public ObjectPtr {
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
+  V8_INLINE bool IsExternal(Isolate* isolate) const;
+
   // Untagged aligned address.
   inline Address address() const { return ptr() - kHeapObjectTag; }
 
@@ -212,6 +217,8 @@ class HeapObjectPtr : public ObjectPtr {
   inline Address GetFieldAddress(int field_offset) const;
 
   DECL_CAST2(HeapObjectPtr)
+
+  inline bool NeedsRehashing() const;
 
  protected:
   // Special-purpose constructor for subclasses that have fast paths where

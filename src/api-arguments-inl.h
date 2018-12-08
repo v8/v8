@@ -37,7 +37,7 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   return result;
 }
 
-inline JSObject* PropertyCallbackArguments::holder() {
+inline JSObject PropertyCallbackArguments::holder() {
   return JSObject::cast(*slot_at(T::kHolderIndex));
 }
 
@@ -45,7 +45,7 @@ inline Object* PropertyCallbackArguments::receiver() {
   return Object::cast(*slot_at(T::kThisIndex));
 }
 
-inline JSObject* FunctionCallbackArguments::holder() {
+inline JSObject FunctionCallbackArguments::holder() {
   return JSObject::cast(*slot_at(T::kHolderIndex));
 }
 

@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace, JSObject)
+
 CAST_ACCESSOR(Module)
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS2(Module, exports, ObjectHashTable, kExportsOffset)
@@ -37,7 +39,7 @@ ModuleInfo Module::info() const {
              : GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
 }
 
-CAST_ACCESSOR(JSModuleNamespace)
+CAST_ACCESSOR2(JSModuleNamespace)
 ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
 
 CAST_ACCESSOR(ModuleInfoEntry)

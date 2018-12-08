@@ -710,7 +710,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
   return ThrowIfOutOfMemory();
 }
 
-void ValueSerializer::WriteJSDate(JSDate* date) {
+void ValueSerializer::WriteJSDate(JSDate date) {
   WriteTag(SerializationTag::kDate);
   WriteDouble(date->value()->Number());
 }
@@ -738,7 +738,7 @@ Maybe<bool> ValueSerializer::WriteJSValue(Handle<JSValue> value) {
   return ThrowIfOutOfMemory();
 }
 
-void ValueSerializer::WriteJSRegExp(JSRegExp* regexp) {
+void ValueSerializer::WriteJSRegExp(JSRegExp regexp) {
   WriteTag(SerializationTag::kRegExp);
   WriteString(handle(regexp->Pattern(), isolate_));
   WriteVarint(static_cast<uint32_t>(regexp->GetFlags()));
@@ -844,7 +844,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   return ThrowIfOutOfMemory();
 }
 
-Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
+Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
   if (treat_array_buffer_views_as_host_objects_) {
     return WriteHostObject(handle(view, isolate_));
   }

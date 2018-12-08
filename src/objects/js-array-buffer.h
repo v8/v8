@@ -77,7 +77,7 @@ class JSArrayBuffer : public JSObject {
   // [is_wasm_memory]: whether the buffer is tracked by the WasmMemoryTracker.
   DECL_BOOLEAN_ACCESSORS(is_wasm_memory)
 
-  DECL_CAST(JSArrayBuffer)
+  DECL_CAST2(JSArrayBuffer)
 
   void Neuter();
 
@@ -141,8 +141,7 @@ class JSArrayBuffer : public JSObject {
 
   class BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
+  OBJECT_CONSTRUCTORS(JSArrayBuffer, JSObject);
 };
 
 class JSArrayBufferView : public JSObject {
@@ -156,7 +155,7 @@ class JSArrayBufferView : public JSObject {
   // [byte_length]: length of typed array in bytes.
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
-  DECL_CAST(JSArrayBufferView)
+  DECL_CAST2(JSArrayBufferView)
 
   DECL_VERIFIER(JSArrayBufferView)
 
@@ -178,8 +177,7 @@ class JSArrayBufferView : public JSObject {
 
   class BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBufferView);
+  OBJECT_CONSTRUCTORS(JSArrayBufferView, JSObject);
 };
 
 class JSTypedArray : public JSArrayBufferView {
@@ -193,7 +191,7 @@ class JSTypedArray : public JSArrayBufferView {
       Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
 
-  DECL_CAST(JSTypedArray)
+  DECL_CAST2(JSTypedArray)
 
   ExternalArrayType type();
   V8_EXPORT_PRIVATE size_t element_size();
@@ -233,12 +231,12 @@ class JSTypedArray : public JSArrayBufferView {
   DECL_ACCESSORS(raw_length, Object)
 #endif
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSTypedArray);
+  OBJECT_CONSTRUCTORS(JSTypedArray, JSArrayBufferView);
 };
 
 class JSDataView : public JSArrayBufferView {
  public:
-  DECL_CAST(JSDataView)
+  DECL_CAST2(JSDataView)
 
   // Dispatched behavior.
   DECL_PRINTER(JSDataView)
@@ -249,8 +247,7 @@ class JSDataView : public JSArrayBufferView {
       kHeaderSize +
       v8::ArrayBufferView::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataView);
+  OBJECT_CONSTRUCTORS(JSDataView, JSArrayBufferView);
 };
 
 }  // namespace internal

@@ -52,11 +52,11 @@ class WasmInstanceObject;
   V(FixedDoubleArray, FixedDoubleArray)                                       \
   V(FixedFloat64Array, FixedFloat64Array)                                     \
   V(FixedTypedArrayBase, FixedTypedArrayBase)                                 \
-  V(JSArrayBuffer, JSArrayBuffer*)                                            \
-  V(JSDataView, JSDataView*)                                                  \
-  V(JSObject, JSObject*)                                                      \
-  V(JSTypedArray, JSTypedArray*)                                              \
-  V(JSWeakCollection, JSWeakCollection*)                                      \
+  V(JSArrayBuffer, JSArrayBuffer)                                             \
+  V(JSDataView, JSDataView)                                                   \
+  V(JSObject, JSObject)                                                       \
+  V(JSTypedArray, JSTypedArray)                                               \
+  V(JSWeakCollection, JSWeakCollection)                                       \
   V(Map, Map)                                                                 \
   V(NativeContext, NativeContext)                                             \
   V(Oddball, Oddball*)                                                        \
@@ -76,7 +76,7 @@ class WasmInstanceObject;
   V(TransitionArray, TransitionArray)                                         \
   V(UncompiledDataWithoutPreParsedScope, UncompiledDataWithoutPreParsedScope) \
   V(UncompiledDataWithPreParsedScope, UncompiledDataWithPreParsedScope)       \
-  V(WasmInstanceObject, WasmInstanceObject*)
+  V(WasmInstanceObject, WasmInstanceObject)
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using
@@ -114,8 +114,8 @@ class HeapVisitor : public ObjectVisitor {
 #undef VISIT
   V8_INLINE ResultType VisitShortcutCandidate(Map map, ConsString object);
   V8_INLINE ResultType VisitDataObject(Map map, HeapObject* object);
-  V8_INLINE ResultType VisitJSObjectFast(Map map, JSObject* object);
-  V8_INLINE ResultType VisitJSApiObject(Map map, JSObject* object);
+  V8_INLINE ResultType VisitJSObjectFast(Map map, JSObject object);
+  V8_INLINE ResultType VisitJSApiObject(Map map, JSObject object);
   V8_INLINE ResultType VisitStruct(Map map, HeapObject* object);
   V8_INLINE ResultType VisitFreeSpace(Map map, FreeSpace* object);
   V8_INLINE ResultType VisitWeakArray(Map map, HeapObject* object);
@@ -137,7 +137,7 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
   // Special cases for young generation.
 
   V8_INLINE int VisitNativeContext(Map map, NativeContext object);
-  V8_INLINE int VisitJSApiObject(Map map, JSObject* object);
+  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
 
   int VisitBytecodeArray(Map map, BytecodeArray object) {
     UNREACHABLE();
@@ -145,11 +145,7 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
   }
 
   int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
-
-  int VisitJSWeakCell(Map map, JSWeakCell* js_weak_cell) {
-    UNREACHABLE();
-    return 0;
-  }
+  int VisitJSWeakCell(Map map, JSWeakCell js_weak_cell);
 };
 
 class WeakObjectRetainer;

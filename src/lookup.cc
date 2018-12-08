@@ -148,7 +148,7 @@ void LookupIterator::Start() {
   state_ = NOT_FOUND;
   holder_ = initial_holder_;
 
-  JSReceiver* holder = *holder_;
+  JSReceiver holder = *holder_;
   Map map = holder->map();
 
   state_ = LookupInHolder<is_element>(map, holder);
@@ -166,7 +166,7 @@ void LookupIterator::Next() {
   DisallowHeapAllocation no_gc;
   has_property_ = false;
 
-  JSReceiver* holder = *holder_;
+  JSReceiver holder = *holder_;
   Map map = holder->map();
 
   if (map->IsSpecialReceiverMap()) {
@@ -180,10 +180,10 @@ void LookupIterator::Next() {
 }
 
 template <bool is_element>
-void LookupIterator::NextInternal(Map map, JSReceiver* holder) {
+void LookupIterator::NextInternal(Map map, JSReceiver holder) {
   do {
-    JSReceiver* maybe_holder = NextHolder(map);
-    if (maybe_holder == nullptr) {
+    JSReceiver maybe_holder = NextHolder(map);
+    if (maybe_holder.is_null()) {
       if (interceptor_state_ == InterceptorState::kSkipNonMasking) {
         RestartLookupForNonMaskingInterceptors<is_element>();
         return;
@@ -255,7 +255,7 @@ void LookupIterator::ReloadPropertyInformation() {
 
 namespace {
 
-bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, JSReceiver* holder) {
+bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, JSReceiver holder) {
   static uint32_t context_slots[] = {
 #define TYPED_ARRAY_CONTEXT_SLOTS(Type, type, TYPE, ctype) \
   Context::TYPE##_ARRAY_FUN_INDEX,
@@ -868,8 +868,8 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DisallowHeapAllocation no_gc;
   if (*receiver_ == *holder_) return true;
   if (!receiver_->IsJSReceiver()) return false;
-  JSReceiver* current = JSReceiver::cast(*receiver_);
-  JSReceiver* object = *holder_;
+  JSReceiver current = JSReceiver::cast(*receiver_);
+  JSReceiver object = *holder_;
   if (!current->map()->has_hidden_prototype()) return false;
   // JSProxy do not occur as hidden prototypes.
   if (object->IsJSProxy()) return false;
@@ -1047,7 +1047,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
 }
 
 template <bool is_element>
-bool LookupIterator::SkipInterceptor(JSObject* holder) {
+bool LookupIterator::SkipInterceptor(JSObject holder) {
   auto info = GetInterceptor<is_element>(holder);
   if (!is_element && name_->IsSymbol() && !info->can_intercept_symbols()) {
     return true;
@@ -1066,14 +1066,18 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
   return interceptor_state_ == InterceptorState::kProcessNonMasking;
 }
 
-JSReceiver* LookupIterator::NextHolder(Map map) {
+JSReceiver LookupIterator::NextHolder(Map map) {
   DisallowHeapAllocation no_gc;
-  if (map->prototype() == ReadOnlyRoots(heap()).null_value()) return nullptr;
-  if (!check_prototype_chain() && !map->has_hidden_prototype()) return nullptr;
+  if (map->prototype() == ReadOnlyRoots(heap()).null_value()) {
+    return JSReceiver();
+  }
+  if (!check_prototype_chain() && !map->has_hidden_prototype()) {
+    return JSReceiver();
+  }
   return JSReceiver::cast(map->prototype());
 }
 
-LookupIterator::State LookupIterator::NotFound(JSReceiver* const holder) const {
+LookupIterator::State LookupIterator::NotFound(JSReceiver const holder) const {
   DCHECK(!IsElement());
   if (!holder->IsJSTypedArray() || !name_->IsString()) return NOT_FOUND;
 
@@ -1095,7 +1099,7 @@ bool HasInterceptor(Map map) {
 
 template <bool is_element>
 LookupIterator::State LookupIterator::LookupInSpecialHolder(
-    Map const map, JSReceiver* const holder) {
+    Map const map, JSReceiver const holder) {
   STATIC_ASSERT(INTERCEPTOR == BEFORE_PROPERTY);
   switch (state_) {
     case NOT_FOUND:
@@ -1144,14 +1148,14 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
 
 template <bool is_element>
 LookupIterator::State LookupIterator::LookupInRegularHolder(
-    Map const map, JSReceiver* const holder) {
+    Map const map, JSReceiver const holder) {
   DisallowHeapAllocation no_gc;
   if (interceptor_state_ == InterceptorState::kProcessNonMasking) {
     return NOT_FOUND;
   }
 
   if (is_element) {
-    JSObject* js_object = JSObject::cast(holder);
+    JSObject js_object = JSObject::cast(holder);
     ElementsAccessor* accessor = js_object->GetElementsAccessor();
     FixedArrayBase backing_store = js_object->elements();
     number_ =

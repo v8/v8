@@ -54,7 +54,7 @@ class JSListFormat : public JSObject {
   Handle<String> StyleAsString() const;
   Handle<String> TypeAsString() const;
 
-  DECL_CAST(JSListFormat)
+  DECL_CAST2(JSListFormat)
 
   // ListFormat accessors.
   DECL_ACCESSORS2(locale, String)
@@ -116,8 +116,7 @@ class JSListFormat : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_LIST_FORMAT_FIELDS)
 #undef JS_LIST_FORMAT_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSListFormat);
+  OBJECT_CONSTRUCTORS(JSListFormat, JSObject);
 };
 
 }  // namespace internal

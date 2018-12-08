@@ -16,12 +16,16 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(JSAsyncFunctionObject)
-CAST_ACCESSOR(JSAsyncGeneratorObject)
-CAST_ACCESSOR(JSGeneratorObject)
+OBJECT_CONSTRUCTORS_IMPL(JSGeneratorObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject, JSGeneratorObject)
+OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject, JSGeneratorObject)
+
+CAST_ACCESSOR2(JSAsyncFunctionObject)
+CAST_ACCESSOR2(JSAsyncGeneratorObject)
+CAST_ACCESSOR2(JSGeneratorObject)
 CAST_ACCESSOR(AsyncGeneratorRequest)
 
-ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
+ACCESSORS2(JSGeneratorObject, function, JSFunction, kFunctionOffset)
 ACCESSORS2(JSGeneratorObject, context, Context, kContextOffset)
 ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
 ACCESSORS(JSGeneratorObject, input_or_debug_pos, Object, kInputOrDebugPosOffset)
@@ -49,7 +53,7 @@ bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
 
-ACCESSORS(JSAsyncFunctionObject, promise, JSPromise, kPromiseOffset)
+ACCESSORS2(JSAsyncFunctionObject, promise, JSPromise, kPromiseOffset)
 
 ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
 SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)

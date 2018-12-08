@@ -21,8 +21,9 @@ class JSGlobalProxy;
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
-class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
+class JSReceiver : public HeapObjectPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   // Returns true if there is no slow (ie, dictionary) backing store.
   inline bool HasFastProperties() const;
 
@@ -64,7 +65,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
 
-  DECL_CAST(JSReceiver)
+  DECL_CAST2(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ToPrimitive(
@@ -230,7 +231,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
-  static Smi CreateIdentityHash(Isolate* isolate, JSReceiver* key);
+  static Smi CreateIdentityHash(Isolate* isolate, JSReceiver key);
   Smi GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
@@ -267,8 +268,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   bool HasComplexElements();
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
+  OBJECT_CONSTRUCTORS(JSReceiver, HeapObjectPtr);
 };
 
 // The JSObject describes real heap allocated JavaScript objects with
@@ -448,7 +448,7 @@ class JSObject : public JSReceiver {
                                               Isolate* isolate);
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
   static Map InvalidatePrototypeChains(Map map);
-  static void InvalidatePrototypeValidityCell(JSGlobalObject* global);
+  static void InvalidatePrototypeValidityCell(JSGlobalObject global);
 
   // Updates prototype chain tracking information when an object changes its
   // map from |old_map| to |new_map|.
@@ -456,7 +456,7 @@ class JSObject : public JSReceiver {
                               Isolate* isolate);
 
   // Utility used by many Array builtins and runtime functions
-  static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object);
+  static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject object);
 
   // To be passed to PrototypeUsers::Compact.
   static void PrototypeRegistryCompactionCallback(HeapObject* value,
@@ -495,7 +495,7 @@ class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
       LookupIterator* it, bool* done);
 
-  static void ValidateElements(JSObject* object);
+  static void ValidateElements(JSObject object);
 
   // Makes sure that this object can contain HeapObject as elements.
   static inline void EnsureCanContainHeapObjectElements(Handle<JSObject> obj);
@@ -657,7 +657,7 @@ class JSObject : public JSReceiver {
 
   static bool IsExtensible(Handle<JSObject> object);
 
-  DECL_CAST(JSObject)
+  DECL_CAST2(JSObject)
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
@@ -795,7 +795,7 @@ class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Handle<JSObject> object, ShouldThrow should_throw);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
+  OBJECT_CONSTRUCTORS(JSObject, JSReceiver);
 };
 
 // JSAccessorPropertyDescriptor is just a JSObject with a specific initial
@@ -880,8 +880,9 @@ class JSIteratorResult : public JSObject {
   static const int kValueIndex = 0;
   static const int kDoneIndex = 1;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSIteratorResult);
+  DECL_CAST2(JSIteratorResult)
+
+  OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };
 
 // JSBoundFunction describes a bound function exotic object.
@@ -889,7 +890,7 @@ class JSBoundFunction : public JSObject {
  public:
   // [bound_target_function]: The wrapped function object.
   inline Object* raw_bound_target_function() const;
-  DECL_ACCESSORS(bound_target_function, JSReceiver)
+  DECL_ACCESSORS2(bound_target_function, JSReceiver)
 
   // [bound_this]: The value that is always passed as the this value when
   // calling the wrapped function.
@@ -906,7 +907,7 @@ class JSBoundFunction : public JSObject {
   static MaybeHandle<Context> GetFunctionRealm(
       Handle<JSBoundFunction> function);
 
-  DECL_CAST(JSBoundFunction)
+  DECL_CAST2(JSBoundFunction)
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -927,8 +928,7 @@ class JSBoundFunction : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_BOUND_FUNCTION_FIELDS)
 #undef JS_BOUND_FUNCTION_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSBoundFunction);
+  OBJECT_CONSTRUCTORS(JSBoundFunction, JSObject);
 };
 
 // JSFunction describes JavaScript functions.
@@ -950,7 +950,7 @@ class JSFunction : public JSObject {
   inline Context context();
   inline bool has_context() const;
   inline void set_context(Object* context);
-  inline JSGlobalProxy* global_proxy();
+  inline JSGlobalProxy global_proxy();
   inline Context native_context();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
@@ -961,7 +961,7 @@ class JSFunction : public JSObject {
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
-  inline Code code();
+  inline Code code() const;
   inline void set_code(Code code);
   inline void set_code_no_write_barrier(Code code);
 
@@ -1073,7 +1073,7 @@ class JSFunction : public JSObject {
   // Prints the name of the function using PrintF.
   void PrintName(FILE* out = stdout);
 
-  DECL_CAST(JSFunction)
+  DECL_CAST2(JSFunction)
 
   // Calculate the instance size and in-object properties count.
   static bool CalculateInstanceSizeForDerivedClass(
@@ -1131,8 +1131,7 @@ class JSFunction : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_FUNCTION_FIELDS)
 #undef JS_FUNCTION_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);
+  OBJECT_CONSTRUCTORS(JSFunction, JSObject);
 };
 
 // JSGlobalProxy's prototype must be a JSGlobalObject or null,
@@ -1149,9 +1148,9 @@ class JSGlobalProxy : public JSObject {
   // It is null value if this object is not used by any context.
   DECL_ACCESSORS(native_context, Object)
 
-  DECL_CAST(JSGlobalProxy)
+  DECL_CAST2(JSGlobalProxy)
 
-  inline bool IsDetachedFrom(JSGlobalObject* global) const;
+  inline bool IsDetachedFrom(JSGlobalObject global) const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
@@ -1168,8 +1167,7 @@ class JSGlobalProxy : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GLOBAL_PROXY_FIELDS)
 #undef JS_GLOBAL_PROXY_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
+  OBJECT_CONSTRUCTORS(JSGlobalProxy, JSObject);
 };
 
 // JavaScript global object.
@@ -1179,7 +1177,7 @@ class JSGlobalObject : public JSObject {
   DECL_ACCESSORS2(native_context, Context)
 
   // [global proxy]: the global proxy object of the context
-  DECL_ACCESSORS(global_proxy, JSObject)
+  DECL_ACCESSORS2(global_proxy, JSObject)
 
   // Gets global object properties.
   inline GlobalDictionary global_dictionary();
@@ -1192,7 +1190,7 @@ class JSGlobalObject : public JSObject {
       Handle<JSGlobalObject> global, Handle<Name> name,
       PropertyCellType cell_type, int* entry_out = nullptr);
 
-  DECL_CAST(JSGlobalObject)
+  DECL_CAST2(JSGlobalObject)
 
   inline bool IsDetached();
 
@@ -1211,8 +1209,7 @@ class JSGlobalObject : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GLOBAL_OBJECT_FIELDS)
 #undef JS_GLOBAL_OBJECT_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalObject);
+  OBJECT_CONSTRUCTORS(JSGlobalObject, JSObject);
 };
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
@@ -1221,7 +1218,7 @@ class JSValue : public JSObject {
   // [value]: the object being wrapped.
   DECL_ACCESSORS(value, Object)
 
-  DECL_CAST(JSValue)
+  DECL_CAST2(JSValue)
 
   // Dispatched behavior.
   DECL_PRINTER(JSValue)
@@ -1236,8 +1233,7 @@ class JSValue : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_VALUE_FIELDS)
 #undef JS_VALUE_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSValue);
+  OBJECT_CONSTRUCTORS(JSValue, JSObject);
 };
 
 class DateCache;
@@ -1269,7 +1265,7 @@ class JSDate : public JSObject {
   // moment when chached fields were cached.
   DECL_ACCESSORS(cache_stamp, Object)
 
-  DECL_CAST(JSDate)
+  DECL_CAST2(JSDate)
 
   // Returns the time value (UTC) identifying the current time.
   static double CurrentTimeValue(Isolate* isolate);
@@ -1341,7 +1337,7 @@ class JSDate : public JSObject {
   // Computes and caches the cacheable fields of the date.
   inline void SetCachedFields(int64_t local_time_ms, DateCache* date_cache);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDate);
+  OBJECT_CONSTRUCTORS(JSDate, JSObject);
 };
 
 // Representation of message objects used for error reporting through
@@ -1387,7 +1383,7 @@ class JSMessageObject : public JSObject {
   inline int error_level() const;
   inline void set_error_level(int level);
 
-  DECL_CAST(JSMessageObject)
+  DECL_CAST2(JSMessageObject)
 
   // Dispatched behavior.
   DECL_PRINTER(JSMessageObject)
@@ -1415,6 +1411,8 @@ class JSMessageObject : public JSObject {
   typedef FixedBodyDescriptor<HeapObject::kMapOffset, kPointerFieldsEndOffset,
                               kSize>
       BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(JSMessageObject, JSObject)
 };
 
 // The [Async-from-Sync Iterator] object
@@ -1424,7 +1422,7 @@ class JSMessageObject : public JSObject {
 // (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
 class JSAsyncFromSyncIterator : public JSObject {
  public:
-  DECL_CAST(JSAsyncFromSyncIterator)
+  DECL_CAST2(JSAsyncFromSyncIterator)
   DECL_PRINTER(JSAsyncFromSyncIterator)
   DECL_VERIFIER(JSAsyncFromSyncIterator)
 
@@ -1433,7 +1431,7 @@ class JSAsyncFromSyncIterator : public JSObject {
   // Async-from-Sync Iterator instances are initially created with the internal
   // slots listed in Table 4.
   // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
-  DECL_ACCESSORS(sync_iterator, JSReceiver)
+  DECL_ACCESSORS2(sync_iterator, JSReceiver)
 
   // The "next" method is loaded during GetIterator, and is not reloaded for
   // subsequent "next" invocations.
@@ -1450,8 +1448,7 @@ class JSAsyncFromSyncIterator : public JSObject {
                                 JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS)
 #undef JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncFromSyncIterator);
+  OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator, JSObject);
 };
 
 class JSStringIterator : public JSObject {
@@ -1460,7 +1457,7 @@ class JSStringIterator : public JSObject {
   DECL_PRINTER(JSStringIterator)
   DECL_VERIFIER(JSStringIterator)
 
-  DECL_CAST(JSStringIterator)
+  DECL_CAST2(JSStringIterator)
 
   // [string]: the [[IteratedString]] inobject property.
   DECL_ACCESSORS2(string, String)
@@ -1480,8 +1477,7 @@ class JSStringIterator : public JSObject {
                                 JS_STRING_ITERATOR_FIELDS)
 #undef JS_STRING_ITERATOR_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSStringIterator);
+  OBJECT_CONSTRUCTORS(JSStringIterator, JSObject);
 };
 
 }  // namespace internal

@@ -732,8 +732,7 @@ class JSCollectionIterator : public JSObject {
                                 JS_COLLECTION_ITERATOR_FIELDS)
 #undef JS_COLLECTION_ITERATOR_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSCollectionIterator);
+  OBJECT_CONSTRUCTORS(JSCollectionIterator, JSObject);
 };
 
 // OrderedHashTableIterator is an iterator that iterates over the keys and
@@ -767,7 +766,7 @@ class OrderedHashTableIterator : public JSCollectionIterator {
   // if the [table] is not obsolete.
   void Transition();
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(OrderedHashTableIterator);
+  OBJECT_CONSTRUCTORS(OrderedHashTableIterator, JSCollectionIterator);
 };
 
 }  // namespace internal

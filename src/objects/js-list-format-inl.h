@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSListFormat, JSObject)
+
 // Base list format accessors.
 ACCESSORS2(JSListFormat, locale, String, kLocaleOffset)
 ACCESSORS(JSListFormat, icu_formatter, Managed<icu::ListFormatter>,
@@ -46,7 +48,7 @@ inline JSListFormat::Type JSListFormat::type() const {
   return TypeBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSListFormat);
+CAST_ACCESSOR2(JSListFormat);
 
 }  // namespace internal
 }  // namespace v8

@@ -18,10 +18,8 @@ namespace internal {
 class JSArgumentsObject : public JSObject {
  public:
   DECL_VERIFIER(JSArgumentsObject)
-  DECL_CAST(JSArgumentsObject)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArgumentsObject);
+  DECL_CAST2(JSArgumentsObject)
+  OBJECT_CONSTRUCTORS(JSArgumentsObject, JSObject);
 };
 
 // Common superclass for JSSloppyArgumentsObject and JSStrictArgumentsObject.
@@ -43,7 +41,6 @@ class JSArgumentsObjectWithLength : public JSArgumentsObject {
   static const int kLengthIndex = 0;
 
   DECL_VERIFIER(JSArgumentsObjectWithLength)
-  DECL_CAST(JSArgumentsObjectWithLength)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArgumentsObjectWithLength);
@@ -121,7 +118,7 @@ class SloppyArgumentsElements : public FixedArray {
 
   DECL_CAST2(SloppyArgumentsElements)
 #ifdef VERIFY_HEAP
-  void SloppyArgumentsElementsVerify(Isolate* isolate, JSObject* holder);
+  void SloppyArgumentsElementsVerify(Isolate* isolate, JSObject holder);
 #endif
 
   OBJECT_CONSTRUCTORS(SloppyArgumentsElements, FixedArray);

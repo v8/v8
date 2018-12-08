@@ -120,7 +120,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectFast(
-    Map map, JSObject* object) {
+    Map map, JSObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = JSObject::FastBodyDescriptor::SizeOf(map, object);
@@ -132,7 +132,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectFast(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSApiObject(
-    Map map, JSObject* object) {
+    Map map, JSObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = JSObject::BodyDescriptor::SizeOf(map, object);
@@ -175,7 +175,7 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map map,
 
 template <typename ConcreteVisitor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitJSApiObject(Map map,
-                                                       JSObject* object) {
+                                                       JSObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   return visitor->VisitJSObject(map, object);
 }
@@ -183,6 +183,13 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitJSApiObject(Map map,
 template <typename ConcreteVisitor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitSharedFunctionInfo(
     Map map, SharedFunctionInfo object) {
+  UNREACHABLE();
+  return 0;
+}
+
+template <typename ConcreteVisitor>
+int NewSpaceVisitor<ConcreteVisitor>::VisitJSWeakCell(Map map,
+                                                      JSWeakCell js_weak_cell) {
   UNREACHABLE();
   return 0;
 }

@@ -516,24 +516,25 @@ HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
 
 void V8HeapExplorer::ExtractLocation(HeapEntry* entry, HeapObject* object) {
   if (object->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(object);
+    JSFunction func = JSFunction::cast(object);
     ExtractLocationForJSFunction(entry, func);
 
   } else if (object->IsJSGeneratorObject()) {
-    JSGeneratorObject* gen = JSGeneratorObject::cast(object);
+    JSGeneratorObject gen = JSGeneratorObject::cast(object);
     ExtractLocationForJSFunction(entry, gen->function());
 
   } else if (object->IsJSObject()) {
-    JSObject* obj = JSObject::cast(object);
-    JSFunction* maybe_constructor = GetConstructor(obj);
+    JSObject obj = JSObject::cast(object);
+    JSFunction maybe_constructor = GetConstructor(obj);
 
-    if (maybe_constructor)
+    if (!maybe_constructor.is_null()) {
       ExtractLocationForJSFunction(entry, maybe_constructor);
+    }
   }
 }
 
 void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
-                                                  JSFunction* func) {
+                                                  JSFunction func) {
   if (!func->shared()->script()->IsScript()) return;
   Script* script = Script::cast(func->shared()->script());
   int scriptId = script->id();
@@ -545,14 +546,14 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
 
 HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   if (object->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(object);
+    JSFunction func = JSFunction::cast(object);
     SharedFunctionInfo shared = func->shared();
     const char* name = names_->GetName(shared->Name());
     return AddEntry(object, HeapEntry::kClosure, name);
   } else if (object->IsJSBoundFunction()) {
     return AddEntry(object, HeapEntry::kClosure, "native_bind");
   } else if (object->IsJSRegExp()) {
-    JSRegExp* re = JSRegExp::cast(object);
+    JSRegExp re = JSRegExp::cast(object);
     return AddEntry(object,
                     HeapEntry::kRegExp,
                     names_->GetName(re->Pattern()));
@@ -773,13 +774,13 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject* obj) {
 }
 
 void V8HeapExplorer::ExtractJSGlobalProxyReferences(HeapEntry* entry,
-                                                    JSGlobalProxy* proxy) {
+                                                    JSGlobalProxy proxy) {
   SetInternalReference(entry, "native_context", proxy->native_context(),
                        JSGlobalProxy::kNativeContextOffset);
 }
 
 void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
-                                               JSObject* js_obj) {
+                                               JSObject js_obj) {
   HeapObject* obj = js_obj;
   ExtractPropertyReferences(js_obj, entry);
   ExtractElementReferences(js_obj, entry);
@@ -788,7 +789,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
   ReadOnlyRoots roots(heap_);
   SetPropertyReference(entry, roots.proto_string(), iter.GetCurrent());
   if (obj->IsJSBoundFunction()) {
-    JSBoundFunction* js_fun = JSBoundFunction::cast(obj);
+    JSBoundFunction js_fun = JSBoundFunction::cast(obj);
     TagObject(js_fun->bound_arguments(), "(bound arguments)");
     SetInternalReference(entry, "bindings", js_fun->bound_arguments(),
                          JSBoundFunction::kBoundArgumentsOffset);
@@ -803,7 +804,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
       SetNativeBindReference(entry, reference_name, bindings->get(i));
     }
   } else if (obj->IsJSFunction()) {
-    JSFunction* js_fun = JSFunction::cast(js_obj);
+    JSFunction js_fun = JSFunction::cast(js_obj);
     if (js_fun->has_prototype_slot()) {
       Object* proto_or_map = js_fun->prototype_or_initial_map();
       if (!proto_or_map->IsTheHole(heap_->isolate())) {
@@ -832,7 +833,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     SetInternalReference(entry, "code", js_fun->code(),
                          JSFunction::kCodeOffset);
   } else if (obj->IsJSGlobalObject()) {
-    JSGlobalObject* global_obj = JSGlobalObject::cast(obj);
+    JSGlobalObject global_obj = JSGlobalObject::cast(obj);
     SetInternalReference(entry, "native_context", global_obj->native_context(),
                          JSGlobalObject::kNativeContextOffset);
     SetInternalReference(entry, "global_proxy", global_obj->global_proxy(),
@@ -840,7 +841,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     STATIC_ASSERT(JSGlobalObject::kSize - JSObject::kHeaderSize ==
                   2 * kPointerSize);
   } else if (obj->IsJSArrayBufferView()) {
-    JSArrayBufferView* view = JSArrayBufferView::cast(obj);
+    JSArrayBufferView view = JSArrayBufferView::cast(obj);
     SetInternalReference(entry, "buffer", view->buffer(),
                          JSArrayBufferView::kBufferOffset);
   }
@@ -876,13 +877,13 @@ void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry, Symbol symbol) {
 }
 
 void V8HeapExplorer::ExtractJSCollectionReferences(HeapEntry* entry,
-                                                   JSCollection* collection) {
+                                                   JSCollection collection) {
   SetInternalReference(entry, "table", collection->table(),
                        JSCollection::kTableOffset);
 }
 
 void V8HeapExplorer::ExtractJSWeakCollectionReferences(HeapEntry* entry,
-                                                       JSWeakCollection* obj) {
+                                                       JSWeakCollection obj) {
   SetInternalReference(entry, "table", obj->table(),
                        JSWeakCollection::kTableOffset);
 }
@@ -1181,10 +1182,9 @@ class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
 };
 
 void V8HeapExplorer::ExtractJSArrayBufferReferences(HeapEntry* entry,
-                                                    JSArrayBuffer* buffer) {
+                                                    JSArrayBuffer buffer) {
   // Setup a reference to a native memory backing_store object.
-  if (!buffer->backing_store())
-    return;
+  if (!buffer->backing_store()) return;
   size_t data_size = buffer->byte_length();
   JSArrayBufferDataEntryAllocator allocator(data_size, this);
   HeapEntry* data_entry =
@@ -1194,14 +1194,14 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractJSPromiseReferences(HeapEntry* entry,
-                                                JSPromise* promise) {
+                                                JSPromise promise) {
   SetInternalReference(entry, "reactions_or_result",
                        promise->reactions_or_result(),
                        JSPromise::kReactionsOrResultOffset);
 }
 
 void V8HeapExplorer::ExtractJSGeneratorObjectReferences(
-    HeapEntry* entry, JSGeneratorObject* generator) {
+    HeapEntry* entry, JSGeneratorObject generator) {
   SetInternalReference(entry, "function", generator->function(),
                        JSGeneratorObject::kFunctionOffset);
   SetInternalReference(entry, "context", generator->context(),
@@ -1266,7 +1266,7 @@ void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
   }
 }
 
-void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
+void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
                                                HeapEntry* entry) {
   Isolate* isolate = js_obj->GetIsolate();
   if (js_obj->HasFastProperties()) {
@@ -1341,7 +1341,7 @@ void V8HeapExplorer::ExtractAccessorPairProperty(HeapEntry* entry, Name key,
   }
 }
 
-void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj,
+void V8HeapExplorer::ExtractElementReferences(JSObject js_obj,
                                               HeapEntry* entry) {
   ReadOnlyRoots roots = js_obj->GetReadOnlyRoots();
   if (js_obj->HasObjectElements()) {
@@ -1367,7 +1367,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj,
   }
 }
 
-void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj,
+void V8HeapExplorer::ExtractInternalReferences(JSObject js_obj,
                                                HeapEntry* entry) {
   int length = js_obj->GetEmbedderFieldCount();
   for (int i = 0; i < length; ++i) {
@@ -1376,19 +1376,19 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj,
   }
 }
 
-JSFunction* V8HeapExplorer::GetConstructor(JSReceiver* receiver) {
+JSFunction V8HeapExplorer::GetConstructor(JSReceiver receiver) {
   Isolate* isolate = receiver->GetIsolate();
   DisallowHeapAllocation no_gc;
   HandleScope scope(isolate);
   MaybeHandle<JSFunction> maybe_constructor =
       JSReceiver::GetConstructor(handle(receiver, isolate));
 
-  if (maybe_constructor.is_null()) return nullptr;
+  if (maybe_constructor.is_null()) return JSFunction();
 
   return *maybe_constructor.ToHandleChecked();
 }
 
-String V8HeapExplorer::GetConstructorName(JSObject* object) {
+String V8HeapExplorer::GetConstructorName(JSObject object) {
   Isolate* isolate = object->GetIsolate();
   if (object->IsJSFunction()) return ReadOnlyRoots(isolate).closure_string();
   DisallowHeapAllocation no_gc;
@@ -1681,7 +1681,7 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   // also used as starting points in distance calculations.
   if (is_weak || !child_obj->IsNativeContext()) return;
 
-  JSGlobalObject* global = Context::cast(child_obj)->global_object();
+  JSGlobalObject global = Context::cast(child_obj)->global_object();
   if (!global->IsJSGlobalObject()) return;
 
   if (!user_roots_.insert(global).second) return;
@@ -1718,7 +1718,7 @@ class GlobalObjectsEnumerator : public RootVisitor {
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot p = start; p < end; ++p) {
       if (!(*p)->IsNativeContext()) continue;
-      JSObject* proxy = Context::cast(*p)->global_proxy();
+      JSObject proxy = Context::cast(*p)->global_proxy();
       if (!proxy->IsJSGlobalProxy()) continue;
       Object* global = proxy->map()->prototype();
       if (!global->IsJSGlobalObject()) continue;

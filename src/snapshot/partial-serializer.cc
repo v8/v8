@@ -105,7 +105,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   if (obj->IsJSFunction()) {
     // Unconditionally reset the JSFunction to its SFI's code, since we can't
     // serialize optimized code anyway.
-    JSFunction* closure = JSFunction::cast(obj);
+    JSFunction closure = JSFunction::cast(obj);
     if (closure->is_compiled()) closure->set_code(closure->shared()->GetCode());
   }
 
@@ -136,7 +136,7 @@ bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
     Object* obj, HowToCode how_to_code, WhereToPoint where_to_point) {
   if (!obj->IsJSObject()) return false;
-  JSObject* js_obj = JSObject::cast(obj);
+  JSObject js_obj = JSObject::cast(obj);
   int embedder_fields_count = js_obj->GetEmbedderFieldCount();
   if (embedder_fields_count == 0) return false;
   CHECK_GT(embedder_fields_count, 0);

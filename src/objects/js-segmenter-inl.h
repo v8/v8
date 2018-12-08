@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(JSSegmenter, JSObject)
+
 // Base segmenter accessors.
 ACCESSORS2(JSSegmenter, locale, String, kLocaleOffset)
 ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
@@ -46,7 +48,7 @@ inline JSSegmenter::Granularity JSSegmenter::granularity() const {
   return GranularityBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSSegmenter);
+CAST_ACCESSOR2(JSSegmenter);
 
 }  // namespace internal
 }  // namespace v8

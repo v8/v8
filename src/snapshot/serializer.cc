@@ -377,14 +377,14 @@ int32_t Serializer::ObjectSerializer::SerializeBackingStore(
 }
 
 void Serializer::ObjectSerializer::SerializeJSTypedArray() {
-  JSTypedArray* typed_array = JSTypedArray::cast(object_);
+  JSTypedArray typed_array = JSTypedArray::cast(object_);
   FixedTypedArrayBase elements =
       FixedTypedArrayBase::cast(typed_array->elements());
 
   if (!typed_array->WasNeutered()) {
     if (!typed_array->is_on_heap()) {
       // Explicitly serialize the backing store now.
-      JSArrayBuffer* buffer = JSArrayBuffer::cast(typed_array->buffer());
+      JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array->buffer());
       CHECK_LE(buffer->byte_length(), Smi::kMaxValue);
       CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
       int32_t byte_length = static_cast<int32_t>(buffer->byte_length());
@@ -414,7 +414,7 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
 }
 
 void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
-  JSArrayBuffer* buffer = JSArrayBuffer::cast(object_);
+  JSArrayBuffer buffer = JSArrayBuffer::cast(object_);
   void* backing_store = buffer->backing_store();
   // We cannot store byte_length larger than Smi range in the snapshot.
   CHECK_LE(buffer->byte_length(), Smi::kMaxValue);

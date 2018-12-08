@@ -52,7 +52,7 @@ class JSRelativeTimeFormat : public JSObject {
 
   static std::set<std::string> GetAvailableLocales();
 
-  DECL_CAST(JSRelativeTimeFormat)
+  DECL_CAST2(JSRelativeTimeFormat)
 
   // RelativeTimeFormat accessors.
   DECL_ACCESSORS2(locale, String)
@@ -122,7 +122,7 @@ class JSRelativeTimeFormat : public JSObject {
   static Style getStyle(const char* str);
   static Numeric getNumeric(const char* str);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSRelativeTimeFormat);
+  OBJECT_CONSTRUCTORS(JSRelativeTimeFormat, JSObject);
 };
 
 }  // namespace internal

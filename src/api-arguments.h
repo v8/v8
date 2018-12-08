@@ -72,7 +72,7 @@ class PropertyCallbackArguments
   static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
   PropertyCallbackArguments(Isolate* isolate, Object* data, Object* self,
-                            JSObject* holder, ShouldThrow should_throw);
+                            JSObject holder, ShouldThrow should_throw);
 
   // -------------------------------------------------------------------------
   // Accessor Callbacks
@@ -139,7 +139,7 @@ class PropertyCallbackArguments
       GenericNamedPropertyGetterCallback f, Handle<Name> name,
       Handle<Object> info, Handle<Object> receiver = Handle<Object>());
 
-  inline JSObject* holder();
+  inline JSObject holder();
   inline Object* receiver();
 
   // Don't copy PropertyCallbackArguments, because they would both have the
@@ -177,7 +177,7 @@ class FunctionCallbackArguments
   inline Handle<Object> Call(CallHandlerInfo* handler);
 
  private:
-  inline JSObject* holder();
+  inline JSObject holder();
 
   internal::Address* argv_;
   int argc_;

@@ -5067,7 +5067,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   // and the String function has been set up.
   Handle<JSFunction> string_function(native_context()->string_function(),
                                      isolate());
-  JSObject* string_function_prototype =
+  JSObject string_function_prototype =
       JSObject::cast(string_function->initial_map()->prototype());
   DCHECK(string_function_prototype->HasFastProperties());
   native_context()->set_string_function_prototype_map(
@@ -5271,7 +5271,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
     // length descriptor.
     {
-      JSFunction* array_function = native_context()->array_function();
+      JSFunction array_function = native_context()->array_function();
       Handle<DescriptorArray> array_descriptors(
           array_function->initial_map()->instance_descriptors(), isolate());
       Handle<String> length = factory()->length_string();
@@ -5908,7 +5908,7 @@ Genesis::Genesis(
       // experimental natives.
       Handle<JSFunction> string_function(native_context()->string_function(),
                                          isolate);
-      JSObject* string_function_prototype =
+      JSObject string_function_prototype =
           JSObject::cast(string_function->initial_map()->prototype());
       DCHECK(string_function_prototype->HasFastProperties());
       native_context()->set_string_function_prototype_map(

@@ -556,8 +556,8 @@ class Context : public HeapObjectPtr {
   inline bool has_extension();
   inline HeapObject* extension();
   inline void set_extension(HeapObject* object);
-  JSObject* extension_object();
-  JSReceiver* extension_receiver();
+  JSObject extension_object();
+  JSReceiver extension_receiver();
   ScopeInfo scope_info();
 
   // Find the module context (assuming there is one) and return the associated
@@ -573,11 +573,11 @@ class Context : public HeapObjectPtr {
   Context closure_context();
 
   // Returns a JSGlobalProxy object or null.
-  JSGlobalProxy* global_proxy();
-  void set_global_proxy(JSGlobalProxy* global);
+  JSGlobalProxy global_proxy();
+  void set_global_proxy(JSGlobalProxy global);
 
   // Get the JSGlobalObject object.
-  V8_EXPORT_PRIVATE JSGlobalObject* global_object();
+  V8_EXPORT_PRIVATE JSGlobalObject global_object();
 
   // Get the script context by traversing the context chain.
   Context script_context();

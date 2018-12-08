@@ -24,28 +24,27 @@ namespace internal {
 namespace {
 
 inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
-                                              JSArray* receiver) {
+                                              JSArray receiver) {
   return JSObject::PrototypeHasNoElements(isolate, receiver);
 }
 
-inline bool HasSimpleElements(JSObject* current) {
+inline bool HasSimpleElements(JSObject current) {
   return !current->map()->IsCustomElementsReceiverMap() &&
          !current->GetElementsAccessor()->HasAccessors(current);
 }
 
-inline bool HasOnlySimpleReceiverElements(Isolate* isolate,
-                                          JSObject* receiver) {
+inline bool HasOnlySimpleReceiverElements(Isolate* isolate, JSObject receiver) {
   // Check that we have no accessors on the receiver's elements.
   if (!HasSimpleElements(receiver)) return false;
   return JSObject::PrototypeHasNoElements(isolate, receiver);
 }
 
-inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver* receiver) {
+inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver receiver) {
   DisallowHeapAllocation no_gc;
   PrototypeIterator iter(isolate, receiver, kStartAtReceiver);
   for (; !iter.IsAtEnd(); iter.Advance()) {
     if (iter.GetCurrent()->IsJSProxy()) return false;
-    JSObject* current = iter.GetCurrent<JSObject>();
+    JSObject current = iter.GetCurrent<JSObject>();
     if (!HasSimpleElements(current)) return false;
   }
   return true;
@@ -425,8 +424,7 @@ V8_WARN_UNUSED_RESULT Object* GenericArrayPop(Isolate* isolate,
   // c. Let element be ? Get(O, index).
   Handle<Object> element;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, element,
-      JSReceiver::GetPropertyOrElement(isolate, receiver, index));
+      isolate, element, Object::GetPropertyOrElement(isolate, receiver, index));
 
   // d. Perform ? DeletePropertyOrThrow(O, index).
   MAYBE_RETURN(JSReceiver::DeletePropertyOrElement(receiver, index,
@@ -733,9 +731,9 @@ class ArrayConcatVisitor {
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     RETURN_ON_EXCEPTION(
         isolate_,
-        JSReceiver::SetProperty(isolate_, result,
-                                isolate_->factory()->length_string(), length,
-                                LanguageMode::kStrict),
+        Object::SetProperty(isolate_, result,
+                            isolate_->factory()->length_string(), length,
+                            LanguageMode::kStrict),
         JSReceiver);
     return result;
   }
@@ -945,7 +943,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       DisallowHeapAllocation no_gc;
       FixedArrayBase elements = object->elements();
-      JSObject* raw_object = *object;
+      JSObject raw_object = *object;
       ElementsAccessor* accessor = object->GetElementsAccessor();
       for (uint32_t i = 0; i < range; i++) {
         if (accessor->HasElement(raw_object, i, elements)) {
@@ -1250,7 +1248,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
           j++;
         } else {
           DisallowHeapAllocation no_gc;
-          JSArray* array = JSArray::cast(*obj);
+          JSArray array = JSArray::cast(*obj);
           uint32_t length = static_cast<uint32_t>(array->length()->Number());
           switch (array->GetElementsKind()) {
             case HOLEY_DOUBLE_ELEMENTS:

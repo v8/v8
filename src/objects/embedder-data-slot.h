@@ -34,7 +34,7 @@ class EmbedderDataSlot
  public:
   EmbedderDataSlot() : SlotBase(kNullAddress) {}
   V8_INLINE EmbedderDataSlot(EmbedderDataArray array, int entry_index);
-  V8_INLINE EmbedderDataSlot(JSObject* object, int embedder_field_index);
+  V8_INLINE EmbedderDataSlot(JSObject object, int embedder_field_index);
 
 #ifdef V8_COMPRESS_POINTERS
   static constexpr int kRawPayloadOffset = kTaggedSize;
@@ -55,7 +55,7 @@ class EmbedderDataSlot
   // functions a
   static V8_INLINE void store_tagged(EmbedderDataArray array, int entry_index,
                                      Object* value);
-  static V8_INLINE void store_tagged(JSObject* object, int embedder_field_index,
+  static V8_INLINE void store_tagged(JSObject object, int embedder_field_index,
                                      Object* value);
 
   // Tries reinterpret the value as an aligned pointer and on success sets

@@ -756,7 +756,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode) const {
     DCHECK(!context_->IsNativeContext());
     DCHECK(!context_->IsWithContext());
     if (!context_->scope_info()->CallsSloppyEval()) return;
-    if (context_->extension_object() == nullptr) return;
+    if (context_->extension_object().is_null()) return;
     Handle<JSObject> extension(context_->extension_object(), isolate_);
     Handle<FixedArray> keys =
         KeyAccumulator::GetKeys(extension, KeyCollectionMode::kOwnOnly,

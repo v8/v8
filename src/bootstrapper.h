@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 // A SourceCodeCache uses a FixedArray to store pairs of
-// (OneByteString, JSFunction*), mapping names of native code files
+// (OneByteString, SharedFunctionInfo), mapping names of native code files
 // (array.js, etc.) to precompiled functions. Instead of mapping
 // names to functions it might make sense to let the JS2C tool
 // generate an index for each native JS file.

@@ -56,7 +56,7 @@ class JSV8BreakIterator : public JSObject {
 
   Handle<String> TypeAsString() const;
 
-  DECL_CAST(JSV8BreakIterator)
+  DECL_CAST2(JSV8BreakIterator)
   DECL_PRINTER(JSV8BreakIterator)
   DECL_VERIFIER(JSV8BreakIterator)
 
@@ -87,8 +87,7 @@ class JSV8BreakIterator : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, BREAK_ITERATOR_FIELDS)
 #undef BREAK_ITERATOR_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSV8BreakIterator)
+  OBJECT_CONSTRUCTORS(JSV8BreakIterator, JSObject)
 };
 
 }  // namespace internal

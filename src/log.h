@@ -179,11 +179,10 @@ class Logger : public CodeEventListener {
 
   // ==== Events logged by --log-api. ====
   void ApiSecurityCheck();
-  void ApiNamedPropertyAccess(const char* tag, JSObject* holder, Object* name);
-  void ApiIndexedPropertyAccess(const char* tag,
-                                JSObject* holder,
+  void ApiNamedPropertyAccess(const char* tag, JSObject holder, Object* name);
+  void ApiIndexedPropertyAccess(const char* tag, JSObject holder,
                                 uint32_t index);
-  void ApiObjectAccess(const char* tag, JSObject* obj);
+  void ApiObjectAccess(const char* tag, JSObject obj);
   void ApiEntryCall(const char* name);
 
   // ==== Events logged by --log-code. ====

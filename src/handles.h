@@ -157,7 +157,12 @@ class Handle final : public HandleBase {
             std::is_same<S, FixedArray>::value ||
             std::is_same<S, FixedArrayBase>::value ||
             std::is_same<S, FixedDoubleArray>::value ||
-            std::is_same<S, Map>::value || std::is_same<S, Name>::value ||
+            std::is_same<S, JSArray>::value ||
+            std::is_same<S, JSFunction>::value ||
+            std::is_same<S, JSGlobalProxy>::value ||
+            std::is_same<S, JSObject>::value ||
+            std::is_same<S, JSReceiver>::value || std::is_same<S, Map>::value ||
+            std::is_same<S, Name>::value ||
             std::is_same<S, NumberDictionary>::value ||
             std::is_same<S, ObjectBoilerplateDescription>::value ||
             std::is_same<S, OrderedHashMap>::value ||
@@ -169,8 +174,8 @@ class Handle final : public HandleBase {
             std::is_same<S, SmallOrderedHashMap>::value ||
             std::is_same<S, SmallOrderedHashSet>::value ||
             std::is_same<S, SmallOrderedNameDictionary>::value ||
-            std::is_same<S, String>::value ||
-            std::is_same<S, Symbol>::value))>::type>
+            std::is_same<S, String>::value || std::is_same<S, Symbol>::value ||
+            std::is_same<S, WasmInstanceObject>::value))>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
   // The NeverReadOnlySpaceObject special-case is needed for the

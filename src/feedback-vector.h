@@ -692,7 +692,7 @@ class FeedbackNexus final {
 
   // Add a type to the list of types for source position <position>.
   void Collect(Handle<String> type, int position);
-  JSObject* GetTypeProfile() const;
+  JSObject GetTypeProfile() const;
 
   std::vector<int> GetSourcePositions() const;
   std::vector<Handle<String>> GetTypesForSourcePositions(uint32_t pos) const;

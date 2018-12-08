@@ -364,8 +364,8 @@ bool HeapObject::IsUndetectable() const { return map()->is_undetectable(); }
 
 bool HeapObject::IsAccessCheckNeeded() const {
   if (IsJSGlobalProxy()) {
-    const JSGlobalProxy* proxy = JSGlobalProxy::cast(this);
-    JSGlobalObject* global = proxy->GetIsolate()->context()->global_object();
+    const JSGlobalProxy proxy = JSGlobalProxy::cast(this);
+    JSGlobalObject global = proxy->GetIsolate()->context()->global_object();
     return proxy->IsDetachedFrom(global);
   }
   return map()->is_access_check_needed();
@@ -1394,7 +1394,7 @@ Object* Object::GetHash() {
   if (hash->IsSmi()) return hash;
 
   DCHECK(IsJSReceiver());
-  JSReceiver* receiver = JSReceiver::cast(this);
+  JSReceiver receiver = JSReceiver::cast(this);
   return receiver->GetIdentityHash();
 }
 

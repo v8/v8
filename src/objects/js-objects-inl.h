@@ -24,18 +24,33 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(JSAsyncFromSyncIterator)
-CAST_ACCESSOR(JSBoundFunction)
-CAST_ACCESSOR(JSDataView)
-CAST_ACCESSOR(JSDate)
-CAST_ACCESSOR(JSFunction)
-CAST_ACCESSOR(JSGlobalObject)
-CAST_ACCESSOR(JSGlobalProxy)
-CAST_ACCESSOR(JSMessageObject)
-CAST_ACCESSOR(JSObject)
-CAST_ACCESSOR(JSReceiver)
-CAST_ACCESSOR(JSStringIterator)
-CAST_ACCESSOR(JSValue)
+OBJECT_CONSTRUCTORS_IMPL(JSReceiver, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(JSObject, JSReceiver)
+OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSDate, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSFunction, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSGlobalObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSGlobalProxy, JSObject)
+JSIteratorResult::JSIteratorResult(Address ptr) : JSObject(ptr) {}
+OBJECT_CONSTRUCTORS_IMPL(JSMessageObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSStringIterator, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSValue, JSObject)
+
+NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
+
+CAST_ACCESSOR2(JSAsyncFromSyncIterator)
+CAST_ACCESSOR2(JSBoundFunction)
+CAST_ACCESSOR2(JSDate)
+CAST_ACCESSOR2(JSFunction)
+CAST_ACCESSOR2(JSGlobalObject)
+CAST_ACCESSOR2(JSGlobalProxy)
+CAST_ACCESSOR2(JSIteratorResult)
+CAST_ACCESSOR2(JSMessageObject)
+CAST_ACCESSOR2(JSObject)
+CAST_ACCESSOR2(JSReceiver)
+CAST_ACCESSOR2(JSStringIterator)
+CAST_ACCESSOR2(JSValue)
 
 MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
                                             Handle<JSReceiver> receiver,
@@ -88,7 +103,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
                                  GetKeysConversion::kConvertToString);
 }
 
-bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
+bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
   DisallowHeapAllocation no_gc;
   HeapObject* prototype = HeapObject::cast(object->map()->prototype());
   ReadOnlyRoots roots(isolate);
@@ -273,15 +288,15 @@ int JSObject::GetEmbedderFieldOffset(int index) {
 }
 
 Object* JSObject::GetEmbedderField(int index) {
-  return EmbedderDataSlot(this, index).load_tagged();
+  return EmbedderDataSlot(*this, index).load_tagged();
 }
 
 void JSObject::SetEmbedderField(int index, Object* value) {
-  EmbedderDataSlot::store_tagged(this, index, value);
+  EmbedderDataSlot::store_tagged(*this, index, value);
 }
 
 void JSObject::SetEmbedderField(int index, Smi value) {
-  EmbedderDataSlot(this, index).store_smi(value);
+  EmbedderDataSlot(*this, index).store_smi(value);
 }
 
 bool JSObject::IsUnboxedDoubleField(FieldIndex index) {
@@ -420,8 +435,8 @@ Object* JSBoundFunction::raw_bound_target_function() const {
   return READ_FIELD(this, kBoundTargetFunctionOffset);
 }
 
-ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
-          kBoundTargetFunctionOffset)
+ACCESSORS2(JSBoundFunction, bound_target_function, JSReceiver,
+           kBoundTargetFunctionOffset)
 ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS2(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
@@ -429,7 +444,7 @@ ACCESSORS2(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
 ACCESSORS2(JSGlobalObject, native_context, Context, kNativeContextOffset)
-ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
+ACCESSORS2(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
@@ -507,12 +522,14 @@ AbstractCode JSFunction::abstract_code() {
   }
 }
 
-Code JSFunction::code() { return Code::cast(READ_FIELD(this, kCodeOffset)); }
+Code JSFunction::code() const {
+  return Code::cast(READ_FIELD(this, kCodeOffset));
+}
 
 void JSFunction::set_code(Code value) {
   DCHECK(!Heap::InNewSpace(value));
   WRITE_FIELD(this, kCodeOffset, value);
-  MarkingBarrier(this, HeapObject::RawField(this, kCodeOffset), value);
+  MarkingBarrier(this, RawField(kCodeOffset), value);
 }
 
 void JSFunction::set_code_no_write_barrier(Code value) {
@@ -552,7 +569,7 @@ bool JSFunction::has_context() const {
   return READ_FIELD(this, kContextOffset)->IsContext();
 }
 
-JSGlobalProxy* JSFunction::global_proxy() { return context()->global_proxy(); }
+JSGlobalProxy JSFunction::global_proxy() { return context()->global_proxy(); }
 
 Context JSFunction::native_context() { return context()->native_context(); }
 
@@ -875,12 +892,11 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
 }
 
 bool JSGlobalObject::IsDetached() {
-  return JSGlobalProxy::cast(global_proxy())->IsDetachedFrom(this);
+  return JSGlobalProxy::cast(global_proxy())->IsDetachedFrom(*this);
 }
 
-bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject* global) const {
-  const PrototypeIterator iter(this->GetIsolate(),
-                               const_cast<JSGlobalProxy*>(this));
+bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject global) const {
+  const PrototypeIterator iter(this->GetIsolate(), *this);
   return iter.GetCurrent() != global;
 }
 
@@ -892,8 +908,8 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
 
-ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
-          kSyncIteratorOffset)
+ACCESSORS2(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
+           kSyncIteratorOffset)
 ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 
 ACCESSORS2(JSStringIterator, string, String, kStringOffset)

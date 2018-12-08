@@ -66,7 +66,7 @@ class JSNumberFormat : public JSObject {
   Handle<String> StyleAsString() const;
   Handle<String> CurrencyDisplayAsString() const;
 
-  DECL_CAST(JSNumberFormat)
+  DECL_CAST2(JSNumberFormat)
   DECL_PRINTER(JSNumberFormat)
   DECL_VERIFIER(JSNumberFormat)
 
@@ -127,8 +127,7 @@ class JSNumberFormat : public JSObject {
   DECL_ACCESSORS(bound_format, Object)
   DECL_INT_ACCESSORS(flags)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSNumberFormat);
+  OBJECT_CONSTRUCTORS(JSNumberFormat, JSObject);
 };
 
 struct NumberFormatSpan {
