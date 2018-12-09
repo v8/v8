@@ -417,7 +417,7 @@ namespace data_view {
 
     let viewOffsetWord: uintptr = dataView.byte_offset;
     let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
-    let elementSizeFloat: float64 = Convert<float64>(DataViewElementSize(kind));
+    let elementSizeFloat: float64 = DataViewElementSize(kind);
 
     if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
       ThrowRangeError(context, kInvalidDataViewAccessorOffset);
@@ -700,8 +700,7 @@ namespace data_view {
 
       let viewOffsetWord: uintptr = dataView.byte_offset;
       let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
-      let elementSizeFloat: float64 =
-          Convert<float64>(DataViewElementSize(kind));
+      let elementSizeFloat: float64 = DataViewElementSize(kind);
 
       if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
         ThrowRangeError(context, kInvalidDataViewAccessorOffset);
@@ -722,8 +721,7 @@ namespace data_view {
 
       let viewOffsetWord: uintptr = dataView.byte_offset;
       let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
-      let elementSizeFloat: float64 =
-          Convert<float64>(DataViewElementSize(kind));
+      let elementSizeFloat: float64 = DataViewElementSize(kind);
 
       if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
         ThrowRangeError(context, kInvalidDataViewAccessorOffset);

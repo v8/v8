@@ -815,7 +815,6 @@ FromConstexpr<Number, constexpr Smi>(s: constexpr Smi): Number {
 FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
   return SmiConstant(s);
 }
-
 FromConstexpr<uint32, constexpr int31>(i: constexpr int31): uint32 {
   return Unsigned(Int32Constant(i));
 }
@@ -844,90 +843,78 @@ FromConstexpr<NativeContextSlot, constexpr NativeContextSlot>(
   return IntPtrConstant(c);
 }
 
-macro Convert<A: type>(i: constexpr int31): A {
+macro Convert<To: type, From: type>(i: From): To {
   return i;
 }
-extern macro ConvertElementsKindToInt(ElementsKind): int32;
 
-macro Convert<A: type>(elementsKind: ElementsKind): A;
-Convert<int32>(elementsKind: ElementsKind): int32 {
+extern macro ConvertElementsKindToInt(ElementsKind): int32;
+Convert<int32, ElementsKind>(elementsKind: ElementsKind): int32 {
   return ConvertElementsKindToInt(elementsKind);
 }
-
-macro Convert<A: type>(i: int32): A;
-Convert<Number>(i: int32): Number {
+Convert<Number, int32>(i: int32): Number {
   return ChangeInt32ToTagged(i);
 }
-Convert<intptr>(i: int32): intptr {
+Convert<intptr, int32>(i: int32): intptr {
   return ChangeInt32ToIntPtr(i);
 }
-Convert<Smi>(i: int32): Smi {
+Convert<Smi, int32>(i: int32): Smi {
   return SmiFromInt32(i);
 }
-macro Convert<A: type>(ui: uint32): A;
-Convert<Number>(ui: uint32): Number {
+Convert<Number, uint32>(ui: uint32): Number {
   return ChangeUint32ToTagged(ui);
 }
-Convert<Smi>(ui: uint32): Smi {
+Convert<Smi, uint32>(ui: uint32): Smi {
   return SmiFromInt32(Signed(ui));
 }
-Convert<uintptr>(ui: uint32): uintptr {
+Convert<uintptr, uint32>(ui: uint32): uintptr {
   return ChangeUint32ToWord(ui);
 }
-macro Convert<A: type>(i: intptr): A;
-Convert<int32>(i: intptr): int32 {
+Convert<int32, intptr>(i: intptr): int32 {
   return TruncateIntPtrToInt32(i);
 }
-Convert<Smi>(i: intptr): Smi {
+Convert<Smi, intptr>(i: intptr): Smi {
   return SmiTag(i);
 }
-macro Convert<A: type>(ui: uintptr): A;
-Convert<uint32>(ui: uintptr): uint32 {
+Convert<uint32, uintptr>(ui: uintptr): uint32 {
   return Unsigned(TruncateIntPtrToInt32(Signed(ui)));
 }
-macro Convert<A: type>(s: Smi): A;
-Convert<intptr>(s: Smi): intptr {
+Convert<intptr, Smi>(s: Smi): intptr {
   return SmiUntag(s);
 }
-Convert<int32>(s: Smi): int32 {
+Convert<int32, Smi>(s: Smi): int32 {
   return SmiToInt32(s);
 }
-macro Convert<A: type>(h: HeapNumber): A;
-Convert<float64>(h: HeapNumber): float64 {
+Convert<float64, HeapNumber>(h: HeapNumber): float64 {
   return LoadHeapNumberValue(h);
 }
-macro Convert<A: type>(n: Number): A;
-Convert<float64>(n: Number): float64 {
+Convert<float64, Number>(n: Number): float64 {
   return ChangeNumberToFloat64(n);
 }
-Convert<uintptr>(n: Number): uintptr {
+Convert<uintptr, Number>(n: Number): uintptr {
   return ChangeNonnegativeNumberToUintPtr(n);
 }
-macro Convert<A: type>(f: float32): A;
-Convert<float64>(f: float32): float64 {
+Convert<float64, float32>(f: float32): float64 {
   return ChangeFloat32ToFloat64(f);
 }
-macro Convert<A: type>(d: float64): A;
-Convert<Number>(d: float64): Number {
+Convert<Number, float64>(d: float64): Number {
   return AllocateHeapNumberWithValue(d);
 }
-Convert<float64>(ui: uintptr): float64 {
+Convert<float64, uintptr>(ui: uintptr): float64 {
   return ChangeUintPtrToFloat64(ui);
 }
-Convert<Number>(ui: uintptr): Number {
+Convert<Number, uintptr>(ui: uintptr): Number {
   return ChangeUintPtrToTagged(ui);
 }
-Convert<uintptr>(d: float64): uintptr {
+Convert<uintptr, float64>(d: float64): uintptr {
   return ChangeFloat64ToUintPtr(d);
 }
-Convert<uintptr>(i: intptr): uintptr {
+Convert<uintptr, intptr>(i: intptr): uintptr {
   return Unsigned(i);
 }
-macro Convert<A: type>(r: RawPtr): A;
-Convert<uintptr>(r: RawPtr): uintptr {
+Convert<uintptr, RawPtr>(r: RawPtr): uintptr {
   return Unsigned(r);
 }
-Convert<intptr>(r: RawPtr): intptr {
+Convert<intptr, RawPtr>(r: RawPtr): intptr {
   return Signed(r);
 }
 

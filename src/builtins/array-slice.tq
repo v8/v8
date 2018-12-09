@@ -21,8 +21,8 @@ namespace array {
     const newElements: FixedArray =
         Cast<FixedArray>(result.elements) otherwise Bailout;
     CopyElements(
-        PACKED_ELEMENTS, newElements, Convert<intptr>(0), sourceElements,
-        Convert<intptr>(start), Convert<intptr>(count));
+        PACKED_ELEMENTS, newElements, 0, sourceElements, Convert<intptr>(start),
+        Convert<intptr>(count));
     return result;
   }
 
