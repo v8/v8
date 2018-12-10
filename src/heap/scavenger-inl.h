@@ -425,8 +425,32 @@ void ScavengeVisitor::VisitPointers(HeapObject* host, MaybeObjectSlot start,
 
 void ScavengeVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
   Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+#ifdef DEBUG
+  Code old_target = target;
+#endif
   FullObjectSlot slot(&target);
-  VisitPointersImpl(host, slot, slot + 1);
+  VisitHeapObjectImpl(slot, target);
+  // Code objects are never in new-space, so the slot contents must not change.
+  DCHECK_EQ(old_target, target);
+}
+
+void ScavengeVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
+  HeapObject* heap_object = rinfo->target_object();
+#ifdef DEBUG
+  HeapObject* old_heap_object = heap_object;
+#endif
+  FullObjectSlot slot(&heap_object);
+  VisitHeapObjectImpl(slot, heap_object);
+  // We don't embed new-space objects into code, so the slot contents must not
+  // change.
+  DCHECK_EQ(old_heap_object, heap_object);
+}
+
+template <typename TSlot>
+void ScavengeVisitor::VisitHeapObjectImpl(TSlot slot, HeapObject* heap_object) {
+  if (Heap::InNewSpace(heap_object)) {
+    scavenger_->ScavengeObject(HeapObjectSlot(slot), heap_object);
+  }
 }
 
 template <typename TSlot>
@@ -436,8 +460,8 @@ void ScavengeVisitor::VisitPointersImpl(HeapObject* host, TSlot start,
     typename TSlot::TObject object = slot.load();
     HeapObject* heap_object;
     // Treat weak references as strong.
-    if (object.GetHeapObject(&heap_object) && Heap::InNewSpace(heap_object)) {
-      scavenger_->ScavengeObject(HeapObjectSlot(slot), heap_object);
+    if (object.GetHeapObject(&heap_object)) {
+      VisitHeapObjectImpl(slot, heap_object);
     }
   }
 }

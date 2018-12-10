@@ -346,6 +346,9 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     VerifyHeapObjectImpl(target);
   }
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    VerifyHeapObjectImpl(rinfo->target_object());
+  }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
@@ -942,6 +945,9 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     MarkObject(host, target);
   }
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    MarkObject(host, rinfo->target_object());
+  }
 
  private:
   V8_INLINE void MarkObject(HeapObject* host, Object* object) {
@@ -986,6 +992,10 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) final { UNREACHABLE(); }
+
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
+    UNREACHABLE();
+  }
 
   int PointersRemoved() {
     return pointers_removed_;
@@ -3668,7 +3678,9 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     VerifyHeapObjectImpl(target);
   }
-
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    VerifyHeapObjectImpl(rinfo->target_object());
+  }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
@@ -3732,6 +3744,9 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     VerifyHeapObjectImpl(target);
   }
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    VerifyHeapObjectImpl(rinfo->target_object());
+  }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
@@ -3789,6 +3804,11 @@ class YoungGenerationMarkingVisitor final
   }
 
   V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
+    // Code objects are not expected in new space.
+    UNREACHABLE();
+  }
+
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
     // Code objects are not expected in new space.
     UNREACHABLE();
   }

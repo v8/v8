@@ -14488,16 +14488,6 @@ void Map::StartInobjectSlackTracking() {
   set_construction_counter(Map::kSlackTrackingCounterStart);
 }
 
-void ObjectVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
-  DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-  Object* old_pointer = rinfo->target_object();
-  Object* new_pointer = old_pointer;
-  // TODO(ishell): we are actually visiting off-heap slot here.
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  VisitPointer(host, FullObjectSlot(&new_pointer));
-  DCHECK_EQ(old_pointer, new_pointer);
-}
-
 void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {
   for (; !it->done(); it->next()) {
     it->rinfo()->Visit(this);

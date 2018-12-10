@@ -76,19 +76,23 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
                                            bool record_slots)
       : heap_(heap), scavenger_(scavenger), record_slots_(record_slots) {}
 
-  inline void VisitPointers(HeapObject* host, ObjectSlot start,
-                            ObjectSlot end) final {
+  V8_INLINE void VisitPointers(HeapObject* host, ObjectSlot start,
+                               ObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
 
-  inline void VisitPointers(HeapObject* host, MaybeObjectSlot start,
-                            MaybeObjectSlot end) final {
+  V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                               MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
 
   V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     HandleSlot(host, FullHeapObjectSlot(&target), target);
+  }
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
+    HeapObject* heap_object = rinfo->target_object();
+    HandleSlot(host, FullHeapObjectSlot(&heap_object), heap_object);
   }
 
  private:
@@ -105,8 +109,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     }
   }
 
-  inline void HandleSlot(HeapObject* host, HeapObjectSlot slot,
-                         HeapObject* target) {
+  V8_INLINE void HandleSlot(HeapObject* host, HeapObjectSlot slot,
+                            HeapObject* target) {
     scavenger_->PageMemoryFence(MaybeObject::FromObject(target));
 
     if (Heap::InFromSpace(target)) {

@@ -1477,6 +1477,10 @@ class StringTableVerifier : public ObjectVisitor {
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override { UNREACHABLE(); }
 
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
+
  private:
   Isolate* isolate_;
 };
@@ -2997,6 +3001,10 @@ class SlotCollectingVisitor final : public ObjectVisitor {
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) final { UNREACHABLE(); }
+
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
 
   int number_of_slots() { return static_cast<int>(slots_.size()); }
 
@@ -5039,6 +5047,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
       MarkHeapObject(target);
     }
+    void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
+      MarkHeapObject(rinfo->target_object());
+    }
 
     void VisitRootPointers(Root root, const char* description,
                            FullObjectSlot start, FullObjectSlot end) override {
@@ -5440,6 +5451,10 @@ void VerifyPointersVisitor::VerifyPointers(HeapObject* host,
 void VerifyPointersVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
   Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
+}
+
+void VerifyPointersVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
+  VerifyHeapObjectImpl(rinfo->target_object());
 }
 
 void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,

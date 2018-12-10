@@ -82,6 +82,10 @@ class FieldStatsCollector : public ObjectVisitor {
     // as a full tagged value, so there's nothing to count.
   }
 
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    *tagged_fields_count_ += 1;
+  }
+
  private:
   struct JSObjectFieldStats {
     JSObjectFieldStats()

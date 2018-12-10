@@ -678,16 +678,15 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   }
   void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
+    // [start,end) must be a sub-region of [parent_start_, parent_end), i.e.
+    // all the slots must point inside the object.
+    CHECK_LE(parent_start_, start);
+    CHECK_LE(end, parent_end_);
     for (MaybeObjectSlot p = start; p < end; ++p) {
-      int field_index = -1;
-      // |p| could be outside of the object, e.g., while visiting RelocInfo of
-      // code objects.
-      if (parent_start_ <= p && p < parent_end_) {
-        field_index = static_cast<int>(p - parent_start_);
-        if (generator_->visited_fields_[field_index]) {
-          generator_->visited_fields_[field_index] = false;
-          continue;
-        }
+      int field_index = static_cast<int>(p - parent_start_);
+      if (generator_->visited_fields_[field_index]) {
+        generator_->visited_fields_[field_index] = false;
+        continue;
       }
       HeapObject* heap_object;
       if ((*p)->GetHeapObject(&heap_object)) {
@@ -699,6 +698,10 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     VisitHeapObjectImpl(target, -1);
+  }
+
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    VisitHeapObjectImpl(rinfo->target_object(), -1);
   }
 
  private:

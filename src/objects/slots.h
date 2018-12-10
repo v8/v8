@@ -104,6 +104,8 @@ class FullObjectSlot
   inline explicit FullObjectSlot(ObjectPtr* object);
   explicit FullObjectSlot(Object const* const* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit FullObjectSlot(HeapObject** ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
@@ -180,6 +182,8 @@ class FullHeapObjectSlot
   FullHeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit FullHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit FullHeapObjectSlot(ObjectPtr* ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit FullHeapObjectSlot(HeapObject** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)

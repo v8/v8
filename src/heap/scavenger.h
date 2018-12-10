@@ -236,8 +236,12 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
                                MaybeObjectSlot end) final;
 
   V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
 
  private:
+  template <typename TSlot>
+  V8_INLINE void VisitHeapObjectImpl(TSlot slot, HeapObject* heap_object);
+
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end);
 
