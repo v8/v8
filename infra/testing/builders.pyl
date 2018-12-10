@@ -1269,6 +1269,10 @@
     ],
   },
   'V8 Linux - arm64 - sim - debug': {
+    # TODO(machenbach): Remove longer timeout when this builder scales better.
+    'swarming_task_attrs': {
+      'hard_timeout': 3600,
+    },
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla', 'shards': 2},
