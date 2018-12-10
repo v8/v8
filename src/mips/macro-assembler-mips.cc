@@ -1755,8 +1755,7 @@ void TurboAssembler::InsertBits(Register dest, Register source, Register pos,
   {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    Subu(scratch, pos, Operand(32));
-    Neg(scratch, Operand(scratch));
+    Subu(scratch, zero_reg, pos);
     Ror(dest, dest, scratch);
   }
 }

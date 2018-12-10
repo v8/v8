@@ -2069,7 +2069,7 @@ void TurboAssembler::Dins(Register rt, Register rs, uint16_t pos,
 
 void TurboAssembler::ExtractBits(Register dest, Register source, Register pos,
                                  int size, bool sign_extend) {
-  srav(dest, source, pos);
+  dsrav(dest, source, pos);
   Dext(dest, dest, 0, size);
   if (sign_extend) {
     switch (size) {
@@ -2091,14 +2091,13 @@ void TurboAssembler::ExtractBits(Register dest, Register source, Register pos,
 
 void TurboAssembler::InsertBits(Register dest, Register source, Register pos,
                                 int size) {
-  Ror(dest, dest, pos);
+  Dror(dest, dest, pos);
   Dins(dest, source, 0, size);
   {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    Dsubu(scratch, pos, Operand(64));
-    Neg(scratch, Operand(scratch));
-    Ror(dest, dest, scratch);
+    Dsubu(scratch, zero_reg, pos);
+    Dror(dest, dest, scratch);
   }
 }
 
