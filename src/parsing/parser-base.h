@@ -4564,12 +4564,6 @@ ParserBase<Impl>::ParseStatementList(StatementListT* body,
   }
 
   while (peek() != end_token) {
-    if (peek() == Token::EOS) {
-      DCHECK_EQ(end_token, Token::RBRACE);
-      ReportMessage(MessageTemplate::kMissingBraceAfterFunctionBody);
-      return kLazyParsingComplete;
-    }
-
     StatementT stat = ParseStatementListItem();
     if (impl()->IsNull(stat)) return kLazyParsingComplete;
     if (stat->IsEmptyStatement()) continue;
