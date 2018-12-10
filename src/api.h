@@ -231,22 +231,22 @@ class Utils {
   static inline Local<ScriptOrModule> ScriptOrModuleToLocal(
       v8::internal::Handle<v8::internal::Script> obj);
 
-#define DECLARE_OPEN_HANDLE(From, To) \
-  static inline v8::internal::Handle<v8::internal::To> \
-      OpenHandle(const From* that, bool allow_empty_handle = false);
+#define DECLARE_OPEN_HANDLE(From, To)                              \
+  static inline v8::internal::Handle<v8::internal::To> OpenHandle( \
+      const From* that, bool allow_empty_handle = false);
 
-OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
+  OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
 #undef DECLARE_OPEN_HANDLE
 
-template <class From, class To>
-static inline Local<To> Convert(v8::internal::Handle<From> obj);
+  template <class From, class To>
+  static inline Local<To> Convert(v8::internal::Handle<From> obj);
 
-template <class T>
-static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
-    const v8::Persistent<T>& persistent) {
-  return v8::internal::Handle<v8::internal::Object>(
-      reinterpret_cast<v8::internal::Address*>(persistent.val_));
+  template <class T>
+  static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
+      const v8::Persistent<T>& persistent) {
+    return v8::internal::Handle<v8::internal::Object>(
+        reinterpret_cast<v8::internal::Address*>(persistent.val_));
   }
 
   template <class T>
@@ -260,10 +260,14 @@ static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
     return OpenHandle(*handle);
   }
 
+  static inline CompiledWasmModule Convert(
+      std::shared_ptr<i::wasm::NativeModule> native_module) {
+    return CompiledWasmModule{std::move(native_module)};
+  }
+
  private:
   static void ReportApiFailure(const char* location, const char* message);
 };
-
 
 template <class T>
 inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {

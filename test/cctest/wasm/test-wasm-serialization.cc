@@ -68,18 +68,18 @@ class WasmSerializationTest {
 
   void InvalidateVersion() {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
-        const_cast<uint8_t*>(serialized_bytes_.start) +
+        const_cast<uint8_t*>(serialized_bytes_.data()) +
         SerializedCodeData::kVersionHashOffset);
     *slot = Version::Hash() + 1;
   }
 
   void InvalidateWireBytes() {
-    memset(const_cast<uint8_t*>(wire_bytes_.start), 0, wire_bytes_.size / 2);
+    memset(const_cast<uint8_t*>(wire_bytes_.data()), 0, wire_bytes_.size() / 2);
   }
 
   void InvalidateLength() {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
-        const_cast<uint8_t*>(serialized_bytes_.start) +
+        const_cast<uint8_t*>(serialized_bytes_.data()) +
         SerializedCodeData::kPayloadLengthOffset);
     *slot = 0u;
   }
@@ -102,9 +102,9 @@ class WasmSerializationTest {
       DisallowHeapAllocation assume_no_gc;
       Vector<const byte> deserialized_module_wire_bytes =
           module_object->native_module()->wire_bytes();
-      CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size);
-      CHECK_EQ(memcmp(deserialized_module_wire_bytes.start(), wire_bytes_.start,
-                      wire_bytes_.size),
+      CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size());
+      CHECK_EQ(memcmp(deserialized_module_wire_bytes.start(),
+                      wire_bytes_.data(), wire_bytes_.size()),
                0);
     }
     Handle<WasmInstanceObject> instance =
@@ -159,18 +159,20 @@ class WasmSerializationTest {
           v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
       CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
 
-      v8::Local<v8::WasmModuleObject> v8_compiled_module =
+      v8::Local<v8::WasmModuleObject> v8_module_object =
           v8_module_obj.As<v8::WasmModuleObject>();
-      v8::WasmModuleObject::BufferReference uncompiled_bytes =
-          v8_compiled_module->GetWasmWireBytesRef();
-      uint8_t* bytes_copy = zone()->NewArray<uint8_t>(uncompiled_bytes.size);
-      memcpy(bytes_copy, uncompiled_bytes.start, uncompiled_bytes.size);
-      wire_bytes_ = {bytes_copy, uncompiled_bytes.size};
+      v8::CompiledWasmModule compiled_module =
+          v8_module_object->GetCompiledModule();
+      v8::MemorySpan<const uint8_t> uncompiled_bytes =
+          compiled_module.GetWireBytesRef();
+      uint8_t* bytes_copy = zone()->NewArray<uint8_t>(uncompiled_bytes.size());
+      memcpy(bytes_copy, uncompiled_bytes.data(), uncompiled_bytes.size());
+      wire_bytes_ = {bytes_copy, uncompiled_bytes.size()};
       // keep alive data_ until the end
-      data_ = v8_compiled_module->Serialize();
+      data_ = compiled_module.Serialize();
     }
 
-    serialized_bytes_ = {data_.first.get(), data_.second};
+    serialized_bytes_ = {data_.buffer.get(), data_.size};
 
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator =
@@ -191,9 +193,9 @@ class WasmSerializationTest {
 
   v8::internal::AccountingAllocator allocator_;
   Zone zone_;
-  v8::WasmModuleObject::SerializedModule data_;
-  v8::WasmModuleObject::BufferReference wire_bytes_ = {nullptr, 0};
-  v8::WasmModuleObject::BufferReference serialized_bytes_ = {nullptr, 0};
+  v8::OwnedBuffer data_;
+  v8::MemorySpan<const uint8_t> wire_bytes_ = {nullptr, 0};
+  v8::MemorySpan<const uint8_t> serialized_bytes_ = {nullptr, 0};
   v8::Isolate* current_isolate_v8_;
 };
 

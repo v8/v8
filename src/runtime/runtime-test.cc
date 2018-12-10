@@ -70,7 +70,8 @@ bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
   }
   v8::Local<v8::WasmModuleObject> module =
       v8::Local<v8::WasmModuleObject>::Cast(module_or_bytes);
-  return static_cast<uint32_t>(module->GetWasmWireBytesRef().size) <=
+  return static_cast<uint32_t>(
+             module->GetCompiledModule().GetWireBytesRef().size()) <=
          ctrls.MaxWasmBufferSize;
 }
 

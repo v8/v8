@@ -7361,11 +7361,28 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   RETURN_ESCAPED(result);
 }
 
-WasmModuleObject::BufferReference WasmModuleObject::GetWasmWireBytesRef() {
-  i::Handle<i::WasmModuleObject> obj =
-      i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  i::Vector<const uint8_t> bytes_vec = obj->native_module()->wire_bytes();
+CompiledWasmModule::CompiledWasmModule(
+    std::shared_ptr<internal::wasm::NativeModule> native_module)
+    : native_module_(std::move(native_module)) {
+  CHECK_NOT_NULL(native_module_);
+}
+
+OwnedBuffer CompiledWasmModule::Serialize() {
+  i::wasm::WasmSerializer wasm_serializer(native_module_.get());
+  size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
+  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
+  if (!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size}))
+    return {};
+  return {std::move(buffer), buffer_size};
+}
+
+MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
+  i::Vector<const uint8_t> bytes_vec = native_module_->wire_bytes();
   return {bytes_vec.start(), bytes_vec.size()};
+}
+
+WasmModuleObject::BufferReference WasmModuleObject::GetWasmWireBytesRef() {
+  return GetCompiledModule().GetWireBytesRef();
 }
 
 WasmModuleObject::TransferrableModule
@@ -7375,14 +7392,22 @@ WasmModuleObject::GetTransferrableModule() {
         i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
     return TransferrableModule(obj->managed_native_module()->get());
   } else {
-    WasmModuleObject::SerializedModule serialized_module = Serialize();
-    BufferReference wire_bytes_ref = GetWasmWireBytesRef();
-    size_t wire_size = wire_bytes_ref.size;
+    CompiledWasmModule compiled_module = GetCompiledModule();
+    OwnedBuffer serialized_module = compiled_module.Serialize();
+    MemorySpan<const uint8_t> wire_bytes_ref =
+        compiled_module.GetWireBytesRef();
+    size_t wire_size = wire_bytes_ref.size();
     std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
-    memcpy(wire_bytes_copy.get(), wire_bytes_ref.start, wire_size);
+    memcpy(wire_bytes_copy.get(), wire_bytes_ref.data(), wire_size);
     return TransferrableModule(std::move(serialized_module),
                                {std::move(wire_bytes_copy), wire_size});
   }
+}
+
+CompiledWasmModule WasmModuleObject::GetCompiledModule() {
+  i::Handle<i::WasmModuleObject> obj =
+      i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
+  return Utils::Convert(obj->managed_native_module()->get());
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::FromTransferrableModule(
@@ -7402,25 +7427,19 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromTransferrableModule(
 }
 
 WasmModuleObject::SerializedModule WasmModuleObject::Serialize() {
-  i::Handle<i::WasmModuleObject> obj =
-      i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  i::wasm::NativeModule* native_module = obj->native_module();
-  i::wasm::WasmSerializer wasm_serializer(native_module);
-  size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
-  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
-  if (wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size}))
-    return {std::move(buffer), buffer_size};
-  return {};
+  // TODO(clemensh): Deprecated; remove after M-73 branch.
+  OwnedBuffer serialized = GetCompiledModule().Serialize();
+  return {std::move(serialized.buffer), serialized.size};
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::Deserialize(
-    Isolate* isolate, WasmModuleObject::BufferReference serialized_module,
-    WasmModuleObject::BufferReference wire_bytes) {
+    Isolate* isolate, MemorySpan<const uint8_t> serialized_module,
+    MemorySpan<const uint8_t> wire_bytes) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::MaybeHandle<i::WasmModuleObject> maybe_module_object =
       i::wasm::DeserializeNativeModule(
-          i_isolate, {serialized_module.start, serialized_module.size},
-          {wire_bytes.start, wire_bytes.size});
+          i_isolate, {serialized_module.data(), serialized_module.size()},
+          {wire_bytes.data(), wire_bytes.size()});
   i::Handle<i::WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return MaybeLocal<WasmModuleObject>();
@@ -7430,14 +7449,14 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Deserialize(
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::DeserializeOrCompile(
-    Isolate* isolate, WasmModuleObject::BufferReference serialized_module,
-    WasmModuleObject::BufferReference wire_bytes) {
+    Isolate* isolate, MemorySpan<const uint8_t> serialized_module,
+    MemorySpan<const uint8_t> wire_bytes) {
   MaybeLocal<WasmModuleObject> ret =
       Deserialize(isolate, serialized_module, wire_bytes);
   if (!ret.IsEmpty()) {
     return ret;
   }
-  return Compile(isolate, wire_bytes.start, wire_bytes.size);
+  return Compile(isolate, wire_bytes.data(), wire_bytes.size());
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(Isolate* isolate,

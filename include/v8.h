@@ -4253,24 +4253,97 @@ class V8_EXPORT Proxy : public Object {
   static void CheckCast(Value* obj);
 };
 
+/**
+ * Points to an unowned continous buffer holding a known number of elements.
+ *
+ * This is similar to std::span (under consideration for C++20), but does not
+ * require advanced C++ support. In the (far) future, this may be replaced with
+ * or aliased to std::span.
+ *
+ * To facilitate future migration, this class exposes a subset of the interface
+ * implemented by std::span.
+ */
+template <typename T>
+class V8_EXPORT MemorySpan {
+ public:
+  /** The default constructor creates an empty span. */
+  constexpr MemorySpan() = default;
+
+  constexpr MemorySpan(T* data, size_t size) : data_(data), size_(size) {}
+
+  /** Returns a pointer to the beginning of the buffer. */
+  constexpr T* data() const { return data_; }
+  /** Returns the number of elements that the buffer holds. */
+  constexpr size_t size() const { return size_; }
+
+ private:
+  T* data_ = nullptr;
+  size_t size_ = 0;
+};
+
+/**
+ * An owned byte buffer with associated size.
+ */
+struct OwnedBuffer {
+  std::unique_ptr<const uint8_t[]> buffer;
+  size_t size = 0;
+  OwnedBuffer(std::unique_ptr<const uint8_t[]> buffer, size_t size)
+      : buffer(std::move(buffer)), size(size) {}
+  OwnedBuffer() = default;
+};
+
+// Wrapper around a compiled WebAssembly module, which is potentially shared by
+// different WasmModuleObjects.
+class V8_EXPORT CompiledWasmModule {
+ public:
+  /**
+   * Serialize the compiled module. The serialized data does not include the
+   * wire bytes.
+   */
+  OwnedBuffer Serialize();
+
+  /**
+   * Get the (wasm-encoded) wire bytes that were used to compile this module.
+   */
+  MemorySpan<const uint8_t> GetWireBytesRef();
+
+ private:
+  explicit CompiledWasmModule(std::shared_ptr<internal::wasm::NativeModule>);
+  friend class Utils;
+
+  const std::shared_ptr<internal::wasm::NativeModule> native_module_;
+};
+
 // An instance of WebAssembly.Module.
 class V8_EXPORT WasmModuleObject : public Object {
  public:
-  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
+  // TODO(clemensh): Remove after 7.3 branch.
+  V8_DEPRECATE_SOON("Use OwnedBuffer", typedef)
+  std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
 
   /**
    * A unowned reference to a byte buffer.
+   * TODO(clemensh): Remove after 7.3 branch.
    */
-  struct BufferReference {
+  V8_DEPRECATE_SOON("Use MemorySpan<const uint8_t>", struct) BufferReference {
     const uint8_t* start;
     size_t size;
     BufferReference(const uint8_t* start, size_t size)
         : start(start), size(size) {}
+
+    // Implicit conversion to and from MemorySpan<const uint8_t>.
+    BufferReference(MemorySpan<const uint8_t> span)  // NOLINT(runtime/explicit)
+        : start(span.data()), size(span.size()) {}
+    operator MemorySpan<const uint8_t>() const {
+      return MemorySpan<const uint8_t>{start, size};
+    }
   };
 
   /**
    * An opaque, native heap object for transferring wasm modules. It
    * supports move semantics, and does not support copy semantics.
+   * TODO(wasm): Merge this with CompiledWasmModule once code sharing is always
+   * enabled.
    */
   class TransferrableModule final {
    public:
@@ -4282,7 +4355,6 @@ class V8_EXPORT WasmModuleObject : public Object {
 
    private:
     typedef std::shared_ptr<internal::wasm::NativeModule> SharedModule;
-    typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> OwnedBuffer;
     friend class WasmModuleObject;
     explicit TransferrableModule(SharedModule shared_module)
         : shared_module_(std::move(shared_module)) {}
@@ -4311,33 +4383,40 @@ class V8_EXPORT WasmModuleObject : public Object {
   /**
    * Get the wasm-encoded bytes that were used to compile this module.
    */
-  BufferReference GetWasmWireBytesRef();
+  V8_DEPRECATE_SOON("Use CompiledWasmModule::GetWireBytesRef()",
+                    BufferReference GetWasmWireBytesRef());
+
+  /**
+   * Get the compiled module for this module object. The compiled module can be
+   * shared by several module objects.
+   */
+  CompiledWasmModule GetCompiledModule();
 
   /**
    * Serialize the compiled module. The serialized data does not include the
    * uncompiled bytes.
    */
-  SerializedModule Serialize();
+  V8_DEPRECATE_SOON("Use CompiledWasmModule::Serialize()",
+                    SerializedModule Serialize());
 
   /**
    * If possible, deserialize the module, otherwise compile it from the provided
    * uncompiled bytes.
    */
   static MaybeLocal<WasmModuleObject> DeserializeOrCompile(
-      Isolate* isolate, BufferReference serialized_module,
-      BufferReference wire_bytes);
+      Isolate* isolate, MemorySpan<const uint8_t> serialized_module,
+      MemorySpan<const uint8_t> wire_bytes);
   V8_INLINE static WasmModuleObject* Cast(Value* obj);
 
  private:
   static MaybeLocal<WasmModuleObject> Deserialize(
-      Isolate* isolate, BufferReference serialized_module,
-      BufferReference wire_bytes);
+      Isolate* isolate, MemorySpan<const uint8_t> serialized_module,
+      MemorySpan<const uint8_t> wire_bytes);
   static MaybeLocal<WasmModuleObject> Compile(Isolate* isolate,
                                               const uint8_t* start,
                                               size_t length);
-  static BufferReference AsReference(
-      const TransferrableModule::OwnedBuffer& buff) {
-    return {buff.first.get(), buff.second};
+  static MemorySpan<const uint8_t> AsReference(const OwnedBuffer& buff) {
+    return {buff.buffer.get(), buff.size};
   }
 
   WasmModuleObject();
@@ -4385,8 +4464,8 @@ class V8_EXPORT WasmStreaming final {
    * Callback for module compiled notifications. |data| is the identifier
    * passed to {SetModuleCompiledCallback}, |compiled_module| is the result.
    */
-  typedef void (*ModuleCompiledCallback)(
-      intptr_t data, Local<WasmModuleObject> compiled_module);
+  typedef void (*ModuleCompiledCallback)(intptr_t data,
+                                         CompiledWasmModule compiled_module);
 
   /**
    * Sets a callback for when compilation of the Wasm module has been completed
