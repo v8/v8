@@ -626,15 +626,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   static bool IsOnEvacuationCandidate(MaybeObject obj);
 
   struct RecordRelocSlotInfo {
-    bool should_record;
     MemoryChunk* memory_chunk;
     SlotType slot_type;
-    uint32_t host_offset;
+    bool should_record;
     uint32_t offset;
   };
   static RecordRelocSlotInfo PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
-                                                    Object* target);
-  static void RecordRelocSlot(Code host, RelocInfo* rinfo, Object* target);
+                                                    HeapObject* target);
+  static void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject* target);
   V8_INLINE static void RecordSlot(HeapObject* object, ObjectSlot slot,
                                    HeapObject* target);
   V8_INLINE static void RecordSlot(HeapObject* object, HeapObjectSlot slot,

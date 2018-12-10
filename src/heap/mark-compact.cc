@@ -2225,10 +2225,10 @@ bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {
 
 MarkCompactCollector::RecordRelocSlotInfo
 MarkCompactCollector::PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
-                                             Object* target) {
+                                             HeapObject* target) {
   RecordRelocSlotInfo result;
   result.should_record = false;
-  Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
+  Page* target_page = Page::FromAddress(target->ptr());
   Page* source_page = Page::FromAddress(host.ptr());
   if (target_page->IsEvacuationCandidate() &&
       (rinfo->host().is_null() ||
@@ -2245,26 +2245,22 @@ MarkCompactCollector::PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
         slot_type = OBJECT_SLOT;
       }
     }
-    Address host_addr = host.ptr();
     uintptr_t offset = addr - source_page->address();
-    uintptr_t host_offset = host_addr - source_page->address();
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-    DCHECK_LT(host_offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
     result.should_record = true;
     result.memory_chunk = source_page;
     result.slot_type = slot_type;
-    result.host_offset = static_cast<uint32_t>(host_offset);
     result.offset = static_cast<uint32_t>(offset);
   }
   return result;
 }
 
 void MarkCompactCollector::RecordRelocSlot(Code host, RelocInfo* rinfo,
-                                           Object* target) {
-  auto info = PrepareRecordRelocSlot(host, rinfo, target);
+                                           HeapObject* target) {
+  RecordRelocSlotInfo info = PrepareRecordRelocSlot(host, rinfo, target);
   if (info.should_record) {
     RememberedSet<OLD_TO_OLD>::InsertTyped(info.memory_chunk, info.slot_type,
-                                           info.host_offset, info.offset);
+                                           info.offset);
   }
 }
 
@@ -2344,7 +2340,6 @@ static inline SlotCallbackResult UpdateSlot(TSlot slot,
   return REMOVE_SLOT;
 }
 
-// TODO(ishell): TSlot-ify this function
 template <AccessMode access_mode, typename TSlot>
 static inline SlotCallbackResult UpdateSlot(TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load();
@@ -3214,7 +3209,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             return CheckAndUpdateOldToNewSlot(slot);
           };
       RememberedSet<OLD_TO_NEW>::IterateTyped(
-          chunk_, [=](SlotType slot_type, Address host_addr, Address slot) {
+          chunk_, [=](SlotType slot_type, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
                 heap_, slot_type, slot, check_and_update_old_to_new_slot_fn);
           });
@@ -3224,7 +3219,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
          nullptr)) {
       CHECK_NE(chunk_->owner(), heap_->map_space());
       RememberedSet<OLD_TO_OLD>::IterateTyped(
-          chunk_, [this](SlotType slot_type, Address host_addr, Address slot) {
+          chunk_, [=](SlotType slot_type, Address slot) {
             // Using UpdateStrongSlot is OK here, because there are no weak
             // typed slots.
             return UpdateTypedSlotHelper::UpdateTypedSlot(
@@ -4381,8 +4376,7 @@ class PageMarkingItem : public MarkingItem {
 
   void MarkTypedPointers(YoungGenerationMarkingTask* task) {
     RememberedSet<OLD_TO_NEW>::IterateTyped(
-        chunk_,
-        [this, task](SlotType slot_type, Address host_addr, Address slot) {
+        chunk_, [=](SlotType slot_type, Address slot) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
               heap(), slot_type, slot, [this, task](FullMaybeObjectSlot slot) {
                 return CheckAndMarkObject(task, slot);

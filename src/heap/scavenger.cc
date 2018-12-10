@@ -387,7 +387,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
                                      },
                                      SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW>::IterateTyped(
-      page, [this](SlotType type, Address host_addr, Address addr) {
+      page, [=](SlotType type, Address addr) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
             heap_, type, addr, [this](FullMaybeObjectSlot slot) {
               return CheckAndScavengeObject(heap(), slot);

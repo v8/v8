@@ -519,15 +519,15 @@ class ConcurrentMarkingVisitor final
     return slot_snapshot_;
   }
 
-  void RecordRelocSlot(Code host, RelocInfo* rinfo, Object* target) {
-    auto info =
+  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject* target) {
+    MarkCompactCollector::RecordRelocSlotInfo info =
         MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
     if (info.should_record) {
       MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
       if (!data.typed_slots) {
         data.typed_slots.reset(new TypedSlots());
       }
-      data.typed_slots->Insert(info.slot_type, info.host_offset, info.offset);
+      data.typed_slots->Insert(info.slot_type, info.offset);
     }
   }
 

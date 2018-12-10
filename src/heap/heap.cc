@@ -3621,7 +3621,7 @@ void CollectSlots(MemoryChunk* chunk, Address start, Address end,
       },
       SlotSet::PREFREE_EMPTY_BUCKETS);
   RememberedSet<direction>::IterateTyped(
-      chunk, [start, end, typed](SlotType type, Address host, Address slot) {
+      chunk, [=](SlotType type, Address slot) {
         if (start <= slot && slot < end) {
           typed->insert(std::make_pair(type, slot));
         }
@@ -5628,13 +5628,9 @@ void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
       slot_type = OBJECT_SLOT;
     }
   }
-  Address host_addr = host.ptr();
   uintptr_t offset = addr - source_page->address();
-  uintptr_t host_offset = host_addr - source_page->address();
   DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-  DCHECK_LT(host_offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
   RememberedSet<OLD_TO_NEW>::InsertTyped(source_page, slot_type,
-                                         static_cast<uint32_t>(host_offset),
                                          static_cast<uint32_t>(offset));
 }
 

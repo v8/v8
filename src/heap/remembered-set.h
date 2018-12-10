@@ -191,13 +191,12 @@ class RememberedSet : public AllStatic {
   // Given a page and a typed slot in that page, this function adds the slot
   // to the remembered set.
   static void InsertTyped(MemoryChunk* memory_chunk, SlotType slot_type,
-                          uint32_t host_offset, uint32_t offset) {
+                          uint32_t offset) {
     TypedSlotSet* slot_set = memory_chunk->typed_slot_set<type>();
     if (slot_set == nullptr) {
       slot_set = memory_chunk->AllocateTypedSlotSet<type>();
     }
-    slot_set->Insert(slot_type, static_cast<uint32_t>(host_offset),
-                     static_cast<uint32_t>(offset));
+    slot_set->Insert(slot_type, offset);
   }
 
   static void MergeTyped(MemoryChunk* page, std::unique_ptr<TypedSlots> slots) {
@@ -214,8 +213,7 @@ class RememberedSet : public AllStatic {
     TypedSlotSet* slots = page->typed_slot_set<type>();
     if (slots != nullptr) {
       slots->Iterate(
-          [start, end](SlotType slot_type, Address host_addr,
-                       Address slot_addr) {
+          [=](SlotType slot_type, Address slot_addr) {
             return start <= slot_addr && slot_addr < end ? REMOVE_SLOT
                                                          : KEEP_SLOT;
           },
@@ -224,7 +222,7 @@ class RememberedSet : public AllStatic {
   }
 
   // Iterates and filters the remembered set with the given callback.
-  // The callback should take (SlotType slot_type, SlotAddress slot) and return
+  // The callback should take (SlotType slot_type, Address addr) and return
   // SlotCallbackResult.
   template <typename Callback>
   static void IterateTyped(Heap* heap, RememberedSetIterationMode mode,
@@ -238,7 +236,7 @@ class RememberedSet : public AllStatic {
 
   // Iterates and filters typed old to old pointers in the given memory chunk
   // with the given callback. The callback should take (SlotType slot_type,
-  // Address slot_addr) and return SlotCallbackResult.
+  // Address addr) and return SlotCallbackResult.
   template <typename Callback>
   static void IterateTyped(MemoryChunk* chunk, Callback callback) {
     TypedSlotSet* slots = chunk->typed_slot_set<type>();
@@ -298,13 +296,12 @@ class UpdateTypedSlotHelper {
 
  private:
   // Updates a code entry slot using an untyped slot callback.
-  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
+  // The callback accepts FullMaybeObjectSlot and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateCodeEntry(Address entry_address,
                                             Callback callback) {
     Code code = Code::GetObjectFromEntryAddress(entry_address);
     Code old_code = code;
-    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&code));
     DCHECK(!HasWeakHeapObjectTag(code.ptr()));
     if (code != old_code) {
@@ -314,14 +311,13 @@ class UpdateTypedSlotHelper {
   }
 
   // Updates a code target slot using an untyped slot callback.
-  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
+  // The callback accepts FullMaybeObjectSlot and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
                                              Callback callback) {
     DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
     Code old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Code new_target = old_target;
-    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
     DCHECK(!HasWeakHeapObjectTag(new_target.ptr()));
     if (new_target != old_target) {
@@ -332,14 +328,13 @@ class UpdateTypedSlotHelper {
   }
 
   // Updates an embedded pointer slot using an untyped slot callback.
-  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
+  // The callback accepts FullMaybeObjectSlot and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateEmbeddedPointer(Heap* heap, RelocInfo* rinfo,
                                                   Callback callback) {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     HeapObject* old_target = rinfo->target_object();
     HeapObject* new_target = old_target;
-    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
     DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
