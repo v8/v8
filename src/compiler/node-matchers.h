@@ -678,11 +678,13 @@ struct BaseWithIndexAndDisplacementMatcher {
       switch (from->opcode()) {
         case IrOpcode::kLoad:
         case IrOpcode::kPoisonedLoad:
+        case IrOpcode::kProtectedLoad:
         case IrOpcode::kInt32Add:
         case IrOpcode::kInt64Add:
           // Skip addressing uses.
           break;
         case IrOpcode::kStore:
+        case IrOpcode::kProtectedStore:
           // If the stored value is this node, it is not an addressing use.
           if (from->InputAt(2) == node) return false;
           // Otherwise it is used as an address and skipped.
