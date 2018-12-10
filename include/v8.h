@@ -4436,8 +4436,8 @@ class V8_EXPORT WasmModuleObject : public Object {
   static void CheckCast(Value* obj);
 };
 
-V8_DEPRECATE_SOON("Use WasmModuleObject",
-                  typedef WasmModuleObject WasmCompiledModule);
+V8_DEPRECATED("Use WasmModuleObject",
+              typedef WasmModuleObject WasmCompiledModule);
 
 /**
  * The V8 interface for WebAssembly streaming compilation. When streaming
