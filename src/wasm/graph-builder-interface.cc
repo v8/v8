@@ -248,12 +248,8 @@ class WasmGraphBuildingInterface {
       DCHECK_EQ(1, decoder->control_depth());
       SetEnv(decoder->control_at(0)->end_env);
     }
-    size_t num_values = values.size();
-    TFNode** buffer = GetNodes(values);
-    for (size_t i = 0; i < num_values; ++i) {
-      buffer[i] = values[i].node;
-    }
-    BUILD(Return, static_cast<uint32_t>(values.size()), buffer);
+    TFNode** nodes = GetNodes(values);
+    BUILD(Return, static_cast<uint32_t>(values.size()), nodes);
   }
 
   void GetLocal(FullDecoder* decoder, Value* result,
