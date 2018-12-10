@@ -2566,18 +2566,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   void DoReturn(Control* c, bool implicit) {
-    int return_count = static_cast<int>(this->sig_->return_count());
-    args_.resize(return_count);
+    if (!TypeCheckReturn()) return;
 
-    // Pop return values off the stack in reverse order.
-    for (int i = return_count - 1; i >= 0; --i) {
-      args_[i] = Pop(i, this->sig_->GetReturn(i));
-    }
-    if (!this->ok()) return;
+    size_t return_count = this->sig_->return_count();
+    Vector<Value> return_values =
+        return_count == 0
+            ? Vector<Value>{}
+            : Vector<Value>{&*(stack_.end() - return_count), return_count};
 
     // Simulate that an implicit return morally comes after the current block.
     bool reached = c->reachable() || (implicit && c->end_merge.reached);
-    if (reached) CALL_INTERFACE(DoReturn, VectorOf(args_), implicit);
+    if (reached) CALL_INTERFACE(DoReturn, return_values, implicit);
 
     EndControl();
   }
@@ -2661,18 +2660,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (uint32_t i = 0; i < merge->arity; ++i) {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
-      if (val.type != old.type) {
-        // If {val.type} is polymorphic, which results from unreachable, make
-        // it more specific by using the merge value's expected type.
-        // If it is not polymorphic, this is a type error.
-        if (!VALIDATE(val.type == kWasmVar)) {
-          this->errorf(
-              this->pc_, "type error in merge[%u] (expected %s, got %s)", i,
-              ValueTypes::TypeName(old.type), ValueTypes::TypeName(val.type));
-          return false;
-        }
-        val.type = old.type;
+      if (val.type == old.type) continue;
+      // If {val.type} is polymorphic, which results from unreachable, make
+      // it more specific by using the merge value's expected type.
+      // If it is not polymorphic, this is a type error.
+      if (!VALIDATE(val.type == kWasmVar)) {
+        this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
+                     i, ValueTypes::TypeName(old.type),
+                     ValueTypes::TypeName(val.type));
+        return false;
       }
+      val.type = old.type;
     }
 
     return true;
@@ -2711,6 +2709,40 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       return false;
     }
     return TypeCheckMergeValues(c, c->br_merge());
+  }
+
+  bool TypeCheckReturn() {
+    // Returns must have at least the number of values expected; can have more.
+    uint32_t num_returns = static_cast<uint32_t>(this->sig_->return_count());
+    DCHECK_GE(stack_.size(), control_.back().stack_depth);
+    uint32_t actual =
+        static_cast<uint32_t>(stack_.size()) - control_.back().stack_depth;
+    if (!InsertUnreachablesIfNecessary(num_returns, actual)) {
+      this->errorf(this->pc_,
+                   "expected %u elements on the stack for return, found %u",
+                   num_returns, actual);
+      return false;
+    }
+
+    // Typecheck the topmost {num_returns} values on the stack.
+    Value* stack_values = &*(stack_.end() - num_returns);
+    for (uint32_t i = 0; i < num_returns; ++i) {
+      auto& val = stack_values[i];
+      ValueType expected_type = this->sig_->GetReturn(i);
+      if (val.type == expected_type) continue;
+      // If {val.type} is polymorphic, which results from unreachable,
+      // make it more specific by using the return's expected type.
+      // If it is not polymorphic, this is a type error.
+      if (!VALIDATE(val.type == kWasmVar)) {
+        this->errorf(this->pc_,
+                     "type error in return[%u] (expected %s, got %s)", i,
+                     ValueTypes::TypeName(expected_type),
+                     ValueTypes::TypeName(val.type));
+        return false;
+      }
+      val.type = expected_type;
+    }
+    return true;
   }
 
   inline bool InsertUnreachablesIfNecessary(uint32_t expected,
