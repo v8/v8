@@ -268,54 +268,6 @@ class RememberedSet : public AllStatic {
 
 class UpdateTypedSlotHelper {
  public:
-  // Updates a code entry slot using an untyped slot callback.
-  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
-  template <typename Callback>
-  static SlotCallbackResult UpdateCodeEntry(Address entry_address,
-                                            Callback callback) {
-    Object* code = Code::GetObjectFromEntryAddress(entry_address);
-    Object* old_code = code;
-    SlotCallbackResult result = callback(MaybeObjectSlot(&code));
-    DCHECK(!HasWeakHeapObjectTag(code));
-    if (code != old_code) {
-      Memory<Address>(entry_address) = Code::cast(code)->entry();
-    }
-    return result;
-  }
-
-  // Updates a code target slot using an untyped slot callback.
-  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
-  template <typename Callback>
-  static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
-                                             Callback callback) {
-    DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-    Code old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    Object* new_target = old_target;
-    SlotCallbackResult result = callback(MaybeObjectSlot(&new_target));
-    DCHECK(!HasWeakHeapObjectTag(new_target));
-    if (new_target != old_target) {
-      rinfo->set_target_address(
-          Code::cast(new_target)->raw_instruction_start());
-    }
-    return result;
-  }
-
-  // Updates an embedded pointer slot using an untyped slot callback.
-  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
-  template <typename Callback>
-  static SlotCallbackResult UpdateEmbeddedPointer(Heap* heap, RelocInfo* rinfo,
-                                                  Callback callback) {
-    DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    HeapObject* old_target = rinfo->target_object();
-    Object* new_target = old_target;
-    SlotCallbackResult result = callback(MaybeObjectSlot(&new_target));
-    DCHECK(!HasWeakHeapObjectTag(new_target));
-    if (new_target != old_target) {
-      rinfo->set_target_object(heap, HeapObject::cast(new_target));
-    }
-    return result;
-  }
-
   // Updates a typed slot using an untyped slot callback.
   // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
   template <typename Callback>
@@ -334,12 +286,66 @@ class UpdateTypedSlotHelper {
         return UpdateEmbeddedPointer(heap, &rinfo, callback);
       }
       case OBJECT_SLOT: {
-        return callback(MaybeObjectSlot(addr));
+        // TODO(ishell): the incoming addr represents MaybeObjectSlot(addr).
+        STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+        return callback(FullMaybeObjectSlot(addr));
       }
       case CLEARED_SLOT:
         break;
     }
     UNREACHABLE();
+  }
+
+ private:
+  // Updates a code entry slot using an untyped slot callback.
+  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
+  template <typename Callback>
+  static SlotCallbackResult UpdateCodeEntry(Address entry_address,
+                                            Callback callback) {
+    Code code = Code::GetObjectFromEntryAddress(entry_address);
+    Code old_code = code;
+    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+    SlotCallbackResult result = callback(FullMaybeObjectSlot(&code));
+    DCHECK(!HasWeakHeapObjectTag(code.ptr()));
+    if (code != old_code) {
+      Memory<Address>(entry_address) = code->entry();
+    }
+    return result;
+  }
+
+  // Updates a code target slot using an untyped slot callback.
+  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
+  template <typename Callback>
+  static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
+                                             Callback callback) {
+    DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
+    Code old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Code new_target = old_target;
+    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+    SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
+    DCHECK(!HasWeakHeapObjectTag(new_target.ptr()));
+    if (new_target != old_target) {
+      rinfo->set_target_address(
+          Code::cast(new_target)->raw_instruction_start());
+    }
+    return result;
+  }
+
+  // Updates an embedded pointer slot using an untyped slot callback.
+  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
+  template <typename Callback>
+  static SlotCallbackResult UpdateEmbeddedPointer(Heap* heap, RelocInfo* rinfo,
+                                                  Callback callback) {
+    DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+    HeapObject* old_target = rinfo->target_object();
+    HeapObject* new_target = old_target;
+    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+    SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
+    DCHECK(!HasWeakHeapObjectTag(new_target));
+    if (new_target != old_target) {
+      rinfo->set_target_object(heap, HeapObject::cast(new_target));
+    }
+    return result;
   }
 };
 

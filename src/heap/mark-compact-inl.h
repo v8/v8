@@ -208,6 +208,9 @@ template <typename TSlot>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::VisitPointerImpl(HeapObject* host,
                                                     TSlot slot) {
+  static_assert(std::is_same<TSlot, ObjectSlot>::value ||
+                    std::is_same<TSlot, MaybeObjectSlot>::value,
+                "Only ObjectSlot and MaybeObjectSlot are expected here");
   typename TSlot::TObject object = slot.load();
   HeapObject* target_object;
   if (object.GetHeapObjectIfStrong(&target_object)) {

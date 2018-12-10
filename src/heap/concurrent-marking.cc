@@ -109,13 +109,15 @@ class ConcurrentMarkingVisitor final
 
   bool AllowDefaultJSObjectVisit() { return false; }
 
-  void ProcessStrongHeapObject(HeapObject* host, ObjectSlot slot,
+  template <typename THeapObjectSlot>
+  void ProcessStrongHeapObject(HeapObject* host, THeapObjectSlot slot,
                                HeapObject* heap_object) {
     MarkObject(heap_object);
     MarkCompactCollector::RecordSlot(host, slot, heap_object);
   }
 
-  void ProcessWeakHeapObject(HeapObject* host, HeapObjectSlot slot,
+  template <typename THeapObjectSlot>
+  void ProcessWeakHeapObject(HeapObject* host, THeapObjectSlot slot,
                              HeapObject* heap_object) {
 #ifdef THREAD_SANITIZER
     // Perform a dummy acquire load to tell TSAN that there is no data race
@@ -149,6 +151,7 @@ class ConcurrentMarkingVisitor final
 
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end) {
+    using THeapObjectSlot = typename TSlot::THeapObjectSlot;
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.Relaxed_Load();
       HeapObject* heap_object;
@@ -156,10 +159,10 @@ class ConcurrentMarkingVisitor final
         // If the reference changes concurrently from strong to weak, the write
         // barrier will treat the weak reference as strong, so we won't miss the
         // weak reference.
-        ProcessStrongHeapObject(host, ObjectSlot(slot), heap_object);
+        ProcessStrongHeapObject(host, THeapObjectSlot(slot), heap_object);
       } else if (TSlot::kCanBeWeak &&
                  object.GetHeapObjectIfWeak(&heap_object)) {
-        ProcessWeakHeapObject(host, HeapObjectSlot(slot), heap_object);
+        ProcessWeakHeapObject(host, THeapObjectSlot(slot), heap_object);
       }
     }
   }

@@ -147,10 +147,14 @@ bool Scavenger::MigrateObject(Map map, HeapObject* source, HeapObject* target,
   return true;
 }
 
+template <typename THeapObjectSlot>
 CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map map,
-                                                    HeapObjectSlot slot,
+                                                    THeapObjectSlot slot,
                                                     HeapObject* object,
                                                     int object_size) {
+  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
+                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+                "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(heap()->AllowedToBeMigrated(object, NEW_SPACE));
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
   AllocationResult allocation =
@@ -179,9 +183,13 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map map,
   return CopyAndForwardResult::FAILURE;
 }
 
-CopyAndForwardResult Scavenger::PromoteObject(Map map, HeapObjectSlot slot,
+template <typename THeapObjectSlot>
+CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
                                               HeapObject* object,
                                               int object_size) {
+  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
+                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+                "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
   AllocationResult allocation =
       allocator_.Allocate(OLD_SPACE, object_size, alignment);
@@ -239,10 +247,14 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject* object,
   return false;
 }
 
+template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateObjectDefault(Map map,
-                                                    HeapObjectSlot slot,
+                                                    THeapObjectSlot slot,
                                                     HeapObject* object,
                                                     int object_size) {
+  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
+                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+                "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   SLOW_DCHECK(object->SizeFromMap(map) == object_size);
   CopyAndForwardResult result;
 
@@ -280,9 +292,13 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(Map map,
   UNREACHABLE();
 }
 
-SlotCallbackResult Scavenger::EvacuateThinString(Map map, HeapObjectSlot slot,
+template <typename THeapObjectSlot>
+SlotCallbackResult Scavenger::EvacuateThinString(Map map, THeapObjectSlot slot,
                                                  ThinString object,
                                                  int object_size) {
+  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
+                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+                "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   if (!is_incremental_marking_) {
     // The ThinString should die after Scavenge, so avoid writing the proper
     // forwarding pointer and instead just signal the actual object as forwarded
@@ -298,10 +314,14 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map map, HeapObjectSlot slot,
   return EvacuateObjectDefault(map, slot, object, object_size);
 }
 
+template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
-                                                        HeapObjectSlot slot,
+                                                        THeapObjectSlot slot,
                                                         ConsString object,
                                                         int object_size) {
+  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
+                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+                "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(IsShortcutCandidate(map->instance_type()));
   if (!is_incremental_marking_ &&
       object->unchecked_second() == ReadOnlyRoots(heap()).empty_string()) {
@@ -335,8 +355,12 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
   return EvacuateObjectDefault(map, slot, object, object_size);
 }
 
-SlotCallbackResult Scavenger::EvacuateObject(HeapObjectSlot slot, Map map,
+template <typename THeapObjectSlot>
+SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
                                              HeapObject* source) {
+  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
+                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+                "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   SLOW_DCHECK(Heap::InFromSpace(source));
   SLOW_DCHECK(!MapWord::FromMap(map).IsForwardingAddress());
   int size = source->SizeFromMap(map);
@@ -358,8 +382,12 @@ SlotCallbackResult Scavenger::EvacuateObject(HeapObjectSlot slot, Map map,
   }
 }
 
-SlotCallbackResult Scavenger::ScavengeObject(HeapObjectSlot p,
+template <typename THeapObjectSlot>
+SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
                                              HeapObject* object) {
+  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
+                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+                "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(Heap::InFromSpace(object));
 
   // Synchronized load that consumes the publishing CAS of MigrateObject.
@@ -391,15 +419,20 @@ SlotCallbackResult Scavenger::ScavengeObject(HeapObjectSlot p,
   return EvacuateObject(p, map, object);
 }
 
-SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
-                                                     MaybeObjectSlot slot) {
+template <typename TSlot>
+SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
+  static_assert(
+      std::is_same<TSlot, FullMaybeObjectSlot>::value ||
+          std::is_same<TSlot, MaybeObjectSlot>::value,
+      "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
+  using THeapObjectSlot = typename TSlot::THeapObjectSlot;
   MaybeObject object = *slot;
   if (Heap::InFromSpace(object)) {
     HeapObject* heap_object = object->GetHeapObject();
     DCHECK(heap_object->IsHeapObject());
 
     SlotCallbackResult result =
-        ScavengeObject(HeapObjectSlot(slot), heap_object);
+        ScavengeObject(THeapObjectSlot(slot), heap_object);
     DCHECK_IMPLIES(result == REMOVE_SLOT,
                    !heap->IsInYoungGeneration((*slot)->GetHeapObject()));
     return result;

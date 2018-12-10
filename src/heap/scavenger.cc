@@ -98,19 +98,25 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
  private:
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end) {
+    using THeapObjectSlot = typename TSlot::THeapObjectSlot;
     // Treat weak references as strong.
     // TODO(marja): Proper weakness handling in the young generation.
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load();
       HeapObject* heap_object;
       if (object.GetHeapObject(&heap_object)) {
-        HandleSlot(host, HeapObjectSlot(slot), heap_object);
+        HandleSlot(host, THeapObjectSlot(slot), heap_object);
       }
     }
   }
 
-  V8_INLINE void HandleSlot(HeapObject* host, HeapObjectSlot slot,
+  template <typename THeapObjectSlot>
+  V8_INLINE void HandleSlot(HeapObject* host, THeapObjectSlot slot,
                             HeapObject* target) {
+    static_assert(
+        std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
+            std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+        "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
     scavenger_->PageMemoryFence(MaybeObject::FromObject(target));
 
     if (Heap::InFromSpace(target)) {
@@ -383,7 +389,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       page, [this](SlotType type, Address host_addr, Address addr) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
-            heap_, type, addr, [this](MaybeObjectSlot slot) {
+            heap_, type, addr, [this](FullMaybeObjectSlot slot) {
               return CheckAndScavengeObject(heap(), slot);
             });
       });
@@ -452,7 +458,7 @@ void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
   DCHECK(!HasWeakHeapObjectTag(object));
   if (!Heap::InNewSpace(object)) return;
 
-  scavenger_->ScavengeObject(HeapObjectSlot(p),
+  scavenger_->ScavengeObject(FullHeapObjectSlot(p),
                              reinterpret_cast<HeapObject*>(object));
 }
 

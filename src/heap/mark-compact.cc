@@ -2148,12 +2148,14 @@ void MarkCompactCollector::ClearWeakReferences() {
       HeapObjectReference::ClearedValue(isolate());
   while (weak_objects_.weak_references.Pop(kMainThread, &slot)) {
     HeapObject* value;
-    HeapObjectSlot location = slot.second;
+    // The slot could have been overwritten, so we have to treat it
+    // as MaybeObjectSlot.
+    MaybeObjectSlot location(slot.second);
     if ((*location)->GetHeapObjectIfWeak(&value)) {
       DCHECK(!value->IsCell());
       if (non_atomic_marking_state()->IsBlackOrGrey(value)) {
         // The value of the weak reference is alive.
-        RecordSlot(slot.first, location, value);
+        RecordSlot(slot.first, HeapObjectSlot(location), value);
       } else {
         if (value->IsMap()) {
           // The map is non-live.
@@ -2274,18 +2276,10 @@ template <typename TSlot, HeapObjectReferenceType reference_type>
 typename TSlot::TObject MakeSlotValue(HeapObject* heap_object);
 
 template <>
-ObjectPtr MakeSlotValue<FullObjectSlot, HeapObjectReferenceType::STRONG>(
+ObjectPtr MakeSlotValue<ObjectSlot, HeapObjectReferenceType::STRONG>(
     HeapObject* heap_object) {
   return ObjectPtr(heap_object->ptr());
 }
-
-#ifdef V8_COMPRESS_POINTERS
-template <>
-ObjectPtr MakeSlotValue<CompressedObjectSlot, HeapObjectReferenceType::STRONG>(
-    HeapObject* heap_object) {
-  return ObjectPtr(heap_object->ptr());
-}
-#endif
 
 template <>
 MaybeObject MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::STRONG>(
@@ -2299,15 +2293,35 @@ MaybeObject MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::WEAK>(
   return HeapObjectReference::Weak(heap_object);
 }
 
+#ifdef V8_COMPRESS_POINTERS
+template <>
+ObjectPtr MakeSlotValue<FullObjectSlot, HeapObjectReferenceType::STRONG>(
+    HeapObject* heap_object) {
+  return ObjectPtr(heap_object->ptr());
+}
+
+template <>
+MaybeObject MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
+    HeapObject* heap_object) {
+  return HeapObjectReference::Strong(heap_object);
+}
+
+// The following specialization
+//   MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::WEAK>()
+// is not used.
+#endif
+
 template <AccessMode access_mode, HeapObjectReferenceType reference_type,
           typename TSlot>
 static inline SlotCallbackResult UpdateSlot(TSlot slot,
                                             typename TSlot::TObject old,
                                             HeapObject* heap_obj) {
-  static_assert(std::is_same<TSlot, FullObjectSlot>::value ||
-                    std::is_same<TSlot, ObjectSlot>::value ||
-                    std::is_same<TSlot, MaybeObjectSlot>::value,
-                "Only FullObjectSlot and MaybeObjectSlot are expected here");
+  static_assert(
+      std::is_same<TSlot, FullObjectSlot>::value ||
+          std::is_same<TSlot, ObjectSlot>::value ||
+          std::is_same<TSlot, FullMaybeObjectSlot>::value ||
+          std::is_same<TSlot, MaybeObjectSlot>::value,
+      "Only [Full]ObjectSlot and [Full]MaybeObjectSlot are expected here");
   MapWord map_word = heap_obj->map_word();
   if (map_word.IsForwardingAddress()) {
     DCHECK(Heap::InFromSpace(heap_obj) ||
@@ -2360,11 +2374,9 @@ static inline SlotCallbackResult UpdateStrongSlot(TSlot slot) {
 
 // Visitor for updating root pointers and to-space pointers.
 // It does not expect to encounter pointers to dead objects.
-// TODO(ulan): Remove code object specific functions. This visitor
-// nevers visits code objects.
 class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
-  explicit PointersUpdatingVisitor(Heap* heap) : heap_(heap) {}
+  PointersUpdatingVisitor() {}
 
   void VisitPointer(HeapObject* host, ObjectSlot p) override {
     UpdateStrongSlotInternal(p);
@@ -2401,13 +2413,13 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateEmbeddedPointer(
-        heap_, rinfo, UpdateStrongMaybeObjectSlotInternal);
+    // This visitor nevers visits code objects.
+    UNREACHABLE();
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateCodeTarget(
-        rinfo, UpdateStrongMaybeObjectSlotInternal);
+    // This visitor nevers visits code objects.
+    UNREACHABLE();
   }
 
  private:
@@ -2427,8 +2439,6 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
   static inline SlotCallbackResult UpdateSlotInternal(MaybeObjectSlot slot) {
     return UpdateSlot<AccessMode::NON_ATOMIC>(slot);
   }
-
-  Heap* heap_;
 };
 
 static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
@@ -3059,7 +3069,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
   void ProcessVisitAll() {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "ToSpaceUpdatingItem::ProcessVisitAll");
-    PointersUpdatingVisitor visitor(chunk_->heap());
+    PointersUpdatingVisitor visitor;
     for (Address cur = start_; cur < end_;) {
       HeapObject* object = HeapObject::FromAddress(cur);
       Map map = object->map();
@@ -3074,7 +3084,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
                  "ToSpaceUpdatingItem::ProcessVisitLive");
     // For young generation evacuations we want to visit grey objects, for
     // full MC, we need to visit black objects.
-    PointersUpdatingVisitor visitor(chunk_->heap());
+    PointersUpdatingVisitor visitor;
     for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
              chunk_, marking_state_->bitmap(chunk_))) {
       object_and_size.first->IterateBodyFast(&visitor);
@@ -3109,18 +3119,24 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
  private:
-  inline SlotCallbackResult CheckAndUpdateOldToNewSlot(MaybeObjectSlot slot) {
+  template <typename TSlot>
+  inline SlotCallbackResult CheckAndUpdateOldToNewSlot(TSlot slot) {
+    static_assert(
+        std::is_same<TSlot, FullMaybeObjectSlot>::value ||
+            std::is_same<TSlot, MaybeObjectSlot>::value,
+        "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
+    using THeapObjectSlot = typename TSlot::THeapObjectSlot;
     HeapObject* heap_object;
-    if (!(*slot)->GetHeapObject(&heap_object)) {
+    if (!slot.load().GetHeapObject(&heap_object)) {
       return REMOVE_SLOT;
     }
     if (Heap::InFromSpace(heap_object)) {
       MapWord map_word = heap_object->map_word();
       if (map_word.IsForwardingAddress()) {
-        HeapObjectReference::Update(HeapObjectSlot(slot),
+        HeapObjectReference::Update(THeapObjectSlot(slot),
                                     map_word.ToForwardingAddress());
       }
-      bool success = (*slot)->GetHeapObject(&heap_object);
+      bool success = slot.load().GetHeapObject(&heap_object);
       USE(success);
       DCHECK(success);
       // If the object was in from space before and is after executing the
@@ -3194,7 +3210,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         nullptr) {
       CHECK_NE(chunk_->owner(), heap_->map_space());
       const auto check_and_update_old_to_new_slot_fn =
-          [this](MaybeObjectSlot slot) {
+          [this](FullMaybeObjectSlot slot) {
             return CheckAndUpdateOldToNewSlot(slot);
           };
       RememberedSet<OLD_TO_NEW>::IterateTyped(
@@ -3213,7 +3229,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             // typed slots.
             return UpdateTypedSlotHelper::UpdateTypedSlot(
                 heap_, slot_type, slot,
-                UpdateStrongSlot<AccessMode::NON_ATOMIC, MaybeObjectSlot>);
+                UpdateStrongSlot<AccessMode::NON_ATOMIC, FullMaybeObjectSlot>);
           });
     }
   }
@@ -3238,23 +3254,19 @@ UpdatingItem* MarkCompactCollector::CreateRememberedSetUpdatingItem(
 
 class GlobalHandlesUpdatingItem : public UpdatingItem {
  public:
-  GlobalHandlesUpdatingItem(Heap* heap, GlobalHandles* global_handles,
-                            size_t start, size_t end)
-      : heap_(heap),
-        global_handles_(global_handles),
-        start_(start),
-        end_(end) {}
+  GlobalHandlesUpdatingItem(GlobalHandles* global_handles, size_t start,
+                            size_t end)
+      : global_handles_(global_handles), start_(start), end_(end) {}
   ~GlobalHandlesUpdatingItem() override = default;
 
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "GlobalHandlesUpdatingItem::Process");
-    PointersUpdatingVisitor updating_visitor(heap_);
+    PointersUpdatingVisitor updating_visitor;
     global_handles_->IterateNewSpaceRoots(&updating_visitor, start_, end_);
   }
 
  private:
-  Heap* heap_;
   GlobalHandles* global_handles_;
   size_t start_;
   size_t end_;
@@ -3379,7 +3391,7 @@ int MarkCompactCollector::CollectOldSpaceArrayBufferTrackerItems(
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
 
-  PointersUpdatingVisitor updating_visitor(heap());
+  PointersUpdatingVisitor updating_visitor;
 
   {
     TRACE_GC(heap()->tracer(),
@@ -3755,8 +3767,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 #endif  // VERIFY_HEAP
 
 template <class ParallelItem>
-void SeedGlobalHandles(Heap* heap, GlobalHandles* global_handles,
-                       ItemParallelJob* job) {
+void SeedGlobalHandles(GlobalHandles* global_handles, ItemParallelJob* job) {
   // Create batches of global handles.
   const size_t kGlobalHandlesBufferSize = 1000;
   const size_t new_space_nodes = global_handles->NumberOfNewSpaceNodes();
@@ -3764,7 +3775,7 @@ void SeedGlobalHandles(Heap* heap, GlobalHandles* global_handles,
        start += kGlobalHandlesBufferSize) {
     size_t end = start + kGlobalHandlesBufferSize;
     if (end > new_space_nodes) end = new_space_nodes;
-    job->AddItem(new ParallelItem(heap, global_handles, start, end));
+    job->AddItem(new ParallelItem(global_handles, start, end));
   }
 }
 
@@ -3948,14 +3959,14 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(),
            GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS);
 
-  PointersUpdatingVisitor updating_visitor(heap());
+  PointersUpdatingVisitor updating_visitor;
   ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
                                &page_parallel_job_semaphore_);
 
   CollectNewSpaceArrayBufferTrackerItems(&updating_job);
   // Create batches of global handles.
-  SeedGlobalHandles<GlobalHandlesUpdatingItem>(
-      heap(), isolate()->global_handles(), &updating_job);
+  SeedGlobalHandles<GlobalHandlesUpdatingItem>(isolate()->global_handles(),
+                                               &updating_job);
   const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
   int remembered_set_pages = 0;
   remembered_set_pages += CollectRememberedSetUpdatingItems(
@@ -4373,21 +4384,26 @@ class PageMarkingItem : public MarkingItem {
         chunk_,
         [this, task](SlotType slot_type, Address host_addr, Address slot) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
-              heap(), slot_type, slot, [this, task](MaybeObjectSlot slot) {
+              heap(), slot_type, slot, [this, task](FullMaybeObjectSlot slot) {
                 return CheckAndMarkObject(task, slot);
               });
         });
   }
 
-  SlotCallbackResult CheckAndMarkObject(YoungGenerationMarkingTask* task,
-                                        MaybeObjectSlot slot) {
-    MaybeObject object = *slot;
+  template <typename TSlot>
+  V8_INLINE SlotCallbackResult
+  CheckAndMarkObject(YoungGenerationMarkingTask* task, TSlot slot) {
+    static_assert(
+        std::is_same<TSlot, FullMaybeObjectSlot>::value ||
+            std::is_same<TSlot, MaybeObjectSlot>::value,
+        "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
+    MaybeObject object = slot.load();
     if (Heap::InNewSpace(object)) {
       // Marking happens before flipping the young generation, so the object
       // has to be in ToSpace.
       DCHECK(Heap::InToSpace(object));
       HeapObject* heap_object;
-      bool success = object->GetHeapObject(&heap_object);
+      bool success = object.GetHeapObject(&heap_object);
       USE(success);
       DCHECK(success);
       task->MarkObject(heap_object);
@@ -4404,8 +4420,8 @@ class PageMarkingItem : public MarkingItem {
 
 class GlobalHandlesMarkingItem : public MarkingItem {
  public:
-  GlobalHandlesMarkingItem(Heap* heap, GlobalHandles* global_handles,
-                           size_t start, size_t end)
+  GlobalHandlesMarkingItem(GlobalHandles* global_handles, size_t start,
+                           size_t end)
       : global_handles_(global_handles), start_(start), end_(end) {}
   ~GlobalHandlesMarkingItem() override = default;
 
@@ -4459,8 +4475,8 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
       heap()->IterateRoots(root_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
       // Create batches of global handles.
-      SeedGlobalHandles<GlobalHandlesMarkingItem>(
-          heap(), isolate()->global_handles(), &job);
+      SeedGlobalHandles<GlobalHandlesMarkingItem>(isolate()->global_handles(),
+                                                  &job);
       // Create items for each page.
       RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
           heap(), [&job, &slots](MemoryChunk* chunk) {

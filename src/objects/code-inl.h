@@ -574,12 +574,12 @@ Code Code::GetCodeFromTargetAddress(Address address) {
   return Code::unchecked_cast(code);
 }
 
-Object* Code::GetObjectFromCodeEntry(Address code_entry) {
-  return HeapObject::FromAddress(code_entry - Code::kHeaderSize);
-}
-
-Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
-  return GetObjectFromCodeEntry(Memory<Address>(location_of_address));
+Code Code::GetObjectFromEntryAddress(Address location_of_address) {
+  Address code_entry = Memory<Address>(location_of_address);
+  HeapObject* code = HeapObject::FromAddress(code_entry - Code::kHeaderSize);
+  // Unchecked cast because we can't rely on the map currently
+  // not being a forwarding pointer.
+  return Code::unchecked_cast(code);
 }
 
 bool Code::CanContainWeakObjects() {

@@ -215,10 +215,7 @@ class Code : public HeapObjectPtr {
   static inline Code GetCodeFromTargetAddress(Address address);
 
   // Convert an entry address into an object.
-  static inline Object* GetObjectFromEntryAddress(Address location_of_address);
-
-  // Convert a code entry into an object.
-  static inline Object* GetObjectFromCodeEntry(Address code_entry);
+  static inline Code GetObjectFromEntryAddress(Address location_of_address);
 
   // Returns the address of the first instruction.
   inline Address raw_instruction_start() const;
