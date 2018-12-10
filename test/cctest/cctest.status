@@ -166,6 +166,7 @@
   'test-api/ExternalFloatArray': [SKIP],
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
+  'test-api/Uint8Array': [SKIP],
 }],  # 'arch == arm64 and (mode == debug or dcheck_always_on) and simulator_run'
 
 ##############################################################################
