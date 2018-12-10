@@ -218,7 +218,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   CallInterfaceDescriptor() : data_(nullptr) {}
   virtual ~CallInterfaceDescriptor() = default;
 
-  CallInterfaceDescriptor(CallDescriptors::Key key)
+  explicit CallInterfaceDescriptor(CallDescriptors::Key key)
       : data_(CallDescriptors::call_descriptor_data(key)) {}
 
   Flags flags() const { return data()->flags(); }

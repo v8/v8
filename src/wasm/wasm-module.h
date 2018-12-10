@@ -202,7 +202,7 @@ size_t EstimateStoredSize(const WasmModule* module);
 // on module_bytes, as this storage is only guaranteed to be alive as long as
 // this struct is alive.
 struct V8_EXPORT_PRIVATE ModuleWireBytes {
-  ModuleWireBytes(Vector<const byte> module_bytes)
+  explicit ModuleWireBytes(Vector<const byte> module_bytes)
       : module_bytes_(module_bytes) {}
   ModuleWireBytes(const byte* start, const byte* end)
       : module_bytes_(start, static_cast<int>(end - start)) {

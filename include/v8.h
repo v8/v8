@@ -4188,8 +4188,16 @@ class V8_EXPORT PropertyDescriptor {
   // GenericDescriptor
   PropertyDescriptor();
 
+  // DataDescriptor (implicit / DEPRECATED)
+  // Templatized such that the explicit constructor is chosen first.
+  // TODO(clemensh): Remove after 7.3 branch.
+  template <std::nullptr_t = nullptr>
+  V8_DEPRECATED(
+      "Use explicit constructor",
+      PropertyDescriptor(Local<Value> value));  // NOLINT(runtime/explicit)
+
   // DataDescriptor
-  PropertyDescriptor(Local<Value> value);
+  explicit PropertyDescriptor(Local<Value> value);
 
   // DataDescriptor with writable property
   PropertyDescriptor(Local<Value> value, bool writable);
@@ -4227,6 +4235,11 @@ class V8_EXPORT PropertyDescriptor {
  private:
   PrivateData* private_;
 };
+
+// TODO(clemensh): Remove after 7.3 branch.
+template <std::nullptr_t>
+PropertyDescriptor::PropertyDescriptor(Local<Value> value)
+    : PropertyDescriptor(value) {}
 
 /**
  * An instance of the built-in Proxy constructor (ECMA-262, 6th Edition,
@@ -4436,7 +4449,7 @@ class V8_EXPORT WasmStreaming final {
  public:
   class WasmStreamingImpl;
 
-  WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl);
+  explicit WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl);
 
   ~WasmStreaming();
 

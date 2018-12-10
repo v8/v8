@@ -218,7 +218,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename T>
   using LazyNode = std::function<TNode<T>()>;
 
-  CodeStubAssembler(compiler::CodeAssemblerState* state);
+  explicit CodeStubAssembler(compiler::CodeAssemblerState* state);
 
   enum AllocationFlag : uint8_t {
     kNone = 0,

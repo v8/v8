@@ -242,7 +242,7 @@ std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
 
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_module) {
-  Vector<const byte> wire_bytes = shared_module->wire_bytes();
+  ModuleWireBytes wire_bytes(shared_module->wire_bytes());
   const WasmModule* module = shared_module->module();
   Handle<Script> script =
       CreateWasmScript(isolate, wire_bytes, module->source_map_url);

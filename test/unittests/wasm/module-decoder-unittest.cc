@@ -1492,15 +1492,12 @@ TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type2) {
 
 class WasmFunctionVerifyTest : public TestWithIsolateAndZone {
  public:
-  WasmFeatures enabled_features_;
-  WasmModule module;
-  Vector<const byte> bytes;
-
   FunctionResult DecodeWasmFunction(const ModuleWireBytes& wire_bytes,
                                     const WasmModule* module,
                                     const byte* function_start,
                                     const byte* function_end) {
-    return DecodeWasmFunctionForTesting(enabled_features_, zone(), wire_bytes,
+    WasmFeatures enabled_features;
+    return DecodeWasmFunctionForTesting(enabled_features, zone(), wire_bytes,
                                         module, function_start, function_end,
                                         isolate()->counters());
   }
@@ -1521,8 +1518,9 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
       kExprEnd    // body
   };
 
-  FunctionResult result =
-      DecodeWasmFunction(bytes, &module, data, data + sizeof(data));
+  WasmModule module;
+  FunctionResult result = DecodeWasmFunction(ModuleWireBytes({}), &module, data,
+                                             data + sizeof(data));
   EXPECT_OK(result);
 
   if (result.value() && result.ok()) {

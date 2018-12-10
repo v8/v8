@@ -521,7 +521,7 @@ v8::debug::WasmDisassembly WasmModuleObject::DisassembleFunction(
       static_cast<uint32_t>(func_index) >= module()->functions.size())
     return {};
 
-  Vector<const byte> wire_bytes = native_module()->wire_bytes();
+  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
 
   std::ostringstream disassembly_os;
   v8::debug::WasmDisassembly::OffsetTable offset_table;

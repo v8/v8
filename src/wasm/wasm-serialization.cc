@@ -576,10 +576,12 @@ bool IsSupportedVersion(Vector<const byte> version) {
 }
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
-    Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes) {
+    Isolate* isolate, Vector<const byte> data,
+    Vector<const byte> wire_bytes_vec) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!IsSupportedVersion(data)) return {};
 
+  ModuleWireBytes wire_bytes(wire_bytes_vec);
   // TODO(titzer): module features should be part of the serialization format.
   WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
@@ -591,7 +593,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Handle<Script> script =
       CreateWasmScript(isolate, wire_bytes, module->source_map_url);
 
-  OwnedVector<uint8_t> wire_bytes_copy = OwnedVector<uint8_t>::Of(wire_bytes);
+  OwnedVector<uint8_t> wire_bytes_copy =
+      OwnedVector<uint8_t>::Of(wire_bytes_vec);
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, enabled_features, std::move(decode_result).value(),

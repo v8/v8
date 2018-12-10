@@ -2025,7 +2025,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           if (is_asm_js) {
             // For modules arising from asm.js, honor the names section.
             WireBytesRef func_name_ref = module_->LookupFunctionName(
-                module_object_->native_module()->wire_bytes(),
+                ModuleWireBytes(module_object_->native_module()->wire_bytes()),
                 function.func_index);
             func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
                             isolate_, module_object_, func_name_ref)
@@ -2212,7 +2212,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
           if (module_->origin == kAsmJsOrigin) {
             // For modules arising from asm.js, honor the names section.
             WireBytesRef func_name_ref = module_->LookupFunctionName(
-                native_module->wire_bytes(), func_index);
+                ModuleWireBytes(native_module->wire_bytes()), func_index);
             func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
                             isolate_, module_object_, func_name_ref)
                             .ToHandleChecked();
