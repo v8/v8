@@ -2161,10 +2161,17 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
                      ObjectSlot end) override;
   void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override;
+
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
 
  protected:
+  V8_INLINE void VerifyHeapObjectImpl(HeapObject* heap_object);
+
+  template <typename TSlot>
+  V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end);
+
   virtual void VerifyPointers(HeapObject* host, MaybeObjectSlot start,
                               MaybeObjectSlot end);
 

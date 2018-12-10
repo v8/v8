@@ -413,16 +413,20 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
   return REMOVE_SLOT;
 }
 
-V8_INLINE void ScavengeVisitor::VisitPointers(HeapObject* host,
-                                              ObjectSlot start,
-                                              ObjectSlot end) {
+void ScavengeVisitor::VisitPointers(HeapObject* host, ObjectSlot start,
+                                    ObjectSlot end) {
   return VisitPointersImpl(host, start, end);
 }
 
-V8_INLINE void ScavengeVisitor::VisitPointers(HeapObject* host,
-                                              MaybeObjectSlot start,
-                                              MaybeObjectSlot end) {
+void ScavengeVisitor::VisitPointers(HeapObject* host, MaybeObjectSlot start,
+                                    MaybeObjectSlot end) {
   return VisitPointersImpl(host, start, end);
+}
+
+void ScavengeVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
+  Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  FullObjectSlot slot(&target);
+  VisitPointersImpl(host, slot, slot + 1);
 }
 
 template <typename TSlot>

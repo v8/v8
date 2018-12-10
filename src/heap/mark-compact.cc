@@ -202,24 +202,31 @@ class FullMarkingVerifier : public MarkingVerifier {
     VerifyPointersImpl(start, end);
   }
 
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    VerifyHeapObjectImpl(target);
+  }
+
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     if (!host->IsWeakObject(rinfo->target_object())) {
-      Object* p = rinfo->target_object();
-      // TODO(ishell): visiting off-heap pointer
-      STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-      VisitPointer(host, ObjectSlot(&p));
+      HeapObject* object = rinfo->target_object();
+      VerifyHeapObjectImpl(object);
     }
   }
 
  private:
+  V8_INLINE void VerifyHeapObjectImpl(HeapObject* heap_object) {
+    CHECK(marking_state_->IsBlackOrGrey(heap_object));
+  }
+
   template <typename TSlot>
   V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end) {
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load();
       HeapObject* heap_object;
       if (object.GetHeapObjectIfStrong(&heap_object)) {
-        CHECK(marking_state_->IsBlackOrGrey(heap_object));
+        VerifyHeapObjectImpl(heap_object);
       }
     }
   }
@@ -313,16 +320,18 @@ class FullEvacuationVerifier : public EvacuationVerifier {
   }
 
  protected:
+  V8_INLINE void VerifyHeapObjectImpl(HeapObject* heap_object) {
+    CHECK_IMPLIES(Heap::InNewSpace(heap_object), Heap::InToSpace(heap_object));
+    CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(heap_object));
+  }
+
   template <typename TSlot>
   void VerifyPointersImpl(TSlot start, TSlot end) {
     for (TSlot current = start; current < end; ++current) {
       typename TSlot::TObject object = current.load();
       HeapObject* heap_object;
       if (object.GetHeapObjectIfStrong(&heap_object)) {
-        if (Heap::InNewSpace(heap_object)) {
-          CHECK(Heap::InToSpace(heap_object));
-        }
-        CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(heap_object));
+        VerifyHeapObjectImpl(heap_object);
       }
     }
   }
@@ -332,6 +341,10 @@ class FullEvacuationVerifier : public EvacuationVerifier {
   }
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
     VerifyPointersImpl(start, end);
+  }
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    VerifyHeapObjectImpl(target);
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
@@ -925,9 +938,13 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   }
 
   // VisitEmbedderPointer is defined by ObjectVisitor to call VisitPointers.
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    MarkObject(host, target);
+  }
 
  private:
-  void MarkObject(HeapObject* host, Object* object) {
+  V8_INLINE void MarkObject(HeapObject* host, Object* object) {
     if (!object->IsHeapObject()) return;
     collector_->MarkObject(host, HeapObject::cast(object));
   }
@@ -967,6 +984,8 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
                      MaybeObjectSlot end) final {
     UNREACHABLE();
   }
+
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) final { UNREACHABLE(); }
 
   int PointersRemoved() {
     return pointers_removed_;
@@ -3636,6 +3655,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     VerifyMarking(heap_->new_space());
   }
 
+ protected:
   void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
@@ -3644,11 +3664,20 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     VerifyPointersImpl(start, end);
   }
 
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    VerifyHeapObjectImpl(target);
+  }
+
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
 
  private:
+  V8_INLINE void VerifyHeapObjectImpl(HeapObject* heap_object) {
+    CHECK_IMPLIES(Heap::InNewSpace(heap_object), IsMarked(heap_object));
+  }
+
   template <typename TSlot>
   V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end) {
     for (TSlot slot = start; slot < end; ++slot) {
@@ -3656,7 +3685,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
       HeapObject* heap_object;
       // Minor MC treats weak references as strong.
       if (object.GetHeapObject(&heap_object)) {
-        CHECK_IMPLIES(Heap::InNewSpace(heap_object), IsMarked(heap_object));
+        VerifyHeapObjectImpl(heap_object);
       }
     }
   }
@@ -3678,14 +3707,17 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   }
 
  protected:
+  V8_INLINE void VerifyHeapObjectImpl(HeapObject* heap_object) {
+    CHECK_IMPLIES(Heap::InNewSpace(heap_object), Heap::InToSpace(heap_object));
+  }
+
   template <typename TSlot>
   void VerifyPointersImpl(TSlot start, TSlot end) {
     for (TSlot current = start; current < end; ++current) {
       typename TSlot::TObject object = current.load();
       HeapObject* heap_object;
       if (object.GetHeapObject(&heap_object)) {
-        CHECK_IMPLIES(Heap::InNewSpace(heap_object),
-                      Heap::InToSpace(heap_object));
+        VerifyHeapObjectImpl(heap_object);
       }
     }
   }
@@ -3695,6 +3727,10 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   }
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
     VerifyPointersImpl(start, end);
+  }
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    VerifyHeapObjectImpl(target);
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
@@ -3750,6 +3786,11 @@ class YoungGenerationMarkingVisitor final
 
   V8_INLINE void VisitPointer(HeapObject* host, MaybeObjectSlot slot) final {
     VisitPointerImpl(host, slot);
+  }
+
+  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
+    // Code objects are not expected in new space.
+    UNREACHABLE();
   }
 
  private:

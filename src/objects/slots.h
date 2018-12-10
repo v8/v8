@@ -179,6 +179,8 @@ class FullHeapObjectSlot
  public:
   FullHeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit FullHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
+  explicit FullHeapObjectSlot(ObjectPtr* ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}

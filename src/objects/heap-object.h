@@ -115,6 +115,9 @@ class ObjectPtr {
     DCHECK(!HasWeakHeapObjectTag(ptr()));
     return false;
   }
+  // Always returns false because Object is not expected to be a weak pointer
+  // to a HeapObject.
+  inline bool IsCleared() const { return false; }
 
 #ifdef VERIFY_HEAP
   void ObjectVerify(Isolate* isolate) {

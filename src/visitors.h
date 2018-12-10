@@ -121,7 +121,7 @@ class ObjectVisitor {
   // a rich interface for iterating over Code objects ...
 
   // Visits a code target in the instruction stream.
-  virtual void VisitCodeTarget(Code host, RelocInfo* rinfo);
+  virtual void VisitCodeTarget(Code host, RelocInfo* rinfo) = 0;
 
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(Code host, RelocInfo* rinfo) {}

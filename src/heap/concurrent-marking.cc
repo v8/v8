@@ -441,6 +441,12 @@ class ConcurrentMarkingVisitor final
       UNREACHABLE();
     }
 
+    void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
+      // This should never happen, because snapshotting is performed only on
+      // JSObjects (and derived classes).
+      UNREACHABLE();
+    }
+
     void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
                                  ObjectSlot end) override {
       DCHECK(host->IsJSWeakCell());

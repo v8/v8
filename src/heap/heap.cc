@@ -1475,6 +1475,8 @@ class StringTableVerifier : public ObjectVisitor {
     UNREACHABLE();
   }
 
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override { UNREACHABLE(); }
+
  private:
   Isolate* isolate_;
 };
@@ -2994,6 +2996,8 @@ class SlotCollectingVisitor final : public ObjectVisitor {
     }
   }
 
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) final { UNREACHABLE(); }
+
   int number_of_slots() { return static_cast<int>(slots_.size()); }
 
   MaybeObjectSlot slot(int i) { return slots_[i]; }
@@ -3485,9 +3489,9 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
     VerifyPointersVisitor::VerifyPointers(host, start, end);
 
     for (MaybeObjectSlot current = start; current < end; ++current) {
-      HeapObject* object;
-      if ((*current)->GetHeapObject(&object)) {
-        CHECK(heap_->InReadOnlySpace(object));
+      HeapObject* heap_object;
+      if ((*current)->GetHeapObject(&heap_object)) {
+        CHECK(heap_->InReadOnlySpace(heap_object));
       }
     }
   }
@@ -5031,6 +5035,11 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       MarkPointers(start, end);
     }
 
+    void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
+      Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+      MarkHeapObject(target);
+    }
+
     void VisitRootPointers(Root root, const char* description,
                            FullObjectSlot start, FullObjectSlot end) override {
       MarkPointersImpl(start, end);
@@ -5056,12 +5065,17 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
         typename TSlot::TObject object = p.load();
         HeapObject* heap_object;
         if (object.GetHeapObject(&heap_object)) {
-          if (filter_->MarkAsReachable(heap_object)) {
-            marking_stack_.push_back(heap_object);
-          }
+          MarkHeapObject(heap_object);
         }
       }
     }
+
+    V8_INLINE void MarkHeapObject(HeapObject* heap_object) {
+      if (filter_->MarkAsReachable(heap_object)) {
+        marking_stack_.push_back(heap_object);
+      }
+    }
+
     UnreachableObjectsFilter* filter_;
     std::vector<HeapObject*> marking_stack_;
   };
@@ -5396,24 +5410,36 @@ void VerifyPointersVisitor::VisitRootPointers(Root root,
                                               const char* description,
                                               FullObjectSlot start,
                                               FullObjectSlot end) {
-  // TODO(ishell): visiting off-heap pointer
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  VerifyPointers(nullptr, MaybeObjectSlot(start.address()),
-                 MaybeObjectSlot(end.address()));
+  VerifyPointersImpl(start, end);
+}
+
+void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject* heap_object) {
+  CHECK(heap_->Contains(heap_object));
+  CHECK(heap_object->map()->IsMap());
+}
+
+template <typename TSlot>
+void VerifyPointersVisitor::VerifyPointersImpl(TSlot start, TSlot end) {
+  for (TSlot slot = start; slot < end; ++slot) {
+    typename TSlot::TObject object = slot.load();
+    HeapObject* heap_object;
+    if (object.GetHeapObject(&heap_object)) {
+      VerifyHeapObjectImpl(heap_object);
+    } else {
+      CHECK(object->IsSmi() || object->IsCleared());
+    }
+  }
 }
 
 void VerifyPointersVisitor::VerifyPointers(HeapObject* host,
                                            MaybeObjectSlot start,
                                            MaybeObjectSlot end) {
-  for (MaybeObjectSlot current = start; current < end; ++current) {
-    HeapObject* object;
-    if ((*current)->GetHeapObject(&object)) {
-      CHECK(heap_->Contains(object));
-      CHECK(object->map()->IsMap());
-    } else {
-      CHECK((*current)->IsSmi() || (*current)->IsCleared());
-    }
-  }
+  VerifyPointersImpl(start, end);
+}
+
+void VerifyPointersVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
+  Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  VerifyHeapObjectImpl(target);
 }
 
 void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,

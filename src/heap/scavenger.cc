@@ -86,6 +86,11 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     VisitPointersImpl(host, start, end);
   }
 
+  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    HandleSlot(host, FullHeapObjectSlot(&target), target);
+  }
+
  private:
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end) {

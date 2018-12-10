@@ -116,7 +116,10 @@ void Deserializer::VisitRootPointers(Root root, const char* description,
                                      FullObjectSlot start, FullObjectSlot end) {
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using nullptr as the address.
-  ReadData(UnalignedSlot(start), UnalignedSlot(end), NEW_SPACE, kNullAddress);
+  // TODO(ishell): this will not work once we actually compress pointers.
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  ReadData(UnalignedSlot(start.address()), UnalignedSlot(end.address()),
+           NEW_SPACE, kNullAddress);
 }
 
 void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {

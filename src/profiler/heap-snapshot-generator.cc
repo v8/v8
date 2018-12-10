@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "src/api-inl.h"
+#include "src/assembler-inl.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/global-handles.h"
@@ -669,42 +670,53 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         parent_start_(HeapObject::RawMaybeWeakField(parent_obj_, 0)),
         parent_end_(
             HeapObject::RawMaybeWeakField(parent_obj_, parent_obj_->Size())),
-        parent_(parent) {}
+        parent_(parent),
+        next_index_(0) {}
   void VisitPointers(HeapObject* host, ObjectSlot start,
                      ObjectSlot end) override {
     VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
   }
   void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
-    int next_index = 0;
     for (MaybeObjectSlot p = start; p < end; ++p) {
-      int index = -1;
+      int field_index = -1;
       // |p| could be outside of the object, e.g., while visiting RelocInfo of
       // code objects.
       if (parent_start_ <= p && p < parent_end_) {
-        index = static_cast<int>(p - parent_start_);
-        if (generator_->visited_fields_[index]) {
-          generator_->visited_fields_[index] = false;
+        field_index = static_cast<int>(p - parent_start_);
+        if (generator_->visited_fields_[field_index]) {
+          generator_->visited_fields_[field_index] = false;
           continue;
         }
       }
       HeapObject* heap_object;
       if ((*p)->GetHeapObject(&heap_object)) {
-        // The last parameter {field_offset} is only used to check some
-        // well-known skipped references, so passing -1 * kPointerSize
-        // for out-of-object slots is fine.
-        generator_->SetHiddenReference(parent_obj_, parent_, next_index++,
-                                       heap_object, index * kPointerSize);
+        VisitHeapObjectImpl(heap_object, field_index);
       }
     }
   }
 
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    VisitHeapObjectImpl(target, -1);
+  }
+
  private:
+  V8_INLINE void VisitHeapObjectImpl(HeapObject* heap_object, int field_index) {
+    DCHECK_LE(-1, field_index);
+    // The last parameter {field_offset} is only used to check some well-known
+    // skipped references, so passing -1 * kPointerSize for objects embedded
+    // into code is fine.
+    generator_->SetHiddenReference(parent_obj_, parent_, next_index_++,
+                                   heap_object, field_index * kPointerSize);
+  }
+
   V8HeapExplorer* generator_;
   HeapObject* parent_obj_;
   MaybeObjectSlot parent_start_;
   MaybeObjectSlot parent_end_;
   HeapEntry* parent_;
+  int next_index_;
 };
 
 void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject* obj) {

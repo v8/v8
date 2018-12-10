@@ -77,6 +77,11 @@ class FieldStatsCollector : public ObjectVisitor {
     *tagged_fields_count_ += (end - start);
   }
 
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+    // Code target is most likely encoded as a relative 32-bit offset and not
+    // as a full tagged value, so there's nothing to count.
+  }
+
  private:
   struct JSObjectFieldStats {
     JSObjectFieldStats()
