@@ -782,6 +782,42 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlob1) {
   FreeCurrentEmbeddedBlob();
 }
 
+UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
+  DisableAlwaysOpt();
+  const char* source1 =
+      R"javascript(
+      // String would be internalized if it came from a literal so create "A"
+      // via a function call.
+      var global = String.fromCharCode(65);
+      function f() { return global; }
+      )javascript";
+
+  v8::StartupData data1 = CreateSnapshotDataBlob(source1);
+
+  v8::Isolate::CreateParams params1;
+  params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate1 = TestSerializer::NewIsolate(params1);
+  {
+    v8::Isolate::Scope i_scope(isolate1);
+    v8::HandleScope h_scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope c_scope(context);
+    v8::Local<v8::Value> result = CompileRun("f()").As<v8::Value>();
+    CHECK(result->IsString());
+    i::String str = *v8::Utils::OpenHandle(*result.As<v8::String>());
+    CHECK_EQ(std::string(str->ToCString().get()), "A");
+    CHECK(!str.IsInternalizedString());
+    CHECK(
+        !reinterpret_cast<i::Isolate*>(isolate1)->heap()->InReadOnlySpace(str));
+  }
+  isolate1->Dispose();
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(SnapshotChecksum) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
