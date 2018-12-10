@@ -167,8 +167,7 @@ class Genesis {
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
           size_t context_snapshot_index,
-          v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
-          GlobalContextType context_type);
+          v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template);
   ~Genesis() = default;
@@ -227,11 +226,10 @@ class Genesis {
   void InstallGlobalThisBinding();
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<JSGlobalObject> global_object,
-                        Handle<JSFunction> empty_function,
-                        GlobalContextType context_type);
+                        Handle<JSFunction> empty_function);
   void InitializeExperimentalGlobal();
   // Depending on the situation, expose and/or get rid of the utils object.
-  void ConfigureUtilsObject(GlobalContextType context_type);
+  void ConfigureUtilsObject();
 
 #define DECLARE_FEATURE_INITIALIZATION(id, descr) \
   void InitializeGlobal_##id();
@@ -250,13 +248,12 @@ class Genesis {
   Handle<JSFunction> InstallInternalArray(Handle<JSObject> target,
                                           const char* name,
                                           ElementsKind elements_kind);
-  bool InstallNatives(GlobalContextType context_type);
+  bool InstallNatives();
 
   Handle<JSFunction> InstallTypedArray(const char* name,
                                        ElementsKind elements_kind);
   bool InstallExtraNatives();
   bool InstallExperimentalExtraNatives();
-  bool InstallDebuggerNatives();
   void InstallBuiltinFunctionIds();
   void InstallExperimentalBuiltinFunctionIds();
   void InitializeNormalizedMapCaches();
@@ -335,14 +332,12 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
-    GlobalContextType context_type) {
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   HandleScope scope(isolate_);
   Handle<Context> env;
   {
     Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
-                    context_snapshot_index, embedder_fields_deserializer,
-                    context_type);
+                    context_snapshot_index, embedder_fields_deserializer);
     env = genesis.result();
     if (env.is_null() || !InstallExtensions(env, extensions)) {
       return Handle<Context>();
@@ -1412,8 +1407,7 @@ void InstallMakeError(Isolate* isolate, int builtin_id, int context_index) {
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
 void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
-                               Handle<JSFunction> empty_function,
-                               GlobalContextType context_type) {
+                               Handle<JSFunction> empty_function) {
   // --- N a t i v e   C o n t e x t ---
   // Use the empty scope info.
   native_context()->set_scope_info(empty_function->shared()->scope_info());
@@ -4047,26 +4041,19 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Isolate* isolate,
   return Handle<JSObject>::cast(value);
 }
 
-void Genesis::ConfigureUtilsObject(GlobalContextType context_type) {
-  switch (context_type) {
-    // We still need the utils object to find debug functions.
-    case DEBUG_CONTEXT:
-      return;
-    // Expose the natives in global if a valid name for it is specified.
-    case FULL_CONTEXT: {
-      // We still need the utils object after deserialization.
-      if (isolate()->serializer_enabled()) return;
-      if (FLAG_expose_natives_as == nullptr) break;
-      if (strlen(FLAG_expose_natives_as) == 0) break;
-      HandleScope scope(isolate());
-      Handle<String> natives_key =
-          factory()->InternalizeUtf8String(FLAG_expose_natives_as);
-      uint32_t dummy_index;
-      if (natives_key->AsArrayIndex(&dummy_index)) break;
+void Genesis::ConfigureUtilsObject() {
+  // We still need the utils object after deserialization.
+  if (isolate()->serializer_enabled()) return;
+  if (FLAG_expose_natives_as != nullptr &&
+      strlen(FLAG_expose_natives_as) != 0) {
+    HandleScope scope(isolate());
+    Handle<String> natives_key =
+        factory()->InternalizeUtf8String(FLAG_expose_natives_as);
+    uint32_t dummy_index;
+    if (!natives_key->AsArrayIndex(&dummy_index)) {
       Handle<Object> utils = isolate()->natives_utils_object();
       Handle<JSObject> global = isolate()->global_object();
       JSObject::AddProperty(isolate(), global, natives_key, utils, DONT_ENUM);
-      break;
     }
   }
 
@@ -4075,7 +4062,6 @@ void Genesis::ConfigureUtilsObject(GlobalContextType context_type) {
   native_context()->set_natives_utils_object(undefined);
   native_context()->set_extras_utils_object(undefined);
 }
-
 
 void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                                      Handle<JSObject> container) {
@@ -4957,7 +4943,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
   return array_function;
 }
 
-bool Genesis::InstallNatives(GlobalContextType context_type) {
+bool Genesis::InstallNatives() {
   HandleScope scope(isolate());
 
   // Set up the utils object as shared container between native scripts.
@@ -5005,7 +4991,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
                         factory()->InternalizeUtf8String("isPromise"),
                         isolate()->is_promise(), DONT_ENUM);
 
-  int builtin_index = Natives::GetDebuggerCount();
+  int builtin_index = 0;
   // Only run prologue.js at this point.
   DCHECK_EQ(builtin_index, Natives::GetIndex("prologue"));
   if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
@@ -5367,8 +5353,7 @@ bool Genesis::InstallExtraNatives() {
 
   native_context()->set_extras_binding_object(*extras_binding);
 
-  for (int i = ExtraNatives::GetDebuggerCount();
-       i < ExtraNatives::GetBuiltinsCount(); i++) {
+  for (int i = 0; i < ExtraNatives::GetBuiltinsCount(); i++) {
     if (!Bootstrapper::CompileExtraBuiltin(isolate(), i)) return false;
   }
 
@@ -5377,8 +5362,7 @@ bool Genesis::InstallExtraNatives() {
 
 
 bool Genesis::InstallExperimentalExtraNatives() {
-  for (int i = ExperimentalExtraNatives::GetDebuggerCount();
-       i < ExperimentalExtraNatives::GetBuiltinsCount(); i++) {
+  for (int i = 0; i < ExperimentalExtraNatives::GetBuiltinsCount(); i++) {
     if (!Bootstrapper::CompileExperimentalExtraBuiltin(isolate(), i))
       return false;
   }
@@ -5386,13 +5370,6 @@ bool Genesis::InstallExperimentalExtraNatives() {
   return true;
 }
 
-
-bool Genesis::InstallDebuggerNatives() {
-  for (int i = 0; i < Natives::GetDebuggerCount(); ++i) {
-    if (!Bootstrapper::CompileBuiltin(isolate(), i)) return false;
-  }
-  return true;
-}
 
 static void InstallBuiltinFunctionId(Isolate* isolate, Handle<JSObject> holder,
                                      const char* function_name,
@@ -5791,13 +5768,11 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
   JSObject::ForceSetPrototype(to, proto);
 }
 
-
 Genesis::Genesis(
     Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
-    GlobalContextType context_type)
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   RuntimeCallTimerScope rcs_timer(isolate, RuntimeCallCounterId::kGenesis);
   result_ = Handle<Context>::null();
@@ -5876,10 +5851,10 @@ Genesis::Genesis(
     CreateAsyncFunctionMaps(empty_function);
     Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
-    InitializeGlobal(global_object, empty_function, context_type);
+    InitializeGlobal(global_object, empty_function);
     InitializeNormalizedMapCaches();
 
-    if (!InstallNatives(context_type)) return;
+    if (!InstallNatives()) return;
     if (!InstallExtraNatives()) return;
     if (!ConfigureGlobalObjects(global_proxy_template)) return;
 
@@ -5896,7 +5871,6 @@ Genesis::Genesis(
   // Install experimental natives. Do not include them into the
   // snapshot as we should be able to turn them off at runtime. Re-installing
   // them after they have already been deserialized would also fail.
-  if (context_type == FULL_CONTEXT) {
     if (!isolate->serializer_enabled()) {
       InitializeExperimentalGlobal();
 
@@ -5914,18 +5888,13 @@ Genesis::Genesis(
       native_context()->set_string_function_prototype_map(
           string_function_prototype->map());
     }
-  } else if (context_type == DEBUG_CONTEXT) {
-    DCHECK(!isolate->serializer_enabled());
-    InitializeExperimentalGlobal();
-    if (!InstallDebuggerNatives()) return;
-  }
 
   if (FLAG_disallow_code_generation_from_strings) {
     native_context()->set_allow_code_gen_from_strings(
         ReadOnlyRoots(isolate).false_value());
   }
 
-  ConfigureUtilsObject(context_type);
+  ConfigureUtilsObject();
 
   // We created new functions, which may require debug instrumentation.
   if (isolate->debug()->is_active()) {

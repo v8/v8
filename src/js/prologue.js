@@ -38,19 +38,6 @@ function ImportNow(name) {
 }
 
 
-function InstallConstants(object, constants) {
-  %CheckIsBootstrapping();
-  %OptimizeObjectForAddingMultipleProperties(object, constants.length >> 1);
-  var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
-  for (var i = 0; i < constants.length; i += 2) {
-    var name = constants[i];
-    var k = constants[i + 1];
-    %AddNamedProperty(object, name, k, attributes);
-  }
-  %ToFastProperties(object);
-}
-
-
 // Prevents changes to the prototype of a built-in function.
 // The "prototype" property of the function object is made non-configurable,
 // and the prototype object is made non-extensible. The latter prevents
@@ -96,6 +83,7 @@ function PostNatives(utils) {
   utils.Export = UNDEFINED;
   utils.Import = UNDEFINED;
   utils.ImportNow = UNDEFINED;
+  utils.SetUpLockedPrototype = UNDEFINED;
   utils.PostNatives = UNDEFINED;
 }
 
@@ -106,7 +94,6 @@ function PostNatives(utils) {
 utils.Import = Import;
 utils.ImportNow = ImportNow;
 utils.Export = Export;
-utils.InstallConstants = InstallConstants;
 utils.SetUpLockedPrototype = SetUpLockedPrototype;
 utils.PostNatives = PostNatives;
 
