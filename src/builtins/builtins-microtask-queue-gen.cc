@@ -40,8 +40,9 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
   TNode<Context> GetCurrentContext();
   void SetCurrentContext(TNode<Context> context);
 
+  TNode<IntPtrT> GetEnteredContextCount();
   void EnterMicrotaskContext(TNode<Context> native_context);
-  void LeaveMicrotaskContext();
+  void RewindEnteredContext(TNode<IntPtrT> saved_entered_context_count);
 
   void RunPromiseHook(Runtime::FunctionId id, TNode<Context> context,
                       SloppyTNode<HeapObject> promise_or_capability);
@@ -111,6 +112,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   CSA_ASSERT(this, TaggedIsNotSmi(microtask));
 
   StoreRoot(RootIndex::kCurrentMicrotask, microtask);
+  TNode<IntPtrT> saved_entered_context_count = GetEnteredContextCount();
   TNode<Map> microtask_map = LoadMap(microtask);
   TNode<Int32T> microtask_type = LoadMapInstanceType(microtask_map);
 
@@ -155,7 +157,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
         microtask_context, callable, UndefinedConstant());
     GotoIfException(result, &if_exception, &var_exception);
-    LeaveMicrotaskContext();
+    RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
   }
@@ -205,7 +207,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         CallBuiltin(Builtins::kPromiseResolveThenableJob, native_context,
                     promise_to_resolve, thenable, then);
     GotoIfException(result, &if_exception, &var_exception);
-    LeaveMicrotaskContext();
+    RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
   }
@@ -240,7 +242,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                    promise_or_capability);
 
-    LeaveMicrotaskContext();
+    RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
   }
@@ -275,7 +277,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                    promise_or_capability);
 
-    LeaveMicrotaskContext();
+    RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
   }
@@ -295,7 +297,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
                                      native_context, weak_factory);
 
     GotoIfException(result, &if_exception, &var_exception);
-    LeaveMicrotaskContext();
+    RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
   }
@@ -308,7 +310,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Report unhandled exceptions from microtasks.
     CallRuntime(Runtime::kReportMessage, current_context,
                 var_exception.value());
-    LeaveMicrotaskContext();
+    RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
   }
@@ -329,55 +331,110 @@ void MicrotaskQueueBuiltinsAssembler::SetCurrentContext(
                       context);
 }
 
+TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetEnteredContextCount() {
+  auto ref = ExternalReference::handle_scope_implementer_address(isolate());
+  Node* hsi = Load(MachineType::Pointer(), ExternalConstant(ref));
+
+  using ContextStack = DetachableVector<Context>;
+  TNode<IntPtrT> size_offset =
+      IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
+                     ContextStack::kSizeOffset);
+  TNode<IntPtrT> size =
+      UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), hsi, size_offset));
+  return size;
+}
+
 void MicrotaskQueueBuiltinsAssembler::EnterMicrotaskContext(
     TNode<Context> native_context) {
   CSA_ASSERT(this, IsNativeContext(native_context));
 
   auto ref = ExternalReference::handle_scope_implementer_address(isolate());
-  Node* const hsi = Load(MachineType::Pointer(), ExternalConstant(ref));
-  StoreNoWriteBarrier(
-      MachineType::PointerRepresentation(), hsi,
-      IntPtrConstant(HandleScopeImplementerOffsets::kMicrotaskContext),
-      BitcastTaggedToWord(native_context));
+  Node* hsi = Load(MachineType::Pointer(), ExternalConstant(ref));
 
-  // Load mirrored std::vector length from
-  // HandleScopeImplementer::entered_contexts_count_
-  auto type = kSizetSize == 8 ? MachineType::Uint64() : MachineType::Uint32();
-  Node* entered_contexts_length = Load(
-      type, hsi,
-      IntPtrConstant(HandleScopeImplementerOffsets::kEnteredContextsCount));
+  using ContextStack = DetachableVector<Context>;
+  TNode<IntPtrT> capacity_offset =
+      IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
+                     ContextStack::kCapacityOffset);
+  TNode<IntPtrT> size_offset =
+      IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
+                     ContextStack::kSizeOffset);
 
-  auto rep = kSizetSize == 8 ? MachineRepresentation::kWord64
-                             : MachineRepresentation::kWord32;
+  TNode<IntPtrT> capacity =
+      UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), hsi, capacity_offset));
+  TNode<IntPtrT> size =
+      UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), hsi, size_offset));
 
-  StoreNoWriteBarrier(
-      rep, hsi,
-      IntPtrConstant(
-          HandleScopeImplementerOffsets::kEnteredContextCountDuringMicrotasks),
-      entered_contexts_length);
+  Label if_append(this), if_grow(this, Label::kDeferred), done(this);
+  Branch(WordEqual(size, capacity), &if_grow, &if_append);
+  BIND(&if_append);
+  {
+    TNode<IntPtrT> data_offset =
+        IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
+                       ContextStack::kDataOffset);
+    Node* data = Load(MachineType::Pointer(), hsi, data_offset);
+    StoreNoWriteBarrier(MachineType::Pointer().representation(), data,
+                        TimesPointerSize(size),
+                        BitcastTaggedToWord(native_context));
+
+    TNode<IntPtrT> new_size = IntPtrAdd(size, IntPtrConstant(1));
+    StoreNoWriteBarrier(MachineType::IntPtr().representation(), hsi,
+                        size_offset, new_size);
+
+    using FlagStack = DetachableVector<int8_t>;
+    TNode<IntPtrT> flag_data_offset =
+        IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
+                       FlagStack::kDataOffset);
+    Node* flag_data = Load(MachineType::Pointer(), hsi, flag_data_offset);
+    StoreNoWriteBarrier(MachineType::Int8().representation(), flag_data, size,
+                        BoolConstant(true));
+    StoreNoWriteBarrier(
+        MachineType::IntPtr().representation(), hsi,
+        IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
+                       FlagStack::kSizeOffset),
+        new_size);
+
+    Goto(&done);
+  }
+
+  BIND(&if_grow);
+  {
+    Node* function =
+        ExternalConstant(ExternalReference::call_enter_context_function());
+    CallCFunction2(MachineType::Int32(), MachineType::Pointer(),
+                   MachineType::Pointer(), function, hsi,
+                   BitcastTaggedToWord(native_context));
+    Goto(&done);
+  }
+
+  BIND(&done);
 }
 
-void MicrotaskQueueBuiltinsAssembler::LeaveMicrotaskContext() {
+void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
+    TNode<IntPtrT> saved_entered_context_count) {
   auto ref = ExternalReference::handle_scope_implementer_address(isolate());
+  Node* hsi = Load(MachineType::Pointer(), ExternalConstant(ref));
 
-  Node* const hsi = Load(MachineType::Pointer(), ExternalConstant(ref));
+  using ContextStack = DetachableVector<Context>;
+  TNode<IntPtrT> size_offset =
+      IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
+                     ContextStack::kSizeOffset);
+
+#ifdef ENABLE_VERIFY_CSA
+  TNode<IntPtrT> size =
+      UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), hsi, size_offset));
+  CSA_ASSERT(this, IntPtrLessThan(IntPtrConstant(0), size));
+  CSA_ASSERT(this, IntPtrLessThanOrEqual(saved_entered_context_count, size));
+#endif
+
+  StoreNoWriteBarrier(MachineType::IntPtr().representation(), hsi, size_offset,
+                      saved_entered_context_count);
+
+  using FlagStack = DetachableVector<int8_t>;
   StoreNoWriteBarrier(
-      MachineType::PointerRepresentation(), hsi,
-      IntPtrConstant(HandleScopeImplementerOffsets::kMicrotaskContext),
-      IntPtrConstant(0));
-  if (kSizetSize == 4) {
-    StoreNoWriteBarrier(
-        MachineRepresentation::kWord32, hsi,
-        IntPtrConstant(HandleScopeImplementerOffsets::
-                           kEnteredContextCountDuringMicrotasks),
-        Int32Constant(0));
-  } else {
-    StoreNoWriteBarrier(
-        MachineRepresentation::kWord64, hsi,
-        IntPtrConstant(HandleScopeImplementerOffsets::
-                           kEnteredContextCountDuringMicrotasks),
-        Int64Constant(0));
-  }
+      MachineType::IntPtr().representation(), hsi,
+      IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
+                     FlagStack::kSizeOffset),
+      saved_entered_context_count);
 }
 
 void MicrotaskQueueBuiltinsAssembler::RunPromiseHook(
@@ -417,7 +474,7 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
   TNode<IntPtrT> size = GetMicrotaskQueueSize(microtask_queue);
   TNode<IntPtrT> start = GetMicrotaskQueueStart(microtask_queue);
 
-  Label if_grow(this);
+  Label if_grow(this, Label::kDeferred);
   GotoIf(IntPtrEqual(size, capacity), &if_grow);
 
   // |microtask_queue| has an unused slot to store |microtask|.

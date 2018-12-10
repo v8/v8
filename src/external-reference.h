@@ -186,6 +186,7 @@ class StatsCounter;
   V(wasm_memory_copy, "wasm::memory_copy")                                    \
   V(wasm_memory_fill, "wasm::memory_fill")                                    \
   V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")  \
+  V(call_enter_context_function, "call_enter_context_function")               \
   V(atomic_pair_load_function, "atomic_pair_load_function")                   \
   V(atomic_pair_store_function, "atomic_pair_store_function")                 \
   V(atomic_pair_add_function, "atomic_pair_add_function")                     \

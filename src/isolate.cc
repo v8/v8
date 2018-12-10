@@ -4297,10 +4297,11 @@ void Isolate::RunMicrotasks() {
     TRACE_EVENT0("v8.execute", "RunMicrotasks");
     TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
 
+    HandleScopeImplementer::EnteredContextRewindScope scope(
+        handle_scope_implementer());
     // If execution is terminating, bail out, clean up, and propagate to
     // TryCatch scope.
     if (default_microtask_queue()->RunMicrotasks(this) < 0) {
-      handle_scope_implementer()->LeaveMicrotaskContext();
       SetTerminationOnExternalTryCatch();
     }
     DCHECK_EQ(0, default_microtask_queue()->size());

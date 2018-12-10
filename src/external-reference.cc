@@ -957,6 +957,15 @@ static uint64_t atomic_pair_compare_exchange(intptr_t address,
 FUNCTION_REFERENCE(atomic_pair_compare_exchange_function,
                    atomic_pair_compare_exchange)
 
+static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
+                                        Address raw_context) {
+  Context context = Context::cast(ObjectPtr(raw_context));
+  hsi->EnterMicrotaskContext(context);
+  return 0;
+}
+
+FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper);
+
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.address() == rhs.address();
 }

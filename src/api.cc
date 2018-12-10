@@ -1155,7 +1155,7 @@ void Context::Enter() {
   i::Isolate* isolate = env->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  impl->EnterContext(env);
+  impl->EnterContext(*env);
   impl->SaveContext(isolate->context());
   isolate->set_context(*env);
 }
@@ -1165,8 +1165,7 @@ void Context::Exit() {
   i::Isolate* isolate = env->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  if (!Utils::ApiCheck(impl->LastEnteredContextWas(env),
-                       "v8::Context::Exit()",
+  if (!Utils::ApiCheck(impl->LastEnteredContextWas(*env), "v8::Context::Exit()",
                        "Cannot exit non-entered context")) {
     return;
   }
@@ -10561,6 +10560,11 @@ void EmbedderHeapTracer::GarbageCollectionForTesting(
 
 namespace internal {
 
+const size_t HandleScopeImplementer::kEnteredContextsOffset =
+    offsetof(HandleScopeImplementer, entered_contexts_);
+const size_t HandleScopeImplementer::kIsMicrotaskContextOffset =
+    offsetof(HandleScopeImplementer, is_microtask_context_);
+
 void HandleScopeImplementer::FreeThreadResources() {
   Free();
 }
@@ -10633,10 +10637,6 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
     FullObjectSlot start(&context_lists[i]->front());
     v->VisitRootPointers(Root::kHandleScope, nullptr, start,
                          start + static_cast<int>(context_lists[i]->size()));
-  }
-  if (!microtask_context_.is_null()) {
-    v->VisitRootPointer(Root::kHandleScope, nullptr,
-                        FullObjectSlot(&microtask_context_));
   }
 }
 
