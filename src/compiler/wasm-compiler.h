@@ -519,7 +519,8 @@ class WasmGraphBuilder {
                            int parameter_count);
 
   Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
-                                      Node** parameters, int parameter_count);
+                                      Node** parameters, int parameter_count,
+                                      Node** effect, Node* control);
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 };
 

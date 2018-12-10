@@ -3100,10 +3100,9 @@ Node* WasmGraphBuilder::BuildLoadBuiltinFromInstance(int builtin_index) {
 
 // Only call this function for code which is not reused across instantiations,
 // as we do not patch the embedded js_context.
-Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
-                                                      Node* js_context,
-                                                      Node** parameters,
-                                                      int parameter_count) {
+Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(
+    Runtime::FunctionId f, Node* js_context, Node** parameters,
+    int parameter_count, Node** effect, Node* control) {
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       mcgraph()->zone(), f, fun->nargs, Operator::kNoProperties,
@@ -3127,18 +3126,20 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
       mcgraph()->ExternalConstant(ExternalReference::Create(f));  // ref
   inputs[count++] = mcgraph()->Int32Constant(fun->nargs);         // arity
   inputs[count++] = js_context;                                   // js_context
-  inputs[count++] = Effect();
-  inputs[count++] = Control();
+  inputs[count++] = *effect;
+  inputs[count++] = control;
 
-  return SetEffect(mcgraph()->graph()->NewNode(
-      mcgraph()->common()->Call(call_descriptor), count, inputs));
+  Node* call = mcgraph()->graph()->NewNode(
+      mcgraph()->common()->Call(call_descriptor), count, inputs);
+  *effect = call;
+  return call;
 }
 
 Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
                                            Node** parameters,
                                            int parameter_count) {
   return BuildCallToRuntimeWithContext(f, NoContextConstant(), parameters,
-                                       parameter_count);
+                                       parameter_count, effect_, Control());
 }
 
 Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
@@ -4574,6 +4575,32 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         LOAD_RAW(isolate_root, Isolate::thread_in_wasm_flag_address_offset(),
                  MachineType::Pointer());
 
+    if (FLAG_debug_code) {
+      Node* flag_value = SetEffect(
+          graph()->NewNode(mcgraph()->machine()->Load(MachineType::Pointer()),
+                           thread_in_wasm_flag_address,
+                           mcgraph()->Int32Constant(0), Effect(), Control()));
+      Node* check =
+          graph()->NewNode(mcgraph()->machine()->Word32Equal(), flag_value,
+                           mcgraph()->Int32Constant(new_value ? 0 : 1));
+
+      Diamond flag_check(graph(), mcgraph()->common(), check,
+                         BranchHint::kTrue);
+      flag_check.Chain(Control());
+      Node* message_id = jsgraph()->SmiConstant(static_cast<int32_t>(
+          new_value ? AbortReason::kUnexpectedThreadInWasmSet
+                    : AbortReason::kUnexpectedThreadInWasmUnset));
+
+      Node* effect = Effect();
+      BuildCallToRuntimeWithContext(Runtime::kAbort, NoContextConstant(),
+                                    &message_id, 1, &effect,
+                                    flag_check.if_false);
+
+      SetEffect(flag_check.EffectPhi(Effect(), effect));
+
+      SetControl(flag_check.merge);
+    }
+
     SetEffect(graph()->NewNode(
         mcgraph()->machine()->Store(StoreRepresentation(
             MachineRepresentation::kWord32, kNoWriteBarrier)),
@@ -4651,7 +4678,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // function (passed as a parameter), such that the generated code is
       // js_context independent.
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
-                                    nullptr, 0);
+                                    nullptr, 0, effect_, Control());
       Return(jsgraph()->SmiConstant(0));
       return;
     }
@@ -4715,7 +4742,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // === Runtime TypeError =================================================
       // =======================================================================
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError,
-                                    native_context, nullptr, 0);
+                                    native_context, nullptr, 0, effect_,
+                                    Control());
       // We don't need to return a value here, as the runtime call will not
       // return anyway (the c entry stub will trigger stack unwinding).
       ReturnVoid();
@@ -4731,7 +4759,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* call = nullptr;
     bool sloppy_receiver = true;
 
-    BuildModifyThreadInWasmFlag(false);  // exiting WASM via call.
+    // Clear the ThreadInWasm flag.
+    BuildModifyThreadInWasmFlag(false);
 
     switch (kind) {
       // =======================================================================
@@ -4888,7 +4917,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                     ? mcgraph()->Int32Constant(0)
                     : FromJS(call, native_context, sig_->GetReturn());
 
-    BuildModifyThreadInWasmFlag(true);  // reentering WASM upon return.
+    // Set the ThreadInWasm flag again.
+    BuildModifyThreadInWasmFlag(true);
 
     Return(val);
     return true;
