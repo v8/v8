@@ -2573,10 +2573,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (int i = return_count - 1; i >= 0; --i) {
       args_[i] = Pop(i, this->sig_->GetReturn(i));
     }
+    if (!this->ok()) return;
 
     // Simulate that an implicit return morally comes after the current block.
-    if (implicit && c->end_merge.reached) c->reachability = kReachable;
-    CALL_INTERFACE_IF_REACHABLE(DoReturn, VectorOf(args_), implicit);
+    bool reached = c->reachable() || (implicit && c->end_merge.reached);
+    if (reached) CALL_INTERFACE(DoReturn, VectorOf(args_), implicit);
 
     EndControl();
   }
