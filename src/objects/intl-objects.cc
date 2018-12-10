@@ -395,11 +395,8 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstance(icu_locale, status));
-  std::string value;
-  if (U_SUCCESS(status)) {
-    value = numbering_system->getName();
-  }
-  return value;
+  if (U_SUCCESS(status)) return numbering_system->getName();
+  return "latn";
 }
 
 icu::Locale Intl::CreateICULocale(const std::string& bcp47_locale) {

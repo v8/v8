@@ -90,9 +90,8 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   Handle<String> locale =
       Handle<String>(number_format_holder->locale(), isolate);
 
-  UErrorCode error = U_ZERO_ERROR;
-  icu::Locale icu_locale = number_format->getLocale(ULOC_VALID_LOCALE, error);
-  DCHECK(U_SUCCESS(error));
+  std::unique_ptr<char[]> locale_str = locale->ToCString();
+  icu::Locale icu_locale = Intl::CreateICULocale(locale_str.get());
 
   std::string numbering_system = Intl::GetNumberingSystem(icu_locale);
 
