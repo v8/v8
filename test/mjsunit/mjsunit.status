@@ -32,6 +32,7 @@
   'modules-skip*': [SKIP],
   'harmony/modules-skip*': [SKIP],
   'regress/modules-skip*': [SKIP],
+  'wasm/exceptions-utils': [SKIP],
   'wasm/wasm-constants': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
 
