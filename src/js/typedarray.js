@@ -53,7 +53,7 @@ utils.Import(function(from) {
 function ValidateTypedArray(array, methodName) {
   if (!IS_TYPEDARRAY(array)) throw %make_type_error(kNotTypedArray);
 
-  if (%ArrayBufferViewWasNeutered(array))
+  if (%ArrayBufferViewWasDetached(array))
     throw %make_type_error(kDetachedOperation, methodName);
 }
 

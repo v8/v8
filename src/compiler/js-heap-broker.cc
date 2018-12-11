@@ -1688,7 +1688,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->zero_string());
 
   // Protector cells
-  GetOrCreateData(f->array_buffer_neutering_protector())
+  GetOrCreateData(f->array_buffer_detaching_protector())
       ->AsPropertyCell()
       ->Serialize(this);
   GetOrCreateData(f->array_constructor_protector())->AsCell()->Serialize(this);

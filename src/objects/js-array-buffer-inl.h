@@ -105,10 +105,10 @@ uint32_t JSArrayBuffer::bit_field() const {
 // |bit_field| fields.
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_external,
                     JSArrayBuffer::IsExternalBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_neuterable,
-                    JSArrayBuffer::IsNeuterableBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_neutered,
-                    JSArrayBuffer::WasNeuteredBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_detachable,
+                    JSArrayBuffer::IsDetachableBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
+                    JSArrayBuffer::WasDetachedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_growable,
@@ -132,8 +132,8 @@ void JSArrayBufferView::set_byte_length(size_t value) {
 
 ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
 
-bool JSArrayBufferView::WasNeutered() const {
-  return JSArrayBuffer::cast(buffer())->was_neutered();
+bool JSArrayBufferView::WasDetached() const {
+  return JSArrayBuffer::cast(buffer())->was_detached();
 }
 
 Object* JSTypedArray::length() const {
@@ -172,7 +172,7 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
   }
 
   Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
-  if (V8_UNLIKELY(array->WasNeutered())) {
+  if (V8_UNLIKELY(array->WasDetached())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
     Handle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);

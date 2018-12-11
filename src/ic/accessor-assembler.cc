@@ -1866,7 +1866,7 @@ void AccessorAssembler::EmitElementLoad(
   BIND(&if_typed_array);
   {
     Comment("typed elements");
-    // Check if buffer has been neutered.
+    // Check if buffer has been detached.
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
     GotoIf(IsDetachedBuffer(buffer), miss);
 

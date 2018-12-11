@@ -424,7 +424,7 @@ KNOWN_OBJECTS = {
   ("OLD_SPACE", 0x00779): "PromiseSpeciesProtector",
   ("OLD_SPACE", 0x007a1): "StringLengthProtector",
   ("OLD_SPACE", 0x007b1): "ArrayIteratorProtector",
-  ("OLD_SPACE", 0x007d9): "ArrayBufferNeuteringProtector",
+  ("OLD_SPACE", 0x007d9): "ArrayBufferDetachingProtector",
   ("OLD_SPACE", 0x00801): "PromiseHookProtector",
   ("OLD_SPACE", 0x00829): "PromiseResolveProtector",
   ("OLD_SPACE", 0x00839): "MapIteratorProtector",

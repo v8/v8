@@ -3201,7 +3201,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     // If {array} is a JSTypedArray, the {index} must always be a Smi.
     CSA_ASSERT(this, TaggedIsSmi(index));
 
-    // Check that the {array}s buffer wasn't neutered.
+    // Check that the {array}s buffer wasn't detached.
     ThrowIfArrayBufferViewBufferIsDetached(context, CAST(array), method_name);
 
     // If we go outside of the {length}, we don't need to update the

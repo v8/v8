@@ -1059,9 +1059,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     memory_ = FindImportedMemoryBuffer();
   }
   if (!memory_.is_null()) {
-    // Set externally passed ArrayBuffer non neuterable.
+    // Set externally passed ArrayBuffer non detachable.
     Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
-    memory->set_is_neuterable(false);
+    memory->set_is_detachable(false);
 
     DCHECK_IMPLIES(use_trap_handler(), module_->origin == kAsmJsOrigin ||
                                            memory->is_wasm_memory() ||

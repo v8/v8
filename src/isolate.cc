@@ -3849,13 +3849,13 @@ void Isolate::InvalidateStringIteratorProtector() {
   DCHECK(!IsStringIteratorLookupChainIntact());
 }
 
-void Isolate::InvalidateArrayBufferNeuteringProtector() {
-  DCHECK(factory()->array_buffer_neutering_protector()->value()->IsSmi());
-  DCHECK(IsArrayBufferNeuteringIntact());
+void Isolate::InvalidateArrayBufferDetachingProtector() {
+  DCHECK(factory()->array_buffer_detaching_protector()->value()->IsSmi());
+  DCHECK(IsArrayBufferDetachingIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->array_buffer_neutering_protector(),
+      this, factory()->array_buffer_detaching_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsArrayBufferNeuteringIntact());
+  DCHECK(!IsArrayBufferDetachingIntact());
 }
 
 void Isolate::InvalidatePromiseHookProtector() {

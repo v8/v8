@@ -883,7 +883,7 @@ void Heap::CreateInitialObjects() {
 
   cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_array_buffer_neutering_protector(*cell);
+  set_array_buffer_detaching_protector(*cell);
 
   cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));

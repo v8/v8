@@ -518,8 +518,8 @@ namespace internal {
   F(SetWasmThreadsEnabled, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I) \
-  F(ArrayBufferNeuter, 1, 1)                \
-  F(ArrayBufferViewWasNeutered, 1, 1)       \
+  F(ArrayBufferDetach, 1, 1)                \
+  F(ArrayBufferViewWasDetached, 1, 1)       \
   I(IsTypedArray, 1, 1)                     \
   F(TypedArrayCopyElements, 3, 1)           \
   F(TypedArrayGetBuffer, 1, 1)              \

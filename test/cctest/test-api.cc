@@ -3765,8 +3765,7 @@ THREADED_TEST(ArrayBuffer_External) {
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
 }
 
-
-THREADED_TEST(ArrayBuffer_DisableNeuter) {
+THREADED_TEST(ArrayBuffer_DisableDetach) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -3775,29 +3774,26 @@ THREADED_TEST(ArrayBuffer_DisableNeuter) {
   memset(my_data.start(), 0, 100);
   Local<v8::ArrayBuffer> ab =
       v8::ArrayBuffer::New(isolate, my_data.start(), 100);
-  CHECK(ab->IsNeuterable());
+  CHECK(ab->IsDetachable());
 
   i::Handle<i::JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
-  buf->set_is_neuterable(false);
+  buf->set_is_detachable(false);
 
-  CHECK(!ab->IsNeuterable());
+  CHECK(!ab->IsDetachable());
 }
 
-
-static void CheckDataViewIsNeutered(v8::Local<v8::DataView> dv) {
+static void CheckDataViewIsDetached(v8::Local<v8::DataView> dv) {
   CHECK_EQ(0, static_cast<int>(dv->ByteLength()));
   CHECK_EQ(0, static_cast<int>(dv->ByteOffset()));
 }
 
-
-static void CheckIsNeutered(v8::Local<v8::TypedArray> ta) {
+static void CheckIsDetached(v8::Local<v8::TypedArray> ta) {
   CHECK_EQ(0, static_cast<int>(ta->ByteLength()));
   CHECK_EQ(0, static_cast<int>(ta->Length()));
   CHECK_EQ(0, static_cast<int>(ta->ByteOffset()));
 }
 
-
-static void CheckIsTypedArrayVarNeutered(const char* name) {
+static void CheckIsTypedArrayVarDetached(const char* name) {
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
@@ -3805,9 +3801,8 @@ static void CheckIsTypedArrayVarNeutered(const char* name) {
   CHECK(CompileRun(source.start())->IsTrue());
   v8::Local<v8::TypedArray> ta =
       v8::Local<v8::TypedArray>::Cast(CompileRun(name));
-  CheckIsNeutered(ta);
+  CheckIsDetached(ta);
 }
-
 
 template <typename TypedArray, int kElementSize>
 static Local<TypedArray> CreateAndCheck(Local<v8::ArrayBuffer> ab,
@@ -3820,8 +3815,7 @@ static Local<TypedArray> CreateAndCheck(Local<v8::ArrayBuffer> ab,
   return ta;
 }
 
-
-THREADED_TEST(ArrayBuffer_NeuteringApi) {
+THREADED_TEST(ArrayBuffer_DetachingApi) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -3856,22 +3850,21 @@ THREADED_TEST(ArrayBuffer_NeuteringApi) {
   CHECK_EQ(1023, static_cast<int>(dv->ByteLength()));
 
   ScopedArrayBufferContents contents(buffer->Externalize());
-  buffer->Neuter();
+  buffer->Detach();
   CHECK_EQ(0, static_cast<int>(buffer->ByteLength()));
-  CheckIsNeutered(u8a);
-  CheckIsNeutered(u8c);
-  CheckIsNeutered(i8a);
-  CheckIsNeutered(u16a);
-  CheckIsNeutered(i16a);
-  CheckIsNeutered(u32a);
-  CheckIsNeutered(i32a);
-  CheckIsNeutered(f32a);
-  CheckIsNeutered(f64a);
-  CheckDataViewIsNeutered(dv);
+  CheckIsDetached(u8a);
+  CheckIsDetached(u8c);
+  CheckIsDetached(i8a);
+  CheckIsDetached(u16a);
+  CheckIsDetached(i16a);
+  CheckIsDetached(u32a);
+  CheckIsDetached(i32a);
+  CheckIsDetached(f32a);
+  CheckIsDetached(f64a);
+  CheckDataViewIsDetached(dv);
 }
 
-
-THREADED_TEST(ArrayBuffer_NeuteringScript) {
+THREADED_TEST(ArrayBuffer_DetachingScript) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -3895,22 +3888,22 @@ THREADED_TEST(ArrayBuffer_NeuteringScript) {
   v8::Local<v8::DataView> dv = v8::Local<v8::DataView>::Cast(CompileRun("dv"));
 
   ScopedArrayBufferContents contents(ab->Externalize());
-  ab->Neuter();
+  ab->Detach();
   CHECK_EQ(0, static_cast<int>(ab->ByteLength()));
   CHECK_EQ(0, v8_run_int32value(v8_compile("ab.byteLength")));
 
-  CheckIsTypedArrayVarNeutered("u8a");
-  CheckIsTypedArrayVarNeutered("u8c");
-  CheckIsTypedArrayVarNeutered("i8a");
-  CheckIsTypedArrayVarNeutered("u16a");
-  CheckIsTypedArrayVarNeutered("i16a");
-  CheckIsTypedArrayVarNeutered("u32a");
-  CheckIsTypedArrayVarNeutered("i32a");
-  CheckIsTypedArrayVarNeutered("f32a");
-  CheckIsTypedArrayVarNeutered("f64a");
+  CheckIsTypedArrayVarDetached("u8a");
+  CheckIsTypedArrayVarDetached("u8c");
+  CheckIsTypedArrayVarDetached("i8a");
+  CheckIsTypedArrayVarDetached("u16a");
+  CheckIsTypedArrayVarDetached("i16a");
+  CheckIsTypedArrayVarDetached("u32a");
+  CheckIsTypedArrayVarDetached("i32a");
+  CheckIsTypedArrayVarDetached("f32a");
+  CheckIsTypedArrayVarDetached("f64a");
 
   CHECK(CompileRun("dv.byteLength == 0 && dv.byteOffset == 0")->IsTrue());
-  CheckDataViewIsNeutered(dv);
+  CheckDataViewIsDetached(dv);
 }
 
 THREADED_TEST(ArrayBuffer_AllocationInformation) {
@@ -26181,7 +26174,7 @@ TEST(StringConcatOverflow) {
   CHECK(!try_catch.HasCaught());
 }
 
-TEST(TurboAsmDisablesNeuter) {
+TEST(TurboAsmDisablesDetach) {
 #ifndef V8_LITE_MODE
   i::FLAG_opt = true;
   i::FLAG_allow_natives_syntax = true;
@@ -26202,7 +26195,7 @@ TEST(TurboAsmDisablesNeuter) {
       "buffer";
 
   v8::Local<v8::ArrayBuffer> result = CompileRun(load).As<v8::ArrayBuffer>();
-  CHECK(!result->IsNeuterable());
+  CHECK(!result->IsDetachable());
 
   const char* store =
       "function Module(stdlib, foreign, heap) {"
@@ -26218,10 +26211,9 @@ TEST(TurboAsmDisablesNeuter) {
       "buffer";
 
   result = CompileRun(store).As<v8::ArrayBuffer>();
-  CHECK(!result->IsNeuterable());
+  CHECK(!result->IsDetachable());
 #endif  // V8_LITE_MODE
 }
-
 
 TEST(ClassPrototypeCreationContext) {
   v8::Isolate* isolate = CcTest::isolate();

@@ -181,9 +181,9 @@ bool Isolate::IsStringLengthOverflowIntact() {
   return string_length_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
-bool Isolate::IsArrayBufferNeuteringIntact() {
-  PropertyCell* buffer_neutering = heap()->array_buffer_neutering_protector();
-  return buffer_neutering->value() == Smi::FromInt(kProtectorValid);
+bool Isolate::IsArrayBufferDetachingIntact() {
+  PropertyCell* buffer_detaching = heap()->array_buffer_detaching_protector();
+  return buffer_detaching->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArrayIteratorLookupChainIntact() {

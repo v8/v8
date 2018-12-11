@@ -2503,7 +2503,7 @@ JSNativeContextSpecialization::BuildElementAccess(
           jsgraph()->Constant(static_cast<double>(typed_array->length_value()));
 
       // Load the (known) base and external pointer for the {receiver}. The
-      // {external_pointer} might be invalid if the {buffer} was neutered, so
+      // {external_pointer} might be invalid if the {buffer} was detached, so
       // we need to make sure that any access is properly guarded.
       base_pointer = jsgraph()->ZeroConstant();
       external_pointer =
@@ -2545,15 +2545,15 @@ JSNativeContextSpecialization::BuildElementAccess(
           elements, effect, control);
     }
 
-    // See if we can skip the neutering check.
-    if (isolate()->IsArrayBufferNeuteringIntact()) {
+    // See if we can skip the detaching check.
+    if (isolate()->IsArrayBufferDetachingIntact()) {
       // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets neutered.
+      // gets detached.
       dependencies()->DependOnProtector(PropertyCellRef(
-          broker(), factory()->array_buffer_neutering_protector()));
+          broker(), factory()->array_buffer_detaching_protector()));
     } else {
-      // Deopt if the {buffer} was neutered.
-      // Note: A neutered buffer leads to megamorphic feedback.
+      // Deopt if the {buffer} was detached.
+      // Note: A detached buffer leads to megamorphic feedback.
       Node* buffer_bit_field = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
           buffer, effect, control);
@@ -2561,10 +2561,10 @@ JSNativeContextSpecialization::BuildElementAccess(
           simplified()->NumberEqual(),
           graph()->NewNode(
               simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasNeuteredBit::kMask)),
+              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
           jsgraph()->ZeroConstant());
       effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered),
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached),
           check, effect, control);
     }
 

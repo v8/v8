@@ -1542,7 +1542,7 @@ TEST(TryLookupElement) {
     CHECK_ABSENT(object, 42);
 
     v8::ArrayBuffer::Contents contents = buffer->Externalize();
-    buffer->Neuter();
+    buffer->Detach();
     isolate->array_buffer_allocator()->Free(contents.Data(),
                                             contents.ByteLength());
 

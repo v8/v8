@@ -381,7 +381,7 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
   FixedTypedArrayBase elements =
       FixedTypedArrayBase::cast(typed_array->elements());
 
-  if (!typed_array->WasNeutered()) {
+  if (!typed_array->WasDetached()) {
     if (!typed_array->is_on_heap()) {
       // Explicitly serialize the backing store now.
       JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array->buffer());
@@ -403,9 +403,9 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
       elements->set_external_pointer(Smi::FromInt(ref));
     }
   } else {
-    // When a JSArrayBuffer is neutered, the FixedTypedArray that points to the
+    // When a JSArrayBuffer is detached, the FixedTypedArray that points to the
     // same backing store does not know anything about it. This fixup step finds
-    // neutered TypedArrays and clears the values in the FixedTypedArray so that
+    // detached TypedArrays and clears the values in the FixedTypedArray so that
     // we don't try to serialize the now invalid backing store.
     elements->set_external_pointer(Smi::kZero);
     elements->set_length(0);

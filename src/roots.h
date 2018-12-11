@@ -245,8 +245,8 @@ class RootVisitor;
   V(PropertyCell*, promise_species_protector, PromiseSpeciesProtector)        \
   V(Cell*, string_length_protector, StringLengthProtector)                    \
   V(PropertyCell*, array_iterator_protector, ArrayIteratorProtector)          \
-  V(PropertyCell*, array_buffer_neutering_protector,                          \
-    ArrayBufferNeuteringProtector)                                            \
+  V(PropertyCell*, array_buffer_detaching_protector,                          \
+    ArrayBufferDetachingProtector)                                            \
   V(PropertyCell*, promise_hook_protector, PromiseHookProtector)              \
   V(Cell*, promise_resolve_protector, PromiseResolveProtector)                \
   V(PropertyCell*, map_iterator_protector, MapIteratorProtector)              \

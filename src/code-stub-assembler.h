@@ -2754,7 +2754,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<IntPtrT> intptr_key,
                                      TNode<Object> value,
                                      TNode<Context> context,
-                                     Label* opt_if_neutered);
+                                     Label* opt_if_detached);
   // Part of the above, refactored out to reuse in another place.
   void EmitBigTypedArrayElementStore(TNode<FixedTypedArrayBase> elements,
                                      TNode<RawPtrT> backing_store,

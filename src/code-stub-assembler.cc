@@ -10268,13 +10268,13 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
 void CodeStubAssembler::EmitBigTypedArrayElementStore(
     TNode<JSTypedArray> object, TNode<FixedTypedArrayBase> elements,
     TNode<IntPtrT> intptr_key, TNode<Object> value, TNode<Context> context,
-    Label* opt_if_neutered) {
+    Label* opt_if_detached) {
   TNode<BigInt> bigint_value = ToBigInt(context, value);
 
-  if (opt_if_neutered != nullptr) {
-    // Check if buffer has been neutered. Must happen after {ToBigInt}!
+  if (opt_if_detached != nullptr) {
+    // Check if buffer has been detached. Must happen after {ToBigInt}!
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
-    GotoIf(IsDetachedBuffer(buffer), opt_if_neutered);
+    GotoIf(IsDetachedBuffer(buffer), opt_if_detached);
   }
 
   TNode<RawPtrT> backing_store = LoadFixedTypedArrayBackingStore(elements);
@@ -10380,7 +10380,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     // the buffer is not alive or move the elements.
     // TODO(ishell): introduce DisallowHeapAllocationCode scope here.
 
-    // Check if buffer has been neutered.
+    // Check if buffer has been detached.
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
     GotoIf(IsDetachedBuffer(buffer), bailout);
 
@@ -12939,7 +12939,7 @@ TNode<JSReceiver> CodeStubAssembler::InternalArrayCreate(TNode<Context> context,
 Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   CSA_ASSERT(this, HasInstanceType(buffer, JS_ARRAY_BUFFER_TYPE));
   TNode<Uint32T> buffer_bit_field = LoadJSArrayBufferBitField(CAST(buffer));
-  return IsSetWord32<JSArrayBuffer::WasNeuteredBit>(buffer_bit_field);
+  return IsSetWord32<JSArrayBuffer::WasDetachedBit>(buffer_bit_field);
 }
 
 void CodeStubAssembler::ThrowIfArrayBufferIsDetached(

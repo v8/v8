@@ -7535,11 +7535,9 @@ bool v8::ArrayBuffer::IsExternal() const {
   return Utils::OpenHandle(this)->is_external();
 }
 
-
-bool v8::ArrayBuffer::IsNeuterable() const {
-  return Utils::OpenHandle(this)->is_neuterable();
+bool v8::ArrayBuffer::IsDetachable() const {
+  return Utils::OpenHandle(this)->is_detachable();
 }
-
 
 v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
@@ -7597,20 +7595,17 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
   return contents;
 }
 
-
-void v8::ArrayBuffer::Neuter() {
+void v8::ArrayBuffer::Detach() {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
-  Utils::ApiCheck(obj->is_external(),
-                  "v8::ArrayBuffer::Neuter",
-                  "Only externalized ArrayBuffers can be neutered");
-  Utils::ApiCheck(obj->is_neuterable(), "v8::ArrayBuffer::Neuter",
-                  "Only neuterable ArrayBuffers can be neutered");
-  LOG_API(isolate, ArrayBuffer, Neuter);
+  Utils::ApiCheck(obj->is_external(), "v8::ArrayBuffer::Detach",
+                  "Only externalized ArrayBuffers can be detached");
+  Utils::ApiCheck(obj->is_detachable(), "v8::ArrayBuffer::Detach",
+                  "Only detachable ArrayBuffers can be detached");
+  LOG_API(isolate, ArrayBuffer, Detach);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  obj->Neuter();
+  obj->Detach();
 }
-
 
 size_t v8::ArrayBuffer::ByteLength() const {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
@@ -7702,19 +7697,19 @@ bool v8::ArrayBufferView::HasBuffer() const {
 
 size_t v8::ArrayBufferView::ByteOffset() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  return obj->WasNeutered() ? 0 : obj->byte_offset();
+  return obj->WasDetached() ? 0 : obj->byte_offset();
 }
 
 
 size_t v8::ArrayBufferView::ByteLength() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  return obj->WasNeutered() ? 0 : obj->byte_length();
+  return obj->WasDetached() ? 0 : obj->byte_length();
 }
 
 
 size_t v8::TypedArray::Length() {
   i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
-  return obj->WasNeutered() ? 0 : obj->length_value();
+  return obj->WasDetached() ? 0 : obj->length_value();
 }
 
 static_assert(v8::TypedArray::kMaxLength == i::Smi::kMaxValue,

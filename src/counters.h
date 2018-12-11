@@ -715,7 +715,7 @@ class RuntimeCallTimer final {
 
 #define FOR_EACH_API_COUNTER(V)                            \
   V(ArrayBuffer_Cast)                                      \
-  V(ArrayBuffer_Neuter)                                    \
+  V(ArrayBuffer_Detach)                                    \
   V(ArrayBuffer_New)                                       \
   V(Array_CloneElementAt)                                  \
   V(Array_New)                                             \

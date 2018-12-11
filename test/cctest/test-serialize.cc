@@ -1001,10 +1001,10 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDataView) {
   TypedArrayTestHelper(code, expectations);
 }
 
-UNINITIALIZED_TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {
   const char* code =
       "var x = new Int16Array([12, 24, 48]);"
-      "%ArrayBufferNeuter(x.buffer);";
+      "%ArrayBufferDetach(x.buffer);";
   Int32Expectations expectations = {std::make_tuple("x.buffer.byteLength", 0),
                                     std::make_tuple("x.length", 0)};
 
@@ -1049,7 +1049,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
     CHECK(x->IsTypedArray());
     i::Handle<i::JSTypedArray> array =
         i::Handle<i::JSTypedArray>::cast(v8::Utils::OpenHandle(*x));
-    CHECK(array->WasNeutered());
+    CHECK(array->WasDetached());
     CHECK_NULL(
         FixedTypedArrayBase::cast(array->elements())->external_pointer());
   }

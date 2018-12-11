@@ -1281,8 +1281,8 @@ class Isolate final : private HiddenFactory {
   // non-configurable and non-writable.
   inline bool IsStringIteratorLookupChainIntact();
 
-  // Make sure we do check for neutered array buffers.
-  inline bool IsArrayBufferNeuteringIntact();
+  // Make sure we do check for detached array buffers.
+  inline bool IsArrayBufferDetachingIntact();
 
   // Disable promise optimizations if promise (debug) hooks have ever been
   // active.
@@ -1325,7 +1325,7 @@ class Isolate final : private HiddenFactory {
   void InvalidateMapIteratorProtector();
   void InvalidateSetIteratorProtector();
   void InvalidateStringIteratorProtector();
-  void InvalidateArrayBufferNeuteringProtector();
+  void InvalidateArrayBufferDetachingProtector();
   V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
   void InvalidatePromiseResolveProtector();
   void InvalidatePromiseThenProtector();

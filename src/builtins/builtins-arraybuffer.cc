@@ -137,7 +137,7 @@ static Object* SliceHelper(BuiltinArguments args, Isolate* isolate,
   CHECK_SHARED(is_shared, array_buffer, kMethodName);
 
   // * [AB] If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  if (!is_shared && array_buffer->was_neutered()) {
+  if (!is_shared && array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -223,7 +223,7 @@ static Object* SliceHelper(BuiltinArguments args, Isolate* isolate,
   CHECK_SHARED(is_shared, new_array_buffer, kMethodName);
 
   // * [AB] If IsDetachedBuffer(new) is true, throw a TypeError exception.
-  if (!is_shared && new_array_buffer->was_neutered()) {
+  if (!is_shared && new_array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -254,7 +254,7 @@ static Object* SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   // * [AB] NOTE: Side-effects of the above steps may have detached O.
   // * [AB] If IsDetachedBuffer(O) is true, throw a TypeError exception.
-  if (!is_shared && array_buffer->was_neutered()) {
+  if (!is_shared && array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(

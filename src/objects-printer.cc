@@ -1324,12 +1324,12 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   os << "\n - backing_store: " << backing_store();
   os << "\n - byte_length: " << byte_length();
   if (is_external()) os << "\n - external";
-  if (is_neuterable()) os << "\n - neuterable";
-  if (was_neutered()) os << "\n - neutered";
+  if (is_detachable()) os << "\n - detachable";
+  if (was_detached()) os << "\n - detached";
   if (is_shared()) os << "\n - shared";
   if (is_wasm_memory()) os << "\n - is_wasm_memory";
   if (is_growable()) os << "\n - growable";
-  JSObjectPrintBody(os, *this, !was_neutered());
+  JSObjectPrintBody(os, *this, !was_detached());
 }
 
 void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
@@ -1338,8 +1338,8 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
   os << "\n - length: " << Brief(length());
-  if (WasNeutered()) os << "\n - neutered";
-  JSObjectPrintBody(os, *this, !WasNeutered());
+  if (WasDetached()) os << "\n - detached";
+  JSObjectPrintBody(os, *this, !WasDetached());
 }
 
 void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
@@ -1355,8 +1355,8 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
-  if (WasNeutered()) os << "\n - neutered";
-  JSObjectPrintBody(os, *this, !WasNeutered());
+  if (WasDetached()) os << "\n - detached";
+  JSObjectPrintBody(os, *this, !WasDetached());
 }
 
 void JSBoundFunction::JSBoundFunctionPrint(std::ostream& os) {  // NOLINT

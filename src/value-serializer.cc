@@ -829,8 +829,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     WriteVarint(*transfer_entry);
     return ThrowIfOutOfMemory();
   }
-  if (array_buffer->was_neutered()) {
-    ThrowDataCloneError(MessageTemplate::kDataCloneErrorNeuteredArrayBuffer);
+  if (array_buffer->was_detached()) {
+    ThrowDataCloneError(MessageTemplate::kDataCloneErrorDetachedArrayBuffer);
     return Nothing<bool>();
   }
   double byte_length = array_buffer->byte_length();

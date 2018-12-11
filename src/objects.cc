@@ -895,7 +895,7 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
     } else if (object->IsJSTypedArray()) {
       Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(object);
       size_t length = array->length_value();
-      if (array->WasNeutered() ||
+      if (array->WasDetached() ||
           length > static_cast<size_t>(FixedArray::kMaxLength)) {
         return MaybeHandle<FixedArray>();
       }
@@ -5251,7 +5251,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
               Object::ToNumber(it->isolate(), value), Nothing<bool>());
         }
 
-        // FIXME: Throw a TypeError if the holder is neutered here
+        // FIXME: Throw a TypeError if the holder is detached here
         // (IntegerIndexedElementSpec step 5).
 
         // TODO(verwaest): Per spec, we should return false here (steps 6-9
@@ -5464,8 +5464,8 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
                                        BigInt::FromObject(it->isolate(), value),
                                        Nothing<bool>());
       // We have to recheck the length. However, it can only change if the
-      // underlying buffer was neutered, so just check that.
-      if (Handle<JSArrayBufferView>::cast(receiver)->WasNeutered()) {
+      // underlying buffer was detached, so just check that.
+      if (Handle<JSArrayBufferView>::cast(receiver)->WasDetached()) {
         return Just(true);
         // TODO(neis): According to the spec, this should throw a TypeError.
       }
@@ -5474,8 +5474,8 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
                                        Object::ToNumber(it->isolate(), value),
                                        Nothing<bool>());
       // We have to recheck the length. However, it can only change if the
-      // underlying buffer was neutered, so just check that.
-      if (Handle<JSArrayBufferView>::cast(receiver)->WasNeutered()) {
+      // underlying buffer was detached, so just check that.
+      if (Handle<JSArrayBufferView>::cast(receiver)->WasDetached()) {
         return Just(true);
         // TODO(neis): According to the spec, this should throw a TypeError.
       }

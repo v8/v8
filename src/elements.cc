@@ -2898,14 +2898,14 @@ class TypedElementsAccessor
                : kMaxUInt32;
   }
 
-  static bool WasNeutered(JSObject holder) {
+  static bool WasDetached(JSObject holder) {
     JSArrayBufferView view = JSArrayBufferView::cast(holder);
-    return view->WasNeutered();
+    return view->WasDetached();
   }
 
   static uint32_t GetCapacityImpl(JSObject holder,
                                   FixedArrayBase backing_store) {
-    if (WasNeutered(holder)) return 0;
+    if (WasDetached(holder)) return 0;
     return backing_store->length();
   }
 
@@ -2950,7 +2950,7 @@ class TypedElementsAccessor
   static Object* FillImpl(Handle<JSObject> receiver, Handle<Object> obj_value,
                           uint32_t start, uint32_t end) {
     Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
-    DCHECK(!array->WasNeutered());
+    DCHECK(!array->WasDetached());
     DCHECK(obj_value->IsNumeric());
 
     ctype value = BackingStore::FromHandle(obj_value);
@@ -2974,8 +2974,8 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
 
     // TODO(caitp): return Just(false) here when implementing strict throwing on
-    // neutered views.
-    if (WasNeutered(*receiver)) {
+    // detached views.
+    if (WasDetached(*receiver)) {
       return Just(value->IsUndefined(isolate) && length > start_from);
     }
 
@@ -3035,7 +3035,7 @@ class TypedElementsAccessor
                                          uint32_t start_from, uint32_t length) {
     DisallowHeapAllocation no_gc;
 
-    if (WasNeutered(*receiver)) return Just<int64_t>(-1);
+    if (WasDetached(*receiver)) return Just<int64_t>(-1);
 
     BackingStore elements = BackingStore::cast(receiver->elements());
     ctype typed_search_value;
@@ -3084,7 +3084,7 @@ class TypedElementsAccessor
                                              Handle<Object> value,
                                              uint32_t start_from) {
     DisallowHeapAllocation no_gc;
-    DCHECK(!WasNeutered(*receiver));
+    DCHECK(!WasDetached(*receiver));
 
     BackingStore elements = BackingStore::cast(receiver->elements());
     ctype typed_search_value;
@@ -3128,7 +3128,7 @@ class TypedElementsAccessor
 
   static void ReverseImpl(JSObject receiver) {
     DisallowHeapAllocation no_gc;
-    DCHECK(!WasNeutered(receiver));
+    DCHECK(!WasDetached(receiver));
 
     BackingStore elements = BackingStore::cast(receiver->elements());
 
@@ -3142,7 +3142,7 @@ class TypedElementsAccessor
   static Handle<FixedArray> CreateListFromArrayLikeImpl(Isolate* isolate,
                                                         Handle<JSObject> object,
                                                         uint32_t length) {
-    DCHECK(!WasNeutered(*object));
+    DCHECK(!WasDetached(*object));
     DCHECK(object->IsJSTypedArray());
     Handle<FixedArray> result = isolate->factory()->NewFixedArray(length);
     Handle<BackingStore> elements(BackingStore::cast(object->elements()),
@@ -3159,8 +3159,8 @@ class TypedElementsAccessor
                                               size_t start, size_t end) {
     DisallowHeapAllocation no_gc;
     DCHECK_EQ(destination->GetElementsKind(), AccessorClass::kind());
-    CHECK(!source->WasNeutered());
-    CHECK(!destination->WasNeutered());
+    CHECK(!source->WasDetached());
+    CHECK(!destination->WasDetached());
     DCHECK_LE(start, end);
     DCHECK_LE(end, source->length_value());
 
@@ -3229,8 +3229,8 @@ class TypedElementsAccessor
     // side-effects, as the source elements will always be a number.
     DisallowHeapAllocation no_gc;
 
-    CHECK(!source->WasNeutered());
-    CHECK(!destination->WasNeutered());
+    CHECK(!source->WasDetached());
+    CHECK(!destination->WasDetached());
 
     FixedTypedArrayBase source_elements =
         FixedTypedArrayBase::cast(source->elements());
@@ -3322,7 +3322,7 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
-    CHECK(!destination->WasNeutered());
+    CHECK(!destination->WasDetached());
 
     size_t current_length;
     DCHECK(source->length()->IsNumber() &&
@@ -3418,7 +3418,7 @@ class TypedElementsAccessor
                                            Object::ToNumber(isolate, elem));
       }
 
-      if (V8_UNLIKELY(destination->WasNeutered())) {
+      if (V8_UNLIKELY(destination->WasDetached())) {
         const char* op = "set";
         const MessageTemplate message = MessageTemplate::kDetachedOperation;
         Handle<String> operation =
@@ -3443,7 +3443,7 @@ class TypedElementsAccessor
     Handle<JSTypedArray> destination_ta =
         Handle<JSTypedArray>::cast(destination);
     DCHECK_LE(offset + length, destination_ta->length_value());
-    CHECK(!destination_ta->WasNeutered());
+    CHECK(!destination_ta->WasDetached());
 
     if (length == 0) return *isolate->factory()->undefined_value();
 
@@ -3470,7 +3470,7 @@ class TypedElementsAccessor
       }
       // If we have to copy more elements than we have in the source, we need to
       // do special handling and conversion; that happens in the slow case.
-      if (!source_ta->WasNeutered() &&
+      if (!source_ta->WasDetached() &&
           length + offset <= source_ta->length_value()) {
         CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
         return *isolate->factory()->undefined_value();
