@@ -53,15 +53,6 @@ namespace wasm {
 
 namespace {
 
-// Callbacks will receive either {kFailedCompilation} or both
-// {kFinishedBaselineCompilation} and {kFinishedTopTierCompilation}, in that
-// order. If tier up is off, both events are delivered right after each other.
-enum class CompilationEvent : uint8_t {
-  kFinishedBaselineCompilation,
-  kFinishedTopTierCompilation,
-  kFailedCompilation
-};
-
 enum class CompileMode : uint8_t { kRegular, kTiering };
 
 // The {CompilationStateImpl} keeps track of the compilation state of the
@@ -71,8 +62,6 @@ enum class CompileMode : uint8_t { kRegular, kTiering };
 // It's public interface {CompilationState} lives in compilation-environment.h.
 class CompilationStateImpl {
  public:
-  using callback_t = std::function<void(CompilationEvent, const VoidResult*)>;
-
   CompilationStateImpl(internal::Isolate*, NativeModule*);
   ~CompilationStateImpl();
 
@@ -85,9 +74,9 @@ class CompilationStateImpl {
   // compilation.
   void SetNumberOfFunctionsToCompile(size_t num_functions);
 
-  // Set the callback function to be called on compilation events. Needs to be
+  // Add the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run.
-  void SetCallback(callback_t callback);
+  void AddCallback(CompilationState::callback_t);
 
   // Inserts new functions to compile and kicks off compilation.
   void AddCompilationUnits(
@@ -268,8 +257,8 @@ class CompilationStateImpl {
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  // Callback function to be called on compilation events.
-  callback_t callback_;
+  // Callback functions to be called on compilation events.
+  std::vector<CompilationState::callback_t> callbacks_;
 
   CancelableTaskManager background_task_manager_;
   CancelableTaskManager foreground_task_manager_;
@@ -455,6 +444,10 @@ void CompilationState::SetWireBytesStorage(
 
 std::shared_ptr<WireBytesStorage> CompilationState::GetWireBytesStorage() {
   return Impl(this)->GetWireBytesStorage();
+}
+
+void CompilationState::AddCallback(CompilationState::callback_t callback) {
+  return Impl(this)->AddCallback(std::move(callback));
 }
 
 CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
@@ -2401,6 +2394,8 @@ void AsyncCompileJob::PrepareRuntimeObjects(
     module_object_ = handle(*module_object_, isolate_);
     deferred_handles_.push_back(deferred.Detach());
   }
+
+  if (stream_) stream_->NotifyRuntimeObjectsCreated(module_object_);
 }
 
 // This function assumes that it is executed in a HandleScope, and that a
@@ -2447,7 +2442,7 @@ class AsyncCompileJob::CompilationStateCallback {
  public:
   explicit CompilationStateCallback(AsyncCompileJob* job) : job_(job) {}
 
-  void operator()(CompilationEvent event, const VoidResult* error_result) {
+  void operator()(CompilationEvent event, const ResultBase* error_result) {
     // This callback is only being called from a foreground task.
     switch (event) {
       case CompilationEvent::kFinishedBaselineCompilation:
@@ -2460,10 +2455,6 @@ class AsyncCompileJob::CompilationStateCallback {
         break;
       case CompilationEvent::kFinishedTopTierCompilation:
         DCHECK_EQ(CompilationEvent::kFinishedBaselineCompilation, last_event_);
-        // Notify embedder that compilation is finished.
-        if (job_->stream_ && job_->stream_->module_compiled_callback()) {
-          job_->stream_->module_compiled_callback()(job_->module_object_);
-        }
         // If a foreground task or a finisher is pending, we rely on
         // FinishModule to remove the job.
         if (!job_->pending_foreground_task_ &&
@@ -2716,7 +2707,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     CompilationStateImpl* compilation_state =
         Impl(job->native_module_->compilation_state());
-    compilation_state->SetCallback(CompilationStateCallback{job});
+    compilation_state->AddCallback(CompilationStateCallback{job});
     if (start_compilation_) {
       // TODO(ahaas): Try to remove the {start_compilation_} check when
       // streaming decoding is done in the background. If
@@ -3022,9 +3013,8 @@ void CompilationStateImpl::SetNumberOfFunctionsToCompile(size_t num_functions) {
   }
 }
 
-void CompilationStateImpl::SetCallback(callback_t callback) {
-  DCHECK_NULL(callback_);
-  callback_ = std::move(callback);
+void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
+  callbacks_.emplace_back(std::move(callback));
 }
 
 void CompilationStateImpl::AddCompilationUnits(
@@ -3237,7 +3227,7 @@ void CompilationStateImpl::SetError(uint32_t func_index,
 void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
                                          const VoidResult* error_result) {
   HandleScope scope(isolate_);
-  if (callback_) callback_(event, error_result);
+  for (auto& callback : callbacks_) callback(event, error_result);
 }
 
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,

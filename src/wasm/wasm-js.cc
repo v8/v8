@@ -64,8 +64,9 @@ class WasmStreaming::WasmStreamingImpl {
     // Wrap the embedder callback here so we can also wrap the result as a
     // Local<WasmModuleObject> here.
     streaming_decoder_->SetModuleCompiledCallback(
-        [callback, data](i::Handle<i::WasmModuleObject> module_object) {
-          callback(data, Utils::Convert(module_object->shared_native_module()));
+        [callback,
+         data](const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+          callback(data, Utils::Convert(native_module));
         });
   }
 
