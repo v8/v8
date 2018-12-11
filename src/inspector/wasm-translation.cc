@@ -68,7 +68,9 @@ class WasmTranslation::TranslatorImpl {
   };
 
   TranslatorImpl(v8::Isolate* isolate, v8::Local<v8::debug::WasmScript> script)
-      : script_(isolate, script) {}
+      : script_(isolate, script) {
+    script_.AnnotateStrongRetainer(kGlobalScriptHandleLabel);
+  }
 
   void Init(v8::Isolate* isolate, WasmTranslation* translation,
             V8DebuggerAgentImpl* agent) {
@@ -244,12 +246,17 @@ class WasmTranslation::TranslatorImpl {
     return GetSourceInformation(isolate, func_index).reverse_offset_table;
   }
 
+  static constexpr char kGlobalScriptHandleLabel[] =
+      "WasmTranslation::TranslatorImpl::script_";
+
   v8::Global<v8::debug::WasmScript> script_;
 
   // We assume to only disassemble a subset of the functions, so store them in a
   // map instead of an array.
   std::unordered_map<int, WasmSourceInformation> source_informations_;
 };
+
+constexpr char WasmTranslation::TranslatorImpl::kGlobalScriptHandleLabel[];
 
 WasmTranslation::WasmTranslation(v8::Isolate* isolate) : isolate_(isolate) {}
 

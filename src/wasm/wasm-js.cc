@@ -236,7 +236,10 @@ namespace {
 class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
  public:
   AsyncCompilationResolver(i::Isolate* isolate, i::Handle<i::JSPromise> promise)
-      : promise_(isolate->global_handles()->Create(*promise)) {}
+      : promise_(isolate->global_handles()->Create(*promise)) {
+    i::GlobalHandles::AnnotateStrongRetainer(promise_.location(),
+                                             kGlobalPromiseHandle);
+  }
 
   ~AsyncCompilationResolver() override {
     i::GlobalHandles::Destroy(promise_.location());
@@ -261,9 +264,13 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
   }
 
  private:
+  static constexpr char kGlobalPromiseHandle[] =
+      "AsyncCompilationResolver::promise_";
   bool finished_ = false;
   i::Handle<i::JSPromise> promise_;
 };
+
+constexpr char AsyncCompilationResolver::kGlobalPromiseHandle[];
 
 // This class resolves the result of WebAssembly.instantiate(module, imports).
 // It just places the instantiation result in the supplied {promise}.
@@ -272,7 +279,10 @@ class InstantiateModuleResultResolver
  public:
   InstantiateModuleResultResolver(i::Isolate* isolate,
                                   i::Handle<i::JSPromise> promise)
-      : promise_(isolate->global_handles()->Create(*promise)) {}
+      : promise_(isolate->global_handles()->Create(*promise)) {
+    i::GlobalHandles::AnnotateStrongRetainer(promise_.location(),
+                                             kGlobalPromiseHandle);
+  }
 
   ~InstantiateModuleResultResolver() override {
     i::GlobalHandles::Destroy(promise_.location());
@@ -294,8 +304,12 @@ class InstantiateModuleResultResolver
   }
 
  private:
+  static constexpr char kGlobalPromiseHandle[] =
+      "InstantiateModuleResultResolver::promise_";
   i::Handle<i::JSPromise> promise_;
 };
+
+constexpr char InstantiateModuleResultResolver::kGlobalPromiseHandle[];
 
 // This class resolves the result of WebAssembly.instantiate(bytes, imports).
 // For that it creates a new {JSObject} which contains both the provided
@@ -308,7 +322,12 @@ class InstantiateBytesResultResolver
                                  i::Handle<i::WasmModuleObject> module)
       : isolate_(isolate),
         promise_(isolate_->global_handles()->Create(*promise)),
-        module_(isolate_->global_handles()->Create(*module)) {}
+        module_(isolate_->global_handles()->Create(*module)) {
+    i::GlobalHandles::AnnotateStrongRetainer(promise_.location(),
+                                             kGlobalPromiseHandle);
+    i::GlobalHandles::AnnotateStrongRetainer(module_.location(),
+                                             kGlobalModuleHandle);
+  }
 
   ~InstantiateBytesResultResolver() override {
     i::GlobalHandles::Destroy(promise_.location());
@@ -354,10 +373,17 @@ class InstantiateBytesResultResolver
   }
 
  private:
+  static constexpr char kGlobalPromiseHandle[] =
+      "InstantiateBytesResultResolver::promise_";
+  static constexpr char kGlobalModuleHandle[] =
+      "InstantiateBytesResultResolver::module_";
   i::Isolate* isolate_;
   i::Handle<i::JSPromise> promise_;
   i::Handle<i::WasmModuleObject> module_;
 };
+
+constexpr char InstantiateBytesResultResolver::kGlobalPromiseHandle[];
+constexpr char InstantiateBytesResultResolver::kGlobalModuleHandle[];
 
 // This class is the {CompilationResultResolver} for
 // WebAssembly.instantiate(bytes, imports). When compilation finishes,
@@ -373,7 +399,14 @@ class AsyncInstantiateCompileResultResolver
         maybe_imports_(maybe_imports.is_null()
                            ? maybe_imports
                            : isolate_->global_handles()->Create(
-                                 *maybe_imports.ToHandleChecked())) {}
+                                 *maybe_imports.ToHandleChecked())) {
+    i::GlobalHandles::AnnotateStrongRetainer(promise_.location(),
+                                             kGlobalPromiseHandle);
+    if (!maybe_imports_.is_null()) {
+      i::GlobalHandles::AnnotateStrongRetainer(
+          maybe_imports_.ToHandleChecked().location(), kGlobalImportsHandle);
+    }
+  }
 
   ~AsyncInstantiateCompileResultResolver() override {
     i::GlobalHandles::Destroy(promise_.location());
@@ -401,12 +434,18 @@ class AsyncInstantiateCompileResultResolver
   }
 
  private:
+  static constexpr char kGlobalPromiseHandle[] =
+      "AsyncInstantiateCompileResultResolver::promise_";
+  static constexpr char kGlobalImportsHandle[] =
+      "AsyncInstantiateCompileResultResolver::module_";
   bool finished_ = false;
   i::Isolate* isolate_;
   i::Handle<i::JSPromise> promise_;
   i::MaybeHandle<i::JSReceiver> maybe_imports_;
 };
 
+constexpr char AsyncInstantiateCompileResultResolver::kGlobalPromiseHandle[];
+constexpr char AsyncInstantiateCompileResultResolver::kGlobalImportsHandle[];
 }  // namespace
 
 // Web IDL: '[EnforceRange] unsigned long'
