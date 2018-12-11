@@ -237,7 +237,7 @@ bool WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
 
 std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
     Handle<WasmModuleObject> module_object) {
-  return module_object->managed_native_module()->get();
+  return module_object->shared_native_module();
 }
 
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(

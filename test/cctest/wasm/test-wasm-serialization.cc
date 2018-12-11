@@ -305,7 +305,7 @@ void TestTransferrableWasmModules(bool should_share) {
         v8::Local<v8::WasmModuleObject>::Cast(
             v8::Utils::ToLocal(Handle<JSObject>::cast(module_object)));
     store.push_back(v8_module->GetTransferrableModule());
-    original_native_module = module_object->managed_native_module()->get();
+    original_native_module = module_object->shared_native_module();
   }
 
   {
@@ -320,7 +320,7 @@ void TestTransferrableWasmModules(bool should_share) {
       Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
           v8::Utils::OpenHandle(*transferred_module.ToLocalChecked()));
       std::shared_ptr<NativeModule> transferred_native_module =
-          module_object->managed_native_module()->get();
+          module_object->shared_native_module();
       bool is_sharing = (original_native_module == transferred_native_module);
       CHECK_EQ(should_share, is_sharing);
     }

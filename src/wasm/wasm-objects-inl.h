@@ -80,6 +80,10 @@ OPTIONAL_ACCESSORS2(WasmModuleObject, breakpoint_infos, FixedArray,
 wasm::NativeModule* WasmModuleObject::native_module() const {
   return managed_native_module()->raw();
 }
+std::shared_ptr<wasm::NativeModule> WasmModuleObject::shared_native_module()
+    const {
+  return managed_native_module()->get();
+}
 const wasm::WasmModule* WasmModuleObject::module() const {
   // TODO(clemensh): Remove this helper (inline in callers).
   return native_module()->module();

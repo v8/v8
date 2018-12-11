@@ -101,7 +101,7 @@ class TestResolver : public CompilationResultResolver {
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
     *state_ = CompilationState::kFinished;
     if (!module.is_null()) {
-      *native_module_ = module->managed_native_module()->get();
+      *native_module_ = module->shared_native_module();
     }
   }
 

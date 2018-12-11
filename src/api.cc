@@ -7390,7 +7390,7 @@ WasmModuleObject::GetTransferrableModule() {
   if (i::FLAG_wasm_shared_code) {
     i::Handle<i::WasmModuleObject> obj =
         i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-    return TransferrableModule(obj->managed_native_module()->get());
+    return TransferrableModule(obj->shared_native_module());
   } else {
     CompiledWasmModule compiled_module = GetCompiledModule();
     OwnedBuffer serialized_module = compiled_module.Serialize();
@@ -7407,7 +7407,7 @@ WasmModuleObject::GetTransferrableModule() {
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  return Utils::Convert(obj->managed_native_module()->get());
+  return Utils::Convert(obj->shared_native_module());
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::FromTransferrableModule(

@@ -65,8 +65,7 @@ class WasmStreaming::WasmStreamingImpl {
     // Local<WasmModuleObject> here.
     streaming_decoder_->SetModuleCompiledCallback(
         [callback, data](i::Handle<i::WasmModuleObject> module_object) {
-          callback(data, Utils::Convert(
-                             module_object->managed_native_module()->get()));
+          callback(data, Utils::Convert(module_object->shared_native_module()));
         });
   }
 
