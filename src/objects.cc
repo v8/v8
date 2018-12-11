@@ -6712,8 +6712,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   }
 
   // Allocate the instance descriptor.
-  Handle<DescriptorArray> descriptors =
-      DescriptorArray::Allocate(isolate, instance_descriptor_length, 0);
+  Handle<DescriptorArray> descriptors = DescriptorArray::Allocate(
+      isolate, instance_descriptor_length, 0, TENURED);
 
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;
@@ -10755,10 +10755,12 @@ Handle<FrameArray> FrameArray::EnsureSpace(Isolate* isolate,
 
 Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
                                                   int nof_descriptors,
-                                                  int slack) {
+                                                  int slack,
+                                                  PretenureFlag pretenure) {
   return nof_descriptors + slack == 0
              ? isolate->factory()->empty_descriptor_array()
-             : isolate->factory()->NewDescriptorArray(nof_descriptors, slack);
+             : isolate->factory()->NewDescriptorArray(nof_descriptors, slack,
+                                                      pretenure);
 }
 
 void DescriptorArray::Initialize(EnumCache* enum_cache,

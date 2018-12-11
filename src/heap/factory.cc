@@ -1892,14 +1892,15 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
 }
 
 Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
-                                                    int slack) {
+                                                    int slack,
+                                                    PretenureFlag pretenure) {
   int number_of_all_descriptors = number_of_descriptors + slack;
   // Zero-length case must be handled outside.
   DCHECK_LT(0, number_of_all_descriptors);
   int size = DescriptorArray::SizeFor(number_of_all_descriptors);
   DCHECK_LT(size, kMaxRegularHeapObjectSize);
-  HeapObject* obj =
-      isolate()->heap()->AllocateRawWithRetryOrFail(size, NEW_SPACE);
+  AllocationSpace space = Heap::SelectSpace(pretenure);
+  HeapObject* obj = isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
   obj->set_map_after_allocation(*descriptor_array_map(), SKIP_WRITE_BARRIER);
   DescriptorArray array = DescriptorArray::cast(obj);
   array->Initialize(*empty_enum_cache(), *undefined_value(),

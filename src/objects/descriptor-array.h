@@ -122,8 +122,9 @@ class DescriptorArray : public HeapObjectPtr {
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  static Handle<DescriptorArray> Allocate(Isolate* isolate, int nof_descriptors,
-                                          int slack);
+  static Handle<DescriptorArray> Allocate(
+      Isolate* isolate, int nof_descriptors, int slack,
+      PretenureFlag pretenure = NOT_TENURED);
 
   void Initialize(EnumCache* enum_cache, HeapObject* undefined_value,
                   int nof_descriptors, int slack);
