@@ -1052,9 +1052,16 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         UNREACHABLE();
       case LookupIterator::JSPROXY: {
         bool was_found;
+        Handle<Object> receiver = it->GetReceiver();
+        // In case of global IC, the receiver is the global object. Replace by
+        // the global proxy.
+        if (receiver->IsJSGlobalObject()) {
+          receiver = handle(JSGlobalObject::cast(*receiver)->global_proxy(),
+                            it->isolate());
+        }
         MaybeHandle<Object> result =
             JSProxy::GetProperty(it->isolate(), it->GetHolder<JSProxy>(),
-                                 it->GetName(), it->GetReceiver(), &was_found);
+                                 it->GetName(), receiver, &was_found);
         if (!was_found) it->NotFound();
         return result;
       }
@@ -5197,9 +5204,17 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         return JSObject::SetPropertyWithFailedAccessCheck(it, value,
                                                           should_throw);
 
-      case LookupIterator::JSPROXY:
+      case LookupIterator::JSPROXY: {
+        Handle<Object> receiver = it->GetReceiver();
+        // In case of global IC, the receiver is the global object. Replace by
+        // the global proxy.
+        if (receiver->IsJSGlobalObject()) {
+          receiver = handle(JSGlobalObject::cast(*receiver)->global_proxy(),
+                            it->isolate());
+        }
         return JSProxy::SetProperty(it->GetHolder<JSProxy>(), it->GetName(),
-                                    value, it->GetReceiver(), language_mode);
+                                    value, receiver, language_mode);
+      }
 
       case LookupIterator::INTERCEPTOR: {
         if (it->HolderIsReceiverOrHiddenPrototype()) {
