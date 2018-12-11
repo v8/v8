@@ -564,8 +564,11 @@ Handle<SmallOrderedHashMap> Factory::NewSmallOrderedHashMap(
 
 Handle<SmallOrderedNameDictionary> Factory::NewSmallOrderedNameDictionary(
     int capacity, PretenureFlag pretenure) {
-  return AllocateSmallOrderedHashTable<SmallOrderedNameDictionary>(
-      small_ordered_name_dictionary_map(), capacity, pretenure);
+  Handle<SmallOrderedNameDictionary> dict =
+      AllocateSmallOrderedHashTable<SmallOrderedNameDictionary>(
+          small_ordered_name_dictionary_map(), capacity, pretenure);
+  dict->SetHash(PropertyArray::kNoHashSentinel);
+  return dict;
 }
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {

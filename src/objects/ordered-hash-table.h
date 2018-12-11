@@ -60,10 +60,6 @@ namespace internal {
 template <class Derived, int entrysize>
 class OrderedHashTable : public FixedArray {
  public:
-  // Returns an OrderedHashTable with a capacity of at least |capacity|.
-  static Handle<Derived> Allocate(Isolate* isolate, int capacity,
-                                  PretenureFlag pretenure = NOT_TENURED);
-
   // Returns an OrderedHashTable (possibly |table|) with enough space
   // to add at least one new element.
   static Handle<Derived> EnsureGrowable(Isolate* isolate,
@@ -138,6 +134,7 @@ class OrderedHashTable : public FixedArray {
     return Smi::ToInt(get(RemovedHolesIndex() + index));
   }
 
+  // The extra +1 is for linking the bucket chains together.
   static const int kEntrySize = entrysize + 1;
   static const int kChainOffset = entrysize;
 
@@ -197,6 +194,9 @@ class OrderedHashTable : public FixedArray {
   }
 
  protected:
+  // Returns an OrderedHashTable with a capacity of at least |capacity|.
+  static Handle<Derived> Allocate(Isolate* isolate, int capacity,
+                                  PretenureFlag pretenure = NOT_TENURED);
   static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
                                 int new_capacity);
 
@@ -234,6 +234,11 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
   static Handle<FixedArray> ConvertToKeysArray(Isolate* isolate,
                                                Handle<OrderedHashSet> table,
                                                GetKeysConversion convert);
+  static Handle<OrderedHashSet> Rehash(Isolate* isolate,
+                                       Handle<OrderedHashSet> table,
+                                       int new_capacity);
+  static Handle<OrderedHashSet> Allocate(Isolate* isolate, int capacity,
+                                         PretenureFlag pretenure = NOT_TENURED);
   static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
   static inline bool Is(Handle<HeapObject> table);
@@ -251,6 +256,12 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
   static Handle<OrderedHashMap> Add(Isolate* isolate,
                                     Handle<OrderedHashMap> table,
                                     Handle<Object> key, Handle<Object> value);
+
+  static Handle<OrderedHashMap> Allocate(Isolate* isolate, int capacity,
+                                         PretenureFlag pretenure = NOT_TENURED);
+  static Handle<OrderedHashMap> Rehash(Isolate* isolate,
+                                       Handle<OrderedHashMap> table,
+                                       int new_capacity);
   Object* ValueAt(int entry);
 
   static Object* GetHash(Isolate* isolate, Object* key);
@@ -339,9 +350,6 @@ class SmallOrderedHashTable : public HeapObjectPtr {
   // we've already reached MaxCapacity.
   static MaybeHandle<Derived> Grow(Isolate* isolate, Handle<Derived> table);
 
-  static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
-                                int new_capacity);
-
   int FindEntry(Isolate* isolate, Object* key);
 
   // Iterates only fields in the DataTable.
@@ -414,6 +422,9 @@ class SmallOrderedHashTable : public HeapObjectPtr {
   static const int kGrowthHack = 256;
 
  protected:
+  static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
+                                int new_capacity);
+
   void SetDataEntry(int entry, int relative_index, Object* value);
 
   // TODO(gsathya): Calculate all the various possible values for this
@@ -573,7 +584,9 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
                                               Handle<Object> key);
   static inline bool Is(Handle<HeapObject> table);
   static inline RootIndex GetMapRootIndex();
-
+  static Handle<SmallOrderedHashSet> Rehash(Isolate* isolate,
+                                            Handle<SmallOrderedHashSet> table,
+                                            int new_capacity);
   OBJECT_CONSTRUCTORS(SmallOrderedHashSet,
                       SmallOrderedHashTable<SmallOrderedHashSet>)
 };
@@ -598,6 +611,10 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
                                               Handle<Object> value);
   static inline bool Is(Handle<HeapObject> table);
   static inline RootIndex GetMapRootIndex();
+
+  static Handle<SmallOrderedHashMap> Rehash(Isolate* isolate,
+                                            Handle<SmallOrderedHashMap> table,
+                                            int new_capacity);
 
   OBJECT_CONSTRUCTORS(SmallOrderedHashMap,
                       SmallOrderedHashTable<SmallOrderedHashMap>)
@@ -651,6 +668,12 @@ class OrderedNameDictionary
                                            Handle<Object> value,
                                            PropertyDetails details);
 
+  static Handle<OrderedNameDictionary> Allocate(
+      Isolate* isolate, int capacity, PretenureFlag pretenure = NOT_TENURED);
+
+  static Handle<OrderedNameDictionary> Rehash(
+      Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity);
+
   // Returns the value for entry.
   inline Object* ValueAt(int entry);
 
@@ -662,6 +685,9 @@ class OrderedNameDictionary
 
   // Set the details for entry.
   inline void DetailsAtPut(int entry, PropertyDetails value);
+
+  inline void SetHash(int hash);
+  inline int Hash();
 
   static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
@@ -684,6 +710,10 @@ class SmallOrderedNameDictionary
   // Returns the value for entry.
   inline Object* ValueAt(int entry);
 
+  static Handle<SmallOrderedNameDictionary> Rehash(
+      Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
+      int new_capacity);
+
   // Set the value for entry.
   inline void ValueAtPut(int entry, Object* value);
 
@@ -692,6 +722,9 @@ class SmallOrderedNameDictionary
 
   // Set the details for entry.
   inline void DetailsAtPut(int entry, PropertyDetails value);
+
+  inline void SetHash(int hash);
+  inline int Hash();
 
   static const int kKeyIndex = 0;
   static const int kValueIndex = 1;

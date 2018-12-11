@@ -170,6 +170,29 @@ Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
   return key;
 }
 
+inline void SmallOrderedNameDictionary::SetHash(int hash) {
+  DCHECK(PropertyArray::HashField::is_valid(hash));
+  WRITE_INT_FIELD(this, PrefixOffset(), hash);
+}
+
+inline int SmallOrderedNameDictionary::Hash() {
+  int hash = READ_INT_FIELD(this, PrefixOffset());
+  DCHECK(PropertyArray::HashField::is_valid(hash));
+  return hash;
+}
+
+inline void OrderedNameDictionary::SetHash(int hash) {
+  DCHECK(PropertyArray::HashField::is_valid(hash));
+  this->set(PrefixIndex(), Smi::FromInt(hash));
+}
+
+inline int OrderedNameDictionary::Hash() {
+  Object* hash_obj = this->get(PrefixIndex());
+  int hash = Smi::ToInt(hash_obj);
+  DCHECK(PropertyArray::HashField::is_valid(hash));
+  return hash;
+}
+
 }  // namespace internal
 }  // namespace v8
 

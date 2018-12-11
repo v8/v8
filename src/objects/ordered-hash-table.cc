@@ -50,8 +50,8 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
   // Don't need to grow if we can simply clear out deleted entries instead.
   // Note that we can't compact in place, though, so we always allocate
   // a new table.
-  return Rehash(isolate, table,
-                (nod < (capacity >> 1)) ? capacity << 1 : capacity);
+  return Derived::Rehash(isolate, table,
+                         (nod < (capacity >> 1)) ? capacity << 1 : capacity);
 }
 
 template <class Derived, int entrysize>
@@ -62,7 +62,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Shrink(
   int nof = table->NumberOfElements();
   int capacity = table->Capacity();
   if (nof >= (capacity >> 2)) return table;
-  return Rehash(isolate, table, capacity / 2);
+  return Derived::Rehash(isolate, table, capacity / 2);
 }
 
 template <class Derived, int entrysize>
@@ -187,7 +187,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
     Isolate* isolate, Handle<Derived> table, int new_capacity) {
   DCHECK(!table->IsObsolete());
 
-  Handle<Derived> new_table = Allocate(
+  Handle<Derived> new_table = Derived::Allocate(
       isolate, new_capacity, Heap::InNewSpace(*table) ? NOT_TENURED : TENURED);
   int nof = table->NumberOfElements();
   int nod = table->NumberOfDeletedElements();
@@ -222,6 +222,29 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
   new_table->SetNumberOfElements(nof);
   table->SetNextTable(*new_table);
 
+  return new_table;
+}
+
+Handle<OrderedHashSet> OrderedHashSet::Rehash(Isolate* isolate,
+                                              Handle<OrderedHashSet> table,
+                                              int new_capacity) {
+  return OrderedHashTable<OrderedHashSet, 1>::Rehash(isolate, table,
+                                                     new_capacity);
+}
+
+Handle<OrderedHashMap> OrderedHashMap::Rehash(Isolate* isolate,
+                                              Handle<OrderedHashMap> table,
+                                              int new_capacity) {
+  return OrderedHashTable<OrderedHashMap, 2>::Rehash(isolate, table,
+                                                     new_capacity);
+}
+
+Handle<OrderedNameDictionary> OrderedNameDictionary::Rehash(
+    Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity) {
+  Handle<OrderedNameDictionary> new_table =
+      OrderedHashTable<OrderedNameDictionary, 3>::Rehash(isolate, table,
+                                                         new_capacity);
+  new_table->SetHash(table->Hash());
   return new_table;
 }
 
@@ -361,9 +384,26 @@ int OrderedHashTable<OrderedNameDictionary, 3>::FindEntry(Isolate* isolate,
 
   return kNotFound;
 }
+Handle<OrderedHashSet> OrderedHashSet::Allocate(Isolate* isolate, int capacity,
+                                                PretenureFlag pretenure) {
+  return OrderedHashTable<OrderedHashSet, 1>::Allocate(isolate, capacity,
+                                                       pretenure);
+}
 
-template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Allocate(
-    Isolate* isolate, int capacity, PretenureFlag pretenure);
+Handle<OrderedHashMap> OrderedHashMap::Allocate(Isolate* isolate, int capacity,
+                                                PretenureFlag pretenure) {
+  return OrderedHashTable<OrderedHashMap, 2>::Allocate(isolate, capacity,
+                                                       pretenure);
+}
+
+Handle<OrderedNameDictionary> OrderedNameDictionary::Allocate(
+    Isolate* isolate, int capacity, PretenureFlag pretenure) {
+  Handle<OrderedNameDictionary> table =
+      OrderedHashTable<OrderedNameDictionary, 3>::Allocate(isolate, capacity,
+                                                           pretenure);
+  table->SetHash(PropertyArray::kNoHashSentinel);
+  return table;
+}
 
 template Handle<OrderedHashSet>
 OrderedHashTable<OrderedHashSet, 1>::EnsureGrowable(
@@ -386,9 +426,6 @@ template bool OrderedHashTable<OrderedHashSet, 1>::Delete(Isolate* isolate,
 template int OrderedHashTable<OrderedHashSet, 1>::FindEntry(Isolate* isolate,
                                                             Object* key);
 
-template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Allocate(
-    Isolate* isolate, int capacity, PretenureFlag pretenure);
-
 template Handle<OrderedHashMap>
 OrderedHashTable<OrderedHashMap, 2>::EnsureGrowable(
     Isolate* isolate, Handle<OrderedHashMap> table);
@@ -410,10 +447,6 @@ template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
 template int OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate,
                                                             Object* key);
 
-template Handle<OrderedNameDictionary>
-OrderedHashTable<OrderedNameDictionary, 3>::Allocate(Isolate* isolate,
-                                                     int capacity,
-                                                     PretenureFlag pretenure);
 
 template bool OrderedHashTable<OrderedNameDictionary, 3>::HasKey(
     Isolate* isolate, OrderedNameDictionary table, Object* key);
@@ -662,6 +695,28 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Isolate* isolate,
   return new_table;
 }
 
+Handle<SmallOrderedHashSet> SmallOrderedHashSet::Rehash(
+    Isolate* isolate, Handle<SmallOrderedHashSet> table, int new_capacity) {
+  return SmallOrderedHashTable<SmallOrderedHashSet>::Rehash(isolate, table,
+                                                            new_capacity);
+}
+
+Handle<SmallOrderedHashMap> SmallOrderedHashMap::Rehash(
+    Isolate* isolate, Handle<SmallOrderedHashMap> table, int new_capacity) {
+  return SmallOrderedHashTable<SmallOrderedHashMap>::Rehash(isolate, table,
+                                                            new_capacity);
+}
+
+Handle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Rehash(
+    Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
+    int new_capacity) {
+  Handle<SmallOrderedNameDictionary> new_table =
+      SmallOrderedHashTable<SmallOrderedNameDictionary>::Rehash(isolate, table,
+                                                                new_capacity);
+  new_table->SetHash(table->Hash());
+  return new_table;
+}
+
 template <class Derived>
 MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
     Isolate* isolate, Handle<Derived> table) {
@@ -686,7 +741,7 @@ MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
     }
   }
 
-  return Rehash(isolate, table, new_capacity);
+  return Derived::Rehash(isolate, table, new_capacity);
 }
 
 template <class Derived>
