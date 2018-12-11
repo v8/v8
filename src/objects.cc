@@ -16626,40 +16626,75 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
 
 namespace {
 
-JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags, bool* success) {
-  JSRegExp::Flags value = JSRegExp::kNone;
+constexpr JSRegExp::Flag kCharFlagValues[] = {
+    JSRegExp::kGlobal,      // g
+    JSRegExp::kInvalid,     // h
+    JSRegExp::kIgnoreCase,  // i
+    JSRegExp::kInvalid,     // j
+    JSRegExp::kInvalid,     // k
+    JSRegExp::kInvalid,     // l
+    JSRegExp::kMultiline,   // m
+    JSRegExp::kInvalid,     // n
+    JSRegExp::kInvalid,     // o
+    JSRegExp::kInvalid,     // p
+    JSRegExp::kInvalid,     // q
+    JSRegExp::kInvalid,     // r
+    JSRegExp::kDotAll,      // s
+    JSRegExp::kInvalid,     // t
+    JSRegExp::kUnicode,     // u
+    JSRegExp::kInvalid,     // v
+    JSRegExp::kInvalid,     // w
+    JSRegExp::kInvalid,     // x
+    JSRegExp::kSticky,      // y
+};
+
+constexpr JSRegExp::Flag CharToFlag(uc16 flag_char) {
+  return (flag_char < 'g' || flag_char > 'y')
+             ? JSRegExp::kInvalid
+             : kCharFlagValues[flag_char - 'g'];
+}
+
+JSRegExp::Flags RegExpFlagsFromString(Isolate* isolate, Handle<String> flags,
+                                      bool* success) {
+  STATIC_ASSERT(CharToFlag('g') == JSRegExp::kGlobal);
+  STATIC_ASSERT(CharToFlag('i') == JSRegExp::kIgnoreCase);
+  STATIC_ASSERT(CharToFlag('m') == JSRegExp::kMultiline);
+  STATIC_ASSERT(CharToFlag('s') == JSRegExp::kDotAll);
+  STATIC_ASSERT(CharToFlag('u') == JSRegExp::kUnicode);
+  STATIC_ASSERT(CharToFlag('y') == JSRegExp::kSticky);
+
   int length = flags->length();
+  if (length == 0) {
+    *success = true;
+    return JSRegExp::kNone;
+  }
   // A longer flags string cannot be valid.
   if (length > JSRegExp::FlagCount()) return JSRegExp::Flags(0);
-  for (int i = 0; i < length; i++) {
-    JSRegExp::Flag flag = JSRegExp::kNone;
-    switch (flags->Get(i)) {
-      case 'g':
-        flag = JSRegExp::kGlobal;
-        break;
-      case 'i':
-        flag = JSRegExp::kIgnoreCase;
-        break;
-      case 'm':
-        flag = JSRegExp::kMultiline;
-        break;
-      case 's':
-        flag = JSRegExp::kDotAll;
-        break;
-      case 'u':
-        flag = JSRegExp::kUnicode;
-        break;
-      case 'y':
-        flag = JSRegExp::kSticky;
-        break;
-      default:
-        return JSRegExp::Flags(0);
+  // Initialize {value} to {kInvalid} to allow 2-in-1 duplicate/invalid check.
+  JSRegExp::Flags value = JSRegExp::kInvalid;
+  if (flags->IsSeqOneByteString()) {
+    DisallowHeapAllocation no_gc;
+    SeqOneByteString seq_flags = SeqOneByteString::cast(*flags);
+    for (int i = 0; i < length; i++) {
+      JSRegExp::Flag flag = CharToFlag(seq_flags.SeqOneByteStringGet(i));
+      // Duplicate or invalid flag.
+      if (value & flag) return JSRegExp::Flags(0);
+      value |= flag;
     }
-    // Duplicate flag.
-    if (value & flag) return JSRegExp::Flags(0);
-    value |= flag;
+  } else {
+    flags = String::Flatten(isolate, flags);
+    DisallowHeapAllocation no_gc;
+    String::FlatContent flags_content = flags->GetFlatContent(no_gc);
+    for (int i = 0; i < length; i++) {
+      JSRegExp::Flag flag = CharToFlag(flags_content.Get(i));
+      // Duplicate or invalid flag.
+      if (value & flag) return JSRegExp::Flags(0);
+      value |= flag;
+    }
   }
   *success = true;
+  // Drop the initially set {kInvalid} bit.
+  value ^= JSRegExp::kInvalid;
   return value;
 }
 
@@ -16757,7 +16792,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
                                            Handle<String> flags_string) {
   Isolate* isolate = regexp->GetIsolate();
   bool success = false;
-  Flags flags = RegExpFlagsFromString(flags_string, &success);
+  Flags flags = RegExpFlagsFromString(isolate, flags_string, &success);
   if (!success) {
     THROW_NEW_ERROR(
         isolate,

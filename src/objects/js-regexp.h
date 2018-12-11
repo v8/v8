@@ -36,40 +36,43 @@ class JSRegExp : public JSObject {
   // ATOM: A simple string to match against using an indexOf operation.
   // IRREGEXP: Compiled with Irregexp.
   enum Type { NOT_COMPILED, ATOM, IRREGEXP };
-  enum Flag {
+  struct FlagShiftBit {
+    static const int kGlobal = 0;
+    static const int kIgnoreCase = 1;
+    static const int kMultiline = 2;
+    static const int kSticky = 3;
+    static const int kUnicode = 4;
+    static const int kDotAll = 5;
+    static const int kInvalid = 7;
+  };
+  enum Flag : uint8_t {
     kNone = 0,
-    kGlobal = 1 << 0,
-    kIgnoreCase = 1 << 1,
-    kMultiline = 1 << 2,
-    kSticky = 1 << 3,
-    kUnicode = 1 << 4,
-    kDotAll = 1 << 5,
+    kGlobal = 1 << FlagShiftBit::kGlobal,
+    kIgnoreCase = 1 << FlagShiftBit::kIgnoreCase,
+    kMultiline = 1 << FlagShiftBit::kMultiline,
+    kSticky = 1 << FlagShiftBit::kSticky,
+    kUnicode = 1 << FlagShiftBit::kUnicode,
+    kDotAll = 1 << FlagShiftBit::kDotAll,
     // Update FlagCount when adding new flags.
+    kInvalid = 1 << FlagShiftBit::kInvalid,  // Not included in FlagCount.
   };
   typedef base::Flags<Flag> Flags;
-
   static constexpr int FlagCount() { return 6; }
 
   static int FlagShiftBits(Flag flag) {
     switch (flag) {
       case kGlobal:
-        STATIC_ASSERT(kGlobal == (1 << 0));
-        return 0;
+        return FlagShiftBit::kGlobal;
       case kIgnoreCase:
-        STATIC_ASSERT(kIgnoreCase == (1 << 1));
-        return 1;
+        return FlagShiftBit::kIgnoreCase;
       case kMultiline:
-        STATIC_ASSERT(kMultiline == (1 << 2));
-        return 2;
+        return FlagShiftBit::kMultiline;
       case kSticky:
-        STATIC_ASSERT(kSticky == (1 << 3));
-        return 3;
+        return FlagShiftBit::kSticky;
       case kUnicode:
-        STATIC_ASSERT(kUnicode == (1 << 4));
-        return 4;
+        return FlagShiftBit::kUnicode;
       case kDotAll:
-        STATIC_ASSERT(kDotAll == (1 << 5));
-        return 5;
+        return FlagShiftBit::kDotAll;
       default:
         STATIC_ASSERT(FlagCount() == 6);
         UNREACHABLE();
