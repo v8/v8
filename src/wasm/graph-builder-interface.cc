@@ -131,11 +131,7 @@ class WasmGraphBuildingInterface {
     builder_->InitInstanceCache(&ssa_env->instance_cache);
   }
 
-  void StartFunctionBody(FullDecoder* decoder, Control* block) {
-    SsaEnv* branch_env = ssa_env_;
-    SetEnv(Steal(decoder->zone(), branch_env));
-    block->end_env = branch_env;
-  }
+  void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder*) { builder_->PatchInStackCheckIfNeeded(); }
 
