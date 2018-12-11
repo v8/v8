@@ -214,7 +214,7 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitJSObjectFast(Map map, JSObject object) {
-    return VisitJSObjectSubclass(map, object);
+    return VisitJSObjectSubclassFast(map, object);
   }
 
   int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
@@ -268,18 +268,15 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitConsString(Map map, ConsString object) {
-    int size = ConsString::BodyDescriptor::SizeOf(map, object);
-    return VisitWithSnapshot(map, object, size, size);
+    return VisitFullyWithSnapshot(map, object);
   }
 
   int VisitSlicedString(Map map, SlicedString object) {
-    int size = SlicedString::BodyDescriptor::SizeOf(map, object);
-    return VisitWithSnapshot(map, object, size, size);
+    return VisitFullyWithSnapshot(map, object);
   }
 
   int VisitThinString(Map map, ThinString object) {
-    int size = ThinString::BodyDescriptor::SizeOf(map, object);
-    return VisitWithSnapshot(map, object, size, size);
+    return VisitFullyWithSnapshot(map, object);
   }
 
   // ===========================================================================
@@ -485,12 +482,20 @@ class ConcurrentMarkingVisitor final
   };
 
   template <typename T>
+  int VisitJSObjectSubclassFast(Map map, T object) {
+    DCHECK_IMPLIES(FLAG_unbox_double_fields, map->HasFastPointerLayout());
+    using TBodyDescriptor = typename T::FastBodyDescriptor;
+    return VisitJSObjectSubclass<T, TBodyDescriptor>(map, object);
+  }
+
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   int VisitJSObjectSubclass(Map map, T object) {
-    int size = T::BodyDescriptor::SizeOf(map, object);
+    int size = TBodyDescriptor::SizeOf(map, object);
     int used_size = map->UsedInstanceSize();
     DCHECK_LE(used_size, size);
     DCHECK_GE(used_size, T::kHeaderSize);
-    return VisitWithSnapshot(map, object, used_size, size);
+    return VisitPartiallyWithSnapshot<T, TBodyDescriptor>(map, object,
+                                                          used_size, size);
   }
 
   template <typename T>
@@ -521,20 +526,27 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename T>
-  int VisitWithSnapshot(Map map, T object, int used_size, int size) {
-    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
+  int VisitFullyWithSnapshot(Map map, T object) {
+    using TBodyDescriptor = typename T::BodyDescriptor;
+    int size = TBodyDescriptor::SizeOf(map, object);
+    return VisitPartiallyWithSnapshot<T, TBodyDescriptor>(map, object, size,
+                                                          size);
+  }
+
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
+  int VisitPartiallyWithSnapshot(Map map, T object, int used_size, int size) {
+    const SlotSnapshot& snapshot =
+        MakeSlotSnapshot<T, TBodyDescriptor>(map, object, used_size);
     if (!ShouldVisit(object)) return 0;
     VisitPointersInSnapshot(object, snapshot);
     return size;
   }
 
-  template <typename T>
+  template <typename T, typename TBodyDescriptor>
   const SlotSnapshot& MakeSlotSnapshot(Map map, T object, int size) {
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object, ObjectSlot(object->map_slot().address()));
-    // TODO(3770): Drop std::remove_pointer after the migration.
-    std::remove_pointer<T>::type::BodyDescriptor::IterateBody(map, object, size,
-                                                              &visitor);
+    TBodyDescriptor::IterateBody(map, object, size, &visitor);
     return slot_snapshot_;
   }
 

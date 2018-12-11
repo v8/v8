@@ -56,12 +56,18 @@ class BodyDescriptorBase {
 
  protected:
   // Returns true for all header and embedder fields.
-  static inline bool IsValidSlotImpl(Map map, HeapObject* obj, int offset);
+  static inline bool IsValidJSObjectSlotImpl(Map map, HeapObject* obj,
+                                             int offset);
+
+  // Returns true for all header and embedder fields.
+  static inline bool IsValidEmbedderJSObjectSlotImpl(Map map, HeapObject* obj,
+                                                     int offset);
 
   // Treats all header and embedder fields in the range as tagged.
   template <typename ObjectVisitor>
-  static inline void IterateBodyImpl(Map map, HeapObject* obj, int start_offset,
-                                     int end_offset, ObjectVisitor* v);
+  static inline void IterateJSObjectBodyImpl(Map map, HeapObject* obj,
+                                             int start_offset, int end_offset,
+                                             ObjectVisitor* v);
 };
 
 
