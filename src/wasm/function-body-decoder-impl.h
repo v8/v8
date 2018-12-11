@@ -288,11 +288,11 @@ struct BlockTypeImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
-struct BreakDepthImmediate {
+struct BranchDepthImmediate {
   uint32_t depth;
   uint32_t length;
-  inline BreakDepthImmediate(Decoder* decoder, const byte* pc) {
-    depth = decoder->read_u32v<validate>(pc + 1, &length, "break depth");
+  inline BranchDepthImmediate(Decoder* decoder, const byte* pc) {
+    depth = decoder->read_u32v<validate>(pc + 1, &length, "branch depth");
   }
 };
 
@@ -957,10 +957,10 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Validate(const byte* pc, BreakDepthImmediate<validate>& imm,
+  inline bool Validate(const byte* pc, BranchDepthImmediate<validate>& imm,
                        size_t control_depth) {
     if (!VALIDATE(imm.depth < control_depth)) {
-      errorf(pc + 1, "invalid break depth: %u", imm.depth);
+      errorf(pc + 1, "invalid branch depth: %u", imm.depth);
       return false;
     }
     return true;
@@ -1139,7 +1139,7 @@ class WasmDecoder : public Decoder {
       case kExprRethrow:
       case kExprBr:
       case kExprBrIf: {
-        BreakDepthImmediate<validate> imm(decoder, pc);
+        BranchDepthImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
       case kExprSetGlobal:
@@ -1634,7 +1634,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kExprRethrow: {
             CHECK_PROTOTYPE_OPCODE(eh);
-            BreakDepthImmediate<validate> imm(this, this->pc_);
+            BranchDepthImmediate<validate> imm(this, this->pc_);
             if (!this->Validate(this->pc_, imm, control_.size())) break;
             Control* c = control_at(imm.depth);
             if (!VALIDATE(c->is_try_catchall() || c->is_try_catch())) {
@@ -1824,10 +1824,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprBr: {
-            BreakDepthImmediate<validate> imm(this, this->pc_);
+            BranchDepthImmediate<validate> imm(this, this->pc_);
             if (!this->Validate(this->pc_, imm, control_.size())) break;
             Control* c = control_at(imm.depth);
-            if (!TypeCheckBreak(c)) break;
+            if (!TypeCheckBranch(c)) break;
             if (imm.depth == control_.size() - 1) {
               DoReturn();
             } else if (control_.back().reachable()) {
@@ -1839,12 +1839,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprBrIf: {
-            BreakDepthImmediate<validate> imm(this, this->pc_);
+            BranchDepthImmediate<validate> imm(this, this->pc_);
             auto cond = Pop(0, kWasmI32);
             if (this->failed()) break;
             if (!this->Validate(this->pc_, imm, control_.size())) break;
             Control* c = control_at(imm.depth);
-            if (!TypeCheckBreak(c)) break;
+            if (!TypeCheckBranch(c)) break;
             if (control_.back().reachable()) {
               CALL_INTERFACE(BrIf, cond, imm.depth);
               c->br_merge()->reached = true;
@@ -1870,7 +1870,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                              i, target);
                 break;
               }
-              // Avoid redundant break target checks.
+              // Avoid redundant branch target checks.
               if (br_targets[target]) continue;
               br_targets[target] = true;
               // Check that label types match up.
@@ -1884,7 +1884,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                              " (previous was %u, this one %u)",
                              i, br_arity, arity);
               }
-              if (!TypeCheckBreak(c)) break;
+              if (!TypeCheckBranch(c)) break;
             }
             if (this->failed()) break;
 
@@ -2698,8 +2698,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return TypeCheckMergeValues(c, &c->end_merge);
   }
 
-  bool TypeCheckBreak(Control* c) {
-    // Breaks must have at least the number of values expected; can have more.
+  bool TypeCheckBranch(Control* c) {
+    // Branches must have at least the number of values expected; can have more.
     uint32_t expected = c->br_merge()->arity;
     if (expected == 0) return true;  // Fast path.
     DCHECK_GE(stack_.size(), control_.back().stack_depth);

@@ -858,14 +858,14 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprBr: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
           TRACE("control @%u: Br[depth=%u]\n", i.pc_offset(), imm.depth);
           Control* c = &control_stack[control_stack.size() - imm.depth - 1];
           if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
           break;
         }
         case kExprBrIf: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
           TRACE("control @%u: BrIf[depth=%u]\n", i.pc_offset(), imm.depth);
           Control* c = &control_stack[control_stack.size() - imm.depth - 1];
           if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
@@ -2191,13 +2191,15 @@ class ThreadImpl {
           break;
         }
         case kExprBr: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                         code->at(pc));
           len = DoBreak(code, pc, imm.depth);
           TRACE("  br => @%zu\n", pc + len);
           break;
         }
         case kExprBrIf: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                         code->at(pc));
           WasmValue cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
           if (is_true) {

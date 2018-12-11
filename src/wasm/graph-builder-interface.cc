@@ -132,9 +132,9 @@ class WasmGraphBuildingInterface {
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
-    SsaEnv* break_env = ssa_env_;
-    SetEnv(Steal(decoder->zone(), break_env));
-    block->end_env = break_env;
+    SsaEnv* branch_env = ssa_env_;
+    SetEnv(Steal(decoder->zone(), branch_env));
+    block->end_env = branch_env;
   }
 
   void FinishFunction(FullDecoder*) { builder_->PatchInStackCheckIfNeeded(); }
@@ -144,7 +144,7 @@ class WasmGraphBuildingInterface {
   void NextInstruction(FullDecoder*, WasmOpcode) {}
 
   void Block(FullDecoder* decoder, Control* block) {
-    // The break environment is the outer environment.
+    // The branch environment is the outer environment.
     block->end_env = ssa_env_;
     SetEnv(Steal(decoder->zone(), ssa_env_));
   }
@@ -327,11 +327,11 @@ class WasmGraphBuildingInterface {
       return;
     }
 
-    SsaEnv* break_env = ssa_env_;
+    SsaEnv* branch_env = ssa_env_;
     // Build branches to the various blocks based on the table.
     TFNode* sw = BUILD(Switch, imm.table_count + 1, key.node);
 
-    SsaEnv* copy = Steal(decoder->zone(), break_env);
+    SsaEnv* copy = Steal(decoder->zone(), branch_env);
     SetEnv(copy);
     BranchTableIterator<validate> iterator(decoder, imm);
     while (iterator.has_next()) {
@@ -343,7 +343,7 @@ class WasmGraphBuildingInterface {
       BrOrRet(decoder, target);
     }
     DCHECK(decoder->ok());
-    SetEnv(break_env);
+    SetEnv(branch_env);
   }
 
   void Else(FullDecoder* decoder, Control* if_block) {
