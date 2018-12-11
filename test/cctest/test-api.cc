@@ -16602,35 +16602,44 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
     array->set(i, static_cast<ElementType>(i));
   }
 
+  bool old_natives_flag_sentry = i::FLAG_allow_natives_syntax;
+  i::FLAG_allow_natives_syntax = true;
+
   // Test complex assignments
-  result = CompileRun("function ee_op_test_complex_func(sum) {"
-                      " for (var i = 0; i < 40; ++i) {"
-                      "   sum += (ext_array[i] += 1);"
-                      "   sum += (ext_array[i] -= 1);"
-                      " } "
-                      " return sum;"
-                      "}"
-                      "sum=0;"
-                      "for (var i=0;i<10000;++i) {"
-                      "  sum=ee_op_test_complex_func(sum);"
-                      "}"
-                      "sum;");
-  CHECK_EQ(16000000, result->Int32Value(context).FromJust());
+  result = CompileRun(
+      "function ee_op_test_complex_func(sum) {"
+      " for (var i = 0; i < 40; ++i) {"
+      "   sum += (ext_array[i] += 1);"
+      "   sum += (ext_array[i] -= 1);"
+      " } "
+      " return sum;"
+      "}"
+      "sum=0;"
+      "sum=ee_op_test_complex_func(sum);"
+      "sum=ee_op_test_complex_func(sum);"
+      "%OptimizeFunctionOnNextCall(ee_op_test_complex_func);"
+      "sum=ee_op_test_complex_func(sum);"
+      "sum;");
+  CHECK_EQ(4800, result->Int32Value(context).FromJust());
 
   // Test count operations
-  result = CompileRun("function ee_op_test_count_func(sum) {"
-                      " for (var i = 0; i < 40; ++i) {"
-                      "   sum += (++ext_array[i]);"
-                      "   sum += (--ext_array[i]);"
-                      " } "
-                      " return sum;"
-                      "}"
-                      "sum=0;"
-                      "for (var i=0;i<10000;++i) {"
-                      "  sum=ee_op_test_count_func(sum);"
-                      "}"
-                      "sum;");
-  CHECK_EQ(16000000, result->Int32Value(context).FromJust());
+  result = CompileRun(
+      "function ee_op_test_count_func(sum) {"
+      " for (var i = 0; i < 40; ++i) {"
+      "   sum += (++ext_array[i]);"
+      "   sum += (--ext_array[i]);"
+      " } "
+      " return sum;"
+      "}"
+      "sum=0;"
+      "sum=ee_op_test_count_func(sum);"
+      "sum=ee_op_test_count_func(sum);"
+      "%OptimizeFunctionOnNextCall(ee_op_test_count_func);"
+      "sum=ee_op_test_count_func(sum);"
+      "sum;");
+  CHECK_EQ(4800, result->Int32Value(context).FromJust());
+
+  i::FLAG_allow_natives_syntax = old_natives_flag_sentry;
 
   result = CompileRun("ext_array[3] = 33;"
                       "delete ext_array[3];"
