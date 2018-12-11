@@ -690,7 +690,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(F64Const, Value* result, double value)                                    \
   F(RefNull, Value* result)                                                   \
   F(Drop, const Value& value)                                                 \
-  F(DoReturn, Vector<Value> values, bool implicit)                            \
+  F(DoReturn, Vector<Value> values)                                           \
   F(GetLocal, Value* result, const LocalIndexImmediate<validate>& imm)        \
   F(SetLocal, const Value& value, const LocalIndexImmediate<validate>& imm)   \
   F(TeeLocal, const Value& value, Value* result,                              \
@@ -701,7 +701,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(Select, const Value& cond, const Value& fval, const Value& tval,          \
     Value* result)                                                            \
   F(Br, Control* target)                                                      \
-  F(BrIf, const Value& cond, Control* target)                                 \
+  F(BrIf, const Value& cond, uint32_t depth)                                  \
   F(BrTable, const BranchTableImmediate<validate>& imm, const Value& key)     \
   F(Else, Control* if_block)                                                  \
   F(LoadMem, LoadType type, const MemoryAccessImmediate<validate>& imm,       \
@@ -1794,11 +1794,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               EndControl();
             }
 
-            FallThruTo(c);
-            // A loop just leaves the values on the stack.
-            if (!c->is_loop()) PushMergeValues(c, &c->end_merge);
-
-            if (control_.size() == 1) {
+            if (control_.size() > 1) {
+              FallThruTo(c);
+              // A loop just leaves the values on the stack.
+              if (!c->is_loop()) PushMergeValues(c, &c->end_merge);
+            } else {
               // If at the last (implicit) control, check we are at end.
               if (!VALIDATE(this->pc_ + 1 == this->end_)) {
                 this->error(this->pc_ + 1, "trailing code after function end");
@@ -1808,7 +1808,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               // The result of the block is the return value.
               TRACE_PART("\n" TRACE_INST_FORMAT, startrel(this->pc_),
                          "(implicit) return");
-              DoReturn(c, true);
+              if (!TypeCheckFallThru(c)) break;
+              DoReturn();
             }
 
             PopControl(c);
@@ -1825,15 +1826,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprBr: {
             BreakDepthImmediate<validate> imm(this, this->pc_);
             if (!this->Validate(this->pc_, imm, control_.size())) break;
+            Control* c = control_at(imm.depth);
+            if (!TypeCheckBreak(c)) break;
             if (imm.depth == control_.size() - 1) {
-              DoReturn(&control_.back(), false);
-            } else {
-              Control* c = control_at(imm.depth);
-              if (!TypeCheckBreak(c)) break;
-              if (control_.back().reachable()) {
-                CALL_INTERFACE(Br, c);
-                c->br_merge()->reached = true;
-              }
+              DoReturn();
+            } else if (control_.back().reachable()) {
+              CALL_INTERFACE(Br, c);
+              c->br_merge()->reached = true;
             }
             len = 1 + imm.length;
             EndControl();
@@ -1847,7 +1846,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             Control* c = control_at(imm.depth);
             if (!TypeCheckBreak(c)) break;
             if (control_.back().reachable()) {
-              CALL_INTERFACE(BrIf, cond, c);
+              CALL_INTERFACE(BrIf, cond, imm.depth);
               c->br_merge()->reached = true;
             }
             len = 1 + imm.length;
@@ -1903,7 +1902,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprReturn: {
-            DoReturn(&control_.back(), false);
+            if (!TypeCheckReturn()) break;
+            DoReturn();
             break;
           }
           case kExprUnreachable: {
@@ -2571,18 +2571,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return len;
   }
 
-  void DoReturn(Control* c, bool implicit) {
-    if (!TypeCheckReturn()) return;
-
+  void DoReturn() {
     size_t return_count = this->sig_->return_count();
+    DCHECK_GE(stack_.size(), return_count);
     Vector<Value> return_values =
         return_count == 0
             ? Vector<Value>{}
             : Vector<Value>{&*(stack_.end() - return_count), return_count};
 
-    // Simulate that an implicit return morally comes after the current block.
-    bool reached = c->reachable() || (implicit && c->end_merge.reached);
-    if (reached) CALL_INTERFACE(DoReturn, return_values, implicit);
+    CALL_INTERFACE_IF_REACHABLE(DoReturn, return_values);
 
     EndControl();
   }

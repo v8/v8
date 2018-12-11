@@ -243,11 +243,7 @@ class WasmGraphBuildingInterface {
 
   void Drop(FullDecoder* decoder, const Value& value) {}
 
-  void DoReturn(FullDecoder* decoder, Vector<Value> values, bool implicit) {
-    if (implicit) {
-      DCHECK_EQ(1, decoder->control_depth());
-      SetEnv(decoder->control_at(0)->end_env);
-    }
+  void DoReturn(FullDecoder* decoder, Vector<Value> values) {
     TFNode** nodes = GetNodes(values);
     BUILD(Return, static_cast<uint32_t>(values.size()), nodes);
   }
@@ -296,18 +292,30 @@ class WasmGraphBuildingInterface {
     ssa_env_->control = merge;
   }
 
+  void BrOrRet(FullDecoder* decoder, uint32_t depth) {
+    if (depth == decoder->control_depth() - 1) {
+      uint32_t ret_count = static_cast<uint32_t>(decoder->sig_->return_count());
+      TFNode** values =
+          ret_count == 0 ? nullptr
+                         : GetNodes(decoder->stack_value(ret_count), ret_count);
+      BUILD(Return, ret_count, values);
+    } else {
+      Br(decoder, decoder->control_at(depth));
+    }
+  }
+
   void Br(FullDecoder* decoder, Control* target) {
     MergeValuesInto(decoder, target, target->br_merge());
   }
 
-  void BrIf(FullDecoder* decoder, const Value& cond, Control* target) {
+  void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
     SsaEnv* fenv = ssa_env_;
     SsaEnv* tenv = Split(decoder, fenv);
     fenv->SetNotMerged();
     BUILD(BranchNoHint, cond.node, &tenv->control, &fenv->control);
-    ssa_env_ = tenv;
-    Br(decoder, target);
-    ssa_env_ = fenv;
+    SetEnv(tenv);
+    BrOrRet(decoder, depth);
+    SetEnv(fenv);
   }
 
   void BrTable(FullDecoder* decoder, const BranchTableImmediate<validate>& imm,
@@ -315,7 +323,7 @@ class WasmGraphBuildingInterface {
     if (imm.table_count == 0) {
       // Only a default target. Do the equivalent of br.
       uint32_t target = BranchTableIterator<validate>(decoder, imm).next();
-      Br(decoder, decoder->control_at(target));
+      BrOrRet(decoder, target);
       return;
     }
 
@@ -324,18 +332,18 @@ class WasmGraphBuildingInterface {
     TFNode* sw = BUILD(Switch, imm.table_count + 1, key.node);
 
     SsaEnv* copy = Steal(decoder->zone(), break_env);
-    ssa_env_ = copy;
+    SetEnv(copy);
     BranchTableIterator<validate> iterator(decoder, imm);
     while (iterator.has_next()) {
       uint32_t i = iterator.cur_index();
       uint32_t target = iterator.next();
-      ssa_env_ = Split(decoder, copy);
+      SetEnv(Split(decoder, copy));
       ssa_env_->control =
           (i == imm.table_count) ? BUILD(IfDefault, sw) : BUILD(IfValue, i, sw);
-      Br(decoder, decoder->control_at(target));
+      BrOrRet(decoder, target);
     }
     DCHECK(decoder->ok());
-    ssa_env_ = break_env;
+    SetEnv(break_env);
   }
 
   void Else(FullDecoder* decoder, Control* if_block) {
