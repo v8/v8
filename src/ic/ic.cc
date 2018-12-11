@@ -40,6 +40,8 @@ namespace internal {
 
 char IC::TransitionMarkFromState(IC::State state) {
   switch (state) {
+    case NO_FEEDBACK:
+      UNREACHABLE();
     case UNINITIALIZED:
       return '0';
     case PREMONOMORPHIC:
@@ -196,7 +198,8 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
     constant_pool_address_ = constant_pool;
   }
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
-  state_ = nexus_.StateFromFeedback();
+  DCHECK_IMPLIES(!vector.is_null(), kind_ == nexus_.kind());
+  state_ = (vector.is_null()) ? NO_FEEDBACK : nexus_.StateFromFeedback();
   old_state_ = state_;
 }
 
@@ -282,6 +285,7 @@ bool IC::RecomputeHandlerForName(Handle<Object> name) {
 
 
 void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
+  if (state() == NO_FEEDBACK) return;
   update_receiver_map(receiver);
   if (!name->IsString()) return;
   if (state() != MONOMORPHIC && state() != POLYMORPHIC) return;
@@ -420,10 +424,12 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
 }
 
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
+  bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
+
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsNullOrUndefined(isolate())) {
-    if (FLAG_use_ic && state() != PREMONOMORPHIC) {
+    if (use_ic && state() != PREMONOMORPHIC) {
       // Ensure the IC state progresses.
       TRACE_HANDLER_STATS(isolate(), LoadIC_NonReceiver);
       update_receiver_map(object);
@@ -437,7 +443,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     return TypeError(MessageTemplate::kNonObjectPropertyLoad, object, name);
   }
 
-  bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;
+  if (MigrateDeprecated(object)) use_ic = false;
 
   if (state() != UNINITIALIZED) {
     JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
@@ -503,7 +509,8 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
         return ReferenceError(name);
       }
 
-      if (FLAG_use_ic) {
+      bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
+      if (use_ic) {
         if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
                                              lookup_result.slot_index)) {
           TRACE_HANDLER_STATS(isolate(), LoadGlobalIC_LoadScriptContextField);
@@ -645,6 +652,8 @@ void IC::PatchCache(Handle<Name> name, const MaybeObjectHandle& handler) {
   // Currently only load and store ICs support non-code handlers.
   DCHECK(IsAnyLoad() || IsAnyStore());
   switch (state()) {
+    case NO_FEEDBACK:
+      break;
     case UNINITIALIZED:
     case PREMONOMORPHIC:
       UpdateMonomorphicIC(handler, name);
@@ -1146,8 +1155,8 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
 namespace {
 
 bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
-                       uint32_t* index) {
-  if (!FLAG_use_ic) return false;
+                       uint32_t* index, InlineCacheState state) {
+  if (!FLAG_use_ic || state == NO_FEEDBACK) return false;
   if (receiver->IsAccessCheckNeeded() || receiver->IsJSValue()) return false;
 
   // For regular JSReceiver or String receivers, the {key} must be a positive
@@ -1241,7 +1250,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
                                LoadIC::Load(object, Handle<Name>::cast(key)),
                                Object);
-  } else if (ConvertKeyToIndex(object, key, &index)) {
+  } else if (ConvertKeyToIndex(object, key, &index, state())) {
     KeyedAccessLoadMode load_mode = GetLoadMode(isolate(), object, index);
     UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
     if (is_vector_set()) {
@@ -1362,7 +1371,8 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       return ReferenceError(name);
     }
 
-    if (FLAG_use_ic) {
+    bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
+    if (use_ic) {
       if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
                                            lookup_result.slot_index)) {
         TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_StoreScriptContextField);
@@ -1395,10 +1405,11 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     return result;
   }
 
+  bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
   if (object->IsNullOrUndefined(isolate())) {
-    if (FLAG_use_ic && state() != PREMONOMORPHIC) {
+    if (use_ic && state() != PREMONOMORPHIC) {
       // Ensure the IC state progresses.
       TRACE_HANDLER_STATS(isolate(), StoreIC_NonReceiver);
       update_receiver_map(object);
@@ -1412,7 +1423,6 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
   }
   LookupIterator it(isolate(), object, name);
-  bool use_ic = FLAG_use_ic;
 
   if (name->IsPrivate()) {
     if (name->IsPrivateName() && !it.IsFound()) {
@@ -2023,8 +2033,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 
   JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
 
-  bool use_ic = FLAG_use_ic && !object->IsStringWrapper() &&
-                !object->IsAccessCheckNeeded() && !object->IsJSGlobalProxy();
+  bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic &&
+                !object->IsStringWrapper() && !object->IsAccessCheckNeeded() &&
+                !object->IsJSGlobalProxy();
   if (use_ic && !object->IsSmi()) {
     // Don't use ICs for maps of the objects in Array's prototype chain. We
     // expect to be able to trap element sets to objects with those maps in
@@ -2124,7 +2135,7 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
   DCHECK(!array->map()->IsMapInArrayPrototypeChain(isolate()));
   DCHECK(index->IsNumber());
 
-  if (!FLAG_use_ic || MigrateDeprecated(array)) {
+  if (!FLAG_use_ic || state() == NO_FEEDBACK || MigrateDeprecated(array)) {
     StoreOwnElement(isolate(), array, index, value);
     TraceIC("StoreInArrayLiteralIC", index);
     return;
