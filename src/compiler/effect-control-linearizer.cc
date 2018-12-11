@@ -386,13 +386,6 @@ void EffectControlLinearizer::Run() {
     Node* effect = effect_phi;
     if (effect == nullptr) {
       // There was no effect phi.
-
-      // Since a loop should have at least a StackCheck, only loops in
-      // unreachable code can have no effect phi.
-      DCHECK_IMPLIES(
-          HasIncomingBackEdges(block),
-          block_effects.For(block->PredecessorAt(0), block)
-                  .current_effect->opcode() == IrOpcode::kUnreachable);
       if (block == schedule()->start()) {
         // Start block => effect is start.
         DCHECK_EQ(graph()->start(), control);
