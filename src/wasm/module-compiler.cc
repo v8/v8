@@ -206,6 +206,18 @@ class CompilationStateImpl {
     std::vector<WasmCode*> code_to_log_;
   };
 
+  class FreeCallbacksTask : public Task {
+   public:
+    explicit FreeCallbacksTask(
+        std::vector<CompilationState::callback_t> callbacks)
+        : callbacks_(std::move(callbacks)) {}
+
+    void Run() override { callbacks_.clear(); }
+
+   private:
+    std::vector<CompilationState::callback_t> callbacks_;
+  };
+
   void NotifyOnEvent(CompilationEvent event, const VoidResult* error_result);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
@@ -3205,6 +3217,14 @@ void CompilationStateImpl::Abort() {
     }
   }
   background_task_manager_.CancelAndWait();
+  // No more callbacks after abort. Don't free the std::function objects here,
+  // since this might clear references in the embedder, which is only allowed on
+  // the main thread.
+  if (!callbacks_.empty()) {
+    foreground_task_runner_->PostTask(
+        base::make_unique<FreeCallbacksTask>(std::move(callbacks_)));
+  }
+  DCHECK(callbacks_.empty());
 }
 
 void CompilationStateImpl::SetError(uint32_t func_index,
@@ -3228,6 +3248,10 @@ void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
                                          const VoidResult* error_result) {
   HandleScope scope(isolate_);
   for (auto& callback : callbacks_) callback(event, error_result);
+  // If no more events are expected after this one, clear the callbacks to free
+  // memory. We can safely do this here, as this method is only called from
+  // foreground tasks.
+  if (event >= CompilationEvent::kFirstFinalEvent) callbacks_.clear();
 }
 
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,

@@ -79,7 +79,11 @@ class WireBytesStorage {
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
   kFinishedTopTierCompilation,
-  kFailedCompilation
+  kFailedCompilation,
+
+  // Marker:
+  // After an event >= kFirstFinalEvent, no further events are generated.
+  kFirstFinalEvent = kFinishedTopTierCompilation
 };
 
 // The implementation of {CompilationState} lives in module-compiler.cc.
