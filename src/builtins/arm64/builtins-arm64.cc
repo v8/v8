@@ -438,6 +438,17 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
+static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
+                                          Register sfi_data,
+                                          Register scratch1) {
+  Label done;
+  __ CompareObjectType(sfi_data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
+  __ B(ne, &done);
+  __ Ldr(sfi_data,
+         FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+  __ Bind(&done);
+}
+
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -529,13 +540,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (FLAG_debug_code) {
-    Label check_has_bytecode_array;
     __ Ldr(x3, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
     __ Ldr(x3, FieldMemOperand(x3, SharedFunctionInfo::kFunctionDataOffset));
-    __ CompareObjectType(x3, x0, x0, INTERPRETER_DATA_TYPE);
-    __ B(ne, &check_has_bytecode_array);
-    __ Ldr(x3, FieldMemOperand(x3, InterpreterData::kBytecodeArrayOffset));
-    __ Bind(&check_has_bytecode_array);
+    GetSharedFunctionInfoBytecode(masm, x3, x0);
     __ CompareObjectType(x3, x3, x3, BYTECODE_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kMissingBytecodeArray);
   }
@@ -1134,6 +1141,20 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = x1;
   Register feedback_vector = x2;
 
+  // Get the bytecode array from the function object and load it into
+  // kInterpreterBytecodeArrayRegister.
+  __ Ldr(x0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(kInterpreterBytecodeArrayRegister,
+         FieldMemOperand(x0, SharedFunctionInfo::kFunctionDataOffset));
+  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, x11);
+
+  // The bytecode array could have been flushed from the shared function info,
+  // if so, call into CompileLazy.
+  Label compile_lazy;
+  __ CompareObjectType(kInterpreterBytecodeArrayRegister, x0, x0,
+                       BYTECODE_ARRAY_TYPE);
+  __ B(ne, &compile_lazy);
+
   // Load the feedback vector from the closure.
   __ Ldr(feedback_vector,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
@@ -1164,31 +1185,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ Push(lr, fp, cp, closure);
   __ Add(fp, sp, StandardFrameConstants::kFixedFrameSizeFromFp);
-
-  // Get the bytecode array from the function object and load it into
-  // kInterpreterBytecodeArrayRegister.
-  Label has_bytecode_array;
-  __ Ldr(x0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(x0, SharedFunctionInfo::kFunctionDataOffset));
-  __ CompareObjectType(kInterpreterBytecodeArrayRegister, x11, x11,
-                       INTERPRETER_DATA_TYPE);
-  __ B(ne, &has_bytecode_array);
-  __ Ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                         InterpreterData::kBytecodeArrayOffset));
-  __ Bind(&has_bytecode_array);
-
-  // Check function data field is actually a BytecodeArray object.
-  if (FLAG_debug_code) {
-    __ AssertNotSmi(
-        kInterpreterBytecodeArrayRegister,
-        AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
-    __ CompareObjectType(kInterpreterBytecodeArrayRegister, x0, x0,
-                         BYTECODE_ARRAY_TYPE);
-    __ Assert(
-        eq, AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
-  }
 
   // Reset code age.
   __ Mov(x10, Operand(BytecodeArray::kNoAgeBytecodeAge));
@@ -1289,6 +1285,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in x0.
   LeaveInterpreterFrame(masm, x2);
   __ Ret();
+
+  __ bind(&compile_lazy);
+  GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
+  __ Unreachable();  // Should not return.
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,

@@ -1276,6 +1276,147 @@ TEST(Iteration) {
   CHECK_EQ(objs_count, ObjectsFoundInHeap(CcTest::heap(), objs, objs_count));
 }
 
+TEST(TestBytecodeFlushing) {
+#ifndef V8_LITE_MODE
+  FLAG_opt = false;
+  FLAG_always_opt = false;
+  i::FLAG_optimize_for_size = false;
+#endif  // V8_LITE_MODE
+  i::FLAG_flush_bytecode = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  Factory* factory = i_isolate->factory();
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Context::New(isolate)->Enter();
+    const char* source =
+        "function foo() {"
+        "  var x = 42;"
+        "  var y = 42;"
+        "  var z = x + y;"
+        "};"
+        "foo()";
+    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+
+    // This compile will add the code to the compilation cache.
+    {
+      v8::HandleScope scope(isolate);
+      CompileRun(source);
+    }
+
+    // Check function is compiled.
+    Handle<Object> func_value =
+        Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
+            .ToHandleChecked();
+    CHECK(func_value->IsJSFunction());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    CHECK(function->shared()->is_compiled());
+
+    // The code will survive at least two GCs.
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
+    CHECK(function->shared()->is_compiled());
+
+    // Simulate several GCs that use full marking.
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      CcTest::CollectAllGarbage();
+    }
+
+    // foo should no longer be in the compilation cache
+    CHECK(!function->shared()->is_compiled());
+    CHECK(!function->is_compiled());
+    // Call foo to get it recompiled.
+    CompileRun("foo()");
+    CHECK(function->shared()->is_compiled());
+    CHECK(function->is_compiled());
+  }
+}
+
+#ifndef V8_LITE_MODE
+
+TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
+  FLAG_opt = true;
+  FLAG_always_opt = false;
+  i::FLAG_optimize_for_size = false;
+  i::FLAG_incremental_marking = true;
+  i::FLAG_flush_bytecode = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(CcTest::isolate());
+  const char* source =
+      "function foo() {"
+      "  var x = 42;"
+      "  var y = 42;"
+      "  var z = x + y;"
+      "};"
+      "foo()";
+  Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+
+  // This compile will add the code to the compilation cache.
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(source);
+  }
+
+  // Check function is compiled.
+  Handle<Object> func_value =
+      Object::GetProperty(isolate, isolate->global_object(), foo_name)
+          .ToHandleChecked();
+  CHECK(func_value->IsJSFunction());
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+  CHECK(function->shared()->is_compiled());
+
+  // The code will survive at least two GCs.
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+  CHECK(function->shared()->is_compiled());
+
+  // Simulate several GCs that use incremental marking.
+  const int kAgingThreshold = 6;
+  for (int i = 0; i < kAgingThreshold; i++) {
+    heap::SimulateIncrementalMarking(CcTest::heap());
+    CcTest::CollectAllGarbage();
+  }
+  CHECK(!function->shared()->is_compiled());
+  CHECK(!function->is_compiled());
+
+  // This compile will compile the function again.
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("foo();");
+  }
+
+  // Simulate several GCs that use incremental marking but make sure
+  // the loop breaks once the function is enqueued as a candidate.
+  for (int i = 0; i < kAgingThreshold; i++) {
+    heap::SimulateIncrementalMarking(CcTest::heap());
+    if (function->shared()->GetBytecodeArray()->IsOld()) break;
+    CcTest::CollectAllGarbage();
+  }
+
+  // Force optimization while incremental marking is active and while
+  // the function is enqueued as a candidate.
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("%OptimizeFunctionOnNextCall(foo); foo();");
+  }
+
+  // Simulate one final GC and make sure the candidate wasn't flushed.
+  CcTest::CollectAllGarbage();
+  CHECK(function->shared()->is_compiled());
+  CHECK(function->is_compiled());
+}
+
+#endif  // V8_LITE_MODE
+
 TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
   if (!FLAG_incremental_marking) return;
   // Turn off always_opt because it interferes with running the built-in for

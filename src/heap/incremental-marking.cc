@@ -738,6 +738,12 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
   weak_objects_->current_ephemerons.Update(ephemeron_updater);
   weak_objects_->next_ephemerons.Update(ephemeron_updater);
   weak_objects_->discovered_ephemerons.Update(ephemeron_updater);
+#ifdef DEBUG
+  weak_objects_->bytecode_flushing_candidates.Iterate(
+      [](SharedFunctionInfo candidate) {
+        DCHECK(!Heap::InNewSpace(candidate));
+      });
+#endif
 }
 
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(

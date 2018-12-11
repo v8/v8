@@ -14100,6 +14100,66 @@ bool SharedFunctionInfo::HasSourceCode() const {
          !reinterpret_cast<Script*>(script())->source()->IsUndefined(isolate);
 }
 
+void SharedFunctionInfo::DiscardCompiledMetadata(
+    Isolate* isolate, std::function<void(HeapObjectPtr object, ObjectSlot slot,
+                                         HeapObjectPtr target)>
+                          gc_notify_updated_slot) {
+  DisallowHeapAllocation no_gc;
+  if (is_compiled()) {
+    HeapObjectPtr outer_scope_info;
+    if (scope_info()->HasOuterScopeInfo()) {
+      outer_scope_info = scope_info()->OuterScopeInfo();
+    } else {
+      // TODO(3770): Drop explicit cast when migrating Oddball*.
+      outer_scope_info =
+          HeapObjectPtr::cast(ReadOnlyRoots(isolate).the_hole_value());
+    }
+
+    // Raw setter to avoid validity checks, since we're performing the unusual
+    // task of decompiling.
+    set_raw_outer_scope_info_or_feedback_metadata(outer_scope_info);
+    gc_notify_updated_slot(
+        *this,
+        RawField(SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset),
+        outer_scope_info);
+  } else {
+    DCHECK(outer_scope_info()->IsScopeInfo() ||
+           outer_scope_info()->IsTheHole());
+  }
+
+  // TODO(rmcilroy): Possibly discard ScopeInfo here as well.
+}
+
+// static
+void SharedFunctionInfo::DiscardCompiled(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
+  DCHECK(shared_info->CanDiscardCompiled());
+
+  Handle<String> inferred_name_val =
+      handle(shared_info->inferred_name(), isolate);
+  int start_position = shared_info->StartPosition();
+  int end_position = shared_info->EndPosition();
+  int function_literal_id = shared_info->FunctionLiteralId(isolate);
+
+  shared_info->DiscardCompiledMetadata(isolate);
+
+  // Replace compiled data with a new UncompiledData object.
+  if (shared_info->HasUncompiledDataWithPreParsedScope()) {
+    // If this is uncompiled data with a pre-parsed scope data, we can just
+    // clear out the scope data and keep the uncompiled data.
+    shared_info->ClearPreParsedScopeData();
+  } else {
+    // Create a new UncompiledData, without pre-parsed scope, and update the
+    // function data to point to it. Use the raw function data setter to avoid
+    // validity checks, since we're performing the unusual task of decompiling.
+    Handle<UncompiledData> data =
+        isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
+            inferred_name_val, start_position, end_position,
+            function_literal_id);
+    shared_info->set_function_data(*data);
+  }
+}
+
 // static
 Handle<Object> SharedFunctionInfo::GetSourceCode(
     Handle<SharedFunctionInfo> shared) {

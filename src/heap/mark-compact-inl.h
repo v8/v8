@@ -61,6 +61,25 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
+    VisitSharedFunctionInfo(Map map, SharedFunctionInfo shared_info) {
+  int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, shared_info);
+  SharedFunctionInfo::BodyDescriptor::IterateBody(map, shared_info, size, this);
+
+  // If the SharedFunctionInfo has old bytecode, mark it as flushable,
+  // otherwise visit the function data field strongly.
+  if (shared_info->ShouldFlushBytecode()) {
+    collector_->AddBytecodeFlushingCandidate(shared_info);
+  } else {
+    VisitPointer(shared_info,
+                 HeapObject::RawField(shared_info,
+                                      SharedFunctionInfo::kFunctionDataOffset));
+  }
+  return size;
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitFixedArray(Map map, FixedArray object) {
   return (fixed_array_mode == FixedArrayVisitationMode::kRegular)
@@ -431,6 +450,11 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, HeapObjectSlot slot,
 
 void MarkCompactCollector::AddTransitionArray(TransitionArray array) {
   weak_objects_.transition_arrays.Push(kMainThread, array);
+}
+
+void MarkCompactCollector::AddBytecodeFlushingCandidate(
+    SharedFunctionInfo flush_candidate) {
+  weak_objects_.bytecode_flushing_candidates.Push(kMainThread, flush_candidate);
 }
 
 template <LiveObjectIterationMode mode>

@@ -445,6 +445,8 @@ struct WeakObjects {
   Worklist<std::pair<HeapObject*, Code>, 64> weak_objects_in_code;
 
   Worklist<JSWeakCell, 64> js_weak_cells;
+
+  Worklist<SharedFunctionInfo, 64> bytecode_flushing_candidates;
 };
 
 struct EphemeronMarking {
@@ -685,6 +687,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     weak_objects_.js_weak_cells.Push(kMainThread, weak_cell);
   }
 
+  inline void AddBytecodeFlushingCandidate(SharedFunctionInfo flush_candidate);
+
   void AddNewlyDiscovered(HeapObject* object) {
     if (ephemeron_marking_.newly_discovered_overflowed) return;
 
@@ -805,6 +809,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // the descriptor array of the parent if needed.
   void ClearPotentialSimpleMapTransition(Map dead_target);
   void ClearPotentialSimpleMapTransition(Map map, Map dead_target);
+
+  // Flushes a weakly held bytecode array from a shared function info.
+  void FlushBytecodeFromSFI(SharedFunctionInfo shared_info);
+
+  // Clears bytecode arrays that have not been executed for multiple
+  // collections.
+  void ClearOldBytecodeCandidates();
+
   // Compact every array in the global list of transition arrays and
   // trim the corresponding descriptor array if a transition target is non-live.
   void ClearFullMapTransitions();
@@ -936,6 +948,7 @@ class MarkingVisitor final
   V8_INLINE int VisitJSDataView(Map map, JSDataView object);
   V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
   V8_INLINE int VisitMap(Map map, Map object);
+  V8_INLINE int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
   V8_INLINE int VisitTransitionArray(Map map, TransitionArray object);
   V8_INLINE int VisitJSWeakCell(Map map, JSWeakCell object);
 

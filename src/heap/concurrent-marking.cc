@@ -316,6 +316,25 @@ class ConcurrentMarkingVisitor final
   // Side-effectful visitation.
   // ===========================================================================
 
+  int VisitSharedFunctionInfo(Map map, SharedFunctionInfo shared_info) {
+    if (!ShouldVisit(shared_info)) return 0;
+
+    int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, shared_info);
+    VisitMapPointer(shared_info, shared_info->map_slot());
+    SharedFunctionInfo::BodyDescriptor::IterateBody(map, shared_info, size,
+                                                    this);
+
+    // If the SharedFunctionInfo has old bytecode, mark it as flushable,
+    // otherwise visit the function data field strongly.
+    if (shared_info->ShouldFlushBytecode()) {
+      weak_objects_->bytecode_flushing_candidates.Push(task_id_, shared_info);
+    } else {
+      VisitPointer(shared_info, shared_info->RawField(
+                                    SharedFunctionInfo::kFunctionDataOffset));
+    }
+    return size;
+  }
+
   int VisitBytecodeArray(Map map, BytecodeArray object) {
     if (!ShouldVisit(object)) return 0;
     int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
@@ -700,6 +719,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     weak_objects_->weak_references.FlushToGlobal(task_id);
     weak_objects_->js_weak_cells.FlushToGlobal(task_id);
     weak_objects_->weak_objects_in_code.FlushToGlobal(task_id);
+    weak_objects_->bytecode_flushing_candidates.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
 

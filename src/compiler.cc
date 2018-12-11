@@ -369,7 +369,8 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
   }
 
   // Install coverage info on the shared function info.
-  if (compilation_info->has_coverage_info()) {
+  if (compilation_info->has_coverage_info() &&
+      !shared_info->HasCoverageInfo()) {
     DCHECK(isolate->is_block_code_coverage());
     isolate->debug()->InstallCoverageInfo(shared_info,
                                           compilation_info->coverage_info());
@@ -1159,7 +1160,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   }
 
   // Parse and update ParseInfo with the results.
-  if (!parsing::ParseFunction(&parse_info, shared_info, isolate)) {
+  if (!parsing::ParseAny(&parse_info, shared_info, isolate)) {
     return FailWithPendingException(isolate, &parse_info, flag);
   }
 

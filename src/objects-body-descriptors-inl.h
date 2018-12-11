@@ -188,6 +188,28 @@ class JSWeakCell::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
+    return FixedBodyDescriptor<kStartOfPointerFieldsOffset,
+                               kEndOfTaggedFieldsOffset,
+                               kAlignedSize>::IsValidSlot(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IterateCustomWeakPointer(obj, kFunctionDataOffset, v);
+    IteratePointers(obj,
+                    SharedFunctionInfo::kStartOfAlwaysStrongPointerFieldsOffset,
+                    SharedFunctionInfo::kEndOfTaggedFieldsOffset, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject* object) {
+    return map->instance_size();
+  }
+};
+
 class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(AllocationSite::kCommonPointerFieldEndOffset ==

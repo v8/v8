@@ -709,7 +709,7 @@ class BytecodeArray : public FixedArrayBase {
     kIsOldBytecodeAge = kSexagenarianBytecodeAge
   };
 
-  static int SizeFor(int length) {
+  static constexpr int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
   }
 

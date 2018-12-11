@@ -1026,6 +1026,20 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = r1;
   Register feedback_vector = r2;
 
+  // Get the bytecode array from the function object and load it into
+  // kInterpreterBytecodeArrayRegister.
+  __ ldr(r0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(kInterpreterBytecodeArrayRegister,
+         FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset));
+  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, r4);
+
+  // The bytecode array could have been flushed from the shared function info,
+  // if so, call into CompileLazy.
+  Label compile_lazy;
+  __ CompareObjectType(kInterpreterBytecodeArrayRegister, r0, no_reg,
+                       BYTECODE_ARRAY_TYPE);
+  __ b(ne, &compile_lazy);
+
   // Load the feedback vector from the closure.
   __ ldr(feedback_vector,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
@@ -1054,24 +1068,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(closure);
-
-  // Get the bytecode array from the function object and load it into
-  // kInterpreterBytecodeArrayRegister.
-  __ ldr(r0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset));
-  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, r4);
-
-  // Check function data field is actually a BytecodeArray object.
-  if (FLAG_debug_code) {
-    __ SmiTst(kInterpreterBytecodeArrayRegister);
-    __ Assert(
-        ne, AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
-    __ CompareObjectType(kInterpreterBytecodeArrayRegister, r0, no_reg,
-                         BYTECODE_ARRAY_TYPE);
-    __ Assert(
-        eq, AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
-  }
 
   // Reset code age.
   __ mov(r9, Operand(BytecodeArray::kNoAgeBytecodeAge));
@@ -1164,6 +1160,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in r0.
   LeaveInterpreterFrame(masm, r2);
   __ Jump(lr);
+
+  __ bind(&compile_lazy);
+  GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
+  __ bkpt(0);  // Should not return.
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,

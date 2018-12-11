@@ -76,7 +76,16 @@ class UncompiledData : public HeapObjectPtr {
 
   DECL_CAST2(UncompiledData)
 
+  inline static void Initialize(
+      UncompiledData data, String inferred_name, int start_position,
+      int end_position, int function_literal_id,
+      std::function<void(HeapObjectPtr object, ObjectSlot slot,
+                         HeapObjectPtr target)>
+          gc_notify_updated_slot = [](HeapObjectPtr object, ObjectSlot slot,
+                                      HeapObjectPtr target) {});
+
 // Layout description.
+
 #define UNCOMPILED_DATA_FIELDS(V)                                         \
   V(kStartOfPointerFieldsOffset, 0)                                       \
   V(kInferredNameOffset, kTaggedSize)                                     \
@@ -129,7 +138,17 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
   DECL_PRINTER(UncompiledDataWithPreParsedScope)
   DECL_VERIFIER(UncompiledDataWithPreParsedScope)
 
+  inline static void Initialize(
+      UncompiledDataWithPreParsedScope data, String inferred_name,
+      int start_position, int end_position, int function_literal_id,
+      PreParsedScopeData scope_data,
+      std::function<void(HeapObjectPtr object, ObjectSlot slot,
+                         HeapObjectPtr target)>
+          gc_notify_updated_slot = [](HeapObjectPtr object, ObjectSlot slot,
+                                      HeapObjectPtr target) {});
+
 // Layout description.
+
 #define UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS(V) \
   V(kStartOfPointerFieldsOffset, 0)                     \
   V(kPreParsedScopeDataOffset, kTaggedSize)             \
@@ -503,9 +522,21 @@ class SharedFunctionInfo : public HeapObjectPtr {
   inline bool CanDiscardCompiled() const;
 
   // Flush compiled data from this function, setting it back to CompileLazy and
-  // clearing any feedback metadata.
-  static inline void DiscardCompiled(Isolate* isolate,
-                                     Handle<SharedFunctionInfo> shared_info);
+  // clearing any compiled metadata.
+  static void DiscardCompiled(Isolate* isolate,
+                              Handle<SharedFunctionInfo> shared_info);
+
+  // Discard the compiled metadata. If called during GC then
+  // |gc_notify_updated_slot| should be used to record any slot updates.
+  void DiscardCompiledMetadata(
+      Isolate* isolate,
+      std::function<void(HeapObjectPtr object, ObjectSlot slot,
+                         HeapObjectPtr target)>
+          gc_notify_updated_slot = [](HeapObjectPtr object, ObjectSlot slot,
+                                      HeapObjectPtr target) {});
+
+  // Returns true if the function has old bytecode that could be flushed.
+  inline bool ShouldFlushBytecode();
 
   // Check whether or not this function is inlineable.
   bool IsInlineable();
@@ -600,6 +631,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
   /* Pointer fields. */                                   \
   V(kStartOfPointerFieldsOffset, 0)                       \
   V(kFunctionDataOffset, kTaggedSize)                     \
+  V(kStartOfAlwaysStrongPointerFieldsOffset, 0)           \
   V(kNameOrScopeInfoOffset, kTaggedSize)                  \
   V(kOuterScopeInfoOrFeedbackMetadataOffset, kTaggedSize) \
   V(kScriptOrDebugInfoOffset, kTaggedSize)                \
@@ -621,9 +653,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
-  typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                              kEndOfTaggedFieldsOffset, kAlignedSize>
-      BodyDescriptor;
+  class BodyDescriptor;
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _)                           \

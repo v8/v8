@@ -2645,12 +2645,9 @@ Factory::NewUncompiledDataWithoutPreParsedScope(Handle<String> inferred_name,
       UncompiledDataWithoutPreParsedScope::cast(
           New(uncompiled_data_without_pre_parsed_scope_map(), TENURED)),
       isolate());
-  result->set_inferred_name(*inferred_name);
-  result->set_start_position(start_position);
-  result->set_end_position(end_position);
-  result->set_function_literal_id(function_literal_id);
 
-  result->clear_padding();
+  UncompiledData::Initialize(*result, *inferred_name, start_position,
+                             end_position, function_literal_id);
   return result;
 }
 
@@ -2663,13 +2660,11 @@ Factory::NewUncompiledDataWithPreParsedScope(
       UncompiledDataWithPreParsedScope::cast(
           New(uncompiled_data_with_pre_parsed_scope_map(), TENURED)),
       isolate());
-  result->set_inferred_name(*inferred_name);
-  result->set_start_position(start_position);
-  result->set_end_position(end_position);
-  result->set_function_literal_id(function_literal_id);
-  result->set_pre_parsed_scope_data(*pre_parsed_scope_data);
 
-  result->clear_padding();
+  UncompiledDataWithPreParsedScope::Initialize(
+      *result, *inferred_name, start_position, end_position,
+      function_literal_id, *pre_parsed_scope_data);
+
   return result;
 }
 

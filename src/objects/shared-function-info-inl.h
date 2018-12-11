@@ -90,7 +90,6 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
-ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, script_or_debug_info, Object,
           kScriptOrDebugInfoOffset)
 
@@ -145,6 +144,16 @@ AbstractCode SharedFunctionInfo::abstract_code() {
   } else {
     return AbstractCode::cast(GetCode());
   }
+}
+
+Object* SharedFunctionInfo::function_data() const {
+  return RELAXED_READ_FIELD(this, kFunctionDataOffset);
+}
+
+void SharedFunctionInfo::set_function_data(Object* data,
+                                           WriteBarrierMode mode) {
+  RELAXED_WRITE_FIELD(this, kFunctionDataOffset, data);
+  CONDITIONAL_WRITE_BARRIER(this, kFunctionDataOffset, data, mode);
 }
 
 int SharedFunctionInfo::function_token_position() const {
@@ -453,6 +462,29 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
   set_function_data(bytecode);
 }
 
+bool SharedFunctionInfo::ShouldFlushBytecode() {
+  if (!FLAG_flush_bytecode) return false;
+
+  // TODO(rmcilroy): Enable bytecode flushing for resumable functions amd class
+  // member initializers.
+  if (IsResumableFunction(kind()) ||
+      IsClassMembersInitializerFunction(kind()) || !allows_lazy_compilation()) {
+    return false;
+  }
+
+  // Get a snapshot of the function data field, and if it is a bytecode array,
+  // check if it is old. Note, this is done this way since this function can be
+  // called by the concurrent marker.
+  Object* data = function_data();
+  if (!data->IsBytecodeArray()) return false;
+
+  if (FLAG_stress_flush_bytecode) return true;
+
+  BytecodeArray bytecode = BytecodeArray::cast(data);
+
+  return bytecode->IsOld();
+}
+
 Code SharedFunctionInfo::InterpreterTrampoline() const {
   DCHECK(HasInterpreterData());
   return interpreter_data()->interpreter_trampoline();
@@ -572,6 +604,39 @@ void SharedFunctionInfo::ClearPreParsedScopeData() {
   DCHECK(HasUncompiledDataWithoutPreParsedScope());
 }
 
+// static
+void UncompiledData::Initialize(
+    UncompiledData data, String inferred_name, int start_position,
+    int end_position, int function_literal_id,
+    std::function<void(HeapObjectPtr object, ObjectSlot slot,
+                       HeapObjectPtr target)>
+        gc_notify_updated_slot) {
+  data->set_inferred_name(inferred_name);
+  gc_notify_updated_slot(
+      data, data->RawField(UncompiledData::kInferredNameOffset), inferred_name);
+  data->set_start_position(start_position);
+  data->set_end_position(end_position);
+  data->set_function_literal_id(function_literal_id);
+  data->clear_padding();
+}
+
+void UncompiledDataWithPreParsedScope::Initialize(
+    UncompiledDataWithPreParsedScope data, String inferred_name,
+    int start_position, int end_position, int function_literal_id,
+    PreParsedScopeData scope_data,
+    std::function<void(HeapObjectPtr object, ObjectSlot slot,
+                       HeapObjectPtr target)>
+        gc_notify_updated_slot) {
+  UncompiledData::Initialize(data, inferred_name, start_position, end_position,
+                             function_literal_id, gc_notify_updated_slot);
+  data->set_pre_parsed_scope_data(scope_data);
+  gc_notify_updated_slot(
+      data,
+      data->RawField(
+          UncompiledDataWithPreParsedScope::kPreParsedScopeDataOffset),
+      scope_data);
+}
+
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
   return function_data()->IsWasmExportedFunctionData();
 }
@@ -657,51 +722,6 @@ bool SharedFunctionInfo::CanDiscardCompiled() const {
   bool can_decompile = (HasBytecodeArray() || HasAsmWasmData() ||
                         HasUncompiledDataWithPreParsedScope());
   return can_decompile;
-}
-
-// static
-void SharedFunctionInfo::DiscardCompiled(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
-  DCHECK(shared_info->CanDiscardCompiled());
-
-  int start_position = shared_info->StartPosition();
-  int end_position = shared_info->EndPosition();
-  int function_literal_id = shared_info->FunctionLiteralId(isolate);
-
-  if (shared_info->is_compiled()) {
-    DisallowHeapAllocation no_gc;
-
-    HeapObjectPtr outer_scope_info;
-    if (shared_info->scope_info()->HasOuterScopeInfo()) {
-      outer_scope_info = shared_info->scope_info()->OuterScopeInfo();
-    } else {
-      // TODO(3770): Drop explicit cast when migrating Oddball*.
-      outer_scope_info =
-          HeapObjectPtr::cast(ReadOnlyRoots(isolate).the_hole_value());
-    }
-    // Raw setter to avoid validity checks, since we're performing the unusual
-    // task of decompiling.
-    shared_info->set_raw_outer_scope_info_or_feedback_metadata(
-        outer_scope_info);
-  } else {
-    DCHECK(shared_info->outer_scope_info()->IsScopeInfo() ||
-           shared_info->outer_scope_info()->IsTheHole());
-  }
-
-  if (shared_info->HasUncompiledDataWithPreParsedScope()) {
-    // If this is uncompiled data with a pre-parsed scope data, we can just
-    // clear out the scope data and keep the uncompiled data.
-    shared_info->ClearPreParsedScopeData();
-  } else {
-    // Create a new UncompiledData, without pre-parsed scope, and update the
-    // function data to point to it. Use the raw function data setter to avoid
-    // validity checks, since we're performing the unusual task of decompiling.
-    Handle<UncompiledData> data =
-        isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
-            handle(shared_info->inferred_name(), isolate), start_position,
-            end_position, function_literal_id);
-    shared_info->set_function_data(*data);
-  }
 }
 
 }  // namespace internal

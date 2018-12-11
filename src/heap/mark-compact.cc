@@ -1901,6 +1901,11 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 
   {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_FLUSHABLE_BYTECODE);
+    ClearOldBytecodeCandidates();
+  }
+
+  {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_LISTS);
     // Process the weak references.
     MarkCompactWeakObjectRetainer mark_compact_object_retainer(
@@ -1927,6 +1932,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   DCHECK(weak_objects_.weak_references.IsEmpty());
   DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());
   DCHECK(weak_objects_.js_weak_cells.IsEmpty());
+  DCHECK(weak_objects_.bytecode_flushing_candidates.IsEmpty());
 }
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
@@ -1973,6 +1979,96 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map map,
       number_of_own_descriptors > 0) {
     TrimDescriptorArray(map, descriptors);
     DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
+  }
+}
+
+void MarkCompactCollector::FlushBytecodeFromSFI(
+    SharedFunctionInfo shared_info) {
+  DCHECK(shared_info->HasBytecodeArray());
+
+  // Retain objects required for uncompiled data.
+  String inferred_name = shared_info->inferred_name();
+  int start_position = shared_info->StartPosition();
+  int end_position = shared_info->EndPosition();
+  int function_literal_id = shared_info->FunctionLiteralId(isolate());
+
+  shared_info->DiscardCompiledMetadata(
+      isolate(),
+      [](HeapObjectPtr object, ObjectSlot slot, HeapObjectPtr target) {
+        RecordSlot(object, slot, target);
+      });
+
+  // The size of the bytecode array should always be larger than an
+  // UncompiledData object.
+  STATIC_ASSERT(BytecodeArray::SizeFor(0) >=
+                UncompiledDataWithoutPreParsedScope::kSize);
+
+  // Replace bytecode array with an uncompiled data array.
+  HeapObject* compiled_data = shared_info->GetBytecodeArray();
+  Address compiled_data_start = compiled_data->address();
+  int compiled_data_size = compiled_data->Size();
+  MemoryChunk* chunk = MemoryChunk::FromAddress(compiled_data_start);
+
+  // Clear any recorded slots for the compiled data as being invalid.
+  RememberedSet<OLD_TO_NEW>::RemoveRange(
+      chunk, compiled_data_start, compiled_data_start + compiled_data_size,
+      SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_OLD>::RemoveRange(
+      chunk, compiled_data_start, compiled_data_start + compiled_data_size,
+      SlotSet::PREFREE_EMPTY_BUCKETS);
+
+  // Swap the map, using set_map_after_allocation to avoid verify heap checks
+  // which are not necessary since we are doing this during the GC atomic pause.
+  compiled_data->set_map_after_allocation(
+      ReadOnlyRoots(heap()).uncompiled_data_without_pre_parsed_scope_map(),
+      SKIP_WRITE_BARRIER);
+
+  // Create a filler object for any left over space in the bytecode array.
+  if (!heap()->IsLargeObject(compiled_data)) {
+    heap()->CreateFillerObjectAt(
+        compiled_data->address() + UncompiledDataWithoutPreParsedScope::kSize,
+        compiled_data_size - UncompiledDataWithoutPreParsedScope::kSize,
+        ClearRecordedSlots::kNo);
+  }
+
+  // Initialize the uncompiled data.
+  UncompiledData uncompiled_data = UncompiledData::cast(compiled_data);
+  UncompiledData::Initialize(
+      uncompiled_data, inferred_name, start_position, end_position,
+      function_literal_id,
+      [](HeapObjectPtr object, ObjectSlot slot, HeapObjectPtr target) {
+        RecordSlot(object, slot, target);
+      });
+
+  // Mark the uncompiled data as black, and ensure all fields have already been
+  // marked.
+  DCHECK(non_atomic_marking_state()->IsBlackOrGrey(inferred_name));
+  non_atomic_marking_state()->WhiteToBlack(uncompiled_data);
+
+  // Use the raw function data setter to avoid validity checks, since we're
+  // performing the unusual task of decompiling.
+  shared_info->set_function_data(uncompiled_data);
+  DCHECK(!shared_info->is_compiled());
+}
+
+void MarkCompactCollector::ClearOldBytecodeCandidates() {
+  DCHECK(FLAG_flush_bytecode ||
+         weak_objects_.bytecode_flushing_candidates.IsEmpty());
+  SharedFunctionInfo flushing_candidate;
+  while (weak_objects_.bytecode_flushing_candidates.Pop(kMainThread,
+                                                        &flushing_candidate)) {
+    // If the BytecodeArray is dead, flush it, which will replace the field with
+    // an uncompiled data object.
+    if (!non_atomic_marking_state()->IsBlackOrGrey(
+            flushing_candidate->GetBytecodeArray())) {
+      FlushBytecodeFromSFI(flushing_candidate);
+    }
+
+    // Now record the slot, which has either been updated to an uncompiled data,
+    // or is the BytecodeArray which is still alive.
+    ObjectSlot slot = HeapObject::RawField(
+        flushing_candidate, SharedFunctionInfo::kFunctionDataOffset);
+    RecordSlot(flushing_candidate, slot, HeapObject::cast(*slot));
   }
 }
 
@@ -2217,6 +2313,7 @@ void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.weak_references.Clear();
   weak_objects_.weak_objects_in_code.Clear();
   weak_objects_.js_weak_cells.Clear();
+  weak_objects_.bytecode_flushing_candidates.Clear();
 }
 
 bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {

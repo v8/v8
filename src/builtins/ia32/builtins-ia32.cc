@@ -946,6 +946,15 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = edi;
 
+  // The bytecode array could have been flushed from the shared function info,
+  // if so, call into CompileLazy.
+  Label compile_lazy;
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kFunctionDataOffset));
+  GetSharedFunctionInfoBytecode(masm, ecx, eax);
+  __ CmpObjectType(ecx, BYTECODE_ARRAY_TYPE, eax);
+  __ j(not_equal, &compile_lazy);
+
   Register feedback_vector = ecx;
   Label push_stack_frame;
   // Load feedback vector and check if it is valid. If valid, check for
@@ -981,9 +990,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(kInterpreterBytecodeArrayRegister,
          FieldOperand(eax, SharedFunctionInfo::kFunctionDataOffset));
-  __ Push(eax);
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, eax);
-  __ Pop(eax);
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {
@@ -1087,6 +1094,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in eax.
   LeaveInterpreterFrame(masm, edx, ecx);
   __ ret(0);
+
+  __ bind(&compile_lazy);
+  GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
+  __ int3();  // Should not return.
 }
 
 
