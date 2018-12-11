@@ -1276,7 +1276,7 @@ class HeapNumberBase : public HeapObject {
   static const int kNonMantissaBitsInTopWord = 12;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumberBase)
+  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumberBase);
 };
 
 class HeapNumber : public HeapNumberBase {
@@ -1285,7 +1285,7 @@ class HeapNumber : public HeapNumberBase {
   V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber)
+  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber);
 };
 
 class MutableHeapNumber : public HeapNumberBase {
@@ -1294,7 +1294,7 @@ class MutableHeapNumber : public HeapNumberBase {
   V8_EXPORT_PRIVATE void MutableHeapNumberPrint(std::ostream& os);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(MutableHeapNumber)
+  DISALLOW_IMPLICIT_CONSTRUCTORS(MutableHeapNumber);
 };
 
 enum EnsureElementsMode {

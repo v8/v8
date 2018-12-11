@@ -50,7 +50,7 @@ class CallbackTask : public Microtask {
   DECL_VERIFIER(CallbackTask)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CallbackTask)
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CallbackTask);
 };
 
 // A CallableTask is a special (internal) Microtask that allows us to

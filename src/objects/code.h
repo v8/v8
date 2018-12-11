@@ -462,7 +462,7 @@ class Code::OptimizedCodeIterator {
   Isolate* isolate_;
 
   DISALLOW_HEAP_ALLOCATION(no_gc);
-  DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator)
+  DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator);
 };
 
 // CodeDataContainer is a container for all mutable fields associated with its
