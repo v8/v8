@@ -1337,7 +1337,6 @@ class RepresentationSelector {
 
     // Try to use type feedback.
     NumberOperationHint hint = NumberOperationHintOf(node->op());
-
     DCHECK(hint == NumberOperationHint::kSignedSmall ||
            hint == NumberOperationHint::kSigned32);
 
@@ -1345,8 +1344,14 @@ class RepresentationSelector {
     Type right_feedback_type = TypeOf(node->InputAt(1));
     // Handle the case when no int32 checks on inputs are necessary (but
     // an overflow check is needed on the output). Note that we do not
-    // have to do any check if at most one side can be minus zero.
-    if (left_upper.Is(Type::Signed32OrMinusZero()) &&
+    // have to do any check if at most one side can be minus zero. For
+    // subtraction we need to handle the case of -0 - 0 properly, since
+    // that can produce -0.
+    Type left_constraint_type =
+        node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd
+            ? Type::Signed32OrMinusZero()
+            : Type::Signed32();
+    if (left_upper.Is(left_constraint_type) &&
         right_upper.Is(Type::Signed32OrMinusZero()) &&
         (left_upper.Is(Type::Signed32()) || right_upper.Is(Type::Signed32()))) {
       VisitBinop(node, UseInfo::TruncatingWord32(),
