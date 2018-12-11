@@ -33,8 +33,9 @@ namespace object {
   }
 
   transitioning javascript builtin
-  ObjectFromEntries(implicit context: Context)(receiver: Object): Object {
-    const iterable: Object = receiver;
+  ObjectFromEntries(implicit context: Context)(receiver: Object, ...arguments):
+      Object {
+    const iterable: Object = arguments[0];
     try {
       if (IsNullOrUndefined(iterable)) goto Throw;
       return ObjectFromEntriesFastCase(iterable) otherwise IfSlow;
