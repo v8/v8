@@ -5794,13 +5794,27 @@ CallDescriptor* GetWasmCallDescriptor(
 
   // The instance object.
   locations.AddParam(params.Next(MachineRepresentation::kTaggedPointer));
+  const size_t param_offset = 1;  // Actual params start here.
 
-  const int parameter_count = static_cast<int>(fsig->parameter_count());
-  for (int i = 0; i < parameter_count; i++) {
+  // Parameters are separated into two groups (first all untagged, then all
+  // tagged parameters). This allows for easy iteration of tagged parameters
+  // during frame iteration.
+  const size_t parameter_count = fsig->parameter_count();
+  for (size_t i = 0; i < parameter_count; i++) {
     MachineRepresentation param =
         wasm::ValueTypes::MachineRepresentationFor(fsig->GetParam(i));
+    // Skip tagged parameters (e.g. any-ref).
+    if (IsAnyTagged(param)) continue;
     auto l = params.Next(param);
-    locations.AddParam(l);
+    locations.AddParamAt(i + param_offset, l);
+  }
+  for (size_t i = 0; i < parameter_count; i++) {
+    MachineRepresentation param =
+        wasm::ValueTypes::MachineRepresentationFor(fsig->GetParam(i));
+    // Skip untagged parameters.
+    if (!IsAnyTagged(param)) continue;
+    auto l = params.Next(param);
+    locations.AddParamAt(i + param_offset, l);
   }
 
   // Import call wrappers have an additional (implicit) parameter, the callable.

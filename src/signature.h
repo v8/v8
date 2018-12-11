@@ -74,10 +74,18 @@ class Signature : public ZoneObject {
       DCHECK_LT(rcursor_, return_count_);
       buffer_[rcursor_++] = val;
     }
+
     void AddParam(T val) {
       DCHECK_LT(pcursor_, parameter_count_);
       buffer_[return_count_ + pcursor_++] = val;
     }
+
+    void AddParamAt(size_t index, T val) {
+      DCHECK_LT(index, parameter_count_);
+      buffer_[return_count_ + index] = val;
+      pcursor_ = std::max(pcursor_, index + 1);
+    }
+
     Signature<T>* Build() {
       DCHECK_EQ(rcursor_, return_count_);
       DCHECK_EQ(pcursor_, parameter_count_);
