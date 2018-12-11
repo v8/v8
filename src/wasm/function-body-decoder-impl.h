@@ -1825,10 +1825,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprBr: {
             BreakDepthImmediate<validate> imm(this, this->pc_);
             if (!this->Validate(this->pc_, imm, control_.size())) break;
-            Control* c = control_at(imm.depth);
             if (imm.depth == control_.size() - 1) {
-              DoReturn(c, false);
+              DoReturn(&control_.back(), false);
             } else {
+              Control* c = control_at(imm.depth);
               if (!TypeCheckBreak(c)) break;
               if (control_.back().reachable()) {
                 CALL_INTERFACE(Br, c);
