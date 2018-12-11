@@ -724,8 +724,6 @@ action("js2c") {
     "src/js/macros.py",
     "src/message-template.h",
     "src/js/prologue.js",
-    "src/js/array.js",
-    "src/js/typedarray.js",
   ]
 
   outputs = [

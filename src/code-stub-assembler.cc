@@ -12928,14 +12928,6 @@ TNode<JSReceiver> CodeStubAssembler::ArraySpeciesCreate(TNode<Context> context,
   return Construct(context, constructor, len);
 }
 
-TNode<JSReceiver> CodeStubAssembler::InternalArrayCreate(TNode<Context> context,
-                                                         TNode<Number> len) {
-  TNode<Context> native_context = LoadNativeContext(context);
-  TNode<JSReceiver> constructor = CAST(LoadContextElement(
-      native_context, Context::INTERNAL_ARRAY_FUNCTION_INDEX));
-  return Construct(context, constructor, len);
-}
-
 Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   CSA_ASSERT(this, HasInstanceType(buffer, JS_ARRAY_BUFFER_TYPE));
   TNode<Uint32T> buffer_bit_field = LoadJSArrayBufferBitField(CAST(buffer));

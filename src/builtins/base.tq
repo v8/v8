@@ -322,7 +322,6 @@ extern macro ThrowTypeError(
     Context, constexpr MessageTemplate, Object, Object, Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
 extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
-extern macro InternalArrayCreate(Context, Number): JSArray;
 extern macro EnsureArrayPushable(Map): ElementsKind
     labels Bailout;
 extern macro EnsureArrayLengthWritable(Map) labels Bailout;
@@ -526,6 +525,8 @@ extern macro IsValidPositiveSmi(intptr): bool;
 
 extern macro HeapObjectToJSDataView(HeapObject): JSDataView
     labels CastError;
+extern macro HeapObjectToJSTypedArray(HeapObject): JSTypedArray
+    labels CastError;
 extern macro TaggedToHeapObject(Object): HeapObject
     labels CastError;
 extern macro TaggedToSmi(Object): Smi
@@ -576,6 +577,12 @@ CastHeapObject<SloppyArgumentsElements>(o: HeapObject): SloppyArgumentsElements
 CastHeapObject<JSDataView>(o: HeapObject): JSDataView
     labels CastError {
   return HeapObjectToJSDataView(o) otherwise CastError;
+}
+
+CastHeapObject<JSTypedArray>(o: HeapObject): JSTypedArray
+    labels CastError {
+  if (IsJSTypedArray(o)) return %RawObjectCast<JSTypedArray>(o);
+  goto CastError;
 }
 
 CastHeapObject<Callable>(o: HeapObject): Callable
@@ -1180,6 +1187,7 @@ extern macro IsJSArray(HeapObject): bool;
 extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
 extern macro IsJSObject(HeapObject): bool;
+extern macro IsJSTypedArray(HeapObject): bool;
 extern macro IsNumberDictionary(HeapObject): bool;
 extern macro IsFixedTypedArray(HeapObject): bool;
 extern macro IsContext(HeapObject): bool;

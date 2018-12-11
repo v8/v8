@@ -1516,8 +1516,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSReceiver> ArraySpeciesCreate(TNode<Context> context,
                                        TNode<Object> originalArray,
                                        TNode<Number> len);
-  TNode<JSReceiver> InternalArrayCreate(TNode<Context> context,
-                                        TNode<Number> len);
 
   void FillFixedArrayWithValue(ElementsKind kind, Node* array, Node* from_index,
                                Node* to_index, RootIndex value_root_index,
