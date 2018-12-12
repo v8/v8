@@ -375,7 +375,7 @@ config("features") {
   if (v8_enable_v8_checks) {
     defines += [ "V8_ENABLE_CHECKS" ]
   }
-  if (v8_interpreted_regexp) {
+  if (v8_interpreted_regexp || v8_enable_lite_mode) {
     defines += [ "V8_INTERPRETED_REGEXP" ]
   }
   if (v8_deprecation_warnings) {
