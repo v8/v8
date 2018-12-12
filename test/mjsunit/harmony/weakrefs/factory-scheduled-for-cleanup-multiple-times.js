@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
+// Flags: --no-stress-flush-bytecode
 
 let cleanup0_call_count = 0;
 let cleanup0_weak_cell_count = 0;
