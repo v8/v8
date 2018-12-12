@@ -122,6 +122,9 @@ class Internals {
   static const int kOddballKindOffset = 4 * kApiTaggedSize + kApiDoubleSize;
   static const int kForeignAddressOffset = kApiTaggedSize;
   static const int kJSObjectHeaderSize = 3 * kApiTaggedSize;
+  static const int kJSObjectHeaderSizeForEmbedderFields =
+      (kJSObjectHeaderSize + kApiSystemPointerSize - 1) &
+      -kApiSystemPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize =

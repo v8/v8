@@ -884,7 +884,7 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // as a HeapObject pointer
 #define OBJECT_POINTER_PADDING(value) (OBJECT_POINTER_ALIGN(value) - (value))
 
-// POINTER_SIZE_ALIGN returns the value aligned as a pointer.
+// POINTER_SIZE_ALIGN returns the value aligned as a system pointer.
 #define POINTER_SIZE_ALIGN(value)                               \
   (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
 

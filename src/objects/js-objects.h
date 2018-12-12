@@ -555,6 +555,9 @@ class JSObject : public JSReceiver {
   static inline int GetHeaderSize(const Map map);
   inline int GetHeaderSize() const;
 
+  static inline int GetEmbedderFieldsStartOffset(const Map map);
+  inline int GetEmbedderFieldsStartOffset();
+
   static inline int GetEmbedderFieldCount(const Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
@@ -743,10 +746,14 @@ class JSObject : public JSReceiver {
                 PropertyArray::kMaxLength);
 
 // Layout description.
-#define JS_OBJECT_FIELDS(V)       \
-  V(kElementsOffset, kTaggedSize) \
-  /* Header size. */              \
-  V(kHeaderSize, 0)
+#define JS_OBJECT_FIELDS(V)                              \
+  V(kElementsOffset, kTaggedSize)                        \
+  /* Header size. */                                     \
+  V(kHeaderSize, 0)                                      \
+  V(kOptionalEmbedderFieldPadding,                       \
+    POINTER_SIZE_PADDING(kOptionalEmbedderFieldPadding)) \
+  /* Header size aligned to kSystemPointerSize. */       \
+  V(kHeaderSizeForEmbedderFields, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize, JS_OBJECT_FIELDS)
 #undef JS_OBJECT_FIELDS
@@ -755,12 +762,17 @@ class JSObject : public JSReceiver {
   static const int kMaxInObjectProperties =
       (kMaxInstanceSize - kHeaderSize) >> kTaggedSizeLog2;
   STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
-  // TODO(cbruni): Revisit calculation of the max supported embedder fields.
+
+  STATIC_ASSERT(kHeaderSizeForEmbedderFields ==
+                Internals::kJSObjectHeaderSizeForEmbedderFields);
+  static const int kMaxFirstInobjectPropertyOffset =
+      (1 << kFirstInobjectPropertyOffsetBitCount) - 1;
   static const int kMaxEmbedderFields =
-      (((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
-       kTaggedSizeLog2) /
-      kEmbedderDataSlotSizeInTaggedSlots;
-  STATIC_ASSERT(kMaxEmbedderFields <= kMaxInObjectProperties);
+      (kMaxFirstInobjectPropertyOffset - kHeaderSizeForEmbedderFields) /
+      kEmbedderDataSlotSize;
+  STATIC_ASSERT(kHeaderSizeForEmbedderFields +
+                    kMaxEmbedderFields * kEmbedderDataSlotSizeInTaggedSlots <=
+                kMaxInstanceSize);
 
   class BodyDescriptor;
 

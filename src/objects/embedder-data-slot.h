@@ -36,6 +36,7 @@ class EmbedderDataSlot
   V8_INLINE EmbedderDataSlot(EmbedderDataArray array, int entry_index);
   V8_INLINE EmbedderDataSlot(JSObject object, int embedder_field_index);
 
+  // TODO(ishell): these offsets are currently little-endian specific.
 #ifdef V8_COMPRESS_POINTERS
   static constexpr int kRawPayloadOffset = kTaggedSize;
 #endif

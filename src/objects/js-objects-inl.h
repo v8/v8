@@ -264,12 +264,32 @@ int JSObject::GetHeaderSize(const Map map) {
 }
 
 // static
+int JSObject::GetEmbedderFieldsStartOffset(const Map map) {
+  // Embedder fields are located after the header size rounded up to the
+  // kSystemPointerSize, whereas in-object properties are at the end of the
+  // object.
+  int header_size = GetHeaderSize(map);
+  if (kTaggedSize == kSystemPointerSize) {
+    DCHECK(IsAligned(header_size, kSystemPointerSize));
+    return header_size;
+  } else {
+    return RoundUp(header_size, kSystemPointerSize);
+  }
+}
+
+int JSObject::GetEmbedderFieldsStartOffset() {
+  return GetEmbedderFieldsStartOffset(map());
+}
+
+// static
 int JSObject::GetEmbedderFieldCount(const Map map) {
   int instance_size = map->instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
-  // Internal objects do follow immediately after the header, whereas in-object
-  // properties are at the end of the object. Therefore there is no need
-  // to adjust the index here.
+  // Embedder fields are located after the header size rounded up to the
+  // kSystemPointerSize, whereas in-object properties are at the end of the
+  // object. We don't have to round up the header size here because division by
+  // kEmbedderDataSlotSizeInTaggedSlots will swallow potential padding in case
+  // of (kTaggedSize != kSystemPointerSize) anyway.
   return (((instance_size - GetHeaderSize(map)) >> kTaggedSizeLog2) -
           map->GetInObjectProperties()) /
          kEmbedderDataSlotSizeInTaggedSlots;
@@ -280,11 +300,9 @@ int JSObject::GetEmbedderFieldCount() const {
 }
 
 int JSObject::GetEmbedderFieldOffset(int index) {
-  DCHECK(index < GetEmbedderFieldCount() && index >= 0);
-  // Internal objects do follow immediately after the header, whereas in-object
-  // properties are at the end of the object. Therefore there is no need
-  // to adjust the index here.
-  return GetHeaderSize() + (kEmbedderDataSlotSize * index);
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(GetEmbedderFieldCount()));
+  return GetEmbedderFieldsStartOffset() + (kEmbedderDataSlotSize * index);
 }
 
 Object* JSObject::GetEmbedderField(int index) {

@@ -3090,8 +3090,7 @@ VisitorId Map::GetVisitorId(Map map) {
   STATIC_ASSERT(kVisitorIdCount <= 256);
 
   const int instance_type = map->instance_type();
-  const bool has_unboxed_fields =
-      FLAG_unbox_double_fields && !map->HasFastPointerLayout();
+
   if (instance_type < FIRST_NONSTRING_TYPE) {
     switch (instance_type & kStringRepresentationMask) {
       case kSeqStringTag:
@@ -3298,8 +3297,12 @@ VisitorId Map::GetVisitorId(Map map) {
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
-    case JS_BOUND_FUNCTION_TYPE:
-      return has_unboxed_fields ? kVisitJSObject : kVisitJSObjectFast;
+    case JS_BOUND_FUNCTION_TYPE: {
+      const bool has_raw_data_fields =
+          (FLAG_unbox_double_fields && !map->HasFastPointerLayout()) ||
+          (COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0);
+      return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;
+    }
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
       return kVisitJSApiObject;

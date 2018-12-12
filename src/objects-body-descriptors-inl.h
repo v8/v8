@@ -31,11 +31,30 @@ int FlexibleWeakBodyDescriptor<start_offset>::SizeOf(Map map,
 
 bool BodyDescriptorBase::IsValidJSObjectSlotImpl(Map map, HeapObject* obj,
                                                  int offset) {
+#ifdef V8_COMPRESS_POINTERS
+  STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
+  int embedder_fields_offset = JSObject::GetEmbedderFieldsStartOffset(map);
+  int inobject_fields_offset = map->GetInObjectPropertyOffset(0);
+  // |embedder_fields_offset| may be greater than |inobject_fields_offset| if
+  // the object does not have embedder fields but the check handles this
+  // case properly.
+  if (embedder_fields_offset <= offset && offset < inobject_fields_offset) {
+    // offset points to embedder fields area:
+    // [embedder_fields_offset, inobject_fields_offset).
+    STATIC_ASSERT(base::bits::IsPowerOfTwo(kEmbedderDataSlotSize));
+    return ((offset - embedder_fields_offset) & (kEmbedderDataSlotSize - 1)) ==
+           EmbedderDataSlot::kTaggedPayloadOffset;
+  }
+#else
+  // We store raw aligned pointers as Smis, so it's safe to treat the whole
+  // embedder field area as tagged slots.
+  STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
+#endif
   if (!FLAG_unbox_double_fields || map->HasFastPointerLayout()) {
     return true;
   } else {
     DCHECK(FLAG_unbox_double_fields);
-    DCHECK(IsAligned(offset, kPointerSize));
+    DCHECK(IsAligned(offset, kSystemPointerSize));
 
     LayoutDescriptorHelper helper(map);
     DCHECK(!helper.all_fields_tagged());
@@ -48,12 +67,40 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject* obj,
                                                  int start_offset,
                                                  int end_offset,
                                                  ObjectVisitor* v) {
+#ifdef V8_COMPRESS_POINTERS
+  STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
+  int header_size = JSObject::GetHeaderSize(map);
+  int inobject_fields_offset = map->GetInObjectPropertyOffset(0);
+  // We are always requested to process header and embedder fields.
+  DCHECK_LE(inobject_fields_offset, end_offset);
+  // Embedder fields are located between header rouned up to the system pointer
+  // size and inobject properties.
+  if (header_size < inobject_fields_offset) {
+    // There are embedder fields.
+    IteratePointers(obj, start_offset, header_size, v);
+    // Iterate only tagged payload of the embedder slots and skip raw payload.
+    int embedder_fields_offset = RoundUp(header_size, kSystemPointerSize);
+    DCHECK_EQ(embedder_fields_offset,
+              JSObject::GetEmbedderFieldsStartOffset(map));
+    for (int offset =
+             embedder_fields_offset + EmbedderDataSlot::kTaggedPayloadOffset;
+         offset < inobject_fields_offset; offset += kEmbedderDataSlotSize) {
+      IteratePointer(obj, offset, v);
+    }
+    // Proceed processing inobject properties.
+    start_offset = inobject_fields_offset;
+  }
+#else
+  // We store raw aligned pointers as Smis, so it's safe to iterate the whole
+  // embedder field area as tagged slots.
+  STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
+#endif
   if (!FLAG_unbox_double_fields || map->HasFastPointerLayout()) {
     IteratePointers(obj, start_offset, end_offset, v);
   } else {
     DCHECK(FLAG_unbox_double_fields);
-    DCHECK(IsAligned(start_offset, kPointerSize) &&
-           IsAligned(end_offset, kPointerSize));
+    DCHECK(IsAligned(start_offset, kSystemPointerSize) &&
+           IsAligned(end_offset, kSystemPointerSize));
 
     LayoutDescriptorHelper helper(map);
     DCHECK(!helper.all_fields_tagged());
@@ -723,17 +770,38 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
 class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
+#ifdef V8_COMPRESS_POINTERS
+    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kSystemPointerSize);
+    STATIC_ASSERT(base::bits::IsPowerOfTwo(kEmbedderDataSlotSize));
+    return (offset < EmbedderDataArray::kHeaderSize) ||
+           (((offset - EmbedderDataArray::kHeaderSize) &
+             (kEmbedderDataSlotSize - 1)) ==
+            EmbedderDataSlot::kTaggedPayloadOffset);
+#else
+    STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
     // We store raw aligned pointers as Smis, so it's safe to iterate the whole
     // array.
     return true;
+#endif
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
+#ifdef V8_COMPRESS_POINTERS
+    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kSystemPointerSize);
+    // Iterate only tagged payload of the embedder slots and skip raw payload.
+    for (int offset = EmbedderDataArray::OffsetOfElementAt(0) +
+                      EmbedderDataSlot::kTaggedPayloadOffset;
+         offset < object_size; offset += kEmbedderDataSlotSize) {
+      IteratePointer(obj, offset, v);
+    }
+#else
     // We store raw aligned pointers as Smis, so it's safe to iterate the whole
     // array.
+    STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
     IteratePointers(obj, EmbedderDataArray::kHeaderSize, object_size, v);
+#endif
   }
 
   static inline int SizeOf(Map map, HeapObject* object) {
