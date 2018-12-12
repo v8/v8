@@ -1128,10 +1128,11 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     } else {
       if (enabled_features.bigint) {
         thrower.TypeError(
-            "Descriptor property 'value' must be 'i32', 'i64', 'f32' or 'f64'");
+            "Descriptor property 'value' must be 'i32', 'i64', 'f32', or "
+            "'f64'");
       } else {
         thrower.TypeError(
-            "Descriptor property 'value' must be 'i32', 'f32' or 'f64'");
+            "Descriptor property 'value' must be 'i32', 'f32', or 'f64'");
       }
 
       return;
