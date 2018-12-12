@@ -230,7 +230,7 @@ class LiftoffCompiler {
   }
 
   void StartFunction(FullDecoder* decoder) {
-    int num_locals = decoder->NumLocals();
+    int num_locals = decoder->num_locals();
     __ set_num_locals(num_locals);
     for (int i = 0; i < num_locals; ++i) {
       __ set_local_type(i, decoder->GetLocalType(i));

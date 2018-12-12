@@ -1492,7 +1492,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   inline Zone* zone() const { return zone_; }
 
-  inline uint32_t NumLocals() {
+  inline uint32_t num_locals() const {
     return static_cast<uint32_t>(local_type_vec_.size());
   }
 
