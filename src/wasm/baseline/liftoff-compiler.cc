@@ -371,7 +371,6 @@ class LiftoffCompiler {
           UNIMPLEMENTED();
       }
     }
-    block->label_state.stack_base = __ num_locals();
 
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
@@ -446,13 +445,9 @@ class LiftoffCompiler {
     DEBUG_CODE_COMMENT(WasmOpcodes::OpcodeName(opcode));
   }
 
-  void Block(FullDecoder* decoder, Control* block) {
-    block->label_state.stack_base = __ cache_state()->stack_height();
-  }
+  void Block(FullDecoder* decoder, Control* block) {}
 
   void Loop(FullDecoder* decoder, Control* loop) {
-    loop->label_state.stack_base = __ cache_state()->stack_height();
-
     // Before entering a loop, spill all locals to the stack, in order to free
     // the cache registers, and to avoid unnecessarily reloading stack values
     // into registers at branches.
@@ -489,7 +484,6 @@ class LiftoffCompiler {
     __ emit_cond_jump(kEqual, if_block->else_state->label.get(), kWasmI32,
                       value);
 
-    if_block->label_state.stack_base = __ cache_state()->stack_height();
     // Store the state (after popping the value) for executing the else branch.
     if_block->else_state->state.Split(*__ cache_state());
   }
@@ -501,7 +495,8 @@ class LiftoffCompiler {
       // Init the merge point from the else state, then merge the if state into
       // that.
       DCHECK_EQ(0, c->end_merge.arity);
-      c->label_state.InitMerge(c->else_state->state, __ num_locals(), 0);
+      c->label_state.InitMerge(c->else_state->state, __ num_locals(), 0,
+                               c->stack_depth);
       __ MergeFullStackWith(c->label_state);
     } else {
       c->label_state.Split(*__ cache_state());
@@ -1241,7 +1236,8 @@ class LiftoffCompiler {
   void BrImpl(Control* target) {
     if (!target->br_merge()->reached) {
       target->label_state.InitMerge(*__ cache_state(), __ num_locals(),
-                                    target->br_merge()->arity);
+                                    target->br_merge()->arity,
+                                    target->stack_depth);
     }
     __ MergeStackWith(target->label_state, target->br_merge()->arity);
     __ jmp(target->label.get());
@@ -1336,7 +1332,7 @@ class LiftoffCompiler {
     if (c->reachable()) {
       if (!c->end_merge.reached) {
         c->label_state.InitMerge(*__ cache_state(), __ num_locals(),
-                                 c->end_merge.arity);
+                                 c->end_merge.arity, c->stack_depth);
       }
       __ MergeFullStackWith(c->label_state);
       __ emit_jump(c->label.get());
