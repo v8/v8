@@ -488,39 +488,5 @@ Callable CodeFactory::ArraySingleArgumentConstructor(
 #undef CASE
 }
 
-// static
-Callable CodeFactory::InternalArrayNoArgumentConstructor(Isolate* isolate,
-                                                         ElementsKind kind) {
-  switch (kind) {
-    case PACKED_ELEMENTS:
-      return Callable(
-          BUILTIN_CODE(isolate, InternalArrayNoArgumentConstructor_Packed),
-          ArrayNoArgumentConstructorDescriptor{});
-    case HOLEY_ELEMENTS:
-      return Callable(
-          BUILTIN_CODE(isolate, InternalArrayNoArgumentConstructor_Holey),
-          ArrayNoArgumentConstructorDescriptor{});
-    default:
-      UNREACHABLE();
-  }
-}
-
-// static
-Callable CodeFactory::InternalArraySingleArgumentConstructor(
-    Isolate* isolate, ElementsKind kind) {
-  switch (kind) {
-    case PACKED_ELEMENTS:
-      return Callable(
-          BUILTIN_CODE(isolate, InternalArraySingleArgumentConstructor_Packed),
-          ArraySingleArgumentConstructorDescriptor{});
-    case HOLEY_ELEMENTS:
-      return Callable(
-          BUILTIN_CODE(isolate, InternalArraySingleArgumentConstructor_Holey),
-          ArraySingleArgumentConstructorDescriptor{});
-    default:
-      UNREACHABLE();
-  }
-}
-
 }  // namespace internal
 }  // namespace v8

@@ -305,11 +305,6 @@ namespace internal {
   ASM(InternalArrayConstructorImpl)                                            \
   TFC(InternalArrayNoArgumentConstructor_Packed, ArrayNoArgumentConstructor,   \
       1)                                                                       \
-  TFC(InternalArrayNoArgumentConstructor_Holey, ArrayNoArgumentConstructor, 1) \
-  TFC(InternalArraySingleArgumentConstructor_Packed,                           \
-      ArraySingleArgumentConstructor, 1)                                       \
-  TFC(InternalArraySingleArgumentConstructor_Holey,                            \
-      ArraySingleArgumentConstructor, 1)                                       \
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kReceiver, kArg)                                        \
