@@ -586,8 +586,7 @@
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7481
-  'intl402/NumberFormat/ignore-invalid-unicode-ext-values': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8469
   'intl402/DateTimeFormat/ignore-invalid-unicode-ext-values': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7482
@@ -604,7 +603,9 @@
   # https://crbug.com/v8/7808
   'intl402/String/prototype/localeCompare/returns-same-results-as-Collator': [SKIP],
   'intl402/Collator/prototype/compare/bound-to-collator-instance': [SKIP],
-  'intl402/Collator/ignore-invalid-unicode-ext-values': [SKIP],
+
+  # https://github.com/tc39/ecma402/issues/223
+  'intl402/Collator/missing-unicode-ext-value-defaults-to-true': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8260
   'intl402/Locale/constructor-non-iana-canon': [FAIL],

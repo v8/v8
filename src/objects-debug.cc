@@ -2056,6 +2056,7 @@ void JSCollator::JSCollatorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kICUCollatorOffset);
   VerifyObjectField(isolate, kBoundCompareOffset);
+  VerifyObjectField(isolate, kLocaleOffset);
 }
 
 void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
