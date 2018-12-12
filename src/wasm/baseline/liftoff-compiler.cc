@@ -632,8 +632,8 @@ class LiftoffCompiler {
     __ PushRegister(dst_type, dst);
   }
 
-  void UnOp(FullDecoder* decoder, WasmOpcode opcode, FunctionSig*,
-            const Value& value, Value* result) {
+  void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
+            Value* result) {
 #define CASE_I32_UNOP(opcode, fn)                       \
   case WasmOpcode::kExpr##opcode:                       \
     EmitUnOp<kWasmI32, kWasmI32>(                       \
@@ -786,8 +786,8 @@ class LiftoffCompiler {
     }
   }
 
-  void BinOp(FullDecoder* decoder, WasmOpcode opcode, FunctionSig*,
-             const Value& lhs, const Value& rhs, Value* result) {
+  void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
+             const Value& rhs, Value* result) {
 #define CASE_I32_BINOP(opcode, fn)                                           \
   case WasmOpcode::kExpr##opcode:                                            \
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \

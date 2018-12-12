@@ -681,9 +681,9 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(PopControl, Control* block)                                               \
   F(EndControl, Control* block)                                               \
   /* Instructions: */                                                         \
-  F(UnOp, WasmOpcode opcode, FunctionSig*, const Value& value, Value* result) \
-  F(BinOp, WasmOpcode opcode, FunctionSig*, const Value& lhs,                 \
-    const Value& rhs, Value* result)                                          \
+  F(UnOp, WasmOpcode opcode, const Value& value, Value* result)               \
+  F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,             \
+    Value* result)                                                            \
   F(I32Const, Value* result, int32_t value)                                   \
   F(I64Const, Value* result, int64_t value)                                   \
   F(F32Const, Value* result, float value)                                     \
@@ -2789,7 +2789,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         auto val = Pop(0, sig->GetParam(0));
         auto* ret =
             sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
-        CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, sig, val, ret);
+        CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, val, ret);
         break;
       }
       case 2: {
@@ -2797,7 +2797,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         auto lval = Pop(0, sig->GetParam(0));
         auto* ret =
             sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
-        CALL_INTERFACE_IF_REACHABLE(BinOp, opcode, sig, lval, rval, ret);
+        CALL_INTERFACE_IF_REACHABLE(BinOp, opcode, lval, rval, ret);
         break;
       }
       default:

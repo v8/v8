@@ -206,13 +206,13 @@ class WasmGraphBuildingInterface {
 
   void EndControl(FullDecoder* decoder, Control* block) { ssa_env_->Kill(); }
 
-  void UnOp(FullDecoder* decoder, WasmOpcode opcode, FunctionSig* sig,
-            const Value& value, Value* result) {
+  void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
+            Value* result) {
     result->node = BUILD(Unop, opcode, value.node, decoder->position());
   }
 
-  void BinOp(FullDecoder* decoder, WasmOpcode opcode, FunctionSig* sig,
-             const Value& lhs, const Value& rhs, Value* result) {
+  void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
+             const Value& rhs, Value* result) {
     auto node = BUILD(Binop, opcode, lhs.node, rhs.node, decoder->position());
     if (result) result->node = node;
   }
