@@ -730,7 +730,8 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(CatchAll, Control* block)                                                 \
   F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                          \
     const MemoryAccessImmediate<validate>& imm, Value* result)                \
-  F(MemoryInit, const MemoryInitImmediate<validate>& imm, Vector<Value> args) \
+  F(MemoryInit, const MemoryInitImmediate<validate>& imm, const Value& dst,   \
+    const Value& src, const Value& size)                                      \
   F(MemoryDrop, const MemoryDropImmediate<validate>& imm)                     \
   F(MemoryCopy, const MemoryIndexImmediate<validate>& imm, const Value& dst,  \
     const Value& src, const Value& size)                                      \
@@ -2507,8 +2508,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           MemoryInitImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          PopArgs(sig);
-          CALL_INTERFACE_IF_REACHABLE(MemoryInit, imm, VectorOf(args_));
+          auto size = Pop(2, sig->GetParam(2));
+          auto src = Pop(1, sig->GetParam(1));
+          auto dst = Pop(0, sig->GetParam(0));
+          CALL_INTERFACE_IF_REACHABLE(MemoryInit, imm, dst, src, size);
           break;
         }
         case kExprMemoryDrop: {

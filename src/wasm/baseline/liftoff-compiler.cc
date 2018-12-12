@@ -1845,8 +1845,8 @@ class LiftoffCompiler {
     unsupported(decoder, "atomicop");
   }
   void MemoryInit(FullDecoder* decoder,
-                  const MemoryInitImmediate<validate>& imm,
-                  Vector<Value> args) {
+                  const MemoryInitImmediate<validate>& imm, const Value& dst,
+                  const Value& src, const Value& size) {
     unsupported(decoder, "memory.init");
   }
   void MemoryDrop(FullDecoder* decoder,

@@ -507,13 +507,14 @@ class WasmGraphBuildingInterface {
   }
 
   void MemoryInit(FullDecoder* decoder,
-                  const MemoryInitImmediate<validate>& imm,
-                  Vector<Value> args) {
-    BUILD(Unreachable, decoder->position());
+                  const MemoryInitImmediate<validate>& imm, const Value& dst,
+                  const Value& src, const Value& size) {
+    BUILD(MemoryInit, imm.data_segment_index, dst.node, src.node, size.node,
+          decoder->position());
   }
   void MemoryDrop(FullDecoder* decoder,
                   const MemoryDropImmediate<validate>& imm) {
-    BUILD(Unreachable, decoder->position());
+    BUILD(MemoryDrop, imm.index, decoder->position());
   }
   void MemoryCopy(FullDecoder* decoder,
                   const MemoryIndexImmediate<validate>& imm, const Value& dst,

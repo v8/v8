@@ -1257,6 +1257,7 @@ namespace internal {
   TFS(ThrowWasmTrapFloatUnrepresentable)                                       \
   TFS(ThrowWasmTrapFuncInvalid)                                                \
   TFS(ThrowWasmTrapFuncSigMismatch)                                            \
+  TFS(ThrowWasmTrapDataSegmentDropped)                                         \
   TFC(BigIntToWasmI64, BigIntToWasmI64, 1)                                     \
                                                                                \
   /* WeakMap */                                                                \
