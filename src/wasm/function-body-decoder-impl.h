@@ -1421,8 +1421,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         local_type_vec_(zone),
         stack_(zone),
         control_(zone),
-        args_(zone),
-        last_end_found_(false) {
+        args_(zone) {
     this->local_types_ = &local_type_vec_;
   }
 
@@ -1449,23 +1448,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DecodeFunctionBody();
     if (!this->failed()) CALL_INTERFACE(FinishFunction);
 
-    if (this->failed()) return this->TraceFailed();
-
-    if (!control_.empty()) {
-      // Generate a better error message whether the unterminated control
-      // structure is the function body block or an innner structure.
-      if (control_.size() > 1) {
-        this->error(control_.back().pc, "unterminated control structure");
-      } else {
-        this->error("function body must end with \"end\" opcode");
-      }
-      return TraceFailed();
-    }
-
-    if (!last_end_found_) {
+    // Generate a better error message whether the unterminated control
+    // structure is the function body block or an innner structure.
+    if (control_.size() > 1) {
+      this->error(control_.back().pc, "unterminated control structure");
+    } else if (control_.size() == 1) {
       this->error("function body must end with \"end\" opcode");
-      return false;
     }
+
+    if (this->failed()) return this->TraceFailed();
 
     if (FLAG_trace_wasm_decode_time) {
       double ms = decode_timer.Elapsed().InMillisecondsF();
@@ -1535,7 +1526,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   ZoneVector<Value> stack_;               // stack of values.
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
   ZoneVector<Value> args_;                // parameters of current block or call
-  bool last_end_found_;
 
   bool CheckHasMemory() {
     if (!VALIDATE(this->module_->has_memory)) {
@@ -1805,7 +1795,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 this->error(this->pc_ + 1, "trailing code after function end");
                 break;
               }
-              last_end_found_ = true;
               // The result of the block is the return value.
               TRACE_PART("\n" TRACE_INST_FORMAT, startrel(this->pc_),
                          "(implicit) return");
