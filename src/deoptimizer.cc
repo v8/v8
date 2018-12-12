@@ -428,6 +428,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
                                      RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
+  function->ResetIfBytecodeFlushed();
   if (code.is_null()) code = function->code();
 
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
