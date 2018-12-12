@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 #include "src/conversions.h"
 #include "src/counters.h"
 #include "src/date.h"
