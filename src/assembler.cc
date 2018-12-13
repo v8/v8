@@ -190,13 +190,6 @@ void Assembler::RecordDeoptReason(DeoptimizeReason reason,
   RecordRelocInfo(RelocInfo::DEOPT_ID, id);
 }
 
-void Assembler::RecordComment(const char* msg) {
-  if (FLAG_code_comments) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
-  }
-}
-
 void Assembler::DataAlign(int m) {
   DCHECK(m >= 2 && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
@@ -243,6 +236,15 @@ void AssemblerBase::UpdateCodeTarget(intptr_t code_target_index,
 
 void AssemblerBase::ReserveCodeTargetSpace(size_t num_of_code_targets) {
   code_targets_.reserve(num_of_code_targets);
+}
+
+int Assembler::WriteCodeComments() {
+  if (!FLAG_code_comments || code_comments_writer_.entry_count() == 0) return 0;
+  int offset = pc_offset();
+  code_comments_writer_.Emit(this);
+  int size = pc_offset() - offset;
+  DCHECK_EQ(size, code_comments_writer_.section_size());
+  return size;
 }
 
 }  // namespace internal

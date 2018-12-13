@@ -328,6 +328,7 @@ Assembler::Assembler(const AssemblerOptions& options, void* buffer,
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+  int code_comments_size = WriteCodeComments();
   // Finalize code (at this point overflow() may be true, but the gap ensures
   // that we are still not overlapping instructions and relocation info).
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
@@ -343,6 +344,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->constant_pool_size = 0;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
+  desc->code_comments_size = code_comments_size;
 
   // Collection stage
   auto jump_opt = jump_optimization_info();
@@ -388,7 +390,6 @@ bool Assembler::IsNop(Address addr) {
 
 void Assembler::Nop(int bytes) {
   EnsureSpace ensure_space(this);
-
   // Multi byte nops from http://support.amd.com/us/Processor_TechDocs/40546.pdf
   while (bytes > 0) {
     switch (bytes) {

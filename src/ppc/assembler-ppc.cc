@@ -265,9 +265,12 @@ Assembler::Assembler(const AssemblerOptions& options, void* buffer,
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // Emit constant pool if necessary.
-  int constant_pool_offset = EmitConstantPool();
+  int constant_pool_size = EmitConstantPool();
 
   EmitRelocations();
+
+  int code_comments_size = WriteCodeComments();
+
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
@@ -275,11 +278,11 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
-  desc->constant_pool_size =
-      (constant_pool_offset ? desc->instr_size - constant_pool_offset : 0);
+  desc->constant_pool_size = constant_pool_size;
   desc->origin = this;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
+  desc->code_comments_size = code_comments_size;
 }
 
 

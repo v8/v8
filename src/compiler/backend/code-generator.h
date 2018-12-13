@@ -415,10 +415,10 @@ class CodeGenerator final : public GapResolver::Assembler {
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationState*> deoptimization_states_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
-  size_t inlined_function_count_;
+  size_t inlined_function_count_ = 0;
   TranslationBuffer translations_;
-  int handler_table_offset_;
-  int last_lazy_deopt_pc_;
+  int handler_table_offset_ = 0;
+  int last_lazy_deopt_pc_ = 0;
 
   // kArchCallCFunction could be reached either:
   //   kArchCallCFunction;

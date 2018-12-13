@@ -62,7 +62,6 @@ class RelocInfo {
     WASM_STUB_CALL,
 
     RUNTIME_ENTRY,
-    COMMENT,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
@@ -141,7 +140,6 @@ class RelocInfo {
   static constexpr bool IsWasmStubCall(Mode mode) {
     return mode == WASM_STUB_CALL;
   }
-  static constexpr bool IsComment(Mode mode) { return mode == COMMENT; }
   static constexpr bool IsConstPool(Mode mode) { return mode == CONST_POOL; }
   static constexpr bool IsVeneerPool(Mode mode) { return mode == VENEER_POOL; }
   static constexpr bool IsDeoptPosition(Mode mode) {

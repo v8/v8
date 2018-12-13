@@ -105,9 +105,16 @@ base::AddressRegion DisjointAllocationPool::Allocate(size_t size) {
 
 Address WasmCode::constant_pool() const {
   if (FLAG_enable_embedded_constant_pool) {
-    if (constant_pool_offset_ < instructions().size()) {
+    if (constant_pool_offset_ < code_comments_offset_) {
       return instruction_start() + constant_pool_offset_;
     }
+  }
+  return kNullAddress;
+}
+
+Address WasmCode::code_comments() const {
+  if (code_comments_offset_ < unpadded_binary_size_) {
+    return instruction_start() + code_comments_offset_;
   }
   return kNullAddress;
 }
@@ -227,7 +234,6 @@ void WasmCode::Validate() const {
         break;
       }
       case RelocInfo::EXTERNAL_REFERENCE:
-      case RelocInfo::COMMENT:
       case RelocInfo::CONST_POOL:
       case RelocInfo::VENEER_POOL:
         // These are OK to appear.
@@ -252,12 +258,13 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   if (!IsAnonymous()) os << "index: " << index() << "\n";
   os << "kind: " << GetWasmCodeKindAsString(kind_) << "\n";
   os << "compiler: " << (is_liftoff() ? "Liftoff" : "TurboFan") << "\n";
-  size_t body_size = instructions().size();
-  os << "Body (size = " << body_size << ")\n";
+  size_t padding = instructions().size() - unpadded_binary_size_;
+  os << "Body (size = " << instructions().size() << " = "
+     << unpadded_binary_size_ << " + " << padding << " padding)\n";
 
 #ifdef ENABLE_DISASSEMBLER
-  size_t instruction_size = body_size;
-  if (constant_pool_offset_ && constant_pool_offset_ < instruction_size) {
+  size_t instruction_size = unpadded_binary_size_;
+  if (constant_pool_offset_ < instruction_size) {
     instruction_size = constant_pool_offset_;
   }
   if (safepoint_table_offset_ && safepoint_table_offset_ < instruction_size) {
@@ -332,6 +339,12 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
     it.rinfo()->Print(nullptr, os);
   }
   os << "\n";
+
+  if (code_comments_offset() < unpadded_binary_size_) {
+    Address code_comments = reinterpret_cast<Address>(instructions().start() +
+                                                      code_comments_offset());
+    PrintCodeCommentsSection(os, code_comments);
+  }
 #endif  // ENABLE_DISASSEMBLER
 }
 
@@ -417,7 +430,8 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
 WasmCode* NativeModule::AddOwnedCode(
     uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
     size_t safepoint_table_offset, size_t handler_table_offset,
-    size_t constant_pool_offset,
+    size_t constant_pool_offset, size_t code_comments_offset,
+    size_t unpadded_binary_size,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> reloc_info,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
@@ -429,11 +443,11 @@ WasmCode* NativeModule::AddOwnedCode(
     base::MutexGuard lock(&allocation_mutex_);
     Vector<byte> executable_buffer = AllocateForCode(instructions.size());
     // Ownership will be transferred to {owned_code_} below.
-    code = new WasmCode(this, index, executable_buffer, stack_slots,
-                        safepoint_table_offset, handler_table_offset,
-                        constant_pool_offset, std::move(protected_instructions),
-                        std::move(reloc_info), std::move(source_position_table),
-                        kind, tier);
+    code = new WasmCode(
+        this, index, executable_buffer, stack_slots, safepoint_table_offset,
+        handler_table_offset, constant_pool_offset, code_comments_offset,
+        unpadded_binary_size, std::move(protected_instructions),
+        std::move(reloc_info), std::move(source_position_table), kind, tier);
 
     if (owned_code_.empty() ||
         code->instruction_start() > owned_code_.back()->instruction_start()) {
@@ -517,6 +531,8 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
                    safepoint_table_offset,         // safepoint_table_offset
                    code->handler_table_offset(),   // handler_table_offset
                    code->constant_pool_offset(),   // constant_pool_offset
+                   code->code_comments_offset(),   // code_comments_offset
+                   instructions.size(),            // unpadded_binary_size
                    {},                             // protected_instructions
                    std::move(reloc_info),          // reloc_info
                    std::move(source_pos),          // source positions
@@ -562,12 +578,13 @@ WasmCode* NativeModule::AddCode(
   OwnedVector<byte> reloc_info = OwnedVector<byte>::New(desc.reloc_size);
   memcpy(reloc_info.start(), desc.buffer + desc.buffer_size - desc.reloc_size,
          desc.reloc_size);
-  WasmCode* ret =
-      AddOwnedCode(index, {desc.buffer, static_cast<size_t>(desc.instr_size)},
-                   stack_slots, safepoint_table_offset, handler_table_offset,
-                   desc.instr_size - desc.constant_pool_size,
-                   std::move(protected_instructions), std::move(reloc_info),
-                   std::move(source_pos_table), kind, tier);
+
+  WasmCode* ret = AddOwnedCode(
+      index, {desc.buffer, static_cast<size_t>(desc.instr_size)}, stack_slots,
+      safepoint_table_offset, handler_table_offset, desc.constant_pool_offset(),
+      desc.code_comments_offset(), desc.instr_size,
+      std::move(protected_instructions), std::move(reloc_info),
+      std::move(source_pos_table), kind, tier);
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = ret->instructions().start() - desc.buffer;
@@ -606,13 +623,15 @@ WasmCode* NativeModule::AddCode(
 WasmCode* NativeModule::AddDeserializedCode(
     uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
     size_t safepoint_table_offset, size_t handler_table_offset,
-    size_t constant_pool_offset,
+    size_t constant_pool_offset, size_t code_comments_offset,
+    size_t unpadded_binary_size,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> reloc_info,
     OwnedVector<const byte> source_position_table, WasmCode::Tier tier) {
   WasmCode* code =
       AddOwnedCode(index, instructions, stack_slots, safepoint_table_offset,
                    handler_table_offset, constant_pool_offset,
+                   code_comments_offset, unpadded_binary_size,
                    std::move(protected_instructions), std::move(reloc_info),
                    std::move(source_position_table), WasmCode::kFunction, tier);
 
@@ -663,9 +682,11 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t num_wasm_functions) {
   return AddOwnedCode(WasmCode::kAnonymousFuncIndex,  // index
                       instructions.as_vector(),       // instructions
                       0,                              // stack_slots
-                      0,                              // safepoint_table_offset
-                      0,                              // handler_table_offset
-                      0,                              // constant_pool_offset
+                      instructions.size(),            // safepoint_table_offset
+                      instructions.size(),            // handler_table_offset
+                      instructions.size(),            // constant_pool_offset
+                      instructions.size(),            // code_comments_offset
+                      instructions.size(),            // unpadded_binary_size
                       {},                             // protected_instructions
                       {},                             // reloc_info
                       {},                             // source_pos

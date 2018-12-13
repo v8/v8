@@ -214,7 +214,7 @@ void HandlerBuiltinsAssembler::Generate_ElementsTransitionAndStore(
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  Comment("ElementsTransitionAndStore: store_mode=%d", store_mode);
+  Comment("ElementsTransitionAndStore: store_mode=", store_mode);
 
   Label miss(this);
 
@@ -329,7 +329,7 @@ void HandlerBuiltinsAssembler::Generate_StoreFastElementIC(
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  Comment("StoreFastElementStub: store_mode=%d", store_mode);
+  Comment("StoreFastElementStub: store_mode=", store_mode);
 
   Label miss(this);
 
