@@ -4124,6 +4124,10 @@ class V8_EXPORT Promise : public Object {
   V8_WARN_UNUSED_RESULT MaybeLocal<Promise> Then(Local<Context> context,
                                                  Local<Function> handler);
 
+  V8_WARN_UNUSED_RESULT MaybeLocal<Promise> Then(Local<Context> context,
+                                                 Local<Function> on_fulfilled,
+                                                 Local<Function> on_rejected);
+
   /**
    * Returns true if the promise has at least one derived promise, and
    * therefore resolve/reject handlers (including default handler).
