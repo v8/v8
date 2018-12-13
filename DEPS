@@ -11,7 +11,7 @@ vars = {
   'check_v8_header_includes': False,
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:fdf05508e8a66c773a41521e0243c9d11b9a2a1c',
+  'luci_go': 'git_revision:25958d48e89e980e2a97daeddc977fb5e2e1fb8c',
 }
 
 deps = {
