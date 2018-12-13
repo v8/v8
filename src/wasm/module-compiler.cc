@@ -107,8 +107,7 @@ class CompilationStateImpl {
   Isolate* isolate() const { return isolate_; }
 
   bool failed() const {
-    base::MutexGuard guard(&mutex_);
-    return compile_error_ != nullptr;
+    return compile_error_.load(std::memory_order_relaxed) != nullptr;
   }
 
   bool baseline_compilation_finished() const {
@@ -128,21 +127,21 @@ class CompilationStateImpl {
   // NativeModule::wire_bytes, which is set from the foreground thread once the
   // stream has finished.
   VoidResult GetCompileError() {
-    DCHECK_NOT_NULL(compile_error_);
-    std::ostringstream error;
-    error << "Compiling wasm function \"";
+    CompilationError* error = compile_error_.load(std::memory_order_acquire);
+    DCHECK_NOT_NULL(error);
+    std::ostringstream error_msg;
+    error_msg << "Compiling wasm function \"";
     wasm::ModuleWireBytes wire_bytes(native_module_->wire_bytes());
     wasm::WireBytesRef name_ref = native_module_->module()->LookupFunctionName(
-        wire_bytes, compile_error_->func_index);
+        wire_bytes, error->func_index);
     if (name_ref.is_set()) {
       wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
-      error.write(name.start(), name.length());
+      error_msg.write(name.start(), name.length());
     } else {
-      error << "wasm-function[" << compile_error_->func_index << "]";
+      error_msg << "wasm-function[" << error->func_index << "]";
     }
-    error << "\" failed: " << compile_error_->result.error_msg();
-    return VoidResult::Error(compile_error_->result.error_offset(),
-                             error.str());
+    error_msg << "\" failed: " << error->result.error_msg();
+    return VoidResult::Error(error->result.error_offset(), error_msg.str());
   }
 
   std::shared_ptr<WireBytesStorage> GetSharedWireBytesStorage() const {
@@ -236,6 +235,11 @@ class CompilationStateImpl {
   // compilation is running.
   bool const should_log_code_;
 
+  // Compilation error, atomically updated, but at most once (nullptr -> error).
+  // Uses acquire-release semantics (acquire on load, release on update).
+  // For checking whether an error is set, relaxed semantics can be used.
+  std::atomic<CompilationError*> compile_error_{nullptr};
+
   // This mutex protects all information of this {CompilationStateImpl} which is
   // being accessed concurrently.
   mutable base::Mutex mutex_;
@@ -248,7 +252,6 @@ class CompilationStateImpl {
 
   bool finisher_is_running_ = false;
   size_t num_background_tasks_ = 0;
-  std::unique_ptr<CompilationError> compile_error_;
 
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_finish_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_finish_units_;
@@ -3010,6 +3013,8 @@ CompilationStateImpl::CompilationStateImpl(internal::Isolate* isolate,
 CompilationStateImpl::~CompilationStateImpl() {
   DCHECK(background_task_manager_.canceled());
   DCHECK(foreground_task_manager_.canceled());
+  CompilationError* error = compile_error_.load(std::memory_order_acquire);
+  if (error != nullptr) delete error;
 }
 
 void CompilationStateImpl::CancelAndWait() {
@@ -3130,7 +3135,7 @@ void CompilationStateImpl::ScheduleUnitForFinishing(
     baseline_finish_units_.push_back(std::move(unit));
   }
 
-  if (!finisher_is_running_ && !compile_error_) {
+  if (!finisher_is_running_ && !failed()) {
     ScheduleFinisherTask();
     // We set the flag here so that not more than one finisher is started.
     finisher_is_running_ = true;
@@ -3172,7 +3177,7 @@ void CompilationStateImpl::RestartBackgroundTasks(size_t max) {
   {
     base::MutexGuard guard(&mutex_);
     // No need to restart tasks if compilation already failed.
-    if (compile_error_) return;
+    if (failed()) return;
 
     DCHECK_LE(num_background_tasks_, max_background_tasks_);
     if (num_background_tasks_ == max_background_tasks_) return;
@@ -3210,13 +3215,7 @@ void CompilationStateImpl::ScheduleFinisherTask() {
 }
 
 void CompilationStateImpl::Abort() {
-  {
-    base::MutexGuard guard(&mutex_);
-    if (!compile_error_) {
-      compile_error_ = base::make_unique<CompilationError>(
-          0, VoidResult::Error(0, "Compilation aborted"));
-    }
-  }
+  SetError(0, VoidResult::Error(0, "Compilation aborted"));
   background_task_manager_.CancelAndWait();
   // No more callbacks after abort. Don't free the std::function objects here,
   // since this might clear references in the embedder, which is only allowed on
@@ -3231,11 +3230,16 @@ void CompilationStateImpl::Abort() {
 void CompilationStateImpl::SetError(uint32_t func_index,
                                     const ResultBase& error_result) {
   DCHECK(error_result.failed());
-  base::MutexGuard guard(&mutex_);
-  // Ignore all but the first error.
-  if (compile_error_) return;
-  compile_error_ =
+  std::unique_ptr<CompilationError> error =
       base::make_unique<CompilationError>(func_index, error_result);
+  CompilationError* expected = nullptr;
+  bool set = compile_error_.compare_exchange_strong(expected, error.get(),
+                                                    std::memory_order_acq_rel);
+  // Ignore all but the first error. If the previous value is not nullptr, just
+  // return (and free the allocated error).
+  if (!set) return;
+  // If set successfully, give up ownership.
+  error.release();
   // Schedule a foreground task to call the callback and notify users about the
   // compile error.
   foreground_task_runner_->PostTask(
