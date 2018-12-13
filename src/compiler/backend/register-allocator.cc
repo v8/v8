@@ -1196,49 +1196,61 @@ void PrintBlockRow(std::ostream& os, const InstructionBlocks& blocks) {
 }
 }  // namespace
 
+void LinearScanAllocator::PrintRangeRow(std::ostream& os,
+                                        const TopLevelLiveRange* toplevel) {
+  int position = 0;
+  os << std::setw(3) << toplevel->vreg()
+     << (toplevel->IsSplinter() ? "s:" : ": ");
+
+  for (const LiveRange* range = toplevel; range != nullptr;
+       range = range->next()) {
+    for (UseInterval* interval = range->first_interval(); interval != nullptr;
+         interval = interval->next()) {
+      LifetimePosition start = interval->start();
+      LifetimePosition end = interval->end();
+      CHECK_GE(start.value(), position);
+      for (; start.value() > position; position++) {
+        os << ' ';
+      }
+      int length = end.value() - start.value();
+      constexpr int kMaxPrefixLength = 32;
+      char buffer[kMaxPrefixLength];
+      int max_prefix_length = std::min(length + 1, kMaxPrefixLength);
+      int prefix;
+      if (range->spilled()) {
+        prefix = snprintf(buffer, max_prefix_length, "|ss");
+      } else {
+        const char* reg_name;
+        if (range->assigned_register() == kUnassignedRegister) {
+          reg_name = "???";
+        } else {
+          reg_name = RegisterName(range->assigned_register());
+        }
+        prefix = snprintf(buffer, max_prefix_length, "|%s", reg_name);
+      }
+      os << buffer;
+      position += std::min(prefix, max_prefix_length - 1);
+      CHECK_GE(end.value(), position);
+      const char line_style = range->spilled() ? '-' : '=';
+      for (; end.value() > position; position++) {
+        os << line_style;
+      }
+    }
+  }
+  os << '\n';
+}
+
 void LinearScanAllocator::PrintRangeOverview(std::ostream& os) {
+  PrintBlockRow(os, code()->instruction_blocks());
+  for (auto toplevel : data()->fixed_live_ranges()) {
+    if (toplevel == nullptr) continue;
+    PrintRangeRow(os, toplevel);
+  }
   int rowcount = 0;
   for (auto toplevel : data()->live_ranges()) {
     if (!CanProcessRange(toplevel)) continue;
     if (rowcount++ % 10 == 0) PrintBlockRow(os, code()->instruction_blocks());
-    int position = 0;
-    os << std::setw(3) << toplevel->vreg()
-       << (toplevel->IsSplinter() ? "s:" : ": ");
-    for (LiveRange* range = toplevel; range != nullptr; range = range->next()) {
-      for (UseInterval* interval = range->first_interval(); interval != nullptr;
-           interval = interval->next()) {
-        LifetimePosition start = interval->start();
-        LifetimePosition end = interval->end();
-        CHECK_GE(start.value(), position);
-        for (; start.value() > position; position++) {
-          os << ' ';
-        }
-        int length = end.value() - start.value();
-        constexpr int kMaxPrefixLength = 32;
-        char buffer[kMaxPrefixLength];
-        int max_prefix_length = std::min(length + 1, kMaxPrefixLength);
-        int prefix;
-        if (range->spilled()) {
-          prefix = snprintf(buffer, max_prefix_length, "|ss");
-        } else {
-          const char* reg_name;
-          if (range->assigned_register() == kUnassignedRegister) {
-            reg_name = "???";
-          } else {
-            reg_name = RegisterName(range->assigned_register());
-          }
-          prefix = snprintf(buffer, max_prefix_length, "|%s", reg_name);
-        }
-        os << buffer;
-        position += std::min(prefix, max_prefix_length - 1);
-        CHECK_GE(end.value(), position);
-        const char line_style = range->spilled() ? '-' : '=';
-        for (; end.value() > position; position++) {
-          os << line_style;
-        }
-      }
-    }
-    os << '\n';
+    PrintRangeRow(os, toplevel);
   }
 }
 
