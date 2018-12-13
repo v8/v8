@@ -15254,12 +15254,12 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
       table.PrintEntry(i, os);
       os << " (sp -> fp)  ";
       SafepointEntry entry = table.GetEntry(i);
-      if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
+      if (entry.has_deoptimization_index()) {
         os << std::setw(6) << entry.deoptimization_index();
       } else {
         os << "<none>";
       }
-      if (entry.argument_count() > 0) {
+      if (entry.has_argument_count()) {
         os << " argc: " << entry.argument_count();
       }
       os << "\n";

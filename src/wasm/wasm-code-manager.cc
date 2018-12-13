@@ -322,10 +322,10 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
       if (entry.trampoline_pc() != -1) {
         os << " trampoline: " << std::hex << entry.trampoline_pc() << std::dec;
       }
-      if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
+      if (entry.has_deoptimization_index()) {
         os << " deopt: " << std::setw(6) << entry.deoptimization_index();
       }
-      if (entry.argument_count() > 0) {
+      if (entry.has_argument_count()) {
         os << " argc: " << entry.argument_count();
       }
       os << "\n";

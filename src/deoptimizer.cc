@@ -302,11 +302,9 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
         PrintF(scope.file(), " / %" V8PRIxPTR "]\n", function.ptr());
       }
       SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
-      int deopt_index = safepoint.deoptimization_index();
 
       // Turbofan deopt is checked when we are patching addresses on stack.
-      bool safe_if_deopt_triggered =
-          deopt_index != Safepoint::kNoDeoptimizationIndex;
+      bool safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       bool is_builtin_code = code->kind() == Code::BUILTIN;
       DCHECK(topmost_optimized_code.is_null() || safe_if_deopt_triggered ||
              is_builtin_code);

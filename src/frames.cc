@@ -927,10 +927,11 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   FullObjectSlot parameters_limit(frame_header_base.address() - slot_space);
 
   // Visit the parameters that may be on top of the saved registers.
-  if (safepoint_entry.argument_count() > 0) {
+  if (safepoint_entry.has_argument_count()) {
+    int argument_count = safepoint_entry.argument_count();
     v->VisitRootPointers(Root::kTop, nullptr, parameters_base,
-                         parameters_base + safepoint_entry.argument_count());
-    parameters_base += safepoint_entry.argument_count();
+                         parameters_base + argument_count);
+    parameters_base += argument_count;
   }
 
   // Skip saved double registers.
@@ -1581,10 +1582,11 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
 
   SafepointEntry safepoint_entry = code->GetSafepointEntry(pc());
-  *deopt_index = safepoint_entry.deoptimization_index();
-  if (*deopt_index != Safepoint::kNoDeoptimizationIndex) {
+  if (safepoint_entry.has_deoptimization_index()) {
+    *deopt_index = safepoint_entry.deoptimization_index();
     return DeoptimizationData::cast(code->deoptimization_data());
   }
+  *deopt_index = Safepoint::kNoDeoptimizationIndex;
   return DeoptimizationData();
 }
 
