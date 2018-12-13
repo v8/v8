@@ -378,17 +378,6 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  if (prototype->IsJSFunction()) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(prototype);
-    if (!function->shared()->HasSharedName()) {
-      Handle<Map> function_map(function->map(), isolate);
-      if (!JSFunction::SetName(function, isolate->factory()->proto_string(),
-                               isolate->factory()->empty_string())) {
-        return ReadOnlyRoots(isolate).exception();
-      }
-      CHECK_EQ(*function_map, function->map());
-    }
-  }
   MAYBE_RETURN(JSReceiver::SetPrototype(obj, prototype, false, kThrowOnError),
                ReadOnlyRoots(isolate).exception());
   return *obj;

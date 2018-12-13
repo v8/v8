@@ -23,10 +23,41 @@
   assertEquals('D2', D2.name);
 
   var E = class {}
-  assertEquals('E', E.name);  // Should be 'E'.
+  assertEquals('E', E.name);
 
   var F = class { constructor() {} };
-  assertEquals('F', F.name);  // Should be 'F'.
+  assertEquals('F', F.name);
+
+  var literal = { E: class {} };
+  assertEquals('E', literal.E.name);
+
+  literal = { E: class F {} };
+  assertEquals('F', literal.E.name);
+
+  literal = { __proto__: class {} };
+  assertEquals('', literal.__proto__.name);
+  assertEquals(
+      undefined, Object.getOwnPropertyDescriptor(literal.__proto__, 'name'));
+
+  literal = { __proto__: class F {} };
+  assertEquals('F', literal.__proto__.name);
+  assertNotEquals(
+      undefined, Object.getOwnPropertyDescriptor(literal.__proto__, 'name'));
+
+  class G {};
+  literal = { __proto__: G };
+  assertEquals('G', literal.__proto__.name);
+
+  var H = class { static name() { return 'A'; } };
+  literal = { __proto__ : H };
+  assertEquals('A', literal.__proto__.name());
+
+  literal = {
+    __proto__: class {
+      static name() { return 'A'; }
+    }
+  };
+  assertEquals('A', literal.__proto__.name());
 })();
 
 
