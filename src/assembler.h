@@ -37,6 +37,7 @@
 
 #include <forward_list>
 
+#include "src/code-comments.h"
 #include "src/deoptimize-reason.h"
 #include "src/external-reference.h"
 #include "src/flags.h"
@@ -237,6 +238,14 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // Used to print the name of some special registers.
   static const char* GetSpecialRegisterName(int code) { return "UNKNOWN"; }
 
+  // Record an inline code comment that can be used by a disassembler.
+  // Use --code-comments to enable.
+  void RecordComment(const char* msg) {
+    if (FLAG_code_comments) {
+      code_comments_writer_.Add(pc_offset(), std::string(msg));
+    }
+  }
+
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the
   // offset at which it is stored.
@@ -282,6 +291,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
     return true;
   }
+
+  CodeCommentsWriter code_comments_writer_;
 
  private:
   // Before we copy code into the code space, we sometimes cannot encode

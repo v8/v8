@@ -547,8 +547,11 @@ void RawMachineAssembler::Unreachable() {
   current_block_ = nullptr;
 }
 
-void RawMachineAssembler::Comment(const char* msg) {
-  AddNode(machine()->Comment(msg));
+void RawMachineAssembler::Comment(std::string msg) {
+  size_t length = msg.length() + 1;
+  char* zone_buffer = zone()->NewArray<char>(length);
+  MemCopy(zone_buffer, msg.c_str(), length);
+  AddNode(machine()->Comment(zone_buffer));
 }
 
 Node* RawMachineAssembler::CallN(CallDescriptor* call_descriptor,

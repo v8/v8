@@ -924,7 +924,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void DebugAbort(Node* message);
   void DebugBreak();
   void Unreachable();
-  void Comment(const char* msg);
+  void Comment(std::string msg);
 
 #if DEBUG
   void Bind(RawMachineLabel* label, AssemblerDebugInfo info);

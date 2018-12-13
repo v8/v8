@@ -88,6 +88,9 @@ declare_args() {
   # Enable embedded builtins.
   v8_enable_embedded_builtins = true
 
+  # Enable code comments for builtins in the snapshot (impacts performance).
+  v8_enable_snapshot_code_comments = false
+
   # Build-time flag for enabling nojit mode.
   # TODO(v8:7777): Remove the build-time flag once the --jitless runtime flag
   # does everything we need.
@@ -1148,6 +1151,10 @@ template("run_mksnapshot") {
       args += [ rebase_path(v8_embed_script, root_build_dir) ]
     }
 
+    if (v8_enable_snapshot_code_comments) {
+      args += [ "--code-comments" ]
+    }
+
     if (v8_enable_fast_mksnapshot) {
       args += [
         "--no-turbo-rewrite-far-jumps",
@@ -1734,6 +1741,8 @@ v8_source_set("v8_base") {
     "src/char-predicates.cc",
     "src/char-predicates.h",
     "src/checks.h",
+    "src/code-comments.cc",
+    "src/code-comments.h",
     "src/code-events.h",
     "src/code-factory.cc",
     "src/code-factory.h",
@@ -2239,7 +2248,6 @@ v8_source_set("v8_base") {
     "src/lookup-inl.h",
     "src/lookup.cc",
     "src/lookup.h",
-    "src/lsan.h",
     "src/machine-type.cc",
     "src/machine-type.h",
     "src/macro-assembler-inl.h",

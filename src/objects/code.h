@@ -100,6 +100,12 @@ class Code : public HeapObjectPtr {
   // Valid for FLAG_enable_embedded_constant_pool only
   inline int constant_pool_offset() const;
   inline void set_constant_pool_offset(int offset);
+  inline int constant_pool_size() const;
+
+  // [code_comments_offset]: Offset of the code comment section.
+  inline int code_comments_offset() const;
+  inline void set_code_comments_offset(int offset);
+  inline Address code_comments() const;
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
@@ -367,6 +373,7 @@ class Code : public HeapObjectPtr {
   V(kHandlerTableOffsetOffset, kIntSize)                                    \
   V(kConstantPoolOffset, FLAG_enable_embedded_constant_pool ? kIntSize : 0) \
   V(kBuiltinIndexOffset, kIntSize)                                          \
+  V(kCodeCommentsOffset, kIntSize)                                          \
   /* Add padding to align the instruction start following right after */    \
   /* the Code object header. */                                             \
   V(kHeaderPaddingStart, CODE_POINTER_PADDING(kHeaderPaddingStart))         \
@@ -378,28 +385,28 @@ class Code : public HeapObjectPtr {
   // This documents the amount of free space we have in each Code object header
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
-  static constexpr int kHeaderPaddingSize = 4;
+  static constexpr int kHeaderPaddingSize = 0;
   STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_MIPS64
-  static constexpr int kHeaderPaddingSize = 4;
+  static constexpr int kHeaderPaddingSize = 0;
   STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_X64
-  static constexpr int kHeaderPaddingSize = 4;
+  static constexpr int kHeaderPaddingSize = 0;
   STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_ARM
-  static constexpr int kHeaderPaddingSize = 24;
+  static constexpr int kHeaderPaddingSize = 20;
   STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_IA32
-  static constexpr int kHeaderPaddingSize = 24;
+  static constexpr int kHeaderPaddingSize = 20;
   STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_MIPS
-  static constexpr int kHeaderPaddingSize = 24;
+  static constexpr int kHeaderPaddingSize = 20;
   STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_PPC
   // No static assert possible since padding size depends on the
   // FLAG_enable_embedded_constant_pool runtime flag.
 #elif V8_TARGET_ARCH_S390
-  static constexpr int kHeaderPaddingSize = 24;
+  static constexpr int kHeaderPaddingSize = 20;
   STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #else
 #error Unknown architecture.

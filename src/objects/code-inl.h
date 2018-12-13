@@ -539,21 +539,47 @@ bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
-  if (!FLAG_enable_embedded_constant_pool) return InstructionSize();
+  if (!FLAG_enable_embedded_constant_pool) return code_comments_offset();
   return READ_INT_FIELD(this, kConstantPoolOffset);
 }
 
 void Code::set_constant_pool_offset(int value) {
   if (!FLAG_enable_embedded_constant_pool) return;
+  DCHECK_LT(value, InstructionSize());
   WRITE_INT_FIELD(this, kConstantPoolOffset, value);
 }
 
+int Code::constant_pool_size() const {
+  if (!FLAG_enable_embedded_constant_pool) return 0;
+  return code_comments_offset() - constant_pool_offset();
+}
 Address Code::constant_pool() const {
   if (FLAG_enable_embedded_constant_pool) {
     int offset = constant_pool_offset();
-    if (offset < InstructionSize()) {
+    if (offset < code_comments_offset()) {
       return InstructionStart() + offset;
     }
+  }
+  return kNullAddress;
+}
+
+int Code::code_comments_offset() const {
+  int offset = READ_INT_FIELD(this, kCodeCommentsOffset);
+  DCHECK_LE(0, offset);
+  DCHECK_LE(offset, InstructionSize());
+  return offset;
+}
+
+void Code::set_code_comments_offset(int offset) {
+  DCHECK_LE(0, offset);
+  DCHECK_LE(offset, InstructionSize());
+  WRITE_INT_FIELD(this, kCodeCommentsOffset, offset);
+}
+
+Address Code::code_comments() const {
+  int offset = code_comments_offset();
+  if (offset < InstructionSize()) {
+    return InstructionStart() + offset;
   }
   return kNullAddress;
 }

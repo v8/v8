@@ -1206,7 +1206,8 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
 }
 
 void Code::CodeVerify(Isolate* isolate) {
-  CHECK_LE(constant_pool_offset(), InstructionSize());
+  CHECK_LE(constant_pool_offset(), code_comments_offset());
+  CHECK_LE(code_comments_offset(), InstructionSize());
   CHECK(IsAligned(raw_instruction_start(), kCodeAlignment));
   relocation_info()->ObjectVerify(isolate);
   CHECK(Code::SizeFor(body_size()) <= kMaxRegularHeapObjectSize ||
