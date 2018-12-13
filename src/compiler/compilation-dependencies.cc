@@ -12,7 +12,7 @@ namespace internal {
 namespace compiler {
 
 CompilationDependencies::CompilationDependencies(Isolate* isolate, Zone* zone)
-    : zone_(zone), dependencies_(zone) {}
+    : zone_(zone), dependencies_(zone), isolate_(isolate) {}
 
 class CompilationDependencies::Dependency : public ZoneObject {
  public:
@@ -416,7 +416,16 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
     }
     dep->Install(MaybeObjectHandle::Weak(code));
   }
-  SLOW_DCHECK(AreValid());
+
+  if (FLAG_stress_gc_during_compilation) {
+    isolate_->heap()->PreciseCollectAllGarbage(
+        Heap::kNoGCFlags, GarbageCollectionReason::kTesting,
+        kGCCallbackFlagForced);
+    if (!AreValid()) {
+      dependencies_.clear();
+      return false;
+    }
+  }
 
   dependencies_.clear();
   return true;

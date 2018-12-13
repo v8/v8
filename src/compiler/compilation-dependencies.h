@@ -91,6 +91,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
  private:
   Zone* zone_;
   ZoneForwardList<Dependency*> dependencies_;
+  Isolate* isolate_;
 };
 
 }  // namespace compiler

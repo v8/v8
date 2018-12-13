@@ -517,6 +517,9 @@ DEFINE_BOOL(turbo_rewrite_far_jumps, true,
             "rewrite far to near jumps (ia32,x64)")
 DEFINE_BOOL(experimental_inline_promise_constructor, true,
             "inline the Promise constructor in TurboFan")
+DEFINE_BOOL(
+    stress_gc_during_compilation, false,
+    "simulate GC/compiler thread race related to https://crbug.com/v8/8520")
 
 #ifdef DISABLE_UNTRUSTED_CODE_MITIGATIONS
 #define V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS false

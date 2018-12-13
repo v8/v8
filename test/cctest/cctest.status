@@ -428,6 +428,12 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
+# The test relies on deterministic compilation.
+['variant == stress_background_compile', {
+  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
+}],  # variant == stress_background_compile
+
+##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
