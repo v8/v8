@@ -81,7 +81,10 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
 
   for (; i.has_next(); i.next()) {
     WasmOpcode opcode = i.current();
-    if (opcode == kExprElse || opcode == kExprEnd) --control_depth;
+    if (opcode == kExprElse || opcode == kExprCatch ||
+        opcode == kExprCatchAll || opcode == kExprEnd) {
+      --control_depth;
+    }
 
     DCHECK_LE(0, control_depth);
     const int kMaxIndentation = 64;
@@ -118,7 +121,8 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         break;
       }
       case kExprElse:
-        os << "else";
+      case kExprCatchAll:
+        os << WasmOpcodes::OpcodeName(opcode);
         control_depth++;
         break;
       case kExprEnd:
@@ -149,8 +153,10 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.index;
         break;
       }
-      case kExprThrow:
-      case kExprCatch: {
+      case kExprCatch:
+        control_depth++;
+        V8_FALLTHROUGH;
+      case kExprThrow: {
         ExceptionIndexImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.index;
         break;
