@@ -168,7 +168,7 @@ class PipelineData {
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         assembler_options_(assembler_options) {}
 
-  // For machine graph testing entry point.
+  // For CodeStubAssembler and machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
                Isolate* isolate, Graph* graph, Schedule* schedule,
                SourcePositionTable* source_positions,
@@ -180,6 +180,7 @@ class PipelineData {
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
+        graph_zone_(graph_zone_scope_.zone()),
         graph_(graph),
         source_positions_(source_positions),
         node_origins_(node_origins),
@@ -191,7 +192,17 @@ class PipelineData {
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         jump_optimization_info_(jump_opt),
-        assembler_options_(assembler_options) {}
+        assembler_options_(assembler_options) {
+    simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
+    machine_ = new (graph_zone_) MachineOperatorBuilder(
+        graph_zone_, MachineType::PointerRepresentation(),
+        InstructionSelector::SupportedMachineOperatorFlags(),
+        InstructionSelector::AlignmentRequirements());
+    common_ = new (graph_zone_) CommonOperatorBuilder(graph_zone_);
+    javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
+    jsgraph_ = new (graph_zone_)
+        JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
+  }
 
   // For register allocation testing entry point.
   PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
@@ -1303,7 +1314,7 @@ struct EarlyOptimizationPhase {
                                              data->broker());
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
-    MachineOperatorReducer machine_reducer(data->jsgraph());
+    MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
@@ -1467,7 +1478,7 @@ struct LateOptimizationPhase {
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
-    MachineOperatorReducer machine_reducer(data->jsgraph());
+    MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
@@ -1479,6 +1490,28 @@ struct LateOptimizationPhase {
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &select_lowering);
     AddReducer(data, &graph_reducer, &value_numbering);
+    graph_reducer.ReduceGraph();
+  }
+};
+
+struct CsaOptimizationPhase {
+  static const char* phase_name() { return "csa optimization"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
+    BranchElimination branch_condition_elimination(&graph_reducer,
+                                                   data->jsgraph(), temp_zone);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
+    MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph());
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->broker(), data->common(),
+                                         data->machine(), temp_zone);
+    AddReducer(data, &graph_reducer, &branch_condition_elimination);
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &machine_reducer);
+    AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
   }
 };
@@ -2035,12 +2068,13 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
   NodeOriginTable node_origins(graph);
+  SourcePositionTable source_positions(graph);
   JumpOptimizationInfo jump_opt;
   bool should_optimize_jumps =
       isolate->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
-  PipelineData data(&zone_stats, &info, isolate, graph, nullptr, nullptr,
-                    &node_origins, should_optimize_jumps ? &jump_opt : nullptr,
-                    options);
+  PipelineData data(&zone_stats, &info, isolate, graph, nullptr,
+                    &source_positions, &node_origins,
+                    should_optimize_jumps ? &jump_opt : nullptr, options);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
@@ -2067,6 +2101,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
+  pipeline.Run<CsaOptimizationPhase>();
+  pipeline.RunPrintAndVerify(CsaOptimizationPhase::phase_name(), true);
+
   pipeline.Run<VerifyGraphPhase>(true);
   pipeline.ComputeScheduledGraph();
   DCHECK_NOT_NULL(data.schedule());
@@ -2075,8 +2112,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   // repeat it for jump optimization. The first run has to happen on a temporary
   // pipeline to avoid deletion of zones on the main pipeline.
   PipelineData second_data(&zone_stats, &info, isolate, data.graph(),
-                           data.schedule(), nullptr, &node_origins,
-                           data.jump_optimization_info(), options);
+                           data.schedule(), data.source_positions(),
+                           data.node_origins(), data.jump_optimization_info(),
+                           options);
   second_data.set_verify_graph(FLAG_verify_csa);
   PipelineImpl second_pipeline(&second_data);
   Handle<Code> code =
@@ -2345,7 +2383,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
                                               data.common(), scope.zone());
     ValueNumberingReducer value_numbering(scope.zone(), data.graph()->zone());
     const bool allow_signalling_nan = is_asm_js;
-    MachineOperatorReducer machine_reducer(data.mcgraph(),
+    MachineOperatorReducer machine_reducer(&graph_reducer, data.mcgraph(),
                                            allow_signalling_nan);
     CommonOperatorReducer common_reducer(&graph_reducer, data.graph(),
                                          data.broker(), data.common(),
