@@ -111,7 +111,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
   Label ok(this);
   Label not_ok(this, Label::kDeferred);
   if (message != nullptr && FLAG_code_comments) {
-    Comment("[ Assert: ", message);
+    Comment("[ Assert: %s", message);
   } else {
     Comment("[ Assert");
   }
@@ -2875,7 +2875,7 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
                                                  TVariable<IntPtrT>* arg_index,
                                                  Label* bailout) {
   CSA_SLOW_ASSERT(this, IsJSArray(array));
-  Comment("BuildAppendJSArray: ", ElementsKindToString(kind));
+  Comment("BuildAppendJSArray: %s", ElementsKindToString(kind));
   Label pre_bailout(this);
   Label success(this);
   TVARIABLE(Smi, var_tagged_length);
@@ -2942,7 +2942,7 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
 void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
                                            Node* value, Label* bailout) {
   CSA_SLOW_ASSERT(this, IsJSArray(array));
-  Comment("BuildAppendJSArray: ", ElementsKindToString(kind));
+  Comment("BuildAppendJSArray: %s", ElementsKindToString(kind));
   ParameterMode mode = OptimalParameterMode();
   VARIABLE(var_length, OptimalParameterRepresentation(),
            TaggedToParameter(LoadFastJSArrayLength(array), mode));
@@ -5050,8 +5050,8 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
   bool from_one_byte = from_encoding == String::ONE_BYTE_ENCODING;
   bool to_one_byte = to_encoding == String::ONE_BYTE_ENCODING;
   DCHECK_IMPLIES(to_one_byte, from_one_byte);
-  Comment("CopyStringCharacters ",
-          from_one_byte ? "ONE_BYTE_ENCODING" : "TWO_BYTE_ENCODING", " -> ",
+  Comment("CopyStringCharacters %s -> %s",
+          from_one_byte ? "ONE_BYTE_ENCODING" : "TWO_BYTE_ENCODING",
           to_one_byte ? "ONE_BYTE_ENCODING" : "TWO_BYTE_ENCODING");
 
   ElementsKind from_kind = from_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;

@@ -760,32 +760,28 @@ enum ParseRestriction {
 // A CodeDesc describes a buffer holding instructions and relocation
 // information. The instructions start at the beginning of the buffer
 // and grow forward, the relocation information starts at the end of
-// the buffer and grows backward.  A constant pool and a code comments
-// section may exist at the in this order at the end of the instructions.
+// the buffer and grows backward.  A constant pool may exist at the
+// end of the instructions.
 //
-//  │<--------------- buffer_size ----------------------------------->│
-//  │<---------------- instr_size ------------->│      │<-reloc_size->│
-//  │              │<-const pool->│             │      │              │
-//  │                             │<- comments->│      │              │
-//  ├───────────────────────────────────────────┼──────┼──────────────┤
-//  │ instructions │         data               │ free │  reloc info  │
-//  ├───────────────────────────────────────────┴──────┴──────────────┘
+//  |<--------------- buffer_size ----------------------------------->|
+//  |<------------- instr_size ---------->|        |<-- reloc_size -->|
+//  |               |<- const_pool_size ->|                           |
+//  +=====================================+========+==================+
+//  |  instructions |        data         |  free  |    reloc info    |
+//  +=====================================+========+==================+
+//  ^
+//  |
 //  buffer
 
 struct CodeDesc {
-  byte* buffer = nullptr;
-  int buffer_size = 0;
-  int instr_size = 0;
-  int reloc_size = 0;
-  int constant_pool_size = 0;
-  int code_comments_size = 0;
-  byte* unwinding_info = 0;
-  int unwinding_info_size = 0;
-  Assembler* origin = nullptr;
-  int constant_pool_offset() const {
-    return code_comments_offset() - constant_pool_size;
-  }
-  int code_comments_offset() const { return instr_size - code_comments_size; }
+  byte* buffer;
+  int buffer_size;
+  int instr_size;
+  int reloc_size;
+  int constant_pool_size;
+  byte* unwinding_info;
+  int unwinding_info_size;
+  Assembler* origin;
 };
 
 // State for inline cache call sites. Aliased as IC::State.

@@ -14,6 +14,7 @@
 #include "src/counters.h"
 #include "src/eh-frame.h"
 #include "src/frames.h"
+#include "src/lsan.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"
@@ -64,7 +65,10 @@ CodeGenerator::CodeGenerator(
       deoptimization_exits_(zone()),
       deoptimization_states_(zone()),
       deoptimization_literals_(zone()),
+      inlined_function_count_(0),
       translations_(zone()),
+      handler_table_offset_(0),
+      last_lazy_deopt_pc_(0),
       caller_registers_saved_(false),
       jump_tables_(nullptr),
       ools_(nullptr),
@@ -198,21 +202,29 @@ void CodeGenerator::AssembleCode() {
     current_block_ = block->rpo_number();
     unwinding_info_writer_.BeginInstructionBlock(tasm()->pc_offset(), block);
     if (FLAG_code_comments) {
-      std::ostringstream buffer;
-      buffer << "-- B" << block->rpo_number().ToInt() << " start";
-      if (block->IsDeferred()) buffer << " (deferred)";
-      if (!block->needs_frame()) buffer << " (no frame)";
-      if (block->must_construct_frame()) buffer << " (construct frame)";
-      if (block->must_deconstruct_frame()) buffer << " (deconstruct frame)";
+      Vector<char> buffer = Vector<char>::New(200);
+      char* buffer_start = buffer.start();
+      LSAN_IGNORE_OBJECT(buffer_start);
+
+      int next = SNPrintF(
+          buffer, "-- B%d start%s%s%s%s", block->rpo_number().ToInt(),
+          block->IsDeferred() ? " (deferred)" : "",
+          block->needs_frame() ? "" : " (no frame)",
+          block->must_construct_frame() ? " (construct frame)" : "",
+          block->must_deconstruct_frame() ? " (deconstruct frame)" : "");
+
+      buffer = buffer.SubVector(next, buffer.length());
 
       if (block->IsLoopHeader()) {
-        buffer << " (loop up to " << block->loop_end().ToInt() << ")";
+        next = SNPrintF(buffer, " (loop up to %d)", block->loop_end().ToInt());
+        buffer = buffer.SubVector(next, buffer.length());
       }
       if (block->loop_header().IsValid()) {
-        buffer << " (in loop " << block->loop_header().ToInt() << ")";
+        next = SNPrintF(buffer, " (in loop %d)", block->loop_header().ToInt());
+        buffer = buffer.SubVector(next, buffer.length());
       }
-      buffer << " --";
-      tasm()->RecordComment(buffer.str().c_str());
+      SNPrintF(buffer, " --");
+      tasm()->RecordComment(buffer_start);
     }
 
     frame_access_state()->MarkHasFrame(block->needs_frame());
@@ -396,7 +408,6 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     tasm()->AbortedCodeGeneration();
     return MaybeHandle<Code>();
   }
-
   isolate()->counters()->total_compiled_code_size()->Increment(
       code->raw_instruction_size());
 
@@ -723,7 +734,9 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
       buffer << source_position.InliningStack(info);
     }
     buffer << " --";
-    tasm()->RecordComment(buffer.str().c_str());
+    char* str = StrDup(buffer.str().c_str());
+    LSAN_IGNORE_OBJECT(str);
+    tasm()->RecordComment(str);
   }
 }
 

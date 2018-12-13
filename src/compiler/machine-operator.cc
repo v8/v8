@@ -813,7 +813,7 @@ struct MachineOperatorGlobalCache {
 struct CommentOperator : public Operator1<const char*> {
   explicit CommentOperator(const char* msg)
       : Operator1<const char*>(IrOpcode::kComment, Operator::kNoThrow,
-                               "Comment", 0, 1, 1, 0, 1, 0, msg) {}
+                               "Comment", 0, 0, 0, 0, 0, 0, msg) {}
 };
 
 static base::LazyInstance<MachineOperatorGlobalCache>::type

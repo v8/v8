@@ -450,8 +450,6 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   PatchConstPool();
   DCHECK(constpool_.IsEmpty());
 
-  int code_comments_size = WriteCodeComments();
-
   // At this point overflow() may be true, but the gap ensures
   // that we are still not overlapping instructions and relocation info.
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
@@ -469,7 +467,6 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->constant_pool_size = 0;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
-  desc->code_comments_size = code_comments_size;
 
   // Collection stage
   auto jump_opt = jump_optimization_info();

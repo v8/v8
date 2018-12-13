@@ -582,28 +582,6 @@ TEST(ExceptionHandler) {
   CHECK_EQ(2, ft.CallChecked<Smi>()->value());
 }
 
-TEST(TestCodeAssemblerCodeComment) {
-  i::FLAG_code_comments = true;
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 0;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeAssembler m(asm_tester.state());
-
-  m.Comment("Comment1");
-  m.Return(m.SmiConstant(1));
-
-  Handle<Code> code = asm_tester.GenerateCode();
-  CHECK_NE(code->code_comments(), kNullAddress);
-  CodeCommentsIterator it(code->code_comments());
-  CHECK(it.HasCurrent());
-  bool found_comment = false;
-  while (it.HasCurrent()) {
-    if (strcmp(it.GetComment(), "Comment1") == 0) found_comment = true;
-    it.Next();
-  }
-  CHECK(found_comment);
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

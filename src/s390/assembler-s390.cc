@@ -366,8 +366,6 @@ Assembler::Assembler(const AssemblerOptions& options, void* buffer,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   EmitRelocations();
 
-  int code_comments_size = WriteCodeComments();
-
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
@@ -379,7 +377,6 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->origin = this;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
-  desc->code_comments_size = code_comments_size;
 }
 
 void Assembler::Align(int m) {
