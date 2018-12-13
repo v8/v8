@@ -23,6 +23,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/instance-type-inl.h"
@@ -37,6 +38,7 @@
 #include "src/objects/promise-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/stack-frame-info-inl.h"
+#include "src/objects/struct-inl.h"
 #include "src/unicode-cache.h"
 #include "src/unicode-decoder.h"
 

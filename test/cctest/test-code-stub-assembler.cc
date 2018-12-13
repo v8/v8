@@ -22,6 +22,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/smi.h"
+#include "src/objects/struct-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 

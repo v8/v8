@@ -12,6 +12,7 @@
 #include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/feedback-cell-inl.h"
 #include "test/cctest/test-feedback-vector.h"
 
 namespace v8 {

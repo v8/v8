@@ -14,6 +14,7 @@
 #include "src/lookup-cache.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/struct-inl.h"
 #include "src/property.h"
 
 // Has to be the last include (doesn't have include guards):

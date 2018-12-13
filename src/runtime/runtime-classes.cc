@@ -17,6 +17,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/smi.h"
+#include "src/objects/struct-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

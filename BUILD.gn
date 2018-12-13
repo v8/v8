@@ -908,6 +908,8 @@ action("postmortem-metadata") {
     "src/objects/code.h",
     "src/objects/data-handler.h",
     "src/objects/data-handler-inl.h",
+    "src/objects/feedback-cell.h",
+    "src/objects/feedback-cell-inl.h",
     "src/objects/fixed-array-inl.h",
     "src/objects/fixed-array.h",
     "src/objects/heap-object-inl.h",
@@ -936,6 +938,8 @@ action("postmortem-metadata") {
     "src/objects/shared-function-info-inl.h",
     "src/objects/string.h",
     "src/objects/string-inl.h",
+    "src/objects/struct.h",
+    "src/objects/struct-inl.h",
   ]
 
   outputs = [
@@ -2296,6 +2300,8 @@ v8_source_set("v8_base") {
     "src/objects/embedder-data-array.h",
     "src/objects/embedder-data-slot-inl.h",
     "src/objects/embedder-data-slot.h",
+    "src/objects/feedback-cell-inl.h",
+    "src/objects/feedback-cell.h",
     "src/objects/fixed-array-inl.h",
     "src/objects/fixed-array.h",
     "src/objects/frame-array-inl.h",
@@ -2406,6 +2412,8 @@ v8_source_set("v8_base") {
     "src/objects/string-table-inl.h",
     "src/objects/string-table.h",
     "src/objects/string.h",
+    "src/objects/struct-inl.h",
+    "src/objects/struct.h",
     "src/objects/template-objects.cc",
     "src/objects/template-objects.h",
     "src/objects/templates-inl.h",

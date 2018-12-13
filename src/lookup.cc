@@ -11,6 +11,7 @@
 #include "src/field-type.h"
 #include "src/isolate-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/struct-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -10,6 +10,7 @@
 #include "src/objects/builtin-function-id.h"
 #include "src/objects/script.h"
 #include "src/objects/smi.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

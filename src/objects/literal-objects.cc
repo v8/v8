@@ -12,6 +12,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/smi.h"
+#include "src/objects/struct-inl.h"
 
 namespace v8 {
 namespace internal {

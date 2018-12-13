@@ -12,6 +12,7 @@
 #include "src/keys.h"
 #include "src/lookup-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
+#include "src/objects/feedback-cell-inl.h"
 #include "src/objects/property-array-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"

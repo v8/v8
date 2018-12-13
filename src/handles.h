@@ -153,6 +153,7 @@ class Handle final : public HandleBase {
            (std::is_same<S, ByteArray>::value || std::is_same<S, Code>::value ||
             std::is_same<S, Context>::value ||
             std::is_same<S, DescriptorArray>::value ||
+            std::is_same<S, FeedbackCell>::value ||
             std::is_same<S, FeedbackVector>::value ||
             std::is_same<S, FixedArray>::value ||
             std::is_same<S, FixedArrayBase>::value ||

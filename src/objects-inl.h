@@ -447,7 +447,6 @@ OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 // ------------------------------------
 // Cast operations
 
-CAST_ACCESSOR(AccessorPair)
 CAST_ACCESSOR2(BigInt)
 CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR(Cell)
@@ -455,7 +454,6 @@ CAST_ACCESSOR(ArrayBoilerplateDescription)
 CAST_ACCESSOR(DataHandler)
 CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
-CAST_ACCESSOR(FeedbackCell)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
@@ -467,10 +465,7 @@ CAST_ACCESSOR2(ObjectHashTable)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR2(RegExpMatchInfo)
 CAST_ACCESSOR2(ScopeInfo)
-CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(TemplateObjectDescription)
-CAST_ACCESSOR(Tuple2)
-CAST_ACCESSOR(Tuple3)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
@@ -889,7 +884,6 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
 
 
 ACCESSORS(Cell, value, Object, kValueOffset)
-ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
   return instance_type <= LAST_SPECIAL_RECEIVER_TYPE;
@@ -912,13 +906,6 @@ inline bool IsCustomElementsReceiverInstanceType(InstanceType instance_type) {
 // dependency.
 bool Map::IsCustomElementsReceiverMap() const {
   return IsCustomElementsReceiverInstanceType(instance_type());
-}
-
-void Struct::InitializeBody(int object_size) {
-  Object* value = GetReadOnlyRoots().undefined_value();
-  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
-    WRITE_FIELD(this, offset, value);
-  }
 }
 
 bool Object::ToArrayLength(uint32_t* index) const {
@@ -1188,17 +1175,10 @@ int HeapObject::SizeFromMap(Map map) const {
       EmbedderDataArray::unchecked_cast(this)->length());
 }
 
-ACCESSORS(Tuple2, value1, Object, kValue1Offset)
-ACCESSORS(Tuple2, value2, Object, kValue2Offset)
-ACCESSORS(Tuple3, value3, Object, kValue3Offset)
-
 ACCESSORS2(TemplateObjectDescription, raw_strings, FixedArray,
            kRawStringsOffset)
 ACCESSORS2(TemplateObjectDescription, cooked_strings, FixedArray,
            kCookedStringsOffset)
-
-ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
-ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 
 // static
 bool Foreign::IsNormalized(Object* value) {
@@ -1312,44 +1292,6 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 }
 
 
-
-Object* AccessorPair::get(AccessorComponent component) {
-  return component == ACCESSOR_GETTER ? getter() : setter();
-}
-
-
-void AccessorPair::set(AccessorComponent component, Object* value) {
-  if (component == ACCESSOR_GETTER) {
-    set_getter(value);
-  } else {
-    set_setter(value);
-  }
-}
-
-
-void AccessorPair::SetComponents(Object* getter, Object* setter) {
-  if (!getter->IsNull()) set_getter(getter);
-  if (!setter->IsNull()) set_setter(setter);
-}
-
-bool AccessorPair::Equals(AccessorPair* pair) {
-  return (this == pair) || pair->Equals(getter(), setter());
-}
-
-
-bool AccessorPair::Equals(Object* getter_value, Object* setter_value) {
-  return (getter() == getter_value) && (setter() == setter_value);
-}
-
-
-bool AccessorPair::ContainsAccessor() {
-  return IsJSAccessor(getter()) || IsJSAccessor(setter());
-}
-
-
-bool AccessorPair::IsJSAccessor(Object* obj) {
-  return obj->IsCallable() || obj->IsUndefined();
-}
 
 // static
 Object* Object::GetSimpleHash(Object* object) {

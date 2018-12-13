@@ -90,6 +90,7 @@
 #include "src/objects/promise-inl.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
+#include "src/objects/struct-inl.h"
 #include "src/parsing/preparsed-scope-data.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"

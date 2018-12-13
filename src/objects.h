@@ -284,6 +284,7 @@ class PreParsedScopeData;
 class PropertyArray;
 class PropertyCell;
 class PropertyDescriptor;
+class PrototypeInfo;
 class RegExpMatchInfo;
 class RootVisitor;
 class SafepointEntry;
@@ -1360,56 +1361,6 @@ class FreeSpace: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeSpace);
 };
 
-class PrototypeInfo;
-
-// An abstract superclass, a marker class really, for simple structure classes.
-// It doesn't carry much functionality but allows struct classes to be
-// identified in the type system.
-class Struct: public HeapObject {
- public:
-  inline void InitializeBody(int object_size);
-  DECL_CAST(Struct)
-  void BriefPrintDetails(std::ostream& os);
-};
-
-class Tuple2 : public Struct {
- public:
-  DECL_ACCESSORS(value1, Object)
-  DECL_ACCESSORS(value2, Object)
-
-  DECL_CAST(Tuple2)
-
-  // Dispatched behavior.
-  DECL_PRINTER(Tuple2)
-  DECL_VERIFIER(Tuple2)
-  void BriefPrintDetails(std::ostream& os);
-
-  static const int kValue1Offset = HeapObject::kHeaderSize;
-  static const int kValue2Offset = kValue1Offset + kPointerSize;
-  static const int kSize = kValue2Offset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple2);
-};
-
-class Tuple3 : public Tuple2 {
- public:
-  DECL_ACCESSORS(value3, Object)
-
-  DECL_CAST(Tuple3)
-
-  // Dispatched behavior.
-  DECL_PRINTER(Tuple3)
-  DECL_VERIFIER(Tuple3)
-  void BriefPrintDetails(std::ostream& os);
-
-  static const int kValue3Offset = Tuple2::kSize;
-  static const int kSize = kValue3Offset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple3);
-};
-
 // Utility superclass for stack-allocated objects that must be updated
 // on gc.  It provides two ways for the gc to update instances, either
 // iterating or updating after gc.
@@ -1535,32 +1486,6 @@ class Cell: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Cell);
 };
 
-// This is a special cell used to maintain both the link between a
-// closure and it's feedback vector, as well as a way to count the
-// number of closures created for a certain function per native
-// context. There's at most one FeedbackCell for each function in
-// a native context.
-class FeedbackCell : public Struct {
- public:
-  // [value]: value of the cell.
-  DECL_ACCESSORS(value, HeapObject)
-
-  DECL_CAST(FeedbackCell)
-
-  // Dispatched behavior.
-  DECL_PRINTER(FeedbackCell)
-  DECL_VERIFIER(FeedbackCell)
-
-  static const int kValueOffset = HeapObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
-
-  typedef FixedBodyDescriptor<kValueOffset, kValueOffset + kPointerSize, kSize>
-      BodyDescriptor;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackCell);
-};
-
 // Foreign describes objects pointing from JavaScript to C structures.
 class Foreign: public HeapObject {
  public:
@@ -1592,56 +1517,6 @@ class Foreign: public HeapObject {
   inline void set_foreign_address(Address value);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Foreign);
-};
-
-// Support for JavaScript accessors: A pair of a getter and a setter. Each
-// accessor can either be
-//   * a JavaScript function or proxy: a real accessor
-//   * a FunctionTemplateInfo: a real (lazy) accessor
-//   * undefined: considered an accessor by the spec, too, strangely enough
-//   * null: an accessor which has not been set
-class AccessorPair: public Struct {
- public:
-  DECL_ACCESSORS(getter, Object)
-  DECL_ACCESSORS(setter, Object)
-
-  DECL_CAST(AccessorPair)
-
-  static Handle<AccessorPair> Copy(Isolate* isolate, Handle<AccessorPair> pair);
-
-  inline Object* get(AccessorComponent component);
-  inline void set(AccessorComponent component, Object* value);
-
-  // Note: Returns undefined if the component is not set.
-  static Handle<Object> GetComponent(Isolate* isolate,
-                                     Handle<AccessorPair> accessor_pair,
-                                     AccessorComponent component);
-
-  // Set both components, skipping arguments which are a JavaScript null.
-  inline void SetComponents(Object* getter, Object* setter);
-
-  inline bool Equals(AccessorPair* pair);
-  inline bool Equals(Object* getter_value, Object* setter_value);
-
-  inline bool ContainsAccessor();
-
-  // Dispatched behavior.
-  DECL_PRINTER(AccessorPair)
-  DECL_VERIFIER(AccessorPair)
-
-  static const int kGetterOffset = HeapObject::kHeaderSize;
-  static const int kSetterOffset = kGetterOffset + kPointerSize;
-  static const int kSize = kSetterOffset + kPointerSize;
-
- private:
-  // Strangely enough, in addition to functions and harmony proxies, the spec
-  // requires us to consider undefined as a kind of accessor, too:
-  //    var obj = {};
-  //    Object.defineProperty(obj, "foo", {get: undefined});
-  //    assertTrue("foo" in obj);
-  inline bool IsJSAccessor(Object* obj);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorPair);
 };
 
 // BooleanBit is a helper class for setting and getting a bit in an integer.

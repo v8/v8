@@ -27,6 +27,7 @@
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
 #include "src/message-template.h"
+#include "src/objects/feedback-cell-inl.h"
 #include "src/objects/map.h"
 #include "src/optimized-compilation-info.h"
 #include "src/parsing/parse-info.h"
