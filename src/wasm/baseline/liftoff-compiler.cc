@@ -490,14 +490,14 @@ class LiftoffCompiler {
 
   void FallThruTo(FullDecoder* decoder, Control* c) {
     if (c->end_merge.reached) {
-      __ MergeFullStackWith(c->label_state);
+      __ MergeFullStackWith(c->label_state, *__ cache_state());
     } else if (c->is_onearmed_if()) {
       // Init the merge point from the else state, then merge the if state into
       // that.
       DCHECK_EQ(0, c->end_merge.arity);
       c->label_state.InitMerge(c->else_state->state, __ num_locals(), 0,
                                c->stack_depth);
-      __ MergeFullStackWith(c->label_state);
+      __ MergeFullStackWith(c->label_state, *__ cache_state());
     } else {
       c->label_state.Split(*__ cache_state());
     }
@@ -505,14 +505,14 @@ class LiftoffCompiler {
   }
 
   void PopControl(FullDecoder* decoder, Control* c) {
+    // A loop just falls through.
+    if (c->is_loop()) return;
     if (c->is_onearmed_if()) {
       if (c->end_merge.reached) {
         // Generate the code to merge the else state into the end state.
-        // TODO(clemensh): Do this without switching to the else state first.
         __ emit_jump(c->label.get());
         __ bind(c->else_state->label.get());
-        __ cache_state()->Steal(c->else_state->state);
-        __ MergeFullStackWith(c->label_state);
+        __ MergeFullStackWith(c->label_state, c->else_state->state);
         __ cache_state()->Steal(c->label_state);
       } else {
         // There is no merge at the end of the if, so just continue with the
@@ -520,12 +520,10 @@ class LiftoffCompiler {
         __ bind(c->else_state->label.get());
         __ cache_state()->Steal(c->else_state->state);
       }
-    } else if (!c->is_loop() && c->end_merge.reached) {
+    } else if (c->end_merge.reached) {
       __ cache_state()->Steal(c->label_state);
     }
-    if (!c->label.get()->is_bound()) {
-      __ bind(c->label.get());
-    }
+    if (!c->label.get()->is_bound()) __ bind(c->label.get());
   }
 
   void EndControl(FullDecoder* decoder, Control* c) {}
@@ -1334,7 +1332,7 @@ class LiftoffCompiler {
         c->label_state.InitMerge(*__ cache_state(), __ num_locals(),
                                  c->end_merge.arity, c->stack_depth);
       }
-      __ MergeFullStackWith(c->label_state);
+      __ MergeFullStackWith(c->label_state, *__ cache_state());
       __ emit_jump(c->label.get());
     }
     __ bind(c->else_state->label.get());

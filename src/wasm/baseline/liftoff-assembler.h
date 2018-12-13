@@ -232,7 +232,7 @@ class LiftoffAssembler : public TurboAssembler {
     void InitMerge(const CacheState& source, uint32_t num_locals,
                    uint32_t arity, uint32_t stack_depth);
 
-    void Steal(CacheState& source);
+    void Steal(const CacheState& source);
 
     void Split(const CacheState& source);
 
@@ -298,8 +298,8 @@ class LiftoffAssembler : public TurboAssembler {
     return SpillOneRegister(candidates, pinned);
   }
 
-  void MergeFullStackWith(CacheState&);
-  void MergeStackWith(CacheState&, uint32_t arity);
+  void MergeFullStackWith(const CacheState& target, const CacheState& source);
+  void MergeStackWith(const CacheState& target, uint32_t arity);
 
   void Spill(uint32_t index);
   void SpillLocals();

@@ -153,9 +153,11 @@ class StackTransferRecipe {
   }
 
   void TransferStackSlot(const LiftoffAssembler::CacheState& dst_state,
-                         uint32_t dst_index, uint32_t src_index) {
+                         uint32_t dst_index,
+                         const LiftoffAssembler::CacheState& src_state,
+                         uint32_t src_index) {
     const VarState& dst = dst_state.stack_state[dst_index];
-    const VarState& src = __ cache_state()->stack_state[src_index];
+    const VarState& src = src_state.stack_state[src_index];
     DCHECK_EQ(dst.type(), src.type());
     switch (dst.loc()) {
       case VarState::kStack:
@@ -329,7 +331,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   last_spilled_regs = source.last_spilled_regs;
 }
 
-void LiftoffAssembler::CacheState::Steal(CacheState& source) {
+void LiftoffAssembler::CacheState::Steal(const CacheState& source) {
   // Just use the move assignment operator.
   *this = std::move(source);
 }
@@ -386,17 +388,19 @@ LiftoffRegister LiftoffAssembler::PopToRegister(LiftoffRegList pinned) {
   UNREACHABLE();
 }
 
-void LiftoffAssembler::MergeFullStackWith(CacheState& target) {
-  DCHECK_EQ(cache_state_.stack_height(), target.stack_height());
+void LiftoffAssembler::MergeFullStackWith(const CacheState& target,
+                                          const CacheState& source) {
+  DCHECK_EQ(source.stack_height(), target.stack_height());
   // TODO(clemensh): Reuse the same StackTransferRecipe object to save some
   // allocations.
   StackTransferRecipe transfers(this);
-  for (uint32_t i = 0, e = cache_state_.stack_height(); i < e; ++i) {
-    transfers.TransferStackSlot(target, i, i);
+  for (uint32_t i = 0, e = source.stack_height(); i < e; ++i) {
+    transfers.TransferStackSlot(target, i, source, i);
   }
 }
 
-void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity) {
+void LiftoffAssembler::MergeStackWith(const CacheState& target,
+                                      uint32_t arity) {
   // Before: ----------------|------ pop_count -----|--- arity ---|
   //                         ^target_stack_height   ^stack_base   ^stack_height
   // After:  ----|-- arity --|
@@ -410,10 +414,11 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity) {
   uint32_t target_stack_base = target_stack_height - arity;
   StackTransferRecipe transfers(this);
   for (uint32_t i = 0; i < target_stack_base; ++i) {
-    transfers.TransferStackSlot(target, i, i);
+    transfers.TransferStackSlot(target, i, cache_state_, i);
   }
   for (uint32_t i = 0; i < arity; ++i) {
-    transfers.TransferStackSlot(target, target_stack_base + i, stack_base + i);
+    transfers.TransferStackSlot(target, target_stack_base + i, cache_state_,
+                                stack_base + i);
   }
 }
 
