@@ -21,7 +21,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/globals.h"
-#include "src/objects/slots.h"
 #include "src/vector.h"
 
 #if defined(V8_OS_AIX)

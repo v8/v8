@@ -27,6 +27,9 @@
 #include "src/roots.h"
 #include "src/utils.h"
 
+#ifdef V8_COMPRESS_POINTERS
+#include "src/ptr-compr.h"
+#endif
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -143,6 +143,7 @@ class ObjectPtr {
 
  private:
   friend class FullObjectSlot;
+  friend class CompressedObjectSlot;
   Address ptr_;
 };
 

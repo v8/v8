@@ -596,10 +596,10 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
 RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  // Note that args[0] is the address of an array of object pointers (a.k.a.
-  // an ObjectSlot), which looks like a Smi because it's aligned.
+  // Note that args[0] is the address of an array of full object pointers
+  // (a.k.a. FullObjectSlot), which looks like a Smi because it's aligned.
   DCHECK(args[0].IsSmi());
-  ObjectSlot frame(args[0]->ptr());
+  FullObjectSlot frame(args[0]->ptr());
   CONVERT_SMI_ARG_CHECKED(length, 1);
   CONVERT_SMI_ARG_CHECKED(mapped_count, 2);
   Handle<FixedArray> result =

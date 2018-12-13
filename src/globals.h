@@ -573,6 +573,10 @@ class NewSpace;
 class NewLargeObjectSpace;
 class NumberDictionary;
 class Object;
+class CompressedObjectSlot;
+class CompressedMaybeObjectSlot;
+class CompressedMapWordSlot;
+class CompressedHeapObjectSlot;
 class FullObjectSlot;
 class FullMaybeObjectSlot;
 class FullHeapObjectSlot;
@@ -610,10 +614,17 @@ struct SlotTraits<SlotLocation::kOffHeap> {
 // on whether the pointer compression is enabled or not.
 template <>
 struct SlotTraits<SlotLocation::kOnHeap> {
+#ifdef V8_COMPRESS_POINTERS
+  using TObjectSlot = CompressedObjectSlot;
+  using TMapWordSlot = CompressedMapWordSlot;
+  using TMaybeObjectSlot = CompressedMaybeObjectSlot;
+  using THeapObjectSlot = CompressedHeapObjectSlot;
+#else
   using TObjectSlot = FullObjectSlot;
   using TMapWordSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
+#endif
 };
 
 // An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")

@@ -177,7 +177,7 @@ class FullMaybeObjectSlot
 // In case it is known that that slot contains a strong heap object pointer,
 // ToHeapObject() can be used to retrieve that heap object.
 class FullHeapObjectSlot
-    : public SlotBase<HeapObjectSlot, Address, kSystemPointerSize> {
+    : public SlotBase<FullHeapObjectSlot, Address, kSystemPointerSize> {
  public:
   FullHeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit FullHeapObjectSlot(Address ptr) : SlotBase(ptr) {}

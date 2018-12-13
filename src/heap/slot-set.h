@@ -11,7 +11,12 @@
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bits.h"
+#include "src/objects/slots.h"
 #include "src/utils.h"
+
+#ifdef V8_COMPRESS_POINTERS
+#include "src/ptr-compr.h"
+#endif
 
 namespace v8 {
 namespace internal {
