@@ -92,7 +92,11 @@ static_assert(
     "Pointer compression can be enabled only for 64-bit architectures");
 #endif
 
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
 typedef SmiTagging<kApiIntSize> PlatformSmiTagging;
+#else
+typedef SmiTagging<kApiSystemPointerSize> PlatformSmiTagging;
+#endif
 
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
