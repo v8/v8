@@ -6,6 +6,8 @@
       {
         "excluded_builders" : [
           "V8 Fuzzer",
+          "V8 Linux64 - arm64 - sim - pointer compression - builder",
+          "V8 Linux64 - arm64 - sim - pointer compression",
           "V8 Linux64 - debug - fyi",
           "V8 Linux64 - fyi",
           "V8 Linux64 - gcov coverage",
