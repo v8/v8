@@ -88,7 +88,8 @@
           "V8 Win64 - node.js integration",
           "V8 Mac64 - node.js baseline",
           "V8 Mac64 - node.js integration",
-          "Linux Snapshot Builder"
+          "Linux Snapshot Builder",
+          "Linux V8 FYI Release - pointer compression (NVIDIA)"
         ],
         "builders": {
           "V8 Linux64 - node.js integration": {
