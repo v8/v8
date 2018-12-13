@@ -15,6 +15,8 @@ vars = {
 }
 
 deps = {
+  'v8/third_party/binutils':
+    Var('chromium_url') + '/chromium/src/third_party/binutils.git' + '@' + '2be73f7fbf783d7a0b288e174a5773b67c7656bc',
   'v8/build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e25071980f7fdfd7565f19b28b37cd31c88afbae',
   'v8/third_party/depot_tools':
@@ -324,10 +326,11 @@ hooks = [
   # Pull binutils for linux, enabled debug fission for faster linking /
   # debugging when used with clang on Ubuntu Precise.
   # https://code.google.com/p/chromium/issues/detail?id=352046
+  # Only x64 and x86 binaries are provided so skip this step on other platforms.
   {
     'name': 'binutils',
     'pattern': 'v8/third_party/binutils',
-    'condition': 'host_os == "linux"',
+    'condition': 'host_os == "linux" and (host_cpu == "x64" or host_cpu == "x86")',
     'action': [
         'python',
         'v8/third_party/binutils/download.py',
