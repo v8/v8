@@ -13954,7 +13954,7 @@ Code SharedFunctionInfo::GetCode() const {
   UNREACHABLE();
 }
 
-WasmExportedFunctionData* SharedFunctionInfo::wasm_exported_function_data()
+WasmExportedFunctionData SharedFunctionInfo::wasm_exported_function_data()
     const {
   DCHECK(HasWasmExportedFunctionData());
   return WasmExportedFunctionData::cast(function_data());

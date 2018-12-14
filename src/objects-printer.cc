@@ -1746,7 +1746,7 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
 }
 
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "AsmWasmData");
+  PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());
   os << "\n - export_wrappers: " << Brief(export_wrappers());
   os << "\n - offset table: " << Brief(asm_js_offset_table());
@@ -1755,13 +1755,13 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
 }
 
 void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "WasmDebugInfo");
+  PrintHeader(os, "WasmDebugInfo");
   os << "\n - wasm_instance: " << Brief(wasm_instance());
   os << "\n";
 }
 
 void WasmExceptionTag::WasmExceptionTagPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "WasmExceptionTag");
+  PrintHeader(os, "WasmExceptionTag");
   os << "\n - index: " << index();
   os << "\n";
 }
@@ -1814,7 +1814,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
 
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "WasmExportedFunctionData");
+  PrintHeader(os, "WasmExportedFunctionData");
   os << "\n - wrapper_code: " << Brief(wrapper_code());
   os << "\n - instance: " << Brief(instance());
   os << "\n - function_index: " << function_index();

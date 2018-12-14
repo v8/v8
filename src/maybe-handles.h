@@ -39,11 +39,13 @@ class MaybeHandle final {
   // Constructor for handling automatic up casting.
   // Ex. MaybeHandle<JSArray> can be passed when Handle<Object> is expected.
   // TODO(3770): Remove std::is_same special cases after the migration.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value ||
-                            std::is_same<T, Object>::value ||
-                            (std::is_same<T, HeapObject>::value &&
-                             std::is_same<S, Map>::value)>::type>
+  template <typename S,
+            typename = typename std::enable_if<
+                std::is_convertible<S*, T*>::value ||
+                std::is_same<T, Object>::value ||
+                (std::is_same<T, HeapObject>::value &&
+                 (std::is_same<S, Map>::value ||
+                  std::is_same<S, WasmExportedFunctionData>::value))>::type>
   V8_INLINE MaybeHandle(MaybeHandle<S> maybe_handle)
       : location_(maybe_handle.location_) {}
 

@@ -329,8 +329,8 @@ class SharedFunctionInfo : public HeapObjectPtr {
   inline BytecodeArray GetDebugBytecodeArray() const;
   inline void SetDebugBytecodeArray(BytecodeArray bytecode);
   inline bool HasAsmWasmData() const;
-  inline AsmWasmData* asm_wasm_data() const;
-  inline void set_asm_wasm_data(AsmWasmData* data);
+  inline AsmWasmData asm_wasm_data() const;
+  inline void set_asm_wasm_data(AsmWasmData data);
 
   // A brief note to clear up possible confusion:
   // builtin_id corresponds to the auto-generated
@@ -350,8 +350,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
       UncompiledDataWithPreParsedScope data);
   inline bool HasUncompiledDataWithoutPreParsedScope() const;
   inline bool HasWasmExportedFunctionData() const;
-  WasmExportedFunctionData* wasm_exported_function_data() const;
-  inline void set_wasm_exported_function_data(WasmExportedFunctionData* data);
+  WasmExportedFunctionData wasm_exported_function_data() const;
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreParsedScope,
   // turning it into UncompiledDataWithoutPreParsedScope.

@@ -129,7 +129,7 @@ class InterpreterHandle {
     return {frame_base, frame_limit};
   }
 
-  static ModuleWireBytes GetBytes(WasmDebugInfo* debug_info) {
+  static ModuleWireBytes GetBytes(WasmDebugInfo debug_info) {
     // Return raw pointer into heap. The WasmInterpreter will make its own copy
     // of this data anyway, and there is no heap allocation in-between.
     NativeModule* native_module =
@@ -539,13 +539,13 @@ wasm::InterpreterHandle* GetOrCreateInterpreterHandle(
   return Handle<Managed<wasm::InterpreterHandle>>::cast(handle)->raw();
 }
 
-wasm::InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info) {
+wasm::InterpreterHandle* GetInterpreterHandle(WasmDebugInfo debug_info) {
   Object* handle_obj = debug_info->interpreter_handle();
   DCHECK(!handle_obj->IsUndefined());
   return Managed<wasm::InterpreterHandle>::cast(handle_obj)->raw();
 }
 
-wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
+wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo debug_info) {
   Object* handle_obj = debug_info->interpreter_handle();
   if (handle_obj->IsUndefined()) return nullptr;
   return Managed<wasm::InterpreterHandle>::cast(handle_obj)->raw();
@@ -636,7 +636,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
 }
 
 void WasmDebugInfo::PrepareStep(StepAction step_action) {
-  GetInterpreterHandle(this)->PrepareStep(step_action);
+  GetInterpreterHandle(*this)->PrepareStep(step_action);
 }
 
 // static
@@ -653,20 +653,20 @@ bool WasmDebugInfo::RunInterpreter(Isolate* isolate,
 
 std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
     Address frame_pointer) {
-  return GetInterpreterHandle(this)->GetInterpretedStack(frame_pointer);
+  return GetInterpreterHandle(*this)->GetInterpretedStack(frame_pointer);
 }
 
 wasm::WasmInterpreter::FramePtr WasmDebugInfo::GetInterpretedFrame(
     Address frame_pointer, int idx) {
-  return GetInterpreterHandle(this)->GetInterpretedFrame(frame_pointer, idx);
+  return GetInterpreterHandle(*this)->GetInterpretedFrame(frame_pointer, idx);
 }
 
 void WasmDebugInfo::Unwind(Address frame_pointer) {
-  return GetInterpreterHandle(this)->Unwind(frame_pointer);
+  return GetInterpreterHandle(*this)->Unwind(frame_pointer);
 }
 
 uint64_t WasmDebugInfo::NumInterpretedCalls() {
-  auto* handle = GetInterpreterHandleOrNull(this);
+  auto* handle = GetInterpreterHandleOrNull(*this);
   return handle ? handle->NumInterpretedCalls() : 0;
 }
 

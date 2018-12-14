@@ -1911,7 +1911,7 @@ WasmInstanceObject WasmInterpreterEntryFrame::wasm_instance() const {
   return WasmInstanceObject::cast(instance);
 }
 
-WasmDebugInfo* WasmInterpreterEntryFrame::debug_info() const {
+WasmDebugInfo WasmInterpreterEntryFrame::debug_info() const {
   return wasm_instance()->debug_info();
 }
 

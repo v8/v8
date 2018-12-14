@@ -509,12 +509,12 @@ bool SharedFunctionInfo::HasAsmWasmData() const {
   return function_data()->IsAsmWasmData();
 }
 
-AsmWasmData* SharedFunctionInfo::asm_wasm_data() const {
+AsmWasmData SharedFunctionInfo::asm_wasm_data() const {
   DCHECK(HasAsmWasmData());
   return AsmWasmData::cast(function_data());
 }
 
-void SharedFunctionInfo::set_asm_wasm_data(AsmWasmData* data) {
+void SharedFunctionInfo::set_asm_wasm_data(AsmWasmData data) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
          HasUncompiledData() || HasAsmWasmData());
   set_function_data(data);

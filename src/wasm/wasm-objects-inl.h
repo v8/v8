@@ -22,22 +22,28 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(WasmDebugInfo, StructPtr)
 OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmTableObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(AsmWasmData, StructPtr)
 
-CAST_ACCESSOR(WasmDebugInfo)
+NEVER_READ_ONLY_SPACE_IMPL(WasmDebugInfo)
+
+CAST_ACCESSOR2(WasmDebugInfo)
 CAST_ACCESSOR2(WasmExceptionObject)
-CAST_ACCESSOR(WasmExceptionTag)
-CAST_ACCESSOR(WasmExportedFunctionData)
+CAST_ACCESSOR2(WasmExceptionTag)
+CAST_ACCESSOR2(WasmExportedFunctionData)
 CAST_ACCESSOR2(WasmGlobalObject)
 CAST_ACCESSOR2(WasmInstanceObject)
 CAST_ACCESSOR2(WasmMemoryObject)
 CAST_ACCESSOR2(WasmModuleObject)
 CAST_ACCESSOR2(WasmTableObject)
-CAST_ACCESSOR(AsmWasmData)
+CAST_ACCESSOR2(AsmWasmData)
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset) \
   bool holder::has_##name() {                          \
@@ -200,8 +206,8 @@ OPTIONAL_ACCESSORS2(WasmInstanceObject, globals_buffer, JSArrayBuffer,
                     kGlobalsBufferOffset)
 OPTIONAL_ACCESSORS2(WasmInstanceObject, imported_mutable_globals_buffers,
                     FixedArray, kImportedMutableGlobalsBuffersOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
-                   kDebugInfoOffset)
+OPTIONAL_ACCESSORS2(WasmInstanceObject, debug_info, WasmDebugInfo,
+                    kDebugInfoOffset)
 OPTIONAL_ACCESSORS2(WasmInstanceObject, table_object, WasmTableObject,
                     kTableObjectOffset)
 ACCESSORS2(WasmInstanceObject, imported_function_refs, FixedArray,

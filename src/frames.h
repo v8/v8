@@ -987,7 +987,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   Code unchecked_code() const override;
 
   // Accessors.
-  WasmDebugInfo* debug_info() const;
+  WasmDebugInfo debug_info() const;
   WasmInstanceObject wasm_instance() const;
 
   Script* script() const override;

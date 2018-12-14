@@ -36,6 +36,7 @@ class OrderedNameDictionary;
 class SmallOrderedHashMap;
 class SmallOrderedHashSet;
 class SmallOrderedNameDictionary;
+class WasmExportedFunctionData;
 
 // ----------------------------------------------------------------------------
 // Base class for Handle instantiations.  Don't use directly.
@@ -178,6 +179,7 @@ class Handle final : public HandleBase {
             std::is_same<S, SmallOrderedHashSet>::value ||
             std::is_same<S, SmallOrderedNameDictionary>::value ||
             std::is_same<S, String>::value || std::is_same<S, Symbol>::value ||
+            std::is_same<S, WasmExportedFunctionData>::value ||
             std::is_same<S, WasmInstanceObject>::value))>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 

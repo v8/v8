@@ -396,7 +396,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS2(memory_object, WasmMemoryObject)
   DECL_OPTIONAL_ACCESSORS2(globals_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS2(imported_mutable_globals_buffers, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
+  DECL_OPTIONAL_ACCESSORS2(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS2(table_object, WasmTableObject)
   DECL_ACCESSORS2(imported_function_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS2(indirect_function_table_refs, FixedArray)
@@ -548,14 +548,14 @@ class WasmExportedFunction : public JSFunction {
 // Information for a WasmExportedFunction which is referenced as the function
 // data of the SharedFunctionInfo underlying the function. For details please
 // see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
-class WasmExportedFunctionData : public Struct {
+class WasmExportedFunctionData : public StructPtr {
  public:
   DECL_ACCESSORS2(wrapper_code, Code);
   DECL_ACCESSORS2(instance, WasmInstanceObject)
   DECL_INT_ACCESSORS(jump_table_offset);
   DECL_INT_ACCESSORS(function_index);
 
-  DECL_CAST(WasmExportedFunctionData)
+  DECL_CAST2(WasmExportedFunctionData)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)
@@ -572,10 +572,13 @@ class WasmExportedFunctionData : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 WASM_EXPORTED_FUNCTION_DATA_FIELDS)
 #undef WASM_EXPORTED_FUNCTION_DATA_FIELDS
+
+  OBJECT_CONSTRUCTORS(WasmExportedFunctionData, StructPtr)
 };
 
-class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
+class WasmDebugInfo : public StructPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS2(wasm_instance, WasmInstanceObject)
   DECL_ACCESSORS(interpreter_handle, Object);  // Foreign or undefined
   DECL_ACCESSORS2(interpreted_functions, FixedArray);
@@ -583,7 +586,7 @@ class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
   DECL_OPTIONAL_ACCESSORS2(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
 
-  DECL_CAST(WasmDebugInfo)
+  DECL_CAST2(WasmDebugInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmDebugInfo)
@@ -667,13 +670,15 @@ class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
 
   static Handle<JSFunction> GetCWasmEntry(Handle<WasmDebugInfo>,
                                           wasm::FunctionSig*);
+
+  OBJECT_CONSTRUCTORS(WasmDebugInfo, StructPtr)
 };
 
 // Tags provide an object identity for each exception defined in a wasm module
 // header. They are referenced by the following fields:
 //  - {WasmExceptionObject::exception_tag}  : The tag of the exception object.
 //  - {WasmInstanceObject::exceptions_table}: List of tags used by an instance.
-class WasmExceptionTag : public Struct {
+class WasmExceptionTag : public StructPtr {
  public:
   static Handle<WasmExceptionTag> New(Isolate* isolate, int index);
 
@@ -682,7 +687,7 @@ class WasmExceptionTag : public Struct {
   // least one field, hence this also serves as a padding field for now.
   DECL_INT_ACCESSORS(index);
 
-  DECL_CAST(WasmExceptionTag)
+  DECL_CAST2(WasmExceptionTag)
   DECL_PRINTER(WasmExceptionTag)
   DECL_VERIFIER(WasmExceptionTag)
 
@@ -694,9 +699,11 @@ class WasmExceptionTag : public Struct {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, WASM_EXCEPTION_TAG_FIELDS)
 #undef WASM_EXCEPTION_TAG_FIELDS
+
+  OBJECT_CONSTRUCTORS(WasmExceptionTag, StructPtr)
 };
 
-class AsmWasmData : public Struct {
+class AsmWasmData : public StructPtr {
  public:
   static Handle<AsmWasmData> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
@@ -708,7 +715,7 @@ class AsmWasmData : public Struct {
   DECL_ACCESSORS2(asm_js_offset_table, ByteArray)
   DECL_ACCESSORS(uses_bitset, HeapNumber)
 
-  DECL_CAST(AsmWasmData)
+  DECL_CAST2(AsmWasmData)
   DECL_PRINTER(AsmWasmData)
   DECL_VERIFIER(AsmWasmData)
 
@@ -723,6 +730,8 @@ class AsmWasmData : public Struct {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, ASM_WASM_DATA_FIELDS)
 #undef ASM_WASM_DATA_FIELDS
+
+  OBJECT_CONSTRUCTORS(AsmWasmData, StructPtr)
 };
 
 #undef DECL_OPTIONAL_ACCESSORS
