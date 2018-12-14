@@ -91,6 +91,7 @@ def UpdateTarget(repository, options, files_to_keep):
     git_args.append(["add"] + files_to_keep)            # add and commit
     git_args.append(["commit", "-m", "keep files"])     # files we want to keep
 
+  git_args.append(["clean", "-fxd"])                    # nuke everything else
   git_args.append(["remote", "add", "source", source])  # point to source repo
   git_args.append(["fetch", "source", "HEAD"])          # sync to current branch
   git_args.append(["checkout", "-f", "FETCH_HEAD"])     # switch to that branch
