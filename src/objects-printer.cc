@@ -1725,6 +1725,10 @@ void Tuple2::Tuple2Print(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void Tuple2Ptr::Tuple2Print(std::ostream& os) {  // NOLINT
+  reinterpret_cast<Tuple2*>(ptr())->Tuple2Print(os);
+}
+
 void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Tuple3");
   os << "\n - value1: " << Brief(value1());

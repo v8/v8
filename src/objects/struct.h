@@ -24,6 +24,20 @@ class Struct : public HeapObject {
   void BriefPrintDetails(std::ostream& os);
 };
 
+// Replacement for the above, temporarily separate for incremental transition
+// of subclasses.
+class StructPtr : public HeapObjectPtr {
+ public:
+  inline void InitializeBody(int object_size);
+  DECL_CAST2(StructPtr)
+  void BriefPrintDetails(std::ostream& os);
+
+  // TODO(3770): Temporary.
+  inline bool IsStructPtr() const;
+
+  OBJECT_CONSTRUCTORS(StructPtr, HeapObjectPtr);
+};
+
 class Tuple2 : public Struct {
  public:
   DECL_ACCESSORS(value1, Object)
@@ -42,6 +56,30 @@ class Tuple2 : public Struct {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple2);
+};
+
+// Replacement for the above, temporarily separate for incremental transition
+// of subclasses.
+class Tuple2Ptr : public StructPtr {
+ public:
+  DECL_ACCESSORS(value1, Object)
+  DECL_ACCESSORS(value2, Object)
+
+  DECL_CAST2(Tuple2Ptr)
+
+  // Dispatched behavior.
+  DECL_PRINTER(Tuple2)
+  DECL_VERIFIER(Tuple2)
+  void BriefPrintDetails(std::ostream& os);
+
+  // TODO(3770): Temporary.
+  inline bool IsTuple2Ptr() const;
+
+  static const int kValue1Offset = HeapObject::kHeaderSize;
+  static const int kValue2Offset = kValue1Offset + kPointerSize;
+  static const int kSize = kValue2Offset + kPointerSize;
+
+  OBJECT_CONSTRUCTORS(Tuple2Ptr, StructPtr);
 };
 
 class Tuple3 : public Tuple2 {

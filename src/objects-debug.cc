@@ -1762,6 +1762,10 @@ void Tuple2::Tuple2Verify(Isolate* isolate) {
   }
 }
 
+void Tuple2Ptr::Tuple2Verify(Isolate* isolate) {
+  reinterpret_cast<Tuple2*>(ptr())->Tuple2Verify(isolate);
+}
+
 void Tuple3::Tuple3Verify(Isolate* isolate) {
   CHECK(IsTuple3());
   VerifyObjectField(isolate, kValue1Offset);

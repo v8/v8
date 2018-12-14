@@ -3762,7 +3762,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 
 void Struct::BriefPrintDetails(std::ostream& os) {}
 
+void StructPtr::BriefPrintDetails(std::ostream& os) {}
+
 void Tuple2::BriefPrintDetails(std::ostream& os) {
+  os << " " << Brief(value1()) << ", " << Brief(value2());
+}
+
+void Tuple2Ptr::BriefPrintDetails(std::ostream& os) {
   os << " " << Brief(value1()) << ", " << Brief(value2());
 }
 

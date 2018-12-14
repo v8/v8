@@ -15,9 +15,21 @@
 namespace v8 {
 namespace internal {
 
+bool StructPtr::IsStructPtr() const {
+  return reinterpret_cast<Struct*>(ptr())->IsStruct();
+}
+bool Tuple2Ptr::IsTuple2Ptr() const {
+  return reinterpret_cast<Tuple2*>(ptr())->IsTuple2();
+}
+
+OBJECT_CONSTRUCTORS_IMPL(StructPtr, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Tuple2Ptr, StructPtr)
+
 CAST_ACCESSOR(AccessorPair)
 CAST_ACCESSOR(Struct)
+CAST_ACCESSOR2(StructPtr)
 CAST_ACCESSOR(Tuple2)
+CAST_ACCESSOR2(Tuple2Ptr)
 CAST_ACCESSOR(Tuple3)
 
 void Struct::InitializeBody(int object_size) {
@@ -27,8 +39,17 @@ void Struct::InitializeBody(int object_size) {
   }
 }
 
+void StructPtr::InitializeBody(int object_size) {
+  Object* value = GetReadOnlyRoots().undefined_value();
+  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
+    WRITE_FIELD(this, offset, value);
+  }
+}
+
 ACCESSORS(Tuple2, value1, Object, kValue1Offset)
+ACCESSORS(Tuple2Ptr, value1, Object, kValue1Offset)
 ACCESSORS(Tuple2, value2, Object, kValue2Offset)
+ACCESSORS(Tuple2Ptr, value2, Object, kValue2Offset)
 ACCESSORS(Tuple3, value3, Object, kValue3Offset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
