@@ -1849,5 +1849,14 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
       {Intl::MatcherOption::kLookup, Intl::MatcherOption::kBestFit},
       Intl::MatcherOption::kLookup);
 }
+
+Intl::HourCycle Intl::ToHourCycle(const std::string& hc) {
+  if (hc == "h11") return Intl::HourCycle::kH11;
+  if (hc == "h12") return Intl::HourCycle::kH12;
+  if (hc == "h23") return Intl::HourCycle::kH23;
+  if (hc == "h24") return Intl::HourCycle::kH24;
+  return Intl::HourCycle::kUndefined;
+}
+
 }  // namespace internal
 }  // namespace v8

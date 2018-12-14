@@ -2037,6 +2037,7 @@ void JSDateTimeFormat::JSDateTimeFormatPrint(std::ostream& os) {  // NOLINT
   os << "\n - icu locale: " << Brief(icu_locale());
   os << "\n - icu simple date format: " << Brief(icu_simple_date_format());
   os << "\n - bound format: " << Brief(bound_format());
+  os << "\n - hour cycle: " << HourCycleAsString();
   JSObjectPrintBody(os, *this);
 }
 

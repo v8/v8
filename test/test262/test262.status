@@ -677,7 +677,6 @@
   # to be either marked as bugs with issues filed for them or as deliberate
   # incompatibilities if the test cases turn out to be broken or ambiguous.
   # Some of these are related to v8:4361 in being visible side effects from Intl.
-  'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],

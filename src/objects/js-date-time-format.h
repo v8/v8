@@ -73,6 +73,7 @@ class JSDateTimeFormat : public JSObject {
 
   static std::set<std::string> GetAvailableLocales();
 
+  Handle<String> HourCycleAsString() const;
   DECL_CAST2(JSDateTimeFormat)
 
 // Layout description.
@@ -80,6 +81,7 @@ class JSDateTimeFormat : public JSObject {
   V(kICULocaleOffset, kTaggedSize)           \
   V(kICUSimpleDateFormatOffset, kTaggedSize) \
   V(kBoundFormatOffset, kTaggedSize)         \
+  V(kFlagsOffset, kTaggedSize)               \
   /* Total size. */                          \
   V(kSize, 0)
 
@@ -87,9 +89,25 @@ class JSDateTimeFormat : public JSObject {
                                 JS_DATE_TIME_FORMAT_FIELDS)
 #undef JS_DATE_TIME_FORMAT_FIELDS
 
+  inline void set_hour_cycle(Intl::HourCycle hour_cycle);
+  inline Intl::HourCycle hour_cycle() const;
+
+// Bit positions in |flags|.
+#define FLAGS_BIT_FIELDS(V, _) V(HourCycleBits, Intl::HourCycle, 3, _)
+
+  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
+#undef FLAGS_BIT_FIELDS
+
+  STATIC_ASSERT(Intl::HourCycle::kUndefined <= HourCycleBits::kMax);
+  STATIC_ASSERT(Intl::HourCycle::kH11 <= HourCycleBits::kMax);
+  STATIC_ASSERT(Intl::HourCycle::kH12 <= HourCycleBits::kMax);
+  STATIC_ASSERT(Intl::HourCycle::kH23 <= HourCycleBits::kMax);
+  STATIC_ASSERT(Intl::HourCycle::kH24 <= HourCycleBits::kMax);
+
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
   DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
   DECL_ACCESSORS(bound_format, Object)
+  DECL_INT_ACCESSORS(flags)
 
   DECL_PRINTER(JSDateTimeFormat)
   DECL_VERIFIER(JSDateTimeFormat)

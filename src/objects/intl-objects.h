@@ -223,6 +223,8 @@ class Intl {
   // enum for "hourCycle" option: shared by Intl.Locale and Intl.DateTimeFormat.
   enum class HourCycle { kH11, kH12, kH23, kH24, kUndefined };
 
+  static HourCycle ToHourCycle(const std::string& str);
+
   // Shared function to read the "hourCycle" option.
   V8_WARN_UNUSED_RESULT static Maybe<HourCycle> GetHourCycle(
       Isolate* isolate, Handle<JSReceiver> options, const char* method);
