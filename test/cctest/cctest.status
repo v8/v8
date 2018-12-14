@@ -157,7 +157,7 @@
   'test-api/Threading*': [SKIP],
 }],  # 'arch == arm64 and simulator_run'
 
-['arch == arm64 and (mode == debug or dcheck_always_on) and simulator_run', {
+['arch == arm64 and (mode == debug) and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'test-api/ExternalDoubleArray': [SKIP],
@@ -167,7 +167,7 @@
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
   'test-api/Uint8Array': [SKIP],
-}],  # 'arch == arm64 and (mode == debug or dcheck_always_on) and simulator_run'
+}],  # 'arch == arm64 and (mode == debug) and simulator_run'
 
 ##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
@@ -379,7 +379,7 @@
 ##############################################################################
 ['system != android and arch in [arm, arm64] and not simulator_run', {
   # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
-  'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug or dcheck_always_on) and optimize_for_size', SKIP]],
+  'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug) and optimize_for_size', SKIP]],
 }],  # 'system != android and arch in [arm, arm64] and not simulator_run'
 
 ##############################################################################

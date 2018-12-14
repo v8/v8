@@ -651,7 +651,9 @@ class BaseTestRunner(object):
       "gcov_coverage": self.build_config.gcov_coverage,
       "isolates": options.isolates,
       "mips_arch_variant": mips_arch_variant,
-      "mode": self.mode_options.status_mode,
+      "mode": self.mode_options.status_mode
+              if not self.build_config.dcheck_always_on
+              else "debug",
       "msan": self.build_config.msan,
       "no_harness": options.no_harness,
       "no_i18n": self.build_config.no_i18n,

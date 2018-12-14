@@ -107,12 +107,12 @@
 
   ##############################################################################
   # Skip long running tests that time out in debug mode.
-  'generated-transition-stub': [PASS, ['mode == debug or dcheck_always_on', SKIP]],
+  'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
   'migrations': [SKIP],
-  'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug or dcheck_always_on', SKIP]],
-  'compiler/regress-808472': [PASS, ['mode == debug or dcheck_always_on', SKIP]],
+  'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug', SKIP]],
+  'compiler/regress-808472': [PASS, ['mode == debug', SKIP]],
   'es6/promise-all-overflow-1': [SKIP],
-  'es6/promise-all-overflow-2': [PASS, SLOW, ['mode == debug or dcheck_always_on or arch != x64', SKIP]],
+  'es6/promise-all-overflow-2': [PASS, SLOW, ['mode == debug or arch != x64', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -140,7 +140,7 @@
   ##############################################################################
   # Tests verifying CHECK and ASSERT.
   'verify-check-false': [FAIL, NO_VARIANTS],
-  'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug or dcheck_always_on == True', FAIL]],
+  'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug', FAIL]],
 
   ##############################################################################
   # Tests with different versions for release and debug.
@@ -214,10 +214,10 @@
 
   # TODO(vogelheim): big-object-literal exceeds the stack in debug builds,
   #                  which makes the test useless.
-  'big-object-literal': [PASS, ['mode == debug or dcheck_always_on', SKIP]],
+  'big-object-literal': [PASS, ['mode == debug', SKIP]],
 
   # Runs out of stack space in debug builds.
-  'big-array-literal': [PASS, ['mode == debug or dcheck_always_on', SKIP]],
+  'big-array-literal': [PASS, ['mode == debug', SKIP]],
 
   # BUG(v8:6306).
   'wasm/huge-memory': [SKIP],
