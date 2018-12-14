@@ -245,9 +245,9 @@ class Genesis {
   };
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,
                                        ArrayBufferKind array_buffer_kind);
-  Handle<JSFunction> InstallInternalArray(Handle<JSObject> target,
-                                          const char* name,
-                                          ElementsKind elements_kind);
+  void InstallInternalPackedArrayFunction(Handle<JSObject> prototype,
+                                          const char* name);
+  void InstallInternalPackedArray(Handle<JSObject> target, const char* name);
   bool InstallNatives();
 
   Handle<JSFunction> InstallTypedArray(const char* name,
@@ -1749,6 +1749,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     array_prototype_to_string_fun =
         SimpleInstallFunction(isolate_, proto, "toString",
                               Builtins::kArrayPrototypeToString, 0, false);
+
+    Handle<Map> map(proto->map(), isolate_);
+    Map::SetShouldBeFastPrototypeMap(map, true, isolate_);
   }
 
   {  // --- A r r a y I t e r a t o r ---
@@ -4913,10 +4916,20 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(
   return array_buffer_fun;
 }
 
+void Genesis::InstallInternalPackedArrayFunction(Handle<JSObject> prototype,
+                                                 const char* function_name) {
+  Handle<JSObject> array_prototype(native_context()->initial_array_prototype(),
+                                   isolate());
+  Handle<Object> func =
+      JSReceiver::GetProperty(isolate(), array_prototype, function_name)
+          .ToHandleChecked();
+  JSObject::AddProperty(isolate(), prototype,
+                        factory()->InternalizeUtf8String(function_name), func,
+                        ALL_ATTRIBUTES_MASK);
+}
 
-Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
-                                                 const char* name,
-                                                 ElementsKind elements_kind) {
+void Genesis::InstallInternalPackedArray(Handle<JSObject> target,
+                                         const char* name) {
   // --- I n t e r n a l   A r r a y ---
   // An array constructor on the builtins object that works like
   // the public Array constructor, except that its prototype
@@ -4933,7 +4946,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
 
   Handle<Map> original_map(array_function->initial_map(), isolate());
   Handle<Map> initial_map = Map::Copy(isolate(), original_map, "InternalArray");
-  initial_map->set_elements_kind(elements_kind);
+  initial_map->set_elements_kind(PACKED_ELEMENTS);
   JSFunction::SetInitialMap(array_function, initial_map, prototype);
 
   // Make "length" magic on instances.
@@ -4949,7 +4962,18 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
     initial_map->AppendDescriptor(isolate(), &d);
   }
 
-  return array_function;
+  JSObject::NormalizeProperties(
+      prototype, KEEP_INOBJECT_PROPERTIES, 6,
+      "OptimizeInternalPackedArrayPrototypeForAdding");
+  InstallInternalPackedArrayFunction(prototype, "push");
+  InstallInternalPackedArrayFunction(prototype, "pop");
+  InstallInternalPackedArrayFunction(prototype, "shift");
+  InstallInternalPackedArrayFunction(prototype, "unshift");
+  InstallInternalPackedArrayFunction(prototype, "splice");
+  InstallInternalPackedArrayFunction(prototype, "slice");
+
+  JSObject::ForceSetPrototype(prototype, factory()->null_value());
+  JSObject::MigrateSlowToFast(prototype, 0, "Bootstrapping");
 }
 
 bool Genesis::InstallNatives() {
@@ -4967,7 +4991,7 @@ bool Genesis::InstallNatives() {
       factory()->NewJSObject(isolate()->object_function());
   native_context()->set_extras_utils_object(*extras_utils);
 
-  InstallInternalArray(extras_utils, "InternalPackedArray", PACKED_ELEMENTS);
+  InstallInternalPackedArray(extras_utils, "InternalPackedArray");
 
   // v8.createPromise(parent)
   Handle<JSFunction> promise_internal_constructor =

@@ -38,36 +38,6 @@ function ImportNow(name) {
 }
 
 
-// Prevents changes to the prototype of a built-in function.
-// The "prototype" property of the function object is made non-configurable,
-// and the prototype object is made non-extensible. The latter prevents
-// changing the __proto__ property.
-function SetUpLockedPrototype(
-    constructor, fields, methods) {
-  %CheckIsBootstrapping();
-  var prototype = constructor.prototype;
-  // Install functions first, because this function is used to initialize
-  // PropertyDescriptor itself.
-  var property_count = (methods.length >> 1) + (fields ? fields.length : 0);
-  if (property_count >= 4) {
-    %OptimizeObjectForAddingMultipleProperties(prototype, property_count);
-  }
-  if (fields) {
-    for (var i = 0; i < fields.length; i++) {
-      %AddNamedProperty(prototype, fields[i],
-                        UNDEFINED, DONT_ENUM | DONT_DELETE);
-    }
-  }
-  for (var i = 0; i < methods.length; i += 2) {
-    var key = methods[i];
-    var f = methods[i + 1];
-    %AddNamedProperty(prototype, key, f, DONT_ENUM | DONT_DELETE | READ_ONLY);
-    %SetNativeFlag(f);
-  }
-  %InternalSetPrototype(prototype, null);
-  %ToFastProperties(prototype);
-}
-
 var GlobalArray = global.Array;
 
 // -----------------------------------------------------------------------
@@ -99,30 +69,12 @@ function PostNatives(utils) {
   %AddNamedProperty(GlobalArray.prototype, unscopablesSymbol, unscopables,
                     DONT_ENUM | READ_ONLY);
 
-  var ArrayPop = GlobalArray.prototype.pop;
-  var ArrayPush = GlobalArray.prototype.push;
-  var ArraySlice = GlobalArray.prototype.slice;
-  var ArrayShift = GlobalArray.prototype.shift;
-  var ArraySplice = GlobalArray.prototype.splice;
-  var ArrayUnshift = GlobalArray.prototype.unshift;
-
   // Array prototype functions that return iterators. They are exposed to the
   // public API via Template::SetIntrinsicDataProperty().
   var ArrayEntries = GlobalArray.prototype.entries;
   var ArrayForEach = GlobalArray.prototype.forEach;
   var ArrayKeys = GlobalArray.prototype.keys;
   var ArrayValues = GlobalArray.prototype[iteratorSymbol];
-
-  // V8 extras get a separate copy of InternalPackedArray. We give them the basic
-  // manipulation methods.
-  SetUpLockedPrototype(extrasUtils.InternalPackedArray, GlobalArray(), [
-    "push", ArrayPush,
-    "pop", ArrayPop,
-    "shift", ArrayShift,
-    "unshift", ArrayUnshift,
-    "splice", ArraySplice,
-    "slice", ArraySlice
-  ]);
 
   %InstallToContext([
     "array_entries_iterator", ArrayEntries,
@@ -141,7 +93,6 @@ function PostNatives(utils) {
   utils.Export = UNDEFINED;
   utils.Import = UNDEFINED;
   utils.ImportNow = UNDEFINED;
-  utils.SetUpLockedPrototype = UNDEFINED;
   utils.PostNatives = UNDEFINED;
 }
 
