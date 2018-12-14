@@ -916,7 +916,7 @@ static int AllocationSitesCount(Heap* heap) {
   int count = 0;
   for (Object* site = heap->allocation_sites_list();
        site->IsAllocationSite();) {
-    AllocationSite* cur = AllocationSite::cast(site);
+    AllocationSite cur = AllocationSite::cast(site);
     CHECK(cur->HasWeakNext());
     site = cur->weak_next();
     count++;
