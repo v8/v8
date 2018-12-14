@@ -14,6 +14,10 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(DataHandler, StructPtr)
+
+CAST_ACCESSOR2(DataHandler)
+
 ACCESSORS(DataHandler, smi_handler, Object, kSmiHandlerOffset)
 ACCESSORS(DataHandler, validity_cell, Object, kValidityCellOffset)
 

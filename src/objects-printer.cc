@@ -1658,7 +1658,7 @@ void PromiseReaction::PromiseReactionPrint(std::ostream& os) {  // NOLINT
 
 void AsyncGeneratorRequest::AsyncGeneratorRequestPrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "AsyncGeneratorRequest");
+  PrintHeader(os, "AsyncGeneratorRequest");
   const char* mode = "Invalid!";
   switch (resume_mode()) {
     case JSGeneratorObject::kNext:
@@ -1837,7 +1837,7 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {  // NOLINT
 }
 
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "LoadHandler");
+  PrintHeader(os, "LoadHandler");
   // TODO(ishell): implement printing based on handler kind
   os << "\n - handler: " << Brief(smi_handler());
   os << "\n - validity_cell: " << Brief(validity_cell());
@@ -1855,7 +1855,7 @@ void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
 }
 
 void StoreHandler::StoreHandlerPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "StoreHandler");
+  PrintHeader(os, "StoreHandler");
   // TODO(ishell): implement printing based on handler kind
   os << "\n - handler: " << Brief(smi_handler());
   os << "\n - validity_cell: " << Brief(validity_cell());

@@ -383,6 +383,9 @@ bool HeapObject::IsStruct() const {
     // special cases.
     case ALLOCATION_SITE_TYPE:
       return true;
+    case LOAD_HANDLER_TYPE:
+    case STORE_HANDLER_TYPE:
+      return true;
     default:
       return false;
   }
@@ -455,7 +458,6 @@ OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 CAST_ACCESSOR2(BigInt)
 CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR(Cell)
-CAST_ACCESSOR(DataHandler)
 CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(Foreign)

@@ -138,7 +138,7 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
   OBJECT_CONSTRUCTORS(JSAsyncGeneratorObject, JSGeneratorObject);
 };
 
-class AsyncGeneratorRequest : public Struct {
+class AsyncGeneratorRequest : public StructPtr {
  public:
   // Holds an AsyncGeneratorRequest, or Undefined.
   DECL_ACCESSORS(next, Object)
@@ -159,12 +159,11 @@ class AsyncGeneratorRequest : public Struct {
                                 ASYNC_GENERATOR_REQUEST_FIELDS)
 #undef ASYNC_GENERATOR_REQUEST_FIELDS
 
-  DECL_CAST(AsyncGeneratorRequest)
+  DECL_CAST2(AsyncGeneratorRequest)
   DECL_PRINTER(AsyncGeneratorRequest)
   DECL_VERIFIER(AsyncGeneratorRequest)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AsyncGeneratorRequest);
+  OBJECT_CONSTRUCTORS(AsyncGeneratorRequest, StructPtr);
 };
 
 }  // namespace internal

@@ -10,6 +10,7 @@
 #include "src/field-index-inl.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,7 +19,9 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(LoadHandler)
+OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)
+
+CAST_ACCESSOR2(LoadHandler)
 
 // Decodes kind from Smi-handler.
 LoadHandler::Kind LoadHandler::GetHandlerKind(Smi smi_handler) {
@@ -110,7 +113,9 @@ Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-CAST_ACCESSOR(StoreHandler)
+OBJECT_CONSTRUCTORS_IMPL(StoreHandler, DataHandler)
+
+CAST_ACCESSOR2(StoreHandler)
 
 Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
   int config = KindBits::encode(kGlobalProxy);
