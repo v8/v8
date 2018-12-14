@@ -367,9 +367,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractFeedbackCellReferences(HeapEntry* entry,
                                      FeedbackCell* feedback_cell);
   void ExtractPropertyCellReferences(HeapEntry* entry, PropertyCell* cell);
-  void ExtractAllocationSiteReferences(HeapEntry* entry, AllocationSite* site);
+  void ExtractAllocationSiteReferences(HeapEntry* entry, AllocationSite site);
   void ExtractArrayBoilerplateDescriptionReferences(
-      HeapEntry* entry, ArrayBoilerplateDescription* value);
+      HeapEntry* entry, ArrayBoilerplateDescription value);
   void ExtractJSArrayBufferReferences(HeapEntry* entry, JSArrayBuffer buffer);
   void ExtractJSPromiseReferences(HeapEntry* entry, JSPromise promise);
   void ExtractJSGeneratorObjectReferences(HeapEntry* entry,

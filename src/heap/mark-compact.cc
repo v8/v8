@@ -1059,7 +1059,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
 
       Object* nested = object;
       while (nested->IsAllocationSite()) {
-        AllocationSite* current_site = AllocationSite::cast(nested);
+        AllocationSite current_site = AllocationSite::cast(nested);
         // MarkZombie will override the nested_site, read it first before
         // marking
         nested = current_site->nested_site();

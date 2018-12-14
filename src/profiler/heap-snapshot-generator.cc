@@ -1165,7 +1165,7 @@ void V8HeapExplorer::ExtractPropertyCellReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractAllocationSiteReferences(HeapEntry* entry,
-                                                     AllocationSite* site) {
+                                                     AllocationSite site) {
   SetInternalReference(entry, "transition_info",
                        site->transition_info_or_boilerplate(),
                        AllocationSite::kTransitionInfoOrBoilerplateOffset);
@@ -1177,7 +1177,7 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractArrayBoilerplateDescriptionReferences(
-    HeapEntry* entry, ArrayBoilerplateDescription* value) {
+    HeapEntry* entry, ArrayBoilerplateDescription value) {
   SetInternalReference(entry, "constant_elements", value->constant_elements(),
                        ArrayBoilerplateDescription::kConstantElementsOffset);
 }

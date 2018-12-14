@@ -143,15 +143,15 @@ HeapObject* Factory::AllocateRawWithAllocationSite(
       space == NEW_SPACE ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
   result->set_map_after_allocation(*map, write_barrier_mode);
   if (!allocation_site.is_null()) {
-    AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
-        reinterpret_cast<Address>(result) + map->instance_size());
+    AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(
+        ObjectPtr(reinterpret_cast<Address>(result) + map->instance_size()));
     InitializeAllocationMemento(alloc_memento, *allocation_site);
   }
   return result;
 }
 
-void Factory::InitializeAllocationMemento(AllocationMemento* memento,
-                                          AllocationSite* allocation_site) {
+void Factory::InitializeAllocationMemento(AllocationMemento memento,
+                                          AllocationSite allocation_site) {
   memento->set_map_after_allocation(*allocation_memento_map(),
                                     SKIP_WRITE_BARRIER);
   memento->set_allocation_site(allocation_site, SKIP_WRITE_BARRIER);
@@ -2043,8 +2043,8 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   Handle<JSObject> clone(JSObject::cast(raw_clone), isolate());
 
   if (!site.is_null()) {
-    AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
-        reinterpret_cast<Address>(raw_clone) + object_size);
+    AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(
+        ObjectPtr(reinterpret_cast<Address>(raw_clone) + object_size));
     InitializeAllocationMemento(alloc_memento, *site);
   }
 

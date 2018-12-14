@@ -183,7 +183,7 @@ class RootVisitor;
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(ObjectBoilerplateDescription, empty_object_boilerplate_description,        \
     EmptyObjectBoilerplateDescription)                                         \
-  V(ArrayBoilerplateDescription*, empty_array_boilerplate_description,         \
+  V(ArrayBoilerplateDescription, empty_array_boilerplate_description,          \
     EmptyArrayBoilerplateDescription)                                          \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
   V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \

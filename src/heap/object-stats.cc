@@ -383,7 +383,7 @@ class ObjectStatsCollectorImpl {
       ObjectStats::VirtualInstanceType type);
 
   // Details.
-  void RecordVirtualAllocationSiteDetails(AllocationSite* site);
+  void RecordVirtualAllocationSiteDetails(AllocationSite site);
   void RecordVirtualBytecodeArrayDetails(BytecodeArray bytecode);
   void RecordVirtualCodeDetails(Code code);
   void RecordVirtualContext(Context context);
@@ -400,7 +400,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualJSFunctionDetails(JSFunction function);
 
   void RecordVirtualArrayBoilerplateDescription(
-      ArrayBoilerplateDescription* description);
+      ArrayBoilerplateDescription description);
   Heap* heap_;
   ObjectStats* stats_;
   MarkCompactCollector::NonAtomicMarkingState* marking_state_;
@@ -470,7 +470,7 @@ void ObjectStatsCollectorImpl::RecordExternalResourceStats(
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
-    AllocationSite* site) {
+    AllocationSite site) {
   if (!site->PointsToLiteral()) return;
   JSObject boilerplate = site->boilerplate();
   if (boilerplate->IsJSArray()) {
@@ -716,7 +716,7 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   // Iterate boilerplates first to disambiguate them from regular JS objects.
   Object* list = heap_->allocation_sites_list();
   while (list->IsAllocationSite()) {
-    AllocationSite* site = AllocationSite::cast(list);
+    AllocationSite site = AllocationSite::cast(list);
     RecordVirtualAllocationSiteDetails(site);
     list = site->weak_next();
   }
@@ -859,7 +859,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSFunctionDetails(
   }
 }
 void ObjectStatsCollectorImpl::RecordVirtualArrayBoilerplateDescription(
-    ArrayBoilerplateDescription* description) {
+    ArrayBoilerplateDescription description) {
   RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
       description, description->constant_elements(),
       ObjectStats::ARRAY_BOILERPLATE_DESCRIPTION_ELEMENTS_TYPE);

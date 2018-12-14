@@ -22,6 +22,7 @@
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/smi.h"
@@ -41,7 +42,6 @@ class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
 
-class AllocationMemento;
 class ObjectBoilerplateDescription;
 class BytecodeArray;
 class CodeDataContainer;
@@ -226,7 +226,8 @@ class Heap {
     TEAR_DOWN
   };
 
-  using PretenuringFeedbackMap = std::unordered_map<AllocationSite*, size_t>;
+  using PretenuringFeedbackMap =
+      std::unordered_map<AllocationSite, size_t, HeapObjectPtr::Hasher>;
 
   // Taking this mutex prevents the GC from entering a phase that relocates
   // object references.
@@ -426,7 +427,7 @@ class Heap {
   // Traverse all the allocaions_sites [nested_site and weak_next] in the list
   // and foreach call the visitor
   void ForeachAllocationSite(
-      Object* list, const std::function<void(AllocationSite*)>& visitor);
+      Object* list, const std::function<void(AllocationSite)>& visitor);
 
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
@@ -481,9 +482,9 @@ class Heap {
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
   // If an object has an AllocationMemento trailing it, return it, otherwise
-  // return nullptr;
+  // return a null AllocationMemento.
   template <FindMementoMode mode>
-  inline AllocationMemento* FindAllocationMemento(Map map, HeapObject* object);
+  inline AllocationMemento FindAllocationMemento(Map map, HeapObject* object);
 
   // Returns false if not able to reserve.
   bool ReserveSpace(Reservation* reservations, std::vector<Address>* maps);
@@ -1551,7 +1552,7 @@ class Heap {
   void ProcessPretenuringFeedback();
 
   // Removes an entry from the global pretenuring storage.
-  void RemoveAllocationSitePretenuringFeedback(AllocationSite* site);
+  void RemoveAllocationSitePretenuringFeedback(AllocationSite site);
 
   // ===========================================================================
   // Actual GC. ================================================================

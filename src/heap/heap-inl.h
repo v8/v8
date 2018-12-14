@@ -497,13 +497,13 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 }
 
 template <Heap::FindMementoMode mode>
-AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
+AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject* object) {
   Address object_address = object->address();
   Address memento_address = object_address + object->SizeFromMap(map);
   Address last_memento_word_address = memento_address + kPointerSize;
   // If the memento would be on another page, bail out immediately.
   if (!Page::OnSamePage(object_address, last_memento_word_address)) {
-    return nullptr;
+    return AllocationMemento();
   }
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
   MapWordSlot candidate_map_slot = candidate->map_slot();
@@ -513,7 +513,7 @@ AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
   MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
   if (!candidate_map_slot.contains_value(
           ReadOnlyRoots(this).allocation_memento_map().ptr())) {
-    return nullptr;
+    return AllocationMemento();
   }
 
   // Bail out if the memento is below the age mark, which can happen when
@@ -523,15 +523,15 @@ AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
     Address age_mark =
         reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
     if (!object_page->Contains(age_mark)) {
-      return nullptr;
+      return AllocationMemento();
     }
     // Do an exact check in the case where the age mark is on the same page.
     if (object_address < age_mark) {
-      return nullptr;
+      return AllocationMemento();
     }
   }
 
-  AllocationMemento* memento_candidate = AllocationMemento::cast(candidate);
+  AllocationMemento memento_candidate = AllocationMemento::cast(candidate);
 
   // Depending on what the memento is used for, we might need to perform
   // additional checks.
@@ -540,7 +540,7 @@ AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
     case Heap::kForGC:
       return memento_candidate;
     case Heap::kForRuntime:
-      if (memento_candidate == nullptr) return nullptr;
+      if (memento_candidate.is_null()) return AllocationMemento();
       // Either the object is the last object in the new space, or there is
       // another object of at least word size (the header map word) following
       // it, so suffices to compare ptr and top here.
@@ -551,7 +551,7 @@ AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
       if ((memento_address != top) && memento_candidate->IsValid()) {
         return memento_candidate;
       }
-      return nullptr;
+      return AllocationMemento();
     default:
       UNREACHABLE();
   }
@@ -568,17 +568,18 @@ void Heap::UpdateAllocationSite(Map map, HeapObject* object,
       (!InNewSpace(object) && Page::FromAddress(object->address())
                                   ->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)));
   if (!FLAG_allocation_site_pretenuring ||
-      !AllocationSite::CanTrack(map->instance_type()))
+      !AllocationSite::CanTrack(map->instance_type())) {
     return;
-  AllocationMemento* memento_candidate =
+  }
+  AllocationMemento memento_candidate =
       FindAllocationMemento<kForGC>(map, object);
-  if (memento_candidate == nullptr) return;
+  if (memento_candidate.is_null()) return;
 
   // Entering cached feedback is used in the parallel case. We are not allowed
   // to dereference the allocation site and rather have to postpone all checks
   // till actually merging the data.
   Address key = memento_candidate->GetAllocationSiteUnchecked();
-  (*pretenuring_feedback)[reinterpret_cast<AllocationSite*>(key)]++;
+  (*pretenuring_feedback)[AllocationSite::unchecked_cast(ObjectPtr(key))]++;
 }
 
 void Heap::ExternalStringTable::AddString(String string) {

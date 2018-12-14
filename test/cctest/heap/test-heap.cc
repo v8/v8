@@ -3704,7 +3704,7 @@ static int AllocationSitesCount(Heap* heap) {
   int count = 0;
   for (Object* site = heap->allocation_sites_list();
        site->IsAllocationSite();) {
-    AllocationSite* cur = AllocationSite::cast(site);
+    AllocationSite cur = AllocationSite::cast(site);
     CHECK(cur->HasWeakNext());
     site = cur->weak_next();
     count++;
@@ -3716,9 +3716,9 @@ static int SlimAllocationSiteCount(Heap* heap) {
   int count = 0;
   for (Object* weak_list = heap->allocation_sites_list();
        weak_list->IsAllocationSite();) {
-    AllocationSite* weak_cur = AllocationSite::cast(weak_list);
+    AllocationSite weak_cur = AllocationSite::cast(weak_list);
     for (Object* site = weak_cur->nested_site(); site->IsAllocationSite();) {
-      AllocationSite* cur = AllocationSite::cast(site);
+      AllocationSite cur = AllocationSite::cast(site);
       CHECK(!cur->HasWeakNext());
       site = cur->nested_site();
       count++;

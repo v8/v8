@@ -33,7 +33,7 @@ class UncompiledDataWithPreParsedScope;
 class WasmInstanceObject;
 
 #define TYPED_VISITOR_ID_LIST(V)                                              \
-  V(AllocationSite, AllocationSite*)                                          \
+  V(AllocationSite, AllocationSite)                                           \
   V(BigInt, BigInt)                                                           \
   V(ByteArray, ByteArray)                                                     \
   V(BytecodeArray, BytecodeArray)                                             \

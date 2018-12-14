@@ -16,8 +16,9 @@ namespace internal {
 
 enum InstanceType : uint16_t;
 
-class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
+class AllocationSite : public StructPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
   static const double kPretenureRatio;
   static const int kPretenureMinimumCreated = 100;
@@ -128,7 +129,7 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
   DECL_PRINTER(AllocationSite)
   DECL_VERIFIER(AllocationSite)
 
-  DECL_CAST(AllocationSite)
+  DECL_CAST2(AllocationSite)
   static inline bool ShouldTrack(ElementsKind boilerplate_elements_kind);
   static bool ShouldTrack(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
@@ -158,10 +159,10 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
  private:
   inline bool PretenuringDecisionMade() const;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSite);
+  OBJECT_CONSTRUCTORS(AllocationSite, StructPtr);
 };
 
-class AllocationMemento : public Struct {
+class AllocationMemento : public StructPtr {
  public:
 // Layout description.
 #define ALLOCATION_MEMENTO_FIELDS(V)    \
@@ -175,16 +176,15 @@ class AllocationMemento : public Struct {
   DECL_ACCESSORS(allocation_site, Object)
 
   inline bool IsValid() const;
-  inline AllocationSite* GetAllocationSite() const;
+  inline AllocationSite GetAllocationSite() const;
   inline Address GetAllocationSiteUnchecked() const;
 
   DECL_PRINTER(AllocationMemento)
   DECL_VERIFIER(AllocationMemento)
 
-  DECL_CAST(AllocationMemento)
+  DECL_CAST2(AllocationMemento)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationMemento);
+  OBJECT_CONSTRUCTORS(AllocationMemento, StructPtr);
 };
 
 }  // namespace internal

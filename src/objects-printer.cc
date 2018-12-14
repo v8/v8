@@ -1739,7 +1739,7 @@ void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
 
 void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "ArrayBoilerplateDescription");
+  PrintHeader(os, "ArrayBoilerplateDescription");
   os << "\n - elements kind: " << elements_kind();
   os << "\n - constant elements: " << Brief(constant_elements());
   os << "\n";
@@ -1959,7 +1959,7 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
 
 
 void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "AllocationSite");
+  PrintHeader(os, "AllocationSite");
   if (this->HasWeakNext()) os << "\n - weak_next: " << Brief(weak_next());
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - nested site: " << Brief(nested_site());
@@ -1983,7 +1983,7 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
 
 
 void AllocationMemento::AllocationMementoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "AllocationMemento");
+  PrintHeader(os, "AllocationMemento");
   os << "\n - allocation site: ";
   if (IsValid()) {
     GetAllocationSite()->AllocationSitePrint(os);

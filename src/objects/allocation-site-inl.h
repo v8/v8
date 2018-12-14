@@ -16,8 +16,13 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(AllocationMemento)
-CAST_ACCESSOR(AllocationSite)
+OBJECT_CONSTRUCTORS_IMPL(AllocationMemento, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(AllocationSite, StructPtr)
+
+NEVER_READ_ONLY_SPACE_IMPL(AllocationSite)
+
+CAST_ACCESSOR2(AllocationMemento)
+CAST_ACCESSOR2(AllocationSite)
 
 ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
           kTransitionInfoOrBoilerplateOffset)
@@ -180,7 +185,7 @@ bool AllocationMemento::IsValid() const {
          !AllocationSite::cast(allocation_site())->IsZombie();
 }
 
-AllocationSite* AllocationMemento::GetAllocationSite() const {
+AllocationSite AllocationMemento::GetAllocationSite() const {
   DCHECK(IsValid());
   return AllocationSite::cast(allocation_site());
 }

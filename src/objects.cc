@@ -16005,8 +16005,8 @@ bool AllocationSite::IsNested() {
   DCHECK(FLAG_trace_track_allocation_sites);
   Object* current = boilerplate()->GetHeap()->allocation_sites_list();
   while (current->IsAllocationSite()) {
-    AllocationSite* current_site = AllocationSite::cast(current);
-    if (current_site->nested_site() == this) {
+    AllocationSite current_site = AllocationSite::cast(current);
+    if (current_site->nested_site() == *this) {
       return true;
     }
     current = current_site->weak_next();
@@ -16039,8 +16039,9 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
         if (FLAG_trace_track_allocation_sites) {
           bool is_nested = site->IsNested();
           PrintF("AllocationSite: JSArray %p boilerplate %supdated %s->%s\n",
-                 reinterpret_cast<void*>(*site), is_nested ? "(nested)" : " ",
-                 ElementsKindToString(kind), ElementsKindToString(to_kind));
+                 reinterpret_cast<void*>(site->ptr()),
+                 is_nested ? "(nested)" : " ", ElementsKindToString(kind),
+                 ElementsKindToString(to_kind));
         }
         JSObject::TransitionElementsKind(boilerplate, to_kind);
         site->dependent_code()->DeoptimizeDependentCodeGroup(
@@ -16059,8 +16060,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
       if (update_or_check == AllocationSiteUpdateMode::kCheckOnly) return true;
       if (FLAG_trace_track_allocation_sites) {
         PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
-               reinterpret_cast<void*>(*site),
-               ElementsKindToString(kind),
+               reinterpret_cast<void*>(site->ptr()), ElementsKindToString(kind),
                ElementsKindToString(to_kind));
       }
       site->SetElementsKind(to_kind);
@@ -16101,9 +16101,9 @@ bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
     DisallowHeapAllocation no_allocation;
 
     Heap* heap = object->GetHeap();
-    AllocationMemento* memento =
+    AllocationMemento memento =
         heap->FindAllocationMemento<Heap::kForRuntime>(object->map(), *object);
-    if (memento == nullptr) return false;
+    if (memento.is_null()) return false;
 
     // Walk through to the Allocation Site
     site = handle(memento->GetAllocationSite(), heap->isolate());

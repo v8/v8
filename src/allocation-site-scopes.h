@@ -29,7 +29,7 @@ class AllocationSiteContext {
   Isolate* isolate() { return isolate_; }
 
  protected:
-  void update_current_site(AllocationSite* site) {
+  void update_current_site(AllocationSite site) {
     *(current_.location()) = site->ptr();
   }
 

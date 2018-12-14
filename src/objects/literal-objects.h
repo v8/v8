@@ -52,7 +52,7 @@ class ObjectBoilerplateDescription : public FixedArray {
   OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray)
 };
 
-class ArrayBoilerplateDescription : public Struct {
+class ArrayBoilerplateDescription : public StructPtr {
  public:
   // store constant_elements of a fixed array
   DECL_ACCESSORS2(constant_elements, FixedArrayBase)
@@ -62,7 +62,7 @@ class ArrayBoilerplateDescription : public Struct {
 
   inline bool is_empty() const;
 
-  DECL_CAST(ArrayBoilerplateDescription)
+  DECL_CAST2(ArrayBoilerplateDescription)
   // Dispatched behavior.
   DECL_PRINTER(ArrayBoilerplateDescription)
   DECL_VERIFIER(ArrayBoilerplateDescription)
@@ -80,7 +80,7 @@ class ArrayBoilerplateDescription : public Struct {
 
  private:
   DECL_INT_ACCESSORS(flags)
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayBoilerplateDescription);
+  OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription, StructPtr);
 };
 
 class ClassBoilerplate : public FixedArray {

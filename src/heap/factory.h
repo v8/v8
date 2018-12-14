@@ -1010,8 +1010,8 @@ class V8_EXPORT_PRIVATE Factory {
       MaybeHandle<String> name, MaybeHandle<HeapObject> maybe_function_data,
       int maybe_builtin_index, FunctionKind kind = kNormalFunction);
 
-  void InitializeAllocationMemento(AllocationMemento* memento,
-                                   AllocationSite* allocation_site);
+  void InitializeAllocationMemento(AllocationMemento memento,
+                                   AllocationSite allocation_site);
 
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(Handle<JSObject> obj,

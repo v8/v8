@@ -619,7 +619,7 @@ const char* Heap::GetSpaceName(int idx) {
 
 void Heap::MergeAllocationSitePretenuringFeedback(
     const PretenuringFeedbackMap& local_pretenuring_feedback) {
-  AllocationSite* site = nullptr;
+  AllocationSite site;
   for (auto& site_and_count : local_pretenuring_feedback) {
     site = site_and_count.first;
     MapWord map_word = site_and_count.first->map_word();
@@ -688,7 +688,7 @@ class Heap::SkipStoreBufferScope {
 
 namespace {
 inline bool MakePretenureDecision(
-    AllocationSite* site, AllocationSite::PretenureDecision current_decision,
+    AllocationSite site, AllocationSite::PretenureDecision current_decision,
     double ratio, bool maximum_size_scavenge) {
   // Here we just allow state transitions from undecided or maybe tenure
   // to don't tenure, maybe tenure, or tenure.
@@ -712,7 +712,7 @@ inline bool MakePretenureDecision(
   return false;
 }
 
-inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite* site,
+inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite site,
                                       bool maximum_size_scavenge) {
   bool deopt = false;
   int create_count = site->memento_create_count();
@@ -734,8 +734,8 @@ inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite* site,
     PrintIsolate(isolate,
                  "pretenuring: AllocationSite(%p): (created, found, ratio) "
                  "(%d, %d, %f) %s => %s\n",
-                 static_cast<void*>(site), create_count, found_count, ratio,
-                 site->PretenureDecisionName(current_decision),
+                 reinterpret_cast<void*>(site.ptr()), create_count, found_count,
+                 ratio, site->PretenureDecisionName(current_decision),
                  site->PretenureDecisionName(site->pretenure_decision()));
   }
 
@@ -746,7 +746,7 @@ inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite* site,
 }
 }  // namespace
 
-void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
+void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite site) {
   global_pretenuring_feedback_.erase(site);
 }
 
@@ -763,7 +763,7 @@ void Heap::ProcessPretenuringFeedback() {
     int allocation_sites = 0;
     int active_allocation_sites = 0;
 
-    AllocationSite* site = nullptr;
+    AllocationSite site;
 
     // Step 1: Digest feedback for recorded allocation sites.
     bool maximum_size_scavenge = MaximumSizeScavenge();
@@ -796,7 +796,7 @@ void Heap::ProcessPretenuringFeedback() {
     if (deopt_maybe_tenured) {
       ForeachAllocationSite(
           allocation_sites_list(),
-          [&allocation_sites, &trigger_deoptimization](AllocationSite* site) {
+          [&allocation_sites, &trigger_deoptimization](AllocationSite site) {
             DCHECK(site->IsAllocationSite());
             allocation_sites++;
             if (site->IsMaybeTenure()) {
@@ -837,7 +837,7 @@ void Heap::DeoptMarkedAllocationSites() {
   // TODO(hpayer): If iterating over the allocation sites list becomes a
   // performance issue, use a cache data structure in heap instead.
 
-  ForeachAllocationSite(allocation_sites_list(), [this](AllocationSite* site) {
+  ForeachAllocationSite(allocation_sites_list(), [this](AllocationSite site) {
     if (site->deopt_dependent_code()) {
       site->dependent_code()->MarkCodeForDeoptimization(
           isolate_, DependentCode::kAllocationSiteTenuringChangedGroup);
@@ -2233,8 +2233,7 @@ void Heap::ProcessYoungWeakReferences(WeakObjectRetainer* retainer) {
 
 
 void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
-  Object* head =
-      VisitWeakList2<Context>(this, native_contexts_list(), retainer);
+  Object* head = VisitWeakList<Context>(this, native_contexts_list(), retainer);
   // Update the head of the list of contexts.
   set_native_contexts_list(head);
 }
@@ -2252,15 +2251,15 @@ void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
 }
 
 void Heap::ForeachAllocationSite(
-    Object* list, const std::function<void(AllocationSite*)>& visitor) {
+    Object* list, const std::function<void(AllocationSite)>& visitor) {
   DisallowHeapAllocation disallow_heap_allocation;
   Object* current = list;
   while (current->IsAllocationSite()) {
-    AllocationSite* site = AllocationSite::cast(current);
+    AllocationSite site = AllocationSite::cast(current);
     visitor(site);
     Object* current_nested = site->nested_site();
     while (current_nested->IsAllocationSite()) {
-      AllocationSite* nested_site = AllocationSite::cast(current_nested);
+      AllocationSite nested_site = AllocationSite::cast(current_nested);
       visitor(nested_site);
       current_nested = nested_site->nested_site();
     }
@@ -2273,7 +2272,7 @@ void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
   bool marked = false;
 
   ForeachAllocationSite(allocation_sites_list(),
-                        [&marked, flag, this](AllocationSite* site) {
+                        [&marked, flag, this](AllocationSite site) {
                           if (site->GetPretenureMode() == flag) {
                             site->ResetPretenureDecision();
                             site->set_deopt_dependent_code(true);

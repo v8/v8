@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array.h"
@@ -19,7 +20,6 @@
 namespace v8 {
 namespace internal {
 
-class AllocationSite;
 class HeapObject;
 class Object;
 class UnalignedSlot;
@@ -78,7 +78,7 @@ class Deserializer : public SerializerDeserializer {
 
   Isolate* isolate() const { return isolate_; }
   SnapshotByteSource* source() { return &source_; }
-  const std::vector<AllocationSite*>& new_allocation_sites() const {
+  const std::vector<AllocationSite>& new_allocation_sites() const {
     return new_allocation_sites_;
   }
   const std::vector<Code>& new_code_objects() const {
@@ -151,7 +151,7 @@ class Deserializer : public SerializerDeserializer {
   ExternalReferenceTable* external_reference_table_;
 
   std::vector<Map> new_maps_;
-  std::vector<AllocationSite*> new_allocation_sites_;
+  std::vector<AllocationSite> new_allocation_sites_;
   std::vector<Code> new_code_objects_;
   std::vector<AccessorInfo> accessor_infos_;
   std::vector<CallHandlerInfo*> call_handler_infos_;

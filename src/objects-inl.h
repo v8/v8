@@ -378,6 +378,11 @@ bool HeapObject::IsStruct() const {
     return true;
     STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+    // It is hard to include ALLOCATION_SITE_TYPE in STRUCT_LIST because
+    // that macro is used for many things and AllocationSite needs a few
+    // special cases.
+    case ALLOCATION_SITE_TYPE:
+      return true;
     default:
       return false;
   }
@@ -450,7 +455,6 @@ OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 CAST_ACCESSOR2(BigInt)
 CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR(Cell)
-CAST_ACCESSOR(ArrayBoilerplateDescription)
 CAST_ACCESSOR(DataHandler)
 CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
