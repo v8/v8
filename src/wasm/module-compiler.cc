@@ -205,16 +205,16 @@ class CompilationStateImpl {
     std::vector<WasmCode*> code_to_log_;
   };
 
-  class FreeCallbacksTask : public Task {
+  class FreeCallbacksTask : public CancelableTask {
    public:
-    explicit FreeCallbacksTask(
-        std::vector<CompilationState::callback_t> callbacks)
-        : callbacks_(std::move(callbacks)) {}
+    explicit FreeCallbacksTask(CompilationStateImpl* comp_state)
+        : CancelableTask(&comp_state->foreground_task_manager_),
+          compilation_state_(comp_state) {}
 
-    void Run() override { callbacks_.clear(); }
+    void RunInternal() override { compilation_state_->callbacks_.clear(); }
 
    private:
-    std::vector<CompilationState::callback_t> callbacks_;
+    CompilationStateImpl* const compilation_state_;
   };
 
   void NotifyOnEvent(CompilationEvent event, const VoidResult* error_result);
@@ -272,8 +272,15 @@ class CompilationStateImpl {
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  // Callback functions to be called on compilation events.
+  // Callback functions to be called on compilation events. Only accessible from
+  // the foreground thread.
   std::vector<CompilationState::callback_t> callbacks_;
+
+  // Remember whether {Abort()} was called. When set from the foreground this
+  // ensures no more callbacks will be called afterwards. No guarantees when set
+  // from the background. Only needs to be atomic so that it can be set from
+  // foreground and background.
+  std::atomic<bool> aborted_{false};
 
   CancelableTaskManager background_task_manager_;
   CancelableTaskManager foreground_task_manager_;
@@ -3220,11 +3227,11 @@ void CompilationStateImpl::Abort() {
   // No more callbacks after abort. Don't free the std::function objects here,
   // since this might clear references in the embedder, which is only allowed on
   // the main thread.
+  aborted_.store(true);
   if (!callbacks_.empty()) {
     foreground_task_runner_->PostTask(
-        base::make_unique<FreeCallbacksTask>(std::move(callbacks_)));
+        base::make_unique<FreeCallbacksTask>(this));
   }
-  DCHECK(callbacks_.empty());
 }
 
 void CompilationStateImpl::SetError(uint32_t func_index,
@@ -3251,6 +3258,7 @@ void CompilationStateImpl::SetError(uint32_t func_index,
 
 void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
                                          const VoidResult* error_result) {
+  if (aborted_.load()) return;
   HandleScope scope(isolate_);
   for (auto& callback : callbacks_) callback(event, error_result);
   // If no more events are expected after this one, clear the callbacks to free
