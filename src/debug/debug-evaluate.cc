@@ -749,6 +749,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kStringPrototypeItalics:
     case Builtins::kStringPrototypeLastIndexOf:
     case Builtins::kStringPrototypeLink:
+    case Builtins::kStringPrototypeMatchAll:
     case Builtins::kStringPrototypePadEnd:
     case Builtins::kStringPrototypePadStart:
     case Builtins::kStringPrototypeRepeat:
@@ -834,6 +835,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kRegExpPrototypeFlagsGetter:
     case Builtins::kRegExpPrototypeGlobalGetter:
     case Builtins::kRegExpPrototypeIgnoreCaseGetter:
+    case Builtins::kRegExpPrototypeMatchAll:
     case Builtins::kRegExpPrototypeMultilineGetter:
     case Builtins::kRegExpPrototypeDotAllGetter:
     case Builtins::kRegExpPrototypeUnicodeGetter:

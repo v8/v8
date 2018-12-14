@@ -182,6 +182,7 @@ function listener(event, exec_state, event_data, data) {
         }
         if (f == "normalize") continue;
         if (f == "match") continue;
+        if (f == "matchAll") continue;
         if (f == "search") continue;
         if (f == "split" || f == "replace") {
           fail(`'abcd'.${f}(2)`);
