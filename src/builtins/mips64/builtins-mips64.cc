@@ -2896,7 +2896,7 @@ void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
 
     // No arguments should be passed.
     __ Assert(eq, AbortReason::kWrongNumberOfArgumentsForInternalPackedArray,
-              a0, Operand(0));
+              a0, Operand(static_cast<int64_t>(0)));
   }
 
   __ Jump(
