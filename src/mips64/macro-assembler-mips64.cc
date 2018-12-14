@@ -4337,7 +4337,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // Set up sp in the delay slot.
   daddiu(sp, sp, -kCArgsSlotsSize);
   // Make sure the stored 'ra' points to this position.
-  DCHECK_EQ(kNumInstructionsToJump, masm->InstructionsGeneratedSince(&find_ra));
+  DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
 }
 
 void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt,
