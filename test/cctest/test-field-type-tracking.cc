@@ -299,7 +299,7 @@ class Expectations {
         // kAccessor
         if (value == expected_value) return true;
         if (!value->IsAccessorPair()) return false;
-        AccessorPair* pair = AccessorPair::cast(value);
+        AccessorPair pair = AccessorPair::cast(value);
         return pair->Equals(expected_value, *setter_values_[descriptor]);
       }
     }

@@ -18,8 +18,11 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(AccessorInfo)
-CAST_ACCESSOR(AccessCheckInfo)
+OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(AccessorInfo, StructPtr)
+
+CAST_ACCESSOR2(AccessorInfo)
+CAST_ACCESSOR2(AccessCheckInfo)
 CAST_ACCESSOR(InterceptorInfo)
 CAST_ACCESSOR(CallHandlerInfo)
 

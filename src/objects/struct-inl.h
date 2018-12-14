@@ -24,8 +24,9 @@ bool Tuple2Ptr::IsTuple2Ptr() const {
 
 OBJECT_CONSTRUCTORS_IMPL(StructPtr, HeapObjectPtr)
 OBJECT_CONSTRUCTORS_IMPL(Tuple2Ptr, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(AccessorPair, StructPtr)
 
-CAST_ACCESSOR(AccessorPair)
+CAST_ACCESSOR2(AccessorPair)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR2(StructPtr)
 CAST_ACCESSOR(Tuple2)

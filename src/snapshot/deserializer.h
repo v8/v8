@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/objects/api-callbacks.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array.h"
 #include "src/objects/map.h"
@@ -84,7 +85,7 @@ class Deserializer : public SerializerDeserializer {
     return new_code_objects_;
   }
   const std::vector<Map>& new_maps() const { return new_maps_; }
-  const std::vector<AccessorInfo*>& accessor_infos() const {
+  const std::vector<AccessorInfo>& accessor_infos() const {
     return accessor_infos_;
   }
   const std::vector<CallHandlerInfo*>& call_handler_infos() const {
@@ -152,7 +153,7 @@ class Deserializer : public SerializerDeserializer {
   std::vector<Map> new_maps_;
   std::vector<AllocationSite*> new_allocation_sites_;
   std::vector<Code> new_code_objects_;
-  std::vector<AccessorInfo*> accessor_infos_;
+  std::vector<AccessorInfo> accessor_infos_;
   std::vector<CallHandlerInfo*> call_handler_infos_;
   std::vector<Handle<String>> new_internalized_strings_;
   std::vector<Handle<Script>> new_scripts_;

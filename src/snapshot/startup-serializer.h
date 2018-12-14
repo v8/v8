@@ -50,7 +50,7 @@ class StartupSerializer : public RootsSerializer {
                        WhereToPoint where_to_point, int skip) override;
 
   ReadOnlySerializer* read_only_serializer_;
-  std::vector<AccessorInfo*> accessor_infos_;
+  std::vector<AccessorInfo> accessor_infos_;
   std::vector<CallHandlerInfo*> call_handler_infos_;
 
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);

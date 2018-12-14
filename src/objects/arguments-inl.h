@@ -20,8 +20,9 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(SloppyArgumentsElements, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(JSArgumentsObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(AliasedArgumentsEntry, StructPtr)
 
-CAST_ACCESSOR(AliasedArgumentsEntry)
+CAST_ACCESSOR2(AliasedArgumentsEntry)
 CAST_ACCESSOR2(SloppyArgumentsElements)
 CAST_ACCESSOR2(JSArgumentsObject)
 

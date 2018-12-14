@@ -18963,26 +18963,26 @@ int JSGeneratorObject::source_position() const {
 }
 
 // static
-AccessCheckInfo* AccessCheckInfo::Get(Isolate* isolate,
-                                      Handle<JSObject> receiver) {
+AccessCheckInfo AccessCheckInfo::Get(Isolate* isolate,
+                                     Handle<JSObject> receiver) {
   DisallowHeapAllocation no_gc;
   DCHECK(receiver->map()->is_access_check_needed());
   Object* maybe_constructor = receiver->map()->GetConstructor();
   if (maybe_constructor->IsFunctionTemplateInfo()) {
     Object* data_obj =
         FunctionTemplateInfo::cast(maybe_constructor)->GetAccessCheckInfo();
-    if (data_obj->IsUndefined(isolate)) return nullptr;
+    if (data_obj->IsUndefined(isolate)) return AccessCheckInfo();
     return AccessCheckInfo::cast(data_obj);
   }
   // Might happen for a detached context.
-  if (!maybe_constructor->IsJSFunction()) return nullptr;
+  if (!maybe_constructor->IsJSFunction()) return AccessCheckInfo();
   JSFunction constructor = JSFunction::cast(maybe_constructor);
   // Might happen for the debug context.
-  if (!constructor->shared()->IsApiFunction()) return nullptr;
+  if (!constructor->shared()->IsApiFunction()) return AccessCheckInfo();
 
   Object* data_obj =
       constructor->shared()->get_api_func_data()->GetAccessCheckInfo();
-  if (data_obj->IsUndefined(isolate)) return nullptr;
+  if (data_obj->IsUndefined(isolate)) return AccessCheckInfo();
 
   return AccessCheckInfo::cast(data_obj);
 }

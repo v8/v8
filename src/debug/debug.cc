@@ -2209,7 +2209,7 @@ bool Debug::PerformSideEffectCheckForCallback(
   if (!callback_info.is_null()) {
     if (callback_info->IsAccessorInfo()) {
       // List of whitelisted internal accessors can be found in accessors.h.
-      AccessorInfo* info = AccessorInfo::cast(*callback_info);
+      AccessorInfo info = AccessorInfo::cast(*callback_info);
       DCHECK_NE(kNotAccessor, accessor_kind);
       switch (accessor_kind == kSetter ? info->setter_side_effect_type()
                                        : info->getter_side_effect_type()) {

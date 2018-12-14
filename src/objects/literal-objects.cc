@@ -112,7 +112,7 @@ void AddToDescriptorArrayTemplate(
       DCHECK(value_kind == ClassBoilerplate::kGetter ||
              value_kind == ClassBoilerplate::kSetter);
       Object* raw_accessor = descriptor_array_template->GetStrongValue(entry);
-      AccessorPair* pair;
+      AccessorPair pair;
       if (raw_accessor->IsAccessorPair()) {
         pair = AccessorPair::cast(raw_accessor);
       } else {
@@ -216,7 +216,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
     if (value_kind == ClassBoilerplate::kData) {
       // Computed value is a normal method.
       if (existing_value->IsAccessorPair()) {
-        AccessorPair* current_pair = AccessorPair::cast(existing_value);
+        AccessorPair current_pair = AccessorPair::cast(existing_value);
 
         int existing_getter_index =
             GetExistingValueIndex(current_pair->getter());
@@ -269,7 +269,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
                                         ? ACCESSOR_GETTER
                                         : ACCESSOR_SETTER;
       if (existing_value->IsAccessorPair()) {
-        AccessorPair* current_pair = AccessorPair::cast(existing_value);
+        AccessorPair current_pair = AccessorPair::cast(existing_value);
 
         int existing_component_index =
             GetExistingValueIndex(current_pair->get(component));

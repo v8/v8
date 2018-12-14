@@ -1881,9 +1881,9 @@ void AccessorInfo::AccessorInfoVerify(Isolate* isolate) {
   CHECK(IsAccessorInfo());
   VerifyPointer(isolate, name());
   VerifyPointer(isolate, expected_receiver_type());
-  VerifyForeignPointer(isolate, this, getter());
-  VerifyForeignPointer(isolate, this, setter());
-  VerifyForeignPointer(isolate, this, js_getter());
+  VerifyForeignPointer(isolate, *this, getter());
+  VerifyForeignPointer(isolate, *this, setter());
+  VerifyForeignPointer(isolate, *this, js_getter());
   VerifyPointer(isolate, data());
 }
 

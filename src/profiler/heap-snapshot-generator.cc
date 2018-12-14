@@ -1103,8 +1103,8 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry, Script* script) {
                        Script::kLineEndsOffset);
 }
 
-void V8HeapExplorer::ExtractAccessorInfoReferences(
-    HeapEntry* entry, AccessorInfo* accessor_info) {
+void V8HeapExplorer::ExtractAccessorInfoReferences(HeapEntry* entry,
+                                                   AccessorInfo accessor_info) {
   SetInternalReference(entry, "name", accessor_info->name(),
                        AccessorInfo::kNameOffset);
   SetInternalReference(entry, "expected_receiver_type",
@@ -1119,7 +1119,7 @@ void V8HeapExplorer::ExtractAccessorInfoReferences(
 }
 
 void V8HeapExplorer::ExtractAccessorPairReferences(HeapEntry* entry,
-                                                   AccessorPair* accessors) {
+                                                   AccessorPair accessors) {
   SetInternalReference(entry, "getter", accessors->getter(),
                        AccessorPair::kGetterOffset);
   SetInternalReference(entry, "setter", accessors->setter(),
@@ -1346,7 +1346,7 @@ void V8HeapExplorer::ExtractAccessorPairProperty(HeapEntry* entry, Name key,
                                                  Object* callback_obj,
                                                  int field_offset) {
   if (!callback_obj->IsAccessorPair()) return;
-  AccessorPair* accessors = AccessorPair::cast(callback_obj);
+  AccessorPair accessors = AccessorPair::cast(callback_obj);
   SetPropertyReference(entry, key, accessors, nullptr, field_offset);
   Object* getter = accessors->getter();
   if (!getter->IsOddball()) {

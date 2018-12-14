@@ -106,12 +106,12 @@ class Tuple3 : public Tuple2 {
 //   * a FunctionTemplateInfo: a real (lazy) accessor
 //   * undefined: considered an accessor by the spec, too, strangely enough
 //   * null: an accessor which has not been set
-class AccessorPair : public Struct {
+class AccessorPair : public StructPtr {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
 
-  DECL_CAST(AccessorPair)
+  DECL_CAST2(AccessorPair)
 
   static Handle<AccessorPair> Copy(Isolate* isolate, Handle<AccessorPair> pair);
 
@@ -136,8 +136,7 @@ class AccessorPair : public Struct {
   static const int kSetterOffset = kGetterOffset + kPointerSize;
   static const int kSize = kSetterOffset + kPointerSize;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorPair);
+  OBJECT_CONSTRUCTORS(AccessorPair, StructPtr);
 };
 
 }  // namespace internal

@@ -72,7 +72,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
   if (use_simulator && obj->IsAccessorInfo()) {
     // Wipe external reference redirects in the accessor info.
-    AccessorInfo* info = AccessorInfo::cast(obj);
+    AccessorInfo info = AccessorInfo::cast(obj);
     Address original_address = Foreign::cast(info->getter())->foreign_address();
     Foreign::cast(info->js_getter())->set_foreign_address(original_address);
     accessor_infos_.push_back(info);

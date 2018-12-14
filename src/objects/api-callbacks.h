@@ -22,7 +22,7 @@ namespace internal {
 // If the accessor in the prototype has the READ_ONLY property attribute, then
 // a new value is added to the derived object when the property is set.
 // This shadows the accessor in the prototype.
-class AccessorInfo : public Struct {
+class AccessorInfo : public StructPtr {
  public:
   DECL_ACCESSORS2(name, Name)
   DECL_INT_ACCESSORS(flags)
@@ -66,7 +66,7 @@ class AccessorInfo : public Struct {
                                       Handle<Map> map);
   inline bool IsCompatibleReceiver(Object* receiver);
 
-  DECL_CAST(AccessorInfo)
+  DECL_CAST2(AccessorInfo)
 
   // Dispatched behavior.
   DECL_VERIFIER(AccessorInfo)
@@ -108,23 +108,23 @@ class AccessorInfo : public Struct {
   DEFINE_BIT_FIELDS(ACCESSOR_INFO_FLAGS_BIT_FIELDS)
 #undef ACCESSOR_INFO_FLAGS_BIT_FIELDS
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
+  OBJECT_CONSTRUCTORS(AccessorInfo, StructPtr);
 };
 
-class AccessCheckInfo : public Struct {
+class AccessCheckInfo : public StructPtr {
  public:
   DECL_ACCESSORS(callback, Object)
   DECL_ACCESSORS(named_interceptor, Object)
   DECL_ACCESSORS(indexed_interceptor, Object)
   DECL_ACCESSORS(data, Object)
 
-  DECL_CAST(AccessCheckInfo)
+  DECL_CAST2(AccessCheckInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(AccessCheckInfo)
   DECL_VERIFIER(AccessCheckInfo)
 
-  static AccessCheckInfo* Get(Isolate* isolate, Handle<JSObject> receiver);
+  static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
 
 // Layout description.
 #define ACCESS_CHECK_INFO_FIELDS(V)         \
@@ -138,8 +138,7 @@ class AccessCheckInfo : public Struct {
                                 ACCESS_CHECK_INFO_FIELDS)
 #undef ACCESS_CHECK_INFO_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessCheckInfo);
+  OBJECT_CONSTRUCTORS(AccessCheckInfo, StructPtr);
 };
 
 class InterceptorInfo : public Struct {

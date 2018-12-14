@@ -865,7 +865,7 @@ void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
 
 void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "AliasedArgumentsEntry");
+  PrintHeader(os, "AliasedArgumentsEntry");
   os << "\n - aliased_context_slot: " << aliased_context_slot();
 }
 
@@ -1585,7 +1585,7 @@ void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
 
 
 void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "AccessorInfo");
+  PrintHeader(os, "AccessorInfo");
   os << "\n - name: " << Brief(name());
   os << "\n - flags: " << flags();
   os << "\n - getter: " << Brief(getter());
@@ -1873,7 +1873,7 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {  // NOLINT
 }
 
 void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "AccessorPair");
+  PrintHeader(os, "AccessorPair");
   os << "\n - getter: " << Brief(getter());
   os << "\n - setter: " << Brief(setter());
   os << "\n";
@@ -1881,7 +1881,7 @@ void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
 
 
 void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "AccessCheckInfo");
+  PrintHeader(os, "AccessCheckInfo");
   os << "\n - callback: " << Brief(callback());
   os << "\n - named_interceptor: " << Brief(named_interceptor());
   os << "\n - indexed_interceptor: " << Brief(indexed_interceptor());
@@ -2476,7 +2476,7 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os, int descriptor,
       Object* value = GetStrongValue(descriptor);
       os << Brief(value);
       if (value->IsAccessorPair()) {
-        AccessorPair* pair = AccessorPair::cast(value);
+        AccessorPair pair = AccessorPair::cast(value);
         os << "(get: " << Brief(pair->getter())
            << ", set: " << Brief(pair->setter()) << ")";
       }

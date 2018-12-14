@@ -3574,7 +3574,7 @@ class SloppyArgumentsElementsAccessor
       FixedArray arguments = elements->arguments();
       Object* current = ArgumentsAccessor::GetRaw(arguments, entry - length);
       if (current->IsAliasedArgumentsEntry()) {
-        AliasedArgumentsEntry* alias = AliasedArgumentsEntry::cast(current);
+        AliasedArgumentsEntry alias = AliasedArgumentsEntry::cast(current);
         Context context = elements->context();
         int context_entry = alias->aliased_context_slot();
         DCHECK(!context->get(context_entry)->IsTheHole());
@@ -3890,7 +3890,7 @@ class SlowSloppyArgumentsElementsAccessor
     // Elements of the arguments object in slow mode might be slow aliases.
     if (result->IsAliasedArgumentsEntry()) {
       DisallowHeapAllocation no_gc;
-      AliasedArgumentsEntry* alias = AliasedArgumentsEntry::cast(*result);
+      AliasedArgumentsEntry alias = AliasedArgumentsEntry::cast(*result);
       Context context = elements->context();
       int context_entry = alias->aliased_context_slot();
       DCHECK(!context->get(context_entry)->IsTheHole(isolate));

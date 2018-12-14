@@ -1194,8 +1194,8 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
   HandleScope scope(this);
   Handle<Object> data;
   { DisallowHeapAllocation no_gc;
-    AccessCheckInfo* access_check_info = AccessCheckInfo::Get(this, receiver);
-    if (!access_check_info) {
+    AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
+    if (access_check_info.is_null()) {
       AllowHeapAllocation doesnt_matter_anymore;
       return ScheduleThrow(
           *factory()->NewTypeError(MessageTemplate::kNoAccess));
@@ -1243,8 +1243,8 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
   Handle<Object> data;
   v8::AccessCheckCallback callback = nullptr;
   { DisallowHeapAllocation no_gc;
-    AccessCheckInfo* access_check_info = AccessCheckInfo::Get(this, receiver);
-    if (!access_check_info) return false;
+    AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
+    if (access_check_info.is_null()) return false;
     Object* fun_obj = access_check_info->callback();
     callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
     data = handle(access_check_info->data(), this);

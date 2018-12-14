@@ -1833,7 +1833,7 @@ void Logger::LogAccessorCallbacks() {
   for (HeapObject* obj = iterator.next(); obj != nullptr;
        obj = iterator.next()) {
     if (!obj->IsAccessorInfo()) continue;
-    AccessorInfo* ai = AccessorInfo::cast(obj);
+    AccessorInfo ai = AccessorInfo::cast(obj);
     if (!ai->name()->IsName()) continue;
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     Name name = Name::cast(ai->name());

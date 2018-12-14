@@ -337,7 +337,7 @@ bool AddDescriptorsByTemplate(
       } else {
         DCHECK_EQ(kAccessor, details.kind());
         if (value->IsAccessorPair()) {
-          AccessorPair* pair = AccessorPair::cast(value);
+          AccessorPair pair = AccessorPair::cast(value);
           Object* tmp = pair->getter();
           if (tmp->IsSmi()) {
             pair->set_getter(GetMethodWithSharedNameAndSetHomeObject(

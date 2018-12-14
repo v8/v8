@@ -121,7 +121,7 @@ class SerializerDeserializer : public RootVisitor {
   static bool CanBeDeferred(HeapObject* o);
 
   void RestoreExternalReferenceRedirectors(
-      const std::vector<AccessorInfo*>& accessor_infos);
+      const std::vector<AccessorInfo>& accessor_infos);
   void RestoreExternalReferenceRedirectors(
       const std::vector<CallHandlerInfo*>& call_handler_infos);
 

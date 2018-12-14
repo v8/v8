@@ -751,8 +751,10 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     Handle<AccessCheckInfo> access_check_info;
     {
       DisallowHeapAllocation no_gc;
-      AccessCheckInfo* maybe_info = AccessCheckInfo::Get(isolate_, object);
-      if (maybe_info) access_check_info = handle(maybe_info, isolate_);
+      AccessCheckInfo maybe_info = AccessCheckInfo::Get(isolate_, object);
+      if (!maybe_info.is_null()) {
+        access_check_info = handle(maybe_info, isolate_);
+      }
     }
     // We always have both kinds of interceptors or none.
     if (!access_check_info.is_null() &&

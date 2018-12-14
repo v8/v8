@@ -1194,9 +1194,9 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
     const {
   DCHECK_EQ(ACCESS_CHECK, state_);
   DisallowHeapAllocation no_gc;
-  AccessCheckInfo* access_check_info =
+  AccessCheckInfo access_check_info =
       AccessCheckInfo::Get(isolate_, Handle<JSObject>::cast(holder_));
-  if (access_check_info) {
+  if (!access_check_info.is_null()) {
     Object* interceptor = IsElement() ? access_check_info->indexed_interceptor()
                                       : access_check_info->named_interceptor();
     if (interceptor) {
@@ -1215,7 +1215,7 @@ bool LookupIterator::LookupCachedProperty() {
   DCHECK_EQ(state(), LookupIterator::ACCESSOR);
   DCHECK(GetAccessors()->IsAccessorPair());
 
-  AccessorPair* accessor_pair = AccessorPair::cast(*GetAccessors());
+  AccessorPair accessor_pair = AccessorPair::cast(*GetAccessors());
   Handle<Object> getter(accessor_pair->getter(), isolate());
   MaybeHandle<Name> maybe_name =
       FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);

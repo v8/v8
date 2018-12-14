@@ -328,9 +328,9 @@ class RootVisitor;
 // Adapts one ACCESSOR_INFO_LIST_GENERATOR entry to the ROOT_LIST-compatible
 // entry
 #define ACCESSOR_INFO_ROOT_LIST_ADAPTER(V, name, CamelName, ...) \
-  V(AccessorInfo*, name##_accessor, CamelName##Accessor)
+  V(AccessorInfo, name##_accessor, CamelName##Accessor)
 
-// Produces (AccessorInfo*, name, CamelCase) entries
+// Produces (AccessorInfo, name, CamelCase) entries
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
