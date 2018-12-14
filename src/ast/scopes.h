@@ -814,8 +814,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     scope_info_ = scope_info;
   }
 
-  bool asm_module() const { return asm_module_; }
-  void set_asm_module();
+  bool is_asm_module() const { return is_asm_module_; }
+  void set_is_asm_module();
 
   bool should_ban_arguments() const {
     return IsClassMembersInitializerFunction(function_kind());
@@ -1065,7 +1065,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   bool has_simple_parameters_ : 1;
   // This scope contains an "use asm" annotation.
-  bool asm_module_ : 1;
+  bool is_asm_module_ : 1;
   bool force_eager_compilation_ : 1;
   // This function scope has a rest parameter.
   bool has_rest_ : 1;

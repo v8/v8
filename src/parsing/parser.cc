@@ -454,10 +454,11 @@ namespace {
 void MaybeResetCharacterStream(ParseInfo* info, FunctionLiteral* literal) {
   // Don't reset the character stream if there is an asm.js module since it will
   // be used again by the asm-parser.
-  if (!FLAG_stress_validate_asm &&
-      (literal == nullptr || !literal->scope()->ContainsAsmModule())) {
-    info->ResetCharacterStream();
+  if (info->contains_asm_module()) {
+    if (FLAG_stress_validate_asm) return;
+    if (literal != nullptr && literal->scope()->ContainsAsmModule()) return;
   }
+  info->ResetCharacterStream();
 }
 
 }  // namespace
@@ -3476,7 +3477,8 @@ void Parser::SetAsmModule() {
   // incremented after parsing is done.
   ++use_counts_[v8::Isolate::kUseAsm];
   DCHECK(scope()->is_declaration_scope());
-  scope()->AsDeclarationScope()->set_asm_module();
+  scope()->AsDeclarationScope()->set_is_asm_module();
+  info_->set_contains_asm_module(true);
 }
 
 Expression* Parser::ExpressionListToExpression(

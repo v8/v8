@@ -4042,7 +4042,7 @@ TEST(AsmModuleFlag) {
 
   // The asm.js module should be marked as such.
   i::Scope* s = DeserializeFunctionScope(isolate, &zone, m, "f");
-  CHECK(s->IsAsmModule() && s->AsDeclarationScope()->asm_module());
+  CHECK(s->IsAsmModule() && s->AsDeclarationScope()->is_asm_module());
 }
 
 

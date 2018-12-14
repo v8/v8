@@ -285,7 +285,7 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
 void DeclarationScope::SetDefaults() {
   is_declaration_scope_ = true;
   has_simple_parameters_ = true;
-  asm_module_ = false;
+  is_asm_module_ = false;
   force_eager_compilation_ = false;
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
@@ -354,12 +354,10 @@ void DeclarationScope::set_should_eager_compile() {
   should_eager_compile_ = !was_lazily_parsed_;
 }
 
-void DeclarationScope::set_asm_module() {
-  asm_module_ = true;
-}
+void DeclarationScope::set_is_asm_module() { is_asm_module_ = true; }
 
 bool Scope::IsAsmModule() const {
-  return is_function_scope() && AsDeclarationScope()->asm_module();
+  return is_function_scope() && AsDeclarationScope()->is_asm_module();
 }
 
 bool Scope::ContainsAsmModule() const {
@@ -409,8 +407,9 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
       outer_scope = new (zone)
           DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info, isolate));
-      if (scope_info->IsAsmModule())
-        outer_scope->AsDeclarationScope()->set_asm_module();
+      if (scope_info->IsAsmModule()) {
+        outer_scope->AsDeclarationScope()->set_is_asm_module();
+      }
     } else if (scope_info->scope_type() == EVAL_SCOPE) {
       outer_scope = new (zone)
           DeclarationScope(zone, EVAL_SCOPE, handle(scope_info, isolate));

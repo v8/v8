@@ -232,10 +232,10 @@ class ScopeInfo : public FixedArray {
   // function name.
   class HasInferredFunctionNameField
       : public BitField<bool, FunctionVariableField::kNext, 1> {};
-  class AsmModuleField
+  class IsAsmModuleField
       : public BitField<bool, HasInferredFunctionNameField::kNext, 1> {};
   class HasSimpleParametersField
-      : public BitField<bool, AsmModuleField::kNext, 1> {};
+      : public BitField<bool, IsAsmModuleField::kNext, 1> {};
   class FunctionKindField
       : public BitField<FunctionKind, HasSimpleParametersField::kNext, 5> {};
   class HasOuterScopeInfoField

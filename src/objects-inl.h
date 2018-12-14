@@ -1381,8 +1381,9 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
                                                     PACKED_ELEMENTS, 2);
 }
 
-
-bool ScopeInfo::IsAsmModule() const { return AsmModuleField::decode(Flags()); }
+bool ScopeInfo::IsAsmModule() const {
+  return IsAsmModuleField::decode(Flags());
+}
 
 bool ScopeInfo::HasSimpleParameters() const {
   return HasSimpleParametersField::decode(Flags());

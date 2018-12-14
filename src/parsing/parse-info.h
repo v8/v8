@@ -81,6 +81,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
                 set_collect_type_profile)
   FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
+  FLAG_ACCESSOR(kContainsAsmModule, contains_asm_module,
+                set_contains_asm_module)
   FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
                 set_block_coverage_enabled)
   FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
@@ -278,6 +280,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kAllowEvalCache = 1 << 15,
     kIsDeclaration = 1 << 16,
     kRequiresInstanceMembersInitializer = 1 << 17,
+    kContainsAsmModule = 1 << 18,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
