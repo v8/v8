@@ -952,6 +952,8 @@ action("postmortem-metadata") {
 
 torque_files = [
   "src/builtins/base.tq",
+  "src/builtins/frames.tq",
+  "src/builtins/arguments.tq",
   "src/builtins/array.tq",
   "src/builtins/array-copywithin.tq",
   "src/builtins/array-foreach.tq",
@@ -964,7 +966,6 @@ torque_files = [
   "src/builtins/array-unshift.tq",
   "src/builtins/collections.tq",
   "src/builtins/data-view.tq",
-  "src/builtins/frames.tq",
   "src/builtins/object.tq",
   "src/builtins/object-fromentries.tq",
   "src/builtins/iterator.tq",
@@ -975,6 +976,7 @@ torque_files = [
 
 torque_namespaces = [
   "base",
+  "arguments",
   "array",
   "collections",
   "iterator",

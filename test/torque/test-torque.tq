@@ -681,7 +681,7 @@ namespace test {
       case (f: StandardFrame): {
         unreachable;
       }
-      case (f: ArgumentsAdapterFrame): {
+      case (f: ArgumentsAdaptorFrame): {
         unreachable;
       }
       case (f: StubFrame): {

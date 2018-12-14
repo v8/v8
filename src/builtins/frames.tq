@@ -34,11 +34,11 @@ type FrameBase extends RawPtr
     generates 'TNode<RawPtrT>' constexpr 'void*';
 type StandardFrame extends FrameBase
     generates 'TNode<RawPtrT>' constexpr 'void*';
-type ArgumentsAdapterFrame extends FrameBase
+type ArgumentsAdaptorFrame extends FrameBase
     generates 'TNode<RawPtrT>' constexpr 'void*';
 type StubFrame extends FrameBase
     generates 'TNode<RawPtrT>' constexpr 'void*';
-type Frame = ArgumentsAdapterFrame | StandardFrame | StubFrame;
+type Frame = ArgumentsAdaptorFrame | StandardFrame | StubFrame;
 
 extern macro LoadFramePointer(): Frame;
 extern macro LoadParentFramePointer(): Frame;
@@ -101,7 +101,7 @@ const kArgumentsAdaptorFrameLengthOffset: constexpr int31
     generates 'ArgumentsAdaptorFrameConstants::kLengthOffset';
 operator '.length'
 macro LoadLengthFromAdapterFrame(implicit context: Context)(
-    f: ArgumentsAdapterFrame): Smi {
+    f: ArgumentsAdaptorFrame): Smi {
   return LoadSmiFromFrame(f, kArgumentsAdaptorFrameLengthOffset);
 }
 
@@ -129,12 +129,12 @@ Cast<StandardFrame>(implicit context: Context)(f: Frame):
   goto CastError;
 }
 
-Cast<ArgumentsAdapterFrame>(implicit context: Context)(f: Frame):
-    ArgumentsAdapterFrame labels CastError {
+Cast<ArgumentsAdaptorFrame>(implicit context: Context)(f: Frame):
+    ArgumentsAdaptorFrame labels CastError {
   const t: FrameType =
       Cast<FrameType>(f.context_or_frame_type) otherwise CastError;
   if (t == ARGUMENTS_ADAPTOR_FRAME) {
-    return %RawPointerCast<ArgumentsAdapterFrame>(f);
+    return %RawPointerCast<ArgumentsAdaptorFrame>(f);
   }
   goto CastError;
 }

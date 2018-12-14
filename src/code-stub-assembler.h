@@ -276,6 +276,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return value;
   }
 
+#if defined(V8_HOST_ARCH_32_BIT)
+  TNode<Smi> BIntToSmi(TNode<BInt> source) { return source; }
+  TNode<IntPtrT> BIntToIntPtr(TNode<BInt> source) {
+    return SmiToIntPtr(source);
+  }
+  TNode<BInt> SmiToBInt(TNode<Smi> source) { return source; }
+  TNode<BInt> IntPtrToBInt(TNode<IntPtrT> source) {
+    return SmiFromIntPtr(source);
+  }
+#elif defined(V8_HOST_ARCH_64_BIT)
+  TNode<Smi> BIntToSmi(TNode<BInt> source) { return SmiFromIntPtr(source); }
+  TNode<IntPtrT> BIntToIntPtr(TNode<BInt> source) { return source; }
+  TNode<BInt> SmiToBInt(TNode<Smi> source) { return SmiToIntPtr(source); }
+  TNode<BInt> IntPtrToBInt(TNode<IntPtrT> source) { return source; }
+#else
+#error Unknown architecture.
+#endif
+
   TNode<Smi> TaggedToSmi(TNode<Object> value, Label* fail) {
     GotoIf(TaggedIsNotSmi(value), fail);
     return UncheckedCast<Smi>(value);

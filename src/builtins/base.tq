@@ -27,6 +27,7 @@ type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
 type float32 generates 'TNode<Float32T>' constexpr 'float';
 type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
+type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
 type int31 extends int32
@@ -64,7 +65,15 @@ transient type FastJSArrayForCopy extends FastJSArray
 transient type FastJSArrayWithNoCustomIteration extends FastJSArray
     generates 'TNode<JSArray>';
 
+type SharedFunctionInfo extends HeapObject
+    generates 'TNode<SharedFunctionInfo>';
+
 type JSFunction extends JSObject generates 'TNode<JSFunction>';
+extern operator '.shared_function_info'
+    macro LoadJSFunctionSharedFunctionInfo(JSFunction): SharedFunctionInfo;
+extern operator '.formal_parameter_count'
+    macro LoadSharedFunctionInfoFormalParameterCount(SharedFunctionInfo): int32;
+
 type JSBoundFunction extends JSObject generates 'TNode<JSBoundFunction>';
 type Callable = JSFunction | JSBoundFunction | JSProxy;
 type Map extends HeapObject generates 'TNode<Map>';
@@ -923,6 +932,17 @@ Convert<uintptr, RawPtr>(r: RawPtr): uintptr {
 }
 Convert<intptr, RawPtr>(r: RawPtr): intptr {
   return Signed(r);
+}
+Convert<bint, int32>(v: int32): bint {
+  return IntPtrToBInt(Convert<intptr>(v));
+}
+extern macro IntPtrToBInt(intptr): bint;
+Convert<bint, intptr>(v: intptr): bint {
+  return IntPtrToBInt(v);
+}
+extern macro SmiToBInt(Smi): bint;
+Convert<bint, Smi>(v: Smi): bint {
+  return SmiToBInt(v);
 }
 
 macro BranchIf<A: type, B: type>(implicit context: Context)(o: B): never

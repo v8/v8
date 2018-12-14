@@ -1691,6 +1691,15 @@ class CodeAssemblerScopedExceptionHandler {
 };
 
 }  // namespace compiler
+
+#if defined(V8_HOST_ARCH_32_BIT)
+typedef Smi BInt;
+#elif defined(V8_HOST_ARCH_64_BIT)
+typedef IntPtrT BInt;
+#else
+#error Unknown architecture.
+#endif
+
 }  // namespace internal
 }  // namespace v8
 
