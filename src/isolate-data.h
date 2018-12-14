@@ -93,25 +93,27 @@ class IsolateData final {
     return &external_reference_table_;
   }
 
+  Address* builtin_entry_table() { return builtin_entry_table_; }
   Address* builtins() { return builtins_; }
 
  private:
 // Static layout definition.
-#define FIELDS(V)                                                        \
-  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kPointerSize)  \
-  V(kExternalMemoryOffset, kInt64Size)                                   \
-  V(kExternalMemoryLlimitOffset, kInt64Size)                             \
-  V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                  \
-  V(kRootsTableOffset, RootsTable::kEntriesCount* kPointerSize)          \
-  V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes) \
-  V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)         \
-  V(kVirtualCallTargetRegisterOffset, kPointerSize)                      \
-  V(kFastCCallCallerFPOffset, kPointerSize)                              \
-  V(kFastCCallCallerPCOffset, kPointerSize)                              \
-  /* This padding aligns IsolateData size by 8 bytes. */                 \
-  V(kPaddingOffset,                                                      \
-    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)   \
-  /* Total size. */                                                      \
+#define FIELDS(V)                                                          \
+  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kPointerSize)    \
+  V(kExternalMemoryOffset, kInt64Size)                                     \
+  V(kExternalMemoryLlimitOffset, kInt64Size)                               \
+  V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                    \
+  V(kRootsTableOffset, RootsTable::kEntriesCount* kPointerSize)            \
+  V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)   \
+  V(kBuiltinEntryTableOffset, Builtins::builtin_count* kSystemPointerSize) \
+  V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)           \
+  V(kVirtualCallTargetRegisterOffset, kPointerSize)                        \
+  V(kFastCCallCallerFPOffset, kPointerSize)                                \
+  V(kFastCCallCallerPCOffset, kPointerSize)                                \
+  /* This padding aligns IsolateData size by 8 bytes. */                   \
+  V(kPaddingOffset,                                                        \
+    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)     \
+  /* Total size. */                                                        \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(0, FIELDS)
@@ -137,6 +139,11 @@ class IsolateData final {
   RootsTable roots_;
 
   ExternalReferenceTable external_reference_table_;
+
+  // The entry points for all builtins. This corresponds to
+  // Code::InstructionStart() for each Code object in the builtins table below.
+  // The entry table is in IsolateData for easy access through kRootRegister.
+  Address builtin_entry_table_[Builtins::builtin_count] = {};
 
   // The entries in this array are tagged pointers to Code objects.
   Address builtins_[Builtins::builtin_count] = {};

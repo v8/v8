@@ -3320,6 +3320,9 @@ bool Isolate::Init(StartupDeserializer* des) {
   delete setup_delegate_;
   setup_delegate_ = nullptr;
 
+  // Initialize the builtin entry table.
+  Builtins::UpdateBuiltinEntryTable(this);
+
   if (FLAG_print_builtin_code) builtins()->PrintBuiltinCode();
   if (FLAG_print_builtin_size) builtins()->PrintBuiltinSize();
 

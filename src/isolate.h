@@ -1020,6 +1020,7 @@ class Isolate final : private HiddenFactory {
     return isolate_data()->external_reference_table();
   }
 
+  Address* builtin_entry_table() { return isolate_data_.builtin_entry_table(); }
   V8_INLINE Address* builtins_table() { return isolate_data_.builtins(); }
 
   StubCache* load_stub_cache() { return load_stub_cache_; }

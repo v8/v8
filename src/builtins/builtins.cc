@@ -253,6 +253,15 @@ bool Builtins::IsWasmRuntimeStub(int index) {
   UNREACHABLE();
 }
 
+// static
+void Builtins::UpdateBuiltinEntryTable(Isolate* isolate) {
+  Heap* heap = isolate->heap();
+  Address* builtin_entry_table = isolate->builtin_entry_table();
+  for (int i = 0; i < builtin_count; i++) {
+    builtin_entry_table[i] = heap->builtin(i)->InstructionStart();
+  }
+}
+
 namespace {
 
 class OffHeapTrampolineGenerator {

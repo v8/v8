@@ -125,12 +125,23 @@ class Builtins {
 
   // True, iff the given builtin contains no isolate-specific code and can be
   // embedded into the binary.
-  static bool IsIsolateIndependent(int index) { return true; }
+  static constexpr bool kAllBuiltinsAreIsolateIndependent = true;
+  static constexpr bool AllBuiltinsAreIsolateIndependent() {
+    return kAllBuiltinsAreIsolateIndependent;
+  }
+  static constexpr bool IsIsolateIndependent(int index) {
+    STATIC_ASSERT(kAllBuiltinsAreIsolateIndependent);
+    return kAllBuiltinsAreIsolateIndependent;
+  }
 
   // Wasm runtime stubs are treated specially by wasm. To guarantee reachability
   // through near jumps, their code is completely copied into a fresh off-heap
   // area.
   static bool IsWasmRuntimeStub(int index);
+
+  // Updates the table of builtin entry points based on the current contents of
+  // the builtins table.
+  static void UpdateBuiltinEntryTable(Isolate* isolate);
 
   bool is_initialized() const { return initialized_; }
 
