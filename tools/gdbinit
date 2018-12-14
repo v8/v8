@@ -137,17 +137,25 @@ set disable-randomization off
 # immediately at the line of code that triggered the DCHECK.
 python
 def dcheck_stop_handler(event):
-  orig_frame = gdb.selected_frame()
-  frame = orig_frame
+  frame = gdb.selected_frame()
   select_frame = None
+  message = None
   while frame is not None:
-    if frame.name() in ('V8_Dcheck', 'V8_Fatal'):
+    if frame.name() == 'V8_Dcheck':
+      frame_message = gdb.lookup_symbol('message', frame.block())[0]
+      if frame_message:
+        message = frame_message.value(frame).string()
+      select_frame = frame.older()
+      break
+    if frame.name().startswith('V8_Fatal'):
       select_frame = frame.older()
     frame = frame.older()
 
   if select_frame is not None:
     select_frame.select()
     gdb.execute('frame')
+    if message:
+      print('DCHECK error: {}'.format(message))
 
 gdb.events.stop.connect(dcheck_stop_handler)
 end
