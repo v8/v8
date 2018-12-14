@@ -2639,9 +2639,21 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
   Node* smi_slot = SmiTag(raw_slot);
   Node* maybe_feedback_vector = LoadFeedbackVectorUnchecked();
   Node* context = GetContext();
-  Node* result = CallBuiltin(Builtins::kCloneObjectIC, context, source,
-                             smi_flags, smi_slot, maybe_feedback_vector);
-  SetAccumulator(result);
+
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Label no_feedback(this), end(this);
+  GotoIf(IsUndefined(maybe_feedback_vector), &no_feedback);
+  var_result.Bind(CallBuiltin(Builtins::kCloneObjectIC, context, source,
+                              smi_flags, smi_slot, maybe_feedback_vector));
+  Goto(&end);
+
+  BIND(&no_feedback);
+  var_result.Bind(CallRuntime(Runtime::kCloneObjectIC_Miss, context, source,
+                              smi_flags, smi_slot, maybe_feedback_vector));
+  Goto(&end);
+
+  BIND(&end);
+  SetAccumulator(var_result.value());
   Dispatch();
 }
 

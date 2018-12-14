@@ -2699,7 +2699,14 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   MigrateDeprecated(source);
 
   FeedbackSlot slot = FeedbackVector::ToSlot(args.smi_at(2));
-  Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
+  if (maybe_vector->IsUndefined()) {
+    RETURN_RESULT_OR_FAILURE(isolate,
+                             CloneObjectSlowPath(isolate, source, flags));
+  }
+
+  DCHECK(maybe_vector->IsFeedbackVector());
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
 
   FeedbackNexus nexus(vector, slot);
   Handle<Map> source_map(source->map(), isolate);
