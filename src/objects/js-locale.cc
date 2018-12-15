@@ -312,34 +312,48 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
 }
 
 namespace {
-Handle<String> MorphLocale(Isolate* isolate, String locale,
-                           void (*morph_func)(icu::Locale* l,
-                                              UErrorCode* status)) {
+
+Handle<String> MorphLocale(Isolate* isolate, String language_tag,
+                           int32_t (*morph_func)(const char*, char*, int32_t,
+                                                 UErrorCode*)) {
+  Factory* factory = isolate->factory();
+  char localeBuffer[ULOC_FULLNAME_CAPACITY];
+  char morphBuffer[ULOC_FULLNAME_CAPACITY];
+
   UErrorCode status = U_ZERO_ERROR;
-  icu::Locale icu_locale =
-      icu::Locale::forLanguageTag(locale.ToCString().get(), status);
-  CHECK(U_SUCCESS(status));
-  CHECK(!icu_locale.isBogus());
-  (*morph_func)(&icu_locale, &status);
-  CHECK(U_SUCCESS(status));
-  CHECK(!icu_locale.isBogus());
-  return isolate->factory()->NewStringFromAsciiChecked(
-      Intl::ToLanguageTag(icu_locale).c_str());
+  // Convert from language id to locale.
+  int32_t parsed_length;
+  int32_t length =
+      uloc_forLanguageTag(language_tag->ToCString().get(), localeBuffer,
+                          ULOC_FULLNAME_CAPACITY, &parsed_length, &status);
+  CHECK(parsed_length == language_tag->length());
+  DCHECK(U_SUCCESS(status));
+  DCHECK_GT(length, 0);
+  DCHECK_NOT_NULL(morph_func);
+  // Add the likely subtags or Minimize the subtags on the locale id
+  length =
+      (*morph_func)(localeBuffer, morphBuffer, ULOC_FULLNAME_CAPACITY, &status);
+  DCHECK(U_SUCCESS(status));
+  DCHECK_GT(length, 0);
+  // Returns a well-formed language tag
+  length = uloc_toLanguageTag(morphBuffer, localeBuffer, ULOC_FULLNAME_CAPACITY,
+                              false, &status);
+  DCHECK(U_SUCCESS(status));
+  DCHECK_GT(length, 0);
+  std::string lang(localeBuffer, length);
+  std::replace(lang.begin(), lang.end(), '_', '-');
+
+  return factory->NewStringFromAsciiChecked(lang.c_str());
 }
+
 }  // namespace
 
 Handle<String> JSLocale::Maximize(Isolate* isolate, String locale) {
-  return MorphLocale(isolate, locale,
-                     [](icu::Locale* icu_locale, UErrorCode* status) {
-                       icu_locale->addLikelySubtags(*status);
-                     });
+  return MorphLocale(isolate, locale, uloc_addLikelySubtags);
 }
 
 Handle<String> JSLocale::Minimize(Isolate* isolate, String locale) {
-  return MorphLocale(isolate, locale,
-                     [](icu::Locale* icu_locale, UErrorCode* status) {
-                       icu_locale->minimizeSubtags(*status);
-                     });
+  return MorphLocale(isolate, locale, uloc_minimizeSubtags);
 }
 
 Handle<String> JSLocale::CaseFirstAsString() const {

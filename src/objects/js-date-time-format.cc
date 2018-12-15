@@ -282,9 +282,14 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
   Handle<Object> resolved_obj;
 
-  icu::Locale icu_locale = *(date_time_format->icu_locale()->raw());
-  Handle<String> locale = factory->NewStringFromAsciiChecked(
-      Intl::ToLanguageTag(icu_locale).c_str());
+  CHECK_NOT_NULL(date_time_format->icu_locale());
+  CHECK_NOT_NULL(date_time_format->icu_locale()->raw());
+  UErrorCode status = U_ZERO_ERROR;
+  char language[ULOC_FULLNAME_CAPACITY];
+  uloc_toLanguageTag(date_time_format->icu_locale()->raw()->getName(), language,
+                     ULOC_FULLNAME_CAPACITY, FALSE, &status);
+  CHECK(U_SUCCESS(status));
+  Handle<String> locale = factory->NewStringFromAsciiChecked(language);
 
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format()->raw();
@@ -308,7 +313,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   const icu::TimeZone& tz = calendar->getTimeZone();
   icu::UnicodeString time_zone;
   tz.getID(time_zone);
-  UErrorCode status = U_ZERO_ERROR;
+  status = U_ZERO_ERROR;
   icu::UnicodeString canonical_time_zone;
   icu::TimeZone::getCanonicalID(time_zone, canonical_time_zone, status);
   Handle<Object> timezone_value;
