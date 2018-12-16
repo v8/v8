@@ -5422,9 +5422,8 @@ void TurboAssembler::CallCFunctionHelper(Register function_base,
     // Save the frame pointer and PC so that the stack layout remains iterable,
     // even without an ExitFrame which normally exists between JS and C frames.
     if (isolate() != nullptr) {
-      UseScratchRegisterScope temps(this);
-      Register scratch1 = temps.Acquire();
       // 't' registers are caller-saved so this is safe as a scratch register.
+      Register scratch1 = t4;
       Register scratch2 = t5;
       DCHECK(!AreAliased(scratch1, scratch2, function_base));
 
@@ -5446,8 +5445,7 @@ void TurboAssembler::CallCFunctionHelper(Register function_base,
 
     if (isolate() != nullptr) {
       // We don't unset the PC; the FP is the source of truth.
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
+      Register scratch = t4;
       li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
       sw(zero_reg, MemOperand(scratch));
     }
