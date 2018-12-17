@@ -113,13 +113,23 @@ struct ParserFormalParameters : FormalParametersBase {
     Parameter* const* next() const { return &next_parameter; }
   };
 
-  Scanner::Location duplicate_location() const { return duplicate_loc; }
+  void set_strict_parameter_error(const Scanner::Location& loc,
+                                  MessageTemplate message) {
+    strict_error_loc = loc;
+    strict_error_message = message;
+  }
+
   bool has_duplicate() const { return duplicate_loc.IsValid(); }
+  void ValidateDuplicate(Parser* parser) const;
+  void ValidateStrictMode(Parser* parser) const;
 
   explicit ParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
+
   base::ThreadedList<Parameter> params;
   Scanner::Location duplicate_loc = Scanner::Location::invalid();
+  Scanner::Location strict_error_loc = Scanner::Location::invalid();
+  MessageTemplate strict_error_message = MessageTemplate::kNone;
 };
 
 template <>
@@ -155,8 +165,6 @@ struct ParserTypes<Parser> {
   typedef v8::internal::SourceRangeScope SourceRangeScope;
   typedef ParserTarget Target;
   typedef ParserTargetScope TargetScope;
-
-  static constexpr bool ExpressionClassifierReportErrors = true;
 };
 
 class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
@@ -192,8 +200,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
  private:
   friend class ParserBase<Parser>;
-  friend class v8::internal::ExpressionClassifierErrorTracker<
-      ParserTypes<Parser>>;
+  friend struct ParserFormalParameters;
+  friend class i::ExpressionScope<ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(ParseInfo*, Isolate*);
   friend bool v8::internal::parsing::ParseFunction(
       ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*);
@@ -915,7 +923,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   V8_INLINE void DeclareFormalParameters(ParserFormalParameters* parameters) {
-    ValidateFormalParameterInitializer();
     bool is_simple = parameters->is_simple;
     DeclarationScope* scope = parameters->scope;
     if (!is_simple) scope->SetHasNonSimpleParameters();
@@ -954,11 +961,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   void SetFunctionNameFromIdentifierRef(Expression* value,
                                         Expression* identifier);
-
-  V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
-  GetReportedErrorList() const {
-    return function_state_->GetReportedErrorList();
-  }
 
   V8_INLINE void CountUsage(v8::Isolate::UseCounterFeature feature) {
     ++use_counts_[feature];

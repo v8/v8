@@ -96,6 +96,14 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   return kPreParseSuccess;
 }
 
+void PreParserFormalParameters::ValidateDuplicate(PreParser* preparser) const {
+  if (has_duplicate_) preparser->ReportUnidentifiableError();
+}
+
+void PreParserFormalParameters::ValidateStrictMode(PreParser* preparser) const {
+  if (strict_parameter_error_) preparser->ReportUnidentifiableError();
+}
+
 PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
@@ -131,12 +139,12 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   FunctionState function_state(&function_state_, &scope_, function_scope);
 
   PreParserFormalParameters formals(function_scope);
-  std::unique_ptr<ExpressionClassifier> formals_classifier;
 
   // Parse non-arrow function parameters. For arrow functions, the parameters
   // have already been parsed.
   if (!IsArrowFunction(kind)) {
-    formals_classifier.reset(new ExpressionClassifier(this));
+    DeclarationParsingScope formals_scope(
+        this, ExpressionScope::kParameterDeclaration);
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
     ParseFormalParameterList(&formals);
@@ -291,13 +299,16 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
 
     FunctionState function_state(&function_state_, &scope_, function_scope);
-    ExpressionClassifier formals_classifier(this);
 
     Expect(Token::LPAREN);
     int start_position = position();
     function_scope->set_start_position(start_position);
     PreParserFormalParameters formals(function_scope);
-    ParseFormalParameterList(&formals);
+    {
+      DeclarationParsingScope formals_scope(
+          this, ExpressionScope::kParameterDeclaration);
+      ParseFormalParameterList(&formals);
+    }
     Expect(Token::RPAREN);
     int formals_end_position = scanner()->location().end_pos;
 
@@ -406,7 +417,7 @@ bool PreParser::IdentifierEquals(const PreParserIdentifier& identifier,
 PreParserExpression PreParser::ExpressionFromIdentifier(
     const PreParserIdentifier& name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;
-  DCHECK_EQ(name.string_ == nullptr, has_error());
+  DCHECK_IMPLIES(name.string_ == nullptr, has_error());
   if (name.string_ == nullptr) return PreParserExpression::Default();
   proxy = scope()->NewUnresolved(factory()->ast_node_factory(), name.string_,
                                  start_position, NORMAL_VARIABLE);

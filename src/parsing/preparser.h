@@ -832,20 +832,27 @@ class PreParserFactory {
   Zone* zone_;
 };
 
+class PreParser;
+
 class PreParserFormalParameters : public FormalParametersBase {
  public:
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
 
-  Scanner::Location duplicate_location() const { UNREACHABLE(); }
-  bool has_duplicate() const { return has_duplicate_; }
   void set_has_duplicate() { has_duplicate_ = true; }
+  bool has_duplicate() { return has_duplicate_; }
+  void ValidateDuplicate(PreParser* preparser) const;
+
+  void set_strict_parameter_error(const Scanner::Location& loc,
+                                  MessageTemplate message) {
+    strict_parameter_error_ = loc.IsValid();
+  }
+  void ValidateStrictMode(PreParser* preparser) const;
 
  private:
   bool has_duplicate_ = false;
+  bool strict_parameter_error_ = false;
 };
-
-class PreParser;
 
 class PreParserTarget {
  public:
@@ -935,8 +942,6 @@ struct ParserTypes<PreParser> {
   typedef PreParserSourceRangeScope SourceRangeScope;
   typedef PreParserTarget Target;
   typedef PreParserTargetScope TargetScope;
-
-  static constexpr bool ExpressionClassifierReportErrors = false;
 };
 
 
@@ -954,7 +959,6 @@ struct ParserTypes<PreParser> {
 // it is used) are generally omitted.
 class PreParser : public ParserBase<PreParser> {
   friend class ParserBase<PreParser>;
-  friend class v8::internal::ExpressionClassifier<ParserTypes<PreParser>>;
 
  public:
   typedef PreParserIdentifier Identifier;
@@ -1016,6 +1020,8 @@ class PreParser : public ParserBase<PreParser> {
   }
 
  private:
+  friend class i::ExpressionScope<ParserTypes<PreParser>>;
+  friend class PreParserFormalParameters;
   // These types form an algebra over syntactic categories that is just
   // rich enough to let us recognize and propagate the constructs that
   // are either being counted in the preparser data, or is important
@@ -1677,14 +1683,12 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void DeclareFormalParameters(
       const PreParserFormalParameters* parameters) {
-    ValidateFormalParameterInitializer();
     if (!parameters->is_simple) parameters->scope->SetHasNonSimpleParameters();
   }
 
   V8_INLINE void DeclareArrowFunctionFormalParameters(
       PreParserFormalParameters* parameters, const PreParserExpression& params,
       const Scanner::Location& params_loc) {
-    ValidateFormalParameterInitializer();
     if (params.variables_ != nullptr) {
       Scope* scope = parameters->scope;
       for (auto variable : *params.variables_) {
@@ -1707,11 +1711,6 @@ class PreParser : public ParserBase<PreParser> {
       const AstRawString* prefix = nullptr) {}
   V8_INLINE void SetFunctionNameFromIdentifierRef(
       const PreParserExpression& value, const PreParserExpression& identifier) {
-  }
-
-  V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
-  GetReportedErrorList() const {
-    return function_state_->GetReportedErrorList();
   }
 
   V8_INLINE void CountUsage(v8::Isolate::UseCounterFeature feature) {
