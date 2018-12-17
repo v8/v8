@@ -265,6 +265,7 @@ class ElementsAccessor;
 class EnumCache;
 class FixedArrayBase;
 class FixedDoubleArray;
+class FreeSpace;
 class FunctionLiteral;
 class FunctionTemplateInfo;
 class JSAsyncGeneratorObject;
@@ -1323,42 +1324,6 @@ enum class KeyCollectionMode {
   kOwnOnly = static_cast<int>(v8::KeyCollectionMode::kOwnOnly),
   kIncludePrototypes =
       static_cast<int>(v8::KeyCollectionMode::kIncludePrototypes)
-};
-
-// FreeSpace are fixed-size free memory blocks used by the heap and GC.
-// They look like heap objects (are heap object tagged and have a map) so that
-// the heap remains iterable.  They have a size and a next pointer.
-// The next pointer is the raw address of the next FreeSpace object (or NULL)
-// in the free list.
-class FreeSpace: public HeapObject {
- public:
-  // [size]: size of the free space including the header.
-  inline int size() const;
-  inline void set_size(int value);
-
-  inline int relaxed_read_size() const;
-  inline void relaxed_write_size(int value);
-
-  inline int Size();
-
-  // Accessors for the next field.
-  inline FreeSpace* next();
-  inline void set_next(FreeSpace* next);
-
-  inline static FreeSpace* cast(HeapObject* obj);
-
-  // Dispatched behavior.
-  DECL_PRINTER(FreeSpace)
-  DECL_VERIFIER(FreeSpace)
-
-  // Layout description.
-  // Size is smi tagged when it is stored.
-  static const int kSizeOffset = HeapObject::kHeaderSize;
-  static const int kNextOffset = POINTER_SIZE_ALIGN(kSizeOffset + kPointerSize);
-  static const int kSize = kNextOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeSpace);
 };
 
 // Utility superclass for stack-allocated objects that must be updated

@@ -33,6 +33,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/free-space-inl.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/maybe-object-inl.h"
@@ -1040,47 +1041,6 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS2(InliningPositions, PodArray<InliningPosition>)
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
-
-SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
-RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
-
-
-int FreeSpace::Size() { return size(); }
-
-
-FreeSpace* FreeSpace::next() {
-#ifdef DEBUG
-  Heap* heap = Heap::FromWritableHeapObject(this);
-  Object* free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
-  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
-                 !heap->deserialization_complete() &&
-                     map_slot().contains_value(kNullAddress));
-#endif
-  DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
-  return reinterpret_cast<FreeSpace*>(Memory<Address>(address() + kNextOffset));
-}
-
-
-void FreeSpace::set_next(FreeSpace* next) {
-#ifdef DEBUG
-  Heap* heap = Heap::FromWritableHeapObject(this);
-  Object* free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
-  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
-                 !heap->deserialization_complete() &&
-                     map_slot().contains_value(kNullAddress));
-#endif
-  DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
-  base::Relaxed_Store(
-      reinterpret_cast<base::AtomicWord*>(address() + kNextOffset),
-      reinterpret_cast<base::AtomicWord>(next));
-}
-
-
-FreeSpace* FreeSpace::cast(HeapObject* o) {
-  SLOW_DCHECK(!Heap::FromWritableHeapObject(o)->deserialization_complete() ||
-              o->IsFreeSpace());
-  return reinterpret_cast<FreeSpace*>(o);
-}
 
 int HeapObject::SizeFromMap(Map map) const {
   int instance_size = map->instance_size();

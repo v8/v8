@@ -32,6 +32,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/free-space.h"
 #include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
