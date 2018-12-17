@@ -131,10 +131,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Call(Label* target) { call(target); }
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
-  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
+  void CallBuiltinPointer(Register builtin_pointer) override;
 
   void RetpolineCall(Register reg);
   void RetpolineCall(Address destination, RelocInfo::Mode rmode);
+
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void RetpolineJump(Register reg);
 

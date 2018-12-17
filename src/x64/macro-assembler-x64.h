@@ -391,6 +391,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Call(ExternalReference ext);
   void Call(Label* target) { call(target); }
 
+  void CallBuiltinPointer(Register builtin_pointer) override;
+
   void RetpolineCall(Register reg);
   void RetpolineCall(Address destination, RelocInfo::Mode rmode);
 

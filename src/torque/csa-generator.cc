@@ -92,9 +92,11 @@ void CSAGenerator::EmitInstruction(
 }
 
 void CSAGenerator::EmitInstruction(
-    const PushCodePointerInstruction& instruction, Stack<std::string>* stack) {
+    const PushBuiltinPointerInstruction& instruction,
+    Stack<std::string>* stack) {
   stack->Push(
-      "ca_.UncheckedCast<Code>(ca_.HeapConstant(Builtins::CallableFor(ca_."
+      "ca_.UncheckedCast<BuiltinPtr>(ca_.HeapConstant(Builtins::CallableFor(ca_"
+      "."
       "isolate(), Builtins::k" +
       instruction.external_name + ").code()))");
 }
@@ -451,29 +453,24 @@ void CSAGenerator::EmitInstruction(
     ReportError("builtins must have exactly one result");
   }
   if (instruction.is_tailcall) {
-    out_ << "    "
-            "CodeStubAssembler(state_).TailCallBuiltin(Builtins::CallableFor("
-            "ca_.isolate(), "
-            "ExampleBuiltinForTorqueFunctionPointerType("
-         << instruction.type->function_pointer_type_id() << ")).descriptor(), ";
-    PrintCommaSeparatedList(out_, function_and_arguments);
-    out_ << ");\n";
-  } else {
-    stack->Push(FreshNodeName());
-    std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
-    out_ << "    compiler::TNode<" << generated_type << "> " << stack->Top()
-         << " = ";
-    if (generated_type != "Object") out_ << "TORQUE_CAST(";
-    out_ << "CodeStubAssembler(state_).CallStub(Builtins::CallableFor(ca_."
-            "isolate(),"
-            "ExampleBuiltinForTorqueFunctionPointerType("
-         << instruction.type->function_pointer_type_id() << ")).descriptor(), ";
-    PrintCommaSeparatedList(out_, function_and_arguments);
-    out_ << ")";
-    if (generated_type != "Object") out_ << ")";
-    out_ << "; \n";
-    out_ << "    USE(" << stack->Top() << ");\n";
+    ReportError("tail-calls to builtin pointers are not supported");
   }
+
+  stack->Push(FreshNodeName());
+  std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
+  out_ << "    compiler::TNode<" << generated_type << "> " << stack->Top()
+       << " = ";
+  if (generated_type != "Object") out_ << "TORQUE_CAST(";
+  out_ << "CodeStubAssembler(state_).CallBuiltinPointer(Builtins::"
+          "CallableFor(ca_."
+          "isolate(),"
+          "ExampleBuiltinForTorqueFunctionPointerType("
+       << instruction.type->function_pointer_type_id() << ")).descriptor(), ";
+  PrintCommaSeparatedList(out_, function_and_arguments);
+  out_ << ")";
+  if (generated_type != "Object") out_ << ")";
+  out_ << "; \n";
+  out_ << "    USE(" << stack->Top() << ");\n";
 }
 
 std::string CSAGenerator::PreCallableExceptionPreparation(

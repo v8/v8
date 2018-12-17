@@ -632,6 +632,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
+    case kArchCallBuiltinPointer: {
+      DCHECK(!instr->InputAt(0)->IsImmediate());
+      Register builtin_pointer = i.InputRegister(0);
+      __ CallBuiltinPointer(builtin_pointer);
+      RecordCallPosition(instr);
+      frame_access_state()->ClearSPDelta();
+      break;
+    }
     case kArchCallWasmFunction: {
       if (arch_opcode == kArchTailCallCodeObjectFromJSFunction) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,

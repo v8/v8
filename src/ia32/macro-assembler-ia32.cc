@@ -1871,6 +1871,11 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   call(code_object, rmode);
 }
 
+void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+  add(builtin_pointer, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  call(builtin_pointer);
+}
+
 void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
     if (root_array_available() && options().isolate_independent_code &&

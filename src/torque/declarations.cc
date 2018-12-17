@@ -89,13 +89,13 @@ const Type* Declarations::GetType(TypeExpression* type_expression) {
     for (TypeExpression* type_exp : function_type_exp->parameters) {
       argument_types.push_back(GetType(type_exp));
     }
-    return TypeOracle::GetFunctionPointerType(
+    return TypeOracle::GetBuiltinPointerType(
         argument_types, GetType(function_type_exp->return_type));
   }
 }
 
 Builtin* Declarations::FindSomeInternalBuiltinWithType(
-    const FunctionPointerType* type) {
+    const BuiltinPointerType* type) {
   for (auto& declarable : GlobalContext::AllDeclarables()) {
     if (Builtin* builtin = Builtin::DynamicCast(declarable.get())) {
       if (!builtin->IsExternal() && builtin->kind() == Builtin::kStub &&

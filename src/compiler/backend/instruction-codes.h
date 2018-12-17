@@ -52,6 +52,7 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(ArchPrepareTailCall)                  \
   V(ArchCallWasmFunction)                 \
   V(ArchTailCallWasm)                     \
+  V(ArchCallBuiltinPointer)               \
   V(ArchJmp)                              \
   V(ArchBinarySearchSwitch)               \
   V(ArchLookupSwitch)                     \

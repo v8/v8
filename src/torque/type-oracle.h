@@ -35,23 +35,23 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return result;
   }
 
-  static const FunctionPointerType* GetFunctionPointerType(
+  static const BuiltinPointerType* GetBuiltinPointerType(
       TypeVector argument_types, const Type* return_type) {
     TypeOracle& self = Get();
     const Type* code_type = self.GetBuiltinType(CODE_TYPE_STRING);
-    const FunctionPointerType* result = self.function_pointer_types_.Add(
-        FunctionPointerType(code_type, argument_types, return_type,
-                            self.all_function_pointer_types_.size()));
+    const BuiltinPointerType* result = self.function_pointer_types_.Add(
+        BuiltinPointerType(code_type, argument_types, return_type,
+                           self.all_builtin_pointer_types_.size()));
     if (result->function_pointer_type_id() ==
-        self.all_function_pointer_types_.size()) {
-      self.all_function_pointer_types_.push_back(result);
+        self.all_builtin_pointer_types_.size()) {
+      self.all_builtin_pointer_types_.push_back(result);
     }
     return result;
   }
 
-  static const std::vector<const FunctionPointerType*>&
-  AllFunctionPointerTypes() {
-    return Get().all_function_pointer_types_;
+  static const std::vector<const BuiltinPointerType*>&
+  AllBuiltinPointerTypes() {
+    return Get().all_builtin_pointer_types_;
   }
 
   static const Type* GetUnionType(UnionType type) {
@@ -159,8 +159,8 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Declarations::LookupGlobalType(name);
   }
 
-  Deduplicator<FunctionPointerType> function_pointer_types_;
-  std::vector<const FunctionPointerType*> all_function_pointer_types_;
+  Deduplicator<BuiltinPointerType> function_pointer_types_;
+  std::vector<const BuiltinPointerType*> all_builtin_pointer_types_;
   Deduplicator<UnionType> union_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
   std::vector<std::unique_ptr<Type>> struct_types_;

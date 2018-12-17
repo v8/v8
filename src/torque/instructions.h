@@ -29,7 +29,7 @@ class RuntimeFunction;
   V(PokeInstruction)                  \
   V(DeleteRangeInstruction)           \
   V(PushUninitializedInstruction)     \
-  V(PushCodePointerInstruction)       \
+  V(PushBuiltinPointerInstruction)    \
   V(CallCsaMacroInstruction)          \
   V(CallIntrinsicInstruction)         \
   V(NamespaceConstantInstruction)     \
@@ -170,11 +170,11 @@ struct PushUninitializedInstruction : InstructionBase {
   const Type* type;
 };
 
-struct PushCodePointerInstruction : InstructionBase {
+struct PushBuiltinPointerInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  PushCodePointerInstruction(std::string external_name, const Type* type)
+  PushBuiltinPointerInstruction(std::string external_name, const Type* type)
       : external_name(std::move(external_name)), type(type) {
-    DCHECK(type->IsFunctionPointerType());
+    DCHECK(type->IsBuiltinPointerType());
   }
 
   std::string external_name;
@@ -265,11 +265,11 @@ struct CallBuiltinPointerInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   bool IsBlockTerminator() const override { return is_tailcall; }
   CallBuiltinPointerInstruction(bool is_tailcall,
-                                const FunctionPointerType* type, size_t argc)
+                                const BuiltinPointerType* type, size_t argc)
       : is_tailcall(is_tailcall), type(type), argc(argc) {}
 
   bool is_tailcall;
-  const FunctionPointerType* type;
+  const BuiltinPointerType* type;
   size_t argc;
 };
 

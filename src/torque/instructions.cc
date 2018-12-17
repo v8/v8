@@ -60,8 +60,8 @@ void PushUninitializedInstruction::TypeInstruction(
   stack->Push(type);
 }
 
-void PushCodePointerInstruction::TypeInstruction(Stack<const Type*>* stack,
-                                                 ControlFlowGraph* cfg) const {
+void PushBuiltinPointerInstruction::TypeInstruction(
+    Stack<const Type*>* stack, ControlFlowGraph* cfg) const {
   stack->Push(type);
 }
 
@@ -202,7 +202,7 @@ void CallBuiltinInstruction::TypeInstruction(Stack<const Type*>* stack,
 void CallBuiltinPointerInstruction::TypeInstruction(
     Stack<const Type*>* stack, ControlFlowGraph* cfg) const {
   std::vector<const Type*> argument_types = stack->PopMany(argc);
-  const FunctionPointerType* f = FunctionPointerType::DynamicCast(stack->Pop());
+  const BuiltinPointerType* f = BuiltinPointerType::DynamicCast(stack->Pop());
   if (!f) ReportError("expected function pointer type");
   if (argument_types != LowerParameterTypes(f->parameter_types())) {
     ReportError("wrong argument types");

@@ -293,6 +293,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchCallCodeObject:
     case kArchCallJSFunction:
     case kArchCallWasmFunction:
+    case kArchCallBuiltinPointer:
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject:
     case kArchTailCallAddress:

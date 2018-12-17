@@ -248,6 +248,10 @@ struct UnionT {
 using Number = UnionT<Smi, HeapNumber>;
 using Numeric = UnionT<Number, BigInt>;
 
+// A pointer to a builtin function, used by Torque's function pointers.
+// TODO(jgruber): Switch to a Smi representation.
+using BuiltinPtr = Code;
+
 class int31_t {
  public:
   int31_t() : value_(0) {}
@@ -1213,18 +1217,30 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<T> CallStub(const CallInterfaceDescriptor& descriptor,
                     SloppyTNode<Code> target, SloppyTNode<Object> context,
                     TArgs... args) {
-    return UncheckedCast<T>(CallStubR(descriptor, 1, target, context, args...));
+    return UncheckedCast<T>(CallStubR(StubCallMode::kCallOnHeapBuiltin,
+                                      descriptor, 1, target, context, args...));
   }
 
   template <class... TArgs>
-  Node* CallStubR(const CallInterfaceDescriptor& descriptor, size_t result_size,
+  Node* CallStubR(StubCallMode call_mode,
+                  const CallInterfaceDescriptor& descriptor, size_t result_size,
                   SloppyTNode<Code> target, SloppyTNode<Object> context,
                   TArgs... args) {
-    return CallStubRImpl(descriptor, result_size, target, context, {args...});
+    return CallStubRImpl(call_mode, descriptor, result_size, target, context,
+                         {args...});
   }
 
-  Node* CallStubN(const CallInterfaceDescriptor& descriptor, size_t result_size,
+  Node* CallStubN(StubCallMode call_mode,
+                  const CallInterfaceDescriptor& descriptor, size_t result_size,
                   int input_count, Node* const* inputs);
+
+  template <class T = Object, class... TArgs>
+  TNode<T> CallBuiltinPointer(const CallInterfaceDescriptor& descriptor,
+                              TNode<BuiltinPtr> target, TNode<Object> context,
+                              TArgs... args) {
+    return UncheckedCast<T>(CallStubR(StubCallMode::kCallBuiltinPointer,
+                                      descriptor, 1, target, context, args...));
+  }
 
   template <class... TArgs>
   void TailCallStub(Callable const& callable, SloppyTNode<Object> context,
@@ -1403,8 +1419,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
       std::initializer_list<Node*> args);
 
-  Node* CallStubRImpl(const CallInterfaceDescriptor& descriptor,
-                      size_t result_size, SloppyTNode<Code> target,
+  Node* CallStubRImpl(StubCallMode call_mode,
+                      const CallInterfaceDescriptor& descriptor,
+                      size_t result_size, Node* target,
                       SloppyTNode<Object> context,
                       std::initializer_list<Node*> args);
 

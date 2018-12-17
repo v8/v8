@@ -170,11 +170,12 @@ class V8_EXPORT_PRIVATE CallDescriptor final
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {
-    kCallCodeObject,        // target is a Code object
-    kCallJSFunction,        // target is a JSFunction object
-    kCallAddress,           // target is a machine pointer
-    kCallWasmFunction,      // target is a wasm function
-    kCallWasmImportWrapper  // target is a wasm import wrapper
+    kCallCodeObject,         // target is a Code object
+    kCallJSFunction,         // target is a JSFunction object
+    kCallAddress,            // target is a machine pointer
+    kCallWasmFunction,       // target is a wasm function
+    kCallWasmImportWrapper,  // target is a wasm import wrapper
+    kCallBuiltinPointer,     // target is a builtin pointer
   };
 
   enum Flag {

@@ -39,6 +39,10 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
 
+  // Calls the given builtin. If builtins are embedded, the trampoline Code
+  // object on the heap is not used.
+  virtual void CallBuiltinPointer(Register builtin_pointer) = 0;
+
   // Loads the given constant or external reference without embedding its direct
   // pointer. The produced code is isolate-independent.
   void IndirectLoadConstant(Register destination, Handle<HeapObject> object);

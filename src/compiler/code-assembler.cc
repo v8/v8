@@ -1183,9 +1183,13 @@ void CodeAssembler::TailCallRuntimeWithCEntryImpl(
   raw_assembler()->TailCallN(call_descriptor, inputs.size(), inputs.data());
 }
 
-Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
+Node* CodeAssembler::CallStubN(StubCallMode call_mode,
+                               const CallInterfaceDescriptor& descriptor,
                                size_t result_size, int input_count,
                                Node* const* inputs) {
+  DCHECK(call_mode == StubCallMode::kCallOnHeapBuiltin ||
+         call_mode == StubCallMode::kCallBuiltinPointer);
+
   // implicit nodes are target and optionally context.
   int implicit_nodes = descriptor.HasContextParameter() ? 2 : 1;
   DCHECK_LE(implicit_nodes, input_count);
@@ -1198,7 +1202,7 @@ Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
 
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, stack_parameter_count, CallDescriptor::kNoFlags,
-      Operator::kNoProperties);
+      Operator::kNoProperties, call_mode);
 
   CallPrologue();
   Node* return_value =
@@ -1228,10 +1232,14 @@ void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
   raw_assembler()->TailCallN(call_descriptor, inputs.size(), inputs.data());
 }
 
-Node* CodeAssembler::CallStubRImpl(const CallInterfaceDescriptor& descriptor,
-                                   size_t result_size, SloppyTNode<Code> target,
+Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
+                                   const CallInterfaceDescriptor& descriptor,
+                                   size_t result_size, Node* target,
                                    SloppyTNode<Object> context,
                                    std::initializer_list<Node*> args) {
+  DCHECK(call_mode == StubCallMode::kCallOnHeapBuiltin ||
+         call_mode == StubCallMode::kCallBuiltinPointer);
+
   constexpr size_t kMaxNumArgs = 10;
   DCHECK_GE(kMaxNumArgs, args.size());
 
@@ -1242,7 +1250,8 @@ Node* CodeAssembler::CallStubRImpl(const CallInterfaceDescriptor& descriptor,
     inputs.Add(context);
   }
 
-  return CallStubN(descriptor, result_size, inputs.size(), inputs.data());
+  return CallStubN(call_mode, descriptor, result_size, inputs.size(),
+                   inputs.data());
 }
 
 Node* CodeAssembler::TailCallStubThenBytecodeDispatchImpl(

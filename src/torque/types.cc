@@ -78,7 +78,7 @@ std::string AbstractType::GetGeneratedTNodeTypeName() const {
   return generated_type_;
 }
 
-std::string FunctionPointerType::ToExplicitString() const {
+std::string BuiltinPointerType::ToExplicitString() const {
   std::stringstream result;
   result << "builtin (";
   PrintCommaSeparatedList(result, parameter_types_);
@@ -86,7 +86,7 @@ std::string FunctionPointerType::ToExplicitString() const {
   return result.str();
 }
 
-std::string FunctionPointerType::MangledName() const {
+std::string BuiltinPointerType::MangledName() const {
   std::stringstream result;
   result << "FT";
   for (const Type* t : parameter_types_) {

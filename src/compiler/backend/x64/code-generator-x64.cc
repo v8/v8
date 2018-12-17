@@ -706,6 +706,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
+    case kArchCallBuiltinPointer: {
+      DCHECK(!HasImmediateInput(instr, 0));
+      Register builtin_pointer = i.InputRegister(0);
+      __ CallBuiltinPointer(builtin_pointer);
+      RecordCallPosition(instr);
+      frame_access_state()->ClearSPDelta();
+      break;
+    }
     case kArchCallWasmFunction: {
       if (HasImmediateInput(instr, 0)) {
         Constant constant = i.ToConstant(instr->InputAt(0));

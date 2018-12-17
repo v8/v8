@@ -62,7 +62,7 @@ class Declarations {
   static const Type* GetType(TypeExpression* type_expression);
 
   static Builtin* FindSomeInternalBuiltinWithType(
-      const FunctionPointerType* type);
+      const BuiltinPointerType* type);
 
   static Value* LookupValue(const QualifiedName& name);
 

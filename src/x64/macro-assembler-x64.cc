@@ -1637,6 +1637,11 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   call(code_object, rmode);
 }
 
+void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+  addp(builtin_pointer, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  call(builtin_pointer);
+}
+
 void TurboAssembler::RetpolineCall(Register reg) {
   Label setup_return, setup_target, inner_indirect_branch, capture_spec;
 

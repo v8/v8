@@ -48,15 +48,15 @@ class TypeBase {
   enum class Kind {
     kTopType,
     kAbstractType,
-    kFunctionPointerType,
+    kBuiltinPointerType,
     kUnionType,
     kStructType
   };
   virtual ~TypeBase() = default;
   bool IsTopType() const { return kind() == Kind::kTopType; }
   bool IsAbstractType() const { return kind() == Kind::kAbstractType; }
-  bool IsFunctionPointerType() const {
-    return kind() == Kind::kFunctionPointerType;
+  bool IsBuiltinPointerType() const {
+    return kind() == Kind::kBuiltinPointerType;
   }
   bool IsUnionType() const { return kind() == Kind::kUnionType; }
   bool IsStructType() const { return kind() == Kind::kStructType; }
@@ -218,11 +218,10 @@ class AbstractType final : public Type {
   base::Optional<const AbstractType*> non_constexpr_version_;
 };
 
-// For now, function pointers are restricted to Code objects of Torque-defined
-// builtins.
-class FunctionPointerType final : public Type {
+// For now, builtin pointers are restricted to Torque-defined builtins.
+class BuiltinPointerType final : public Type {
  public:
-  DECLARE_TYPE_BOILERPLATE(FunctionPointerType);
+  DECLARE_TYPE_BOILERPLATE(BuiltinPointerType);
   std::string ToExplicitString() const override;
   std::string MangledName() const override;
   std::string GetGeneratedTypeName() const override {
@@ -240,14 +239,14 @@ class FunctionPointerType final : public Type {
   const TypeVector& parameter_types() const { return parameter_types_; }
   const Type* return_type() const { return return_type_; }
 
-  friend size_t hash_value(const FunctionPointerType& p) {
+  friend size_t hash_value(const BuiltinPointerType& p) {
     size_t result = base::hash_value(p.return_type_);
     for (const Type* parameter : p.parameter_types_) {
       result = base::hash_combine(result, parameter);
     }
     return result;
   }
-  bool operator==(const FunctionPointerType& other) const {
+  bool operator==(const BuiltinPointerType& other) const {
     return parameter_types_ == other.parameter_types_ &&
            return_type_ == other.return_type_;
   }
@@ -255,9 +254,9 @@ class FunctionPointerType final : public Type {
 
  private:
   friend class TypeOracle;
-  FunctionPointerType(const Type* parent, TypeVector parameter_types,
-                      const Type* return_type, size_t function_pointer_type_id)
-      : Type(Kind::kFunctionPointerType, parent),
+  BuiltinPointerType(const Type* parent, TypeVector parameter_types,
+                     const Type* return_type, size_t function_pointer_type_id)
+      : Type(Kind::kBuiltinPointerType, parent),
         parameter_types_(parameter_types),
         return_type_(return_type),
         function_pointer_type_id_(function_pointer_type_id) {}

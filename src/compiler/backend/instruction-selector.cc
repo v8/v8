@@ -919,6 +919,15 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                     ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
                     : g.UseRegister(callee));
       break;
+    case CallDescriptor::kCallBuiltinPointer:
+      // The common case for builtin pointers is to have the target in a
+      // register. If we have a constant, we use a register anyway to simplify
+      // related code.
+      buffer->instruction_args.push_back(
+          call_use_fixed_target_reg
+              ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
+              : g.UseRegister(callee));
+      break;
     case CallDescriptor::kCallJSFunction:
       buffer->instruction_args.push_back(
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
@@ -2577,6 +2586,9 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
       opcode = kArchCallWasmFunction | MiscField::encode(flags);
+      break;
+    case CallDescriptor::kCallBuiltinPointer:
+      opcode = kArchCallBuiltinPointer | MiscField::encode(flags);
       break;
   }
 

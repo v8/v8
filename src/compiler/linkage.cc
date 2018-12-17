@@ -43,6 +43,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallWasmImportWrapper:
       os << "WasmImportWrapper";
       break;
+    case CallDescriptor::kCallBuiltinPointer:
+      os << "BuiltinPointer";
+      break;
   }
   return os;
 }
@@ -130,6 +133,7 @@ int CallDescriptor::CalculateFixedFrameSize() const {
       return CommonFrameConstants::kFixedSlotCountAboveFp +
              CommonFrameConstants::kCPSlotCount;
     case kCallCodeObject:
+    case kCallBuiltinPointer:
       return TypedFrameConstants::kFixedSlotCount;
     case kCallWasmFunction:
     case kCallWasmImportWrapper:
@@ -392,12 +396,23 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   }
 
   // The target for stub calls depends on the requested mode.
-  CallDescriptor::Kind kind = stub_mode == StubCallMode::kCallWasmRuntimeStub
-                                  ? CallDescriptor::kCallWasmFunction
-                                  : CallDescriptor::kCallCodeObject;
-  MachineType target_type = stub_mode == StubCallMode::kCallWasmRuntimeStub
-                                ? MachineType::Pointer()
-                                : MachineType::AnyTagged();
+  CallDescriptor::Kind kind;
+  MachineType target_type;
+  switch (stub_mode) {
+    case StubCallMode::kCallOnHeapBuiltin:
+      kind = CallDescriptor::kCallCodeObject;
+      target_type = MachineType::AnyTagged();
+      break;
+    case StubCallMode::kCallWasmRuntimeStub:
+      kind = CallDescriptor::kCallWasmFunction;
+      target_type = MachineType::Pointer();
+      break;
+    case StubCallMode::kCallBuiltinPointer:
+      kind = CallDescriptor::kCallBuiltinPointer;
+      target_type = MachineType::AnyTagged();
+      break;
+  }
+
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   return new (zone) CallDescriptor(          // --
       kind,                                  // kind

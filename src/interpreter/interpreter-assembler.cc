@@ -1251,8 +1251,9 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
       Load(MachineType::Pointer(), function,
            IntPtrConstant(offsetof(Runtime::Function, entry)));
 
-  return CallStubR(callable.descriptor(), result_size, code_target, context,
-                   args.reg_count(), args.base_reg_location(), function_entry);
+  return CallStubR(StubCallMode::kCallOnHeapBuiltin, callable.descriptor(),
+                   result_size, code_target, context, args.reg_count(),
+                   args.base_reg_location(), function_entry);
 }
 
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {

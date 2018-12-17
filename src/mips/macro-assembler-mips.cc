@@ -3972,6 +3972,10 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, rs, rt, bd);
 }
 
+void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+  Call(builtin_pointer, builtin_pointer, Code::kHeaderSize - kHeapObjectTag);
+}
+
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.

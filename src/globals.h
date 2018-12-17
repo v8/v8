@@ -1710,9 +1710,17 @@ enum IcCheckType { ELEMENT, PROPERTY };
 
 // Helper stubs can be called in different ways depending on where the target
 // code is located and how the call sequence is expected to look like:
-//  - JavaScript: Call on-heap {Code} object via {RelocInfo::CODE_TARGET}.
-//  - WebAssembly: Call native {WasmCode} stub via {RelocInfo::WASM_STUB_CALL}.
-enum class StubCallMode { kCallOnHeapBuiltin, kCallWasmRuntimeStub };
+//  - OnHeapBuiltin: Call on-heap {Code} object via {RelocInfo::CODE_TARGET}.
+//  - WasmRuntimeStub: Call native {WasmCode} stub via
+//    {RelocInfo::WASM_STUB_CALL}.
+//  - BuiltinPointer: Call a builtin based on a builtin pointer with dynamic
+//    contents. If builtins are embedded, we call directly into off-heap code
+//    without going through the on-heap Code trampoline.
+enum class StubCallMode {
+  kCallOnHeapBuiltin,
+  kCallWasmRuntimeStub,
+  kCallBuiltinPointer,
+};
 
 }  // namespace internal
 }  // namespace v8

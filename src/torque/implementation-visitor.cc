@@ -650,10 +650,11 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
         "creating function pointers is only allowed for internal builtins with "
         "stub linkage");
   }
-  const Type* type = TypeOracle::GetFunctionPointerType(
+  const Type* type = TypeOracle::GetBuiltinPointerType(
       builtin->signature().parameter_types.types,
       builtin->signature().return_type);
-  assembler().Emit(PushCodePointerInstruction{builtin->ExternalName(), type});
+  assembler().Emit(
+      PushBuiltinPointerInstruction{builtin->ExternalName(), type});
   return VisitResult(type, assembler().TopRange(1));
 }
 
@@ -1559,14 +1560,14 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
   StackScope scope(this);
   TypeVector parameter_types(arguments.parameters.GetTypeVector());
   VisitResult callee_result = Visit(callee);
-  if (!callee_result.type()->IsFunctionPointerType()) {
+  if (!callee_result.type()->IsBuiltinPointerType()) {
     std::stringstream stream;
     stream << "Expected a function pointer type but found "
            << *callee_result.type();
     ReportError(stream.str());
   }
-  const FunctionPointerType* type =
-      FunctionPointerType::cast(callee_result.type());
+  const BuiltinPointerType* type =
+      BuiltinPointerType::cast(callee_result.type());
 
   if (type->parameter_types().size() != parameter_types.size()) {
     std::stringstream stream;
@@ -2095,8 +2096,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
 
   new_contents_stream
       << "#define TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(V) \\\n";
-  for (const FunctionPointerType* type :
-       TypeOracle::AllFunctionPointerTypes()) {
+  for (const BuiltinPointerType* type : TypeOracle::AllBuiltinPointerTypes()) {
     Builtin* example_builtin =
         Declarations::FindSomeInternalBuiltinWithType(type);
     if (!example_builtin) {
