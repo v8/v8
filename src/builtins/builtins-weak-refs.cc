@@ -77,44 +77,6 @@ BUILTIN(WeakFactoryMakeCell) {
   return *weak_cell;
 }
 
-BUILTIN(WeakFactoryMakeRef) {
-  HandleScope scope(isolate);
-  const char* method_name = "WeakFactory.prototype.makeRef";
-
-  CHECK_RECEIVER(JSWeakFactory, weak_factory, method_name);
-
-  Handle<Object> target = args.atOrUndefined(isolate, 1);
-  if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kWeakRefsMakeRefTargetMustBeObject));
-  }
-  Handle<JSReceiver> target_receiver = Handle<JSReceiver>::cast(target);
-  Handle<Object> holdings = args.atOrUndefined(isolate, 2);
-  if (target->SameValue(*holdings)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(
-            MessageTemplate::kWeakRefsMakeRefTargetAndHoldingsMustNotBeSame));
-  }
-
-  // TODO(marja): Realms.
-
-  Handle<Map> weak_ref_map(isolate->native_context()->js_weak_ref_map(),
-                           isolate);
-
-  Handle<JSWeakRef> weak_ref =
-      Handle<JSWeakRef>::cast(isolate->factory()->NewJSObjectFromMap(
-          weak_ref_map, TENURED, Handle<AllocationSite>::null()));
-  weak_ref->set_target(*target_receiver);
-  weak_ref->set_holdings(*holdings);
-  weak_factory->AddWeakCell(*weak_ref);
-
-  isolate->heap()->AddKeepDuringJobTarget(target_receiver);
-
-  return *weak_ref;
-}
-
 BUILTIN(WeakFactoryCleanupSome) {
   HandleScope scope(isolate);
   const char* method_name = "WeakFactory.prototype.cleanupSome";
@@ -154,6 +116,38 @@ BUILTIN(WeakCellClear) {
   CHECK_RECEIVER(JSWeakCell, weak_cell, "WeakCell.prototype.clear");
   weak_cell->Clear(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+BUILTIN(WeakRefConstructor) {
+  HandleScope scope(isolate);
+  Handle<JSFunction> target = args.target();
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              handle(target->shared()->Name(), isolate)));
+  }
+  // [[Construct]]
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<Object> target_object = args.atOrUndefined(isolate, 1);
+  if (!target_object->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(
+            MessageTemplate::kWeakRefsWeakRefConstructorTargetMustBeObject));
+  }
+  isolate->heap()->AddKeepDuringJobTarget(
+      Handle<JSReceiver>::cast(target_object));
+
+  // TODO(marja): Realms.
+
+  Handle<JSObject> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
+
+  Handle<JSWeakRef> weak_ref = Handle<JSWeakRef>::cast(result);
+  weak_ref->set_target(*target_object);
+  return *weak_ref;
 }
 
 BUILTIN(WeakRefDeref) {

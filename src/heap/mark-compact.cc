@@ -1931,6 +1931,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   DCHECK(weak_objects_.transition_arrays.IsEmpty());
   DCHECK(weak_objects_.weak_references.IsEmpty());
   DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());
+  DCHECK(weak_objects_.js_weak_refs.IsEmpty());
   DCHECK(weak_objects_.js_weak_cells.IsEmpty());
   DCHECK(weak_objects_.bytecode_flushing_candidates.IsEmpty());
 }
@@ -2267,6 +2268,20 @@ void MarkCompactCollector::ClearJSWeakCells() {
   if (!FLAG_harmony_weak_refs) {
     return;
   }
+  JSWeakRef weak_ref;
+  while (weak_objects_.js_weak_refs.Pop(kMainThread, &weak_ref)) {
+    // We do not insert cleared weak cells into the list, so the value
+    // cannot be undefined here.
+    JSReceiver target = JSReceiver::cast(weak_ref->target());
+    if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
+      weak_ref->set_target(ReadOnlyRoots(isolate()).undefined_value());
+    } else {
+      // The value of the JSWeakRef is alive.
+      ObjectSlot slot =
+          HeapObject::RawField(weak_ref, JSWeakRef::kTargetOffset);
+      RecordSlot(weak_ref, slot, target);
+    }
+  }
   JSWeakCell weak_cell;
   while (weak_objects_.js_weak_cells.Pop(kMainThread, &weak_cell)) {
     // We do not insert cleared weak cells into the list, so the value
@@ -2312,6 +2327,7 @@ void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.discovered_ephemerons.Clear();
   weak_objects_.weak_references.Clear();
   weak_objects_.weak_objects_in_code.Clear();
+  weak_objects_.js_weak_refs.Clear();
   weak_objects_.js_weak_cells.Clear();
   weak_objects_.bytecode_flushing_candidates.Clear();
 }

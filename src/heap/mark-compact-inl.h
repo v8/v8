@@ -198,6 +198,29 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
+                   MarkingState>::VisitJSWeakRef(Map map, JSWeakRef weak_ref) {
+  if (weak_ref->target()->IsHeapObject()) {
+    HeapObject* target = HeapObject::cast(weak_ref->target());
+    if (marking_state()->IsBlackOrGrey(target)) {
+      // Record the slot inside the JSWeakRef, since the IterateBody below
+      // won't visit it.
+      ObjectSlot slot =
+          HeapObject::RawField(weak_ref, JSWeakCell::kTargetOffset);
+      collector_->RecordSlot(weak_ref, slot, target);
+    } else {
+      // JSWeakRef points to a potentially dead object. We have to process
+      // them when we know the liveness of the whole transitive closure.
+      collector_->AddWeakRef(weak_ref);
+    }
+  }
+  int size = JSWeakRef::BodyDescriptor::SizeOf(map, weak_ref);
+  JSWeakRef::BodyDescriptor::IterateBody(map, weak_ref, size, this);
+  return size;
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitJSWeakCell(Map map,
                                                   JSWeakCell weak_cell) {
   if (weak_cell->target()->IsHeapObject()) {

@@ -221,6 +221,28 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclass(map, object);
   }
 
+  int VisitJSWeakRef(Map map, JSWeakRef weak_ref) {
+    int size = VisitJSObjectSubclass(map, weak_ref);
+    if (size == 0) {
+      return 0;
+    }
+    if (weak_ref->target()->IsHeapObject()) {
+      HeapObject* target = HeapObject::cast(weak_ref->target());
+      if (marking_state_.IsBlackOrGrey(target)) {
+        // Record the slot inside the JSWeakRef, since the
+        // VisitJSObjectSubclass above didn't visit it.
+        ObjectSlot slot =
+            HeapObject::RawField(weak_ref, JSWeakRef::kTargetOffset);
+        MarkCompactCollector::RecordSlot(weak_ref, slot, target);
+      } else {
+        // JSWeakRef points to a potentially dead object. We have to process
+        // them when we know the liveness of the whole transitive closure.
+        weak_objects_->js_weak_refs.Push(task_id_, weak_ref);
+      }
+    }
+    return size;
+  }
+
   int VisitJSWeakCell(Map map, JSWeakCell weak_cell) {
     int size = VisitJSObjectSubclass(map, weak_cell);
     if (size == 0) {
@@ -474,7 +496,7 @@ class ConcurrentMarkingVisitor final
 
     void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
                                  ObjectSlot end) override {
-      DCHECK(host->IsJSWeakCell());
+      DCHECK(host->IsJSWeakCell() || host->IsJSWeakRef());
     }
 
    private:
@@ -729,6 +751,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     weak_objects_->next_ephemerons.FlushToGlobal(task_id);
     weak_objects_->discovered_ephemerons.FlushToGlobal(task_id);
     weak_objects_->weak_references.FlushToGlobal(task_id);
+    weak_objects_->js_weak_refs.FlushToGlobal(task_id);
     weak_objects_->js_weak_cells.FlushToGlobal(task_id);
     weak_objects_->weak_objects_in_code.FlushToGlobal(task_id);
     weak_objects_->bytecode_flushing_candidates.FlushToGlobal(task_id);

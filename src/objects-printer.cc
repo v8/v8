@@ -301,8 +301,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       JSMapIterator::cast(this)->JSMapIteratorPrint(os);
       break;
     case JS_WEAK_CELL_TYPE:
-    case JS_WEAK_REF_TYPE:
       JSWeakCell::cast(this)->JSWeakCellPrint(os);
+      break;
+    case JS_WEAK_REF_TYPE:
+      JSWeakRef::cast(this)->JSWeakRefPrint(os);
       break;
     case JS_WEAK_FACTORY_TYPE:
       JSWeakFactory::cast(this)->JSWeakFactoryPrint(os);
@@ -1284,6 +1286,12 @@ void JSWeakCell::JSWeakCellPrint(std::ostream& os) {
   os << "\n - holdings: " << Brief(holdings());
   os << "\n - prev: " << Brief(prev());
   os << "\n - next: " << Brief(next());
+  JSObjectPrintBody(os, *this);
+}
+
+void JSWeakRef::JSWeakRefPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSWeakRef");
+  os << "\n - target: " << Brief(target());
   JSObjectPrintBody(os, *this);
 }
 

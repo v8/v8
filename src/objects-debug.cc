@@ -331,8 +331,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
           isolate);
       break;
     case JS_WEAK_CELL_TYPE:
-    case JS_WEAK_REF_TYPE:
       JSWeakCell::cast(this)->JSWeakCellVerify(isolate);
+      break;
+    case JS_WEAK_REF_TYPE:
+      JSWeakRef::cast(this)->JSWeakRefVerify(isolate);
       break;
     case JS_WEAK_FACTORY_TYPE:
       JSWeakFactory::cast(this)->JSWeakFactoryVerify(isolate);
@@ -1313,6 +1315,12 @@ void JSWeakCell::JSWeakCellVerify(Isolate* isolate) {
   }
 
   CHECK(factory()->IsUndefined(isolate) || factory()->IsJSWeakFactory());
+}
+
+void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
+  CHECK(IsJSWeakRef());
+  JSObjectVerify(isolate);
+  CHECK(target()->IsUndefined(isolate) || target()->IsJSReceiver());
 }
 
 void JSWeakFactory::JSWeakFactoryVerify(Isolate* isolate) {

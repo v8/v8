@@ -444,6 +444,7 @@ struct WeakObjects {
   Worklist<std::pair<HeapObject*, HeapObjectSlot>, 64> weak_references;
   Worklist<std::pair<HeapObject*, Code>, 64> weak_objects_in_code;
 
+  Worklist<JSWeakRef, 64> js_weak_refs;
   Worklist<JSWeakCell, 64> js_weak_cells;
 
   Worklist<SharedFunctionInfo, 64> bytecode_flushing_candidates;
@@ -681,6 +682,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void AddWeakObjectInCode(HeapObject* object, Code code) {
     weak_objects_.weak_objects_in_code.Push(kMainThread,
                                             std::make_pair(object, code));
+  }
+
+  void AddWeakRef(JSWeakRef weak_ref) {
+    weak_objects_.js_weak_refs.Push(kMainThread, weak_ref);
   }
 
   void AddWeakCell(JSWeakCell weak_cell) {
@@ -951,6 +956,7 @@ class MarkingVisitor final
   V8_INLINE int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
   V8_INLINE int VisitTransitionArray(Map map, TransitionArray object);
   V8_INLINE int VisitJSWeakCell(Map map, JSWeakCell object);
+  V8_INLINE int VisitJSWeakRef(Map map, JSWeakRef object);
 
   // ObjectVisitor implementation.
   V8_INLINE void VisitPointer(HeapObject* host, ObjectSlot p) final {

@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSWeakCell, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakRef, JSWeakCell)
+OBJECT_CONSTRUCTORS_IMPL(JSWeakRef, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSWeakFactory, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSWeakFactoryCleanupIterator, JSObject)
 
@@ -38,6 +38,7 @@ ACCESSORS(JSWeakCell, prev, Object, kPrevOffset)
 CAST_ACCESSOR2(JSWeakCell)
 
 CAST_ACCESSOR2(JSWeakRef)
+ACCESSORS(JSWeakRef, target, Object, kTargetOffset)
 
 ACCESSORS2(JSWeakFactoryCleanupIterator, factory, JSWeakFactory, kFactoryOffset)
 CAST_ACCESSOR2(JSWeakFactoryCleanupIterator)

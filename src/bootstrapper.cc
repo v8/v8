@@ -4549,9 +4549,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     SimpleInstallFunction(isolate(), weak_factory_prototype, "makeCell",
                           Builtins::kWeakFactoryMakeCell, 2, false);
 
-    SimpleInstallFunction(isolate(), weak_factory_prototype, "makeRef",
-                          Builtins::kWeakFactoryMakeRef, 2, false);
-
     SimpleInstallFunction(isolate(), weak_factory_prototype, "cleanupSome",
                           Builtins::kWeakFactoryCleanupSome, 0, false);
   }
@@ -4579,6 +4576,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     // Create %WeakRefPrototype%
     Handle<Map> weak_ref_map =
         factory->NewMap(JS_WEAK_REF_TYPE, JSWeakRef::kSize);
+    DCHECK(weak_ref_map->IsJSObjectMap());
     native_context()->set_js_weak_ref_map(*weak_ref_map);
 
     Handle<JSObject> weak_ref_prototype =
@@ -4593,6 +4591,23 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
 
     SimpleInstallFunction(isolate(), weak_ref_prototype, "deref",
                           Builtins::kWeakRefDeref, 0, false);
+
+    // Create %WeakRef%
+    Handle<String> weak_ref_name = factory->InternalizeUtf8String("WeakRef");
+    Handle<JSFunction> weak_ref_fun = CreateFunction(
+        isolate(), weak_ref_name, JS_WEAK_REF_TYPE, JSWeakRef::kSize, 0,
+        weak_ref_prototype, Builtins::kWeakRefConstructor);
+
+    weak_ref_fun->shared()->DontAdaptArguments();
+    weak_ref_fun->shared()->set_length(1);
+
+    // Install the "constructor" property on the prototype.
+    JSObject::AddProperty(isolate(), weak_ref_prototype,
+                          factory->constructor_string(), weak_ref_fun,
+                          DONT_ENUM);
+
+    JSObject::AddProperty(isolate(), global, weak_ref_name, weak_ref_fun,
+                          DONT_ENUM);
   }
 
   {

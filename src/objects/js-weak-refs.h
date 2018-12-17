@@ -115,10 +115,20 @@ class JSWeakCell : public JSObject {
   OBJECT_CONSTRUCTORS(JSWeakCell, JSObject);
 };
 
-class JSWeakRef : public JSWeakCell {
+class JSWeakRef : public JSObject {
  public:
+  DECL_PRINTER(JSWeakRef)
+  DECL_VERIFIER(JSWeakRef)
   DECL_CAST2(JSWeakRef)
-  OBJECT_CONSTRUCTORS(JSWeakRef, JSWeakCell);
+
+  DECL_ACCESSORS(target, Object)
+
+  static const int kTargetOffset = JSObject::kHeaderSize;
+  static const int kSize = kTargetOffset + kPointerSize;
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(JSWeakRef, JSObject);
 };
 
 class WeakFactoryCleanupJobTask : public Microtask {

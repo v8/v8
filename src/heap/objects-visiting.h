@@ -26,6 +26,7 @@ class JSDataView;
 class JSRegExp;
 class JSTypedArray;
 class JSWeakCell;
+class JSWeakRef;
 class JSWeakCollection;
 class NativeContext;
 class UncompiledDataWithoutPreParsedScope;
@@ -56,7 +57,9 @@ class WasmInstanceObject;
   V(JSDataView, JSDataView)                                                   \
   V(JSObject, JSObject)                                                       \
   V(JSTypedArray, JSTypedArray)                                               \
+  V(JSWeakCell, JSWeakCell)                                                   \
   V(JSWeakCollection, JSWeakCollection)                                       \
+  V(JSWeakRef, JSWeakRef)                                                     \
   V(Map, Map)                                                                 \
   V(NativeContext, NativeContext)                                             \
   V(Oddball, Oddball*)                                                        \

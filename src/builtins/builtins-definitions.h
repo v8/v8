@@ -1368,7 +1368,7 @@ namespace internal {
   CPP(WeakFactoryCleanupSome)                                                  \
   CPP(WeakFactoryConstructor)                                                  \
   CPP(WeakFactoryMakeCell)                                                     \
-  CPP(WeakFactoryMakeRef)                                                      \
+  CPP(WeakRefConstructor)                                                      \
   CPP(WeakRefDeref)
 
 #ifdef V8_INTL_SUPPORT

@@ -237,6 +237,25 @@ class JSWeakCell::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class JSWeakRef::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
+    return JSObject::BodyDescriptor::IsValidSlot(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, JSReceiver::kPropertiesOrHashOffset, kTargetOffset, v);
+    IterateCustomWeakPointer(obj, kTargetOffset, v);
+    IteratePointers(obj, kTargetOffset + kPointerSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject* object) {
+    return map->instance_size();
+  }
+};
+
 class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
@@ -952,8 +971,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_FUNCTION_TYPE:
       return Op::template apply<JSFunction::BodyDescriptor>(p1, p2, p3, p4);
     case JS_WEAK_CELL_TYPE:
-    case JS_WEAK_REF_TYPE:
       return Op::template apply<JSWeakCell::BodyDescriptor>(p1, p2, p3, p4);
+    case JS_WEAK_REF_TYPE:
+      return Op::template apply<JSWeakRef::BodyDescriptor>(p1, p2, p3, p4);
     case ODDBALL_TYPE:
       return Op::template apply<Oddball::BodyDescriptor>(p1, p2, p3, p4);
     case JS_PROXY_TYPE:

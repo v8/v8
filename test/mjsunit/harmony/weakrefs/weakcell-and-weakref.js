@@ -11,9 +11,8 @@ let cleanup = function(iter) {
   for (wc of iter) {
     cells.push(wc);
   }
-  assertEquals(2, cells.length);
-  assertTrue(cells.includes(weak_ref));
-  assertTrue(cells.includes(weak_cell));
+  assertEquals(1, cells.length);
+  assertEquals(weak_cell, cells[0]);
   cleanup_called = true;
 }
 
@@ -22,8 +21,8 @@ let weak_ref;
 let weak_cell;
 (function() {
   let o = {};
-  weak_ref = wf.makeRef(o);
-  weak_cell = wf.makeRef(o);
+  weak_ref = new WeakRef(o);
+  weak_cell = wf.makeCell(o);
 })();
 
 // Since the WeakRef was created during this turn, it is not cleared by GC. The
@@ -43,3 +42,4 @@ gc();
 // Next turn.
 
 assertTrue(cleanup_called);
+assertEquals(undefined, weak_ref.deref());

@@ -3309,8 +3309,10 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_SPECIAL_API_OBJECT_TYPE:
       return kVisitJSApiObject;
 
-    case JS_WEAK_CELL_TYPE:
     case JS_WEAK_REF_TYPE:
+      return kVisitJSWeakRef;
+
+    case JS_WEAK_CELL_TYPE:
       return kVisitJSWeakCell;
 
     case FILLER_TYPE:

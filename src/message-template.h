@@ -542,8 +542,8 @@ namespace internal {
     "WeakFactory.prototype.makeCell: target must be an object")                \
   T(WeakRefsMakeCellTargetAndHoldingsMustNotBeSame,                            \
     "WeakFactory.prototype.makeCell: target and holdings must not be same")    \
-  T(WeakRefsMakeRefTargetMustBeObject,                                         \
-    "WeakFactory.prototype.makeRef: target must be an object")                 \
+  T(WeakRefsWeakRefConstructorTargetMustBeObject,                              \
+    "WeakRef: target must be an object")                                       \
   T(WeakRefsMakeRefTargetAndHoldingsMustNotBeSame,                             \
     "WeakFactory.prototype.makeRef: target and holdings must not be same")
 
