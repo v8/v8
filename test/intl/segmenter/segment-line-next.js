@@ -32,9 +32,9 @@ for (const text of [
     assertEquals("string", typeof v.segment);
     assertTrue(v.segment.length > 0);
     segments.push(v.segment);
-    assertEquals("number", typeof v.position);
-    assertTrue(oldPos < v.position);
-    oldPos = v.position;
+    assertEquals("number", typeof v.index);
+    assertTrue(oldPos < v.index);
+    oldPos = v.index;
   }
   assertEquals(text, segments.join(''));
 }

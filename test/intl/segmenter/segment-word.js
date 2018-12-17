@@ -25,5 +25,5 @@ for (const text of [
     ]) {
   const iter = seg.segment(text);
   assertEquals(undefined, iter.breakType);
-  assertEquals(0, iter.position);
+  assertEquals(0, iter.index);
 }

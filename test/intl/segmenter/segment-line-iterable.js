@@ -37,8 +37,8 @@ for (const text of [
     // manually advance the iter.
     assertFalse(iter.following());
     assertEquals(iter.breakType, v.breakType);
-    assertEquals(text.substring(prev, iter.position), v.segment);
-    prev = iter.position;
+    assertEquals(text.substring(prev, iter.index), v.segment);
+    prev = iter.index;
   }
   assertTrue(iter.following());
   assertEquals(text, segments.join(''));

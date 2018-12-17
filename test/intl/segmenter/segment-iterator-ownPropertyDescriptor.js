@@ -48,7 +48,7 @@ function checkGetterProperty(prototype, property) {
 }
 
 // Test the descriptor is correct for properties.
-checkGetterProperty(prototype, 'position');
+checkGetterProperty(prototype, 'index');
 checkGetterProperty(prototype, 'breakType');
 
 // Test the SegmentIteratorPrototype methods are called with same
@@ -88,4 +88,4 @@ checkProperty(nextReturn, 'done');
 checkProperty(nextReturn, 'value');
 checkProperty(nextReturn.value, 'segment');
 checkProperty(nextReturn.value, 'breakType');
-checkProperty(nextReturn.value, 'position');
+checkProperty(nextReturn.value, 'index');

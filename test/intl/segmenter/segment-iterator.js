@@ -9,7 +9,7 @@ for (const granularity of ["grapheme", "word", "sentence", "line"]) {
   const segmenter = new Intl.Segmenter("en", { granularity });
   const iter = segmenter.segment(text);
 
-  assertEquals("number", typeof iter.position);
-  assertEquals(0, iter.position);
+  assertEquals("number", typeof iter.index);
+  assertEquals(0, iter.index);
   assertEquals(undefined, iter.breakType);
 }

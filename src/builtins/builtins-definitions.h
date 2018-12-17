@@ -1474,8 +1474,8 @@ namespace internal {
   CPP(SegmentIteratorPrototypeFollowing)                               \
   /* ecma402 #sec-segment-iterator-prototype-preceding */              \
   CPP(SegmentIteratorPrototypePreceding)                               \
-  /* ecma402 #sec-segment-iterator-prototype-position */               \
-  CPP(SegmentIteratorPrototypePosition)                                \
+  /* ecma402 #sec-segment-iterator-prototype-index */                  \
+  CPP(SegmentIteratorPrototypeIndex)                                   \
   /* ecma402 #sec-segment-iterator-prototype-next */                   \
   CPP(SegmentIteratorPrototypeNext)                                    \
   /* ES #sec-string.prototype.normalize */                             \

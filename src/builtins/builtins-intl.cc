@@ -962,13 +962,13 @@ BUILTIN(SegmentIteratorPrototypePreceding) {
   return *isolate->factory()->ToBoolean(success.FromJust());
 }
 
-// ecma402 #sec-segment-iterator-prototype-position
-BUILTIN(SegmentIteratorPrototypePosition) {
-  const char* const method = "get %SegmentIteratorPrototype%.position";
+// ecma402 #sec-segment-iterator-prototype-index
+BUILTIN(SegmentIteratorPrototypeIndex) {
+  const char* const method = "get %SegmentIteratorPrototype%.index";
   HandleScope scope(isolate);
 
   CHECK_RECEIVER(JSSegmentIterator, segment_iterator, method);
-  return *JSSegmentIterator::Position(isolate, segment_iterator);
+  return *JSSegmentIterator::Index(isolate, segment_iterator);
 }
 
 BUILTIN(SegmenterConstructor) {

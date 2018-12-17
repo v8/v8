@@ -48,8 +48,8 @@ class JSSegmentIterator : public JSObject {
       Isolate* isolate, Handle<JSSegmentIterator> segment_iterator_holder,
       Handle<Object> from);
 
-  // ecma402 #sec-segment-iterator-prototype-position
-  static Handle<Object> Position(
+  // ecma402 #sec-segment-iterator-prototype-index
+  static Handle<Object> Index(
       Isolate* isolate, Handle<JSSegmentIterator> segment_iterator_holder);
 
   Handle<String> GranularityAsString() const;

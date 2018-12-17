@@ -28,11 +28,11 @@ for (const text of [
   let segments = [];
   while (!iter.following()) {
     assertEquals(undefined, iter.breakType);
-    assertTrue(iter.position >= 0);
-    assertTrue(iter.position <= text.length);
-    assertTrue(iter.position > prev);
-    segments.push(text.substring(prev, iter.position));
-    prev = iter.position;
+    assertTrue(iter.index >= 0);
+    assertTrue(iter.index <= text.length);
+    assertTrue(iter.index > prev);
+    segments.push(text.substring(prev, iter.index));
+    prev = iter.index;
   }
   assertEquals(text, segments.join(""));
 }

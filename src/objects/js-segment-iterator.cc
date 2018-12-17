@@ -68,7 +68,7 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
       Intl::SetTextToBreakIterator(isolate, text, break_iterator);
   segment_iterator->set_unicode_string(unicode_string);
 
-  // 4. Let iterator.[[SegmentIteratorPosition]] be 0.
+  // 4. Let iterator.[[SegmentIteratorIndex]] be 0.
   // step 4 is stored inside break_iterator.
 
   // 5. Let iterator.[[SegmentIteratorBreakType]] be undefined.
@@ -108,7 +108,7 @@ Handle<Object> JSSegmentIterator::BreakType() const {
       return GetReadOnlyRoots().undefined_value_handle();
     case JSSegmenter::Granularity::LINE:
       if (rule_status >= UBRK_LINE_SOFT && rule_status < UBRK_LINE_SOFT_LIMIT) {
-        // soft line breaks, positions at which a line break is acceptable but
+        // soft line breaks, index at which a line break is acceptable but
         // not required
         return GetReadOnlyRoots().soft_string_handle();
       }
@@ -138,8 +138,8 @@ Handle<Object> JSSegmentIterator::BreakType() const {
   }
 }
 
-// ecma402 #sec-segment-iterator-prototype-position
-Handle<Object> JSSegmentIterator::Position(
+// ecma402 #sec-segment-iterator-prototype-index
+Handle<Object> JSSegmentIterator::Index(
     Isolate* isolate, Handle<JSSegmentIterator> segment_iterator) {
   icu::BreakIterator* icu_break_iterator =
       segment_iterator->icu_break_iterator()->raw();
@@ -153,25 +153,25 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
   Factory* factory = isolate->factory();
   icu::BreakIterator* icu_break_iterator =
       segment_iterator->icu_break_iterator()->raw();
-  // 3. Let _previousPosition be iterator.[[SegmentIteratorPosition]].
+  // 3. Let _previousIndex be iterator.[[SegmentIteratorIndex]].
   int32_t prev = icu_break_iterator->current();
   // 4. Let done be AdvanceSegmentIterator(iterator, forwards).
-  int32_t position = icu_break_iterator->next();
+  int32_t index = icu_break_iterator->next();
   segment_iterator->set_is_break_type_set(true);
-  if (position == icu::BreakIterator::DONE) {
+  if (index == icu::BreakIterator::DONE) {
     // 5. If done is true, return CreateIterResultObject(undefined, true).
     return factory->NewJSIteratorResult(isolate->factory()->undefined_value(),
                                         true);
   }
-  // 6. Let newPosition be iterator.[[SegmentIteratorPosition]].
-  Handle<Object> new_position = factory->NewNumberFromInt(position);
+  // 6. Let newIndex be iterator.[[SegmentIteratorIndex]].
+  Handle<Object> new_index = factory->NewNumberFromInt(index);
 
-  // 8. Let segment be the substring of string from previousPosition to
-  // newPosition, inclusive of previousPosition and exclusive of newPosition.
+  // 8. Let segment be the substring of string from previousIndex to
+  // newIndex, inclusive of previousIndex and exclusive of newIndex.
   Handle<String> segment;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, segment, segment_iterator->GetSegment(isolate, prev, position),
-      JSReceiver);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, segment,
+                             segment_iterator->GetSegment(isolate, prev, index),
+                             JSReceiver);
 
   // 9. Let breakType be iterator.[[SegmentIteratorBreakType]].
   Handle<Object> break_type = segment_iterator->BreakType();
@@ -190,10 +190,9 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
                                        kDontThrow)
             .FromJust());
 
-  // 13. Perform ! CreateDataProperty(result, "position", newPosition).
-  CHECK(JSReceiver::CreateDataProperty(isolate, result,
-                                       factory->position_string(), new_position,
-                                       kDontThrow)
+  // 13. Perform ! CreateDataProperty(result, "index", newIndex).
+  CHECK(JSReceiver::CreateDataProperty(isolate, result, factory->index_string(),
+                                       new_index, kDontThrow)
             .FromJust());
 
   // 14. Return CreateIterResultObject(result, false).

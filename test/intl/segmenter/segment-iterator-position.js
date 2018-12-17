@@ -8,4 +8,4 @@ const segmenter = new Intl.Segmenter();
 const text = "Hello World, Test 123! Foo Bar. How are you?";
 const iter = segmenter.segment(text);
 
-assertEquals(0, iter.position);
+assertEquals(0, iter.index);

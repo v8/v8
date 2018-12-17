@@ -4846,8 +4846,8 @@ void Genesis::InitializeGlobal_harmony_intl_segmenter() {
                           false);
 
     SimpleInstallGetter(isolate(), prototype,
-                        factory()->InternalizeUtf8String("position"),
-                        Builtins::kSegmentIteratorPrototypePosition, false);
+                        factory()->InternalizeUtf8String("index"),
+                        Builtins::kSegmentIteratorPrototypeIndex, false);
 
     SimpleInstallGetter(isolate(), prototype,
                         factory()->InternalizeUtf8String("breakType"),
