@@ -12,6 +12,7 @@
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/objects-inl.h"
+#include "src/objects/cell.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/smi.h"

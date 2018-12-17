@@ -459,7 +459,6 @@ OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 
 CAST_ACCESSOR2(BigInt)
 CAST_ACCESSOR2(ObjectBoilerplateDescription)
-CAST_ACCESSOR(Cell)
 CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(Foreign)
@@ -890,8 +889,6 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
   return handle(input->to_number(), isolate);
 }
 
-
-ACCESSORS(Cell, value, Object, kValueOffset)
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
   return instance_type <= LAST_SPECIAL_RECEIVER_TYPE;

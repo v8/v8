@@ -13,6 +13,7 @@
 #include "src/frames.h"
 #include "src/mips/constants-mips.h"
 #include "src/objects-inl.h"
+#include "src/objects/cell.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/smi.h"
 #include "src/register-configuration.h"

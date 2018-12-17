@@ -10,6 +10,7 @@
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"

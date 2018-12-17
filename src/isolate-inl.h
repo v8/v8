@@ -8,6 +8,7 @@
 #include "src/heap/heap-inl.h"  // Need MemoryChunk from heap/spaces.h
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/regexp-match-info.h"
 
 namespace v8 {

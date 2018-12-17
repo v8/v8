@@ -21,6 +21,7 @@
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics-generator.h"
 #include "src/objects-inl.h"
+#include "src/objects/cell.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module.h"
 

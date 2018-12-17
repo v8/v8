@@ -12,6 +12,7 @@
 #include "src/layout-descriptor-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks-inl.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/prototype-info-inl.h"

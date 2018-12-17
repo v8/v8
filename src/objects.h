@@ -1453,39 +1453,6 @@ class Oddball: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Oddball);
 };
 
-
-class Cell: public HeapObject {
- public:
-  // [value]: value of the cell.
-  DECL_ACCESSORS(value, Object)
-
-  DECL_CAST(Cell)
-
-  static inline Cell* FromValueAddress(Address value) {
-    Object* result = FromAddress(value - kValueOffset);
-    return static_cast<Cell*>(result);
-  }
-
-  inline Address ValueAddress() {
-    return address() + kValueOffset;
-  }
-
-  // Dispatched behavior.
-  DECL_PRINTER(Cell)
-  DECL_VERIFIER(Cell)
-
-  // Layout description.
-  static const int kValueOffset = HeapObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
-
-  typedef FixedBodyDescriptor<kValueOffset,
-                              kValueOffset + kPointerSize,
-                              kSize> BodyDescriptor;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Cell);
-};
-
 // Foreign describes objects pointing from JavaScript to C structures.
 class Foreign: public HeapObject {
  public:

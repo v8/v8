@@ -54,6 +54,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/debug-objects-inl.h"

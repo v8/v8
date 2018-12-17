@@ -27,6 +27,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks-inl.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/literal-objects-inl.h"

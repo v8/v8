@@ -11,6 +11,7 @@
 #include "src/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/objects-inl.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"

@@ -21,6 +21,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/feedback-cell-inl.h"

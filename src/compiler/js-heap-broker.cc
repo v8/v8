@@ -11,6 +11,7 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"

@@ -8,6 +8,7 @@
 #include "src/assembler-inl.h"
 #include "src/feedback-vector.h"
 #include "src/objects-body-descriptors.h"
+#include "src/objects/cell.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-weak-refs.h"

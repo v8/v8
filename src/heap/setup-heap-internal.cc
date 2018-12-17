@@ -16,6 +16,7 @@
 #include "src/lookup-cache.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/descriptor-array.h"
