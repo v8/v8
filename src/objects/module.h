@@ -82,7 +82,7 @@ class Module : public Struct, public NeverReadOnlySpaceObject {
   DECL_ACCESSORS2(requested_modules, FixedArray)
 
   // [script]: Script from which the module originates.
-  DECL_ACCESSORS(script, Script)
+  DECL_ACCESSORS2(script, Script)
 
   // The value of import.meta inside of this module.
   // Lazily initialized on first access. It's the hole before first access and

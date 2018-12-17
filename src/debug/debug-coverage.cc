@@ -530,7 +530,8 @@ std::unique_ptr<Coverage> Coverage::Collect(
   // between source ranges and invocation counts.
   std::unique_ptr<Coverage> result(new Coverage());
   Script::Iterator scripts(isolate);
-  while (Script* script = scripts.Next()) {
+  for (Script script = scripts.Next(); !script.is_null();
+       script = scripts.Next()) {
     if (!script->IsUserJavaScript()) continue;
 
     // Create and add new script data.

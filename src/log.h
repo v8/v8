@@ -175,7 +175,7 @@ class Logger : public CodeEventListener {
   void CompilationCacheEvent(const char* action, const char* cache_type,
                              SharedFunctionInfo sfi);
   void ScriptEvent(ScriptEventType type, int script_id);
-  void ScriptDetails(Script* script);
+  void ScriptDetails(Script script);
 
   // ==== Events logged by --log-api. ====
   void ApiSecurityCheck();
@@ -278,7 +278,7 @@ class Logger : public CodeEventListener {
 
   // Converts tag to a corresponding NATIVE_... if the script is native.
   V8_INLINE static CodeEventListener::LogEventsAndTags ToNativeByScript(
-      CodeEventListener::LogEventsAndTags, Script*);
+      CodeEventListener::LogEventsAndTags, Script);
 
   // Callback from Log, stops profiling in case of insufficient resources.
   void LogFailure();
@@ -316,7 +316,7 @@ class Logger : public CodeEventListener {
 
   // Logs a scripts sources. Keeps track of all logged scripts to ensure that
   // each script is logged only once.
-  bool EnsureLogScriptSource(Script* script);
+  bool EnsureLogScriptSource(Script script);
 
   Isolate* isolate_;
 

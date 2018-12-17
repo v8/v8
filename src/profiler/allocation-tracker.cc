@@ -246,7 +246,7 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo shared,
     info->name = names_->GetName(shared->DebugName());
     info->function_id = id;
     if (shared->script()->IsScript()) {
-      Script* script = Script::cast(shared->script());
+      Script script = Script::cast(shared->script());
       if (script->name()->IsName()) {
         Name name = Name::cast(script->name());
         info->script_name = names_->GetName(name);
@@ -275,16 +275,14 @@ unsigned AllocationTracker::functionInfoIndexForVMState(StateTag state) {
   return info_index_for_other_state_;
 }
 
-
-AllocationTracker::UnresolvedLocation::UnresolvedLocation(
-    Script* script, int start, FunctionInfo* info)
-    : start_position_(start),
-      info_(info) {
+AllocationTracker::UnresolvedLocation::UnresolvedLocation(Script script,
+                                                          int start,
+                                                          FunctionInfo* info)
+    : start_position_(start), info_(info) {
   script_ = script->GetIsolate()->global_handles()->Create(script);
   GlobalHandles::MakeWeak(script_.location(), this, &HandleWeakScript,
                           v8::WeakCallbackType::kParameter);
 }
-
 
 AllocationTracker::UnresolvedLocation::~UnresolvedLocation() {
   if (!script_.is_null()) {

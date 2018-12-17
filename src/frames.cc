@@ -783,10 +783,10 @@ Address InterpretedFrame::GetExpressionAddress(int n) const {
   return fp() + offset - n * kPointerSize;
 }
 
-Script* StandardFrame::script() const {
+Script StandardFrame::script() const {
   // This should only be called on frames which override this method.
-  DCHECK(false);
-  return nullptr;
+  UNREACHABLE();
+  return Script();
 }
 
 Object* StandardFrame::receiver() const {
@@ -1109,7 +1109,7 @@ Object* JavaScriptFrame::context() const {
   return maybe_result;
 }
 
-Script* JavaScriptFrame::script() const {
+Script JavaScriptFrame::script() const {
   return Script::cast(function()->shared()->script());
 }
 
@@ -1132,7 +1132,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction function,
     int source_pos = code->SourcePosition(code_offset);
     Object* maybe_script = shared->script();
     if (maybe_script->IsScript()) {
-      Script* script = Script::cast(maybe_script);
+      Script script = Script::cast(maybe_script);
       int line = script->GetLineNumber(source_pos) + 1;
       Object* script_name_raw = script->name();
       if (script_name_raw->IsString()) {
@@ -1201,7 +1201,7 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
   int source_pos = code->SourcePosition(code_offset);
   Object* maybe_script = shared->script();
   if (maybe_script->IsScript()) {
-    Script* script = Script::cast(maybe_script);
+    Script script = Script::cast(maybe_script);
     ic_info.line_num = script->GetLineNumber(source_pos) + 1;
     ic_info.script_name = ic_stats->GetOrCacheScriptName(script);
   }
@@ -1831,7 +1831,7 @@ uint32_t WasmCompiledFrame::function_index() const {
   return FrameSummary::GetSingle(this).AsWasmCompiled().function_index();
 }
 
-Script* WasmCompiledFrame::script() const { return module_object()->script(); }
+Script WasmCompiledFrame::script() const { return module_object()->script(); }
 
 int WasmCompiledFrame::position() const {
   return FrameSummary::GetSingle(this).SourcePosition();
@@ -1884,7 +1884,7 @@ void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
                                       int index) const {
   PrintIndex(accumulator, mode, index);
   accumulator->Add("WASM INTERPRETER ENTRY [");
-  Script* script = this->script();
+  Script script = this->script();
   accumulator->PrintName(script->name());
   accumulator->Add("]");
   if (mode != OVERVIEW) accumulator->Add("\n");
@@ -1919,7 +1919,7 @@ WasmModuleObject WasmInterpreterEntryFrame::module_object() const {
   return wasm_instance()->module_object();
 }
 
-Script* WasmInterpreterEntryFrame::script() const {
+Script WasmInterpreterEntryFrame::script() const {
   return module_object()->script();
 }
 
@@ -1997,7 +1997,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   ScopeInfo scope_info = shared->scope_info();
   Object* script_obj = shared->script();
   if (script_obj->IsScript()) {
-    Script* script = Script::cast(script_obj);
+    Script script = Script::cast(script_obj);
     accumulator->Add(" [");
     accumulator->PrintName(script->name());
 

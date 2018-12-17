@@ -155,7 +155,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   if (obj->IsScript()) {
-    Script* script_obj = Script::cast(obj);
+    Script script_obj = Script::cast(obj);
     DCHECK_NE(script_obj->compilation_type(), Script::COMPILATION_TYPE_EVAL);
     // We want to differentiate between undefined and uninitialized_symbol for
     // context_data for now. It is hack to allow debugging for scripts that are
@@ -280,7 +280,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   if (log_code_creation || FLAG_log_function_events) {
     String name = ReadOnlyRoots(isolate).empty_string();
     if (result->script()->IsScript()) {
-      Script* script = Script::cast(result->script());
+      Script script = Script::cast(result->script());
       if (script->name()->IsString()) name = String::cast(script->name());
       if (FLAG_log_function_events) {
         LOG(isolate, FunctionEvent("deserialize", script->id(),

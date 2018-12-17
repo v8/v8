@@ -580,14 +580,14 @@ class SharedFunctionInfo : public HeapObjectPtr {
   // Iterate over all shared function infos in a given script.
   class ScriptIterator {
    public:
-    ScriptIterator(Isolate* isolate, Script* script);
+    ScriptIterator(Isolate* isolate, Script script);
     ScriptIterator(Isolate* isolate,
                    Handle<WeakFixedArray> shared_function_infos);
     SharedFunctionInfo Next();
     int CurrentIndex() const { return index_ - 1; }
 
     // Reset the iterator to run on |script|.
-    void Reset(Script* script);
+    void Reset(Script script);
 
    private:
     Isolate* isolate_;

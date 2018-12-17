@@ -605,7 +605,7 @@ class StandardFrame : public StackFrame {
 
   // Accessors.
   virtual Object* receiver() const;
-  virtual Script* script() const;
+  virtual Script script() const;
   virtual Object* context() const;
   virtual int position() const;
 
@@ -682,7 +682,7 @@ class JavaScriptFrame : public StandardFrame {
   Object* unchecked_function() const;
   Object* receiver() const override;
   Object* context() const override;
-  Script* script() const override;
+  Script script() const override;
 
   inline void set_receiver(Object* value);
 
@@ -949,7 +949,7 @@ class WasmCompiledFrame final : public StandardFrame {
   WasmInstanceObject wasm_instance() const;
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
-  Script* script() const override;
+  Script script() const override;
   int position() const override;
   bool at_to_number_conversion() const;
 
@@ -990,7 +990,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   WasmDebugInfo debug_info() const;
   WasmInstanceObject wasm_instance() const;
 
-  Script* script() const override;
+  Script script() const override;
   int position() const override;
   Object* context() const override;
 

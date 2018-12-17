@@ -4279,8 +4279,8 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
     {
       i::DisallowHeapAllocation no_gc;
       i::Script::Iterator iterator(i_isolate);
-      i::Script* script;
-      while ((script = iterator.Next()) != nullptr) {
+      for (i::Script script = iterator.Next(); !script.is_null();
+           script = iterator.Next()) {
         if (script->type() == i::Script::TYPE_NATIVE &&
             script->name()->IsUndefined(i_isolate)) {
           continue;

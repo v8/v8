@@ -15,7 +15,7 @@ namespace internal {
 void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject* object,
                                                      Isolate* isolate) {
   if (object->IsScript()) {
-    Script* script = Script::cast(object);
+    Script script = Script::cast(object);
     // Log the size of external source code.
     Object* source = script->source();
     if (source->IsExternalString()) {

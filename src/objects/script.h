@@ -16,8 +16,9 @@ namespace v8 {
 namespace internal {
 
 // Script describes a script which has been added to the VM.
-class Script : public Struct, public NeverReadOnlySpaceObject {
+class Script : public StructPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   // Script types.
   enum Type {
     TYPE_NATIVE = 0,
@@ -118,7 +119,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   inline v8::ScriptOriginOptions origin_options();
   inline void set_origin_options(ScriptOriginOptions origin_options);
 
-  DECL_CAST(Script)
+  DECL_CAST2(Script)
 
   // If script source is an external string, check that the underlying
   // resource is accessible. Otherwise, always return true.
@@ -177,7 +178,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   class Iterator {
    public:
     explicit Iterator(Isolate* isolate);
-    Script* Next();
+    Script Next();
 
    private:
     WeakArrayList::Iterator iterator_;
@@ -220,7 +221,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   static const int kOriginOptionsMask = ((1 << kOriginOptionsSize) - 1)
                                         << kOriginOptionsShift;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Script);
+  OBJECT_CONSTRUCTORS(Script, StructPtr);
 };
 
 }  // namespace internal

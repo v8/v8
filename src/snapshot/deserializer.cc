@@ -177,7 +177,7 @@ void Deserializer::LogNewMapEvents() {
   }
 }
 
-void Deserializer::LogScriptEvents(Script* script) {
+void Deserializer::LogScriptEvents(Script script) {
   DisallowHeapAllocation no_gc;
   LOG(isolate_,
       ScriptEvent(Logger::ScriptEventType::kDeserialize, script->id()));

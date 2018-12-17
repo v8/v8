@@ -125,7 +125,7 @@ class AllocationTracker {
 
   class UnresolvedLocation {
    public:
-    UnresolvedLocation(Script* script, int start, FunctionInfo* info);
+    UnresolvedLocation(Script script, int start, FunctionInfo* info);
     ~UnresolvedLocation();
     void Resolve();
 

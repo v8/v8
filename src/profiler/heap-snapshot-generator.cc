@@ -540,7 +540,7 @@ void V8HeapExplorer::ExtractLocation(HeapEntry* entry, HeapObject* object) {
 void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
                                                   JSFunction func) {
   if (!func->shared()->script()->IsScript()) return;
-  Script* script = Script::cast(func->shared()->script());
+  Script script = Script::cast(func->shared()->script());
   int scriptId = script->id();
   int start = func->shared()->StartPosition();
   int line = script->GetLineNumber(start);
@@ -1093,7 +1093,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
       SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset);
 }
 
-void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry, Script* script) {
+void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry, Script script) {
   SetInternalReference(entry, "source", script->source(),
                        Script::kSourceOffset);
   SetInternalReference(entry, "name", script->name(), Script::kNameOffset);

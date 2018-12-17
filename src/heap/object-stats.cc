@@ -394,7 +394,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualJSCollectionDetails(JSObject object);
   void RecordVirtualJSObjectDetails(JSObject object);
   void RecordVirtualMapDetails(Map map);
-  void RecordVirtualScriptDetails(Script* script);
+  void RecordVirtualScriptDetails(Script script);
   void RecordVirtualExternalStringDetails(ExternalString script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo info);
   void RecordVirtualJSFunctionDetails(JSFunction function);
@@ -797,7 +797,7 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   }
 }
 
-void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
+void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script script) {
   RecordSimpleVirtualObjectStats(
       script, script->shared_function_infos(),
       ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);

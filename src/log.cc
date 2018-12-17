@@ -1293,7 +1293,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   if (!FLAG_log_source_code) return;
   Object* script_object = shared->script();
   if (!script_object->IsScript()) return;
-  Script* script = Script::cast(script_object);
+  Script script = Script::cast(script_object);
   if (!EnsureLogScriptSource(script)) return;
 
   // We log source code information in the form:
@@ -1562,7 +1562,7 @@ void Logger::ScriptEvent(ScriptEventType type, int script_id) {
   msg.WriteToLogFile();
 }
 
-void Logger::ScriptDetails(Script* script) {
+void Logger::ScriptDetails(Script script) {
   if (!log_->IsEnabled() || !FLAG_log_function_events) return;
   {
     Log::MessageBuilder msg(log_);
@@ -1580,7 +1580,7 @@ void Logger::ScriptDetails(Script* script) {
   EnsureLogScriptSource(script);
 }
 
-bool Logger::EnsureLogScriptSource(Script* script) {
+bool Logger::EnsureLogScriptSource(Script script) {
   if (!log_->IsEnabled()) return false;
   Log::MessageBuilder msg(log_);
   // Make sure the script is written to the log file.

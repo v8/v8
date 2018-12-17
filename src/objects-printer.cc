@@ -786,7 +786,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
     DisallowHeapAllocation no_gc;
     SharedFunctionInfo fun_info = function()->shared();
     if (fun_info->HasSourceCode()) {
-      Script* script = Script::cast(fun_info->script());
+      Script script = Script::cast(fun_info->script());
       int lin = script->GetLineNumber(source_position()) + 1;
       int col = script->GetColumnNumber(source_position()) + 1;
       String script_name = script->name()->IsString()
@@ -2003,7 +2003,7 @@ void AllocationMemento::AllocationMementoPrint(std::ostream& os) {  // NOLINT
 
 
 void Script::ScriptPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "Script");
+  PrintHeader(os, "Script");
   os << "\n - source: " << Brief(source());
   os << "\n - name: " << Brief(name());
   os << "\n - line_offset: " << line_offset();

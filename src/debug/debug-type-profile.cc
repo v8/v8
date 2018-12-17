@@ -24,7 +24,8 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
 
   Script::Iterator scripts(isolate);
 
-  while (Script* script = scripts.Next()) {
+  for (Script script = scripts.Next(); !script.is_null();
+       script = scripts.Next()) {
     if (!script->IsUserJavaScript()) {
       continue;
     }

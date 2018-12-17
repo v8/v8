@@ -575,8 +575,8 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
 // Slow traversal over all scripts on the heap.
 bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
   Script::Iterator iterator(isolate);
-  Script* script = nullptr;
-  while ((script = iterator.Next()) != nullptr) {
+  for (Script script = iterator.Next(); !script.is_null();
+       script = iterator.Next()) {
     if (script->id() == needle) {
       *result = handle(script, isolate);
       return true;

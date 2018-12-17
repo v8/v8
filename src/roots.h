@@ -231,7 +231,7 @@ class RootVisitor;
   V(Map, external_map, ExternalMap)                                           \
   V(Map, message_object_map, JSMessageObjectMap)                              \
   /* Canonical empty values */                                                \
-  V(Script*, empty_script, EmptyScript)                                       \
+  V(Script, empty_script, EmptyScript)                                        \
   V(FeedbackCell, many_closures_cell, ManyClosuresCell)                       \
   V(FeedbackCell, no_feedback_cell, NoFeedbackCell)                           \
   V(Cell*, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)     \

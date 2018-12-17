@@ -991,7 +991,7 @@ class CodeDescription {
     return !shared_info_.is_null() && shared_info_->script()->IsScript();
   }
 
-  Script* script() { return Script::cast(shared_info_->script()); }
+  Script script() { return Script::cast(shared_info_->script()); }
 
   bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
 

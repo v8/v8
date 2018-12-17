@@ -63,7 +63,7 @@ class Deserializer : public SerializerDeserializer {
 
   // Create Log events for newly deserialized objects.
   void LogNewObjectEvents();
-  void LogScriptEvents(Script* script);
+  void LogScriptEvents(Script script);
   void LogNewMapEvents();
 
   // This returns the address of an object that has been described in the

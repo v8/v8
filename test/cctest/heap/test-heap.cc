@@ -5212,7 +5212,10 @@ TEST(ScriptIterator) {
 
   {
     Script::Iterator iterator(isolate);
-    while (iterator.Next()) script_count--;
+    for (Script script = iterator.Next(); !script.is_null();
+         script = iterator.Next()) {
+      script_count--;
+    }
   }
 
   CHECK_EQ(0, script_count);

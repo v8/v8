@@ -80,7 +80,7 @@ void SourcePosition::Print(std::ostream& out,
   Script::PositionInfo pos;
   Object* source_name = nullptr;
   if (function->script()->IsScript()) {
-    Script* script = Script::cast(function->script());
+    Script script = Script::cast(function->script());
     source_name = script->name();
     script->GetPositionInfo(ScriptOffset(), &pos, Script::WITH_OFFSET);
   }

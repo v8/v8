@@ -710,7 +710,7 @@ String SharedFunctionInfo::inferred_name() {
 bool SharedFunctionInfo::IsUserJavaScript() {
   Object* script_obj = script();
   if (script_obj->IsUndefined()) return false;
-  Script* script = Script::cast(script_obj);
+  Script script = Script::cast(script_obj);
   return script->IsUserJavaScript();
 }
 

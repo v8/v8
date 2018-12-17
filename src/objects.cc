@@ -13739,7 +13739,7 @@ bool Script::IsUserJavaScript() { return type() == Script::TYPE_NORMAL; }
 
 bool Script::ContainsAsmModule() {
   DisallowHeapAllocation no_gc;
-  SharedFunctionInfo::ScriptIterator iter(this->GetIsolate(), this);
+  SharedFunctionInfo::ScriptIterator iter(this->GetIsolate(), *this);
   for (SharedFunctionInfo info = iter.Next(); !info.is_null();
        info = iter.Next()) {
     if (info->HasAsmWasmData()) return true;
@@ -13748,7 +13748,7 @@ bool Script::ContainsAsmModule() {
 }
 
 namespace {
-bool GetPositionInfoSlow(const Script* script, int position,
+bool GetPositionInfoSlow(const Script script, int position,
                          Script::PositionInfo* info) {
   if (!script->source()->IsString()) return false;
   if (position < 0) position = 0;
@@ -13789,7 +13789,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
   if (line_ends()->IsUndefined()) {
     // Slow mode: we do not have line_ends. We have to iterate through source.
-    if (!GetPositionInfoSlow(this, position, info)) return false;
+    if (!GetPositionInfoSlow(*this, position, info)) return false;
   } else {
     DCHECK(line_ends()->IsFixedArray());
     FixedArray ends = FixedArray::cast(line_ends());
@@ -13906,12 +13906,12 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}
 
-Script* Script::Iterator::Next() {
+Script Script::Iterator::Next() {
   Object* o = iterator_.Next();
   if (o != nullptr) {
     return Script::cast(o);
   }
-  return nullptr;
+  return Script();
 }
 
 Code SharedFunctionInfo::GetCode() const {
@@ -13962,7 +13962,7 @@ WasmExportedFunctionData SharedFunctionInfo::wasm_exported_function_data()
 }
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
-                                                   Script* script)
+                                                   Script script)
     : ScriptIterator(isolate,
                      handle(script->shared_function_infos(), isolate)) {}
 
@@ -13985,7 +13985,7 @@ SharedFunctionInfo SharedFunctionInfo::ScriptIterator::Next() {
   return SharedFunctionInfo();
 }
 
-void SharedFunctionInfo::ScriptIterator::Reset(Script* script) {
+void SharedFunctionInfo::ScriptIterator::Reset(Script script) {
   shared_function_infos_ = handle(script->shared_function_infos(), isolate_);
   index_ = 0;
 }
@@ -14001,8 +14001,8 @@ SharedFunctionInfo SharedFunctionInfo::GlobalIterator::Next() {
   for (;;) {
     next = sfi_iterator_.Next();
     if (next != nullptr) return SharedFunctionInfo::cast(next);
-    Script* next_script = script_iterator_.Next();
-    if (next_script == nullptr) return SharedFunctionInfo();
+    Script next_script = script_iterator_.Next();
+    if (next_script.is_null()) return SharedFunctionInfo();
     sfi_iterator_.Reset(next_script);
   }
 }
@@ -14063,7 +14063,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     isolate->heap()->SetRootNoScriptSharedFunctionInfos(*list);
 
     // Remove shared function info from old script's list.
-    Script* old_script = Script::cast(shared->script());
+    Script old_script = Script::cast(shared->script());
 
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
@@ -14126,7 +14126,7 @@ bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
 bool SharedFunctionInfo::HasSourceCode() const {
   Isolate* isolate = GetIsolate();
   return !script()->IsUndefined(isolate) &&
-         !reinterpret_cast<Script*>(script())->source()->IsUndefined(isolate);
+         !Script::cast(script())->source()->IsUndefined(isolate);
 }
 
 void SharedFunctionInfo::DiscardCompiledMetadata(

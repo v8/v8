@@ -85,7 +85,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->instruction_start = abstract_code->InstructionStart();
   std::unique_ptr<SourcePositionTable> line_table;
   if (shared->script()->IsScript()) {
-    Script* script = Script::cast(shared->script());
+    Script script = Script::cast(shared->script());
     line_table.reset(new SourcePositionTable());
     for (SourcePositionTableIterator it(abstract_code->source_position_table());
          !it.done(); it.Advance()) {

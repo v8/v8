@@ -76,7 +76,7 @@ CAST_ACCESSOR2(AsmWasmData)
 ACCESSORS(WasmModuleObject, managed_native_module, Managed<wasm::NativeModule>,
           kNativeModuleOffset)
 ACCESSORS2(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
-ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
+ACCESSORS2(WasmModuleObject, script, Script, kScriptOffset)
 ACCESSORS2(WasmModuleObject, weak_instance_list, WeakArrayList,
            kWeakInstanceListOffset)
 OPTIONAL_ACCESSORS2(WasmModuleObject, asm_js_offset_table, ByteArray,

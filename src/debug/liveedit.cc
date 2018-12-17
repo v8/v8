@@ -813,7 +813,7 @@ class FunctionDataMap : public ThreadVisitor {
     if (!sfi->script()->IsScript() || start_position == -1) {
       return false;
     }
-    Script* script = Script::cast(sfi->script());
+    Script script = Script::cast(sfi->script());
     return Lookup(GetFuncId(script->id(), sfi), data);
   }
 

@@ -1648,8 +1648,8 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   int length = 0;
   {
     Script::Iterator iterator(isolate_);
-    Script* script;
-    while ((script = iterator.Next()) != nullptr) {
+    for (Script script = iterator.Next(); !script.is_null();
+         script = iterator.Next()) {
       if (script->HasValidSource()) results->set(length++, script);
     }
   }

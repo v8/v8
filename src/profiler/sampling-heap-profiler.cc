@@ -208,7 +208,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
     const char* name = this->names()->GetName(shared->DebugName());
     int script_id = v8::UnboundScript::kNoScriptId;
     if (shared->script()->IsScript()) {
-      Script* script = Script::cast(shared->script());
+      Script script = Script::cast(shared->script());
       script_id = script->id();
     }
     node = FindOrAddChildNode(node, name, script_id, shared->StartPosition());
@@ -282,7 +282,8 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   std::map<int, Handle<Script>> scripts;
   {
     Script::Iterator iterator(isolate_);
-    while (Script* script = iterator.Next()) {
+    for (Script script = iterator.Next(); !script.is_null();
+         script = iterator.Next()) {
       scripts[script->id()] = handle(script, isolate_);
     }
   }

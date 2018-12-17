@@ -489,7 +489,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name = "parse-eval";
-    Script* script = *info->script();
+    Script script = *info->script();
     int start = -1;
     int end = -1;
     if (!info->is_eval()) {

@@ -17,7 +17,11 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(Script)
+OBJECT_CONSTRUCTORS_IMPL(Script, StructPtr)
+
+NEVER_READ_ONLY_SPACE_IMPL(Script)
+
+CAST_ACCESSOR2(Script)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)

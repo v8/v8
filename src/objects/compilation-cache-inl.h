@@ -42,7 +42,7 @@ uint32_t CompilationCacheShape::StringSharedHash(String source,
     // script source code and the start position of the calling scope.
     // We do this to ensure that the cache entries can survive garbage
     // collection.
-    Script* script(Script::cast(shared->script()));
+    Script script(Script::cast(shared->script()));
     hash ^= String::cast(script->source())->Hash();
     STATIC_ASSERT(LanguageModeSize == 2);
     if (is_strict(language_mode)) hash ^= 0x8000;
