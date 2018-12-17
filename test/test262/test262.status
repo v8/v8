@@ -670,7 +670,7 @@
   'intl402/Segmenter/prototype/segment/segment-word': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8021
-  'built-ins/Object/fromEntries/requires-argument': [SKIP],
+  'built-ins/Object/fromEntries/requires-argument': [FAIL],
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

@@ -216,9 +216,10 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)                                          \
-  V(harmony_private_fields, "harmony private fields in class literals") \
-  V(harmony_numeric_separator, "harmony numeric separator between digits")
+#define HARMONY_STAGED_BASE(V)                                             \
+  V(harmony_private_fields, "harmony private fields in class literals")    \
+  V(harmony_numeric_separator, "harmony numeric separator between digits") \
+  V(harmony_object_from_entries, "harmony Object.fromEntries()")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                        \
@@ -242,8 +243,7 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_json_stringify, "well-formed JSON.stringify")                      \
   V(harmony_public_fields, "harmony public instance fields in class literals") \
   V(harmony_static_fields, "harmony static fields in class literals")          \
-  V(harmony_string_matchall, "harmony String.prototype.matchAll")              \
-  V(harmony_object_from_entries, "harmony Object.fromEntries()")
+  V(harmony_string_matchall, "harmony String.prototype.matchAll")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                      \
