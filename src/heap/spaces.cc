@@ -1877,8 +1877,8 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
   }
 
   size_t new_node_size = 0;
-  FreeSpace* new_node = free_list_.Allocate(size_in_bytes, &new_node_size);
-  if (new_node == nullptr) return false;
+  FreeSpace new_node = free_list_.Allocate(size_in_bytes, &new_node_size);
+  if (new_node.is_null()) return false;
 
   DCHECK_GE(new_node_size, size_in_bytes);
 
@@ -1889,7 +1889,7 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
 
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.
-  Page* page = Page::FromAddress(new_node->address());
+  Page* page = Page::FromHeapObject(new_node);
   IncreaseAllocatedBytes(new_node_size, page);
 
   Address start = new_node->address();
@@ -2805,19 +2805,19 @@ size_t NewSpace::CommittedPhysicalMemory() {
 
 
 void FreeListCategory::Reset() {
-  set_top(nullptr);
+  set_top(FreeSpace());
   set_prev(nullptr);
   set_next(nullptr);
   available_ = 0;
 }
 
-FreeSpace* FreeListCategory::PickNodeFromList(size_t minimum_size,
-                                              size_t* node_size) {
+FreeSpace FreeListCategory::PickNodeFromList(size_t minimum_size,
+                                             size_t* node_size) {
   DCHECK(page()->CanAllocate());
-  FreeSpace* node = top();
-  if (node == nullptr || static_cast<size_t>(node->Size()) < minimum_size) {
+  FreeSpace node = top();
+  if (node.is_null() || static_cast<size_t>(node->Size()) < minimum_size) {
     *node_size = 0;
-    return nullptr;
+    return FreeSpace();
   }
   set_top(node->next());
   *node_size = node->Size();
@@ -2825,11 +2825,11 @@ FreeSpace* FreeListCategory::PickNodeFromList(size_t minimum_size,
   return node;
 }
 
-FreeSpace* FreeListCategory::SearchForNodeInList(size_t minimum_size,
-                                                 size_t* node_size) {
+FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
+                                                size_t* node_size) {
   DCHECK(page()->CanAllocate());
-  FreeSpace* prev_non_evac_node = nullptr;
-  for (FreeSpace* cur_node = top(); cur_node != nullptr;
+  FreeSpace prev_non_evac_node;
+  for (FreeSpace cur_node = top(); !cur_node.is_null();
        cur_node = cur_node->next()) {
     size_t size = cur_node->size();
     if (size >= minimum_size) {
@@ -2838,9 +2838,8 @@ FreeSpace* FreeListCategory::SearchForNodeInList(size_t minimum_size,
       if (cur_node == top()) {
         set_top(cur_node->next());
       }
-      if (prev_non_evac_node != nullptr) {
-        MemoryChunk* chunk =
-            MemoryChunk::FromAddress(prev_non_evac_node->address());
+      if (!prev_non_evac_node.is_null()) {
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(prev_non_evac_node);
         if (chunk->owner()->identity() == CODE_SPACE) {
           chunk->heap()->UnprotectAndRegisterMemoryChunk(chunk);
         }
@@ -2852,13 +2851,13 @@ FreeSpace* FreeListCategory::SearchForNodeInList(size_t minimum_size,
 
     prev_non_evac_node = cur_node;
   }
-  return nullptr;
+  return FreeSpace();
 }
 
 void FreeListCategory::Free(Address start, size_t size_in_bytes,
                             FreeMode mode) {
   DCHECK(page()->CanAllocate());
-  FreeSpace* free_space = FreeSpace::cast(HeapObject::FromAddress(start));
+  FreeSpace free_space = FreeSpace::cast(HeapObject::FromAddress(start));
   free_space->set_next(top());
   set_top(free_space);
   available_ += size_in_bytes;
@@ -2869,10 +2868,13 @@ void FreeListCategory::Free(Address start, size_t size_in_bytes,
 
 
 void FreeListCategory::RepairFreeList(Heap* heap) {
-  FreeSpace* n = top();
-  while (n != nullptr) {
+  FreeSpace n = top();
+  while (!n.is_null()) {
     ObjectSlot map_location(n->address());
-    if (*map_location == nullptr) {
+    // We can't use .is_null() here because ObjectSlot.load() returns an
+    // ObjectPtr (for which "is null" is not defined, as it would be
+    // indistinguishable from "is Smi(0)"). Only HeapObjectPtr has "is_null()".
+    if (map_location.load() == Map()) {
       map_location.store(ReadOnlyRoots(heap).free_space_map());
     } else {
       DCHECK(*map_location == ReadOnlyRoots(heap).free_space_map());
@@ -2923,14 +2925,14 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
   return 0;
 }
 
-FreeSpace* FreeList::FindNodeIn(FreeListCategoryType type, size_t minimum_size,
-                                size_t* node_size) {
+FreeSpace FreeList::FindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                               size_t* node_size) {
   FreeListCategoryIterator it(this, type);
-  FreeSpace* node = nullptr;
+  FreeSpace node;
   while (it.HasNext()) {
     FreeListCategory* current = it.Next();
     node = current->PickNodeFromList(minimum_size, node_size);
-    if (node != nullptr) {
+    if (!node.is_null()) {
       DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
     }
@@ -2939,26 +2941,25 @@ FreeSpace* FreeList::FindNodeIn(FreeListCategoryType type, size_t minimum_size,
   return node;
 }
 
-FreeSpace* FreeList::TryFindNodeIn(FreeListCategoryType type,
-                                   size_t minimum_size, size_t* node_size) {
-  if (categories_[type] == nullptr) return nullptr;
-  FreeSpace* node =
-      categories_[type]->PickNodeFromList(minimum_size, node_size);
-  if (node != nullptr) {
+FreeSpace FreeList::TryFindNodeIn(FreeListCategoryType type,
+                                  size_t minimum_size, size_t* node_size) {
+  if (categories_[type] == nullptr) return FreeSpace();
+  FreeSpace node = categories_[type]->PickNodeFromList(minimum_size, node_size);
+  if (!node.is_null()) {
     DCHECK(IsVeryLong() || Available() == SumFreeLists());
   }
   return node;
 }
 
-FreeSpace* FreeList::SearchForNodeInList(FreeListCategoryType type,
-                                         size_t* node_size,
-                                         size_t minimum_size) {
+FreeSpace FreeList::SearchForNodeInList(FreeListCategoryType type,
+                                        size_t* node_size,
+                                        size_t minimum_size) {
   FreeListCategoryIterator it(this, type);
-  FreeSpace* node = nullptr;
+  FreeSpace node;
   while (it.HasNext()) {
     FreeListCategory* current = it.Next();
     node = current->SearchForNodeInList(minimum_size, node_size);
-    if (node != nullptr) {
+    if (!node.is_null()) {
       DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
     }
@@ -2969,32 +2970,32 @@ FreeSpace* FreeList::SearchForNodeInList(FreeListCategoryType type,
   return node;
 }
 
-FreeSpace* FreeList::Allocate(size_t size_in_bytes, size_t* node_size) {
+FreeSpace FreeList::Allocate(size_t size_in_bytes, size_t* node_size) {
   DCHECK_GE(kMaxBlockSize, size_in_bytes);
-  FreeSpace* node = nullptr;
+  FreeSpace node;
   // First try the allocation fast path: try to allocate the minimum element
   // size of a free list category. This operation is constant time.
   FreeListCategoryType type =
       SelectFastAllocationFreeListCategoryType(size_in_bytes);
-  for (int i = type; i < kHuge && node == nullptr; i++) {
+  for (int i = type; i < kHuge && node.is_null(); i++) {
     node = FindNodeIn(static_cast<FreeListCategoryType>(i), size_in_bytes,
                       node_size);
   }
 
-  if (node == nullptr) {
+  if (node.is_null()) {
     // Next search the huge list for free list nodes. This takes linear time in
     // the number of huge elements.
     node = SearchForNodeInList(kHuge, node_size, size_in_bytes);
   }
 
-  if (node == nullptr && type != kHuge) {
+  if (node.is_null() && type != kHuge) {
     // We didn't find anything in the huge list. Now search the best fitting
     // free list for a node that has at least the requested size.
     type = SelectFreeListCategoryType(size_in_bytes);
     node = TryFindNodeIn(type, size_in_bytes, node_size);
   }
 
-  if (node != nullptr) {
+  if (!node.is_null()) {
     Page::FromAddress(node->address())->IncreaseAllocatedBytes(*node_size);
   }
 
@@ -3080,8 +3081,8 @@ void FreeList::PrintCategories(FreeListCategoryType type) {
 #ifdef DEBUG
 size_t FreeListCategory::SumFreeList() {
   size_t sum = 0;
-  FreeSpace* cur = top();
-  while (cur != nullptr) {
+  FreeSpace cur = top();
+  while (!cur.is_null()) {
     DCHECK_EQ(cur->map(),
               page()->heap()->isolate()->root(RootIndex::kFreeSpaceMap));
     sum += cur->relaxed_read_size();
@@ -3092,8 +3093,8 @@ size_t FreeListCategory::SumFreeList() {
 
 int FreeListCategory::FreeListLength() {
   int length = 0;
-  FreeSpace* cur = top();
-  while (cur != nullptr) {
+  FreeSpace cur = top();
+  while (!cur.is_null()) {
     length++;
     cur = cur->next();
     if (length == kVeryLongFreeList) return length;

@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_FREE_SPACE_H_
 #define V8_OBJECTS_FREE_SPACE_H_
 
-#include "src/objects.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -18,7 +18,7 @@ namespace internal {
 // the heap remains iterable.  They have a size and a next pointer.
 // The next pointer is the raw address of the next FreeSpace object (or NULL)
 // in the free list.
-class FreeSpace : public HeapObject {
+class FreeSpace : public HeapObjectPtr {
  public:
   // [size]: size of the free space including the header.
   inline int size() const;
@@ -30,10 +30,11 @@ class FreeSpace : public HeapObject {
   inline int Size();
 
   // Accessors for the next field.
-  inline FreeSpace* next();
-  inline void set_next(FreeSpace* next);
+  inline FreeSpace next();
+  inline void set_next(FreeSpace next);
 
-  inline static FreeSpace* cast(HeapObject* obj);
+  inline static FreeSpace cast(HeapObject* obj);
+  inline static FreeSpace unchecked_cast(const Object* obj);
 
   // Dispatched behavior.
   DECL_PRINTER(FreeSpace)
@@ -45,8 +46,7 @@ class FreeSpace : public HeapObject {
   static const int kNextOffset = POINTER_SIZE_ALIGN(kSizeOffset + kPointerSize);
   static const int kSize = kNextOffset + kPointerSize;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeSpace);
+  OBJECT_CONSTRUCTORS(FreeSpace, HeapObjectPtr);
 };
 
 }  // namespace internal

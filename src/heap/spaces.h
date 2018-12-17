@@ -157,14 +157,12 @@ class FreeListCategory {
         page_(page),
         type_(kInvalidCategory),
         available_(0),
-        top_(nullptr),
         prev_(nullptr),
         next_(nullptr) {}
 
   void Initialize(FreeListCategoryType type) {
     type_ = type;
     available_ = 0;
-    top_ = nullptr;
     prev_ = nullptr;
     next_ = nullptr;
   }
@@ -184,16 +182,16 @@ class FreeListCategory {
   // Performs a single try to pick a node of at least |minimum_size| from the
   // category. Stores the actual size in |node_size|. Returns nullptr if no
   // node is found.
-  FreeSpace* PickNodeFromList(size_t minimum_size, size_t* node_size);
+  FreeSpace PickNodeFromList(size_t minimum_size, size_t* node_size);
 
   // Picks a node of at least |minimum_size| from the category. Stores the
   // actual size in |node_size|. Returns nullptr if no node is found.
-  FreeSpace* SearchForNodeInList(size_t minimum_size, size_t* node_size);
+  FreeSpace SearchForNodeInList(size_t minimum_size, size_t* node_size);
 
   inline FreeList* owner();
   inline Page* page() const { return page_; }
   inline bool is_linked();
-  bool is_empty() { return top() == nullptr; }
+  bool is_empty() { return top().is_null(); }
   size_t available() const { return available_; }
 
   void set_free_list(FreeList* free_list) { free_list_ = free_list; }
@@ -208,8 +206,8 @@ class FreeListCategory {
   // {kVeryLongFreeList} by manually walking the list.
   static const int kVeryLongFreeList = 500;
 
-  FreeSpace* top() { return top_; }
-  void set_top(FreeSpace* top) { top_ = top; }
+  FreeSpace top() { return top_; }
+  void set_top(FreeSpace top) { top_ = top; }
   FreeListCategory* prev() { return prev_; }
   void set_prev(FreeListCategory* prev) { prev_ = prev; }
   FreeListCategory* next() { return next_; }
@@ -228,8 +226,8 @@ class FreeListCategory {
   // category.
   size_t available_;
 
-  // |top_|: Points to the top FreeSpace* in the free list category.
-  FreeSpace* top_;
+  // |top_|: Points to the top FreeSpace in the free list category.
+  FreeSpace top_;
 
   FreeListCategory* prev_;
   FreeListCategory* next_;
@@ -1808,8 +1806,8 @@ class V8_EXPORT_PRIVATE FreeList {
   // bytes. Returns the actual node size in node_size which can be bigger than
   // size_in_bytes. This method returns null if the allocation request cannot be
   // handled by the free list.
-  V8_WARN_UNUSED_RESULT FreeSpace* Allocate(size_t size_in_bytes,
-                                            size_t* node_size);
+  V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
+                                           size_t* node_size);
 
   // Clear the free list.
   void Reset();
@@ -1912,18 +1910,18 @@ class V8_EXPORT_PRIVATE FreeList {
 
   // Walks all available categories for a given |type| and tries to retrieve
   // a node. Returns nullptr if the category is empty.
-  FreeSpace* FindNodeIn(FreeListCategoryType type, size_t minimum_size,
-                        size_t* node_size);
+  FreeSpace FindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                       size_t* node_size);
 
   // Tries to retrieve a node from the first category in a given |type|.
   // Returns nullptr if the category is empty or the top entry is smaller
   // than minimum_size.
-  FreeSpace* TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
-                           size_t* node_size);
+  FreeSpace TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                          size_t* node_size);
 
   // Searches a given |type| for a node of at least |minimum_size|.
-  FreeSpace* SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
-                                 size_t minimum_size);
+  FreeSpace SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
+                                size_t minimum_size);
 
   // The tiny categories are not used for fast allocation.
   FreeListCategoryType SelectFastAllocationFreeListCategoryType(

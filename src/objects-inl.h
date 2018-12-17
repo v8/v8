@@ -1046,7 +1046,7 @@ int HeapObject::SizeFromMap(Map map) const {
         BytecodeArray::unchecked_cast(this)->synchronized_length());
   }
   if (instance_type == FREE_SPACE_TYPE) {
-    return reinterpret_cast<const FreeSpace*>(this)->relaxed_read_size();
+    return FreeSpace::unchecked_cast(this)->relaxed_read_size();
   }
   if (instance_type == STRING_TYPE ||
       instance_type == INTERNALIZED_STRING_TYPE) {

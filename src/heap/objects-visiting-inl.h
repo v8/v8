@@ -154,12 +154,13 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitStruct(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
-    Map map, FreeSpace* object) {
+    Map map, FreeSpace object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
-  if (visitor->ShouldVisitMapPointer())
+  if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object, object->map_slot());
-  return static_cast<ResultType>(FreeSpace::cast(object)->size());
+  }
+  return static_cast<ResultType>(object->size());
 }
 
 template <typename ConcreteVisitor>

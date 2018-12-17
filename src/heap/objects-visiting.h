@@ -120,7 +120,7 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE ResultType VisitJSObjectFast(Map map, JSObject object);
   V8_INLINE ResultType VisitJSApiObject(Map map, JSObject object);
   V8_INLINE ResultType VisitStruct(Map map, HeapObject* object);
-  V8_INLINE ResultType VisitFreeSpace(Map map, FreeSpace* object);
+  V8_INLINE ResultType VisitFreeSpace(Map map, FreeSpace object);
   V8_INLINE ResultType VisitWeakArray(Map map, HeapObject* object);
 
   template <typename T, typename = typename std::enable_if<
