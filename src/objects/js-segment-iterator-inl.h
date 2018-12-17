@@ -26,6 +26,9 @@ ACCESSORS2(JSSegmentIterator, icu_break_iterator, Managed<icu::BreakIterator>,
 ACCESSORS2(JSSegmentIterator, unicode_string, Managed<icu::UnicodeString>,
            kUnicodeStringOffset)
 
+BIT_FIELD_ACCESSORS(JSSegmentIterator, flags, is_break_type_set,
+                    JSSegmentIterator::BreakTypeSetBits)
+
 SMI_ACCESSORS(JSSegmentIterator, flags, kFlagsOffset)
 
 CAST_ACCESSOR2(JSSegmentIterator);

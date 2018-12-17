@@ -11,9 +11,5 @@ for (const granularity of ["grapheme", "word", "sentence", "line"]) {
 
   assertEquals("number", typeof iter.position);
   assertEquals(0, iter.position);
-  if (granularity === "grapheme") {
-    assertEquals(undefined, iter.breakType);
-  } else {
-    assertEquals("string", typeof iter.breakType);
-  }
+  assertEquals(undefined, iter.breakType);
 }

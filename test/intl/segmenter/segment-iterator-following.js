@@ -10,9 +10,13 @@ const iter = segmenter.segment(text);
 
 assertEquals("function", typeof iter.following);
 
-assertThrows(() => iter.following("ABC"), RangeError);
-assertThrows(() => iter.following(null), RangeError);
-assertThrows(() => iter.following(1.4), RangeError);
+// ToNumber("ABC") return NaN, ToInteger("ABC") return +0, ToIndex("ABC") return 0
+assertDoesNotThrow(() => iter.following("ABC"));
+// ToNumber(null) return +0, ToInteger(null) return +0, ToIndex(null) return 0
+assertDoesNotThrow(() => iter.following(null));
+// ToNumber(1.4) return 1.4, ToInteger(1.4) return 1, ToIndex(1.4) return 1
+assertDoesNotThrow(() => iter.following(1.4));
+
 assertThrows(() => iter.following(-3), RangeError);
 
 // 1.5.3.2 %SegmentIteratorPrototype%.following( [ from ] )

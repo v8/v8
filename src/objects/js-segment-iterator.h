@@ -54,6 +54,8 @@ class JSSegmentIterator : public JSObject {
 
   Handle<String> GranularityAsString() const;
 
+  DECL_BOOLEAN_ACCESSORS(is_break_type_set)
+
   // ecma402 #sec-segment-iterator-prototype-breakType
   Handle<Object> BreakType() const;
 
@@ -74,8 +76,9 @@ class JSSegmentIterator : public JSObject {
   inline JSSegmenter::Granularity granularity() const;
 
 // Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _) \
-  V(GranularityBits, JSSegmenter::Granularity, 3, _)
+#define FLAGS_BIT_FIELDS(V, _)                       \
+  V(GranularityBits, JSSegmenter::Granularity, 3, _) \
+  V(BreakTypeSetBits, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 
