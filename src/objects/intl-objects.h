@@ -248,7 +248,7 @@ class Intl {
       const std::set<std::string>& relevant_extension_keys);
 
   // Utility function to set text to BreakIterator.
-  static Managed<icu::UnicodeString>* SetTextToBreakIterator(
+  static Managed<icu::UnicodeString> SetTextToBreakIterator(
       Isolate* isolate, Handle<String> text,
       icu::BreakIterator* break_iterator);
 

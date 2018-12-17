@@ -22,8 +22,8 @@ OBJECT_CONSTRUCTORS_IMPL(JSRelativeTimeFormat, JSObject)
 
 // Base relative time format accessors.
 ACCESSORS2(JSRelativeTimeFormat, locale, String, kLocaleOffset)
-ACCESSORS(JSRelativeTimeFormat, icu_formatter,
-          Managed<icu::RelativeDateTimeFormatter>, kICUFormatterOffset)
+ACCESSORS2(JSRelativeTimeFormat, icu_formatter,
+           Managed<icu::RelativeDateTimeFormatter>, kICUFormatterOffset)
 SMI_ACCESSORS(JSRelativeTimeFormat, flags, kFlagsOffset)
 
 inline void JSRelativeTimeFormat::set_style(Style style) {

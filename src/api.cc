@@ -8900,7 +8900,7 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
   for (int i = 0; i < listeners->length(); i++) {
     if (listeners->get(i)->IsUndefined(isolate)) continue;  // skip deleted ones
     i::FixedArray listener = i::FixedArray::cast(listeners->get(i));
-    i::Foreign* callback_obj = i::Foreign::cast(listener->get(0));
+    i::Foreign callback_obj = i::Foreign::cast(listener->get(0));
     if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
       listeners->set(i, i::ReadOnlyRoots(isolate).undefined_value());
     }

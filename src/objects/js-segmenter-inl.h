@@ -22,8 +22,8 @@ OBJECT_CONSTRUCTORS_IMPL(JSSegmenter, JSObject)
 
 // Base segmenter accessors.
 ACCESSORS2(JSSegmenter, locale, String, kLocaleOffset)
-ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
-          kICUBreakIteratorOffset)
+ACCESSORS2(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
+           kICUBreakIteratorOffset)
 SMI_ACCESSORS(JSSegmenter, flags, kFlagsOffset)
 
 inline void JSSegmenter::set_line_break_style(LineBreakStyle line_break_style) {

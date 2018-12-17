@@ -23,10 +23,10 @@ OBJECT_CONSTRUCTORS_IMPL(JSPluralRules, JSObject)
 
 ACCESSORS2(JSPluralRules, locale, String, kLocaleOffset)
 SMI_ACCESSORS(JSPluralRules, flags, kFlagsOffset)
-ACCESSORS(JSPluralRules, icu_plural_rules, Managed<icu::PluralRules>,
-          kICUPluralRulesOffset)
-ACCESSORS(JSPluralRules, icu_decimal_format, Managed<icu::DecimalFormat>,
-          kICUDecimalFormatOffset)
+ACCESSORS2(JSPluralRules, icu_plural_rules, Managed<icu::PluralRules>,
+           kICUPluralRulesOffset)
+ACCESSORS2(JSPluralRules, icu_decimal_format, Managed<icu::DecimalFormat>,
+           kICUDecimalFormatOffset)
 
 inline void JSPluralRules::set_type(Type type) {
   DCHECK_LT(type, Type::COUNT);

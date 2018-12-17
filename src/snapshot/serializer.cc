@@ -733,7 +733,7 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
+void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
                                                           Address* p) {
   int skip = SkipTo(reinterpret_cast<Address>(p));
   Address target = *p;

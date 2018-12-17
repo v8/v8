@@ -82,8 +82,8 @@ class JSPluralRules : public JSObject {
 
   DECL_ACCESSORS2(locale, String)
   DECL_INT_ACCESSORS(flags)
-  DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
-  DECL_ACCESSORS(icu_decimal_format, Managed<icu::DecimalFormat>)
+  DECL_ACCESSORS2(icu_plural_rules, Managed<icu::PluralRules>)
+  DECL_ACCESSORS2(icu_decimal_format, Managed<icu::DecimalFormat>)
 
   OBJECT_CONSTRUCTORS(JSPluralRules, JSObject);
 };

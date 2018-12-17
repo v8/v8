@@ -20,9 +20,10 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSDateTimeFormat, JSObject)
 
-ACCESSORS(JSDateTimeFormat, icu_locale, Managed<icu::Locale>, kICULocaleOffset);
-ACCESSORS(JSDateTimeFormat, icu_simple_date_format,
-          Managed<icu::SimpleDateFormat>, kICUSimpleDateFormatOffset)
+ACCESSORS2(JSDateTimeFormat, icu_locale, Managed<icu::Locale>,
+           kICULocaleOffset);
+ACCESSORS2(JSDateTimeFormat, icu_simple_date_format,
+           Managed<icu::SimpleDateFormat>, kICUSimpleDateFormatOffset)
 ACCESSORS(JSDateTimeFormat, bound_format, Object, kBoundFormatOffset);
 SMI_ACCESSORS(JSDateTimeFormat, flags, kFlagsOffset)
 

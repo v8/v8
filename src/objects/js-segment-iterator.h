@@ -64,8 +64,8 @@ class JSSegmentIterator : public JSObject {
   DECL_CAST2(JSSegmentIterator)
 
   // SegmentIterator accessors.
-  DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
-  DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
+  DECL_ACCESSORS2(icu_break_iterator, Managed<icu::BreakIterator>)
+  DECL_ACCESSORS2(unicode_string, Managed<icu::UnicodeString>)
 
   DECL_PRINTER(JSSegmentIterator)
   DECL_VERIFIER(JSSegmentIterator)

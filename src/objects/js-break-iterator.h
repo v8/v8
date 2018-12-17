@@ -61,8 +61,8 @@ class JSV8BreakIterator : public JSObject {
   DECL_VERIFIER(JSV8BreakIterator)
 
   DECL_ACCESSORS2(locale, String)
-  DECL_ACCESSORS(break_iterator, Managed<icu::BreakIterator>)
-  DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
+  DECL_ACCESSORS2(break_iterator, Managed<icu::BreakIterator>)
+  DECL_ACCESSORS2(unicode_string, Managed<icu::UnicodeString>)
   DECL_ACCESSORS(bound_adopt_text, Object)
   DECL_ACCESSORS(bound_first, Object)
   DECL_ACCESSORS(bound_next, Object)

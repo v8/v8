@@ -282,7 +282,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
   Handle<Object> resolved_obj;
 
-  CHECK_NOT_NULL(date_time_format->icu_locale());
+  CHECK(!date_time_format->icu_locale().is_null());
   CHECK_NOT_NULL(date_time_format->icu_locale()->raw());
   UErrorCode status = U_ZERO_ERROR;
   char language[ULOC_FULLNAME_CAPACITY];

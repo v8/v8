@@ -22,8 +22,8 @@ OBJECT_CONSTRUCTORS_IMPL(JSListFormat, JSObject)
 
 // Base list format accessors.
 ACCESSORS2(JSListFormat, locale, String, kLocaleOffset)
-ACCESSORS(JSListFormat, icu_formatter, Managed<icu::ListFormatter>,
-          kICUFormatterOffset)
+ACCESSORS2(JSListFormat, icu_formatter, Managed<icu::ListFormatter>,
+           kICUFormatterOffset)
 SMI_ACCESSORS(JSListFormat, flags, kFlagsOffset)
 
 inline void JSListFormat::set_style(Style style) {

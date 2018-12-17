@@ -50,7 +50,7 @@ class JSSegmenter : public JSObject {
   // Segmenter accessors.
   DECL_ACCESSORS2(locale, String)
 
-  DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
+  DECL_ACCESSORS2(icu_break_iterator, Managed<icu::BreakIterator>)
 
   // LineBreakStyle: identifying the style used for line break.
   //

@@ -48,15 +48,19 @@ void ManagedObjectFinalizer(const v8::WeakCallbackInfo<void>& data);
 template <class CppType>
 class Managed : public Foreign {
  public:
+  Managed() : Foreign() {}
+  explicit Managed(Address ptr) : Foreign(ptr) {}
+  Managed* operator->() { return this; }
+
   // Get a raw pointer to the C++ object.
   V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }
 
   // Get a copy of the shared pointer to the C++ object.
   V8_INLINE std::shared_ptr<CppType> get() { return *GetSharedPtrPtr(); }
 
-  static Managed<CppType>* cast(Object* obj) {
-    SLOW_DCHECK(obj->IsForeign());
-    return reinterpret_cast<Managed<CppType>*>(obj);
+  static Managed cast(Object* obj) { return Managed(obj->ptr()); }
+  static Managed unchecked_cast(ObjectPtr obj) {
+    return bit_cast<Managed>(obj);
   }
 
   // Allocate a new {CppType} and wrap it in a {Managed<CppType>}.

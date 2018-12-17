@@ -31,8 +31,8 @@ class Microtask : public StructPtr {
 // used by Blink for example.
 class CallbackTask : public Microtask {
  public:
-  DECL_ACCESSORS(callback, Foreign)
-  DECL_ACCESSORS(data, Foreign)
+  DECL_ACCESSORS2(callback, Foreign)
+  DECL_ACCESSORS2(data, Foreign)
 
 // Layout description.
 #define CALLBACK_TASK_FIELDS(V)   \

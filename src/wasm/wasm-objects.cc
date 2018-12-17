@@ -158,7 +158,7 @@ size_t EstimateNativeAllocationsSize(const WasmModule* module) {
 
 WasmInstanceNativeAllocations* GetNativeAllocations(
     WasmInstanceObject instance) {
-  return reinterpret_cast<Managed<WasmInstanceNativeAllocations>*>(
+  return Managed<WasmInstanceNativeAllocations>::cast(
              instance->managed_native_allocations())
       ->raw();
 }

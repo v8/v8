@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/objects/code.h"
+#include "src/objects/foreign.h"
 #include "src/objects/slots.h"
 
 namespace v8 {
@@ -133,7 +134,7 @@ class ObjectVisitor {
   virtual void VisitExternalReference(Code host, RelocInfo* rinfo) {}
 
   // Visits an external reference.
-  virtual void VisitExternalReference(Foreign* host, Address* p) {}
+  virtual void VisitExternalReference(Foreign host, Address* p) {}
 
   // Visits an (encoded) internal reference.
   virtual void VisitInternalReference(Code host, RelocInfo* rinfo) {}

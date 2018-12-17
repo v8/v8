@@ -58,7 +58,7 @@ class JSListFormat : public JSObject {
 
   // ListFormat accessors.
   DECL_ACCESSORS2(locale, String)
-  DECL_ACCESSORS(icu_formatter, Managed<icu::ListFormatter>)
+  DECL_ACCESSORS2(icu_formatter, Managed<icu::ListFormatter>)
 
   // Style: identifying the relative time format style used.
   //

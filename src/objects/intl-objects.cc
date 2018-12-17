@@ -1642,7 +1642,7 @@ Intl::ResolvedLocale Intl::ResolveLocale(
   return Intl::ResolvedLocale{canonicalized_locale, icu_locale, extensions};
 }
 
-Managed<icu::UnicodeString>* Intl::SetTextToBreakIterator(
+Managed<icu::UnicodeString> Intl::SetTextToBreakIterator(
     Isolate* isolate, Handle<String> text, icu::BreakIterator* break_iterator) {
   icu::UnicodeString* u_text =
       (icu::UnicodeString*)(Intl::ToICUUnicodeString(isolate, text).clone());

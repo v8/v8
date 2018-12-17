@@ -64,7 +64,7 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
   segment_iterator->set_icu_break_iterator(*managed_break_iterator);
 
   // 3. Let iterator.[[SegmentIteratorString]] be string.
-  Managed<icu::UnicodeString>* unicode_string =
+  Managed<icu::UnicodeString> unicode_string =
       Intl::SetTextToBreakIterator(isolate, text, break_iterator);
   segment_iterator->set_unicode_string(unicode_string);
 

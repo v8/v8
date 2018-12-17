@@ -27,8 +27,8 @@ CAST_ACCESSOR2(CallableTask)
 ACCESSORS2(CallableTask, callable, JSReceiver, kCallableOffset)
 ACCESSORS2(CallableTask, context, Context, kContextOffset)
 
-ACCESSORS(CallbackTask, callback, Foreign, kCallbackOffset)
-ACCESSORS(CallbackTask, data, Foreign, kDataOffset)
+ACCESSORS2(CallbackTask, callback, Foreign, kCallbackOffset)
+ACCESSORS2(CallbackTask, data, Foreign, kDataOffset)
 
 }  // namespace internal
 }  // namespace v8

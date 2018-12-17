@@ -536,7 +536,7 @@ typedef AbstractCode AbstractCodeArgType;
 typedef ByteArray ByteArrayArgType;
 typedef FixedArray FixedArrayArgType;
 typedef FixedDoubleArray FixedDoubleArrayArgType;
-typedef Foreign* ForeignArgType;
+typedef Foreign ForeignArgType;
 typedef HeapObject* HeapObjectArgType;
 typedef JSArray JSArrayArgType;
 typedef JSAsyncGeneratorObject JSAsyncGeneratorObjectArgType;

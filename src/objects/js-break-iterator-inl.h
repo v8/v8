@@ -31,10 +31,10 @@ inline JSV8BreakIterator::Type JSV8BreakIterator::type() const {
 }
 
 ACCESSORS2(JSV8BreakIterator, locale, String, kLocaleOffset)
-ACCESSORS(JSV8BreakIterator, break_iterator, Managed<icu::BreakIterator>,
-          kBreakIteratorOffset)
-ACCESSORS(JSV8BreakIterator, unicode_string, Managed<icu::UnicodeString>,
-          kUnicodeStringOffset)
+ACCESSORS2(JSV8BreakIterator, break_iterator, Managed<icu::BreakIterator>,
+           kBreakIteratorOffset)
+ACCESSORS2(JSV8BreakIterator, unicode_string, Managed<icu::UnicodeString>,
+           kUnicodeStringOffset)
 ACCESSORS(JSV8BreakIterator, bound_adopt_text, Object, kBoundAdoptTextOffset)
 ACCESSORS(JSV8BreakIterator, bound_first, Object, kBoundFirstOffset)
 ACCESSORS(JSV8BreakIterator, bound_next, Object, kBoundNextOffset)

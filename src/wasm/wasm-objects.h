@@ -110,7 +110,7 @@ class WasmModuleObject : public JSObject {
  public:
   DECL_CAST2(WasmModuleObject)
 
-  DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
+  DECL_ACCESSORS2(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS2(export_wrappers, FixedArray)
   DECL_ACCESSORS2(script, Script)
   DECL_ACCESSORS2(weak_instance_list, WeakArrayList)
@@ -400,7 +400,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS2(table_object, WasmTableObject)
   DECL_ACCESSORS2(imported_function_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS2(indirect_function_table_refs, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
+  DECL_OPTIONAL_ACCESSORS2(managed_native_allocations, Foreign)
   DECL_OPTIONAL_ACCESSORS2(exceptions_table, FixedArray)
   DECL_ACCESSORS(undefined_value, Oddball)
   DECL_ACCESSORS(null_value, Oddball)
@@ -584,7 +584,7 @@ class WasmDebugInfo : public StructPtr {
   DECL_ACCESSORS2(interpreted_functions, FixedArray);
   DECL_OPTIONAL_ACCESSORS2(locals_names, FixedArray)
   DECL_OPTIONAL_ACCESSORS2(c_wasm_entries, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
+  DECL_OPTIONAL_ACCESSORS2(c_wasm_entry_map, Managed<wasm::SignatureMap>)
 
   DECL_CAST2(WasmDebugInfo)
 
@@ -710,7 +710,7 @@ class AsmWasmData : public StructPtr {
       Handle<FixedArray> export_wrappers, Handle<ByteArray> asm_js_offset_table,
       Handle<HeapNumber> uses_bitset);
 
-  DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
+  DECL_ACCESSORS2(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS2(export_wrappers, FixedArray)
   DECL_ACCESSORS2(asm_js_offset_table, ByteArray)
   DECL_ACCESSORS(uses_bitset, HeapNumber)
