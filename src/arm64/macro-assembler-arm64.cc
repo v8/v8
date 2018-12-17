@@ -2030,7 +2030,17 @@ void TurboAssembler::Call(ExternalReference target) {
 }
 
 void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
-  Add(builtin_pointer, builtin_pointer, Code::kHeaderSize - kHeapObjectTag);
+  STATIC_ASSERT(kSystemPointerSize == 8);
+  STATIC_ASSERT(kSmiShiftSize == 31);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
+
+  // The builtin_pointer register contains the builtin index as a Smi.
+  // Untagging is folded into the indexing operand below.
+  Asr(builtin_pointer, builtin_pointer, kSmiShift - kSystemPointerSizeLog2);
+  Add(builtin_pointer, builtin_pointer,
+      IsolateData::builtin_entry_table_offset());
+  Ldr(builtin_pointer, MemOperand(kRootRegister, builtin_pointer));
   Call(builtin_pointer);
 }
 

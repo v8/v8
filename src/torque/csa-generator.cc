@@ -94,11 +94,8 @@ void CSAGenerator::EmitInstruction(
 void CSAGenerator::EmitInstruction(
     const PushBuiltinPointerInstruction& instruction,
     Stack<std::string>* stack) {
-  stack->Push(
-      "ca_.UncheckedCast<BuiltinPtr>(ca_.HeapConstant(Builtins::CallableFor(ca_"
-      "."
-      "isolate(), Builtins::k" +
-      instruction.external_name + ").code()))");
+  stack->Push("ca_.UncheckedCast<BuiltinPtr>(ca_.SmiConstant(Builtins::k" +
+              instruction.external_name + "))");
 }
 
 void CSAGenerator::EmitInstruction(

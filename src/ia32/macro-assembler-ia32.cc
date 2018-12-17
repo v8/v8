@@ -1872,7 +1872,16 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 }
 
 void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
-  add(builtin_pointer, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  STATIC_ASSERT(kSystemPointerSize == 4);
+  STATIC_ASSERT(kSmiShiftSize == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
+
+  // The builtin_pointer register contains the builtin index as a Smi.
+  // Untagging is folded into the indexing operand below (we use times_2 instead
+  // of times_4 since smis are already shifted by one).
+  mov(builtin_pointer, Operand(kRootRegister, builtin_pointer, times_2,
+                               IsolateData::builtin_entry_table_offset()));
   call(builtin_pointer);
 }
 

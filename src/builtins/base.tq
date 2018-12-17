@@ -35,6 +35,7 @@ type int31 extends int32
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
 type AbstractCode extends HeapObject generates 'TNode<AbstractCode>';
 type Code extends AbstractCode generates 'TNode<Code>';
+type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type JSReceiver extends HeapObject generates 'TNode<JSReceiver>';
 type Constructor extends JSReceiver generates 'TNode<JSReceiver>';
 type Context extends HeapObject generates 'TNode<Context>';

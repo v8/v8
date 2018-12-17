@@ -1638,8 +1638,18 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 }
 
 void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
-  addp(builtin_pointer, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  call(builtin_pointer);
+  STATIC_ASSERT(kSystemPointerSize == 8);
+  STATIC_ASSERT(kSmiShiftSize == 31);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
+
+  // TODO(jgruber,ishell): With pointer compression, untagging could be folded
+  // into the operand below.
+
+  // The builtin_pointer register contains the builtin index as a Smi.
+  SmiUntag(builtin_pointer, builtin_pointer);
+  Call(Operand(kRootRegister, builtin_pointer, times_8,
+               IsolateData::builtin_entry_table_offset()));
 }
 
 void TurboAssembler::RetpolineCall(Register reg) {

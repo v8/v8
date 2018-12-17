@@ -38,9 +38,9 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   static const BuiltinPointerType* GetBuiltinPointerType(
       TypeVector argument_types, const Type* return_type) {
     TypeOracle& self = Get();
-    const Type* code_type = self.GetBuiltinType(CODE_TYPE_STRING);
+    const Type* builtin_type = self.GetBuiltinType(BUILTIN_POINTER_TYPE_STRING);
     const BuiltinPointerType* result = self.function_pointer_types_.Add(
-        BuiltinPointerType(code_type, argument_types, return_type,
+        BuiltinPointerType(builtin_type, argument_types, return_type,
                            self.all_builtin_pointer_types_.size()));
     if (result->function_pointer_type_id() ==
         self.all_builtin_pointer_types_.size()) {

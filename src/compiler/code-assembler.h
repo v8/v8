@@ -250,8 +250,7 @@ using Number = UnionT<Smi, HeapNumber>;
 using Numeric = UnionT<Number, BigInt>;
 
 // A pointer to a builtin function, used by Torque's function pointers.
-// TODO(jgruber): Switch to a Smi representation.
-using BuiltinPtr = Code;
+using BuiltinPtr = Smi;
 
 class int31_t {
  public:
@@ -1226,7 +1225,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   Node* CallStubR(StubCallMode call_mode,
                   const CallInterfaceDescriptor& descriptor, size_t result_size,
-                  SloppyTNode<Code> target, SloppyTNode<Object> context,
+                  SloppyTNode<Object> target, SloppyTNode<Object> context,
                   TArgs... args) {
     return CallStubRImpl(call_mode, descriptor, result_size, target, context,
                          {args...});

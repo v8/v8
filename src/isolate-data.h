@@ -49,6 +49,11 @@ class IsolateData final {
     return kExternalReferenceTableOffset - kIsolateRootBias;
   }
 
+  // Root-register-relative offset of the builtin entry table.
+  static constexpr int builtin_entry_table_offset() {
+    return kBuiltinEntryTableOffset - kIsolateRootBias;
+  }
+
   // Root-register-relative offset of the builtins table.
   static constexpr int builtins_table_offset() {
     return kBuiltinsTableOffset - kIsolateRootBias;

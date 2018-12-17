@@ -204,7 +204,7 @@ namespace test {
   }
 
   type ObjectToObject = builtin(Context, Object) => Object;
-  macro TestTypeAlias(x: ObjectToObject): Code {
+  macro TestTypeAlias(x: ObjectToObject): BuiltinPtr {
     return x;
   }
 
