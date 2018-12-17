@@ -21,6 +21,7 @@
 // Running with a simulator.
 
 #include "src/arm/constants-arm.h"
+#include "src/assembler.h"
 #include "src/base/hashmap.h"
 #include "src/simulator-base.h"
 

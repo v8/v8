@@ -4,6 +4,7 @@
 
 #include "src/compiler/common-operator.h"
 
+#include "src/assembler.h"
 #include "src/base/lazy-instance.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"

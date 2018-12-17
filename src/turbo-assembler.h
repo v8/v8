@@ -124,6 +124,12 @@ class HardAbortScope {
   bool old_value_;
 };
 
+// Helper stubs can be called in different ways depending on where the target
+// code is located and how the call sequence is expected to look like:
+//  - JavaScript: Call on-heap {Code} object via {RelocInfo::CODE_TARGET}.
+//  - WebAssembly: Call native {WasmCode} stub via {RelocInfo::WASM_STUB_CALL}.
+enum class StubCallMode { kCallOnHeapBuiltin, kCallWasmRuntimeStub };
+
 #ifdef DEBUG
 struct CountIfValidRegisterFunctor {
   template <typename RegType>

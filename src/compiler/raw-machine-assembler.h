@@ -14,7 +14,6 @@
 #include "src/compiler/operator.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

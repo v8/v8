@@ -33,7 +33,6 @@
 #include "src/compiler/zone-stats.h"
 #include "src/counters.h"
 #include "src/heap/factory.h"
-#include "src/interface-descriptors.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
 #include "src/optimized-compilation-info.h"

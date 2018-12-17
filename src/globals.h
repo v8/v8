@@ -924,6 +924,54 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
   (((value) + kDoubleAlignmentMask) & ~kDoubleAlignmentMask)
 
 
+// CPU feature flags.
+enum CpuFeature {
+  // x86
+  SSE4_1,
+  SSSE3,
+  SSE3,
+  SAHF,
+  AVX,
+  FMA3,
+  BMI1,
+  BMI2,
+  LZCNT,
+  POPCNT,
+  ATOM,
+  // ARM
+  // - Standard configurations. The baseline is ARMv6+VFPv2.
+  ARMv7,        // ARMv7-A + VFPv3-D32 + NEON
+  ARMv7_SUDIV,  // ARMv7-A + VFPv4-D32 + NEON + SUDIV
+  ARMv8,        // ARMv8-A (+ all of the above)
+  // MIPS, MIPS64
+  FPU,
+  FP64FPU,
+  MIPSr1,
+  MIPSr2,
+  MIPSr6,
+  MIPS_SIMD,  // MSA instructions
+  // PPC
+  FPR_GPR_MOV,
+  LWSYNC,
+  ISELECT,
+  VSX,
+  MODULO,
+  // S390
+  DISTINCT_OPS,
+  GENERAL_INSTR_EXT,
+  FLOATING_POINT_EXT,
+  VECTOR_FACILITY,
+  MISC_INSTR_EXT2,
+
+  NUMBER_OF_CPU_FEATURES,
+
+  // ARM feature aliases (based on the standard configurations above).
+  VFPv3 = ARMv7,
+  NEON = ARMv7,
+  VFP32DREGS = ARMv7,
+  SUDIV = ARMv7_SUDIV
+};
+
 // Defines hints about receiver values based on structural knowledge.
 enum class ConvertReceiverMode : unsigned {
   kNullOrUndefined,     // Guaranteed to be null or undefined.
@@ -1707,13 +1755,6 @@ static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
 }
 
 enum IcCheckType { ELEMENT, PROPERTY };
-
-// Helper stubs can be called in different ways depending on where the target
-// code is located and how the call sequence is expected to look like:
-//  - JavaScript: Call on-heap {Code} object via {RelocInfo::CODE_TARGET}.
-//  - WebAssembly: Call native {WasmCode} stub via {RelocInfo::WASM_STUB_CALL}.
-enum class StubCallMode { kCallOnHeapBuiltin, kCallWasmRuntimeStub };
-
 }  // namespace internal
 }  // namespace v8
 

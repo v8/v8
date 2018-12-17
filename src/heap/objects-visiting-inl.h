@@ -10,6 +10,7 @@
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
+#include "src/macro-assembler.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
