@@ -4690,7 +4690,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildChangeBigIntToInt64(Node* input, Node* context) {
-    DCHECK_EQ(stub_mode_, StubCallMode::kCallOnHeapBuiltin);
+    DCHECK_EQ(stub_mode_, StubCallMode::kCallCodeObject);
 
     BigIntToI64Descriptor interface_descriptor;
 
@@ -4700,7 +4700,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         interface_descriptor.GetStackParameterCount(),  // stack parameter count
         CallDescriptor::kNoFlags,                       // flags
         Operator::kNoProperties,                        // properties
-        StubCallMode::kCallOnHeapBuiltin);              // stub call mode
+        StubCallMode::kCallCodeObject);                 // stub call mode
 
     Node* target = jsgraph()->HeapConstant(BUILTIN_CODE(isolate_, BigIntToI64));
 
@@ -5292,7 +5292,7 @@ MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
   Node* effect = nullptr;
 
   WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
-                                  StubCallMode::kCallOnHeapBuiltin);
+                                  StubCallMode::kCallCodeObject);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildJSToWasmWrapper(is_import);
@@ -5650,7 +5650,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   Node* effect = nullptr;
 
   WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
-                                  StubCallMode::kCallOnHeapBuiltin);
+                                  StubCallMode::kCallCodeObject);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildCWasmEntry();

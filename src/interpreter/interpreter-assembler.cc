@@ -1251,7 +1251,7 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
       Load(MachineType::Pointer(), function,
            IntPtrConstant(offsetof(Runtime::Function, entry)));
 
-  return CallStubR(StubCallMode::kCallOnHeapBuiltin, callable.descriptor(),
+  return CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(),
                    result_size, code_target, context, args.reg_count(),
                    args.base_reg_location(), function_entry);
 }

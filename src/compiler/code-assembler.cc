@@ -1187,7 +1187,7 @@ Node* CodeAssembler::CallStubN(StubCallMode call_mode,
                                const CallInterfaceDescriptor& descriptor,
                                size_t result_size, int input_count,
                                Node* const* inputs) {
-  DCHECK(call_mode == StubCallMode::kCallOnHeapBuiltin ||
+  DCHECK(call_mode == StubCallMode::kCallCodeObject ||
          call_mode == StubCallMode::kCallBuiltinPointer);
 
   // implicit nodes are target and optionally context.
@@ -1237,7 +1237,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
                                    size_t result_size, Node* target,
                                    SloppyTNode<Object> context,
                                    std::initializer_list<Node*> args) {
-  DCHECK(call_mode == StubCallMode::kCallOnHeapBuiltin ||
+  DCHECK(call_mode == StubCallMode::kCallCodeObject ||
          call_mode == StubCallMode::kCallBuiltinPointer);
 
   constexpr size_t kMaxNumArgs = 10;

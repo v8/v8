@@ -399,7 +399,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   CallDescriptor::Kind kind;
   MachineType target_type;
   switch (stub_mode) {
-    case StubCallMode::kCallOnHeapBuiltin:
+    case StubCallMode::kCallCodeObject:
       kind = CallDescriptor::kCallCodeObject;
       target_type = MachineType::AnyTagged();
       break;

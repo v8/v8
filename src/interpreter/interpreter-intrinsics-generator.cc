@@ -183,8 +183,8 @@ Node* IntrinsicsGenerator::IntrinsicAsStubCall(
     stub_args[index++] = __ LoadRegisterFromRegisterList(args, i);
   }
   stub_args[index++] = context;
-  return __ CallStubN(StubCallMode::kCallOnHeapBuiltin, callable.descriptor(),
-                      1, input_count, stub_args);
+  return __ CallStubN(StubCallMode::kCallCodeObject, callable.descriptor(), 1,
+                      input_count, stub_args);
 }
 
 Node* IntrinsicsGenerator::IntrinsicAsBuiltinCall(

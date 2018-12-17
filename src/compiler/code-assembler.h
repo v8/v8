@@ -1218,8 +1218,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<T> CallStub(const CallInterfaceDescriptor& descriptor,
                     SloppyTNode<Code> target, SloppyTNode<Object> context,
                     TArgs... args) {
-    return UncheckedCast<T>(CallStubR(StubCallMode::kCallOnHeapBuiltin,
-                                      descriptor, 1, target, context, args...));
+    return UncheckedCast<T>(CallStubR(StubCallMode::kCallCodeObject, descriptor,
+                                      1, target, context, args...));
   }
 
   template <class... TArgs>

@@ -398,7 +398,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
       Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties = Operator::kNoProperties,
-      StubCallMode stub_mode = StubCallMode::kCallOnHeapBuiltin);
+      StubCallMode stub_mode = StubCallMode::kCallCodeObject);
 
   static CallDescriptor* GetBytecodeDispatchCallDescriptor(
       Zone* zone, const CallInterfaceDescriptor& descriptor,

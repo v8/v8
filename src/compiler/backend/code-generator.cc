@@ -743,7 +743,7 @@ StubCallMode CodeGenerator::DetermineStubCallMode() const {
   return (code_kind == Code::WASM_FUNCTION ||
           code_kind == Code::WASM_TO_JS_FUNCTION)
              ? StubCallMode::kCallWasmRuntimeStub
-             : StubCallMode::kCallOnHeapBuiltin;
+             : StubCallMode::kCallCodeObject;
 }
 
 void CodeGenerator::AssembleGaps(Instruction* instr) {
