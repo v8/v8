@@ -5,8 +5,10 @@
 #include "src/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/isolate.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -27,6 +29,24 @@ Handle<JSWeakFactory> ConstructJSWeakFactory(Isolate* isolate) {
   weak_factory->JSWeakFactoryVerify(isolate);
 #endif  // VERIFY_HEAP
   return weak_factory;
+}
+
+Handle<JSWeakRef> ConstructJSWeakRef(Isolate* isolate,
+                                     Handle<JSReceiver> target) {
+  Factory* factory = isolate->factory();
+  Handle<String> weak_ref_name = factory->WeakRef_string();
+  Handle<Object> global =
+      handle(isolate->native_context()->global_object(), isolate);
+  Handle<JSFunction> weak_ref_fun = Handle<JSFunction>::cast(
+      Object::GetProperty(isolate, global, weak_ref_name).ToHandleChecked());
+  auto weak_ref = Handle<JSWeakRef>::cast(
+      JSObject::New(weak_ref_fun, weak_ref_fun, Handle<AllocationSite>::null())
+          .ToHandleChecked());
+  weak_ref->set_target(*target);
+#ifdef VERIFY_HEAP
+  weak_ref->JSWeakRefVerify(isolate);
+#endif  // VERIFY_HEAP
+  return weak_ref;
 }
 
 Handle<JSWeakCell> MakeCell(Isolate* isolate, Handle<JSObject> js_object,
@@ -313,6 +333,143 @@ TEST(TestJSWeakCellClearPopped) {
   CHECK_EQ(cleared1, *weak_cell1);
 
   ClearWeakCell(weak_cell1, isolate);
+}
+
+TEST(TestJSWeakRef) {
+  FLAG_harmony_weak_refs = true;
+  CcTest::InitializeVM();
+  LocalContext context;
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope outer_scope(isolate);
+  Handle<JSWeakRef> weak_ref;
+  {
+    HandleScope inner_scope(isolate);
+
+    Handle<JSObject> js_object =
+        isolate->factory()->NewJSObject(isolate->object_function());
+    // This doesn't add the target into the KeepDuringJob set.
+    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(isolate, js_object);
+
+    CcTest::CollectAllGarbage();
+    CHECK(!inner_weak_ref->target()->IsUndefined(isolate));
+
+    weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
+  }
+
+  CHECK(!weak_ref->target()->IsUndefined(isolate));
+
+  CcTest::CollectAllGarbage();
+
+  CHECK(weak_ref->target()->IsUndefined(isolate));
+}
+
+TEST(TestJSWeakRefIncrementalMarking) {
+  FLAG_harmony_weak_refs = true;
+  if (!FLAG_incremental_marking) {
+    return;
+  }
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  LocalContext context;
+
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope outer_scope(isolate);
+  Handle<JSWeakRef> weak_ref;
+  {
+    HandleScope inner_scope(isolate);
+
+    Handle<JSObject> js_object =
+        isolate->factory()->NewJSObject(isolate->object_function());
+    // This doesn't add the target into the KeepDuringJob set.
+    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(isolate, js_object);
+
+    heap::SimulateIncrementalMarking(heap, true);
+    CcTest::CollectAllGarbage();
+    CHECK(!inner_weak_ref->target()->IsUndefined(isolate));
+
+    weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
+  }
+
+  CHECK(!weak_ref->target()->IsUndefined(isolate));
+
+  heap::SimulateIncrementalMarking(heap, true);
+  CcTest::CollectAllGarbage();
+
+  CHECK(weak_ref->target()->IsUndefined(isolate));
+}
+
+TEST(TestJSWeakRefKeepDuringJob) {
+  FLAG_harmony_weak_refs = true;
+  CcTest::InitializeVM();
+  LocalContext context;
+
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope outer_scope(isolate);
+  Handle<JSWeakRef> weak_ref;
+  {
+    HandleScope inner_scope(isolate);
+
+    Handle<JSObject> js_object =
+        isolate->factory()->NewJSObject(isolate->object_function());
+    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(isolate, js_object);
+    heap->AddKeepDuringJobTarget(js_object);
+
+    weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
+  }
+
+  CHECK(!weak_ref->target()->IsUndefined(isolate));
+
+  CcTest::CollectAllGarbage();
+
+  CHECK(!weak_ref->target()->IsUndefined(isolate));
+
+  // Clears the KeepDuringJob set.
+  isolate->RunMicrotasks();
+  CcTest::CollectAllGarbage();
+
+  CHECK(weak_ref->target()->IsUndefined(isolate));
+}
+
+TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
+  FLAG_harmony_weak_refs = true;
+  if (!FLAG_incremental_marking) {
+    return;
+  }
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  LocalContext context;
+
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope outer_scope(isolate);
+  Handle<JSWeakRef> weak_ref;
+  {
+    HandleScope inner_scope(isolate);
+
+    Handle<JSObject> js_object =
+        isolate->factory()->NewJSObject(isolate->object_function());
+    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(isolate, js_object);
+    heap->AddKeepDuringJobTarget(js_object);
+
+    weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
+  }
+
+  CHECK(!weak_ref->target()->IsUndefined(isolate));
+
+  heap::SimulateIncrementalMarking(heap, true);
+  CcTest::CollectAllGarbage();
+
+  CHECK(!weak_ref->target()->IsUndefined(isolate));
+
+  // Clears the KeepDuringJob set.
+  isolate->RunMicrotasks();
+  heap::SimulateIncrementalMarking(heap, true);
+  CcTest::CollectAllGarbage();
+
+  CHECK(weak_ref->target()->IsUndefined(isolate));
 }
 
 }  // namespace internal
