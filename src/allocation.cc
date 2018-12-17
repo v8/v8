@@ -122,7 +122,7 @@ void* AllocWithRetry(size_t size) {
 }
 
 void* AlignedAlloc(size_t size, size_t alignment) {
-  DCHECK_LE(V8_ALIGNOF(void*), alignment);
+  DCHECK_LE(alignof(void*), alignment);
   DCHECK(base::bits::IsPowerOfTwo(alignment));
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {

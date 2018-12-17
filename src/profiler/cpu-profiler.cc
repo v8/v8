@@ -226,7 +226,7 @@ void SamplingEventsProcessor::Run() {
 }
 
 void* SamplingEventsProcessor::operator new(size_t size) {
-  return AlignedAlloc(size, V8_ALIGNOF(SamplingEventsProcessor));
+  return AlignedAlloc(size, alignof(SamplingEventsProcessor));
 }
 
 void SamplingEventsProcessor::operator delete(void* ptr) { AlignedFree(ptr); }
