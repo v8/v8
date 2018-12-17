@@ -2198,7 +2198,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "DebugInfo");
+  PrintHeader(os, "DebugInfo");
   os << "\n - flags: " << flags();
   os << "\n - debugger_hints: " << debugger_hints();
   os << "\n - shared: " << Brief(shared());

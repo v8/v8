@@ -390,13 +390,12 @@ void Debug::Iterate(RootVisitor* v) {
       FullObjectSlot(&thread_local_.ignore_step_into_function_));
 }
 
-DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo* debug_info)
+DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo debug_info)
     : next_(nullptr) {
   // Globalize the request debug info object and make it weak.
   GlobalHandles* global_handles = isolate->global_handles();
   debug_info_ = global_handles->Create(debug_info).location();
 }
-
 
 DebugInfoListNode::~DebugInfoListNode() {
   if (debug_info_ == nullptr) return;
@@ -688,7 +687,7 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
     FixedArray break_points = debug_info->break_points();
     for (int i = 0; i < break_points->length(); i++) {
       if (break_points->get(i)->IsUndefined(isolate_)) continue;
-      BreakPointInfo* info = BreakPointInfo::cast(break_points->get(i));
+      BreakPointInfo info = BreakPointInfo::cast(break_points->get(i));
       if (info->GetBreakPointCount(isolate_) == 0) continue;
       DCHECK(debug_info->HasInstrumentedBytecodeArray());
       BreakIterator it(debug_info);
@@ -1093,7 +1092,7 @@ Handle<Object> Debug::GetSourceBreakLocations(
   int count = 0;
   for (int i = 0; i < debug_info->break_points()->length(); ++i) {
     if (!debug_info->break_points()->get(i)->IsUndefined(isolate)) {
-      BreakPointInfo* break_point_info =
+      BreakPointInfo break_point_info =
           BreakPointInfo::cast(debug_info->break_points()->get(i));
       int break_points = break_point_info->GetBreakPointCount(isolate);
       if (break_points == 0) continue;
@@ -1782,7 +1781,7 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
   int inspector_break_points_count = 0;
   // This array contains breakpoints installed using JS debug API.
   for (int i = 0; i < break_points_hit->length(); ++i) {
-    BreakPoint* break_point = BreakPoint::cast(break_points_hit->get(i));
+    BreakPoint break_point = BreakPoint::cast(break_points_hit->get(i));
     inspector_break_points_hit.push_back(break_point->id());
     ++inspector_break_points_count;
   }

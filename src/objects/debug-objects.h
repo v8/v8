@@ -20,8 +20,9 @@ class BytecodeArray;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
+class DebugInfo : public StructPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   enum Flag {
     kNone = 0,
     kHasBreakInfo = 1 << 0,
@@ -161,7 +162,7 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   void ClearCoverageInfo(Isolate* isolate);
   DECL_ACCESSORS(coverage_info, Object)
 
-  DECL_CAST(DebugInfo)
+  DECL_CAST2(DebugInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(DebugInfo)
@@ -189,13 +190,13 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   // Get the break point info object for a source position.
   Object* GetBreakPointInfo(Isolate* isolate, int source_position);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(DebugInfo);
+  OBJECT_CONSTRUCTORS(DebugInfo, StructPtr);
 };
 
 // The BreakPointInfo class holds information for break points set in a
 // function. The DebugInfo object holds a BreakPointInfo object for each code
 // position with one or more break points.
-class BreakPointInfo : public Tuple2 {
+class BreakPointInfo : public Tuple2Ptr {
  public:
   // The position in the source for the break position.
   DECL_INT_ACCESSORS(source_position)
@@ -216,13 +217,12 @@ class BreakPointInfo : public Tuple2 {
 
   int GetStatementPosition(Handle<DebugInfo> debug_info);
 
-  DECL_CAST(BreakPointInfo)
+  DECL_CAST2(BreakPointInfo)
 
   static const int kSourcePositionOffset = kValue1Offset;
   static const int kBreakPointsOffset = kValue2Offset;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);
+  OBJECT_CONSTRUCTORS(BreakPointInfo, Tuple2Ptr);
 };
 
 // Holds information related to block code coverage.
@@ -265,18 +265,17 @@ class CoverageInfo : public FixedArray {
 };
 
 // Holds breakpoint related information. This object is used by inspector.
-class BreakPoint : public Tuple2 {
+class BreakPoint : public Tuple2Ptr {
  public:
   DECL_INT_ACCESSORS(id)
   DECL_ACCESSORS2(condition, String)
 
-  DECL_CAST(BreakPoint)
+  DECL_CAST2(BreakPoint)
 
   static const int kIdOffset = kValue1Offset;
   static const int kConditionOffset = kValue2Offset;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPoint);
+  OBJECT_CONSTRUCTORS(BreakPoint, Tuple2Ptr);
 };
 
 }  // namespace internal

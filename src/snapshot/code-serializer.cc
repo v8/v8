@@ -181,7 +181,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     // is context independent.
     DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
 
-    DebugInfo* debug_info = nullptr;
+    DebugInfo debug_info;
     BytecodeArray debug_bytecode_array;
     if (sfi->HasDebugInfo()) {
       // Clear debug info.
@@ -201,7 +201,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     sfi->set_deserialized(was_deserialized);
 
     // Restore debug info
-    if (debug_info != nullptr) {
+    if (!debug_info.is_null()) {
       sfi->set_script_or_debug_info(debug_info);
       if (!debug_bytecode_array.is_null()) {
         sfi->SetDebugBytecodeArray(debug_bytecode_array);

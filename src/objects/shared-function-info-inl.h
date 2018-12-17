@@ -662,12 +662,12 @@ bool SharedFunctionInfo::HasDebugInfo() const {
   return script_or_debug_info()->IsDebugInfo();
 }
 
-DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
+DebugInfo SharedFunctionInfo::GetDebugInfo() const {
   DCHECK(HasDebugInfo());
   return DebugInfo::cast(script_or_debug_info());
 }
 
-void SharedFunctionInfo::SetDebugInfo(DebugInfo* debug_info) {
+void SharedFunctionInfo::SetDebugInfo(DebugInfo debug_info) {
   DCHECK(!HasDebugInfo());
   DCHECK_EQ(debug_info->script(), script_or_debug_info());
   set_script_or_debug_info(debug_info);

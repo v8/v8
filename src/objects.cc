@@ -14087,21 +14087,21 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
 
 bool SharedFunctionInfo::HasBreakInfo() const {
   if (!HasDebugInfo()) return false;
-  DebugInfo* info = DebugInfo::cast(GetDebugInfo());
+  DebugInfo info = GetDebugInfo();
   bool has_break_info = info->HasBreakInfo();
   return has_break_info;
 }
 
 bool SharedFunctionInfo::BreakAtEntry() const {
   if (!HasDebugInfo()) return false;
-  DebugInfo* info = DebugInfo::cast(GetDebugInfo());
+  DebugInfo info = GetDebugInfo();
   bool break_at_entry = info->BreakAtEntry();
   return break_at_entry;
 }
 
 bool SharedFunctionInfo::HasCoverageInfo() const {
   if (!HasDebugInfo()) return false;
-  DebugInfo* info = DebugInfo::cast(GetDebugInfo());
+  DebugInfo info = GetDebugInfo();
   bool has_coverage_info = info->HasCoverageInfo();
   return has_coverage_info;
 }

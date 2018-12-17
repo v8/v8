@@ -170,7 +170,7 @@ class BreakIterator {
 // weak handles to avoid a debug info object to keep a function alive.
 class DebugInfoListNode {
  public:
-  DebugInfoListNode(Isolate* isolate, DebugInfo* debug_info);
+  DebugInfoListNode(Isolate* isolate, DebugInfo debug_info);
   ~DebugInfoListNode();
 
   DebugInfoListNode* next() { return next_; }

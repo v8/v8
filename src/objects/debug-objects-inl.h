@@ -18,12 +18,17 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(BreakPoint, Tuple2Ptr)
+OBJECT_CONSTRUCTORS_IMPL(BreakPointInfo, Tuple2Ptr)
 OBJECT_CONSTRUCTORS_IMPL(CoverageInfo, FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(DebugInfo, StructPtr)
 
-CAST_ACCESSOR(BreakPointInfo)
-CAST_ACCESSOR(DebugInfo)
+NEVER_READ_ONLY_SPACE_IMPL(DebugInfo)
+
+CAST_ACCESSOR2(BreakPointInfo)
+CAST_ACCESSOR2(DebugInfo)
 CAST_ACCESSOR2(CoverageInfo)
-CAST_ACCESSOR(BreakPoint)
+CAST_ACCESSOR2(BreakPoint)
 
 SMI_ACCESSORS(DebugInfo, flags, kFlagsOffset)
 ACCESSORS2(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)

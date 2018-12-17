@@ -404,8 +404,8 @@ class SharedFunctionInfo : public HeapObjectPtr {
 
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;
-  inline DebugInfo* GetDebugInfo() const;
-  inline void SetDebugInfo(DebugInfo* debug_info);
+  inline DebugInfo GetDebugInfo() const;
+  inline void SetDebugInfo(DebugInfo debug_info);
 
   // The offset of the 'function' token in the script source relative to the
   // start position. Can return kFunctionTokenOutOfRange if offset doesn't
