@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_PROMISE_INL_H_
 #define V8_OBJECTS_PROMISE_INL_H_
 
-#include "src/objects/js-promise-inl.h"
 #include "src/objects/promise.h"
+
+#include "src/objects/js-promise-inl.h"
+#include "src/objects/microtask-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,12 +16,17 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(PromiseReactionJobTask, Microtask)
+OBJECT_CONSTRUCTORS_IMPL(PromiseFulfillReactionJobTask, PromiseReactionJobTask)
+OBJECT_CONSTRUCTORS_IMPL(PromiseRejectReactionJobTask, PromiseReactionJobTask)
+OBJECT_CONSTRUCTORS_IMPL(PromiseResolveThenableJobTask, Microtask)
+
 CAST_ACCESSOR(PromiseCapability)
 CAST_ACCESSOR(PromiseReaction)
-CAST_ACCESSOR(PromiseReactionJobTask)
-CAST_ACCESSOR(PromiseFulfillReactionJobTask)
-CAST_ACCESSOR(PromiseRejectReactionJobTask)
-CAST_ACCESSOR(PromiseResolveThenableJobTask)
+CAST_ACCESSOR2(PromiseReactionJobTask)
+CAST_ACCESSOR2(PromiseFulfillReactionJobTask)
+CAST_ACCESSOR2(PromiseRejectReactionJobTask)
+CAST_ACCESSOR2(PromiseResolveThenableJobTask)
 
 ACCESSORS(PromiseReaction, next, Object, kNextOffset)
 ACCESSORS(PromiseReaction, reject_handler, HeapObject, kRejectHandlerOffset)

@@ -135,7 +135,7 @@ class WeakFactoryCleanupJobTask : public Microtask {
  public:
   DECL_ACCESSORS2(factory, JSWeakFactory)
 
-  DECL_CAST(WeakFactoryCleanupJobTask)
+  DECL_CAST2(WeakFactoryCleanupJobTask)
   DECL_VERIFIER(WeakFactoryCleanupJobTask)
   DECL_PRINTER(WeakFactoryCleanupJobTask)
 
@@ -149,8 +149,7 @@ class WeakFactoryCleanupJobTask : public Microtask {
                                 WEAK_FACTORY_CLEANUP_JOB_TASK_FIELDS)
 #undef WEAK_FACTORY_CLEANUP_JOB_TASK_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFactoryCleanupJobTask);
+  OBJECT_CONSTRUCTORS(WeakFactoryCleanupJobTask, Microtask)
 };
 
 class JSWeakFactoryCleanupIterator : public JSObject {

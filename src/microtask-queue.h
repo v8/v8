@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <memory>
 
+#include "include/v8-internal.h"  // For Address.
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -27,9 +28,9 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
 
   static Object* CallEnqueueMicrotask(Isolate* isolate,
                                       intptr_t microtask_queue_pointer,
-                                      Microtask* microtask);
+                                      Microtask microtask);
 
-  void EnqueueMicrotask(Microtask* microtask);
+  void EnqueueMicrotask(Microtask microtask);
 
   // Returns -1 if the execution is terminating, otherwise, returns 0.
   // TODO(tzik): Update the implementation to return the number of processed
@@ -66,7 +67,7 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
   // A ring buffer to hold Microtask instances.
   // ring_buffer_[(start_ + i) % capacity_] contains |i|th Microtask for each
   // |i| in [0, size_).
-  Object** ring_buffer_ = nullptr;
+  Address* ring_buffer_ = nullptr;
   intptr_t capacity_ = 0;
   intptr_t size_ = 0;
   intptr_t start_ = 0;

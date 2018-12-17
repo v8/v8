@@ -47,35 +47,32 @@ class PromiseReactionJobTask : public Microtask {
 #undef PROMISE_REACTION_JOB_FIELDS
 
   // Dispatched behavior.
-  DECL_CAST(PromiseReactionJobTask)
+  DECL_CAST2(PromiseReactionJobTask)
   DECL_VERIFIER(PromiseReactionJobTask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReactionJobTask);
+  OBJECT_CONSTRUCTORS(PromiseReactionJobTask, Microtask)
 };
 
 // Struct to hold state required for a PromiseReactionJob of type "Fulfill".
 class PromiseFulfillReactionJobTask : public PromiseReactionJobTask {
  public:
   // Dispatched behavior.
-  DECL_CAST(PromiseFulfillReactionJobTask)
+  DECL_CAST2(PromiseFulfillReactionJobTask)
   DECL_PRINTER(PromiseFulfillReactionJobTask)
   DECL_VERIFIER(PromiseFulfillReactionJobTask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseFulfillReactionJobTask);
+  OBJECT_CONSTRUCTORS(PromiseFulfillReactionJobTask, PromiseReactionJobTask)
 };
 
 // Struct to hold state required for a PromiseReactionJob of type "Reject".
 class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
  public:
   // Dispatched behavior.
-  DECL_CAST(PromiseRejectReactionJobTask)
+  DECL_CAST2(PromiseRejectReactionJobTask)
   DECL_PRINTER(PromiseRejectReactionJobTask)
   DECL_VERIFIER(PromiseRejectReactionJobTask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseRejectReactionJobTask);
+  OBJECT_CONSTRUCTORS(PromiseRejectReactionJobTask, PromiseReactionJobTask)
 };
 
 // A container struct to hold state required for PromiseResolveThenableJob.
@@ -100,12 +97,11 @@ class PromiseResolveThenableJobTask : public Microtask {
 #undef PROMISE_RESOLVE_THENABLE_JOB_FIELDS
 
   // Dispatched behavior.
-  DECL_CAST(PromiseResolveThenableJobTask)
+  DECL_CAST2(PromiseResolveThenableJobTask)
   DECL_PRINTER(PromiseResolveThenableJobTask)
   DECL_VERIFIER(PromiseResolveThenableJobTask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseResolveThenableJobTask);
+  OBJECT_CONSTRUCTORS(PromiseResolveThenableJobTask, Microtask)
 };
 
 // Struct to hold the state of a PromiseCapability.

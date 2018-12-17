@@ -1314,7 +1314,7 @@ void JSWeakFactoryCleanupIterator::JSWeakFactoryCleanupIteratorPrint(
 
 void WeakFactoryCleanupJobTask::WeakFactoryCleanupJobTaskPrint(
     std::ostream& os) {
-  HeapObject::PrintHeader(os, "WeakFactoryCleanupJobTask");
+  PrintHeader(os, "WeakFactoryCleanupJobTask");
   os << "\n - factory: " << Brief(factory());
 }
 
@@ -1605,14 +1605,14 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 void CallbackTask::CallbackTaskPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "CallbackTask");
+  PrintHeader(os, "CallbackTask");
   os << "\n - callback: " << Brief(callback());
   os << "\n - data: " << Brief(data());
   os << "\n";
 }
 
 void CallableTask::CallableTaskPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "CallableTask");
+  PrintHeader(os, "CallableTask");
   os << "\n - context: " << Brief(context());
   os << "\n - callable: " << Brief(callable());
   os << "\n";
@@ -1620,7 +1620,7 @@ void CallableTask::CallableTaskPrint(std::ostream& os) {  // NOLINT
 
 void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskPrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PromiseFulfillReactionJobTask");
+  PrintHeader(os, "PromiseFulfillReactionJobTask");
   os << "\n - argument: " << Brief(argument());
   os << "\n - context: " << Brief(context());
   os << "\n - handler: " << Brief(handler());
@@ -1630,7 +1630,7 @@ void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskPrint(
 
 void PromiseRejectReactionJobTask::PromiseRejectReactionJobTaskPrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PromiseRejectReactionJobTask");
+  PrintHeader(os, "PromiseRejectReactionJobTask");
   os << "\n - argument: " << Brief(argument());
   os << "\n - context: " << Brief(context());
   os << "\n - handler: " << Brief(handler());
@@ -1640,7 +1640,7 @@ void PromiseRejectReactionJobTask::PromiseRejectReactionJobTaskPrint(
 
 void PromiseResolveThenableJobTask::PromiseResolveThenableJobTaskPrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PromiseResolveThenableJobTask");
+  PrintHeader(os, "PromiseResolveThenableJobTask");
   os << "\n - context: " << Brief(context());
   os << "\n - promise_to_resolve: " << Brief(promise_to_resolve());
   os << "\n - then: " << Brief(then());

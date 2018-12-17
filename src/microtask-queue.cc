@@ -66,13 +66,13 @@ MicrotaskQueue::~MicrotaskQueue() {
 // static
 Object* MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,
                                              intptr_t microtask_queue_pointer,
-                                             Microtask* microtask) {
+                                             Microtask microtask) {
   reinterpret_cast<MicrotaskQueue*>(microtask_queue_pointer)
       ->EnqueueMicrotask(microtask);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-void MicrotaskQueue::EnqueueMicrotask(Microtask* microtask) {
+void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
   if (size_ == capacity_) {
     // Keep the capacity of |ring_buffer_| power of 2, so that the JIT
     // implementation can calculate the modulo easily.
@@ -81,7 +81,7 @@ void MicrotaskQueue::EnqueueMicrotask(Microtask* microtask) {
   }
 
   DCHECK_LT(size_, capacity_);
-  ring_buffer_[(start_ + size_) % capacity_] = microtask;
+  ring_buffer_[(start_ + size_) % capacity_] = microtask.ptr();
   ++size_;
 }
 
@@ -138,7 +138,7 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
 
 void MicrotaskQueue::ResizeBuffer(intptr_t new_capacity) {
   DCHECK_LE(size_, new_capacity);
-  Object** new_ring_buffer = new Object*[new_capacity];
+  Address* new_ring_buffer = new Address[new_capacity];
   for (intptr_t i = 0; i < size_; ++i) {
     new_ring_buffer[i] = ring_buffer_[(start_ + i) % capacity_];
   }

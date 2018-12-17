@@ -17,14 +17,13 @@ namespace internal {
 // Abstract base class for all microtasks that can be scheduled on the
 // microtask queue. This class merely serves the purpose of a marker
 // interface.
-class Microtask : public Struct {
+class Microtask : public StructPtr {
  public:
   // Dispatched behavior.
-  DECL_CAST(Microtask)
+  DECL_CAST2(Microtask)
   DECL_VERIFIER(Microtask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Microtask);
+  OBJECT_CONSTRUCTORS(Microtask, StructPtr);
 };
 
 // A CallbackTask is a special Microtask that allows us to schedule
@@ -46,12 +45,11 @@ class CallbackTask : public Microtask {
 #undef CALLBACK_TASK_FIELDS
 
   // Dispatched behavior.
-  DECL_CAST(CallbackTask)
+  DECL_CAST2(CallbackTask)
   DECL_PRINTER(CallbackTask)
   DECL_VERIFIER(CallbackTask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CallbackTask);
+  OBJECT_CONSTRUCTORS(CallbackTask, Microtask);
 };
 
 // A CallableTask is a special (internal) Microtask that allows us to
@@ -73,13 +71,12 @@ class CallableTask : public Microtask {
 #undef CALLABLE_TASK_FIELDS
 
   // Dispatched behavior.
-  DECL_CAST(CallableTask)
+  DECL_CAST2(CallableTask)
   DECL_PRINTER(CallableTask)
   DECL_VERIFIER(CallableTask)
   void BriefPrintDetails(std::ostream& os);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CallableTask);
+  OBJECT_CONSTRUCTORS(CallableTask, Microtask);
 };
 
 }  // namespace internal

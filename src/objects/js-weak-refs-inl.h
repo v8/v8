@@ -9,6 +9,7 @@
 
 #include "src/api-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/microtask-inl.h"
 #include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -21,6 +22,7 @@ OBJECT_CONSTRUCTORS_IMPL(JSWeakCell, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSWeakRef, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSWeakFactory, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSWeakFactoryCleanupIterator, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(WeakFactoryCleanupJobTask, Microtask)
 
 ACCESSORS2(JSWeakFactory, native_context, Context, kNativeContextOffset)
 ACCESSORS(JSWeakFactory, cleanup, Object, kCleanupOffset)
@@ -44,7 +46,7 @@ ACCESSORS2(JSWeakFactoryCleanupIterator, factory, JSWeakFactory, kFactoryOffset)
 CAST_ACCESSOR2(JSWeakFactoryCleanupIterator)
 
 ACCESSORS2(WeakFactoryCleanupJobTask, factory, JSWeakFactory, kFactoryOffset)
-CAST_ACCESSOR(WeakFactoryCleanupJobTask)
+CAST_ACCESSOR2(WeakFactoryCleanupJobTask)
 
 void JSWeakFactory::AddWeakCell(JSWeakCell weak_cell) {
   weak_cell->set_factory(*this);
