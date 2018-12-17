@@ -1152,6 +1152,9 @@ void ValueDeserializer::TransferArrayBuffer(
 
 MaybeHandle<Object> ValueDeserializer::ReadObject() {
   DisallowJavascriptExecution no_js(isolate_);
+  // If we are at the end of the stack, abort. This function may recurse.
+  STACK_CHECK(isolate_, MaybeHandle<Object>());
+
   MaybeHandle<Object> result = ReadObjectInternal();
 
   // ArrayBufferView is special in that it consumes the value before it, even

@@ -325,6 +325,89 @@ TEST_F(ValueSerializerTest, DecodeOddball) {
   EXPECT_TRUE(value->IsNull());
 }
 
+TEST_F(ValueSerializerTest, EncodeArrayStackOverflow) {
+  InvalidEncodeTest("var a = []; for (var i = 0; i < 1E5; i++) a = [a]; a");
+}
+
+TEST_F(ValueSerializerTest, EncodeObjectStackOverflow) {
+  InvalidEncodeTest("var a = {}; for (var i = 0; i < 1E5; i++) a = {a}; a");
+}
+
+TEST_F(ValueSerializerTest, DecodeArrayStackOverflow) {
+  static const int nesting_level = 1E5;
+  std::vector<uint8_t> payload;
+  // Header.
+  payload.push_back(0xFF);
+  payload.push_back(0x0D);
+
+  // Nested arrays, each with one element.
+  for (int i = 0; i < nesting_level; i++) {
+    payload.push_back(0x41);
+    payload.push_back(0x01);
+  }
+
+  // Innermost array is empty.
+  payload.push_back(0x41);
+  payload.push_back(0x00);
+  payload.push_back(0x24);
+  payload.push_back(0x00);
+  payload.push_back(0x00);
+
+  // Close nesting.
+  for (int i = 0; i < nesting_level; i++) {
+    payload.push_back(0x24);
+    payload.push_back(0x00);
+    payload.push_back(0x01);
+  }
+
+  InvalidDecodeTest(payload);
+}
+
+TEST_F(ValueSerializerTest, DecodeObjectStackOverflow) {
+  static const int nesting_level = 1E5;
+  std::vector<uint8_t> payload;
+  // Header.
+  payload.push_back(0xFF);
+  payload.push_back(0x0D);
+
+  // Nested objects, each with one property 'a'.
+  for (int i = 0; i < nesting_level; i++) {
+    payload.push_back(0x6F);
+    payload.push_back(0x22);
+    payload.push_back(0x01);
+    payload.push_back(0x61);
+  }
+
+  // Innermost array is empty.
+  payload.push_back(0x6F);
+  payload.push_back(0x7B);
+  payload.push_back(0x00);
+
+  // Close nesting.
+  for (int i = 0; i < nesting_level; i++) {
+    payload.push_back(0x7B);
+    payload.push_back(0x01);
+  }
+
+  InvalidDecodeTest(payload);
+}
+
+TEST_F(ValueSerializerTest, DecodeVerifyObjectCount) {
+  static const int nesting_level = 1E5;
+  std::vector<uint8_t> payload;
+  // Header.
+  payload.push_back(0xFF);
+  payload.push_back(0x0D);
+
+  // Repeat SerializationTag:kVerifyObjectCount. This leads to stack overflow.
+  for (int i = 0; i < nesting_level; i++) {
+    payload.push_back(0x3F);
+    payload.push_back(0x01);
+  }
+
+  InvalidDecodeTest(payload);
+}
+
 TEST_F(ValueSerializerTest, RoundTripNumber) {
   Local<Value> value = RoundTripTest(Integer::New(isolate(), 42));
   ASSERT_TRUE(value->IsInt32());
