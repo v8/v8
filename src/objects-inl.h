@@ -38,6 +38,7 @@
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
@@ -471,7 +472,6 @@ CAST_ACCESSOR2(NormalizedMapCache)
 CAST_ACCESSOR(Object)
 CAST_ACCESSOR2(ObjectHashSet)
 CAST_ACCESSOR2(ObjectHashTable)
-CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR2(RegExpMatchInfo)
 CAST_ACCESSOR2(ScopeInfo)
 CAST_ACCESSOR2(TemplateObjectDescription)
@@ -837,35 +837,6 @@ void HeapObject::synchronized_set_map_word(MapWord map_word) {
 }
 
 int HeapObject::Size() const { return SizeFromMap(map()); }
-
-double Oddball::to_number_raw() const {
-  return READ_DOUBLE_FIELD(this, kToNumberRawOffset);
-}
-
-void Oddball::set_to_number_raw(double value) {
-  WRITE_DOUBLE_FIELD(this, kToNumberRawOffset, value);
-}
-
-void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
-  WRITE_UINT64_FIELD(this, kToNumberRawOffset, bits);
-}
-
-ACCESSORS2(Oddball, to_string, String, kToStringOffset)
-ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
-ACCESSORS2(Oddball, type_of, String, kTypeOfOffset)
-
-byte Oddball::kind() const { return Smi::ToInt(READ_FIELD(this, kKindOffset)); }
-
-void Oddball::set_kind(byte value) {
-  WRITE_FIELD(this, kKindOffset, Smi::FromInt(value));
-}
-
-
-// static
-Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
-  return handle(input->to_number(), isolate);
-}
-
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
   return instance_type <= LAST_SPECIAL_RECEIVER_TYPE;

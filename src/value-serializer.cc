@@ -20,6 +20,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/code-serializer.h"

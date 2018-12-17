@@ -31,6 +31,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/script-inl.h"

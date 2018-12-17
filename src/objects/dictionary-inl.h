@@ -7,6 +7,7 @@
 
 #include "src/objects/dictionary.h"
 
+#include "src/objects/oddball.h"
 #include "src/objects/property-cell-inl.h"
 
 // Has to be the last include (doesn't have include guards):

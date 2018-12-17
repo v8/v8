@@ -24,6 +24,7 @@
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone-containers.h"
 

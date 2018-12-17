@@ -7,6 +7,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {

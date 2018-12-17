@@ -13,6 +13,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed.h"
+#include "src/objects/oddball-inl.h"
 #include "src/v8memory.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"

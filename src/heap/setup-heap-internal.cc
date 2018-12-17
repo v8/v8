@@ -30,6 +30,7 @@
 #include "src/objects/map.h"
 #include "src/objects/microtask.h"
 #include "src/objects/module.h"
+#include "src/objects/oddball-inl.h"
 #include "src/objects/promise.h"
 #include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"

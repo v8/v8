@@ -24,6 +24,7 @@
 #include "src/objects/cell.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {

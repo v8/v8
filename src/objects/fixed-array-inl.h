@@ -14,6 +14,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/oddball.h"
 #include "src/objects/slots.h"
 
 // Has to be the last include (doesn't have include guards):

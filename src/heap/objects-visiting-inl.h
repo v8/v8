@@ -14,6 +14,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/oddball.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {

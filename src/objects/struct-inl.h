@@ -8,6 +8,7 @@
 #include "src/objects/struct.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/oddball.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

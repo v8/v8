@@ -16,6 +16,7 @@
 #include "src/compiler/schedule.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {

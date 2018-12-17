@@ -13,6 +13,7 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-weak-refs.h"
+#include "src/objects/oddball.h"
 #include "src/objects/slots.h"
 #include "src/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
