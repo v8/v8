@@ -2994,7 +2994,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
             MemOperand(sp, (kStackFrameExtraParamSlot + 2) * kPointerSize));
 
   // FunctionCallbackInfo::length_.
-  __ StoreP(argc,
+  __ StoreW(argc,
             MemOperand(sp, (kStackFrameExtraParamSlot + 3) * kPointerSize));
 
   // We also store the number of bytes to drop from the stack after returning
