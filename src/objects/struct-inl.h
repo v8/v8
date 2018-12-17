@@ -18,22 +18,18 @@ namespace internal {
 bool StructPtr::IsStructPtr() const {
   return reinterpret_cast<Struct*>(ptr())->IsStruct();
 }
-bool Tuple2Ptr::IsTuple2Ptr() const {
-  return reinterpret_cast<Tuple2*>(ptr())->IsTuple2();
-}
 
 OBJECT_CONSTRUCTORS_IMPL(StructPtr, HeapObjectPtr)
 // TODO(jkummerow): Fix IsTuple2() and IsTuple3() to be subclassing-aware,
 // or rethink this more generally (see crbug.com/v8/8516).
-Tuple2Ptr::Tuple2Ptr(Address ptr) : StructPtr(ptr) {}
-Tuple3::Tuple3(Address ptr) : Tuple2Ptr(ptr) {}
+Tuple2::Tuple2(Address ptr) : StructPtr(ptr) {}
+Tuple3::Tuple3(Address ptr) : Tuple2(ptr) {}
 OBJECT_CONSTRUCTORS_IMPL(AccessorPair, StructPtr)
 
 CAST_ACCESSOR2(AccessorPair)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR2(StructPtr)
-CAST_ACCESSOR(Tuple2)
-CAST_ACCESSOR2(Tuple2Ptr)
+CAST_ACCESSOR2(Tuple2)
 CAST_ACCESSOR2(Tuple3)
 
 void Struct::InitializeBody(int object_size) {
@@ -51,9 +47,7 @@ void StructPtr::InitializeBody(int object_size) {
 }
 
 ACCESSORS(Tuple2, value1, Object, kValue1Offset)
-ACCESSORS(Tuple2Ptr, value1, Object, kValue1Offset)
 ACCESSORS(Tuple2, value2, Object, kValue2Offset)
-ACCESSORS(Tuple2Ptr, value2, Object, kValue2Offset)
 ACCESSORS(Tuple3, value3, Object, kValue3Offset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)

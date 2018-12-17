@@ -1210,7 +1210,7 @@ WasmInstanceObject ImportedFunctionEntry::instance() {
   if (value->IsWasmInstanceObject()) {
     return WasmInstanceObject::cast(value);
   }
-  Tuple2* tuple = Tuple2::cast(value);
+  Tuple2 tuple = Tuple2::cast(value);
   return WasmInstanceObject::cast(tuple->value1());
 }
 

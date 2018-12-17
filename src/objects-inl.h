@@ -456,13 +456,14 @@ OBJECT_CONSTRUCTORS_IMPL(BigIntBase, HeapObjectPtr)
 OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
 OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 
+OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription, Tuple2)
+
 // ------------------------------------
 // Cast operations
 
 CAST_ACCESSOR2(BigInt)
 CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR2(EphemeronHashTable)
-CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(MutableHeapNumber)
@@ -473,7 +474,7 @@ CAST_ACCESSOR2(ObjectHashTable)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR2(RegExpMatchInfo)
 CAST_ACCESSOR2(ScopeInfo)
-CAST_ACCESSOR(TemplateObjectDescription)
+CAST_ACCESSOR2(TemplateObjectDescription)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.

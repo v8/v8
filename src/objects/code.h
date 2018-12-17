@@ -921,7 +921,7 @@ class SourcePositionTableWithFrameCache : public Tuple2 {
   DECL_ACCESSORS2(source_position_table, ByteArray)
   DECL_ACCESSORS2(stack_frame_cache, SimpleNumberDictionary)
 
-  DECL_CAST(SourcePositionTableWithFrameCache)
+  DECL_CAST2(SourcePositionTableWithFrameCache)
 
 // Layout description.
 #define SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS(V) \
@@ -934,8 +934,7 @@ class SourcePositionTableWithFrameCache : public Tuple2 {
                                 SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS)
 #undef SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SourcePositionTableWithFrameCache);
+  OBJECT_CONSTRUCTORS(SourcePositionTableWithFrameCache, Tuple2);
 };
 
 }  // namespace internal

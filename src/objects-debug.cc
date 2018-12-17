@@ -620,7 +620,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
     }
 
     if (map()->EnumLength() != kInvalidEnumCacheSentinel) {
-      EnumCache* enum_cache = descriptors->enum_cache();
+      EnumCache enum_cache = descriptors->enum_cache();
       FixedArray keys = enum_cache->keys();
       FixedArray indices = enum_cache->indices();
       CHECK_LE(map()->EnumLength(), keys->length());
@@ -1761,19 +1761,15 @@ void PrototypeUsers::Verify(WeakArrayList array) {
 void Tuple2::Tuple2Verify(Isolate* isolate) {
   CHECK(IsTuple2());
   Heap* heap = isolate->heap();
-  if (this == ReadOnlyRoots(heap).empty_enum_cache()) {
+  if (*this == ReadOnlyRoots(heap).empty_enum_cache()) {
     CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(),
-             EnumCache::cast(this)->keys());
+             EnumCache::cast(*this)->keys());
     CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(),
-             EnumCache::cast(this)->indices());
+             EnumCache::cast(*this)->indices());
   } else {
     VerifyObjectField(isolate, kValue1Offset);
     VerifyObjectField(isolate, kValue2Offset);
   }
-}
-
-void Tuple2Ptr::Tuple2Verify(Isolate* isolate) {
-  reinterpret_cast<Tuple2*>(ptr())->Tuple2Verify(isolate);
 }
 
 void Tuple3::Tuple3Verify(Isolate* isolate) {

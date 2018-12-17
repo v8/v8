@@ -1729,14 +1729,10 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 void Tuple2::Tuple2Print(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "Tuple2");
+  PrintHeader(os, "Tuple2");
   os << "\n - value1: " << Brief(value1());
   os << "\n - value2: " << Brief(value2());
   os << "\n";
-}
-
-void Tuple2Ptr::Tuple2Print(std::ostream& os) {  // NOLINT
-  reinterpret_cast<Tuple2*>(ptr())->Tuple2Print(os);
 }
 
 void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT

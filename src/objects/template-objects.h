@@ -27,13 +27,12 @@ class TemplateObjectDescription final : public Tuple2 {
   static Handle<JSArray> CreateTemplateObject(
       Isolate* isolate, Handle<TemplateObjectDescription> description);
 
-  DECL_CAST(TemplateObjectDescription)
+  DECL_CAST2(TemplateObjectDescription)
 
   static constexpr int kRawStringsOffset = kValue1Offset;
   static constexpr int kCookedStringsOffset = kValue2Offset;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateObjectDescription);
+  OBJECT_CONSTRUCTORS(TemplateObjectDescription, Tuple2);
 };
 
 }  // namespace internal

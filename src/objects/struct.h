@@ -38,12 +38,12 @@ class StructPtr : public HeapObjectPtr {
   OBJECT_CONSTRUCTORS(StructPtr, HeapObjectPtr);
 };
 
-class Tuple2 : public Struct {
+class Tuple2 : public StructPtr {
  public:
   DECL_ACCESSORS(value1, Object)
   DECL_ACCESSORS(value2, Object)
 
-  DECL_CAST(Tuple2)
+  DECL_CAST2(Tuple2)
 
   // Dispatched behavior.
   DECL_PRINTER(Tuple2)
@@ -54,35 +54,10 @@ class Tuple2 : public Struct {
   static const int kValue2Offset = kValue1Offset + kPointerSize;
   static const int kSize = kValue2Offset + kPointerSize;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple2);
+  OBJECT_CONSTRUCTORS(Tuple2, StructPtr);
 };
 
-// Replacement for the above, temporarily separate for incremental transition
-// of subclasses.
-class Tuple2Ptr : public StructPtr {
- public:
-  DECL_ACCESSORS(value1, Object)
-  DECL_ACCESSORS(value2, Object)
-
-  DECL_CAST2(Tuple2Ptr)
-
-  // Dispatched behavior.
-  DECL_PRINTER(Tuple2)
-  DECL_VERIFIER(Tuple2)
-  void BriefPrintDetails(std::ostream& os);
-
-  // TODO(3770): Temporary.
-  inline bool IsTuple2Ptr() const;
-
-  static const int kValue1Offset = HeapObject::kHeaderSize;
-  static const int kValue2Offset = kValue1Offset + kPointerSize;
-  static const int kSize = kValue2Offset + kPointerSize;
-
-  OBJECT_CONSTRUCTORS(Tuple2Ptr, StructPtr);
-};
-
-class Tuple3 : public Tuple2Ptr {
+class Tuple3 : public Tuple2 {
  public:
   DECL_ACCESSORS(value3, Object)
 
@@ -96,7 +71,7 @@ class Tuple3 : public Tuple2Ptr {
   static const int kValue3Offset = Tuple2::kSize;
   static const int kSize = kValue3Offset + kPointerSize;
 
-  OBJECT_CONSTRUCTORS(Tuple3, Tuple2Ptr);
+  OBJECT_CONSTRUCTORS(Tuple3, Tuple2);
 };
 
 // Support for JavaScript accessors: A pair of a getter and a setter. Each

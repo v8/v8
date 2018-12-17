@@ -27,6 +27,7 @@ OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObjectPtr)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(SourcePositionTableWithFrameCache, Tuple2)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
@@ -36,7 +37,7 @@ CAST_ACCESSOR2(Code)
 CAST_ACCESSOR2(CodeDataContainer)
 CAST_ACCESSOR2(DependentCode)
 CAST_ACCESSOR2(DeoptimizationData)
-CAST_ACCESSOR(SourcePositionTableWithFrameCache)
+CAST_ACCESSOR2(SourcePositionTableWithFrameCache)
 
 ACCESSORS2(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
            kSourcePositionTableIndex)

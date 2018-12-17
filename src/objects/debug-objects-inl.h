@@ -18,8 +18,8 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(BreakPoint, Tuple2Ptr)
-OBJECT_CONSTRUCTORS_IMPL(BreakPointInfo, Tuple2Ptr)
+OBJECT_CONSTRUCTORS_IMPL(BreakPoint, Tuple2)
+OBJECT_CONSTRUCTORS_IMPL(BreakPointInfo, Tuple2)
 OBJECT_CONSTRUCTORS_IMPL(CoverageInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(DebugInfo, StructPtr)
 

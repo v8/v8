@@ -196,7 +196,7 @@ class DebugInfo : public StructPtr {
 // The BreakPointInfo class holds information for break points set in a
 // function. The DebugInfo object holds a BreakPointInfo object for each code
 // position with one or more break points.
-class BreakPointInfo : public Tuple2Ptr {
+class BreakPointInfo : public Tuple2 {
  public:
   // The position in the source for the break position.
   DECL_INT_ACCESSORS(source_position)
@@ -222,7 +222,7 @@ class BreakPointInfo : public Tuple2Ptr {
   static const int kSourcePositionOffset = kValue1Offset;
   static const int kBreakPointsOffset = kValue2Offset;
 
-  OBJECT_CONSTRUCTORS(BreakPointInfo, Tuple2Ptr);
+  OBJECT_CONSTRUCTORS(BreakPointInfo, Tuple2);
 };
 
 // Holds information related to block code coverage.
@@ -265,7 +265,7 @@ class CoverageInfo : public FixedArray {
 };
 
 // Holds breakpoint related information. This object is used by inspector.
-class BreakPoint : public Tuple2Ptr {
+class BreakPoint : public Tuple2 {
  public:
   DECL_INT_ACCESSORS(id)
   DECL_ACCESSORS2(condition, String)
@@ -275,7 +275,7 @@ class BreakPoint : public Tuple2Ptr {
   static const int kIdOffset = kValue1Offset;
   static const int kConditionOffset = kValue2Offset;
 
-  OBJECT_CONSTRUCTORS(BreakPoint, Tuple2Ptr);
+  OBJECT_CONSTRUCTORS(BreakPoint, Tuple2);
 };
 
 }  // namespace internal

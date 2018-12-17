@@ -2203,7 +2203,7 @@ void MarkCompactCollector::TrimEnumCache(Map map, DescriptorArray descriptors) {
     live_enum = map->NumberOfEnumerableProperties();
   }
   if (live_enum == 0) return descriptors->ClearEnumCache();
-  EnumCache* enum_cache = descriptors->enum_cache();
+  EnumCache enum_cache = descriptors->enum_cache();
 
   FixedArray keys = enum_cache->keys();
   int to_trim = keys->length() - live_enum;

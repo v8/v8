@@ -26,14 +26,13 @@ class EnumCache : public Tuple2 {
   DECL_ACCESSORS2(keys, FixedArray)
   DECL_ACCESSORS2(indices, FixedArray)
 
-  DECL_CAST(EnumCache)
+  DECL_CAST2(EnumCache)
 
   // Layout description.
   static const int kKeysOffset = kValue1Offset;
   static const int kIndicesOffset = kValue2Offset;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(EnumCache);
+  OBJECT_CONSTRUCTORS(EnumCache, Tuple2);
 };
 
 // A DescriptorArray is a custom array that holds instance descriptors.
@@ -59,7 +58,7 @@ class DescriptorArray : public HeapObjectPtr {
   DECL_INT16_ACCESSORS(number_of_descriptors)
   inline int16_t number_of_slack_descriptors() const;
   inline int number_of_entries() const;
-  DECL_ACCESSORS(enum_cache, EnumCache)
+  DECL_ACCESSORS2(enum_cache, EnumCache)
 
   void ClearEnumCache();
   inline void CopyEnumCacheFrom(DescriptorArray array);
@@ -127,7 +126,7 @@ class DescriptorArray : public HeapObjectPtr {
       Isolate* isolate, int nof_descriptors, int slack,
       PretenureFlag pretenure = NOT_TENURED);
 
-  void Initialize(EnumCache* enum_cache, HeapObject* undefined_value,
+  void Initialize(EnumCache enum_cache, HeapObject* undefined_value,
                   int nof_descriptors, int slack);
 
   DECL_CAST2(DescriptorArray)

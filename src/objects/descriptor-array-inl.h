@@ -24,10 +24,12 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(DescriptorArray, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(EnumCache, Tuple2)
 
 CAST_ACCESSOR2(DescriptorArray)
+CAST_ACCESSOR2(EnumCache)
 
-ACCESSORS(DescriptorArray, enum_cache, EnumCache, kEnumCacheOffset)
+ACCESSORS2(DescriptorArray, enum_cache, EnumCache, kEnumCacheOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
                         kNumberOfAllDescriptorsOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_descriptors,

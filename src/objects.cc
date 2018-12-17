@@ -3771,10 +3771,6 @@ void Tuple2::BriefPrintDetails(std::ostream& os) {
   os << " " << Brief(value1()) << ", " << Brief(value2());
 }
 
-void Tuple2Ptr::BriefPrintDetails(std::ostream& os) {
-  os << " " << Brief(value1()) << ", " << Brief(value2());
-}
-
 void Tuple3::BriefPrintDetails(std::ostream& os) {
   os << " " << Brief(value1()) << ", " << Brief(value2()) << ", "
      << Brief(value3());
@@ -10776,7 +10772,7 @@ Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
                                                       pretenure);
 }
 
-void DescriptorArray::Initialize(EnumCache* enum_cache,
+void DescriptorArray::Initialize(EnumCache enum_cache,
                                  HeapObject* undefined_value,
                                  int nof_descriptors, int slack) {
   DCHECK_GE(nof_descriptors, 0);
@@ -10804,7 +10800,7 @@ void DescriptorArray::Replace(int index, Descriptor* descriptor) {
 void DescriptorArray::InitializeOrChangeEnumCache(
     Handle<DescriptorArray> descriptors, Isolate* isolate,
     Handle<FixedArray> keys, Handle<FixedArray> indices) {
-  EnumCache* enum_cache = descriptors->enum_cache();
+  EnumCache enum_cache = descriptors->enum_cache();
   if (enum_cache == ReadOnlyRoots(isolate).empty_enum_cache()) {
     enum_cache = *isolate->factory()->NewEnumCache(keys, indices);
     descriptors->set_enum_cache(enum_cache);
@@ -13643,7 +13639,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
       function, isolate->factory()->class_positions_symbol());
   if (maybe_class_positions->IsTuple2()) {
-    Tuple2* class_positions = Tuple2::cast(*maybe_class_positions);
+    Tuple2 class_positions = Tuple2::cast(*maybe_class_positions);
     int start_position = Smi::ToInt(class_positions->value1());
     int end_position = Smi::ToInt(class_positions->value2());
     Handle<String> script_source(
