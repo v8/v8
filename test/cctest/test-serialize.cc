@@ -43,6 +43,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
@@ -163,7 +164,9 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
   return true;
 }
 
-v8::StartupData CreateSnapshotDataBlob(const char* embedded_source = nullptr) {
+v8::StartupData CreateSnapshotDataBlob(
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
+    const char* embedded_source) {
   // Create a new isolate and a new context from scratch, optionally run
   // a script to embed, and serialize to create a snapshot blob.
   DisableEmbeddedBlobRefcounting();
@@ -180,10 +183,14 @@ v8::StartupData CreateSnapshotDataBlob(const char* embedded_source = nullptr) {
       }
       snapshot_creator.SetDefaultContext(context);
     }
-    result = snapshot_creator.CreateBlob(
-        v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    result = snapshot_creator.CreateBlob(function_code_handling);
   }
   return result;
+}
+
+v8::StartupData CreateSnapshotDataBlob(const char* embedded_source = nullptr) {
+  return CreateSnapshotDataBlob(
+      v8::SnapshotCreator::FunctionCodeHandling::kClear, embedded_source);
 }
 
 v8::StartupData WarmUpSnapshotDataBlob(v8::StartupData cold_snapshot_blob,
@@ -818,7 +825,10 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
   FreeCurrentEmbeddedBlob();
 }
 
-UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCode) {
+namespace {
+
+void TestCustomSnapshotDataBlobWithIrregexpCode(
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling) {
   DisableAlwaysOpt();
   const char* source =
       "var re = /\\/\\*[^*]*\\*+([^/*][^*]*\\*+)*\\//;\n"
@@ -827,7 +837,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCode) {
       "function h() { return '// this is a comment'.search(re); }\n"
       "f(); f(); g(); g();";
 
-  v8::StartupData data1 = CreateSnapshotDataBlob(source);
+  v8::StartupData data1 =
+      CreateSnapshotDataBlob(function_code_handling, source);
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
@@ -840,6 +851,15 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCode) {
     v8::HandleScope h_scope(isolate1);
     v8::Local<v8::Context> context = v8::Context::New(isolate1);
     v8::Context::Scope c_scope(context);
+    {
+      // Check that compiled irregexp code has not been flushed prior to
+      // serialization.
+      i::Handle<i::JSRegExp> re =
+          Utils::OpenHandle(*CompileRun("re").As<v8::RegExp>());
+      CHECK_EQ(re->HasCompiledCode(),
+               function_code_handling ==
+                   v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+    }
     {
       v8::Maybe<int32_t> result =
           CompileRun("f()")->Int32Value(isolate1->GetCurrentContext());
@@ -859,6 +879,18 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCode) {
   isolate1->Dispose();
   delete[] data1.data;  // We can dispose of the snapshot blob now.
   FreeCurrentEmbeddedBlob();
+}
+
+}  // namespace
+
+UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCodeKeepCode) {
+  TestCustomSnapshotDataBlobWithIrregexpCode(
+      v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+}
+
+UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCodeClearCode) {
+  TestCustomSnapshotDataBlobWithIrregexpCode(
+      v8::SnapshotCreator::FunctionCodeHandling::kClear);
 }
 
 UNINITIALIZED_TEST(SnapshotChecksum) {
