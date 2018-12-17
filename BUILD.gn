@@ -1994,6 +1994,7 @@ v8_source_set("v8_base") {
     "src/counters-inl.h",
     "src/counters.cc",
     "src/counters.h",
+    "src/cpu-features.h",
     "src/date.cc",
     "src/date.h",
     "src/dateparser-inl.h",

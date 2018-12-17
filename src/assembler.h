@@ -38,6 +38,7 @@
 #include <forward_list>
 
 #include "src/code-comments.h"
+#include "src/cpu-features.h"
 #include "src/deoptimize-reason.h"
 #include "src/external-reference.h"
 #include "src/flags.h"
@@ -375,65 +376,6 @@ class CpuFeatureScope {
 #endif
 };
 
-// CpuFeatures keeps track of which features are supported by the target CPU.
-// Supported features must be enabled by a CpuFeatureScope before use.
-// Example:
-//   if (assembler->IsSupported(SSE3)) {
-//     CpuFeatureScope fscope(assembler, SSE3);
-//     // Generate code containing SSE3 instructions.
-//   } else {
-//     // Generate alternative code.
-//   }
-class CpuFeatures : public AllStatic {
- public:
-  static void Probe(bool cross_compile) {
-    STATIC_ASSERT(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
-    if (initialized_) return;
-    initialized_ = true;
-    ProbeImpl(cross_compile);
-  }
-
-  static unsigned SupportedFeatures() {
-    Probe(false);
-    return supported_;
-  }
-
-  static bool IsSupported(CpuFeature f) {
-    return (supported_ & (1u << f)) != 0;
-  }
-
-  static inline bool SupportsOptimizer();
-
-  static inline bool SupportsWasmSimd128();
-
-  static inline unsigned icache_line_size() {
-    DCHECK_NE(icache_line_size_, 0);
-    return icache_line_size_;
-  }
-
-  static inline unsigned dcache_line_size() {
-    DCHECK_NE(dcache_line_size_, 0);
-    return dcache_line_size_;
-  }
-
-  static void PrintTarget();
-  static void PrintFeatures();
-
- private:
-  friend class ExternalReference;
-  friend class AssemblerBase;
-  // Flush instruction cache.
-  static void FlushICache(void* start, size_t size);
-
-  // Platform-dependent implementation.
-  static void ProbeImpl(bool cross_compile);
-
-  static unsigned supported_;
-  static unsigned icache_line_size_;
-  static unsigned dcache_line_size_;
-  static bool initialized_;
-  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
-};
 
 // -----------------------------------------------------------------------------
 // Utility functions

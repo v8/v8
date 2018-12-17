@@ -5,9 +5,9 @@
 #ifndef V8_EH_FRAME_H_
 #define V8_EH_FRAME_H_
 
+#include "src/assembler-arch.h"
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
-#include "src/macro-assembler.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

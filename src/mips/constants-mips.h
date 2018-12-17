@@ -4,7 +4,7 @@
 
 #ifndef V8_MIPS_CONSTANTS_MIPS_H_
 #define V8_MIPS_CONSTANTS_MIPS_H_
-#include "src/globals.h"
+#include "src/cpu-features.h"
 // UNIMPLEMENTED_ macro for MIPS.
 #ifdef DEBUG
 #define UNIMPLEMENTED_MIPS()                                                  \
