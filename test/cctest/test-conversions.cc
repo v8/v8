@@ -32,6 +32,7 @@
 #include "src/heap/factory-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/smi.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"

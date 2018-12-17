@@ -39,6 +39,7 @@
 #include "src/base/cpu.h"
 #include "src/deoptimizer.h"
 #include "src/mips64/assembler-mips64-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/string-constants.h"
 
 namespace v8 {

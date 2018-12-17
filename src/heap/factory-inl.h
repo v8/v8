@@ -11,6 +11,7 @@
 // Do not include anything from src/heap here!
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/string-hasher.h"
 
 namespace v8 {

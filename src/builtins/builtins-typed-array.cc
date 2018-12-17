@@ -7,6 +7,7 @@
 #include "src/counters.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 
 namespace v8 {

@@ -26,6 +26,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/struct-inl.h"

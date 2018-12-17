@@ -15,6 +15,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/heap-number.h"
 
 namespace v8 {
 namespace internal {

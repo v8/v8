@@ -17,6 +17,7 @@
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/heap-number.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded-data.h"

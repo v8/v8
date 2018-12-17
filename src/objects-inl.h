@@ -34,6 +34,7 @@
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/maybe-object-inl.h"
@@ -466,8 +467,6 @@ CAST_ACCESSOR2(BigInt)
 CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR(HeapObject)
-CAST_ACCESSOR(HeapNumber)
-CAST_ACCESSOR(MutableHeapNumber)
 CAST_ACCESSOR2(NormalizedMapCache)
 CAST_ACCESSOR(Object)
 CAST_ACCESSOR2(ObjectHashSet)
@@ -838,31 +837,6 @@ void HeapObject::synchronized_set_map_word(MapWord map_word) {
 }
 
 int HeapObject::Size() const { return SizeFromMap(map()); }
-
-double HeapNumberBase::value() const {
-  return READ_DOUBLE_FIELD(this, kValueOffset);
-}
-
-void HeapNumberBase::set_value(double value) {
-  WRITE_DOUBLE_FIELD(this, kValueOffset, value);
-}
-
-uint64_t HeapNumberBase::value_as_bits() const {
-  return READ_UINT64_FIELD(this, kValueOffset);
-}
-
-void HeapNumberBase::set_value_as_bits(uint64_t bits) {
-  WRITE_UINT64_FIELD(this, kValueOffset, bits);
-}
-
-int HeapNumberBase::get_exponent() {
-  return ((READ_INT_FIELD(this, kExponentOffset) & kExponentMask) >>
-          kExponentShift) - kExponentBias;
-}
-
-int HeapNumberBase::get_sign() {
-  return READ_INT_FIELD(this, kExponentOffset) & kSignMask;
-}
 
 double Oddball::to_number_raw() const {
   return READ_DOUBLE_FIELD(this, kToNumberRawOffset);

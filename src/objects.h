@@ -278,6 +278,7 @@ class LookupIterator;
 class FieldType;
 class Module;
 class ModuleInfoEntry;
+class MutableHeapNumber;
 class ObjectHashTable;
 class ObjectTemplateInfo;
 class ObjectVisitor;
@@ -1235,73 +1236,6 @@ class FlexibleWeakBodyDescriptor;
 template <class ParentBodyDescriptor, class ChildBodyDescriptor>
 class SubclassBodyDescriptor;
 
-// The HeapNumber class describes heap allocated numbers that cannot be
-// represented in a Smi (small integer). MutableHeapNumber is the same, but its
-// number value can change over time (it is used only as property storage).
-// HeapNumberBase merely exists to avoid code duplication.
-class HeapNumberBase : public HeapObject {
- public:
-  // [value]: number value.
-  inline double value() const;
-  inline void set_value(double value);
-
-  inline uint64_t value_as_bits() const;
-  inline void set_value_as_bits(uint64_t bits);
-
-  inline int get_exponent();
-  inline int get_sign();
-
-  // Layout description.
-  static const int kValueOffset = HeapObject::kHeaderSize;
-  // IEEE doubles are two 32 bit words.  The first is just mantissa, the second
-  // is a mixture of sign, exponent and mantissa. The offsets of two 32 bit
-  // words within double numbers are endian dependent and they are set
-  // accordingly.
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-  static const int kMantissaOffset = kValueOffset;
-  static const int kExponentOffset = kValueOffset + 4;
-#elif defined(V8_TARGET_BIG_ENDIAN)
-  static const int kMantissaOffset = kValueOffset + 4;
-  static const int kExponentOffset = kValueOffset;
-#else
-#error Unknown byte ordering
-#endif
-
-  static const int kSize = kValueOffset + kDoubleSize;
-  static const uint32_t kSignMask = 0x80000000u;
-  static const uint32_t kExponentMask = 0x7ff00000u;
-  static const uint32_t kMantissaMask = 0xfffffu;
-  static const int kMantissaBits = 52;
-  static const int kExponentBits = 11;
-  static const int kExponentBias = 1023;
-  static const int kExponentShift = 20;
-  static const int kInfinityOrNanExponent =
-      (kExponentMask >> kExponentShift) - kExponentBias;
-  static const int kMantissaBitsInTopWord = 20;
-  static const int kNonMantissaBitsInTopWord = 12;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumberBase);
-};
-
-class HeapNumber : public HeapNumberBase {
- public:
-  DECL_CAST(HeapNumber)
-  V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber);
-};
-
-class MutableHeapNumber : public HeapNumberBase {
- public:
-  DECL_CAST(MutableHeapNumber)
-  V8_EXPORT_PRIVATE void MutableHeapNumberPrint(std::ostream& os);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(MutableHeapNumber);
-};
-
 enum EnsureElementsMode {
   DONT_ALLOW_DOUBLE_ELEMENTS,
   ALLOW_COPIED_DOUBLE_ELEMENTS,
@@ -1409,7 +1343,6 @@ class Oddball: public HeapObject {
   typedef FixedBodyDescriptor<kToStringOffset, kTypeOfOffset + kPointerSize,
                               kSize> BodyDescriptor;
 
-  STATIC_ASSERT(kToNumberRawOffset == HeapNumber::kValueOffset);
   STATIC_ASSERT(kKindOffset == Internals::kOddballKindOffset);
   STATIC_ASSERT(kNull == Internals::kNullOddballKind);
   STATIC_ASSERT(kUndefined == Internals::kUndefinedOddballKind);

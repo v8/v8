@@ -8,6 +8,7 @@
 #include "src/lookup.h"
 #include "src/message-template.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/smi.h"
 #include "src/string-builder-inl.h"

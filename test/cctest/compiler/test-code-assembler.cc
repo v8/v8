@@ -8,6 +8,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 

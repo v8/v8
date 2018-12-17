@@ -11,6 +11,7 @@
 #include "src/compiler/linkage.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"
 

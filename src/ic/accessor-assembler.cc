@@ -14,6 +14,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/module.h"
 #include "src/objects/smi.h"
 

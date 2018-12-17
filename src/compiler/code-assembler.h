@@ -20,6 +20,7 @@
 #include "src/objects.h"
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"

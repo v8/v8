@@ -16,6 +16,7 @@
 #include "src/isolate.h"
 #include "src/maybe-handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"

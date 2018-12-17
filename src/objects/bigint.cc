@@ -20,7 +20,7 @@
 #include "src/objects/bigint.h"
 
 #include "src/double.h"
-#include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/smi.h"
 
 namespace v8 {

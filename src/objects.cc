@@ -13665,6 +13665,8 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
       SharedFunctionInfo::GetSourceCodeHarmony(shared_info));
 }
 
+STATIC_ASSERT(Oddball::kToNumberRawOffset == HeapNumber::kValueOffset);
+
 void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,
                          const char* type_of, byte kind) {

@@ -17,6 +17,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/smi.h"
 #include "src/register-configuration.h"
 #include "src/tracing/trace-event.h"

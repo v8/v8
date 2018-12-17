@@ -11,6 +11,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/lookup.h"
+#include "src/objects/heap-number.h"
 
 #include "src/field-index-inl.h"
 #include "src/isolate-inl.h"

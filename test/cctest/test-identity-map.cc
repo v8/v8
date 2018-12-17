@@ -8,6 +8,7 @@
 #include "src/identity-map.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/zone/zone.h"
 #include "test/cctest/cctest.h"
 

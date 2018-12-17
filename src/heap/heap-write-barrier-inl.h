@@ -11,7 +11,8 @@
 #include "src/heap/heap-write-barrier.h"
 
 #include "src/globals.h"
-#include "src/objects-inl.h"
+#include "src/heap/heap.h"
+#include "src/objects/code.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"

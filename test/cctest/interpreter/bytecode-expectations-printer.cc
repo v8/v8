@@ -18,6 +18,7 @@
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/source-position-table.h"

@@ -36,6 +36,7 @@
 #include "src/interface-descriptors.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
+#include "src/objects/heap-number.h"
 #include "src/optimized-compilation-info.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
