@@ -64,27 +64,27 @@ constexpr uint64_t double_the_hole_nan_constant = kHoleNanInt64;
 constexpr double double_uint32_bias_constant =
     static_cast<double>(kMaxUInt32) + 1;
 
-constexpr struct V8_ALIGNED(16) {
+constexpr struct alignas(16) {
   uint32_t a;
   uint32_t b;
   uint32_t c;
   uint32_t d;
 } float_absolute_constant = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
 
-constexpr struct V8_ALIGNED(16) {
+constexpr struct alignas(16) {
   uint32_t a;
   uint32_t b;
   uint32_t c;
   uint32_t d;
 } float_negate_constant = {0x80000000, 0x80000000, 0x80000000, 0x80000000};
 
-constexpr struct V8_ALIGNED(16) {
+constexpr struct alignas(16) {
   uint64_t a;
   uint64_t b;
 } double_absolute_constant = {uint64_t{0x7FFFFFFFFFFFFFFF},
                               uint64_t{0x7FFFFFFFFFFFFFFF}};
 
-constexpr struct V8_ALIGNED(16) {
+constexpr struct alignas(16) {
   uint64_t a;
   uint64_t b;
 } double_negate_constant = {uint64_t{0x8000000000000000},
