@@ -1318,7 +1318,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) {
   // Iterate through the chain of inheriting function templates to
   // see if the required one occurs.
   while (type->IsFunctionTemplateInfo()) {
-    if (type == this) return true;
+    if (type == *this) return true;
     type = FunctionTemplateInfo::cast(type)->GetParentTemplate();
   }
   // Didn't find the required type in the inheritance chain.
@@ -1326,8 +1326,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) {
 }
 
 // static
-FunctionTemplateRareData*
-FunctionTemplateInfo::AllocateFunctionTemplateRareData(
+FunctionTemplateRareData FunctionTemplateInfo::AllocateFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
   DCHECK(function_template_info->rare_data()->IsUndefined(isolate));
   Handle<Struct> struct_obj =
@@ -3868,7 +3867,7 @@ String JSReceiver::class_name() {
   }
 
   if (maybe_constructor->IsFunctionTemplateInfo()) {
-    FunctionTemplateInfo* info = FunctionTemplateInfo::cast(maybe_constructor);
+    FunctionTemplateInfo info = FunctionTemplateInfo::cast(maybe_constructor);
     if (info->class_name()->IsString()) return String::cast(info->class_name());
   }
 
@@ -3967,8 +3966,7 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
                               handle(name, isolate));
       }
     } else if (maybe_constructor->IsFunctionTemplateInfo()) {
-      FunctionTemplateInfo* info =
-          FunctionTemplateInfo::cast(maybe_constructor);
+      FunctionTemplateInfo info = FunctionTemplateInfo::cast(maybe_constructor);
       if (info->class_name()->IsString()) {
         return std::make_pair(
             MaybeHandle<JSFunction>(),
@@ -17759,20 +17757,20 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
   }
 }
 
-FeedbackCell* SearchLiteralsMap(CompilationCacheTable cache, int cache_entry,
-                                Context native_context) {
-  FeedbackCell* result = nullptr;
+FeedbackCell SearchLiteralsMap(CompilationCacheTable cache, int cache_entry,
+                               Context native_context) {
+  FeedbackCell result;
   int entry = SearchLiteralsMapEntry(cache, cache_entry, native_context);
   if (entry >= 0) {
     WeakFixedArray literals_map = WeakFixedArray::cast(cache->get(cache_entry));
     DCHECK_LE(entry + kLiteralEntryLength, literals_map->length());
     MaybeObject object = literals_map->Get(entry + kLiteralLiteralsOffset);
 
-    result = object->IsCleared()
-                 ? nullptr
-                 : FeedbackCell::cast(object->GetHeapObjectAssumeWeak());
+    if (!object->IsCleared()) {
+      result = FeedbackCell::cast(object->GetHeapObjectAssumeWeak());
+    }
   }
-  DCHECK(result == nullptr || result->IsFeedbackCell());
+  DCHECK(result.is_null() || result->IsFeedbackCell());
   return result;
 }
 
@@ -17817,7 +17815,7 @@ InfoCellPair CompilationCacheTable::LookupEval(
   if (!table->get(index)->IsFixedArray()) return empty_result;
   Object* obj = table->get(EntryToIndex(entry) + 1);
   if (obj->IsSharedFunctionInfo()) {
-    FeedbackCell* feedback_cell =
+    FeedbackCell feedback_cell =
         SearchLiteralsMap(*table, EntryToIndex(entry) + 2, *native_context);
     return InfoCellPair(SharedFunctionInfo::cast(obj), feedback_cell);
   }

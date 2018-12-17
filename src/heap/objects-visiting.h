@@ -47,7 +47,7 @@ class WasmInstanceObject;
   V(DescriptorArray, DescriptorArray)                                         \
   V(EmbedderDataArray, EmbedderDataArray)                                     \
   V(EphemeronHashTable, EphemeronHashTable)                                   \
-  V(FeedbackCell, FeedbackCell*)                                              \
+  V(FeedbackCell, FeedbackCell)                                               \
   V(FeedbackVector, FeedbackVector)                                           \
   V(FixedArray, FixedArray)                                                   \
   V(FixedDoubleArray, FixedDoubleArray)                                       \

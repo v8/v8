@@ -2158,7 +2158,7 @@ void ExistingCodeLogger::LogExistingFunction(
     }
   } else if (shared->IsApiFunction()) {
     // API function.
-    FunctionTemplateInfo* fun_data = shared->get_api_func_data();
+    FunctionTemplateInfo fun_data = shared->get_api_func_data();
     Object* raw_call_data = fun_data->call_code();
     if (!raw_call_data->IsUndefined(isolate_)) {
       CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);

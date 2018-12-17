@@ -96,7 +96,7 @@ TEST(VectorStructure) {
     CHECK_EQ(1,
              FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCreateClosure));
     FeedbackSlot slot = helper.slot(1);
-    FeedbackCell* cell =
+    FeedbackCell cell =
         FeedbackCell::cast(vector->Get(slot)->GetHeapObjectAssumeStrong());
     CHECK_EQ(cell->value(), *factory->undefined_value());
   }

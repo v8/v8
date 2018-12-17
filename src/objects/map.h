@@ -564,7 +564,7 @@ class Map : public HeapObjectPtr {
   // FunctionTemplateInfo available.
   DECL_ACCESSORS(constructor_or_backpointer, Object)
   inline Object* GetConstructor() const;
-  inline FunctionTemplateInfo* GetFunctionTemplateInfo() const;
+  inline FunctionTemplateInfo GetFunctionTemplateInfo() const;
   inline void SetConstructor(Object* constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [back pointer]: points back to the parent map from which a transition

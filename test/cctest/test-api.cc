@@ -13530,7 +13530,7 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
   CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj()"), true).IsEmpty());
 
   // Side-effect-free version is not supported.
-  i::FunctionTemplateInfo* cons = i::FunctionTemplateInfo::cast(
+  i::FunctionTemplateInfo cons = i::FunctionTemplateInfo::cast(
       v8::Utils::OpenHandle(*templ)->constructor());
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
   i::CallHandlerInfo* handler_info =

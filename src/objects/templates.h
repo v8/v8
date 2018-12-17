@@ -13,8 +13,9 @@
 namespace v8 {
 namespace internal {
 
-class TemplateInfo : public Struct, public NeverReadOnlySpaceObject {
+class TemplateInfo : public StructPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(tag, Object)
   DECL_ACCESSORS(serial_number, Object)
   DECL_INT_ACCESSORS(number_of_properties)
@@ -23,7 +24,7 @@ class TemplateInfo : public Struct, public NeverReadOnlySpaceObject {
 
   DECL_VERIFIER(TemplateInfo)
 
-  DECL_CAST(TemplateInfo)
+  DECL_CAST2(TemplateInfo)
 
   // Layout description.
 #define TEMPLATE_INFO_FIELDS(V)            \
@@ -45,12 +46,11 @@ class TemplateInfo : public Struct, public NeverReadOnlySpaceObject {
   // instead of caching them.
   static const int kSlowTemplateInstantiationsCacheSize = 1 * MB;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateInfo);
+  OBJECT_CONSTRUCTORS(TemplateInfo, StructPtr);
 };
 
 // Contains data members that are rarely set on a FunctionTemplateInfo.
-class FunctionTemplateRareData : public Struct {
+class FunctionTemplateRareData : public StructPtr {
  public:
   // See DECL_RARE_ACCESSORS in FunctionTemplateInfo.
   DECL_ACCESSORS(prototype_template, Object)
@@ -62,7 +62,7 @@ class FunctionTemplateRareData : public Struct {
   DECL_ACCESSORS(instance_call_handler, Object)
   DECL_ACCESSORS(access_check_info, Object)
 
-  DECL_CAST(FunctionTemplateRareData)
+  DECL_CAST2(FunctionTemplateRareData)
 
   // Dispatched behavior.
   DECL_PRINTER(FunctionTemplateRareData)
@@ -84,8 +84,7 @@ class FunctionTemplateRareData : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, SYMBOL_FIELDS)
 #undef SYMBOL_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateRareData);
+  OBJECT_CONSTRUCTORS(FunctionTemplateRareData, StructPtr);
 };
 
 // See the api-exposed FunctionTemplate for more information.
@@ -184,7 +183,7 @@ class FunctionTemplateInfo : public TemplateInfo {
   DECL_BOOLEAN_ACCESSORS(accept_any_receiver)
   // End flag bits ---------------------
 
-  DECL_CAST(FunctionTemplateInfo)
+  DECL_CAST2(FunctionTemplateInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(FunctionTemplateInfo)
@@ -212,8 +211,8 @@ class FunctionTemplateInfo : public TemplateInfo {
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,
       MaybeHandle<Name> maybe_name);
-  // Returns parent function template or null.
-  inline FunctionTemplateInfo* GetParent(Isolate* isolate);
+  // Returns parent function template or a null FunctionTemplateInfo.
+  inline FunctionTemplateInfo GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.
   inline bool IsTemplateFor(JSObject object);
   bool IsTemplateFor(Map map);
@@ -226,10 +225,10 @@ class FunctionTemplateInfo : public TemplateInfo {
                                                     Handle<Object> getter);
 
  private:
-  static inline FunctionTemplateRareData* EnsureFunctionTemplateRareData(
+  static inline FunctionTemplateRareData EnsureFunctionTemplateRareData(
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 
-  static FunctionTemplateRareData* AllocateFunctionTemplateRareData(
+  static FunctionTemplateRareData AllocateFunctionTemplateRareData(
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
 
   // Bit position in the flag, from least significant bit position.
@@ -241,7 +240,7 @@ class FunctionTemplateInfo : public TemplateInfo {
   static const int kDoNotCacheBit = 5;
   static const int kAcceptAnyReceiver = 6;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
+  OBJECT_CONSTRUCTORS(FunctionTemplateInfo, TemplateInfo);
 };
 
 class ObjectTemplateInfo : public TemplateInfo {
@@ -251,7 +250,7 @@ class ObjectTemplateInfo : public TemplateInfo {
   DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
 
-  DECL_CAST(ObjectTemplateInfo)
+  DECL_CAST2(ObjectTemplateInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(ObjectTemplateInfo)
@@ -271,12 +270,14 @@ class ObjectTemplateInfo : public TemplateInfo {
 
   // Starting from given object template's constructor walk up the inheritance
   // chain till a function template that has an instance template is found.
-  inline ObjectTemplateInfo* GetParent(Isolate* isolate);
+  inline ObjectTemplateInfo GetParent(Isolate* isolate);
 
  private:
   class IsImmutablePrototype : public BitField<bool, 0, 1> {};
   class EmbedderFieldCount
       : public BitField<int, IsImmutablePrototype::kNext, 29> {};
+
+  OBJECT_CONSTRUCTORS(ObjectTemplateInfo, TemplateInfo)
 };
 
 }  // namespace internal

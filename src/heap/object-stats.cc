@@ -389,7 +389,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualContext(Context context);
   void RecordVirtualFeedbackVectorDetails(FeedbackVector vector);
   void RecordVirtualFixedArrayDetails(FixedArray array);
-  void RecordVirtualFunctionTemplateInfoDetails(FunctionTemplateInfo* fti);
+  void RecordVirtualFunctionTemplateInfoDetails(FunctionTemplateInfo fti);
   void RecordVirtualJSGlobalObjectDetails(JSGlobalObject object);
   void RecordVirtualJSCollectionDetails(JSObject object);
   void RecordVirtualJSObjectDetails(JSObject object);
@@ -499,7 +499,7 @@ void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
-    FunctionTemplateInfo* fti) {
+    FunctionTemplateInfo fti) {
   // named_property_handler and indexed_property_handler are recorded as
   // INTERCEPTOR_INFO_TYPE.
   if (!fti->call_code()->IsUndefined(isolate())) {

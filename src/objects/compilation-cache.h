@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_COMPILATION_CACHE_H_
 #define V8_OBJECTS_COMPILATION_CACHE_H_
 
+#include "src/objects/feedback-cell.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/shared-function-info.h"
@@ -40,10 +41,10 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 
 class InfoCellPair {
  public:
-  InfoCellPair() : feedback_cell_(nullptr) {}
-  inline InfoCellPair(SharedFunctionInfo shared, FeedbackCell* feedback_cell);
+  InfoCellPair() {}
+  inline InfoCellPair(SharedFunctionInfo shared, FeedbackCell feedback_cell);
 
-  FeedbackCell* feedback_cell() const {
+  FeedbackCell feedback_cell() const {
     DCHECK(is_compiled_scope_.is_compiled());
     return feedback_cell_;
   }
@@ -53,7 +54,7 @@ class InfoCellPair {
   }
 
   bool has_feedback_cell() const {
-    return feedback_cell_ != nullptr && is_compiled_scope_.is_compiled();
+    return !feedback_cell_.is_null() && is_compiled_scope_.is_compiled();
   }
   bool has_shared() const {
     // Only return true if SFI is compiled - the bytecode could have been
@@ -65,7 +66,7 @@ class InfoCellPair {
  private:
   IsCompiledScope is_compiled_scope_;
   SharedFunctionInfo shared_;
-  FeedbackCell* feedback_cell_;
+  FeedbackCell feedback_cell_;
 };
 
 // This cache is used in two different variants. For regexp caching, it simply

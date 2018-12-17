@@ -18,12 +18,12 @@ namespace internal {
 // number of closures created for a certain function per native
 // context. There's at most one FeedbackCell for each function in
 // a native context.
-class FeedbackCell : public Struct {
+class FeedbackCell : public StructPtr {
  public:
   // [value]: value of the cell.
   DECL_ACCESSORS(value, HeapObject)
 
-  DECL_CAST(FeedbackCell)
+  DECL_CAST2(FeedbackCell)
 
   // Dispatched behavior.
   DECL_PRINTER(FeedbackCell)
@@ -35,8 +35,7 @@ class FeedbackCell : public Struct {
   typedef FixedBodyDescriptor<kValueOffset, kValueOffset + kPointerSize, kSize>
       BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackCell);
+  OBJECT_CONSTRUCTORS(FeedbackCell, StructPtr);
 };
 
 }  // namespace internal

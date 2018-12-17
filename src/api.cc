@@ -1673,7 +1673,7 @@ static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
     ObjectTemplate* object_template) {
   i::Object* obj = Utils::OpenHandle(object_template)->constructor();
   if (!obj->IsUndefined(isolate)) {
-    i::FunctionTemplateInfo* info = i::FunctionTemplateInfo::cast(obj);
+    i::FunctionTemplateInfo info = i::FunctionTemplateInfo::cast(obj);
     return i::Handle<i::FunctionTemplateInfo>(info, isolate);
   }
   Local<FunctionTemplate> templ =

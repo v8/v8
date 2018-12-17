@@ -82,13 +82,13 @@ DescriptorArray Map::instance_descriptors() const {
 
 InterceptorInfo* Map::GetNamedInterceptor() {
   DCHECK(has_named_interceptor());
-  FunctionTemplateInfo* info = GetFunctionTemplateInfo();
+  FunctionTemplateInfo info = GetFunctionTemplateInfo();
   return InterceptorInfo::cast(info->GetNamedPropertyHandler());
 }
 
 InterceptorInfo* Map::GetIndexedInterceptor() {
   DCHECK(has_indexed_interceptor());
-  FunctionTemplateInfo* info = GetFunctionTemplateInfo();
+  FunctionTemplateInfo info = GetFunctionTemplateInfo();
   return InterceptorInfo::cast(info->GetIndexedPropertyHandler());
 }
 
@@ -720,7 +720,7 @@ Object* Map::GetConstructor() const {
   return maybe_constructor;
 }
 
-FunctionTemplateInfo* Map::GetFunctionTemplateInfo() const {
+FunctionTemplateInfo Map::GetFunctionTemplateInfo() const {
   Object* constructor = GetConstructor();
   if (constructor->IsJSFunction()) {
     DCHECK(JSFunction::cast(constructor)->shared()->IsApiFunction());

@@ -12,6 +12,7 @@
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects/feedback-cell.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-feedback-vector.h"
 

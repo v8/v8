@@ -72,7 +72,7 @@ uint32_t CompilationCacheShape::HashForObject(Isolate* isolate,
 }
 
 InfoCellPair::InfoCellPair(SharedFunctionInfo shared,
-                           FeedbackCell* feedback_cell)
+                           FeedbackCell feedback_cell)
     : is_compiled_scope_(!shared.is_null() ? shared->is_compiled_scope()
                                            : IsCompiledScope()),
       shared_(shared),

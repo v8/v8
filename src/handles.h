@@ -161,6 +161,7 @@ class Handle final : public HandleBase {
             std::is_same<S, FixedArray>::value ||
             std::is_same<S, FixedArrayBase>::value ||
             std::is_same<S, FixedDoubleArray>::value ||
+            std::is_same<S, FunctionTemplateInfo>::value ||
             std::is_same<S, JSArray>::value ||
             std::is_same<S, JSFunction>::value ||
             std::is_same<S, JSGlobalProxy>::value ||

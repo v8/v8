@@ -1148,8 +1148,8 @@ void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry, Cell* cell) {
   SetInternalReference(entry, "value", cell->value(), Cell::kValueOffset);
 }
 
-void V8HeapExplorer::ExtractFeedbackCellReferences(
-    HeapEntry* entry, FeedbackCell* feedback_cell) {
+void V8HeapExplorer::ExtractFeedbackCellReferences(HeapEntry* entry,
+                                                   FeedbackCell feedback_cell) {
   TagObject(feedback_cell, "(feedback cell)");
   SetInternalReference(entry, "value", feedback_cell->value(),
                        FeedbackCell::kValueOffset);

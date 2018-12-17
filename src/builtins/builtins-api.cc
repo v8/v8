@@ -21,7 +21,7 @@ namespace {
 // Returns the holder JSObject if the function can legally be called with this
 // receiver.  Returns nullptr if the call is illegal.
 // TODO(dcarney): CallOptimization duplicates this logic, merge.
-JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo* info,
+JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo info,
                                  JSReceiver receiver) {
   Object* recv_type = info->signature();
   // No signature, return holder.
@@ -30,7 +30,7 @@ JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo* info,
   if (!receiver->IsJSObject()) return JSReceiver();
 
   JSObject js_obj_receiver = JSObject::cast(receiver);
-  FunctionTemplateInfo* signature = FunctionTemplateInfo::cast(recv_type);
+  FunctionTemplateInfo signature = FunctionTemplateInfo::cast(recv_type);
 
   // Check the receiver. Fast path for receivers with no hidden prototypes.
   if (signature->IsTemplateFor(js_obj_receiver)) return receiver;

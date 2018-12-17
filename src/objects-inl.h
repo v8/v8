@@ -386,6 +386,8 @@ bool HeapObject::IsStruct() const {
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
       return true;
+    case FEEDBACK_CELL_TYPE:
+      return true;
     default:
       return false;
   }

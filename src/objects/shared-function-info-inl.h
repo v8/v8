@@ -413,7 +413,7 @@ bool SharedFunctionInfo::IsApiFunction() const {
   return function_data()->IsFunctionTemplateInfo();
 }
 
-FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
+FunctionTemplateInfo SharedFunctionInfo::get_api_func_data() {
   DCHECK(IsApiFunction());
   return FunctionTemplateInfo::cast(function_data());
 }

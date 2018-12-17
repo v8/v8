@@ -317,8 +317,8 @@ class SharedFunctionInfo : public HeapObjectPtr {
   DECL_ACCESSORS(function_data, Object)
 
   inline bool IsApiFunction() const;
-  inline FunctionTemplateInfo* get_api_func_data();
-  inline void set_api_func_data(FunctionTemplateInfo* data);
+  inline FunctionTemplateInfo get_api_func_data();
+  inline void set_api_func_data(FunctionTemplateInfo data);
   inline bool HasBytecodeArray() const;
   inline BytecodeArray GetBytecodeArray() const;
   inline void set_bytecode_array(BytecodeArray bytecode);

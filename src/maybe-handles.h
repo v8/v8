@@ -33,6 +33,7 @@ class MaybeHandle final {
                             std::is_same<T, Object>::value ||
                             (std::is_same<T, HeapObject>::value &&
                              (std::is_same<S, FixedArray>::value ||
+                              std::is_same<S, FunctionTemplateInfo>::value ||
                               std::is_same<S, Map>::value))>::type>
   V8_INLINE MaybeHandle(Handle<S> handle) : location_(handle.location_) {}
 

@@ -1038,7 +1038,7 @@ class JSFunction : public JSObject {
   /// FeedbackVector eventually. Generally this shouldn't be used to get the
   // feedback_vector, instead use feedback_vector() which correctly deals with
   // the JSFunction's bytecode being flushed.
-  DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
+  DECL_ACCESSORS2(raw_feedback_cell, FeedbackCell)
 
   // feedback_vector() can be used once the function is compiled.
   inline FeedbackVector feedback_vector() const;

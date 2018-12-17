@@ -187,8 +187,8 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 
   // Walk the inheritance chain and copy all accessors to current object.
   int max_number_of_properties = 0;
-  TemplateInfoT* info = *data;
-  while (info != nullptr) {
+  TemplateInfoT info = *data;
+  while (!info.is_null()) {
     Object* props = info->property_accessors();
     if (!props->IsUndefined(isolate)) {
       max_number_of_properties += TemplateList::cast(props)->length();
@@ -202,7 +202,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     Handle<FixedArray> array =
         isolate->factory()->NewFixedArray(max_number_of_properties);
 
-    for (Handle<TemplateInfoT> temp(*data, isolate); *temp != nullptr;
+    for (Handle<TemplateInfoT> temp(*data, isolate); !temp->is_null();
          temp = handle(temp->GetParent(isolate), isolate)) {
       // Accumulate accessors.
       Object* maybe_properties = temp->property_accessors();
@@ -348,7 +348,7 @@ void UncacheTemplateInstantiation(Isolate* isolate, int serial_number,
   }
 }
 
-bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo* info,
+bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo info,
                            JSReceiver new_target) {
   DisallowHeapAllocation no_gc;
 

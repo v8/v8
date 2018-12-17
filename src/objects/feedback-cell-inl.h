@@ -15,7 +15,9 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(FeedbackCell)
+OBJECT_CONSTRUCTORS_IMPL(FeedbackCell, StructPtr)
+
+CAST_ACCESSOR2(FeedbackCell)
 
 ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
 

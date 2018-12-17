@@ -16,6 +16,13 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(TemplateInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateInfo, TemplateInfo)
+OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo, TemplateInfo)
+OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData, StructPtr)
+
+NEVER_READ_ONLY_SPACE_IMPL(TemplateInfo)
+
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
 ACCESSORS(TemplateInfo, serial_number, Object, kSerialNumberOffset)
 SMI_ACCESSORS(TemplateInfo, number_of_properties, kNumberOfProperties)
@@ -47,7 +54,7 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
 SMI_ACCESSORS(FunctionTemplateInfo, flag, kFlagOffset)
 
 // static
-FunctionTemplateRareData* FunctionTemplateInfo::EnsureFunctionTemplateRareData(
+FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
   HeapObject* extra = function_template_info->rare_data();
   if (extra->IsUndefined(isolate)) {
@@ -67,7 +74,7 @@ FunctionTemplateRareData* FunctionTemplateInfo::EnsureFunctionTemplateRareData(
   inline void FunctionTemplateInfo::Set##CamelName(                            \
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info,   \
       Handle<Type> Name) {                                                     \
-    FunctionTemplateRareData* rare_data =                                      \
+    FunctionTemplateRareData rare_data =                                       \
         EnsureFunctionTemplateRareData(isolate, function_template_info);       \
     rare_data->set_##Name(*Name);                                              \
   }
@@ -102,10 +109,10 @@ ACCESSORS(FunctionTemplateRareData, access_check_info, Object,
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, data, Object, kDataOffset)
 
-CAST_ACCESSOR(TemplateInfo)
-CAST_ACCESSOR(FunctionTemplateInfo)
-CAST_ACCESSOR(FunctionTemplateRareData)
-CAST_ACCESSOR(ObjectTemplateInfo)
+CAST_ACCESSOR2(TemplateInfo)
+CAST_ACCESSOR2(FunctionTemplateInfo)
+CAST_ACCESSOR2(FunctionTemplateRareData)
+CAST_ACCESSOR2(ObjectTemplateInfo)
 
 bool FunctionTemplateInfo::instantiated() {
   return shared_function_info()->IsSharedFunctionInfo();
@@ -120,25 +127,25 @@ bool FunctionTemplateInfo::BreakAtEntry() {
   return false;
 }
 
-FunctionTemplateInfo* FunctionTemplateInfo::GetParent(Isolate* isolate) {
+FunctionTemplateInfo FunctionTemplateInfo::GetParent(Isolate* isolate) {
   Object* parent = GetParentTemplate();
-  return parent->IsUndefined(isolate) ? nullptr
+  return parent->IsUndefined(isolate) ? FunctionTemplateInfo()
                                       : FunctionTemplateInfo::cast(parent);
 }
 
-ObjectTemplateInfo* ObjectTemplateInfo::GetParent(Isolate* isolate) {
+ObjectTemplateInfo ObjectTemplateInfo::GetParent(Isolate* isolate) {
   Object* maybe_ctor = constructor();
-  if (maybe_ctor->IsUndefined(isolate)) return nullptr;
-  FunctionTemplateInfo* constructor = FunctionTemplateInfo::cast(maybe_ctor);
+  if (maybe_ctor->IsUndefined(isolate)) return ObjectTemplateInfo();
+  FunctionTemplateInfo constructor = FunctionTemplateInfo::cast(maybe_ctor);
   while (true) {
     constructor = constructor->GetParent(isolate);
-    if (constructor == nullptr) return nullptr;
+    if (constructor.is_null()) return ObjectTemplateInfo();
     Object* maybe_obj = constructor->GetInstanceTemplate();
     if (!maybe_obj->IsUndefined(isolate)) {
       return ObjectTemplateInfo::cast(maybe_obj);
     }
   }
-  return nullptr;
+  return ObjectTemplateInfo();
 }
 
 int ObjectTemplateInfo::embedder_field_count() const {

@@ -1016,7 +1016,7 @@ void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
 }
 
 void FeedbackCell::FeedbackCellPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "FeedbackCell");
+  PrintHeader(os, "FeedbackCell");
   ReadOnlyRoots roots = GetReadOnlyRoots();
   if (map() == roots.no_closures_cell_map()) {
     os << "\n - no closures";
@@ -1921,7 +1921,7 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {  // NOLINT
 
 void FunctionTemplateInfo::FunctionTemplateInfoPrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "FunctionTemplateInfo");
+  PrintHeader(os, "FunctionTemplateInfo");
   os << "\n - class name: " << Brief(class_name());
   os << "\n - tag: " << Brief(tag());
   os << "\n - serial_number: " << Brief(serial_number());
@@ -1940,7 +1940,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
 
 void FunctionTemplateRareData::FunctionTemplateRareDataPrint(
     std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "FunctionTemplateRareData");
+  PrintHeader(os, "FunctionTemplateRareData");
   os << "\n - prototype_template: " << Brief(prototype_template());
   os << "\n - prototype_provider_template: "
      << Brief(prototype_provider_template());
@@ -1954,7 +1954,7 @@ void FunctionTemplateRareData::FunctionTemplateRareDataPrint(
 }
 
 void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "ObjectTemplateInfo");
+  PrintHeader(os, "ObjectTemplateInfo");
   os << "\n - tag: " << Brief(tag());
   os << "\n - serial_number: " << Brief(serial_number());
   os << "\n - property_list: " << Brief(property_list());
