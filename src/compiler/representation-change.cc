@@ -708,7 +708,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       double const fv = OpParameter<double>(node->op());
       if (use_info.type_check() == TypeCheckKind::kNone ||
           ((use_info.type_check() == TypeCheckKind::kSignedSmall ||
-            use_info.type_check() == TypeCheckKind::kSigned32) &&
+            use_info.type_check() == TypeCheckKind::kSigned32 ||
+            use_info.type_check() == TypeCheckKind::kNumber ||
+            use_info.type_check() == TypeCheckKind::kNumberOrOddball) &&
            IsInt32Double(fv))) {
         return MakeTruncatedInt32Constant(fv);
       }
