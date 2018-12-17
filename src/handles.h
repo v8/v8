@@ -167,7 +167,7 @@ class Handle final : public HandleBase {
             std::is_same<S, JSGlobalProxy>::value ||
             std::is_same<S, JSObject>::value ||
             std::is_same<S, JSReceiver>::value || std::is_same<S, Map>::value ||
-            std::is_same<S, Name>::value ||
+            std::is_same<S, Module>::value || std::is_same<S, Name>::value ||
             std::is_same<S, NumberDictionary>::value ||
             std::is_same<S, ObjectBoilerplateDescription>::value ||
             std::is_same<S, OrderedHashMap>::value ||

@@ -16,9 +16,13 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(Module, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(ModuleInfoEntry, StructPtr)
 OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace, JSObject)
 
-CAST_ACCESSOR(Module)
+NEVER_READ_ONLY_SPACE_IMPL(Module)
+
+CAST_ACCESSOR2(Module)
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS2(Module, exports, ObjectHashTable, kExportsOffset)
 ACCESSORS2(Module, regular_exports, FixedArray, kRegularExportsOffset)
@@ -40,9 +44,9 @@ ModuleInfo Module::info() const {
 }
 
 CAST_ACCESSOR2(JSModuleNamespace)
-ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
+ACCESSORS2(JSModuleNamespace, module, Module, kModuleOffset)
 
-CAST_ACCESSOR(ModuleInfoEntry)
+CAST_ACCESSOR2(ModuleInfoEntry)
 ACCESSORS(ModuleInfoEntry, export_name, Object, kExportNameOffset)
 ACCESSORS(ModuleInfoEntry, local_name, Object, kLocalNameOffset)
 ACCESSORS(ModuleInfoEntry, import_name, Object, kImportNameOffset)

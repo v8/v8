@@ -66,7 +66,7 @@ class WasmInstanceObject;
   V(PreParsedScopeData, PreParsedScopeData)                                   \
   V(PropertyArray, PropertyArray)                                             \
   V(PropertyCell, PropertyCell*)                                              \
-  V(PrototypeInfo, PrototypeInfo*)                                            \
+  V(PrototypeInfo, PrototypeInfo)                                             \
   V(SeqOneByteString, SeqOneByteString)                                       \
   V(SeqTwoByteString, SeqTwoByteString)                                       \
   V(SharedFunctionInfo, SharedFunctionInfo)                                   \

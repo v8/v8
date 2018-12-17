@@ -27,9 +27,10 @@ class String;
 class Zone;
 
 // The runtime representation of an ECMAScript module.
-class Module : public Struct, public NeverReadOnlySpaceObject {
+class Module : public StructPtr {
  public:
-  DECL_CAST(Module)
+  NEVER_READ_ONLY_SPACE
+  DECL_CAST2(Module)
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
 
@@ -216,7 +217,7 @@ class Module : public Struct, public NeverReadOnlySpaceObject {
   void PrintStatusTransition(Status new_status);
 #endif  // DEBUG
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
+  OBJECT_CONSTRUCTORS(Module, StructPtr);
 };
 
 // When importing a module namespace (import * as foo from "bar"), a
@@ -229,7 +230,7 @@ class JSModuleNamespace : public JSObject {
   DECL_VERIFIER(JSModuleNamespace)
 
   // The actual module whose namespace is being represented.
-  DECL_ACCESSORS(module, Module)
+  DECL_ACCESSORS2(module, Module)
 
   // Retrieve the value exported by [module] under the given [name]. If there is
   // no such export, return Just(undefined). If the export is uninitialized,
@@ -311,9 +312,9 @@ class ModuleInfo : public FixedArray {
   OBJECT_CONSTRUCTORS(ModuleInfo, FixedArray);
 };
 
-class ModuleInfoEntry : public Struct {
+class ModuleInfoEntry : public StructPtr {
  public:
-  DECL_CAST(ModuleInfoEntry)
+  DECL_CAST2(ModuleInfoEntry)
   DECL_PRINTER(ModuleInfoEntry)
   DECL_VERIFIER(ModuleInfoEntry)
 
@@ -347,8 +348,7 @@ class ModuleInfoEntry : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, MODULE_INFO_FIELDS)
 #undef MODULE_INFO_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfoEntry);
+  OBJECT_CONSTRUCTORS(ModuleInfoEntry, StructPtr);
 };
 
 }  // namespace internal

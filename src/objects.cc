@@ -10481,7 +10481,7 @@ void JSObject::PrototypeRegistryCompactionCallback(HeapObject* value,
   DCHECK(value->IsMap() && Map::cast(value)->is_prototype_map());
   Map map = Map::cast(value);
   DCHECK(map->prototype_info()->IsPrototypeInfo());
-  PrototypeInfo* proto_info = PrototypeInfo::cast(map->prototype_info());
+  PrototypeInfo proto_info = PrototypeInfo::cast(map->prototype_info());
   DCHECK_EQ(old_index, proto_info->registry_slot());
   proto_info->set_registry_slot(new_index);
 }
@@ -12975,7 +12975,7 @@ void InvalidatePrototypeChainsInternal(Map map) {
 
   Object* maybe_proto_info = map->prototype_info();
   if (!maybe_proto_info->IsPrototypeInfo()) return;
-  PrototypeInfo* proto_info = PrototypeInfo::cast(maybe_proto_info);
+  PrototypeInfo proto_info = PrototypeInfo::cast(maybe_proto_info);
   if (!proto_info->prototype_users()->IsWeakArrayList()) {
     return;
   }

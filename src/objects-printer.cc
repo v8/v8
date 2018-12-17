@@ -1652,7 +1652,7 @@ void PromiseResolveThenableJobTask::PromiseResolveThenableJobTaskPrint(
 }
 
 void PromiseCapability::PromiseCapabilityPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PromiseCapability");
+  PrintHeader(os, "PromiseCapability");
   os << "\n - promise: " << Brief(promise());
   os << "\n - resolve: " << Brief(resolve());
   os << "\n - reject: " << Brief(reject());
@@ -1660,7 +1660,7 @@ void PromiseCapability::PromiseCapabilityPrint(std::ostream& os) {  // NOLINT
 }
 
 void PromiseReaction::PromiseReactionPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PromiseReaction");
+  PrintHeader(os, "PromiseReaction");
   os << "\n - next: " << Brief(next());
   os << "\n - reject_handler: " << Brief(reject_handler());
   os << "\n - fulfill_handler: " << Brief(fulfill_handler());
@@ -1690,7 +1690,7 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestPrint(
 }
 
 void ModuleInfoEntry::ModuleInfoEntryPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "ModuleInfoEntry");
+  PrintHeader(os, "ModuleInfoEntry");
   os << "\n - export_name: " << Brief(export_name());
   os << "\n - local_name: " << Brief(local_name());
   os << "\n - import_name: " << Brief(import_name());
@@ -1702,7 +1702,7 @@ void ModuleInfoEntry::ModuleInfoEntryPrint(std::ostream& os) {  // NOLINT
 }
 
 void Module::ModulePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "Module");
+  PrintHeader(os, "Module");
   os << "\n - origin: " << Brief(script()->GetNameOrSourceURL());
   os << "\n - code: " << Brief(code());
   os << "\n - exports: " << Brief(exports());
@@ -1721,7 +1721,7 @@ void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {  // NOLINT
 }
 
 void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PrototypeInfo");
+  PrintHeader(os, "PrototypeInfo");
   os << "\n - module namespace: " << Brief(module_namespace());
   os << "\n - prototype users: " << Brief(prototype_users());
   os << "\n - registry slot: " << registry_slot();
@@ -2212,7 +2212,7 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
 
 
 void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "StackFrame");
+  PrintHeader(os, "StackFrame");
   os << "\n - line_number: " << line_number();
   os << "\n - column_number: " << column_number();
   os << "\n - script_id: " << script_id();
@@ -2296,7 +2296,7 @@ void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopePrint(
 }
 
 void InterpreterData::InterpreterDataPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "InterpreterData");
+  PrintHeader(os, "InterpreterData");
   os << "\n - bytecode_array: " << Brief(bytecode_array());
   os << "\n - interpreter_trampoline: " << Brief(interpreter_trampoline());
   os << "\n";

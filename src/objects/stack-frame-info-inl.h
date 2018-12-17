@@ -15,7 +15,11 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(StackFrameInfo)
+OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo, StructPtr)
+
+NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
+
+CAST_ACCESSOR2(StackFrameInfo)
 
 SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberIndex)
 SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberIndex)

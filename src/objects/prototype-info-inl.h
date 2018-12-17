@@ -17,7 +17,9 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(PrototypeInfo)
+OBJECT_CONSTRUCTORS_IMPL(PrototypeInfo, StructPtr)
+
+CAST_ACCESSOR2(PrototypeInfo)
 
 Map PrototypeInfo::ObjectCreateMap() {
   return Map::cast(object_create_map()->GetHeapObjectAssumeWeak());

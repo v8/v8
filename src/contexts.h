@@ -561,7 +561,7 @@ class Context : public HeapObjectPtr {
 
   // Find the module context (assuming there is one) and return the associated
   // module object.
-  Module* module();
+  Module module();
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.

@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 // Container for metadata stored on each prototype map.
-class PrototypeInfo : public Struct {
+class PrototypeInfo : public StructPtr {
  public:
   static const int UNREGISTERED = -1;
 
@@ -47,7 +47,7 @@ class PrototypeInfo : public Struct {
 
   DECL_BOOLEAN_ACCESSORS(should_be_fast_map)
 
-  DECL_CAST(PrototypeInfo)
+  DECL_CAST2(PrototypeInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(PrototypeInfo)
@@ -75,7 +75,7 @@ class PrototypeInfo : public Struct {
  private:
   DECL_ACCESSORS2(object_create_map, MaybeObject)
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);
+  OBJECT_CONSTRUCTORS(PrototypeInfo, StructPtr);
 };
 
 // A growing array with an additional API for marking slots "empty". When adding

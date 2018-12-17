@@ -173,7 +173,7 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
   OBJECT_CONSTRUCTORS(UncompiledDataWithPreParsedScope, UncompiledData);
 };
 
-class InterpreterData : public Struct {
+class InterpreterData : public StructPtr {
  public:
   DECL_ACCESSORS2(bytecode_array, BytecodeArray)
   DECL_ACCESSORS2(interpreter_trampoline, Code)
@@ -188,12 +188,11 @@ class InterpreterData : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, INTERPRETER_DATA_FIELDS)
 #undef INTERPRETER_DATA_FIELDS
 
-  DECL_CAST(InterpreterData)
+  DECL_CAST2(InterpreterData)
   DECL_PRINTER(InterpreterData)
   DECL_VERIFIER(InterpreterData)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(InterpreterData);
+  OBJECT_CONSTRUCTORS(InterpreterData, StructPtr);
 };
 
 // SharedFunctionInfo describes the JSFunction information that can be
@@ -324,8 +323,8 @@ class SharedFunctionInfo : public HeapObjectPtr {
   inline void set_bytecode_array(BytecodeArray bytecode);
   inline Code InterpreterTrampoline() const;
   inline bool HasInterpreterData() const;
-  inline InterpreterData* interpreter_data() const;
-  inline void set_interpreter_data(InterpreterData* interpreter_data);
+  inline InterpreterData interpreter_data() const;
+  inline void set_interpreter_data(InterpreterData interpreter_data);
   inline BytecodeArray GetDebugBytecodeArray() const;
   inline void SetDebugBytecodeArray(BytecodeArray bytecode);
   inline bool HasAsmWasmData() const;

@@ -108,7 +108,7 @@ ScopeInfo Context::scope_info() {
   return ScopeInfo::cast(get(SCOPE_INFO_INDEX));
 }
 
-Module* Context::module() {
+Module Context::module() {
   Context current = *this;
   while (!current->IsModuleContext()) {
     current = current->previous();

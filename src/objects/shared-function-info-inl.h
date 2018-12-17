@@ -78,7 +78,9 @@ CAST_ACCESSOR2(UncompiledDataWithPreParsedScope)
 ACCESSORS2(UncompiledDataWithPreParsedScope, pre_parsed_scope_data,
            PreParsedScopeData, kPreParsedScopeDataOffset)
 
-CAST_ACCESSOR(InterpreterData)
+OBJECT_CONSTRUCTORS_IMPL(InterpreterData, StructPtr)
+
+CAST_ACCESSOR2(InterpreterData)
 ACCESSORS2(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
 ACCESSORS2(InterpreterData, interpreter_trampoline, Code,
            kInterpreterTrampolineOffset)
@@ -494,13 +496,13 @@ bool SharedFunctionInfo::HasInterpreterData() const {
   return function_data()->IsInterpreterData();
 }
 
-InterpreterData* SharedFunctionInfo::interpreter_data() const {
+InterpreterData SharedFunctionInfo::interpreter_data() const {
   DCHECK(HasInterpreterData());
   return InterpreterData::cast(function_data());
 }
 
 void SharedFunctionInfo::set_interpreter_data(
-    InterpreterData* interpreter_data) {
+    InterpreterData interpreter_data) {
   DCHECK(FLAG_interpreted_frames_native_stack);
   set_function_data(interpreter_data);
 }

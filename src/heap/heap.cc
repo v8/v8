@@ -4795,7 +4795,7 @@ void Heap::CompactWeakArrayLists(PretenureFlag pretenure) {
     HeapIterator iterator(this);
     for (HeapObject* o = iterator.next(); o != nullptr; o = iterator.next()) {
       if (o->IsPrototypeInfo()) {
-        PrototypeInfo* prototype_info = PrototypeInfo::cast(o);
+        PrototypeInfo prototype_info = PrototypeInfo::cast(o);
         if (prototype_info->prototype_users()->IsWeakArrayList()) {
           prototype_infos.emplace_back(handle(prototype_info, isolate()));
         }

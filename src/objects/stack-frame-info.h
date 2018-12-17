@@ -13,8 +13,9 @@
 namespace v8 {
 namespace internal {
 
-class StackFrameInfo : public Struct, public NeverReadOnlySpaceObject {
+class StackFrameInfo : public StructPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   DECL_INT_ACCESSORS(line_number)
   DECL_INT_ACCESSORS(column_number)
   DECL_INT_ACCESSORS(script_id)
@@ -27,7 +28,7 @@ class StackFrameInfo : public Struct, public NeverReadOnlySpaceObject {
   DECL_INT_ACCESSORS(flag)
   DECL_INT_ACCESSORS(id)
 
-  DECL_CAST(StackFrameInfo)
+  DECL_CAST2(StackFrameInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(StackFrameInfo)
@@ -55,7 +56,7 @@ class StackFrameInfo : public Struct, public NeverReadOnlySpaceObject {
   static const int kIsConstructorBit = 1;
   static const int kIsWasmBit = 2;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StackFrameInfo);
+  OBJECT_CONSTRUCTORS(StackFrameInfo, StructPtr);
 };
 
 }  // namespace internal

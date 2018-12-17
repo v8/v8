@@ -1706,7 +1706,7 @@ void Module::ModuleVerify(Isolate* isolate) {
         module_namespace()->IsJSModuleNamespace());
   if (module_namespace()->IsJSModuleNamespace()) {
     CHECK_LE(kInstantiating, status());
-    CHECK_EQ(JSModuleNamespace::cast(module_namespace())->module(), this);
+    CHECK_EQ(JSModuleNamespace::cast(module_namespace())->module(), *this);
   }
 
   CHECK_EQ(requested_modules()->length(), info()->module_requests()->length());
