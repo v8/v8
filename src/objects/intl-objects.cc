@@ -407,21 +407,9 @@ icu::Locale Intl::CreateICULocale(const std::string& bcp47_locale) {
 
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
-  char icu_result[ULOC_FULLNAME_CAPACITY];
-  int parsed_length = 0;
 
-  // bcp47_locale_str should be a canonicalized language tag, which
-  // means this shouldn't fail.
-  uloc_forLanguageTag(bcp47_locale.c_str(), icu_result, ULOC_FULLNAME_CAPACITY,
-                      &parsed_length, &status);
+  icu::Locale icu_locale = icu::Locale::forLanguageTag(bcp47_locale, status);
   CHECK(U_SUCCESS(status));
-
-  // bcp47_locale is already checked for its structural validity
-  // so that it should be parsed completely.
-  size_t bcp47_length = bcp47_locale.length();
-  CHECK_EQ(bcp47_length, parsed_length);
-
-  icu::Locale icu_locale(icu_result);
   if (icu_locale.isBogus()) {
     FATAL("Failed to create ICU locale, are ICU data files missing?");
   }
