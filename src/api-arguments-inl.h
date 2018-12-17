@@ -127,7 +127,7 @@ FOR_EACH_CALLBACK(CREATE_INDEXED_CALLBACK)
 #undef FOR_EACH_CALLBACK
 #undef CREATE_INDEXED_CALLBACK
 
-Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo* handler) {
+Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
   Isolate* isolate = this->isolate();
   LOG(isolate, ApiObjectAccess("call", holder()));
   RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kFunctionCallback);

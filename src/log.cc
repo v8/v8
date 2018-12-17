@@ -2161,7 +2161,7 @@ void ExistingCodeLogger::LogExistingFunction(
     FunctionTemplateInfo fun_data = shared->get_api_func_data();
     Object* raw_call_data = fun_data->call_code();
     if (!raw_call_data->IsUndefined(isolate_)) {
-      CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
+      CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
       Object* callback_obj = call_data->callback();
       Address entry_point = v8::ToCData<Address>(callback_obj);
 #if USES_FUNCTION_DESCRIPTORS

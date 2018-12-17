@@ -2232,13 +2232,13 @@ bool Debug::PerformSideEffectCheckForCallback(
         PrintF("' may cause side effect.\n");
       }
     } else if (callback_info->IsInterceptorInfo()) {
-      InterceptorInfo* info = InterceptorInfo::cast(*callback_info);
+      InterceptorInfo info = InterceptorInfo::cast(*callback_info);
       if (info->has_no_side_effect()) return true;
       if (FLAG_trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
       }
     } else if (callback_info->IsCallHandlerInfo()) {
-      CallHandlerInfo* info = CallHandlerInfo::cast(*callback_info);
+      CallHandlerInfo info = CallHandlerInfo::cast(*callback_info);
       if (info->IsSideEffectFreeCallHandlerInfo()) return true;
       if (FLAG_trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");

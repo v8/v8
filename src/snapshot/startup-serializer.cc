@@ -78,7 +78,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Foreign::cast(info->js_getter())->set_foreign_address(original_address);
     accessor_infos_.push_back(info);
   } else if (use_simulator && obj->IsCallHandlerInfo()) {
-    CallHandlerInfo* info = CallHandlerInfo::cast(obj);
+    CallHandlerInfo info = CallHandlerInfo::cast(obj);
     Address original_address =
         Foreign::cast(info->callback())->foreign_address();
     Foreign::cast(info->js_callback())->set_foreign_address(original_address);

@@ -463,8 +463,8 @@ class JSObject : public JSReceiver {
                                                   int old_index, int new_index);
 
   // Retrieve interceptors.
-  inline InterceptorInfo* GetNamedInterceptor();
-  inline InterceptorInfo* GetIndexedInterceptor();
+  inline InterceptorInfo GetNamedInterceptor();
+  inline InterceptorInfo GetIndexedInterceptor();
 
   // Used from JSReceiver.
   V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes>

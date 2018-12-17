@@ -170,9 +170,16 @@ Handle<T> LookupIterator::GetStoreTarget() const {
   }
   return Handle<T>::cast(receiver_);
 }
+
+template <bool is_element>
+InterceptorInfo LookupIterator::GetInterceptor(JSObject holder) {
+  return is_element ? holder->GetIndexedInterceptor()
+                    : holder->GetNamedInterceptor();
+}
+
 inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   DCHECK_EQ(INTERCEPTOR, state_);
-  InterceptorInfo* result =
+  InterceptorInfo result =
       IsElement() ? GetInterceptor<true>(JSObject::cast(*holder_))
                   : GetInterceptor<false>(JSObject::cast(*holder_));
   return handle(result, isolate_);

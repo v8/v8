@@ -244,11 +244,11 @@ void JSObject::initialize_elements() {
   WRITE_FIELD(this, kElementsOffset, elements);
 }
 
-InterceptorInfo* JSObject::GetIndexedInterceptor() {
+InterceptorInfo JSObject::GetIndexedInterceptor() {
   return map()->GetIndexedInterceptor();
 }
 
-InterceptorInfo* JSObject::GetNamedInterceptor() {
+InterceptorInfo JSObject::GetNamedInterceptor() {
   return map()->GetNamedInterceptor();
 }
 

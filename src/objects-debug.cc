@@ -1925,11 +1925,11 @@ void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
 
 void InterceptorInfo::InterceptorInfoVerify(Isolate* isolate) {
   CHECK(IsInterceptorInfo());
-  VerifyForeignPointer(isolate, this, getter());
-  VerifyForeignPointer(isolate, this, setter());
-  VerifyForeignPointer(isolate, this, query());
-  VerifyForeignPointer(isolate, this, deleter());
-  VerifyForeignPointer(isolate, this, enumerator());
+  VerifyForeignPointer(isolate, *this, getter());
+  VerifyForeignPointer(isolate, *this, setter());
+  VerifyForeignPointer(isolate, *this, query());
+  VerifyForeignPointer(isolate, *this, deleter());
+  VerifyForeignPointer(isolate, *this, enumerator());
   VerifyPointer(isolate, data());
   VerifySmiField(kFlagsOffset);
 }

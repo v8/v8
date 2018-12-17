@@ -206,8 +206,8 @@ class Map : public HeapObjectPtr {
       Handle<Map> map, Handle<Context> native_context);
 
   // Retrieve interceptors.
-  inline InterceptorInfo* GetNamedInterceptor();
-  inline InterceptorInfo* GetIndexedInterceptor();
+  inline InterceptorInfo GetNamedInterceptor();
+  inline InterceptorInfo GetIndexedInterceptor();
 
   // Instance type.
   DECL_PRIMITIVE_ACCESSORS(instance_type, InstanceType)

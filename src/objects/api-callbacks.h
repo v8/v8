@@ -141,7 +141,7 @@ class AccessCheckInfo : public StructPtr {
   OBJECT_CONSTRUCTORS(AccessCheckInfo, StructPtr);
 };
 
-class InterceptorInfo : public Struct {
+class InterceptorInfo : public StructPtr {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
@@ -160,7 +160,7 @@ class InterceptorInfo : public Struct {
   inline int flags() const;
   inline void set_flags(int flags);
 
-  DECL_CAST(InterceptorInfo)
+  DECL_CAST2(InterceptorInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(InterceptorInfo)
@@ -189,8 +189,7 @@ class InterceptorInfo : public Struct {
   static const int kNamed = 3;
   static const int kHasNoSideEffect = 4;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(InterceptorInfo);
+  OBJECT_CONSTRUCTORS(InterceptorInfo, StructPtr);
 };
 
 class CallHandlerInfo : public Tuple3 {
@@ -199,7 +198,7 @@ class CallHandlerInfo : public Tuple3 {
   DECL_ACCESSORS(js_callback, Object)
   DECL_ACCESSORS(data, Object)
 
-  DECL_CAST(CallHandlerInfo)
+  DECL_CAST2(CallHandlerInfo)
 
   inline bool IsSideEffectFreeCallHandlerInfo() const;
   inline bool IsSideEffectCallHandlerInfo() const;
@@ -218,8 +217,7 @@ class CallHandlerInfo : public Tuple3 {
   static const int kJsCallbackOffset = kValue2Offset;
   static const int kDataOffset = kValue3Offset;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CallHandlerInfo);
+  OBJECT_CONSTRUCTORS(CallHandlerInfo, Tuple3);
 };
 
 }  // namespace internal

@@ -82,11 +82,11 @@ class Tuple2Ptr : public StructPtr {
   OBJECT_CONSTRUCTORS(Tuple2Ptr, StructPtr);
 };
 
-class Tuple3 : public Tuple2 {
+class Tuple3 : public Tuple2Ptr {
  public:
   DECL_ACCESSORS(value3, Object)
 
-  DECL_CAST(Tuple3)
+  DECL_CAST2(Tuple3)
 
   // Dispatched behavior.
   DECL_PRINTER(Tuple3)
@@ -96,8 +96,7 @@ class Tuple3 : public Tuple2 {
   static const int kValue3Offset = Tuple2::kSize;
   static const int kSize = kValue3Offset + kPointerSize;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple3);
+  OBJECT_CONSTRUCTORS(Tuple3, Tuple2Ptr);
 };
 
 // Support for JavaScript accessors: A pair of a getter and a setter. Each

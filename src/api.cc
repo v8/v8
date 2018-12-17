@@ -4933,7 +4933,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
     i::Object* obj =
         i::JSFunction::cast(*self)->shared()->get_api_func_data()->call_code();
     if (obj->IsCallHandlerInfo()) {
-      i::CallHandlerInfo* handler_info = i::CallHandlerInfo::cast(obj);
+      i::CallHandlerInfo handler_info = i::CallHandlerInfo::cast(obj);
       if (!handler_info->IsSideEffectFreeCallHandlerInfo()) {
         handler_info->SetNextCallHasNoSideEffect();
       }
@@ -4947,7 +4947,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
     i::Object* obj =
         i::JSFunction::cast(*self)->shared()->get_api_func_data()->call_code();
     if (obj->IsCallHandlerInfo()) {
-      i::CallHandlerInfo* handler_info = i::CallHandlerInfo::cast(obj);
+      i::CallHandlerInfo handler_info = i::CallHandlerInfo::cast(obj);
       if (has_pending_exception) {
         // Restore the map if an exception prevented restoration.
         handler_info->NextCallHasNoSideEffect();

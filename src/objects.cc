@@ -3745,7 +3745,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
     case CALL_HANDLER_INFO_TYPE: {
-      CallHandlerInfo* info = CallHandlerInfo::cast(this);
+      CallHandlerInfo info = CallHandlerInfo::cast(this);
       os << "<CallHandlerInfo ";
       os << "callback= " << Brief(info->callback());
       os << ", js_callback= " << Brief(info->js_callback());

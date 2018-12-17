@@ -1292,7 +1292,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
           return true;
         case LookupIterator::INTERCEPTOR: {
           Handle<JSObject> holder = it->GetHolder<JSObject>();
-          InterceptorInfo* info = holder->GetNamedInterceptor();
+          InterceptorInfo info = holder->GetNamedInterceptor();
           if (it->HolderIsReceiverOrHiddenPrototype()) {
             return !info->non_masking() && receiver.is_identical_to(holder) &&
                    !info->setter()->IsUndefined(isolate());

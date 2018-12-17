@@ -206,7 +206,7 @@ class RootVisitor;
   V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
   V(PropertyCell*, empty_property_cell, EmptyPropertyCell)                     \
   V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
-  V(InterceptorInfo*, noop_interceptor_info, NoOpInterceptorInfo)              \
+  V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   /* Special numbers */                                                        \

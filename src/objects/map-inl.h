@@ -81,13 +81,13 @@ DescriptorArray Map::instance_descriptors() const {
   return raw_instance_descriptors();
 }
 
-InterceptorInfo* Map::GetNamedInterceptor() {
+InterceptorInfo Map::GetNamedInterceptor() {
   DCHECK(has_named_interceptor());
   FunctionTemplateInfo info = GetFunctionTemplateInfo();
   return InterceptorInfo::cast(info->GetNamedPropertyHandler());
 }
 
-InterceptorInfo* Map::GetIndexedInterceptor() {
+InterceptorInfo Map::GetIndexedInterceptor() {
   DCHECK(has_indexed_interceptor());
   FunctionTemplateInfo info = GetFunctionTemplateInfo();
   return InterceptorInfo::cast(info->GetIndexedPropertyHandler());

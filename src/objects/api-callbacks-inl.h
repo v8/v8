@@ -21,11 +21,13 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo, StructPtr)
 OBJECT_CONSTRUCTORS_IMPL(AccessorInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(CallHandlerInfo, Tuple3)
 
 CAST_ACCESSOR2(AccessorInfo)
 CAST_ACCESSOR2(AccessCheckInfo)
-CAST_ACCESSOR(InterceptorInfo)
-CAST_ACCESSOR(CallHandlerInfo)
+CAST_ACCESSOR2(InterceptorInfo)
+CAST_ACCESSOR2(CallHandlerInfo)
 
 ACCESSORS2(AccessorInfo, name, Name, kNameOffset)
 SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)

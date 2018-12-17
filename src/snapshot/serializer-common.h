@@ -123,7 +123,7 @@ class SerializerDeserializer : public RootVisitor {
   void RestoreExternalReferenceRedirectors(
       const std::vector<AccessorInfo>& accessor_infos);
   void RestoreExternalReferenceRedirectors(
-      const std::vector<CallHandlerInfo*>& call_handler_infos);
+      const std::vector<CallHandlerInfo>& call_handler_infos);
 
 #define UNUSED_SERIALIZER_BYTE_CODES(V) \
   V(0x0e)                               \

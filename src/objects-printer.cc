@@ -1740,7 +1740,7 @@ void Tuple2Ptr::Tuple2Print(std::ostream& os) {  // NOLINT
 }
 
 void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "Tuple3");
+  PrintHeader(os, "Tuple3");
   os << "\n - value1: " << Brief(value1());
   os << "\n - value2: " << Brief(value2());
   os << "\n - value3: " << Brief(value3());
@@ -1900,7 +1900,7 @@ void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "CallHandlerInfo");
+  PrintHeader(os, "CallHandlerInfo");
   os << "\n - callback: " << Brief(callback());
   os << "\n - js_callback: " << Brief(js_callback());
   os << "\n - data: " << Brief(data());
@@ -1910,7 +1910,7 @@ void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "InterceptorInfo");
+  PrintHeader(os, "InterceptorInfo");
   os << "\n - getter: " << Brief(getter());
   os << "\n - setter: " << Brief(setter());
   os << "\n - query: " << Brief(query());

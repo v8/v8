@@ -388,6 +388,8 @@ bool HeapObject::IsStruct() const {
       return true;
     case FEEDBACK_CELL_TYPE:
       return true;
+    case CALL_HANDLER_INFO_TYPE:
+      return true;
     default:
       return false;
   }

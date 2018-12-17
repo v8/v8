@@ -174,7 +174,7 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  inline Handle<Object> Call(CallHandlerInfo* handler);
+  inline Handle<Object> Call(CallHandlerInfo handler);
 
  private:
   inline JSObject holder();

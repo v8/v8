@@ -240,10 +240,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   template <bool is_element>
   bool SkipInterceptor(JSObject holder);
   template <bool is_element>
-  inline InterceptorInfo* GetInterceptor(JSObject holder) const {
-    return is_element ? holder->GetIndexedInterceptor()
-                      : holder->GetNamedInterceptor();
-  }
+  static inline InterceptorInfo GetInterceptor(JSObject holder);
 
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;

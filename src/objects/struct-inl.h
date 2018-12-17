@@ -23,7 +23,10 @@ bool Tuple2Ptr::IsTuple2Ptr() const {
 }
 
 OBJECT_CONSTRUCTORS_IMPL(StructPtr, HeapObjectPtr)
-OBJECT_CONSTRUCTORS_IMPL(Tuple2Ptr, StructPtr)
+// TODO(jkummerow): Fix IsTuple2() and IsTuple3() to be subclassing-aware,
+// or rethink this more generally (see crbug.com/v8/8516).
+Tuple2Ptr::Tuple2Ptr(Address ptr) : StructPtr(ptr) {}
+Tuple3::Tuple3(Address ptr) : Tuple2Ptr(ptr) {}
 OBJECT_CONSTRUCTORS_IMPL(AccessorPair, StructPtr)
 
 CAST_ACCESSOR2(AccessorPair)
@@ -31,7 +34,7 @@ CAST_ACCESSOR(Struct)
 CAST_ACCESSOR2(StructPtr)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR2(Tuple2Ptr)
-CAST_ACCESSOR(Tuple3)
+CAST_ACCESSOR2(Tuple3)
 
 void Struct::InitializeBody(int object_size) {
   Object* value = GetReadOnlyRoots().undefined_value();

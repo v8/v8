@@ -100,7 +100,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
   Object* raw_call_data = fun_data->call_code();
   if (!raw_call_data->IsUndefined(isolate)) {
     DCHECK(raw_call_data->IsCallHandlerInfo());
-    CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
+    CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
     Object* data_obj = call_data->data();
 
     FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
@@ -274,7 +274,7 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   Object* handler =
       constructor->shared()->get_api_func_data()->GetInstanceCallHandler();
   DCHECK(!handler->IsUndefined(isolate));
-  CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
+  CallHandlerInfo call_data = CallHandlerInfo::cast(handler);
 
   // Get the data for the call and perform the callback.
   Object* result;
