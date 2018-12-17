@@ -669,8 +669,28 @@
   'intl402/Segmenter/prototype/segment/segment-sentence': [FAIL],
   'intl402/Segmenter/prototype/segment/segment-word': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8021
-  'built-ins/Object/fromEntries/requires-argument': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8588
+  'intl402/Segmenter/iterator/position': [FAIL],
+  'intl402/Segmenter/iterator/prototype': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-grapheme': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-grapheme-following': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-grapheme-iterable': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-grapheme-next': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-grapheme-preceding': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line-following': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line-iterable': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line-next': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line-preceding': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-sentence-following': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-sentence-iterable': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-sentence-next': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-sentence-preceding': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-tostring': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-word-following': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-word-iterable': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-word-next': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-word-preceding': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -730,10 +750,6 @@
   # Test against internals of harness; we plug in differently
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
-
-  # Test needs to be updated to spec changes.
-  # https://github.com/tc39/test262/pull/1990
-  'built-ins/String/prototype/matchAll/regexp-prototype-has-no-matchAll': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
