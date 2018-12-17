@@ -26,7 +26,7 @@ ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)
 ACCESSORS(JSRegExp, source, Object, kSourceOffset)
 ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 
-JSRegExp::Type JSRegExp::TypeTag() const {
+JSRegExp::Type JSRegExp::TypeTag() {
   Object* data = this->data();
   if (data->IsUndefined()) return JSRegExp::NOT_COMPILED;
   Smi smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
@@ -66,7 +66,7 @@ Object* JSRegExp::CaptureNameMap() {
   return value;
 }
 
-Object* JSRegExp::DataAt(int index) const {
+Object* JSRegExp::DataAt(int index) {
   DCHECK(TypeTag() != NOT_COMPILED);
   return FixedArray::cast(data())->get(index);
 }
@@ -76,17 +76,6 @@ void JSRegExp::SetDataAt(int index, Object* value) {
   DCHECK_GE(index,
             kDataIndex);  // Only implementation data can be set this way.
   FixedArray::cast(data())->set(index, value);
-}
-
-bool JSRegExp::HasCompiledCode() const {
-  return DataAt(kIrregexpLatin1CodeIndex)->IsCode() ||
-         DataAt(kIrregexpUC16CodeIndex)->IsCode();
-}
-
-void JSRegExp::DiscardCompiledCodeForSerialization() {
-  DCHECK(HasCompiledCode());
-  SetDataAt(kIrregexpLatin1CodeIndex, Smi::FromInt(kUninitializedValue));
-  SetDataAt(kIrregexpUC16CodeIndex, Smi::FromInt(kUninitializedValue));
 }
 
 }  // namespace internal

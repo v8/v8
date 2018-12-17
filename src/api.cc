@@ -751,31 +751,19 @@ StartupData SnapshotCreator::CreateBlob(
     // We have to iterate the heap and collect handles to each clearable SFI,
     // before we disable allocation, since we have to allocate UncompiledDatas
     // to be able to recompile them.
-    //
-    // Compiled irregexp code is also flushed by collecting and clearing any
-    // seen JSRegExp objects.
     i::HandleScope scope(isolate);
     std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
 
-    {  // Heap allocation is disallowed within this scope.
-      i::HeapIterator heap_iterator(isolate->heap());
-      while (i::HeapObject* current_obj = heap_iterator.next()) {
-        if (current_obj->IsSharedFunctionInfo()) {
-          i::SharedFunctionInfo shared =
-              i::SharedFunctionInfo::cast(current_obj);
-          if (shared->CanDiscardCompiled()) {
-            sfis_to_clear.emplace_back(shared, isolate);
-          }
-        } else if (current_obj->IsJSRegExp()) {
-          i::JSRegExp regexp = i::JSRegExp::cast(current_obj);
-          if (regexp->HasCompiledCode()) {
-            regexp->DiscardCompiledCodeForSerialization();
-          }
+    i::HeapIterator heap_iterator(isolate->heap());
+    while (i::HeapObject* current_obj = heap_iterator.next()) {
+      if (current_obj->IsSharedFunctionInfo()) {
+        i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(current_obj);
+        if (shared->CanDiscardCompiled()) {
+          sfis_to_clear.emplace_back(shared, isolate);
         }
       }
     }
-
-    // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
+    i::AllowHeapAllocation allocate_for_discard;
     for (i::Handle<i::SharedFunctionInfo> shared : sfis_to_clear) {
       i::SharedFunctionInfo::DiscardCompiled(isolate, shared);
     }

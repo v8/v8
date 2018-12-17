@@ -95,13 +95,13 @@ class JSRegExp : public JSObject {
                                           Handle<String> source,
                                           Handle<String> flags_string);
 
-  inline Type TypeTag() const;
+  inline Type TypeTag();
   // Number of captures (without the match itself).
   inline int CaptureCount();
   inline Flags GetFlags();
   inline String Pattern();
   inline Object* CaptureNameMap();
-  inline Object* DataAt(int index) const;
+  inline Object* DataAt(int index);
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object* value);
 
@@ -112,9 +112,6 @@ class JSRegExp : public JSObject {
       return kIrregexpUC16CodeIndex;
     }
   }
-
-  inline bool HasCompiledCode() const;
-  inline void DiscardCompiledCodeForSerialization();
 
   DECL_CAST2(JSRegExp)
 
