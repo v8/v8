@@ -53,7 +53,8 @@ class JSTypedLoweringTest : public TypedGraphTest {
   }
 
   Handle<JSArrayBuffer> NewArrayBuffer(void* bytes, size_t byte_length) {
-    Handle<JSArrayBuffer> buffer = factory()->NewJSArrayBuffer();
+    Handle<JSArrayBuffer> buffer =
+        factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
     JSArrayBuffer::Setup(buffer, isolate(), true, bytes, byte_length);
     return buffer;
   }

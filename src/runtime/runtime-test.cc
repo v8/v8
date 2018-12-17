@@ -969,7 +969,8 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
   wasm::WasmSerializer wasm_serializer(native_module);
   size_t compiled_size = wasm_serializer.GetSerializedNativeModuleSize();
   void* array_data = isolate->array_buffer_allocator()->Allocate(compiled_size);
-  Handle<JSArrayBuffer> array_buffer = isolate->factory()->NewJSArrayBuffer();
+  Handle<JSArrayBuffer> array_buffer =
+      isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
   JSArrayBuffer::Setup(array_buffer, isolate, false, array_data, compiled_size);
   if (!array_data ||
       !wasm_serializer.SerializeNativeModule(

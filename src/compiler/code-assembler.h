@@ -20,6 +20,7 @@
 #include "src/objects.h"
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/runtime/runtime.h"
@@ -290,6 +291,7 @@ class Filler;
 class FunctionTemplateRareData;
 class InternalizedString;
 class JSArgumentsObject;
+class JSArrayBufferView;
 class JSContextExtensionObject;
 class JSError;
 class JSSloppyArgumentsObject;

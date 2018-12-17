@@ -16,7 +16,6 @@
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/hash-table.h"
-#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/ordered-hash-table.h"
@@ -41,6 +40,7 @@ class DebugInfo;
 class EnumCache;
 class FreshlyAllocatedBigInt;
 class Isolate;
+class JSDataView;
 class JSGeneratorObject;
 class JSMap;
 class JSMapIterator;
@@ -49,6 +49,7 @@ class JSPromise;
 class JSProxy;
 class JSSet;
 class JSSetIterator;
+class JSTypedArray;
 class JSWeakMap;
 class LoadHandler;
 class ModuleInfo;
@@ -68,6 +69,7 @@ class WeakFactoryCleanupJobTask;
 struct SourceRange;
 template <typename T>
 class ZoneVector;
+enum class SharedFlag : uint32_t;
 
 enum FunctionMode {
   kWithNameBit = 1 << 0,
@@ -658,9 +660,8 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<Module> NewModule(Handle<SharedFunctionInfo> code);
 
-  Handle<JSArrayBuffer> NewJSArrayBuffer(
-      SharedFlag shared = SharedFlag::kNotShared,
-      PretenureFlag pretenure = NOT_TENURED);
+  Handle<JSArrayBuffer> NewJSArrayBuffer(SharedFlag shared,
+                                         PretenureFlag pretenure = NOT_TENURED);
 
   static void TypeAndSizeForElementsKind(ElementsKind kind,
                                          ExternalArrayType* array_type,

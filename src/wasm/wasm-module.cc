@@ -260,7 +260,8 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
       thrower->RangeError("out of memory allocating custom section data");
       return Handle<JSArray>();
     }
-    Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+    Handle<JSArrayBuffer> buffer =
+        isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
     constexpr bool is_external = false;
     JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size);
     memcpy(memory, wire_bytes.start() + section.payload.offset(),

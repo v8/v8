@@ -24,6 +24,10 @@
 
 namespace v8 {
 
+namespace internal {
+class JSArrayBufferView;
+}  // namespace internal
+
 // Constants used in the implementation of the API.  The most natural thing
 // would usually be to place these with the classes that use them, but
 // we want to keep them out of v8.h because it is an externally
