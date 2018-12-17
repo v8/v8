@@ -8,6 +8,7 @@
 #include "src/api.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/foreign-inl.h"
 #include "src/objects/stack-frame-info.h"
 
 namespace v8 {

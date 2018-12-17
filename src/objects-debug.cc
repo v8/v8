@@ -23,6 +23,7 @@
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/foreign-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT

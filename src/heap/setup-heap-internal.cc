@@ -21,6 +21,7 @@
 #include "src/objects/debug-objects.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/foreign.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-weak-refs.h"

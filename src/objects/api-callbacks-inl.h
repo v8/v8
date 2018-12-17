@@ -9,6 +9,7 @@
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/objects/foreign-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/templates.h"
 

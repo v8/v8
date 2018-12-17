@@ -10,6 +10,7 @@
 #include "src/handles.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
+#include "src/objects/foreign.h"
 
 namespace v8 {
 namespace internal {

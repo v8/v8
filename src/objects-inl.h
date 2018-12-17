@@ -461,7 +461,6 @@ CAST_ACCESSOR2(BigInt)
 CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
-CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(MutableHeapNumber)
@@ -1184,20 +1183,6 @@ ACCESSORS2(TemplateObjectDescription, raw_strings, FixedArray,
            kRawStringsOffset)
 ACCESSORS2(TemplateObjectDescription, cooked_strings, FixedArray,
            kCookedStringsOffset)
-
-// static
-bool Foreign::IsNormalized(Object* value) {
-  if (value == Smi::kZero) return true;
-  return Foreign::cast(value)->foreign_address() != kNullAddress;
-}
-
-Address Foreign::foreign_address() {
-  return READ_UINTPTR_FIELD(this, kForeignAddressOffset);
-}
-
-void Foreign::set_foreign_address(Address value) {
-  WRITE_UINTPTR_FIELD(this, kForeignAddressOffset, value);
-}
 
 // static
 Maybe<bool> Object::GreaterThan(Isolate* isolate, Handle<Object> x,

@@ -14,6 +14,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/debug-objects.h"
+#include "src/objects/foreign.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/smi.h"
 #include "src/register-configuration.h"

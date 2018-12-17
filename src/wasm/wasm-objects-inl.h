@@ -9,6 +9,7 @@
 
 #include "src/contexts-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/foreign-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed.h"
 #include "src/v8memory.h"

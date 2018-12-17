@@ -13,6 +13,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
 #include "src/objects/cell.h"
+#include "src/objects/foreign.h"
 #include "src/objects/module.h"
 #include "src/objects/smi.h"
 

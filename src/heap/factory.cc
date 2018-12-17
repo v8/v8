@@ -25,6 +25,7 @@
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/foreign-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-inl.h"

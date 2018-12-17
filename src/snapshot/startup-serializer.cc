@@ -9,6 +9,7 @@
 #include "src/contexts.h"
 #include "src/global-handles.h"
 #include "src/objects-inl.h"
+#include "src/objects/foreign-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer.h"
 #include "src/v8threads.h"

@@ -27,6 +27,7 @@
 #include "src/heap/sweeper.h"
 #include "src/heap/worklist.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects/foreign.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/maybe-object.h"

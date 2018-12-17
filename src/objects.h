@@ -1453,39 +1453,6 @@ class Oddball: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Oddball);
 };
 
-// Foreign describes objects pointing from JavaScript to C structures.
-class Foreign: public HeapObject {
- public:
-  // [address]: field containing the address.
-  inline Address foreign_address();
-
-  static inline bool IsNormalized(Object* object);
-
-  DECL_CAST(Foreign)
-
-  // Dispatched behavior.
-  DECL_PRINTER(Foreign)
-  DECL_VERIFIER(Foreign)
-
-  // Layout description.
-
-  static const int kForeignAddressOffset = HeapObject::kHeaderSize;
-  static const int kSize = kForeignAddressOffset + kPointerSize;
-
-  STATIC_ASSERT(kForeignAddressOffset == Internals::kForeignAddressOffset);
-
-  class BodyDescriptor;
-
- private:
-  friend class Factory;
-  friend class SerializerDeserializer;
-  friend class StartupSerializer;
-
-  inline void set_foreign_address(Address value);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Foreign);
-};
-
 // BooleanBit is a helper class for setting and getting a bit in an integer.
 class BooleanBit : public AllStatic {
  public:

@@ -11,6 +11,7 @@
 #include "src/execution.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
+#include "src/objects/foreign-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/struct-inl.h"

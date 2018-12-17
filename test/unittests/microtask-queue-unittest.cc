@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/heap/factory.h"
+#include "src/objects/foreign.h"
 #include "src/visitors.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
