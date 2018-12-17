@@ -466,7 +466,7 @@ class NativeObjectsExplorer {
   void SetRootNativeRootsReference();
   void SetWrapperNativeReferences(HeapObject* wrapper,
                                       v8::RetainedObjectInfo* info);
-  void VisitSubtreeWrapper(Object** p, uint16_t class_id);
+  void VisitSubtreeWrapper(Handle<Object> p, uint16_t class_id);
 
   struct RetainedInfoHasher {
     std::size_t operator()(v8::RetainedObjectInfo* info) const {

@@ -1834,9 +1834,7 @@ class GlobalHandlesExtractor : public PersistentHandleVisitor {
   void VisitPersistentHandle(Persistent<Value>* value,
                              uint16_t class_id) override {
     Handle<Object> object = Utils::OpenPersistent(value);
-    // TODO(3770): Get rid of Object** here.
-    explorer_->VisitSubtreeWrapper(
-        reinterpret_cast<Object**>(object.location()), class_id);
+    explorer_->VisitSubtreeWrapper(object, class_id);
   }
 
  private:
@@ -2171,7 +2169,8 @@ void NativeObjectsExplorer::SetRootNativeRootsReference() {
   }
 }
 
-void NativeObjectsExplorer::VisitSubtreeWrapper(Object** p, uint16_t class_id) {
+void NativeObjectsExplorer::VisitSubtreeWrapper(Handle<Object> p,
+                                                uint16_t class_id) {
   if (in_groups_.count(*p)) return;
   v8::RetainedObjectInfo* info =
       isolate_->heap_profiler()->ExecuteWrapperClassCallback(class_id, p);

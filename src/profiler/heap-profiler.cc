@@ -52,12 +52,10 @@ void HeapProfiler::DefineWrapperClass(
   wrapper_callbacks_[class_id] = callback;
 }
 
-
 v8::RetainedObjectInfo* HeapProfiler::ExecuteWrapperClassCallback(
-    uint16_t class_id, Object** wrapper) {
+    uint16_t class_id, Handle<Object> wrapper) {
   if (wrapper_callbacks_.size() <= class_id) return nullptr;
-  return wrapper_callbacks_[class_id](
-      class_id, Utils::ToLocal(Handle<Object>(wrapper)));
+  return wrapper_callbacks_[class_id](class_id, Utils::ToLocal(wrapper));
 }
 
 void HeapProfiler::SetGetRetainerInfosCallback(

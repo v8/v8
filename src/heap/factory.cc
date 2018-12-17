@@ -105,7 +105,8 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
   }
 
   // Migrate generated code.
-  // The generated code can contain Object** values (typically from handles)
+  // The generated code can contain embedded objects (typically from handles)
+  // in a pointer-to-tagged-value format (i.e. with indirection like a handle)
   // that are dereferenced during the copy to point directly to the actual heap
   // objects. These pointers can include references to the code object itself,
   // through the self_reference parameter.

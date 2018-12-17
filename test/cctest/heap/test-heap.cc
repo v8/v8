@@ -563,14 +563,15 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
     HandleScope scope(isolate);
 
     // Create an Api object that is unmodified.
-    auto function = FunctionTemplate::New(context->GetIsolate())
-                        ->GetFunction(context.local())
-                        .ToLocalChecked();
-    auto i = function->NewInstance(context.local()).ToLocalChecked();
+    Local<v8::Function> function = FunctionTemplate::New(context->GetIsolate())
+                                       ->GetFunction(context.local())
+                                       .ToLocalChecked();
+    Local<v8::Object> i =
+        function->NewInstance(context.local()).ToLocalChecked();
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*u);
-    h2 = global_handles->Create(*(reinterpret_cast<internal::Object**>(*i)));
+    h2 = global_handles->Create(*(reinterpret_cast<internal::Address*>(*i)));
   }
 
   std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
@@ -611,7 +612,7 @@ TEST(WeakGlobalApiHandleModifiedMapScavenge) {
         function_template->GetFunction(context.local()).ToLocalChecked();
     auto i = function->NewInstance(context.local()).ToLocalChecked();
 
-    h1 = global_handles->Create(*(reinterpret_cast<internal::Object**>(*i)));
+    h1 = global_handles->Create(*(reinterpret_cast<internal::Address*>(*i)));
   }
 
   std::pair<Handle<Object>*, int> handle_and_id(&h1, 1234);
@@ -655,7 +656,7 @@ TEST(WeakGlobalApiHandleWithElementsScavenge) {
         function_template->GetFunction(context.local()).ToLocalChecked();
     auto i = function->NewInstance(context.local()).ToLocalChecked();
 
-    h1 = global_handles->Create(*(reinterpret_cast<internal::Object**>(*i)));
+    h1 = global_handles->Create(*(reinterpret_cast<internal::Address*>(*i)));
   }
 
   std::pair<Handle<Object>*, int> handle_and_id(&h1, 1234);
@@ -1633,8 +1634,8 @@ TEST(TestInternalWeakLists) {
   // Dispose the native contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
     // TODO(dcarney): is there a better way to do this?
-    i::Object** unsafe = reinterpret_cast<i::Object**>(*ctx[i]);
-    *unsafe = ReadOnlyRoots(CcTest::heap()).undefined_value();
+    i::Address* unsafe = reinterpret_cast<i::Address*>(*ctx[i]);
+    *unsafe = ReadOnlyRoots(CcTest::heap()).undefined_value()->ptr();
     ctx[i].Clear();
 
     // Scavenge treats these references as strong.
@@ -5105,8 +5106,8 @@ TEST(OldSpaceAllocationCounter) {
 
 static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = CcTest::i_isolate();
-  Object* message =
-      *reinterpret_cast<Object**>(isolate->pending_message_obj_address());
+  ObjectPtr message(
+      *reinterpret_cast<Address*>(isolate->pending_message_obj_address()));
   CHECK(message->IsTheHole(isolate));
 }
 

@@ -2942,9 +2942,10 @@ Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
   if (parent_frame_type ==
       StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)) {
     if (length)
-      *length = Smi::cast(*reinterpret_cast<Object**>(
+      *length = Smi::cast(FullObjectSlot(
                               parent_frame_pointer +
-                              ArgumentsAdaptorFrameConstants::kLengthOffset))
+                              ArgumentsAdaptorFrameConstants::kLengthOffset)
+                              .load())
                     ->value();
     arguments_frame = parent_frame_pointer;
   } else {
@@ -3002,8 +3003,8 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     Address argument_slot = arguments_frame +
                             CommonFrameConstants::kFixedFrameSizeAboveFp +
                             i * kPointerSize;
-    frame.Add(TranslatedValue::NewTagged(
-        this, *reinterpret_cast<Object**>(argument_slot)));
+    frame.Add(
+        TranslatedValue::NewTagged(this, FullObjectSlot(argument_slot).load()));
   }
 }
 
