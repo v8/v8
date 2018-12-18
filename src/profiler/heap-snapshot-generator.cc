@@ -1145,7 +1145,7 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
                        Code::kSourcePositionTableOffset);
 }
 
-void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry, Cell* cell) {
+void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry, Cell cell) {
   SetInternalReference(entry, "value", cell->value(), Cell::kValueOffset);
 }
 

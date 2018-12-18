@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_CELL_H_
 #define V8_OBJECTS_CELL_H_
 
-#include "src/objects.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -13,17 +13,14 @@
 namespace v8 {
 namespace internal {
 
-class Cell : public HeapObject {
+class Cell : public HeapObjectPtr {
  public:
   // [value]: value of the cell.
   DECL_ACCESSORS(value, Object)
 
-  DECL_CAST(Cell)
+  DECL_CAST2(Cell)
 
-  static inline Cell* FromValueAddress(Address value) {
-    Object* result = FromAddress(value - kValueOffset);
-    return static_cast<Cell*>(result);
-  }
+  static inline Cell FromValueAddress(Address value);
 
   inline Address ValueAddress() { return address() + kValueOffset; }
 
@@ -38,8 +35,7 @@ class Cell : public HeapObject {
   typedef FixedBodyDescriptor<kValueOffset, kValueOffset + kPointerSize, kSize>
       BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Cell);
+  OBJECT_CONSTRUCTORS(Cell, HeapObjectPtr);
 };
 
 }  // namespace internal

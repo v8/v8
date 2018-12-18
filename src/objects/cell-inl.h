@@ -15,9 +15,15 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(Cell)
+OBJECT_CONSTRUCTORS_IMPL(Cell, HeapObjectPtr)
+
+CAST_ACCESSOR2(Cell)
 
 ACCESSORS(Cell, value, Object, kValueOffset)
+
+Cell Cell::FromValueAddress(Address value) {
+  return Cell::cast(HeapObject::FromAddress(value - kValueOffset));
+}
 
 }  // namespace internal
 }  // namespace v8

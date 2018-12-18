@@ -239,11 +239,6 @@ class RelocInfo {
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   V8_INLINE Address target_off_heap_target();
-  V8_INLINE Cell* target_cell();
-  V8_INLINE Handle<Cell> target_cell_handle();
-  V8_INLINE void set_target_cell(
-      Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   V8_INLINE void set_target_external_reference(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 

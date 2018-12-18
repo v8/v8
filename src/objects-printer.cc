@@ -1519,7 +1519,7 @@ void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {  // NOLINT
 }
 
 void Cell::CellPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "Cell");
+  PrintHeader(os, "Cell");
   os << "\n - value: " << Brief(value());
   os << "\n";
 }

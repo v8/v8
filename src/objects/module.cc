@@ -140,7 +140,7 @@ void Module::CreateExport(Isolate* isolate, Handle<Module> module,
   module->set_exports(*exports);
 }
 
-Cell* Module::GetCell(int cell_index) {
+Cell Module::GetCell(int cell_index) {
   DisallowHeapAllocation no_gc;
   Object* cell;
   switch (ModuleDescriptor::GetCellIndexKind(cell_index)) {

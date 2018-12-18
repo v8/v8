@@ -12963,7 +12963,7 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
   Object* maybe_cell = map->prototype_validity_cell();
   if (maybe_cell->IsCell()) {
     // Just set the value; the cell will be replaced lazily.
-    Cell* cell = Cell::cast(maybe_cell);
+    Cell cell = Cell::cast(maybe_cell);
     cell->set_value(Smi::FromInt(Map::kPrototypeChainInvalid));
   }
 }
@@ -13091,7 +13091,7 @@ bool Map::IsPrototypeChainInvalidated(Map map) {
   DCHECK(map->is_prototype_map());
   Object* maybe_cell = map->prototype_validity_cell();
   if (maybe_cell->IsCell()) {
-    Cell* cell = Cell::cast(maybe_cell);
+    Cell cell = Cell::cast(maybe_cell);
     return cell->value() != Smi::FromInt(Map::kPrototypeChainValid);
   }
   return true;

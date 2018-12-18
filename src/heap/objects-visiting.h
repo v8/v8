@@ -38,7 +38,7 @@ class WasmInstanceObject;
   V(BigInt, BigInt)                                                           \
   V(ByteArray, ByteArray)                                                     \
   V(BytecodeArray, BytecodeArray)                                             \
-  V(Cell, Cell*)                                                              \
+  V(Cell, Cell)                                                               \
   V(Code, Code)                                                               \
   V(CodeDataContainer, CodeDataContainer)                                     \
   V(ConsString, ConsString)                                                   \

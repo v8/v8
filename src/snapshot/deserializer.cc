@@ -869,7 +869,7 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
         new_object = reinterpret_cast<Object*>(
             Code::cast(new_object)->raw_instruction_start());
       } else {
-        Cell* cell = Cell::cast(new_object);
+        Cell cell = Cell::cast(new_object);
         new_object = reinterpret_cast<Object*>(cell->ValueAddress());
       }
     }

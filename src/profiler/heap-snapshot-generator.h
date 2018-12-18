@@ -363,7 +363,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                                      AccessorInfo accessor_info);
   void ExtractAccessorPairReferences(HeapEntry* entry, AccessorPair accessors);
   void ExtractCodeReferences(HeapEntry* entry, Code code);
-  void ExtractCellReferences(HeapEntry* entry, Cell* cell);
+  void ExtractCellReferences(HeapEntry* entry, Cell cell);
   void ExtractFeedbackCellReferences(HeapEntry* entry,
                                      FeedbackCell feedback_cell);
   void ExtractPropertyCellReferences(HeapEntry* entry, PropertyCell cell);

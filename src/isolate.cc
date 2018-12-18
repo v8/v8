@@ -3680,7 +3680,7 @@ bool Isolate::IsNoElementsProtectorIntact() {
 }
 
 bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
-  Cell* is_concat_spreadable_cell = heap()->is_concat_spreadable_protector();
+  Cell is_concat_spreadable_cell = heap()->is_concat_spreadable_protector();
   bool is_is_concat_spreadable_set =
       Smi::ToInt(is_concat_spreadable_cell->value()) == kProtectorInvalid;
 #ifdef DEBUG
@@ -3723,7 +3723,7 @@ bool Isolate::IsPromiseHookProtectorIntact() {
 }
 
 bool Isolate::IsPromiseResolveLookupChainIntact() {
-  Cell* promise_resolve_cell = heap()->promise_resolve_protector();
+  Cell promise_resolve_cell = heap()->promise_resolve_protector();
   bool is_promise_resolve_protector_intact =
       Smi::ToInt(promise_resolve_cell->value()) == kProtectorValid;
   return is_promise_resolve_protector_intact;

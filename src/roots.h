@@ -234,21 +234,21 @@ class RootVisitor;
   V(Script, empty_script, EmptyScript)                                       \
   V(FeedbackCell, many_closures_cell, ManyClosuresCell)                      \
   V(FeedbackCell, no_feedback_cell, NoFeedbackCell)                          \
-  V(Cell*, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)    \
+  V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)     \
   /* Protectors */                                                           \
-  V(Cell*, array_constructor_protector, ArrayConstructorProtector)           \
+  V(Cell, array_constructor_protector, ArrayConstructorProtector)            \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                \
-  V(Cell*, is_concat_spreadable_protector, IsConcatSpreadableProtector)      \
+  V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)       \
   V(PropertyCell, array_species_protector, ArraySpeciesProtector)            \
   V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector) \
   V(PropertyCell, regexp_species_protector, RegExpSpeciesProtector)          \
   V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)        \
-  V(Cell*, string_length_protector, StringLengthProtector)                   \
+  V(Cell, string_length_protector, StringLengthProtector)                    \
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)          \
   V(PropertyCell, array_buffer_detaching_protector,                          \
     ArrayBufferDetachingProtector)                                           \
   V(PropertyCell, promise_hook_protector, PromiseHookProtector)              \
-  V(Cell*, promise_resolve_protector, PromiseResolveProtector)               \
+  V(Cell, promise_resolve_protector, PromiseResolveProtector)                \
   V(PropertyCell, map_iterator_protector, MapIteratorProtector)              \
   V(PropertyCell, promise_then_protector, PromiseThenProtector)              \
   V(PropertyCell, set_iterator_protector, SetIteratorProtector)              \

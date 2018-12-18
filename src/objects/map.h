@@ -624,7 +624,7 @@ class Map : public HeapObjectPtr {
   inline int NumberOfOwnDescriptors() const;
   inline void SetNumberOfOwnDescriptors(int number);
 
-  inline Cell* RetrieveDescriptorsPointer();
+  inline Cell RetrieveDescriptorsPointer();
 
   // Checks whether all properties are stored either in the map or on the object
   // (inobject, properties, or elements backing store), requiring no special

@@ -105,7 +105,7 @@ class Module : public Struct {
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
       Isolate* isolate, Handle<Module> module);
 
-  Cell* GetCell(int cell_index);
+  Cell GetCell(int cell_index);
   static Handle<Object> LoadVariable(Isolate* isolate, Handle<Module> module,
                                      int cell_index);
   static void StoreVariable(Handle<Module> module, int cell_index,
