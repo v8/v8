@@ -22,10 +22,13 @@ All arguments are optional. Most combinations should work, e.g.:
 from __future__ import print_function
 import errno
 import os
-import pty
 import re
 import subprocess
 import sys
+
+USE_PTY = "linux" in sys.platform
+if USE_PTY:
+  import pty
 
 BUILD_TARGETS_TEST = ["d8", "cctest", "unittests"]
 BUILD_TARGETS_ALL = ["all"]
@@ -258,7 +261,7 @@ class Config(object):
     targets = " ".join(self.targets)
     # The implementation of mksnapshot failure detection relies on
     # the "pty" module and GDB presence, so skip it on non-Linux.
-    if "linux" not in sys.platform:
+    if not USE_PTY:
       return _Call("autoninja -C %s %s" % (path, targets))
 
     return_code, output = _CallWithOutput("autoninja -C %s %s" %
