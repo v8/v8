@@ -129,10 +129,10 @@ class ObjectPtr {
 
   inline void VerifyApiCallResultType();
 
-  inline void ShortPrint(FILE* out = stdout);
-  void ShortPrint(std::ostream& os);  // NOLINT
-  inline void Print();
-  inline void Print(std::ostream& os);
+  inline void ShortPrint(FILE* out = stdout) const;
+  void ShortPrint(std::ostream& os) const;  // NOLINT
+  inline void Print() const;
+  inline void Print(std::ostream& os) const;
 
   // For use with std::unordered_set.
   struct Hasher {
@@ -153,6 +153,9 @@ bool ObjectPtr::IsHeapObject() const {
   DCHECK_EQ(!IsSmi(), Internals::HasHeapObjectTag(ptr()));
   return !IsSmi();
 }
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const ObjectPtr& obj);
 
 // Replacement for HeapObject; temporarily separate for incremental transition:
 class HeapObjectPtr : public ObjectPtr {

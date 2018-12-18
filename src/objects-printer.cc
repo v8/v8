@@ -68,11 +68,6 @@ namespace internal {
 
 #ifdef OBJECT_PRINT
 
-std::ostream& operator<<(std::ostream& os, const ObjectPtr o) {
-  os << reinterpret_cast<void*>(o.ptr());
-  return os;
-}
-
 void Object::Print() {
   StdoutStream os;
   this->Print(os);

@@ -2583,7 +2583,12 @@ void Object::ShortPrint(StringStream* accumulator) {
 
 void Object::ShortPrint(std::ostream& os) { os << Brief(this); }
 
-void ObjectPtr::ShortPrint(std::ostream& os) { os << Brief(*this); }
+void ObjectPtr::ShortPrint(std::ostream& os) const { os << Brief(*this); }
+
+std::ostream& operator<<(std::ostream& os, const ObjectPtr& obj) {
+  obj.ShortPrint(os);
+  return os;
+}
 
 void MaybeObject::ShortPrint(FILE* out) {
   OFStream os(out);

@@ -96,13 +96,13 @@ void ObjectPtr::VerifyApiCallResultType() {
   reinterpret_cast<Object*>(ptr())->VerifyApiCallResultType();
 }
 
-void ObjectPtr::ShortPrint(FILE* out) {
+void ObjectPtr::ShortPrint(FILE* out) const {
   return reinterpret_cast<Object*>(ptr())->ShortPrint(out);
 }
 
-void ObjectPtr::Print() { reinterpret_cast<Object*>(ptr())->Print(); }
+void ObjectPtr::Print() const { reinterpret_cast<Object*>(ptr())->Print(); }
 
-void ObjectPtr::Print(std::ostream& os) {
+void ObjectPtr::Print(std::ostream& os) const {
   reinterpret_cast<Object*>(ptr())->Print(os);
 }
 
