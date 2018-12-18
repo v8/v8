@@ -108,7 +108,7 @@ class ValueSerializer {
   Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
-  void WriteOddball(Oddball* oddball);
+  void WriteOddball(Oddball oddball);
   void WriteSmi(Smi smi);
   void WriteHeapNumber(HeapNumber number);
   void WriteMutableHeapNumber(MutableHeapNumber number);

@@ -15,7 +15,9 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(Oddball)
+OBJECT_CONSTRUCTORS_IMPL(Oddball, HeapObjectPtr)
+
+CAST_ACCESSOR2(Oddball)
 
 double Oddball::to_number_raw() const {
   return READ_DOUBLE_FIELD(this, kToNumberRawOffset);

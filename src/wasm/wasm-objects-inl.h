@@ -223,8 +223,8 @@ OPTIONAL_ACCESSORS2(WasmInstanceObject, managed_native_allocations, Foreign,
                     kManagedNativeAllocationsOffset)
 OPTIONAL_ACCESSORS2(WasmInstanceObject, exceptions_table, FixedArray,
                     kExceptionsTableOffset)
-ACCESSORS(WasmInstanceObject, undefined_value, Oddball, kUndefinedValueOffset)
-ACCESSORS(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
+ACCESSORS2(WasmInstanceObject, undefined_value, Oddball, kUndefinedValueOffset)
+ACCESSORS2(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
 ACCESSORS2(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
 
 inline bool WasmInstanceObject::has_indirect_function_table() {

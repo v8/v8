@@ -1170,25 +1170,25 @@ void Oddball::OddballVerify(Isolate* isolate) {
 
   ReadOnlyRoots roots(heap);
   if (map() == roots.undefined_map()) {
-    CHECK(this == roots.undefined_value());
+    CHECK(*this == roots.undefined_value());
   } else if (map() == roots.the_hole_map()) {
-    CHECK(this == roots.the_hole_value());
+    CHECK(*this == roots.the_hole_value());
   } else if (map() == roots.null_map()) {
-    CHECK(this == roots.null_value());
+    CHECK(*this == roots.null_value());
   } else if (map() == roots.boolean_map()) {
-    CHECK(this == roots.true_value() || this == roots.false_value());
+    CHECK(*this == roots.true_value() || *this == roots.false_value());
   } else if (map() == roots.uninitialized_map()) {
-    CHECK(this == roots.uninitialized_value());
+    CHECK(*this == roots.uninitialized_value());
   } else if (map() == roots.arguments_marker_map()) {
-    CHECK(this == roots.arguments_marker());
+    CHECK(*this == roots.arguments_marker());
   } else if (map() == roots.termination_exception_map()) {
-    CHECK(this == roots.termination_exception());
+    CHECK(*this == roots.termination_exception());
   } else if (map() == roots.exception_map()) {
-    CHECK(this == roots.exception());
+    CHECK(*this == roots.exception());
   } else if (map() == roots.optimized_out_map()) {
-    CHECK(this == roots.optimized_out());
+    CHECK(*this == roots.optimized_out());
   } else if (map() == roots.stale_register_map()) {
-    CHECK(this == roots.stale_register());
+    CHECK(*this == roots.stale_register());
   } else if (map() == roots.self_reference_marker_map()) {
     // Multiple instances of this oddball may exist at once.
     CHECK_EQ(kind(), Oddball::kSelfReferenceMarker);

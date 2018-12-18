@@ -399,7 +399,7 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
   }
 }
 
-void ValueSerializer::WriteOddball(Oddball* oddball) {
+void ValueSerializer::WriteOddball(Oddball oddball) {
   SerializationTag tag = SerializationTag::kUndefined;
   switch (oddball->kind()) {
     case Oddball::kUndefined:
@@ -757,7 +757,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
     DisallowHeapAllocation no_gc;
-    Oddball* the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int capacity = table->UsedCapacity();
     int result_index = 0;
     for (int i = 0; i < capacity; i++) {
@@ -788,7 +788,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
     DisallowHeapAllocation no_gc;
-    Oddball* the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int capacity = table->UsedCapacity();
     int result_index = 0;
     for (int i = 0; i < capacity; i++) {

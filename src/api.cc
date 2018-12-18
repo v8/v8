@@ -1113,9 +1113,8 @@ i::Address* HandleScope::CreateHandle(
 
 EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  escape_slot_ = CreateHandle(
-      isolate,
-      reinterpret_cast<i::Address>(i::ReadOnlyRoots(isolate).the_hole_value()));
+  escape_slot_ =
+      CreateHandle(isolate, i::ReadOnlyRoots(isolate).the_hole_value()->ptr());
   Initialize(v8_isolate);
 }
 
@@ -1125,8 +1124,7 @@ i::Address* EscapableHandleScope::Escape(i::Address* escape_value) {
       reinterpret_cast<i::Object*>(*escape_slot_)->IsTheHole(heap->isolate()),
       "EscapableHandleScope::Escape", "Escape value set twice");
   if (escape_value == nullptr) {
-    *escape_slot_ =
-        reinterpret_cast<i::Address>(i::ReadOnlyRoots(heap).undefined_value());
+    *escape_slot_ = i::ReadOnlyRoots(heap).undefined_value()->ptr();
     return nullptr;
   }
   *escape_slot_ = *escape_value;
@@ -6990,7 +6988,7 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
   int result_index = 0;
   {
     i::DisallowHeapAllocation no_gc;
-    i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
+    i::Oddball the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = offset; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
@@ -7095,7 +7093,7 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
   int result_index = 0;
   {
     i::DisallowHeapAllocation no_gc;
-    i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
+    i::Oddball the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = offset; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;

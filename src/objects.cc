@@ -14136,9 +14136,7 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
     if (scope_info()->HasOuterScopeInfo()) {
       outer_scope_info = scope_info()->OuterScopeInfo();
     } else {
-      // TODO(3770): Drop explicit cast when migrating Oddball*.
-      outer_scope_info =
-          HeapObjectPtr::cast(ReadOnlyRoots(isolate).the_hole_value());
+      outer_scope_info = ReadOnlyRoots(isolate).the_hole_value();
     }
 
     // Raw setter to avoid validity checks, since we're performing the unusual

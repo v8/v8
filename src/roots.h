@@ -35,12 +35,12 @@ class RootVisitor;
   V(Map, free_space_map, FreeSpaceMap)                                         \
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
-  V(Oddball*, uninitialized_value, UninitializedValue)                         \
-  V(Oddball*, undefined_value, UndefinedValue)                                 \
-  V(Oddball*, the_hole_value, TheHoleValue)                                    \
-  V(Oddball*, null_value, NullValue)                                           \
-  V(Oddball*, true_value, TrueValue)                                           \
-  V(Oddball*, false_value, FalseValue)                                         \
+  V(Oddball, uninitialized_value, UninitializedValue)                          \
+  V(Oddball, undefined_value, UndefinedValue)                                  \
+  V(Oddball, the_hole_value, TheHoleValue)                                     \
+  V(Oddball, null_value, NullValue)                                            \
+  V(Oddball, true_value, TrueValue)                                            \
+  V(Oddball, false_value, FalseValue)                                          \
   V(String, empty_string, empty_string)                                        \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, byte_array_map, ByteArrayMap)                                         \
@@ -65,11 +65,11 @@ class RootVisitor;
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   /* Entries beyond the first 32                                            */ \
   /* Oddballs */                                                               \
-  V(Oddball*, arguments_marker, ArgumentsMarker)                               \
-  V(Oddball*, exception, Exception)                                            \
-  V(Oddball*, termination_exception, TerminationException)                     \
-  V(Oddball*, optimized_out, OptimizedOut)                                     \
-  V(Oddball*, stale_register, StaleRegister)                                   \
+  V(Oddball, arguments_marker, ArgumentsMarker)                                \
+  V(Oddball, exception, Exception)                                             \
+  V(Oddball, termination_exception, TerminationException)                      \
+  V(Oddball, optimized_out, OptimizedOut)                                      \
+  V(Oddball, stale_register, StaleRegister)                                    \
   /* Context maps */                                                           \
   V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, module_context_map, ModuleContextMap)                                 \

@@ -404,7 +404,7 @@ class Heap {
   void RightTrimWeakFixedArray(WeakFixedArray obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
-  inline Oddball* ToBoolean(bool condition);
+  inline Oddball ToBoolean(bool condition);
 
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed(bool dependant_context);

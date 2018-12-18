@@ -62,7 +62,7 @@ class WasmInstanceObject;
   V(JSWeakRef, JSWeakRef)                                                     \
   V(Map, Map)                                                                 \
   V(NativeContext, NativeContext)                                             \
-  V(Oddball, Oddball*)                                                        \
+  V(Oddball, Oddball)                                                         \
   V(PreParsedScopeData, PreParsedScopeData)                                   \
   V(PropertyArray, PropertyArray)                                             \
   V(PropertyCell, PropertyCell)                                               \

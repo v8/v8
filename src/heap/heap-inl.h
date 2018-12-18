@@ -595,7 +595,7 @@ void Heap::ExternalStringTable::AddString(String string) {
   }
 }
 
-Oddball* Heap::ToBoolean(bool condition) {
+Oddball Heap::ToBoolean(bool condition) {
   ReadOnlyRoots roots(this);
   return condition ? roots.true_value() : roots.false_value();
 }

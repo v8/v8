@@ -74,7 +74,8 @@ void CompilationSubCache::Iterate(RootVisitor* v) {
 }
 
 void CompilationSubCache::Clear() {
-  MemsetPointer(tables_, ReadOnlyRoots(isolate()).undefined_value(),
+  MemsetPointer(reinterpret_cast<Address*>(tables_),
+                ReadOnlyRoots(isolate()).undefined_value()->ptr(),
                 generations_);
 }
 

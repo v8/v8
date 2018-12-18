@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_ODDBALL_H_
 #define V8_OBJECTS_ODDBALL_H_
 
-#include "src/objects.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 // The Oddball describes objects null, undefined, true, and false.
-class Oddball : public HeapObject {
+class Oddball : public HeapObjectPtr {
  public:
   // [to_number_raw]: Cached raw to_number computed at startup.
   inline double to_number_raw() const;
@@ -37,7 +37,7 @@ class Oddball : public HeapObject {
   V8_WARN_UNUSED_RESULT static inline Handle<Object> ToNumber(
       Isolate* isolate, Handle<Oddball> input);
 
-  DECL_CAST(Oddball)
+  DECL_CAST2(Oddball)
 
   // Dispatched behavior.
   DECL_VERIFIER(Oddball)
@@ -77,8 +77,7 @@ class Oddball : public HeapObject {
   STATIC_ASSERT(kNull == Internals::kNullOddballKind);
   STATIC_ASSERT(kUndefined == Internals::kUndefinedOddballKind);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Oddball);
+  OBJECT_CONSTRUCTORS(Oddball, HeapObjectPtr);
 };
 
 }  // namespace internal
