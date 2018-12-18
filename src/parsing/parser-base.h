@@ -873,7 +873,6 @@ class ParserBase {
   }
 
   ExpressionT ParsePossibleDestructuringSubPattern(AccumulationScope* scope);
-  void CheckDestructuringElement(ExpressionT element, int beg_pos, int end_pos);
   void ClassifyParameter(IdentifierT parameter, int beg_pos, int end_pos);
   void ClassifyArrowParameter(AccumulationScope* accumulation_scope,
                               int position, ExpressionT parameter);
@@ -1935,20 +1934,18 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
         expression_scope()->RecordPatternError(
             Scanner::Location(start_pos, end_position()),
             MessageTemplate::kInvalidDestructuringTarget);
-      } else {
-        CheckDestructuringElement(argument, start_pos, end_position());
+        accumulation_scope.Accumulate();
       }
 
       if (peek() == Token::COMMA) {
         expression_scope()->RecordPatternError(
             Scanner::Location(start_pos, end_position()),
             MessageTemplate::kElementAfterRest);
+        accumulation_scope.Accumulate();
       }
     } else {
-      int beg_pos = peek_position();
       AcceptINScope scope(this, true);
       elem = ParsePossibleDestructuringSubPattern(&accumulation_scope);
-      CheckDestructuringElement(elem, beg_pos, end_position());
     }
     values.Add(elem);
     if (peek() != Token::RBRACK) {
@@ -2076,8 +2073,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
         ExpressionT expression =
             ParsePossibleDestructuringSubPattern(prop_info->accumulation_scope);
         prop_info->kind = ParsePropertyKind::kSpread;
-
-        CheckDestructuringElement(expression, start_pos, end_position());
 
         if (!IsValidReferenceExpression(expression)) {
           expression_scope()->RecordDeclarationError(
@@ -2358,11 +2353,9 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
         *has_seen_proto = true;
       }
       Consume(Token::COLON);
-      int beg_pos = peek_position();
       AcceptINScope scope(this, true);
       ExpressionT value =
           ParsePossibleDestructuringSubPattern(prop_info->accumulation_scope);
-      CheckDestructuringElement(value, beg_pos, end_position());
 
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
           name_expression, value, prop_info->is_computed_name);
@@ -4450,6 +4443,28 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
     AccumulationScope* scope) {
   int begin = peek_position();
   ExpressionT result = ParseAssignmentExpressionCoverGrammar();
+
+  if (IsValidReferenceExpression(result)) {
+    // Parenthesized identifiers and property references are allowed as part of
+    // a larger assignment pattern, even though parenthesized patterns
+    // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
+    // assignment pattern errors if the parsed expression is more complex.
+    if (impl()->IsIdentifier(result)) {
+      IdentifierT identifier = impl()->AsIdentifier(result);
+      ClassifyParameter(identifier, begin, end_position());
+      if (impl()->IsLet(identifier)) {
+        expression_scope()->RecordLexicalDeclarationError(
+            Scanner::Location(begin, end_position()),
+            MessageTemplate::kLetInLexicalBinding);
+      }
+    }
+  } else if (result->is_parenthesized() ||
+             (!result->IsPattern() && !result->IsAssignment())) {
+    expression_scope()->RecordPatternError(
+        Scanner::Location(begin, end_position()),
+        MessageTemplate::kInvalidDestructuringTarget);
+  }
+
   if (scope == nullptr) return result;
   if (result->IsProperty()) {
     expression_scope()->RecordDeclarationError(
@@ -4460,33 +4475,6 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
     scope->Accumulate();
   }
   return result;
-}
-
-template <typename Impl>
-void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
-                                                 int begin, int end) {
-  if (IsValidReferenceExpression(expression)) {
-    // Parenthesized identifiers and property references are allowed as part of
-    // a larger assignment pattern, even though parenthesized patterns
-    // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
-    // assignment pattern errors if the parsed expression is more complex.
-    if (impl()->IsIdentifier(expression)) {
-      IdentifierT identifier = impl()->AsIdentifier(expression);
-      ClassifyParameter(identifier, begin, end);
-      if (impl()->IsLet(identifier)) {
-        expression_scope()->RecordLexicalDeclarationError(
-            Scanner::Location(begin, end),
-            MessageTemplate::kLetInLexicalBinding);
-      }
-    }
-    return;
-  }
-  if (expression->is_parenthesized() ||
-      (!expression->IsPattern() && !expression->IsAssignment())) {
-    expression_scope()->RecordPatternError(
-        Scanner::Location(begin, end),
-        MessageTemplate::kInvalidDestructuringTarget);
-  }
 }
 
 template <typename Impl>
