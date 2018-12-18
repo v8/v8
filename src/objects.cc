@@ -19222,8 +19222,7 @@ void JSWeakFactory::Cleanup(Handle<JSWeakFactory> weak_factory,
         Execution::TryCall(
             isolate, cleanup,
             handle(ReadOnlyRoots(isolate).undefined_value(), isolate), 1, args,
-            Execution::MessageHandling::kReport, &exception,
-            Execution::Target::kCallable),
+            Execution::MessageHandling::kReport, &exception),
         &result);
     // TODO(marja): (spec): What if there's an exception?
     USE(has_pending_exception);

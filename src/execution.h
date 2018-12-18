@@ -11,6 +11,8 @@
 namespace v8 {
 namespace internal {
 
+class MicrotaskQueue;
+
 template <typename T>
 class Handle;
 
@@ -50,12 +52,11 @@ class Execution final : public AllStatic {
                                      Handle<Object> receiver, int argc,
                                      Handle<Object> argv[],
                                      MessageHandling message_handling,
-                                     MaybeHandle<Object>* exception_out,
-                                     Target target = Target::kCallable);
+                                     MaybeHandle<Object>* exception_out);
   // Convenience method for performing RunMicrotasks
-  static MaybeHandle<Object> RunMicrotasks(Isolate* isolate,
-                                           MessageHandling message_handling,
-                                           MaybeHandle<Object>* exception_out);
+  static MaybeHandle<Object> TryRunMicrotasks(
+      Isolate* isolate, MicrotaskQueue* microtask_queue,
+      MaybeHandle<Object>* exception_out);
 };
 
 
