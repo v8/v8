@@ -2870,7 +2870,7 @@ void FreeListCategory::Free(Address start, size_t size_in_bytes,
 void FreeListCategory::RepairFreeList(Heap* heap) {
   FreeSpace n = top();
   while (!n.is_null()) {
-    ObjectSlot map_location(n->address());
+    MapWordSlot map_location = n.map_slot();
     // We can't use .is_null() here because ObjectSlot.load() returns an
     // ObjectPtr (for which "is null" is not defined, as it would be
     // indistinguishable from "is Smi(0)"). Only HeapObjectPtr has "is_null()".
@@ -3083,7 +3083,9 @@ size_t FreeListCategory::SumFreeList() {
   size_t sum = 0;
   FreeSpace cur = top();
   while (!cur.is_null()) {
-    DCHECK_EQ(cur->map(),
+    // We can't use "cur->map()" here because both cur's map and the
+    // root can be null during bootstrapping.
+    DCHECK_EQ(cur->map_slot().load(),
               page()->heap()->isolate()->root(RootIndex::kFreeSpaceMap));
     sum += cur->relaxed_read_size();
     cur = cur->next();
