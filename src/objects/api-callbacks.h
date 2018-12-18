@@ -22,7 +22,7 @@ namespace internal {
 // If the accessor in the prototype has the READ_ONLY property attribute, then
 // a new value is added to the derived object when the property is set.
 // This shadows the accessor in the prototype.
-class AccessorInfo : public StructPtr {
+class AccessorInfo : public Struct {
  public:
   DECL_ACCESSORS2(name, Name)
   DECL_INT_ACCESSORS(flags)
@@ -108,10 +108,10 @@ class AccessorInfo : public StructPtr {
   DEFINE_BIT_FIELDS(ACCESSOR_INFO_FLAGS_BIT_FIELDS)
 #undef ACCESSOR_INFO_FLAGS_BIT_FIELDS
 
-  OBJECT_CONSTRUCTORS(AccessorInfo, StructPtr);
+  OBJECT_CONSTRUCTORS(AccessorInfo, Struct);
 };
 
-class AccessCheckInfo : public StructPtr {
+class AccessCheckInfo : public Struct {
  public:
   DECL_ACCESSORS(callback, Object)
   DECL_ACCESSORS(named_interceptor, Object)
@@ -138,10 +138,10 @@ class AccessCheckInfo : public StructPtr {
                                 ACCESS_CHECK_INFO_FIELDS)
 #undef ACCESS_CHECK_INFO_FIELDS
 
-  OBJECT_CONSTRUCTORS(AccessCheckInfo, StructPtr);
+  OBJECT_CONSTRUCTORS(AccessCheckInfo, Struct);
 };
 
-class InterceptorInfo : public StructPtr {
+class InterceptorInfo : public Struct {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
@@ -189,7 +189,7 @@ class InterceptorInfo : public StructPtr {
   static const int kNamed = 3;
   static const int kHasNoSideEffect = 4;
 
-  OBJECT_CONSTRUCTORS(InterceptorInfo, StructPtr);
+  OBJECT_CONSTRUCTORS(InterceptorInfo, Struct);
 };
 
 class CallHandlerInfo : public Tuple3 {

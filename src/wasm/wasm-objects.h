@@ -548,7 +548,7 @@ class WasmExportedFunction : public JSFunction {
 // Information for a WasmExportedFunction which is referenced as the function
 // data of the SharedFunctionInfo underlying the function. For details please
 // see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
-class WasmExportedFunctionData : public StructPtr {
+class WasmExportedFunctionData : public Struct {
  public:
   DECL_ACCESSORS2(wrapper_code, Code);
   DECL_ACCESSORS2(instance, WasmInstanceObject)
@@ -573,10 +573,10 @@ class WasmExportedFunctionData : public StructPtr {
                                 WASM_EXPORTED_FUNCTION_DATA_FIELDS)
 #undef WASM_EXPORTED_FUNCTION_DATA_FIELDS
 
-  OBJECT_CONSTRUCTORS(WasmExportedFunctionData, StructPtr)
+  OBJECT_CONSTRUCTORS(WasmExportedFunctionData, Struct)
 };
 
-class WasmDebugInfo : public StructPtr {
+class WasmDebugInfo : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS2(wasm_instance, WasmInstanceObject)
@@ -671,14 +671,14 @@ class WasmDebugInfo : public StructPtr {
   static Handle<JSFunction> GetCWasmEntry(Handle<WasmDebugInfo>,
                                           wasm::FunctionSig*);
 
-  OBJECT_CONSTRUCTORS(WasmDebugInfo, StructPtr)
+  OBJECT_CONSTRUCTORS(WasmDebugInfo, Struct)
 };
 
 // Tags provide an object identity for each exception defined in a wasm module
 // header. They are referenced by the following fields:
 //  - {WasmExceptionObject::exception_tag}  : The tag of the exception object.
 //  - {WasmInstanceObject::exceptions_table}: List of tags used by an instance.
-class WasmExceptionTag : public StructPtr {
+class WasmExceptionTag : public Struct {
  public:
   static Handle<WasmExceptionTag> New(Isolate* isolate, int index);
 
@@ -700,10 +700,10 @@ class WasmExceptionTag : public StructPtr {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, WASM_EXCEPTION_TAG_FIELDS)
 #undef WASM_EXCEPTION_TAG_FIELDS
 
-  OBJECT_CONSTRUCTORS(WasmExceptionTag, StructPtr)
+  OBJECT_CONSTRUCTORS(WasmExceptionTag, Struct)
 };
 
-class AsmWasmData : public StructPtr {
+class AsmWasmData : public Struct {
  public:
   static Handle<AsmWasmData> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
@@ -731,7 +731,7 @@ class AsmWasmData : public StructPtr {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, ASM_WASM_DATA_FIELDS)
 #undef ASM_WASM_DATA_FIELDS
 
-  OBJECT_CONSTRUCTORS(AsmWasmData, StructPtr)
+  OBJECT_CONSTRUCTORS(AsmWasmData, Struct)
 };
 
 #undef DECL_OPTIONAL_ACCESSORS

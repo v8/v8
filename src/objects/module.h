@@ -27,7 +27,7 @@ class String;
 class Zone;
 
 // The runtime representation of an ECMAScript module.
-class Module : public StructPtr {
+class Module : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_CAST2(Module)
@@ -217,7 +217,7 @@ class Module : public StructPtr {
   void PrintStatusTransition(Status new_status);
 #endif  // DEBUG
 
-  OBJECT_CONSTRUCTORS(Module, StructPtr);
+  OBJECT_CONSTRUCTORS(Module, Struct);
 };
 
 // When importing a module namespace (import * as foo from "bar"), a
@@ -312,7 +312,7 @@ class ModuleInfo : public FixedArray {
   OBJECT_CONSTRUCTORS(ModuleInfo, FixedArray);
 };
 
-class ModuleInfoEntry : public StructPtr {
+class ModuleInfoEntry : public Struct {
  public:
   DECL_CAST2(ModuleInfoEntry)
   DECL_PRINTER(ModuleInfoEntry)
@@ -348,7 +348,7 @@ class ModuleInfoEntry : public StructPtr {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, MODULE_INFO_FIELDS)
 #undef MODULE_INFO_FIELDS
 
-  OBJECT_CONSTRUCTORS(ModuleInfoEntry, StructPtr);
+  OBJECT_CONSTRUCTORS(ModuleInfoEntry, Struct);
 };
 
 }  // namespace internal

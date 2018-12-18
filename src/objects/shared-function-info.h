@@ -173,7 +173,7 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
   OBJECT_CONSTRUCTORS(UncompiledDataWithPreParsedScope, UncompiledData);
 };
 
-class InterpreterData : public StructPtr {
+class InterpreterData : public Struct {
  public:
   DECL_ACCESSORS2(bytecode_array, BytecodeArray)
   DECL_ACCESSORS2(interpreter_trampoline, Code)
@@ -192,7 +192,7 @@ class InterpreterData : public StructPtr {
   DECL_PRINTER(InterpreterData)
   DECL_VERIFIER(InterpreterData)
 
-  OBJECT_CONSTRUCTORS(InterpreterData, StructPtr);
+  OBJECT_CONSTRUCTORS(InterpreterData, Struct);
 };
 
 // SharedFunctionInfo describes the JSFunction information that can be

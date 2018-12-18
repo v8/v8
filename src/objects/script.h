@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 // Script describes a script which has been added to the VM.
-class Script : public StructPtr {
+class Script : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   // Script types.
@@ -221,7 +221,7 @@ class Script : public StructPtr {
   static const int kOriginOptionsMask = ((1 << kOriginOptionsSize) - 1)
                                         << kOriginOptionsShift;
 
-  OBJECT_CONSTRUCTORS(Script, StructPtr);
+  OBJECT_CONSTRUCTORS(Script, Struct);
 };
 
 }  // namespace internal

@@ -50,7 +50,7 @@ ACCESSORS(ClassBoilerplate, instance_elements_template, Object,
 ACCESSORS2(ClassBoilerplate, instance_computed_properties, FixedArray,
            FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex));
 
-OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription, Struct)
 
 CAST_ACCESSOR2(ArrayBoilerplateDescription)
 

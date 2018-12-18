@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(DataHandler, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(DataHandler, Struct)
 
 CAST_ACCESSOR2(DataHandler)
 

@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PrototypeInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(PrototypeInfo, Struct)
 
 CAST_ACCESSOR2(PrototypeInfo)
 

@@ -133,7 +133,7 @@ class SloppyArgumentsElements : public FixedArray {
 // - the parameter map contains no fast alias mapping (i.e. the hole)
 // - this struct (in the slow backing store) contains an index into the context
 // - all attributes are available as part if the property details
-class AliasedArgumentsEntry : public StructPtr {
+class AliasedArgumentsEntry : public Struct {
  public:
   inline int aliased_context_slot() const;
   inline void set_aliased_context_slot(int count);
@@ -154,7 +154,7 @@ class AliasedArgumentsEntry : public StructPtr {
                                 ALIASED_ARGUMENTS_FIELDS)
 #undef ALIASED_ARGUMENTS_FIELDS
 
-  OBJECT_CONSTRUCTORS(AliasedArgumentsEntry, StructPtr);
+  OBJECT_CONSTRUCTORS(AliasedArgumentsEntry, Struct);
 };
 
 }  // namespace internal

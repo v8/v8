@@ -16,8 +16,8 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Module, StructPtr)
-OBJECT_CONSTRUCTORS_IMPL(ModuleInfoEntry, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(Module, Struct)
+OBJECT_CONSTRUCTORS_IMPL(ModuleInfoEntry, Struct)
 OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace, JSObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(Module)

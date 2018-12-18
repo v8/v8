@@ -16,10 +16,10 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(TemplateInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(TemplateInfo, Struct)
 OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateInfo, TemplateInfo)
 OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo, TemplateInfo)
-OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(TemplateInfo)
 

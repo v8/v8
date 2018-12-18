@@ -17,28 +17,16 @@ namespace internal {
 // An abstract superclass, a marker class really, for simple structure classes.
 // It doesn't carry much functionality but allows struct classes to be
 // identified in the type system.
-class Struct : public HeapObject {
+class Struct : public HeapObjectPtr {
  public:
   inline void InitializeBody(int object_size);
-  DECL_CAST(Struct)
-  void BriefPrintDetails(std::ostream& os);
-};
-
-// Replacement for the above, temporarily separate for incremental transition
-// of subclasses.
-class StructPtr : public HeapObjectPtr {
- public:
-  inline void InitializeBody(int object_size);
-  DECL_CAST2(StructPtr)
+  DECL_CAST2(Struct)
   void BriefPrintDetails(std::ostream& os);
 
-  // TODO(3770): Temporary.
-  inline bool IsStructPtr() const;
-
-  OBJECT_CONSTRUCTORS(StructPtr, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(Struct, HeapObjectPtr)
 };
 
-class Tuple2 : public StructPtr {
+class Tuple2 : public Struct {
  public:
   DECL_ACCESSORS(value1, Object)
   DECL_ACCESSORS(value2, Object)
@@ -54,7 +42,7 @@ class Tuple2 : public StructPtr {
   static const int kValue2Offset = kValue1Offset + kPointerSize;
   static const int kSize = kValue2Offset + kPointerSize;
 
-  OBJECT_CONSTRUCTORS(Tuple2, StructPtr);
+  OBJECT_CONSTRUCTORS(Tuple2, Struct);
 };
 
 class Tuple3 : public Tuple2 {
@@ -80,7 +68,7 @@ class Tuple3 : public Tuple2 {
 //   * a FunctionTemplateInfo: a real (lazy) accessor
 //   * undefined: considered an accessor by the spec, too, strangely enough
 //   * null: an accessor which has not been set
-class AccessorPair : public StructPtr {
+class AccessorPair : public Struct {
  public:
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
@@ -110,7 +98,7 @@ class AccessorPair : public StructPtr {
   static const int kSetterOffset = kGetterOffset + kPointerSize;
   static const int kSize = kSetterOffset + kPointerSize;
 
-  OBJECT_CONSTRUCTORS(AccessorPair, StructPtr);
+  OBJECT_CONSTRUCTORS(AccessorPair, Struct);
 };
 
 }  // namespace internal

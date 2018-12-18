@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(FeedbackCell, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(FeedbackCell, Struct)
 
 CAST_ACCESSOR2(FeedbackCell)
 

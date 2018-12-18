@@ -21,7 +21,7 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(BreakPoint, Tuple2)
 OBJECT_CONSTRUCTORS_IMPL(BreakPointInfo, Tuple2)
 OBJECT_CONSTRUCTORS_IMPL(CoverageInfo, FixedArray)
-OBJECT_CONSTRUCTORS_IMPL(DebugInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(DebugInfo, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(DebugInfo)
 

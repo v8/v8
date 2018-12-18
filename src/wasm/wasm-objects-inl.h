@@ -24,15 +24,15 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag, StructPtr)
-OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, StructPtr)
-OBJECT_CONSTRUCTORS_IMPL(WasmDebugInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag, Struct)
+OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, Struct)
+OBJECT_CONSTRUCTORS_IMPL(WasmDebugInfo, Struct)
 OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmTableObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(AsmWasmData, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(AsmWasmData, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(WasmDebugInfo)
 

@@ -15,7 +15,7 @@ namespace internal {
 
 // DataHandler is a base class for load and store handlers that can't be
 // encoded in one Smi. Kind of a handler can be deduced from instance type.
-class DataHandler : public StructPtr {
+class DataHandler : public Struct {
  public:
   // [smi_handler]: A Smi which encodes a handler or Code object (we still
   // use code handlers for accessing lexical environment variables, but soon
@@ -56,7 +56,7 @@ class DataHandler : public StructPtr {
 
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(DataHandler, StructPtr)
+  OBJECT_CONSTRUCTORS(DataHandler, Struct)
 };
 
 }  // namespace internal

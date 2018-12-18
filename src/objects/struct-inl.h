@@ -15,31 +15,19 @@
 namespace v8 {
 namespace internal {
 
-bool StructPtr::IsStructPtr() const {
-  return reinterpret_cast<Struct*>(ptr())->IsStruct();
-}
-
-OBJECT_CONSTRUCTORS_IMPL(StructPtr, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Struct, HeapObjectPtr)
 // TODO(jkummerow): Fix IsTuple2() and IsTuple3() to be subclassing-aware,
 // or rethink this more generally (see crbug.com/v8/8516).
-Tuple2::Tuple2(Address ptr) : StructPtr(ptr) {}
+Tuple2::Tuple2(Address ptr) : Struct(ptr) {}
 Tuple3::Tuple3(Address ptr) : Tuple2(ptr) {}
-OBJECT_CONSTRUCTORS_IMPL(AccessorPair, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(AccessorPair, Struct)
 
 CAST_ACCESSOR2(AccessorPair)
-CAST_ACCESSOR(Struct)
-CAST_ACCESSOR2(StructPtr)
+CAST_ACCESSOR2(Struct)
 CAST_ACCESSOR2(Tuple2)
 CAST_ACCESSOR2(Tuple3)
 
 void Struct::InitializeBody(int object_size) {
-  Object* value = GetReadOnlyRoots().undefined_value();
-  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
-    WRITE_FIELD(this, offset, value);
-  }
-}
-
-void StructPtr::InitializeBody(int object_size) {
   Object* value = GetReadOnlyRoots().undefined_value();
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
     WRITE_FIELD(this, offset, value);

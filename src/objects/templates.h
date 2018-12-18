@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-class TemplateInfo : public StructPtr {
+class TemplateInfo : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(tag, Object)
@@ -46,11 +46,11 @@ class TemplateInfo : public StructPtr {
   // instead of caching them.
   static const int kSlowTemplateInstantiationsCacheSize = 1 * MB;
 
-  OBJECT_CONSTRUCTORS(TemplateInfo, StructPtr);
+  OBJECT_CONSTRUCTORS(TemplateInfo, Struct);
 };
 
 // Contains data members that are rarely set on a FunctionTemplateInfo.
-class FunctionTemplateRareData : public StructPtr {
+class FunctionTemplateRareData : public Struct {
  public:
   // See DECL_RARE_ACCESSORS in FunctionTemplateInfo.
   DECL_ACCESSORS(prototype_template, Object)
@@ -84,7 +84,7 @@ class FunctionTemplateRareData : public StructPtr {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, SYMBOL_FIELDS)
 #undef SYMBOL_FIELDS
 
-  OBJECT_CONSTRUCTORS(FunctionTemplateRareData, StructPtr);
+  OBJECT_CONSTRUCTORS(FunctionTemplateRareData, Struct);
 };
 
 // See the api-exposed FunctionTemplate for more information.

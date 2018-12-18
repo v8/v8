@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Microtask, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(Microtask, Struct)
 OBJECT_CONSTRUCTORS_IMPL(CallbackTask, Microtask)
 OBJECT_CONSTRUCTORS_IMPL(CallableTask, Microtask)
 

@@ -105,7 +105,7 @@ class PromiseResolveThenableJobTask : public Microtask {
 };
 
 // Struct to hold the state of a PromiseCapability.
-class PromiseCapability : public StructPtr {
+class PromiseCapability : public Struct {
  public:
   DECL_ACCESSORS(promise, HeapObject)
   DECL_ACCESSORS(resolve, Object)
@@ -127,7 +127,7 @@ class PromiseCapability : public StructPtr {
   DECL_PRINTER(PromiseCapability)
   DECL_VERIFIER(PromiseCapability)
 
-  OBJECT_CONSTRUCTORS(PromiseCapability, StructPtr);
+  OBJECT_CONSTRUCTORS(PromiseCapability, Struct);
 };
 
 // A representation of promise reaction. This differs from the specification
@@ -147,7 +147,7 @@ class PromiseCapability : public StructPtr {
 // Smi 0. On the JSPromise instance they are linked in reverse order,
 // and are turned into the proper order again when scheduling them on
 // the microtask queue.
-class PromiseReaction : public StructPtr {
+class PromiseReaction : public Struct {
  public:
   enum Type { kFulfill, kReject };
 
@@ -175,7 +175,7 @@ class PromiseReaction : public StructPtr {
   DECL_PRINTER(PromiseReaction)
   DECL_VERIFIER(PromiseReaction)
 
-  OBJECT_CONSTRUCTORS(PromiseReaction, StructPtr);
+  OBJECT_CONSTRUCTORS(PromiseReaction, Struct);
 };
 
 }  // namespace internal

@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 // Container for metadata stored on each prototype map.
-class PrototypeInfo : public StructPtr {
+class PrototypeInfo : public Struct {
  public:
   static const int UNREGISTERED = -1;
 
@@ -75,7 +75,7 @@ class PrototypeInfo : public StructPtr {
  private:
   DECL_ACCESSORS2(object_create_map, MaybeObject)
 
-  OBJECT_CONSTRUCTORS(PrototypeInfo, StructPtr);
+  OBJECT_CONSTRUCTORS(PrototypeInfo, Struct);
 };
 
 // A growing array with an additional API for marking slots "empty". When adding

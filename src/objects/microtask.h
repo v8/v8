@@ -17,13 +17,13 @@ namespace internal {
 // Abstract base class for all microtasks that can be scheduled on the
 // microtask queue. This class merely serves the purpose of a marker
 // interface.
-class Microtask : public StructPtr {
+class Microtask : public Struct {
  public:
   // Dispatched behavior.
   DECL_CAST2(Microtask)
   DECL_VERIFIER(Microtask)
 
-  OBJECT_CONSTRUCTORS(Microtask, StructPtr);
+  OBJECT_CONSTRUCTORS(Microtask, Struct);
 };
 
 // A CallbackTask is a special Microtask that allows us to schedule

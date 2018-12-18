@@ -20,7 +20,7 @@ class BytecodeArray;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-class DebugInfo : public StructPtr {
+class DebugInfo : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   enum Flag {
@@ -190,7 +190,7 @@ class DebugInfo : public StructPtr {
   // Get the break point info object for a source position.
   Object* GetBreakPointInfo(Isolate* isolate, int source_position);
 
-  OBJECT_CONSTRUCTORS(DebugInfo, StructPtr);
+  OBJECT_CONSTRUCTORS(DebugInfo, Struct);
 };
 
 // The BreakPointInfo class holds information for break points set in a

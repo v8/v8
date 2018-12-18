@@ -52,7 +52,7 @@ class ObjectBoilerplateDescription : public FixedArray {
   OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray)
 };
 
-class ArrayBoilerplateDescription : public StructPtr {
+class ArrayBoilerplateDescription : public Struct {
  public:
   // store constant_elements of a fixed array
   DECL_ACCESSORS2(constant_elements, FixedArrayBase)
@@ -80,7 +80,7 @@ class ArrayBoilerplateDescription : public StructPtr {
 
  private:
   DECL_INT_ACCESSORS(flags)
-  OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription, StructPtr);
+  OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription, Struct);
 };
 
 class ClassBoilerplate : public FixedArray {

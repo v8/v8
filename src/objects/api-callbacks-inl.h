@@ -19,9 +19,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo, StructPtr)
-OBJECT_CONSTRUCTORS_IMPL(AccessorInfo, StructPtr)
-OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo, Struct)
+OBJECT_CONSTRUCTORS_IMPL(AccessorInfo, Struct)
+OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo, Struct)
 OBJECT_CONSTRUCTORS_IMPL(CallHandlerInfo, Tuple3)
 
 CAST_ACCESSOR2(AccessorInfo)

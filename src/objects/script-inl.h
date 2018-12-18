@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Script, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(Script, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(Script)
 

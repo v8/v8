@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-class StackFrameInfo : public StructPtr {
+class StackFrameInfo : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_INT_ACCESSORS(line_number)
@@ -56,7 +56,7 @@ class StackFrameInfo : public StructPtr {
   static const int kIsConstructorBit = 1;
   static const int kIsWasmBit = 2;
 
-  OBJECT_CONSTRUCTORS(StackFrameInfo, StructPtr);
+  OBJECT_CONSTRUCTORS(StackFrameInfo, Struct);
 };
 
 }  // namespace internal

@@ -19,7 +19,7 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(JSGeneratorObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject, JSGeneratorObject)
 OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject, JSGeneratorObject)
-OBJECT_CONSTRUCTORS_IMPL(AsyncGeneratorRequest, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(AsyncGeneratorRequest, Struct)
 
 CAST_ACCESSOR2(JSAsyncFunctionObject)
 CAST_ACCESSOR2(JSAsyncGeneratorObject)

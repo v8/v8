@@ -78,7 +78,7 @@ CAST_ACCESSOR2(UncompiledDataWithPreParsedScope)
 ACCESSORS2(UncompiledDataWithPreParsedScope, pre_parsed_scope_data,
            PreParsedScopeData, kPreParsedScopeDataOffset)
 
-OBJECT_CONSTRUCTORS_IMPL(InterpreterData, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
 
 CAST_ACCESSOR2(InterpreterData)
 ACCESSORS2(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)

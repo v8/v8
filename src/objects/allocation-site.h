@@ -16,7 +16,7 @@ namespace internal {
 
 enum InstanceType : uint16_t;
 
-class AllocationSite : public StructPtr {
+class AllocationSite : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
@@ -159,10 +159,10 @@ class AllocationSite : public StructPtr {
  private:
   inline bool PretenuringDecisionMade() const;
 
-  OBJECT_CONSTRUCTORS(AllocationSite, StructPtr);
+  OBJECT_CONSTRUCTORS(AllocationSite, Struct);
 };
 
-class AllocationMemento : public StructPtr {
+class AllocationMemento : public Struct {
  public:
 // Layout description.
 #define ALLOCATION_MEMENTO_FIELDS(V)    \
@@ -184,7 +184,7 @@ class AllocationMemento : public StructPtr {
 
   DECL_CAST2(AllocationMemento)
 
-  OBJECT_CONSTRUCTORS(AllocationMemento, StructPtr);
+  OBJECT_CONSTRUCTORS(AllocationMemento, Struct);
 };
 
 }  // namespace internal

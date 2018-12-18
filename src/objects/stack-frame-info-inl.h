@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo, StructPtr)
+OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
