@@ -106,7 +106,7 @@ UINT8_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
 UINT8_ACCESSORS(SharedFunctionInfo, raw_builtin_function_id, kBuiltinFunctionId)
 UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                  kFunctionTokenOffsetOffset)
-INT_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
+RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 
 bool SharedFunctionInfo::HasSharedName() const {
   Object* value = name_or_scope_info();

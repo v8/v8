@@ -420,7 +420,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
   inline bool HasSharedName() const;
 
   // [flags] Bit field containing various flags about the function.
-  DECL_INT_ACCESSORS(flags)
+  DECL_INT32_ACCESSORS(flags)
 
   // Is this function a named function expression in the source code.
   DECL_BOOLEAN_ACCESSORS(is_named_expression)

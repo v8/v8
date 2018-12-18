@@ -32,9 +32,6 @@
 
   # forcing weak callback in asan build change break order
   'debug/debug-stepin-builtin-callback': [['asan == True or msan == True', SKIP]],
-
-  # BUG(v8:8592)
-  'debug/lazy-deopt-then-flush-bytecode': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
