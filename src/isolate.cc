@@ -3595,7 +3595,7 @@ bool Isolate::IsInAnyContext(Object* object, uint32_t index) {
 }
 
 bool Isolate::IsNoElementsProtectorIntact(Context context) {
-  PropertyCell* no_elements_cell = heap()->no_elements_protector();
+  PropertyCell no_elements_cell = heap()->no_elements_protector();
   bool cell_reports_intact =
       no_elements_cell->value()->IsSmi() &&
       Smi::ToInt(no_elements_cell->value()) == kProtectorValid;
@@ -3712,7 +3712,7 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver) {
 }
 
 bool Isolate::IsPromiseHookProtectorIntact() {
-  PropertyCell* promise_hook_cell = heap()->promise_hook_protector();
+  PropertyCell promise_hook_cell = heap()->promise_hook_protector();
   bool is_promise_hook_protector_intact =
       Smi::ToInt(promise_hook_cell->value()) == kProtectorValid;
   DCHECK_IMPLIES(is_promise_hook_protector_intact,
@@ -3730,7 +3730,7 @@ bool Isolate::IsPromiseResolveLookupChainIntact() {
 }
 
 bool Isolate::IsPromiseThenLookupChainIntact() {
-  PropertyCell* promise_then_cell = heap()->promise_then_protector();
+  PropertyCell promise_then_cell = heap()->promise_then_protector();
   bool is_promise_then_protector_intact =
       Smi::ToInt(promise_then_cell->value()) == kProtectorValid;
   return is_promise_then_protector_intact;

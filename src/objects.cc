@@ -3733,7 +3733,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
     case PROPERTY_CELL_TYPE: {
-      PropertyCell* cell = PropertyCell::cast(this);
+      PropertyCell cell = PropertyCell::cast(this);
       os << "<PropertyCell name=";
       cell->name()->ShortPrint(os);
       os << " value=";

@@ -1125,7 +1125,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         int number = dict->FindEntry(isolate(), name_);
         if (number == GlobalDictionary::kNotFound) return NOT_FOUND;
         number_ = static_cast<uint32_t>(number);
-        PropertyCell* cell = dict->CellAt(number_);
+        PropertyCell cell = dict->CellAt(number_);
         if (cell->value()->IsTheHole(isolate_)) return NOT_FOUND;
         property_details_ = cell->property_details();
         has_property_ = true;

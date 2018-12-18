@@ -1157,7 +1157,7 @@ void V8HeapExplorer::ExtractFeedbackCellReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractPropertyCellReferences(HeapEntry* entry,
-                                                   PropertyCell* cell) {
+                                                   PropertyCell cell) {
   SetInternalReference(entry, "value", cell->value(),
                        PropertyCell::kValueOffset);
   TagObject(cell->dependent_code(), "(dependent code)");
@@ -1322,7 +1322,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
     ReadOnlyRoots roots(isolate);
     for (int i = 0; i < length; ++i) {
       if (!dictionary->IsKey(roots, dictionary->KeyAt(i))) continue;
-      PropertyCell* cell = dictionary->CellAt(i);
+      PropertyCell cell = dictionary->CellAt(i);
       Name name = cell->name();
       Object* value = cell->value();
       PropertyDetails details = cell->property_details();

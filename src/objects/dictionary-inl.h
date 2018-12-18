@@ -101,7 +101,7 @@ RootIndex NameDictionaryShape::GetMapRootIndex() {
   return RootIndex::kNameDictionaryMap;
 }
 
-PropertyCell* GlobalDictionary::CellAt(int entry) {
+PropertyCell GlobalDictionary::CellAt(int entry) {
   DCHECK(KeyAt(entry)->IsPropertyCell());
   return PropertyCell::cast(KeyAt(entry));
 }
@@ -197,7 +197,7 @@ template <typename Dictionary>
 void GlobalDictionaryShape::DetailsAtPut(Isolate* isolate, Dictionary dict,
                                          int entry, PropertyDetails value) {
   DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
-  PropertyCell* cell = dict->CellAt(entry);
+  PropertyCell cell = dict->CellAt(entry);
   if (cell->property_details().IsReadOnly() != value.IsReadOnly()) {
     cell->dependent_code()->DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);

@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_PROPERTY_CELL_H_
 #define V8_OBJECTS_PROPERTY_CELL_H_
 
-#include "src/objects.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-class PropertyCell : public HeapObject {
+class PropertyCell : public HeapObjectPtr {
  public:
   // [name]: the name of the global property.
   DECL_ACCESSORS2(name, Name)
@@ -50,7 +50,7 @@ class PropertyCell : public HeapObject {
                                        Handle<PropertyCell> cell,
                                        Handle<Object> new_value);
 
-  DECL_CAST(PropertyCell)
+  DECL_CAST2(PropertyCell)
 
   // Dispatched behavior.
   DECL_PRINTER(PropertyCell)
@@ -70,8 +70,7 @@ class PropertyCell : public HeapObject {
 
   typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PropertyCell);
+  OBJECT_CONSTRUCTORS(PropertyCell, HeapObjectPtr);
 };
 
 }  // namespace internal

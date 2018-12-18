@@ -491,7 +491,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
             JSGlobalObject::cast(*receiver)->global_dictionary();
         int entry = dictionary->FindEntry(isolate, key);
         if (entry != GlobalDictionary::kNotFound) {
-          PropertyCell* cell = dictionary->CellAt(entry);
+          PropertyCell cell = dictionary->CellAt(entry);
           if (cell->property_details().kind() == kData) {
             Object* value = cell->value();
             if (!value->IsTheHole(isolate)) return value;

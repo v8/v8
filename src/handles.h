@@ -173,6 +173,7 @@ class Handle final : public HandleBase {
             std::is_same<S, OrderedHashMap>::value ||
             std::is_same<S, OrderedHashSet>::value ||
             std::is_same<S, OrderedNameDictionary>::value ||
+            std::is_same<S, PropertyCell>::value ||
             std::is_same<S, ScriptContextTable>::value ||
             std::is_same<S, ScopeInfo>::value ||
             std::is_same<S, SharedFunctionInfo>::value ||

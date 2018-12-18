@@ -154,25 +154,25 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
   // done here. In place, there are mjsunit tests harmony/array-species* which
   // ensure that behavior is correct in various invalid protector cases.
 
-  PropertyCell* species_cell = heap()->array_species_protector();
+  PropertyCell species_cell = heap()->array_species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
 bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
-  PropertyCell* species_cell = heap()->typed_array_species_protector();
+  PropertyCell species_cell = heap()->typed_array_species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
 bool Isolate::IsRegExpSpeciesLookupChainIntact() {
-  PropertyCell* species_cell = heap()->regexp_species_protector();
+  PropertyCell species_cell = heap()->regexp_species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
 bool Isolate::IsPromiseSpeciesLookupChainIntact() {
-  PropertyCell* species_cell = heap()->promise_species_protector();
+  PropertyCell species_cell = heap()->promise_species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
@@ -183,27 +183,27 @@ bool Isolate::IsStringLengthOverflowIntact() {
 }
 
 bool Isolate::IsArrayBufferDetachingIntact() {
-  PropertyCell* buffer_detaching = heap()->array_buffer_detaching_protector();
+  PropertyCell buffer_detaching = heap()->array_buffer_detaching_protector();
   return buffer_detaching->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArrayIteratorLookupChainIntact() {
-  PropertyCell* array_iterator_cell = heap()->array_iterator_protector();
+  PropertyCell array_iterator_cell = heap()->array_iterator_protector();
   return array_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsMapIteratorLookupChainIntact() {
-  PropertyCell* map_iterator_cell = heap()->map_iterator_protector();
+  PropertyCell map_iterator_cell = heap()->map_iterator_protector();
   return map_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsSetIteratorLookupChainIntact() {
-  PropertyCell* set_iterator_cell = heap()->set_iterator_protector();
+  PropertyCell set_iterator_cell = heap()->set_iterator_protector();
   return set_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsStringIteratorLookupChainIntact() {
-  PropertyCell* string_iterator_cell = heap()->string_iterator_protector();
+  PropertyCell string_iterator_cell = heap()->string_iterator_protector();
   return string_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 

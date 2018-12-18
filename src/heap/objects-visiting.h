@@ -65,7 +65,7 @@ class WasmInstanceObject;
   V(Oddball, Oddball*)                                                        \
   V(PreParsedScopeData, PreParsedScopeData)                                   \
   V(PropertyArray, PropertyArray)                                             \
-  V(PropertyCell, PropertyCell*)                                              \
+  V(PropertyCell, PropertyCell)                                               \
   V(PrototypeInfo, PrototypeInfo)                                             \
   V(SeqOneByteString, SeqOneByteString)                                       \
   V(SeqTwoByteString, SeqTwoByteString)                                       \

@@ -233,7 +233,7 @@ class GlobalDictionary
   DECL_CAST2(GlobalDictionary)
 
   inline Object* ValueAt(int entry);
-  inline PropertyCell* CellAt(int entry);
+  inline PropertyCell CellAt(int entry);
   inline void SetEntry(Isolate* isolate, int entry, Object* key, Object* value,
                        PropertyDetails details);
   inline Name NameAt(int entry);
