@@ -147,7 +147,7 @@ def dcheck_stop_handler(event):
         message = frame_message.value(frame).string()
       select_frame = frame.older()
       break
-    if frame.name().startswith('V8_Fatal'):
+    if frame.name() is not None and frame.name().startswith('V8_Fatal'):
       select_frame = frame.older()
     frame = frame.older()
 
