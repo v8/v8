@@ -442,6 +442,7 @@ class BuiltinExitFrame : public ExitFrame {
   inline Object* new_target_slot_object() const;
 
   friend class StackFrameIteratorBase;
+  friend class FrameArrayBuilder;
 };
 
 class StandardFrame;
@@ -476,13 +477,15 @@ class FrameSummary {
    public:
     JavaScriptFrameSummary(Isolate* isolate, Object* receiver,
                            JSFunction function, AbstractCode abstract_code,
-                           int code_offset, bool is_constructor);
+                           int code_offset, bool is_constructor,
+                           FixedArray parameters);
 
     Handle<Object> receiver() const { return receiver_; }
     Handle<JSFunction> function() const { return function_; }
     Handle<AbstractCode> abstract_code() const { return abstract_code_; }
     int code_offset() const { return code_offset_; }
     bool is_constructor() const { return is_constructor_; }
+    Handle<FixedArray> parameters() const { return parameters_; }
     bool is_subject_to_debugging() const;
     int SourcePosition() const;
     int SourceStatementPosition() const;
@@ -496,6 +499,7 @@ class FrameSummary {
     Handle<AbstractCode> abstract_code_;
     int code_offset_;
     bool is_constructor_;
+    Handle<FixedArray> parameters_;
   };
 
   class WasmFrameSummary : public FrameSummaryBase {
@@ -690,6 +694,7 @@ class JavaScriptFrame : public StandardFrame {
   inline Address GetParameterSlot(int index) const;
   Object* GetParameter(int index) const override;
   int ComputeParametersCount() const override;
+  Handle<FixedArray> GetParameters() const;
 
   // Debugger access.
   void SetParameterValue(int index, Object* value) const;

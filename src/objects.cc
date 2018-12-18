@@ -10733,7 +10733,8 @@ Handle<FrameArray> FrameArray::AppendJSFrame(Handle<FrameArray> in,
                                              Handle<Object> receiver,
                                              Handle<JSFunction> function,
                                              Handle<AbstractCode> code,
-                                             int offset, int flags) {
+                                             int offset, int flags,
+                                             Handle<FixedArray> parameters) {
   const int frame_count = in->FrameCount();
   const int new_length = LengthFor(frame_count + 1);
   Handle<FrameArray> array =
@@ -10743,6 +10744,7 @@ Handle<FrameArray> FrameArray::AppendJSFrame(Handle<FrameArray> in,
   array->SetCode(frame_count, *code);
   array->SetOffset(frame_count, Smi::FromInt(offset));
   array->SetFlags(frame_count, Smi::FromInt(flags));
+  array->SetParameters(frame_count, *parameters);
   array->set(kFrameCountIndex, Smi::FromInt(frame_count + 1));
   return array;
 }
