@@ -1730,6 +1730,57 @@ TEST(OrderedNameDictionarySetAndMigrateHash) {
   }
 }
 
+TEST(OrderedNameDictionaryHandlerInsertion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  HandleScope scope(isolate);
+
+  Handle<HeapObject> table = OrderedNameDictionaryHandler::Allocate(isolate, 4);
+  CHECK(table->IsSmallOrderedNameDictionary());
+  Verify(isolate, table);
+
+  // Add a new key.
+  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  Handle<String> key = isolate->factory()->InternalizeUtf8String("foo");
+  PropertyDetails details = PropertyDetails::Empty();
+
+  table =
+      OrderedNameDictionaryHandler::Add(isolate, table, key, value, details);
+  DCHECK(key->IsUniqueName());
+  Verify(isolate, table);
+  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK_NE(OrderedNameDictionaryHandler::kNotFound,
+           OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key));
+
+  char buf[10];
+  for (int i = 0; i < 1024; i++) {
+    CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", i));
+    key = isolate->factory()->InternalizeUtf8String(buf);
+    table =
+        OrderedNameDictionaryHandler::Add(isolate, table, key, value, details);
+    DCHECK(key->IsUniqueName());
+    Verify(isolate, table);
+
+    for (int j = 0; j <= i; j++) {
+      CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", j));
+      Handle<Name> key_j = isolate->factory()->InternalizeUtf8String(buf);
+      CHECK_NE(
+          OrderedNameDictionaryHandler::kNotFound,
+          OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key_j));
+    }
+
+    for (int j = i + 1; j < 1024; j++) {
+      CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", j));
+      Handle<Name> key_j = isolate->factory()->InternalizeUtf8String(buf);
+      CHECK_EQ(
+          OrderedNameDictionaryHandler::kNotFound,
+          OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key_j));
+    }
+  }
+
+  CHECK(table->IsOrderedNameDictionary());
+}
+
 }  // namespace test_orderedhashtable
 }  // namespace internal
 }  // namespace v8
