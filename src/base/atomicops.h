@@ -66,6 +66,8 @@ typedef intptr_t AtomicWord;
 // Always return the old value of "*ptr"
 //
 // This routine implies no memory barriers.
+Atomic16 Relaxed_CompareAndSwap(volatile Atomic16* ptr, Atomic16 old_value,
+                                Atomic16 new_value);
 Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr, Atomic32 old_value,
                                 Atomic32 new_value);
 

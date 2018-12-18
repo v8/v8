@@ -50,6 +50,13 @@ inline void SeqCst_MemoryFence() {
 #endif
 }
 
+inline Atomic16 Relaxed_CompareAndSwap(volatile Atomic16* ptr,
+                                       Atomic16 old_value, Atomic16 new_value) {
+  __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
+                              __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+  return old_value;
+}
+
 inline Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr,
                                        Atomic32 old_value, Atomic32 new_value) {
   __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
