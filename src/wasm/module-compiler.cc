@@ -428,6 +428,11 @@ class InstanceBuilder {
                             Handle<String> module_name,
                             Handle<String> import_name, Handle<Object> value);
 
+  // Process a single imported memory.
+  bool ProcessImportedMemory(Handle<WasmInstanceObject> instance,
+                             int import_index, Handle<String> module_name,
+                             Handle<String> import_name, Handle<Object> value);
+
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
   // functions.
@@ -1717,6 +1722,59 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   return true;
 }
 
+bool InstanceBuilder::ProcessImportedMemory(Handle<WasmInstanceObject> instance,
+                                            int import_index,
+                                            Handle<String> module_name,
+                                            Handle<String> import_name,
+                                            Handle<Object> value) {
+  // Validation should have failed if more than one memory object was
+  // provided.
+  DCHECK(!instance->has_memory_object());
+  if (!value->IsWasmMemoryObject()) {
+    ReportLinkError("memory import must be a WebAssembly.Memory object",
+                    import_index, module_name, import_name);
+    return false;
+  }
+  auto memory = Handle<WasmMemoryObject>::cast(value);
+  instance->set_memory_object(*memory);
+  Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate_);
+  // memory_ should have already been assigned in Build().
+  DCHECK_EQ(*memory_.ToHandleChecked(), *buffer);
+  uint32_t imported_cur_pages =
+      static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
+  if (imported_cur_pages < module_->initial_pages) {
+    thrower_->LinkError("memory import %d is smaller than initial %u, got %u",
+                        import_index, module_->initial_pages,
+                        imported_cur_pages);
+    return false;
+  }
+  int32_t imported_maximum_pages = memory->maximum_pages();
+  if (module_->has_maximum_pages) {
+    if (imported_maximum_pages < 0) {
+      thrower_->LinkError(
+          "memory import %d has no maximum limit, expected at most %u",
+          import_index, imported_maximum_pages);
+      return false;
+    }
+    if (static_cast<uint32_t>(imported_maximum_pages) >
+        module_->maximum_pages) {
+      thrower_->LinkError(
+          "memory import %d has a larger maximum size %u than the "
+          "module's declared maximum %u",
+          import_index, imported_maximum_pages, module_->maximum_pages);
+      return false;
+    }
+  }
+  if (module_->has_shared_memory != buffer->is_shared()) {
+    thrower_->LinkError(
+        "mismatch in shared state of memory, declared = %d, imported = %d",
+        module_->has_shared_memory, buffer->is_shared());
+    return false;
+  }
+
+  return true;
+}
+
 // Process the imports, including functions, tables, globals, and memory, in
 // order, loading them from the {ffi_} object. Returns the number of imported
 // functions.
@@ -1756,51 +1814,10 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         break;
       }
       case kExternalMemory: {
-        // Validation should have failed if more than one memory object was
-        // provided.
-        DCHECK(!instance->has_memory_object());
-        if (!value->IsWasmMemoryObject()) {
-          ReportLinkError("memory import must be a WebAssembly.Memory object",
-                          index, module_name, import_name);
+        if (!ProcessImportedMemory(instance, index, module_name, import_name,
+                                   value)) {
           return -1;
         }
-        auto memory = Handle<WasmMemoryObject>::cast(value);
-        instance->set_memory_object(*memory);
-        Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate_);
-        // memory_ should have already been assigned in Build().
-        DCHECK_EQ(*memory_.ToHandleChecked(), *buffer);
-        uint32_t imported_cur_pages =
-            static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
-        if (imported_cur_pages < module_->initial_pages) {
-          thrower_->LinkError(
-              "memory import %d is smaller than initial %u, got %u", index,
-              module_->initial_pages, imported_cur_pages);
-        }
-        int32_t imported_maximum_pages = memory->maximum_pages();
-        if (module_->has_maximum_pages) {
-          if (imported_maximum_pages < 0) {
-            thrower_->LinkError(
-                "memory import %d has no maximum limit, expected at most %u",
-                index, imported_maximum_pages);
-            return -1;
-          }
-          if (static_cast<uint32_t>(imported_maximum_pages) >
-              module_->maximum_pages) {
-            thrower_->LinkError(
-                "memory import %d has a larger maximum size %u than the "
-                "module's declared maximum %u",
-                index, imported_maximum_pages, module_->maximum_pages);
-            return -1;
-          }
-        }
-        if (module_->has_shared_memory != buffer->is_shared()) {
-          thrower_->LinkError(
-              "mismatch in shared state of memory, declared = %d, imported = "
-              "%d",
-              module_->has_shared_memory, buffer->is_shared());
-          return -1;
-        }
-
         break;
       }
       case kExternalGlobal: {
