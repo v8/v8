@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/backend/instruction-scheduler.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

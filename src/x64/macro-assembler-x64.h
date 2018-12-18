@@ -18,39 +18,6 @@
 namespace v8 {
 namespace internal {
 
-// Give alias names to registers for calling conventions.
-constexpr Register kReturnRegister0 = rax;
-constexpr Register kReturnRegister1 = rdx;
-constexpr Register kReturnRegister2 = r8;
-constexpr Register kJSFunctionRegister = rdi;
-constexpr Register kContextRegister = rsi;
-constexpr Register kAllocateSizeRegister = rdx;
-constexpr Register kSpeculationPoisonRegister = r12;
-constexpr Register kInterpreterAccumulatorRegister = rax;
-constexpr Register kInterpreterBytecodeOffsetRegister = r9;
-constexpr Register kInterpreterBytecodeArrayRegister = r14;
-constexpr Register kInterpreterDispatchTableRegister = r15;
-
-constexpr Register kJavaScriptCallArgCountRegister = rax;
-constexpr Register kJavaScriptCallCodeStartRegister = rcx;
-constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
-constexpr Register kJavaScriptCallNewTargetRegister = rdx;
-constexpr Register kJavaScriptCallExtraArg1Register = rbx;
-
-constexpr Register kRuntimeCallFunctionRegister = rbx;
-constexpr Register kRuntimeCallArgCountRegister = rax;
-constexpr Register kRuntimeCallArgvRegister = r15;
-constexpr Register kWasmInstanceRegister = rsi;
-
-// Default scratch register used by MacroAssembler (and other code that needs
-// a spare register). The register isn't callee save, and not used by the
-// function calling convention.
-constexpr Register kScratchRegister = r10;
-constexpr XMMRegister kScratchDoubleReg = xmm15;
-constexpr Register kRootRegister = r13;  // callee save
-
-constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
-
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
 

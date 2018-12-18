@@ -12,10 +12,10 @@
 #include "src/globals.h"
 #include "src/interface-descriptors.h"
 #include "src/machine-type.h"
+#include "src/register-arch.h"
 #include "src/reglist.h"
 #include "src/runtime/runtime.h"
 #include "src/signature.h"
-#include "src/turbo-assembler.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

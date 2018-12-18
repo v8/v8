@@ -5,6 +5,7 @@
 #include "test/cctest/compiler/function-tester.h"
 
 #include "src/api-inl.h"
+#include "src/assembler.h"
 #include "src/compiler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"

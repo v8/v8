@@ -178,7 +178,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         const char* name =
             allocated.register_code() < Register::kNumRegisters
                 ? RegisterName(Register::from_code(allocated.register_code()))
-                : Assembler::GetSpecialRegisterName(allocated.register_code());
+                : Register::GetSpecialRegisterName(allocated.register_code());
         os << "[" << name << "|R";
       } else if (op.IsDoubleRegister()) {
         os << "[" << DoubleRegister::from_code(allocated.register_code())

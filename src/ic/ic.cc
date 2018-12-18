@@ -22,7 +22,6 @@
 #include "src/ic/ic-stats.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate-inl.h"
-#include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/hash-table-inl.h"

@@ -17,43 +17,6 @@
 namespace v8 {
 namespace internal {
 
-// Give alias names to registers for calling conventions.
-constexpr Register kReturnRegister0 = eax;
-constexpr Register kReturnRegister1 = edx;
-constexpr Register kReturnRegister2 = edi;
-constexpr Register kJSFunctionRegister = edi;
-constexpr Register kContextRegister = esi;
-constexpr Register kAllocateSizeRegister = edx;
-constexpr Register kInterpreterAccumulatorRegister = eax;
-constexpr Register kInterpreterBytecodeOffsetRegister = edx;
-constexpr Register kInterpreterBytecodeArrayRegister = edi;
-constexpr Register kInterpreterDispatchTableRegister = esi;
-
-constexpr Register kJavaScriptCallArgCountRegister = eax;
-constexpr Register kJavaScriptCallCodeStartRegister = ecx;
-constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
-constexpr Register kJavaScriptCallNewTargetRegister = edx;
-
-// The ExtraArg1Register not part of the real JS calling convention and is
-// mostly there to simplify consistent interface descriptor definitions across
-// platforms. Note that on ia32 it aliases kJavaScriptCallCodeStartRegister.
-constexpr Register kJavaScriptCallExtraArg1Register = ecx;
-
-// The off-heap trampoline does not need a register on ia32 (it uses a
-// pc-relative call instead).
-constexpr Register kOffHeapTrampolineRegister = no_reg;
-
-constexpr Register kRuntimeCallFunctionRegister = edx;
-constexpr Register kRuntimeCallArgCountRegister = eax;
-constexpr Register kRuntimeCallArgvRegister = ecx;
-constexpr Register kWasmInstanceRegister = esi;
-constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
-
-constexpr Register kRootRegister = ebx;
-
-// TODO(860429): Remove remaining poisoning infrastructure on ia32.
-constexpr Register kSpeculationPoisonRegister = no_reg;
-
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;

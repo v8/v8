@@ -13,6 +13,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/cpu-features.h"
 #include "src/globals.h"
 #include "src/zone/zone-containers.h"
 

@@ -41,6 +41,7 @@
 
 #include "src/assembler.h"
 #include "src/ia32/constants-ia32.h"
+#include "src/ia32/register-ia32.h"
 #include "src/ia32/sse-instr.h"
 #include "src/isolate.h"
 #include "src/label.h"
@@ -49,114 +50,6 @@
 
 namespace v8 {
 namespace internal {
-
-#define GENERAL_REGISTERS(V) \
-  V(eax)                     \
-  V(ecx)                     \
-  V(edx)                     \
-  V(ebx)                     \
-  V(esp)                     \
-  V(ebp)                     \
-  V(esi)                     \
-  V(edi)
-
-#define ALLOCATABLE_GENERAL_REGISTERS(V) \
-  V(eax)                                 \
-  V(ecx)                                 \
-  V(edx)                                 \
-  V(esi)                                 \
-  V(edi)
-
-#define DOUBLE_REGISTERS(V) \
-  V(xmm0)                   \
-  V(xmm1)                   \
-  V(xmm2)                   \
-  V(xmm3)                   \
-  V(xmm4)                   \
-  V(xmm5)                   \
-  V(xmm6)                   \
-  V(xmm7)
-
-#define FLOAT_REGISTERS DOUBLE_REGISTERS
-#define SIMD128_REGISTERS DOUBLE_REGISTERS
-
-#define ALLOCATABLE_DOUBLE_REGISTERS(V) \
-  V(xmm1)                               \
-  V(xmm2)                               \
-  V(xmm3)                               \
-  V(xmm4)                               \
-  V(xmm5)                               \
-  V(xmm6)                               \
-  V(xmm7)
-
-enum RegisterCode {
-#define REGISTER_CODE(R) kRegCode_##R,
-  GENERAL_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-      kRegAfterLast
-};
-
-class Register : public RegisterBase<Register, kRegAfterLast> {
- public:
-  bool is_byte_register() const { return reg_code_ <= 3; }
-
- private:
-  friend class RegisterBase<Register, kRegAfterLast>;
-  explicit constexpr Register(int code) : RegisterBase(code) {}
-};
-
-ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
-              "Register can efficiently be passed by value");
-
-#define DEFINE_REGISTER(R) \
-  constexpr Register R = Register::from_code<kRegCode_##R>();
-GENERAL_REGISTERS(DEFINE_REGISTER)
-#undef DEFINE_REGISTER
-constexpr Register no_reg = Register::no_reg();
-
-constexpr bool kPadArguments = false;
-constexpr bool kSimpleFPAliasing = true;
-constexpr bool kSimdMaskRegisters = false;
-
-enum DoubleCode {
-#define REGISTER_CODE(R) kDoubleCode_##R,
-  DOUBLE_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-      kDoubleAfterLast
-};
-
-class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
-  friend class RegisterBase<XMMRegister, kDoubleAfterLast>;
-  explicit constexpr XMMRegister(int code) : RegisterBase(code) {}
-};
-
-typedef XMMRegister FloatRegister;
-
-typedef XMMRegister DoubleRegister;
-
-typedef XMMRegister Simd128Register;
-
-#define DEFINE_REGISTER(R) \
-  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
-DOUBLE_REGISTERS(DEFINE_REGISTER)
-#undef DEFINE_REGISTER
-constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
-
-// Note that the bit values must match those used in actual instruction encoding
-constexpr int kNumRegs = 8;
-
-// Caller-saved registers
-constexpr RegList kJSCallerSaved =
-    Register::ListOf<eax, ecx, edx,
-                     ebx,  // used as a caller-saved register in JavaScript code
-                     edi   // callee function
-                     >();
-
-constexpr int kNumJSCallerSaved = 5;
-
-// Number of registers for which space is reserved in safepoints.
-constexpr int kNumSafepointRegisters = 8;
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -1889,10 +1782,6 @@ class EnsureSpace {
   int space_before_;
 #endif
 };
-
-// Define {RegisterName} methods for the register types.
-DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
-DEFINE_REGISTER_NAMES(XMMRegister, DOUBLE_REGISTERS)
 
 }  // namespace internal
 }  // namespace v8

@@ -34,6 +34,7 @@ namespace internal {
 // Forward declarations.
 class AsmWasmData;
 class AsyncGeneratorRequest;
+struct AssemblerOptions;
 class BigInt;
 class CallInterfaceDescriptor;
 class Callable;

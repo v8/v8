@@ -30,11 +30,11 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/arm/assembler-arm.h"
 #include "src/arm/constants-arm.h"
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/disasm.h"
-#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

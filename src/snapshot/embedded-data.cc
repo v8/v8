@@ -6,7 +6,6 @@
 
 #include "src/assembler-inl.h"
 #include "src/callable.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
 

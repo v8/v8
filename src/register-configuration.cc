@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/register-configuration.h"
+#include "src/base/lazy-instance.h"
+#include "src/cpu-features.h"
 #include "src/globals.h"
-#include "src/macro-assembler.h"
+#include "src/register-arch.h"
 
 namespace v8 {
 namespace internal {

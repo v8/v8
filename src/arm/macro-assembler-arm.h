@@ -17,32 +17,6 @@
 namespace v8 {
 namespace internal {
 
-// Give alias names to registers for calling conventions.
-constexpr Register kReturnRegister0 = r0;
-constexpr Register kReturnRegister1 = r1;
-constexpr Register kReturnRegister2 = r2;
-constexpr Register kJSFunctionRegister = r1;
-constexpr Register kContextRegister = r7;
-constexpr Register kAllocateSizeRegister = r1;
-constexpr Register kSpeculationPoisonRegister = r9;
-constexpr Register kInterpreterAccumulatorRegister = r0;
-constexpr Register kInterpreterBytecodeOffsetRegister = r5;
-constexpr Register kInterpreterBytecodeArrayRegister = r6;
-constexpr Register kInterpreterDispatchTableRegister = r8;
-
-constexpr Register kJavaScriptCallArgCountRegister = r0;
-constexpr Register kJavaScriptCallCodeStartRegister = r2;
-constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
-constexpr Register kJavaScriptCallNewTargetRegister = r3;
-constexpr Register kJavaScriptCallExtraArg1Register = r2;
-
-constexpr Register kOffHeapTrampolineRegister = ip;
-constexpr Register kRuntimeCallFunctionRegister = r1;
-constexpr Register kRuntimeCallArgCountRegister = r0;
-constexpr Register kRuntimeCallArgvRegister = r2;
-constexpr Register kWasmInstanceRegister = r3;
-constexpr Register kWasmCompileLazyFuncIndexRegister = r4;
-
 // ----------------------------------------------------------------------------
 // Static helper functions
 
@@ -50,11 +24,6 @@ constexpr Register kWasmCompileLazyFuncIndexRegister = r4;
 inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
-
-
-// Give alias names to registers
-constexpr Register cp = r7;              // JavaScript context pointer.
-constexpr Register kRootRegister = r10;  // Roots array pointer.
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };

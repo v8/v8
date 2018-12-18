@@ -18,32 +18,6 @@
 namespace v8 {
 namespace internal {
 
-// Give alias names to registers for calling conventions.
-constexpr Register kReturnRegister0 = r3;
-constexpr Register kReturnRegister1 = r4;
-constexpr Register kReturnRegister2 = r5;
-constexpr Register kJSFunctionRegister = r4;
-constexpr Register kContextRegister = r30;
-constexpr Register kAllocateSizeRegister = r4;
-constexpr Register kSpeculationPoisonRegister = r14;
-constexpr Register kInterpreterAccumulatorRegister = r3;
-constexpr Register kInterpreterBytecodeOffsetRegister = r15;
-constexpr Register kInterpreterBytecodeArrayRegister = r16;
-constexpr Register kInterpreterDispatchTableRegister = r17;
-
-constexpr Register kJavaScriptCallArgCountRegister = r3;
-constexpr Register kJavaScriptCallCodeStartRegister = r5;
-constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
-constexpr Register kJavaScriptCallNewTargetRegister = r6;
-constexpr Register kJavaScriptCallExtraArg1Register = r5;
-
-constexpr Register kOffHeapTrampolineRegister = ip;
-constexpr Register kRuntimeCallFunctionRegister = r4;
-constexpr Register kRuntimeCallArgCountRegister = r3;
-constexpr Register kRuntimeCallArgvRegister = r5;
-constexpr Register kWasmInstanceRegister = r10;
-constexpr Register kWasmCompileLazyFuncIndexRegister = r15;
-
 // ----------------------------------------------------------------------------
 // Static helper functions
 

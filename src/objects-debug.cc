@@ -13,7 +13,6 @@
 #include "src/elements.h"
 #include "src/field-type.h"
 #include "src/layout-descriptor.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"

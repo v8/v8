@@ -9,7 +9,6 @@
 #include "src/base/template-utils.h"
 #include "src/counters.h"
 #include "src/flags.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/v8.h"

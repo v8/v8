@@ -1065,7 +1065,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
         if (allocated->register_code() < Register::kNumRegisters) {
           os << Register::from_code(allocated->register_code());
         } else {
-          os << Assembler::GetSpecialRegisterName(allocated->register_code());
+          os << Register::GetSpecialRegisterName(allocated->register_code());
         }
       } else if (op->IsDoubleRegister()) {
         os << DoubleRegister::from_code(allocated->register_code());

@@ -16,8 +16,9 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/opcodes.h"
 #include "src/double.h"
+#include "src/external-reference.h"
 #include "src/globals.h"
-#include "src/macro-assembler.h"
+#include "src/register-arch.h"
 #include "src/source-position.h"
 #include "src/zone/zone-allocator.h"
 

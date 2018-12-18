@@ -14,7 +14,6 @@
 #include "src/arm64/utils-arm64.h"
 #include "src/base/platform/platform.h"
 #include "src/disasm.h"
-#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

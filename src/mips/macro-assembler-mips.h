@@ -17,32 +17,6 @@
 namespace v8 {
 namespace internal {
 
-// Give alias names to registers for calling conventions.
-constexpr Register kReturnRegister0 = v0;
-constexpr Register kReturnRegister1 = v1;
-constexpr Register kReturnRegister2 = a0;
-constexpr Register kJSFunctionRegister = a1;
-constexpr Register kContextRegister = s7;
-constexpr Register kAllocateSizeRegister = a0;
-constexpr Register kSpeculationPoisonRegister = t3;
-constexpr Register kInterpreterAccumulatorRegister = v0;
-constexpr Register kInterpreterBytecodeOffsetRegister = t4;
-constexpr Register kInterpreterBytecodeArrayRegister = t5;
-constexpr Register kInterpreterDispatchTableRegister = t6;
-
-constexpr Register kJavaScriptCallArgCountRegister = a0;
-constexpr Register kJavaScriptCallCodeStartRegister = a2;
-constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
-constexpr Register kJavaScriptCallNewTargetRegister = a3;
-constexpr Register kJavaScriptCallExtraArg1Register = a2;
-
-constexpr Register kOffHeapTrampolineRegister = at;
-constexpr Register kRuntimeCallFunctionRegister = a1;
-constexpr Register kRuntimeCallArgCountRegister = a0;
-constexpr Register kRuntimeCallArgvRegister = a2;
-constexpr Register kWasmInstanceRegister = a0;
-constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
-
 // Forward declarations
 enum class AbortReason : uint8_t;
 
