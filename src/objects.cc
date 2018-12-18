@@ -6693,11 +6693,10 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   // Allocate new map.
   Handle<Map> new_map = Map::CopyDropDescriptors(isolate, old_map);
-  if (new_map->has_named_interceptor() || new_map->is_access_check_needed()) {
-    // Force certain slow paths when API interceptors are used, or if an access
-    // check is required.
-    new_map->set_may_have_interesting_symbols(true);
-  }
+  // We should not only set this bit if we need to. We should not retain the
+  // old bit because turning a map into dictionary always sets this bit.
+  new_map->set_may_have_interesting_symbols(new_map->has_named_interceptor() ||
+                                            new_map->is_access_check_needed());
   new_map->set_is_dictionary_map(false);
 
   NotifyMapChange(old_map, new_map, isolate);

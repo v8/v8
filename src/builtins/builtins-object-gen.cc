@@ -1056,17 +1056,57 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_value);
   {
+    Label if_value_is_number(this, Label::kDeferred),
+        if_value_is_boolean(this, Label::kDeferred),
+        if_value_is_symbol(this, Label::kDeferred),
+        if_value_is_bigint(this, Label::kDeferred),
+        if_value_is_string(this, Label::kDeferred);
+
     Node* receiver_value = LoadJSValueValue(receiver);
-    GotoIf(TaggedIsSmi(receiver_value), &if_number);
+    // We need to start with the object to see if the value was a subclass
+    // which might have interesting properties.
+    var_holder.Bind(receiver);
+    GotoIf(TaggedIsSmi(receiver_value), &if_value_is_number);
     Node* receiver_value_map = LoadMap(receiver_value);
-    GotoIf(IsHeapNumberMap(receiver_value_map), &if_number);
-    GotoIf(IsBooleanMap(receiver_value_map), &if_boolean);
-    GotoIf(IsSymbolMap(receiver_value_map), &if_symbol);
+    GotoIf(IsHeapNumberMap(receiver_value_map), &if_value_is_number);
+    GotoIf(IsBooleanMap(receiver_value_map), &if_value_is_boolean);
+    GotoIf(IsSymbolMap(receiver_value_map), &if_value_is_symbol);
     Node* receiver_value_instance_type =
         LoadMapInstanceType(receiver_value_map);
-    GotoIf(IsBigIntInstanceType(receiver_value_instance_type), &if_bigint);
+    GotoIf(IsBigIntInstanceType(receiver_value_instance_type),
+           &if_value_is_bigint);
     CSA_ASSERT(this, IsStringInstanceType(receiver_value_instance_type));
-    Goto(&if_string);
+    Goto(&if_value_is_string);
+
+    BIND(&if_value_is_number);
+    {
+      var_default.Bind(LoadRoot(RootIndex::knumber_to_string));
+      Goto(&checkstringtag);
+    }
+
+    BIND(&if_value_is_boolean);
+    {
+      var_default.Bind(LoadRoot(RootIndex::kboolean_to_string));
+      Goto(&checkstringtag);
+    }
+
+    BIND(&if_value_is_string);
+    {
+      var_default.Bind(LoadRoot(RootIndex::kstring_to_string));
+      Goto(&checkstringtag);
+    }
+
+    BIND(&if_value_is_bigint);
+    {
+      var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+      Goto(&checkstringtag);
+    }
+
+    BIND(&if_value_is_symbol);
+    {
+      var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+      Goto(&checkstringtag);
+    }
   }
 
   BIND(&checkstringtag);
