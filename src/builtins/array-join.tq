@@ -89,13 +89,13 @@ namespace array {
   // Verifies the current element JSArray accessor can still be safely used
   // (see LoadJoinElement<ElementsAccessor>).
   macro CannotUseSameArrayAccessor<T: type>(implicit context: Context)(
-      loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-      originalLen: Number): never
+      useToLocaleString: constexpr bool, loadFn: LoadJoinElementFn,
+      receiver: JSReceiver, originalMap: Map, originalLen: Number): never
       labels Cannot, Can;
 
   CannotUseSameArrayAccessor<JSArray>(implicit context: Context)(
-      loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-      originalLen: Number): never
+      useToLocaleString: constexpr bool, loadFn: LoadJoinElementFn,
+      receiver: JSReceiver, originalMap: Map, originalLen: Number): never
       labels Cannot, Can {
     if (loadFn == LoadJoinElement<GenericElementsAccessor>) goto Can;
 
@@ -107,14 +107,17 @@ namespace array {
   }
 
   CannotUseSameArrayAccessor<JSTypedArray>(implicit context: Context)(
-      loadFn: LoadJoinElementFn, receiver: JSReceiver, initialMap: Map,
-      initialLen: Number): never
+      useToLocaleString: constexpr bool, loadFn: LoadJoinElementFn,
+      receiver: JSReceiver, initialMap: Map, initialLen: Number): never
       labels Cannot, Can {
-    // It is assumed that neither loading a typed array element nor converting a
-    // number to string have side-effects. As such, it safe to use the initial
-    // LoadJoinElement specialization and it cannot change through out the join
-    // call.
-    assert(!IsDetachedBuffer(UnsafeCast<JSTypedArray>(receiver).buffer));
+    const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
+    // It is assumed that calling toLocaleString is the only possible source
+    // of side-effects. Otherwise, it is safe to use the initial LoadJoinElement
+    // specialization and it cannot change through out the join call.
+    if constexpr (useToLocaleString) {
+      if (IsDetachedBuffer(typedArray.buffer)) goto Cannot;
+    }
+    assert(!IsDetachedBuffer(typedArray.buffer));
     goto Can;
   }
 
@@ -293,7 +296,7 @@ namespace array {
         // a. If k > 0, let R be the string-concatenation of R and sep.
         nofSeparators = nofSeparators + 1;
         if (CannotUseSameArrayAccessor<T>(
-                loadFn, receiver, initialMap, lengthNumber))
+                useToLocaleString, loadFn, receiver, initialMap, lengthNumber))
           deferred {
             loadFn = LoadJoinElement<GenericElementsAccessor>;
           }
