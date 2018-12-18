@@ -241,7 +241,7 @@ static double BinaryOpC(Token::Value op, double lhs, double rhs) {
     case Token::Value::DIV:
       return lhs / rhs;
     case Token::Value::MOD:
-      return std::fmod(lhs, rhs);
+      return Modulo(lhs, rhs);
     case Token::Value::BIT_OR:
       return (v8::internal::DoubleToInt32(lhs) |
               v8::internal::DoubleToInt32(rhs));

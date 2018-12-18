@@ -228,7 +228,11 @@ inline double Modulo(double x, double y) {
   // dividend is a zero and divisor is nonzero finite => result equals dividend
   if (!(std::isfinite(x) && (!std::isfinite(y) && !std::isnan(y))) &&
       !(x == 0 && (y != 0 && std::isfinite(y)))) {
-    x = fmod(x, y);
+    double result = fmod(x, y);
+    // Workaround MS bug in VS CRT in some OS versions, https://crbug.com/915045
+    // fmod(-17, +/-1) should equal -0.0 but now returns 0.0.
+    if (x < 0 && result == 0) result = -0.0;
+    x = result;
   }
   return x;
 #elif defined(V8_OS_AIX)
