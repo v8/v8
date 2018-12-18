@@ -118,12 +118,10 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   // Start collecting data for a new function which might contain skippable
   // functions.
-  std::unique_ptr<PreParsedScopeDataBuilder::DataGatheringScope>
-      preparsed_scope_data_builder_scope;
+  PreParsedScopeDataBuilder::DataGatheringScope
+      preparsed_scope_data_builder_scope(this);
   if (!IsArrowFunction(kind)) {
-    preparsed_scope_data_builder_scope.reset(
-        new PreParsedScopeDataBuilder::DataGatheringScope(function_scope,
-                                                          this));
+    preparsed_scope_data_builder_scope.Start(function_scope);
   }
 
   // In the preparser, we use the function literal ids to count how many
@@ -288,14 +286,12 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Start collecting data for a new function which might contain skippable
   // functions.
   {
-    std::unique_ptr<PreParsedScopeDataBuilder::DataGatheringScope>
-        preparsed_scope_data_builder_scope;
-    if (!function_state_->next_function_is_likely_called() &&
-        preparsed_scope_data_builder_ != nullptr) {
-      skippable_function = true;
-      preparsed_scope_data_builder_scope.reset(
-          new PreParsedScopeDataBuilder::DataGatheringScope(function_scope,
-                                                            this));
+    PreParsedScopeDataBuilder::DataGatheringScope
+        preparsed_scope_data_builder_scope(this);
+    skippable_function = !function_state_->next_function_is_likely_called() &&
+                         preparsed_scope_data_builder_ != nullptr;
+    if (skippable_function) {
+      preparsed_scope_data_builder_scope.Start(function_scope);
     }
 
     FunctionState function_state(&function_state_, &scope_, function_scope);

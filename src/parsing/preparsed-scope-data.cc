@@ -42,10 +42,10 @@ STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
   ------------------------------------
   | scope_data_start (debug only)    |
   ------------------------------------
-  | data for inner function 1        |
+  | data for inner function n        |
   | ...                              |
   ------------------------------------
-  | data for inner function n        |
+  | data for inner function 1        |
   | ...                              |
   ------------------------------------
   (Scope allocation data:)             << scope_data_start points here in debug
@@ -62,12 +62,12 @@ STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
   | ----------------------           |
   ------------------------------------
   ------------------------------------
-  | data for inner scope 1           | << but not for function scopes
+  | data for inner scope m           | << but not for function scopes
   | ...                              |
   ------------------------------------
   ...
   ------------------------------------
-  | data for inner scope m           |
+  | data for inner scope 1           |
   | ...                              |
   ------------------------------------
 
@@ -161,17 +161,18 @@ PreParsedScopeDataBuilder::PreParsedScopeDataBuilder(
 #endif
 }
 
-PreParsedScopeDataBuilder::DataGatheringScope::DataGatheringScope(
-    DeclarationScope* function_scope, PreParser* preparser)
-    : preparser_(preparser), builder_(nullptr) {
-  PreParsedScopeDataBuilder* parent = preparser->preparsed_scope_data_builder();
-  Zone* main_zone = preparser->main_zone();
+void PreParsedScopeDataBuilder::DataGatheringScope::Start(
+    DeclarationScope* function_scope) {
+  PreParsedScopeDataBuilder* parent =
+      preparser_->preparsed_scope_data_builder();
+  Zone* main_zone = preparser_->main_zone();
   builder_ = new (main_zone) PreParsedScopeDataBuilder(main_zone, parent);
-  preparser->set_preparsed_scope_data_builder(builder_);
+  preparser_->set_preparsed_scope_data_builder(builder_);
   function_scope->set_preparsed_scope_data_builder(builder_);
 }
 
 PreParsedScopeDataBuilder::DataGatheringScope::~DataGatheringScope() {
+  if (builder_ == nullptr) return;
   preparser_->set_preparsed_scope_data_builder(builder_->parent_);
 }
 
