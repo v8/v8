@@ -233,6 +233,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
+  if (function->shared()->optimization_disabled() &&
+      function->shared()->disable_optimization_reason() ==
+          BailoutReason::kNeverOptimize) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
   // If the function is already optimized, just return.
   if (function->IsOptimized() || function->shared()->HasAsmWasmData()) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -296,6 +302,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return ReadOnlyRoots(isolate).undefined_value();
 
+  if (function->shared()->optimization_disabled() &&
+      function->shared()->disable_optimization_reason() ==
+          BailoutReason::kNeverOptimize) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
   // Ensure that the function is marked for non-concurrent optimization, so that
   // subsequent runs don't also optimize.
   if (!function->HasOptimizedCode()) {
@@ -328,8 +340,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-  function->shared()->DisableOptimization(
-      BailoutReason::kOptimizationDisabledForTest);
+  function->shared()->DisableOptimization(BailoutReason::kNeverOptimize);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

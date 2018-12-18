@@ -34,6 +34,16 @@
   'debugger/evaluate-on-call-frame-in-module': [PASS, FAIL],
 }],  # variant != default
 
+['lite_mode == True', {
+  # Lite mode does not allocate feedback vector.
+  'type-profiler/type-profile-start-stop': [SKIP],
+  'type-profiler/type-profile': [SKIP],
+  'type-profiler/type-profile-with-to-string-tag': [SKIP],
+  'type-profiler/type-profile-with-classes': [SKIP],
+  'type-profiler/type-profile-disable': [SKIP]
+}],  # 'lite_mode == True'
+
+
 ##############################################################################
 ['(arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783

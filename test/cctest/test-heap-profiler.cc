@@ -2447,6 +2447,8 @@ TEST(ManyLocalsInSharedContext) {
 
 
 TEST(AllocationSitesAreVisible) {
+  if (i::FLAG_lite_mode) return;
+
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -2690,7 +2692,9 @@ TEST(TrackHeapAllocationsWithInlining) {
   const char* names[] = {"", "start", "f_0_0"};
   AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
   CHECK(node);
-  CHECK_GE(node->allocation_count(), 8u);
+  // In lite mode, there is feedback and feedback metadata.
+  unsigned int num_nodes = (i::FLAG_lite_mode) ? 6 : 8;
+  CHECK_GE(node->allocation_count(), num_nodes);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
   heap_profiler->StopTrackingHeapObjects();
 }
