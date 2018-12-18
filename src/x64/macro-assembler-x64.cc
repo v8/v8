@@ -1638,18 +1638,28 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 }
 
 void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  STATIC_ASSERT(kSystemPointerSize == 8);
+  STATIC_ASSERT(kSmiShiftSize == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
+
+  // The builtin_pointer register contains the builtin index as a Smi.
+  // Untagging is folded into the indexing operand below (we use times_4 instead
+  // of times_8 since smis are already shifted by one).
+  Call(Operand(kRootRegister, builtin_pointer, times_4,
+               IsolateData::builtin_entry_table_offset()));
+#else   // V8_COMPRESS_POINTERS
   STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
-  // TODO(jgruber,ishell): With pointer compression, untagging could be folded
-  // into the operand below.
-
   // The builtin_pointer register contains the builtin index as a Smi.
   SmiUntag(builtin_pointer, builtin_pointer);
   Call(Operand(kRootRegister, builtin_pointer, times_8,
                IsolateData::builtin_entry_table_offset()));
+#endif  // defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
 }
 
 void TurboAssembler::RetpolineCall(Register reg) {
