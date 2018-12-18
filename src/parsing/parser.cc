@@ -407,21 +407,22 @@ Parser::Parser(ParseInfo* info)
   // of functions without an outer context when setting a breakpoint through
   // Debug::FindSharedFunctionInfoInScript
   // We also compile eagerly for kProduceExhaustiveCodeCache.
-  bool can_compile_lazily = FLAG_lazy && !info->is_eager();
+  bool can_compile_lazily = info->allow_lazy_compile() && !info->is_eager();
 
   set_default_eager_compile_hint(can_compile_lazily
                                      ? FunctionLiteral::kShouldLazyCompile
                                      : FunctionLiteral::kShouldEagerCompile);
-  allow_lazy_ = FLAG_lazy && info->allow_lazy_parsing() && !info->is_native() &&
-                info->extension() == nullptr && can_compile_lazily;
-  set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
-  set_allow_harmony_public_fields(FLAG_harmony_public_fields);
-  set_allow_harmony_static_fields(FLAG_harmony_static_fields);
-  set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
-  set_allow_harmony_import_meta(FLAG_harmony_import_meta);
-  set_allow_harmony_numeric_separator(FLAG_harmony_numeric_separator);
-  set_allow_harmony_private_fields(FLAG_harmony_private_fields);
-  set_allow_harmony_private_methods(FLAG_harmony_private_methods);
+  allow_lazy_ = info->allow_lazy_compile() && info->allow_lazy_parsing() &&
+                !info->is_native() && info->extension() == nullptr &&
+                can_compile_lazily;
+  set_allow_natives(info->allow_natives_syntax() || info->is_native());
+  set_allow_harmony_public_fields(info->allow_harmony_public_fields());
+  set_allow_harmony_static_fields(info->allow_harmony_static_fields());
+  set_allow_harmony_dynamic_import(info->allow_harmony_dynamic_import());
+  set_allow_harmony_import_meta(info->allow_harmony_import_meta());
+  set_allow_harmony_numeric_separator(info->allow_harmony_numeric_separator());
+  set_allow_harmony_private_fields(info->allow_harmony_private_fields());
+  set_allow_harmony_private_methods(info->allow_harmony_private_methods());
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -2503,7 +2504,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // parenthesis before the function means that it will be called
   // immediately). bar can be parsed lazily, but we need to parse it in a mode
   // that tracks unresolved variables.
-  DCHECK_IMPLIES(parse_lazily(), FLAG_lazy);
+  DCHECK_IMPLIES(parse_lazily(), info()->allow_lazy_compile());
   DCHECK_IMPLIES(parse_lazily(), has_error() || allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
 

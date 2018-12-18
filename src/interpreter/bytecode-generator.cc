@@ -1806,7 +1806,8 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   DCHECK(expr->scope()->outer_scope() == current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
-      expr->pretenure(), closure_scope()->is_function_scope());
+      expr->pretenure(), closure_scope()->is_function_scope(),
+      info()->might_always_opt());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   FeedbackSlot slot = GetCachedCreateClosureSlot(expr);
   builder()->CreateClosure(entry, feedback_index(slot), flags);

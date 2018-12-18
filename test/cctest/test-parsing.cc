@@ -1613,10 +1613,10 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   // Parse the data
   i::FunctionLiteral* function;
   {
+    SetGlobalFlags(flags);
     i::Handle<i::Script> script = factory->NewScript(source);
     i::ParseInfo info(isolate, script);
     info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
-    SetGlobalFlags(flags);
     if (is_module) info.set_module();
     i::parsing::ParseProgram(&info, isolate);
     function = info.literal();
@@ -11050,6 +11050,7 @@ TEST(PrivateNamesSyntaxError) {
   LocalContext env;
 
   auto test = [isolate](const char* program, bool is_lazy) {
+    i::FLAG_harmony_private_fields = true;
     i::Factory* const factory = isolate->factory();
     i::Handle<i::String> source =
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
@@ -11057,7 +11058,6 @@ TEST(PrivateNamesSyntaxError) {
     i::ParseInfo info(isolate, script);
 
     info.set_allow_lazy_parsing(is_lazy);
-    i::FLAG_harmony_private_fields = true;
     CHECK(i::parsing::ParseProgram(&info, isolate));
     CHECK(i::Rewriter::Rewrite(&info));
     CHECK(!i::DeclarationScope::Analyze(&info));
