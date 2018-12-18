@@ -359,6 +359,16 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
     ],
   },
+  'v8_linux64_arm64_pointer_compression_rel_ng_triggered': {
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 7},
+    ],
+  },
   ##############################################################################
   # Odroids with native arm
   'v8_odroid_arm_rel_ng_triggered': {
@@ -1335,6 +1345,16 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
+    ],
+  },
+  'V8 Linux64 - arm64 - sim - pointer compression': {
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 7},
     ],
   },
   'V8 Mips - big endian - nosnap': {
