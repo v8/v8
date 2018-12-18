@@ -1187,24 +1187,27 @@ class ModuleDecoderImpl : public Decoder {
 
   // Calculate individual global offsets and total size of globals table.
   void CalculateGlobalOffsets(WasmModule* module) {
-    uint32_t offset = 0;
+    uint32_t untagged_offset = 0;
+    uint32_t tagged_offset = 0;
     uint32_t num_imported_mutable_globals = 0;
-    if (module->globals.size() == 0) {
-      module->globals_buffer_size = 0;
-      return;
-    }
     for (WasmGlobal& global : module->globals) {
-      byte size = ValueTypes::MemSize(ValueTypes::MachineTypeFor(global.type));
       if (global.mutability && global.imported) {
         DCHECK(enabled_features_.mut_global);
         global.index = num_imported_mutable_globals++;
+      } else if (global.type == ValueType::kWasmAnyRef) {
+        global.offset = tagged_offset;
+        // All entries in the tagged_globals_buffer have size 1.
+        tagged_offset++;
       } else {
-        offset = (offset + size - 1) & ~(size - 1);  // align
-        global.offset = offset;
-        offset += size;
+        byte size =
+            ValueTypes::MemSize(ValueTypes::MachineTypeFor(global.type));
+        untagged_offset = (untagged_offset + size - 1) & ~(size - 1);  // align
+        global.offset = untagged_offset;
+        untagged_offset += size;
       }
     }
-    module->globals_buffer_size = offset;
+    module->untagged_globals_buffer_size = untagged_offset;
+    module->tagged_globals_buffer_size = tagged_offset;
   }
 
   // Verifies the body (code) of a given function.

@@ -3145,22 +3145,36 @@ Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
 }
 
 Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
+  if (env_->module->globals[index].type == wasm::ValueType::kWasmAnyRef) {
+    Node* globals =
+        LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());
+    return LOAD_FIXED_ARRAY_SLOT_ANY(globals,
+                                     env_->module->globals[index].offset);
+  }
+
   MachineType mem_type =
       wasm::ValueTypes::MachineTypeFor(env_->module->globals[index].type);
   Node* base = nullptr;
   Node* offset = nullptr;
   GetGlobalBaseAndOffset(mem_type, env_->module->globals[index], &base,
                          &offset);
-  Node* load = SetEffect(graph()->NewNode(mcgraph()->machine()->Load(mem_type),
-                                          base, offset, Effect(), Control()));
+  Node* result = SetEffect(graph()->NewNode(
+      mcgraph()->machine()->Load(mem_type), base, offset, Effect(), Control()));
 #if defined(V8_TARGET_BIG_ENDIAN)
-  load = BuildChangeEndiannessLoad(load, mem_type,
-                                   env_->module->globals[index].type);
+  result = BuildChangeEndiannessLoad(result, mem_type,
+                                     env_->module->globals[index].type);
 #endif
-  return load;
+  return result;
 }
 
 Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
+  if (env_->module->globals[index].type == wasm::ValueType::kWasmAnyRef) {
+    Node* globals =
+        LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());
+    return STORE_FIXED_ARRAY_SLOT_ANY(globals,
+                                      env_->module->globals[index].offset, val);
+  }
+
   MachineType mem_type =
       wasm::ValueTypes::MachineTypeFor(env_->module->globals[index].type);
   Node* base = nullptr;

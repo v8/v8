@@ -204,8 +204,10 @@ ACCESSORS2(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
 ACCESSORS2(WasmInstanceObject, native_context, Context, kNativeContextOffset)
 OPTIONAL_ACCESSORS2(WasmInstanceObject, memory_object, WasmMemoryObject,
                     kMemoryObjectOffset)
-OPTIONAL_ACCESSORS2(WasmInstanceObject, globals_buffer, JSArrayBuffer,
-                    kGlobalsBufferOffset)
+OPTIONAL_ACCESSORS2(WasmInstanceObject, untagged_globals_buffer, JSArrayBuffer,
+                    kUntaggedGlobalsBufferOffset)
+OPTIONAL_ACCESSORS2(WasmInstanceObject, tagged_globals_buffer, FixedArray,
+                    kTaggedGlobalsBufferOffset)
 OPTIONAL_ACCESSORS2(WasmInstanceObject, imported_mutable_globals_buffers,
                     FixedArray, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS2(WasmInstanceObject, debug_info, WasmDebugInfo,

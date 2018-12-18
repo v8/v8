@@ -165,7 +165,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmGlobal> globals;
   // Size of the buffer required for all globals that are not imported and
   // mutable.
-  uint32_t globals_buffer_size = 0;
+  uint32_t untagged_globals_buffer_size = 0;
+  uint32_t tagged_globals_buffer_size = 0;
   uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
   uint32_t num_declared_functions = 0;  // excluding imported

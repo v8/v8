@@ -500,6 +500,9 @@ class WasmModuleBuilder {
               section.emit_u8(byte_view[6]);
               section.emit_u8(byte_view[7]);
               break;
+            case kWasmAnyRef:
+              section.emit_u8(kExprRefNull);
+              break;
             }
           } else {
             // Emit a global-index initializer.

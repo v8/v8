@@ -1782,8 +1782,11 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
   if (has_memory_object()) {
     os << "\n - memory_object: " << Brief(memory_object());
   }
-  if (has_globals_buffer()) {
-    os << "\n - globals_buffer: " << Brief(globals_buffer());
+  if (has_untagged_globals_buffer()) {
+    os << "\n - untagged_globals_buffer: " << Brief(untagged_globals_buffer());
+  }
+  if (has_tagged_globals_buffer()) {
+    os << "\n - tagged_globals_buffer: " << Brief(tagged_globals_buffer());
   }
   if (has_imported_mutable_globals_buffers()) {
     os << "\n - imported_mutable_globals_buffers: "

@@ -394,7 +394,8 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS2(exports_object, JSObject)
   DECL_ACCESSORS2(native_context, Context)
   DECL_OPTIONAL_ACCESSORS2(memory_object, WasmMemoryObject)
-  DECL_OPTIONAL_ACCESSORS2(globals_buffer, JSArrayBuffer)
+  DECL_OPTIONAL_ACCESSORS2(untagged_globals_buffer, JSArrayBuffer)
+  DECL_OPTIONAL_ACCESSORS2(tagged_globals_buffer, FixedArray)
   DECL_OPTIONAL_ACCESSORS2(imported_mutable_globals_buffers, FixedArray)
   DECL_OPTIONAL_ACCESSORS2(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS2(table_object, WasmTableObject)
@@ -432,7 +433,8 @@ class WasmInstanceObject : public JSObject {
   V(kExportsObjectOffset, kPointerSize)                                 \
   V(kNativeContextOffset, kPointerSize)                                 \
   V(kMemoryObjectOffset, kPointerSize)                                  \
-  V(kGlobalsBufferOffset, kPointerSize)                                 \
+  V(kUntaggedGlobalsBufferOffset, kPointerSize)                         \
+  V(kTaggedGlobalsBufferOffset, kPointerSize)                           \
   V(kImportedMutableGlobalsBuffersOffset, kPointerSize)                 \
   V(kDebugInfoOffset, kPointerSize)                                     \
   V(kTableObjectOffset, kPointerSize)                                   \

@@ -26,7 +26,7 @@ TestingModuleBuilder::TestingModuleBuilder(
       runtime_exception_support_(exception_support),
       lower_simd_(lower_simd) {
   WasmJs::Install(isolate_, true);
-  test_module_->globals_buffer_size = kMaxGlobalsSize;
+  test_module_->untagged_globals_buffer_size = kMaxGlobalsSize;
   memset(globals_data_, 0, sizeof(globals_data_));
 
   uint32_t maybe_import_index = 0;

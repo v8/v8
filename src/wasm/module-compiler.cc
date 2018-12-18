@@ -354,7 +354,8 @@ class InstanceBuilder {
   Handle<WasmModuleObject> module_object_;
   MaybeHandle<JSReceiver> ffi_;
   MaybeHandle<JSArrayBuffer> memory_;
-  Handle<JSArrayBuffer> globals_;
+  Handle<JSArrayBuffer> untagged_globals_;
+  Handle<FixedArray> tagged_globals_;
   std::vector<TableInstance> table_instances_;
   std::vector<Handle<JSFunction>> js_wrappers_;
   std::vector<Handle<WasmExceptionObject>> exception_wrappers_;
@@ -1142,28 +1143,35 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up the globals for the new instance.
   //--------------------------------------------------------------------------
-  uint32_t globals_buffer_size = module_->globals_buffer_size;
-  if (globals_buffer_size > 0) {
-    void* backing_store =
-        isolate_->array_buffer_allocator()->Allocate(globals_buffer_size);
+  uint32_t untagged_globals_buffer_size = module_->untagged_globals_buffer_size;
+  if (untagged_globals_buffer_size > 0) {
+    void* backing_store = isolate_->array_buffer_allocator()->Allocate(
+        untagged_globals_buffer_size);
     if (backing_store == nullptr) {
       thrower_->RangeError("Out of memory: wasm globals");
       return {};
     }
-    globals_ =
+    untagged_globals_ =
         isolate_->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, TENURED);
     constexpr bool is_external = false;
     constexpr bool is_wasm_memory = false;
-    JSArrayBuffer::Setup(globals_, isolate_, is_external, backing_store,
-                         globals_buffer_size, SharedFlag::kNotShared,
-                         is_wasm_memory);
-    if (globals_.is_null()) {
+    JSArrayBuffer::Setup(untagged_globals_, isolate_, is_external,
+                         backing_store, untagged_globals_buffer_size,
+                         SharedFlag::kNotShared, is_wasm_memory);
+    if (untagged_globals_.is_null()) {
       thrower_->RangeError("Out of memory: wasm globals");
       return {};
     }
     instance->set_globals_start(
-        reinterpret_cast<byte*>(globals_->backing_store()));
-    instance->set_globals_buffer(*globals_);
+        reinterpret_cast<byte*>(untagged_globals_->backing_store()));
+    instance->set_untagged_globals_buffer(*untagged_globals_);
+  }
+
+  uint32_t tagged_globals_buffer_size = module_->tagged_globals_buffer_size;
+  if (tagged_globals_buffer_size > 0) {
+    tagged_globals_ = isolate_->factory()->NewFixedArray(
+        static_cast<int>(tagged_globals_buffer_size));
+    instance->set_tagged_globals_buffer(*tagged_globals_);
   }
 
   //--------------------------------------------------------------------------
@@ -1425,7 +1433,7 @@ uint32_t InstanceBuilder::EvalUint32InitExpr(const WasmInitExpr& expr) {
     case WasmInitExpr::kGlobalIndex: {
       uint32_t offset = module_->globals[expr.val.global_index].offset;
       return ReadLittleEndianValue<uint32_t>(
-          reinterpret_cast<Address>(raw_buffer_ptr(globals_, offset)));
+          reinterpret_cast<Address>(raw_buffer_ptr(untagged_globals_, offset)));
     }
     default:
       UNREACHABLE();
@@ -1452,8 +1460,8 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
 
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
   TRACE("init [globals_start=%p + %u] = %lf, type = %s\n",
-        reinterpret_cast<void*>(raw_buffer_ptr(globals_, 0)), global.offset,
-        num, ValueTypes::TypeName(global.type));
+        reinterpret_cast<void*>(raw_buffer_ptr(untagged_globals_, 0)),
+        global.offset, num, ValueTypes::TypeName(global.type));
   switch (global.type) {
     case kWasmI32:
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
@@ -1479,7 +1487,8 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
                                        Handle<WasmGlobalObject> value) {
   TRACE("init [globals_start=%p + %u] = ",
-        reinterpret_cast<void*>(raw_buffer_ptr(globals_, 0)), global.offset);
+        reinterpret_cast<void*>(raw_buffer_ptr(untagged_globals_, 0)),
+        global.offset);
   switch (global.type) {
     case kWasmI32: {
       int32_t num = value->GetI32();
@@ -1767,7 +1776,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
       }
       case kExternalGlobal: {
         // Immutable global imports are converted to numbers and written into
-        // the {globals_} array buffer.
+        // the {untagged_globals_} array buffer.
         //
         // Mutable global imports instead have their backing array buffers
         // referenced by this instance, and store the address of the imported
@@ -1909,7 +1918,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
 
 template <typename T>
 T* InstanceBuilder::GetRawGlobalPtr(const WasmGlobal& global) {
-  return reinterpret_cast<T*>(raw_buffer_ptr(globals_, global.offset));
+  return reinterpret_cast<T*>(raw_buffer_ptr(untagged_globals_, global.offset));
 }
 
 // Process initialization of globals.
@@ -1936,7 +1945,24 @@ void InstanceBuilder::InitGlobals() {
         WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global),
                                        global.init.val.f64_const);
         break;
+      case WasmInitExpr::kAnyRefConst:
+        DCHECK(enabled_.anyref);
+        if (global.imported) break;  // We already initialized imported globals.
+
+        tagged_globals_->set(global.offset,
+                             ReadOnlyRoots(isolate_).null_value(),
+                             SKIP_WRITE_BARRIER);
+        break;
       case WasmInitExpr::kGlobalIndex: {
+        if (global.type == ValueType::kWasmAnyRef) {
+          DCHECK(enabled_.anyref);
+          int other_offset =
+              module_->globals[global.init.val.global_index].offset;
+
+          tagged_globals_->set(global.offset,
+                               tagged_globals_->get(other_offset),
+                               SKIP_WRITE_BARRIER);
+        }
         // Initialize with another global.
         uint32_t new_offset = global.offset;
         uint32_t old_offset =
@@ -1945,8 +1971,8 @@ void InstanceBuilder::InitGlobals() {
         size_t size = (global.type == kWasmI64 || global.type == kWasmF64)
                           ? sizeof(double)
                           : sizeof(int32_t);
-        memcpy(raw_buffer_ptr(globals_, new_offset),
-               raw_buffer_ptr(globals_, old_offset), size);
+        memcpy(raw_buffer_ptr(untagged_globals_, new_offset),
+               raw_buffer_ptr(untagged_globals_, old_offset), size);
         break;
       }
       case WasmInitExpr::kNone:
@@ -2126,7 +2152,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
                   global_addr < backing_store + buffer_size);
             offset = static_cast<uint32_t>(global_addr - backing_store);
           } else {
-            buffer = handle(instance->globals_buffer(), isolate_);
+            buffer = handle(instance->untagged_globals_buffer(), isolate_);
             offset = global.offset;
           }
 
