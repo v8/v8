@@ -715,7 +715,7 @@ class AsmWasmData : public Struct {
   DECL_ACCESSORS2(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS2(export_wrappers, FixedArray)
   DECL_ACCESSORS2(asm_js_offset_table, ByteArray)
-  DECL_ACCESSORS(uses_bitset, HeapNumber)
+  DECL_ACCESSORS2(uses_bitset, HeapNumber)
 
   DECL_CAST2(AsmWasmData)
   DECL_PRINTER(AsmWasmData)

@@ -210,11 +210,11 @@ class RootVisitor;
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   /* Special numbers */                                                        \
-  V(HeapNumber*, nan_value, NanValue)                                          \
-  V(HeapNumber*, hole_nan_value, HoleNanValue)                                 \
-  V(HeapNumber*, infinity_value, InfinityValue)                                \
-  V(HeapNumber*, minus_zero_value, MinusZeroValue)                             \
-  V(HeapNumber*, minus_infinity_value, MinusInfinityValue)                     \
+  V(HeapNumber, nan_value, NanValue)                                           \
+  V(HeapNumber, hole_nan_value, HoleNanValue)                                  \
+  V(HeapNumber, infinity_value, InfinityValue)                                 \
+  V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
+  V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
   /* Marker for self-references during code-generation */                      \
   V(HeapObject*, self_reference_marker, SelfReferenceMarker)                   \
   /* Canonical trampoline RelocInfo */                                         \

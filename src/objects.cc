@@ -18720,7 +18720,7 @@ Handle<Object> JSDate::SetValue(Handle<JSDate> date, double v) {
 void JSDate::SetValue(Object* value, bool is_value_nan) {
   set_value(value);
   if (is_value_nan) {
-    HeapNumber* nan = GetReadOnlyRoots().nan_value();
+    HeapNumber nan = GetReadOnlyRoots().nan_value();
     set_cache_stamp(nan, SKIP_WRITE_BARRIER);
     set_year(nan, SKIP_WRITE_BARRIER);
     set_month(nan, SKIP_WRITE_BARRIER);

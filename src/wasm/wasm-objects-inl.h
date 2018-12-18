@@ -291,7 +291,7 @@ ACCESSORS2(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,
            kManagedNativeModuleOffset)
 ACCESSORS2(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS2(AsmWasmData, asm_js_offset_table, ByteArray, kAsmJsOffsetTableOffset)
-ACCESSORS(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
+ACCESSORS2(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
 
 #include "src/objects/object-macros-undef.h"
 

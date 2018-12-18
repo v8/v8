@@ -162,12 +162,15 @@ class Handle final : public HandleBase {
             std::is_same<S, FixedArrayBase>::value ||
             std::is_same<S, FixedDoubleArray>::value ||
             std::is_same<S, FunctionTemplateInfo>::value ||
+            std::is_same<S, HeapNumber>::value ||
             std::is_same<S, JSArray>::value ||
             std::is_same<S, JSFunction>::value ||
             std::is_same<S, JSGlobalProxy>::value ||
             std::is_same<S, JSObject>::value ||
             std::is_same<S, JSReceiver>::value || std::is_same<S, Map>::value ||
-            std::is_same<S, Module>::value || std::is_same<S, Name>::value ||
+            std::is_same<S, Module>::value ||
+            std::is_same<S, MutableHeapNumber>::value ||
+            std::is_same<S, Name>::value ||
             std::is_same<S, NumberDictionary>::value ||
             std::is_same<S, ObjectBoilerplateDescription>::value ||
             std::is_same<S, OrderedHashMap>::value ||

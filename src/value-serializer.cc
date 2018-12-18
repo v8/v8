@@ -426,12 +426,12 @@ void ValueSerializer::WriteSmi(Smi smi) {
   WriteZigZag<int32_t>(smi->value());
 }
 
-void ValueSerializer::WriteHeapNumber(HeapNumber* number) {
+void ValueSerializer::WriteHeapNumber(HeapNumber number) {
   WriteTag(SerializationTag::kDouble);
   WriteDouble(number->value());
 }
 
-void ValueSerializer::WriteMutableHeapNumber(MutableHeapNumber* number) {
+void ValueSerializer::WriteMutableHeapNumber(MutableHeapNumber number) {
   WriteTag(SerializationTag::kDouble);
   WriteDouble(number->value());
 }

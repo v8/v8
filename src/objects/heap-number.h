@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_HEAP_NUMBER_H_
 #define V8_OBJECTS_HEAP_NUMBER_H_
 
-#include "src/objects.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,7 +17,7 @@ namespace internal {
 // represented in a Smi (small integer). MutableHeapNumber is the same, but its
 // number value can change over time (it is used only as property storage).
 // HeapNumberBase merely exists to avoid code duplication.
-class HeapNumberBase : public HeapObject {
+class HeapNumberBase : public HeapObjectPtr {
  public:
   // [value]: number value.
   inline double value() const;
@@ -58,26 +58,27 @@ class HeapNumberBase : public HeapObject {
   static const int kMantissaBitsInTopWord = 20;
   static const int kNonMantissaBitsInTopWord = 12;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumberBase);
+  // Just to make the macro-generated constructor happy. Subclasses should
+  // perform their own proper type checking.
+  inline bool IsHeapNumberBase() const { return true; }
+
+  OBJECT_CONSTRUCTORS(HeapNumberBase, HeapObjectPtr);
 };
 
 class HeapNumber : public HeapNumberBase {
  public:
-  DECL_CAST(HeapNumber)
+  DECL_CAST2(HeapNumber)
   V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber);
+  OBJECT_CONSTRUCTORS(HeapNumber, HeapNumberBase);
 };
 
 class MutableHeapNumber : public HeapNumberBase {
  public:
-  DECL_CAST(MutableHeapNumber)
+  DECL_CAST2(MutableHeapNumber)
   V8_EXPORT_PRIVATE void MutableHeapNumberPrint(std::ostream& os);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(MutableHeapNumber);
+  OBJECT_CONSTRUCTORS(MutableHeapNumber, HeapNumberBase);
 };
 
 }  // namespace internal

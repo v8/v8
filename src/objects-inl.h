@@ -408,7 +408,7 @@ STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 double Object::Number() const {
   DCHECK(IsNumber());
   return IsSmi() ? static_cast<double>(Smi(this->ptr())->value())
-                 : reinterpret_cast<const HeapNumber*>(this)->value();
+                 : HeapNumber::unchecked_cast(this)->value();
 }
 
 bool Object::IsNaN() const {
