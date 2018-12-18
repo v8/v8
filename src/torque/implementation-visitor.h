@@ -141,7 +141,7 @@ class Binding : public T {
   const std::string name_;
   base::Optional<Binding*> previous_binding_;
   SourcePosition declaration_position_ = CurrentSourcePosition::Get();
-  DISALLOW_COPY_AND_MOVE_AND_ASSIGN(Binding);
+  DISALLOW_COPY_AND_ASSIGN(Binding);
 };
 
 template <class T>

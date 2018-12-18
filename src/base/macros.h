@@ -112,15 +112,11 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete
 
 // Explicitly declare the copy constructor and assignment operator as deleted.
+// This also deletes the implicit move constructor and implicit move assignment
+// operator, but still allows to manually define them.
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;      \
   DISALLOW_ASSIGN(TypeName)
-
-// Explicitly declare all copy/move constructors and assignments as deleted.
-#define DISALLOW_COPY_AND_MOVE_AND_ASSIGN(TypeName) \
-  TypeName(TypeName&&) = delete;                    \
-  TypeName& operator=(TypeName&&) = delete;         \
-  DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 // Explicitly declare all implicit constructors as deleted, namely the
 // default constructor, copy constructor and operator= functions.
