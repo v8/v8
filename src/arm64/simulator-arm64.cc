@@ -537,13 +537,13 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
           reinterpret_cast<SimulatorRuntimeCall>(external);
       ObjectPair result =
           target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-      TraceSim("Returned: {%p, %p}\n", static_cast<void*>(result.x),
-               static_cast<void*>(result.y));
+      TraceSim("Returned: {%p, %p}\n", reinterpret_cast<void*>(result.x),
+               reinterpret_cast<void*>(result.y));
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
 #endif
-      set_xreg(0, reinterpret_cast<int64_t>(result.x));
-      set_xreg(1, reinterpret_cast<int64_t>(result.y));
+      set_xreg(0, static_cast<int64_t>(result.x));
+      set_xreg(1, static_cast<int64_t>(result.y));
       break;
     }
 

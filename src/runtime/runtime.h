@@ -623,7 +623,7 @@ namespace internal {
 #define FOR_EACH_INLINE_INTRINSIC(I) FOR_EACH_INTRINSIC_IMPL(NOTHING, I)
 
 #define F(name, nargs, ressize)                                 \
-  Object* Runtime_##name(int args_length, Address* args_object, \
+  Address Runtime_##name(int args_length, Address* args_object, \
                          Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 #undef F

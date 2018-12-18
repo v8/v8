@@ -88,8 +88,9 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                             \
-  static V8_INLINE Type __RT_impl_##Name(Arguments args, Isolate* isolate);   \
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)      \
+  static V8_INLINE InternalType __RT_impl_##Name(Arguments args,              \
+                                                 Isolate* isolate);           \
                                                                               \
   V8_NOINLINE static Type Stats_##Name(int args_length, Address* args_object, \
                                        Isolate* isolate) {                    \
@@ -97,7 +98,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
                  "V8.Runtime_" #Name);                                        \
     Arguments args(args_length, args_object);                                 \
-    return __RT_impl_##Name(args, isolate);                                   \
+    return Convert(__RT_impl_##Name(args, isolate));                          \
   }                                                                           \
                                                                               \
   Type Name(int args_length, Address* args_object, Isolate* isolate) {        \
@@ -107,14 +108,20 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
       return Stats_##Name(args_length, args_object, isolate);                 \
     }                                                                         \
     Arguments args(args_length, args_object);                                 \
-    return __RT_impl_##Name(args, isolate);                                   \
+    return Convert(__RT_impl_##Name(args, isolate));                          \
   }                                                                           \
                                                                               \
-  static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
+  static InternalType __RT_impl_##Name(Arguments args, Isolate* isolate)
 
-#define RUNTIME_FUNCTION(Name) RUNTIME_FUNCTION_RETURNS_TYPE(Object*, Name)
-#define RUNTIME_FUNCTION_RETURN_PAIR(Name) \
-    RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, Name)
+#define CONVERT_OBJECT(x) (x)->ptr()
+#define CONVERT_OBJECTPAIR(x) (x)
+
+#define RUNTIME_FUNCTION(Name) \
+  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object*, CONVERT_OBJECT, Name)
+
+#define RUNTIME_FUNCTION_RETURN_PAIR(Name)                                  \
+  RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, ObjectPair, CONVERT_OBJECTPAIR, \
+                                Name)
 
 }  // namespace internal
 }  // namespace v8

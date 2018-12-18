@@ -65,7 +65,7 @@ const char* const
 
 // Forward declarations for C++ builtins.
 #define FORWARD_DECLARE(Name) \
-  Object* Builtin_##Name(int argc, Address* args, Isolate* isolate);
+  Address Builtin_##Name(int argc, Address* args, Isolate* isolate);
 BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
