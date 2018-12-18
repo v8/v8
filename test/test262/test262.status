@@ -499,14 +499,6 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-no-skip-try': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-no-skip-try': [FAIL],
 
-  # PreParser doesn't produce early errors
-  # https://bugs.chromium.org/p/v8/issues/detail?id=2728
-  'language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate': [FAIL],
-  'language/expressions/object/method-definition/generator-param-redecl-const': [FAIL],
-  'language/expressions/object/method-definition/generator-param-redecl-let': [FAIL],
-  'language/expressions/object/method-definition/name-param-redecl': [FAIL],
-  'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
-
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],
   'built-ins/Atomics/*': ['--harmony-sharedarraybuffer'],

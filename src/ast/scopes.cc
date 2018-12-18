@@ -1147,8 +1147,8 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
              IsLexicalVariableMode(var->mode())) {
     // Duplicate functions are allowed in the sloppy mode, but if this is not
     // a function declaration, it's an error. This is an error PreParser
-    // hasn't previously detected. TODO(marja): Investigate whether we can now
-    // start returning this error.
+    // hasn't previously detected.
+    return nullptr;
   } else if (mode == VariableMode::kVar) {
     var->set_maybe_assigned();
   }
@@ -1463,11 +1463,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   DCHECK(is_function_scope());
 
   // Reset all non-trivial members.
-  if (!aborted || !IsArrowFunction(function_kind_)) {
-    // Do not remove parameters when lazy parsing an Arrow Function has failed,
-    // as the formal parameters are not re-parsed.
-    params_.Clear();
-  }
+  params_.Clear();
   decls_.Clear();
   locals_.Clear();
   inner_scope_ = nullptr;

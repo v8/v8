@@ -434,6 +434,10 @@ void PreParser::DeclareAndInitializeVariables(
       declaration_descriptor->scope->DeleteUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
+      if (var == nullptr) {
+        ReportUnidentifiableError();
+        return;
+      }
       MarkLoopVariableAsAssigned(declaration_descriptor->scope, var,
                                  declaration_descriptor->declaration_kind);
       // This is only necessary if there is an initializer, but we don't have

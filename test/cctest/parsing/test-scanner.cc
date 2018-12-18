@@ -70,7 +70,7 @@ TEST(Bookmarks) {
 
     for (size_t i = 0; i < std::min(bookmark_pos + 10, tokens.size()); i++) {
       if (i == bookmark_pos) {
-        bookmark.Set();
+        bookmark.Set(scanner->peek_location().beg_pos);
       }
       CHECK_TOK(tokens[i], scanner->Next());
     }

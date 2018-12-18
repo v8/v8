@@ -1414,6 +1414,15 @@ class ParserBase {
              kind == FunctionKind::kArrowFunction && has_simple_parameter_list;
     }
 
+    void Reset() {
+      rewritable_length = -1;
+      scope_snapshot.Clear();
+      kind = FunctionKind::kArrowFunction;
+      has_simple_parameter_list = true;
+      ClearStrictParameterError();
+      DCHECK(HasInitialState());
+    }
+
     // Tracks strict-mode parameter violations of sloppy-mode arrow heads in
     // case the function ends up becoming strict mode. Only one global place to
     // track this is necessary since arrow functions with none-simple parameters
@@ -2638,9 +2647,6 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
       return impl()->FailureExpression();
     }
 
-    // Reset to default.
-    next_arrow_function_info_.kind = FunctionKind::kArrowFunction;
-
     // Because the arrow's parameters were parsed in the outer scope,
     // we need to fix up the scope chain appropriately.
     next_arrow_function_info_.scope_snapshot.Reparent(scope);
@@ -2649,11 +2655,9 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
     parameters.set_strict_parameter_error(
         next_arrow_function_info_.strict_parameter_error_location,
         next_arrow_function_info_.strict_parameter_error_message);
-    next_arrow_function_info_.ClearStrictParameterError();
     if (!next_arrow_function_info_.has_simple_parameter_list) {
       scope->SetHasNonSimpleParameters();
       parameters.is_simple = false;
-      next_arrow_function_info_.has_simple_parameter_list = true;
     }
 
     scope->set_start_position(lhs_beg_pos);
@@ -4044,7 +4048,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     // in this function's parameter list into its own function_state.
     function_state.AdoptDestructuringAssignmentsFromParentState(
         next_arrow_function_info_.rewritable_length);
-    next_arrow_function_info_.rewritable_length = -1;
+    next_arrow_function_info_.Reset();
 
     Consume(Token::ARROW);
 
@@ -4080,10 +4084,21 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         } else {
           // In case we did not sucessfully preparse the function because of an
           // unidentified error we do a full reparse to return the error.
+          ExpressionT expression = ParseConditionalExpression();
+          Scanner::Location loc(scope()->start_position(), end_position());
+          FormalParametersT parameters(formal_parameters.scope);
+          parameters.is_simple =
+              next_arrow_function_info_.has_simple_parameter_list;
+          impl()->DeclareArrowFunctionFormalParameters(&parameters, expression,
+                                                       loc);
+          next_arrow_function_info_.Reset();
+
+          Consume(Token::ARROW);
           Consume(Token::LBRACE);
+
           AcceptINScope scope(this, true);
           ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
-                            formal_parameters, kind,
+                            parameters, kind,
                             FunctionLiteral::kAnonymousExpression,
                             FunctionBodyType::kBlock);
           CHECK(has_error());

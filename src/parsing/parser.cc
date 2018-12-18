@@ -2588,6 +2588,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                    &produced_preparsed_scope_data, is_lazy_top_level_function,
                    &eager_compile_hint);
   if (!did_preparse_successfully) {
+    // If skipping aborted, it rewound the scanner until before the LPAREN.
+    // Consume it in that case.
+    if (should_preparse) Consume(Token::LPAREN);
     should_post_parallel_task = false;
     ParseFunction(&body, function_name, pos, kind, function_type, scope,
                   &num_parameters, &function_length, &has_duplicate_parameters,
@@ -2696,7 +2699,7 @@ bool Parser::SkipFunction(
   }
 
   Scanner::BookmarkScope bookmark(scanner());
-  bookmark.Set();
+  bookmark.Set(function_scope->start_position());
 
   // With no cached data, we partially parse the function, without building an
   // AST. This gathers the data needed to build a lazy function.

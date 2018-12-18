@@ -122,26 +122,14 @@ void Scanner::LiteralBuffer::AddTwoByteChar(uc32 code_unit) {
 // ----------------------------------------------------------------------------
 // Scanner::BookmarkScope
 
-const size_t Scanner::BookmarkScope::kBookmarkAtFirstPos =
-    std::numeric_limits<size_t>::max() - 2;
 const size_t Scanner::BookmarkScope::kNoBookmark =
     std::numeric_limits<size_t>::max() - 1;
 const size_t Scanner::BookmarkScope::kBookmarkWasApplied =
     std::numeric_limits<size_t>::max();
 
-void Scanner::BookmarkScope::Set() {
+void Scanner::BookmarkScope::Set(size_t position) {
   DCHECK_EQ(bookmark_, kNoBookmark);
-
-  // The first token is a bit special, since current_ will still be
-  // uninitialized. In this case, store kBookmarkAtFirstPos and special-case it
-  // when
-  // applying the bookmark.
-  DCHECK_IMPLIES(scanner_->current().token == Token::UNINITIALIZED,
-                 scanner_->current().location.beg_pos ==
-                     scanner_->next().location.beg_pos);
-  bookmark_ = (scanner_->current().token == Token::UNINITIALIZED)
-                  ? kBookmarkAtFirstPos
-                  : scanner_->location().beg_pos;
+  bookmark_ = position;
 }
 
 void Scanner::BookmarkScope::Apply() {
@@ -150,13 +138,7 @@ void Scanner::BookmarkScope::Apply() {
     scanner_->set_parser_error();
   } else {
     scanner_->reset_parser_error_flag();
-    if (bookmark_ == kBookmarkAtFirstPos) {
-      scanner_->SeekNext(0);
-    } else {
-      scanner_->SeekNext(bookmark_);
-      scanner_->Next();
-      DCHECK_EQ(scanner_->location().beg_pos, static_cast<int>(bookmark_));
-    }
+    scanner_->SeekNext(bookmark_);
   }
   bookmark_ = kBookmarkWasApplied;
 }

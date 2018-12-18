@@ -217,7 +217,7 @@ class Scanner {
     }
     ~BookmarkScope() = default;
 
-    void Set();
+    void Set(size_t bookmark);
     void Apply();
     bool HasBeenSet() const;
     bool HasBeenApplied() const;
@@ -225,7 +225,6 @@ class Scanner {
    private:
     static const size_t kNoBookmark;
     static const size_t kBookmarkWasApplied;
-    static const size_t kBookmarkAtFirstPos;
 
     Scanner* scanner_;
     size_t bookmark_;
