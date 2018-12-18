@@ -275,7 +275,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
         Object*** argv, Address root_register_value)>;
     // clang-format on
     JSEntryFunction stub_entry =
-        JSEntryFunction::FromAddress(isolate, code->entry());
+        JSEntryFunction::FromAddress(isolate, code->InstructionStart());
 
     if (FLAG_clear_exceptions_on_js_entry) isolate->clear_pending_exception();
 
