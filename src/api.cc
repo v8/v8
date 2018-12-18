@@ -5304,204 +5304,133 @@ int String::Utf8Length(Isolate* isolate) const {
   return utf8_length;
 }
 
-class Utf8WriterVisitor {
- public:
-  Utf8WriterVisitor(
-      char* buffer,
-      int capacity,
-      bool skip_capacity_check,
-      bool replace_invalid_utf8)
-    : early_termination_(false),
-      last_character_(unibrow::Utf16::kNoPreviousCharacter),
-      buffer_(buffer),
-      start_(buffer),
-      capacity_(capacity),
-      skip_capacity_check_(capacity == -1 || skip_capacity_check),
-      replace_invalid_utf8_(replace_invalid_utf8),
-      utf16_chars_read_(0) {
-  }
-
-  static int WriteEndCharacter(uint16_t character,
-                               int last_character,
-                               int remaining,
-                               char* const buffer,
-                               bool replace_invalid_utf8) {
-    DCHECK_GT(remaining, 0);
-    // We can't use a local buffer here because Encode needs to modify
-    // previous characters in the stream.  We know, however, that
-    // exactly one character will be advanced.
-    if (unibrow::Utf16::IsSurrogatePair(last_character, character)) {
-      int written = unibrow::Utf8::Encode(buffer, character, last_character,
-                                          replace_invalid_utf8);
-      DCHECK_EQ(written, 1);
-      return written;
+namespace {
+// Writes the flat content of a string to a buffer. This is done in two phases.
+// The first phase calculates a pessimistic estimate (writable_length) on how
+// many code units can be safely written without exceeding the buffer capacity
+// and without leaving at a lone surrogate. The estimated number of code units
+// is then written out in one go, and the reported byte usage is used to
+// correct the estimate. This is repeated until the estimate becomes <= 0 or
+// all code units have been written out. The second phase writes out code
+// units until the buffer capacity is reached, would be exceeded by the next
+// unit, or all code units have been written out.
+template <typename Char>
+static int WriteUtf8Impl(i::Vector<const Char> string, char* write_start,
+                         int write_capacity, int options,
+                         int* utf16_chars_read_out) {
+  bool write_null = !(options & v8::String::NO_NULL_TERMINATION);
+  bool replace_invalid_utf8 = (options & v8::String::REPLACE_INVALID_UTF8);
+  char* current_write = write_start;
+  const Char* read_start = string.start();
+  int read_index = 0;
+  int read_length = string.length();
+  int prev_char = unibrow::Utf16::kNoPreviousCharacter;
+  // Do a fast loop where there is no exit capacity check.
+  // Need enough space to write everything but one character.
+  STATIC_ASSERT(unibrow::Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit == 3);
+  static const int kMaxSizePerChar = sizeof(Char) == 1 ? 2 : 3;
+  while (read_index < read_length) {
+    int up_to = read_length;
+    if (write_capacity != -1) {
+      int remaining_capacity =
+          write_capacity - static_cast<int>(current_write - write_start);
+      int writable_length =
+          (remaining_capacity - kMaxSizePerChar) / kMaxSizePerChar;
+      // Need to drop into slow loop.
+      if (writable_length <= 0) break;
+      up_to = std::min(up_to, read_index + writable_length);
     }
-    // Use a scratch buffer to check the required characters.
-    char temp_buffer[unibrow::Utf8::kMaxEncodedSize];
-    // Can't encode using last_character as gcc has array bounds issues.
-    int written = unibrow::Utf8::Encode(temp_buffer, character,
+    // Write the characters to the stream.
+    if (sizeof(Char) == 1) {
+      // Simply memcpy if we only have ASCII characters.
+      uint8_t char_mask = 0;
+      for (int i = read_index; i < up_to; i++) char_mask |= read_start[i];
+      if ((char_mask & 0x80) == 0) {
+        int copy_length = up_to - read_index;
+        memcpy(current_write, read_start + read_index, copy_length);
+        current_write += copy_length;
+        read_index = up_to;
+      } else {
+        for (; read_index < up_to; read_index++) {
+          current_write += unibrow::Utf8::EncodeOneByte(
+              current_write, static_cast<uint8_t>(read_start[read_index]));
+          DCHECK(write_capacity == -1 ||
+                 (current_write - write_start) <= write_capacity);
+        }
+      }
+    } else {
+      for (; read_index < up_to; read_index++) {
+        uint16_t character = read_start[read_index];
+        current_write += unibrow::Utf8::Encode(current_write, character,
+                                               prev_char, replace_invalid_utf8);
+        prev_char = character;
+        DCHECK(write_capacity == -1 ||
+               (current_write - write_start) <= write_capacity);
+      }
+    }
+  }
+  if (read_index < read_length) {
+    DCHECK_NE(-1, write_capacity);
+    // Aborted due to limited capacity. Check capacity on each iteration.
+    int remaining_capacity =
+        write_capacity - static_cast<int>(current_write - write_start);
+    DCHECK_GE(remaining_capacity, 0);
+    for (; read_index < read_length && remaining_capacity > 0; read_index++) {
+      uint32_t character = read_start[read_index];
+      int written = 0;
+      // We can't use a local buffer here because Encode needs to modify
+      // previous characters in the stream.  We know, however, that
+      // exactly one character will be advanced.
+      if (unibrow::Utf16::IsSurrogatePair(prev_char, character)) {
+        written = unibrow::Utf8::Encode(current_write, character, prev_char,
+                                        replace_invalid_utf8);
+        DCHECK_EQ(written, 1);
+      } else {
+        // Use a scratch buffer to check the required characters.
+        char temp_buffer[unibrow::Utf8::kMaxEncodedSize];
+        // Encoding a surrogate pair to Utf8 always takes 4 bytes.
+        static const int kSurrogatePairEncodedSize =
+            static_cast<int>(unibrow::Utf8::kMaxEncodedSize);
+        // For REPLACE_INVALID_UTF8, catch the case where we cut off in the
+        // middle of a surrogate pair. Abort before encoding the pair instead.
+        if (replace_invalid_utf8 &&
+            remaining_capacity < kSurrogatePairEncodedSize &&
+            unibrow::Utf16::IsLeadSurrogate(character) &&
+            read_index + 1 < read_length &&
+            unibrow::Utf16::IsTrailSurrogate(read_start[read_index + 1])) {
+          write_null = false;
+          break;
+        }
+        // Can't encode using prev_char as gcc has array bounds issues.
+        written = unibrow::Utf8::Encode(temp_buffer, character,
                                         unibrow::Utf16::kNoPreviousCharacter,
                                         replace_invalid_utf8);
-    // Won't fit.
-    if (written > remaining) return 0;
-    // Copy over the character from temp_buffer.
-    for (int j = 0; j < written; j++) {
-      buffer[j] = temp_buffer[j];
-    }
-    return written;
-  }
+        if (written > remaining_capacity) {
+          // Won't fit. Abort and do not null-terminate the result.
+          write_null = false;
+          break;
+        }
+        // Copy over the character from temp_buffer.
+        for (int i = 0; i < written; i++) current_write[i] = temp_buffer[i];
+      }
 
-  // Visit writes out a group of code units (chars) of a v8::String to the
-  // internal buffer_. This is done in two phases. The first phase calculates a
-  // pesimistic estimate (writable_length) on how many code units can be safely
-  // written without exceeding the buffer capacity and without writing the last
-  // code unit (it could be a lead surrogate). The estimated number of code
-  // units is then written out in one go, and the reported byte usage is used
-  // to correct the estimate. This is repeated until the estimate becomes <= 0
-  // or all code units have been written out. The second phase writes out code
-  // units until the buffer capacity is reached, would be exceeded by the next
-  // unit, or all units have been written out.
-  template<typename Char>
-  void Visit(const Char* chars, const int length) {
-    DCHECK(!early_termination_);
-    if (length == 0) return;
-    // Copy state to stack.
-    char* buffer = buffer_;
-    int last_character = sizeof(Char) == 1
-                             ? unibrow::Utf16::kNoPreviousCharacter
-                             : last_character_;
-    int i = 0;
-    // Do a fast loop where there is no exit capacity check.
-    while (true) {
-      int fast_length;
-      if (skip_capacity_check_) {
-        fast_length = length;
-      } else {
-        int remaining_capacity = capacity_ - static_cast<int>(buffer - start_);
-        // Need enough space to write everything but one character.
-        STATIC_ASSERT(unibrow::Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit ==
-                      3);
-        int max_size_per_char =  sizeof(Char) == 1 ? 2 : 3;
-        int writable_length =
-            (remaining_capacity - max_size_per_char)/max_size_per_char;
-        // Need to drop into slow loop.
-        if (writable_length <= 0) break;
-        fast_length = i + writable_length;
-        if (fast_length > length) fast_length = length;
-      }
-      // Write the characters to the stream.
-      if (sizeof(Char) == 1) {
-        for (; i < fast_length; i++) {
-          buffer += unibrow::Utf8::EncodeOneByte(
-              buffer, static_cast<uint8_t>(*chars++));
-          DCHECK(capacity_ == -1 || (buffer - start_) <= capacity_);
-        }
-      } else {
-        for (; i < fast_length; i++) {
-          uint16_t character = *chars++;
-          buffer += unibrow::Utf8::Encode(buffer, character, last_character,
-                                          replace_invalid_utf8_);
-          last_character = character;
-          DCHECK(capacity_ == -1 || (buffer - start_) <= capacity_);
-        }
-      }
-      // Array is fully written. Exit.
-      if (fast_length == length) {
-        // Write state back out to object.
-        last_character_ = last_character;
-        buffer_ = buffer;
-        utf16_chars_read_ += length;
-        return;
-      }
-    }
-    DCHECK(!skip_capacity_check_);
-    // Slow loop. Must check capacity on each iteration.
-    int remaining_capacity = capacity_ - static_cast<int>(buffer - start_);
-    DCHECK_GE(remaining_capacity, 0);
-    for (; i < length && remaining_capacity > 0; i++) {
-      uint16_t character = *chars++;
-      // remaining_capacity is <= 3 bytes at this point, so we do not write out
-      // an umatched lead surrogate.
-      if (replace_invalid_utf8_ && unibrow::Utf16::IsLeadSurrogate(character)) {
-        early_termination_ = true;
-        break;
-      }
-      int written = WriteEndCharacter(character,
-                                      last_character,
-                                      remaining_capacity,
-                                      buffer,
-                                      replace_invalid_utf8_);
-      if (written == 0) {
-        early_termination_ = true;
-        break;
-      }
-      buffer += written;
+      current_write += written;
       remaining_capacity -= written;
-      last_character = character;
+      prev_char = character;
     }
-    // Write state back out to object.
-    last_character_ = last_character;
-    buffer_ = buffer;
-    utf16_chars_read_ += i;
   }
 
-  inline bool IsDone() {
-    return early_termination_;
-  }
+  // Write out number of utf16 characters written to the stream.
+  if (utf16_chars_read_out != nullptr) *utf16_chars_read_out = read_index;
 
-  inline void VisitOneByteString(const uint8_t* chars, int length) {
-    Visit(chars, length);
+  // Only null-terminate if there's space.
+  if (write_null && (write_capacity == -1 ||
+                     (current_write - write_start) < write_capacity)) {
+    *current_write++ = '\0';
   }
-
-  inline void VisitTwoByteString(const uint16_t* chars, int length) {
-    Visit(chars, length);
-  }
-
-  int CompleteWrite(bool write_null, int* utf16_chars_read_out) {
-    // Write out number of utf16 characters written to the stream.
-    if (utf16_chars_read_out != nullptr) {
-      *utf16_chars_read_out = utf16_chars_read_;
-    }
-    // Only null terminate if all of the string was written and there's space.
-    if (write_null &&
-        !early_termination_ &&
-        (capacity_ == -1 || (buffer_ - start_) < capacity_)) {
-      *buffer_++ = '\0';
-    }
-    return static_cast<int>(buffer_ - start_);
-  }
-
- private:
-  bool early_termination_;
-  int last_character_;
-  char* buffer_;
-  char* const start_;
-  int capacity_;
-  bool const skip_capacity_check_;
-  bool const replace_invalid_utf8_;
-  int utf16_chars_read_;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Utf8WriterVisitor);
-};
-
-// TODO(yangguo): Simplify this. We can now expect the string to be flat.
-static bool RecursivelySerializeToUtf8(i::String current,
-                                       Utf8WriterVisitor* writer,
-                                       int recursion_budget) {
-  while (!writer->IsDone()) {
-    i::ConsString cons_string = i::String::VisitFlat(writer, current);
-    if (cons_string.is_null()) return true;  // Leaf node.
-    if (recursion_budget <= 0) return false;
-    // Must write the left branch first.
-    i::String first = cons_string->first();
-    bool success = RecursivelySerializeToUtf8(first,
-                                              writer,
-                                              recursion_budget - 1);
-    if (!success) return false;
-    // Inline tail recurse for right branch.
-    current = cons_string->second();
-  }
-  return true;
+  return static_cast<int>(current_write - write_start);
 }
+}  // anonymous namespace
 
 int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
                       int* nchars_ref, int options) const {
@@ -5509,43 +5438,16 @@ int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   LOG_API(isolate, String, WriteUtf8);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  str = i::String::Flatten(isolate, str);  // Flatten the string for efficiency.
-  const int string_length = str->length();
-  bool write_null = !(options & NO_NULL_TERMINATION);
-  bool replace_invalid_utf8 = (options & REPLACE_INVALID_UTF8);
-  int max16BitCodeUnitSize = unibrow::Utf8::kMax16BitCodeUnitSize;
-  // First check if we can just write the string without checking capacity.
-  if (capacity == -1 || capacity / max16BitCodeUnitSize >= string_length) {
-    Utf8WriterVisitor writer(buffer, capacity, true, replace_invalid_utf8);
-    const int kMaxRecursion = 100;
-    bool success = RecursivelySerializeToUtf8(*str, &writer, kMaxRecursion);
-    if (success) return writer.CompleteWrite(write_null, nchars_ref);
-  } else if (capacity >= string_length) {
-    // First check that the buffer is large enough.
-    int utf8_bytes = Utf8Length(v8_isolate);
-    if (utf8_bytes <= capacity) {
-      // one-byte fast path.
-      if (utf8_bytes == string_length) {
-        WriteOneByte(v8_isolate, reinterpret_cast<uint8_t*>(buffer), 0,
-                     capacity, options);
-        if (nchars_ref != nullptr) *nchars_ref = string_length;
-        if (write_null && (utf8_bytes+1 <= capacity)) {
-          return string_length + 1;
-        }
-        return string_length;
-      }
-      if (write_null && (utf8_bytes+1 > capacity)) {
-        options |= NO_NULL_TERMINATION;
-      }
-      // Recurse once without a capacity limit.
-      // This will get into the first branch above.
-      // TODO(dcarney) Check max left rec. in Utf8Length and fall through.
-      return WriteUtf8(v8_isolate, buffer, -1, nchars_ref, options);
-    }
+  str = i::String::Flatten(isolate, str);
+  i::DisallowHeapAllocation no_gc;
+  i::String::FlatContent content = str->GetFlatContent(no_gc);
+  if (content.IsOneByte()) {
+    return WriteUtf8Impl<uint8_t>(content.ToOneByteVector(), buffer, capacity,
+                                  options, nchars_ref);
+  } else {
+    return WriteUtf8Impl<uint16_t>(content.ToUC16Vector(), buffer, capacity,
+                                   options, nchars_ref);
   }
-  Utf8WriterVisitor writer(buffer, capacity, false, replace_invalid_utf8);
-  i::String::VisitFlat(&writer, *str);
-  return writer.CompleteWrite(write_null, nchars_ref);
 }
 
 template <typename CharType>

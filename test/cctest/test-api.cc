@@ -8453,6 +8453,13 @@ THREADED_TEST(StringWrite) {
   int charlen;
 
   memset(utf8buf, 0x1, 1000);
+  len = v8::String::Empty(isolate)->WriteUtf8(isolate, utf8buf, sizeof(utf8buf),
+                                              &charlen);
+  CHECK_EQ(1, len);
+  CHECK_EQ(0, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, ""));
+
+  memset(utf8buf, 0x1, 1000);
   len = str2->WriteUtf8(isolate, utf8buf, sizeof(utf8buf), &charlen);
   CHECK_EQ(9, len);
   CHECK_EQ(5, charlen);
