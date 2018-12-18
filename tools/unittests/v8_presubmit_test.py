@@ -18,7 +18,7 @@ from v8_presubmit import FileContentsCache, CacheableSourceFileProcessor
 class FakeCachedProcessor(CacheableSourceFileProcessor):
   def __init__(self, cache_file_path):
     super(FakeCachedProcessor, self).__init__(
-      cache_file_path=cache_file_path, file_type='.test')
+      use_cache=True, cache_file_path=cache_file_path, file_type='.test')
   def GetProcessorWorker(self):
     return object
   def GetProcessorScript(self):

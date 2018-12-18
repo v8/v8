@@ -235,7 +235,8 @@ class CacheableSourceFileProcessor(SourceFileProcessor):
   the files requiring intervention after processing the source files.
   """
 
-  def __init__(self, cache_file_path, file_type):
+  def __init__(self, use_cache, cache_file_path, file_type):
+    self.use_cache = use_cache
     self.cache_file_path = cache_file_path
     self.file_type = file_type
 
@@ -260,9 +261,10 @@ class CacheableSourceFileProcessor(SourceFileProcessor):
     return command
 
   def ProcessFiles(self, files):
-    cache = FileContentsCache(self.cache_file_path)
-    cache.Load()
-    files = cache.FilterUnchangedFiles(files)
+    if self.use_cache:
+      cache = FileContentsCache(self.cache_file_path)
+      cache.Load()
+      files = cache.FilterUnchangedFiles(files)
 
     if len(files) == 0:
       print 'No changes in %s files detected. Skipping check' % self.file_type
@@ -272,10 +274,12 @@ class CacheableSourceFileProcessor(SourceFileProcessor):
     print (
       'Total %s files found that require formatting: %d' %
       (self.file_type, len(files_requiring_changes)))
-    for file in files_requiring_changes:
-      cache.RemoveFile(file)
+    if self.use_cache:
+      for file in files_requiring_changes:
+        cache.RemoveFile(file)
 
-    cache.Save()
+      cache.Save()
+
     return files_requiring_changes == []
 
   def DetectFilesToChange(self, files):
@@ -306,9 +310,9 @@ class CppLintProcessor(CacheableSourceFileProcessor):
   Lint files to check that they follow the google code style.
   """
 
-  def __init__(self):
+  def __init__(self, use_cache=True):
     super(CppLintProcessor, self).__init__(
-      cache_file_path='.cpplint-cache', file_type='C/C++')
+      use_cache=use_cache, cache_file_path='.cpplint-cache', file_type='C/C++')
 
   def IsRelevant(self, name):
     return name.endswith('.cc') or name.endswith('.h')
@@ -348,9 +352,9 @@ class TorqueFormatProcessor(CacheableSourceFileProcessor):
   Check .tq files to verify they follow the Torque style guide.
   """
 
-  def __init__(self):
+  def __init__(self, use_cache=True):
     super(TorqueFormatProcessor, self).__init__(
-      cache_file_path='.torquelint-cache', file_type='Torque')
+      use_cache=use_cache, cache_file_path='.torquelint-cache', file_type='Torque')
 
   def IsRelevant(self, name):
     return name.endswith('.tq')
@@ -660,6 +664,9 @@ def GetOptions():
   result = optparse.OptionParser()
   result.add_option('--no-lint', help="Do not run cpplint", default=False,
                     action="store_true")
+  result.add_option('--no-linter-cache', help="Do not cache linter results", default=False,
+                    action="store_true")
+
   return result
 
 
@@ -670,11 +677,13 @@ def Main():
   success = True
   print "Running checkdeps..."
   success &= CheckDeps(workspace)
+  use_linter_cache = not options.no_linter_cache
   if not options.no_lint:
     print "Running C++ lint check..."
-    success &= CppLintProcessor().RunOnPath(workspace)
+    success &= CppLintProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
+
   print "Running Torque formatting check..."
-  success &= TorqueFormatProcessor().RunOnPath(workspace)
+  success &= TorqueFormatProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success &= SourceProcessor().RunOnPath(workspace)
