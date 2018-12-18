@@ -437,6 +437,7 @@ class AccumulationScope {
 
   ~AccumulationScope() {
     if (scope_ == nullptr) return;
+    Accumulate();
     for (int i = 0; i < kNumberOfErrors; i++) copy_back(i);
   }
 

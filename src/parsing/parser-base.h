@@ -1934,14 +1934,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
         expression_scope()->RecordPatternError(
             Scanner::Location(start_pos, end_position()),
             MessageTemplate::kInvalidDestructuringTarget);
-        accumulation_scope.Accumulate();
       }
 
       if (peek() == Token::COMMA) {
         expression_scope()->RecordPatternError(
             Scanner::Location(start_pos, end_position()),
             MessageTemplate::kElementAfterRest);
-        accumulation_scope.Accumulate();
       }
     } else {
       AcceptINScope scope(this, true);
@@ -4441,6 +4439,7 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
     AccumulationScope* scope) {
+  if (scope) scope->Accumulate();
   int begin = peek_position();
   ExpressionT result = ParseAssignmentExpressionCoverGrammar();
 
@@ -4457,6 +4456,12 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
             Scanner::Location(begin, end_position()),
             MessageTemplate::kLetInLexicalBinding);
       }
+    } else {
+      DCHECK(result->IsProperty());
+      expression_scope()->RecordDeclarationError(
+          Scanner::Location(begin, end_position()),
+          MessageTemplate::kInvalidPropertyBindingPattern);
+      if (scope != nullptr) scope->ValidateExpression();
     }
   } else if (result->is_parenthesized() ||
              (!result->IsPattern() && !result->IsAssignment())) {
@@ -4465,15 +4470,6 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
         MessageTemplate::kInvalidDestructuringTarget);
   }
 
-  if (scope == nullptr) return result;
-  if (result->IsProperty()) {
-    expression_scope()->RecordDeclarationError(
-        Scanner::Location(begin, end_position()),
-        MessageTemplate::kInvalidPropertyBindingPattern);
-    scope->ValidateExpression();
-  } else {
-    scope->Accumulate();
-  }
   return result;
 }
 
