@@ -415,6 +415,13 @@ class InstanceBuilder {
   // need to recompile with bounds checks before creating the instance.
   MaybeHandle<JSArrayBuffer> FindImportedMemoryBuffer() const;
 
+  // Processes a single imported function.
+  bool ProcessImportedFunction(Handle<WasmInstanceObject> instance,
+                               int import_index, int func_index,
+                               Handle<String> module_name,
+                               Handle<String> import_name,
+                               Handle<Object> value);
+
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
   // functions.
@@ -1579,6 +1586,57 @@ MaybeHandle<JSArrayBuffer> InstanceBuilder::FindImportedMemoryBuffer() const {
   return {};
 }
 
+bool InstanceBuilder::ProcessImportedFunction(
+    Handle<WasmInstanceObject> instance, int import_index, int func_index,
+    Handle<String> module_name, Handle<String> import_name,
+    Handle<Object> value) {
+  // Function imports must be callable.
+  if (!value->IsCallable()) {
+    ReportLinkError("function import requires a callable", import_index,
+                    module_name, import_name);
+    return false;
+  }
+  auto js_receiver = Handle<JSReceiver>::cast(value);
+  FunctionSig* expected_sig = module_->functions[func_index].sig;
+  auto kind = compiler::GetWasmImportCallKind(js_receiver, expected_sig,
+                                              enabled_.bigint);
+  switch (kind) {
+    case compiler::WasmImportCallKind::kLinkError:
+      ReportLinkError("imported function does not match the expected type",
+                      import_index, module_name, import_name);
+      return false;
+    case compiler::WasmImportCallKind::kWasmToWasm: {
+      // The imported function is a WASM function from another instance.
+      auto imported_function = Handle<WasmExportedFunction>::cast(value);
+      Handle<WasmInstanceObject> imported_instance(
+          imported_function->instance(), isolate_);
+      // The import reference is the instance object itself.
+      Address imported_target = imported_function->GetWasmCallTarget();
+      ImportedFunctionEntry entry(instance, func_index);
+      entry.SetWasmToWasm(*imported_instance, imported_target);
+      return true;
+    }
+    default: {
+      // The imported function is a callable.
+      NativeModule* native_module = instance->module_object()->native_module();
+      WasmCode* wasm_code = native_module->import_wrapper_cache()->GetOrCompile(
+          isolate_, kind, expected_sig);
+      ImportedFunctionEntry entry(instance, func_index);
+      if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
+        // Wasm to JS wrappers are treated specially in the import table.
+        entry.SetWasmToJs(isolate_, js_receiver, wasm_code);
+      } else {
+        // Wasm math intrinsics are compiled as regular Wasm functions.
+        DCHECK(kind >= compiler::WasmImportCallKind::kFirstMathIntrinsic &&
+               kind <= compiler::WasmImportCallKind::kLastMathIntrinsic);
+        entry.SetWasmToWasm(*instance, wasm_code->instruction_start());
+      }
+      return true;
+    }
+  }
+  UNREACHABLE();
+}
+
 // Process the imports, including functions, tables, globals, and memory, in
 // order, loading them from the {ffi_} object. Returns the number of imported
 // functions.
@@ -1587,11 +1645,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
   int num_imported_tables = 0;
   int num_imported_mutable_globals = 0;
 
-  WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate_);
-
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
   int num_imports = static_cast<int>(module_->import_table.size());
-  NativeModule* native_module = instance->module_object()->native_module();
   for (int index = 0; index < num_imports; ++index) {
     const WasmImport& import = module_->import_table[index];
 
@@ -1601,53 +1656,11 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
 
     switch (import.kind) {
       case kExternalFunction: {
-        // Function imports must be callable.
-        if (!value->IsCallable()) {
-          ReportLinkError("function import requires a callable", index,
-                          module_name, import_name);
-          return -1;
-        }
         uint32_t func_index = import.index;
         DCHECK_EQ(num_imported_functions, func_index);
-        auto js_receiver = Handle<JSReceiver>::cast(value);
-        FunctionSig* expected_sig = module_->functions[func_index].sig;
-        auto kind = compiler::GetWasmImportCallKind(js_receiver, expected_sig,
-                                                    enabled_features.bigint);
-        switch (kind) {
-          case compiler::WasmImportCallKind::kLinkError:
-            ReportLinkError(
-                "imported function does not match the expected type", index,
-                module_name, import_name);
-            return -1;
-          case compiler::WasmImportCallKind::kWasmToWasm: {
-            // The imported function is a WASM function from another instance.
-            auto imported_function = Handle<WasmExportedFunction>::cast(value);
-            Handle<WasmInstanceObject> imported_instance(
-                imported_function->instance(), isolate_);
-            // The import reference is the instance object itself.
-            Address imported_target = imported_function->GetWasmCallTarget();
-            ImportedFunctionEntry entry(instance, func_index);
-            entry.SetWasmToWasm(*imported_instance, imported_target);
-            break;
-          }
-          default: {
-            // The imported function is a callable.
-            WasmCode* wasm_code =
-                native_module->import_wrapper_cache()->GetOrCompile(
-                    isolate_, kind, expected_sig);
-            ImportedFunctionEntry entry(instance, func_index);
-            if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
-              // Wasm to JS wrappers are treated specially in the import table.
-              entry.SetWasmToJs(isolate_, js_receiver, wasm_code);
-            } else {
-              // Wasm math intrinsics are compiled as regular Wasm functions.
-              DCHECK(kind >=
-                         compiler::WasmImportCallKind::kFirstMathIntrinsic &&
-                     kind <= compiler::WasmImportCallKind::kLastMathIntrinsic);
-              entry.SetWasmToWasm(*instance, wasm_code->instruction_start());
-            }
-            break;
-          }
+        if (!ProcessImportedFunction(instance, index, func_index, module_name,
+                                     import_name, value)) {
+          return -1;
         }
         num_imported_functions++;
         break;
