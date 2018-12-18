@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "src/base/bits.h"
+#include "src/base/small-vector.h"
 #include "src/frames.h"
 #include "src/macro-assembler.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
@@ -725,8 +726,10 @@ class LiftoffStackSlots {
     RegPairHalf half_;
   };
 
-  std::vector<Slot> slots_;
+  base::SmallVector<Slot, 8> slots_;
   LiftoffAssembler* const asm_;
+
+  DISALLOW_COPY_AND_ASSIGN(LiftoffStackSlots);
 };
 
 }  // namespace wasm

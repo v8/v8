@@ -128,8 +128,7 @@ class StackTransferRecipe {
           ++next_spill_slot;
           executed_moves = 1;
         }
-        register_moves_.erase(register_moves_.end() - executed_moves,
-                              register_moves_.end());
+        register_moves_.pop(executed_moves);
       }
     }
 
@@ -244,25 +243,27 @@ class StackTransferRecipe {
   }
 
   void LoadConstant(LiftoffRegister dst, WasmValue value) {
-    register_loads_.push_back(RegisterLoad::Const(dst, value));
+    register_loads_.emplace_back(RegisterLoad::Const(dst, value));
   }
 
   void LoadStackSlot(LiftoffRegister dst, uint32_t stack_index,
                      ValueType type) {
-    register_loads_.push_back(RegisterLoad::Stack(dst, stack_index, type));
+    register_loads_.emplace_back(RegisterLoad::Stack(dst, stack_index, type));
   }
 
   void LoadI64HalfStackSlot(LiftoffRegister dst, uint32_t half_stack_index) {
-    register_loads_.push_back(RegisterLoad::HalfStack(dst, half_stack_index));
+    register_loads_.emplace_back(
+        RegisterLoad::HalfStack(dst, half_stack_index));
   }
 
  private:
-  // TODO(clemensh): Avoid unconditionally allocating on the heap.
-  std::vector<RegisterMove> register_moves_;
-  std::vector<RegisterLoad> register_loads_;
+  base::SmallVector<RegisterMove, 8> register_moves_;
+  base::SmallVector<RegisterLoad, 8> register_loads_;
   LiftoffRegList move_dst_regs_;
   LiftoffRegList move_src_regs_;
   LiftoffAssembler* const asm_;
+
+  DISALLOW_COPY_AND_ASSIGN(StackTransferRecipe);
 };
 
 }  // namespace

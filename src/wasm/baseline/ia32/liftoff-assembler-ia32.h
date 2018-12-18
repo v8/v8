@@ -846,7 +846,9 @@ inline void Emit64BitShiftOperation(
   // Temporary registers cannot overlap with {dst}.
   pinned.set(dst);
 
-  std::vector<LiftoffAssembler::ParallelRegisterMoveTuple> reg_moves;
+  constexpr size_t kMaxRegMoves = 3;
+  base::SmallVector<LiftoffAssembler::ParallelRegisterMoveTuple, kMaxRegMoves>
+      reg_moves;
 
   // If {dst} contains {ecx}, replace it by an unused register, which is then
   // moved to {ecx} in the end.
@@ -866,7 +868,7 @@ inline void Emit64BitShiftOperation(
 
   reg_moves.emplace_back(dst, src, kWasmI64);
   reg_moves.emplace_back(ecx, amount, kWasmI32);
-  assm->ParallelRegisterMove({reg_moves.data(), reg_moves.size()});
+  assm->ParallelRegisterMove(VectorOf(reg_moves));
 
   // Do the actual shift.
   (assm->*emit_shift)(dst.high_gp(), dst.low_gp());
