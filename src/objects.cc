@@ -4035,6 +4035,8 @@ Handle<Context> JSReceiver::GetCreationContext() {
   } else if (constructor->IsFunctionTemplateInfo()) {
     // Remote objects don't have a creation context.
     return Handle<Context>::null();
+  } else if (receiver->IsJSGeneratorObject()) {
+    function = JSGeneratorObject::cast(receiver)->function();
   } else {
     // Functions have null as a constructor,
     // but any JSFunction knows its context immediately.
