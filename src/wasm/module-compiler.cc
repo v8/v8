@@ -422,6 +422,12 @@ class InstanceBuilder {
                                Handle<String> import_name,
                                Handle<Object> value);
 
+  // Process a single imported table.
+  bool ProcessImportedTable(Handle<WasmInstanceObject> instance,
+                            int import_index, int table_index,
+                            Handle<String> module_name,
+                            Handle<String> import_name, Handle<Object> value);
+
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
   // functions.
@@ -1614,7 +1620,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       Address imported_target = imported_function->GetWasmCallTarget();
       ImportedFunctionEntry entry(instance, func_index);
       entry.SetWasmToWasm(*imported_instance, imported_target);
-      return true;
+      break;
     }
     default: {
       // The imported function is a callable.
@@ -1631,10 +1637,84 @@ bool InstanceBuilder::ProcessImportedFunction(
                kind <= compiler::WasmImportCallKind::kLastMathIntrinsic);
         entry.SetWasmToWasm(*instance, wasm_code->instruction_start());
       }
-      return true;
+      break;
     }
   }
-  UNREACHABLE();
+  return true;
+}
+
+bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
+                                           int import_index, int table_index,
+                                           Handle<String> module_name,
+                                           Handle<String> import_name,
+                                           Handle<Object> value) {
+  if (!value->IsWasmTableObject()) {
+    ReportLinkError("table import requires a WebAssembly.Table", import_index,
+                    module_name, import_name);
+    return false;
+  }
+  const WasmTable& table = module_->tables[table_index];
+  TableInstance& table_instance = table_instances_[table_index];
+  table_instance.table_object = Handle<WasmTableObject>::cast(value);
+  instance->set_table_object(*table_instance.table_object);
+  table_instance.js_wrappers =
+      Handle<FixedArray>(table_instance.table_object->functions(), isolate_);
+
+  int imported_table_size = table_instance.js_wrappers->length();
+  if (imported_table_size < static_cast<int>(table.initial_size)) {
+    thrower_->LinkError("table import %d is smaller than initial %d, got %u",
+                        import_index, table.initial_size, imported_table_size);
+    return false;
+  }
+
+  if (table.has_maximum_size) {
+    int64_t imported_maximum_size =
+        table_instance.table_object->maximum_length()->Number();
+    if (imported_maximum_size < 0) {
+      thrower_->LinkError("table import %d has no maximum length, expected %d",
+                          import_index, table.maximum_size);
+      return false;
+    }
+    if (imported_maximum_size > table.maximum_size) {
+      thrower_->LinkError("table import %d has a larger maximum size %" PRIx64
+                          " than the module's declared maximum %u",
+                          import_index, imported_maximum_size,
+                          table.maximum_size);
+      return false;
+    }
+  }
+
+  // Allocate a new dispatch table.
+  if (!instance->has_indirect_function_table()) {
+    WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
+        instance, imported_table_size);
+    table_instances_[table_index].table_size = imported_table_size;
+  }
+  // Initialize the dispatch table with the (foreign) JS functions
+  // that are already in the table.
+  for (int i = 0; i < imported_table_size; ++i) {
+    Handle<Object> val(table_instance.js_wrappers->get(i), isolate_);
+    // TODO(mtrofin): this is the same logic as WasmTableObject::Set:
+    // insert in the local table a wrapper from the other module, and add
+    // a reference to the owning instance of the other module.
+    if (!val->IsJSFunction()) continue;
+    if (!WasmExportedFunction::IsWasmExportedFunction(*val)) {
+      thrower_->LinkError("table import %d[%d] is not a wasm function",
+                          import_index, i);
+      return false;
+    }
+    auto target_func = Handle<WasmExportedFunction>::cast(val);
+    Handle<WasmInstanceObject> target_instance =
+        handle(target_func->instance(), isolate_);
+    // Look up the signature's canonical id. If there is no canonical
+    // id, then the signature does not appear at all in this module,
+    // so putting {-1} in the table will cause checks to always fail.
+    FunctionSig* sig = target_func->sig();
+    IndirectFunctionTableEntry(instance, i)
+        .Set(module_->signature_map.Find(*sig), target_instance,
+             target_func->function_index());
+  }
+  return true;
 }
 
 // Process the imports, including functions, tables, globals, and memory, in
@@ -1666,75 +1746,11 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         break;
       }
       case kExternalTable: {
-        if (!value->IsWasmTableObject()) {
-          ReportLinkError("table import requires a WebAssembly.Table", index,
-                          module_name, import_name);
+        uint32_t table_index = import.index;
+        DCHECK_EQ(table_index, num_imported_tables);
+        if (!ProcessImportedTable(instance, index, table_index, module_name,
+                                  import_name, value)) {
           return -1;
-        }
-        uint32_t table_num = import.index;
-        DCHECK_EQ(table_num, num_imported_tables);
-        const WasmTable& table = module_->tables[table_num];
-        TableInstance& table_instance = table_instances_[table_num];
-        table_instance.table_object = Handle<WasmTableObject>::cast(value);
-        instance->set_table_object(*table_instance.table_object);
-        table_instance.js_wrappers = Handle<FixedArray>(
-            table_instance.table_object->functions(), isolate_);
-
-        int imported_table_size = table_instance.js_wrappers->length();
-        if (imported_table_size < static_cast<int>(table.initial_size)) {
-          thrower_->LinkError(
-              "table import %d is smaller than initial %d, got %u", index,
-              table.initial_size, imported_table_size);
-          return -1;
-        }
-
-        if (table.has_maximum_size) {
-          int64_t imported_maximum_size =
-              table_instance.table_object->maximum_length()->Number();
-          if (imported_maximum_size < 0) {
-            thrower_->LinkError(
-                "table import %d has no maximum length, expected %d", index,
-                table.maximum_size);
-            return -1;
-          }
-          if (imported_maximum_size > table.maximum_size) {
-            thrower_->LinkError(
-                " table import %d has a larger maximum size %" PRIx64
-                " than the module's declared maximum %u",
-                index, imported_maximum_size, table.maximum_size);
-            return -1;
-          }
-        }
-
-        // Allocate a new dispatch table.
-        if (!instance->has_indirect_function_table()) {
-          WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-              instance, imported_table_size);
-          table_instances_[table_num].table_size = imported_table_size;
-        }
-        // Initialize the dispatch table with the (foreign) JS functions
-        // that are already in the table.
-        for (int i = 0; i < imported_table_size; ++i) {
-          Handle<Object> val(table_instance.js_wrappers->get(i), isolate_);
-          // TODO(mtrofin): this is the same logic as WasmTableObject::Set:
-          // insert in the local table a wrapper from the other module, and add
-          // a reference to the owning instance of the other module.
-          if (!val->IsJSFunction()) continue;
-          if (!WasmExportedFunction::IsWasmExportedFunction(*val)) {
-            thrower_->LinkError("table import %d[%d] is not a wasm function",
-                                index, i);
-            return -1;
-          }
-          auto target_func = Handle<WasmExportedFunction>::cast(val);
-          Handle<WasmInstanceObject> target_instance =
-              handle(target_func->instance(), isolate_);
-          // Look up the signature's canonical id. If there is no canonical
-          // id, then the signature does not appear at all in this module,
-          // so putting {-1} in the table will cause checks to always fail.
-          FunctionSig* sig = target_func->sig();
-          IndirectFunctionTableEntry(instance, i)
-              .Set(module_->signature_map.Find(*sig), target_instance,
-                   target_func->function_index());
         }
         num_imported_tables++;
         break;
