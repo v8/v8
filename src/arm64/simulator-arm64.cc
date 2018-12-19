@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/arm64/simulator-arm64.h"
+
+#if defined(USE_SIMULATOR)
+
 #include <stdlib.h>
 #include <cmath>
 #include <cstdarg>
 #include <type_traits>
 
-#if V8_TARGET_ARCH_ARM64
-
 #include "src/arm64/decoder-arm64-inl.h"
-#include "src/arm64/simulator-arm64.h"
 #include "src/assembler-inl.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
@@ -21,8 +22,6 @@
 
 namespace v8 {
 namespace internal {
-
-#if defined(USE_SIMULATOR)
 
 
 // This macro provides a platform independent use of sscanf. The reason for
@@ -5932,9 +5931,7 @@ void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
   processor->next_ = nullptr;
 }
 
-#endif  // USE_SIMULATOR
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // USE_SIMULATOR

@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/ppc/simulator-ppc.h"
+
+#if defined(USE_SIMULATOR)
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <cmath>
-
-#if V8_TARGET_ARCH_PPC
 
 #include "src/assembler.h"
 #include "src/base/bits.h"
@@ -16,11 +18,8 @@
 #include "src/ostreams.h"
 #include "src/ppc/constants-ppc.h"
 #include "src/ppc/frame-constants-ppc.h"
-#include "src/ppc/simulator-ppc.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime-utils.h"
-
-#if defined(USE_SIMULATOR)
 
 // Only build the simulator if not compiling for real PPC hardware.
 namespace v8 {
@@ -4028,4 +4027,3 @@ bool Simulator::GlobalMonitor::NotifyStoreExcl(uintptr_t addr,
 
 #undef SScanF
 #endif  // USE_SIMULATOR
-#endif  // V8_TARGET_ARCH_PPC

@@ -5,6 +5,11 @@
 #ifndef V8_ARM64_SIMULATOR_ARM64_H_
 #define V8_ARM64_SIMULATOR_ARM64_H_
 
+// globals.h defines USE_SIMULATOR.
+#include "src/globals.h"
+
+#if defined(USE_SIMULATOR)
+
 #include <stdarg.h>
 #include <vector>
 
@@ -15,14 +20,11 @@
 #include "src/arm64/instrument-arm64.h"
 #include "src/assembler.h"
 #include "src/base/compiler-specific.h"
-#include "src/globals.h"
 #include "src/simulator-base.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
-
-#if defined(USE_SIMULATOR)
 
 // Assemble the specified IEEE-754 components into the target type and apply
 // appropriate rounding.
@@ -2356,9 +2358,8 @@ inline float Simulator::FPDefaultNaN<float>() {
   return kFP32DefaultNaN;
 }
 
-#endif  // defined(USE_SIMULATOR)
-
 }  // namespace internal
 }  // namespace v8
 
+#endif  // defined(USE_SIMULATOR)
 #endif  // V8_ARM64_SIMULATOR_ARM64_H_

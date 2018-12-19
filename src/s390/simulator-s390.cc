@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/s390/simulator-s390.h"
+
+// Only build the simulator if not compiling for real s390 hardware.
+#if defined(USE_SIMULATOR)
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <cmath>
-
-#if V8_TARGET_ARCH_S390
 
 #include "src/assembler.h"
 #include "src/base/bits.h"
@@ -18,10 +21,7 @@
 #include "src/register-configuration.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/s390/constants-s390.h"
-#include "src/s390/simulator-s390.h"
-#if defined(USE_SIMULATOR)
 
-// Only build the simulator if not compiling for real s390 hardware.
 namespace v8 {
 namespace internal {
 
@@ -9772,4 +9772,3 @@ EVALUATE(CXZT) {
 }  // namespace v8
 
 #endif  // USE_SIMULATOR
-#endif  // V8_TARGET_ARCH_S390

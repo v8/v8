@@ -12,16 +12,18 @@
 #ifndef V8_ARM_SIMULATOR_ARM_H_
 #define V8_ARM_SIMULATOR_ARM_H_
 
-#include "src/allocation.h"
-#include "src/base/lazy-instance.h"
-#include "src/base/platform/mutex.h"
-#include "src/boxed-float.h"
+// globals.h defines USE_SIMULATOR.
+#include "src/globals.h"
 
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
+#include "src/allocation.h"
 #include "src/arm/constants-arm.h"
 #include "src/base/hashmap.h"
+#include "src/base/lazy-instance.h"
+#include "src/base/platform/mutex.h"
+#include "src/boxed-float.h"
 #include "src/simulator-base.h"
 
 namespace v8 {

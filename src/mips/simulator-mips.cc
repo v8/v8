@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/mips/simulator-mips.h"
+
+// Only build the simulator if not compiling for real MIPS hardware.
+#if defined(USE_SIMULATOR)
+
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <cmath>
-
-#if V8_TARGET_ARCH_MIPS
 
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
@@ -15,13 +18,8 @@
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/mips/constants-mips.h"
-#include "src/mips/simulator-mips.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
-
-
-// Only build the simulator if not compiling for real MIPS hardware.
-#if defined(USE_SIMULATOR)
 
 namespace v8 {
 namespace internal {
@@ -7360,5 +7358,3 @@ void Simulator::GlobalMonitor::RemoveLinkedAddress(
 }  // namespace v8
 
 #endif  // USE_SIMULATOR
-
-#endif  // V8_TARGET_ARCH_MIPS

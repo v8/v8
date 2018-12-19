@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/mips64/simulator-mips64.h"
+
+// Only build the simulator if not compiling for real MIPS hardware.
+#if defined(USE_SIMULATOR)
+
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <cmath>
-
-#if V8_TARGET_ARCH_MIPS64
 
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
@@ -15,12 +18,8 @@
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
-#include "src/mips64/simulator-mips64.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
-
-// Only build the simulator if not compiling for real MIPS hardware.
-#if defined(USE_SIMULATOR)
 
 namespace v8 {
 namespace internal {
@@ -250,7 +249,6 @@ void MipsDebugger::PrintAllRegs() {
          REG_INFO(31), REG_INFO(34));
 
 #undef REG_INFO
-#undef FPU_REG_INFO
 }
 
 
@@ -297,7 +295,6 @@ void MipsDebugger::PrintAllRegsIncludingFPU() {
   PrintF("%3s: 0x%016" PRIx64 "  %16.4e\n", FPU_REG_INFO(30));
   PrintF("%3s: 0x%016" PRIx64 "  %16.4e\n", FPU_REG_INFO(31));
 
-#undef REG_INFO
 #undef FPU_REG_INFO
 }
 
@@ -7761,10 +7758,9 @@ void Simulator::GlobalMonitor::RemoveLinkedAddress(
   linked_address->next_ = nullptr;
 }
 
-#undef UNSUPPORTED
+#undef SScanF
+
 }  // namespace internal
 }  // namespace v8
 
 #endif  // USE_SIMULATOR
-
-#endif  // V8_TARGET_ARCH_MIPS64

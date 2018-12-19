@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/arm/simulator-arm.h"
+
+#if defined(USE_SIMULATOR)
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <cmath>
 
-#if V8_TARGET_ARCH_ARM
-
 #include "src/arm/constants-arm.h"
-#include "src/arm/simulator-arm.h"
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/codegen.h"
@@ -17,8 +18,6 @@
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
-
-#if defined(USE_SIMULATOR)
 
 // Only build the simulator if not compiling for real ARM hardware.
 namespace v8 {
@@ -6089,5 +6088,3 @@ void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
 }  // namespace v8
 
 #endif  // USE_SIMULATOR
-
-#endif  // V8_TARGET_ARCH_ARM
