@@ -1056,10 +1056,12 @@ enum class VariableMode : uint8_t {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  kDynamicLocal  // requires dynamic lookup, but we know that the
-                 // variable is local and where it is unless it
-                 // has been shadowed by an eval-introduced
-                 // variable
+  kDynamicLocal,  // requires dynamic lookup, but we know that the
+                  // variable is local and where it is unless it
+                  // has been shadowed by an eval-introduced
+                  // variable
+
+  kLastLexicalVariableMode = kConst,
 };
 
 // Printing support
@@ -1104,7 +1106,7 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
 inline bool IsLexicalVariableMode(VariableMode mode) {
   STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
                 0);  // Implies that mode >= VariableMode::kLet.
-  return mode <= VariableMode::kConst;
+  return mode <= VariableMode::kLastLexicalVariableMode;
 }
 
 enum VariableLocation : uint8_t {

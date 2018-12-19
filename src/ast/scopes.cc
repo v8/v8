@@ -1204,51 +1204,37 @@ Variable* Scope::NewTemporary(const AstRawString* name,
 
 Declaration* Scope::CheckConflictingVarDeclarations() {
   for (Declaration* decl : decls_) {
-    VariableMode mode = decl->proxy()->var()->mode();
-
     // Lexical vs lexical conflicts within the same scope have already been
     // captured in Parser::Declare. The only conflicts we still need to check
-    // are lexical vs nested var, or any declarations within a declaration
-    // block scope vs lexical declarations in its surrounding (function) scope.
-    Scope* current = this;
+    // are lexical vs nested var.
     if (decl->IsVariableDeclaration() &&
         decl->AsVariableDeclaration()->AsNested() != nullptr) {
-      DCHECK_EQ(mode, VariableMode::kVar);
-      current = decl->AsVariableDeclaration()->AsNested()->scope();
-    } else if (IsLexicalVariableMode(mode)) {
-      if (!is_block_scope()) continue;
-      DCHECK(is_declaration_scope());
-      DCHECK_EQ(outer_scope()->scope_type(), FUNCTION_SCOPE);
-      current = outer_scope();
-    }
-
-    // Iterate through all scopes until and including the declaration scope.
-    while (true) {
-      // There is a conflict if there exists a non-VAR binding.
-      Variable* other_var =
-          current->variables_.Lookup(decl->proxy()->raw_name());
-      if (other_var != nullptr && IsLexicalVariableMode(other_var->mode())) {
-        return decl;
+      DCHECK_EQ(decl->proxy()->var()->mode(), VariableMode::kVar);
+      Scope* current = decl->AsVariableDeclaration()->AsNested()->scope();
+      // Iterate through all scopes until and including the declaration scope.
+      while (true) {
+        // There is a conflict if there exists a non-VAR binding.
+        Variable* other_var =
+            current->variables_.Lookup(decl->proxy()->raw_name());
+        if (other_var != nullptr && IsLexicalVariableMode(other_var->mode())) {
+          return decl;
+        }
+        if (current->is_declaration_scope()) break;
+        current = current->outer_scope();
       }
-      if (current->is_declaration_scope()) break;
-      current = current->outer_scope();
     }
   }
   return nullptr;
 }
 
-const AstRawString* Scope::FindLexVariableDeclaredIn(Scope* scope) {
-  DCHECK(is_block_scope());
+const AstRawString* Scope::FindVariableDeclaredIn(Scope* scope,
+                                                  VariableMode mode_limit) {
   const VariableMap& variables = scope->variables_;
   for (ZoneHashMap::Entry* p = variables.Start(); p != nullptr;
        p = variables.Next(p)) {
     const AstRawString* name = static_cast<const AstRawString*>(p->key);
     Variable* var = LookupLocal(name);
-    if (var != nullptr) {
-      // Conflict; find and return its declaration.
-      DCHECK(IsLexicalVariableMode(var->mode()));
-      return name;
-    }
+    if (var != nullptr && var->mode() <= mode_limit) return name;
   }
   return nullptr;
 }

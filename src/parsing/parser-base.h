@@ -3905,6 +3905,11 @@ void ParserBase<Impl>::ParseFunctionBody(
 
     inner_scope->set_end_position(end_position());
     if (inner_scope->FinalizeBlockScope() != nullptr) {
+      const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
+          function_scope, VariableMode::kLastLexicalVariableMode);
+      if (conflict != nullptr) {
+        impl()->ReportVarRedeclarationIn(conflict, inner_scope);
+      }
       impl()->CheckConflictingVarDeclarations(inner_scope);
       impl()->InsertShadowingVarBindingInitializers(inner_block);
     } else {
@@ -4041,6 +4046,13 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // FIXME(marja): Arrow function parameters will be parsed even if the
         // body is preparsed; move relevant parts of parameter handling to
         // simulate consistent parameter handling.
+
+        // Building the parameter initialization block declares the parameters.
+        // TODO(verwaest): Rely on ArrowHeadParsingScope instead.
+        if (!formal_parameters.is_simple) {
+          impl()->BuildParameterInitializationBlock(formal_parameters);
+          if (has_error()) return impl()->FailureExpression();
+        }
 
         // For arrow functions, we don't need to retrieve data about function
         // parameters.
@@ -5290,11 +5302,11 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
                 const AstRawString* name = catch_info.variable->raw_name();
                 if (inner_scope->LookupLocal(name)) conflict = name;
               } else {
-                conflict = inner_scope->FindLexVariableDeclaredIn(scope());
+                conflict = inner_scope->FindVariableDeclaredIn(
+                    scope(), VariableMode::kVar);
               }
               if (conflict != nullptr) {
-                impl()->ReportConflictingDeclarationInCatch(conflict,
-                                                            inner_scope);
+                impl()->ReportVarRedeclarationIn(conflict, inner_scope);
               }
             }
 

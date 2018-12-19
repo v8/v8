@@ -312,11 +312,13 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // scope over a let binding of the same name.
   Declaration* CheckConflictingVarDeclarations();
 
-  // Find lexical variable that has a name that was declared in |scope|. This is
-  // used to catch patterns like `try{}catch(e){let e;}`, which is an error even
-  // though the two 'e's are declared in different scopes. Returns the first
-  // duplicate variable name if there is one, nullptr otherwise.
-  const AstRawString* FindLexVariableDeclaredIn(Scope* scope);
+  // Find variable with (variable->mode() <= |mode_limit|) that was declared in
+  // |scope|. This is used to catch patterns like `try{}catch(e){let e;}` and
+  // function([e]) { let e }, which are errors even though the two 'e's are each
+  // time declared in different scopes. Returns the first duplicate variable
+  // name if there is one, nullptr otherwise.
+  const AstRawString* FindVariableDeclaredIn(Scope* scope,
+                                             VariableMode mode_limit);
 
   // Find the declaration that introduced |name|.
   Declaration* DeclarationFor(const AstRawString* name);

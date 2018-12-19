@@ -318,8 +318,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Statement* RewriteSwitchStatement(SwitchStatement* switch_statement,
                                     Scope* scope);
   Block* RewriteCatchPattern(CatchInfo* catch_info);
-  void ReportConflictingDeclarationInCatch(const AstRawString* name,
-                                           Scope* scope);
+  void ReportVarRedeclarationIn(const AstRawString* name, Scope* scope);
   Statement* RewriteTryStatement(Block* try_block, Block* catch_block,
                                  const SourceRange& catch_range,
                                  Block* finally_block,

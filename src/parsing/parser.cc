@@ -1589,8 +1589,7 @@ Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
   return init_block;
 }
 
-void Parser::ReportConflictingDeclarationInCatch(const AstRawString* name,
-                                                 Scope* scope) {
+void Parser::ReportVarRedeclarationIn(const AstRawString* name, Scope* scope) {
   for (Declaration* decl : *scope->declarations()) {
     if (decl->proxy()->raw_name() == name) {
       int position = decl->proxy()->position();
@@ -2869,9 +2868,6 @@ Block* Parser::BuildParameterInitializationBlock(
 
     if (param_block != init_block) {
       param_scope = param_scope->FinalizeBlockScope();
-      if (param_scope != nullptr) {
-        CheckConflictingVarDeclarations(param_scope);
-      }
       init_block->statements()->Add(param_block, zone());
     }
     ++index;

@@ -116,13 +116,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   function_scope->set_is_being_lazily_parsed(true);
 #endif
 
-  // Start collecting data for a new function which might contain skippable
-  // functions.
-  PreParsedScopeDataBuilder::DataGatheringScope
-      preparsed_scope_data_builder_scope(this);
-  if (!IsArrowFunction(kind)) {
-    preparsed_scope_data_builder_scope.Start(function_scope);
-  }
+  PreParserFormalParameters formals(function_scope);
 
   // In the preparser, we use the function literal ids to count how many
   // FunctionLiterals were encountered. The PreParser doesn't actually persist
@@ -136,11 +130,18 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   DCHECK_NULL(scope_);
   FunctionState function_state(&function_state_, &scope_, function_scope);
 
-  PreParserFormalParameters formals(function_scope);
+  // Start collecting data for a new function which might contain skippable
+  // functions.
+  PreParsedScopeDataBuilder::DataGatheringScope
+      preparsed_scope_data_builder_scope(this);
 
-  // Parse non-arrow function parameters. For arrow functions, the parameters
-  // have already been parsed.
-  if (!IsArrowFunction(kind)) {
+  if (IsArrowFunction(kind)) {
+    formals.is_simple = function_scope->has_simple_parameters();
+  } else {
+    preparsed_scope_data_builder_scope.Start(function_scope);
+
+    // Parse non-arrow function parameters. For arrow functions, the parameters
+    // have already been parsed.
     DeclarationParsingScope formals_scope(
         this, ExpressionScope::kParameterDeclaration);
     // We return kPreParseSuccess in failure cases too - errors are retrieved
@@ -187,7 +188,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
     SetLanguageMode(function_scope, inner_scope->language_mode());
     inner_scope->set_end_position(scanner()->peek_location().end_pos);
-    inner_scope->FinalizeBlockScope();
+    if (inner_scope->FinalizeBlockScope() != nullptr) {
+      const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
+          function_scope, VariableMode::kLastLexicalVariableMode);
+      if (conflict != nullptr) ReportVarRedeclarationIn(conflict, inner_scope);
+    }
   }
 
   use_counts_ = nullptr;

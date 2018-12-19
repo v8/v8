@@ -1163,8 +1163,8 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserBlock::Default();
   }
 
-  V8_INLINE void ReportConflictingDeclarationInCatch(const AstRawString* name,
-                                                     Scope* scope) {
+  V8_INLINE void ReportVarRedeclarationIn(const AstRawString* name,
+                                          Scope* scope) {
     ReportUnidentifiableError();
   }
 
