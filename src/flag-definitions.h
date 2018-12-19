@@ -236,7 +236,6 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                    \
   V(harmony_import_meta, "harmony import.meta property")                       \
   V(harmony_dynamic_import, "harmony dynamic import")                          \
-  V(harmony_array_prototype_values, "harmony Array.prototype.values")          \
   V(harmony_array_flat, "harmony Array.prototype.{flat,flatMap}")              \
   V(harmony_symbol_description, "harmony Symbol.prototype.description")        \
   V(harmony_global, "harmony global")                                          \

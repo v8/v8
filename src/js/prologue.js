@@ -62,6 +62,7 @@ function PostNatives(utils) {
     findIndex: true,
     includes: true,
     keys: true,
+    values: true,
   };
 
   %ToFastProperties(unscopables);

@@ -1727,9 +1727,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallFunctionWithBuiltinId(isolate_, proto, "entries",
                                  Builtins::kArrayPrototypeEntries, 0, true,
                                  BuiltinFunctionId::kArrayEntries);
-    InstallFunctionAtSymbol(isolate_, proto, factory->iterator_symbol(),
-                            "values", Builtins::kArrayPrototypeValues, 0, true,
-                            DONT_ENUM, BuiltinFunctionId::kArrayValues);
+    Handle<JSFunction> values_iterator = InstallFunctionWithBuiltinId(
+        isolate_, proto, "values", Builtins::kArrayPrototypeValues, 0, true,
+        BuiltinFunctionId::kArrayValues);
+    JSObject::AddProperty(isolate_, proto, factory->iterator_symbol(),
+                          values_iterator, DONT_ENUM);
+
     SimpleInstallFunction(isolate_, proto, "forEach", Builtins::kArrayForEach,
                           1, false);
     SimpleInstallFunction(isolate_, proto, "filter", Builtins::kArrayFilter, 1,
@@ -4398,30 +4401,6 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
         isolate_, isolate()->atomics_object(), factory->to_string_tag_symbol(),
         name, static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
-}
-
-void Genesis::InitializeGlobal_harmony_array_prototype_values() {
-  if (!FLAG_harmony_array_prototype_values) return;
-  Handle<JSFunction> array_constructor(native_context()->array_function(),
-                                       isolate());
-  Handle<JSObject> array_prototype(
-      JSObject::cast(array_constructor->instance_prototype()), isolate());
-  Handle<Object> values_iterator =
-      JSObject::GetProperty(isolate(), array_prototype,
-                            factory()->iterator_symbol())
-          .ToHandleChecked();
-  DCHECK(values_iterator->IsJSFunction());
-  JSObject::AddProperty(isolate(), array_prototype, factory()->values_string(),
-                        values_iterator, DONT_ENUM);
-
-  Handle<Object> unscopables =
-      JSObject::GetProperty(isolate(), array_prototype,
-                            factory()->unscopables_symbol())
-          .ToHandleChecked();
-  DCHECK(unscopables->IsJSObject());
-  JSObject::AddProperty(isolate(), Handle<JSObject>::cast(unscopables),
-                        factory()->values_string(), factory()->true_value(),
-                        NONE);
 }
 
 void Genesis::InitializeGlobal_harmony_array_flat() {
