@@ -422,9 +422,11 @@ TEST(InterpreterBinaryOpsBigInt) {
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBigInt());
-        MaybeObject feedback = callable.vector()->Get(slot);
-        CHECK(feedback->IsSmi());
-        CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback->ToSmi().value());
+        if (tester.HasFeedbackMetadata()) {
+          MaybeObject feedback = callable.vector()->Get(slot);
+          CHECK(feedback->IsSmi());
+          CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback->ToSmi().value());
+        }
       }
     }
   }
@@ -542,9 +544,11 @@ TEST(InterpreterStringAdd) {
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*test_cases[i].expected_value));
 
-    MaybeObject feedback = callable.vector()->Get(slot);
-    CHECK(feedback->IsSmi());
-    CHECK_EQ(test_cases[i].expected_feedback, feedback->ToSmi().value());
+    if (tester.HasFeedbackMetadata()) {
+      MaybeObject feedback = callable.vector()->Get(slot);
+      CHECK(feedback->IsSmi());
+      CHECK_EQ(test_cases[i].expected_feedback, feedback->ToSmi().value());
+    }
   }
 }
 
@@ -623,6 +627,8 @@ TEST(InterpreterParameter8) {
 }
 
 TEST(InterpreterBinaryOpTypeFeedback) {
+  if (FLAG_lite_mode) return;
+
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -755,6 +761,8 @@ TEST(InterpreterBinaryOpTypeFeedback) {
 }
 
 TEST(InterpreterBinaryOpSmiTypeFeedback) {
+  if (FLAG_lite_mode) return;
+
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -861,6 +869,8 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
 }
 
 TEST(InterpreterUnaryOpFeedback) {
+  if (FLAG_lite_mode) return;
+
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -947,6 +957,8 @@ TEST(InterpreterUnaryOpFeedback) {
 }
 
 TEST(InterpreterBitwiseTypeFeedback) {
+  if (FLAG_lite_mode) return;
+
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -1814,10 +1826,12 @@ TEST(InterpreterSmiComparisons) {
         CHECK(return_value->IsBoolean());
         CHECK_EQ(return_value->BooleanValue(isolate),
                  CompareC(comparison, inputs[i], inputs[j]));
-        MaybeObject feedback = callable.vector()->Get(slot);
-        CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kSignedSmall,
-                 feedback->ToSmi().value());
+        if (tester.HasFeedbackMetadata()) {
+          MaybeObject feedback = callable.vector()->Get(slot);
+          CHECK(feedback->IsSmi());
+          CHECK_EQ(CompareOperationFeedback::kSignedSmall,
+                   feedback->ToSmi().value());
+        }
       }
     }
   }
@@ -1863,9 +1877,12 @@ TEST(InterpreterHeapNumberComparisons) {
         CHECK(return_value->IsBoolean());
         CHECK_EQ(return_value->BooleanValue(isolate),
                  CompareC(comparison, inputs[i], inputs[j]));
-        MaybeObject feedback = callable.vector()->Get(slot);
-        CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kNumber, feedback->ToSmi().value());
+        if (tester.HasFeedbackMetadata()) {
+          MaybeObject feedback = callable.vector()->Get(slot);
+          CHECK(feedback->IsSmi());
+          CHECK_EQ(CompareOperationFeedback::kNumber,
+                   feedback->ToSmi().value());
+        }
       }
     }
   }
@@ -1905,9 +1922,12 @@ TEST(InterpreterBigIntComparisons) {
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
-        MaybeObject feedback = callable.vector()->Get(slot);
-        CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kBigInt, feedback->ToSmi().value());
+        if (tester.HasFeedbackMetadata()) {
+          MaybeObject feedback = callable.vector()->Get(slot);
+          CHECK(feedback->IsSmi());
+          CHECK_EQ(CompareOperationFeedback::kBigInt,
+                   feedback->ToSmi().value());
+        }
       }
     }
   }
@@ -1952,13 +1972,15 @@ TEST(InterpreterStringComparisons) {
         CHECK(return_value->IsBoolean());
         CHECK_EQ(return_value->BooleanValue(isolate),
                  CompareC(comparison, inputs[i], inputs[j]));
-        MaybeObject feedback = callable.vector()->Get(slot);
-        CHECK(feedback->IsSmi());
-        int const expected_feedback =
-            Token::IsOrderedRelationalCompareOp(comparison)
-                ? CompareOperationFeedback::kString
-                : CompareOperationFeedback::kInternalizedString;
-        CHECK_EQ(expected_feedback, feedback->ToSmi().value());
+        if (tester.HasFeedbackMetadata()) {
+          MaybeObject feedback = callable.vector()->Get(slot);
+          CHECK(feedback->IsSmi());
+          int const expected_feedback =
+              Token::IsOrderedRelationalCompareOp(comparison)
+                  ? CompareOperationFeedback::kString
+                  : CompareOperationFeedback::kInternalizedString;
+          CHECK_EQ(expected_feedback, feedback->ToSmi().value());
+        }
       }
     }
   }
@@ -2063,10 +2085,13 @@ TEST(InterpreterMixedComparisons) {
             CHECK(return_value->IsBoolean());
             CHECK_EQ(return_value->BooleanValue(isolate),
                      CompareC(comparison, lhs, rhs, true));
-            MaybeObject feedback = callable.vector()->Get(slot);
-            CHECK(feedback->IsSmi());
-            // Comparison with a number and string collects kAny feedback.
-            CHECK_EQ(CompareOperationFeedback::kAny, feedback->ToSmi().value());
+            if (tester.HasFeedbackMetadata()) {
+              MaybeObject feedback = callable.vector()->Get(slot);
+              CHECK(feedback->IsSmi());
+              // Comparison with a number and string collects kAny feedback.
+              CHECK_EQ(CompareOperationFeedback::kAny,
+                       feedback->ToSmi().value());
+            }
           }
         }
       }

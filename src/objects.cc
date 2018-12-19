@@ -12714,7 +12714,9 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
 void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
   Isolate* const isolate = function->GetIsolate();
   DCHECK(function->shared()->is_compiled());
-  if (!function->has_feedback_vector()) {
+  DCHECK(FLAG_lite_mode || function->shared()->HasFeedbackMetadata());
+  if (!function->has_feedback_vector() &&
+      function->shared()->HasFeedbackMetadata()) {
     Handle<SharedFunctionInfo> shared(function->shared(), isolate);
     if (!shared->HasAsmWasmData()) {
       DCHECK(function->shared()->HasBytecodeArray());
