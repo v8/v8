@@ -332,28 +332,39 @@ class Typer::Visitor : public Reducer {
       }
 
       if (V8_UNLIKELY(!previous.Is(current))) {
+        AllowHandleDereference allow;
         std::ostringstream ostream;
         node->Print(ostream);
-        previous.PrintTo(ostream);
-        ostream << " -> ";
-        current.PrintTo(ostream);
-        ostream << "\n"
-                << "inputs:\n";
-        for (int i = 0; i < 2; ++i) {
-          Node* input = NodeProperties::GetValueInput(node, i);
-          if (remembered_types_[{node, i}].IsInvalid()) {
-            ostream << "untyped";
-          } else {
-            remembered_types_[{node, i}].PrintTo(ostream);
+
+        if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
+          ostream << "Previous UpdateType run (inputs first):";
+          for (int i = 0; i < 3; ++i) {
+            ostream << "  ";
+            if (remembered_types_[{node, i}].IsInvalid()) {
+              ostream << "untyped";
+            } else {
+              remembered_types_[{node, i}].PrintTo(ostream);
+            }
           }
-          ostream << " -> ";
-          if (NodeProperties::IsTyped(input)) {
-            NodeProperties::GetType(input).PrintTo(ostream);
-          } else {
-            ostream << "untyped";
+
+          ostream << "\nCurrent (output) type:  ";
+          previous.PrintTo(ostream);
+
+          ostream << "\nThis UpdateType run (inputs first):";
+          for (int i = 0; i < 2; ++i) {
+            ostream << "  ";
+            Node* input = NodeProperties::GetValueInput(node, i);
+            if (NodeProperties::IsTyped(input)) {
+              NodeProperties::GetType(input).PrintTo(ostream);
+            } else {
+              ostream << "untyped";
+            }
           }
+          ostream << "  ";
+          current.PrintTo(ostream);
           ostream << "\n";
         }
+
         FATAL("UpdateType error for node %s", ostream.str().c_str());
       }
 
@@ -380,6 +391,7 @@ class Typer::Visitor : public Reducer {
             remembered_types_[{node, i}] = NodeProperties::GetType(input);
           }
         }
+        remembered_types_[{node, 2}] = current;
       }
 
       // No previous type, simply update the type.
