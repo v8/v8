@@ -144,6 +144,7 @@ v8_source_set("unittests_sources") {
     "compiler/typer-unittest.cc",
     "compiler/value-numbering-reducer-unittest.cc",
     "compiler/zone-stats-unittest.cc",
+    "conversions-unittest.cc",
     "counters-unittest.cc",
     "detachable-vector-unittest.cc",
     "eh-frame-iterator-unittest.cc",
