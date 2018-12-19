@@ -126,7 +126,7 @@ class Immediate {
   friend class Assembler;
 };
 ASSERT_TRIVIALLY_COPYABLE(Immediate);
-static_assert(sizeof(Immediate) <= kPointerSize,
+static_assert(sizeof(Immediate) <= kSystemPointerSize,
               "Immediate must be small enough to pass it by value");
 
 // -----------------------------------------------------------------------------
