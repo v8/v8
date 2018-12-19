@@ -100,14 +100,6 @@ void Isolate::FireBeforeCallEnteredCallback() {
   }
 }
 
-void Isolate::FireMicrotasksCompletedCallback() {
-  std::vector<MicrotasksCompletedCallback> callbacks(
-      microtasks_completed_callbacks_);
-  for (auto& callback : callbacks) {
-    callback(reinterpret_cast<v8::Isolate*>(this));
-  }
-}
-
 Handle<JSGlobalObject> Isolate::global_object() {
   return handle(context()->global_object(), this);
 }

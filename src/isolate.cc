@@ -4007,28 +4007,12 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
   call_completed_callbacks_.erase(pos);
 }
 
-void Isolate::AddMicrotasksCompletedCallback(
-    MicrotasksCompletedCallback callback) {
-  auto pos = std::find(microtasks_completed_callbacks_.begin(),
-                       microtasks_completed_callbacks_.end(), callback);
-  if (pos != microtasks_completed_callbacks_.end()) return;
-  microtasks_completed_callbacks_.push_back(callback);
-}
-
-void Isolate::RemoveMicrotasksCompletedCallback(
-    MicrotasksCompletedCallback callback) {
-  auto pos = std::find(microtasks_completed_callbacks_.begin(),
-                       microtasks_completed_callbacks_.end(), callback);
-  if (pos == microtasks_completed_callbacks_.end()) return;
-  microtasks_completed_callbacks_.erase(pos);
-}
-
 void Isolate::FireCallCompletedCallback() {
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
 
   bool run_microtasks =
       default_microtask_queue()->size() &&
-      !handle_scope_implementer()->HasMicrotasksSuppressions() &&
+      !default_microtask_queue()->HasMicrotasksSuppressions() &&
       handle_scope_implementer()->microtasks_policy() ==
           v8::MicrotasksPolicy::kAuto;
 
@@ -4281,22 +4265,12 @@ void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
-void Isolate::EnqueueMicrotask(Handle<Microtask> microtask) {
-  default_microtask_queue()->EnqueueMicrotask(*microtask);
-}
-
-
 void Isolate::RunMicrotasks() {
-  DCHECK(!is_running_microtasks_);
-
-  // TODO(tzik): Move the suppression, |is_running_microtask_|, and the
-  // completion callbacks into MicrotaskQueue.
-
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
       reinterpret_cast<v8::Isolate*>(this));
-  if (default_microtask_queue()->size()) {
-    is_running_microtasks_ = true;
+  MicrotaskQueue* microtask_queue = default_microtask_queue();
+  if (microtask_queue->size()) {
     TRACE_EVENT0("v8.execute", "RunMicrotasks");
     TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
 
@@ -4304,11 +4278,10 @@ void Isolate::RunMicrotasks() {
         handle_scope_implementer());
     // If execution is terminating, bail out, clean up, and propagate to
     // TryCatch scope.
-    if (default_microtask_queue()->RunMicrotasks(this) < 0) {
+    if (microtask_queue->RunMicrotasks(this) < 0) {
       SetTerminationOnExternalTryCatch();
     }
-    DCHECK_EQ(0, default_microtask_queue()->size());
-    is_running_microtasks_ = false;
+    DCHECK_EQ(0, microtask_queue->size());
   }
   // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
   // set is still open (whether to clear it after every microtask or once
@@ -4316,7 +4289,7 @@ void Isolate::RunMicrotasks() {
   // https://github.com/tc39/proposal-weakrefs/issues/39 .
   heap()->ClearKeepDuringJobSet();
 
-  FireMicrotasksCompletedCallback();
+  microtask_queue->FireMicrotasksCompletedCallback(this);
 }
 
 void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {

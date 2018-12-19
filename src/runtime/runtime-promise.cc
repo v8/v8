@@ -7,6 +7,7 @@
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/elements.h"
+#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-promise-inl.h"
@@ -77,7 +78,7 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   Handle<CallableTask> microtask =
       isolate->factory()->NewCallableTask(function, isolate->native_context());
-  isolate->EnqueueMicrotask(microtask);
+  isolate->native_context()->microtask_queue()->EnqueueMicrotask(*microtask);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

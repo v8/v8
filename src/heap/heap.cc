@@ -953,7 +953,7 @@ void Heap::GarbageCollectionEpilogue() {
           isolate());
       isolate()->heap()->set_dirty_js_weak_factories(weak_factory->next());
       weak_factory->set_next(ReadOnlyRoots(isolate()).undefined_value());
-      Handle<Context> context(weak_factory->native_context(), isolate());
+      Handle<NativeContext> context(weak_factory->native_context(), isolate());
       // GC has no native context, but we use the creation context of the
       // JSWeakFactory for the EnqueueTask operation. This is consitent with the
       // Promise implementation, assuming the JSFactory creation context is the
@@ -965,7 +965,7 @@ void Heap::GarbageCollectionEpilogue() {
       // https://github.com/tc39/proposal-weakrefs/issues/38 .
       Handle<WeakFactoryCleanupJobTask> task =
           isolate()->factory()->NewWeakFactoryCleanupJobTask(weak_factory);
-      isolate()->EnqueueMicrotask(task);
+      context->microtask_queue()->EnqueueMicrotask(*task);
     }
   }
 }

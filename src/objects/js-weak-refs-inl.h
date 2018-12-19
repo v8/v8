@@ -24,7 +24,7 @@ OBJECT_CONSTRUCTORS_IMPL(JSWeakFactory, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSWeakFactoryCleanupIterator, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WeakFactoryCleanupJobTask, Microtask)
 
-ACCESSORS2(JSWeakFactory, native_context, Context, kNativeContextOffset)
+ACCESSORS2(JSWeakFactory, native_context, NativeContext, kNativeContextOffset)
 ACCESSORS(JSWeakFactory, cleanup, Object, kCleanupOffset)
 ACCESSORS(JSWeakFactory, active_cells, Object, kActiveCellsOffset)
 ACCESSORS(JSWeakFactory, cleared_cells, Object, kClearedCellsOffset)

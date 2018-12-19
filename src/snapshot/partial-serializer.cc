@@ -44,7 +44,14 @@ void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
 
-  DCHECK_EQ(0, context_->native_context()->microtask_queue()->size());
+#ifdef DEBUG
+  MicrotaskQueue* microtask_queue =
+      context_->native_context()->microtask_queue();
+  DCHECK_EQ(0, microtask_queue->size());
+  DCHECK(!microtask_queue->HasMicrotasksSuppressions());
+  DCHECK_EQ(0, microtask_queue->GetMicrotasksScopeDepth());
+  DCHECK(microtask_queue->DebugMicrotasksScopeDepthIsZero());
+#endif
   context_->native_context()->set_microtask_queue(nullptr);
 
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(o));

@@ -85,9 +85,31 @@ void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
   ++size_;
 }
 
+namespace {
+
+class SetIsRunningMicrotasks {
+ public:
+  explicit SetIsRunningMicrotasks(bool* flag) : flag_(flag) {
+    DCHECK(!*flag_);
+    *flag_ = true;
+  }
+
+  ~SetIsRunningMicrotasks() {
+    DCHECK(*flag_);
+    *flag_ = false;
+  }
+
+ private:
+  bool* flag_;
+};
+
+}  // namespace
+
 int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
-  HandleScope scope(isolate);
+  HandleScope handle_scope(isolate);
   MaybeHandle<Object> maybe_exception;
+
+  SetIsRunningMicrotasks scope(&is_running_microtasks_);
   MaybeHandle<Object> maybe_result =
       Execution::TryRunMicrotasks(isolate, this, &maybe_exception);
 
@@ -129,6 +151,30 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
   new_capacity = std::max(new_capacity, kMinimumCapacity);
   if (new_capacity < capacity_) {
     ResizeBuffer(new_capacity);
+  }
+}
+
+void MicrotaskQueue::AddMicrotasksCompletedCallback(
+    MicrotasksCompletedCallback callback) {
+  auto pos = std::find(microtasks_completed_callbacks_.begin(),
+                       microtasks_completed_callbacks_.end(), callback);
+  if (pos != microtasks_completed_callbacks_.end()) return;
+  microtasks_completed_callbacks_.push_back(callback);
+}
+
+void MicrotaskQueue::RemoveMicrotasksCompletedCallback(
+    MicrotasksCompletedCallback callback) {
+  auto pos = std::find(microtasks_completed_callbacks_.begin(),
+                       microtasks_completed_callbacks_.end(), callback);
+  if (pos == microtasks_completed_callbacks_.end()) return;
+  microtasks_completed_callbacks_.erase(pos);
+}
+
+void MicrotaskQueue::FireMicrotasksCompletedCallback(Isolate* isolate) const {
+  std::vector<MicrotasksCompletedCallback> callbacks(
+      microtasks_completed_callbacks_);
+  for (auto& callback : callbacks) {
+    callback(reinterpret_cast<v8::Isolate*>(isolate));
   }
 }
 

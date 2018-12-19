@@ -355,11 +355,6 @@ class HandleScopeImplementer {
       : isolate_(isolate),
         spare_(nullptr),
         call_depth_(0),
-        microtasks_depth_(0),
-        microtasks_suppressions_(0),
-#ifdef DEBUG
-        debug_microtasks_depth_(0),
-#endif
         microtasks_policy_(v8::MicrotasksPolicy::kAuto),
         last_handle_before_deferred_block_(nullptr) {
   }
@@ -386,37 +381,15 @@ class HandleScopeImplementer {
   inline void DecrementCallDepth() {call_depth_--;}
   inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
-  // Microtasks scope depth represents nested scopes controlling microtasks
-  // invocation, which happens when depth reaches zero.
-  inline void IncrementMicrotasksScopeDepth() {microtasks_depth_++;}
-  inline void DecrementMicrotasksScopeDepth() {microtasks_depth_--;}
-  inline int GetMicrotasksScopeDepth() { return microtasks_depth_; }
-
-  // Possibly nested microtasks suppression scopes prevent microtasks
-  // from running.
-  inline void IncrementMicrotasksSuppressions() {microtasks_suppressions_++;}
-  inline void DecrementMicrotasksSuppressions() {microtasks_suppressions_--;}
-  inline bool HasMicrotasksSuppressions() { return !!microtasks_suppressions_; }
-
-#ifdef DEBUG
-  // In debug we check that calls not intended to invoke microtasks are
-  // still correctly wrapped with microtask scopes.
-  inline void IncrementDebugMicrotasksScopeDepth() {debug_microtasks_depth_++;}
-  inline void DecrementDebugMicrotasksScopeDepth() {debug_microtasks_depth_--;}
-  inline bool DebugMicrotasksScopeDepthIsZero() {
-    return debug_microtasks_depth_ == 0;
-  }
-#endif
-
-  inline void set_microtasks_policy(v8::MicrotasksPolicy policy);
-  inline v8::MicrotasksPolicy microtasks_policy() const;
-
   inline void EnterContext(Context context);
   inline void LeaveContext();
   inline bool LastEnteredContextWas(Context context);
   inline size_t EnteredContextCount() const { return entered_contexts_.size(); }
 
   inline void EnterMicrotaskContext(Context context);
+
+  inline void set_microtasks_policy(v8::MicrotasksPolicy policy);
+  inline v8::MicrotasksPolicy microtasks_policy() const;
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
@@ -485,12 +458,9 @@ class HandleScopeImplementer {
   DetachableVector<Context> saved_contexts_;
   Address* spare_;
   int call_depth_;
-  int microtasks_depth_;
-  int microtasks_suppressions_;
-#ifdef DEBUG
-  int debug_microtasks_depth_;
-#endif
+
   v8::MicrotasksPolicy microtasks_policy_;
+
   Address* last_handle_before_deferred_block_;
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;

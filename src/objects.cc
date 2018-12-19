@@ -50,6 +50,7 @@
 #include "src/macro-assembler.h"
 #include "src/map-updater.h"
 #include "src/message-template.h"
+#include "src/microtask-queue.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
@@ -16554,7 +16555,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                         promise, LanguageMode::kStrict)
         .Check();
   }
-  isolate->EnqueueMicrotask(task);
+  isolate->native_context()->microtask_queue()->EnqueueMicrotask(*task);
 
   // 13. Return undefined.
   return isolate->factory()->undefined_value();
@@ -16620,7 +16621,8 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
               PromiseRejectReactionJobTask::kPromiseOrCapabilityOffset));
     }
 
-    isolate->EnqueueMicrotask(Handle<PromiseReactionJobTask>::cast(task));
+    isolate->native_context()->microtask_queue()->EnqueueMicrotask(
+        *Handle<PromiseReactionJobTask>::cast(task));
   }
 
   return isolate->factory()->undefined_value();

@@ -1403,17 +1403,11 @@ class Isolate final : private HiddenFactory {
   void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
   inline void FireBeforeCallEnteredCallback();
 
-  void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
-  void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
-  inline void FireMicrotasksCompletedCallback();
-
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
   void ReportPromiseReject(Handle<JSPromise> promise, Handle<Object> value,
                            v8::PromiseRejectEvent event);
 
-  void EnqueueMicrotask(Handle<Microtask> microtask);
   void RunMicrotasks();
-  bool IsRunningMicrotasks() const { return is_running_microtasks_; }
 
   Handle<Symbol> SymbolFor(RootIndex dictionary_index, Handle<String> name,
                            bool private_symbol);
@@ -1855,10 +1849,6 @@ class Isolate final : private HiddenFactory {
 
   // Vector of callbacks when a Call completes.
   std::vector<CallCompletedCallback> call_completed_callbacks_;
-
-  // Vector of callbacks after microtasks were run.
-  std::vector<MicrotasksCompletedCallback> microtasks_completed_callbacks_;
-  bool is_running_microtasks_ = false;
 
   v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
 

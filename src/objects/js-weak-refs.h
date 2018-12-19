@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 class JSWeakCell;
+class NativeContext;
 
 // WeakFactory object from the JS Weak Refs spec proposal:
 // https://github.com/tc39/proposal-weakrefs
@@ -24,7 +25,7 @@ class JSWeakFactory : public JSObject {
   DECL_VERIFIER(JSWeakFactory)
   DECL_CAST2(JSWeakFactory)
 
-  DECL_ACCESSORS2(native_context, Context)
+  DECL_ACCESSORS2(native_context, NativeContext)
   DECL_ACCESSORS(cleanup, Object)
   DECL_ACCESSORS(active_cells, Object)
   DECL_ACCESSORS(cleared_cells, Object)
