@@ -138,7 +138,8 @@ enum ScaleFactor : int8_t {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_pointer_size = (kPointerSize == 8) ? times_8 : times_4
+  times_pointer_size = (kSystemPointerSize == 8) ? times_8 : times_4,
+  times_tagged_size = (kTaggedSize == 8) ? times_8 : times_4,
 };
 
 class V8_EXPORT_PRIVATE Operand {
@@ -412,52 +413,76 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // - Instructions on 64-bit (quadword) operands/registers use 'q'.
   // - Instructions on operands/registers with pointer size use 'p'.
 
-  STATIC_ASSERT(kPointerSize == kInt64Size || kPointerSize == kInt32Size);
+  STATIC_ASSERT(kSystemPointerSize == kInt64Size ||
+                kSystemPointerSize == kInt32Size);
 
-#define DECLARE_INSTRUCTION(instruction)                \
-  template<class P1>                                    \
-  void instruction##p(P1 p1) {                          \
-    emit_##instruction(p1, kPointerSize);               \
-  }                                                     \
-                                                        \
-  template<class P1>                                    \
-  void instruction##l(P1 p1) {                          \
-    emit_##instruction(p1, kInt32Size);                 \
-  }                                                     \
-                                                        \
-  template<class P1>                                    \
-  void instruction##q(P1 p1) {                          \
-    emit_##instruction(p1, kInt64Size);                 \
-  }                                                     \
-                                                        \
-  template<class P1, class P2>                          \
-  void instruction##p(P1 p1, P2 p2) {                   \
-    emit_##instruction(p1, p2, kPointerSize);           \
-  }                                                     \
-                                                        \
-  template<class P1, class P2>                          \
-  void instruction##l(P1 p1, P2 p2) {                   \
-    emit_##instruction(p1, p2, kInt32Size);             \
-  }                                                     \
-                                                        \
-  template<class P1, class P2>                          \
-  void instruction##q(P1 p1, P2 p2) {                   \
-    emit_##instruction(p1, p2, kInt64Size);             \
-  }                                                     \
-                                                        \
-  template<class P1, class P2, class P3>                \
-  void instruction##p(P1 p1, P2 p2, P3 p3) {            \
-    emit_##instruction(p1, p2, p3, kPointerSize);       \
-  }                                                     \
-                                                        \
-  template<class P1, class P2, class P3>                \
-  void instruction##l(P1 p1, P2 p2, P3 p3) {            \
-    emit_##instruction(p1, p2, p3, kInt32Size);         \
-  }                                                     \
-                                                        \
-  template<class P1, class P2, class P3>                \
-  void instruction##q(P1 p1, P2 p2, P3 p3) {            \
-    emit_##instruction(p1, p2, p3, kInt64Size);         \
+#define DECLARE_INSTRUCTION(instruction)                                       \
+  template <class P1>                                                          \
+  void instruction##p(P1 p1) {                                                 \
+    emit_##instruction(p1, kSystemPointerSize);                                \
+  }                                                                            \
+                                                                               \
+  template <class P1>                                                          \
+  void instruction##_tagged(P1 p1) {                                           \
+    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);                          \
+    /* TODO(ishell): change to kTaggedSize */                                  \
+    emit_##instruction(p1, COMPRESS_POINTERS_BOOL ? kInt32Size : kTaggedSize); \
+  }                                                                            \
+                                                                               \
+  template <class P1>                                                          \
+  void instruction##l(P1 p1) {                                                 \
+    emit_##instruction(p1, kInt32Size);                                        \
+  }                                                                            \
+                                                                               \
+  template <class P1>                                                          \
+  void instruction##q(P1 p1) {                                                 \
+    emit_##instruction(p1, kInt64Size);                                        \
+  }                                                                            \
+                                                                               \
+  template <class P1, class P2>                                                \
+  void instruction##p(P1 p1, P2 p2) {                                          \
+    emit_##instruction(p1, p2, kSystemPointerSize);                            \
+  }                                                                            \
+                                                                               \
+  template <class P1, class P2>                                                \
+  void instruction##_tagged(P1 p1, P2 p2) {                                    \
+    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);                          \
+    /* TODO(ishell): change to kTaggedSize */                                  \
+    emit_##instruction(p1, p2,                                                 \
+                       COMPRESS_POINTERS_BOOL ? kInt32Size : kTaggedSize);     \
+  }                                                                            \
+                                                                               \
+  template <class P1, class P2>                                                \
+  void instruction##l(P1 p1, P2 p2) {                                          \
+    emit_##instruction(p1, p2, kInt32Size);                                    \
+  }                                                                            \
+                                                                               \
+  template <class P1, class P2>                                                \
+  void instruction##q(P1 p1, P2 p2) {                                          \
+    emit_##instruction(p1, p2, kInt64Size);                                    \
+  }                                                                            \
+                                                                               \
+  template <class P1, class P2, class P3>                                      \
+  void instruction##p(P1 p1, P2 p2, P3 p3) {                                   \
+    emit_##instruction(p1, p2, p3, kSystemPointerSize);                        \
+  }                                                                            \
+                                                                               \
+  template <class P1, class P2, class P3>                                      \
+  void instruction##_tagged(P1 p1, P2 p2, P3 p3) {                             \
+    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);                          \
+    /* TODO(ishell): change to kTaggedSize */                                  \
+    emit_##instruction(p1, p2, p3,                                             \
+                       COMPRESS_POINTERS_BOOL ? kInt32Size : kTaggedSize);     \
+  }                                                                            \
+                                                                               \
+  template <class P1, class P2, class P3>                                      \
+  void instruction##l(P1 p1, P2 p2, P3 p3) {                                   \
+    emit_##instruction(p1, p2, p3, kInt32Size);                                \
+  }                                                                            \
+                                                                               \
+  template <class P1, class P2, class P3>                                      \
+  void instruction##q(P1 p1, P2 p2, P3 p3) {                                   \
+    emit_##instruction(p1, p2, p3, kInt64Size);                                \
   }
   ASSEMBLER_INSTRUCTION_LIST(DECLARE_INSTRUCTION)
 #undef DECLARE_INSTRUCTION

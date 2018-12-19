@@ -652,7 +652,8 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  __ movp(rbx, Operand(kJavaScriptCallCodeStartRegister, offset));
+  __ LoadTaggedPointerField(rbx,
+                            Operand(kJavaScriptCallCodeStartRegister, offset));
   __ testl(FieldOperand(rbx, CodeDataContainer::kKindSpecificFlagsOffset),
            Immediate(1 << Code::kMarkedForDeoptimizationBit));
   // Ensure we're not serializing (otherwise we'd need to use an indirection to
@@ -809,11 +810,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
-        __ cmpp(rsi, FieldOperand(func, JSFunction::kContextOffset));
+        __ cmp_tagged(rsi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-      __ movp(rcx, FieldOperand(func, JSFunction::kCodeOffset));
+      __ LoadTaggedPointerField(rcx,
+                                FieldOperand(func, JSFunction::kCodeOffset));
       __ addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
       __ call(rcx);
       frame_access_state()->ClearSPDelta();
@@ -3373,12 +3375,12 @@ void CodeGenerator::AssembleConstructFrame() {
         // Unpack the tuple into the instance and the target callable.
         // This must be done here in the codegen because it cannot be expressed
         // properly in the graph.
-        __ movq(kJSFunctionRegister,
-                Operand(kWasmInstanceRegister,
-                        Tuple2::kValue2Offset - kHeapObjectTag));
-        __ movq(kWasmInstanceRegister,
-                Operand(kWasmInstanceRegister,
-                        Tuple2::kValue1Offset - kHeapObjectTag));
+        __ LoadTaggedPointerField(
+            kJSFunctionRegister,
+            FieldOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ LoadTaggedPointerField(
+            kWasmInstanceRegister,
+            FieldOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ pushq(kWasmInstanceRegister);
       }
     }
@@ -3426,8 +3428,9 @@ void CodeGenerator::AssembleConstructFrame() {
         __ cmpq(rsp, kScratchRegister);
         __ j(above_equal, &done);
       }
-      __ movp(rcx, FieldOperand(kWasmInstanceRegister,
-                                WasmInstanceObject::kCEntryStubOffset));
+      __ LoadTaggedPointerField(
+          rcx, FieldOperand(kWasmInstanceRegister,
+                            WasmInstanceObject::kCEntryStubOffset));
       __ Move(rsi, Smi::zero());
       __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, rcx);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());

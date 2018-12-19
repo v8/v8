@@ -164,6 +164,11 @@ bool CompressedMapWordSlot::contains_value(Address raw_value) const {
   return value == static_cast<Tagged_t>(raw_value);
 }
 
+Object* CompressedMapWordSlot::operator*() const {
+  Tagged_t value = *location();
+  return reinterpret_cast<Object*>(DecompressTaggedPointer(address(), value));
+}
+
 ObjectPtr CompressedMapWordSlot::load() const {
   Tagged_t value = *location();
   return ObjectPtr(DecompressTaggedPointer(address(), value));

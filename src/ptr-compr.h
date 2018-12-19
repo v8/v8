@@ -80,6 +80,7 @@ class CompressedMapWordSlot
   // raw value without decompression.
   inline bool contains_value(Address raw_value) const;
 
+  inline Object* operator*() const;
   inline ObjectPtr load() const;
   inline void store(ObjectPtr value) const;
 

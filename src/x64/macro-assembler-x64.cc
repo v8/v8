@@ -112,9 +112,9 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
-  movp(destination,
-       FieldOperand(destination,
-                    FixedArray::kHeaderSize + constant_index * kPointerSize));
+  LoadTaggedPointerField(
+      destination,
+      FieldOperand(destination, FixedArray::OffsetOfElementAt(constant_index)));
 }
 
 void TurboAssembler::LoadRootRegisterOffset(Register destination,
@@ -197,19 +197,96 @@ void MacroAssembler::PushRoot(RootIndex index) {
 
 void TurboAssembler::CompareRoot(Register with, RootIndex index) {
   DCHECK(root_array_available_);
-  cmpp(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+  if (IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+                RootIndex::kLastStrongOrReadOnlyRoot)) {
+    cmp_tagged(with,
+               Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+  } else {
+    // Some smi roots contain system pointer size values like stack limits.
+    cmpp(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+  }
 }
 
 void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
   DCHECK(root_array_available_);
   DCHECK(!with.AddressUsesRegister(kScratchRegister));
   LoadRoot(kScratchRegister, index);
-  cmpp(with, kScratchRegister);
+  if (IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+                RootIndex::kLastStrongOrReadOnlyRoot)) {
+    cmp_tagged(with, kScratchRegister);
+  } else {
+    // Some smi roots contain system pointer size values like stack limits.
+    cmpp(with, kScratchRegister);
+  }
+}
+
+void TurboAssembler::LoadTaggedPointerField(Register destination,
+                                            Operand field_operand,
+                                            Register scratch_for_debug) {
+#ifdef V8_COMPRESS_POINTERS
+  DecompressTaggedPointer(destination, field_operand, scratch_for_debug);
+#else
+  movp(destination, field_operand);
+#endif
+}
+
+void TurboAssembler::LoadAnyTaggedField(Register destination,
+                                        Operand field_operand, Register scratch,
+                                        Register scratch_for_debug) {
+#ifdef V8_COMPRESS_POINTERS
+  DecompressAnyTagged(destination, field_operand, scratch, scratch_for_debug);
+#else
+  movp(destination, field_operand);
+#endif
+}
+
+void TurboAssembler::PushTaggedPointerField(Operand field_operand,
+                                            Register scratch,
+                                            Register scratch_for_debug) {
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK(!AreAliased(scratch, scratch_for_debug));
+  DCHECK(!field_operand.AddressUsesRegister(scratch));
+  DCHECK(!field_operand.AddressUsesRegister(scratch_for_debug));
+  DecompressTaggedPointer(scratch, field_operand, scratch_for_debug);
+  Push(scratch);
+#else
+  Push(field_operand);
+#endif
+}
+
+void TurboAssembler::PushTaggedAnyField(Operand field_operand,
+                                        Register scratch1, Register scratch2,
+                                        Register scratch_for_debug) {
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK(!AreAliased(scratch1, scratch2, scratch_for_debug));
+  DCHECK(!field_operand.AddressUsesRegister(scratch1));
+  DCHECK(!field_operand.AddressUsesRegister(scratch2));
+  DCHECK(!field_operand.AddressUsesRegister(scratch_for_debug));
+  DecompressAnyTagged(scratch1, field_operand, scratch2, scratch_for_debug);
+  Push(scratch1);
+#else
+  Push(field_operand);
+#endif
+}
+
+void TurboAssembler::SmiUntagField(Register dst, Operand src) {
+  SmiUntag(dst, src);
+}
+
+void TurboAssembler::StoreTaggedField(Operand dst_field_operand,
+                                      Immediate value) {
+  movp(dst_field_operand, value);
+}
+
+void TurboAssembler::StoreTaggedField(Operand dst_field_operand,
+                                      Register value) {
+  movp(dst_field_operand, value);
 }
 
 void TurboAssembler::DecompressTaggedSigned(Register destination,
                                             Operand field_operand,
                                             Register scratch_for_debug) {
+  DCHECK(!AreAliased(destination, scratch_for_debug));
   RecordComment("[ DecompressTaggedSigned");
   if (DEBUG_BOOL && scratch_for_debug.is_valid()) {
     Register expected_value = scratch_for_debug;
@@ -230,6 +307,7 @@ void TurboAssembler::DecompressTaggedSigned(Register destination,
 void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Operand field_operand,
                                              Register scratch_for_debug) {
+  DCHECK(!AreAliased(destination, scratch_for_debug));
   RecordComment("[ DecompressTaggedPointer");
   if (DEBUG_BOOL && scratch_for_debug.is_valid()) {
     Register expected_value = scratch_for_debug;
@@ -253,6 +331,7 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
                                          Operand field_operand,
                                          Register scratch,
                                          Register scratch_for_debug) {
+  DCHECK(!AreAliased(destination, scratch, scratch_for_debug));
   RecordComment("[ DecompressAnyTagged");
   Register expected_value = scratch_for_debug;
   if (DEBUG_BOOL && expected_value.is_valid()) {
@@ -431,7 +510,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
   if (emit_debug_code()) {
     Label ok;
-    cmpp(value, Operand(address, 0));
+    cmp_tagged(value, Operand(address, 0));
     j(equal, &ok, Label::kNear);
     int3();
     bind(&ok);
@@ -1142,23 +1221,23 @@ void MacroAssembler::SmiCompare(Register dst, Smi src) {
 void MacroAssembler::Cmp(Register dst, Smi src) {
   DCHECK_NE(dst, kScratchRegister);
   if (src->value() == 0) {
-    testp(dst, dst);
+    test_tagged(dst, dst);
   } else {
     Register constant_reg = GetSmiConstant(src);
-    cmpp(dst, constant_reg);
+    cmp_tagged(dst, constant_reg);
   }
 }
 
 void MacroAssembler::SmiCompare(Register dst, Operand src) {
   AssertSmi(dst);
   AssertSmi(src);
-  cmpp(dst, src);
+  cmp_tagged(dst, src);
 }
 
 void MacroAssembler::SmiCompare(Operand dst, Register src) {
   AssertSmi(dst);
   AssertSmi(src);
-  cmpp(dst, src);
+  cmp_tagged(dst, src);
 }
 
 void MacroAssembler::SmiCompare(Operand dst, Smi src) {
@@ -1175,7 +1254,7 @@ void MacroAssembler::Cmp(Operand dst, Smi src) {
   // The Operand cannot use the smi register.
   Register smi_reg = GetSmiConstant(src);
   DCHECK(!dst.AddressUsesRegister(smi_reg));
-  cmpp(dst, smi_reg);
+  cmp_tagged(dst, smi_reg);
 }
 
 
@@ -1250,7 +1329,7 @@ SmiIndex MacroAssembler::SmiToIndex(Register dst,
   } else {
     DCHECK(SmiValuesAre31Bits());
     if (dst != src) {
-      movp(dst, src);
+      mov_tagged(dst, src);
     }
     // We have to sign extend the index register to 64-bit as the SMI might
     // be negative.
@@ -1375,7 +1454,7 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
     Cmp(dst, Smi::cast(*source));
   } else {
     Move(kScratchRegister, Handle<HeapObject>::cast(source));
-    cmpp(dst, kScratchRegister);
+    cmp_tagged(dst, kScratchRegister);
   }
 }
 
@@ -1385,7 +1464,7 @@ void MacroAssembler::Cmp(Operand dst, Handle<Object> source) {
     Cmp(dst, Smi::cast(*source));
   } else {
     Move(kScratchRegister, Handle<HeapObject>::cast(source));
-    cmpp(dst, kScratchRegister);
+    cmp_tagged(dst, kScratchRegister);
   }
 }
 
@@ -2000,7 +2079,8 @@ void TurboAssembler::Ret(int bytes_dropped, Register scratch) {
 void MacroAssembler::CmpObjectType(Register heap_object,
                                    InstanceType type,
                                    Register map) {
-  movp(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  LoadTaggedPointerField(map,
+                         FieldOperand(heap_object, HeapObject::kMapOffset));
   CmpInstanceType(map, type);
 }
 
@@ -2056,7 +2136,8 @@ void MacroAssembler::AssertConstructor(Register object) {
     testb(object, Immediate(kSmiTagMask));
     Check(not_equal, AbortReason::kOperandIsASmiAndNotAConstructor);
     Push(object);
-    movq(object, FieldOperand(object, HeapObject::kMapOffset));
+    LoadTaggedPointerField(object,
+                           FieldOperand(object, HeapObject::kMapOffset));
     testb(FieldOperand(object, Map::kBitFieldOffset),
           Immediate(Map::IsConstructorBit::kMask));
     Pop(object);
@@ -2095,7 +2176,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   // Load map
   Register map = object;
   Push(object);
-  movp(map, FieldOperand(object, HeapObject::kMapOffset));
+  LoadTaggedPointerField(map, FieldOperand(object, HeapObject::kMapOffset));
 
   Label do_check;
   // Check if JSGeneratorObject
@@ -2244,7 +2325,8 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
 void MacroAssembler::InvokeFunction(Register function, Register new_target,
                                     const ParameterCount& actual,
                                     InvokeFlag flag) {
-  movp(rbx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  LoadTaggedPointerField(
+      rbx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movzxwq(rbx,
           FieldOperand(rbx, SharedFunctionInfo::kFormalParameterCountOffset));
 
@@ -2257,7 +2339,8 @@ void MacroAssembler::InvokeFunction(Register function, Register new_target,
                                     const ParameterCount& actual,
                                     InvokeFlag flag) {
   DCHECK(function == rdi);
-  movp(rsi, FieldOperand(function, JSFunction::kContextOffset));
+  LoadTaggedPointerField(rsi,
+                         FieldOperand(function, JSFunction::kContextOffset));
   InvokeFunctionCode(rdi, new_target, expected, actual, flag);
 }
 
@@ -2287,7 +2370,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     // allow recompilation to take effect without changing any of the
     // call sites.
     static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-    movp(rcx, FieldOperand(function, JSFunction::kCodeOffset));
+    LoadTaggedPointerField(rcx,
+                           FieldOperand(function, JSFunction::kCodeOffset));
     addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
     if (flag == CALL_FUNCTION) {
       call(rcx);
@@ -2590,8 +2674,8 @@ static const int kRegisterPassedArguments = 6;
 
 
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
-  movp(dst, NativeContextOperand());
-  movp(dst, ContextOperand(dst, index));
+  LoadTaggedPointerField(dst, NativeContextOperand());
+  LoadTaggedPointerField(dst, ContextOperand(dst, index));
 }
 
 

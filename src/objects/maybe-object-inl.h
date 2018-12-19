@@ -7,6 +7,9 @@
 
 #include "src/objects/maybe-object.h"
 
+#ifdef V8_COMPRESS_POINTERS
+#include "src/isolate.h"
+#endif
 #include "src/objects-inl.h"
 #include "src/objects/slots-inl.h"
 

@@ -478,9 +478,43 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ResetSpeculationPoisonRegister();
 
   // ---------------------------------------------------------------------------
-  // Pointer compresstion Support
+  // Pointer compression support
 
   // TODO(ishell): remove |scratch_for_debug| once pointer compression works.
+
+  // Loads a field containing a HeapObject and decompresses it if pointer
+  // compression is enabled.
+  void LoadTaggedPointerField(Register destination, Operand field_operand,
+                              Register scratch_for_debug = no_reg);
+
+  // Loads a field containing any tagged value and decompresses it if necessary.
+  // When pointer compression is enabled, uses |scratch| to decompress the
+  // value.
+  void LoadAnyTaggedField(Register destination, Operand field_operand,
+                          Register scratch,
+                          Register scratch_for_debug = no_reg);
+
+  // Loads a field containing a HeapObject, decompresses it if necessary and
+  // pushes full pointer to the stack. When pointer compression is enabled,
+  // uses |scratch| to decompress the value.
+  void PushTaggedPointerField(Operand field_operand, Register scratch,
+                              Register scratch_for_debug = no_reg);
+
+  // Loads a field containing any tagged value, decompresses it if necessary and
+  // pushes the full pointer to the stack. When pointer compression is enabled,
+  // uses |scratch1| and |scratch2| to decompress the value.
+  void PushTaggedAnyField(Operand field_operand, Register scratch1,
+                          Register scratch2,
+                          Register scratch_for_debug = no_reg);
+
+  // Loads a field containing smi value and untags it.
+  void SmiUntagField(Register dst, Operand src);
+
+  // Compresses and stores tagged value to given on-heap location.
+  // TODO(ishell): drop once mov_tagged() can be used.
+  void StoreTaggedField(Operand dst_field_operand, Immediate immediate);
+  void StoreTaggedField(Operand dst_field_operand, Register value);
+
   void DecompressTaggedSigned(Register destination, Operand field_operand,
                               Register scratch_for_debug);
   void DecompressTaggedPointer(Register destination, Operand field_operand,
