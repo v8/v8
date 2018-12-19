@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {sortUnique, anyToString} from "../src/util"
+import { sortUnique, anyToString } from "../src/util"
 
 function sourcePositionLe(a, b) {
   if (a.inliningId == b.inliningId) {
@@ -331,13 +331,13 @@ export class SourceResolver {
     }
   }
 
-  getInstruction(nodeId):[number, number] {
+  getInstruction(nodeId): [number, number] {
     const X = this.nodeIdToInstructionRange[nodeId];
     if (X === undefined) return [-1, -1];
     return X;
   }
 
-  getInstructionRangeForBlock(blockId):[number, number] {
+  getInstructionRangeForBlock(blockId): [number, number] {
     const X = this.blockIdToInstructionRange[blockId];
     if (X === undefined) return [-1, -1];
     return X;
@@ -358,9 +358,32 @@ export class SourceResolver {
     return this.pcOffsetToInstructions.size > 0;
   }
 
+  getKeyPcOffset(offset): number {
+    if (this.pcOffsets.length === 0) return -1;
+    for (const key of this.pcOffsets) {
+      if (key <= offset) {
+        return key;
+      }
+    }
+  }
+
+  instructionRangeToKeyPcOffsets([start, end]) {
+    if (start == end) return [this.instructionToPCOffset[start]];
+    return this.instructionToPCOffset.slice(start, end);
+  }
+
+  nodesToKeyPcOffsets(nodes) {
+    let offsets = [];
+    for (const node of nodes) {
+      const range = this.nodeIdToInstructionRange[node];
+      if (!range) continue;
+      offsets = offsets.concat(this.instructionRangeToKeyPcOffsets(range))
+    }
+    return offsets;
+  }
 
   nodesForPCOffset(offset): [Array<String>, Array<String>] {
-    if (this.pcOffsets.length === 0) return [[],[]];
+    if (this.pcOffsets.length === 0) return [[], []];
     for (const key of this.pcOffsets) {
       if (key <= offset) {
         const instrs = this.pcOffsetToInstructions.get(key);
@@ -381,7 +404,7 @@ export class SourceResolver {
         return [nodes, blocks];
       }
     }
-    return [[],[]];
+    return [[], []];
   }
 
   parsePhases(phases) {
