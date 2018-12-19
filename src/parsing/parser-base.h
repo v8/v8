@@ -1077,7 +1077,7 @@ class ParserBase {
   // Whether we're parsing a single-expression arrow function or something else.
   enum class FunctionBodyType { kExpression, kBlock };
   // Consumes the ending }.
-  void ParseFunctionBody(StatementListT* result, IdentifierT function_name,
+  void ParseFunctionBody(StatementListT* body, IdentifierT function_name,
                          int pos, const FormalParametersT& parameters,
                          FunctionKind kind,
                          FunctionLiteral::FunctionType function_type,
@@ -3816,110 +3816,113 @@ ParserBase<Impl>::ParseAsyncFunctionDeclaration(
 
 template <typename Impl>
 void ParserBase<Impl>::ParseFunctionBody(
-    typename ParserBase<Impl>::StatementListT* body, IdentifierT function_name,
-    int pos, const FormalParametersT& parameters, FunctionKind kind,
+    StatementListT* body, IdentifierT function_name, int pos,
+    const FormalParametersT& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, FunctionBodyType body_type) {
-  FunctionBodyParsingScope body_scope(impl());
-
-  DeclarationScope* function_scope = scope()->AsDeclarationScope();
-  DeclarationScope* inner_scope = function_scope;
-
+  if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
+  // Building the parameter initialization block declares the parameters.
+  // TODO(verwaest): Rely on ArrowHeadParsingScope instead.
   if (!parameters.is_simple) {
-    inner_scope = NewVarblockScope();
-    inner_scope->set_start_position(scanner()->location().beg_pos);
-  }
-
-  {
-    BlockState block_state(&scope_, inner_scope);
-
-    if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
-
-    if (body_type == FunctionBodyType::kExpression) {
-      ExpressionT expression = ParseAssignmentExpression();
-
-      if (IsAsyncFunction(kind)) {
-        BlockT block = factory()->NewBlock(1, true);
-        impl()->RewriteAsyncFunctionBody(body, block, expression);
-      } else {
-        body->Add(BuildReturnStatement(expression, expression->position()));
-      }
-    } else {
-      DCHECK(accept_IN_);
-      DCHECK_EQ(FunctionBodyType::kBlock, body_type);
-      // If we are parsing the source as if it is wrapped in a function, the
-      // source ends without a closing brace.
-      Token::Value closing_token = function_type == FunctionLiteral::kWrapped
-                                       ? Token::EOS
-                                       : Token::RBRACE;
-
-      if (IsAsyncGeneratorFunction(kind)) {
-        impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind, body);
-      } else if (IsGeneratorFunction(kind)) {
-        impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, body);
-      } else if (IsAsyncFunction(kind)) {
-        ParseAsyncFunctionBody(inner_scope, body);
-      } else {
-        ParseStatementList(body, closing_token);
-      }
-
-      if (IsDerivedConstructor(kind)) {
-        body->Add(factory()->NewReturnStatement(impl()->ThisExpression(),
-                                                kNoSourcePosition));
-      }
-      Expect(closing_token);
-    }
-  }
-
-  scope()->set_end_position(end_position());
-
-  bool allow_duplicate_parameters = false;
-
-  if (parameters.is_simple) {
-    DCHECK_EQ(inner_scope, function_scope);
-    if (is_sloppy(function_scope->language_mode())) {
-      impl()->InsertSloppyBlockFunctionVarBindings(function_scope);
-    }
-    allow_duplicate_parameters = is_sloppy(function_scope->language_mode()) &&
-                                 !IsConciseMethod(kind) &&
-                                 !IsArrowFunction(kind);
-  } else {
-    BlockT inner_block = factory()->NewBlock(true, *body);
-    inner_block->set_scope(inner_scope);
-    body->Rewind();
-    DCHECK_NOT_NULL(inner_scope);
-    DCHECK_EQ(function_scope, scope());
-    DCHECK_EQ(function_scope, inner_scope->outer_scope());
-    impl()->SetLanguageMode(function_scope, inner_scope->language_mode());
-    // TODO(verwaest): Disable DCHECKs in failure mode?
     if (has_error()) return;
     BlockT init_block = impl()->BuildParameterInitializationBlock(parameters);
-
-    if (is_sloppy(inner_scope->language_mode())) {
-      impl()->InsertSloppyBlockFunctionVarBindings(inner_scope);
-    }
-
-    // TODO(littledan): Merge the two rejection blocks into one
     if (IsAsyncFunction(kind) && !IsAsyncGeneratorFunction(kind)) {
       init_block = impl()->BuildRejectPromiseOnException(init_block);
     }
-
-    inner_scope->set_end_position(end_position());
-    if (inner_scope->FinalizeBlockScope() != nullptr) {
-      const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
-          function_scope, VariableMode::kLastLexicalVariableMode);
-      if (conflict != nullptr) {
-        impl()->ReportVarRedeclarationIn(conflict, inner_scope);
-      }
-      impl()->CheckConflictingVarDeclarations(inner_scope);
-      impl()->InsertShadowingVarBindingInitializers(inner_block);
-    } else {
-      inner_block->set_scope(nullptr);
-    }
-    inner_scope = nullptr;
-
     body->Add(init_block);
-    body->Add(inner_block);
+    if (has_error()) return;
   }
+
+  DeclarationScope* function_scope = scope()->AsDeclarationScope();
+  bool allow_duplicate_parameters = false;
+  BlockT inner_block = impl()->NullBlock();
+  {
+    StatementListT inner_body(pointer_buffer());
+    DeclarationScope* inner_scope = function_scope;
+
+    if (!parameters.is_simple) {
+      inner_scope = NewVarblockScope();
+      inner_scope->set_start_position(scanner()->location().beg_pos);
+    }
+
+    {
+      BlockState block_state(&scope_, inner_scope);
+
+      if (body_type == FunctionBodyType::kExpression) {
+        ExpressionT expression = ParseAssignmentExpression();
+
+        if (IsAsyncFunction(kind)) {
+          BlockT block = factory()->NewBlock(1, true);
+          impl()->RewriteAsyncFunctionBody(&inner_body, block, expression);
+        } else {
+          inner_body.Add(
+              BuildReturnStatement(expression, expression->position()));
+        }
+      } else {
+        DCHECK(accept_IN_);
+        DCHECK_EQ(FunctionBodyType::kBlock, body_type);
+        // If we are parsing the source as if it is wrapped in a function, the
+        // source ends without a closing brace.
+        Token::Value closing_token = function_type == FunctionLiteral::kWrapped
+                                         ? Token::EOS
+                                         : Token::RBRACE;
+
+        if (IsAsyncGeneratorFunction(kind)) {
+          impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind,
+                                                            &inner_body);
+        } else if (IsGeneratorFunction(kind)) {
+          impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, &inner_body);
+        } else if (IsAsyncFunction(kind)) {
+          ParseAsyncFunctionBody(inner_scope, &inner_body);
+        } else {
+          ParseStatementList(&inner_body, closing_token);
+        }
+
+        if (IsDerivedConstructor(kind)) {
+          inner_body.Add(factory()->NewReturnStatement(impl()->ThisExpression(),
+                                                       kNoSourcePosition));
+        }
+        Expect(closing_token);
+      }
+    }
+
+    scope()->set_end_position(end_position());
+
+    if (parameters.is_simple) {
+      DCHECK_EQ(inner_scope, function_scope);
+      if (is_sloppy(function_scope->language_mode())) {
+        impl()->InsertSloppyBlockFunctionVarBindings(function_scope);
+      }
+      allow_duplicate_parameters = is_sloppy(function_scope->language_mode()) &&
+                                   !IsConciseMethod(kind) &&
+                                   !IsArrowFunction(kind);
+    } else {
+      DCHECK_NOT_NULL(inner_scope);
+      DCHECK_EQ(function_scope, scope());
+      DCHECK_EQ(function_scope, inner_scope->outer_scope());
+      impl()->SetLanguageMode(function_scope, inner_scope->language_mode());
+
+      if (is_sloppy(inner_scope->language_mode())) {
+        impl()->InsertSloppyBlockFunctionVarBindings(inner_scope);
+      }
+
+      inner_scope->set_end_position(end_position());
+      if (inner_scope->FinalizeBlockScope() != nullptr) {
+        inner_block = factory()->NewBlock(true, inner_body);
+        inner_body.Rewind();
+        inner_block->set_scope(inner_scope);
+        const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
+            function_scope, VariableMode::kLastLexicalVariableMode);
+        if (conflict != nullptr) {
+          impl()->ReportVarRedeclarationIn(conflict, inner_scope);
+        }
+        impl()->CheckConflictingVarDeclarations(inner_scope);
+        impl()->InsertShadowingVarBindingInitializers(inner_block);
+      }
+    }
+    inner_body.MergeInto(body);
+  }
+
+  if (!impl()->IsNull(inner_block)) body->Add(inner_block);
 
   ValidateFormalParameters(language_mode(), parameters,
                            allow_duplicate_parameters);
@@ -4042,6 +4045,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     if (peek() == Token::LBRACE) {
       // Multiple statement body
       DCHECK_EQ(scope(), formal_parameters.scope);
+
       if (is_lazy_top_level_function) {
         // FIXME(marja): Arrow function parameters will be parsed even if the
         // body is preparsed; move relevant parts of parameter handling to

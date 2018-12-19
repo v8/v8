@@ -147,6 +147,10 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
     ParseFormalParameterList(&formals);
+    if (!formals.is_simple) {
+      BuildParameterInitializationBlock(formals);
+    }
+
     Expect(Token::RPAREN);
     int formals_end_position = scanner()->location().end_pos;
 
@@ -180,8 +184,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
                                  !IsConciseMethod(kind) &&
                                  !IsArrowFunction(kind);
   } else {
-    BuildParameterInitializationBlock(formals);
-
     if (is_sloppy(inner_scope->language_mode())) {
       inner_scope->HoistSloppyBlockFunctions(nullptr);
     }

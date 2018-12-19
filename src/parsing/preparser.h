@@ -430,6 +430,7 @@ class PreParserScopedStatementList {
  public:
   explicit PreParserScopedStatementList(std::vector<void*>* buffer) {}
   void Rewind() {}
+  void MergeInto(const PreParserScopedStatementList* other) {}
   void Add(const PreParserStatement& element) {}
 };
 

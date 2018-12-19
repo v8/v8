@@ -335,6 +335,13 @@ class ScopedPtrList final {
     end_ = start_;
   }
 
+  void MergeInto(ScopedPtrList* parent) {
+    DCHECK_EQ(parent->end_, start_);
+    parent->end_ = end_;
+    start_ = end_;
+    DCHECK_EQ(0, length());
+  }
+
   int length() const { return static_cast<int>(end_ - start_); }
   T* at(int i) const {
     size_t index = start_ + i;
