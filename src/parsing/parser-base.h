@@ -1175,13 +1175,9 @@ class ParserBase {
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
   // we allow calls for web compatibility and rewrite them to a runtime throw.
-  V8_INLINE ExpressionT
-  RewriteInvalidReferenceExpression(ExpressionT expression, int beg_pos,
-                                    int end_pos, MessageTemplate message);
-  ExpressionT RewriteInvalidReferenceExpression(ExpressionT expression,
-                                                int beg_pos, int end_pos,
-                                                MessageTemplate message,
-                                                ParseErrorType type);
+  ExpressionT RewriteInvalidReferenceExpression(
+      ExpressionT expression, int beg_pos, int end_pos, MessageTemplate message,
+      ParseErrorType type = kReferenceError);
 
   bool IsValidReferenceExpression(ExpressionT expression);
 
@@ -2900,6 +2896,7 @@ ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
 
   CheckStackOverflow();
 
+  int expression_position = peek_position();
   ExpressionT expression = ParseUnaryExpression();
 
   if (Token::IsUnaryOp(op)) {
@@ -2929,7 +2926,7 @@ ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
 
   if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
     expression = RewriteInvalidReferenceExpression(
-        expression, expression->position(), end_position(),
+        expression, expression_position, end_position(),
         MessageTemplate::kInvalidLhsInPrefixOp);
   }
   impl()->MarkExpressionAsAssigned(expression);
@@ -4361,15 +4358,6 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
                                                     int beg_pos, int end_pos,
-                                                    MessageTemplate message) {
-  return RewriteInvalidReferenceExpression(expression, beg_pos, end_pos,
-                                           message, kReferenceError);
-}
-
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
-                                                    int beg_pos, int end_pos,
                                                     MessageTemplate message,
                                                     ParseErrorType type) {
   DCHECK(!IsValidReferenceExpression(expression));
@@ -4382,6 +4370,9 @@ ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
     return impl()->FailureExpression();
   }
   if (expression->IsCall() && !expression->AsCall()->is_tagged_template()) {
+    expression_scope()->RecordPatternError(
+        Scanner::Location(beg_pos, end_pos),
+        MessageTemplate::kInvalidDestructuringTarget);
     // If it is a call, make it a runtime error for legacy web compatibility.
     // Bug: https://bugs.chromium.org/p/v8/issues/detail?id=4480
     // Rewrite `expr' to `expr[throw ReferenceError]'.
