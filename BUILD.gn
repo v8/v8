@@ -2815,8 +2815,6 @@ v8_source_set("v8_base") {
       "src/ia32/macro-assembler-ia32.cc",
       "src/ia32/macro-assembler-ia32.h",
       "src/ia32/register-ia32.h",
-      "src/ia32/simulator-ia32.cc",
-      "src/ia32/simulator-ia32.h",
       "src/ia32/sse-instr.h",
       "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
@@ -2850,8 +2848,6 @@ v8_source_set("v8_base") {
       "src/x64/macro-assembler-x64.cc",
       "src/x64/macro-assembler-x64.h",
       "src/x64/register-x64.h",
-      "src/x64/simulator-x64.cc",
-      "src/x64/simulator-x64.h",
       "src/x64/sse-instr.h",
     ]
     if (is_linux || is_mac) {

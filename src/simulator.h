@@ -12,10 +12,8 @@
 #include "src/utils.h"
 #endif
 
-#if V8_TARGET_ARCH_IA32
-#include "src/ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "src/x64/simulator-x64.h"
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+// No simulator for ia32 or x64.
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/simulator-arm64.h"
 #elif V8_TARGET_ARCH_ARM
