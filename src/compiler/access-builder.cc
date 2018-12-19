@@ -414,7 +414,7 @@ FieldAccess AccessBuilder::ForJSDateValue() {
 // static
 FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
   FieldAccess access = {
-      kTaggedBase,         JSDate::kValueOffset + index * kPointerSize,
+      kTaggedBase,         JSDate::kValueOffset + index * kTaggedSize,
       MaybeHandle<Name>(), MaybeHandle<Map>(),
       Type::Number(),      MachineType::AnyTagged(),
       kFullWriteBarrier};
@@ -1103,7 +1103,7 @@ FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfElements() {
 ElementAccess AccessBuilder::ForOrderedHashMapEntryValue() {
   ElementAccess const access = {kTaggedBase,
                                 OrderedHashMap::HashTableStartOffset() +
-                                    OrderedHashMap::kValueOffset * kPointerSize,
+                                    OrderedHashMap::kValueOffset * kTaggedSize,
                                 Type::Any(), MachineType::AnyTagged(),
                                 kFullWriteBarrier};
   return access;

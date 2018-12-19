@@ -3476,7 +3476,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     if (has_control) ++input_count_with_deps;
     if (has_effect) ++input_count_with_deps;
     Node** buffer = EnsureInputBufferSize(input_count_with_deps);
-    memcpy(buffer, value_inputs, kPointerSize * value_input_count);
+    memcpy(buffer, value_inputs, kSystemPointerSize * value_input_count);
     Node** current_input = buffer + value_input_count;
     if (has_context) {
       *current_input++ = OperatorProperties::NeedsExactContext(op)

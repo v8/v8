@@ -19,7 +19,7 @@ Frame::Frame(int fixed_frame_size_in_slots)
       allocated_double_registers_(nullptr) {}
 
 int Frame::AlignFrame(int alignment) {
-  int alignment_slots = alignment / kPointerSize;
+  int alignment_slots = alignment / kSystemPointerSize;
   // We have to align return slots separately, because they are claimed
   // separately on the stack.
   int return_delta =

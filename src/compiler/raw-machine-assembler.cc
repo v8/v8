@@ -52,7 +52,7 @@ Node* RawMachineAssembler::UndefinedConstant() {
 
 Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
                                                      RelocInfo::Mode rmode) {
-  return kPointerSize == 8
+  return kSystemPointerSize == 8
              ? RelocatableInt64Constant(value, rmode)
              : RelocatableInt32Constant(static_cast<int>(value), rmode);
 }

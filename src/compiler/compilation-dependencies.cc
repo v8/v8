@@ -478,7 +478,7 @@ SlackTrackingPrediction::SlackTrackingPrediction(MapRef initial_map,
                                                  int instance_size)
     : instance_size_(instance_size),
       inobject_property_count_(
-          (instance_size >> kPointerSizeLog2) -
+          (instance_size >> kTaggedSizeLog2) -
           initial_map.GetInObjectPropertiesStartInWords()) {}
 
 SlackTrackingPrediction

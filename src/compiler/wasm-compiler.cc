@@ -2708,7 +2708,7 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
       LOAD_INSTANCE_FIELD(ImportedFunctionTargets, MachineType::Pointer());
   Node* target_node = SetEffect(graph()->NewNode(
       mcgraph()->machine()->Load(MachineType::Pointer()), imported_targets,
-      mcgraph()->Int32Constant(func_index * kPointerSize), Effect(),
+      mcgraph()->Int32Constant(func_index * kSystemPointerSize), Effect(),
       Control()));
   args[0] = target_node;
   return BuildWasmCall(sig, args, rets, position, ref_node,
@@ -2722,21 +2722,23 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
   // Load the imported function refs array from the instance.
   Node* imported_function_refs =
       LOAD_INSTANCE_FIELD(ImportedFunctionRefs, MachineType::TaggedPointer());
-  // Access fixed array at {header_size - tag + func_index * kPointerSize}.
+  // Access fixed array at {header_size - tag + func_index * kTaggedSize}.
   Node* imported_instances_data = graph()->NewNode(
       mcgraph()->machine()->IntAdd(), imported_function_refs,
       mcgraph()->IntPtrConstant(
           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
-  Node* func_index_times_pointersize = graph()->NewNode(
+  Node* func_index_times_tagged_size = graph()->NewNode(
       mcgraph()->machine()->IntMul(), Uint32ToUintptr(func_index),
-      mcgraph()->Int32Constant(kPointerSize));
+      mcgraph()->Int32Constant(kTaggedSize));
   Node* ref_node = SetEffect(
       graph()->NewNode(mcgraph()->machine()->Load(MachineType::TaggedPointer()),
-                       imported_instances_data, func_index_times_pointersize,
+                       imported_instances_data, func_index_times_tagged_size,
                        Effect(), Control()));
 
   // Load the target from the imported_targets array at the offset of
   // {func_index}.
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  Node* func_index_times_pointersize = func_index_times_tagged_size;
   Node* imported_targets =
       LOAD_INSTANCE_FIELD(ImportedFunctionTargets, MachineType::Pointer());
   Node* target_node = SetEffect(graph()->NewNode(
@@ -2802,12 +2804,12 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
       LOAD_INSTANCE_FIELD(IndirectFunctionTableSigIds, MachineType::Pointer());
 
   int32_t expected_sig_id = env_->module->signature_ids[sig_index];
-  Node* scaled_key = Uint32ToUintptr(
+  Node* int32_scaled_key = Uint32ToUintptr(
       graph()->NewNode(machine->Word32Shl(), key, Int32Constant(2)));
 
-  Node* loaded_sig =
-      SetEffect(graph()->NewNode(machine->Load(MachineType::Int32()),
-                                 ift_sig_ids, scaled_key, Effect(), Control()));
+  Node* loaded_sig = SetEffect(
+      graph()->NewNode(machine->Load(MachineType::Int32()), ift_sig_ids,
+                       int32_scaled_key, Effect(), Control()));
   Node* sig_match = graph()->NewNode(machine->WordEqual(), loaded_sig,
                                      Int32Constant(expected_sig_id));
 
@@ -2818,16 +2820,19 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   Node* ift_instances = LOAD_INSTANCE_FIELD(IndirectFunctionTableRefs,
                                             MachineType::TaggedPointer());
 
-  scaled_key = graph()->NewNode(machine->Word32Shl(), key,
-                                Int32Constant(kPointerSizeLog2));
+  Node* intptr_scaled_key = graph()->NewNode(
+      machine->Word32Shl(), key, Int32Constant(kSystemPointerSizeLog2));
 
-  Node* target =
-      SetEffect(graph()->NewNode(machine->Load(MachineType::Pointer()),
-                                 ift_targets, scaled_key, Effect(), Control()));
+  Node* target = SetEffect(
+      graph()->NewNode(machine->Load(MachineType::Pointer()), ift_targets,
+                       intptr_scaled_key, Effect(), Control()));
+
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  Node* tagged_scaled_key = intptr_scaled_key;
 
   Node* target_instance = SetEffect(graph()->NewNode(
       machine->Load(MachineType::TaggedPointer()),
-      graph()->NewNode(machine->IntAdd(), ift_instances, scaled_key),
+      graph()->NewNode(machine->IntAdd(), ift_instances, tagged_scaled_key),
       Int32Constant(wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)),
       Effect(), Control()));
 

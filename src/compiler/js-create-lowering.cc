@@ -206,7 +206,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         // Actually allocate and initialize the arguments object.
         AllocationBuilder a(jsgraph(), effect, control);
         Node* properties = jsgraph()->EmptyFixedArrayConstant();
-        STATIC_ASSERT(JSSloppyArgumentsObject::kSize == 5 * kPointerSize);
+        STATIC_ASSERT(JSSloppyArgumentsObject::kSize == 5 * kTaggedSize);
         a.Allocate(JSSloppyArgumentsObject::kSize);
         a.Store(AccessBuilder::ForMap(), arguments_map);
         a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
@@ -235,7 +235,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         // Actually allocate and initialize the arguments object.
         AllocationBuilder a(jsgraph(), effect, control);
         Node* properties = jsgraph()->EmptyFixedArrayConstant();
-        STATIC_ASSERT(JSStrictArgumentsObject::kSize == 4 * kPointerSize);
+        STATIC_ASSERT(JSStrictArgumentsObject::kSize == 4 * kTaggedSize);
         a.Allocate(JSStrictArgumentsObject::kSize);
         a.Store(AccessBuilder::ForMap(), arguments_map);
         a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
@@ -265,7 +265,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         // Actually allocate and initialize the jsarray.
         AllocationBuilder a(jsgraph(), effect, control);
         Node* properties = jsgraph()->EmptyFixedArrayConstant();
-        STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+        STATIC_ASSERT(JSArray::kSize == 4 * kTaggedSize);
         a.Allocate(JSArray::kSize);
         a.Store(AccessBuilder::ForMap(), jsarray_map);
         a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
@@ -311,7 +311,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       AllocationBuilder a(jsgraph(), effect, control);
       Node* properties = jsgraph()->EmptyFixedArrayConstant();
       int length = args_state_info.parameter_count() - 1;  // Minus receiver.
-      STATIC_ASSERT(JSSloppyArgumentsObject::kSize == 5 * kPointerSize);
+      STATIC_ASSERT(JSSloppyArgumentsObject::kSize == 5 * kTaggedSize);
       a.Allocate(JSSloppyArgumentsObject::kSize);
       a.Store(AccessBuilder::ForMap(), arguments_map);
       a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
@@ -347,7 +347,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       AllocationBuilder a(jsgraph(), effect, control);
       Node* properties = jsgraph()->EmptyFixedArrayConstant();
       int length = args_state_info.parameter_count() - 1;  // Minus receiver.
-      STATIC_ASSERT(JSStrictArgumentsObject::kSize == 4 * kPointerSize);
+      STATIC_ASSERT(JSStrictArgumentsObject::kSize == 4 * kTaggedSize);
       a.Allocate(JSStrictArgumentsObject::kSize);
       a.Store(AccessBuilder::ForMap(), arguments_map);
       a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
@@ -387,7 +387,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // -1 to minus receiver
       int argument_count = args_state_info.parameter_count() - 1;
       int length = std::max(0, argument_count - start_index);
-      STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+      STATIC_ASSERT(JSArray::kSize == 4 * kTaggedSize);
       a.Allocate(JSArray::kSize);
       a.Store(AccessBuilder::ForMap(), jsarray_map);
       a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
@@ -970,7 +970,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   PretenureFlag pretenure = NOT_TENURED;
 
   // Emit code to allocate the JSFunction instance.
-  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
+  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   AllocationBuilder a(jsgraph(), effect, control);
   a.Allocate(function_map.instance_size(), pretenure, Type::Function());
   a.Store(AccessBuilder::ForMap(), function_map);
@@ -982,11 +982,11 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   a.Store(AccessBuilder::ForJSFunctionContext(), context);
   a.Store(AccessBuilder::ForJSFunctionFeedbackCell(), feedback_cell);
   a.Store(AccessBuilder::ForJSFunctionCode(), code);
-  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
+  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   if (function_map.has_prototype_slot()) {
     a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
             jsgraph()->TheHoleConstant());
-    STATIC_ASSERT(JSFunction::kSizeWithPrototype == 8 * kPointerSize);
+    STATIC_ASSERT(JSFunction::kSizeWithPrototype == 8 * kTaggedSize);
   }
   for (int i = 0; i < function_map.GetInObjectProperties(); i++) {
     a.Store(AccessBuilder::ForJSObjectInObjectProperty(function_map, i),
@@ -1016,7 +1016,7 @@ Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSIteratorResultValue(), value);
   a.Store(AccessBuilder::ForJSIteratorResultDone(), done);
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kTaggedSize);
   a.FinishAndChange(node);
   return Changed(node);
 }
@@ -1038,7 +1038,7 @@ Reduction JSCreateLowering::ReduceJSCreateStringIterator(Node* node) {
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSStringIteratorString(), string);
   a.Store(AccessBuilder::ForJSStringIteratorIndex(), jsgraph()->SmiConstant(0));
-  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kTaggedSize);
   a.FinishAndChange(node);
   return Changed(node);
 }
@@ -1068,7 +1068,7 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS), length);
-  STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+  STATIC_ASSERT(JSArray::kSize == 4 * kTaggedSize);
   a.FinishAndChange(node);
   return Changed(node);
 }
@@ -1091,7 +1091,7 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   STATIC_ASSERT(v8::Promise::kPending == 0);
   a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kFlagsOffset),
           jsgraph()->ZeroConstant());
-  STATIC_ASSERT(JSPromise::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(JSPromise::kSize == 5 * kTaggedSize);
   for (int offset = JSPromise::kSize;
        offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
     a.Store(AccessBuilder::ForJSObjectOffset(offset),
@@ -1412,7 +1412,7 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
   // Initialize Object fields.
   Node* undefined = jsgraph()->UndefinedConstant();
   for (int offset = JSObject::kHeaderSize; offset < instance_size;
-       offset += kPointerSize) {
+       offset += kTaggedSize) {
     a.Store(AccessBuilder::ForJSObjectOffset(offset, kNoWriteBarrier),
             undefined);
   }
@@ -1787,17 +1787,16 @@ Node* JSCreateLowering::AllocateLiteralRegExp(Node* effect, Node* control,
   // Sanity check that JSRegExp object layout hasn't changed.
   STATIC_ASSERT(static_cast<int>(JSRegExp::kDataOffset) ==
                 static_cast<int>(JSObject::kHeaderSize));
-  STATIC_ASSERT(JSRegExp::kSourceOffset ==
-                JSRegExp::kDataOffset + kPointerSize);
+  STATIC_ASSERT(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
   STATIC_ASSERT(JSRegExp::kFlagsOffset ==
-                JSRegExp::kSourceOffset + kPointerSize);
-  STATIC_ASSERT(JSRegExp::kSize == JSRegExp::kFlagsOffset + kPointerSize);
+                JSRegExp::kSourceOffset + kTaggedSize);
+  STATIC_ASSERT(JSRegExp::kSize == JSRegExp::kFlagsOffset + kTaggedSize);
   STATIC_ASSERT(JSRegExp::kLastIndexOffset == JSRegExp::kSize);
   STATIC_ASSERT(JSRegExp::kInObjectFieldCount == 1);  // LastIndex.
 
   const PretenureFlag pretenure = NOT_TENURED;
   const int size =
-      JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+      JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kTaggedSize;
 
   AllocationBuilder builder(jsgraph(), effect, control);
   builder.Allocate(size, pretenure, Type::For(boilerplate_map));

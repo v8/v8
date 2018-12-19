@@ -67,14 +67,14 @@ class LinkageLocation {
   static LinkageLocation ForSavedCallerReturnAddress() {
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kCallerPCOffset) /
-                                  kPointerSize,
+                                  kSystemPointerSize,
                               MachineType::Pointer());
   }
 
   static LinkageLocation ForSavedCallerFramePtr() {
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kCallerFPOffset) /
-                                  kPointerSize,
+                                  kSystemPointerSize,
                               MachineType::Pointer());
   }
 
@@ -82,14 +82,14 @@ class LinkageLocation {
     DCHECK(V8_EMBEDDED_CONSTANT_POOL);
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kConstantPoolOffset) /
-                                  kPointerSize,
+                                  kSystemPointerSize,
                               MachineType::AnyTagged());
   }
 
   static LinkageLocation ForSavedCallerFunction() {
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kFunctionOffset) /
-                                  kPointerSize,
+                                  kSystemPointerSize,
                               MachineType::AnyTagged());
   }
 
@@ -111,7 +111,7 @@ class LinkageLocation {
 
   int GetSizeInPointers() const {
     // Round up
-    return (GetSize() + kPointerSize - 1) / kPointerSize;
+    return (GetSize() + kSystemPointerSize - 1) / kSystemPointerSize;
   }
 
   int32_t GetLocation() const {

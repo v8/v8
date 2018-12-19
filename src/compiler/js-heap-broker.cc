@@ -1953,7 +1953,7 @@ int MapRef::GetInObjectPropertyOffset(int i) const {
     AllowHandleDereference allow_handle_dereference;
     return object()->GetInObjectPropertyOffset(i);
   }
-  return (GetInObjectPropertiesStartInWords() + i) * kPointerSize;
+  return (GetInObjectPropertiesStartInWords() + i) * kTaggedSize;
 }
 
 PropertyDetails MapRef::GetPropertyDetails(int descriptor_index) const {

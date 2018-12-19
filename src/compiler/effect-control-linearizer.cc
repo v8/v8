@@ -3058,7 +3058,7 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
 
   // Compute the effective size of the backing store.
   Node* size =
-      __ Int32Add(__ Word32Shl(length, __ Int32Constant(kPointerSizeLog2)),
+      __ Int32Add(__ Word32Shl(length, __ Int32Constant(kTaggedSizeLog2)),
                   __ Int32Constant(FixedArray::kHeaderSize));
 
   // Allocate the result and initialize the header.
@@ -3082,7 +3082,7 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
     // Storing "the_hole" doesn't need a write barrier.
     StoreRepresentation rep(MachineRepresentation::kTagged, kNoWriteBarrier);
     Node* offset =
-        __ IntAdd(__ WordShl(index, __ IntPtrConstant(kPointerSizeLog2)),
+        __ IntAdd(__ WordShl(index, __ IntPtrConstant(kTaggedSizeLog2)),
                   __ IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
     __ Store(rep, result, offset, the_hole);
 
@@ -4130,7 +4130,7 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
     // The field is located in the {object} itself.
     {
       Node* offset =
-          __ IntAdd(__ WordShl(index, __ IntPtrConstant(kPointerSizeLog2 - 1)),
+          __ IntAdd(__ WordShl(index, __ IntPtrConstant(kTaggedSizeLog2 - 1)),
                     __ IntPtrConstant(JSObject::kHeaderSize - kHeapObjectTag));
       Node* result = __ Load(MachineType::AnyTagged(), object, offset);
       __ Goto(&done, result);
@@ -4144,8 +4144,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
           __ LoadField(AccessBuilder::ForJSObjectPropertiesOrHash(), object);
       Node* offset =
           __ IntAdd(__ WordShl(__ IntSub(zero, index),
-                               __ IntPtrConstant(kPointerSizeLog2 - 1)),
-                    __ IntPtrConstant((FixedArray::kHeaderSize - kPointerSize) -
+                               __ IntPtrConstant(kTaggedSizeLog2 - 1)),
+                    __ IntPtrConstant((FixedArray::kHeaderSize - kTaggedSize) -
                                       kHeapObjectTag));
       Node* result = __ Load(MachineType::AnyTagged(), properties, offset);
       __ Goto(&done, result);
@@ -4167,7 +4167,7 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
     // The field is located in the {object} itself.
     {
       Node* offset =
-          __ IntAdd(__ WordShl(index, __ IntPtrConstant(kPointerSizeLog2)),
+          __ IntAdd(__ WordShl(index, __ IntPtrConstant(kTaggedSizeLog2)),
                     __ IntPtrConstant(JSObject::kHeaderSize - kHeapObjectTag));
       if (FLAG_unbox_double_fields) {
         Node* result = __ Load(MachineType::Float64(), object, offset);
@@ -4185,8 +4185,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
           __ LoadField(AccessBuilder::ForJSObjectPropertiesOrHash(), object);
       Node* offset =
           __ IntAdd(__ WordShl(__ IntSub(zero, index),
-                               __ IntPtrConstant(kPointerSizeLog2)),
-                    __ IntPtrConstant((FixedArray::kHeaderSize - kPointerSize) -
+                               __ IntPtrConstant(kTaggedSizeLog2)),
+                    __ IntPtrConstant((FixedArray::kHeaderSize - kTaggedSize) -
                                       kHeapObjectTag));
       Node* result = __ Load(MachineType::AnyTagged(), properties, offset);
       result = __ LoadField(AccessBuilder::ForHeapNumberValue(), result);
@@ -5227,7 +5227,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
   hash = __ WordAnd(hash, __ IntSub(number_of_buckets, __ IntPtrConstant(1)));
   Node* first_entry = ChangeSmiToIntPtr(__ Load(
       MachineType::TaggedSigned(), table,
-      __ IntAdd(__ WordShl(hash, __ IntPtrConstant(kPointerSizeLog2)),
+      __ IntAdd(__ WordShl(hash, __ IntPtrConstant(kTaggedSizeLog2)),
                 __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() -
                                   kHeapObjectTag))));
 
@@ -5246,7 +5246,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
 
     Node* candidate_key = __ Load(
         MachineType::AnyTagged(), table,
-        __ IntAdd(__ WordShl(entry, __ IntPtrConstant(kPointerSizeLog2)),
+        __ IntAdd(__ WordShl(entry, __ IntPtrConstant(kTaggedSizeLog2)),
                   __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() -
                                     kHeapObjectTag)));
 
@@ -5275,9 +5275,9 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
       Node* next_entry = ChangeSmiToIntPtr(__ Load(
           MachineType::TaggedSigned(), table,
           __ IntAdd(
-              __ WordShl(entry, __ IntPtrConstant(kPointerSizeLog2)),
+              __ WordShl(entry, __ IntPtrConstant(kTaggedSizeLog2)),
               __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() +
-                                OrderedHashMap::kChainOffset * kPointerSize -
+                                OrderedHashMap::kChainOffset * kTaggedSize -
                                 kHeapObjectTag))));
       __ Goto(&loop, next_entry);
     }
