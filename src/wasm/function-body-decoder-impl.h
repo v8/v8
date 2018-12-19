@@ -1895,6 +1895,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         case kExprReturn: {
           if (!TypeCheckReturn()) break;
           DoReturn();
+          EndControl();
           break;
         }
         case kExprUnreachable: {
@@ -2572,8 +2573,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             : Vector<Value>{&*(stack_.end() - return_count), return_count};
 
     CALL_INTERFACE_IF_REACHABLE(DoReturn, return_values);
-
-    EndControl();
   }
 
   inline Value* Push(ValueType type) {
