@@ -74,7 +74,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
                                  byte_length,
                                  MachineType::PointerRepresentation());
   for (int offset = JSTypedArray::kHeaderSize;
-       offset < JSTypedArray::kSizeWithEmbedderFields; offset += kPointerSize) {
+       offset < JSTypedArray::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectField(holder, offset, SmiConstant(0));
   }
 }

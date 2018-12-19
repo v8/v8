@@ -81,24 +81,24 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
                                                   kAllowLargeObjectAllocation);
     elements.Bind(allocated_elements);
 
-    VARIABLE(index, MachineType::PointerRepresentation(),
-             IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
-    VariableList list({&index}, zone());
+    TVARIABLE(IntPtrT, offset,
+              IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
+    VariableList list({&offset}, zone());
 
     GotoIf(SmiGreaterThan(length, SmiConstant(FixedArray::kMaxRegularLength)),
            &if_large_object);
-    args.ForEach(list, [=, &index](Node* arg) {
+    args.ForEach(list, [=, &offset](Node* arg) {
       StoreNoWriteBarrier(MachineRepresentation::kTagged, allocated_elements,
-                          index.value(), arg);
-      Increment(&index, kPointerSize);
+                          offset.value(), arg);
+      Increment(&offset, kTaggedSize);
     });
     Goto(&allocate_js_array);
 
     BIND(&if_large_object);
     {
-      args.ForEach(list, [=, &index](Node* arg) {
-        Store(allocated_elements, index.value(), arg);
-        Increment(&index, kPointerSize);
+      args.ForEach(list, [=, &offset](Node* arg) {
+        Store(allocated_elements, offset.value(), arg);
+        Increment(&offset, kTaggedSize);
       });
       Goto(&allocate_js_array);
     }

@@ -101,7 +101,7 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
                     [this, elements, &offset](Node* arg) {
                       StoreNoWriteBarrier(MachineRepresentation::kTagged,
                                           elements, offset.value(), arg);
-                      Increment(&offset, kPointerSize);
+                      Increment(&offset, kSystemPointerSize);
                     },
                     first_arg, nullptr, param_mode);
   return result;
@@ -268,12 +268,12 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     mapped_offset = BuildFastLoop(
         var_list1, argument_offset, mapped_offset,
         [this, elements, &current_argument](Node* offset) {
-          Increment(&current_argument, kPointerSize);
+          Increment(&current_argument, kSystemPointerSize);
           Node* arg = LoadBufferObject(current_argument.value(), 0);
           StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                               arg);
         },
-        -kPointerSize, INTPTR_PARAMETERS);
+        -kTaggedSize, INTPTR_PARAMETERS);
 
     // Copy the parameter slots and the holes in the arguments.
     // We need to fill in mapped_count slots. They index the context,
@@ -291,24 +291,23 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
         mapped_count, mode));
     Node* the_hole = TheHoleConstant();
     VariableList var_list2({&context_index}, zone());
-    const int kParameterMapHeaderSize =
-        FixedArray::kHeaderSize + 2 * kPointerSize;
+    const int kParameterMapHeaderSize = FixedArray::OffsetOfElementAt(2);
     Node* adjusted_map_array = IntPtrAdd(
         BitcastTaggedToWord(map_array),
         IntPtrConstant(kParameterMapHeaderSize - FixedArray::kHeaderSize));
     Node* zero_offset = ElementOffsetFromIndex(
         zero, PACKED_ELEMENTS, mode, FixedArray::kHeaderSize - kHeapObjectTag);
-    BuildFastLoop(var_list2, mapped_offset, zero_offset,
-                  [this, the_hole, elements, adjusted_map_array, &context_index,
-                   mode](Node* offset) {
-                    StoreNoWriteBarrier(MachineRepresentation::kTagged,
-                                        elements, offset, the_hole);
-                    StoreNoWriteBarrier(
-                        MachineRepresentation::kTagged, adjusted_map_array,
-                        offset, ParameterToTagged(context_index.value(), mode));
-                    Increment(&context_index, 1, mode);
-                  },
-                  -kPointerSize, INTPTR_PARAMETERS);
+    BuildFastLoop(
+        var_list2, mapped_offset, zero_offset,
+        [=, &context_index](Node* offset) {
+          StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
+                              the_hole);
+          StoreNoWriteBarrier(MachineRepresentation::kTagged,
+                              adjusted_map_array, offset,
+                              ParameterToTagged(context_index.value(), mode));
+          Increment(&context_index, 1, mode);
+        },
+        -kTaggedSize, INTPTR_PARAMETERS);
 
     result.Bind(argument_object);
     Goto(&done);

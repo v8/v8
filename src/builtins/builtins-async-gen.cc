@@ -68,7 +68,7 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
   // JSPromise::kSizeWithEmbedderFields.
   CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(promise_map),
                              IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
-                                            kPointerSize)));
+                                            kTaggedSize)));
   TNode<HeapObject> wrapped_value = InnerAllocate(base, kWrappedPromiseOffset);
   {
     // Initialize Promise
@@ -255,8 +255,8 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
   // JSFunction.
   CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(function_map),
                              IntPtrConstant(JSFunction::kSizeWithoutPrototype /
-                                            kPointerSize)));
-  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
+                                            kTaggedSize)));
+  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   StoreMapNoWriteBarrier(function, function_map);
   StoreObjectFieldRoot(function, JSObject::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);

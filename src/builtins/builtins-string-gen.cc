@@ -2528,14 +2528,13 @@ TNode<JSArray> StringBuiltinsAssembler::StringToList(TNode<Context> context,
     TNode<IntPtrT> ch_length = LoadStringLengthAsWord(value);
     var_position = IntPtrAdd(var_position.value(), ch_length);
     // Increment the array offset and continue the loop.
-    var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(kPointerSize));
+    var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(kTaggedSize));
     Goto(&next_codepoint);
   }
 
   BIND(&done);
-  TNode<IntPtrT> new_length =
-      IntPtrDiv(IntPtrSub(var_offset.value(), first_offset),
-                IntPtrConstant(kPointerSize));
+  TNode<IntPtrT> new_length = IntPtrDiv(
+      IntPtrSub(var_offset.value(), first_offset), IntPtrConstant(kTaggedSize));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(new_length, IntPtrConstant(0)));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(length, new_length));
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset,

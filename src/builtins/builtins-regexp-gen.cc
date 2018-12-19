@@ -118,7 +118,7 @@ TNode<Object> RegExpBuiltinsAssembler::FastLoadLastIndex(
     TNode<JSRegExp> regexp) {
   // Load the in-object field.
   static const int field_offset =
-      JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
+      JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
   return LoadObjectField(regexp, field_offset);
 }
 
@@ -139,7 +139,7 @@ TNode<Object> RegExpBuiltinsAssembler::LoadLastIndex(TNode<Context> context,
 void RegExpBuiltinsAssembler::FastStoreLastIndex(Node* regexp, Node* value) {
   // Store the in-object field.
   static const int field_offset =
-      JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kPointerSize;
+      JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
   StoreObjectField(regexp, field_offset, value);
 }
 
@@ -592,7 +592,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
             TNode<Smi> smi_value = SmiFromInt32(value);
             StoreNoWriteBarrier(MachineRepresentation::kTagged, match_info,
                                 var_to_offset.value(), smi_value);
-            Increment(&var_to_offset, kPointerSize);
+            Increment(&var_to_offset, kTaggedSize);
           },
           kInt32Size, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
     }
@@ -2497,10 +2497,10 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
         Node* const reg = var_reg.value();
         Node* const from = LoadFixedArrayElement(
             match_indices, reg,
-            RegExpMatchInfo::kFirstCaptureIndex * kPointerSize, mode);
+            RegExpMatchInfo::kFirstCaptureIndex * kTaggedSize, mode);
         TNode<Smi> const to = CAST(LoadFixedArrayElement(
             match_indices, reg,
-            (RegExpMatchInfo::kFirstCaptureIndex + 1) * kPointerSize, mode));
+            (RegExpMatchInfo::kFirstCaptureIndex + 1) * kTaggedSize, mode));
 
         Label select_capture(this), select_undefined(this), store_value(this);
         VARIABLE(var_value, MachineRepresentation::kTagged);

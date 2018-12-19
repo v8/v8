@@ -1005,7 +1005,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
           LoadFixedArrayElement(table, entry_start_position,
                                 (OrderedHashMap::HashTableStartIndex() +
                                  OrderedHashMap::kValueOffset) *
-                                    kPointerSize);
+                                    kTaggedSize);
 
       Store(elements, var_offset.value(), entry_value);
       Goto(&continue_loop);
@@ -1016,7 +1016,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
       // Increment the array offset and continue the loop to the next entry.
       var_index = cur_index;
       var_offset.Bind(
-          IntPtrAdd(var_offset.value(), IntPtrConstant(kPointerSize)));
+          IntPtrAdd(var_offset.value(), IntPtrConstant(kTaggedSize)));
       Goto(&loop);
     }
   }
@@ -1101,8 +1101,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
     Store(elements, var_offset.value(), entry_key);
 
     var_index = cur_index;
-    var_offset.Bind(
-        IntPtrAdd(var_offset.value(), IntPtrConstant(kPointerSize)));
+    var_offset.Bind(IntPtrAdd(var_offset.value(), IntPtrConstant(kTaggedSize)));
     Goto(&loop);
   }
 
@@ -1313,7 +1312,7 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
     STATIC_ASSERT(OrderedHashMap::RemovedHolesIndex() ==
                   OrderedHashSet::RemovedHolesIndex());
     TNode<Smi> removed_index = CAST(LoadFixedArrayElement(
-        CAST(table), i, OrderedHashMap::RemovedHolesIndex() * kPointerSize));
+        CAST(table), i, OrderedHashMap::RemovedHolesIndex() * kTaggedSize));
     GotoIf(SmiGreaterThanOrEqual(removed_index, index), &return_index);
     Decrement(&var_index, 1, SMI_PARAMETERS);
     Increment(&var_i);
@@ -1412,7 +1411,7 @@ CollectionsBuiltinsAssembler::NextSkipHoles(TNode<TableType> table,
         number_of_buckets);
     entry_key =
         LoadFixedArrayElement(table, entry_start_position,
-                              TableType::HashTableStartIndex() * kPointerSize);
+                              TableType::HashTableStartIndex() * kTaggedSize);
     Increment(&var_index);
     Branch(IsTheHole(entry_key), &loop, &done_loop);
   }
@@ -1441,7 +1440,7 @@ TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
   Return(LoadFixedArrayElement(
       CAST(table), SmiUntag(index),
       (OrderedHashMap::HashTableStartIndex() + OrderedHashMap::kValueOffset) *
-          kPointerSize));
+          kTaggedSize));
 
   BIND(&if_not_found);
   Return(UndefinedConstant());
@@ -1511,8 +1510,8 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
   // If we found the entry, we just store the value there.
   StoreFixedArrayElement(table, entry_start_position_or_hash.value(), value,
                          UPDATE_WRITE_BARRIER,
-                         kPointerSize * (OrderedHashMap::HashTableStartIndex() +
-                                         OrderedHashMap::kValueOffset));
+                         kTaggedSize * (OrderedHashMap::HashTableStartIndex() +
+                                        OrderedHashMap::kValueOffset));
   Return(receiver);
 
   Label no_hash(this), add_entry(this), store_new_entry(this);
@@ -1573,24 +1572,24 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashMapNewEntry(
   Node* const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   Node* const bucket_entry = LoadFixedArrayElement(
-      table, bucket, OrderedHashMap::HashTableStartIndex() * kPointerSize);
+      table, bucket, OrderedHashMap::HashTableStartIndex() * kTaggedSize);
 
   // Store the entry elements.
   Node* const entry_start = IntPtrAdd(
       IntPtrMul(occupancy, IntPtrConstant(OrderedHashMap::kEntrySize)),
       number_of_buckets);
   StoreFixedArrayElement(table, entry_start, key, UPDATE_WRITE_BARRIER,
-                         kPointerSize * OrderedHashMap::HashTableStartIndex());
+                         kTaggedSize * OrderedHashMap::HashTableStartIndex());
   StoreFixedArrayElement(table, entry_start, value, UPDATE_WRITE_BARRIER,
-                         kPointerSize * (OrderedHashMap::HashTableStartIndex() +
-                                         OrderedHashMap::kValueOffset));
+                         kTaggedSize * (OrderedHashMap::HashTableStartIndex() +
+                                        OrderedHashMap::kValueOffset));
   StoreFixedArrayElement(table, entry_start, bucket_entry, SKIP_WRITE_BARRIER,
-                         kPointerSize * (OrderedHashMap::HashTableStartIndex() +
-                                         OrderedHashMap::kChainOffset));
+                         kTaggedSize * (OrderedHashMap::HashTableStartIndex() +
+                                        OrderedHashMap::kChainOffset));
 
   // Update the bucket head.
   StoreFixedArrayElement(table, bucket, SmiTag(occupancy), SKIP_WRITE_BARRIER,
-                         OrderedHashMap::HashTableStartIndex() * kPointerSize);
+                         OrderedHashMap::HashTableStartIndex() * kTaggedSize);
 
   // Bump the elements count.
   TNode<Smi> const number_of_elements =
@@ -1626,11 +1625,11 @@ TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
   // If we found the entry, mark the entry as deleted.
   StoreFixedArrayElement(table, entry_start_position_or_hash.value(),
                          TheHoleConstant(), UPDATE_WRITE_BARRIER,
-                         kPointerSize * OrderedHashMap::HashTableStartIndex());
+                         kTaggedSize * OrderedHashMap::HashTableStartIndex());
   StoreFixedArrayElement(table, entry_start_position_or_hash.value(),
                          TheHoleConstant(), UPDATE_WRITE_BARRIER,
-                         kPointerSize * (OrderedHashMap::HashTableStartIndex() +
-                                         OrderedHashMap::kValueOffset));
+                         kTaggedSize * (OrderedHashMap::HashTableStartIndex() +
+                                        OrderedHashMap::kValueOffset));
 
   // Decrement the number of elements, increment the number of deleted elements.
   TNode<Smi> const number_of_elements = SmiSub(
@@ -1743,21 +1742,21 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashSetNewEntry(
   Node* const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   Node* const bucket_entry = LoadFixedArrayElement(
-      table, bucket, OrderedHashSet::HashTableStartIndex() * kPointerSize);
+      table, bucket, OrderedHashSet::HashTableStartIndex() * kTaggedSize);
 
   // Store the entry elements.
   Node* const entry_start = IntPtrAdd(
       IntPtrMul(occupancy, IntPtrConstant(OrderedHashSet::kEntrySize)),
       number_of_buckets);
   StoreFixedArrayElement(table, entry_start, key, UPDATE_WRITE_BARRIER,
-                         kPointerSize * OrderedHashSet::HashTableStartIndex());
+                         kTaggedSize * OrderedHashSet::HashTableStartIndex());
   StoreFixedArrayElement(table, entry_start, bucket_entry, SKIP_WRITE_BARRIER,
-                         kPointerSize * (OrderedHashSet::HashTableStartIndex() +
-                                         OrderedHashSet::kChainOffset));
+                         kTaggedSize * (OrderedHashSet::HashTableStartIndex() +
+                                        OrderedHashSet::kChainOffset));
 
   // Update the bucket head.
   StoreFixedArrayElement(table, bucket, SmiTag(occupancy), SKIP_WRITE_BARRIER,
-                         OrderedHashSet::HashTableStartIndex() * kPointerSize);
+                         OrderedHashSet::HashTableStartIndex() * kTaggedSize);
 
   // Bump the elements count.
   TNode<Smi> const number_of_elements =
@@ -1793,7 +1792,7 @@ TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
   // If we found the entry, mark the entry as deleted.
   StoreFixedArrayElement(table, entry_start_position_or_hash.value(),
                          TheHoleConstant(), UPDATE_WRITE_BARRIER,
-                         kPointerSize * OrderedHashSet::HashTableStartIndex());
+                         kTaggedSize * OrderedHashSet::HashTableStartIndex());
 
   // Decrement the number of elements, increment the number of deleted elements.
   TNode<Smi> const number_of_elements = SmiSub(
@@ -1882,7 +1881,7 @@ TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
     Node* entry_value = LoadFixedArrayElement(
         table, entry_start_position,
         (OrderedHashMap::HashTableStartIndex() + OrderedHashMap::kValueOffset) *
-            kPointerSize);
+            kTaggedSize);
 
     // Invoke the {callback} passing the {entry_key}, {entry_value} and the
     // {receiver}.
@@ -1971,7 +1970,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   var_value.Bind(LoadFixedArrayElement(
       table, entry_start_position,
       (OrderedHashMap::HashTableStartIndex() + OrderedHashMap::kValueOffset) *
-          kPointerSize));
+          kTaggedSize));
   Branch(InstanceTypeEqual(receiver_instance_type, JS_MAP_VALUE_ITERATOR_TYPE),
          &return_value, &return_entry);
 

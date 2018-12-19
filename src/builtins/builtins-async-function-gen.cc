@@ -77,7 +77,7 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
   TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
   TNode<IntPtrT> parameters_and_register_length =
-      Signed(IntPtrAdd(WordSar(frame_size, IntPtrConstant(kPointerSizeLog2)),
+      Signed(IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                        formal_parameter_count));
 
   // Allocate space for the promise, the async function object
@@ -86,7 +86,7 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
       IntPtrConstant(JSPromise::kSizeWithEmbedderFields +
                      JSAsyncFunctionObject::kSize + FixedArray::kHeaderSize),
       Signed(WordShl(parameters_and_register_length,
-                     IntPtrConstant(kPointerSizeLog2))));
+                     IntPtrConstant(kTaggedSizeLog2))));
   TNode<HeapObject> base = AllocateInNewSpace(size);
 
   // Initialize the register file.

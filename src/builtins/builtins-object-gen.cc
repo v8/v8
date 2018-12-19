@@ -1395,7 +1395,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
                       MachineType::Uint16()));
   Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
-  Node* size = IntPtrAdd(WordSar(frame_size, IntPtrConstant(kPointerSizeLog2)),
+  Node* size = IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                          formal_parameter_count);
   Node* parameters_and_registers = AllocateFixedArray(HOLEY_ELEMENTS, size);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
