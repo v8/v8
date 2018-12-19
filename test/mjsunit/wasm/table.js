@@ -141,10 +141,13 @@ function assertTableIsValid(table, length) {
     assertEquals(null, table.get(i));
     assertEquals(null, table.get(String(i)));
   }
-  for (let key of [0.4, "", NaN, {}, [], () => {}]) {
+  for (let key of [0.4, "", []]) {
     assertEquals(null, table.get(key));
   }
-  for (let key of [-1, table.length, table.length * 10]) {
+  for (let key of [-1, NaN, {}, () => {}]) {
+    assertThrows(() => table.get(key), TypeError);
+  }
+  for (let key of [table.length, table.length * 10]) {
     assertThrows(() => table.get(key), RangeError);
   }
   assertThrows(() => table.get(Symbol()), TypeError);
@@ -214,7 +217,12 @@ function assertTableIsValid(table, length) {
       assertSame(f, table[i]);
     }
 
-    for (let key of [0.4, "", NaN, {}, [], () => {}]) {
+    for (let key of [NaN, {}, () => {}]) {
+      assertSame(f, table[key] = f);
+      assertSame(f, table[key]);
+      assertThrows(() => table.get(key), TypeError);
+    }
+    for (let key of [0.4, "", []]) {
       assertSame(f, table[key] = f);
       assertSame(f, table[key]);
       assertSame(null, table.get(key));
@@ -246,7 +254,7 @@ function assertTableIsValid(table, length) {
   check(table);
   table.grow(10);
   check(table);
-  assertThrows(() => table.grow(-10), RangeError);
+  assertThrows(() => table.grow(-10), TypeError);
 
   table = new WebAssembly.Table({element: "anyfunc", initial: 20, maximum: 25});
   init(table);
@@ -258,7 +266,7 @@ function assertTableIsValid(table, length) {
   table.grow(0);
   check(table);
   assertThrows(() => table.grow(1), RangeError);
-  assertThrows(() => table.grow(-10), RangeError);
+  assertThrows(() => table.grow(-10), TypeError);
 
   assertThrows(() => WebAssembly.Table.prototype.grow.call([], 0), TypeError);
 

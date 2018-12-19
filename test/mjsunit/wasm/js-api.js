@@ -651,7 +651,8 @@ assertErrorMessage(
     () => get.call(), TypeError, /called on incompatible undefined/);
 assertErrorMessage(
     () => get.call({}), TypeError, /called on incompatible Object/);
-assertEq(get.call(tbl1), null);
+assertErrorMessage(
+    () => get.call(tbl1), TypeError, /Argument 0 must be convertible to a valid number/);
 assertEq(get.call(tbl1, 0), null);
 assertEq(get.call(tbl1, 0, Infinity), null);
 assertEq(get.call(tbl1, 1), null);
@@ -659,9 +660,9 @@ assertEq(get.call(tbl1, 1.5), null);
 assertErrorMessage(() => get.call(tbl1, 2), RangeError, /bad Table get index/);
 assertErrorMessage(
     () => get.call(tbl1, 2.5), RangeError, /bad Table get index/);
-assertErrorMessage(() => get.call(tbl1, -1), RangeError, /bad Table get index/);
+assertErrorMessage(() => get.call(tbl1, -1), TypeError, /bad Table get index/);
 assertErrorMessage(
-    () => get.call(tbl1, Math.pow(2, 33)), RangeError, /bad Table get index/);
+    () => get.call(tbl1, Math.pow(2, 33)), TypeError, /bad Table get index/);
 assertErrorMessage(
     () => get.call(tbl1, {valueOf() { throw new Error('hi') }}), Error, 'hi');
 
@@ -729,27 +730,26 @@ assertErrorMessage(
 assertErrorMessage(
     () => tblGrow.call({}), TypeError, /called on incompatible Object/);
 assertErrorMessage(
-    () => tblGrow.call(tbl1, -1), RangeError, /bad Table grow delta/);
+    () => tblGrow.call(tbl1, -1), TypeError, /bad Table grow delta/);
 assertErrorMessage(
-    () => tblGrow.call(tbl1, Math.pow(2, 32)), RangeError,
+    () => tblGrow.call(tbl1, Math.pow(2, 32)), TypeError,
     /bad Table grow delta/);
 var tbl = new Table({element: 'anyfunc', initial: 1, maximum: 2});
 assertEq(tbl.length, 1);
 assertErrorMessage(
-    () => tbl.grow(Infinity), RangeError, /failed to grow table/);
+    () => tbl.grow(Infinity), TypeError, /failed to grow table/);
 assertErrorMessage(
-    () => tbl.grow(-Infinity), RangeError, /failed to grow table/);
+    () => tbl.grow(-Infinity), TypeError, /failed to grow table/);
 assertEq(tbl.grow(0), 1);
 assertEq(tbl.length, 1);
 assertEq(tbl.grow(1, 4), 1);
 assertEq(tbl.length, 2);
-assertEq(tbl.grow(), 2);
 assertEq(tbl.length, 2);
 assertErrorMessage(() => tbl.grow(1), Error, /failed to grow table/);
 assertErrorMessage(
-    () => tbl.grow(Infinity), RangeError, /failed to grow table/);
+    () => tbl.grow(Infinity), TypeError, /failed to grow table/);
 assertErrorMessage(
-    () => tbl.grow(-Infinity), RangeError, /failed to grow table/);
+    () => tbl.grow(-Infinity), TypeError, /failed to grow table/);
 
 // 'WebAssembly.validate' function
 assertErrorMessage(() => WebAssembly.validate(), TypeError);

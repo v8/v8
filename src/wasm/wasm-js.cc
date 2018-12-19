@@ -4,6 +4,8 @@
 
 #include "src/wasm/wasm-js.h"
 
+#include <string>
+
 #include "src/api-inl.h"
 #include "src/api-natives.h"
 #include "src/assert-scope.h"
@@ -438,40 +440,46 @@ class AsyncInstantiateCompileResultResolver
 
 constexpr char AsyncInstantiateCompileResultResolver::kGlobalPromiseHandle[];
 constexpr char AsyncInstantiateCompileResultResolver::kGlobalImportsHandle[];
-}  // namespace
+
+std::string ToString(const char* name) { return std::string(name); }
+
+std::string ToString(const i::Handle<i::String> name) {
+  return std::string("Property '") + name->ToCString().get() + "'";
+}
 
 // Web IDL: '[EnforceRange] unsigned long'
 // Previously called ToNonWrappingUint32 in the draft WebAssembly JS spec.
 // https://heycam.github.io/webidl/#EnforceRange
-bool EnforceUint32(i::Handle<i::String> argument_name, Local<v8::Value> v,
-                   Local<Context> context, ErrorThrower* thrower,
-                   uint32_t* res) {
+template <typename T>
+bool EnforceUint32(T argument_name, Local<v8::Value> v, Local<Context> context,
+                   ErrorThrower* thrower, uint32_t* res) {
   double double_number;
 
   if (!v->NumberValue(context).To(&double_number)) {
-    thrower->TypeError("Property '%s' must be convertible to a number",
-                       argument_name->ToCString().get());
+    thrower->TypeError("%s must be convertible to a number",
+                       ToString(argument_name).c_str());
     return false;
   }
   if (!std::isfinite(double_number)) {
-    thrower->TypeError("Property '%s' must be convertible to a valid number",
-                       argument_name->ToCString().get());
+    thrower->TypeError("%s must be convertible to a valid number",
+                       ToString(argument_name).c_str());
     return false;
   }
   if (double_number < 0) {
-    thrower->TypeError("Property '%s' must be non-negative",
-                       argument_name->ToCString().get());
+    thrower->TypeError("%s must be non-negative",
+                       ToString(argument_name).c_str());
     return false;
   }
   if (double_number > std::numeric_limits<uint32_t>::max()) {
-    thrower->TypeError("Property '%s' must be in the unsigned long range",
-                       argument_name->ToCString().get());
+    thrower->TypeError("%s must be in the unsigned long range",
+                       ToString(argument_name).c_str());
     return false;
   }
 
   *res = static_cast<uint32_t>(double_number);
   return true;
 }
+}  // namespace
 
 // WebAssembly.compile(bytes) -> Promise
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1301,31 +1309,39 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
 
-  int64_t grow_by = 0;
-  if (!args[0]->IntegerValue(context).To(&grow_by)) return;
-  i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
-  int old_size = old_array->length();
-
-  int64_t max_size64 = receiver->maximum_length()->Number();
-  if (max_size64 < 0 || max_size64 > i::FLAG_wasm_max_table_size) {
-    max_size64 = i::FLAG_wasm_max_table_size;
-  }
-
-  if (grow_by < 0 || grow_by > max_size64 - old_size) {
-    thrower.RangeError(grow_by < 0 ? "trying to shrink table"
-                                   : "maximum table size exceeded");
+  uint32_t grow_by;
+  if (!EnforceUint32("Argument 0", args[0], context, &thrower, &grow_by)) {
     return;
   }
 
-  int new_size = static_cast<int>(old_size + grow_by);
-  receiver->Grow(i_isolate, static_cast<uint32_t>(new_size - old_size));
+  i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
+  uint32_t old_size = static_cast<uint32_t>(old_array->length());
+
+  uint64_t max_size64 = receiver->maximum_length()->Number();
+  if (max_size64 > i::FLAG_wasm_max_table_size) {
+    max_size64 = i::FLAG_wasm_max_table_size;
+  }
+
+  DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
+
+  uint64_t new_size64 =
+      static_cast<uint64_t>(old_size) + static_cast<uint64_t>(grow_by);
+  if (new_size64 > max_size64) {
+    thrower.RangeError("maximum table size exceeded");
+    return;
+  }
+  uint32_t new_size = static_cast<uint32_t>(new_size64);
 
   if (new_size != old_size) {
+    receiver->Grow(i_isolate, new_size - old_size);
+
     i::Handle<i::FixedArray> new_array =
         i_isolate->factory()->NewFixedArray(new_size);
-    for (int i = 0; i < old_size; ++i) new_array->set(i, old_array->get(i));
+    for (uint32_t i = 0; i < old_size; ++i) {
+      new_array->set(i, old_array->get(i));
+    }
     i::Object null = i::ReadOnlyRoots(i_isolate).null_value();
-    for (int i = old_size; i < new_size; ++i) new_array->set(i, null);
+    for (uint32_t i = old_size; i < new_size; ++i) new_array->set(i, null);
     receiver->set_functions(*new_array);
   }
 
@@ -1343,15 +1359,19 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
   i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
-  int64_t i = 0;
-  if (!args[0]->IntegerValue(context).To(&i)) return;
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  if (i < 0 || i >= array->length()) {
-    thrower.RangeError("index out of bounds");
+
+  uint32_t index;
+  if (!EnforceUint32("Argument 0", args[0], context, &thrower, &index)) {
     return;
   }
 
-  i::Handle<i::Object> value(array->get(static_cast<int>(i)), i_isolate);
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  if (index >= static_cast<uint32_t>(array->length())) {
+    thrower.RangeError("Index out of bounds");
+    return;
+  }
+
+  i::Handle<i::Object> value(array->get(static_cast<int>(index)), i_isolate);
   return_value.Set(Utils::ToLocal(value));
 }
 
