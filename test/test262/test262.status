@@ -580,12 +580,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7669
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
 
-  # Tests assume that the sort order of "same elements" (comparator returns 0)
-  # is deterministic.
-  # https://crbug.com/v8/7808
-  'intl402/String/prototype/localeCompare/returns-same-results-as-Collator': [SKIP],
-  'intl402/Collator/prototype/compare/bound-to-collator-instance': [SKIP],
-
   # https://github.com/tc39/ecma402/issues/223
   'intl402/Collator/missing-unicode-ext-value-defaults-to-true': [FAIL],
 
