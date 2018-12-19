@@ -11,6 +11,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/ic/ic-stats.h"
+#include "src/macro-assembler.h"
 #include "src/objects/code.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"

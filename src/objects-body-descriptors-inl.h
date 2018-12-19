@@ -5,7 +5,6 @@
 #ifndef V8_OBJECTS_BODY_DESCRIPTORS_INL_H_
 #define V8_OBJECTS_BODY_DESCRIPTORS_INL_H_
 
-#include "src/assembler-inl.h"
 #include "src/feedback-vector.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects/cell.h"
@@ -15,6 +14,7 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/oddball.h"
 #include "src/objects/slots.h"
+#include "src/reloc-info.h"
 #include "src/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
 

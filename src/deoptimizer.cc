@@ -227,13 +227,6 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   return info;
 }
 
-void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm, int count,
-                                                DeoptimizeKind kind) {
-  NoRootArrayScope no_root_array(masm);
-  TableEntryGenerator generator(masm, kind, count);
-  generator.Generate();
-}
-
 namespace {
 class ActivationsFinder : public ThreadVisitor {
  public:
@@ -1856,7 +1849,8 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
 
   MacroAssembler masm(isolate, nullptr, 16 * KB, CodeObjectRequired::kYes);
   masm.set_emit_debug_code(false);
-  GenerateDeoptimizationEntries(&masm, kMaxNumberOfEntries, kind);
+  GenerateDeoptimizationEntries(&masm, masm.isolate(), kMaxNumberOfEntries,
+                                kind);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocationAfterCodegen(desc));
