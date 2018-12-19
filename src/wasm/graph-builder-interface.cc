@@ -36,7 +36,14 @@ struct SsaEnv {
   compiler::WasmInstanceCacheNodes instance_cache;
   TFNode** locals;
 
-  bool reached() const { return state >= kReached; }
+  bool reached() const {
+    // The function body decoder already keeps track of reached vs unreached
+    // code. Each SsaEnv we work with should be reached.
+    // TODO(clemensh): Remove this method (https://crbug.com/v8/8611).
+    DCHECK_LE(kReached, state);
+    return state >= kReached;
+  }
+
   void Kill(State new_state = kControlEnd) {
     state = new_state;
     locals = nullptr;
@@ -70,6 +77,8 @@ class WasmGraphBuildingInterface {
   struct TryInfo : public ZoneObject {
     SsaEnv* catch_env;
     TFNode* exception = nullptr;
+
+    bool might_throw() const { return exception != nullptr; }
 
     explicit TryInfo(SsaEnv* c) : catch_env(c) {}
   };
@@ -438,19 +447,19 @@ class WasmGraphBuildingInterface {
                       const ExceptionIndexImmediate<validate>& imm,
                       Control* block, Vector<Value> values) {
     DCHECK(block->is_try_catch());
-    TFNode* exception = block->try_info->exception;
+
     current_catch_ = block->previous_catch;  // Pop try scope.
-    SsaEnv* catch_env = block->try_info->catch_env;
-    SetEnv(catch_env);
 
     // The catch block is unreachable if no possible throws in the try block
     // exist. We only build a landing pad if some node in the try block can
     // (possibly) throw. Otherwise the catch environments remain empty.
-    DCHECK_EQ(exception != nullptr, ssa_env_->reached());
-    if (exception == nullptr) {
+    if (!block->try_info->might_throw()) {
       block->reachability = kSpecOnlyReachable;
       return;
     }
+
+    TFNode* exception = block->try_info->exception;
+    SetEnv(block->try_info->catch_env);
 
     TFNode* if_catch = nullptr;
     TFNode* if_no_catch = nullptr;
@@ -483,19 +492,18 @@ class WasmGraphBuildingInterface {
 
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
-    TFNode* exception = block->try_info->exception;
+
     current_catch_ = block->previous_catch;  // Pop try scope.
-    SsaEnv* catch_env = block->try_info->catch_env;
-    SetEnv(catch_env);
 
     // The catch block is unreachable if no possible throws in the try block
     // exist. We only build a landing pad if some node in the try block can
     // (possibly) throw. Otherwise the catch environments remain empty.
-    DCHECK_EQ(exception != nullptr, ssa_env_->reached());
-    if (exception == nullptr) {
+    if (!block->try_info->might_throw()) {
       block->reachability = kSpecOnlyReachable;
       return;
     }
+
+    SetEnv(block->try_info->catch_env);
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
