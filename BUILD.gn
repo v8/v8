@@ -1237,6 +1237,7 @@ action("v8_dump_build_config") {
     "v8_enable_jitless_mode=$v8_enable_jitless_mode",
     "v8_enable_verify_csa=$v8_enable_verify_csa",
     "v8_enable_lite_mode=$v8_enable_lite_mode",
+    "v8_enable_pointer_compression=$v8_enable_pointer_compression",
   ]
 
   if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||

@@ -359,7 +359,8 @@ class SystemTest(unittest.TestCase):
           is_msan=True, is_tsan=True, is_ubsan_vptr=True, target_cpu='x86',
           v8_enable_i18n_support=False, v8_target_cpu='x86',
           v8_use_snapshot=False, v8_enable_embedded_builtins=False,
-          v8_enable_verify_csa=False, v8_enable_lite_mode=False)
+          v8_enable_verify_csa=False, v8_enable_lite_mode=False,
+          v8_enable_pointer_compression=False)
       result = run_tests(
           basedir,
           '--mode=Release',

@@ -18,5 +18,6 @@
   "v8_use_snapshot": true,
   "v8_enable_embedded_builtins": false,
   "v8_enable_verify_csa": false,
-  "v8_enable_lite_mode": false
+  "v8_enable_lite_mode": false,
+  "v8_enable_pointer_compression": false
 }
