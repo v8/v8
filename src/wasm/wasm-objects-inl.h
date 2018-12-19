@@ -231,6 +231,14 @@ inline bool WasmInstanceObject::has_indirect_function_table() {
   return indirect_function_table_sig_ids() != nullptr;
 }
 
+void WasmInstanceObject::clear_padding() {
+  if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
+    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
+  }
+}
+
 IndirectFunctionTableEntry::IndirectFunctionTableEntry(
     Handle<WasmInstanceObject> instance, int index)
     : instance_(instance), index_(index) {

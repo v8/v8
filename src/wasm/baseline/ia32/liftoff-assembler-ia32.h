@@ -384,7 +384,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  liftoff::Load(this, dst, ebp, kPointerSize * (caller_slot_idx + 1), type);
+  liftoff::Load(this, dst, ebp, kSystemPointerSize * (caller_slot_idx + 1),
+                type);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
@@ -1649,8 +1650,9 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
-  ret(static_cast<int>(num_stack_slots * kPointerSize));
+  DCHECK_LT(num_stack_slots,
+            (1 << 16) / kSystemPointerSize);  // 16 bit immediate
+  ret(static_cast<int>(num_stack_slots * kSystemPointerSize));
 }
 
 void LiftoffAssembler::CallC(wasm::FunctionSig* sig,

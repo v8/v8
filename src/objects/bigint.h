@@ -119,7 +119,7 @@ class FreshlyAllocatedBigInt : public BigIntBase {
 
   // Clear uninitialized padding space.
   inline void clear_padding() {
-    if (FIELD_SIZE(kOptionalPaddingOffset)) {
+    if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
       DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
       memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
              FIELD_SIZE(kOptionalPaddingOffset));

@@ -1610,7 +1610,7 @@ void JSProxy::JSProxyVerify(Isolate* isolate) {
 
 void JSArrayBuffer::JSArrayBufferVerify(Isolate* isolate) {
   CHECK(IsJSArrayBuffer());
-  if (FIELD_SIZE(kOptionalPaddingOffset)) {
+  if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     CHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
     CHECK_EQ(0,
              *reinterpret_cast<uint32_t*>(address() + kOptionalPaddingOffset));
@@ -1829,8 +1829,8 @@ void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   // Just generically check all tagged fields. Don't check the untagged fields,
   // as some of them might still contain the "undefined" value if the
   // WasmInstanceObject is not fully set up yet.
-  for (int offset = kHeaderSize; offset < kFirstUntaggedOffset;
-       offset += kPointerSize) {
+  for (int offset = kHeaderSize; offset < kEndOfTaggedFieldsOffset;
+       offset += kTaggedSize) {
     VerifyObjectField(isolate, offset);
   }
 }

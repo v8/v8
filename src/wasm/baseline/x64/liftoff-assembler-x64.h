@@ -112,11 +112,11 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
       assm->pushq(reg.gp());
       break;
     case kWasmF32:
-      assm->subp(rsp, Immediate(kPointerSize));
+      assm->subp(rsp, Immediate(kSystemPointerSize));
       assm->Movss(Operand(rsp, 0), reg.fp());
       break;
     case kWasmF64:
-      assm->subp(rsp, Immediate(kPointerSize));
+      assm->subp(rsp, Immediate(kSystemPointerSize));
       assm->Movsd(Operand(rsp, 0), reg.fp());
       break;
     default:
@@ -311,7 +311,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  Operand src(rbp, kPointerSize * (caller_slot_idx + 1));
+  Operand src(rbp, kSystemPointerSize * (caller_slot_idx + 1));
   liftoff::Load(this, dst, src, type);
 }
 
@@ -1457,8 +1457,9 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
-  ret(static_cast<int>(num_stack_slots * kPointerSize));
+  DCHECK_LT(num_stack_slots,
+            (1 << 16) / kSystemPointerSize);  // 16 bit immediate
+  ret(static_cast<int>(num_stack_slots * kSystemPointerSize));
 }
 
 void LiftoffAssembler::CallC(wasm::FunctionSig* sig,

@@ -205,7 +205,7 @@ class LinkageAllocator {
   // Stackslots are counted upwards starting from 0 (or the offset set by
   // {SetStackOffset}.
   int NumStackSlots(MachineRepresentation type) {
-    return std::max(1, ElementSizeInBytes(type) / kPointerSize);
+    return std::max(1, ElementSizeInBytes(type) / kSystemPointerSize);
   }
 
   // Stackslots are counted upwards starting from 0 (or the offset set by

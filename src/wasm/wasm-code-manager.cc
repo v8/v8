@@ -989,7 +989,7 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
   constexpr size_t kCodeSizeMultiplier = 4;
   constexpr size_t kCodeOverhead = 32;     // for prologue, stack check, ...
   constexpr size_t kStaticCodeSize = 512;  // runtime stubs, ...
-  constexpr size_t kImportSize = 64 * kPointerSize;
+  constexpr size_t kImportSize = 64 * kSystemPointerSize;
 
   size_t estimate = kStaticCodeSize;
   for (auto& function : module->functions) {

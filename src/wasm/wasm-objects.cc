@@ -145,13 +145,14 @@ class WasmInstanceNativeAllocations {
 };
 
 size_t EstimateNativeAllocationsSize(const WasmModule* module) {
-  size_t estimate = sizeof(WasmInstanceNativeAllocations) +
-                    (1 * kPointerSize * module->num_imported_mutable_globals) +
-                    (2 * kPointerSize * module->num_imported_functions) +
-                    ((kPointerSize + sizeof(uint32_t) + sizeof(uint8_t)) *
-                     module->num_declared_data_segments);
+  size_t estimate =
+      sizeof(WasmInstanceNativeAllocations) +
+      (1 * kSystemPointerSize * module->num_imported_mutable_globals) +
+      (2 * kSystemPointerSize * module->num_imported_functions) +
+      ((kSystemPointerSize + sizeof(uint32_t) + sizeof(uint8_t)) *
+       module->num_declared_data_segments);
   for (auto& table : module->tables) {
-    estimate += 3 * kPointerSize * table.initial_size;
+    estimate += 3 * kSystemPointerSize * table.initial_size;
   }
   return estimate;
 }
@@ -1283,6 +1284,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 
   Handle<WasmInstanceObject> instance(
       WasmInstanceObject::cast(*instance_object), isolate);
+  instance->clear_padding();
 
   // Initialize the imported function arrays.
   auto module = module_object->module();

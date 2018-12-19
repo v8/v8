@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-static constexpr bool kNeedI64RegPair = kPointerSize == 4;
+static constexpr bool kNeedI64RegPair = kSystemPointerSize == 4;
 
 enum RegClass : uint8_t {
   kGpReg,

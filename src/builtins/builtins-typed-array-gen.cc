@@ -189,7 +189,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     //  - Set the byte_length field to byte_length.
     //  - Set backing_store to null/Smi(0).
     //  - Set all embedder fields to Smi(0).
-    if (FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset)) {
+    if (FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset) != 0) {
       DCHECK_EQ(4, FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset));
       StoreObjectFieldNoWriteBarrier(
           buffer, JSArrayBuffer::kOptionalPaddingOffset, Int32Constant(0),

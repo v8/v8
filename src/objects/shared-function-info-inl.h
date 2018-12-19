@@ -48,7 +48,7 @@ ObjectSlot PreParsedScopeData::child_data_start() const {
 }
 
 void PreParsedScopeData::clear_padding() {
-  if (FIELD_SIZE(kOptionalPaddingOffset)) {
+  if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
     memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
            FIELD_SIZE(kOptionalPaddingOffset));
@@ -65,7 +65,7 @@ INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
 INT32_ACCESSORS(UncompiledData, function_literal_id, kFunctionLiteralIdOffset)
 
 void UncompiledData::clear_padding() {
-  if (FIELD_SIZE(kOptionalPaddingOffset)) {
+  if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
     memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
            FIELD_SIZE(kOptionalPaddingOffset));

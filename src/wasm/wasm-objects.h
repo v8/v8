@@ -126,13 +126,13 @@ class WasmModuleObject : public JSObject {
   DECL_VERIFIER(WasmModuleObject)
 
 // Layout description.
-#define WASM_MODULE_OBJECT_FIELDS(V)       \
-  V(kNativeModuleOffset, kPointerSize)     \
-  V(kExportWrappersOffset, kPointerSize)   \
-  V(kScriptOffset, kPointerSize)           \
-  V(kWeakInstanceListOffset, kPointerSize) \
-  V(kAsmJsOffsetTableOffset, kPointerSize) \
-  V(kBreakPointInfosOffset, kPointerSize)  \
+#define WASM_MODULE_OBJECT_FIELDS(V)      \
+  V(kNativeModuleOffset, kTaggedSize)     \
+  V(kExportWrappersOffset, kTaggedSize)   \
+  V(kScriptOffset, kTaggedSize)           \
+  V(kWeakInstanceListOffset, kTaggedSize) \
+  V(kAsmJsOffsetTableOffset, kTaggedSize) \
+  V(kBreakPointInfosOffset, kTaggedSize)  \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -259,10 +259,10 @@ class WasmTableObject : public JSObject {
   DECL_ACCESSORS2(dispatch_tables, FixedArray)
 
 // Layout description.
-#define WASM_TABLE_OBJECT_FIELDS(V)      \
-  V(kFunctionsOffset, kPointerSize)      \
-  V(kMaximumLengthOffset, kPointerSize)  \
-  V(kDispatchTablesOffset, kPointerSize) \
+#define WASM_TABLE_OBJECT_FIELDS(V)     \
+  V(kFunctionsOffset, kTaggedSize)      \
+  V(kMaximumLengthOffset, kTaggedSize)  \
+  V(kDispatchTablesOffset, kTaggedSize) \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, WASM_TABLE_OBJECT_FIELDS)
@@ -303,10 +303,10 @@ class WasmMemoryObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS2(instances, WeakArrayList)
 
 // Layout description.
-#define WASM_MEMORY_OBJECT_FIELDS(V)   \
-  V(kArrayBufferOffset, kPointerSize)  \
-  V(kMaximumPagesOffset, kPointerSize) \
-  V(kInstancesOffset, kPointerSize)    \
+#define WASM_MEMORY_OBJECT_FIELDS(V)  \
+  V(kArrayBufferOffset, kTaggedSize)  \
+  V(kMaximumPagesOffset, kTaggedSize) \
+  V(kInstancesOffset, kTaggedSize)    \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -350,10 +350,10 @@ class WasmGlobalObject : public JSObject {
 #undef WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS
 
 // Layout description.
-#define WASM_GLOBAL_OBJECT_FIELDS(V)  \
-  V(kArrayBufferOffset, kPointerSize) \
-  V(kOffsetOffset, kPointerSize)      \
-  V(kFlagsOffset, kPointerSize)       \
+#define WASM_GLOBAL_OBJECT_FIELDS(V) \
+  V(kArrayBufferOffset, kTaggedSize) \
+  V(kOffsetOffset, kTaggedSize)      \
+  V(kFlagsOffset, kTaggedSize)       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -423,51 +423,61 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(data_segment_sizes, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(dropped_data_segments, byte*)
 
+  V8_INLINE void clear_padding();
+
   // Dispatched behavior.
   DECL_PRINTER(WasmInstanceObject)
   DECL_VERIFIER(WasmInstanceObject)
 
 // Layout description.
-#define WASM_INSTANCE_OBJECT_FIELDS(V)                                  \
-  V(kModuleObjectOffset, kPointerSize)                                  \
-  V(kExportsObjectOffset, kPointerSize)                                 \
-  V(kNativeContextOffset, kPointerSize)                                 \
-  V(kMemoryObjectOffset, kPointerSize)                                  \
-  V(kUntaggedGlobalsBufferOffset, kPointerSize)                         \
-  V(kTaggedGlobalsBufferOffset, kPointerSize)                           \
-  V(kImportedMutableGlobalsBuffersOffset, kPointerSize)                 \
-  V(kDebugInfoOffset, kPointerSize)                                     \
-  V(kTableObjectOffset, kPointerSize)                                   \
-  V(kImportedFunctionRefsOffset, kPointerSize)                          \
-  V(kIndirectFunctionTableRefsOffset, kPointerSize)                     \
-  V(kManagedNativeAllocationsOffset, kPointerSize)                      \
-  V(kExceptionsTableOffset, kPointerSize)                               \
-  V(kUndefinedValueOffset, kPointerSize)                                \
-  V(kNullValueOffset, kPointerSize)                                     \
-  V(kCEntryStubOffset, kPointerSize)                                    \
-  V(kFirstUntaggedOffset, 0)                             /* marker */   \
-  V(kMemoryStartOffset, kPointerSize)                    /* untagged */ \
-  V(kMemorySizeOffset, kSizetSize)                       /* untagged */ \
-  V(kMemoryMaskOffset, kSizetSize)                       /* untagged */ \
-  V(kIsolateRootOffset, kPointerSize)                    /* untagged */ \
-  V(kStackLimitAddressOffset, kPointerSize)              /* untagged */ \
-  V(kRealStackLimitAddressOffset, kPointerSize)          /* untagged */ \
-  V(kImportedFunctionTargetsOffset, kPointerSize)        /* untagged */ \
-  V(kGlobalsStartOffset, kPointerSize)                   /* untagged */ \
-  V(kImportedMutableGlobalsOffset, kPointerSize)         /* untagged */ \
-  V(kIndirectFunctionTableSigIdsOffset, kPointerSize)    /* untagged */ \
-  V(kIndirectFunctionTableTargetsOffset, kPointerSize)   /* untagged */ \
-  V(kJumpTableStartOffset, kPointerSize)                 /* untagged */ \
-  V(kDataSegmentStartsOffset, kPointerSize)              /* untagged */ \
-  V(kDataSegmentSizesOffset, kPointerSize)               /* untagged */ \
-  V(kDroppedDataSegmentsOffset, kPointerSize)            /* untagged */ \
-  V(kIndirectFunctionTableSizeOffset, kUInt32Size)       /* untagged */ \
-  V(k64BitArchPaddingOffset, kPointerSize - kUInt32Size) /* padding */  \
+#define WASM_INSTANCE_OBJECT_FIELDS(V)                                    \
+  /* Tagged values. */                                                    \
+  V(kModuleObjectOffset, kTaggedSize)                                     \
+  V(kExportsObjectOffset, kTaggedSize)                                    \
+  V(kNativeContextOffset, kTaggedSize)                                    \
+  V(kMemoryObjectOffset, kTaggedSize)                                     \
+  V(kUntaggedGlobalsBufferOffset, kTaggedSize)                            \
+  V(kTaggedGlobalsBufferOffset, kTaggedSize)                              \
+  V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
+  V(kDebugInfoOffset, kTaggedSize)                                        \
+  V(kTableObjectOffset, kTaggedSize)                                      \
+  V(kImportedFunctionRefsOffset, kTaggedSize)                             \
+  V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
+  V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
+  V(kExceptionsTableOffset, kTaggedSize)                                  \
+  V(kUndefinedValueOffset, kTaggedSize)                                   \
+  V(kNullValueOffset, kTaggedSize)                                        \
+  V(kCEntryStubOffset, kTaggedSize)                                       \
+  V(kEndOfTaggedFieldsOffset, 0)                                          \
+  /* Raw data. */                                                         \
+  V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
+  /* Optional padding to align system pointer size fields */              \
+  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
+  V(kFirstSystemPointerFieldOffset, 0)                                    \
+  V(kMemoryStartOffset, kSystemPointerSize)                               \
+  V(kMemorySizeOffset, kSizetSize)                                        \
+  V(kMemoryMaskOffset, kSizetSize)                                        \
+  V(kIsolateRootOffset, kSystemPointerSize)                               \
+  V(kStackLimitAddressOffset, kSystemPointerSize)                         \
+  V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
+  V(kImportedFunctionTargetsOffset, kSystemPointerSize)                   \
+  V(kGlobalsStartOffset, kSystemPointerSize)                              \
+  V(kImportedMutableGlobalsOffset, kSystemPointerSize)                    \
+  V(kIndirectFunctionTableSigIdsOffset, kSystemPointerSize)               \
+  V(kIndirectFunctionTableTargetsOffset, kSystemPointerSize)              \
+  V(kJumpTableStartOffset, kSystemPointerSize)                            \
+  V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
+  V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
+  V(kDroppedDataSegmentsOffset, kSystemPointerSize)                       \
+  /* Header size. */                                                      \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 WASM_INSTANCE_OBJECT_FIELDS)
 #undef WASM_INSTANCE_OBJECT_FIELDS
+
+  STATIC_ASSERT(IsAligned(kFirstSystemPointerFieldOffset, kSystemPointerSize));
+  STATIC_ASSERT(IsAligned(kSize, kTaggedSize));
 
   V8_EXPORT_PRIVATE const wasm::WasmModule* module();
 
@@ -505,9 +515,9 @@ class WasmExceptionObject : public JSObject {
   DECL_ACCESSORS(exception_tag, HeapObject)
 
 // Layout description.
-#define WASM_EXCEPTION_OBJECT_FIELDS(V)       \
-  V(kSerializedSignatureOffset, kPointerSize) \
-  V(kExceptionTagOffset, kPointerSize)        \
+#define WASM_EXCEPTION_OBJECT_FIELDS(V)      \
+  V(kSerializedSignatureOffset, kTaggedSize) \
+  V(kExceptionTagOffset, kTaggedSize)        \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -564,11 +574,11 @@ class WasmExportedFunctionData : public Struct {
   DECL_VERIFIER(WasmExportedFunctionData)
 
 // Layout description.
-#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V)       \
-  V(kWrapperCodeOffset, kPointerSize)               \
-  V(kInstanceOffset, kPointerSize)                  \
-  V(kJumpTableOffsetOffset, kPointerSize) /* Smi */ \
-  V(kFunctionIndexOffset, kPointerSize)   /* Smi */ \
+#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V)      \
+  V(kWrapperCodeOffset, kTaggedSize)               \
+  V(kInstanceOffset, kTaggedSize)                  \
+  V(kJumpTableOffsetOffset, kTaggedSize) /* Smi */ \
+  V(kFunctionIndexOffset, kTaggedSize)   /* Smi */ \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -595,13 +605,13 @@ class WasmDebugInfo : public Struct {
   DECL_VERIFIER(WasmDebugInfo)
 
 // Layout description.
-#define WASM_DEBUG_INFO_FIELDS(V)              \
-  V(kInstanceOffset, kPointerSize)             \
-  V(kInterpreterHandleOffset, kPointerSize)    \
-  V(kInterpretedFunctionsOffset, kPointerSize) \
-  V(kLocalsNamesOffset, kPointerSize)          \
-  V(kCWasmEntriesOffset, kPointerSize)         \
-  V(kCWasmEntryMapOffset, kPointerSize)        \
+#define WASM_DEBUG_INFO_FIELDS(V)             \
+  V(kInstanceOffset, kTaggedSize)             \
+  V(kInterpreterHandleOffset, kTaggedSize)    \
+  V(kInterpretedFunctionsOffset, kTaggedSize) \
+  V(kLocalsNamesOffset, kTaggedSize)          \
+  V(kCWasmEntriesOffset, kTaggedSize)         \
+  V(kCWasmEntryMapOffset, kTaggedSize)        \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WASM_DEBUG_INFO_FIELDS)
@@ -695,7 +705,7 @@ class WasmExceptionTag : public Struct {
 
 // Layout description.
 #define WASM_EXCEPTION_TAG_FIELDS(V) \
-  V(kIndexOffset, kPointerSize)      \
+  V(kIndexOffset, kTaggedSize)       \
   /* Total size. */                  \
   V(kSize, 0)
 
@@ -722,12 +732,12 @@ class AsmWasmData : public Struct {
   DECL_VERIFIER(AsmWasmData)
 
 // Layout description.
-#define ASM_WASM_DATA_FIELDS(V)               \
-  V(kManagedNativeModuleOffset, kPointerSize) \
-  V(kExportWrappersOffset, kPointerSize)      \
-  V(kAsmJsOffsetTableOffset, kPointerSize)    \
-  V(kUsesBitsetOffset, kPointerSize)          \
-  /* Total size. */                           \
+#define ASM_WASM_DATA_FIELDS(V)              \
+  V(kManagedNativeModuleOffset, kTaggedSize) \
+  V(kExportWrappersOffset, kTaggedSize)      \
+  V(kAsmJsOffsetTableOffset, kTaggedSize)    \
+  V(kUsesBitsetOffset, kTaggedSize)          \
+  /* Total size. */                          \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, ASM_WASM_DATA_FIELDS)

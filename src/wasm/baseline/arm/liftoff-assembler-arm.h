@@ -37,11 +37,12 @@ namespace liftoff {
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
-static_assert(2 * kPointerSize == LiftoffAssembler::kStackSlotSize,
+static_assert(2 * kSystemPointerSize == LiftoffAssembler::kStackSlotSize,
               "Slot size should be twice the size of the 32 bit pointer.");
-constexpr int32_t kInstanceOffset = 2 * kPointerSize;
-constexpr int32_t kFirstStackSlotOffset = kInstanceOffset + 2 * kPointerSize;
-constexpr int32_t kConstantStackSpace = kPointerSize;
+constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
+constexpr int32_t kFirstStackSlotOffset =
+    kInstanceOffset + 2 * kSystemPointerSize;
+constexpr int32_t kConstantStackSpace = kSystemPointerSize;
 // kPatchInstructionsRequired sets a maximum limit of how many instructions that
 // PatchPrepareStackFrame will use in order to increase the stack appropriately.
 // Three instructions are required to sub a large constant, movw + movt + sub.
@@ -1337,7 +1338,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
                              ExternalReference ext_ref) {
   // Arguments are passed by pushing them all to the stack and then passing
   // a pointer to them.
-  DCHECK_EQ(stack_bytes % kPointerSize, 0);
+  DCHECK(IsAligned(stack_bytes, kSystemPointerSize));
   // Reserve space in the stack.
   sub(sp, sp, Operand(stack_bytes));
 
@@ -1392,7 +1393,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
         break;
       case kWasmI64:
         ldr(result_reg->low_gp(), MemOperand(sp));
-        ldr(result_reg->high_gp(), MemOperand(sp, kPointerSize));
+        ldr(result_reg->high_gp(), MemOperand(sp, kSystemPointerSize));
         break;
       case kWasmF32:
         vldr(liftoff::GetFloatRegister(result_reg->fp()), MemOperand(sp));

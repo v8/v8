@@ -36,7 +36,7 @@ class LiftoffAssembler : public TurboAssembler {
   static constexpr uint32_t kStackSlotSize = 8;
 
   static constexpr ValueType kWasmIntPtr =
-      kPointerSize == 8 ? kWasmI64 : kWasmI32;
+      kSystemPointerSize == 8 ? kWasmI64 : kWasmI32;
 
   class VarState {
    public:
@@ -452,7 +452,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_to_intptr(Register dst, Register src);
 
   inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs) {
-    if (kPointerSize == 8) {
+    if (kSystemPointerSize == 8) {
       emit_i64_add(LiftoffRegister(dst), LiftoffRegister(lhs),
                    LiftoffRegister(rhs));
     } else {
@@ -460,7 +460,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
   }
   inline void emit_ptrsize_sub(Register dst, Register lhs, Register rhs) {
-    if (kPointerSize == 8) {
+    if (kSystemPointerSize == 8) {
       emit_i64_sub(LiftoffRegister(dst), LiftoffRegister(lhs),
                    LiftoffRegister(rhs));
     } else {
@@ -468,7 +468,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
   }
   inline void emit_ptrsize_and(Register dst, Register lhs, Register rhs) {
-    if (kPointerSize == 8) {
+    if (kSystemPointerSize == 8) {
       emit_i64_and(LiftoffRegister(dst), LiftoffRegister(lhs),
                    LiftoffRegister(rhs));
     } else {
@@ -476,7 +476,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
   }
   inline void emit_ptrsize_shr(Register dst, Register src, int amount) {
-    if (kPointerSize == 8) {
+    if (kSystemPointerSize == 8) {
       emit_i64_shr(LiftoffRegister(dst), LiftoffRegister(src), amount);
     } else {
       emit_i32_shr(dst, src, amount);
