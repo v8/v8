@@ -1750,7 +1750,8 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
   Verify(isolate, table);
   CHECK(table->IsSmallOrderedNameDictionary());
   CHECK_NE(OrderedNameDictionaryHandler::kNotFound,
-           OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key));
+           OrderedNameDictionaryHandler::FindEntry(
+               isolate, HeapObjectPtr::cast(*table), *key));
 
   char buf[10];
   for (int i = 0; i < 1024; i++) {
@@ -1764,17 +1765,17 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
     for (int j = 0; j <= i; j++) {
       CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", j));
       Handle<Name> key_j = isolate->factory()->InternalizeUtf8String(buf);
-      CHECK_NE(
-          OrderedNameDictionaryHandler::kNotFound,
-          OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key_j));
+      CHECK_NE(OrderedNameDictionaryHandler::kNotFound,
+               OrderedNameDictionaryHandler::FindEntry(
+                   isolate, HeapObjectPtr::cast(*table), *key_j));
     }
 
     for (int j = i + 1; j < 1024; j++) {
       CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", j));
       Handle<Name> key_j = isolate->factory()->InternalizeUtf8String(buf);
-      CHECK_EQ(
-          OrderedNameDictionaryHandler::kNotFound,
-          OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key_j));
+      CHECK_EQ(OrderedNameDictionaryHandler::kNotFound,
+               OrderedNameDictionaryHandler::FindEntry(
+                   isolate, HeapObjectPtr::cast(*table), *key_j));
     }
   }
 

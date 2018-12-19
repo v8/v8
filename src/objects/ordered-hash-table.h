@@ -709,22 +709,23 @@ class OrderedNameDictionaryHandler
                                 Handle<Name> key, Handle<Object> value,
                                 PropertyDetails details);
 
-  static int FindEntry(Isolate* isolate, HeapObject* table, Object* key);
+  static int FindEntry(Isolate* isolate, HeapObjectPtr table, Object* key);
 
   // Returns the value for entry.
-  static Object* ValueAt(HeapObject* table, int entry);
+  static Object* ValueAt(HeapObjectPtr table, int entry);
 
   // Set the value for entry.
-  static void ValueAtPut(HeapObject* table, int entry, Object* value);
+  static void ValueAtPut(HeapObjectPtr table, int entry, Object* value);
 
   // Returns the property details for the property at entry.
-  static PropertyDetails DetailsAt(HeapObject* table, int entry);
+  static PropertyDetails DetailsAt(HeapObjectPtr table, int entry);
 
   // Set the details for entry.
-  static void DetailsAtPut(HeapObject* table, int entry, PropertyDetails value);
+  static void DetailsAtPut(HeapObjectPtr table, int entry,
+                           PropertyDetails value);
 
-  static void SetHash(HeapObject* table, int hash);
-  static int Hash(HeapObject* table);
+  static void SetHash(HeapObjectPtr table, int hash);
+  static int Hash(HeapObjectPtr table);
 
   static const int kNotFound = -1;
 
