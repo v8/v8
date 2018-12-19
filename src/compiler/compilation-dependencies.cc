@@ -19,6 +19,10 @@ class CompilationDependencies::Dependency : public ZoneObject {
   virtual bool IsValid() const = 0;
   virtual void PrepareInstall() {}
   virtual void Install(const MaybeObjectHandle& code) = 0;
+
+#ifdef DEBUG
+  virtual bool IsPretenureModeDependency() const { return false; }
+#endif
 };
 
 class InitialMapDependency final : public CompilationDependencies::Dependency {
@@ -145,6 +149,10 @@ class PretenureModeDependency final
         site_.isolate(), code, site_.object(),
         DependentCode::kAllocationSiteTenuringChangedGroup);
   }
+
+#ifdef DEBUG
+  bool IsPretenureModeDependency() const override { return true; }
+#endif
 
  private:
   AllocationSiteRef site_;
@@ -417,15 +425,21 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
     dep->Install(MaybeObjectHandle::Weak(code));
   }
 
+  // It is even possible that a GC during the above installations invalidated
+  // one of the dependencies. However, this should only affect pretenure mode
+  // dependencies, which we assert below. It is safe to return successfully in
+  // these cases, because once the code gets executed it will do a stack check
+  // that triggers its deoptimization.
   if (FLAG_stress_gc_during_compilation) {
     isolate_->heap()->PreciseCollectAllGarbage(
         Heap::kNoGCFlags, GarbageCollectionReason::kTesting,
         kGCCallbackFlagForced);
-    if (!AreValid()) {
-      dependencies_.clear();
-      return false;
-    }
   }
+#ifdef DEBUG
+  for (auto dep : dependencies_) {
+    CHECK_IMPLIES(!dep->IsValid(), dep->IsPretenureModeDependency());
+  }
+#endif
 
   dependencies_.clear();
   return true;
