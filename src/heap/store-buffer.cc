@@ -55,9 +55,9 @@ void StoreBuffer::SetUp() {
   const size_t allocated_size = reservation.size();
 
   start_[0] = reinterpret_cast<Address*>(start);
-  limit_[0] = start_[0] + (kStoreBufferSize / kPointerSize);
+  limit_[0] = start_[0] + (kStoreBufferSize / kSystemPointerSize);
   start_[1] = limit_[0];
-  limit_[1] = start_[1] + (kStoreBufferSize / kPointerSize);
+  limit_[1] = start_[1] + (kStoreBufferSize / kSystemPointerSize);
 
   // Sanity check the buffers.
   Address* vm_limit = reinterpret_cast<Address*>(start + allocated_size);

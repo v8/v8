@@ -98,10 +98,10 @@ class V8_EXPORT_PRIVATE Bitmap {
   static const uint32_t kBytesPerCell = kBitsPerCell / kBitsPerByte;
   static const uint32_t kBytesPerCellLog2 = kBitsPerCellLog2 - kBitsPerByteLog2;
 
-  static const size_t kLength = (1 << kPageSizeBits) >> (kPointerSizeLog2);
+  static const size_t kLength = (1 << kPageSizeBits) >> (kTaggedSizeLog2);
 
   static const size_t kSize = (1 << kPageSizeBits) >>
-                              (kPointerSizeLog2 + kBitsPerByteLog2);
+                              (kTaggedSizeLog2 + kBitsPerByteLog2);
 
   static int CellsForLength(int length) {
     return (length + kBitsPerCell - 1) >> kBitsPerCellLog2;

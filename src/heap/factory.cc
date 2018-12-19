@@ -1975,7 +1975,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map->set_instance_size(instance_size);
   if (map->IsJSObjectMap()) {
     DCHECK(!isolate()->heap()->InReadOnlySpace(map));
-    map->SetInObjectPropertiesStartInWords(instance_size / kPointerSize -
+    map->SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                            inobject_properties);
     DCHECK_EQ(map->GetInObjectProperties(), inobject_properties);
     map->set_prototype_validity_cell(*invalid_prototype_validity_cell());
@@ -2109,9 +2109,8 @@ Handle<T> Factory::CopyArrayWithMap(Handle<T> src, Handle<Map> map) {
 
   if (mode == SKIP_WRITE_BARRIER) {
     // Eliminate the write barrier if possible.
-    Heap::CopyBlock(obj->address() + kPointerSize,
-                    src->address() + kPointerSize,
-                    T::SizeFor(len) - kPointerSize);
+    Heap::CopyBlock(obj->address() + kTaggedSize, src->address() + kTaggedSize,
+                    T::SizeFor(len) - kTaggedSize);
   } else {
     // Slow case: Just copy the content one-by-one.
     initialize_length(result, len);
@@ -2263,9 +2262,9 @@ Handle<FeedbackVector> Factory::CopyFeedbackVector(
 
   // Eliminate the write barrier if possible.
   if (mode == SKIP_WRITE_BARRIER) {
-    Heap::CopyBlock(result->address() + kPointerSize,
-                    result->address() + kPointerSize,
-                    FeedbackVector::SizeFor(len) - kPointerSize);
+    Heap::CopyBlock(result->address() + kTaggedSize,
+                    result->address() + kTaggedSize,
+                    FeedbackVector::SizeFor(len) - kTaggedSize);
   } else {
     // Slow case: Just copy the content one-by-one.
     result->set_shared_function_info(array->shared_function_info());
@@ -4045,7 +4044,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   if (IsFunctionModeWithName(function_mode)) ++inobject_properties_count;
 
   Handle<Map> map = NewMap(
-      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kPointerSize,
+      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kTaggedSize,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   map->set_has_prototype_slot(has_prototype);
   map->set_is_constructor(has_prototype);
@@ -4125,7 +4124,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
                           inobject_properties_count;
 
   Handle<Map> map = NewMap(
-      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kPointerSize,
+      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kTaggedSize,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   map->set_has_prototype_slot(has_prototype);
   map->set_is_constructor(has_prototype);

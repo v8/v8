@@ -207,7 +207,7 @@ class SlotSet : public Malloced {
             while (cell) {
               int bit_offset = base::bits::CountTrailingZeros(cell);
               uint32_t bit_mask = 1u << bit_offset;
-              uint32_t slot = (cell_offset + bit_offset) << kPointerSizeLog2;
+              uint32_t slot = (cell_offset + bit_offset) << kTaggedSizeLog2;
               if (callback(MaybeObjectSlot(page_start_ + slot)) == KEEP_SLOT) {
                 ++in_bucket_count;
               } else {
@@ -269,7 +269,7 @@ class SlotSet : public Malloced {
 
  private:
   typedef uint32_t* Bucket;
-  static const int kMaxSlots = (1 << kPageSizeBits) / kPointerSize;
+  static const int kMaxSlots = (1 << kPageSizeBits) / kTaggedSize;
   static const int kCellsPerBucket = 32;
   static const int kCellsPerBucketLog2 = 5;
   static const int kBitsPerCell = 32;
@@ -375,8 +375,8 @@ class SlotSet : public Malloced {
   // Converts the slot offset into bucket/cell/bit index.
   void SlotToIndices(int slot_offset, int* bucket_index, int* cell_index,
                      int* bit_index) {
-    DCHECK_EQ(slot_offset % kPointerSize, 0);
-    int slot = slot_offset >> kPointerSizeLog2;
+    DCHECK(IsAligned(slot_offset, kTaggedSize));
+    int slot = slot_offset >> kTaggedSizeLog2;
     DCHECK(slot >= 0 && slot <= kMaxSlots);
     *bucket_index = slot >> kBitsPerBucketLog2;
     *cell_index = (slot >> kBitsPerCellLog2) & (kCellsPerBucket - 1);

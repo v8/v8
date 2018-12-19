@@ -353,10 +353,10 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
           isolate->factory()->NewFixedArray(10, NOT_TENURED);
       // Create a broken address that looks like a tagged pointer to a new space
       // object.
-      Address broken_address = holder->address() + 2 * kPointerSize + 1;
+      Address broken_address = holder->address() + 2 * kTaggedSize + 1;
       // Convert it to a vector to create a string from it.
       Vector<const uint8_t> string_to_broken_addresss(
-          reinterpret_cast<const uint8_t*>(&broken_address), kPointerSize);
+          reinterpret_cast<const uint8_t*>(&broken_address), kTaggedSize);
 
       Handle<String> string;
       do {

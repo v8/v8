@@ -121,11 +121,11 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
               page->AddressToMarkbitIndex(current),
               page->AddressToMarkbitIndex(next_object_must_be_here_or_later)) ||
           bitmap(page)->AllBitsClearInRange(
-              page->AddressToMarkbitIndex(current + kPointerSize * 2),
+              page->AddressToMarkbitIndex(current + kTaggedSize * 2),
               page->AddressToMarkbitIndex(next_object_must_be_here_or_later)));
       current = next_object_must_be_here_or_later;
     } else {
-      current += kPointerSize;
+      current += kTaggedSize;
     }
   }
 }
@@ -1211,7 +1211,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     DCHECK_NE(dest, CODE_LO_SPACE);
     if (dest == OLD_SPACE) {
       DCHECK_OBJECT_SIZE(size);
-      DCHECK(IsAligned(size, kPointerSize));
+      DCHECK(IsAligned(size, kTaggedSize));
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
@@ -2639,7 +2639,7 @@ class Evacuator : public Malloced {
     if (FLAG_page_promotion)
       return FLAG_page_promotion_threshold *
              MemoryChunkLayout::AllocatableMemoryInDataPage() / 100;
-    return MemoryChunkLayout::AllocatableMemoryInDataPage() + kPointerSize;
+    return MemoryChunkLayout::AllocatableMemoryInDataPage() + kTaggedSize;
   }
 
   Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)

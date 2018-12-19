@@ -55,7 +55,7 @@ HEAP_TEST(InvalidatedSlotsNoInvalidatedRanges) {
   for (ByteArray byte_array : byte_arrays) {
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(filter.IsValid(addr));
     }
   }
@@ -76,7 +76,7 @@ HEAP_TEST(InvalidatedSlotsSomeInvalidatedRanges) {
     ByteArray byte_array = byte_arrays[i];
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       if (i % 2 == 0) {
         CHECK(!filter.IsValid(addr));
       } else {
@@ -101,7 +101,7 @@ HEAP_TEST(InvalidatedSlotsAllInvalidatedRanges) {
     ByteArray byte_array = byte_arrays[i];
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(!filter.IsValid(addr));
     }
   }
@@ -126,7 +126,7 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
     heap->RightTrimFixedArray(byte_array, byte_array->length());
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK_EQ(filter.IsValid(addr), page->SweepingDone());
     }
   }
@@ -152,7 +152,7 @@ HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
     ByteArray byte_array = byte_arrays[i];
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(filter.IsValid(addr));
     }
   }
@@ -176,7 +176,7 @@ HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
     ByteArray byte_array = byte_arrays[i];
     Address start = byte_array->address() + ByteArray::kHeaderSize;
     Address end = byte_array->address() + byte_array->Size();
-    for (Address addr = start; addr < end; addr += kPointerSize) {
+    for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK(!filter.IsValid(addr));
     }
   }
@@ -247,7 +247,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
   {
     AlwaysAllocateScope always_allocate(isolate);
     trimmed = factory->NewFixedArray(
-        kMaxRegularHeapObjectSize / kPointerSize + 100, TENURED);
+        kMaxRegularHeapObjectSize / kTaggedSize + 100, TENURED);
     DCHECK(MemoryChunk::FromHeapObject(*trimmed)->InLargeObjectSpace());
   }
   heap::SimulateIncrementalMarking(heap);

@@ -502,8 +502,7 @@ size_t MemoryChunkLayout::AllocatableMemoryInCodePage() {
 }
 
 intptr_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
-  return MemoryChunk::kHeaderSize +
-         (kPointerSize - MemoryChunk::kHeaderSize % kPointerSize);
+  return RoundUp(MemoryChunk::kHeaderSize, kTaggedSize);
 }
 
 size_t MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(
@@ -1187,11 +1186,10 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
 
 void MemoryAllocator::ZapBlock(Address start, size_t size,
                                uintptr_t zap_value) {
-  DCHECK_EQ(start % kPointerSize, 0);
-  DCHECK_EQ(size % kPointerSize, 0);
-  for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
-    Memory<Address>(start + s) = static_cast<Address>(zap_value);
-  }
+  DCHECK(IsAligned(start, kTaggedSize));
+  DCHECK(IsAligned(size, kTaggedSize));
+  MemsetTagged(ObjectSlot(start), ObjectPtr(static_cast<Address>(zap_value)),
+               size >> kTaggedSizeLog2);
 }
 
 intptr_t MemoryAllocator::GetCommitPageSize() {
@@ -1855,7 +1853,7 @@ std::unique_ptr<ObjectIterator> PagedSpace::GetObjectIterator() {
 }
 
 bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
-  DCHECK(IsAligned(size_in_bytes, kPointerSize));
+  DCHECK(IsAligned(size_in_bytes, kTaggedSize));
   DCHECK_LE(top(), limit());
 #ifdef DEBUG
   if (top() != limit()) {

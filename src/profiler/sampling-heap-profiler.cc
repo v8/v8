@@ -31,8 +31,8 @@ intptr_t SamplingAllocationObserver::GetNextSampleInterval(uint64_t rate) {
   }
   double u = random_->NextDouble();
   double next = (-base::ieee754::log(u)) * rate;
-  return next < kPointerSize
-             ? kPointerSize
+  return next < kTaggedSize
+             ? kTaggedSize
              : (next > INT_MAX ? INT_MAX : static_cast<intptr_t>(next));
 }
 

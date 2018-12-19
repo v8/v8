@@ -65,7 +65,7 @@ class SlotSnapshot {
   }
 
  private:
-  static const int kMaxSnapshotSize = JSObject::kMaxInstanceSize / kPointerSize;
+  static const int kMaxSnapshotSize = JSObject::kMaxInstanceSize / kTaggedSize;
   int number_of_slots_;
   std::pair<ObjectSlot, Object*> snapshot_[kMaxSnapshotSize];
   DISALLOW_COPY_AND_ASSIGN(SlotSnapshot);

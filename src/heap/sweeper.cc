@@ -321,7 +321,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     if (rebuild_skip_list) {
       int new_region_start = SkipList::RegionNumber(free_end);
       int new_region_end =
-          SkipList::RegionNumber(free_end + size - kPointerSize);
+          SkipList::RegionNumber(free_end + size - kTaggedSize);
       if (new_region_start != curr_region || new_region_end != curr_region) {
         skip_list->AddObject(free_end, size);
         curr_region = new_region_end;

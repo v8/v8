@@ -1071,12 +1071,12 @@ void Heap::CollectAllGarbage(int flags, GarbageCollectionReason gc_reason,
 namespace {
 
 intptr_t CompareWords(int size, HeapObject* a, HeapObject* b) {
-  int words = size / kPointerSize;
+  int slots = size / kTaggedSize;
   DCHECK_EQ(a->Size(), size);
   DCHECK_EQ(b->Size(), size);
-  intptr_t* slot_a = reinterpret_cast<intptr_t*>(a->address());
-  intptr_t* slot_b = reinterpret_cast<intptr_t*>(b->address());
-  for (int i = 0; i < words; i++) {
+  Tagged_t* slot_a = reinterpret_cast<Tagged_t*>(a->address());
+  Tagged_t* slot_b = reinterpret_cast<Tagged_t*>(b->address());
+  for (int i = 0; i < slots; i++) {
     if (*slot_a != *slot_b) {
       return *slot_a - *slot_b;
     }
@@ -1251,7 +1251,7 @@ void Heap::EnsureFillerObjectAtTop() {
   // may be uninitialized memory behind top. We fill the remainder of the page
   // with a filler.
   Address to_top = new_space_->top();
-  Page* page = Page::FromAddress(to_top - kPointerSize);
+  Page* page = Page::FromAddress(to_top - kTaggedSize);
   if (page->Contains(to_top)) {
     int remaining_in_page = static_cast<int>(page->area_end() - to_top);
     CreateFillerObjectAt(to_top, remaining_in_page, ClearRecordedSlots::kNo);
@@ -1446,7 +1446,7 @@ void Heap::MoveElements(FixedArray array, int dst_index, int src_index, int len,
       }
     }
   } else {
-    MemMove(dst.ToVoidPtr(), src.ToVoidPtr(), len * kPointerSize);
+    MemMove(dst.ToVoidPtr(), src.ToVoidPtr(), len * kTaggedSize);
   }
   if (mode == SKIP_WRITE_BARRIER) return;
   FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(this, array, dst_index, len);
@@ -2351,7 +2351,7 @@ int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
       return 0;
     case kDoubleAligned:
     case kDoubleUnaligned:
-      return kDoubleSize - kPointerSize;
+      return kDoubleSize - kTaggedSize;
     default:
       UNREACHABLE();
   }
@@ -2361,9 +2361,9 @@ int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
 
 int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
   if (alignment == kDoubleAligned && (address & kDoubleAlignmentMask) != 0)
-    return kPointerSize;
+    return kTaggedSize;
   if (alignment == kDoubleUnaligned && (address & kDoubleAlignmentMask) == 0)
-    return kDoubleSize - kPointerSize;  // No fill if double is always aligned.
+    return kDoubleSize - kTaggedSize;  // No fill if double is always aligned.
   return 0;
 }
 
@@ -2423,27 +2423,27 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
                                        ClearFreedMemoryMode clear_memory_mode) {
   if (size == 0) return nullptr;
   HeapObject* filler = HeapObject::FromAddress(addr);
-  if (size == kPointerSize) {
+  if (size == kTaggedSize) {
     filler->set_map_after_allocation(
         Map::unchecked_cast(isolate()->root(RootIndex::kOnePointerFillerMap)),
         SKIP_WRITE_BARRIER);
-  } else if (size == 2 * kPointerSize) {
+  } else if (size == 2 * kTaggedSize) {
     filler->set_map_after_allocation(
         Map::unchecked_cast(isolate()->root(RootIndex::kTwoPointerFillerMap)),
         SKIP_WRITE_BARRIER);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
-      Memory<Address>(addr + kPointerSize) =
-          static_cast<Address>(kClearedFreeMemoryValue);
+      Memory<Tagged_t>(addr + kTaggedSize) =
+          static_cast<Tagged_t>(kClearedFreeMemoryValue);
     }
   } else {
-    DCHECK_GT(size, 2 * kPointerSize);
+    DCHECK_GT(size, 2 * kTaggedSize);
     filler->set_map_after_allocation(
         Map::unchecked_cast(isolate()->root(RootIndex::kFreeSpaceMap)),
         SKIP_WRITE_BARRIER);
     FreeSpace::cast(filler)->relaxed_write_size(size);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
-      memset(reinterpret_cast<void*>(addr + 2 * kPointerSize),
-             kClearedFreeMemoryValue, size - 2 * kPointerSize);
+      MemsetTagged(ObjectSlot(addr) + 2, ObjectPtr(kClearedFreeMemoryValue),
+                   (size / kTaggedSize) - 2);
     }
   }
   if (clear_slots_mode == ClearRecordedSlots::kYes) {
@@ -2540,7 +2540,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   // Add custom visitor to concurrent marker if new left-trimmable type
   // is added.
   DCHECK(object->IsFixedArray() || object->IsFixedDoubleArray());
-  const int element_size = object->IsFixedArray() ? kPointerSize : kDoubleSize;
+  const int element_size = object->IsFixedArray() ? kTaggedSize : kDoubleSize;
   const int bytes_to_trim = elements_to_trim * element_size;
   Map map = object->map();
 
@@ -2551,8 +2551,8 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   DCHECK(object->map() != ReadOnlyRoots(this).fixed_cow_array_map());
 
   STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
-  STATIC_ASSERT(FixedArrayBase::kLengthOffset == kPointerSize);
-  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
+  STATIC_ASSERT(FixedArrayBase::kLengthOffset == kTaggedSize);
+  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kTaggedSize);
 
   const int len = object->length();
   DCHECK(elements_to_trim <= len);
@@ -2576,7 +2576,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   // performed on pages which are not concurrently swept creating a filler
   // object does not require synchronization.
   RELAXED_WRITE_FIELD(object, bytes_to_trim, map);
-  RELAXED_WRITE_FIELD(object, bytes_to_trim + kPointerSize,
+  RELAXED_WRITE_FIELD(object, bytes_to_trim + kTaggedSize,
                       Smi::FromInt(len - elements_to_trim));
 
   FixedArrayBase new_object =
@@ -2633,7 +2633,7 @@ void Heap::RightTrimFixedArray(FixedArrayBase object, int elements_to_trim) {
     DCHECK_GE(bytes_to_trim, 0);
   } else if (object->IsFixedArray()) {
     CHECK_NE(elements_to_trim, len);
-    bytes_to_trim = elements_to_trim * kPointerSize;
+    bytes_to_trim = elements_to_trim * kTaggedSize;
   } else {
     DCHECK(object->IsFixedDoubleArray());
     CHECK_NE(elements_to_trim, len);
@@ -2650,7 +2650,7 @@ void Heap::RightTrimWeakFixedArray(WeakFixedArray object,
   // invalidates them.
   DCHECK_EQ(gc_state(), MARK_COMPACT);
   CreateFillerForArray<WeakFixedArray>(object, elements_to_trim,
-                                       elements_to_trim * kPointerSize);
+                                       elements_to_trim * kTaggedSize);
 }
 
 template <typename T>
@@ -3767,10 +3767,10 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
       while (current->IsFiller()) {
         Address next = reinterpret_cast<Address>(current);
         if (current->map() == ReadOnlyRoots(heap_).one_pointer_filler_map()) {
-          next += kPointerSize;
+          next += kTaggedSize;
         } else if (current->map() ==
                    ReadOnlyRoots(heap_).two_pointer_filler_map()) {
-          next += 2 * kPointerSize;
+          next += 2 * kTaggedSize;
         } else {
           next += current->Size();
         }

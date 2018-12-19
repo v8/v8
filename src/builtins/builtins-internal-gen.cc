@@ -249,7 +249,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     {
       // Temp variable to calculate cell offset in bitmap.
       Node* r0;
-      int shift = Bitmap::kBitsPerCellLog2 + kSystemPointerSizeLog2 -
+      int shift = Bitmap::kBitsPerCellLog2 + kTaggedSizeLog2 -
                   Bitmap::kBytesPerCellLog2;
       r0 = WordShr(object, IntPtrConstant(shift));
       r0 = WordAnd(r0, IntPtrConstant((kPageAlignmentMask >> shift) &
@@ -259,7 +259,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     {
       // Temp variable to calculate bit offset in cell.
       Node* r1;
-      r1 = WordShr(object, IntPtrConstant(kSystemPointerSizeLog2));
+      r1 = WordShr(object, IntPtrConstant(kTaggedSizeLog2));
       r1 = WordAnd(r1, IntPtrConstant((1 << Bitmap::kBitsPerCellLog2) - 1));
       // It seems that LSB(e.g. cl) is automatically used, so no manual masking
       // is needed. Uncomment the following line otherwise.

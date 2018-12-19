@@ -197,7 +197,7 @@ class AllocationResult {
   ObjectPtr object_;
 };
 
-STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
+STATIC_ASSERT(sizeof(AllocationResult) == kSystemPointerSize);
 
 #ifdef DEBUG
 struct CommentStatistic {
@@ -249,7 +249,8 @@ class Heap {
   // should instead adapt it's heap size based on available physical memory.
   static const int kPointerMultiplier = 1;
 #else
-  static const int kPointerMultiplier = i::kPointerSize / 4;
+  // TODO(ishell): kSystePointerMultiplier?
+  static const int kPointerMultiplier = i::kSystemPointerSize / 4;
 #endif
 
   // Semi-space size needs to be a multiple of page size.
@@ -1770,9 +1771,9 @@ class Heap {
   Isolate* isolate_ = nullptr;
 
   size_t code_range_size_ = 0;
-  size_t max_semi_space_size_ = 8 * (kPointerSize / 4) * MB;
+  size_t max_semi_space_size_ = 8 * (kSystemPointerSize / 4) * MB;
   size_t initial_semispace_size_ = kMinSemiSpaceSizeInKB * KB;
-  size_t max_old_generation_size_ = 700ul * (kPointerSize / 4) * MB;
+  size_t max_old_generation_size_ = 700ul * (kSystemPointerSize / 4) * MB;
   size_t initial_max_old_generation_size_;
   size_t initial_old_generation_size_;
   bool old_generation_size_configured_ = false;
@@ -2277,7 +2278,7 @@ class AllocationObserver {
  public:
   explicit AllocationObserver(intptr_t step_size)
       : step_size_(step_size), bytes_to_next_step_(step_size) {
-    DCHECK_LE(kPointerSize, step_size);
+    DCHECK_LE(kTaggedSize, step_size);
   }
   virtual ~AllocationObserver() = default;
 

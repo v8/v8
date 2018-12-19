@@ -181,10 +181,10 @@ const char* HeapEntry::TypeAsString() {
 HeapSnapshot::HeapSnapshot(HeapProfiler* profiler) : profiler_(profiler) {
   // It is very important to keep objects that form a heap snapshot
   // as small as possible. Check assumptions about data structure sizes.
-  STATIC_ASSERT((kPointerSize == 4 && sizeof(HeapGraphEdge) == 12) ||
-                (kPointerSize == 8 && sizeof(HeapGraphEdge) == 24));
-  STATIC_ASSERT((kPointerSize == 4 && sizeof(HeapEntry) == 28) ||
-                (kPointerSize == 8 && sizeof(HeapEntry) == 40));
+  STATIC_ASSERT((kTaggedSize == 4 && sizeof(HeapGraphEdge) == 12) ||
+                (kTaggedSize == 8 && sizeof(HeapGraphEdge) == 24));
+  STATIC_ASSERT((kTaggedSize == 4 && sizeof(HeapEntry) == 28) ||
+                (kTaggedSize == 8 && sizeof(HeapEntry) == 40));
   memset(&gc_subroot_entries_, 0, sizeof(gc_subroot_entries_));
 }
 
@@ -711,10 +711,10 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   V8_INLINE void VisitHeapObjectImpl(HeapObject* heap_object, int field_index) {
     DCHECK_LE(-1, field_index);
     // The last parameter {field_offset} is only used to check some well-known
-    // skipped references, so passing -1 * kPointerSize for objects embedded
+    // skipped references, so passing -1 * kTaggedSize for objects embedded
     // into code is fine.
     generator_->SetHiddenReference(parent_obj_, parent_, next_index_++,
-                                   heap_object, field_index * kPointerSize);
+                                   heap_object, field_index * kTaggedSize);
   }
 
   V8HeapExplorer* generator_;
@@ -857,7 +857,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     SetInternalReference(entry, "global_proxy", global_obj->global_proxy(),
                          JSGlobalObject::kGlobalProxyOffset);
     STATIC_ASSERT(JSGlobalObject::kSize - JSObject::kHeaderSize ==
-                  2 * kPointerSize);
+                  2 * kTaggedSize);
   } else if (obj->IsJSArrayBufferView()) {
     JSArrayBufferView view = JSArrayBufferView::cast(obj);
     SetInternalReference(entry, "buffer", view->buffer(),
@@ -1276,10 +1276,10 @@ void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
     MaybeObject object = array->Get(i);
     HeapObject* heap_object;
     if (object->GetHeapObjectIfWeak(&heap_object)) {
-      SetWeakReference(entry, i, heap_object, header_size + i * kPointerSize);
+      SetWeakReference(entry, i, heap_object, header_size + i * kTaggedSize);
     } else if (object->GetHeapObjectIfStrong(&heap_object)) {
       SetInternalReference(entry, i, heap_object,
-                           header_size + i * kPointerSize);
+                           header_size + i * kTaggedSize);
     }
   }
 }
@@ -1473,7 +1473,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
        obj = iterator.next(), progress_->ProgressStep()) {
     if (interrupted) continue;
 
-    size_t max_pointer = obj->Size() / kPointerSize;
+    size_t max_pointer = obj->Size() / kTaggedSize;
     if (max_pointer > visited_fields_.size()) {
       // Clear the current bits.
       std::vector<bool>().swap(visited_fields_);
@@ -1546,7 +1546,7 @@ void V8HeapExplorer::SetContextReference(HeapEntry* parent_entry,
 
 void V8HeapExplorer::MarkVisitedField(int offset) {
   if (offset < 0) return;
-  int index = offset / kPointerSize;
+  int index = offset / kTaggedSize;
   DCHECK(!visited_fields_[index]);
   visited_fields_[index] = true;
 }

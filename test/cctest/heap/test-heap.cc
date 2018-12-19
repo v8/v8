@@ -229,7 +229,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   HeapObject* obj = HeapObject::cast(*code);
   Address obj_addr = obj->address();
 
-  for (int i = 0; i < obj->Size(); i += kPointerSize) {
+  for (int i = 0; i < obj->Size(); i += kTaggedSize) {
     Object* found = isolate->FindCodeObject(obj_addr + i);
     CHECK_EQ(*code, found);
   }
@@ -1755,7 +1755,7 @@ HEAP_TEST(TestSizeOfObjects) {
 
 TEST(TestAlignmentCalculations) {
   // Maximum fill amounts are consistent.
-  int maximum_double_misalignment = kDoubleSize - kPointerSize;
+  int maximum_double_misalignment = kDoubleSize - kTaggedSize;
   int max_word_fill = Heap::GetMaximumFillToAlign(kWordAligned);
   CHECK_EQ(0, max_word_fill);
   int max_double_fill = Heap::GetMaximumFillToAlign(kDoubleAligned);
@@ -1769,19 +1769,19 @@ TEST(TestAlignmentCalculations) {
   // Word alignment never requires fill.
   fill = Heap::GetFillToAlign(base, kWordAligned);
   CHECK_EQ(0, fill);
-  fill = Heap::GetFillToAlign(base + kPointerSize, kWordAligned);
+  fill = Heap::GetFillToAlign(base + kTaggedSize, kWordAligned);
   CHECK_EQ(0, fill);
 
   // No fill is required when address is double aligned.
   fill = Heap::GetFillToAlign(base, kDoubleAligned);
   CHECK_EQ(0, fill);
   // Fill is required if address is not double aligned.
-  fill = Heap::GetFillToAlign(base + kPointerSize, kDoubleAligned);
+  fill = Heap::GetFillToAlign(base + kTaggedSize, kDoubleAligned);
   CHECK_EQ(maximum_double_misalignment, fill);
   // kDoubleUnaligned has the opposite fill amounts.
   fill = Heap::GetFillToAlign(base, kDoubleUnaligned);
   CHECK_EQ(maximum_double_misalignment, fill);
-  fill = Heap::GetFillToAlign(base + kPointerSize, kDoubleUnaligned);
+  fill = Heap::GetFillToAlign(base + kTaggedSize, kDoubleUnaligned);
   CHECK_EQ(0, fill);
 }
 
@@ -1810,8 +1810,9 @@ static Address AlignNewSpace(AllocationAlignment alignment, int offset) {
 
 
 TEST(TestAlignedAllocation) {
-  // Double misalignment is 4 on 32-bit platforms, 0 on 64-bit ones.
-  const intptr_t double_misalignment = kDoubleSize - kPointerSize;
+  // Double misalignment is 4 on 32-bit platforms or when pointer compression
+  // is enabled, 0 on 64-bit ones when pointer compression is disabled.
+  const intptr_t double_misalignment = kDoubleSize - kTaggedSize;
   Address* top_addr = CcTest::heap()->new_space()->allocation_top_address();
   Address start;
   HeapObject* obj;
@@ -1820,35 +1821,33 @@ TEST(TestAlignedAllocation) {
     // Allocate a pointer sized object that must be double aligned at an
     // aligned address.
     start = AlignNewSpace(kDoubleAligned, 0);
-    obj = NewSpaceAllocateAligned(kPointerSize, kDoubleAligned);
+    obj = NewSpaceAllocateAligned(kTaggedSize, kDoubleAligned);
     CHECK(IsAligned(obj->address(), kDoubleAlignment));
     // There is no filler.
-    CHECK_EQ(kPointerSize, *top_addr - start);
+    CHECK_EQ(kTaggedSize, *top_addr - start);
 
     // Allocate a second pointer sized object that must be double aligned at an
     // unaligned address.
-    start = AlignNewSpace(kDoubleAligned, kPointerSize);
-    obj = NewSpaceAllocateAligned(kPointerSize, kDoubleAligned);
+    start = AlignNewSpace(kDoubleAligned, kTaggedSize);
+    obj = NewSpaceAllocateAligned(kTaggedSize, kDoubleAligned);
     CHECK(IsAligned(obj->address(), kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
-    CHECK_EQ(kPointerSize + double_misalignment, *top_addr - start);
+    CHECK(obj != filler && filler->IsFiller() && filler->Size() == kTaggedSize);
+    CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
 
     // Similarly for kDoubleUnaligned.
     start = AlignNewSpace(kDoubleUnaligned, 0);
-    obj = NewSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
-    CHECK(IsAligned(obj->address() + kPointerSize, kDoubleAlignment));
-    CHECK_EQ(kPointerSize, *top_addr - start);
-    start = AlignNewSpace(kDoubleUnaligned, kPointerSize);
-    obj = NewSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
-    CHECK(IsAligned(obj->address() + kPointerSize, kDoubleAlignment));
+    obj = NewSpaceAllocateAligned(kTaggedSize, kDoubleUnaligned);
+    CHECK(IsAligned(obj->address() + kTaggedSize, kDoubleAlignment));
+    CHECK_EQ(kTaggedSize, *top_addr - start);
+    start = AlignNewSpace(kDoubleUnaligned, kTaggedSize);
+    obj = NewSpaceAllocateAligned(kTaggedSize, kDoubleUnaligned);
+    CHECK(IsAligned(obj->address() + kTaggedSize, kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
-    CHECK_EQ(kPointerSize + double_misalignment, *top_addr - start);
+    CHECK(obj != filler && filler->IsFiller() && filler->Size() == kTaggedSize);
+    CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
   }
 }
 
@@ -1888,45 +1887,43 @@ TEST(TestAlignedOverAllocation) {
   // page and empty free list.
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   // Allocate a dummy object to properly set up the linear allocation info.
-  AllocationResult dummy =
-      heap->old_space()->AllocateRawUnaligned(kPointerSize);
+  AllocationResult dummy = heap->old_space()->AllocateRawUnaligned(kTaggedSize);
   CHECK(!dummy.IsRetry());
-  heap->CreateFillerObjectAt(dummy.ToObjectChecked()->address(), kPointerSize,
+  heap->CreateFillerObjectAt(dummy.ToObjectChecked()->address(), kTaggedSize,
                              ClearRecordedSlots::kNo);
 
-  // Double misalignment is 4 on 32-bit platforms, 0 on 64-bit ones.
-  const intptr_t double_misalignment = kDoubleSize - kPointerSize;
+  // Double misalignment is 4 on 32-bit platforms or when pointer compression
+  // is enabled, 0 on 64-bit ones when pointer compression is disabled.
+  const intptr_t double_misalignment = kDoubleSize - kTaggedSize;
   Address start;
   HeapObject* obj;
   HeapObject* filler;
   if (double_misalignment) {
     start = AlignOldSpace(kDoubleAligned, 0);
-    obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
+    obj = OldSpaceAllocateAligned(kTaggedSize, kDoubleAligned);
     // The object is aligned.
     CHECK(IsAligned(obj->address(), kDoubleAlignment));
     // Try the opposite alignment case.
-    start = AlignOldSpace(kDoubleAligned, kPointerSize);
-    obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
+    start = AlignOldSpace(kDoubleAligned, kTaggedSize);
+    obj = OldSpaceAllocateAligned(kTaggedSize, kDoubleAligned);
     CHECK(IsAligned(obj->address(), kDoubleAlignment));
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler);
     CHECK(filler->IsFiller());
-    CHECK_EQ(kPointerSize, filler->Size());
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
+    CHECK_EQ(kTaggedSize, filler->Size());
+    CHECK(obj != filler && filler->IsFiller() && filler->Size() == kTaggedSize);
 
     // Similarly for kDoubleUnaligned.
     start = AlignOldSpace(kDoubleUnaligned, 0);
-    obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
+    obj = OldSpaceAllocateAligned(kTaggedSize, kDoubleUnaligned);
     // The object is aligned.
-    CHECK(IsAligned(obj->address() + kPointerSize, kDoubleAlignment));
+    CHECK(IsAligned(obj->address() + kTaggedSize, kDoubleAlignment));
     // Try the opposite alignment case.
-    start = AlignOldSpace(kDoubleUnaligned, kPointerSize);
-    obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
-    CHECK(IsAligned(obj->address() + kPointerSize, kDoubleAlignment));
+    start = AlignOldSpace(kDoubleUnaligned, kTaggedSize);
+    obj = OldSpaceAllocateAligned(kTaggedSize, kDoubleUnaligned);
+    CHECK(IsAligned(obj->address() + kTaggedSize, kDoubleAlignment));
     filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
+    CHECK(obj != filler && filler->IsFiller() && filler->Size() == kTaggedSize);
   }
 }
 
@@ -3544,7 +3541,7 @@ TEST(Regress169928) {
 
   heap::AllocateAllButNBytes(
       CcTest::heap()->new_space(),
-      JSArray::kSize + AllocationMemento::kSize + kPointerSize);
+      JSArray::kSize + AllocationMemento::kSize + kTaggedSize);
 
   Handle<JSArray> array =
       factory->NewJSArrayWithElements(array_data, PACKED_SMI_ELEMENTS);
@@ -3557,11 +3554,11 @@ TEST(Regress169928) {
   HeapObject* obj = nullptr;
   AllocationResult allocation =
       CcTest::heap()->new_space()->AllocateRawUnaligned(
-          AllocationMemento::kSize + kPointerSize);
+          AllocationMemento::kSize + kTaggedSize);
   CHECK(allocation.To(&obj));
   Address addr_obj = obj->address();
   CcTest::heap()->CreateFillerObjectAt(addr_obj,
-                                       AllocationMemento::kSize + kPointerSize,
+                                       AllocationMemento::kSize + kTaggedSize,
                                        ClearRecordedSlots::kNo);
 
   // Give the array a name, making sure not to allocate strings.
@@ -5034,12 +5031,12 @@ TEST(BootstrappingExports) {
 
 void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
   CHECK_LE(FixedArray::kHeaderSize, bytes);
-  CHECK_EQ(0, bytes % kPointerSize);
+  CHECK(IsAligned(bytes, kTaggedSize));
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   AlwaysAllocateScope always_allocate(isolate);
   int elements =
-      static_cast<int>((bytes - FixedArray::kHeaderSize) / kPointerSize);
+      static_cast<int>((bytes - FixedArray::kHeaderSize) / kTaggedSize);
   Handle<FixedArray> array = factory->NewFixedArray(
       elements, space == NEW_SPACE ? NOT_TENURED : TENURED);
   CHECK((space == NEW_SPACE) == Heap::InNewSpace(*array));
@@ -5286,7 +5283,7 @@ HEAP_TEST(Regress587004) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   const int N =
-      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) / kPointerSize;
+      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) / kTaggedSize;
   Handle<FixedArray> array = factory->NewFixedArray(N, TENURED);
   CHECK(heap->old_space()->Contains(*array));
   Handle<Object> number = factory->NewHeapNumber(1.0);
@@ -5400,7 +5397,7 @@ TEST(Regress598319) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
 
-  const int kNumberOfObjects = kMaxRegularHeapObjectSize / kPointerSize;
+  const int kNumberOfObjects = kMaxRegularHeapObjectSize / kTaggedSize;
 
   struct Arr {
     Arr(Isolate* isolate, int number_of_objects) {
@@ -5522,7 +5519,7 @@ TEST(Regress609761) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
-  int length = kMaxRegularHeapObjectSize / kPointerSize + 1;
+  int length = kMaxRegularHeapObjectSize / kTaggedSize + 1;
   Handle<FixedArray> array = ShrinkArrayAndCheckSize(heap, length);
   CHECK(heap->lo_space()->Contains(*array));
 }
@@ -5788,7 +5785,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   CHECK(heap->old_space()->Contains(*array));
 
   // Trim it once by one word to make checking for white marking color uniform.
-  Address previous = end_address - kPointerSize;
+  Address previous = end_address - kTaggedSize;
   isolate->heap()->RightTrimFixedArray(*array, 1);
 
   HeapObject* filler = HeapObject::FromAddress(previous);
@@ -5798,7 +5795,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   // Trim 10 times by one, two, and three word.
   for (int i = 1; i <= 3; i++) {
     for (int j = 0; j < 10; j++) {
-      previous -= kPointerSize * i;
+      previous -= kTaggedSize * i;
       isolate->heap()->RightTrimFixedArray(*array, i);
       HeapObject* filler = HeapObject::FromAddress(previous);
       CHECK(filler->IsFiller());
@@ -5943,19 +5940,19 @@ TEST(RememberedSetRemoveRange) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(
-      Page::kPageSize / kPointerSize, TENURED);
+  Handle<FixedArray> array =
+      isolate->factory()->NewFixedArray(Page::kPageSize / kTaggedSize, TENURED);
   MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
   CHECK(chunk->owner()->identity() == LO_SPACE);
   Address start = array->address();
   // Maps slot to boolean indicator of whether the slot should be in the set.
   std::map<Address, bool> slots;
   slots[start + 0] = true;
-  slots[start + kPointerSize] = true;
-  slots[start + Page::kPageSize - kPointerSize] = true;
+  slots[start + kTaggedSize] = true;
+  slots[start + Page::kPageSize - kTaggedSize] = true;
   slots[start + Page::kPageSize] = true;
-  slots[start + Page::kPageSize + kPointerSize] = true;
-  slots[chunk->area_end() - kPointerSize] = true;
+  slots[start + Page::kPageSize + kTaggedSize] = true;
+  slots[chunk->area_end() - kTaggedSize] = true;
 
   for (auto x : slots) {
     RememberedSet<OLD_TO_NEW>::Insert(chunk, x.first);
@@ -5968,7 +5965,7 @@ TEST(RememberedSetRemoveRange) {
                                      },
                                      SlotSet::PREFREE_EMPTY_BUCKETS);
 
-  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kPointerSize,
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kTaggedSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk,
@@ -5978,11 +5975,11 @@ TEST(RememberedSetRemoveRange) {
                                      },
                                      SlotSet::PREFREE_EMPTY_BUCKETS);
 
-  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kPointerSize,
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kTaggedSize,
                                          start + Page::kPageSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
-  slots[start + kPointerSize] = false;
-  slots[start + Page::kPageSize - kPointerSize] = false;
+  slots[start + kTaggedSize] = false;
+  slots[start + Page::kPageSize - kTaggedSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk,
                                      [&slots](MaybeObjectSlot slot) {
                                        CHECK(slots[slot.address()]);
@@ -5991,7 +5988,7 @@ TEST(RememberedSetRemoveRange) {
                                      SlotSet::PREFREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start,
-                                         start + Page::kPageSize + kPointerSize,
+                                         start + Page::kPageSize + kTaggedSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + Page::kPageSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk,
@@ -6001,10 +5998,10 @@ TEST(RememberedSetRemoveRange) {
                                      },
                                      SlotSet::PREFREE_EMPTY_BUCKETS);
 
-  RememberedSet<OLD_TO_NEW>::RemoveRange(
-      chunk, chunk->area_end() - kPointerSize, chunk->area_end(),
-      SlotSet::FREE_EMPTY_BUCKETS);
-  slots[chunk->area_end() - kPointerSize] = false;
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, chunk->area_end() - kTaggedSize,
+                                         chunk->area_end(),
+                                         SlotSet::FREE_EMPTY_BUCKETS);
+  slots[chunk->area_end() - kTaggedSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(chunk,
                                      [&slots](MaybeObjectSlot slot) {
                                        CHECK(slots[slot.address()]);
@@ -6030,7 +6027,7 @@ HEAP_TEST(Regress670675) {
   if (marking->IsStopped()) {
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
-  size_t array_length = Page::kPageSize / kPointerSize + 100;
+  size_t array_length = Page::kPageSize / kTaggedSize + 100;
   size_t n = heap->OldGenerationSpaceAvailable() / array_length;
   for (size_t i = 0; i < n + 40; i++) {
     {
@@ -6135,7 +6132,7 @@ TEST(Regress6800LargeObject) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  const int kRootLength = i::kMaxRegularHeapObjectSize / kPointerSize;
+  const int kRootLength = i::kMaxRegularHeapObjectSize / kTaggedSize;
   Handle<FixedArray> root =
       isolate->factory()->NewFixedArray(kRootLength, TENURED);
   CcTest::heap()->lo_space()->Contains(*root);

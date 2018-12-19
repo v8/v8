@@ -358,41 +358,43 @@ class MemoryChunk {
 
   static const intptr_t kSizeOffset = 0;
   static const intptr_t kFlagsOffset = kSizeOffset + kSizetSize;
-  static const intptr_t kMarkBitmapOffset = kFlagsOffset + kPointerSize;
-  static const intptr_t kReservationOffset = kMarkBitmapOffset + kPointerSize;
+  static const intptr_t kMarkBitmapOffset = kFlagsOffset + kSystemPointerSize;
+  static const intptr_t kReservationOffset =
+      kMarkBitmapOffset + kSystemPointerSize;
 
   static const size_t kHeaderSize =
-      kSizeOffset         // NOLINT
-      + kSizetSize        // size_t size
-      + kUIntptrSize      // uintptr_t flags_
-      + kPointerSize      // Bitmap* marking_bitmap_
-      + 3 * kPointerSize  // VirtualMemory reservation_
-      + kPointerSize      // Address area_start_
-      + kPointerSize      // Address area_end_
-      + kPointerSize      // Address owner_
-      + kPointerSize      // Heap* heap_
-      + kIntptrSize       // intptr_t progress_bar_
-      + kIntptrSize       // std::atomic<intptr_t> live_byte_count_
-      + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
-      + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
-      + kPointerSize  // InvalidatedSlots* invalidated_slots_
-      + kPointerSize  // SkipList* skip_list_
-      + kPointerSize  // std::atomic<intptr_t> high_water_mark_
-      + kPointerSize  // base::Mutex* mutex_
-      +
-      kPointerSize  // std::atomic<ConcurrentSweepingState> concurrent_sweeping_
-      + kPointerSize  // base::Mutex* page_protection_change_mutex_
-      + kPointerSize  // unitptr_t write_unprotect_counter_
+      kSizeOffset               // NOLINT
+      + kSizetSize              // size_t size
+      + kUIntptrSize            // uintptr_t flags_
+      + kSystemPointerSize      // Bitmap* marking_bitmap_
+      + 3 * kSystemPointerSize  // VirtualMemory reservation_
+      + kSystemPointerSize      // Address area_start_
+      + kSystemPointerSize      // Address area_end_
+      + kSystemPointerSize      // Address owner_
+      + kSystemPointerSize      // Heap* heap_
+      + kIntptrSize             // intptr_t progress_bar_
+      + kIntptrSize             // std::atomic<intptr_t> live_byte_count_
+      + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
+      + kSystemPointerSize *
+            NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
+      + kSystemPointerSize  // InvalidatedSlots* invalidated_slots_
+      + kSystemPointerSize  // SkipList* skip_list_
+      + kSystemPointerSize  // std::atomic<intptr_t> high_water_mark_
+      + kSystemPointerSize  // base::Mutex* mutex_
+      + kSystemPointerSize  // std::atomic<ConcurrentSweepingState>
+                            // concurrent_sweeping_
+      + kSystemPointerSize  // base::Mutex* page_protection_change_mutex_
+      + kSystemPointerSize  // unitptr_t write_unprotect_counter_
       + kSizetSize * ExternalBackingStoreType::kNumTypes
       // std::atomic<size_t> external_backing_store_bytes_
-      + kSizetSize        // size_t allocated_bytes_
-      + kSizetSize        // size_t wasted_memory_
-      + kPointerSize * 2  // base::ListNode
-      + kPointerSize * kNumberOfCategories
+      + kSizetSize              // size_t allocated_bytes_
+      + kSizetSize              // size_t wasted_memory_
+      + kSystemPointerSize * 2  // base::ListNode
+      + kSystemPointerSize * kNumberOfCategories
       // FreeListCategory categories_[kNumberOfCategories]
-      + kPointerSize  // LocalArrayBufferTracker* local_tracker_
-      + kIntptrSize   // std::atomic<intptr_t> young_generation_live_byte_count_
-      + kPointerSize;  // Bitmap* young_generation_bitmap_
+      + kSystemPointerSize  // LocalArrayBufferTracker* local_tracker_
+      + kIntptrSize  // std::atomic<intptr_t> young_generation_live_byte_count_
+      + kSystemPointerSize;  // Bitmap* young_generation_bitmap_
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
@@ -562,11 +564,12 @@ class MemoryChunk {
   }
 
   inline uint32_t AddressToMarkbitIndex(Address addr) const {
-    return static_cast<uint32_t>(addr - this->address()) >> kPointerSizeLog2;
+    return static_cast<uint32_t>(addr - this->address()) >>
+           kSystemPointerSizeLog2;
   }
 
   inline Address MarkbitIndexToAddress(uint32_t index) const {
-    return this->address() + (index << kPointerSizeLog2);
+    return this->address() + (index << kSystemPointerSizeLog2);
   }
 
   template <AccessMode access_mode = AccessMode::NON_ATOMIC>
@@ -753,8 +756,8 @@ class MemoryChunk {
   friend class PagedSpace;
 };
 
-static_assert(sizeof(std::atomic<intptr_t>) == kPointerSize,
-              "sizeof(std::atomic<intptr_t>) == kPointerSize");
+static_assert(sizeof(std::atomic<intptr_t>) == kSystemPointerSize,
+              "sizeof(std::atomic<intptr_t>) == kSystemPointerSize");
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 512K. Large object pages may be larger.
@@ -786,9 +789,9 @@ class Page : public MemoryChunk {
   // Returns the page containing the address provided. The address can
   // potentially point righter after the page. To be also safe for tagged values
   // we subtract a hole word. The valid address ranges from
-  // [page_addr + area_start_ .. page_addr + kPageSize + kPointerSize].
+  // [page_addr + area_start_ .. page_addr + kPageSize + kTaggedSize].
   static Page* FromAllocationAreaAddress(Address address) {
-    return Page::FromAddress(address - kPointerSize);
+    return Page::FromAddress(address - kTaggedSize);
   }
 
   // Checks if address1 and address2 are on the same new space page.
@@ -999,7 +1002,7 @@ class Space : public Malloced {
     if (id_ == CODE_SPACE) {
       return RoundDown(size, kCodeAlignment);
     } else {
-      return RoundDown(size, kPointerSize);
+      return RoundDown(size, kTaggedSize);
     }
   }
 
@@ -1114,7 +1117,7 @@ class SkipList {
 
   void AddObject(Address addr, int size) {
     int start_region = RegionNumber(addr);
-    int end_region = RegionNumber(addr + size - kPointerSize);
+    int end_region = RegionNumber(addr + size - kTaggedSize);
     for (int idx = start_region; idx <= end_region; idx++) {
       if (starts_[idx] > addr) {
         starts_[idx] = addr;
@@ -1892,17 +1895,17 @@ class V8_EXPORT_PRIVATE FreeList {
   };
 
   // The size range of blocks, in bytes.
-  static const size_t kMinBlockSize = 3 * kPointerSize;
+  static const size_t kMinBlockSize = 3 * kTaggedSize;
 
   // This is a conservative upper bound. The actual maximum block size takes
   // padding and alignment of data and code pages into account.
   static const size_t kMaxBlockSize = Page::kPageSize;
 
-  static const size_t kTiniestListMax = 0xa * kPointerSize;
-  static const size_t kTinyListMax = 0x1f * kPointerSize;
-  static const size_t kSmallListMax = 0xff * kPointerSize;
-  static const size_t kMediumListMax = 0x7ff * kPointerSize;
-  static const size_t kLargeListMax = 0x3fff * kPointerSize;
+  static const size_t kTiniestListMax = 0xa * kTaggedSize;
+  static const size_t kTinyListMax = 0x1f * kTaggedSize;
+  static const size_t kSmallListMax = 0xff * kTaggedSize;
+  static const size_t kMediumListMax = 0x7ff * kTaggedSize;
+  static const size_t kLargeListMax = 0x3fff * kTaggedSize;
   static const size_t kTinyAllocationMax = kTiniestListMax;
   static const size_t kSmallAllocationMax = kTinyListMax;
   static const size_t kMediumAllocationMax = kSmallListMax;

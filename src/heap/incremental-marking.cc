@@ -180,7 +180,7 @@ void IncrementalMarking::NotifyLeftTrimming(HeapObject* from, HeapObject* to) {
       !marked_black_due_to_left_trimming) {
     // The array was black before left trimming or was marked black by the
     // concurrent marker. Simply transfer the color.
-    if (from->address() + kPointerSize == to->address()) {
+    if (from->address() + kTaggedSize == to->address()) {
       // The old and the new markbits overlap. The |to| object has the
       // grey color. To make it black, we need to set the second bit.
       DCHECK(new_mark_bit.Get<kAtomicity>());
@@ -194,7 +194,7 @@ void IncrementalMarking::NotifyLeftTrimming(HeapObject* from, HeapObject* to) {
              marked_black_due_to_left_trimming) {
     // The array was already grey or was marked black by this function.
     // Mark the new array grey and push it to marking deque.
-    if (from->address() + kPointerSize == to->address()) {
+    if (from->address() + kTaggedSize == to->address()) {
       // The old and the new markbits overlap. The |to| object is either white
       // or grey.  Set the first bit to make sure that it is grey.
       new_mark_bit.Set<kAtomicity>();

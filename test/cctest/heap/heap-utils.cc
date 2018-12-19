@@ -26,7 +26,7 @@ void SealCurrentObjects(Heap* heap) {
 }
 
 int FixedArrayLenFromSize(int size) {
-  return (size - FixedArray::kHeaderSize) / kPointerSize;
+  return (size - FixedArray::kHeaderSize) / kTaggedSize;
 }
 
 std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
@@ -93,7 +93,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
       length = FixedArrayLenFromSize(allocate_memory);
       if (length <= 0) {
         // Not enough room to create another fixed array. Let's create a filler.
-        if (free_memory > (2 * kPointerSize)) {
+        if (free_memory > (2 * kTaggedSize)) {
           heap->CreateFillerObjectAt(
               *heap->old_space()->allocation_top_address(), free_memory,
               ClearRecordedSlots::kNo);

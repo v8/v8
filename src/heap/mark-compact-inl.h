@@ -548,7 +548,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
     int size = 0;
     while (current_cell_ != 0) {
       uint32_t trailing_zeros = base::bits::CountTrailingZeros(current_cell_);
-      Address addr = cell_base_ + trailing_zeros * kPointerSize;
+      Address addr = cell_base_ + trailing_zeros * kTaggedSize;
 
       // Clear the first bit of the found object..
       current_cell_ &= ~(1u << trailing_zeros);
@@ -580,11 +580,11 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         HeapObject* black_object = HeapObject::FromAddress(addr);
         map = Map::cast(ObjectSlot(addr).Acquire_Load());
         size = black_object->SizeFromMap(map);
-        Address end = addr + size - kPointerSize;
+        Address end = addr + size - kTaggedSize;
         // One word filler objects do not borrow the second mark bit. We have
         // to jump over the advancing and clearing part.
         // Note that we know that we are at a one word filler when
-        // object_start + object_size - kPointerSize == object_start.
+        // object_start + object_size - kTaggedSize == object_start.
         if (addr != end) {
           DCHECK_EQ(chunk_, MemoryChunk::FromAddress(end));
           uint32_t end_mark_bit_index = chunk_->AddressToMarkbitIndex(end);

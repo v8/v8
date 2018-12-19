@@ -617,7 +617,7 @@ HEAP_TEST(Regress791582) {
 
   int until_page_end = static_cast<int>(new_space->limit() - new_space->top());
 
-  if (until_page_end % kPointerSize != 0) {
+  if (!IsAligned(until_page_end, kTaggedSize)) {
     // The test works if the size of allocation area size is a multiple of
     // pointer size. This is usually the case unless some allocation observer
     // is already active (e.g. incremental marking observer).
@@ -704,7 +704,7 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
 
   heap::SealCurrentObjects(CcTest::heap());
 
-  const int kFillerSize = kPointerSize;
+  const int kFillerSize = kTaggedSize;
   std::vector<Handle<FixedArray>> arrays =
       heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
   Handle<FixedArray> array = arrays.back();
@@ -732,7 +732,7 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
 
   heap::SealCurrentObjects(CcTest::heap());
 
-  const int kFillerSize = 2 * kPointerSize;
+  const int kFillerSize = 2 * kTaggedSize;
   std::vector<Handle<FixedArray>> arrays =
       heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
   Handle<FixedArray> array = arrays.back();

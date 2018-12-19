@@ -126,8 +126,8 @@ bool Scavenger::MigrateObject(Map map, HeapObject* source, HeapObject* target,
                               int size) {
   // Copy the content of source to target.
   target->set_map_word(MapWord::FromMap(map));
-  heap()->CopyBlock(target->address() + kPointerSize,
-                    source->address() + kPointerSize, size - kPointerSize);
+  heap()->CopyBlock(target->address() + kTaggedSize,
+                    source->address() + kTaggedSize, size - kTaggedSize);
 
   ObjectPtr old = source->map_slot().Release_CompareAndSwap(
       map, MapWord::FromForwardingAddress(target).ToMap());

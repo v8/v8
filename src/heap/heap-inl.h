@@ -495,14 +495,16 @@ bool Heap::ShouldBePromoted(Address old_address) {
 }
 
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
-  CopyWords(dst, src, static_cast<size_t>(byte_size / kPointerSize));
+  DCHECK(IsAligned(byte_size, kTaggedSize));
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  CopyWords(dst, src, static_cast<size_t>(byte_size / kTaggedSize));
 }
 
 template <Heap::FindMementoMode mode>
 AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject* object) {
   Address object_address = object->address();
   Address memento_address = object_address + object->SizeFromMap(map);
-  Address last_memento_word_address = memento_address + kPointerSize;
+  Address last_memento_word_address = memento_address + kTaggedSize;
   // If the memento would be on another page, bail out immediately.
   if (!Page::OnSamePage(object_address, last_memento_word_address)) {
     return AllocationMemento();

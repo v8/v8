@@ -45,7 +45,7 @@ class FieldStatsCollector : public ObjectVisitor {
     size_t tagged_fields_count_in_object =
         *tagged_fields_count_ - old_pointer_fields_count;
 
-    int object_size_in_words = host->Size() / kPointerSize;
+    int object_size_in_words = host->Size() / kTaggedSize;
     DCHECK_LE(tagged_fields_count_in_object, object_size_in_words);
     size_t raw_fields_count_in_object =
         object_size_in_words - tagged_fields_count_in_object;
@@ -202,11 +202,12 @@ void ObjectStats::PrintJSON(const char* key) {
   PrintF("{ ");
   PrintKeyAndId(key, gc_count);
   PrintF("\"type\": \"field_data\"");
-  PrintF(", \"tagged_fields\": %zu", tagged_fields_count_ * kPointerSize);
-  PrintF(", \"embedder_fields\": %zu", embedder_fields_count_ * kPointerSize);
+  PrintF(", \"tagged_fields\": %zu", tagged_fields_count_ * kTaggedSize);
+  PrintF(", \"embedder_fields\": %zu",
+         embedder_fields_count_ * kEmbedderDataSlotSize);
   PrintF(", \"unboxed_double_fields\": %zu",
          unboxed_double_fields_count_ * kDoubleSize);
-  PrintF(", \"other_raw_fields\": %zu", raw_fields_count_ * kPointerSize);
+  PrintF(", \"other_raw_fields\": %zu", raw_fields_count_ * kSystemPointerSize);
   PrintF(" }\n");
   // bucket_sizes
   PrintF("{ ");
@@ -256,11 +257,13 @@ void ObjectStats::Dump(std::stringstream& stream) {
 
   // field_data
   stream << "\"field_data\":{";
-  stream << "\"tagged_fields\":" << (tagged_fields_count_ * kPointerSize);
-  stream << ",\"embedder_fields\":" << (embedder_fields_count_ * kPointerSize);
+  stream << "\"tagged_fields\":" << (tagged_fields_count_ * kTaggedSize);
+  stream << ",\"embedder_fields\":"
+         << (embedder_fields_count_ * kEmbedderDataSlotSize);
   stream << ",\"unboxed_double_fields\": "
          << (unboxed_double_fields_count_ * kDoubleSize);
-  stream << ",\"other_raw_fields\":" << (raw_fields_count_ * kPointerSize);
+  stream << ",\"other_raw_fields\":"
+         << (raw_fields_count_ * kSystemPointerSize);
   stream << "}, ";
 
   stream << "\"bucket_sizes\":[";
@@ -626,7 +629,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
     while (it.HasNext()) {
       FeedbackSlot slot = it.Next();
       // Log the entry (or entries) taken up by this slot.
-      size_t slot_size = it.entry_size() * kPointerSize;
+      size_t slot_size = it.entry_size() * kTaggedSize;
       stats_->RecordVirtualObjectStats(
           GetFeedbackSlotType(vector->Get(slot), it.kind(), heap_->isolate()),
           slot_size, ObjectStats::kNoOverAllocation);

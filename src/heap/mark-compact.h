@@ -102,7 +102,7 @@ class MarkBitCellIterator {
   }
 
   V8_WARN_UNUSED_RESULT inline bool Advance() {
-    cell_base_ += Bitmap::kBitsPerCell * kPointerSize;
+    cell_base_ += Bitmap::kBitsPerCell * kTaggedSize;
     return ++cell_index_ != last_cell_index_;
   }
 
@@ -112,7 +112,7 @@ class MarkBitCellIterator {
       DCHECK_LE(new_cell_index, last_cell_index_);
       unsigned int diff = new_cell_index - cell_index_;
       cell_index_ = new_cell_index;
-      cell_base_ += diff * (Bitmap::kBitsPerCell * kPointerSize);
+      cell_base_ += diff * (Bitmap::kBitsPerCell * kTaggedSize);
       return true;
     }
     return false;
