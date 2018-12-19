@@ -1284,22 +1284,23 @@ TEST(OrderedNameDictionaryInsertion) {
 
   Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
   Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+  CHECK_EQ(OrderedNameDictionary::kNotFound, dict->FindEntry(isolate, *key1));
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details);
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(1, dict->NumberOfElements());
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
 
   Handle<Symbol> key2 = factory->NewSymbol();
-  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+  CHECK_EQ(OrderedNameDictionary::kNotFound, dict->FindEntry(isolate, *key2));
   dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details);
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(2, dict->NumberOfElements());
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
+  CHECK_EQ(1, dict->FindEntry(isolate, *key2));
 }
 
 TEST(OrderedNameDictionaryFindEntry) {
@@ -1315,31 +1316,29 @@ TEST(OrderedNameDictionaryFindEntry) {
 
   Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
   Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key1));
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details);
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(1, dict->NumberOfElements());
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
 
   int entry = dict->FindEntry(isolate, *key1);
+  CHECK_EQ(entry, 0);
   CHECK_NE(entry, OrderedNameDictionary::kNotFound);
 
   Handle<Symbol> key2 = factory->NewSymbol();
-  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key2));
   dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details);
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(2, dict->NumberOfElements());
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key2));
 
   entry = dict->FindEntry(isolate, *key1);
   CHECK_NE(entry, OrderedNameDictionary::kNotFound);
+  CHECK_EQ(entry, 0);
 
   entry = dict->FindEntry(isolate, *key2);
   CHECK_NE(entry, OrderedNameDictionary::kNotFound);
+  CHECK_EQ(entry, 1);
 }
 
 TEST(OrderedNameDictionaryValueAtAndValueAtPut) {
@@ -1355,13 +1354,13 @@ TEST(OrderedNameDictionaryValueAtAndValueAtPut) {
 
   Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
   Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+  CHECK_EQ(OrderedNameDictionary::kNotFound, dict->FindEntry(isolate, *key1));
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details);
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(1, dict->NumberOfElements());
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
 
   int entry = dict->FindEntry(isolate, *key1);
   Handle<Object> found = handle(dict->ValueAt(entry), isolate);
@@ -1376,13 +1375,13 @@ TEST(OrderedNameDictionaryValueAtAndValueAtPut) {
   CHECK_EQ(*found, *other_value);
 
   Handle<Symbol> key2 = factory->NewSymbol();
-  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+  CHECK_EQ(OrderedNameDictionary::kNotFound, dict->FindEntry(isolate, *key2));
   dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details);
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(2, dict->NumberOfElements());
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
+  CHECK_EQ(1, dict->FindEntry(isolate, *key2));
 
   entry = dict->FindEntry(isolate, *key1);
   found = handle(dict->ValueAt(entry), isolate);
@@ -1413,13 +1412,13 @@ TEST(OrderedNameDictionaryDetailsAtAndDetailsAtPut) {
 
   Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
   Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+  CHECK_EQ(OrderedNameDictionary::kNotFound, dict->FindEntry(isolate, *key1));
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details);
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(1, dict->NumberOfElements());
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
 
   int entry = dict->FindEntry(isolate, *key1);
   PropertyDetails found = dict->DetailsAt(entry);
@@ -1434,13 +1433,13 @@ TEST(OrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   CHECK_EQ(other.AsSmi(), found.AsSmi());
 
   Handle<Symbol> key2 = factory->NewSymbol();
-  CHECK(!OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+  CHECK_EQ(OrderedNameDictionary::kNotFound, dict->FindEntry(isolate, *key2));
   dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details);
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(2, dict->NumberOfElements());
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key1));
-  CHECK(OrderedNameDictionary::HasKey(isolate, *dict, *key2));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
+  CHECK_EQ(1, dict->FindEntry(isolate, *key2));
 
   entry = dict->FindEntry(isolate, *key1);
   found = dict->DetailsAt(entry);
@@ -1469,24 +1468,26 @@ TEST(SmallOrderedNameDictionaryInsertion) {
 
   Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
   Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  CHECK(!dict->HasKey(isolate, key1));
+  CHECK_EQ(SmallOrderedNameDictionary::kNotFound,
+           dict->FindEntry(isolate, *key1));
   PropertyDetails details = PropertyDetails::Empty();
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key1, value, details)
              .ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(1, dict->NumberOfElements());
-  CHECK(dict->HasKey(isolate, key1));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
 
   Handle<Symbol> key2 = factory->NewSymbol();
-  CHECK(!dict->HasKey(isolate, key2));
+  CHECK_EQ(SmallOrderedNameDictionary::kNotFound,
+           dict->FindEntry(isolate, *key2));
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(2, dict->NumberOfElements());
-  CHECK(dict->HasKey(isolate, key1));
-  CHECK(dict->HasKey(isolate, key2));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
+  CHECK_EQ(1, dict->FindEntry(isolate, *key2));
 }
 
 TEST(SmallOrderedNameDictionaryInsertionMax) {
@@ -1532,7 +1533,8 @@ TEST(SmallOrderedNameDictionaryFindEntry) {
 
   Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
   Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  CHECK(!dict->HasKey(isolate, key1));
+  CHECK_EQ(SmallOrderedNameDictionary::kNotFound,
+           dict->FindEntry(isolate, *key1));
   PropertyDetails details = PropertyDetails::Empty();
 
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key1, value, details)
@@ -1540,26 +1542,22 @@ TEST(SmallOrderedNameDictionaryFindEntry) {
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(1, dict->NumberOfElements());
-  CHECK(dict->HasKey(isolate, key1));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
 
   int entry = dict->FindEntry(isolate, *key1);
   CHECK_NE(entry, OrderedNameDictionary::kNotFound);
 
   Handle<Symbol> key2 = factory->NewSymbol();
-  CHECK(!dict->HasKey(isolate, key2));
+  CHECK_EQ(SmallOrderedNameDictionary::kNotFound,
+           dict->FindEntry(isolate, *key2));
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(2, dict->NumberOfElements());
-  CHECK(dict->HasKey(isolate, key1));
-  CHECK(dict->HasKey(isolate, key2));
 
-  entry = dict->FindEntry(isolate, *key1);
-  CHECK_NE(entry, OrderedNameDictionary::kNotFound);
-
-  entry = dict->FindEntry(isolate, *key2);
-  CHECK_NE(entry, OrderedNameDictionary::kNotFound);
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
+  CHECK_EQ(1, dict->FindEntry(isolate, *key2));
 }
 
 TEST(SmallOrderedNameDictionaryValueAtAndValueAtPut) {
@@ -1576,15 +1574,15 @@ TEST(SmallOrderedNameDictionaryValueAtAndValueAtPut) {
 
   Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
   Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  CHECK(!dict->HasKey(isolate, key1));
-  //  CHECK(dict->HasKey(isolate, key2));
+  CHECK_EQ(SmallOrderedNameDictionary::kNotFound,
+           dict->FindEntry(isolate, *key1));
   PropertyDetails details = PropertyDetails::Empty();
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key1, value, details)
              .ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(1, dict->NumberOfElements());
-  CHECK(dict->HasKey(isolate, key1));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
 
   int entry = dict->FindEntry(isolate, *key1);
   Handle<Object> found = handle(dict->ValueAt(entry), isolate);
@@ -1599,14 +1597,15 @@ TEST(SmallOrderedNameDictionaryValueAtAndValueAtPut) {
   CHECK_EQ(*found, *other_value);
 
   Handle<Symbol> key2 = factory->NewSymbol();
-  CHECK(!dict->HasKey(isolate, key2));
+  CHECK_EQ(SmallOrderedNameDictionary::kNotFound,
+           dict->FindEntry(isolate, *key2));
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(2, dict->NumberOfElements());
-  CHECK(dict->HasKey(isolate, key1));
-  CHECK(dict->HasKey(isolate, key2));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
+  CHECK_EQ(1, dict->FindEntry(isolate, *key2));
 
   entry = dict->FindEntry(isolate, *key1);
   found = handle(dict->ValueAt(entry), isolate);
@@ -1638,14 +1637,15 @@ TEST(SmallOrderedNameDictionaryDetailsAtAndDetailsAtPut) {
 
   Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
   Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  CHECK(!dict->HasKey(isolate, key1));
+  CHECK_EQ(SmallOrderedNameDictionary::kNotFound,
+           dict->FindEntry(isolate, *key1));
   PropertyDetails details = PropertyDetails::Empty();
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key1, value, details)
              .ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(1, dict->NumberOfElements());
-  CHECK(dict->HasKey(isolate, key1));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
 
   int entry = dict->FindEntry(isolate, *key1);
   PropertyDetails found = dict->DetailsAt(entry);
@@ -1660,14 +1660,15 @@ TEST(SmallOrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   CHECK_EQ(other.AsSmi(), found.AsSmi());
 
   Handle<Symbol> key2 = factory->NewSymbol();
-  CHECK(!dict->HasKey(isolate, key2));
+  CHECK_EQ(SmallOrderedNameDictionary::kNotFound,
+           dict->FindEntry(isolate, *key2));
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(2, dict->NumberOfElements());
-  CHECK(dict->HasKey(isolate, key1));
-  CHECK(dict->HasKey(isolate, key2));
+  CHECK_EQ(0, dict->FindEntry(isolate, *key1));
+  CHECK_EQ(1, dict->FindEntry(isolate, *key2));
 
   entry = dict->FindEntry(isolate, *key1);
   found = dict->DetailsAt(entry);

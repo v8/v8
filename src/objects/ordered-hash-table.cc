@@ -82,9 +82,8 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
 template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
                                                   Derived table, Object* key) {
-  DCHECK((entrysize == 1 && table->IsOrderedHashSet()) ||
-         (entrysize == 2 && table->IsOrderedHashMap()) ||
-         (entrysize == 3 && table->IsOrderedNameDictionary()));
+  DCHECK_IMPLIES(entrysize == 1, table->IsOrderedHashSet());
+  DCHECK_IMPLIES(entrysize == 2, table->IsOrderedHashMap());
   DisallowHeapAllocation no_gc;
   int entry = table->FindEntry(isolate, key);
   return entry != kNotFound;
@@ -316,51 +315,6 @@ Handle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   return table;
 }
 
-Handle<OrderedNameDictionary> OrderedNameDictionary::Add(
-    Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
-    Handle<Object> value, PropertyDetails details) {
-  int hash = key->Hash();
-
-#ifdef DEBUG
-  // Walk the chain of the bucket and try finding the key.
-  {
-    DisallowHeapAllocation no_gc;
-    int entry = table->HashToEntry(hash);
-    Object* raw_key = *key;
-    while (entry != kNotFound) {
-      Object* candidate_key = table->KeyAt(entry);
-
-      // Key should not exist already!
-      CHECK(!candidate_key->SameValueZero(raw_key));
-
-      entry = table->NextChainEntry(entry);
-    }
-  }
-#endif
-
-  table = OrderedNameDictionary::EnsureGrowable(isolate, table);
-  // Read the existing bucket values.
-  int bucket = table->HashToBucket(hash);
-  int previous_entry = table->HashToEntry(hash);
-  int nof = table->NumberOfElements();
-  // Insert a new entry at the end,
-  int new_entry = nof + table->NumberOfDeletedElements();
-  int new_index = table->EntryToIndex(new_entry);
-  table->set(new_index, *key);
-  table->set(new_index + kValueOffset, *value);
-
-  // TODO(gsathya): Optimize how PropertyDetails are stored in this
-  // dictionary to save memory (by reusing padding?) and performance
-  // (by not doing the Smi conversion).
-  table->set(new_index + kPropertyDetailsOffset, details.AsSmi());
-
-  table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
-  // and point the bucket to the new entry.
-  table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
-  table->SetNumberOfElements(nof + 1);
-  return table;
-}
-
 template <>
 int OrderedHashTable<OrderedNameDictionary, 3>::FindEntry(Isolate* isolate,
                                                           Object* key) {
@@ -384,6 +338,36 @@ int OrderedHashTable<OrderedNameDictionary, 3>::FindEntry(Isolate* isolate,
 
   return kNotFound;
 }
+
+Handle<OrderedNameDictionary> OrderedNameDictionary::Add(
+    Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
+    Handle<Object> value, PropertyDetails details) {
+  DCHECK_EQ(kNotFound, table->FindEntry(isolate, *key));
+
+  table = OrderedNameDictionary::EnsureGrowable(isolate, table);
+  // Read the existing bucket values.
+  int hash = key->Hash();
+  int bucket = table->HashToBucket(hash);
+  int previous_entry = table->HashToEntry(hash);
+  int nof = table->NumberOfElements();
+  // Insert a new entry at the end,
+  int new_entry = nof + table->NumberOfDeletedElements();
+  int new_index = table->EntryToIndex(new_entry);
+  table->set(new_index, *key);
+  table->set(new_index + kValueOffset, *value);
+
+  // TODO(gsathya): Optimize how PropertyDetails are stored in this
+  // dictionary to save memory (by reusing padding?) and performance
+  // (by not doing the Smi conversion).
+  table->set(new_index + kPropertyDetailsOffset, details.AsSmi());
+
+  table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
+  // and point the bucket to the new entry.
+  table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
+  table->SetNumberOfElements(nof + 1);
+  return table;
+}
+
 Handle<OrderedHashSet> OrderedHashSet::Allocate(Isolate* isolate, int capacity,
                                                 PretenureFlag pretenure) {
   return OrderedHashTable<OrderedHashSet, 1>::Allocate(isolate, capacity,
@@ -447,9 +431,6 @@ template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
 template int OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate,
                                                             Object* key);
 
-
-template bool OrderedHashTable<OrderedNameDictionary, 3>::HasKey(
-    Isolate* isolate, OrderedNameDictionary table, Object* key);
 
 template Handle<OrderedNameDictionary>
 OrderedHashTable<OrderedNameDictionary, 3>::EnsureGrowable(
@@ -588,10 +569,29 @@ MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
   return table;
 }
 
+template <>
+int SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(
+    Isolate* isolate, Object* key) {
+  DisallowHeapAllocation no_gc;
+  DCHECK(key->IsUniqueName());
+  Name raw_key = Name::cast(key);
+
+  int entry = HashToFirstEntry(raw_key->Hash());
+
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    if (candidate_key == key) return entry;
+    entry = GetNextEntry(entry);
+  }
+
+  return kNotFound;
+}
+
 MaybeHandle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Add(
     Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
     Handle<Name> key, Handle<Object> value, PropertyDetails details) {
-  DCHECK(!table->HasKey(isolate, key));
+  DCHECK_EQ(kNotFound, table->FindEntry(isolate, *key));
 
   if (table->UsedCapacity() >= table->Capacity()) {
     MaybeHandle<SmallOrderedNameDictionary> new_table =
@@ -601,10 +601,10 @@ MaybeHandle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Add(
     }
   }
 
-  int hash = key->GetOrCreateHash(isolate)->value();
   int nof = table->NumberOfElements();
 
   // Read the existing bucket values.
+  int hash = key->Hash();
   int bucket = table->HashToBucket(hash);
   int previous_entry = table->HashToFirstEntry(hash);
 
@@ -761,25 +761,6 @@ int SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate, Object* key) {
   return kNotFound;
 }
 
-template <>
-int SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(
-    Isolate* isolate, Object* key) {
-  DisallowHeapAllocation no_gc;
-  DCHECK(key->IsUniqueName());
-  Name raw_key = Name::cast(key);
-
-  int entry = HashToFirstEntry(raw_key->Hash());
-
-  // Walk the chain in the bucket to find the key.
-  while (entry != kNotFound) {
-    Object* candidate_key = KeyAt(entry);
-    if (candidate_key == key) return entry;
-    entry = GetNextEntry(entry);
-  }
-
-  return kNotFound;
-}
-
 template bool SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(
     Isolate* isolate, Handle<Object> key);
 template Handle<SmallOrderedHashSet>
@@ -809,8 +790,6 @@ template bool SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
 
 template void SmallOrderedHashTable<SmallOrderedNameDictionary>::Initialize(
     Isolate* isolate, int capacity);
-template bool SmallOrderedHashTable<SmallOrderedNameDictionary>::HasKey(
-    Isolate* isolate, Handle<Object> key);
 
 template <class SmallTable, class LargeTable>
 Handle<HeapObject> OrderedHashTableHandler<SmallTable, LargeTable>::Allocate(
