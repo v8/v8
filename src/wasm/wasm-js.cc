@@ -1132,8 +1132,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
 
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
-
   // The descriptor's type, called 'value'. It is called 'value' because this
   // descriptor is planned to be re-used as the global's type for reflection,
   // so calling it 'type' is redundant.
@@ -1150,21 +1148,14 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       type = i::wasm::kWasmI32;
     } else if (string->StringEquals(v8_str(isolate, "f32"))) {
       type = i::wasm::kWasmF32;
-    } else if (enabled_features.bigint &&
-               string->StringEquals(v8_str(isolate, "i64"))) {
+    } else if (string->StringEquals(v8_str(isolate, "i64"))) {
       type = i::wasm::kWasmI64;
     } else if (string->StringEquals(v8_str(isolate, "f64"))) {
       type = i::wasm::kWasmF64;
     } else {
-      if (enabled_features.bigint) {
-        thrower.TypeError(
-            "Descriptor property 'value' must be 'i32', 'i64', 'f32', or "
-            "'f64'");
-      } else {
-        thrower.TypeError(
-            "Descriptor property 'value' must be 'i32', 'f32', or 'f64'");
-      }
-
+      thrower.TypeError(
+          "Descriptor property 'value' must be 'i32', 'i64', 'f32', or "
+          "'f64'");
       return;
     }
   }
@@ -1194,10 +1185,14 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       break;
     }
     case i::wasm::kWasmI64: {
-      DCHECK(enabled_features.bigint);
-
       int64_t i64_value = 0;
       if (!value->IsUndefined()) {
+        auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+        if (!enabled_features.bigint) {
+          thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
+          return;
+        }
+
         v8::Local<v8::BigInt> bigint_value;
         if (!value->ToBigInt(context).ToLocal(&bigint_value)) return;
         i64_value = bigint_value->Int64Value();

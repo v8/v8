@@ -925,3 +925,10 @@ assertInstantiateSuccess(
   var instance = new WebAssembly.Instance(module);
   assertTrue(instance instanceof Instance);
 })();
+
+(function TestPassBigIntInGlobalWhenNotEnabled() {
+  assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1), TypeError,
+               /Can't set the value/);
+  assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1n), TypeError,
+               /Can't set the value/);
+})();

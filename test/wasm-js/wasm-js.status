@@ -9,7 +9,6 @@
   'table/grow': [FAIL],
   'table/get-set': [FAIL],
   'module/customSections': [FAIL],
-  'global/constructor': [FAIL],
   'global/value-get-set': [FAIL],
 }], # ALWAYS
 
