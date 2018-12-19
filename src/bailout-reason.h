@@ -106,7 +106,7 @@ namespace internal {
   V(kNotEnoughVirtualRegistersRegalloc,                                     \
     "Not enough virtual registers (regalloc)")                              \
   V(kOptimizationDisabled, "Optimization disabled")                         \
-  V(kNeverOptimize, "Optimization is always disabled")
+  V(kOptimizationDisabledForTest, "Optimization disabled for test")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
 enum class BailoutReason : uint8_t {

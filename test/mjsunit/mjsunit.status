@@ -322,28 +322,6 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['lite_mode == True', {
-  # Skip tests not suitable for lite_mode.
-
-  # TODO(8596): We cache the templates in the feedback vector. In lite mode
-  # without feedback vectors we need to implement some other mechanism to cache
-  # them. Enable this test after fixing it.
-  'es6/templates': [SKIP],
-
-  # code coverage needs feedback vectors
-  'code-coverage-ad-hoc': [SKIP],
-  'code-coverage-class-fields': [SKIP],
-  'code-coverage-block-noopt': [SKIP],
-  'code-coverage-block': [SKIP],
-  'code-coverage-precise': [SKIP],
-
-  # Needs feedback vector - tests for allocation sites
-  'array-constructor-feedback': [SKIP],
-  'regress/regress-trap-allocation-memento': [SKIP],
-  'regress/regress-4121': [SKIP],
-}],  # 'lite_mode == True'
-
-##############################################################################
 ['byteorder == big', {
   # Emscripten requires little-endian, skip all tests on big endian platforms.
   'asm/embenchen/*': [SKIP],

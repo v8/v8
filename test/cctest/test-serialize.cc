@@ -2185,8 +2185,7 @@ static bool toplevel_test_code_event_found = false;
 
 static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
   if (event->type == v8::JitCodeEvent::CODE_ADDED &&
-      (memcmp(event->name.str, "Script:~test", 12) == 0 ||
-       memcmp(event->name.str, "Script:test", 11) == 0)) {
+      memcmp(event->name.str, "Script:~test", 12) == 0) {
     toplevel_test_code_event_found = true;
   }
 }

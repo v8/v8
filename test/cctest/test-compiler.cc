@@ -338,7 +338,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
 
 TEST(FeedbackVectorUnaffectedByScopeChanges) {
-  if (i::FLAG_always_opt || !i::FLAG_lazy || i::FLAG_lite_mode) {
+  if (i::FLAG_always_opt || !i::FLAG_lazy) {
     return;
   }
   CcTest::InitializeVM();
@@ -772,7 +772,6 @@ TEST(CompileFunctionInContextFunctionToString) {
 }
 
 TEST(InvocationCount) {
-  if (FLAG_lite_mode) return;
   FLAG_allow_natives_syntax = true;
   FLAG_always_opt = false;
   CcTest::InitializeVM();

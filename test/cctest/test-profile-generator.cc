@@ -752,8 +752,7 @@ TEST(BailoutReason) {
 
   current = PickChild(current, "Debugger");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
-  CHECK(
-      !strcmp("Optimization is always disabled", current->GetBailoutReason()));
+  CHECK(!strcmp("Optimization disabled for test", current->GetBailoutReason()));
 #endif  // V8_LITE_MODE
 }
 

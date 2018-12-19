@@ -46,8 +46,7 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
       if (script != info->script()) {
         continue;
       }
-      if (!info->HasFeedbackMetadata() ||
-          info->feedback_metadata()->is_empty() ||
+      if (info->feedback_metadata()->is_empty() ||
           !info->feedback_metadata()->HasTypeProfileSlot()) {
         continue;
       }

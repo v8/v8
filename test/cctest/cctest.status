@@ -34,7 +34,7 @@
 
   # This test is so detailed in it's look at the literals array, I can't
   # maintain it until the CL is done.
-  'test-heap-profiler/AllocationSitesAreVisible': [FAIL, ['lite_mode == True', SKIP]],
+  'test-heap-profiler/AllocationSitesAreVisible': [FAIL],
 
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
@@ -462,35 +462,6 @@
 # The stack unwinder API is only supported on x64.
 ['arch != x64', {
   'test-unwinder/*': [SKIP]
-}],
-
-##############################################################################
-['lite_mode == True', {
-
-  # TODO(8394): First execution events don't work in lite_mode. Enable this after
-  # we fix the lite mode to track the first execution.
-  'test-log/LogFunctionEvents': [SKIP],
-
-  # Skip compiler tests that need optimizer to be enabled.
-  'test-run-intrinsics/*': [SKIP],
-  'test-run-jsbranches/*': [SKIP],
-  'test-run-jscalls/*': [SKIP],
-  'test-run-jsexceptions/*': [SKIP],
-  'test-run-jsobjects/*': [SKIP],
-  'test-run-jsops/*': [SKIP],
-  'test-run-load-store/*': [SKIP],
-  'test-run-machops/*': [SKIP],
-  'test-run-native-calls/*': [SKIP],
-  'test-run-retpoline/*': [SKIP],
-  'test-run-stackcheck/*': [SKIP],
-  'test-run-tail-calls/*': [SKIP],
-  'test-run-unwinding-info/*': [SKIP],
-  'test-run-variables/*': [SKIP],
-  'test-run-bytecode-graph-builder/*': [SKIP],
-  'test-run-deopt/*': [SKIP],
-  'test-js-context-specialization/*': [SKIP],
-  'test-code-assembler/*': [SKIP],
-  'test-code-stub-assembler/*': [SKIP],
 }],
 
 ]

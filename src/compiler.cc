@@ -356,18 +356,12 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     DCHECK(!compilation_info->has_asm_wasm_data());
     DCHECK(!shared_info->HasFeedbackMetadata());
 
+    Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
+        isolate, compilation_info->feedback_vector_spec());
+
     InstallBytecodeArray(compilation_info->bytecode_array(), shared_info,
                          parse_info, isolate);
-    if (FLAG_lite_mode) {
-      // Clear the feedback metadata field. In lite mode we don't need feedback
-      // metadata since we never allocate feedback vectors.
-      shared_info->set_raw_outer_scope_info_or_feedback_metadata(
-          HeapObjectPtr::cast(ReadOnlyRoots(isolate).undefined_value()));
-    } else {
-      Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
-          isolate, compilation_info->feedback_vector_spec());
-      shared_info->set_feedback_metadata(*feedback_metadata);
-    }
+    shared_info->set_feedback_metadata(*feedback_metadata);
   } else {
     DCHECK(compilation_info->has_asm_wasm_data());
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
@@ -745,11 +739,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     function->ClearOptimizationMarker();
   }
 
-  if (shared->optimization_disabled() &&
-      shared->disable_optimization_reason() == BailoutReason::kNeverOptimize) {
-    return MaybeHandle<Code>();
-  }
-
   if (isolate->debug()->needs_check_on_function_call()) {
     // Do not optimize when debugger needs to hook into every call.
     return MaybeHandle<Code>();
@@ -789,6 +778,15 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // Do not use TurboFan if we need to be able to set break points.
   if (compilation_info->shared_info()->HasBreakInfo()) {
     compilation_info->AbortOptimization(BailoutReason::kFunctionBeingDebugged);
+    return MaybeHandle<Code>();
+  }
+
+  // Do not use TurboFan when %NeverOptimizeFunction was applied.
+  if (shared->optimization_disabled() &&
+      shared->disable_optimization_reason() ==
+          BailoutReason::kOptimizationDisabledForTest) {
+    compilation_info->AbortOptimization(
+        BailoutReason::kOptimizationDisabledForTest);
     return MaybeHandle<Code>();
   }
 

@@ -1102,7 +1102,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
     CHECK(!HasFeedbackMetadata());
     CHECK(outer_scope_info()->IsScopeInfo() ||
           outer_scope_info()->IsTheHole(isolate));
-  } else if (HasBytecodeArray() && HasFeedbackMetadata()) {
+  } else if (HasBytecodeArray()) {
+    CHECK(HasFeedbackMetadata());
     CHECK(feedback_metadata()->IsFeedbackMetadata());
   }
 

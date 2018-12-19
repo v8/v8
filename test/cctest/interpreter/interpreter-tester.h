@@ -89,8 +89,6 @@ class InterpreterTester {
     return RegisterList(first_reg_index, register_count);
   }
 
-  inline bool HasFeedbackMetadata() { return !feedback_metadata_.is_null(); }
-
  private:
   Isolate* isolate_;
   const char* source_;
@@ -124,7 +122,7 @@ class InterpreterTester {
     if (!bytecode_.is_null()) {
       function->shared()->set_function_data(*bytecode_.ToHandleChecked());
     }
-    if (HasFeedbackMetadata()) {
+    if (!feedback_metadata_.is_null()) {
       function->set_raw_feedback_cell(isolate_->heap()->many_closures_cell());
       // Set the raw feedback metadata to circumvent checks that we are not
       // overwriting existing metadata.
