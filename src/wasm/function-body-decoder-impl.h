@@ -1741,11 +1741,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             EndControl();
           }
 
-          if (control_.size() > 1) {
-            FallThruTo(c);
-            // A loop just leaves the values on the stack.
-            if (!c->is_loop()) PushMergeValues(c, &c->end_merge);
-          } else {
+          if (!TypeCheckFallThru(c)) break;
+
+          if (control_.size() == 1) {
             // If at the last (implicit) control, check we are at end.
             if (!VALIDATE(this->pc_ + 1 == this->end_)) {
               this->error(this->pc_ + 1, "trailing code after function end");
@@ -1754,8 +1752,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             // The result of the block is the return value.
             TRACE_PART("\n" TRACE_INST_FORMAT, startrel(this->pc_),
                        "(implicit) return");
-            if (!TypeCheckFallThru(c)) break;
             DoReturn();
+            control_.clear();
+            break;
           }
 
           PopControl(c);
@@ -2242,11 +2241,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   void PopControl(Control* c) {
     DCHECK_EQ(c, &control_.back());
     CALL_INTERFACE_IF_PARENT_REACHABLE(PopControl, c);
-    bool reached = c->end_merge.reached || c->is_onearmed_if();
+
+    // A loop just leaves the values on the stack.
+    if (!c->is_loop()) PushMergeValues(c, &c->end_merge);
+
+    bool parent_reached =
+        c->reachable() || c->end_merge.reached || c->is_onearmed_if();
     control_.pop_back();
     // If the parent block was reachable before, but the popped control does not
-    // return to here, this block becomes indirectly unreachable.
-    if (!control_.empty() && !reached && control_.back().reachable()) {
+    // return to here, this block becomes "spec only reachable".
+    if (!parent_reached && control_.back().reachable()) {
       control_.back().reachability = kSpecOnlyReachable;
     }
   }

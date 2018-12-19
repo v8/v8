@@ -217,12 +217,17 @@ class WasmGraphBuildingInterface {
   }
 
   void PopControl(FullDecoder* decoder, Control* block) {
+    // A loop just continues with the end environment. There is no merge.
+    if (block->is_loop()) return;
+    // Any other block falls through to the parent block.
+    if (block->reachable()) FallThruTo(decoder, block);
     if (block->is_onearmed_if()) {
       // Merge the else branch into the end merge.
       SetEnv(block->false_env);
       MergeValuesInto(decoder, block, &block->end_merge);
     }
-    if (!block->is_loop()) SetEnv(block->end_env);
+    // Now continue with the merged environment.
+    SetEnv(block->end_env);
   }
 
   void EndControl(FullDecoder* decoder, Control* block) { ssa_env_->Kill(); }

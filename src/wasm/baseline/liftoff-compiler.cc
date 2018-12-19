@@ -502,38 +502,61 @@ class LiftoffCompiler {
   void FallThruTo(FullDecoder* decoder, Control* c) {
     if (c->end_merge.reached) {
       __ MergeFullStackWith(c->label_state, *__ cache_state());
-    } else if (c->is_onearmed_if()) {
-      // Init the merge point from the else state, then merge the if state into
-      // that.
-      DCHECK_EQ(0, c->end_merge.arity);
-      c->label_state.InitMerge(c->else_state->state, __ num_locals(), 0,
-                               c->stack_depth);
-      __ MergeFullStackWith(c->label_state, *__ cache_state());
     } else {
       c->label_state.Split(*__ cache_state());
     }
     TraceCacheState(decoder);
   }
 
-  void PopControl(FullDecoder* decoder, Control* c) {
-    // A loop just falls through.
-    if (c->is_loop()) return;
-    if (c->is_onearmed_if()) {
-      if (c->end_merge.reached) {
-        // Generate the code to merge the else state into the end state.
+  void FinishOneArmedIf(FullDecoder* decoder, Control* c) {
+    DCHECK(c->is_onearmed_if());
+    if (c->end_merge.reached) {
+      // Someone already merged to the end of the if. Merge both arms into that.
+      if (c->reachable()) {
+        // Merge the if state into the end state.
+        __ MergeFullStackWith(c->label_state, *__ cache_state());
         __ emit_jump(c->label.get());
-        __ bind(c->else_state->label.get());
-        __ MergeFullStackWith(c->label_state, c->else_state->state);
-        __ cache_state()->Steal(c->label_state);
-      } else {
-        // There is no merge at the end of the if, so just continue with the
-        // else state.
-        __ bind(c->else_state->label.get());
-        __ cache_state()->Steal(c->else_state->state);
       }
-    } else if (c->end_merge.reached) {
+      // Merge the else state into the end state.
+      __ bind(c->else_state->label.get());
+      __ MergeFullStackWith(c->label_state, c->else_state->state);
       __ cache_state()->Steal(c->label_state);
+    } else if (c->reachable()) {
+      // No merge yet at the end of the if, but we need to create a merge for
+      // the both arms of this if. Thus init the merge point from the else
+      // state, then merge the if state into that.
+      DCHECK_EQ(0, c->end_merge.arity);
+      c->label_state.InitMerge(c->else_state->state, __ num_locals(), 0,
+                               c->stack_depth);
+      __ MergeFullStackWith(c->label_state, *__ cache_state());
+      __ emit_jump(c->label.get());
+      // Merge the else state into the end state.
+      __ bind(c->else_state->label.get());
+      __ MergeFullStackWith(c->label_state, c->else_state->state);
+      __ cache_state()->Steal(c->label_state);
+    } else {
+      // No merge needed, just continue with the else state.
+      __ bind(c->else_state->label.get());
+      __ cache_state()->Steal(c->else_state->state);
     }
+  }
+
+  void PopControl(FullDecoder* decoder, Control* c) {
+    if (c->is_loop()) return;  // A loop just falls through.
+    if (c->is_onearmed_if()) {
+      // Special handling for one-armed ifs.
+      FinishOneArmedIf(decoder, c);
+    } else if (c->end_merge.reached) {
+      // There is a merge already. Merge our state into that, then continue with
+      // that state.
+      if (c->reachable()) {
+        __ MergeFullStackWith(c->label_state, *__ cache_state());
+      }
+      __ cache_state()->Steal(c->label_state);
+    } else {
+      // No merge, just continue with our current state.
+    }
+
     if (!c->label.get()->is_bound()) __ bind(c->label.get());
   }
 
