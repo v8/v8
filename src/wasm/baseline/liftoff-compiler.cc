@@ -41,7 +41,7 @@ namespace {
     if (FLAG_trace_liftoff) PrintF("[liftoff] " __VA_ARGS__); \
   } while (false)
 
-#define WASM_INSTANCE_OBJECT_OFFSET(name) \
+#define WASM_INSTANCE_OBJECT_FIELD_OFFSET(name) \
   ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
 
 template <int expected_size, int actual_size>
@@ -51,14 +51,20 @@ struct assert_field_size {
   static constexpr int size = actual_size;
 };
 
-#define WASM_INSTANCE_OBJECT_SIZE(name)     \
-  (WasmInstanceObject::k##name##OffsetEnd - \
+#define WASM_INSTANCE_OBJECT_FIELD_SIZE(name) \
+  (WasmInstanceObject::k##name##OffsetEnd -   \
    WasmInstanceObject::k##name##Offset + 1)  // NOLINT(whitespace/indent)
 
-#define LOAD_INSTANCE_FIELD(dst, name, load_size) \
-  __ LoadFromInstance(                            \
-      dst, WASM_INSTANCE_OBJECT_OFFSET(name),     \
-      assert_field_size<WASM_INSTANCE_OBJECT_SIZE(name), load_size>::size);
+#define LOAD_INSTANCE_FIELD(dst, name, load_size)                              \
+  __ LoadFromInstance(dst, WASM_INSTANCE_OBJECT_FIELD_OFFSET(name),            \
+                      assert_field_size<WASM_INSTANCE_OBJECT_FIELD_SIZE(name), \
+                                        load_size>::size);
+
+#define LOAD_TAGGED_PTR_INSTANCE_FIELD(dst, name)                         \
+  static_assert(WASM_INSTANCE_OBJECT_FIELD_SIZE(name) == kTaggedSize,     \
+                "field in WasmInstance does not have the expected size"); \
+  __ LoadTaggedPointerFromInstance(dst,                                   \
+                                   WASM_INSTANCE_OBJECT_FIELD_OFFSET(name));
 
 #ifdef DEBUG
 #define DEBUG_CODE_COMMENT(str) \
@@ -1481,7 +1487,7 @@ class LiftoffCompiler {
     __ TurboAssembler::Move(kContextRegister,
                             Smi::FromInt(Context::kNoContext));
     Register centry = kJavaScriptCallCodeStartRegister;
-    LOAD_INSTANCE_FIELD(centry, CEntryStub, kPointerSize);
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(centry, CEntryStub);
     __ CallRuntimeWithCEntry(runtime_function, centry);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);
@@ -1642,12 +1648,12 @@ class LiftoffCompiler {
               imm.index * sizeof(Address), kPointerLoadType, pinned);
 
       Register imported_function_refs = tmp;
-      LOAD_INSTANCE_FIELD(imported_function_refs, ImportedFunctionRefs,
-                          kPointerSize);
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_function_refs,
+                                     ImportedFunctionRefs);
       Register imported_function_ref = tmp;
-      __ Load(LiftoffRegister(imported_function_ref), imported_function_refs,
-              no_reg, ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index),
-              kPointerLoadType, pinned);
+      __ LoadTaggedPointer(
+          imported_function_ref, imported_function_refs, no_reg,
+          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), pinned);
 
       Register* explicit_instance = &imported_function_ref;
       __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
@@ -1770,17 +1776,19 @@ class LiftoffCompiler {
       __ emit_i32_mul(index, index, tmp_const);
     }
 
+    // Load the instance from {instance->ift_instances[key]}
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(table, IndirectFunctionTableRefs);
+    // {index} has already been multiplied by kSystemPointerSizeLog2.
+    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+    __ LoadTaggedPointer(tmp_const, table, index,
+                         ObjectAccess::ElementOffsetInTaggedFixedArray(0),
+                         pinned);
+    Register* explicit_instance = &tmp_const;
+
     // Load the target from {instance->ift_targets[key]}
     LOAD_INSTANCE_FIELD(table, IndirectFunctionTableTargets, kPointerSize);
     __ Load(LiftoffRegister(scratch), table, index, 0, kPointerLoadType,
             pinned);
-
-    // Load the instance from {instance->ift_instances[key]}
-    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableRefs, kPointerSize);
-    __ Load(LiftoffRegister(tmp_const), table, index,
-            ObjectAccess::ElementOffsetInTaggedFixedArray(0), kPointerLoadType,
-            pinned);
-    Register* explicit_instance = &tmp_const;
 
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
@@ -1968,9 +1976,10 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
 
 #undef __
 #undef TRACE
-#undef WASM_INSTANCE_OBJECT_OFFSET
-#undef WASM_INSTANCE_OBJECT_SIZE
+#undef WASM_INSTANCE_OBJECT_FIELD_OFFSET
+#undef WASM_INSTANCE_OBJECT_FIELD_SIZE
 #undef LOAD_INSTANCE_FIELD
+#undef LOAD_TAGGED_PTR_INSTANCE_FIELD
 #undef DEBUG_CODE_COMMENT
 
 }  // namespace wasm

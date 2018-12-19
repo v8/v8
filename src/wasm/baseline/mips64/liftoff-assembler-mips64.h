@@ -267,12 +267,26 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
   }
 }
 
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     uint32_t offset) {
+  LoadFromInstance(dst, offset, kTaggedSize);
+}
+
 void LiftoffAssembler::SpillInstance(Register instance) {
   sd(instance, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   ld(dst, liftoff::GetInstanceOperand());
+}
+
+void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
+                                         Register offset_reg,
+                                         uint32_t offset_imm,
+                                         LiftoffRegList pinned) {
+  STATIC_ASSERT(kTaggedSize == kInt64Size);
+  Load(LiftoffRegister(dst), src_addr, offset_reg, offset_imm,
+       LoadType::kI64Load, pinned);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,

@@ -301,12 +301,26 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
   lw(dst, MemOperand(dst, offset));
 }
 
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     uint32_t offset) {
+  LoadFromInstance(dst, offset, kTaggedSize);
+}
+
 void LiftoffAssembler::SpillInstance(Register instance) {
   sw(instance, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   lw(dst, liftoff::GetInstanceOperand());
+}
+
+void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
+                                         Register offset_reg,
+                                         uint32_t offset_imm,
+                                         LiftoffRegList pinned) {
+  STATIC_ASSERT(kTaggedSize == kInt32Size);
+  Load(LiftoffRegister(dst), src_addr, offset_reg, offset_imm,
+       LoadType::kI32Load, pinned);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,

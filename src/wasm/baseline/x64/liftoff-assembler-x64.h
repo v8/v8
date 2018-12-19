@@ -195,12 +195,30 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
   }
 }
 
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     uint32_t offset) {
+  DCHECK_LE(offset, kMaxInt);
+  movp(dst, liftoff::GetInstanceOperand());
+  LoadTaggedPointerField(dst, Operand(dst, offset));
+}
+
 void LiftoffAssembler::SpillInstance(Register instance) {
   movp(liftoff::GetInstanceOperand(), instance);
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   movp(dst, liftoff::GetInstanceOperand());
+}
+
+void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
+                                         Register offset_reg,
+                                         uint32_t offset_imm,
+                                         LiftoffRegList pinned) {
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
+  Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
+  LoadTaggedPointerField(dst, src_op);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,

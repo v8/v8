@@ -37,12 +37,24 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
   BAILOUT("LoadFromInstance");
 }
 
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     uint32_t offset) {
+  BAILOUT("LoadTaggedPointerFromInstance");
+}
+
 void LiftoffAssembler::SpillInstance(Register instance) {
   BAILOUT("SpillInstance");
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   BAILOUT("FillInstanceInto");
+}
+
+void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
+                                         Register offset_reg,
+                                         uint32_t offset_imm,
+                                         LiftoffRegList pinned) {
+  BAILOUT("LoadTaggedPointer");
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
