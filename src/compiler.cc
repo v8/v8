@@ -522,7 +522,6 @@ MaybeHandle<SharedFunctionInfo> GenerateUnoptimizedCodeForToplevel(
     functions_to_compile.pop_back();
     Handle<SharedFunctionInfo> shared_info =
         Compiler::GetSharedFunctionInfo(literal, script, isolate);
-    // TODO(rmcilroy): Fix this and DCHECK !is_compiled() once Full-Codegen dies
     if (shared_info->is_compiled()) continue;
     if (UseAsmWasm(literal, parse_info->is_asm_wasm_broken())) {
       std::unique_ptr<UnoptimizedCompilationJob> asm_job(
@@ -589,7 +588,6 @@ bool FinalizeUnoptimizedCode(
             inner_job->compilation_info()->literal(), parse_info->script(),
             isolate);
     // The inner function might be compiled already if compiling for debug.
-    // TODO(rmcilroy): Fix this and DCHECK !is_compiled() once Full-Codegen dies
     if (inner_shared_info->is_compiled()) continue;
     if (FinalizeUnoptimizedCompilationJob(inner_job.get(), inner_shared_info,
                                           isolate) !=
