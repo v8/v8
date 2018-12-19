@@ -1156,13 +1156,12 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
   return var;
 }
 
-void Scope::DeclareCatchVariableName(const AstRawString* name) {
+Variable* Scope::DeclareCatchVariableName(const AstRawString* name) {
   DCHECK(!already_resolved_);
-  DCHECK(GetDeclarationScope()->is_being_lazily_parsed());
   DCHECK(is_catch_scope());
   DCHECK(scope_info_.is_null());
 
-  Declare(zone(), name, VariableMode::kVar);
+  return Declare(zone(), name, VariableMode::kVar);
 }
 
 void Scope::AddUnresolved(VariableProxy* proxy) {
@@ -1238,22 +1237,27 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
   return nullptr;
 }
 
-Declaration* Scope::CheckLexDeclarationsConflictingWith(
-    const ZonePtrList<const AstRawString>& names) {
+const AstRawString* Scope::FindLexVariableDeclaredIn(Scope* scope) {
   DCHECK(is_block_scope());
-  for (int i = 0; i < names.length(); ++i) {
-    Variable* var = LookupLocal(names.at(i));
+  const VariableMap& variables = scope->variables_;
+  for (ZoneHashMap::Entry* p = variables.Start(); p != nullptr;
+       p = variables.Next(p)) {
+    const AstRawString* name = static_cast<const AstRawString*>(p->key);
+    Variable* var = LookupLocal(name);
     if (var != nullptr) {
       // Conflict; find and return its declaration.
       DCHECK(IsLexicalVariableMode(var->mode()));
-      const AstRawString* name = names.at(i);
-      for (Declaration* decl : decls_) {
-        if (decl->proxy()->raw_name() == name) return decl;
-      }
-      DCHECK(false);
+      return name;
     }
   }
   return nullptr;
+}
+
+Declaration* Scope::DeclarationFor(const AstRawString* name) {
+  for (Declaration* decl : decls_) {
+    if (decl->proxy()->raw_name() == name) return decl;
+  }
+  UNREACHABLE();
 }
 
 bool DeclarationScope::AllocateVariables(ParseInfo* info) {

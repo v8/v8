@@ -1568,52 +1568,41 @@ Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,
   return switch_block;
 }
 
-void Parser::RewriteCatchPattern(CatchInfo* catch_info) {
-  if (catch_info->name == nullptr) {
-    DCHECK_NOT_NULL(catch_info->pattern);
-    catch_info->name = ast_value_factory()->dot_catch_string();
-  }
-  Variable* catch_variable =
-      catch_info->scope->DeclareLocal(catch_info->name, VariableMode::kVar);
-  if (catch_info->pattern != nullptr) {
-    DeclarationDescriptor descriptor;
-    descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
-    descriptor.scope = scope();
-    descriptor.mode = VariableMode::kLet;
-    descriptor.declaration_pos = catch_info->pattern->position();
-    descriptor.initialization_pos = catch_info->pattern->position();
+Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
+  DCHECK_NOT_NULL(catch_info->pattern);
+  DeclarationDescriptor descriptor;
+  descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
+  descriptor.scope = scope();
+  descriptor.mode = VariableMode::kLet;
+  descriptor.declaration_pos = catch_info->pattern->position();
+  descriptor.initialization_pos = catch_info->pattern->position();
 
-    // Initializer position for variables declared by the pattern.
-    const int initializer_position = position();
+  // Initializer position for variables declared by the pattern.
+  const int initializer_position = position();
 
-    DeclarationParsingResult::Declaration decl(
-        catch_info->pattern, initializer_position,
-        factory()->NewVariableProxy(catch_variable));
+  DeclarationParsingResult::Declaration decl(
+      catch_info->pattern, initializer_position,
+      factory()->NewVariableProxy(catch_info->variable));
 
-    catch_info->init_block = factory()->NewBlock(8, true);
-    DeclareAndInitializeVariables(catch_info->init_block, &descriptor, &decl,
-                                  &catch_info->bound_names);
-  } else {
-    catch_info->bound_names.Add(catch_info->name, zone());
-  }
+  Block* init_block = factory()->NewBlock(8, true);
+  DeclareAndInitializeVariables(init_block, &descriptor, &decl, nullptr);
+  return init_block;
 }
 
-void Parser::ValidateCatchBlock(const CatchInfo& catch_info) {
-  // Check for `catch(e) { let e; }` and similar errors.
-  Scope* inner_block_scope = catch_info.inner_block->scope();
-  if (inner_block_scope != nullptr) {
-    Declaration* decl = inner_block_scope->CheckLexDeclarationsConflictingWith(
-        catch_info.bound_names);
-    if (decl != nullptr) {
-      const AstRawString* name = decl->proxy()->raw_name();
+void Parser::ReportConflictingDeclarationInCatch(const AstRawString* name,
+                                                 Scope* scope) {
+  for (Declaration* decl : *scope->declarations()) {
+    if (decl->proxy()->raw_name() == name) {
       int position = decl->proxy()->position();
       Scanner::Location location =
           position == kNoSourcePosition
               ? Scanner::Location::invalid()
-              : Scanner::Location(position, position + 1);
+              : Scanner::Location(position, position + name->length());
       ReportMessageAt(location, MessageTemplate::kVarRedeclaration, name);
+      return;
     }
   }
+  UNREACHABLE();
 }
 
 Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,

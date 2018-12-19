@@ -317,8 +317,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* RewriteReturn(Expression* return_value, int pos);
   Statement* RewriteSwitchStatement(SwitchStatement* switch_statement,
                                     Scope* scope);
-  void RewriteCatchPattern(CatchInfo* catch_info);
-  void ValidateCatchBlock(const CatchInfo& catch_info);
+  Block* RewriteCatchPattern(CatchInfo* catch_info);
+  void ReportConflictingDeclarationInCatch(const AstRawString* name,
+                                           Scope* scope);
   Statement* RewriteTryStatement(Block* try_block, Block* catch_block,
                                  const SourceRange& catch_range,
                                  Block* finally_block,
@@ -830,6 +831,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return nullptr;
   }
   V8_INLINE static std::nullptr_t NullStatement() { return nullptr; }
+  V8_INLINE static std::nullptr_t NullBlock() { return nullptr; }
   Expression* FailureExpression() { return factory()->FailureExpression(); }
 
   template <typename T>
@@ -879,6 +881,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       fni_.PushVariableName(name);
     }
     return NewUnresolved(name, start_position);
+  }
+
+  V8_INLINE Variable* DeclareCatchVariableName(Scope* scope,
+                                               const AstRawString* name) {
+    return scope->DeclareCatchVariableName(name);
   }
 
   V8_INLINE ZonePtrList<Expression>* NewExpressionList(int size) const {

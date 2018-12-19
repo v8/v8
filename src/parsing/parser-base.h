@@ -519,18 +519,12 @@ class ParserBase {
   struct CatchInfo {
    public:
     explicit CatchInfo(ParserBase* parser)
-        : name(parser->impl()->NullIdentifier()),
-          pattern(parser->impl()->NullExpression()),
-          scope(nullptr),
-          init_block(parser->impl()->NullStatement()),
-          inner_block(parser->impl()->NullStatement()),
-          bound_names(1, parser->zone()) {}
-    IdentifierT name;
+        : pattern(parser->impl()->NullExpression()),
+          variable(nullptr),
+          scope(nullptr) {}
     ExpressionT pattern;
+    Variable* variable;
     Scope* scope;
-    BlockT init_block;
-    BlockT inner_block;
-    ZonePtrList<const AstRawString> bound_names;
   };
 
   struct ForInfo {
@@ -3515,7 +3509,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
   parsing_result->descriptor.declaration_pos = peek_position();
   parsing_result->descriptor.initialization_pos = peek_position();
 
-  BlockT init_block = impl()->NullStatement();
+  BlockT init_block = impl()->NullBlock();
   if (var_context != kForStatement) {
     init_block = factory()->NewBlock(1, true);
   }
@@ -3611,7 +3605,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
               Scanner::Location(decl_pos, end_position()),
               MessageTemplate::kDeclarationMissingInitializer,
               !impl()->IsIdentifier(pattern) ? "destructuring" : "const");
-          return impl()->NullStatement();
+          return impl()->NullBlock();
         }
         // 'let x' initializes 'x' to undefined.
         if (parsing_result->descriptor.mode == VariableMode::kLet) {
@@ -4234,7 +4228,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 template <typename Impl>
 void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope,
                                               StatementListT* body) {
-  BlockT block = impl()->NullStatement();
+  BlockT block = impl()->NullBlock();
   {
     StatementListT statements(pointer_buffer());
     ParseStatementList(&statements, Token::RBRACE);
@@ -4736,18 +4730,18 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   // Block ::
   //   '{' StatementList '}'
 
+  // Parse the statements and collect escaping labels.
   BlockT body = factory()->NewBlock(false, labels);
   StatementListT statements(pointer_buffer());
-
-  // Parse the statements and collect escaping labels.
-  Expect(Token::LBRACE);
 
   CheckStackOverflow();
 
   {
     BlockState block_state(zone(), &scope_);
-    scope()->set_start_position(scanner()->location().beg_pos);
+    scope()->set_start_position(peek_position());
     TargetT target(this, body);
+
+    Expect(Token::LBRACE);
 
     while (peek() != Token::RBRACE) {
       StatementT stat = ParseStatementListItem();
@@ -4757,6 +4751,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
     }
 
     Expect(Token::RBRACE);
+
     int end_pos = end_position();
     scope()->set_end_position(end_pos);
 
@@ -5255,7 +5250,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
 
   SourceRange catch_range, finally_range;
 
-  BlockT catch_block = impl()->NullStatement();
+  BlockT catch_block = impl()->NullBlock();
   {
     SourceRangeScope catch_range_scope(scanner(), &catch_range);
     if (Check(Token::CATCH)) {
@@ -5274,31 +5269,44 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
           // as part of destructuring the catch parameter.
           {
             BlockState catch_variable_block_state(zone(), &scope_);
-            scope()->set_start_position(scanner()->location().beg_pos);
+            scope()->set_start_position(position());
 
-            // This does not simply call ParsePrimaryExpression to avoid
-            // ExpressionFromIdentifier from being called in the first
-            // branch, which would introduce an unresolved symbol and mess
-            // with arrow function names.
             if (peek_any_identifier()) {
-              catch_info.name = ParseNonRestrictedIdentifier();
+              IdentifierT identifier = ParseNonRestrictedIdentifier();
+              RETURN_IF_PARSE_ERROR;
+              catch_info.variable = impl()->DeclareCatchVariableName(
+                  catch_info.scope, identifier);
             } else {
-              DeclarationParsingScope declaration(
-                  impl(), ExpressionScope::kVarDeclaration);
+              catch_info.variable = catch_info.scope->DeclareCatchVariableName(
+                  ast_value_factory()->dot_catch_string());
+              DeclarationParsingScope destructuring(
+                  impl(), ExpressionScope::kLexicalDeclaration);
               catch_info.pattern = ParseBindingPattern();
+              RETURN_IF_PARSE_ERROR;
+              catch_statements.Add(impl()->RewriteCatchPattern(&catch_info));
             }
 
             Expect(Token::RPAREN);
-            RETURN_IF_PARSE_ERROR;
-            impl()->RewriteCatchPattern(&catch_info);
-            if (!impl()->IsNull(catch_info.init_block)) {
-              catch_statements.Add(catch_info.init_block);
+
+            BlockT inner_block = ParseBlock(nullptr);
+            catch_statements.Add(inner_block);
+
+            // Check for `catch(e) { let e; }` and similar errors.
+            Scope* inner_scope = inner_block->scope();
+            if (inner_scope != nullptr) {
+              const AstRawString* conflict = nullptr;
+              if (impl()->IsNull(catch_info.pattern)) {
+                const AstRawString* name = catch_info.variable->raw_name();
+                if (inner_scope->LookupLocal(name)) conflict = name;
+              } else {
+                conflict = inner_scope->FindLexVariableDeclaredIn(scope());
+              }
+              if (conflict != nullptr) {
+                impl()->ReportConflictingDeclarationInCatch(conflict,
+                                                            inner_scope);
+              }
             }
 
-            catch_info.inner_block = ParseBlock(nullptr);
-            catch_statements.Add(catch_info.inner_block);
-            RETURN_IF_PARSE_ERROR;
-            impl()->ValidateCatchBlock(catch_info);
             scope()->set_end_position(end_position());
             catch_block = factory()->NewBlock(false, catch_statements);
             catch_block->set_scope(scope()->FinalizeBlockScope());
@@ -5312,7 +5320,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
     }
   }
 
-  BlockT finally_block = impl()->NullStatement();
+  BlockT finally_block = impl()->NullBlock();
   DCHECK(has_error() || peek() == Token::FINALLY ||
          !impl()->IsNull(catch_block));
   {
@@ -5499,7 +5507,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
   }
 
   ExpressionT each_variable = impl()->NullExpression();
-  BlockT body_block = impl()->NullStatement();
+  BlockT body_block = impl()->NullBlock();
   {
     BlockState block_state(
         &scope_, inner_block_scope != nullptr ? inner_block_scope : scope_);
@@ -5777,7 +5785,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     impl()->RecordIterationStatementSourceRange(loop, body_range);
 
     if (has_declarations) {
-      BlockT body_block = impl()->NullStatement();
+      BlockT body_block = impl()->NullBlock();
       impl()->DesugarBindingInForEachStatement(&for_info, &body_block,
                                                &each_variable);
       body_block->statements()->Add(body, zone());
@@ -5802,7 +5810,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   }
 
   BlockT init_block =
-      impl()->CreateForEachStatementTDZ(impl()->NullStatement(), for_info);
+      impl()->CreateForEachStatementTDZ(impl()->NullBlock(), for_info);
 
   scope()->set_end_position(end_position());
   Scope* for_scope = scope()->FinalizeBlockScope();

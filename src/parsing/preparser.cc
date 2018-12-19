@@ -381,7 +381,7 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   return kLazyParsingComplete;
 }
 
-PreParserStatement PreParser::BuildParameterInitializationBlock(
+PreParserBlock PreParser::BuildParameterInitializationBlock(
     const PreParserFormalParameters& parameters) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
@@ -402,7 +402,7 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
     }
   }
 
-  return PreParserStatement::Default();
+  return PreParserBlock::Default();
 }
 
 bool PreParser::IdentifierEquals(const PreParserIdentifier& identifier,

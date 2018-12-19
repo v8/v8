@@ -524,7 +524,7 @@ class PreParserStatement {
                   PreParserStatement next, PreParserStatement body,
                   const SourceRange& body_range = {}) {}
 
- private:
+ protected:
   enum Type {
     kNullStatement,
     kEmptyStatement,
@@ -534,9 +534,32 @@ class PreParserStatement {
   };
 
   explicit PreParserStatement(Type code) : code_(code) {}
+
+ private:
   Type code_;
 };
 
+// A PreParserBlock extends statement with a place to store the scope.
+// The scope is dropped as the block is returned as a statement.
+class PreParserBlock : public PreParserStatement {
+ public:
+  void set_scope(Scope* scope) { scope_ = scope; }
+  Scope* scope() const { return scope_; }
+  static PreParserBlock Default() {
+    return PreParserBlock(PreParserStatement::kUnknownStatement);
+  }
+  static PreParserBlock Null() {
+    return PreParserBlock(PreParserStatement::kNullStatement);
+  }
+  // Dummy implementation for making block->somefunc() work in both Parser and
+  // PreParser.
+  PreParserBlock* operator->() { return this; }
+
+ private:
+  explicit PreParserBlock(PreParserStatement::Type type)
+      : PreParserStatement(type), scope_(nullptr) {}
+  Scope* scope_;
+};
 
 class PreParserFactory {
  public:
@@ -722,18 +745,18 @@ class PreParserFactory {
 
   PreParserStatement EmptyStatement() { return PreParserStatement::Default(); }
 
-  PreParserStatement NewBlock(int capacity, bool ignore_completion_value) {
-    return PreParserStatement::Default();
+  PreParserBlock NewBlock(int capacity, bool ignore_completion_value) {
+    return PreParserBlock::Default();
   }
 
-  PreParserStatement NewBlock(bool ignore_completion_value,
-                              ZonePtrList<const AstRawString>* labels) {
-    return PreParserStatement::Default();
+  PreParserBlock NewBlock(bool ignore_completion_value,
+                          ZonePtrList<const AstRawString>* labels) {
+    return PreParserBlock::Default();
   }
 
-  PreParserStatement NewBlock(bool ignore_completion_value,
-                              const PreParserScopedStatementList& list) {
-    return PreParserStatement::Default();
+  PreParserBlock NewBlock(bool ignore_completion_value,
+                          const PreParserScopedStatementList& list) {
+    return PreParserBlock::Default();
   }
 
   PreParserStatement NewDebuggerStatement(int pos) {
@@ -927,7 +950,7 @@ struct ParserTypes<PreParser> {
   typedef PreParserIdentifier Identifier;
   typedef PreParserPropertyList ClassPropertyList;
   typedef PreParserScopedStatementList StatementList;
-  typedef PreParserStatement Block;
+  typedef PreParserBlock Block;
   typedef PreParserStatement BreakableStatement;
   typedef PreParserStatement ForStatement;
   typedef PreParserStatement IterationStatement;
@@ -1131,21 +1154,20 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
-  V8_INLINE void RewriteCatchPattern(CatchInfo* catch_info) {
-    const AstRawString* catch_name = catch_info->name.string_;
-    if (catch_name == nullptr) {
-      catch_name = ast_value_factory()->dot_catch_string();
-    }
-    catch_info->scope->DeclareCatchVariableName(catch_name);
-
+  V8_INLINE PreParserBlock RewriteCatchPattern(CatchInfo* catch_info) {
     if (catch_info->pattern.variables_ != nullptr) {
       for (auto variable : *catch_info->pattern.variables_) {
         scope()->DeclareVariableName(variable->raw_name(), VariableMode::kLet);
       }
     }
+    return PreParserBlock::Default();
   }
 
-  V8_INLINE void ValidateCatchBlock(const CatchInfo& catch_info) {}
+  V8_INLINE void ReportConflictingDeclarationInCatch(const AstRawString* name,
+                                                     Scope* scope) {
+    ReportUnidentifiableError();
+  }
+
   V8_INLINE PreParserStatement RewriteTryStatement(
       PreParserStatement try_block, PreParserStatement catch_block,
       const SourceRange& catch_range, PreParserStatement finally_block,
@@ -1447,8 +1469,8 @@ class PreParser : public ParserBase<PreParser> {
     return stmt;
   }
 
-  V8_INLINE PreParserStatement RewriteForVarInLegacy(const ForInfo& for_info) {
-    return PreParserStatement::Null();
+  V8_INLINE PreParserBlock RewriteForVarInLegacy(const ForInfo& for_info) {
+    return PreParserBlock::Null();
   }
 
   V8_INLINE void DesugarBindingInForEachStatement(
@@ -1468,13 +1490,13 @@ class PreParser : public ParserBase<PreParser> {
         collect_names ? &for_info->bound_names : nullptr);
   }
 
-  V8_INLINE PreParserStatement CreateForEachStatementTDZ(
-      PreParserStatement init_block, const ForInfo& for_info) {
+  V8_INLINE PreParserBlock CreateForEachStatementTDZ(PreParserBlock init_block,
+                                                     const ForInfo& for_info) {
     if (IsLexicalVariableMode(for_info.parsing_result.descriptor.mode)) {
       for (auto name : for_info.bound_names) {
         scope()->DeclareVariableName(name, VariableMode::kLet);
       }
-      return PreParserStatement::Default();
+      return PreParserBlock::Default();
     }
     return init_block;
   }
@@ -1491,12 +1513,12 @@ class PreParser : public ParserBase<PreParser> {
     return loop;
   }
 
-  PreParserStatement BuildParameterInitializationBlock(
+  PreParserBlock BuildParameterInitializationBlock(
       const PreParserFormalParameters& parameters);
 
-  V8_INLINE PreParserStatement
+  V8_INLINE PreParserBlock
   BuildRejectPromiseOnException(PreParserStatement init_block) {
-    return PreParserStatement::Default();
+    return PreParserBlock::Default();
   }
 
   V8_INLINE void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
@@ -1562,6 +1584,7 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static PreParserStatement NullStatement() {
     return PreParserStatement::Null();
   }
+  V8_INLINE static PreParserBlock NullBlock() { return PreParserBlock::Null(); }
 
   template <typename T>
   V8_INLINE static bool IsNull(T subject) {
@@ -1630,6 +1653,11 @@ class PreParser : public ParserBase<PreParser> {
   PreParserExpression ExpressionFromIdentifier(
       const PreParserIdentifier& name, int start_position,
       InferName infer = InferName::kYes);
+
+  V8_INLINE Variable* DeclareCatchVariableName(
+      Scope* scope, const PreParserIdentifier& identifier) {
+    return scope->DeclareCatchVariableName(identifier.string_);
+  }
 
   V8_INLINE PreParserPropertyList NewClassPropertyList(int size) const {
     return PreParserPropertyList();

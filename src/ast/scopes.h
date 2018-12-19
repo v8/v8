@@ -258,7 +258,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // The return value is meaningful only if FLAG_preparser_scope_analysis is on.
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode);
-  void DeclareCatchVariableName(const AstRawString* name);
+  Variable* DeclareCatchVariableName(const AstRawString* name);
 
   // Declarations list.
   base::ThreadedList<Declaration>* declarations() { return &decls_; }
@@ -312,13 +312,14 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // scope over a let binding of the same name.
   Declaration* CheckConflictingVarDeclarations();
 
-  // Check if the scope has a conflicting lexical declaration that has a name in
-  // the given list. This is used to catch patterns like
-  // `try{}catch(e){let e;}`,
-  // which is an error even though the two 'e's are declared in different
-  // scopes.
-  Declaration* CheckLexDeclarationsConflictingWith(
-      const ZonePtrList<const AstRawString>& names);
+  // Find lexical variable that has a name that was declared in |scope|. This is
+  // used to catch patterns like `try{}catch(e){let e;}`, which is an error even
+  // though the two 'e's are declared in different scopes. Returns the first
+  // duplicate variable name if there is one, nullptr otherwise.
+  const AstRawString* FindLexVariableDeclaredIn(Scope* scope);
+
+  // Find the declaration that introduced |name|.
+  Declaration* DeclarationFor(const AstRawString* name);
 
   // ---------------------------------------------------------------------------
   // Scope-specific info.
