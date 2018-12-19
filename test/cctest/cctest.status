@@ -507,6 +507,9 @@
   'test-accessor-assembler/*': [SKIP],
   'test-torque/*': [SKIP],
   'test-code-generator/*': [SKIP],
+
+  # Slow tests
+  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 }],
 
 ]
