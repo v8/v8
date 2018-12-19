@@ -200,6 +200,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   V8_INLINE void RecordMaybeWeakWrite(HeapObject* obj, MaybeObjectSlot slot,
                                       MaybeObject value);
   void RevisitObject(HeapObject* obj);
+  // Ensures that all descriptors int range [0, number_of_own_descripts)
+  // are visited.
+  void VisitDescriptors(DescriptorArray array, int number_of_own_descriptors);
 
   void RecordWriteSlow(HeapObject* obj, HeapObjectSlot slot, Object* value);
   void RecordWriteIntoCode(Code host, RelocInfo* rinfo, HeapObject* value);

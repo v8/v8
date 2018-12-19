@@ -800,6 +800,13 @@ void IncrementalMarking::RevisitObject(HeapObject* obj) {
   visitor.Visit(map, obj);
 }
 
+void IncrementalMarking::VisitDescriptors(DescriptorArray descriptor_array,
+                                          int number_of_own_descriptors) {
+  IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
+                                           marking_state());
+  visitor.VisitDescriptors(descriptor_array, number_of_own_descriptors);
+}
+
 template <WorklistToProcess worklist_to_process>
 intptr_t IncrementalMarking::ProcessMarkingWorklist(
     intptr_t bytes_to_process, ForceCompletionAction completion) {

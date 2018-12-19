@@ -566,6 +566,10 @@ void Serializer::ObjectSerializer::Serialize() {
       SeqOneByteString::cast(object_)->clear_padding();
     } else if (object_->IsSeqTwoByteString()) {
       SeqTwoByteString::cast(object_)->clear_padding();
+    } else if (object_->IsDescriptorArray()) {
+      // Reset the marking state of the descriptor array.
+      DescriptorArray descriptor_array = DescriptorArray::cast(object_);
+      descriptor_array->set_raw_number_of_marked_descriptors(0);
     }
   }
   if (object_->IsJSTypedArray()) {

@@ -63,7 +63,8 @@ void MarkingBarrier(HeapObjectPtr* object, MaybeObjectSlot slot,
                     MaybeObject value);
 void MarkingBarrierForElements(Heap* heap, HeapObject* object);
 void MarkingBarrierForCode(Code host, RelocInfo* rinfo, HeapObject* object);
-
+void MarkingBarrierForDescriptorArray(Heap* heap, HeapObject* descriptor_array,
+                                      int number_of_own_descriptors);
 }  // namespace internal
 }  // namespace v8
 

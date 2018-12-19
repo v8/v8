@@ -34,8 +34,8 @@ RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
                         kNumberOfAllDescriptorsOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_descriptors,
                         kNumberOfDescriptorsOffset)
-RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_marked_descriptors,
-                        kNumberOfMarkedDescriptorsOffset)
+RELAXED_INT16_ACCESSORS(DescriptorArray, raw_number_of_marked_descriptors,
+                        kRawNumberOfMarkedDescriptorsOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, filler16bits, kFiller16BitsOffset)
 
 inline int16_t DescriptorArray::number_of_slack_descriptors() const {
@@ -44,6 +44,14 @@ inline int16_t DescriptorArray::number_of_slack_descriptors() const {
 
 inline int DescriptorArray::number_of_entries() const {
   return number_of_descriptors();
+}
+
+inline int16_t DescriptorArray::CompareAndSwapRawNumberOfMarkedDescriptors(
+    int16_t expected, int16_t value) {
+  return base::Relaxed_CompareAndSwap(
+      reinterpret_cast<base::Atomic16*>(
+          FIELD_ADDR(this, kRawNumberOfMarkedDescriptorsOffset)),
+      expected, value);
 }
 
 void DescriptorArray::CopyEnumCacheFrom(DescriptorArray array) {

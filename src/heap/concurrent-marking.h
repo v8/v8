@@ -106,6 +106,7 @@ class ConcurrentMarking {
     std::atomic<bool> preemption_request;
     MemoryChunkDataMap memory_chunk_data;
     size_t marked_bytes = 0;
+    unsigned mark_compact_epoch;
     char cache_line_padding[64];
   };
   class Task;

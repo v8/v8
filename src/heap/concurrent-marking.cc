@@ -81,7 +81,7 @@ class ConcurrentMarkingVisitor final
       ConcurrentMarking::MarkingWorklist* bailout,
       MemoryChunkDataMap* memory_chunk_data, WeakObjects* weak_objects,
       ConcurrentMarking::EmbedderTracingWorklist* embedder_objects, int task_id,
-      bool embedder_tracing_enabled)
+      bool embedder_tracing_enabled, unsigned mark_compact_epoch)
       : shared_(shared, task_id),
         bailout_(bailout, task_id),
         weak_objects_(weak_objects),
@@ -89,7 +89,8 @@ class ConcurrentMarkingVisitor final
         marking_state_(memory_chunk_data),
         memory_chunk_data_(memory_chunk_data),
         task_id_(task_id),
-        embedder_tracing_enabled_(embedder_tracing_enabled) {}
+        embedder_tracing_enabled_(embedder_tracing_enabled),
+        mark_compact_epoch_(mark_compact_epoch) {}
 
   template <typename T, typename = typename std::enable_if<
                             std::is_base_of<Object, T>::value>::type>
@@ -380,6 +381,29 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
+  void VisitDescriptors(DescriptorArray descriptor_array,
+                        int number_of_own_descriptors) {
+    int16_t new_marked = static_cast<int16_t>(number_of_own_descriptors);
+    int16_t old_marked = descriptor_array->UpdateNumberOfMarkedDescriptors(
+        mark_compact_epoch_, new_marked);
+    if (old_marked < new_marked) {
+      VisitPointers(
+          descriptor_array,
+          MaybeObjectSlot(descriptor_array->GetDescriptorSlot(old_marked)),
+          MaybeObjectSlot(descriptor_array->GetDescriptorSlot(new_marked)));
+    }
+  }
+
+  int VisitDescriptorArray(Map map, DescriptorArray array) {
+    if (!ShouldVisit(array)) return 0;
+    VisitMapPointer(array, array->map_slot());
+    int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
+    VisitPointers(array, array->GetFirstPointerSlot(),
+                  array->GetDescriptorSlot(0));
+    VisitDescriptors(array, array->number_of_descriptors());
+    return size;
+  }
+
   int VisitTransitionArray(Map map, TransitionArray array) {
     if (!ShouldVisit(array)) return 0;
     VisitMapPointer(array, array->map_slot());
@@ -593,6 +617,7 @@ class ConcurrentMarkingVisitor final
   int task_id_;
   SlotSnapshot slot_snapshot_;
   bool embedder_tracing_enabled_;
+  const unsigned mark_compact_epoch_;
 };
 
 // Strings can change maps due to conversion to thin string or external strings.
@@ -675,7 +700,8 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   int kObjectsUntilInterrupCheck = 1000;
   ConcurrentMarkingVisitor visitor(
       shared_, bailout_, &task_state->memory_chunk_data, weak_objects_,
-      embedder_objects_, task_id, heap_->local_embedder_heap_tracer()->InUse());
+      embedder_objects_, task_id, heap_->local_embedder_heap_tracer()->InUse(),
+      task_state->mark_compact_epoch);
   double time_ms;
   size_t marked_bytes = 0;
   if (FLAG_trace_concurrent_marking) {
@@ -804,6 +830,8 @@ void ConcurrentMarking::ScheduleTasks() {
             "Scheduling concurrent marking task %d\n", i);
       }
       task_state_[i].preemption_request = false;
+      task_state_[i].mark_compact_epoch =
+          heap_->mark_compact_collector()->epoch();
       is_pending_[i] = true;
       ++pending_task_count_;
       auto task =

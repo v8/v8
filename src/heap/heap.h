@@ -355,6 +355,8 @@ class Heap {
   V8_EXPORT_PRIVATE static void MarkingBarrierForCodeSlow(Code host,
                                                           RelocInfo* rinfo,
                                                           HeapObject* value);
+  V8_EXPORT_PRIVATE static void MarkingBarrierForDescriptorArraySlow(
+      Heap* heap, HeapObject* descriptor_array, int number_of_own_descriptors);
   V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject* object);
 
   // Notifies the heap that is ok to start marking or other activities that

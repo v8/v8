@@ -46,7 +46,8 @@ MarkingVisitor<fixed_array_mode, retaining_path_mode,
                                              MarkingState* marking_state)
     : heap_(collector->heap()),
       collector_(collector),
-      marking_state_(marking_state) {}
+      marking_state_(marking_state),
+      mark_compact_epoch_(collector->epoch()) {}
 
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
@@ -56,6 +57,18 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, array);
   BytecodeArray::BodyDescriptor::IterateBody(map, array, size, this);
   array->MakeOlder();
+  return size;
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+int MarkingVisitor<fixed_array_mode, retaining_path_mode,
+                   MarkingState>::VisitDescriptorArray(Map map,
+                                                       DescriptorArray array) {
+  int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
+  VisitPointers(array, array->GetFirstPointerSlot(),
+                array->GetDescriptorSlot(0));
+  VisitDescriptors(array, array->number_of_descriptors());
   return size;
 }
 
@@ -177,6 +190,8 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
   // and back pointers in a special way to make these links weak.
   int size = Map::BodyDescriptor::SizeOf(map, object);
   if (object->CanTransition()) {
+    // Maps that can transition share their descriptor arrays and require
+    // special visiting logic to avoid memory leaks.
     MarkMapContents(object);
   } else {
     Map::BodyDescriptor::IterateBody(map, object, size, this);
@@ -395,21 +410,15 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   // descriptors that belong to this map are marked. The first time a non-empty
   // descriptor array is marked, its header is also visited. The slot holding
   // the descriptor array will be implicitly recorded when the pointer fields of
-  // this map are visited.  Prototype maps don't keep track of transitions, so
-  // just mark the entire descriptor array.
-  if (!map->is_prototype_map()) {
-    DescriptorArray descriptors = map->instance_descriptors();
-    if (MarkObjectWithoutPush(map, descriptors)) {
-      VisitPointers(descriptors, descriptors->GetFirstPointerSlot(),
-                    descriptors->GetDescriptorSlot(0));
-    }
-    int start = 0;
-    int end = map->NumberOfOwnDescriptors();
-    if (start < end) {
-      VisitPointers(descriptors,
-                    MaybeObjectSlot(descriptors->GetDescriptorSlot(start)),
-                    MaybeObjectSlot(descriptors->GetDescriptorSlot(end)));
-    }
+  // this map are visited.
+  DescriptorArray descriptors = map->instance_descriptors();
+  if (MarkObjectWithoutPush(map, descriptors)) {
+    VisitPointers(descriptors, descriptors->GetFirstPointerSlot(),
+                  descriptors->GetDescriptorSlot(0));
+  }
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  if (number_of_own_descriptors) {
+    VisitDescriptors(descriptors, number_of_own_descriptors);
   }
 
   // Mark the pointer fields of the Map. Since the transitions array has
@@ -417,6 +426,22 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   // pointer to it.
   Map::BodyDescriptor::IterateBody(
       map->map(), map, Map::BodyDescriptor::SizeOf(map->map(), map), this);
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+void MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
+    VisitDescriptors(DescriptorArray descriptor_array,
+                     int number_of_own_descriptors) {
+  int16_t new_marked = static_cast<int16_t>(number_of_own_descriptors);
+  int16_t old_marked = descriptor_array->UpdateNumberOfMarkedDescriptors(
+      mark_compact_epoch_, new_marked);
+  if (old_marked < new_marked) {
+    VisitPointers(
+        descriptor_array,
+        MaybeObjectSlot(descriptor_array->GetDescriptorSlot(old_marked)),
+        MaybeObjectSlot(descriptor_array->GetDescriptorSlot(new_marked)));
+  }
 }
 
 void MarkCompactCollector::MarkObject(HeapObject* host, HeapObject* obj) {

@@ -728,6 +728,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void VerifyMarkbitsAreClean(LargeObjectSpace* space);
 #endif
 
+  unsigned epoch() const { return epoch_; }
+
  private:
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
@@ -923,6 +925,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
+  // Counts the number of mark-compact collections. This is used for marking
+  // descriptor arrays. See NumberOfMarkedDescriptors. Only lower two bits are
+  // used, so it is okay if this counter overflows and wraps around.
+  unsigned epoch_ = 0;
+
   friend class EphemeronHashTableMarkingTask;
   friend class FullEvacuator;
   friend class Heap;
@@ -946,6 +953,7 @@ class MarkingVisitor final
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
+  V8_INLINE int VisitDescriptorArray(Map map, DescriptorArray object);
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
   V8_INLINE int VisitFixedArray(Map map, FixedArray object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
@@ -981,6 +989,9 @@ class MarkingVisitor final
   void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
                                ObjectSlot end) final {}
 
+  V8_INLINE void VisitDescriptors(DescriptorArray descriptor_array,
+                                  int number_of_own_descriptors);
+
  private:
   // Granularity in which FixedArrays are scanned if |fixed_array_mode|
   // is true.
@@ -1015,6 +1026,7 @@ class MarkingVisitor final
   Heap* const heap_;
   MarkCompactCollector* const collector_;
   MarkingState* const marking_state_;
+  const unsigned mark_compact_epoch_;
 };
 
 class EvacuationScope {

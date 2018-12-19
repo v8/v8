@@ -8,6 +8,7 @@
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/struct.h"
+#include "src/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -40,7 +41,7 @@ class EnumCache : public Tuple2 {
 //   Header:
 //     [16:0  bits]: number_of_all_descriptors (including slack)
 //     [32:16 bits]: number_of_descriptors
-//     [48:32 bits]: number_of_marked_descriptors (used by GC)
+//     [48:32 bits]: raw_number_of_marked_descriptors (used by GC)
 //     [64:48 bits]: alignment filler
 //     [kEnumCacheOffset]: enum cache
 //   Elements:
@@ -135,13 +136,13 @@ class DescriptorArray : public HeapObjectPtr {
   static const int kNotFound = -1;
 
   // Layout description.
-#define DESCRIPTOR_ARRAY_FIELDS(V)                 \
-  V(kNumberOfAllDescriptorsOffset, kUInt16Size)    \
-  V(kNumberOfDescriptorsOffset, kUInt16Size)       \
-  V(kNumberOfMarkedDescriptorsOffset, kUInt16Size) \
-  V(kFiller16BitsOffset, kUInt16Size)              \
-  V(kPointersStartOffset, 0)                       \
-  V(kEnumCacheOffset, kTaggedSize)                 \
+#define DESCRIPTOR_ARRAY_FIELDS(V)                    \
+  V(kNumberOfAllDescriptorsOffset, kUInt16Size)       \
+  V(kNumberOfDescriptorsOffset, kUInt16Size)          \
+  V(kRawNumberOfMarkedDescriptorsOffset, kUInt16Size) \
+  V(kFiller16BitsOffset, kUInt16Size)                 \
+  V(kPointersStartOffset, 0)                          \
+  V(kEnumCacheOffset, kTaggedSize)                    \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -152,7 +153,13 @@ class DescriptorArray : public HeapObjectPtr {
   STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
 
   // Garbage collection support.
-  DECL_INT16_ACCESSORS(number_of_marked_descriptors)
+  DECL_INT16_ACCESSORS(raw_number_of_marked_descriptors)
+  // Atomic compare-and-swap operation on the raw_number_of_marked_descriptors.
+  int16_t CompareAndSwapRawNumberOfMarkedDescriptors(int16_t expected,
+                                                     int16_t value);
+  int16_t UpdateNumberOfMarkedDescriptors(unsigned mark_compact_epoch,
+                                          int16_t number_of_marked_descriptors);
+
   static constexpr int SizeFor(int number_of_all_descriptors) {
     return offset(number_of_all_descriptors * kEntrySize);
   }
@@ -220,6 +227,43 @@ class DescriptorArray : public HeapObjectPtr {
   inline void SwapSortedKeys(int first, int second);
 
   OBJECT_CONSTRUCTORS(DescriptorArray, HeapObjectPtr);
+};
+
+class NumberOfMarkedDescriptors {
+ public:
+// Bit positions for |bit_field|.
+#define BIT_FIELD_FIELDS(V, _) \
+  V(Epoch, unsigned, 2, _)     \
+  V(Marked, int16_t, 14, _)
+  DEFINE_BIT_FIELDS(BIT_FIELD_FIELDS)
+#undef BIT_FIELD_FIELDS
+  static const int kMaxNumberOfMarkedDescriptors = Marked::kMax;
+  // Decodes the raw value of the number of marked descriptors for the
+  // given mark compact garbage collection epoch.
+  static inline int16_t decode(unsigned mark_compact_epoch, int16_t raw_value) {
+    unsigned epoch_from_value = Epoch::decode(static_cast<uint16_t>(raw_value));
+    int16_t marked_from_value =
+        Marked::decode(static_cast<uint16_t>(raw_value));
+    unsigned actual_epoch = mark_compact_epoch & Epoch::kMask;
+    if (actual_epoch == epoch_from_value) return marked_from_value;
+    // If the epochs do not match, then either the raw_value is zero (freshly
+    // allocated descriptor array) or the epoch from value lags by 1.
+    DCHECK_IMPLIES(raw_value != 0,
+                   Epoch::decode(epoch_from_value + 1) == actual_epoch);
+    // Not matching epochs means that the no descriptors were marked in the
+    // current epoch.
+    return 0;
+  }
+
+  // Encodes the number of marked descriptors for the given mark compact
+  // garbage collection epoch.
+  static inline int16_t encode(unsigned mark_compact_epoch, int16_t value) {
+    // TODO(ulan): avoid casting to int16_t by adding support for uint16_t
+    // atomics.
+    return static_cast<int16_t>(
+        Epoch::encode(mark_compact_epoch & Epoch::kMask) |
+        Marked::encode(value));
+  }
 };
 
 }  // namespace internal

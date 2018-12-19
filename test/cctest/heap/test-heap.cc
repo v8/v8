@@ -6186,6 +6186,24 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   CHECK(object->map()->IsMap());
 }
 
+HEAP_TEST(MarkCompactEpochCounter) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  unsigned epoch0 = heap->mark_compact_collector()->epoch();
+  CcTest::CollectGarbage(OLD_SPACE);
+  unsigned epoch1 = heap->mark_compact_collector()->epoch();
+  CHECK_EQ(epoch0 + 1, epoch1);
+  heap::SimulateIncrementalMarking(heap, true);
+  CcTest::CollectGarbage(OLD_SPACE);
+  unsigned epoch2 = heap->mark_compact_collector()->epoch();
+  CHECK_EQ(epoch1 + 1, epoch2);
+  CcTest::CollectGarbage(NEW_SPACE);
+  unsigned epoch3 = heap->mark_compact_collector()->epoch();
+  CHECK_EQ(epoch2, epoch3);
+}
+
 UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
   // Enable rehashing and create an isolate and context.
   i::FLAG_rehash_snapshot = true;

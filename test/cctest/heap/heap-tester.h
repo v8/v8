@@ -30,6 +30,7 @@
   V(TestNewSpaceRefsInCopiedCode)                         \
   V(GCFlags)                                              \
   V(MarkCompactCollector)                                 \
+  V(MarkCompactEpochCounter)                              \
   V(NoPromotion)                                          \
   V(NumberStringCacheSize)                                \
   V(ObjectGroups)                                         \

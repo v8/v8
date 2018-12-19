@@ -5664,6 +5664,21 @@ void Heap::MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
   heap->incremental_marking()->RecordWriteIntoCode(host, rinfo, object);
 }
 
+void Heap::MarkingBarrierForDescriptorArraySlow(
+    Heap* heap, HeapObject* raw_descriptor_array,
+    int number_of_own_descriptors) {
+  DCHECK(heap->incremental_marking()->IsMarking());
+  DescriptorArray descriptor_array =
+      DescriptorArray::cast(raw_descriptor_array);
+  int16_t raw_marked = descriptor_array->raw_number_of_marked_descriptors();
+  if (NumberOfMarkedDescriptors::decode(heap->mark_compact_collector()->epoch(),
+                                        raw_marked) <
+      number_of_own_descriptors) {
+    heap->incremental_marking()->VisitDescriptors(descriptor_array,
+                                                  number_of_own_descriptors);
+  }
+}
+
 bool Heap::PageFlagsAreConsistent(HeapObject* object) {
   Heap* heap = Heap::FromWritableHeapObject(object);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);

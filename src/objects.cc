@@ -10783,7 +10783,7 @@ void DescriptorArray::Initialize(EnumCache enum_cache,
   DCHECK_LE(nof_descriptors + slack, kMaxNumberOfDescriptors);
   set_number_of_all_descriptors(nof_descriptors + slack);
   set_number_of_descriptors(nof_descriptors);
-  set_number_of_marked_descriptors(0);
+  set_raw_number_of_marked_descriptors(0);
   set_filler16bits(0);
   set_enum_cache(enum_cache);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
@@ -10870,6 +10870,28 @@ void DescriptorArray::Sort() {
     }
   }
   DCHECK(IsSortedNoDuplicates());
+}
+
+int16_t DescriptorArray::UpdateNumberOfMarkedDescriptors(
+    unsigned mark_compact_epoch, int16_t new_marked) {
+  STATIC_ASSERT(kMaxNumberOfDescriptors <=
+                NumberOfMarkedDescriptors::kMaxNumberOfMarkedDescriptors);
+  int16_t old_raw_marked = raw_number_of_marked_descriptors();
+  int16_t old_marked =
+      NumberOfMarkedDescriptors::decode(mark_compact_epoch, old_raw_marked);
+  int16_t new_raw_marked =
+      NumberOfMarkedDescriptors::encode(mark_compact_epoch, new_marked);
+  while (old_marked < new_marked) {
+    int16_t actual_raw_marked = CompareAndSwapRawNumberOfMarkedDescriptors(
+        old_raw_marked, new_raw_marked);
+    if (actual_raw_marked == old_raw_marked) {
+      break;
+    }
+    old_raw_marked = actual_raw_marked;
+    old_marked =
+        NumberOfMarkedDescriptors::decode(mark_compact_epoch, old_raw_marked);
+  }
+  return old_marked;
 }
 
 Handle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
@@ -12792,7 +12814,8 @@ void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
                                  int number_of_own_descriptors) {
   set_raw_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
-  // TODO(ulan): Add marking write barrier.
+  MarkingBarrierForDescriptorArray(isolate->heap(), descriptors,
+                                   number_of_own_descriptors);
 }
 
 static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {

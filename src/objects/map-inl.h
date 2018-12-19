@@ -641,9 +641,14 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
   DescriptorArray descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
-  descriptors->Append(desc);
-  SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
-
+  {
+    // The following two operations need to happen before the marking write
+    // barrier.
+    descriptors->Append(desc);
+    SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
+    MarkingBarrierForDescriptorArray(isolate->heap(), descriptors,
+                                     number_of_own_descriptors + 1);
+  }
   // Properly mark the map if the {desc} is an "interesting symbol".
   if (desc->GetKey()->IsInterestingSymbol()) {
     set_may_have_interesting_symbols(true);
