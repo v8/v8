@@ -929,8 +929,8 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
         std::static_pointer_cast<icu::UObject>(
             collator->icu_collator()->get()));
   }
-  return Intl::CompareStrings(isolate, *(collator->icu_collator()->raw()),
-                              string1, string2);
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  return Intl::CompareStrings(isolate, *icu_collator, string1, string2);
 }
 
 // ecma402/#sec-collator-comparestrings
@@ -999,8 +999,9 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   }
 
   // Return FormatNumber(numberFormat, x).
-  return JSNumberFormat::FormatNumber(
-      isolate, *(number_format->icu_number_format()->raw()), number);
+  icu::NumberFormat* icu_number_format =
+      number_format->icu_number_format()->raw();
+  return JSNumberFormat::FormatNumber(isolate, *icu_number_format, number);
 }
 
 namespace {

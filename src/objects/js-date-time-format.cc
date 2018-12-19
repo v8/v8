@@ -284,9 +284,10 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
   CHECK(!date_time_format->icu_locale().is_null());
   CHECK_NOT_NULL(date_time_format->icu_locale()->raw());
-  icu::Locale icu_locale = *(date_time_format->icu_locale()->raw());
-  Handle<String> locale = factory->NewStringFromAsciiChecked(
-      Intl::ToLanguageTag(icu_locale).c_str());
+  icu::Locale* icu_locale = date_time_format->icu_locale()->raw();
+  std::string locale_str = Intl::ToLanguageTag(*icu_locale);
+  Handle<String> locale =
+      factory->NewStringFromAsciiChecked(locale_str.c_str());
 
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format()->raw();
@@ -338,8 +339,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   // to assume that for given locale NumberingSystem constructor produces the
   // same digits as NumberFormat/Calendar would.
   // Tracked by https://unicode-org.atlassian.net/browse/ICU-13431
-  std::string numbering_system =
-      Intl::GetNumberingSystem(*(date_time_format->icu_locale()->raw()));
+  std::string numbering_system = Intl::GetNumberingSystem(*icu_locale);
 
   icu::UnicodeString pattern_unicode;
   icu_simple_date_format->toPattern(pattern_unicode);
@@ -475,8 +475,9 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
     x = date->Number();
   }
   // 5. Return FormatDateTime(dtf, x).
-  return FormatDateTime(
-      isolate, *(date_time_format->icu_simple_date_format()->raw()), x);
+  icu::SimpleDateFormat* format =
+      date_time_format->icu_simple_date_format()->raw();
+  return FormatDateTime(isolate, *format, x);
 }
 
 namespace {
@@ -557,8 +558,9 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
                         date_time_format->icu_simple_date_format()->get()));
   }
   // 5. Return FormatDateTime(dateFormat, x).
-  return FormatDateTime(
-      isolate, *(date_time_format->icu_simple_date_format()->raw()), x);
+  icu::SimpleDateFormat* format =
+      date_time_format->icu_simple_date_format()->raw();
+  return FormatDateTime(isolate, *format, x);
 }
 
 namespace {
