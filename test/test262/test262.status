@@ -479,6 +479,9 @@
   'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-out-of-bounds': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5329
+  'built-ins/RegExp/prototype/source/value-line-terminator': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=5112
   'annexB/language/eval-code/direct/func-block-decl-eval-func-no-skip-try': [FAIL],
   'annexB/language/eval-code/direct/func-if-decl-else-decl-a-eval-func-no-skip-try': [FAIL],
