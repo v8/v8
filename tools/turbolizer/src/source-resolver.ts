@@ -372,6 +372,14 @@ export class SourceResolver {
     return this.instructionToPCOffset.slice(start, end);
   }
 
+  instructionsToKeyPcOffsets(instructionIds) {
+    const keyPcOffsets = [];
+    for (const instructionId of instructionIds) {
+      keyPcOffsets.push(this.instructionToPCOffset[instructionId]);
+    }
+    return keyPcOffsets;
+  }
+
   nodesToKeyPcOffsets(nodes) {
     let offsets = [];
     for (const node of nodes) {

@@ -6,6 +6,8 @@ import { PROF_COLS, UNICODE_BLOCK } from "../src/constants"
 import { SelectionBroker } from "../src/selection-broker"
 import { TextView } from "../src/text-view"
 import { SourceResolver } from "./source-resolver";
+import { MySelection } from "./selection";
+import { anyToString } from "./util";
 
 export class DisassemblyView extends TextView {
   SOURCE_POSITION_HEADER_REGEX: any;
@@ -13,6 +15,8 @@ export class DisassemblyView extends TextView {
   total_event_counts: any;
   max_event_counts: any;
   pos_lines: Array<any>;
+  instructionSelectionHandler: InstructionSelectionHandler;
+  offsetSelection: MySelection;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -144,6 +148,32 @@ export class DisassemblyView extends TextView {
       };
     }
     view.divNode.addEventListener('click', linkHandlerBlock);
+
+    this.offsetSelection = new MySelection(anyToString);
+    const instructionSelectionHandler = {
+      clear: function () {
+        view.offsetSelection.clear();
+        view.updateSelection();
+        broker.broadcastClear(instructionSelectionHandler);
+      },
+      select: function (instructionIds, selected) {
+        view.offsetSelection.select(instructionIds, selected);
+        view.updateSelection();
+        broker.broadcastBlockSelect(instructionSelectionHandler, instructionIds, selected);
+      },
+      brokeredInstructionSelect: function (instructionIds, selected) {
+        const firstSelect = view.offsetSelection.isEmpty();
+        const keyPcOffsets = view.sourceResolver.instructionsToKeyPcOffsets(instructionIds);
+        view.offsetSelection.select(keyPcOffsets, selected);
+        view.updateSelection(firstSelect);
+      },
+      brokeredClear: function () {
+        view.offsetSelection.clear();
+        view.updateSelection();
+      }
+    };
+    this.instructionSelectionHandler = instructionSelectionHandler;
+    broker.addInstructionHandler(instructionSelectionHandler);
   }
 
   initializeCode(sourceText, sourcePosition) {

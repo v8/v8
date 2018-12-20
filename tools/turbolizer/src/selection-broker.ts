@@ -6,27 +6,45 @@ import {SourceResolver, sourcePositionValid} from "../src/source-resolver"
 
 export class SelectionBroker {
   sourceResolver: SourceResolver;
+  allHandlers: Array<ClearableHandler>;
   sourcePositionHandlers: Array<SelectionHandler>;
   nodeHandlers: Array<NodeSelectionHandler>;
   blockHandlers: Array<BlockSelectionHandler>;
+  instructionHandlers: Array<InstructionSelectionHandler>;
 
   constructor(sourceResolver) {
+    this.allHandlers = [];
     this.sourcePositionHandlers = [];
     this.nodeHandlers = [];
     this.blockHandlers = [];
+    this.instructionHandlers = [];
     this.sourceResolver = sourceResolver;
   };
 
-  addSourcePositionHandler(handler) {
+  addSourcePositionHandler(handler: SelectionHandler&ClearableHandler) {
+    this.allHandlers.push(handler);
     this.sourcePositionHandlers.push(handler);
   }
 
-  addNodeHandler(handler) {
+  addNodeHandler(handler: NodeSelectionHandler&ClearableHandler) {
+    this.allHandlers.push(handler);
     this.nodeHandlers.push(handler);
   }
 
-  addBlockHandler(handler) {
+  addBlockHandler(handler: BlockSelectionHandler&ClearableHandler) {
+    this.allHandlers.push(handler);
     this.blockHandlers.push(handler);
+  }
+
+  addInstructionHandler(handler: InstructionSelectionHandler&ClearableHandler) {
+    this.allHandlers.push(handler);
+    this.instructionHandlers.push(handler);
+  }
+
+  broadcastInstructionSelect(from, instructionOffsets, selected) {
+    for (const b of this.instructionHandlers) {
+      if (b != from) b.brokeredInstructionSelect(instructionOffsets, selected);
+    }
   }
 
   broadcastSourcePositionSelect(from, sourcePositions, selected) {
@@ -66,13 +84,7 @@ export class SelectionBroker {
   }
 
   broadcastClear(from) {
-    this.sourcePositionHandlers.forEach(function (b) {
-      if (b != from) b.brokeredClear();
-    });
-    this.nodeHandlers.forEach(function (b) {
-      if (b != from) b.brokeredClear();
-    });
-    this.blockHandlers.forEach(function (b) {
+    this.allHandlers.forEach(function (b) {
       if (b != from) b.brokeredClear();
     });
   }

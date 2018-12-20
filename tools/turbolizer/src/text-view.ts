@@ -6,6 +6,7 @@ import { View } from "../src/view"
 import { anyToString, ViewElements, isIterable } from "../src/util"
 import { MySelection } from "../src/selection"
 import { SourceResolver } from "./source-resolver";
+import { SelectionBroker } from "./selection-broker";
 
 export abstract class TextView extends View {
   selectionHandler: NodeSelectionHandler;
@@ -20,6 +21,7 @@ export abstract class TextView extends View {
   nodeIdToBlockId: Array<string>;
   patterns: any;
   sourceResolver: SourceResolver;
+  broker: SelectionBroker;
 
   constructor(id, broker, patterns) {
     super(id);
@@ -32,6 +34,7 @@ export abstract class TextView extends View {
     view.nodeIdToBlockId = [];
     view.selection = new MySelection(anyToString);
     view.blockSelection = new MySelection(anyToString);
+    view.broker = broker;
     view.sourceResolver = broker.sourceResolver;
     const selectionHandler = {
       clear: function () {
@@ -136,7 +139,12 @@ export abstract class TextView extends View {
     for (const el of elementsToSelect) {
       el.classList.toggle("selected", false);
     }
-    const keyPcOffsets = view.sourceResolver.nodesToKeyPcOffsets(view.selection.selectedKeys());
+    let keyPcOffsets = view.sourceResolver.nodesToKeyPcOffsets(view.selection.selectedKeys());
+    if (view.offsetSelection) {
+      for (const key of view.offsetSelection.selectedKeys()) {
+        keyPcOffsets.push(Number(key))
+      }
+    }
     for (const keyPcOffset of keyPcOffsets) {
       const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset='${keyPcOffset}']`)
       for (const el of elementsToSelect) {

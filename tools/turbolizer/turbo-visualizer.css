@@ -289,11 +289,11 @@ input:hover, .collapse-pane:hover input {
     cursor: pointer;
 }
 
-span.linkable-text {
+.linkable-text {
     text-decoration: underline;
 }
 
-span.linkable-text:hover {
+.linkable-text:hover {
     cursor: pointer;
     font-weight: bold;
 }

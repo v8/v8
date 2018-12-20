@@ -6,6 +6,7 @@ import {Sequence} from "../src/source-resolver"
 import {isIterable} from "../src/util"
 import {PhaseView} from "../src/view"
 import {TextView} from "../src/text-view"
+import { MySelection } from "./selection";
 
 export class SequenceView extends TextView implements PhaseView {
   sequence: Sequence;
@@ -40,6 +41,13 @@ export class SequenceView extends TextView implements PhaseView {
     this.divNode.innerHTML = '';
     this.sequence = data.sequence;
     this.search_info = [];
+    this.divNode.addEventListener('click', (e:MouseEvent) => {
+      if (!(e.target instanceof HTMLElement)) return;
+      const instructionId = e.target.dataset.instructionId;
+      if (!instructionId) return;
+      if (!e.shiftKey) this.broker.broadcastClear(null);
+      this.broker.broadcastInstructionSelect(null, [instructionId], true);
+    });
     this.addBlocks(this.sequence.blocks);
     this.attachSelection(rememberedSelection);
   }
@@ -91,6 +99,8 @@ export class SequenceView extends TextView implements PhaseView {
       const instNodeEl = createElement("div", "instruction-node");
 
       const inst_id = createElement("div", "instruction-id", instruction.id);
+      inst_id.classList.add("clickable");
+      inst_id.dataset.instructionId = instruction.id;
       instNodeEl.appendChild(inst_id);
 
       const instContentsEl = createElement("div", "instruction-contents");
