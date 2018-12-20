@@ -1866,8 +1866,6 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     for (int i = 0; i < expr->properties()->length(); i++) {
       ClassLiteral::Property* property = expr->properties()->at(i);
       if (property->is_computed_name()) {
-        DCHECK_IMPLIES(property->kind() == ClassLiteral::Property::FIELD,
-                       !property->is_private());
         Register key = register_allocator()->GrowRegisterList(&args);
 
         builder()->SetExpressionAsStatementPosition(property->key());
@@ -1889,8 +1887,8 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
               .Bind(&done);
         }
 
-        if (property->kind() == ClassLiteral::Property::FIELD &&
-            !property->is_private()) {
+        if (property->kind() == ClassLiteral::Property::FIELD) {
+          DCHECK(!property->is_private());
           // Initialize field's name variable with the computed name.
           DCHECK_NOT_NULL(property->computed_name_var());
           builder()->LoadAccumulatorWithRegister(key);
