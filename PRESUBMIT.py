@@ -465,8 +465,9 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   # matches an argument list that contains only a reference to a class named
   # like the first capture group, potentially const.
   single_class_ref_arg = r'\((?:const\s+)?\1(?:::\1)?&&?[^,;)]*\)'
-  # matches anything but a sequence of whitespaces followed by V8_NOEXCEPT.
-  not_followed_by_noexcept = r'(?!\s+V8_NOEXCEPT\b)'
+  # matches anything but a sequence of whitespaces followed by either
+  # V8_NOEXCEPT or "= delete".
+  not_followed_by_noexcept = r'(?!\s+(?:V8_NOEXCEPT|=\s+delete)\b)'
   full_pattern = r'^.*?' + class_name + potential_assignment + \
       single_class_ref_arg + not_followed_by_noexcept + '.*?$'
   regexp = input_api.re.compile(full_pattern, re.MULTILINE)
@@ -475,7 +476,8 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   for f in input_api.AffectedFiles(include_deletes=False):
     with open(f.LocalPath()) as fh:
       for match in re.finditer(regexp, fh.read()):
-        errors.append(match.group().strip())
+        errors.append('in {}: {}'.format(f.LocalPath(),
+                                         match.group().strip()))
 
   if errors:
     return [output_api.PresubmitPromptOrNotify(
