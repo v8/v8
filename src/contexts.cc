@@ -447,12 +447,6 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
 #define COMPARE_NAME(index, type, name) \
   if (string->IsOneByteEqualTo(STATIC_CHAR_VECTOR(#name))) return index;
 
-int Context::ImportedFieldIndexForName(Handle<String> string) {
-  NATIVE_CONTEXT_IMPORTED_FIELDS(COMPARE_NAME)
-  return kNotFound;
-}
-
-
 int Context::IntrinsicIndexForName(Handle<String> string) {
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NAME);
   return kNotFound;

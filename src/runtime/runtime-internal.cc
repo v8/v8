@@ -44,30 +44,6 @@ RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   return *container;
 }
 
-RUNTIME_FUNCTION(Runtime_InstallToContext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  CHECK(array->HasFastElements());
-  CHECK(isolate->bootstrapper()->IsActive());
-  Handle<Context> native_context = isolate->native_context();
-  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()), isolate);
-  int length = Smi::ToInt(array->length());
-  for (int i = 0; i < length; i += 2) {
-    CHECK(fixed_array->get(i)->IsString());
-    Handle<String> name(String::cast(fixed_array->get(i)), isolate);
-    CHECK(fixed_array->get(i + 1)->IsJSObject());
-    Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)), isolate);
-    int index = Context::ImportedFieldIndexForName(name);
-    if (index == Context::kNotFound) {
-      index = Context::IntrinsicIndexForName(name);
-    }
-    CHECK_NE(index, Context::kNotFound);
-    native_context->set(index, *object);
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

@@ -22,69 +22,18 @@ function Export(f) {
 
 // Import from other scripts. The actual importing happens in PostNatives so
 // that we can import from scripts executed later. However, that means that
-// the import is not available until the very end. If the import needs to be
-// available immediately, use ImportNow.
+// the import is not available until the very end.
 function Import(f) {
   f.next = imports;
   imports = f;
 }
 
 
-// Import immediately from exports of previous scripts. We need this for
-// functions called during bootstrapping. Hooking up imports in PostNatives
-// would be too late.
-function ImportNow(name) {
-  return exports_container[name];
-}
-
-
-var GlobalArray = global.Array;
-
 // -----------------------------------------------------------------------
 // To be called by bootstrapper
 
 function PostNatives(utils) {
   %CheckIsBootstrapping();
-
-  // -------------------------------------------------------------------
-  // Array
-
-  var iteratorSymbol = ImportNow("iterator_symbol");
-  var unscopablesSymbol = ImportNow("unscopables_symbol");
-
-  // Set up unscopable properties on the Array.prototype object.
-  var unscopables = {
-    __proto__: null,
-    copyWithin: true,
-    entries: true,
-    fill: true,
-    find: true,
-    findIndex: true,
-    includes: true,
-    keys: true,
-    values: true,
-  };
-
-  %ToFastProperties(unscopables);
-
-  %AddNamedProperty(GlobalArray.prototype, unscopablesSymbol, unscopables,
-                    DONT_ENUM | READ_ONLY);
-
-  // Array prototype functions that return iterators. They are exposed to the
-  // public API via Template::SetIntrinsicDataProperty().
-  var ArrayEntries = GlobalArray.prototype.entries;
-  var ArrayForEach = GlobalArray.prototype.forEach;
-  var ArrayKeys = GlobalArray.prototype.keys;
-  var ArrayValues = GlobalArray.prototype[iteratorSymbol];
-
-  %InstallToContext([
-    "array_entries_iterator", ArrayEntries,
-    "array_for_each_iterator", ArrayForEach,
-    "array_keys_iterator", ArrayKeys,
-    "array_values_iterator", ArrayValues,
-  ]);
-
-  // -------------------------------------------------------------------
 
   for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
     imports(exports_container);
@@ -93,7 +42,6 @@ function PostNatives(utils) {
   exports_container = UNDEFINED;
   utils.Export = UNDEFINED;
   utils.Import = UNDEFINED;
-  utils.ImportNow = UNDEFINED;
   utils.PostNatives = UNDEFINED;
 }
 
@@ -102,7 +50,6 @@ function PostNatives(utils) {
 %OptimizeObjectForAddingMultipleProperties(utils, 14);
 
 utils.Import = Import;
-utils.ImportNow = ImportNow;
 utils.Export = Export;
 utils.PostNatives = PostNatives;
 

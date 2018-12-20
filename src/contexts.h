@@ -69,6 +69,8 @@ enum ContextLookupFlags {
   V(IS_PROMISE_INDEX, JSFunction, is_promise)                           \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)
 
+// TODO(adamk): This can be merged into NATIVE_CONTEXT_FIELDS; ideally we
+// should prune unused fields as part of that merge.
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                 \
   V(ARRAY_ENTRIES_ITERATOR_INDEX, JSFunction, array_entries_iterator)     \
   V(ARRAY_FOR_EACH_ITERATOR_INDEX, JSFunction, array_for_each_iterator)   \
@@ -609,7 +611,6 @@ class Context : public HeapObject {
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
 
-  static int ImportedFieldIndexForName(Handle<String> name);
   static int IntrinsicIndexForName(Handle<String> name);
   static int IntrinsicIndexForName(const unsigned char* name, int length);
 

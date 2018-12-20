@@ -579,6 +579,14 @@ V8_NOINLINE void InstallConstant(Isolate* isolate, Handle<JSObject> holder,
       static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
 }
 
+V8_NOINLINE void InstallTrueValuedProperty(Isolate* isolate,
+                                           Handle<JSObject> holder,
+                                           const char* name) {
+  JSObject::AddProperty(isolate, holder,
+                        isolate->factory()->InternalizeUtf8String(name),
+                        isolate->factory()->true_value(), NONE);
+}
+
 V8_NOINLINE void InstallSpeciesGetter(Isolate* isolate,
                                       Handle<JSFunction> constructor) {
   Factory* factory = isolate->factory();
@@ -1722,20 +1730,29 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           1, false);
     SimpleInstallFunction(isolate_, proto, "join",
                           Builtins::kArrayPrototypeJoin, 1, false);
-    InstallFunctionWithBuiltinId(isolate_, proto, "keys",
-                                 Builtins::kArrayPrototypeKeys, 0, true,
-                                 BuiltinFunctionId::kArrayKeys);
-    InstallFunctionWithBuiltinId(isolate_, proto, "entries",
-                                 Builtins::kArrayPrototypeEntries, 0, true,
-                                 BuiltinFunctionId::kArrayEntries);
-    Handle<JSFunction> values_iterator = InstallFunctionWithBuiltinId(
-        isolate_, proto, "values", Builtins::kArrayPrototypeValues, 0, true,
-        BuiltinFunctionId::kArrayValues);
-    JSObject::AddProperty(isolate_, proto, factory->iterator_symbol(),
-                          values_iterator, DONT_ENUM);
 
-    SimpleInstallFunction(isolate_, proto, "forEach", Builtins::kArrayForEach,
-                          1, false);
+    {  // Set up iterator-related properties.
+      Handle<JSFunction> keys = InstallFunctionWithBuiltinId(
+          isolate_, proto, "keys", Builtins::kArrayPrototypeKeys, 0, true,
+          BuiltinFunctionId::kArrayKeys);
+      native_context()->set_array_keys_iterator(*keys);
+
+      Handle<JSFunction> entries = InstallFunctionWithBuiltinId(
+          isolate_, proto, "entries", Builtins::kArrayPrototypeEntries, 0, true,
+          BuiltinFunctionId::kArrayEntries);
+      native_context()->set_array_entries_iterator(*entries);
+
+      Handle<JSFunction> values = InstallFunctionWithBuiltinId(
+          isolate_, proto, "values", Builtins::kArrayPrototypeValues, 0, true,
+          BuiltinFunctionId::kArrayValues);
+      JSObject::AddProperty(isolate_, proto, factory->iterator_symbol(), values,
+                            DONT_ENUM);
+      native_context()->set_array_values_iterator(*values);
+    }
+
+    Handle<JSFunction> for_each_fun = SimpleInstallFunction(
+        isolate_, proto, "forEach", Builtins::kArrayForEach, 1, false);
+    native_context()->set_array_for_each_iterator(*for_each_fun);
     SimpleInstallFunction(isolate_, proto, "filter", Builtins::kArrayFilter, 1,
                           false);
     SimpleInstallFunction(isolate_, proto, "map", Builtins::kArrayMap, 1,
@@ -1753,6 +1770,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     array_prototype_to_string_fun =
         SimpleInstallFunction(isolate_, proto, "toString",
                               Builtins::kArrayPrototypeToString, 0, false);
+
+    Handle<JSObject> unscopables = factory->NewJSObjectWithNullProto();
+    InstallTrueValuedProperty(isolate_, unscopables, "copyWithin");
+    InstallTrueValuedProperty(isolate_, unscopables, "entries");
+    InstallTrueValuedProperty(isolate_, unscopables, "fill");
+    InstallTrueValuedProperty(isolate_, unscopables, "find");
+    InstallTrueValuedProperty(isolate_, unscopables, "findIndex");
+    InstallTrueValuedProperty(isolate_, unscopables, "includes");
+    InstallTrueValuedProperty(isolate_, unscopables, "keys");
+    InstallTrueValuedProperty(isolate_, unscopables, "values");
+    JSObject::MigrateSlowToFast(unscopables, 0, "Bootstrapping");
+    JSObject::AddProperty(
+        isolate_, proto, factory->unscopables_symbol(), unscopables,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     Handle<Map> map(proto->map(), isolate_);
     Map::SetShouldBeFastPrototypeMap(map, true, isolate_);
