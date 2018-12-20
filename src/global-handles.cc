@@ -713,8 +713,8 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
     DCHECK(node->is_in_new_space_list());
     if ((node->is_independent() || !node->is_active()) &&
         node->IsWeakRetainer() && (node->state() != Node::PENDING)) {
-      DCHECK(node->IsPhantomResetHandle() || node->IsPhantomCallback());
       if (should_reset_handle(isolate_->heap(), node->location())) {
+        DCHECK(node->IsPhantomResetHandle() || node->IsPhantomCallback());
         if (node->IsPhantomResetHandle()) {
           node->MarkPending();
           node->ResetPhantomHandle();
