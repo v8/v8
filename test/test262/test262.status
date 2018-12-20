@@ -618,10 +618,6 @@
   'intl402/Locale/getters-grandfathered': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
 
-  # Wrong test see https://github.com/tc39/test262/pull/1835
-  'intl402/Locale/constructor-options-numeric-valid': [FAIL],
-  'intl402/Locale/constructor-options-numeric-undefined': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
   'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
 

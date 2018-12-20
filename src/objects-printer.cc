@@ -2065,18 +2065,8 @@ void JSListFormat::JSListFormatPrint(std::ostream& os) {  // NOLINT
 
 void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSLocale");
-  os << "\n - language: " << Brief(language());
-  os << "\n - script: " << Brief(script());
-  os << "\n - region: " << Brief(region());
-  os << "\n - baseName: " << Brief(base_name());
-  os << "\n - locale: " << Brief(locale());
-  os << "\n - calendar: " << Brief(calendar());
-  os << "\n - caseFirst: " << CaseFirstAsString();
-  os << "\n - collation: " << Brief(collation());
-  os << "\n - hourCycle: " << HourCycleAsString();
-  os << "\n - numeric: " << NumericAsString();
-  os << "\n - numberingSystem: " << Brief(numbering_system());
-  os << "\n";
+  os << "\n - icu locale: " << Brief(icu_locale());
+  JSObjectPrintBody(os, *this);
 }
 
 void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {  // NOLINT

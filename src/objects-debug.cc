@@ -2089,16 +2089,7 @@ void JSListFormat::JSListFormatVerify(Isolate* isolate) {
 
 void JSLocale::JSLocaleVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  VerifyObjectField(isolate, kLanguageOffset);
-  VerifyObjectField(isolate, kScriptOffset);
-  VerifyObjectField(isolate, kRegionOffset);
-  VerifyObjectField(isolate, kBaseNameOffset);
-  VerifyObjectField(isolate, kLocaleOffset);
-  // Unicode extension fields.
-  VerifyObjectField(isolate, kFlagsOffset);
-  VerifyObjectField(isolate, kCalendarOffset);
-  VerifyObjectField(isolate, kCollationOffset);
-  VerifyObjectField(isolate, kNumberingSystemOffset);
+  VerifyObjectField(isolate, kICULocaleOffset);
 }
 
 void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
