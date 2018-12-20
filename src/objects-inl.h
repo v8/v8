@@ -35,6 +35,7 @@
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object.h"  // TODO(jkummerow): See below [1].
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/maybe-object-inl.h"
@@ -52,6 +53,13 @@
 #include "src/roots-inl.h"
 #include "src/transitions-inl.h"
 #include "src/v8memory.h"
+
+// [1] This file currently contains the definitions of many
+// HeapObject::IsFoo() predicates, which in turn require #including
+// many other -inl.h files. Find a way to avoid this. Idea:
+// Since e.g. HeapObject::IsSeqString requires things from string-inl.h,
+// and presumably is mostly used from places that require/include string-inl.h
+// anyway, maybe that's where it should be defined?
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
