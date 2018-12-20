@@ -328,17 +328,22 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
 
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-bool MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::MarkObjectWithoutPush(HeapObject host,
-                                                         HeapObject object) {
-  if (marking_state()->WhiteToBlack(object)) {
+void MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
+    MarkDescriptorArrayBlack(HeapObject host, DescriptorArray descriptors) {
+  // Note that WhiteToBlack is not sufficient here because it fails if the
+  // descriptor array is grey. So we need to do two steps: WhiteToGrey and
+  // GreyToBlack. Alternatively, we could check WhiteToGrey || WhiteToBlack.
+  if (marking_state()->WhiteToGrey(descriptors)) {
     if (retaining_path_mode == TraceRetainingPathMode::kEnabled &&
         V8_UNLIKELY(FLAG_track_retaining_path)) {
-      heap_->AddRetainer(host, object);
+      heap_->AddRetainer(host, descriptors);
     }
-    return true;
   }
-  return false;
+  if (marking_state()->GreyToBlack(descriptors)) {
+    VisitPointers(descriptors, descriptors->GetFirstPointerSlot(),
+                  descriptors->GetDescriptorSlot(0));
+  }
+  DCHECK(marking_state()->IsBlack(descriptors));
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,
@@ -409,11 +414,9 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   // descriptor array is marked, its header is also visited. The slot holding
   // the descriptor array will be implicitly recorded when the pointer fields of
   // this map are visited.
+
   DescriptorArray descriptors = map->instance_descriptors();
-  if (MarkObjectWithoutPush(map, descriptors)) {
-    VisitPointers(descriptors, descriptors->GetFirstPointerSlot(),
-                  descriptors->GetDescriptorSlot(0));
-  }
+  MarkDescriptorArrayBlack(map, descriptors);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors) {
     VisitDescriptors(descriptors, number_of_own_descriptors);
@@ -429,16 +432,15 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
-    VisitDescriptors(DescriptorArray descriptor_array,
+    VisitDescriptors(DescriptorArray descriptors,
                      int number_of_own_descriptors) {
   int16_t new_marked = static_cast<int16_t>(number_of_own_descriptors);
-  int16_t old_marked = descriptor_array->UpdateNumberOfMarkedDescriptors(
+  int16_t old_marked = descriptors->UpdateNumberOfMarkedDescriptors(
       mark_compact_epoch_, new_marked);
   if (old_marked < new_marked) {
-    VisitPointers(
-        descriptor_array,
-        MaybeObjectSlot(descriptor_array->GetDescriptorSlot(old_marked)),
-        MaybeObjectSlot(descriptor_array->GetDescriptorSlot(new_marked)));
+    VisitPointers(descriptors,
+                  MaybeObjectSlot(descriptors->GetDescriptorSlot(old_marked)),
+                  MaybeObjectSlot(descriptors->GetDescriptorSlot(new_marked)));
   }
 }
 

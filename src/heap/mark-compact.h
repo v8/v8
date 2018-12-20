@@ -990,8 +990,12 @@ class MarkingVisitor final
   void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {}
 
-  V8_INLINE void VisitDescriptors(DescriptorArray descriptor_array,
+  V8_INLINE void VisitDescriptors(DescriptorArray descriptors,
                                   int number_of_own_descriptors);
+  // Marks the descriptor array black without pushing it on the marking work
+  // list and visits its header.
+  V8_INLINE void MarkDescriptorArrayBlack(HeapObject host,
+                                          DescriptorArray descriptors);
 
  private:
   // Granularity in which FixedArrays are scanned if |fixed_array_mode|
@@ -1010,10 +1014,6 @@ class MarkingVisitor final
   V8_INLINE int VisitEmbedderTracingSubclass(Map map, T object);
 
   V8_INLINE void MarkMapContents(Map map);
-
-  // Marks the object black without pushing it on the marking work list. Returns
-  // true if the object needed marking and false otherwise.
-  V8_INLINE bool MarkObjectWithoutPush(HeapObject host, HeapObject object);
 
   // Marks the object grey and pushes it on the marking work list.
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);

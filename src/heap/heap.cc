@@ -5658,7 +5658,7 @@ void Heap::MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
   heap->incremental_marking()->RecordWriteIntoCode(host, rinfo, object);
 }
 
-void Heap::MarkingBarrierForDescriptorArraySlow(Heap* heap,
+void Heap::MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
                                                 HeapObject raw_descriptor_array,
                                                 int number_of_own_descriptors) {
   DCHECK(heap->incremental_marking()->IsMarking());
@@ -5668,7 +5668,7 @@ void Heap::MarkingBarrierForDescriptorArraySlow(Heap* heap,
   if (NumberOfMarkedDescriptors::decode(heap->mark_compact_collector()->epoch(),
                                         raw_marked) <
       number_of_own_descriptors) {
-    heap->incremental_marking()->VisitDescriptors(descriptor_array,
+    heap->incremental_marking()->VisitDescriptors(host, descriptor_array,
                                                   number_of_own_descriptors);
   }
 }

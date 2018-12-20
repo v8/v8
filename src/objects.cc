@@ -12827,7 +12827,7 @@ void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
                                  int number_of_own_descriptors) {
   set_raw_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
-  MarkingBarrierForDescriptorArray(isolate->heap(), descriptors,
+  MarkingBarrierForDescriptorArray(isolate->heap(), *this, descriptors,
                                    number_of_own_descriptors);
 }
 

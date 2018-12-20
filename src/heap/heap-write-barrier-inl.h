@@ -171,14 +171,14 @@ inline void MarkingBarrierForCode(Code host, RelocInfo* rinfo,
   Heap::MarkingBarrierForCodeSlow(host, rinfo, object);
 }
 
-inline void MarkingBarrierForDescriptorArray(Heap* heap,
+inline void MarkingBarrierForDescriptorArray(Heap* heap, HeapObject host,
                                              HeapObject descriptor_array,
                                              int number_of_own_descriptors) {
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(descriptor_array);
   if (!chunk->IsMarking()) return;
 
-  Heap::MarkingBarrierForDescriptorArraySlow(heap, descriptor_array,
+  Heap::MarkingBarrierForDescriptorArraySlow(heap, host, descriptor_array,
                                              number_of_own_descriptors);
 }
 

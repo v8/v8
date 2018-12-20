@@ -752,9 +752,11 @@ int IncrementalMarking::VisitObject(Map map, HeapObject obj) {
     // 3. The object is a string that was colored black before
     //    unsafe layout change.
     // 4. The object is materizalized by the deoptimizer.
+    // 5. The object is a descriptor array marked black by
+    //    the descriptor array marking barrier.
     DCHECK(obj->IsHashTable() || obj->IsPropertyArray() ||
            obj->IsFixedArray() || obj->IsContext() || obj->IsJSObject() ||
-           obj->IsString());
+           obj->IsString() || obj->IsDescriptorArray());
   }
   DCHECK(marking_state()->IsBlack(obj));
   WhiteToGreyAndPush(map);
@@ -783,11 +785,16 @@ void IncrementalMarking::RevisitObject(HeapObject obj) {
   visitor.Visit(map, obj);
 }
 
-void IncrementalMarking::VisitDescriptors(DescriptorArray descriptor_array,
+void IncrementalMarking::VisitDescriptors(HeapObject host,
+                                          DescriptorArray descriptors,
                                           int number_of_own_descriptors) {
   IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
                                            marking_state());
-  visitor.VisitDescriptors(descriptor_array, number_of_own_descriptors);
+  // This is necessary because the Scavenger records slots only for the
+  // promoted black objects and the marking visitor of DescriptorArray skips
+  // the descriptors marked by the visitor.VisitDescriptors() below.
+  visitor.MarkDescriptorArrayBlack(host, descriptors);
+  visitor.VisitDescriptors(descriptors, number_of_own_descriptors);
 }
 
 template <WorklistToProcess worklist_to_process>

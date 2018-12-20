@@ -58,7 +58,8 @@ void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
 void MarkingBarrierForElements(Heap* heap, HeapObject object);
 void MarkingBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 
-void MarkingBarrierForDescriptorArray(Heap* heap, HeapObject descriptor_array,
+void MarkingBarrierForDescriptorArray(Heap* heap, HeapObject host,
+                                      HeapObject descriptor_array,
                                       int number_of_own_descriptors);
 
 Heap* GetHeapFromWritableObject(const HeapObject object);
