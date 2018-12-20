@@ -3820,9 +3820,13 @@ void ParserBase<Impl>::ParseFunctionBody(
     const FormalParametersT& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, FunctionBodyType body_type) {
   if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
+
+  DeclarationScope* function_scope = parameters.scope;
+  DeclarationScope* inner_scope = function_scope;
+
   // Building the parameter initialization block declares the parameters.
   // TODO(verwaest): Rely on ArrowHeadParsingScope instead.
-  if (!parameters.is_simple) {
+  if (V8_UNLIKELY(!parameters.is_simple)) {
     if (has_error()) return;
     BlockT init_block = impl()->BuildParameterInitializationBlock(parameters);
     if (IsAsyncFunction(kind) && !IsAsyncGeneratorFunction(kind)) {
@@ -3830,99 +3834,91 @@ void ParserBase<Impl>::ParseFunctionBody(
     }
     body->Add(init_block);
     if (has_error()) return;
+
+    inner_scope = NewVarblockScope();
+    inner_scope->set_start_position(scanner()->location().beg_pos);
   }
 
-  DeclarationScope* function_scope = scope()->AsDeclarationScope();
-  bool allow_duplicate_parameters = false;
-  BlockT inner_block = impl()->NullBlock();
+  StatementListT inner_body(pointer_buffer());
+
   {
-    StatementListT inner_body(pointer_buffer());
-    DeclarationScope* inner_scope = function_scope;
+    BlockState block_state(&scope_, inner_scope);
 
-    if (!parameters.is_simple) {
-      inner_scope = NewVarblockScope();
-      inner_scope->set_start_position(scanner()->location().beg_pos);
-    }
+    if (body_type == FunctionBodyType::kExpression) {
+      ExpressionT expression = ParseAssignmentExpression();
 
-    {
-      BlockState block_state(&scope_, inner_scope);
-
-      if (body_type == FunctionBodyType::kExpression) {
-        ExpressionT expression = ParseAssignmentExpression();
-
-        if (IsAsyncFunction(kind)) {
-          BlockT block = factory()->NewBlock(1, true);
-          impl()->RewriteAsyncFunctionBody(&inner_body, block, expression);
-        } else {
-          inner_body.Add(
-              BuildReturnStatement(expression, expression->position()));
-        }
+      if (IsAsyncFunction(kind)) {
+        BlockT block = factory()->NewBlock(1, true);
+        impl()->RewriteAsyncFunctionBody(&inner_body, block, expression);
       } else {
-        DCHECK(accept_IN_);
-        DCHECK_EQ(FunctionBodyType::kBlock, body_type);
-        // If we are parsing the source as if it is wrapped in a function, the
-        // source ends without a closing brace.
-        Token::Value closing_token = function_type == FunctionLiteral::kWrapped
-                                         ? Token::EOS
-                                         : Token::RBRACE;
-
-        if (IsAsyncGeneratorFunction(kind)) {
-          impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind,
-                                                            &inner_body);
-        } else if (IsGeneratorFunction(kind)) {
-          impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, &inner_body);
-        } else if (IsAsyncFunction(kind)) {
-          ParseAsyncFunctionBody(inner_scope, &inner_body);
-        } else {
-          ParseStatementList(&inner_body, closing_token);
-        }
-
-        if (IsDerivedConstructor(kind)) {
-          inner_body.Add(factory()->NewReturnStatement(impl()->ThisExpression(),
-                                                       kNoSourcePosition));
-        }
-        Expect(closing_token);
+        inner_body.Add(
+            BuildReturnStatement(expression, expression->position()));
       }
-    }
-
-    scope()->set_end_position(end_position());
-
-    if (parameters.is_simple) {
-      DCHECK_EQ(inner_scope, function_scope);
-      if (is_sloppy(function_scope->language_mode())) {
-        impl()->InsertSloppyBlockFunctionVarBindings(function_scope);
-      }
-      allow_duplicate_parameters = is_sloppy(function_scope->language_mode()) &&
-                                   !IsConciseMethod(kind) &&
-                                   !IsArrowFunction(kind);
     } else {
-      DCHECK_NOT_NULL(inner_scope);
-      DCHECK_EQ(function_scope, scope());
-      DCHECK_EQ(function_scope, inner_scope->outer_scope());
-      impl()->SetLanguageMode(function_scope, inner_scope->language_mode());
+      DCHECK(accept_IN_);
+      DCHECK_EQ(FunctionBodyType::kBlock, body_type);
+      // If we are parsing the source as if it is wrapped in a function, the
+      // source ends without a closing brace.
+      Token::Value closing_token = function_type == FunctionLiteral::kWrapped
+                                       ? Token::EOS
+                                       : Token::RBRACE;
 
-      if (is_sloppy(inner_scope->language_mode())) {
-        impl()->InsertSloppyBlockFunctionVarBindings(inner_scope);
+      if (IsAsyncGeneratorFunction(kind)) {
+        impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind,
+                                                          &inner_body);
+      } else if (IsGeneratorFunction(kind)) {
+        impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, &inner_body);
+      } else if (IsAsyncFunction(kind)) {
+        ParseAsyncFunctionBody(inner_scope, &inner_body);
+      } else {
+        ParseStatementList(&inner_body, closing_token);
       }
 
-      inner_scope->set_end_position(end_position());
-      if (inner_scope->FinalizeBlockScope() != nullptr) {
-        inner_block = factory()->NewBlock(true, inner_body);
-        inner_body.Rewind();
-        inner_block->set_scope(inner_scope);
-        const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
-            function_scope, VariableMode::kLastLexicalVariableMode);
-        if (conflict != nullptr) {
-          impl()->ReportVarRedeclarationIn(conflict, inner_scope);
-        }
-        impl()->CheckConflictingVarDeclarations(inner_scope);
-        impl()->InsertShadowingVarBindingInitializers(inner_block);
+      if (IsDerivedConstructor(kind)) {
+        inner_body.Add(factory()->NewReturnStatement(impl()->ThisExpression(),
+                                                     kNoSourcePosition));
       }
+      Expect(closing_token);
     }
-    inner_body.MergeInto(body);
   }
 
-  if (!impl()->IsNull(inner_block)) body->Add(inner_block);
+  scope()->set_end_position(end_position());
+
+  bool allow_duplicate_parameters = false;
+
+  if (V8_LIKELY(parameters.is_simple)) {
+    DCHECK_EQ(inner_scope, function_scope);
+    if (is_sloppy(function_scope->language_mode())) {
+      impl()->InsertSloppyBlockFunctionVarBindings(function_scope);
+    }
+    allow_duplicate_parameters = is_sloppy(function_scope->language_mode()) &&
+                                 !IsConciseMethod(kind) &&
+                                 !IsArrowFunction(kind);
+  } else {
+    DCHECK_NOT_NULL(inner_scope);
+    DCHECK_EQ(function_scope, scope());
+    DCHECK_EQ(function_scope, inner_scope->outer_scope());
+    impl()->SetLanguageMode(function_scope, inner_scope->language_mode());
+
+    if (is_sloppy(inner_scope->language_mode())) {
+      impl()->InsertSloppyBlockFunctionVarBindings(inner_scope);
+    }
+
+    inner_scope->set_end_position(end_position());
+    if (inner_scope->FinalizeBlockScope() != nullptr) {
+      BlockT inner_block = factory()->NewBlock(true, inner_body);
+      inner_body.Rewind();
+      inner_body.Add(inner_block);
+      inner_block->set_scope(inner_scope);
+      const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
+          function_scope, VariableMode::kLastLexicalVariableMode);
+      if (conflict != nullptr) {
+        impl()->ReportVarRedeclarationIn(conflict, inner_scope);
+      }
+      impl()->CheckConflictingVarDeclarations(inner_scope);
+      impl()->InsertShadowingVarBindingInitializers(inner_block);
+    }
+  }
 
   ValidateFormalParameters(language_mode(), parameters,
                            allow_duplicate_parameters);
@@ -3935,6 +3931,8 @@ void ParserBase<Impl>::ParseFunctionBody(
   }
 
   impl()->DeclareFunctionNameVar(function_name, function_type, function_scope);
+
+  inner_body.MergeInto(body);
 }
 
 template <typename Impl>
