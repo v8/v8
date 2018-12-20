@@ -8,6 +8,7 @@ import { TextView } from "../src/text-view"
 import { SourceResolver } from "./source-resolver";
 import { MySelection } from "./selection";
 import { anyToString } from "./util";
+import { InstructionSelectionHandler } from "./selection-handler";
 
 export class DisassemblyView extends TextView {
   SOURCE_POSITION_HEADER_REGEX: any;
@@ -63,13 +64,6 @@ export class DisassemblyView extends TextView {
     };
     const BLOCK_HEADER_STYLE = {
       css: ['com', 'block'],
-      block_id: null,
-      blockId: function (text) {
-        let matches = /\d+/.exec(text);
-        if (!matches) return undefined;
-        BLOCK_HEADER_STYLE.block_id = Number(matches[0]);
-        return BLOCK_HEADER_STYLE.block_id;
-      },
       associateData: function (text, fragment) {
         let matches = /\d+/.exec(text);
         if (!matches) return;

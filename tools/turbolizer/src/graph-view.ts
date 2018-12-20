@@ -12,6 +12,7 @@ import { Edge, edgeToStr } from "../src/edge"
 import { View, PhaseView } from "../src/view"
 import { MySelection } from "../src/selection"
 import { partial, alignUp } from "../src/util"
+import { NodeSelectionHandler, ClearableHandler } from "./selection-handler";
 
 function nodeToStringKey(n) {
   return "" + n.id;
@@ -34,7 +35,7 @@ export class GraphView extends View implements PhaseView {
   state: GraphState;
   nodes: Array<GNode>;
   edges: Array<any>;
-  selectionHandler: NodeSelectionHandler;
+  selectionHandler: NodeSelectionHandler&ClearableHandler;
   graphElement: d3.Selection<any, any, any, any>;
   visibleNodes: d3.Selection<any, GNode, any, any>;
   visibleEdges: d3.Selection<any, Edge, any, any>;
@@ -285,12 +286,14 @@ export class GraphView extends View implements PhaseView {
   };
 
   measureText(text) {
-    const textMeasure = document.getElementById('text-measure') as SVGTSpanElement;
-    textMeasure.textContent = text;
-    return {
-      width: textMeasure.getBBox().width,
-      height: textMeasure.getBBox().height,
-    };
+    const textMeasure = document.getElementById('text-measure');
+    if (textMeasure instanceof SVGTSpanElement) {
+      textMeasure.textContent = text;
+      return {
+        width: textMeasure.getBBox().width,
+        height: textMeasure.getBBox().height,
+      };
+    }
   }
 
   createGraph(data, rememberedSelection) {

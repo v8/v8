@@ -226,7 +226,7 @@ window.onload = function () {
 
       const jsonObj = JSON.parse(txtRes);
 
-      let fnc = jsonObj.function;
+      let fnc = Object.assign(jsonObj.function, {backwardsCompatibility: false});
       // Backwards compatibility.
       if (typeof fnc == 'string') {
         fnc = {

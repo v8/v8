@@ -7,6 +7,7 @@ import { SelectionBroker } from "../src/selection-broker"
 import { View } from "../src/view"
 import { MySelection } from "../src/selection"
 import { anyToString, ViewElements } from "../src/util"
+import { SelectionHandler } from "./selection-handler";
 
 export enum CodeMode {
   MAIN_SOURCE = "main function",

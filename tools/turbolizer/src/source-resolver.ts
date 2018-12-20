@@ -61,16 +61,35 @@ export interface Source {
   sourceText: string;
   sourceId: number;
   startPosition?: number;
+  backwardsCompatibility: boolean;
 }
 interface Inlining {
   inliningPosition: SourcePosition;
   sourceId: number;
 }
-interface Phase {
-  type: string;
+interface OtherPhase {
+  type: "disassembly"|"sequence"|"schedule";
   name: string;
   data: any;
 }
+
+interface InstructionsPhase {
+  type: "instructions";
+  name: string;
+  data: any;
+  instructionOffsetToPCOffset: any;
+  blockIdtoInstructionRange: any;
+  nodeIdToInstructionRange: any;
+}
+
+interface GraphPhase {
+  type: "graph";
+  name: string;
+  data: any;
+  highestNodeId: number;
+}
+
+type Phase = GraphPhase | InstructionsPhase | OtherPhase;
 
 export interface Schedule {
   nodes: Array<any>;
@@ -301,7 +320,7 @@ export class SourceResolver {
     return inliningStack;
   }
 
-  recordOrigins(phase) {
+  recordOrigins(phase:GraphPhase) {
     if (phase.type != "graph") return;
     for (const node of phase.data.nodes) {
       phase.highestNodeId = Math.max(phase.highestNodeId, node.id)
@@ -349,7 +368,7 @@ export class SourceResolver {
       if (!this.pcOffsetToInstructions.has(offset)) {
         this.pcOffsetToInstructions.set(offset, []);
       }
-      this.pcOffsetToInstructions.get(offset).push(instruction);
+      this.pcOffsetToInstructions.get(offset).push(Number(instruction));
     }
     this.pcOffsets = Array.from(this.pcOffsetToInstructions.keys()).sort((a, b) => b - a);
   }
@@ -417,7 +436,6 @@ export class SourceResolver {
 
   parsePhases(phases) {
     for (const [phaseId, phase] of Object.entries<Phase>(phases)) {
-      phase.highestNodeId = 0;
       if (phase.type == 'disassembly') {
         this.disassemblyPhase = phase;
       } else if (phase.type == 'schedule') {
@@ -437,9 +455,10 @@ export class SourceResolver {
           this.readInstructionOffsetToPCOffset(phase.instructionOffsetToPCOffset);
         }
       } else {
-        this.phases.push(phase);
-        this.recordOrigins(phase);
-        this.phaseNames.set(phase.name, this.phases.length);
+        const graphPhase: GraphPhase = Object.assign({highestNodeId: 0});
+        this.phases.push(graphPhase);
+        this.recordOrigins(graphPhase);
+        this.phaseNames.set(graphPhase.name, this.phases.length);
       }
     }
   }
@@ -456,7 +475,7 @@ export class SourceResolver {
     return this.phaseNames.get(phaseName);
   }
 
-  forEachPhase(f) {
+  forEachPhase(f:(value: Phase, index: number, array: Phase[]) => void) {
     this.phases.forEach(f);
   }
 

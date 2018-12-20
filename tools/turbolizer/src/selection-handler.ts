@@ -2,29 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-interface ClearableHandler {
+export interface ClearableHandler {
   brokeredClear(): void;
 }
 
-interface SelectionHandler {
+export interface SelectionHandler {
   clear(): void;
   select(nodeIds: any, selected: any): void;
   brokeredSourcePositionSelect(sourcePositions: any, selected: any): void;
 };
 
-interface NodeSelectionHandler {
+export interface NodeSelectionHandler {
   clear(): void;
   select(nodeIds: any, selected: any): void;
   brokeredNodeSelect(nodeIds: any, selected: any): void;
 };
 
-interface BlockSelectionHandler {
+export interface BlockSelectionHandler {
   clear(): void;
   select(nodeIds: any, selected: any): void;
   brokeredBlockSelect(blockIds: any, selected: any): void;
 };
 
-interface InstructionSelectionHandler {
+export interface InstructionSelectionHandler {
   clear(): void;
   select(instructionIds: any, selected: any): void;
   brokeredInstructionSelect(instructionIds: any, selected: any): void;

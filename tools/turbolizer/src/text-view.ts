@@ -7,11 +7,11 @@ import { anyToString, ViewElements, isIterable } from "../src/util"
 import { MySelection } from "../src/selection"
 import { SourceResolver } from "./source-resolver";
 import { SelectionBroker } from "./selection-broker";
+import { NodeSelectionHandler, BlockSelectionHandler } from "./selection-handler";
 
 export abstract class TextView extends View {
   selectionHandler: NodeSelectionHandler;
   blockSelectionHandler: BlockSelectionHandler;
-  nodeSelectionHandler: NodeSelectionHandler;
   selection: MySelection;
   blockSelection: MySelection;
   textListNode: HTMLUListElement;
@@ -183,33 +183,12 @@ export abstract class TextView extends View {
     let view = this;
     let fragment = document.createElement("SPAN");
 
-    if (style.blockId != undefined) {
-      const blockId = style.blockId(text);
-      if (blockId != undefined) {
-        fragment.blockId = blockId;
-        this.addHtmlElementForBlockId(blockId, fragment);
-      }
-    }
-
     if (typeof style.link == 'function') {
       fragment.classList.add('linkable-text');
       fragment.onmouseup = function (e) {
         e.stopPropagation();
         style.link(text)
       };
-    }
-
-    if (typeof style.nodeId == 'function') {
-      const nodeId = style.nodeId(text);
-      if (nodeId != undefined) {
-        fragment.nodeId = nodeId;
-        this.addHtmlElementForNodeId(nodeId, fragment);
-      }
-    }
-
-    if (typeof style.assignBlockId === 'function') {
-      fragment.blockId = style.assignBlockId();
-      this.addNodeIdToBlockId(fragment.nodeId, fragment.blockId);
     }
 
     if (typeof style.associateData == 'function') {
