@@ -341,6 +341,13 @@
   'array-constructor-feedback': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-4121': [SKIP],
+
+  # Slow tests without feedback vectors
+  # TODO(mythria): Investigate why they are slow and either fix if
+  # possible are update the reason why they are slow.
+  'spread-large-string': [SKIP],
+  'spread-large-array': [SKIP],
+
 }],  # 'lite_mode == True'
 
 ##############################################################################
