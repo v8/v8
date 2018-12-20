@@ -888,11 +888,15 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   outer_closure->locals_.Rewind(top_local_);
 
   // Move eval calls since Snapshot's creation into new_parent.
-  if (outer_scope_and_calls_eval_.GetPayload()) {
+  if (outer_scope_and_calls_eval_->scope_calls_eval_) {
     new_parent->scope_calls_eval_ = true;
     new_parent->inner_scope_calls_eval_ = true;
   }
 
+  // We are in the arrow function case. The calls eval we may have recorded
+  // is intended for the inner scope and we should simply restore the
+  // original "calls eval" flag of the outer scope.
+  RestoreEvalFlag();
   Clear();
 }
 

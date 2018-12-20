@@ -271,8 +271,6 @@ class ParserBase {
     pointer_buffer_.reserve(128);
   }
 
-  ~ParserBase() { next_arrow_function_info_.scope_snapshot.Clear(); }
-
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
   void set_allow_##name(bool allow) { allow_##name##_ = allow; }
@@ -1386,7 +1384,6 @@ class ParserBase {
   // Preallocating the struct as part of the parser minimizes the cost of
   // supporting arrow functions on non-arrow expressions.
   struct NextArrowFunctionInfo {
-    Scope::Snapshot scope_snapshot;
     // `rewritable_length`: length of the destructuring_assignments_to_rewrite()
     // queue in the parent function state, prior to parsing of formal
     // parameters.  If the arrow function is lazy, any items added during formal
@@ -1395,19 +1392,15 @@ class ParserBase {
     Scanner::Location strict_parameter_error_location =
         Scanner::Location::invalid();
     MessageTemplate strict_parameter_error_message = MessageTemplate::kNone;
-    FunctionKind kind = FunctionKind::kArrowFunction;
-    bool has_simple_parameter_list = true;
+    DeclarationScope* scope = nullptr;
 
     bool HasInitialState() const {
-      return rewritable_length == -1 && scope_snapshot.IsCleared() &&
-             kind == FunctionKind::kArrowFunction && has_simple_parameter_list;
+      return rewritable_length == -1 && scope == nullptr;
     }
 
     void Reset() {
       rewritable_length = -1;
-      scope_snapshot.Clear();
-      kind = FunctionKind::kArrowFunction;
-      has_simple_parameter_list = true;
+      scope = nullptr;
       ClearStrictParameterError();
       DCHECK(HasInitialState());
     }
@@ -1663,8 +1656,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
   if (Token::IsAnyIdentifier(token)) {
     Consume(token);
 
-    IdentifierT name;
-    InferName infer = InferName::kYes;
+    FunctionKind kind = FunctionKind::kArrowFunction;
 
     if (V8_UNLIKELY(token == Token::ASYNC &&
                     !scanner()->HasLineTerminatorBeforeNext())) {
@@ -1675,28 +1667,28 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       if (peek_any_identifier() && PeekAhead() == Token::ARROW) {
         token = Next();
         beg_pos = position();
-        next_arrow_function_info_.kind = FunctionKind::kAsyncArrowFunction;
-        infer = InferName::kNo;
+        kind = FunctionKind::kAsyncArrowFunction;
       }
     }
 
     if (V8_UNLIKELY(peek() == Token::ARROW)) {
+      next_arrow_function_info_.scope = NewFunctionScope(kind);
       ArrowHeadParsingScope parsing_scope(
-          impl(), next_arrow_function_info_.kind == FunctionKind::kArrowFunction
+          impl(), kind == FunctionKind::kArrowFunction
                       ? ExpressionScope::kMaybeArrowParameterDeclaration
                       : ExpressionScope::kMaybeAsyncArrowParameterDeclaration);
-      next_arrow_function_info_.scope_snapshot =
-          std::move(Scope::Snapshot(scope()));
       next_arrow_function_info_.rewritable_length = static_cast<int>(
           function_state_->destructuring_assignments_to_rewrite().size());
-      name = ParseAndClassifyIdentifier(token);
+      IdentifierT name = ParseAndClassifyIdentifier(token);
       ClassifyParameter(name, beg_pos, end_position());
       parsing_scope.ValidateDeclaration();
-    } else {
-      name = ParseAndClassifyIdentifier(token);
+      FunctionState function_state(&function_state_, &scope_,
+                                   next_arrow_function_info_.scope);
+      return impl()->ExpressionFromIdentifier(name, beg_pos, InferName::kNo);
     }
 
-    return impl()->ExpressionFromIdentifier(name, beg_pos, infer);
+    IdentifierT name = ParseAndClassifyIdentifier(token);
+    return impl()->ExpressionFromIdentifier(name, beg_pos);
   }
 
   if (Token::IsLiteral(token)) {
@@ -1721,17 +1713,18 @@ ParserBase<Impl>::ParsePrimaryExpression() {
 
     case Token::LPAREN: {
       Consume(Token::LPAREN);
-      Scope::Snapshot scope_snapshot(scope());
       int rewritable_length = static_cast<int>(
           function_state_->destructuring_assignments_to_rewrite().size());
       if (Check(Token::RPAREN)) {
         // ()=>x.  The continuation that consumes the => is in
         // ParseAssignmentExpressionCoverGrammar.
         if (peek() != Token::ARROW) ReportUnexpectedToken(Token::RPAREN);
-        next_arrow_function_info_.scope_snapshot = std::move(scope_snapshot);
+        next_arrow_function_info_.scope =
+            NewFunctionScope(FunctionKind::kArrowFunction);
         next_arrow_function_info_.rewritable_length = rewritable_length;
         return factory()->NewEmptyParentheses(beg_pos);
       }
+      Scope::Snapshot scope_snapshot(scope());
       ArrowHeadParsingScope maybe_arrow(
           impl(), ExpressionScope::kMaybeArrowParameterDeclaration);
       // Heuristically try to detect immediately called functions before
@@ -1746,9 +1739,12 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       Expect(Token::RPAREN);
 
       if (peek() == Token::ARROW) {
-        next_arrow_function_info_.scope_snapshot = std::move(scope_snapshot);
-        next_arrow_function_info_.has_simple_parameter_list =
-            maybe_arrow.has_simple_parameter_list();
+        next_arrow_function_info_.scope =
+            NewFunctionScope(FunctionKind::kArrowFunction);
+        scope_snapshot.Reparent(next_arrow_function_info_.scope);
+        if (!maybe_arrow.has_simple_parameter_list()) {
+          next_arrow_function_info_.scope->SetHasNonSimpleParameters();
+        }
         next_arrow_function_info_.rewritable_length = rewritable_length;
         maybe_arrow.ValidateDeclaration();
       } else {
@@ -2619,7 +2615,6 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
   // Arrow functions.
   if (V8_UNLIKELY(op == Token::ARROW)) {
     Scanner::Location loc(lhs_beg_pos, end_position());
-    DeclarationScope* scope = NewFunctionScope(next_arrow_function_info_.kind);
 
     if (!impl()->IsIdentifier(expression) && !expression->is_parenthesized()) {
       impl()->ReportMessageAt(
@@ -2628,25 +2623,18 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
       return impl()->FailureExpression();
     }
 
-    // Because the arrow's parameters were parsed in the outer scope,
-    // we need to fix up the scope chain appropriately.
-    next_arrow_function_info_.scope_snapshot.Reparent(scope);
+    DeclarationScope* scope = next_arrow_function_info_.scope;
+    scope->set_start_position(lhs_beg_pos);
 
     FormalParametersT parameters(scope);
     parameters.set_strict_parameter_error(
         next_arrow_function_info_.strict_parameter_error_location,
         next_arrow_function_info_.strict_parameter_error_message);
-    if (!next_arrow_function_info_.has_simple_parameter_list) {
-      scope->SetHasNonSimpleParameters();
-      parameters.is_simple = false;
-    }
+    parameters.is_simple = scope->has_simple_parameters();
 
-    scope->set_start_position(lhs_beg_pos);
     impl()->DeclareArrowFunctionFormalParameters(&parameters, expression, loc);
 
     expression = ParseArrowFunctionLiteral(parameters);
-
-    fni_.Infer();
 
     return expression;
   }
@@ -2924,12 +2912,13 @@ ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
 
   DCHECK(Token::IsCountOp(op));
 
-  if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
+  if (V8_LIKELY(IsValidReferenceExpression(expression))) {
+    if (peek() != Token::ARROW) impl()->MarkExpressionAsAssigned(expression);
+  } else {
     expression = RewriteInvalidReferenceExpression(
         expression, expression_position, end_position(),
         MessageTemplate::kInvalidLhsInPrefixOp);
   }
-  impl()->MarkExpressionAsAssigned(expression);
 
   return factory()->NewCountOperation(op, true /* prefix */, expression,
                                       position());
@@ -3038,15 +3027,17 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     if (V8_LIKELY(peek() == Token::ARROW)) {
       maybe_arrow.ValidateDeclaration();
       fni_.RemoveAsyncKeywordFromEnd();
-      next_arrow_function_info_.kind = FunctionKind::kAsyncArrowFunction;
-      next_arrow_function_info_.scope_snapshot = std::move(scope_snapshot);
+      next_arrow_function_info_.scope =
+          NewFunctionScope(FunctionKind::kAsyncArrowFunction);
+      scope_snapshot.Reparent(next_arrow_function_info_.scope);
       next_arrow_function_info_.rewritable_length = rewritable_length;
       // async () => ...
       if (!args.length()) return factory()->NewEmptyParentheses(pos);
       // async ( Arguments ) => ...
       ExpressionT result = impl()->ExpressionListToExpression(args);
-      next_arrow_function_info_.has_simple_parameter_list =
-          maybe_arrow.has_simple_parameter_list();
+      if (!maybe_arrow.has_simple_parameter_list()) {
+        next_arrow_function_info_.scope->SetHasNonSimpleParameters();
+      }
       result->mark_parenthesized();
       return result;
     }
@@ -4081,10 +4072,13 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           // In case we did not sucessfully preparse the function because of an
           // unidentified error we do a full reparse to return the error.
           ExpressionT expression = ParseConditionalExpression();
-          Scanner::Location loc(scope()->start_position(), end_position());
-          FormalParametersT parameters(formal_parameters.scope);
-          parameters.is_simple =
-              next_arrow_function_info_.has_simple_parameter_list;
+          DeclarationScope* function_scope = next_arrow_function_info_.scope;
+          FunctionState function_state(&function_state_, &scope_,
+                                       function_scope);
+          Scanner::Location loc(function_scope->start_position(),
+                                end_position());
+          FormalParametersT parameters(function_scope);
+          parameters.is_simple = function_scope->has_simple_parameters();
           impl()->DeclareArrowFunctionFormalParameters(&parameters, expression,
                                                        loc);
           next_arrow_function_info_.Reset();
