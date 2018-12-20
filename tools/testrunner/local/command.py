@@ -238,11 +238,13 @@ class AndroidCommand(BaseCommand):
 
     android_driver().push_executable(self.shell_dir, 'bin', self.shell_name)
 
+    file_tuples = []
     for abs_file in self.files_to_push:
       abs_dir = os.path.dirname(abs_file)
       file_name = os.path.basename(abs_file)
       rel_dir = os.path.relpath(abs_dir, BASE_DIR)
-      android_driver().push_file(abs_dir, file_name, rel_dir)
+      file_tuples.append((abs_dir, file_name, rel_dir))
+    android_driver().push_files(file_tuples)
 
     start_time = time.time()
     return_code = 0
