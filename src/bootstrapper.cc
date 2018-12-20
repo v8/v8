@@ -2480,9 +2480,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       native_context()->set_regexp_prototype(*prototype);
 
       {
-        Handle<JSFunction> fun = SimpleInstallFunction(
-            isolate_, prototype, "exec", Builtins::kRegExpPrototypeExec, 1,
-            true, DONT_ENUM);
+        Handle<JSFunction> fun =
+            SimpleInstallFunction(isolate_, prototype, "exec",
+                                  Builtins::kRegExpPrototypeExec, 1, true);
         // Check that index of "exec" function in JSRegExp is correct.
         DCHECK_EQ(JSRegExp::kExecFunctionDescriptorIndex,
                   prototype->map()->LastAdded());
@@ -2508,13 +2508,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kRegExpPrototypeUnicodeGetter, true);
 
       SimpleInstallFunction(isolate_, prototype, "compile",
-                            Builtins::kRegExpPrototypeCompile, 2, true,
-                            DONT_ENUM);
+                            Builtins::kRegExpPrototypeCompile, 2, true);
       SimpleInstallFunction(isolate_, prototype, "toString",
-                            Builtins::kRegExpPrototypeToString, 0, false,
-                            DONT_ENUM);
+                            Builtins::kRegExpPrototypeToString, 0, false);
       SimpleInstallFunction(isolate_, prototype, "test",
-                            Builtins::kRegExpPrototypeTest, 1, true, DONT_ENUM);
+                            Builtins::kRegExpPrototypeTest, 1, true);
 
       InstallFunctionAtSymbol(isolate_, prototype, factory->match_symbol(),
                               "[Symbol.match]", Builtins::kRegExpPrototypeMatch,
@@ -4316,9 +4314,9 @@ void Genesis::InitializeGlobal_harmony_array_flat() {
   Handle<JSObject> array_prototype(
       JSObject::cast(array_constructor->instance_prototype()), isolate());
   SimpleInstallFunction(isolate(), array_prototype, "flat",
-                        Builtins::kArrayPrototypeFlat, 0, false, DONT_ENUM);
+                        Builtins::kArrayPrototypeFlat, 0, false);
   SimpleInstallFunction(isolate(), array_prototype, "flatMap",
-                        Builtins::kArrayPrototypeFlatMap, 1, false, DONT_ENUM);
+                        Builtins::kArrayPrototypeFlatMap, 1, false);
 }
 
 void Genesis::InitializeGlobal_harmony_symbol_description() {
