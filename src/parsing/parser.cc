@@ -3071,7 +3071,6 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
   if (is_static) {
     DCHECK(allow_harmony_static_fields());
     DCHECK_EQ(kind, ClassLiteralProperty::FIELD);
-    DCHECK(!is_private);
     class_info->static_fields->Add(property, zone());
   } else {
     class_info->instance_fields->Add(property, zone());

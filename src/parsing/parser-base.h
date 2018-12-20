@@ -2006,7 +2006,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
       }
       prop_info->name = impl()->GetSymbol();
       if (prop_info->position == PropertyPosition::kObjectLiteral ||
-          prop_info->is_static ||
           (!allow_harmony_private_methods() &&
            (IsAccessor(prop_info->kind) ||
             prop_info->kind == ParsePropertyKind::kMethod))) {
@@ -2119,10 +2118,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
       prop_info->name = impl()->GetSymbol();
       name_expression =
           factory()->NewStringLiteral(prop_info->name, position());
-    } else if (peek() == Token::PRIVATE_NAME) {
-      // TODO(gsathya): Make a better error message for this.
-      ReportUnexpectedToken(Next());
-      return impl()->NullLiteralProperty();
     } else {
       prop_info->is_static = true;
       name_expression = ParseProperty(prop_info);
@@ -2150,22 +2145,27 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
                                       // name as an uninitialized field.
       if (allow_harmony_public_fields() || allow_harmony_private_fields()) {
         prop_info->kind = ParsePropertyKind::kClassField;
-        prop_info->is_private = name_token == Token::PRIVATE_NAME;
+        DCHECK_IMPLIES(prop_info->is_computed_name, !prop_info->is_private);
+
         if (prop_info->is_static && !allow_harmony_static_fields()) {
           ReportUnexpectedToken(Next());
           return impl()->NullLiteralProperty();
         }
+
         if (!prop_info->is_computed_name) {
           CheckClassFieldName(prop_info->name, prop_info->is_static);
         }
+
         ExpressionT initializer = ParseMemberInitializer(
             class_info, property_beg_pos, prop_info->is_static);
         ExpectSemicolon();
+
         ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
             name_expression, initializer, ClassLiteralProperty::FIELD,
             prop_info->is_static, prop_info->is_computed_name,
             prop_info->is_private);
         impl()->SetFunctionNameFromPropertyName(result, prop_info->name);
+
         return result;
 
       } else {
@@ -4210,8 +4210,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         prop_info.is_computed_name) {
       class_info.has_static_computed_names = true;
     }
-    if (prop_info.is_computed_name && !prop_info.is_private &&
+    if (prop_info.is_computed_name &&
         property_kind == ClassLiteralProperty::FIELD) {
+      DCHECK(!prop_info.is_private);
       class_info.computed_field_count++;
     }
     is_constructor &= class_info.has_seen_constructor;

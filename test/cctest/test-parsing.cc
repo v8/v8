@@ -5698,7 +5698,7 @@ TEST(PrivateClassFieldsErrors) {
                     private_fields, arraysize(private_fields));
 }
 
-TEST(PrivateStaticClassFieldsErrors) {
+TEST(PrivateStaticClassFieldsNoErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
   const char* context_data[][2] = {{"(class {", "});"},
@@ -5719,6 +5719,71 @@ TEST(PrivateStaticClassFieldsErrors) {
     "static #a; b(){}",
     "static #a; *b(){}",
     "static #a; ['b'](){}",
+
+    "#prototype",
+    "#prototype = function() {}",
+
+    // ASI
+    "static #a = 0\n",
+    "static #a = 0\n b",
+    "static #a = 0\n #b",
+    "static #a = 0\n b(){}",
+    "static #a\n",
+    "static #a\n b\n",
+    "static #a\n #b\n",
+    "static #a\n b(){}",
+    "static #a\n *b(){}",
+    "static #a\n ['b'](){}",
+
+    "static #a = function t() { arguments; }",
+    "static #a = () => function t() { arguments; }",
+
+    // ASI edge cases
+    "static #a\n get",
+    "static #get\n *a(){}",
+    "static #a\n static",
+
+    // Misc edge cases
+    "static #yield",
+    "static #yield = 0",
+    "static #yield\n a",
+    "static #async;",
+    "static #async = 0;",
+    "static #async",
+    "static #async = 0",
+    "static #async\n a(){}",  // a field named async, and a method named a.
+    "static #async\n a",
+    "static #await;",
+    "static #await = 0;",
+    "static #await\n a",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag public_static_fields[] = {kAllowHarmonyPublicFields,
+                                                    kAllowHarmonyStaticFields};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    public_static_fields, arraysize(public_static_fields));
+
+  static const ParserFlag private_static_fields[] = {
+      kAllowHarmonyPublicFields, kAllowHarmonyStaticFields,
+      kAllowHarmonyPrivateFields};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_static_fields, arraysize(private_static_fields));
+}
+
+TEST(PrivateStaticClassFieldsErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
     "static #['a'] = 0;",
     "static #['a'] = 0; b",
     "static #['a'] = 0; #b",
@@ -5743,6 +5808,14 @@ TEST(PrivateStaticClassFieldsErrors) {
     "static #*a() { }",
     "static async #*a() { }",
 
+    "#a = arguments",
+    "#a = () => arguments",
+    "#a = () => { arguments }",
+    "#a = arguments[0]",
+    "#a = delete arguments[0]",
+    "#a = f(arguments)",
+    "#a = () => () => arguments",
+
     // TODO(joyee): support static private methods
     "static #a() { }",
     "static get #a() { }",
@@ -5752,16 +5825,6 @@ TEST(PrivateStaticClassFieldsErrors) {
     "static async *#a() { }",
 
     // ASI
-    "static #a = 0\n",
-    "static #a = 0\n b",
-    "static #a = 0\n #b",
-    "static #a = 0\n b(){}",
-    "static #a\n",
-    "static #a\n b\n",
-    "static #a\n #b\n",
-    "static #a\n b(){}",
-    "static #a\n *b(){}",
-    "static #a\n ['b'](){}",
     "static #['a'] = 0\n",
     "static #['a'] = 0\n b",
     "static #['a'] = 0\n #b",
@@ -5773,27 +5836,34 @@ TEST(PrivateStaticClassFieldsErrors) {
     "static #['a']\n *b(){}",
     "static #['a']\n ['b'](){}",
 
-    "static #a = function t() { arguments; }",
-    "static #a = () => function t() { arguments; }",
+    // ASI requires a linebreak
+    "static #a b",
+    "static #a = 0 b",
 
-    // ASI edge cases
-    "static #a\n get",
-    "static #get\n *a(){}",
-    "static #a\n static",
+    // ASI requires that the next token is not part of any legal production
+    "static #a = 0\n *b(){}",
+    "static #a = 0\n ['b'](){}",
 
-    // Misc edge cases
-    "static #yield",
-    "static #yield = 0",
-    "static #yield\n a",
-    "static #async;",
-    "static #async = 0;",
-    "static #async",
-    "static #async = 0",
-    "static #async\n a(){}",  // a field named async, and a method named a.
-    "static #async\n a",
-    "static #await;",
-    "static #await = 0;",
-    "static #await\n a",
+    "static #a : 0",
+    "static #a =",
+    "static #*a = 0",
+    "static #*a",
+    "static #get a",
+    "static #yield a",
+    "static #async a = 0",
+    "static #async a",
+    "static # a = 0",
+
+    "#constructor",
+    "#constructor = function() {}",
+
+    "foo() { delete this.#a }",
+    "foo() { delete this.x.#a }",
+    "foo() { delete this.x().#a }",
+
+    "foo() { delete f.#a }",
+    "foo() { delete f.x.#a }",
+    "foo() { delete f.x().#a }",
     nullptr
   };
   // clang-format on

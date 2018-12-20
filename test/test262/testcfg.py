@@ -44,6 +44,8 @@ from testrunner.outproc import test262
 FEATURE_FLAGS = {
   'class-fields-public': '--harmony-public-fields',
   'class-static-fields-public': '--harmony-class-fields',
+  'class-fields-private': '--harmony-private-fields',
+  'class-static-fields-private': '--harmony-private-fields',
   'Array.prototype.flat': '--harmony-array-flat',
   'Array.prototype.flatMap': '--harmony-array-flat',
   'String.prototype.matchAll': '--harmony-string-matchall',
@@ -60,9 +62,7 @@ FEATURE_FLAGS = {
   'Object.fromEntries': '--harmony-object-from-entries',
 }
 
-SKIPPED_FEATURES = set(['class-fields-private',
-                        'class-static-fields-private',
-                        'class-methods-private',
+SKIPPED_FEATURES = set(['class-methods-private',
                         'class-static-methods-private',
                         'Intl.NumberFormat-unified'])
 
