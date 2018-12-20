@@ -514,22 +514,19 @@ struct TableDropImmediate {
 
 // An entry on the value stack.
 struct ValueBase {
-  const byte* pc;
-  ValueType type;
+  const byte* pc = nullptr;
+  ValueType type = kWasmStmt;
 
-  // Named constructors.
-  static ValueBase Unreachable(const byte* pc) { return {pc, kWasmVar}; }
-
-  static ValueBase New(const byte* pc, ValueType type) { return {pc, type}; }
+  ValueBase(const byte* pc, ValueType type) : pc(pc), type(type) {}
 };
 
 template <typename Value>
 struct Merge {
-  uint32_t arity;
-  union {
+  uint32_t arity = 0;
+  union {  // Either multiple values or a single value.
     Value* array;
     Value first;
-  } vals;  // Either multiple values or a single value.
+  } vals = {nullptr};  // Initialize {array} with {nullptr}.
 
   // Tracks whether this merge was ever reached. Uses precise reachability, like
   // Reachability::kReachable.
@@ -565,18 +562,24 @@ enum Reachability : uint8_t {
 // An entry on the control stack (i.e. if, block, loop, or try).
 template <typename Value>
 struct ControlBase {
-  ControlKind kind;
-  uint32_t stack_depth;  // stack height at the beginning of the construct.
-  const byte* pc;
+  ControlKind kind = kControlBlock;
+  uint32_t stack_depth = 0;  // stack height at the beginning of the construct.
+  const uint8_t* pc = nullptr;
   Reachability reachability = kReachable;
 
   // Values merged into the start or end of this control construct.
   Merge<Value> start_merge;
   Merge<Value> end_merge;
 
-  ControlBase() = default;
-  ControlBase(ControlKind kind, uint32_t stack_depth, const byte* pc)
-      : kind(kind), stack_depth(stack_depth), pc(pc) {}
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ControlBase);
+
+  ControlBase(ControlKind kind, uint32_t stack_depth, const uint8_t* pc,
+              Reachability reachability)
+      : kind(kind),
+        stack_depth(stack_depth),
+        pc(pc),
+        reachability(reachability),
+        start_merge(reachability == kReachable) {}
 
   // Check whether the current block is reachable.
   bool reachable() const { return reachability == kReachable; }
@@ -607,59 +610,6 @@ struct ControlBase {
   inline Merge<Value>* br_merge() {
     return is_loop() ? &this->start_merge : &this->end_merge;
   }
-
-  // Named constructors.
-  static ControlBase Block(const byte* pc, uint32_t stack_depth) {
-    return {kControlBlock, stack_depth, pc};
-  }
-
-  static ControlBase If(const byte* pc, uint32_t stack_depth) {
-    return {kControlIf, stack_depth, pc};
-  }
-
-  static ControlBase Loop(const byte* pc, uint32_t stack_depth) {
-    return {kControlLoop, stack_depth, pc};
-  }
-
-  static ControlBase Try(const byte* pc, uint32_t stack_depth) {
-    return {kControlTry, stack_depth, pc};
-  }
-};
-
-#define CONCRETE_NAMED_CONSTRUCTOR(concrete_type, abstract_type, name) \
-  template <typename... Args>                                          \
-  static concrete_type name(Args&&... args) {                          \
-    concrete_type val;                                                 \
-    static_cast<abstract_type&>(val) =                                 \
-        abstract_type::name(std::forward<Args>(args)...);              \
-    return val;                                                        \
-  }
-
-// Provide the default named constructors, which default-initialize the
-// ConcreteType and the initialize the fields of ValueBase correctly.
-// Use like this:
-// struct Value : public ValueWithNamedConstructors<Value> { int new_field; };
-template <typename ConcreteType>
-struct ValueWithNamedConstructors : public ValueBase {
-  // Named constructors.
-  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ValueBase, Unreachable)
-  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ValueBase, New)
-};
-
-// Provide the default named constructors, which default-initialize the
-// ConcreteType and the initialize the fields of ControlBase correctly.
-// Use like this:
-// struct Control : public ControlWithNamedConstructors<Control, Value> {
-//   int my_uninitialized_field;
-//   char* other_field = nullptr;
-// };
-template <typename ConcreteType, typename Value>
-struct ControlWithNamedConstructors : public ControlBase<Value> {
-  // Named constructors.
-  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ControlBase<Value>, Block)
-  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ControlBase<Value>, If)
-  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ControlBase<Value>, Loop)
-  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ControlBase<Value>, Try)
 };
 
 // This is the list of callback functions that an interface for the
@@ -1527,6 +1477,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
   ZoneVector<Value> args_;                // parameters of current block or call
 
+  static Value UnreachableValue(const uint8_t* pc) {
+    return Value{pc, kWasmVar};
+  }
+
   bool CheckHasMemory() {
     if (!VALIDATE(this->module_->has_memory)) {
       this->error(this->pc_ - 1, "memory instruction with no memory");
@@ -1578,12 +1532,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     // Set up initial function block.
     {
-      auto* c = PushBlock();
+      auto* c = PushControl(kControlBlock);
       InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
       InitMerge(&c->end_merge,
                 static_cast<uint32_t>(this->sig_->return_count()),
-                [&] (uint32_t i) {
-                    return Value::New(this->pc_, this->sig_->GetReturn(i)); });
+                [&](uint32_t i) {
+                  return Value{this->pc_, this->sig_->GetReturn(i)};
+                });
       CALL_INTERFACE(StartFunctionBody, c);
     }
 
@@ -1617,7 +1572,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (!this->Validate(imm)) break;
           PopArgs(imm.sig);
-          auto* block = PushBlock();
+          auto* block = PushControl(kControlBlock);
           SetBlockType(block, imm);
           CALL_INTERFACE_IF_REACHABLE(Block, block);
           PushMergeValues(block, &block->start_merge);
@@ -1653,7 +1608,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (!this->Validate(imm)) break;
           PopArgs(imm.sig);
-          auto* try_block = PushTry();
+          auto* try_block = PushControl(kControlTry);
           SetBlockType(try_block, imm);
           len = 1 + imm.length;
           CALL_INTERFACE_IF_REACHABLE(Try, try_block);
@@ -1680,7 +1635,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           c->kind = kControlTryCatch;
           FallThruTo(c);
-          stack_.resize(c->stack_depth);
+          stack_.erase(stack_.begin() + c->stack_depth, stack_.end());
           const WasmExceptionSig* sig = imm.exception->sig;
           for (size_t i = 0, e = sig->parameter_count(); i < e; ++i) {
             Push(sig->GetParam(i));
@@ -1708,7 +1663,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           c->kind = kControlTryCatchAll;
           FallThruTo(c);
-          stack_.resize(c->stack_depth);
+          stack_.erase(stack_.begin() + c->stack_depth, stack_.end());
           c->reachability = control_at(1)->innerReachability();
           CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
           break;
@@ -1717,7 +1672,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (!this->Validate(imm)) break;
           PopArgs(imm.sig);
-          auto* block = PushLoop();
+          auto* block = PushControl(kControlLoop);
           SetBlockType(&control_.back(), imm);
           len = 1 + imm.length;
           CALL_INTERFACE_IF_REACHABLE(Loop, block);
@@ -1730,7 +1685,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto cond = Pop(0, kWasmI32);
           PopArgs(imm.sig);
           if (!VALIDATE(this->ok())) break;
-          auto* if_block = PushIf();
+          auto* if_block = PushControl(kControlIf);
           SetBlockType(if_block, imm);
           CALL_INTERFACE_IF_REACHABLE(If, cond, if_block);
           len = 1 + imm.length;
@@ -2234,7 +2189,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   void EndControl() {
     DCHECK(!control_.empty());
     auto* current = &control_.back();
-    stack_.resize(current->stack_depth);
+    stack_.erase(stack_.begin() + current->stack_depth, stack_.end());
     CALL_INTERFACE_IF_REACHABLE(EndControl, current);
     current->reachability = kUnreachable;
   }
@@ -2257,7 +2212,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     const byte* pc = this->pc_;
     Value* args = this->args_.data();
     InitMerge(&c->end_merge, imm.out_arity(), [pc, &imm](uint32_t i) {
-      return Value::New(pc, imm.out_type(i));
+      return Value{pc, imm.out_type(i)};
     });
     InitMerge(&c->start_merge, imm.in_arity(),
               [args](uint32_t i) { return args[i]; });
@@ -2266,7 +2221,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   // Pops arguments as required by signature into {args_}.
   V8_INLINE void PopArgs(FunctionSig* sig) {
     int count = sig ? static_cast<int>(sig->parameter_count()) : 0;
-    args_.resize(count);
+    args_.resize(count, UnreachableValue(nullptr));
     for (int i = count - 1; i >= 0; --i) {
       args_[i] = Pop(i, sig->GetParam(i));
     }
@@ -2277,28 +2232,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return sig->return_count() == 0 ? kWasmStmt : sig->GetReturn();
   }
 
-  Control* PushControl(Control&& new_control) {
+  Control* PushControl(ControlKind kind) {
     Reachability reachability =
         control_.empty() ? kReachable : control_.back().innerReachability();
-    control_.emplace_back(std::move(new_control));
-    Control* c = &control_.back();
-    c->reachability = reachability;
-    c->start_merge.reached = c->reachable();
-    return c;
-  }
-
-  Control* PushBlock() {
-    return PushControl(Control::Block(this->pc_, stack_size()));
-  }
-  Control* PushLoop() {
-    return PushControl(Control::Loop(this->pc_, stack_size()));
-  }
-  Control* PushIf() {
-    return PushControl(Control::If(this->pc_, stack_size()));
-  }
-  Control* PushTry() {
-    // current_catch_ = static_cast<int32_t>(control_.size() - 1);
-    return PushControl(Control::Try(this->pc_, stack_size()));
+    control_.emplace_back(kind, stack_size(), this->pc_, reachability);
+    return &control_.back();
   }
 
   void PopControl(Control* c) {
@@ -2347,7 +2285,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   uint32_t SimdReplaceLane(WasmOpcode opcode, ValueType type) {
     SimdLaneImmediate<validate> imm(this, this->pc_);
     if (this->Validate(this->pc_, opcode, imm)) {
-      Value inputs[2];
+      Value inputs[2] = {UnreachableValue(this->pc_),
+                         UnreachableValue(this->pc_)};
       inputs[1] = Pop(1, type);
       inputs[0] = Pop(0, kWasmS128);
       auto* result = Push(kWasmS128);
@@ -2577,14 +2516,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   inline Value* Push(ValueType type) {
     DCHECK_NE(kWasmStmt, type);
-    stack_.push_back(Value::New(this->pc_, type));
+    stack_.emplace_back(this->pc_, type);
     return &stack_.back();
   }
 
   void PushMergeValues(Control* c, Merge<Value>* merge) {
     DCHECK_EQ(c, &control_.back());
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
-    stack_.resize(c->stack_depth);
+    stack_.erase(stack_.begin() + c->stack_depth, stack_.end());
     if (merge->arity == 1) {
       stack_.push_back(merge->vals.first);
     } else {
@@ -2626,7 +2565,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         this->errorf(this->pc_, "%s found empty stack",
                      SafeOpcodeNameAt(this->pc_));
       }
-      return Value::Unreachable(this->pc_);
+      return UnreachableValue(this->pc_);
     }
     auto val = stack_.back();
     stack_.pop_back();
@@ -2753,7 +2692,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // unreachable, insert unreachable values below the actual values.
     // This simplifies {TypeCheckMergeValues}.
     auto pos = stack_.begin() + (stack_.size() - actual);
-    stack_.insert(pos, (expected - actual), Value::Unreachable(this->pc_));
+    stack_.insert(pos, expected - actual, UnreachableValue(this->pc_));
     return true;
   }
 

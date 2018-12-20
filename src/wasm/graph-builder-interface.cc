@@ -70,8 +70,12 @@ class WasmGraphBuildingInterface {
   static constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
   using FullDecoder = WasmFullDecoder<validate, WasmGraphBuildingInterface>;
 
-  struct Value : public ValueWithNamedConstructors<Value> {
-    TFNode* node;
+  struct Value : public ValueBase {
+    TFNode* node = nullptr;
+
+    template <typename... Args>
+    explicit Value(Args&&... args) V8_NOEXCEPT
+        : ValueBase(std::forward<Args>(args)...) {}
   };
 
   struct TryInfo : public ZoneObject {
@@ -80,14 +84,22 @@ class WasmGraphBuildingInterface {
 
     bool might_throw() const { return exception != nullptr; }
 
+    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TryInfo);
+
     explicit TryInfo(SsaEnv* c) : catch_env(c) {}
   };
 
-  struct Control : public ControlWithNamedConstructors<Control, Value> {
-    SsaEnv* end_env;         // end environment for the construct.
-    SsaEnv* false_env;       // false environment (only for if).
-    TryInfo* try_info;       // information used for compiling try statements.
-    int32_t previous_catch;  // previous Control (on the stack) with a catch.
+  struct Control : public ControlBase<Value> {
+    SsaEnv* end_env = nullptr;    // end environment for the construct.
+    SsaEnv* false_env = nullptr;  // false environment (only for if).
+    TryInfo* try_info = nullptr;  // information about try statements.
+    int32_t previous_catch = -1;  // previous Control with a catch.
+
+    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(Control);
+
+    template <typename... Args>
+    explicit Control(Args&&... args) V8_NOEXCEPT
+        : ControlBase(std::forward<Args>(args)...) {}
   };
 
   explicit WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder)

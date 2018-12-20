@@ -128,12 +128,16 @@ class LiftoffCompiler {
     LiftoffAssembler::CacheState state;
   };
 
-  struct Control : public ControlWithNamedConstructors<Control, Value> {
-    MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(Control);
-
+  struct Control : public ControlBase<Value> {
     std::unique_ptr<ElseState> else_state;
     LiftoffAssembler::CacheState label_state;
     MovableLabel label;
+
+    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(Control);
+
+    template <typename... Args>
+    explicit Control(Args&&... args) V8_NOEXCEPT
+        : ControlBase(std::forward<Args>(args)...) {}
   };
 
   using FullDecoder = WasmFullDecoder<validate, LiftoffCompiler>;
