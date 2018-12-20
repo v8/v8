@@ -1527,10 +1527,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, isolate_->initial_object_prototype(), "toString",
         Builtins::kObjectPrototypeToString, 0, true);
     native_context()->set_object_to_string(*object_to_string);
-    Handle<JSFunction> object_value_of = SimpleInstallFunction(
-        isolate_, isolate_->initial_object_prototype(), "valueOf",
-        Builtins::kObjectPrototypeValueOf, 0, true);
-    native_context()->set_object_value_of(*object_value_of);
+    SimpleInstallFunction(isolate_, isolate_->initial_object_prototype(),
+                          "valueOf", Builtins::kObjectPrototypeValueOf, 0,
+                          true);
 
     SimpleInstallGetterSetter(
         isolate_, isolate_->initial_object_prototype(), factory->proto_string(),
