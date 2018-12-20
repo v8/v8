@@ -753,10 +753,11 @@ class AndroidPlatform(Platform):  # pragma: no cover
       self.driver.push_executable(
           self.shell_dir_secondary, "bin_secondary", node.binary)
 
+    file_tuples = [
+        (bench_abs, file_name, bench_rel) for file_name in node.resources]
     if isinstance(node, RunnableConfig):
-      self.driver.push_file(bench_abs, node.main, bench_rel)
-    for resource in node.resources:
-      self.driver.push_file(bench_abs, resource, bench_rel)
+      file_tuples.append((bench_abs, node.main, bench_rel))
+    self.driver.push_files(file_tuples)
 
   def _Run(self, runnable, count, secondary=False):
     suffix = ' - secondary' if secondary else ''
