@@ -1259,13 +1259,13 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
-      VisitForAccumulatorValue(decl->fun());
+      VisitFunctionLiteral(decl->fun());
       BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
       break;
     }
     case VariableLocation::CONTEXT: {
       DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
-      VisitForAccumulatorValue(decl->fun());
+      VisitFunctionLiteral(decl->fun());
       builder()->StoreContextSlot(execution_context()->reg(), variable->index(),
                                   0);
       break;
@@ -1275,7 +1275,7 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       builder()
           ->LoadLiteral(variable->raw_name())
           .StoreAccumulatorInRegister(args[0]);
-      VisitForAccumulatorValue(decl->fun());
+      VisitFunctionLiteral(decl->fun());
       builder()->StoreAccumulatorInRegister(args[1]).CallRuntime(
           Runtime::kDeclareEvalFunction, args);
       break;
@@ -5531,7 +5531,9 @@ void BytecodeGenerator::BuildPushUndefinedIntoRegisterList(
 void BytecodeGenerator::BuildLoadPropertyKey(LiteralProperty* property,
                                              Register out_reg) {
   if (property->key()->IsStringLiteral()) {
-    VisitForRegisterValue(property->key(), out_reg);
+    builder()
+        ->LoadLiteral(property->key()->AsLiteral()->AsRawString())
+        .StoreAccumulatorInRegister(out_reg);
   } else {
     VisitForAccumulatorValue(property->key());
     builder()->ToName(out_reg);
