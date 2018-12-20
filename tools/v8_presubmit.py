@@ -447,7 +447,6 @@ class SourceProcessor(SourceFileProcessor):
                        'fasta.js',
                        'injected-script.cc',
                        'injected-script.h',
-                       'jsmin.py',
                        'libraries.cc',
                        'libraries-empty.cc',
                        'lua_binarytrees.js',

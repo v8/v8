@@ -416,12 +416,6 @@ action("resources") {
 
   script = "../../tools/js2c.py"
 
-  # The script depends on this other script, this rule causes a rebuild if it
-  # changes.
-  inputs = [
-    "../../tools/jsmin.py",
-  ]
-
   # NOSORT
   sources = [
     "../../tools/splaytree.js",

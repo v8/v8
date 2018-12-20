@@ -33,7 +33,6 @@
 
 import os, re
 import optparse
-import jsmin
 import textwrap
 
 
@@ -343,7 +342,6 @@ def BuildFilterChain(macro_filename, message_template_file):
     ExpandInlineMacros,
     ExpandInlineConstants,
     Validate,
-    jsmin.JavaScriptMinifier().JSMinify
   ])
 
   def chain(f1, f2):
