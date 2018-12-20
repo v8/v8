@@ -671,8 +671,8 @@ class FeedbackNexus final {
   // For Global Load and Store ICs.
   void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
   // Returns false if given combination of indices is not allowed.
-  bool ConfigureLexicalVarMode(int script_context_index,
-                               int context_slot_index);
+  bool ConfigureLexicalVarMode(int script_context_index, int context_slot_index,
+                               bool immutable);
   void ConfigureHandlerMode(const MaybeObjectHandle& handler);
 
   // For CloneObject ICs
@@ -682,7 +682,8 @@ class FeedbackNexus final {
 // Bit positions in a smi that encodes lexical environment variable access.
 #define LEXICAL_MODE_BIT_FIELDS(V, _)  \
   V(ContextIndexBits, unsigned, 12, _) \
-  V(SlotIndexBits, unsigned, 19, _)
+  V(SlotIndexBits, unsigned, 18, _)    \
+  V(ImmutabilityBit, bool, 1, _)
 
   DEFINE_BIT_FIELDS(LEXICAL_MODE_BIT_FIELDS)
 #undef LEXICAL_MODE_BIT_FIELDS
