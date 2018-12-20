@@ -456,8 +456,10 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
 
   if (name->IsPrivate()) {
     if (name->IsPrivateName() && !it.IsFound()) {
-      return TypeError(MessageTemplate::kInvalidPrivateFieldAccess, object,
-                       name);
+      Handle<String> name_string(String::cast(Symbol::cast(*name)->name()),
+                                 isolate());
+      return TypeError(MessageTemplate::kInvalidPrivateFieldRead, object,
+                       name_string);
     }
 
     // IC handling of private symbols/fields lookup on JSProxy is not
@@ -1427,8 +1429,10 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
   if (name->IsPrivate()) {
     if (name->IsPrivateName() && !it.IsFound()) {
-      return TypeError(MessageTemplate::kInvalidPrivateFieldAccess, object,
-                       name);
+      Handle<String> name_string(String::cast(Symbol::cast(*name)->name()),
+                                 isolate());
+      return TypeError(MessageTemplate::kInvalidPrivateFieldWrite, object,
+                       name_string);
     }
 
     // IC handling of private fields/symbols stores on JSProxy is not

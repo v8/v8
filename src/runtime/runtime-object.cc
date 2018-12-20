@@ -42,10 +42,12 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
 
   if (!it.IsFound() && key->IsSymbol() &&
       Symbol::cast(*key)->is_private_name()) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateFieldAccess, key, object),
-        Object);
+    Handle<Object> name_string(Symbol::cast(*key)->name(), isolate);
+    DCHECK(name_string->IsString());
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kInvalidPrivateFieldRead,
+                                 name_string, object),
+                    Object);
   }
   return result;
 }
@@ -360,10 +362,12 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 
   if (!it.IsFound() && key->IsSymbol() &&
       Symbol::cast(*key)->is_private_name()) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateFieldAccess, key, object),
-        Object);
+    Handle<Object> name_string(Symbol::cast(*key)->name(), isolate);
+    DCHECK(name_string->IsString());
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kInvalidPrivateFieldWrite,
+                                 name_string, object),
+                    Object);
   }
 
   MAYBE_RETURN_NULL(

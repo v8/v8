@@ -1904,7 +1904,13 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
 
       if (property->kind() == ClassLiteral::Property::FIELD) {
         if (property->is_private()) {
-          builder()->CallRuntime(Runtime::kCreatePrivateNameSymbol);
+          RegisterAllocationScope private_name_register_scope(this);
+          Register private_name = register_allocator()->NewRegister();
+          VisitForRegisterValue(property->key(), private_name);
+          builder()
+              ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
+              .StoreAccumulatorInRegister(private_name)
+              .CallRuntime(Runtime::kCreatePrivateNameSymbol, private_name);
           DCHECK_NOT_NULL(property->private_name_var());
           BuildVariableAssignment(property->private_name_var(), Token::INIT,
                                   HoleCheckMode::kElided);

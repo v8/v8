@@ -372,7 +372,7 @@ class V8_EXPORT_PRIVATE Factory {
   // Create a symbol in old or read-only space.
   Handle<Symbol> NewSymbol(PretenureFlag pretenure = TENURED);
   Handle<Symbol> NewPrivateSymbol(PretenureFlag pretenure = TENURED);
-  Handle<Symbol> NewPrivateNameSymbol();
+  Handle<Symbol> NewPrivateNameSymbol(Handle<String> name);
 
   // Create a global (but otherwise uninitialized) context.
   Handle<NativeContext> NewNativeContext();

@@ -1962,7 +1962,7 @@ bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
     DCHECK(proxy->is_private_name());
     info->pending_error_handler()->ReportMessageAt(
         proxy->position(), proxy->position() + 1,
-        MessageTemplate::kInvalidPrivateFieldAccess, proxy->raw_name(),
+        MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
         kSyntaxError);
     return false;
   }
@@ -2075,7 +2075,7 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
       if (var == nullptr) {
         info->pending_error_handler()->ReportMessageAt(
             proxy->position(), proxy->position() + 1,
-            MessageTemplate::kInvalidPrivateFieldAccess, proxy->raw_name(),
+            MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
             kSyntaxError);
         DCHECK(proxy->is_private_name());
         return false;

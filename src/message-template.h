@@ -396,7 +396,12 @@ namespace internal {
     "Invalid left-hand side expression in prefix operation")                   \
   T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \
   T(InvalidOrUnexpectedToken, "Invalid or unexpected token")                   \
-  T(InvalidPrivateFieldAccess, "Invalid private field '%'")                    \
+  T(InvalidPrivateFieldResolution,                                             \
+    "Undefined private field %: must be declared in an enclosing class")       \
+  T(InvalidPrivateFieldRead,                                                   \
+    "Read of private field % from an object which did not contain the field")  \
+  T(InvalidPrivateFieldWrite,                                                  \
+    "Write of private field % to an object which did not contain the field")   \
   T(JsonParseUnexpectedEOS, "Unexpected end of JSON input")                    \
   T(JsonParseUnexpectedToken, "Unexpected token % in JSON at position %")      \
   T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \
