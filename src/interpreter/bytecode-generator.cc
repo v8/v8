@@ -553,6 +553,8 @@ class BytecodeGenerator::RegisterAllocationScope final {
         outer_next_register_index_);
   }
 
+  BytecodeGenerator* generator() const { return generator_; }
+
  private:
   BytecodeGenerator* generator_;
   int outer_next_register_index_;
@@ -565,16 +567,15 @@ class BytecodeGenerator::RegisterAllocationScope final {
 class BytecodeGenerator::ExpressionResultScope {
  public:
   ExpressionResultScope(BytecodeGenerator* generator, Expression::Context kind)
-      : generator_(generator),
-        outer_(generator->execution_result()),
+      : outer_(generator->execution_result()),
         allocator_(generator),
         kind_(kind),
         type_hint_(TypeHint::kAny) {
-    generator_->set_execution_result(this);
+    generator->set_execution_result(this);
   }
 
-  virtual ~ExpressionResultScope() {
-    generator_->set_execution_result(outer_);
+  ~ExpressionResultScope() {
+    allocator_.generator()->set_execution_result(outer_);
   }
 
   bool IsEffect() const { return kind_ == Expression::kEffect; }
@@ -600,7 +601,6 @@ class BytecodeGenerator::ExpressionResultScope {
   TypeHint type_hint() const { return type_hint_; }
 
  private:
-  BytecodeGenerator* generator_;
   ExpressionResultScope* outer_;
   RegisterAllocationScope allocator_;
   Expression::Context kind_;
