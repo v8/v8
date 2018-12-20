@@ -6450,6 +6450,13 @@ void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
             .IsJust());
 }
 
+void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
+                           const char* name, Handle<Object> value,
+                           PropertyAttributes attributes) {
+  JSObject::AddProperty(isolate, object,
+                        isolate->factory()->InternalizeUtf8String(name), value,
+                        attributes);
+}
 
 // Reconfigures a property to a data property with attributes, even if it is not
 // reconfigurable.

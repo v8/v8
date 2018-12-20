@@ -408,6 +408,11 @@ class JSObject : public JSReceiver {
                           Handle<Name> name, Handle<Object> value,
                           PropertyAttributes attributes);
 
+  // {name} must be a UTF-8 encoded, null-terminated string.
+  static void AddProperty(Isolate* isolate, Handle<JSObject> object,
+                          const char* name, Handle<Object> value,
+                          PropertyAttributes attributes);
+
   static void AddDataElement(Handle<JSObject> receiver, uint32_t index,
                              Handle<Object> value,
                              PropertyAttributes attributes);
