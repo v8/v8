@@ -939,14 +939,9 @@ PerIsolateData::RealmScope::~RealmScope() {
     Global<Context>& realm = data_->realms_[i];
     if (realm.IsEmpty()) continue;
     DisposeModuleEmbedderData(realm.Get(data_->isolate_));
-    // TODO(adamk): No need to reset manually, Globals reset when destructed.
-    realm.Reset();
   }
   data_->realm_count_ = 0;
   delete[] data_->realms_;
-  // TODO(adamk): No need to reset manually, Globals reset when destructed.
-  if (!data_->realm_shared_.IsEmpty())
-    data_->realm_shared_.Reset();
 }
 
 
