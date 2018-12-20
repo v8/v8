@@ -23503,7 +23503,6 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("has_own_property(other, 'x')");
   CheckCorrectThrow("%GetProperty(other, 'x')");
   CheckCorrectThrow("%SetKeyedProperty(other, 'x', 'foo', 0)");
-  CheckCorrectThrow("%AddNamedProperty(other, 'x', 'foo', 1)");
   CheckCorrectThrow("%SetNamedProperty(other, 'y', 'foo', 1)");
   STATIC_ASSERT(static_cast<int>(i::LanguageMode::kSloppy) == 0);
   STATIC_ASSERT(static_cast<int>(i::LanguageMode::kStrict) == 1);

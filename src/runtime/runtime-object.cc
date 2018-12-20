@@ -543,59 +543,6 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       isolate, Runtime::GetObjectProperty(isolate, receiver_obj, key_obj));
 }
 
-RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
-
-#ifdef DEBUG
-  uint32_t index = 0;
-  DCHECK(!name->ToArrayIndex(&index));
-  LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
-  DCHECK(!it.IsFound());
-#endif
-
-  RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                                        object, name, value, attrs));
-}
-
-
-// Adds an element to an array.
-// This is used to create an indexed data property into an array.
-RUNTIME_FUNCTION(Runtime_AddElement) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-
-  uint32_t index = 0;
-  CHECK(key->ToArrayIndex(&index));
-
-#ifdef DEBUG
-  LookupIterator it(isolate, object, index, object,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
-  DCHECK(!it.IsFound());
-
-  if (object->IsJSArray()) {
-    Handle<JSArray> array = Handle<JSArray>::cast(object);
-    DCHECK(!JSArray::WouldChangeReadOnlyLength(array, index));
-  }
-#endif
-
-  RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnElementIgnoreAttributes(
-                                        object, index, value, NONE));
-}
-
 RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
