@@ -352,6 +352,11 @@ let kExprI32ReinterpretF32 = 0xbc;
 let kExprI64ReinterpretF64 = 0xbd;
 let kExprF32ReinterpretI32 = 0xbe;
 let kExprF64ReinterpretI64 = 0xbf;
+let kExprI32SExtendI8 = 0xc0;
+let kExprI32SExtendI16 = 0xc1;
+let kExprI64SExtendI8 = 0xc2;
+let kExprI64SExtendI16 = 0xc3;
+let kExprI64SExtendI32 = 0xc4;
 
 // Prefix opcodes
 let kNumericPrefix = 0xfc;

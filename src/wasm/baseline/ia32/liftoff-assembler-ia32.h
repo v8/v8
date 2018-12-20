@@ -123,6 +123,15 @@ inline void SignExtendI32ToI64(Assembler* assm, LiftoffRegister reg) {
   assm->sar(reg.high_gp(), 31);
 }
 
+// Get a temporary byte register, using {candidate} if possible.
+// Might spill, but always keeps status flags intact.
+inline Register GetTmpByteRegister(LiftoffAssembler* assm, Register candidate) {
+  if (candidate.is_byte_register()) return candidate;
+  // {GetUnusedRegister()} may insert move instructions to spill registers to
+  // the stack. This is OK because {mov} does not change the status flags.
+  return assm->GetUnusedRegister(liftoff::kByteRegs).gp();
+}
+
 constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
 constexpr int kSubSpSize = 6;  // 6 bytes for "sub esp, <imm32>"
@@ -1410,7 +1419,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 }
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  movsx_b(dst, src);
+  Register byte_reg = liftoff::GetTmpByteRegister(this, src);
+  if (byte_reg != src) mov(byte_reg, src);
+  movsx_b(dst, byte_reg);
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
@@ -1459,16 +1470,6 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
 }
 
 namespace liftoff {
-
-// Get a temporary byte register, using {candidate} if possible.
-// Might spill, but always keeps status flags intact.
-inline Register GetTmpByteRegister(LiftoffAssembler* assm, Register candidate) {
-  if (candidate.is_byte_register()) return candidate;
-  LiftoffRegList pinned = LiftoffRegList::ForRegs(candidate);
-  // {GetUnusedRegister()} may insert move instructions to spill registers to
-  // the stack. This is OK because {mov} does not change the status flags.
-  return assm->GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
-}
 
 // Setcc into dst register, given a scratch byte register (might be the same as
 // dst). Never spills.
