@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/debug/debug-interface.h"
+#include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
@@ -31,7 +31,6 @@ class V8StackTraceImpl;
 struct V8StackTraceId;
 
 enum class WrapMode { kForceValue, kNoPreview, kWithPreview };
-enum class V8InternalValueType { kNone, kEntry, kScope, kScopeList };
 
 using protocol::Response;
 using ScheduleStepIntoAsyncCallback =
@@ -137,13 +136,11 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::shared_ptr<AsyncStackTrace> stackTraceFor(int contextGroupId,
                                                  const V8StackTraceId& id);
 
+ private:
   bool addInternalObject(v8::Local<v8::Context> context,
                          v8::Local<v8::Object> object,
                          V8InternalValueType type);
-  V8InternalValueType getInternalType(v8::Local<v8::Context> context,
-                                      v8::Local<v8::Object> object);
 
- private:
   void clearContinueToLocation();
   bool shouldContinueToCurrentLocation();
 
@@ -257,8 +254,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
       m_serializedDebuggerIdToDebuggerId;
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
-
-  v8::Global<v8::debug::WeakMap> m_internalObjects;
 
   WasmTranslation m_wasmTranslation;
 
