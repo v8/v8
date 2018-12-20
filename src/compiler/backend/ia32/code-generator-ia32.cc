@@ -606,12 +606,12 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ test(FieldOperand(eax, CodeDataContainer::kKindSpecificFlagsOffset),
           Immediate(1 << Code::kMarkedForDeoptimizationBit));
   __ pop(eax);  // Restore eax.
-  // Ensure we're not serializing (otherwise we'd need to use an indirection to
-  // access the builtin below).
-  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
-  Handle<Code> code = isolate()->builtins()->builtin_handle(
-      Builtins::kCompileLazyDeoptimizedCode);
-  __ j(not_zero, code, RelocInfo::CODE_TARGET);
+
+  Label skip;
+  __ j(zero, &skip);
+  __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
+          RelocInfo::CODE_TARGET);
+  __ bind(&skip);
 }
 
 void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {

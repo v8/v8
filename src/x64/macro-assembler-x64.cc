@@ -1646,6 +1646,11 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
       int builtin_index = Builtins::kNoBuiltinId;
       if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
           Builtins::IsIsolateIndependent(builtin_index)) {
+        Label skip;
+        if (cc != always) {
+          if (cc == never) return;
+          j(NegateCondition(cc), &skip, Label::kNear);
+        }
         // Inline the trampoline.
         RecordCommentForOffHeapTrampoline(builtin_index);
         CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
@@ -1653,6 +1658,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
         Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
         jmp(kScratchRegister);
+        bind(&skip);
         return;
       }
     }
