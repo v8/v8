@@ -45,8 +45,9 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   explicit DisjointAllocationPool(base::AddressRegion region)
       : regions_({region}) {}
 
-  DisjointAllocationPool(DisjointAllocationPool&& other) = default;
-  DisjointAllocationPool& operator=(DisjointAllocationPool&& other) = default;
+  DisjointAllocationPool(DisjointAllocationPool&& other) V8_NOEXCEPT = default;
+  DisjointAllocationPool& operator=(DisjointAllocationPool&& other)
+      V8_NOEXCEPT = default;
 
   // Merge the parameter region into this object while preserving ordering of
   // the regions. The assumption is that the passed parameter is not

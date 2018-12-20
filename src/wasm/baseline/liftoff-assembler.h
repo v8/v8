@@ -114,8 +114,8 @@ class LiftoffAssembler : public TurboAssembler {
   struct CacheState {
     // Allow default construction, move construction, and move assignment.
     CacheState() = default;
-    CacheState(CacheState&&) = default;
-    CacheState& operator=(CacheState&&) = default;
+    CacheState(CacheState&&) V8_NOEXCEPT = default;
+    CacheState& operator=(CacheState&&) V8_NOEXCEPT = default;
 
     base::SmallVector<VarState, 8> stack_state;
     LiftoffRegList used_registers;
@@ -242,7 +242,7 @@ class LiftoffAssembler : public TurboAssembler {
 
    private:
     // Make the copy assignment operator private (to be used from {Split()}).
-    CacheState& operator=(const CacheState&) = default;
+    CacheState& operator=(const CacheState&) V8_NOEXCEPT = default;
     // Disallow copy construction.
     CacheState(const CacheState&) = delete;
   };
@@ -717,7 +717,7 @@ class LiftoffStackSlots {
  private:
   struct Slot {
     // Allow move construction.
-    Slot(Slot&&) = default;
+    Slot(Slot&&) V8_NOEXCEPT = default;
     Slot(const LiftoffAssembler::VarState& src, uint32_t src_index,
          RegPairHalf half)
         : src_(src), src_index_(src_index), half_(half) {}
